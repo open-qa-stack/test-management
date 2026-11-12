@@ -15,6 +15,11 @@
   "dependencies": {
     "@github/copilot-sdk": "1.0.31",
     "@open-qa-stack/domain": "workspace:*",
-    "ajv": "8.20.0"
+    "@open-qa-stack/shared": "workspace:*",
+    "ajv": "8.20.0",
+    "pg": "8.23.1"
+  },
+  "devDependencies": {
+    "@types/pg": "8.23.1"
   }
 }
