@@ -1,32 +1,39 @@
 /** Version of the configuration file format, independent of the product version. */
 export type FormatVersion = 1;
 
+/** What an application exposes: a user interface, an API, or both. */
 export type ApplicationType = "web" | "api" | "web-and-api";
 
+/** How a user signs in to an application. */
 export type AuthenticationMethod = "none" | "form";
 
+/** A test account, given by the environment variables that hold its credentials. */
 export interface Account {
   name: string;
   usernameEnv: string;
   passwordEnv: string;
 }
 
+/** How users sign in to an application, and the test accounts to use. */
 export interface Authentication {
   method: AuthenticationMethod;
   accounts?: Account[];
 }
 
+/** An API of an environment, named so that knowledge sources can refer to it. */
 export interface NamedApi {
   name: string;
   baseUrl: string;
 }
 
+/** Where an application runs: its user interface and its APIs. */
 export interface Environment {
   name: string;
   uiUrl?: string;
   apis?: NamedApi[];
 }
 
+/** An application under test. */
 export interface Application {
   id: string;
   name: string;
@@ -50,18 +57,22 @@ interface KnowledgeBase {
 /** An OpenAPI contract, served at a URL or stored in the repository: exactly one of the two. */
 export type OpenApiKnowledge = KnowledgeBase & { type: "openapi" } & ({ url: string; path?: never } | { path: string; url?: never });
 
+/** A PostgreSQL database, given by the variable that holds its connection string. */
 export interface PostgresqlKnowledge extends KnowledgeBase {
   type: "postgresql";
   connectionStringEnv: string;
 }
 
+/** A document stored in the repository, such as a specification. */
 export interface DocumentKnowledge extends KnowledgeBase {
   type: "document";
   path: string;
 }
 
+/** Something the agents may read about the applications. */
 export type Knowledge = OpenApiKnowledge | PostgresqlKnowledge | DocumentKnowledge;
 
+/** Layout of the test repository; every folder is relative to its root. */
 export interface Repository {
   appsDir?: string;
   blocksDir?: string;
@@ -70,6 +81,7 @@ export interface Repository {
   indexDir?: string;
 }
 
+/** A model served by an OpenAI-compatible server, reached with a provider key. */
 export interface ProviderKeyModel {
   mode: "provider-key";
   provider: "openai";
@@ -78,14 +90,17 @@ export interface ProviderKeyModel {
   apiKeyEnv?: string;
 }
 
+/** Connection to the model. */
 export type Model = ProviderKeyModel;
 
+/** Limits of a custom autonomy level, each a positive integer. */
 export interface CustomLimits {
   task: { maxIterations: number; maxDurationMinutes: number; maxActions: number };
   batch: { maxTests: number; maxIdleRounds: number };
   guardrailMinutes: number;
 }
 
+/** How far the agents may go on their own. */
 export type Autonomy =
   | { level: "supervised" }
   | { level: "autonomous" }
@@ -110,6 +125,7 @@ export interface ResolvedLimits {
   guardrailMinutes: number | null;
 }
 
+/** The configuration once validated, with every default applied. */
 export interface ResolvedConfig {
   formatVersion: FormatVersion;
   applications: Application[];
@@ -119,8 +135,10 @@ export interface ResolvedConfig {
   autonomy: { level: Autonomy["level"]; limits: ResolvedLimits };
 }
 
+/** Family of a configuration error. */
 export type ConfigErrorKind = "syntax" | "structure" | "reference" | "environment";
 
+/** Why a configuration file is refused. */
 export interface ConfigError {
   kind: ConfigErrorKind;
   /** JSON Pointer (RFC 6901) to the offending location; the empty string designates the whole document. */
@@ -130,4 +148,5 @@ export interface ConfigError {
   message: string;
 }
 
+/** The outcome of `validateConfig`: the configuration, or every error found. */
 export type ValidationResult = { ok: true; config: ResolvedConfig } | { ok: false; errors: ConfigError[] };

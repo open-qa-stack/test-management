@@ -2,11 +2,26 @@ import type { ErrorObject } from "ajv/dist/2020.js";
 import { ENV_VAR_PATTERN } from "./schema.ts";
 import type { ConfigError } from "./types.ts";
 
+/**
+ * Builds a configuration error.
+ *
+ * @param kind - Family of the error.
+ * @param path - JSON Pointer to the offending location.
+ * @param rule - Stable identifier of the rule.
+ * @param message - Fixed text for a reader.
+ * @returns The error.
+ */
 export function configError(kind: ConfigError["kind"], path: string, rule: string, message: string): ConfigError {
   return { kind, path, rule, message };
 }
 
-/** Appends a segment to a JSON Pointer (RFC 6901). */
+/**
+ * Appends a segment to a JSON Pointer (RFC 6901).
+ *
+ * @param base - The pointer to extend.
+ * @param segment - A key or an array index, escaped as the RFC requires.
+ * @returns The extended pointer.
+ */
 export function pointer(base: string, segment: string | number): string {
   return `${base}/${String(segment).replaceAll("~", "~0").replaceAll("/", "~1")}`;
 }
@@ -20,8 +35,11 @@ const BY_KEYWORD: Readonly<Record<string, readonly [rule: string, message: strin
 };
 
 /**
- * Translates an Ajv error into a configuration error. Messages are fixed texts: they may name a key
- * the schema defines, never a value or a key read from the file.
+ * Translates an Ajv error into a configuration error.
+ *
+ * @param e - The error Ajv reported.
+ * @returns A structure error whose message is a fixed text: it may name a key the schema defines, never a
+ * value or a key read from the file.
  */
 export function structureError(e: ErrorObject): ConfigError {
   const params = e.params as Record<string, unknown>;

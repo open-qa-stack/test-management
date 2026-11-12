@@ -34,6 +34,7 @@ const knowledgeCommon = {
 /**
  * JSON Schema (draft 2020-12) of the solo-mode configuration file.
  *
+ * @remarks
  * Structural rules live here. Rules that need to look across the document (unique identifiers,
  * references between sections), at URLs and paths beyond their shape, or at the environment are
  * applied by `validateConfig`.

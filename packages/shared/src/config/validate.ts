@@ -29,9 +29,16 @@ const NESTED_ALTERNATIVE = /\/oneOf\/\d+\/oneOf\/\d+\//;
 
 /**
  * Validates the content of a configuration file against the schema, then against the rules that span
- * the document and the environment. Pure: no file, network, database or model access. Messages never
- * repeat the value of an environment variable or a value read from the file; they may name a key the
- * schema defines or an environment variable the file references.
+ * the document and the environment.
+ *
+ * @remarks
+ * Pure: no file, network, database or model access. Messages never repeat the value of an environment
+ * variable or a value read from the file; they may name a key the schema defines or an environment
+ * variable the file references.
+ *
+ * @param content - The content of the configuration file.
+ * @param env - The environment the referenced variables are read from.
+ * @returns The resolved configuration, or every error found.
  */
 export function validateConfig(content: string, env: EnvironmentVariables): ValidationResult {
   const text = content.startsWith("\uFEFF") ? content.slice(1) : content;

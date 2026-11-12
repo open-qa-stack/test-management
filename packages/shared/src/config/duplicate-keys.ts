@@ -5,8 +5,13 @@ type Frame =
   | { kind: "array"; path: string; index: number };
 
 /**
- * JSON Pointers of the keys that appear more than once in the same object. `JSON.parse` silently keeps
- * the last occurrence, which would hide whatever the earlier ones hold. `text` must be valid JSON.
+ * Finds the keys written more than once in the same object.
+ *
+ * @remarks
+ * `JSON.parse` silently keeps the last occurrence, which would hide whatever the earlier ones hold.
+ *
+ * @param text - Valid JSON.
+ * @returns The JSON Pointer of every repeated key.
  */
 export function duplicateKeyPaths(text: string): string[] {
   const found: string[] = [];

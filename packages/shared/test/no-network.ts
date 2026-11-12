@@ -2,9 +2,11 @@ import dgram from "node:dgram";
 import dns from "node:dns";
 import net from "node:net";
 
-/** Loaded before every test file: any network access during the tests fails loudly. */
+// Loaded before every test file: any network access during the tests fails loudly.
+
+/** Raised by any network access during the tests. */
 export class NetworkAccessError extends Error {
-  constructor(what: string) {
+  public constructor(what: string) {
     super(`network access attempted during tests: ${what}`);
   }
 }

@@ -16,7 +16,12 @@ const AUTONOMOUS: ResolvedLimits = {
   guardrailMinutes: 120,
 };
 
-/** Limits a level imposes; `null` means the level sets no bound. */
+/**
+ * Gives the limits of an autonomy level.
+ *
+ * @param autonomy - The level, with its limits when it is `custom`.
+ * @returns The limits; `null` means the level sets no bound.
+ */
 export function resolveLimits(autonomy: Autonomy): ResolvedLimits {
   switch (autonomy.level) {
     case "supervised":

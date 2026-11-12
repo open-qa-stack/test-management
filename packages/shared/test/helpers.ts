@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { CONFIG_FILE_NAME, validateConfig, type ConfigError, type EnvironmentVariables, type ValidationResult } from "../src/index.ts";
 
-export const EXAMPLE_FILE = new URL(`../examples/lakeside-mutual/${CONFIG_FILE_NAME}`, import.meta.url);
+const EXAMPLE_FILE = new URL(`../examples/lakeside-mutual/${CONFIG_FILE_NAME}`, import.meta.url);
 
 /** Values for every variable the example references; they are test values, never real secrets. */
 export const EXAMPLE_ENV: EnvironmentVariables = {
