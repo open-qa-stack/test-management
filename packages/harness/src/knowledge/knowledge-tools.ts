@@ -1,6 +1,7 @@
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import type { Knowledge } from "@open-qa-stack/shared";
 import { DatabaseCatalog } from "./database-catalog.ts";
+import { DatabaseData } from "./database-data.ts";
 import { databaseTools } from "./database-tools.ts";
 import { documentTools } from "./document-tools.ts";
 import { OpenApiContract } from "./openapi-contract.ts";
@@ -36,8 +37,11 @@ export function knowledgeTools(knowledge: readonly Knowledge[], access: Knowledg
     switch (source.type) {
       case "openapi":
         return openApiTools(source.id, new OpenApiContract(source, access.repositoryRoot));
-      case "postgresql":
-        return databaseTools(source.id, new DatabaseCatalog(lazySqlClient(source.connectionStringEnv, access.env, sqlClient)));
+      case "postgresql": {
+        const client = lazySqlClient(source.connectionStringEnv, access.env, sqlClient);
+        const catalog = new DatabaseCatalog(client);
+        return databaseTools(source.id, catalog, new DatabaseData(source.id, client, catalog));
+      }
       case "document":
         return documentTools(source.id, access.repositoryRoot, source.path);
     }

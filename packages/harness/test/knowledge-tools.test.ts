@@ -8,13 +8,13 @@ import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
 import type { AgentEvent, ToolDefinition } from "@open-qa-stack/domain";
 import type { Knowledge } from "@open-qa-stack/shared";
-import { assertCatalogQuery, COLUMNS_QUERY, TABLES_QUERY } from "../src/knowledge/catalog-query.ts";
+import { assertCatalogQuery, COLUMNS_QUERY, SERVER_ACCESS_QUERY, TABLES_QUERY } from "../src/knowledge/catalog-query.ts";
 import { DatabaseCatalog } from "../src/knowledge/database-catalog.ts";
 import { documentSections } from "../src/knowledge/document-sections.ts";
 import { PgSqlClient, type PgConnection } from "../src/knowledge/pg-sql-client.ts";
 import { readRepositoryFile } from "../src/knowledge/repository-file.ts";
-import { guardTool, knowledgeTools, type SqlClient } from "../src/index.ts";
-import { closedPort } from "./support.ts";
+import { guardTool, knowledgeTools, type SqlClient, type SqlResult } from "../src/index.ts";
+import { closedPort, sqlResult } from "./support.ts";
 
 const REPOSITORY = fileURLToPath(new URL("./fixtures/repository/", import.meta.url));
 const attachments = [{ application: "policy-management" }];
@@ -27,11 +27,13 @@ class RecordingSqlClient implements SqlClient {
   public readonly queries: string[] = [];
 
   /** {@inheritDoc SqlClient.query} */
-  public async query(text: string): Promise<readonly Record<string, unknown>[]> {
+  public async query(text: string): Promise<SqlResult> {
     this.queries.push(text);
-    return text.includes("information_schema.tables")
-      ? [{ schema: "public", table: "insurancepolicies" }]
-      : [{ name: "id", type: "bigint", nullable: false }, { name: "premium", type: "numeric", nullable: true }];
+    return sqlResult(
+      text.includes("information_schema.tables")
+        ? [{ schema: "public", table: "insurancepolicies" }]
+        : [{ name: "id", type: "bigint", nullable: false }, { name: "premium", type: "numeric", nullable: true }],
+    );
   }
 }
 
@@ -119,7 +121,7 @@ describe("contracts that are not objects", () => {
   });
 });
 
-describe("criterion 3 — the database tools read the catalog and nothing else", () => {
+describe("criterion 3 — the catalog tools read the catalog and nothing else", () => {
   it("lists tables and columns with catalog queries only", async () => {
     const client = new RecordingSqlClient();
     const tools = knowledgeTools([DATABASE], { repositoryRoot: REPOSITORY, env: { POLICY_DB_URL: "postgresql://x" }, sqlClient: () => client });
@@ -132,7 +134,7 @@ describe("criterion 3 — the database tools read the catalog and nothing else",
     for (const query of client.queries) assert.doesNotThrow(() => assertCatalogQuery(query));
   });
 
-  it("allows the two catalog queries and nothing else", () => {
+  it("allows the catalog queries and nothing else", () => {
     for (const query of [
       "SELECT * FROM insurancepolicies",
       "SELECT * FROM information_schema.tables, public.insurancepolicies",
@@ -142,11 +144,11 @@ describe("criterion 3 — the database tools read the catalog and nothing else",
     ]) {
       assert.throws(() => assertCatalogQuery(query), /Only the catalog queries/, query);
     }
-    for (const query of [TABLES_QUERY, COLUMNS_QUERY]) assert.doesNotThrow(() => assertCatalogQuery(query));
+    for (const query of [TABLES_QUERY, COLUMNS_QUERY, SERVER_ACCESS_QUERY]) assert.doesNotThrow(() => assertCatalogQuery(query));
   });
 
   it("answers an error for a table the database does not have", async () => {
-    const empty: SqlClient = { query: async () => [] };
+    const empty: SqlClient = { query: async () => sqlResult([]) };
     const describe = tool(knowledgeTools([DATABASE], { repositoryRoot: REPOSITORY, env: { POLICY_DB_URL: "postgresql://x" }, sqlClient: () => empty }), "policy_db_describe_table");
     assert.deepEqual(await describe.execute({ schema: "public", table: "claims" }), { error: "The database policy-db has no table public.claims." });
     assert.deepEqual(await new DatabaseCatalog(empty).tables(), []);
@@ -161,13 +163,13 @@ describe("criterion 3 — the database tools read the catalog and nothing else",
       query: async (text: string) => {
         log.push(text);
         if (fail && text === TABLES_QUERY) throw new Error("boom");
-        return { rows: text === TABLES_QUERY ? [{ a: 1 }] : [] };
+        return text === TABLES_QUERY ? { rows: [{ a: 1 }], fields: [{ name: "a" }] } : { rows: [], fields: [] };
       },
       end: async () => {
         log.push("end");
       },
     });
-    assert.deepEqual(await new PgSqlClient("postgresql://x", () => connection(false)).query(TABLES_QUERY, []), [{ a: 1 }]);
+    assert.deepEqual(await new PgSqlClient("postgresql://x", () => connection(false)).query(TABLES_QUERY, []), { columns: ["a"], rows: [{ a: 1 }] });
     assert.deepEqual(log, ["connect", "BEGIN READ ONLY", "SET LOCAL statement_timeout = 5000", TABLES_QUERY, "ROLLBACK", "end"]);
     log.length = 0;
     await assert.rejects(new PgSqlClient("postgresql://secret@x", () => connection(true)).query(TABLES_QUERY, []), new Error("The database query failed: boom."));
@@ -175,7 +177,7 @@ describe("criterion 3 — the database tools read the catalog and nothing else",
   });
 
   it("describes a driver error that has no message, without the connection string", async () => {
-    const refusing = (failure: unknown): PgConnection => ({ connect: () => Promise.reject(failure), query: async () => ({ rows: [] }), end: async () => {} });
+    const refusing = (failure: unknown): PgConnection => ({ connect: () => Promise.reject(failure), query: async () => ({ rows: [], fields: [] }), end: async () => {} });
     await assert.rejects(new PgSqlClient("postgresql://user:pw@x", () => refusing(Object.assign(new Error(""), { code: "ECONNREFUSED" }))).query(TABLES_QUERY, []), new Error("The database query failed: ECONNREFUSED."));
     await assert.rejects(new PgSqlClient("postgresql://user:pw@x", () => refusing("plain")).query(TABLES_QUERY, []), new Error("The database query failed: unknown error."));
   });

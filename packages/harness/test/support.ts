@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { AgentEvent, AgentSession, SessionOptions } from "@open-qa-stack/domain";
-import { CopilotAgentRuntime, ModelGateway, parseRecording, type Clock, type GatewayMode, type Recording } from "../src/index.ts";
+import { CopilotAgentRuntime, ModelGateway, parseRecording, type Clock, type GatewayMode, type Recording, type SqlResult } from "../src/index.ts";
 
 /** Folder of the recordings the tests replay. */
 export const RECORDINGS = new URL("./recordings/", import.meta.url);
@@ -134,4 +134,13 @@ export async function closedPort(): Promise<number> {
   const { port } = server.address() as AddressInfo;
   await new Promise<void>((resolve) => server.close(() => resolve()));
   return port;
+}
+
+/**
+ * @param rows - Rows of a query result.
+ * @param columns - Its columns; the keys of the first row when absent.
+ * @returns The result a SqlClient gives for these rows.
+ */
+export function sqlResult(rows: readonly Record<string, unknown>[], columns: readonly string[] = Object.keys(rows[0] ?? {})): SqlResult {
+  return { columns, rows };
 }

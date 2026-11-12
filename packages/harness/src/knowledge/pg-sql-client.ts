@@ -1,10 +1,10 @@
 import pg from "pg";
-import type { SqlClient } from "./sql-client.ts";
+import type { SqlClient, SqlResult } from "./sql-client.ts";
 
 /** What `PgSqlClient` needs from a PostgreSQL client; the `pg` client by default. */
 export interface PgConnection {
   connect(): Promise<unknown>;
-  query(text: string, values?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
+  query(text: string, values?: unknown[]): Promise<{ rows: Record<string, unknown>[]; fields: readonly { name: string }[] }>;
   end(): Promise<void>;
 }
 
@@ -39,21 +39,21 @@ export class PgSqlClient implements SqlClient {
   }
 
   /** {@inheritDoc SqlClient.query} */
-  public async query(text: string, values: readonly unknown[]): Promise<readonly Record<string, unknown>[]> {
+  public async query(text: string, values: readonly unknown[]): Promise<SqlResult> {
     const connection = this.connect(this.connectionString);
-    const rows = this.runReadOnly(connection, text, values).finally(() => connection.end());
-    return rows.catch((failure: unknown) => {
+    const result = this.runReadOnly(connection, text, values).finally(() => connection.end());
+    return result.catch((failure: unknown) => {
       throw new Error(`The database query failed: ${describe(failure)}.`);
     });
   }
 
-  private async runReadOnly(connection: PgConnection, text: string, values: readonly unknown[]): Promise<Record<string, unknown>[]> {
+  private async runReadOnly(connection: PgConnection, text: string, values: readonly unknown[]): Promise<SqlResult> {
     await connection.connect();
     await connection.query("BEGIN READ ONLY");
     await connection.query(`SET LOCAL statement_timeout = ${DATABASE_TIMEOUT_MS}`);
-    const { rows } = await connection.query(text, [...values]);
+    const { rows, fields } = await connection.query(text, [...values]);
     await connection.query("ROLLBACK");
-    return rows;
+    return { columns: fields.map((field) => field.name), rows };
   }
 }
 

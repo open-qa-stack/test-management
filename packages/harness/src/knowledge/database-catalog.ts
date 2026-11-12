@@ -1,4 +1,4 @@
-import { assertCatalogQuery, COLUMNS_QUERY, TABLES_QUERY } from "./catalog-query.ts";
+import { assertCatalogQuery, COLUMNS_QUERY, SERVER_ACCESS_QUERY, TABLES_QUERY } from "./catalog-query.ts";
 import type { SqlClient } from "./sql-client.ts";
 
 /** A table of the database, as the list tool shows it. */
@@ -48,8 +48,18 @@ export class DatabaseCatalog {
     return rows.map((row) => ({ name: String(row["name"]), type: String(row["type"]), nullable: row["nullable"] === true }));
   }
 
-  private read(text: string, values: readonly unknown[]): Promise<readonly Record<string, unknown>[]> {
+  /**
+   * @returns Whether the role of the connection can read or write files of the server, or run its
+   * programs: a superuser, or a member of a predefined role that grants it.
+   * @throws Error when the database cannot be reached.
+   */
+  public async hasServerAccess(): Promise<boolean> {
+    const rows = await this.read(SERVER_ACCESS_QUERY, []);
+    return rows[0]?.["server_access"] === true;
+  }
+
+  private async read(text: string, values: readonly unknown[]): Promise<readonly Record<string, unknown>[]> {
     assertCatalogQuery(text);
-    return this.client.query(text, values);
+    return (await this.client.query(text, values)).rows;
   }
 }
