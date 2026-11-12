@@ -127,7 +127,7 @@ function documentErrors(config: OqasConfig): ConfigError[] {
 
     if (item.type === "openapi" && item.url !== undefined) errors.push(...urlErrors(pointer(itemPath, "url"), item.url));
     if (item.type !== "postgresql" && item.path !== undefined) {
-      errors.push(...pathErrors(pointer(itemPath, "path"), item.path));
+      errors.push(...pathErrors(pointer(itemPath, "path"), item.path, item.type === "source-code"));
     }
   });
 
@@ -173,7 +173,7 @@ function urlErrors(path: string, value: string): ConfigError[] {
   return [];
 }
 
-function pathErrors(path: string, value: string): ConfigError[] {
+function pathErrors(path: string, value: string, mayLeaveRoot = false): ConfigError[] {
   if (/[\u0000-\u001f]/.test(value)) {
     return [error("structure", path, "path-invalid", "A path may not contain control characters.")];
   }
@@ -182,7 +182,7 @@ function pathErrors(path: string, value: string): ConfigError[] {
     return [error("structure", path, "path-absolute", "Expected a path relative to the test repository root.")];
   }
   const normalised = posix.normalize(slashed);
-  if (normalised === ".." || normalised.startsWith("../")) {
+  if (!mayLeaveRoot && (normalised === ".." || normalised.startsWith("../"))) {
     return [error("structure", path, "path-outside-root", "The path leaves the test repository root.")];
   }
   return [];

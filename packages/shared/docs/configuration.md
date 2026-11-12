@@ -82,13 +82,18 @@ Every knowledge source has an `id`, a `type`, `attachments`, and the keys its ty
 | Key | Type | Required | Example |
 |---|---|---|---|
 | `id` | slug, unique | yes | `"policy-management-api"` |
-| `type` | `openapi`, `postgresql` or `document` | yes | `"openapi"` |
+| `type` | `openapi`, `postgresql`, `document` or `source-code` | yes | `"openapi"` |
 | `attachments` | array of [attachments](#attachment), at least one | yes | `[{ "application": "policy-management" }]` |
 | `url` | URL, for `openapi`; exactly one of `url` and `path` | see type | `"http://localhost:8090/v3/api-docs"` |
-| `path` | path, for `openapi` and `document` | see type | `"contracts/policy-management.json"`, `"specs/quotes.md"` |
+| `path` | path, for `openapi`, `document` and `source-code` | see type | `"contracts/policy-management.json"`, `"specs/quotes.md"`, `"../policy-management"` |
 | `connectionStringEnv` | variable, for `postgresql` | see type | `"POLICY_MANAGEMENT_DB_URL"` |
+| `commands` | `none`, `git` or `shell`, for `source-code` | no, `git` by default | `"none"` |
 
-The other kinds of knowledge the product plans (source code, SOAP contracts, tickets, test data sets) are not supported by this format version.
+The path of a contract or a document stays inside the test repository. The path of a `source-code` folder may lead outside it, since the code of an application often lives in another repository: `"../policy-management"`. The agents' reading and git tools never leave that folder.
+
+`commands` sets the risk an agent may take in a source code folder. With `none`, the agents only list, search and read files. With `git`, the default, they may also read the history with `git log`, `git blame` and `git show`, run without a shell and limited to the folder. With `shell`, they may run any command in the folder, with the rights of the user who runs the agents: such a command can write, and read outside the folder. Choose it only where you accept that risk.
+
+The other kinds of knowledge the product plans (SOAP contracts, tickets, test data sets) are not supported by this format version.
 
 ### Attachment
 

@@ -17,6 +17,11 @@ const relativePath = {
   minLength: 1,
   description: "Path relative to the test repository root, which it may not leave.",
 } as const;
+const folderPath = {
+  type: "string",
+  minLength: 1,
+  description: "Path relative to the test repository root; it may lead outside, to code kept in another repository.",
+} as const;
 const positiveInteger = { type: "integer", minimum: 1 } as const;
 
 const attachment = {
@@ -124,6 +129,20 @@ export const configSchema = {
           additionalProperties: false,
           required: ["id", "type", "attachments", "path"],
           properties: { ...knowledgeCommon, type: { const: "document" }, path: relativePath },
+        },
+        {
+          type: "object",
+          additionalProperties: false,
+          required: ["id", "type", "attachments", "path"],
+          properties: {
+            ...knowledgeCommon,
+            type: { const: "source-code" },
+            path: folderPath,
+            commands: {
+              enum: ["none", "git", "shell"],
+              description: "Commands the agents may run in the folder: none, git history only (the default), or any shell command.",
+            },
+          },
         },
       ],
     },

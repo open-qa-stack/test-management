@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import type { Knowledge } from "@open-qa-stack/shared";
 import { DatabaseCatalog } from "./postgresql/database-catalog.ts";
@@ -8,10 +9,12 @@ import { OpenApiContract } from "./openapi/openapi-contract.ts";
 import { openApiTools } from "./openapi/openapi-tools.ts";
 import { PgSqlClient } from "./postgresql/pg-sql-client.ts";
 import type { SqlClient } from "./postgresql/sql-client.ts";
+import { CodeFolder } from "./source-code/code-folder.ts";
+import { sourceCodeTools } from "./source-code/source-code-tools.ts";
 
 /** What the tools of knowledge sources need to reach them. */
 export interface KnowledgeAccess {
-  /** Absolute path of the test repository, against which contract and document paths resolve. */
+  /** Absolute path of the test repository, against which contract, document and source code paths resolve. */
   readonly repositoryRoot: string;
   /** Environment holding the connection strings that database sources name. */
   readonly env: Readonly<Record<string, string | undefined>>;
@@ -44,6 +47,8 @@ export function knowledgeTools(knowledge: readonly Knowledge[], access: Knowledg
       }
       case "document":
         return documentTools(source.id, access.repositoryRoot, source.path);
+      case "source-code":
+        return sourceCodeTools(source.id, new CodeFolder(resolve(access.repositoryRoot, source.path)), source.commands ?? "git");
     }
   });
 }

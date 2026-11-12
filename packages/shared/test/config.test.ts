@@ -545,3 +545,29 @@ describe("hardening", () => {
     assert.throws(() => Object.assign(DEFAULT_REPOSITORY, { stateDir: "../elsewhere" }), TypeError);
   });
 });
+
+describe("source code — a folder of the workstation, possibly outside the test repository", () => {
+  const code = (fields: JsonObject) => (c: JsonObject) =>
+    listAt(c, "knowledge").push({ id: "policy-code", type: "source-code", attachments: [{ application: "policy-management" }], ...fields });
+
+  it("accepts a folder inside or outside the repository, with any command level", () => {
+    for (const fields of [{ path: "app" }, { path: "../policy-management" }, { path: "../../x", commands: "none" }, { path: "x", commands: "git" }, { path: "x", commands: "shell" }]) {
+      assert.equal(validateVariant(code(fields)).ok, true, JSON.stringify(fields));
+    }
+  });
+
+  for (const [fields, path, rule] of [
+    [{ path: "/srv/code" }, "/knowledge/8/path", "path-absolute"],
+    [{ path: "a\u0007b" }, "/knowledge/8/path", "path-invalid"],
+  ] as const) {
+    it(`refuses the path ${JSON.stringify(fields.path)}`, () => {
+      const e = only(errorsOf(validateVariant(code(fields))));
+      assert.deepEqual([e.path, e.rule], [path, rule]);
+    });
+  }
+
+  it("refuses an unknown command level, and a folder without path", () => {
+    assert.equal(validateVariant(code({ path: "x", commands: "root" })).ok, false);
+    assert.equal(validateVariant(code({})).ok, false);
+  });
+});

@@ -69,8 +69,21 @@ export interface DocumentKnowledge extends KnowledgeBase {
   path: string;
 }
 
+/**
+ * Commands the agents may run in a source code folder, from the safest to the riskiest: none, the git
+ * history only, or any shell command.
+ */
+export type SourceCodeCommands = "none" | "git" | "shell";
+
+/** The source code of an application, in a folder of the workstation, possibly outside the test repository. */
+export interface SourceCodeKnowledge extends KnowledgeBase {
+  type: "source-code";
+  path: string;
+  commands?: SourceCodeCommands;
+}
+
 /** Something the agents may read about the applications. */
-export type Knowledge = OpenApiKnowledge | PostgresqlKnowledge | DocumentKnowledge;
+export type Knowledge = OpenApiKnowledge | PostgresqlKnowledge | DocumentKnowledge | SourceCodeKnowledge;
 
 /** Layout of the test repository; every folder is relative to its root. */
 export interface Repository {
