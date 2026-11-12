@@ -1,0 +1,467 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Open QA Stack solo-mode configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "formatVersion",
+    "applications",
+    "knowledge",
+    "model",
+    "autonomy"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "formatVersion": {
+      "const": 1,
+      "description": "Version of the file format, independent of the product version."
+    },
+    "applications": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/application"
+      }
+    },
+    "knowledge": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/knowledge"
+      }
+    },
+    "repository": {
+      "$ref": "#/$defs/repository"
+    },
+    "model": {
+      "$ref": "#/$defs/model"
+    },
+    "autonomy": {
+      "$ref": "#/$defs/autonomy"
+    }
+  },
+  "$defs": {
+    "attachment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "application"
+      ],
+      "properties": {
+        "application": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "environment": {
+          "type": "string",
+          "minLength": 1
+        },
+        "api": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "application": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "type",
+        "authentication",
+        "environments"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "enum": [
+            "web",
+            "api",
+            "web-and-api"
+          ]
+        },
+        "authentication": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "method"
+          ],
+          "properties": {
+            "method": {
+              "enum": [
+                "none",
+                "form"
+              ]
+            },
+            "accounts": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "usernameEnv",
+                  "passwordEnv"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "usernameEnv": {
+                    "type": "string",
+                    "pattern": "^[A-Z_][A-Z0-9_]*$",
+                    "description": "Name of an environment variable. The value itself is never written in the file."
+                  },
+                  "passwordEnv": {
+                    "type": "string",
+                    "pattern": "^[A-Z_][A-Z0-9_]*$",
+                    "description": "Name of an environment variable. The value itself is never written in the file."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "environments": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/environment"
+          }
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uiUrl": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Absolute http or https URL, without credentials."
+        },
+        "apis": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "baseUrl"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "baseUrl": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Absolute http or https URL, without credentials."
+              }
+            }
+          }
+        }
+      }
+    },
+    "knowledge": {
+      "type": "object",
+      "discriminator": {
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "type",
+            "attachments"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+            },
+            "attachments": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/attachment"
+              }
+            },
+            "type": {
+              "const": "openapi"
+            },
+            "url": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Absolute http or https URL, without credentials."
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Path relative to the test repository root, which it may not leave."
+            }
+          },
+          "oneOf": [
+            {
+              "required": [
+                "url"
+              ]
+            },
+            {
+              "required": [
+                "path"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "type",
+            "attachments",
+            "connectionStringEnv"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+            },
+            "attachments": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/attachment"
+              }
+            },
+            "type": {
+              "const": "postgresql"
+            },
+            "connectionStringEnv": {
+              "type": "string",
+              "pattern": "^[A-Z_][A-Z0-9_]*$",
+              "description": "Name of an environment variable. The value itself is never written in the file."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "type",
+            "attachments",
+            "path"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+            },
+            "attachments": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/attachment"
+              }
+            },
+            "type": {
+              "const": "document"
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Path relative to the test repository root, which it may not leave."
+            }
+          }
+        }
+      ]
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "appsDir": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path relative to the test repository root, which it may not leave."
+        },
+        "blocksDir": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path relative to the test repository root, which it may not leave."
+        },
+        "journeysDir": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path relative to the test repository root, which it may not leave."
+        },
+        "stateDir": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path relative to the test repository root, which it may not leave."
+        },
+        "indexDir": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path relative to the test repository root, which it may not leave."
+        }
+      }
+    },
+    "model": {
+      "type": "object",
+      "discriminator": {
+        "propertyName": "mode"
+      },
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "provider",
+            "baseUrl",
+            "model"
+          ],
+          "properties": {
+            "mode": {
+              "const": "provider-key"
+            },
+            "provider": {
+              "enum": [
+                "openai"
+              ]
+            },
+            "baseUrl": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Absolute http or https URL, without credentials."
+            },
+            "model": {
+              "type": "string",
+              "minLength": 1
+            },
+            "apiKeyEnv": {
+              "type": "string",
+              "pattern": "^[A-Z_][A-Z0-9_]*$",
+              "description": "Name of an environment variable. The value itself is never written in the file."
+            }
+          }
+        }
+      ]
+    },
+    "autonomy": {
+      "type": "object",
+      "discriminator": {
+        "propertyName": "level"
+      },
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "level"
+          ],
+          "properties": {
+            "level": {
+              "const": "supervised"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "level"
+          ],
+          "properties": {
+            "level": {
+              "const": "autonomous"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "level",
+            "task",
+            "batch",
+            "guardrailMinutes"
+          ],
+          "properties": {
+            "level": {
+              "const": "custom"
+            },
+            "task": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "maxIterations",
+                "maxDurationMinutes",
+                "maxActions"
+              ],
+              "properties": {
+                "maxIterations": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "maxDurationMinutes": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "maxActions": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "batch": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "maxTests",
+                "maxIdleRounds"
+              ],
+              "properties": {
+                "maxTests": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "maxIdleRounds": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "guardrailMinutes": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      ]
+    }
+  }
+}

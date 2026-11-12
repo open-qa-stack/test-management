@@ -1,0 +1,109 @@
+{
+  "$schema": "../../schema/oqas.schema.json",
+  "formatVersion": 1,
+  "applications": [
+    {
+      "id": "customer-self-service",
+      "name": "Customer Self-Service",
+      "type": "web-and-api",
+      "authentication": {
+        "method": "form",
+        "accounts": [{ "name": "demo", "usernameEnv": "CSS_DEMO_USERNAME", "passwordEnv": "CSS_DEMO_PASSWORD" }]
+      },
+      "environments": [
+        {
+          "name": "local",
+          "uiUrl": "http://localhost:3000",
+          "apis": [{ "name": "customer-self-service-backend", "baseUrl": "http://localhost:8080" }]
+        }
+      ]
+    },
+    {
+      "id": "policy-management",
+      "name": "Policy Management",
+      "type": "web-and-api",
+      "authentication": { "method": "none" },
+      "environments": [
+        {
+          "name": "local",
+          "uiUrl": "http://localhost:3010",
+          "apis": [{ "name": "policy-management-backend", "baseUrl": "http://localhost:8090" }]
+        }
+      ]
+    },
+    {
+      "id": "customer-management",
+      "name": "Customer Management",
+      "type": "web-and-api",
+      "authentication": { "method": "none" },
+      "environments": [
+        {
+          "name": "local",
+          "uiUrl": "http://localhost:3020",
+          "apis": [
+            { "name": "customer-management-backend", "baseUrl": "http://localhost:8100" },
+            { "name": "customer-core", "baseUrl": "http://localhost:8110" }
+          ]
+        }
+      ]
+    }
+  ],
+  "knowledge": [
+    {
+      "id": "customer-self-service-api",
+      "type": "openapi",
+      "url": "http://localhost:8080/v3/api-docs",
+      "attachments": [{ "application": "customer-self-service", "environment": "local", "api": "customer-self-service-backend" }]
+    },
+    {
+      "id": "policy-management-api",
+      "type": "openapi",
+      "url": "http://localhost:8090/v3/api-docs",
+      "attachments": [{ "application": "policy-management", "environment": "local", "api": "policy-management-backend" }]
+    },
+    {
+      "id": "customer-management-api",
+      "type": "openapi",
+      "url": "http://localhost:8100/v3/api-docs",
+      "attachments": [{ "application": "customer-management", "environment": "local", "api": "customer-management-backend" }]
+    },
+    {
+      "id": "customer-core-api",
+      "type": "openapi",
+      "url": "http://localhost:8110/v3/api-docs",
+      "attachments": [{ "application": "customer-management", "environment": "local", "api": "customer-core" }]
+    },
+    {
+      "id": "customer-core-db",
+      "type": "postgresql",
+      "connectionStringEnv": "CUSTOMER_CORE_DB_URL",
+      "attachments": [{ "application": "customer-management", "environment": "local" }]
+    },
+    {
+      "id": "customer-self-service-db",
+      "type": "postgresql",
+      "connectionStringEnv": "CUSTOMER_SELF_SERVICE_DB_URL",
+      "attachments": [{ "application": "customer-self-service", "environment": "local" }]
+    },
+    {
+      "id": "customer-management-db",
+      "type": "postgresql",
+      "connectionStringEnv": "CUSTOMER_MANAGEMENT_DB_URL",
+      "attachments": [{ "application": "customer-management", "environment": "local" }]
+    },
+    {
+      "id": "policy-management-db",
+      "type": "postgresql",
+      "connectionStringEnv": "POLICY_MANAGEMENT_DB_URL",
+      "attachments": [{ "application": "policy-management", "environment": "local" }]
+    }
+  ],
+  "model": {
+    "mode": "provider-key",
+    "provider": "openai",
+    "baseUrl": "http://localhost:1234/v1",
+    "model": "local-model",
+    "apiKeyEnv": "OQAS_MODEL_API_KEY"
+  },
+  "autonomy": { "level": "supervised" }
+}

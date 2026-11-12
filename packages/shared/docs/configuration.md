@@ -1,0 +1,194 @@
+# Solo-mode configuration file
+
+The `oqas` command, run without an instance, reads `oqas.json` at the root of the test repository. The file describes the applications to test, what is known about them, where tests go, which model to use and how far the agents may go on their own. An instance can import the same file.
+
+The file is JSON, optionally preceded by a byte order mark. Its JSON Schema (draft 2020-12) is `schema/oqas.schema.json`; point the optional `$schema` key at it to get completion in an editor. A complete example for a three-application target lives in `examples/lakeside-mutual/oqas.json`.
+
+## Secrets stay out of the file
+
+The file never holds a password, a token, a key or a connection string. Wherever one is needed, the file names an environment variable instead, and the command reads the value at run time. A name must match `^[A-Z_][A-Z0-9_]*$`; anything else is refused, and the refused value is never repeated in an error. The rule checks the shape of the name only: a secret that happens to look like a variable name (for example `ABC123`) cannot be told apart, so keep values out of the file. A key written twice in the same object is refused, so that nothing can hide behind a later occurrence.
+
+## Validation
+
+`validateConfig(content, env)` takes the file content and the environment and returns either the resolved configuration or a list of errors. It reads no file and opens no network or database connection; testing that a knowledge source answers is a separate step.
+
+Each error has a `kind`, a `path` (a JSON Pointer to the offending location, `""` for the whole document), a `rule` and a `message`. Messages never repeat a value read from the file or from the environment; they may name a key the schema defines, or an environment variable the file references.
+
+| Kind | Rules |
+|---|---|
+| `syntax` | `json` |
+| `structure` | `required`, `unknown-key`, `duplicate-key`, `wrong-type`, `empty-value`, `too-few-items`, `below-minimum`, `unknown-variant`, `format-version`, `slug`, `env-var-name`, `openapi-source`, `duplicate`, `ui-url-required`, `url-absolute`, `url-scheme`, `url-credentials`, `path-absolute`, `path-outside-root`, `path-invalid` |
+| `reference` | `unknown-reference`, `api-without-environment` |
+| `environment` | `env-var-missing` |
+
+## Keys
+
+Types used below: a *slug* matches `^[a-z0-9]+(-[a-z0-9]+)*$`; a *variable* is the name of an environment variable; a *URL* is absolute, uses `http` or `https` and carries no user name or password; a *path* is relative to the test repository root, may not leave it and contains no control character.
+
+### Root
+
+| Key | Type | Required | Example |
+|---|---|---|---|
+| `$schema` | string: a relative path, or a URL | no | `"./node_modules/@open-qa-stack/shared/schema/oqas.schema.json"` |
+| `formatVersion` | `1` | yes | `1` |
+| `applications` | array of [applications](#application), at least one | yes | see below |
+| `knowledge` | array of [knowledge sources](#knowledge), possibly empty | yes | `[]` |
+| `repository` | [repository layout](#repository) | no | `{ "journeysDir": "journeys" }` |
+| `model` | [model connection](#model) | yes | see below |
+| `autonomy` | [autonomy level](#autonomy) | yes | `{ "level": "supervised" }` |
+
+`formatVersion` is the version of the file format, independent of the product version.
+
+### Application
+
+| Key | Type | Required | Example |
+|---|---|---|---|
+| `id` | slug, unique | yes | `"policy-management"` |
+| `name` | non-empty string | yes | `"Policy Management"` |
+| `type` | `web`, `api` or `web-and-api` | yes | `"web-and-api"` |
+| `authentication.method` | `none` or `form` | yes | `"form"` |
+| `authentication.accounts` | array of [accounts](#account) | no | see below |
+| `environments` | array of [environments](#environment), at least one | yes | see below |
+
+### Account
+
+Test accounts used to sign in. The format keeps them with the application's authentication; the other test data sets are not supported by this format version.
+
+| Key | Type | Required | Example |
+|---|---|---|---|
+| `name` | non-empty string | yes | `"demo"` |
+| `usernameEnv` | variable | yes | `"CSS_DEMO_USERNAME"` |
+| `passwordEnv` | variable | yes | `"CSS_DEMO_PASSWORD"` |
+
+### Environment
+
+| Key | Type | Required | Example |
+|---|---|---|---|
+| `name` | non-empty string, unique within the application | yes | `"local"` |
+| `uiUrl` | URL | for `web` and `web-and-api` | `"http://localhost:3010"` |
+| `apis` | array of [named APIs](#named-api) | no | see below |
+
+### Named API
+
+| Key | Type | Required | Example |
+|---|---|---|---|
+| `name` | non-empty string, unique within the environment | yes | `"policy-management-backend"` |
+| `baseUrl` | URL | yes | `"http://localhost:8090"` |
+
+### Knowledge
+
+Every knowledge source has an `id`, a `type`, `attachments`, and the keys its type requires.
+
+| Key | Type | Required | Example |
+|---|---|---|---|
+| `id` | slug, unique | yes | `"policy-management-api"` |
+| `type` | `openapi`, `postgresql` or `document` | yes | `"openapi"` |
+| `attachments` | array of [attachments](#attachment), at least one | yes | `[{ "application": "policy-management" }]` |
+| `url` | URL, for `openapi`; exactly one of `url` and `path` | see type | `"http://localhost:8090/v3/api-docs"` |
+| `path` | path, for `openapi` and `document` | see type | `"contracts/policy-management.json"`, `"specs/quotes.md"` |
+| `connectionStringEnv` | variable, for `postgresql` | see type | `"POLICY_MANAGEMENT_DB_URL"` |
+
+The other kinds of knowledge the product plans (source code, SOAP contracts, tickets, test data sets) are not supported by this format version.
+
+### Attachment
+
+| Key | Type | Required | Example |
+|---|---|---|---|
+| `application` | slug of a declared application | yes | `"policy-management"` |
+| `environment` | name of an environment of that application | no | `"local"` |
+| `api` | name of an API of that environment; requires `environment` | no | `"policy-management-backend"` |
+
+### Repository
+
+All keys are optional paths.
+
+| Key | Default | Description |
+|---|---|---|
+| `appsDir` | `apps` | One folder per application, named after its `id`, holding its tests. |
+| `blocksDir` | `blocs` | Folder, inside each application folder, holding its reusable blocks. |
+| `journeysDir` | `parcours` | Folder holding multi-application journeys. |
+| `stateDir` | `.oqas` | Where the solo mode keeps its state. |
+| `indexDir` | `.oqas/index` | Where the mapper writes its index by domain. |
+
+### Model
+
+| Key | Type | Required | Example |
+|---|---|---|---|
+| `mode` | `provider-key` | yes | `"provider-key"` |
+| `provider` | `openai`: an OpenAI-compatible API | yes | `"openai"` |
+| `baseUrl` | URL | yes | `"http://localhost:1234/v1"` |
+| `model` | non-empty string, as the server names the model | yes | `"local-model"` |
+| `apiKeyEnv` | variable, when the server requires a key | no | `"OQAS_MODEL_API_KEY"` |
+
+Only a provider key is supported in solo mode for now.
+
+### Autonomy
+
+| `level` | Limits |
+|---|---|
+| `supervised` | Per task: 5 iterations, 10 minutes, 200 actions. Per batch: 40 tests, or stop after 3 rounds without a new test. |
+| `autonomous` | No volume limit; a two-hour guardrail; stops once new tests stop coming. |
+| `custom` | Every limit given explicitly, each a positive integer. |
+
+`supervised` and `autonomous` accept no other key. A `custom` level looks like this:
+
+```json
+{
+  "level": "custom",
+  "task": { "maxIterations": 8, "maxDurationMinutes": 15, "maxActions": 300 },
+  "batch": { "maxTests": 20, "maxIdleRounds": 2 },
+  "guardrailMinutes": 60
+}
+```
+
+Assumptions of this format version, to be confirmed: the autonomous level applies no per-task limit; its guardrail bounds a batch; it stops once new tests stop coming, but how that is detected is not defined yet; the supervised level has no overall guardrail beyond its per-task and per-batch limits; a custom level cannot switch a limit off.
+
+## Example
+
+```json
+{
+  "formatVersion": 1,
+  "applications": [
+    {
+      "id": "customer-self-service",
+      "name": "Customer Self-Service",
+      "type": "web-and-api",
+      "authentication": {
+        "method": "form",
+        "accounts": [{ "name": "demo", "usernameEnv": "CSS_DEMO_USERNAME", "passwordEnv": "CSS_DEMO_PASSWORD" }]
+      },
+      "environments": [
+        {
+          "name": "local",
+          "uiUrl": "http://localhost:3000",
+          "apis": [{ "name": "customer-self-service-backend", "baseUrl": "http://localhost:8080" }]
+        }
+      ]
+    }
+  ],
+  "knowledge": [
+    {
+      "id": "customer-self-service-api",
+      "type": "openapi",
+      "url": "http://localhost:8080/v3/api-docs",
+      "attachments": [{ "application": "customer-self-service", "environment": "local", "api": "customer-self-service-backend" }]
+    },
+    {
+      "id": "customer-self-service-db",
+      "type": "postgresql",
+      "connectionStringEnv": "CUSTOMER_SELF_SERVICE_DB_URL",
+      "attachments": [{ "application": "customer-self-service", "environment": "local" }]
+    }
+  ],
+  "model": {
+    "mode": "provider-key",
+    "provider": "openai",
+    "baseUrl": "http://localhost:1234/v1",
+    "model": "local-model",
+    "apiKeyEnv": "OQAS_MODEL_API_KEY"
+  },
+  "autonomy": { "level": "supervised" }
+}
+```
+
+The model identifier in the examples is a placeholder until a local model is chosen.
