@@ -55,6 +55,9 @@ importers:
       '@open-qa-stack/shared':
         specifier: workspace:*
         version: link:../shared
+      '@vscode/tree-sitter-wasm':
+        specifier: 0.3.1
+        version: 0.3.1
       pg:
         specifier: 8.23.1
         version: 8.23.1
@@ -348,6 +351,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@vscode/tree-sitter-wasm@0.3.1':
+    resolution: {integrity: sha512-RJFoomET6FajjG511fmQxeBQfU6M24a0aFZPqpid+ttIxanWf1VGytBG0UmsGjt07qmIPJS8U31D+aecuCucsQ==}
+
   ajv@8.20.0:
     resolution: {integrity: sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA==}
 
@@ -619,6 +625,8 @@ snapshots:
 
   '@typescript/typescript-win32-x64@7.0.2':
     optional: true
+
+  '@vscode/tree-sitter-wasm@0.3.1': {}
 
   ajv@8.20.0:
     dependencies:

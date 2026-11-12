@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,15 +9,17 @@ import type { ToolDefinition } from "@open-qa-stack/domain";
 import type { Knowledge, SourceCodeCommands } from "@open-qa-stack/shared";
 import { CodeFolder, MAX_FILE_BYTES } from "../src/source-code/code-folder.ts";
 import { searchCode } from "../src/source-code/code-search.ts";
-import { fileOutline, MAX_OUTLINE_LINE_LENGTH, MAX_OUTLINE_SYMBOLS } from "../src/source-code/file-outline.ts";
+import { fileOutline, MAX_OUTLINE_SYMBOLS, type OutlineSymbol } from "../src/source-code/file-outline.ts";
 import { GitHistory } from "../src/source-code/git-history.ts";
 import { globMatcher, MAX_GLOB_ALTERNATIVES, MAX_GLOB_LENGTH } from "../src/source-code/glob-pattern.ts";
 import { MAX_OUTPUT_LENGTH, runProcess } from "../src/source-code/process-run.ts";
 import { MAX_READ_LINE_LENGTH, MAX_READ_LINES } from "../src/source-code/source-code-tools.ts";
+import { parsedExtensions } from "../src/source-code/syntax-parser.ts";
 import { fileLines, MAX_LINE_LENGTH } from "../src/source-code/text-search.ts";
 import { knowledgeTools } from "../src/index.ts";
 
 const FIXTURE = fileURLToPath(new URL("./fixtures/source/", import.meta.url));
+const LANGUAGES = fileURLToPath(new URL("./fixtures/languages/", import.meta.url));
 const GIT_IDENTITY = { GIT_AUTHOR_NAME: "Test", GIT_AUTHOR_EMAIL: "test@example.com", GIT_COMMITTER_NAME: "Test", GIT_COMMITTER_EMAIL: "test@example.com", GIT_AUTHOR_DATE: "2026-01-02T00:00:00Z", GIT_COMMITTER_DATE: "2026-01-02T00:00:00Z" };
 
 let workspace: string;
@@ -241,16 +243,46 @@ describe("criterion 4 — outlines of TypeScript and Java files, the git history
       ],
       truncated: false,
     });
-    assert.deepEqual(await call("outline", { path: "README.md" }), { error: "No outline for README.md: only TypeScript, JavaScript and Java files have one. Read the file instead." });
+    assert.deepEqual(await call("outline", { path: "README.md" }), { error: "No outline for README.md: no grammar reads its language. Read the file instead." });
   });
 
-  it("says when an outline is cut, skips long lines, and never backtracks for long", () => {
-    const many = fileOutline("a.ts", Array.from({ length: MAX_OUTLINE_SYMBOLS + 1 }, (_, i) => `function f${i}() {}`).join("\n"))!;
-    assert.deepEqual([many.symbols.length, many.truncated], [MAX_OUTLINE_SYMBOLS, true]);
-    assert.deepEqual(fileOutline("a.ts", `function ${"x".repeat(MAX_OUTLINE_LINE_LENGTH)}() {}`)!.symbols, []);
-    const started = performance.now();
-    for (const path of ["a.java", "a.ts"]) fileOutline(path, Array.from({ length: 2000 }, () => `\t${"public ".repeat(40)}x`).join("\n"));
-    assert.ok(performance.now() - started < 2000);
+  it("outlines C#, PHP, Python, Go, Rust, Ruby, C and C++, Bash, PowerShell and Flow files, with their routes", async () => {
+    const outline = async (file: string) =>
+      (await fileOutline(file, readFileSync(join(LANGUAGES, file), "utf8")))!.symbols.map((s: OutlineSymbol) => `${s.line}:${s.kind}:${s.name}`).join(" | ");
+    const expected: Record<string, string> = {
+      "PoliciesController.cs": "6:route:Route(\"api/[controller]\") | 7:class:PoliciesController | 11:method:PoliciesController | 13:route:HttpGet(\"{id}\") | 14:method:GetPolicy | 20:route:HttpPost(\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa… | 21:method:Create | 26:interface:IPolicyRepository | 26:method:FindAsync | 27:class:PolicyDto | 28:enum:PolicyKind | 29:class:Money",
+      "PolicyController.php": "3:interface:PolicyRepository | 3:method:find | 4:class:PolicyController | 6:route:Route('/policies/{id}', methods: ['GET']) | 7:method:show | 9:function:helper",
+      "Program.cs": "2:route:app.MapGet(\"/orders/{id}\", …) | 3:route:app.MapGroup(\"/api\") | 4:route:group.MapPost(\"/orders\", …) | 7:class:OrdersController | 9:route:HttpGet(\"x\") | 10:method:X",
+      "base.ts": "1:route:@Controller(\"orders\") | 2:class:Base | 2:method:run",
+      "broken.js": "",
+      "deploy.sh": "1:function:deploy | 2:function:rollback",
+      "login.js": "4:type:Props | 6:class:Login | 7:method:handleChange | 9:method:render",
+      "main.go": "2:function:main | 3:route:http.HandleFunc(\"GET /orders\", …) | 5:route:r.POST(\"/orders\", …)",
+      "main.rs": "1:route:get(\"/orders/{id}\") | 2:function:get_order | 3:class:Display for Order | 3:method:fmt | 4:class:Order | 4:method:new | 5:interface:Repo | 5:method:find",
+      "plain.js": "1:function:plain | 3:class:Plain | 4:method:save | 5:method:run | 6:function:inner",
+      "point.c": "1:class:point | 2:function:make | 4:function:ref",
+      "policies.controller.ts": "1:route:@Controller(\"policies\") | 2:class:PoliciesController | 3:method:constructor | 5:route:@Get(\":id\") | 6:method:findOne | 10:method:handle | 12:interface:Policy | 13:type:PolicyId | 14:function:renew | 15:function:local",
+      "policies.go": "3:class:Policy | 4:interface:Repository | 4:method:Find | 6:method:Find | 7:function:NewService | 8:type:PolicyID",
+      "policies.py": "4:class:PolicyService | 5:method:find | 8:route:@app.get(\"/policies/{policy_id}\") | 9:function:get_policy",
+      "policies.rb": "1:class:Policies | 2:class:PoliciesController | 3:method:show | 6:method:build",
+      "policies.rs": "1:class:Policy | 2:enum:Kind | 3:interface:Repository | 3:method:find | 4:class:Repository for Store | 4:method:find | 5:function:premium",
+      "policy.cpp": "1:class:PolicyStore | 3:method:count | 5:method:Store::find | 6:function:helper",
+      "routes.rb": "2:route:resources(:orders) | 3:route:get('photos/:id', …)",
+      "server.js": "2:route:app.get(\"/orders\", …) | 3:route:router.delete(\"/orders/:id\", …) | 5:function:module.exports.handler | 6:function:Card",
+      "tools.ps1": "1:function:Get-Policy | 2:class:PolicyClient | 2:method:Fetch",
+      "urls.py": "1:route:path(\"orders/\", …) | 3:function:test_x",
+      "web.php": "2:route:Route::get('/orders', …) | 3:route:Route::resource('photos', …) | 4:class:C | 5:route:Route('/z') | 6:method:z",
+    };
+    for (const [file, symbols] of Object.entries(expected)) assert.equal(await outline(file), symbols, file);
+    assert.deepEqual(await Promise.all(["notes.txt", "sh", "constructor.__proto__"].map((file) => fileOutline(file, "x"))), [undefined, undefined, undefined]);
+    assert.ok(parsedExtensions().includes("cs"));
+  });
+
+  it("says when an outline is cut, keeping the first declarations, and walks deep code without exhausting the stack", async () => {
+    const many = (await fileOutline("a.ts", Array.from({ length: MAX_OUTLINE_SYMBOLS + 1 }, (_, i) => `function f${i}() {}`).join("\n")))!;
+    assert.deepEqual([many.symbols.length, many.truncated, many.symbols[0]!.name, many.symbols.at(-1)!.name], [MAX_OUTLINE_SYMBOLS, true, "f0", `f${MAX_OUTLINE_SYMBOLS - 1}`]);
+    const deep = (await fileOutline("deep.js", `x${".a()".repeat(20_000)};\nfunction last() {}\n`))!;
+    assert.deepEqual(deep.symbols, [{ line: 2, kind: "function", name: "last" }]);
   });
 
   it("reads the log of the folder or of a file, the blame of a few lines, and a commit", async () => {

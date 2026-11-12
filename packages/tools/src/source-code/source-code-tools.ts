@@ -4,6 +4,7 @@ import { scopedToolName } from "../common/tool-name.ts";
 import type { CodeFolder } from "./code-folder.ts";
 import { searchCode } from "./code-search.ts";
 import { fileOutline } from "./file-outline.ts";
+import { parsedExtensions } from "./syntax-parser.ts";
 import { GitHistory, MAX_BLAME_LINES, MAX_LOG_COMMITS } from "./git-history.ts";
 import { runProcess } from "./process-run.ts";
 import { fileLines, numberedLines } from "./text-search.ts";
@@ -85,11 +86,11 @@ export function sourceCodeTools(knowledgeId: string, folder: CodeFolder, command
     },
     {
       name: name("outline"),
-      description: `Lists the declarations of a TypeScript, JavaScript or Java file ${of} with their lines: classes, functions, methods, Spring routes.`,
+      description: `Lists the declarations of a source file ${of} with their lines: classes, interfaces, enums, functions, methods, and the annotations that map web routes. Reads ${parsedExtensions().map((e) => `.${e}`).join(" ")} files.`,
       parameters: object({ path }, ["path"]),
       execute: async (args) => {
         const { path: file } = args as { path: string };
-        return fileOutline(file, await folder.read(file)) ?? { error: `No outline for ${file}: only TypeScript, JavaScript and Java files have one. Read the file instead.` };
+        return (await fileOutline(file, await folder.read(file))) ?? { error: `No outline for ${file}: no grammar reads its language. Read the file instead.` };
       },
     },
   ];
