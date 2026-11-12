@@ -1,6 +1,6 @@
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import { HTTP_METHODS, type OpenApiContract } from "./openapi-contract.ts";
-import { knowledgeToolName } from "./tool-name.ts";
+import { scopedToolName } from "../tools/tool-name.ts";
 
 /**
  * The tools of an OpenAPI knowledge source: list its operations, read one.
@@ -12,13 +12,13 @@ import { knowledgeToolName } from "./tool-name.ts";
 export function openApiTools(knowledgeId: string, contract: OpenApiContract): ToolDefinition[] {
   return [
     {
-      name: knowledgeToolName(knowledgeId, "list_operations"),
+      name: scopedToolName(knowledgeId, "list_operations"),
       description: `Lists the operations of the API contract ${knowledgeId}: method, path, identifier and summary.`,
       parameters: { type: "object", properties: {}, additionalProperties: false },
       execute: () => contract.operations(),
     },
     {
-      name: knowledgeToolName(knowledgeId, "read_operation"),
+      name: scopedToolName(knowledgeId, "read_operation"),
       description: `Returns one operation of the API contract ${knowledgeId}: parameters, request body and responses, with their schemas.`,
       parameters: {
         type: "object",

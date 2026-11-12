@@ -1,3 +1,4 @@
+export { browserTools, type BrowserAccess, type BrowserToolset } from "./browser/browser-tools.ts";
 export { CopilotAgentRuntime, type CopilotRuntimeOptions } from "./copilot/copilot-agent-runtime.ts";
 export type { Clock } from "./guardrails/clock.ts";
 export { knowledgeTools, type KnowledgeAccess } from "./knowledge/knowledge-tools.ts";

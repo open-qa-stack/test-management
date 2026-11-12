@@ -2,7 +2,7 @@ import type { ToolDefinition } from "@open-qa-stack/domain";
 import type { DatabaseCatalog } from "./database-catalog.ts";
 import type { DatabaseData } from "./database-data.ts";
 import { MAX_ROWS, rowLimit } from "./read-query.ts";
-import { knowledgeToolName } from "./tool-name.ts";
+import { scopedToolName } from "../tools/tool-name.ts";
 
 const limit = { type: "integer", minimum: 1, maximum: MAX_ROWS, description: `Rows to return, ${MAX_ROWS} at most.` } as const;
 const tableArgs = { schema: { type: "string" }, table: { type: "string" } } as const;
@@ -20,13 +20,13 @@ const tableArgs = { schema: { type: "string" }, table: { type: "string" } } as c
 export function databaseTools(knowledgeId: string, catalog: DatabaseCatalog, data: DatabaseData): ToolDefinition[] {
   return [
     {
-      name: knowledgeToolName(knowledgeId, "list_tables"),
+      name: scopedToolName(knowledgeId, "list_tables"),
       description: `Lists the tables of the database ${knowledgeId}, by schema. Reads the catalog only.`,
       parameters: { type: "object", properties: {}, additionalProperties: false },
       execute: () => catalog.tables(),
     },
     {
-      name: knowledgeToolName(knowledgeId, "describe_table"),
+      name: scopedToolName(knowledgeId, "describe_table"),
       description: `Lists the columns of a table of the database ${knowledgeId}: name, type, nullable. Reads the catalog only.`,
       parameters: {
         type: "object",
@@ -41,7 +41,7 @@ export function databaseTools(knowledgeId: string, catalog: DatabaseCatalog, dat
       },
     },
     {
-      name: knowledgeToolName(knowledgeId, "sample_rows"),
+      name: scopedToolName(knowledgeId, "sample_rows"),
       description: `Returns the first rows of a table of the database ${knowledgeId}. Read-only.`,
       parameters: { type: "object", properties: { ...tableArgs, limit }, required: ["schema", "table"], additionalProperties: false },
       execute: (args) => {
@@ -50,7 +50,7 @@ export function databaseTools(knowledgeId: string, catalog: DatabaseCatalog, dat
       },
     },
     {
-      name: knowledgeToolName(knowledgeId, "search"),
+      name: scopedToolName(knowledgeId, "search"),
       description: `Returns the rows of a table of the database ${knowledgeId} where a text column contains a value, in any case. Read-only.`,
       parameters: {
         type: "object",
@@ -64,7 +64,7 @@ export function databaseTools(knowledgeId: string, catalog: DatabaseCatalog, dat
       },
     },
     {
-      name: knowledgeToolName(knowledgeId, "query"),
+      name: scopedToolName(knowledgeId, "query"),
       description: `Runs one read-only SELECT or WITH query on the database ${knowledgeId}, without semicolons, and returns its rows, each value as text. Give each column its own name.`,
       parameters: { type: "object", properties: { sql: { type: "string", minLength: 1 }, limit }, required: ["sql"], additionalProperties: false },
       execute: (args) => {
