@@ -1,13 +1,13 @@
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import type { Knowledge } from "@open-qa-stack/shared";
-import { DatabaseCatalog } from "./database-catalog.ts";
-import { DatabaseData } from "./database-data.ts";
-import { databaseTools } from "./database-tools.ts";
-import { documentTools } from "./document-tools.ts";
-import { OpenApiContract } from "./openapi-contract.ts";
-import { openApiTools } from "./openapi-tools.ts";
-import { PgSqlClient } from "./pg-sql-client.ts";
-import type { SqlClient } from "./sql-client.ts";
+import { DatabaseCatalog } from "./postgresql/database-catalog.ts";
+import { DatabaseData } from "./postgresql/database-data.ts";
+import { databaseTools } from "./postgresql/database-tools.ts";
+import { documentTools } from "./document/document-tools.ts";
+import { OpenApiContract } from "./openapi/openapi-contract.ts";
+import { openApiTools } from "./openapi/openapi-tools.ts";
+import { PgSqlClient } from "./postgresql/pg-sql-client.ts";
+import type { SqlClient } from "./postgresql/sql-client.ts";
 
 /** What the tools of knowledge sources need to reach them. */
 export interface KnowledgeAccess {

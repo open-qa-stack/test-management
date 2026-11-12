@@ -1,6 +1,6 @@
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import { HTTP_METHODS, type OpenApiContract } from "./openapi-contract.ts";
-import { scopedToolName } from "../tools/tool-name.ts";
+import { scopedToolName } from "../common/tool-name.ts";
 
 /**
  * The tools of an OpenAPI knowledge source: list its operations, read one.

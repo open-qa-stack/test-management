@@ -6,15 +6,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
-import type { AgentEvent, ToolDefinition } from "@open-qa-stack/domain";
+import type { ToolDefinition } from "@open-qa-stack/domain";
 import type { Knowledge } from "@open-qa-stack/shared";
-import { assertCatalogQuery, COLUMNS_QUERY, SERVER_ACCESS_QUERY, TABLES_QUERY } from "../src/knowledge/catalog-query.ts";
-import { DatabaseCatalog } from "../src/knowledge/database-catalog.ts";
-import { documentSections } from "../src/knowledge/document-sections.ts";
-import { PgSqlClient, type PgConnection } from "../src/knowledge/pg-sql-client.ts";
-import { readRepositoryFile } from "../src/knowledge/repository-file.ts";
-import { guardTool, knowledgeTools, type SqlClient, type SqlResult } from "../src/index.ts";
-import { closedPort, sqlResult } from "./support.ts";
+import { assertCatalogQuery, COLUMNS_QUERY, SERVER_ACCESS_QUERY, TABLES_QUERY } from "../src/postgresql/catalog-query.ts";
+import { DatabaseCatalog } from "../src/postgresql/database-catalog.ts";
+import { documentSections } from "../src/document/document-sections.ts";
+import { PgSqlClient, type PgConnection } from "../src/postgresql/pg-sql-client.ts";
+import { readRepositoryFile } from "../src/common/repository-file.ts";
+import { closedPort } from "@open-qa-stack/testing";
+import { knowledgeTools, type SqlClient, type SqlResult } from "../src/index.ts";
+import { sqlResult } from "./sql-result.ts";
 
 const REPOSITORY = fileURLToPath(new URL("./fixtures/repository/", import.meta.url));
 const attachments = [{ application: "policy-management" }];
@@ -236,12 +237,8 @@ describe("criterion 5 — a source that cannot be reached fails the call, not th
   it("turns an unreachable contract and a missing connection string into tool errors", async () => {
     const url = `http://127.0.0.1:${await closedPort()}/v3/api-docs`;
     const tools = knowledgeTools([{ id: "down-api", type: "openapi", url, attachments }, DATABASE], { repositoryRoot: REPOSITORY, env: { POLICY_DB_URL: "" } });
-    const events: AgentEvent[] = [];
-    for (const name of ["down_api_list_operations", "policy_db_list_tables"]) {
-      assert.ok("error" in (await guardTool(tool(tools, name), (e) => events.push(e))({}, name)));
-    }
-    assert.deepEqual(events.map((e) => e.type === "tool-error" && e.reason), ["failed", "failed"]);
-    assert.match((events[1] as Extract<AgentEvent, { type: "tool-error" }>).message, /POLICY_DB_URL is not set/);
+    await assert.rejects(tool(tools, "down_api_list_operations").execute({}), /fetch failed|ECONNREFUSED/);
+    await assert.rejects(tool(tools, "policy_db_list_tables").execute({}), /POLICY_DB_URL is not set/);
   });
 
   it("reaches PostgreSQL by default, and reports a database that does not answer", async () => {

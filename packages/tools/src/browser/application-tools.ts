@@ -2,7 +2,7 @@ import { join } from "node:path";
 import type { Locator } from "playwright-core";
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import type { Account, Application, Environment } from "@open-qa-stack/shared";
-import { scopedToolName } from "../tools/tool-name.ts";
+import { scopedToolName } from "../common/tool-name.ts";
 import { LOG_CAPACITY, type ApplicationPage, type PageScope, type PageState, type Until } from "./application-page.ts";
 import type { BrowserSession } from "./browser-session.ts";
 import { redact, redactText, secretForms } from "./redact.ts";

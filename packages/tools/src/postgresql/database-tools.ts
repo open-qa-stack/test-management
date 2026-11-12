@@ -2,7 +2,7 @@ import type { ToolDefinition } from "@open-qa-stack/domain";
 import type { DatabaseCatalog } from "./database-catalog.ts";
 import type { DatabaseData } from "./database-data.ts";
 import { MAX_ROWS, rowLimit } from "./read-query.ts";
-import { scopedToolName } from "../tools/tool-name.ts";
+import { scopedToolName } from "../common/tool-name.ts";
 
 const limit = { type: "integer", minimum: 1, maximum: MAX_ROWS, description: `Rows to return, ${MAX_ROWS} at most.` } as const;
 const tableArgs = { schema: { type: "string" }, table: { type: "string" } } as const;

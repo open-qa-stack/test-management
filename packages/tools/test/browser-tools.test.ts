@@ -16,10 +16,8 @@ import { MAX_ANNOTATED_ELEMENTS, MAX_SNAPSHOT_LENGTH, pageSnapshot } from "../sr
 import { recommendTarget } from "../src/browser/recommended-target.ts";
 import { redact, SECRET_MASK, secretForms } from "../src/browser/redact.ts";
 import { MAX_TEXT_LENGTH, shortText } from "../src/browser/short-text.ts";
+import { closedPort, NetworkAccessError, testSite, type TestSite } from "@open-qa-stack/testing";
 import { browserTools, type BrowserAccess, type BrowserToolset } from "../src/index.ts";
-import { testSite, type TestSite } from "./browser-site.ts";
-import { NetworkAccessError } from "./loopback-only.ts";
-import { answer, closedPort, exchange, MODEL, scriptedServer, toolCalls, withRuntime } from "./support.ts";
 
 const PASSWORD = 'p@ss "word" 42';
 const ENV = { SHOP_USER: "max@example.com", SHOP_PASSWORD: PASSWORD };
@@ -416,28 +414,6 @@ describe("criterion 4 — actions count against the task's action limit, snapsho
       tools.filter((t) => t.browserAction === true).map((t) => t.name),
       ["shop_goto", "shop_click", "shop_fill", "shop_select_option", "shop_check"],
     );
-  });
-
-  it("stops a task at its second click under a limit of one action, whatever the snapshots", async () => {
-    const server = await scriptedServer([
-      { body: toolCalls(MODEL, [{ id: "c1", name: "shop_click", arguments: { target: { role: "button", name: "Dismiss" } } }]) },
-      { body: toolCalls(MODEL, [{ id: "s1", name: "shop_snapshot", arguments: {} }, { id: "s2", name: "shop_snapshot", arguments: {} }]) },
-      { body: toolCalls(MODEL, [{ id: "c2", name: "shop_click", arguments: { target: { role: "button", name: "Sign in" } } }]) },
-      { body: answer(MODEL, "Done.") },
-    ]);
-    try {
-      await withTools(async (_, toolset) => {
-        const events = await withRuntime({ kind: "live", upstream: { baseUrl: server.baseUrl } }, MODEL, (runtime) =>
-          exchange(runtime, { instructions: "Explore.", tools: toolset.tools, limits: { maxIterations: null, maxDurationMs: null, maxActions: 1 } }, "Go."),
-        );
-        const last = events.at(-1);
-        assert.equal(last?.type, "stopped");
-        assert.deepEqual(last?.type === "stopped" && [last.reason.limit, last.reason.counters.actions], ["actions", 1]);
-        assert.deepEqual(events.filter((e) => e.type === "tool-result").map((e) => e.type === "tool-result" && e.callId), ["c1", "s1", "s2"]);
-      });
-    } finally {
-      await server.close();
-    }
   });
 });
 

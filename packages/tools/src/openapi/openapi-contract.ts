@@ -1,5 +1,5 @@
 import type { OpenApiKnowledge } from "@open-qa-stack/shared";
-import { readRepositoryFile } from "./repository-file.ts";
+import { readRepositoryFile } from "../common/repository-file.ts";
 
 /** An operation of an OpenAPI contract, as the list tool shows it. */
 export interface OperationSummary {

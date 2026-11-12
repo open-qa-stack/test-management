@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { AgentEvent, AgentSession, SessionOptions } from "@open-qa-stack/domain";
-import { CopilotAgentRuntime, ModelGateway, parseRecording, type Clock, type GatewayMode, type Recording, type SqlResult } from "../src/index.ts";
+import { CopilotAgentRuntime, ModelGateway, parseRecording, type Clock, type GatewayMode, type Recording } from "../src/index.ts";
 
 /** Folder of the recordings the tests replay. */
 export const RECORDINGS = new URL("./recordings/", import.meta.url);
@@ -125,22 +125,4 @@ function completion(model: string, message: unknown, finish: string): unknown {
     choices: [{ index: 0, message, finish_reason: finish }],
     usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
   };
-}
-
-/** @returns A loopback port nothing listens on. */
-export async function closedPort(): Promise<number> {
-  const server = createServer();
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const { port } = server.address() as AddressInfo;
-  await new Promise<void>((resolve) => server.close(() => resolve()));
-  return port;
-}
-
-/**
- * @param rows - Rows of a query result.
- * @param columns - Its columns; the keys of the first row when absent.
- * @returns The result a SqlClient gives for these rows.
- */
-export function sqlResult(rows: readonly Record<string, unknown>[], columns: readonly string[] = Object.keys(rows[0] ?? {})): SqlResult {
-  return { columns, rows };
 }

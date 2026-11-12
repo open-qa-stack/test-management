@@ -4,9 +4,9 @@ import net from "node:net";
 import { describe, it } from "node:test";
 import { ModelResponseError, ModelUnreachableError, ReplayMissError, type AgentEvent } from "@open-qa-stack/domain";
 import { parseRecording, TOOL_CALLING_CHECK, type Recording } from "../src/index.ts";
-import { MODEL_SERVER_PORT, NetworkAccessError } from "./loopback-only.ts";
+import { closedPort, MODEL_SERVER_PORT, NetworkAccessError } from "@open-qa-stack/testing";
 import { SCENARIOS } from "./scenarios.ts";
-import { answer, closedPort, exchange, loadRecording, MODEL, RECORDINGS, scriptedServer, withRuntime } from "./support.ts";
+import { answer, exchange, loadRecording, MODEL, RECORDINGS, scriptedServer, withRuntime } from "./support.ts";
 
 const RECORDED = "tool-calling.qwen3-coder-30b.json";
 

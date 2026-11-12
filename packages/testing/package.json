@@ -1,0 +1,13 @@
+{
+  "name": "@open-qa-stack/testing",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./loopback-only": "./src/loopback-only.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}

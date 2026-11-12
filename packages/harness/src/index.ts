@@ -1,8 +1,5 @@
-export { browserTools, type BrowserAccess, type BrowserToolset } from "./browser/browser-tools.ts";
 export { CopilotAgentRuntime, type CopilotRuntimeOptions } from "./copilot/copilot-agent-runtime.ts";
 export type { Clock } from "./guardrails/clock.ts";
-export { knowledgeTools, type KnowledgeAccess } from "./knowledge/knowledge-tools.ts";
-export type { SqlClient, SqlResult } from "./knowledge/sql-client.ts";
 export type { CanonicalMessage, CanonicalRequest } from "./model-gateway/canonical-request.ts";
 export type { GatewayFailure } from "./model-gateway/gateway-failure.ts";
 export type { GatewayMode } from "./model-gateway/gateway-mode.ts";

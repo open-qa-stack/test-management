@@ -1,7 +1,7 @@
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import { documentSections } from "./document-sections.ts";
-import { readRepositoryFile } from "./repository-file.ts";
-import { scopedToolName } from "../tools/tool-name.ts";
+import { readRepositoryFile } from "../common/repository-file.ts";
+import { scopedToolName } from "../common/tool-name.ts";
 
 /**
  * The tools of a document knowledge source: list its sections, read one.
