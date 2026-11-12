@@ -1,0 +1,150 @@
+{
+  "formatVersion": 1,
+  "origin": {
+    "kind": "recorded",
+    "model": "qwen/qwen3-coder-30b",
+    "server": "LM Studio 0.4.28",
+    "recordedOn": "2026-11-12"
+  },
+  "exchanges": [
+    {
+      "request": {
+        "model": "qwen/qwen3-coder-30b",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a test assistant. Use the provided tools when asked."
+          },
+          {
+            "role": "user",
+            "content": "First call get_inventory. Then call convert_price with amount 120 and currency EUR. Finally answer in one sentence that quotes both tool results."
+          }
+        ],
+        "tools": [
+          "get_inventory",
+          "convert_price"
+        ]
+      },
+      "response": {
+        "id": "chatcmpl-jh1hjhk4em8lzqgw7ddlj",
+        "object": "chat.completion",
+        "created": 1794517008,
+        "model": "qwen/qwen3-coder-30b",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "\n",
+              "reasoning_content": "",
+              "tool_calls": [
+                {
+                  "type": "function",
+                  "id": "768697349",
+                  "function": {
+                    "name": "get_inventory",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "500896900",
+                  "function": {
+                    "name": "convert_price",
+                    "arguments": "{\"amount\":120,\"currency\":\"EUR\"}"
+                  }
+                }
+              ]
+            },
+            "logprobs": null,
+            "finish_reason": "tool_calls"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 411,
+          "completion_tokens": 47,
+          "total_tokens": 458,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "stats": {},
+        "system_fingerprint": "qwen/qwen3-coder-30b"
+      }
+    },
+    {
+      "request": {
+        "model": "qwen/qwen3-coder-30b",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a test assistant. Use the provided tools when asked."
+          },
+          {
+            "role": "user",
+            "content": "First call get_inventory. Then call convert_price with amount 120 and currency EUR. Finally answer in one sentence that quotes both tool results."
+          },
+          {
+            "role": "assistant",
+            "content": "\n",
+            "toolCalls": [
+              {
+                "id": "768697349",
+                "name": "get_inventory",
+                "arguments": "{}"
+              },
+              {
+                "id": "500896900",
+                "name": "convert_price",
+                "arguments": "{\"amount\":120,\"currency\":\"EUR\"}"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"result\":{\"items\":7}}",
+            "toolCallId": "768697349"
+          },
+          {
+            "role": "tool",
+            "content": "{\"result\":{\"converted\":\"130.80 EUR\"}}",
+            "toolCallId": "500896900"
+          }
+        ],
+        "tools": [
+          "get_inventory",
+          "convert_price"
+        ]
+      },
+      "response": {
+        "id": "chatcmpl-ovuag0mfjzmiosq0b610j",
+        "object": "chat.completion",
+        "created": 1794517053,
+        "model": "qwen/qwen3-coder-30b",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "The inventory shows 7 items in stock, and 120 CHF equals 130.80 EUR.",
+              "reasoning_content": "",
+              "tool_calls": []
+            },
+            "logprobs": null,
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 495,
+          "completion_tokens": 27,
+          "total_tokens": 522,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "stats": {},
+        "system_fingerprint": "qwen/qwen3-coder-30b"
+      }
+    }
+  ]
+}

@@ -1,0 +1,115 @@
+{
+  "formatVersion": 1,
+  "origin": {
+    "kind": "handwritten",
+    "purpose": "The model calls convert_price with arguments that do not match its schema, then gives up."
+  },
+  "exchanges": [
+    {
+      "request": {
+        "model": "test-model",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a test assistant. Use the provided tools when asked."
+          },
+          {
+            "role": "user",
+            "content": "First call get_inventory. Then call convert_price with amount 120 and currency EUR. Finally answer in one sentence that quotes both tool results."
+          }
+        ],
+        "tools": [
+          "get_inventory",
+          "convert_price"
+        ]
+      },
+      "response": {
+        "id": "chatcmpl-scripted",
+        "object": "chat.completion",
+        "created": 0,
+        "model": "test-model",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "",
+              "tool_calls": [
+                {
+                  "type": "function",
+                  "id": "call-1",
+                  "function": {
+                    "name": "convert_price",
+                    "arguments": "{\"amount\":\"lots\",\"currency\":\"GBP\"}"
+                  }
+                }
+              ]
+            },
+            "finish_reason": "tool_calls"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 1,
+          "completion_tokens": 1,
+          "total_tokens": 2
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "test-model",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a test assistant. Use the provided tools when asked."
+          },
+          {
+            "role": "user",
+            "content": "First call get_inventory. Then call convert_price with amount 120 and currency EUR. Finally answer in one sentence that quotes both tool results."
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "toolCalls": [
+              {
+                "id": "call-1",
+                "name": "convert_price",
+                "arguments": "{\"amount\":\"lots\",\"currency\":\"GBP\"}"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"error\":\"The arguments do not match the schema of convert_price: arguments/amount must be number, arguments/currency must be equal to one of the allowed values.\"}",
+            "toolCallId": "call-1"
+          }
+        ],
+        "tools": [
+          "get_inventory",
+          "convert_price"
+        ]
+      },
+      "response": {
+        "id": "chatcmpl-scripted",
+        "object": "chat.completion",
+        "created": 0,
+        "model": "test-model",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "I could not convert the price."
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 1,
+          "completion_tokens": 1,
+          "total_tokens": 2
+        }
+      }
+    }
+  ]
+}

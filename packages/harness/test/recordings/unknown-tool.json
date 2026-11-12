@@ -1,0 +1,133 @@
+{
+  "formatVersion": 1,
+  "origin": {
+    "kind": "handwritten",
+    "purpose": "The model calls a tool the session does not offer next to one it does, then answers."
+  },
+  "exchanges": [
+    {
+      "request": {
+        "model": "test-model",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a test assistant. Use the provided tools when asked."
+          },
+          {
+            "role": "user",
+            "content": "First call get_inventory. Then call convert_price with amount 120 and currency EUR. Finally answer in one sentence that quotes both tool results."
+          }
+        ],
+        "tools": [
+          "get_inventory",
+          "convert_price"
+        ]
+      },
+      "response": {
+        "id": "chatcmpl-scripted",
+        "object": "chat.completion",
+        "created": 0,
+        "model": "test-model",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "",
+              "tool_calls": [
+                {
+                  "type": "function",
+                  "id": "call-1",
+                  "function": {
+                    "name": "delete_everything",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-2",
+                  "function": {
+                    "name": "get_inventory",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            },
+            "finish_reason": "tool_calls"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 1,
+          "completion_tokens": 1,
+          "total_tokens": 2
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "test-model",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a test assistant. Use the provided tools when asked."
+          },
+          {
+            "role": "user",
+            "content": "First call get_inventory. Then call convert_price with amount 120 and currency EUR. Finally answer in one sentence that quotes both tool results."
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "toolCalls": [
+              {
+                "id": "call-1",
+                "name": "delete_everything",
+                "arguments": "{}"
+              },
+              {
+                "id": "call-2",
+                "name": "get_inventory",
+                "arguments": "{}"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "Tool 'delete_everything' does not exist. Available tools that can be called are get_inventory, convert_price.",
+            "toolCallId": "call-1"
+          },
+          {
+            "role": "tool",
+            "content": "{\"result\":{\"items\":7}}",
+            "toolCallId": "call-2"
+          }
+        ],
+        "tools": [
+          "get_inventory",
+          "convert_price"
+        ]
+      },
+      "response": {
+        "id": "chatcmpl-scripted",
+        "object": "chat.completion",
+        "created": 0,
+        "model": "test-model",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "There are 7 items in stock."
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 1,
+          "completion_tokens": 1,
+          "total_tokens": 2
+        }
+      }
+    }
+  ]
+}

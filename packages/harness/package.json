@@ -1,0 +1,20 @@
+{
+  "name": "@open-qa-stack/harness",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test --test-concurrency=1 --import ./test/loopback-only.ts --experimental-test-coverage --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 --test-coverage-include='src/**' 'test/**/*.test.ts'",
+    "recordings:update": "UPDATE_RECORDINGS=1 node --test --import ./test/loopback-only.ts test/scripted-recordings.test.ts",
+    "record:tool-calling": "node scripts/record-tool-calling.ts"
+  },
+  "dependencies": {
+    "@github/copilot-sdk": "1.0.31",
+    "@open-qa-stack/domain": "workspace:*",
+    "ajv": "8.20.0"
+  }
+}
