@@ -1,4 +1,5 @@
 import type { AgentRuntimeError } from "./errors/agent-runtime-error.ts";
+import type { StopReason } from "./task-limits.ts";
 
 /** Something that happened in a session, in the order it happened. */
 export type AgentEvent =
@@ -11,16 +12,22 @@ export type AgentEvent =
   /**
    * A tool call produced no result: the model called a tool the session does not offer
    * (`unknown-tool`), the arguments did not match the schema so the tool did not run
-   * (`invalid-arguments`), or the tool failed (`failed`). The model is told and may try again.
+   * (`invalid-arguments`), a limit of the task refused the call (`limit-reached`), or the tool
+   * failed (`failed`). The model is told.
    */
   | {
       readonly type: "tool-error";
       readonly callId: string;
       readonly tool: string;
-      readonly reason: "unknown-tool" | "invalid-arguments" | "failed";
+      readonly reason: "unknown-tool" | "invalid-arguments" | "limit-reached" | "failed";
       readonly message: string;
     }
   /** The agent has finished answering the message. */
   | { readonly type: "end" }
+  /** The harness stopped the task because it reached a limit; no event follows. */
+  | { readonly type: "stopped"; readonly reason: StopReason }
   /** The session could not go on; no event follows. */
   | { readonly type: "error"; readonly error: AgentRuntimeError };
+
+/** The event that ends a turn. */
+export type TerminalEvent = Extract<AgentEvent, { type: "end" | "stopped" | "error" }>;

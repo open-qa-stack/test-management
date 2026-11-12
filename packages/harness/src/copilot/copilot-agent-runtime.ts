@@ -1,19 +1,24 @@
 import { approveAll, CopilotClient, type Tool } from "@github/copilot-sdk";
 import type { AgentRuntime, AgentSession, SessionOptions, ToolDefinition } from "@open-qa-stack/domain";
+import { SYSTEM_CLOCK, type Clock } from "../guardrails/clock.ts";
+import { TaskBudget } from "../guardrails/task-budget.ts";
 import type { ModelEndpoint } from "../model-gateway/model-endpoint.ts";
 import { guardTool } from "../tools/guard-tool.ts";
 import { CopilotAgentSession } from "./copilot-agent-session.ts";
 import { EventRelay } from "./event-relay.ts";
+import { preToolUse, type RefusedCall } from "./pre-tool-use.ts";
 import { runtimeEnvironment } from "./runtime-environment.ts";
 
 /** How a Copilot runtime reaches the model. */
 export interface CopilotRuntimeOptions {
-  /** Where model requests go; usually a `ModelGateway`. */
+  /** Where each session gets its channel to the model; usually a `ModelGateway`. */
   readonly endpoint: ModelEndpoint;
   /** Model identifier, as the model server names it. */
   readonly model: string;
   /** Directory where the Copilot runtime keeps its state, apart from any user installation. */
   readonly homeDirectory: string;
+  /** Where task durations are measured; the system clock when absent. */
+  readonly clock?: Clock;
 }
 
 /**
@@ -23,6 +28,10 @@ export interface CopilotRuntimeOptions {
  * Requests use the chat completions API. Sessions offer their own tools only: the built-in tools of the
  * runtime are off, and no GitHub account is used. The runtime process gets the few environment
  * variables it needs, never a key.
+ *
+ * Each session talks to its own gateway channel. A session with limits carries a task budget: its
+ * channel counts each model call as an iteration and serves none once the task is stopped, and the SDK's pre-tool hook counts browser actions and refuses
+ * calls once the task is stopped. Duration is checked at each of these checkpoints.
  */
 export class CopilotAgentRuntime implements AgentRuntime {
   private readonly options: CopilotRuntimeOptions;
@@ -46,16 +55,21 @@ export class CopilotAgentRuntime implements AgentRuntime {
     this.started ??= this.client.start();
     await this.started;
     const relay = new EventRelay();
+    const budget = options.limits === undefined ? undefined : new TaskBudget(options.limits, this.options.clock ?? SYSTEM_CLOCK);
+    const refused = new Map<string, RefusedCall>();
+    const browserTools = new Set(options.tools.filter((t) => t.browserAction === true).map((t) => t.name));
+    const channel = this.options.endpoint.createChannel(budget);
     const sdkSession = await this.client.createSession({
       model: this.options.model,
-      provider: { type: "openai", wireApi: "completions", baseUrl: this.options.endpoint.baseUrl },
+      provider: { type: "openai", wireApi: "completions", baseUrl: channel.baseUrl },
       onPermissionRequest: approveAll,
       availableTools: options.tools.map((t) => t.name),
       systemMessage: { mode: "replace", content: options.instructions },
       tools: options.tools.map((tool) => sdkTool(tool, relay)),
+      hooks: { onPreToolUse: (input) => preToolUse(input, { budget, browserTools, refused }) },
     });
-    const toolNames = new Set(options.tools.map((t) => t.name));
-    const session = new CopilotAgentSession(sdkSession, relay, this.options.endpoint, toolNames, () => this.sessions.delete(session));
+    const wiring = { channel, toolNames: new Set(options.tools.map((t) => t.name)), budget, refused };
+    const session = new CopilotAgentSession(sdkSession, relay, wiring, () => this.sessions.delete(session));
     this.sessions.add(session);
     return session;
   }

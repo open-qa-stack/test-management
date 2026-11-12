@@ -1,12 +1,16 @@
-import type { GatewayFailure } from "./gateway-failure.ts";
+import type { ModelChannel } from "./model-channel.ts";
+import type { RequestGate } from "./request-gate.ts";
 
 /**
- * What a model runtime needs from the gateway: where to send requests, and why the latest one failed.
- * `ModelGateway` is the implementation.
+ * What a model runtime needs from the gateway: one channel per session. `ModelGateway` is the
+ * implementation.
  */
 export interface ModelEndpoint {
-  /** Base URL of the chat completions API. */
-  readonly baseUrl: string;
-  /** Why the latest request failed, or `undefined` if it succeeded. */
-  readonly lastFailure: GatewayFailure | undefined;
+  /**
+   * Opens a channel for a session.
+   *
+   * @param gate - Consulted before every request of the channel; `undefined` serves every request.
+   * @returns The new channel.
+   */
+  createChannel(gate: RequestGate | undefined): ModelChannel;
 }

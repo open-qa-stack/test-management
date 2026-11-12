@@ -54,11 +54,11 @@ function canonicalMessage(m: WireMessage): CanonicalMessage {
  * Describes a request in one line, for a replay error.
  *
  * @param request - The request the recording lacks.
- * @param position - Its rank among the requests the gateway has served, from 1.
+ * @param position - Its rank among the requests of the session, from 1.
  * @returns A description that names the last message.
  */
 export function describeRequest(request: CanonicalRequest, position: number): string {
   const last = request.messages.at(-1);
   const said = last === undefined ? "no message" : `last message from ${last.role}: ${JSON.stringify((last.content ?? "").slice(0, 160))}`;
-  return `request ${position} served by the gateway (${request.messages.length} messages, ${said})`;
+  return `request ${position} of the session (${request.messages.length} messages, ${said})`;
 }

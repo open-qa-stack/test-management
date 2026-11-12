@@ -10,5 +10,7 @@ export type GatewayFailure =
   | { readonly kind: "replay-miss"; readonly request: string }
   /** The model runtime sent a request that is not a readable chat completion request. */
   | { readonly kind: "invalid-request" }
+  /** The task was stopped by a limit, so no model call is served. */
+  | { readonly kind: "task-stopped" }
   /** The model runtime called something other than chat completions. */
   | { readonly kind: "unsupported"; readonly path: string };

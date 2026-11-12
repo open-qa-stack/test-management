@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 import { ModelResponseError, ModelUnreachableError, ReplayMissError, type AgentEvent } from "@open-qa-stack/domain";
 import { parseRecording, TOOL_CALLING_CHECK, type Recording } from "../src/index.ts";
 import { MODEL_SERVER_PORT, NetworkAccessError } from "./loopback-only.ts";
+import { SCENARIOS } from "./scenarios.ts";
 import { answer, closedPort, exchange, loadRecording, MODEL, RECORDINGS, scriptedServer, withRuntime } from "./support.ts";
 
 const RECORDED = "tool-calling.qwen3-coder-30b.json";
@@ -81,7 +82,7 @@ describe("criterion 5 — a request missing from the recording is a replay error
     );
     const error = errorOf(events);
     assert.ok(error instanceof ReplayMissError);
-    assert.match(error.message, /request 1 served by the gateway \(2 messages, last message from user: "Say hello\."\)/);
+    assert.match(error.message, /request 1 of the session \(2 messages, last message from user: "Say hello\."\)/);
   });
 });
 
@@ -112,7 +113,7 @@ describe("criteria 8 and 9 — every recording declares its origin and holds no 
   const files = readdirSync(RECORDINGS).filter((f) => f.endsWith(".json")).sort();
 
   it("parses every recording and checks its origin", () => {
-    assert.deepEqual(files, ["invalid-arguments.json", RECORDED, "unknown-tool.json"].sort());
+    assert.deepEqual(files, [RECORDED, ...Object.keys(SCENARIOS)].sort());
     for (const file of files) {
       const { origin } = parseRecording(readFileSync(new URL(file, RECORDINGS), "utf8"));
       if (origin.kind === "recorded") {

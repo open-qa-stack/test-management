@@ -1,0 +1,414 @@
+{
+  "formatVersion": 1,
+  "origin": {
+    "kind": "handwritten",
+    "purpose": "Under the supervised limits, the model asks for a sixth model call."
+  },
+  "exchanges": [
+    {
+      "request": {
+        "model": "test-model",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Test the application."
+          },
+          {
+            "role": "user",
+            "content": "Read the index again and again."
+          }
+        ],
+        "tools": [
+          "read_index"
+        ]
+      },
+      "response": {
+        "id": "chatcmpl-scripted",
+        "object": "chat.completion",
+        "created": 0,
+        "model": "test-model",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "The test passed.",
+              "tool_calls": [
+                {
+                  "type": "function",
+                  "id": "call-1",
+                  "function": {
+                    "name": "read_index",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            },
+            "finish_reason": "tool_calls"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 1,
+          "completion_tokens": 1,
+          "total_tokens": 2
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "test-model",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Test the application."
+          },
+          {
+            "role": "user",
+            "content": "Read the index again and again."
+          },
+          {
+            "role": "assistant",
+            "content": "The test passed.",
+            "toolCalls": [
+              {
+                "id": "call-1",
+                "name": "read_index",
+                "arguments": "{}"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"result\":\"index\"}",
+            "toolCallId": "call-1"
+          }
+        ],
+        "tools": [
+          "read_index"
+        ]
+      },
+      "response": {
+        "id": "chatcmpl-scripted",
+        "object": "chat.completion",
+        "created": 0,
+        "model": "test-model",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "The test passed.",
+              "tool_calls": [
+                {
+                  "type": "function",
+                  "id": "call-1",
+                  "function": {
+                    "name": "read_index",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            },
+            "finish_reason": "tool_calls"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 1,
+          "completion_tokens": 1,
+          "total_tokens": 2
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "test-model",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Test the application."
+          },
+          {
+            "role": "user",
+            "content": "Read the index again and again."
+          },
+          {
+            "role": "assistant",
+            "content": "The test passed.",
+            "toolCalls": [
+              {
+                "id": "call-1",
+                "name": "read_index",
+                "arguments": "{}"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"result\":\"index\"}",
+            "toolCallId": "call-1"
+          },
+          {
+            "role": "assistant",
+            "content": "The test passed.",
+            "toolCalls": [
+              {
+                "id": "call_cee08cf34e2ede5178fc976135436315",
+                "name": "read_index",
+                "arguments": "{}"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"result\":\"index\"}",
+            "toolCallId": "call_cee08cf34e2ede5178fc976135436315"
+          }
+        ],
+        "tools": [
+          "read_index"
+        ]
+      },
+      "response": {
+        "id": "chatcmpl-scripted",
+        "object": "chat.completion",
+        "created": 0,
+        "model": "test-model",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "The test passed.",
+              "tool_calls": [
+                {
+                  "type": "function",
+                  "id": "call-1",
+                  "function": {
+                    "name": "read_index",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            },
+            "finish_reason": "tool_calls"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 1,
+          "completion_tokens": 1,
+          "total_tokens": 2
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "test-model",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Test the application."
+          },
+          {
+            "role": "user",
+            "content": "Read the index again and again."
+          },
+          {
+            "role": "assistant",
+            "content": "The test passed.",
+            "toolCalls": [
+              {
+                "id": "call-1",
+                "name": "read_index",
+                "arguments": "{}"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"result\":\"index\"}",
+            "toolCallId": "call-1"
+          },
+          {
+            "role": "assistant",
+            "content": "The test passed.",
+            "toolCalls": [
+              {
+                "id": "call_cee08cf34e2ede5178fc976135436315",
+                "name": "read_index",
+                "arguments": "{}"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"result\":\"index\"}",
+            "toolCallId": "call_cee08cf34e2ede5178fc976135436315"
+          },
+          {
+            "role": "assistant",
+            "content": "The test passed.",
+            "toolCalls": [
+              {
+                "id": "call_d14a12c7661d50352716b625896cf38b",
+                "name": "read_index",
+                "arguments": "{}"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"result\":\"index\"}",
+            "toolCallId": "call_d14a12c7661d50352716b625896cf38b"
+          }
+        ],
+        "tools": [
+          "read_index"
+        ]
+      },
+      "response": {
+        "id": "chatcmpl-scripted",
+        "object": "chat.completion",
+        "created": 0,
+        "model": "test-model",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "The test passed.",
+              "tool_calls": [
+                {
+                  "type": "function",
+                  "id": "call-1",
+                  "function": {
+                    "name": "read_index",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            },
+            "finish_reason": "tool_calls"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 1,
+          "completion_tokens": 1,
+          "total_tokens": 2
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "test-model",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Test the application."
+          },
+          {
+            "role": "user",
+            "content": "Read the index again and again."
+          },
+          {
+            "role": "assistant",
+            "content": "The test passed.",
+            "toolCalls": [
+              {
+                "id": "call-1",
+                "name": "read_index",
+                "arguments": "{}"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"result\":\"index\"}",
+            "toolCallId": "call-1"
+          },
+          {
+            "role": "assistant",
+            "content": "The test passed.",
+            "toolCalls": [
+              {
+                "id": "call_cee08cf34e2ede5178fc976135436315",
+                "name": "read_index",
+                "arguments": "{}"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"result\":\"index\"}",
+            "toolCallId": "call_cee08cf34e2ede5178fc976135436315"
+          },
+          {
+            "role": "assistant",
+            "content": "The test passed.",
+            "toolCalls": [
+              {
+                "id": "call_d14a12c7661d50352716b625896cf38b",
+                "name": "read_index",
+                "arguments": "{}"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"result\":\"index\"}",
+            "toolCallId": "call_d14a12c7661d50352716b625896cf38b"
+          },
+          {
+            "role": "assistant",
+            "content": "The test passed.",
+            "toolCalls": [
+              {
+                "id": "call_8f0c5c205feecdea1c91ac7dd46111a3",
+                "name": "read_index",
+                "arguments": "{}"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"result\":\"index\"}",
+            "toolCallId": "call_8f0c5c205feecdea1c91ac7dd46111a3"
+          }
+        ],
+        "tools": [
+          "read_index"
+        ]
+      },
+      "response": {
+        "id": "chatcmpl-scripted",
+        "object": "chat.completion",
+        "created": 0,
+        "model": "test-model",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "The test passed.",
+              "tool_calls": [
+                {
+                  "type": "function",
+                  "id": "call-1",
+                  "function": {
+                    "name": "read_index",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            },
+            "finish_reason": "tool_calls"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 1,
+          "completion_tokens": 1,
+          "total_tokens": 2
+        }
+      }
+    }
+  ]
+}

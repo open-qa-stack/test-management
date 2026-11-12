@@ -1,0 +1,107 @@
+{
+  "formatVersion": 1,
+  "origin": {
+    "kind": "handwritten",
+    "purpose": "With a limit of 3 actions, the model alternates browser actions and index reads."
+  },
+  "exchanges": [
+    {
+      "request": {
+        "model": "test-model",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Test the application."
+          },
+          {
+            "role": "user",
+            "content": "Click and read."
+          }
+        ],
+        "tools": [
+          "click",
+          "read_index"
+        ]
+      },
+      "response": {
+        "id": "chatcmpl-scripted",
+        "object": "chat.completion",
+        "created": 0,
+        "model": "test-model",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "The test passed.",
+              "tool_calls": [
+                {
+                  "type": "function",
+                  "id": "call-1",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-2",
+                  "function": {
+                    "name": "read_index",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-3",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-4",
+                  "function": {
+                    "name": "read_index",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-5",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-6",
+                  "function": {
+                    "name": "read_index",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-7",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            },
+            "finish_reason": "tool_calls"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 1,
+          "completion_tokens": 1,
+          "total_tokens": 2
+        }
+      }
+    }
+  ]
+}

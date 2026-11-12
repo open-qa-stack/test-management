@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { AgentEvent, AgentSession, SessionOptions } from "@open-qa-stack/domain";
-import { CopilotAgentRuntime, ModelGateway, parseRecording, type GatewayMode, type Recording } from "../src/index.ts";
+import { CopilotAgentRuntime, ModelGateway, parseRecording, type Clock, type GatewayMode, type Recording } from "../src/index.ts";
 
 /** Folder of the recordings the tests replay. */
 export const RECORDINGS = new URL("./recordings/", import.meta.url);
@@ -31,16 +31,18 @@ async function collect(events: AsyncIterable<AgentEvent>): Promise<AgentEvent[]>
  * @param mode - How the gateway answers.
  * @param model - Model identifier the runtime asks for.
  * @param use - What to do with the runtime and its gateway.
+ * @param clock - Clock of the runtime, the system clock when absent.
  * @returns What `use` returns.
  */
 export async function withRuntime<T>(
   mode: GatewayMode,
   model: string,
   use: (runtime: CopilotAgentRuntime, gateway: ModelGateway) => Promise<T>,
+  clock?: Clock,
 ): Promise<T> {
   const gateway = await ModelGateway.start(mode);
   const home = mkdtempSync(join(tmpdir(), "oqas-copilot-test-"));
-  const runtime = new CopilotAgentRuntime({ endpoint: gateway, model, homeDirectory: home });
+  const runtime = new CopilotAgentRuntime({ endpoint: gateway, model, homeDirectory: home, ...(clock === undefined ? {} : { clock }) });
   try {
     return await use(runtime, gateway);
   } finally {
@@ -97,11 +99,14 @@ export async function scriptedServer(replies: readonly { status?: number; body: 
   };
 }
 
-/** @returns A chat completion that calls the given tools. */
-export function toolCalls(model: string, calls: readonly { id: string; name: string; arguments: unknown }[]): unknown {
+/**
+ * @param content - Text the model writes next to its tool calls.
+ * @returns A chat completion that calls the given tools.
+ */
+export function toolCalls(model: string, calls: readonly { id: string; name: string; arguments: unknown }[], content = ""): unknown {
   return completion(model, {
     role: "assistant",
-    content: "",
+    content,
     tool_calls: calls.map((c) => ({ type: "function", id: c.id, function: { name: c.name, arguments: JSON.stringify(c.arguments) } })),
   }, "tool_calls");
 }

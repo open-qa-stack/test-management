@@ -9,6 +9,8 @@ export interface ToolDefinition {
   readonly description: string;
   /** Schema the arguments must match before `execute` runs. */
   readonly parameters: JsonSchema;
+  /** Whether each call counts as a browser action against the task's limit. */
+  readonly browserAction?: boolean;
   /**
    * Runs the tool.
    *

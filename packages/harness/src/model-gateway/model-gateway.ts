@@ -1,30 +1,34 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { canonicalRequest, describeRequest, type CanonicalRequest } from "./canonical-request.ts";
+import { GatewayChannel } from "./gateway-channel.ts";
 import type { GatewayFailure } from "./gateway-failure.ts";
 import type { GatewayMode } from "./gateway-mode.ts";
+import type { ModelChannel } from "./model-channel.ts";
 import type { ModelEndpoint } from "./model-endpoint.ts";
 import type { Exchange, Recording } from "./recording.ts";
+import type { RequestGate } from "./request-gate.ts";
 import type { Upstream } from "./upstream.ts";
 
-const COMPLETIONS = "/v1/chat/completions";
+/** `/c/<channel>/v1/<operation>`: every request names the channel of its session. */
+const CHANNEL_PATH = /^\/c\/(\d+)\/v1(\/.*)$/;
+const COMPLETIONS = "/chat/completions";
 
 /**
  * Local HTTP server the model runtime talks to instead of the model server.
  *
  * @remarks
- * Because the gateway makes the call, it knows exactly why one fails (`lastFailure`), and an API key
- * never leaves this process except towards the model server. Failures are answered with status 400,
- * which the runtime reports at once instead of retrying. A gateway serves one session at a time:
- * `lastFailure` describes the latest request, whoever sent it.
+ * Because the gateway makes the call, it knows exactly why one fails, and an API key never leaves this
+ * process except towards the model server. Each session talks to its own channel, which keeps its own
+ * gate and its own latest failure, so that sessions never see each other's limits or errors. Failures
+ * are answered with status 400, which the runtime reports at once instead of retrying.
  */
 export class ModelGateway implements ModelEndpoint {
   private readonly mode: GatewayMode;
   private readonly server: Server;
+  private readonly channels = new Map<string, GatewayChannel>();
   private readonly recorded: Exchange[] = [];
   private readonly replayed = new Set<number>();
-  private requests = 0;
-  private failure: GatewayFailure | undefined;
 
   private constructor(mode: GatewayMode, server: Server) {
     this.mode = mode;
@@ -45,18 +49,17 @@ export class ModelGateway implements ModelEndpoint {
     return gateway;
   }
 
-  /** {@inheritDoc ModelEndpoint.baseUrl} */
-  public get baseUrl(): string {
-    return `http://127.0.0.1:${(this.server.address() as AddressInfo).port}/v1`;
-  }
-
-  /** {@inheritDoc ModelEndpoint.lastFailure} */
-  public get lastFailure(): GatewayFailure | undefined {
-    return this.failure;
+  /** {@inheritDoc ModelEndpoint.createChannel} */
+  public createChannel(gate: RequestGate | undefined): ModelChannel {
+    const key = String(this.channels.size + 1);
+    const { port } = this.server.address() as AddressInfo;
+    const channel = new GatewayChannel(`http://127.0.0.1:${port}/c/${key}/v1`, gate);
+    this.channels.set(key, channel);
+    return channel;
   }
 
   /**
-   * What `record` mode has captured so far.
+   * What `record` mode has captured so far, every channel included.
    *
    * @throws Error when the gateway is not in record mode.
    */
@@ -72,32 +75,40 @@ export class ModelGateway implements ModelEndpoint {
   }
 
   private async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    this.failure = undefined;
+    const route = CHANNEL_PATH.exec(String(req.url));
+    const channel = route === null ? undefined : this.channels.get(route[1]!);
+    if (route === null || channel === undefined) {
+      return send(res, 404, { error: { message: "Model gateway: unknown channel.", type: "gateway_error" } });
+    }
+    const operation = route[2]!;
+    channel.receive();
     let body: string;
     let request: CanonicalRequest;
     try {
       body = await readBody(req);
-      if (req.method !== "POST" || req.url !== COMPLETIONS) {
-        return this.fail(res, { kind: "unsupported", path: `${req.method} ${req.url}` });
+      if (req.method !== "POST" || operation !== COMPLETIONS) {
+        return fail(res, channel, { kind: "unsupported", path: `${req.method} ${operation}` });
       }
       request = canonicalRequest(JSON.parse(body));
     } catch {
-      return this.fail(res, { kind: "invalid-request" });
+      return fail(res, channel, { kind: "invalid-request" });
     }
-    const position = ++this.requests;
-    if (this.mode.kind === "replay") return this.replay(res, this.mode.recording, request, position);
-    return this.forward(res, this.mode.upstream, body, request);
+    channel.gate?.startIteration();
+    if (channel.gate?.stopped === true) return fail(res, channel, { kind: "task-stopped" });
+    if (this.mode.kind === "replay") return this.replay(res, channel, this.mode.recording, request);
+    return this.forward(res, channel, this.mode.upstream, body, request);
   }
 
-  private replay(res: ServerResponse, recording: Recording, request: CanonicalRequest, position: number): void {
+  private replay(res: ServerResponse, channel: GatewayChannel, recording: Recording, request: CanonicalRequest): void {
+    const { exchanges } = recording;
     const key = JSON.stringify(request);
-    const index = recording.exchanges.findIndex((e, i) => !this.replayed.has(i) && JSON.stringify(e.request) === key);
-    if (index < 0) return this.fail(res, { kind: "replay-miss", request: describeRequest(request, position) });
+    const index = exchanges.findIndex((e, i) => !this.replayed.has(i) && JSON.stringify(e.request) === key);
+    if (index < 0) return fail(res, channel, { kind: "replay-miss", request: describeRequest(request, channel.requestCount) });
     this.replayed.add(index);
-    send(res, 200, recording.exchanges[index]!.response);
+    send(res, 200, exchanges[index]!.response);
   }
 
-  private async forward(res: ServerResponse, upstream: Upstream, body: string, request: CanonicalRequest): Promise<void> {
+  private async forward(res: ServerResponse, channel: GatewayChannel, upstream: Upstream, body: string, request: CanonicalRequest): Promise<void> {
     let answer: Response;
     let text: string;
     try {
@@ -108,22 +119,17 @@ export class ModelGateway implements ModelEndpoint {
       });
       text = await answer.text();
     } catch {
-      return this.fail(res, { kind: "unreachable", url: upstream.baseUrl });
+      return fail(res, channel, { kind: "unreachable", url: upstream.baseUrl });
     }
-    if (!answer.ok) return this.fail(res, { kind: "upstream-status", status: answer.status });
+    if (!answer.ok) return fail(res, channel, { kind: "upstream-status", status: answer.status });
     let response: unknown;
     try {
       response = JSON.parse(text);
     } catch {
-      return this.fail(res, { kind: "invalid-response" });
+      return fail(res, channel, { kind: "invalid-response" });
     }
     if (this.mode.kind === "record") this.recorded.push({ request, response });
     send(res, 200, response);
-  }
-
-  private fail(res: ServerResponse, failure: GatewayFailure): void {
-    this.failure = failure;
-    send(res, 400, { error: { message: `Model gateway: ${failure.kind}.`, type: "gateway_error" } });
   }
 }
 
@@ -135,6 +141,11 @@ async function readBody(req: IncomingMessage): Promise<string> {
 
 function bearer(apiKey: string | undefined): Record<string, string> {
   return apiKey === undefined ? {} : { authorization: `Bearer ${apiKey}` };
+}
+
+function fail(res: ServerResponse, channel: GatewayChannel, failure: GatewayFailure): void {
+  channel.fail(failure);
+  send(res, 400, { error: { message: `Model gateway: ${failure.kind}.`, type: "gateway_error" } });
 }
 
 function send(res: ServerResponse, status: number, body: unknown): void {

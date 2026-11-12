@@ -1,4 +1,5 @@
 import type { AgentSession } from "./agent-session.ts";
+import type { TaskLimits } from "./task-limits.ts";
 import type { ToolDefinition } from "./tool-definition.ts";
 
 /** What a session starts with. */
@@ -7,6 +8,8 @@ export interface SessionOptions {
   readonly instructions: string;
   /** The only tools the agent may call. */
   readonly tools: readonly ToolDefinition[];
+  /** Limits of the task the session carries out; unbounded when absent. */
+  readonly limits?: TaskLimits;
 }
 
 /**

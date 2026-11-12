@@ -1,0 +1,1658 @@
+{
+  "formatVersion": 1,
+  "origin": {
+    "kind": "handwritten",
+    "purpose": "Under the supervised limits, the model asks for 201 browser actions at once and claims success."
+  },
+  "exchanges": [
+    {
+      "request": {
+        "model": "test-model",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Test the application."
+          },
+          {
+            "role": "user",
+            "content": "Click everything."
+          }
+        ],
+        "tools": [
+          "click"
+        ]
+      },
+      "response": {
+        "id": "chatcmpl-scripted",
+        "object": "chat.completion",
+        "created": 0,
+        "model": "test-model",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "The test passed.",
+              "tool_calls": [
+                {
+                  "type": "function",
+                  "id": "call-1",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-2",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-3",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-4",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-5",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-6",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-7",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-8",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-9",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-10",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-11",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-12",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-13",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-14",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-15",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-16",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-17",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-18",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-19",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-20",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-21",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-22",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-23",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-24",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-25",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-26",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-27",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-28",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-29",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-30",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-31",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-32",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-33",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-34",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-35",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-36",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-37",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-38",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-39",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-40",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-41",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-42",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-43",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-44",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-45",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-46",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-47",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-48",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-49",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-50",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-51",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-52",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-53",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-54",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-55",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-56",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-57",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-58",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-59",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-60",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-61",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-62",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-63",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-64",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-65",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-66",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-67",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-68",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-69",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-70",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-71",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-72",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-73",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-74",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-75",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-76",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-77",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-78",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-79",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-80",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-81",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-82",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-83",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-84",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-85",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-86",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-87",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-88",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-89",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-90",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-91",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-92",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-93",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-94",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-95",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-96",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-97",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-98",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-99",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-100",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-101",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-102",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-103",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-104",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-105",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-106",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-107",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-108",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-109",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-110",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-111",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-112",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-113",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-114",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-115",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-116",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-117",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-118",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-119",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-120",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-121",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-122",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-123",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-124",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-125",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-126",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-127",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-128",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-129",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-130",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-131",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-132",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-133",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-134",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-135",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-136",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-137",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-138",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-139",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-140",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-141",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-142",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-143",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-144",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-145",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-146",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-147",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-148",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-149",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-150",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-151",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-152",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-153",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-154",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-155",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-156",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-157",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-158",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-159",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-160",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-161",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-162",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-163",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-164",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-165",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-166",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-167",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-168",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-169",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-170",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-171",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-172",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-173",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-174",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-175",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-176",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-177",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-178",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-179",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-180",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-181",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-182",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-183",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-184",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-185",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-186",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-187",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-188",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-189",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-190",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-191",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-192",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-193",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-194",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-195",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-196",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-197",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-198",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-199",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-200",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                },
+                {
+                  "type": "function",
+                  "id": "call-201",
+                  "function": {
+                    "name": "click",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            },
+            "finish_reason": "tool_calls"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 1,
+          "completion_tokens": 1,
+          "total_tokens": 2
+        }
+      }
+    }
+  ]
+}

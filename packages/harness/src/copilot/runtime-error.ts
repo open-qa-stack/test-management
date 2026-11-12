@@ -19,6 +19,8 @@ export function runtimeError(failure: GatewayFailure | undefined): AgentRuntimeE
       return new ModelResponseError("The model answered with a body that is not JSON.");
     case "invalid-request":
       return new ModelResponseError("The model runtime sent a request the gateway could not read.");
+    case "task-stopped":
+      return new ModelResponseError("The task was stopped by a limit before the model call.");
     case "unsupported":
       return new ModelResponseError(`The model runtime sent a request the gateway does not support: ${failure.path}.`);
     case undefined:

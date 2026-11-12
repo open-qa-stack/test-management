@@ -7,6 +7,7 @@ import { ModelResponseError, ModelUnreachableError, ReplayMissError, type AgentE
 import { runtimeEnvironment } from "../src/copilot/runtime-environment.ts";
 import { runtimeError } from "../src/copilot/runtime-error.ts";
 import { canonicalRequest, describeRequest } from "../src/model-gateway/canonical-request.ts";
+import { SYSTEM_CLOCK } from "../src/guardrails/clock.ts";
 import { CopilotAgentRuntime, guardTool, ModelGateway, parseRecording, recordToolCallingCheck, RecordingFormatError, TOOL_CALLING_CHECK } from "../src/index.ts";
 import { answer, MODEL, scriptedServer, toolCalls } from "./support.ts";
 
@@ -17,6 +18,7 @@ describe("runtime errors from gateway failures", () => {
     assert.equal(runtimeError({ kind: "upstream-status", status: 500 }).message, "The model answered with status 500.");
     assert.equal(runtimeError({ kind: "invalid-response" }).message, "The model answered with a body that is not JSON.");
     assert.equal(runtimeError({ kind: "invalid-request" }).message, "The model runtime sent a request the gateway could not read.");
+    assert.equal(runtimeError({ kind: "task-stopped" }).message, "The task was stopped by a limit before the model call.");
     assert.equal(runtimeError({ kind: "unsupported", path: "GET /v1/models" }).message, "The model runtime sent a request the gateway does not support: GET /v1/models.");
     assert.equal(runtimeError(undefined).message, "The model call failed.");
     assert.ok(runtimeError(undefined) instanceof ModelResponseError);
@@ -36,15 +38,32 @@ describe("model gateway", () => {
   it("refuses anything but readable chat completions, and forgets a failure on the next request", async () => {
     const gateway = await ModelGateway.start({ kind: "replay", recording: empty });
     try {
-      assert.equal((await fetch(`${gateway.baseUrl}/models`)).status, 400);
-      assert.deepEqual(gateway.lastFailure, { kind: "unsupported", path: "GET /v1/models" });
-      assert.equal((await fetch(`${gateway.baseUrl}/chat/completions`, { method: "POST", body: "not json" })).status, 400);
-      assert.deepEqual(gateway.lastFailure, { kind: "invalid-request" });
-      assert.equal((await fetch(`${gateway.baseUrl}/chat/completions`, { method: "POST", body: "{}" })).status, 400);
-      assert.deepEqual(gateway.lastFailure, { kind: "invalid-request" });
-      await fetch(`${gateway.baseUrl}/chat/completions`, { method: "POST", body: JSON.stringify({ model: "m", messages: [] }) });
-      assert.equal(gateway.lastFailure?.kind, "replay-miss");
+      const channel = gateway.createChannel(undefined);
+      assert.equal((await fetch(`${channel.baseUrl}/models`)).status, 400);
+      assert.deepEqual(channel.lastFailure, { kind: "unsupported", path: "GET /models" });
+      assert.equal((await fetch(`${channel.baseUrl}/chat/completions`, { method: "POST", body: "not json" })).status, 400);
+      assert.deepEqual(channel.lastFailure, { kind: "invalid-request" });
+      assert.equal((await fetch(`${channel.baseUrl}/chat/completions`, { method: "POST", body: "{}" })).status, 400);
+      assert.deepEqual(channel.lastFailure, { kind: "invalid-request" });
+      await fetch(`${channel.baseUrl}/chat/completions`, { method: "POST", body: JSON.stringify({ model: "m", messages: [] }) });
+      assert.equal(channel.lastFailure?.kind, "replay-miss");
       assert.throws(() => gateway.recording, /record mode/);
+    } finally {
+      await gateway.close();
+    }
+  });
+
+  it("answers 404 to an unknown channel and keeps the failures of each channel apart", async () => {
+    const gateway = await ModelGateway.start({ kind: "replay", recording: empty });
+    try {
+      const origin = new URL(gateway.createChannel(undefined).baseUrl).origin;
+      assert.equal((await fetch(`${origin}/c/99/v1/chat/completions`, { method: "POST", body: "{}" })).status, 404);
+      assert.equal((await fetch(`${origin}/v1/chat/completions`, { method: "POST", body: "{}" })).status, 404);
+      const stopped = gateway.createChannel({ startIteration: () => {}, stopped: true });
+      const open = gateway.createChannel(undefined);
+      await fetch(`${stopped.baseUrl}/chat/completions`, { method: "POST", body: JSON.stringify({ model: "m", messages: [] }) });
+      assert.deepEqual(stopped.lastFailure, { kind: "task-stopped" });
+      assert.equal(open.lastFailure, undefined);
     } finally {
       await gateway.close();
     }
@@ -79,10 +98,10 @@ describe("recordings", () => {
   });
 
   it("describes a request by its last message", () => {
-    assert.equal(describeRequest({ model: "m", messages: [], tools: [] }, 1), "request 1 served by the gateway (0 messages, no message)");
+    assert.equal(describeRequest({ model: "m", messages: [], tools: [] }, 1), "request 1 of the session (0 messages, no message)");
     assert.equal(
       describeRequest({ model: "m", messages: [{ role: "assistant", content: null }], tools: [] }, 2),
-      'request 2 served by the gateway (1 messages, last message from assistant: "")',
+      'request 2 of the session (1 messages, last message from assistant: "")',
     );
   });
 });
@@ -132,11 +151,31 @@ describe("tool-calling check", () => {
   });
 });
 
+describe("pre-tool hook", () => {
+  it("refuses a call without identifier once the task is stopped, without recording it", async () => {
+    const { preToolUse } = await import("../src/copilot/pre-tool-use.ts");
+    const { TaskBudget } = await import("../src/guardrails/task-budget.ts");
+    const budget = new TaskBudget({ maxIterations: null, maxDurationMs: null, maxActions: 0 }, SYSTEM_CLOCK);
+    const refused = new Map();
+    const input = { sessionId: "s", timestamp: new Date(0), cwd: "/", workingDirectory: "/", toolName: "click", toolArgs: {} };
+    assert.equal(preToolUse(input, { budget, browserTools: new Set(["click"]), refused }).permissionDecision, "deny");
+    assert.equal(refused.size, 0);
+  });
+});
+
+describe("system clock", () => {
+  it("tells a time that never goes back", () => {
+    const before = performance.now();
+    const now = SYSTEM_CLOCK.now();
+    assert.ok(now >= before && now <= performance.now());
+  });
+});
+
 describe("Copilot runtime", () => {
   it("closes without having started", async () => {
     const home = mkdtempSync(join(tmpdir(), "oqas-copilot-test-"));
     try {
-      const runtime = new CopilotAgentRuntime({ endpoint: { baseUrl: "http://127.0.0.1:9/v1", lastFailure: undefined }, model: "m", homeDirectory: home });
+      const runtime = new CopilotAgentRuntime({ endpoint: { createChannel: () => ({ baseUrl: "http://127.0.0.1:9/v1", lastFailure: undefined }) }, model: "m", homeDirectory: home });
       await runtime.close();
     } finally {
       rmSync(home, { recursive: true, force: true });
