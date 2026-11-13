@@ -57,6 +57,7 @@ export interface CartographyOutcome {
  *
  * @remarks
  * Before any exploration, every source must answer; otherwise no session starts and no index is written.
+ * The inventory a knowledge source gave then is the one its card is made of: no source is read twice.
  * Each source without an up-to-date card is then mapped on its own, in its own task, under the limits of
  * the configured autonomy. A last task consolidates the cards, with the notes the agents kept but none of
  * the tools of the sources, and hands its index in with `submit_index`, which must place every element of
@@ -90,7 +91,8 @@ export class Cartographer {
       return { journal: journal.entries() };
     }
     const now = this.options.now ?? (() => new Date());
-    const results = await mapSources({ ...this.options, now });
+    const inventories = new Map(surveys.flatMap(([source, survey]) => (survey.ok && survey.inventory !== undefined ? [[source.id, survey.inventory] as const] : [])));
+    const results = await mapSources({ ...this.options, now, inventories });
     for (const { outcome } of results) for (const entry of outcome.journal) journal.record(entry.level, entry.message, entry.source);
     const cards = new Map(results.flatMap(({ source, outcome }) => (outcome.card === undefined ? [] : [[source.id, outcome.card] as const])));
     const inventory = new Map([...cards].map(([id, card]) => [id, elementsOf(card)] as const));

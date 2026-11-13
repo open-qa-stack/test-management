@@ -1,22 +1,22 @@
-import { knowledgeInventory, type KnowledgeAccess } from "@open-qa-stack/tools";
+import { knowledgeInventory, type KnowledgeAccess, type SourceInventory } from "@open-qa-stack/tools";
 import type { RunSource } from "./run-sources.ts";
 
 /** Longest wait for a user interface to answer, in milliseconds. */
 export const INTERFACE_TIMEOUT_MS = 10_000;
 
-/** Whether a source answers, or why it does not. */
-export type SurveyResult = { readonly ok: true } | { readonly ok: false; readonly error: string };
+/** Whether a source answers, with the inventory read for a knowledge source, or why it does not. */
+export type SurveyResult = { readonly ok: true; readonly inventory?: SourceInventory } | { readonly ok: false; readonly error: string };
 
 /**
  * Checks that a source answers.
  *
  * @remarks
- * A knowledge source answers when its inventory can be read. A user interface answers when its address returns anything
+ * A knowledge source answers when its inventory can be read, and the inventory is returned so that it is not read again. A user interface answers when its address returns anything
  * but a server error, its redirects left unfollowed. Nothing here calls the model.
  *
  * @param source - The source.
  * @param access - How to reach the knowledge sources.
- * @returns Whether it answers, or why it does not.
+ * @returns Whether it answers, with its inventory, or why it does not.
  */
 export async function surveySource(source: RunSource, access: KnowledgeAccess): Promise<SurveyResult> {
   try {
@@ -24,8 +24,7 @@ export async function surveySource(source: RunSource, access: KnowledgeAccess): 
       const response = await fetch(source.uiUrl, { redirect: "manual", signal: AbortSignal.timeout(INTERFACE_TIMEOUT_MS) });
       return response.status < 500 ? { ok: true } : { ok: false, error: `${source.uiUrl} answered with status ${response.status}.` };
     }
-    await knowledgeInventory(source.knowledge, access);
-    return { ok: true };
+    return { ok: true, inventory: await knowledgeInventory(source.knowledge, access) };
   } catch (failure) {
     return { ok: false, error: reasonOf(failure) };
   }

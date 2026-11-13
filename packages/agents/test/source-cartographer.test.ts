@@ -7,7 +7,7 @@ import type { AgentRuntime } from "@open-qa-stack/domain";
 import { CopilotAgentRuntime, ModelGateway } from "@open-qa-stack/harness";
 import { validateConfig, validateSourceCard, type Knowledge, type ResolvedConfig, type SourceCardSubmission } from "@open-qa-stack/shared";
 import { answer, closedPort, scriptedServer, testSite, toolCalls, type ScriptedServer } from "@open-qa-stack/testing";
-import { MAX_SCANNED_FILES, type SqlClient, type SqlResult } from "@open-qa-stack/tools";
+import { knowledgeInventory, MAX_SCANNED_FILES, type SourceInventory, type SqlClient, type SqlResult } from "@open-qa-stack/tools";
 import { sourceCardRequest } from "../src/source-cartographer/source-cartographer-prompt.ts";
 import { CARDS_FOLDER, Cartographer, mapSources, SourceCartographer, type CardSource, type SourceCartographyOutcome } from "../src/index.ts";
 
@@ -89,6 +89,8 @@ interface Setup {
   readonly database?: SqlClient;
   readonly root?: string;
   readonly force?: boolean;
+  /** The inventory read before, handed to the cartographer. */
+  readonly inventory?: SourceInventory;
   readonly limits?: { maxIterations: number; maxDurationMinutes: number; maxActions: number };
   readonly config?: (config: ResolvedConfig) => ResolvedConfig;
   readonly modelUrl?: string;
@@ -114,6 +116,7 @@ async function cartography(replies: readonly { status?: number; body: unknown }[
       ...(setup.realDatabase === true ? {} : { sqlClient: () => setup.database ?? new CatalogDouble() }),
       ...(setup.systemClock === true ? {} : { now: () => new Date("2026-11-13T03:00:00.000Z") }),
       ...(setup.force === undefined ? {} : { force: setup.force }),
+      ...(setup.inventory === undefined ? {} : { inventory: setup.inventory }),
     });
     return { outcome: await cartographer.run(), server };
   } finally {
@@ -402,6 +405,20 @@ describe("freshness, criterion 2 — the sources without an up-to-date card are 
     } finally {
       await site.close();
     }
+  });
+});
+
+describe("single read, criterion 2 — a card is made of the inventory read before, without reading the source again", () => {
+  it("writes the card of a code folder removed since its inventory was read, with the fingerprint of that inventory", async () => {
+    const root = mkdtempSync(join(workspace, "repo-"));
+    mkdirSync(join(root, "code", "app", "models"), { recursive: true });
+    writeFileSync(join(root, "code", "app", "models", "user.ts"), "export class User {}\n");
+    const source: Knowledge = { id: "app", type: "source-code", path: "code", commands: "none", attachments: [{ application: "shop" }] };
+    const inventory = await knowledgeInventory(source, { repositoryRoot: root, env: {} });
+    rmSync(join(root, "code"), { recursive: true });
+    const card = { domains: [{ id: "users", label: "Users", description: "The users.", items: [{ name: "app/models", summary: "The models." }] }], unassigned: [] };
+    const { outcome } = await cartography([{ body: toolCalls(MODEL, [submit(card)]) }, { body: answer(MODEL, "Done.") }], { source, root, inventory });
+    assert.deepEqual([outcome.card?.status, outcome.card?.fingerprint], ["complete", inventory.fingerprint], messages(outcome));
   });
 });
 

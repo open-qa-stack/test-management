@@ -37,11 +37,12 @@ export interface CardSubject {
  *
  * @param source - The knowledge source.
  * @param access - How to reach it.
+ * @param read - Its inventory, when it was read just before; read here otherwise.
  * @returns Its tools — the catalog of a base, never its rows — and its inventory.
  * @throws Error when the source does not answer.
  */
-export async function knowledgeSubject(source: Knowledge, access: KnowledgeAccess): Promise<CardSubject> {
-  const inventory = await knowledgeInventory(source, access);
+export async function knowledgeSubject(source: Knowledge, access: KnowledgeAccess, read?: SourceInventory): Promise<CardSubject> {
+  const inventory = read ?? (await knowledgeInventory(source, access));
   const tools = knowledgeTools([source], access).filter((tool) => !(source.type === "postgresql" && DATA_TOOLS.some((action) => tool.name === scopedToolName(source.id, action))));
   return { fingerprint: inventory.fingerprint, tools, request: sourceCardRequest(source.id, source.type, inventory), inventory: () => inventory, close: async () => undefined };
 }

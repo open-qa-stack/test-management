@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { AgentEvent, AgentRuntime } from "@open-qa-stack/domain";
 import { validateSourceCard, type ResolvedConfig, type SourceCard, type SourceCardSubmission } from "@open-qa-stack/shared";
-import type { BrowserAccess, KnowledgeAccess } from "@open-qa-stack/tools";
+import type { BrowserAccess, KnowledgeAccess, SourceInventory } from "@open-qa-stack/tools";
 import { agentNotes } from "../common/agent-notes.ts";
 import { configSecrets } from "../common/config-secrets.ts";
 import { runAgentTask, taskEnd, taskLimits } from "../common/agent-task.ts";
@@ -31,6 +31,8 @@ export interface SourceCartographerOptions {
   readonly sqlClient?: KnowledgeAccess["sqlClient"];
   /** How the browser starts and waits; a headless Chromium with the default waits otherwise. */
   readonly browser?: Pick<BrowserAccess, "launch" | "actionTimeoutMs" | "navigationTimeoutMs">;
+  /** The inventory of a knowledge source read just before, so that it is not read again; read by the cartographer otherwise. */
+  readonly inventory?: SourceInventory;
   /** Maps the source again even when its card is up to date. */
   readonly force?: boolean;
   /** The clock of the card date; the system clock by default. */
@@ -155,7 +157,7 @@ export class SourceCartographer {
     if (source.type === "web") {
       return interfaceSubject(config, source, events, { env, screenshotsDir: join(repositoryRoot, config.repository.stateDir, "screenshots"), ...this.options.browser });
     }
-    return knowledgeSubject(source, { repositoryRoot, env, ...(this.options.sqlClient === undefined ? {} : { sqlClient: this.options.sqlClient }) });
+    return knowledgeSubject(source, { repositoryRoot, env, ...(this.options.sqlClient === undefined ? {} : { sqlClient: this.options.sqlClient }) }, this.options.inventory);
   }
 }
 
