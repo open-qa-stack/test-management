@@ -1,6 +1,7 @@
 import { Check } from "./check.ts";
 import { CoverageDirectiveStep } from "./coverage-directive-step.ts";
 import { ScriptStep } from "./script-step.ts";
+import { SecretsStep } from "./secrets-step.ts";
 import { TestStep } from "./test-step.ts";
 import { workspacePackages } from "./workspace-package.ts";
 
@@ -13,6 +14,7 @@ const check = new Check(
     new ScriptStep("format", root, "format:check"),
     new ScriptStep("build", root, "build"),
     new CoverageDirectiveStep(root, packages),
+    new SecretsStep(root),
     new TestStep(root, packages),
     new ScriptStep("lint rules", root, "test:lint-rules"),
   ],

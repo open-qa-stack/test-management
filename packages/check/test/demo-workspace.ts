@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { copyFile, cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -55,7 +55,7 @@ export interface CheckRun {
 }
 
 /**
- * A workspace in a temporary folder, outside the packages of the product, with the settings of this
+ * A git repository in a temporary folder, outside the packages of the product, with the settings of this
  * workspace, its lint rules and its installed tools, a demonstration package and a package without sources.
  */
 export class DemoWorkspace {
@@ -73,6 +73,7 @@ export class DemoWorkspace {
     await cp(join(REPOSITORY, LINT_RULES), join(workspace.root, LINT_RULES), { recursive: true });
     await symlink(join(REPOSITORY, "node_modules"), join(workspace.root, "node_modules"));
     for (const [path, text] of Object.entries(DEMO)) await workspace.write(path, text);
+    execFileSync("git", ["init", "-q"], { cwd: workspace.root });
     return workspace;
   }
 
