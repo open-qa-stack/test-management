@@ -3,8 +3,13 @@ import { secretForms, secretPaths } from "@open-qa-stack/tools";
 import type { IndexError } from "@open-qa-stack/shared";
 
 /**
- * The secrets of a configuration: every value it reads from the environment for a password of a test
- * account, a connection string or the key of the model, and the password a connection string holds.
+ * The secrets of a configuration that no text written by an agent may hold: every connection string and the
+ * key of the model, as the environment gives them.
+ *
+ * @remarks
+ * The passwords — of the test accounts, or inside a connection string — are not among them. The tools never
+ * give them to the agent; one it still writes was read in the sources, and refusing it would refuse every
+ * name that holds it, as an application name often does.
  *
  * @param config - The resolved configuration.
  * @param env - The environment the configuration reads.
@@ -12,28 +17,9 @@ import type { IndexError } from "@open-qa-stack/shared";
  */
 export function configSecrets(config: ResolvedConfig, env: Readonly<Record<string, string | undefined>>): string[] {
   const value = (variable: string): string[] => (env[variable] ? [env[variable]] : []);
-  const passwords = config.applications.flatMap((application) => (application.authentication.accounts ?? []).flatMap((account) => value(account.passwordEnv)));
   const connections = config.knowledge.flatMap((source) => (source.type === "postgresql" ? value(source.connectionStringEnv) : []));
   const key = config.model.apiKeyEnv === undefined ? [] : value(config.model.apiKeyEnv);
-  return [...new Set([...passwords, ...connections, ...connections.flatMap(connectionPasswords), ...key])];
-}
-
-/** A keyword `password=` of a connection string written as keywords, quoted or not. */
-const KEYWORD_PASSWORD = /(?:^|\s)password\s*=\s*(?:'((?:[^'\\]|\\.)*)'|(\S+))/;
-
-/**
- * The password a PostgreSQL connection string holds: in its address (`postgresql://user:pass@host`), in its
- * query (`?password=`), or as a keyword (`password=pass host=…`).
- */
-function connectionPasswords(connection: string): string[] {
-  const address = URL.canParse(connection) ? new URL(connection) : undefined;
-  const keyword = KEYWORD_PASSWORD.exec(connection);
-  const found = [
-    address === undefined || address.password === "" ? undefined : decodeURIComponent(address.password),
-    address?.searchParams.get("password") ?? undefined,
-    keyword === null ? undefined : (keyword[1]?.replace(/\\(.)/g, "$1") ?? keyword[2]),
-  ];
-  return found.filter((password): password is string => password !== undefined && password !== "");
+  return [...new Set([...connections, ...key])];
 }
 
 /**
@@ -46,17 +32,4 @@ function connectionPasswords(connection: string): string[] {
  */
 export function secretErrors(value: unknown, secrets: readonly string[]): IndexError[] {
   return secretPaths(value, secrets.flatMap(secretForms)).map((path) => ({ path, message: `${path} holds a secret of the configuration; write it without the secret.` }));
-}
-
-/**
- * The secrets the agent must not see written: those of the configuration that no name given by the sources
- * holds. A secret the source shows itself — a password that is also a word of its tables or folders, as
- * `shop` in `shop_orders` — was given to the agent with those names, and masking it would garble them.
- *
- * @param secrets - The secrets of the configuration.
- * @param names - The names the harness gave the agent: sources and their elements.
- * @returns The secrets none of the names holds, in any form.
- */
-export function hiddenSecrets(secrets: readonly string[], names: readonly string[]): string[] {
-  return secrets.filter((secret) => !secretForms(secret).some((form) => names.some((name) => name.includes(form))));
 }

@@ -28,8 +28,8 @@ The agent gets the tools of this source only — the catalog of a base, never it
 
 ## Notes
 
-Every agent can keep tagged notes with `remember` and find them with `recall`, in `<stateDir>/memory/notes.jsonl`. A note that holds the value of a variable the configuration names for a password, a connection string or a key is refused.
+Every agent can keep tagged notes with `remember` and find them with `recall`, in `<stateDir>/memory/notes.jsonl`. A note, a card or an index that holds a connection string or the key of the model is refused. A password alone is not checked: the tools never give it to the agent, and one read in a source is often a word of the application's names.
 
 ## Outcome
 
-`run()` returns the path and content of the index when it was written, and the journal: `{ level, message, source? }` entries for every check, refusal, tool error and write, those of each card first. Neither the index, the cards nor the journal holds a connection string, a key or a password.
+`run()` returns the path and content of the index when it was written, and the journal: `{ level, message, source? }` entries for every check, refusal, tool error and write, those of each card first. Neither the index, the cards nor the journal holds a connection string or a key; the passwords of the accounts never reach the agent through the tools.

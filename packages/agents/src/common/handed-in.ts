@@ -24,8 +24,8 @@ export interface SubmissionRules<T> {
   readonly what: string;
   /** The source the result is about, which names the journal entries; none for a result about several. */
   readonly source?: string;
-  /** Secrets masked in every refusal journaled or told, as known when a submission is checked. */
-  secrets(): readonly string[];
+  /** Secrets masked in every refusal journaled or told. */
+  readonly secrets: readonly string[];
   /** Description of the tool, written for the model. */
   readonly description: string;
   /** The shape of a submission given to the model; its rules are left to `validate` and `check`. */
@@ -103,7 +103,7 @@ export class HandedIn<T> {
 
   private refuse(errors: readonly IndexError[], unplaced: ReadonlyMap<string, readonly string[]>): { error: string } {
     const { what } = this.rules;
-    const forms = this.rules.secrets().filter((secret) => secret !== "").flatMap(secretForms);
+    const forms = this.rules.secrets.filter((secret) => secret !== "").flatMap(secretForms);
     const masked = (text: string) => redactText(text, forms);
     for (const error of errors) this.record("error", masked(`The ${what} was refused: ${error.message}`));
     const others = errors.filter((error) => error.path !== "");

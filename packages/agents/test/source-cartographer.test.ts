@@ -425,7 +425,7 @@ describe("sources a card must still be made of", () => {
 
   it("refuses a card that holds a secret of the configuration, without repeating it", async () => {
     const secret = "postgresql://shop:s3cr3t-pw@127.0.0.1:5999/shop";
-    const leaky = { domains: [{ ...CARD.domains[0]!, items: [{ ...CARD.domains[0]!.items[0]!, summary: `Read with ${secret}.` }] }, CARD.domains[1]!], unassigned: [...CARD.unassigned, "s3cr3t-pw"] };
+    const leaky = { domains: [{ ...CARD.domains[0]!, items: [{ ...CARD.domains[0]!.items[0]!, summary: `Read with ${secret}.` }] }, CARD.domains[1]!], unassigned: [...CARD.unassigned, secret] };
     const { outcome, server } = await cartography([{ body: toolCalls(MODEL, [submit(leaky)]) }, { body: toolCalls(MODEL, [submit(CARD, "c2")]) }, { body: answer(MODEL, "Done.") }]);
     assert.match(messages(outcome), /The card was refused: \/domains\/0\/items\/0\/summary holds a secret of the configuration; write it without the secret\./);
     assert.ok(outcome.card);

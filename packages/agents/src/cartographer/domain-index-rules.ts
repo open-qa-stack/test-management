@@ -1,5 +1,5 @@
 import { placementErrors, unplacedItems, validateDomainSubmission, type DomainIndexSubmission, type IndexError, type SourceInventory, type SourceReferences } from "@open-qa-stack/shared";
-import { hiddenSecrets, secretErrors } from "../common/config-secrets.ts";
+import { secretErrors } from "../common/config-secrets.ts";
 import { withUnassigned } from "../common/with-unassigned.ts";
 import type { SubmissionRules } from "../common/handed-in.ts";
 
@@ -39,8 +39,7 @@ const SUBMISSION_SHAPE = {
  *
  * @remarks
  * A submission without `unassigned` puts nothing there. It is checked against its schema, then it must place every element of the cards and invent
- * none, refer to no source without a card and hold no secret but those the names of the sources and of the
- * elements of their cards show, which come from the sources themselves. An item that is no element of its source but
+ * none, refer to no source without a card and hold no secret. An item that is no element of its source but
  * becomes one without the name of the source and a slash or a colon in front is read without them, and the
  * references of a domain to one source are merged.
  *
@@ -51,18 +50,17 @@ const SUBMISSION_SHAPE = {
  * @returns The rules.
  */
 export function domainIndexRules(inventory: SourceInventory, sources: ReadonlySet<string>, isRead: (source: string) => boolean, secrets: readonly string[]): SubmissionRules<DomainIndexSubmission> {
-  const hidden = hiddenSecrets(secrets, [...sources, ...[...inventory.values()].flat()]);
   return {
     tool: SUBMIT_TOOL,
     what: "index",
-    secrets: () => hidden,
+    secrets,
     description:
       "Hands in the domain index: the domains, each with coarse references into the sources, and in unassigned the elements you put in no domain. Every element of every card must appear once at least.",
     shape: SUBMISSION_SHAPE,
     validate: (args) => validateDomainSubmission(withUnassigned(args)),
     check: (valid) => {
       const value = normalised(valid, inventory);
-      const errors = [...secretErrors(value, hidden), ...placementErrors(value, inventory, sources), ...unread(value, sources, isRead)];
+      const errors = [...secretErrors(value, secrets), ...placementErrors(value, inventory, sources), ...unread(value, sources, isRead)];
       return { value, errors, unplaced: unplacedItems(value, inventory) };
     },
   };
