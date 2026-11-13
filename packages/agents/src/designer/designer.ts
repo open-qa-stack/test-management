@@ -66,7 +66,10 @@ export interface DesignOutcome {
  * and no branch of the name to create; otherwise nothing is written. The agent gets the index and what the
  * cards say of each element, the browser tools of the applications, the tools of the documents, the source
  * code and the logs — never those of a contract or a base, whose substance the index holds — and the notes.
- * It proposes its tests one by one with `propose_test`, under the limits of the configured autonomy. Once
+ * It runs each test it writes with `run_test`, through `runner`, against the application, and proposes it
+ * with `propose_test`, which runs it too unless that very text was already tried, under the limits of the
+ * configured autonomy, every trial counting against them. A test is kept when it passes, or when it failed
+ * in a run the agent saw and the agent holds the application at fault; its verdict is the harness's. Once
  * the session is over, the accepted tests, in the folder of their application, and the design state are
  * committed on a new branch from the revision checked out, which stays checked out. Nothing contacts a
  * remote. With fewer than three tests, those obtained are still written and the design fails.
@@ -157,7 +160,8 @@ export class Designer {
       await mkdir(dirname(join(repositoryRoot, path)), { recursive: true });
       await writeFile(join(repositoryRoot, path), content);
     }
-    const message = [`test: add ${tests.length} generated Playwright tests`, "", ...tests.map((test) => `- ${test.path}: ${test.reason}`)].join("\n");
+    const line = (test: AcceptedTest) => (test.verdict === "passed" ? `- ${test.path}: ${test.reason}` : `- ${test.path} (${test.verdict}): ${test.reason} Failure: ${test.failure}`);
+    const message = [`test: add ${tests.length} generated Playwright tests`, "", ...tests.map(line)].join("\n");
     const committed = new Set(await repository.commit(files.map(([path]) => path), message));
     for (const test of tests) journal.record("info", `The test ${test.path} was written.`);
     journal.record("info", `The design state was written to ${statePath}${committed.has(statePath) ? "" : ", which git ignores: it was not committed"}.`);

@@ -38,3 +38,10 @@ describe("the syntax of a TypeScript module", () => {
     assert.deepEqual(await moduleSyntax(`import { test } from "@playwright/test";\ntest("x", async () => {\n`), { ok: false, error: `line 1, column 1: unexpected "import { test } from \\"@playwright/test\\";"` });
   });
 });
+
+describe("a module named with an escape", () => {
+  it("is a computed module: its text is not its name", async () => {
+    const text = [`import fs from "node\\x3afs";`, `const pg = require("p\\u0067");`].join("\n");
+    assert.deepEqual(await moduleSyntax(text), { ok: true, imports: [{ module: undefined, line: 1 }, { module: undefined, line: 2 }] });
+  });
+});

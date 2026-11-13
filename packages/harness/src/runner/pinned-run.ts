@@ -42,6 +42,8 @@ export interface PinnedRunOptions {
   readonly tests: readonly string[];
   /** Runs the commands of the steps; a `LocalRunner` in the test repository by default. */
   readonly runner?: CommandRunner;
+  /** The environment the test accounts are read from; that of the process by default. */
+  readonly env?: Readonly<Record<string, string | undefined>>;
   /** Longest wait for an address to answer, in milliseconds. */
   readonly reachTimeoutMs?: number;
   /** The clock of the dates; the system clock by default. */
@@ -104,11 +106,13 @@ export class PinnedRun {
   private readonly options: PinnedRunOptions;
   private readonly runner: CommandRunner;
   private prepared: Promise<Preparation> | undefined;
+  private readonly env: Readonly<Record<string, string | undefined>>;
 
   /** @param options - What the run needs. */
   public constructor(options: PinnedRunOptions) {
     this.options = options;
     this.runner = options.runner ?? new LocalRunner(options.repositoryRoot);
+    this.env = options.env ?? process.env;
   }
 
   /**
@@ -162,7 +166,8 @@ export class PinnedRun {
     if (silent.length > 0) return { addresses: before, tests: blocked(listed, silent) };
     const report = posix.join(runDir, "report.json");
     await mkdir(join(this.options.repositoryRoot, runDir), { recursive: true });
-    const ran = await this.step(["node_modules/.bin/playwright", "test", "--reporter=json", ...files], { PLAYWRIGHT_JSON_OUTPUT_FILE: report });
+    const output = posix.join(runDir, "test-results");
+    const ran = await this.step(["node_modules/.bin/playwright", "test", "--reporter=json", `--output=${output}`, ...files], { PLAYWRIGHT_JSON_OUTPUT_FILE: report });
     const reported = reportedTests(await readFile(join(this.options.repositoryRoot, report), "utf8").catch(() => ""));
     if (reported === undefined) {
       const runnerOutput = posix.join(runDir, "runner-output.txt");
@@ -225,14 +230,20 @@ export class PinnedRun {
     }
   }
 
-  /** The environment of the tests: the environment name, and the base address of each application, its interface or else its first API. */
+  /**
+   * The environment of the tests: the environment name, the base address of each application, its interface
+   * or else its first API, and the variables of the test accounts, which a test reads to sign in.
+   */
   private projectEnv(): Record<string, string> {
-    const urls = this.options.config.applications.flatMap((application) => {
+    const { config } = this.options;
+    const urls = config.applications.flatMap((application) => {
       const env = this.environmentOf(application);
       const base = env?.uiUrl ?? env?.apis?.[0]?.baseUrl;
       return base === undefined ? [] : [[baseUrlVariable(application.id), base] as const];
     });
-    return { [ENVIRONMENT_VARIABLE]: this.options.environment, ...Object.fromEntries(urls) };
+    const accounts = config.applications.flatMap((application) => (application.authentication.accounts ?? []).flatMap((account) => [account.usernameEnv, account.passwordEnv]));
+    const credentials = accounts.flatMap((name) => (this.env[name] === undefined ? [] : [[name, this.env[name]] as const]));
+    return { [ENVIRONMENT_VARIABLE]: this.options.environment, ...Object.fromEntries(urls), ...Object.fromEntries(credentials) };
   }
 
   /** The environment of an application the tests run against, if it declares it. */

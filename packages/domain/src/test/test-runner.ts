@@ -5,6 +5,7 @@ import type { Verdict } from "./verdict.ts";
 export interface TriedTest {
   /** Identifier of the test: its project, file, line and titles. */
   readonly id: string;
+  /** The verdict the harness pronounced on the test. */
   readonly verdict: Verdict;
   /** Why: the error of a test that did not pass, in full; a line otherwise. */
   readonly reason: string;

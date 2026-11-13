@@ -5,7 +5,7 @@ import { moduleSyntax, redactText, secretForms } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
 import type { DesignedTest } from "./design-state.ts";
 import type { TestCheck, TestFinding, TestRunner, TestTrial, Verdict } from "@open-qa-stack/domain";
-import { addressErrors, importErrors, secretValueErrors, type DeclaredSecret } from "./spec-rules.ts";
+import { addressErrors, fileErrors, importErrors, secretValueErrors, type DeclaredSecret } from "./spec-rules.ts";
 
 /** Name of the tool the designer proposes a test with. */
 export const PROPOSE_TOOL = "propose_test";
@@ -68,8 +68,8 @@ type Trial = Pick<Proposal, "application" | "file" | "content">;
  * holds an address of the configuration, or the proposal holds the value of a declared variable; then
  * when the check given finds something. A test that passes these rules is then run against the
  * application, unless that very text was already tried with `run_test`: it is kept when every one of its
- * tests passed, or when it did not pass and the agent explains why the application is at fault; it is
- * refused otherwise, with what the run gave. Its verdict is the harness's, never the agent's. Each refusal
+ * tests passed, or when it failed in a run the agent saw and the agent explains why the application is at
+ * fault; it is refused otherwise, with what the run gave, and always when it did not run to a verdict. Its verdict is the harness's, never the agent's. Each refusal
  * is journaled and told to the agent, every declared value masked, so that it may try and propose again.
  * The first `MAX_TESTS` accepted are kept; any later one is set aside and journaled.
  */
@@ -165,14 +165,18 @@ export class TestProposals {
     if (this.kept.length >= MAX_TESTS) return this.setAside(path);
     const errors = await this.errors(path, proposal.content, `${proposal.reason}\n${proposal.failure ?? ""}`);
     if (errors.length > 0) return this.refuse(path, errors);
-    const trial = this.trials.get(trialKey(path, proposal.content)) ?? (await this.trial(path, proposal.content));
+    const seen = this.trials.get(trialKey(path, proposal.content));
+    const trial = seen ?? (await this.trial(path, proposal.content));
     if (trial.error !== undefined) return this.refuse(path, [`The test could not run: ${trial.error}`]);
     const verdict = verdictOf(trial);
-    if (verdict !== "passed" && proposal.failure === undefined) {
-      return this.refuse(path, [`It does not pass. Fix it, or, if the application is at fault, propose it again with failure saying why.\n${described(trial)}`]);
+    if (verdict !== "passed" && verdict !== "failed") return this.refuse(path, [`It did not run to a verdict (${verdict}); a test that has not run cannot be kept. Fix it and run it again.\n${this.described(trial)}`]);
+    // The agent may hold the application at fault only for a run it saw.
+    if (verdict === "failed" && (proposal.failure === undefined || seen === undefined)) {
+      return this.refuse(path, [`It does not pass. Fix it, or, if the application is at fault, run it with ${RUN_TOOL}, then propose it again with failure saying why.\n${this.described(trial)}`]);
     }
-    // Proposals made in one turn are checked at once: others may have been accepted during the check.
+    // Proposals made in one turn are checked at once: others may have been accepted, or taken this path, meanwhile.
     if (this.kept.length >= MAX_TESTS) return this.setAside(path);
+    if (this.kept.some((test) => test.path === path)) return this.refuse(path, [`${path} is already taken; give the test another file name.`]);
     const failure = verdict === "passed" ? {} : { failure: proposal.failure! };
     this.kept.push({ path, application: proposal.application, domain: proposal.domain, reason: proposal.reason, verdict, ...failure, content: proposal.content });
     this.journal.record("info", `The test ${path} was accepted.`);
@@ -188,7 +192,7 @@ export class TestProposals {
     if (errors.length > 0) return this.refuse(path, errors, "could not be run");
     const trial = await this.trial(path, args.content);
     if (trial.error !== undefined) return this.refuse(path, [trial.error], "could not be run");
-    return this.mask(described(trial));
+    return this.described(trial);
   }
 
   /** Runs a test, journals its verdict, and keeps the trial of that text. */
@@ -205,7 +209,7 @@ export class TestProposals {
     if (this.kept.some((test) => test.path === path) || existsSync(join(repositoryRoot, path))) return [`${path} is already taken; give the test another file name.`];
     const syntax = await moduleSyntax(content);
     if (!syntax.ok) return [`The test does not parse as TypeScript: ${syntax.error}.`];
-    const errors = [...importErrors(syntax.imports, join(repositoryRoot, path), repositoryRoot), ...addressErrors(content, addresses), ...secretValueErrors(`${comments}\n${content}`, secrets)];
+    const errors = [...importErrors(syntax.imports, join(repositoryRoot, path), repositoryRoot), ...fileErrors(content), ...addressErrors(content, addresses), ...secretValueErrors(`${comments}\n${content}`, secrets)];
     if (errors.length > 0 || check === undefined) return errors;
     return (await check.check({ path, content })).map(findingText);
   }
@@ -218,6 +222,11 @@ export class TestProposals {
   private refuse(path: string, errors: readonly string[], what = "was refused"): { error: string } {
     for (const error of errors) this.journal.record("error", this.mask(`The test ${path} ${what}: ${error}`));
     return { error: this.mask([`The test ${path} ${what}. Fix it, then try it again.`, ...errors.map((error) => `- ${error}`)].join("\n")) };
+  }
+
+  /** What a trial gave, for the agent, every declared value masked before the error is cut. */
+  private described(trial: TestTrial): string {
+    return described(trial, (text) => this.mask(text));
   }
 
   /** A text with every declared value masked. */
@@ -238,18 +247,22 @@ function trialKey(path: string, content: string): string {
   return `${path}\n${content}`;
 }
 
-/** The verdict of a file: `passed` when each of its tests passed, the first other verdict otherwise. */
+/** The verdict of a file: `passed` when each of its tests passed, the first other verdict otherwise, and `not_run` without any test. */
 function verdictOf(trial: TestTrial): Verdict {
   return trial.tests.find((test) => test.verdict !== "passed")?.verdict ?? (trial.tests.length === 0 ? "not_run" : "passed");
 }
 
-/** What a trial gave, for the agent: each test with its verdict and, for one that did not pass, its error, step and trace. */
-function described(trial: TestTrial): string {
+/**
+ * What a trial gave, for the agent: each test with its verdict and, for one that did not pass, its error,
+ * cut past `MAX_TOLD_ERROR` characters, its step and its trace.
+ */
+function described(trial: TestTrial, mask: (text: string) => string): string {
   const tests = trial.tests.map((test) => {
-    const lines = [`- ${test.id}: ${test.verdict}.`];
+    const lines = [`- ${mask(test.id)}: ${test.verdict}.`];
     if (test.verdict !== "passed") {
-      lines.push(`  Error: ${test.reason.length > MAX_TOLD_ERROR ? `${test.reason.slice(0, MAX_TOLD_ERROR)}…` : test.reason}`);
-      if (test.failedStep !== undefined) lines.push(`  Failed step: ${test.failedStep}`);
+      const error = mask(test.reason);
+      lines.push(`  Error: ${error.length > MAX_TOLD_ERROR ? `${error.slice(0, MAX_TOLD_ERROR)}…` : error}`);
+      if (test.failedStep !== undefined) lines.push(`  Failed step: ${mask(test.failedStep)}`);
       if (test.trace !== undefined) lines.push(`  Trace: ${test.trace}`);
     }
     return lines.join("\n");

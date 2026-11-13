@@ -65,6 +65,22 @@ export function importErrors(imports: readonly ModuleImport[], path: string, rep
   });
 }
 
+/** What writes a file from a test: a download saved, a browser state stored, a PDF, or any `path` option. */
+const FILE_WRITE = /\.(saveAs|storageState|pdf)\s*\(|\bpath\s*:/;
+
+/**
+ * Refuses a test that writes a file: what a test leaves goes where the runner puts it, never where the
+ * test says.
+ *
+ * @param content - Text of the test.
+ * @returns A sentence when it writes one.
+ */
+export function fileErrors(content: string): string[] {
+  return FILE_WRITE.test(content)
+    ? ["The test writes a file (saveAs, storageState, pdf or a path option); a test writes no file, the runner keeps what it needs. To compare a page with its reference, use await expect(page).toHaveScreenshot()."]
+    : [];
+}
+
 /**
  * Refuses a test that holds an address the configuration declares.
  *

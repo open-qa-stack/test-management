@@ -484,3 +484,74 @@ describe("the trial of a test without an error message", () => {
     assert.deepEqual([trial.tests[0]!.verdict, trial.tests[0]!.reason, "failedStep" in trial.tests[0]!, "trace" in trial.tests[0]!], ["failed", "Failed, without an error message.", false, false]);
   });
 });
+
+describe("the trials, one at a time", () => {
+  it("never runs two trials at once, even when they are asked together, and goes on after one that throws", async () => {
+    const root = repository();
+    const fake = new FakeRunner(root, { list: fixture("steps.json"), report: { fixture: "steps.json" } });
+    let running = 0;
+    let most = 0;
+    let calls = 0;
+    const counted: CommandRunner = {
+      run: async (command) => {
+        if (command.command.includes("--list") && (calls += 1) === 1) throw new Error("the runner cannot be called");
+        running += 1;
+        most = Math.max(most, running);
+        try {
+          return await fake.run(command);
+        } finally {
+          running -= 1;
+        }
+      },
+    };
+    const trials = new TrialRunner({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, runner: counted, now: NOW });
+    const [first, ...rest] = await Promise.allSettled(["a", "b", "c"].map((name) => trials.run({ path: `apps/shop/${name}.spec.ts`, content: `// ${name}\n` })));
+    assert.equal(first!.status, "rejected");
+    assert.ok(rest.every((outcome) => outcome.status === "fulfilled"));
+    assert.equal(most, 1);
+  });
+
+  it("gives the errors of the last attempt, every one of them, with its step and its trace", async () => {
+    const root = repository();
+    const report = JSON.parse(fixture("steps.json")) as { suites: { specs: { tests: { results: Record<string, unknown>[] }[] }[] }[] };
+    const results = report.suites[0]!.specs[0]!.tests[0]!.results;
+    results.push({ status: "failed", errors: [{ message: "Error: the second try" }, { message: "Error: and its second error" }], steps: [{ title: "open the list", error: {} }], attachments: [{ name: "trace", path: join(root, ".oqas", "second", "trace.zip") }] });
+    const fake = new FakeRunner(root, { list: fixture("steps.json"), report: { text: JSON.stringify(report) } });
+    const trial = await new TrialRunner({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, runner: fake, now: NOW }).run({ path: "apps/shop/steps.spec.ts", content: "// t\n" });
+    assert.deepEqual([trial.tests[0]!.reason, trial.tests[0]!.failedStep, trial.tests[0]!.trace], ["Error: the second try\n\nError: and its second error", "open the list", join(".oqas", "second", "trace.zip")]);
+    const run = fake.commands.find((command) => command.command[1] === "test" && !command.command.includes("--list"))!;
+    assert.ok(run.command.some((part) => /^--output=\.oqas\/trials\/trial-.*-1\/test-results$/.test(part)));
+  });
+});
+
+describe("the environment of the tests", () => {
+  it("holds the variables of the test accounts, read from the environment given", async () => {
+    const text = JSON.stringify({
+      formatVersion: 1,
+      applications: [{ id: "shop", name: "Shop", type: "web", authentication: { method: "form", accounts: [{ name: "demo", usernameEnv: "SHOP_USER", passwordEnv: "SHOP_PASSWORD" }] }, environments: [{ name: "local", uiUrl: siteUrl }] }],
+      knowledge: [],
+      model: { mode: "provider-key", provider: "openai", baseUrl: "http://127.0.0.1:1/v1", model: "m", apiKeyEnv: "MODEL_KEY" },
+      autonomy: { level: "autonomous" },
+    });
+    const env = { SHOP_USER: "max", SHOP_PASSWORD: "pw", MODEL_KEY: "sk-1" };
+    const config = validateConfig(text, env);
+    assert.ok(config.ok);
+    const root = repository();
+    const runner = new FakeRunner(root);
+    await new PinnedRun({ config: config.config, environment: "local", repositoryRoot: root, tests: FILES, runner, env, now: NOW }).run();
+    assert.deepEqual([runner.commands[0]!.env!["SHOP_USER"], runner.commands[0]!.env!["SHOP_PASSWORD"], runner.commands[0]!.env!["MODEL_KEY"]], ["max", "pw", undefined]);
+    const partial = new FakeRunner(root);
+    await new PinnedRun({ config: config.config, environment: "local", repositoryRoot: root, tests: FILES, runner: partial, env: { SHOP_USER: "max" }, now: () => new Date("2026-11-13T12:00:01.000Z") }).run();
+    assert.deepEqual(["SHOP_USER" in partial.commands[0]!.env!, "SHOP_PASSWORD" in partial.commands[0]!.env!], [true, false]);
+  });
+
+  it("leaves out of a command every variable of the process that npm, the runner and the browsers do not need", async () => {
+    process.env["OQAS_TEST_SECRET"] = "sk-secret";
+    try {
+      const outcome = await new LocalRunner(workspace).run({ command: [process.execPath, "-e", "console.log(JSON.stringify([process.env.OQAS_TEST_SECRET ?? null, typeof process.env.PATH, process.env.STEP]))"], env: { STEP: "kept" }, timeoutMs: 10_000 });
+      assert.deepEqual(JSON.parse(outcome.stdout), [null, "string", "kept"]);
+    } finally {
+      delete process.env["OQAS_TEST_SECRET"];
+    }
+  });
+});

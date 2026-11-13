@@ -22,6 +22,7 @@ interface JsonTest {
   readonly results: readonly JsonResult[];
 }
 
+/** One attempt of a test, as the JSON reporter gives it. */
 interface JsonResult {
   readonly status: AttemptStatus;
   readonly errors?: readonly { readonly message?: string }[];
@@ -29,6 +30,7 @@ interface JsonResult {
   readonly attachments?: readonly { readonly name: string; readonly path?: string }[];
 }
 
+/** One step of an attempt, with the steps it holds. */
 interface JsonStep {
   readonly title: string;
   readonly error?: unknown;

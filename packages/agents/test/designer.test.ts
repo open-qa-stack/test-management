@@ -571,7 +571,8 @@ describe("loop, criterion 3 — the trials count against the limits, and a test 
 describe("loop, criterion 4 — a failure blamed on the application is kept with its explanation and the harness's verdict", () => {
   it("writes the test with its verdict failed and the explanation in the state", async () => {
     const blamed = propose("test-4.spec.ts", { content: broken("test-4.spec.ts"), failure: "The total stays empty although the order has two lines: the service returns no total." });
-    const { outcome, root } = await design(replies([...valid(3), blamed]));
+    const turns = [[tryTest("test-4.spec.ts", broken("test-4.spec.ts"), "r4")], [...valid(3), blamed]];
+    const { outcome, root } = await design([...turns.map((calls) => ({ body: toolCalls(MODEL, calls) })), ...replies([]).slice(1)]);
     const test = outcome.tests.find((candidate) => candidate.path === "apps/shop/test-4.spec.ts");
     assert.deepEqual([test?.verdict, test?.failure], ["failed", "The total stays empty although the order has two lines: the service returns no total."]);
     const state = JSON.parse(readFileSync(outcome.statePath!, "utf8")) as DesignState;
@@ -590,5 +591,58 @@ describe("what a trial tells the agent", () => {
     const none = await design(replies([tryTest("test-1.spec.ts", spec("test-1.spec.ts"), "r1"), ...valid(3)]), { runner: empty as FakeTestRunner });
     assert.match(toolResult(none.server, "r1"), /Run of the file: not_run\./);
     assert.deepEqual(none.outcome.tests, []);
+  });
+});
+
+describe("what the designer may keep", () => {
+  const turns = (...calls: ReturnType<typeof propose>[][]) => [...calls.map((call) => ({ body: toolCalls(MODEL, call) })), ...replies([]).slice(1)];
+
+  it("refuses a failure blamed on the application for a text the agent never saw run, and keeps a passing test as passed whatever it claims", async () => {
+    const blind = propose("test-4.spec.ts", { content: broken("test-4.spec.ts"), failure: "The service returns no total." });
+    const claimed = propose("test-5.spec.ts", { failure: "The service returns no total." });
+    const { outcome } = await design(replies([...valid(2), blind, claimed]));
+    assert.match(messages(outcome), /test-4\.spec\.ts was refused: It does not pass\. Fix it, or, if the application is at fault, run it with run_test/);
+    const kept = outcome.tests.find((test) => test.path === "apps/shop/test-5.spec.ts");
+    assert.deepEqual([kept?.verdict, kept !== undefined && "failure" in kept], ["passed", false]);
+  });
+
+  it("never keeps a test that did not run to a verdict, even with a failure", async () => {
+    for (const verdict of ["skipped", "blocked"] as const) {
+      const runner: TestRunner = { run: async (test) => ({ startedAt: "2026-11-13T10:00:00.000Z", tests: [{ id: `shop › ${test.path} › t`, verdict, reason: "x" }] }) };
+      const { outcome } = await design(turns([tryTest("test-1.spec.ts", spec("test-1.spec.ts"), "r1")], [propose("test-1.spec.ts", { failure: "The application is down." })]), { runner: runner as FakeTestRunner });
+      assert.deepEqual(outcome.tests, [], verdict);
+      assert.match(messages(outcome), new RegExp(`did not run to a verdict \\(${verdict}\\)`));
+    }
+  });
+
+  it("keeps one test of two proposed at once at the same path", async () => {
+    const slow: TestRunner = { run: (test) => new Promise((resolve) => setTimeout(() => resolve({ startedAt: "2026-11-13T10:00:00.000Z", tests: [{ id: `shop › ${test.path} › t`, verdict: "passed", reason: "ok" }] }), 50)) };
+    const { outcome } = await design(replies([propose("test-1.spec.ts"), propose("test-1.spec.ts", { reason: "Another." }), propose("test-2.spec.ts"), propose("test-3.spec.ts")]), { runner: slow as FakeTestRunner });
+    assert.equal(outcome.tests.filter((test) => test.path === "apps/shop/test-1.spec.ts").length, 1);
+  });
+
+  it("refuses a test that writes a file, without running it", async () => {
+    const runner = new FakeTestRunner();
+    const writes = spec("test-1.spec.ts").replace("});\n", "  await page.screenshot({ path: \"/tmp/x.png\" });\n});\n");
+    const { outcome } = await design(replies([tryTest("test-1.spec.ts", writes, "r1"), propose("test-9.spec.ts", { content: writes }), ...valid(3)]), { runner });
+    assert.match(messages(outcome), /test-1\.spec\.ts could not be run: The test writes a file/);
+    assert.match(messages(outcome), /test-9\.spec\.ts was refused: The test writes a file/);
+    assert.ok(runner.runs.every((run) => !run.content.includes("screenshot")));
+  });
+
+  it("gives the verdict and the failure of a test that does not pass in the commit message", async () => {
+    const blamed = propose("test-4.spec.ts", { content: broken("test-4.spec.ts"), failure: "The service returns no total." });
+    const { root } = await design(turns([tryTest("test-4.spec.ts", broken("test-4.spec.ts"), "r4")], [...valid(3), blamed]));
+    assert.match(git(root, "log", "-1", "--format=%B", BRANCH), /- apps\/shop\/test-4\.spec\.ts \(failed\): Checks test-4\.spec\.ts\. Failure: The service returns no total\./);
+  });
+});
+
+describe("a visual test", () => {
+  it("is run and kept: it opens a page and compares a full capture with its reference", async () => {
+    const runner = new FakeTestRunner();
+    const visual = `import { test, expect } from "@playwright/test";\n\ntest("the list of orders looks as it should", async ({ page }) => {\n  await page.goto("/orders");\n  await expect(page).toHaveScreenshot({ fullPage: true });\n});\n`;
+    const { outcome } = await design(replies([propose("orders-look.spec.ts", { content: visual }), ...valid(2)]), { runner });
+    assert.equal(outcome.tests.find((test) => test.path === "apps/shop/orders-look.spec.ts")?.verdict, "passed", messages(outcome));
+    assert.ok(runner.runs.some((run) => run.content === visual));
   });
 });

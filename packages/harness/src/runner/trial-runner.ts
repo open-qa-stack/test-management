@@ -16,13 +16,16 @@ const COLOURS = /\u001b\[[0-9;]*m/g;
  * @remarks
  * The run is prepared once, at the first trial: the dependencies, then the browsers of the locked version.
  * Each file is written at its path for the time of its run, then removed, so that nothing is left in the
- * tracked files; its report and its traces stay in `<stateDir>/trials/`. The verdicts are those of
- * `PinnedRun`, with, for a test that did not pass, its whole error, the step that failed and its trace.
+ * tracked files; its report and its traces stay in its folder of `<stateDir>/trials/`. The trials run one at
+ * a time. The verdicts are those of `PinnedRun`, with, for a test that did not pass, every error of its
+ * last attempt, the step that failed and its trace.
  */
 export class TrialRunner implements TestRunner {
   private readonly options: Omit<PinnedRunOptions, "tests">;
   private readonly pinned: PinnedRun;
   private count = 0;
+  /** The trials run one at a time: two never share a file, nor the runner. */
+  private queue: Promise<unknown> = Promise.resolve();
 
   /** @param options - What a run needs, but the files: they are given at each trial. */
   public constructor(options: Omit<PinnedRunOptions, "tests">) {
@@ -31,7 +34,13 @@ export class TrialRunner implements TestRunner {
   }
 
   /** {@inheritDoc @open-qa-stack/domain#TestRunner.run} */
-  public async run(test: ProposedTest): Promise<TestTrial> {
+  public run(test: ProposedTest): Promise<TestTrial> {
+    const next = this.queue.then(() => this.runAlone(test));
+    this.queue = next.catch(() => undefined);
+    return next;
+  }
+
+  private async runAlone(test: ProposedTest): Promise<TestTrial> {
     const { config, repositoryRoot } = this.options;
     const startedAt = (this.options.now ?? (() => new Date()))().toISOString();
     const file = join(repositoryRoot, test.path);
@@ -56,7 +65,7 @@ export class TrialRunner implements TestRunner {
 function tried(verdict: Pick<TriedTest, "id" | "verdict" | "reason">, reported: ReportedTest | undefined, root: string): TriedTest {
   const attempt = reported?.attempts.at(-1);
   if (verdict.verdict === "passed" || attempt === undefined) return verdict;
-  const error = attempt.errors[0]?.replace(COLOURS, "");
+  const error = attempt.errors.length === 0 ? undefined : attempt.errors.map((message) => message.replace(COLOURS, "")).join("\n\n");
   // The runner writes the trace with an absolute path.
   const trace = attempt.trace === undefined ? undefined : relative(root, attempt.trace);
   return {

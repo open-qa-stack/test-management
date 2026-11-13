@@ -70,7 +70,7 @@ function isImportCall(callee: Node): boolean {
   return callee.type === "import" || (callee.type === "identifier" && callee.text === "require");
 }
 
-/** The text of a string literal; `undefined` for any other expression, or none. */
+/** The text of a string literal; `undefined` for any other expression, none, or a literal with an escape, whose text is not its value. */
 function literal(node: Node | null | undefined): string | undefined {
-  return node?.type === "string" ? node.text.slice(1, -1) : undefined;
+  return node?.type === "string" && !node.text.includes("\\") ? node.text.slice(1, -1) : undefined;
 }
