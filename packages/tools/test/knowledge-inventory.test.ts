@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
 import type { Knowledge } from "@open-qa-stack/shared";
@@ -6,6 +9,9 @@ import { ALL_COLUMNS_QUERY, KEYS_QUERY, TABLES_QUERY } from "../src/postgresql/c
 import { knowledgeInventory, type SqlClient, type SqlResult } from "../src/index.ts";
 import { closedPort } from "@open-qa-stack/testing";
 import { sqlResult } from "./sql-result.ts";
+import { documentInventory } from "../src/document/document-inventory.ts";
+import { CodeFolder } from "../src/source-code/code-folder.ts";
+import { codeInventory } from "../src/source-code/code-inventory.ts";
 
 const REPOSITORY = fileURLToPath(new URL("./fixtures/repository/", import.meta.url));
 const attachments = [{ application: "policy-management" }];
@@ -66,7 +72,49 @@ describe("the inventory of a knowledge source, read without the model", () => {
     await assert.rejects(knowledgeInventory(base, { repositoryRoot: REPOSITORY, env: { DB: `postgresql://x@127.0.0.1:${await closedPort()}/x` } }), /ECONNREFUSED/);
   });
 
-  it("has no inventory yet for a document", async () => {
-    assert.equal(await knowledgeInventory({ id: "specs", type: "document", path: "specs/quotes.md", attachments }, { repositoryRoot: REPOSITORY, env: {} }), undefined);
+  it("gives the chapters and sections of a document, numbered and leveled, a repeated title followed by its number", async () => {
+    const document: Knowledge = { id: "specs", type: "document", path: "specs/quotes.md", attachments };
+    const inventory = await knowledgeInventory(document, { repositoryRoot: REPOSITORY, env: {} });
+    assert.deepEqual(inventory.items, ["Quotes", "Request a quote", "Answer a quote", "Policies"]);
+    assert.deepEqual(inventory.facts.get("Answer a quote"), { number: 3, level: 2 });
+    const twice = documentInventory("## Quotes\n### Rules\n#### Deep\n## Policies\n### Rules\n");
+    assert.deepEqual(twice.items, ["Quotes", "Rules (§2)", "Policies", "Rules (§5)"]);
+    assert.notEqual(twice.fingerprint, inventory.fingerprint);
+  });
+
+  it("gives the folders of source code with their files and routes, read by the grammars only", async () => {
+    const code: Knowledge = { id: "policy-code", type: "source-code", path: "../source", attachments };
+    const inventory = await knowledgeInventory(code, { repositoryRoot: REPOSITORY, env: {} });
+    assert.deepEqual(inventory.items, ["src"]);
+    const facts = inventory.facts.get("src") as { files: number; routes: string[] };
+    assert.equal(facts.files, 2);
+    assert.ok(facts.routes.length > 0);
+  });
+
+  it("merges the deepest folders of a large code base into their parent, skips unreadable files, and fingerprints the content", async () => {
+    const root = mkdtempSync(join(tmpdir(), "oqas-code-inventory-"));
+    try {
+      const write = (path: string, text: string) => {
+        mkdirSync(dirname(join(root, path)), { recursive: true });
+        writeFileSync(join(root, path), text);
+      };
+      write("main.ts", "export function main() {}\n");
+      write("domain/policy/policy.ts", "export class Policy {}\n");
+      write("domain/customer/customer.ts", "export class Customer {}\n");
+      write("web/routes.js", "app.get('/policies', list);\n");
+      write("web/binary.js", "\0");
+      write("README.md", "# Not code\n");
+      const folder = new CodeFolder(root);
+      assert.deepEqual((await codeInventory(folder)).items, [".", "domain/customer", "domain/policy", "web"]);
+      const merged = await codeInventory(folder, 3);
+      assert.deepEqual(merged.items, [".", "domain", "web"]);
+      assert.deepEqual(merged.facts.get("domain"), { files: 2, routes: [] });
+      assert.deepEqual(merged.facts.get("web"), { files: 1, routes: ["app.get('/policies', …)"] });
+      assert.deepEqual((await codeInventory(folder, 1)).items, ["."]);
+      write("domain/policy/policy.ts", "export class Policy { id = 1 }\n");
+      assert.notEqual((await codeInventory(folder, 3)).fingerprint, merged.fingerprint);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

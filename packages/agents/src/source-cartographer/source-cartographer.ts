@@ -1,34 +1,35 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { AgentEvent, AgentRuntime } from "@open-qa-stack/domain";
-import { validateSourceCard, type Knowledge, type ResolvedConfig, type SourceCard } from "@open-qa-stack/shared";
-import { knowledgeInventory, knowledgeTools, scopedToolName, type KnowledgeAccess } from "@open-qa-stack/tools";
+import { validateSourceCard, type ResolvedConfig, type SourceCard } from "@open-qa-stack/shared";
+import type { BrowserAccess, KnowledgeAccess } from "@open-qa-stack/tools";
 import { agentNotes } from "../common/agent-notes.ts";
 import { runAgentTask, taskEnd, taskLimits } from "../common/agent-task.ts";
 import { HandedIn } from "../common/handed-in.ts";
 import { Journal, type JournalEntry } from "../common/journal.ts";
 import { cardRules } from "./card-rules.ts";
-import { SOURCE_CARTOGRAPHER_INSTRUCTIONS, sourceCardRequest } from "./source-cartographer-prompt.ts";
+import { interfaceSubject, knowledgeSubject, type CardSource, type CardSubject } from "./card-subject.ts";
+import { SOURCE_CARTOGRAPHER_INSTRUCTIONS } from "./source-cartographer-prompt.ts";
 
 /** Folder of the cards, in the index folder of the test repository. */
 export const CARDS_FOLDER = "sources";
-/** Tools of a database that read rows: the cartographer of a source reads the catalog only. */
-const DATA_TOOLS = ["sample_rows", "search", "query"];
 
 /** What the cartography of one source needs. */
 export interface SourceCartographerOptions {
   /** The resolved configuration. */
   readonly config: ResolvedConfig;
-  /** The knowledge source to map. */
-  readonly source: Knowledge;
+  /** The source to map: a knowledge source, or the user interface of an application. */
+  readonly source: CardSource;
   /** Absolute path of the test repository. */
   readonly repositoryRoot: string;
-  /** Environment holding the connection strings the configuration names. */
+  /** Environment holding the connection strings and credentials the configuration names. */
   readonly env: Readonly<Record<string, string | undefined>>;
   /** The runtime that opens the agent's session. */
   readonly runtime: AgentRuntime;
   /** Makes the SQL client of a database; PostgreSQL by default. */
   readonly sqlClient?: KnowledgeAccess["sqlClient"];
+  /** How the browser starts and waits; a headless Chromium with the default waits otherwise. */
+  readonly browser?: Pick<BrowserAccess, "launch" | "actionTimeoutMs" | "navigationTimeoutMs">;
   /** Maps the source again even when its card is up to date. */
   readonly force?: boolean;
   /** The clock of the card date; the system clock by default. */
@@ -48,15 +49,17 @@ export interface SourceCartographyOutcome {
 }
 
 /**
- * The cartographer of one knowledge source: it writes the card of the source, its elements grouped by
- * functional domain, in the test repository.
+ * The cartographer of one source: it writes the card of the source, its elements grouped by functional
+ * domain, in the test repository.
  *
  * @remarks
- * The harness reads the inventory of the source without the model — its elements, their structural facts
- * and its fingerprint. A card whose fingerprint is the source's, and that is complete, is kept as it is.
- * Otherwise the agent gets the tools of this source only — the catalog of a base, never its rows — and
- * hands its card in with `submit_card`, which must place every element and invent none. The facts read by
- * the harness are joined to the card before it is written. Nothing is committed nor pushed.
+ * For a knowledge source, the harness reads the inventory without the model — its elements, their
+ * structural facts and its fingerprint — and a complete card whose fingerprint is the source's is kept as
+ * it is. For a user interface, the elements are the screens the agent visits, read from what the browser
+ * tools answer, and the card is made every time. The agent gets the tools of this source only — the catalog
+ * of a base, never its rows — and hands its card in with `submit_card`, which must place every element and
+ * invent none. The facts the harness read are joined to the card before it is written. Nothing is
+ * committed nor pushed.
  */
 export class SourceCartographer {
   private readonly options: SourceCartographerOptions;
@@ -75,31 +78,25 @@ export class SourceCartographer {
   public async run(): Promise<SourceCartographyOutcome> {
     const { config, source, repositoryRoot, env } = this.options;
     const journal = new Journal();
-    const access = { repositoryRoot, env, ...(this.options.sqlClient === undefined ? {} : { sqlClient: this.options.sqlClient }) };
-    const cardPath = join(repositoryRoot, config.repository.indexDir, CARDS_FOLDER, `${source.id}.json`);
-    let inventory;
+    const events: AgentEvent[] = [];
+    let subject: CardSubject;
     try {
-      inventory = await knowledgeInventory(source, access);
+      subject = await this.subject(events);
     } catch (failure) {
       journal.record("error", `The source ${source.id} does not answer: ${failure instanceof Error ? failure.message : String(failure)}`, source.id);
       return { kept: false, journal: journal.entries() };
     }
-    if (inventory === undefined) {
-      journal.record("error", `No card is made yet for a ${source.type} source.`, source.id);
-      return { kept: false, journal: journal.entries() };
-    }
-    const existing = await upToDate(cardPath, inventory.fingerprint);
-    if (existing !== undefined && this.options.force !== true) {
+    const cardPath = join(repositoryRoot, config.repository.indexDir, CARDS_FOLDER, `${source.id}.json`);
+    const existing = subject.fingerprint === undefined || this.options.force === true ? undefined : await upToDate(cardPath, subject.fingerprint);
+    if (existing !== undefined) {
       journal.record("info", `The card of ${source.id} is up to date; it was kept.`, source.id);
       return { cardPath, card: existing, kept: true, journal: journal.entries() };
     }
-    const submission = new HandedIn(cardRules(source.id, inventory), journal);
-    const tools = knowledgeTools([source], access).filter((tool) => !(source.type === "postgresql" && DATA_TOOLS.some((action) => tool.name === scopedToolName(source.id, action))));
-    const events: AgentEvent[] = [];
+    const submission = new HandedIn(cardRules(source.id, () => subject.inventory()), journal);
     const now = this.options.now ?? (() => new Date());
     const notes = agentNotes(config, repositoryRoot, env, { role: "cartographer", task: `card-${source.id}-${now().toISOString()}`, now });
-    const task = { instructions: SOURCE_CARTOGRAPHER_INSTRUCTIONS, tools: [...tools, ...notes, submission.tool()], request: sourceCardRequest(source.id, source.type, inventory), events, reminder: () => submission.reminder() };
-    await runAgentTask(this.options.runtime, task, taskLimits(config));
+    const task = { instructions: SOURCE_CARTOGRAPHER_INSTRUCTIONS, tools: [...subject.tools, ...notes, submission.tool()], request: subject.request, events, reminder: () => submission.reminder() };
+    await runAgentTask(this.options.runtime, task, taskLimits(config)).finally(() => subject.close());
     for (const event of events) if (event.type === "tool-error") journal.record("error", `${event.tool}: ${event.message}`, source.id);
     const { last, counters } = taskEnd(events);
     if (last.type === "error") journal.record("error", `The session failed: ${last.error.message}`, source.id);
@@ -109,6 +106,7 @@ export class SourceCartographer {
       journal.record("error", "No card was written: no card was accepted before the session ended.", source.id);
       return { kept: false, journal: journal.entries() };
     }
+    const inventory = subject.inventory();
     const card: SourceCard = {
       formatVersion: 1,
       source: { id: source.id, type: source.type },
@@ -130,6 +128,15 @@ export class SourceCartographer {
     await writeFile(cardPath, `${JSON.stringify(card, null, 2)}\n`);
     journal.record("info", `The card was written to ${cardPath}, ${card.status}.`, source.id);
     return { cardPath, card, kept: false, journal: journal.entries() };
+  }
+
+  /** What the cartography works on, by kind of source. */
+  private subject(events: readonly AgentEvent[]): Promise<CardSubject> {
+    const { config, source, repositoryRoot, env } = this.options;
+    if (source.type === "web") {
+      return interfaceSubject(config, source, events, { env, screenshotsDir: join(repositoryRoot, config.repository.stateDir, "screenshots"), ...this.options.browser });
+    }
+    return knowledgeSubject(source, { repositoryRoot, env, ...(this.options.sqlClient === undefined ? {} : { sqlClient: this.options.sqlClient }) });
   }
 }
 

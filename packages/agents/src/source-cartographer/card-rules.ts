@@ -42,19 +42,20 @@ const CARD_SHAPE = {
  * none. An element written after the name of the source and a slash or a colon is read without it.
  *
  * @param sourceId - Identifier of the source.
- * @param inventory - What the harness read of it.
+ * @param inventory - What the harness knows of it when a card is handed in.
  * @returns The rules.
  */
-export function cardRules(sourceId: string, inventory: SourceInventory): SubmissionRules<SourceCardSubmission> {
-  const known = new Set(inventory.items);
+export function cardRules(sourceId: string, inventory: () => SourceInventory): SubmissionRules<SourceCardSubmission> {
   const bare = (name: string) => (name.startsWith(`${sourceId}/`) || name.startsWith(`${sourceId}:`) ? name.slice(sourceId.length + 1) : name);
   return {
     tool: SUBMIT_CARD_TOOL,
     what: "card",
-    description: `Hands in the card of the source ${sourceId}: its elements grouped by functional domain, each with a one-sentence summary and its important fields, and in unassigned the elements you put in no domain. Every element listed must appear once at least.`,
+    description: `Hands in the card of the source ${sourceId}: its elements grouped by functional domain, each with a one-sentence summary and its important fields, and in unassigned the elements you put in no domain. Every element of the source must appear once at least.`,
     shape: CARD_SHAPE,
     validate: validateSourceCardSubmission,
     check: (valid) => {
+      const { items } = inventory();
+      const known = new Set(items);
       const value: SourceCardSubmission = {
         domains: valid.domains.map((domain) => ({ ...domain, items: domain.items.map((item) => ({ ...item, name: bare(item.name) })) })),
         unassigned: valid.unassigned.map(bare),
@@ -67,7 +68,7 @@ export function cardRules(sourceId: string, inventory: SourceInventory): Submiss
         .filter(([, name]) => !known.has(name))
         .map(([path, name]) => ({ path, message: `${path}: ${name} is not an element of ${sourceId}; use one of the elements listed.` }));
       const placed = new Set(named.map(([, name]) => name));
-      const missing = inventory.items.filter((item) => !placed.has(item));
+      const missing = items.filter((item) => !placed.has(item));
       for (const item of missing) errors.push({ path: "", message: `${item} is in no domain nor in unassigned.` });
       return { value, errors, unplaced: missing.length === 0 ? new Map() : new Map([[sourceId, missing]]) };
     },

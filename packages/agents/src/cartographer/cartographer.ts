@@ -82,9 +82,8 @@ export class Cartographer {
       sources.flatMap((source) => (source.type === "web" ? [] : [source.knowledge])),
       { repositoryRoot, env, ...(this.options.sqlClient === undefined ? {} : { sqlClient: this.options.sqlClient }) },
     ).filter((tool) => !isDataTool(tool, sources));
-    const byName = new Map(knowledge.map((tool) => [tool.name, tool]));
     const access = { repositoryRoot, env, ...(this.options.sqlClient === undefined ? {} : { sqlClient: this.options.sqlClient }) };
-    const surveys = await Promise.all(sources.map(async (source) => [source, await surveySource(source, byName, access)] as const));
+    const surveys = await Promise.all(sources.map(async (source) => [source, await surveySource(source, access)] as const));
     const failures = surveys.flatMap(([source, survey]) => (survey.ok ? [] : [[source, survey.error] as const]));
     for (const [source, error] of failures) journal.record("error", `The source ${source.id} does not answer: ${error}`, source.id);
     if (failures.length > 0) {

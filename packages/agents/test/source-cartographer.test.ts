@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { CopilotAgentRuntime, ModelGateway } from "@open-qa-stack/harness";
 import { validateConfig, validateSourceCard, type Knowledge, type ResolvedConfig, type SourceCardSubmission } from "@open-qa-stack/shared";
-import { answer, closedPort, scriptedServer, toolCalls, type ScriptedServer } from "@open-qa-stack/testing";
+import { answer, closedPort, scriptedServer, testSite, toolCalls, type ScriptedServer } from "@open-qa-stack/testing";
 import type { SqlClient, SqlResult } from "@open-qa-stack/tools";
 import { sourceCardRequest } from "../src/source-cartographer/source-cartographer-prompt.ts";
-import { CARDS_FOLDER, SourceCartographer, type SourceCartographyOutcome } from "../src/index.ts";
+import { CARDS_FOLDER, SourceCartographer, type CardSource, type SourceCartographyOutcome } from "../src/index.ts";
 
 const MODEL = "test-model";
 const DB: Knowledge = { id: "shop-db", type: "postgresql", connectionStringEnv: "SHOP_DB_URL", attachments: [{ application: "shop" }] };
@@ -84,7 +84,7 @@ interface Run {
 }
 
 interface Setup {
-  readonly source?: Knowledge;
+  readonly source?: CardSource;
   readonly database?: SqlClient;
   readonly root?: string;
   readonly force?: boolean;
@@ -209,11 +209,6 @@ describe("what writes no card", () => {
     assert.match(messages(down.outcome), /does not answer: connection refused/);
   });
 
-  it("a kind of source that has no card yet", async () => {
-    const { outcome } = await cartography([], { source: { id: "specs", type: "document", path: "specs.md", attachments: [{ application: "shop" }] } });
-    assert.match(messages(outcome), /No card is made yet for a document source\./);
-  });
-
   it("a card that would not match its schema, or a session that failed before any card", async () => {
     const invalid = await cartography(happy(), { config: (config) => ({ ...config, model: { ...config.model, model: "" } }) });
     assert.match(messages(invalid.outcome), /The card does not match its schema: \/model\/model must NOT have fewer than 1 characters\.\nNo card was written\./);
@@ -248,5 +243,96 @@ describe("defaults and tool errors", () => {
 describe("the request of a cartography", () => {
   it("lists an element without facts by its name alone", () => {
     assert.equal(sourceCardRequest("x", "postgresql", { items: ["a", "b"], facts: new Map([["b", {}]]), fingerprint: "f" }).split("\n").slice(1, 3).join("|"), "- a|- b");
+  });
+});
+
+/** A source of each other kind, the files it reads, and a card that places all its elements. */
+const KINDS: readonly { readonly source: Knowledge; readonly files: Readonly<Record<string, string>>; readonly card: SourceCardSubmission; readonly facts: Readonly<Record<string, unknown>> }[] = [
+  {
+    source: { id: "shop-api", type: "openapi", path: "contracts/shop.json", attachments: [{ application: "shop" }] },
+    files: { "contracts/shop.json": JSON.stringify({ openapi: "3.0.3", info: { title: "Shop", version: "1" }, paths: { "/orders": { get: { tags: ["orders"] }, post: { tags: ["orders"] } }, "/health": { get: {} } } }) },
+    card: { domains: [{ id: "ordering", label: "Ordering", description: "Placing orders.", items: [{ name: "orders", summary: "Lists and places orders." }] }], unassigned: ["/health"] },
+    facts: { orders: { operations: ["GET /orders", "POST /orders"] } },
+  },
+  {
+    source: { id: "shop-specs", type: "document", path: "specs/shop.md", attachments: [{ application: "shop" }] },
+    files: { "specs/shop.md": "# Orders\n\n## Place an order\n\nText.\n\n### Detail\n\n# Customers\n" },
+    card: { domains: [{ id: "ordering", label: "Ordering", description: "Placing orders.", items: [{ name: "Orders", summary: "The orders." }, { name: "Place an order", summary: "How an order is placed." }] }], unassigned: ["Customers"] },
+    facts: { "Place an order": { number: 2, level: 2 } },
+  },
+  {
+    source: { id: "shop-code", type: "source-code", path: "code", commands: "none", attachments: [{ application: "shop" }] },
+    files: { "code/web/orders.js": "app.post('/orders', place);\n", "code/domain/order.ts": "export class Order {}\n" },
+    card: { domains: [{ id: "ordering", label: "Ordering", description: "Placing orders.", items: [{ name: "web", summary: "The routes of the orders." }, { name: "domain", summary: "The order itself." }] }], unassigned: [] },
+    facts: { web: { files: 1, routes: ["app.post('/orders', …)"] } },
+  },
+];
+
+describe("a card for every kind of source", () => {
+  for (const kind of KINDS) {
+    it(`criteria 1 and 2 — the card of a ${kind.source.type} source passes its schema, places every element, and carries the facts read without the model`, async () => {
+      const root = mkdtempSync(join(workspace, "repo-"));
+      for (const [path, text] of Object.entries(kind.files)) {
+        mkdirSync(dirname(join(root, path)), { recursive: true });
+        writeFileSync(join(root, path), text);
+      }
+      const { outcome, server } = await cartography([{ body: toolCalls(MODEL, [submit(kind.card)]) }, { body: answer(MODEL, "Done.") }], { source: kind.source, root });
+      assert.ok(outcome.card, messages(outcome));
+      assert.ok(validateSourceCard(JSON.parse(readFileSync(outcome.cardPath!, "utf8"))).ok);
+      const items = new Map(outcome.card.domains.flatMap((domain) => domain.items.map((item) => [item.name, item.facts] as const)));
+      for (const [name, facts] of Object.entries(kind.facts)) assert.deepEqual(items.get(name), facts, name);
+      const offered = (server.requests[0]!.body as { tools: { function: { name: string } }[] }).tools.map((tool) => tool.function.name);
+      assert.ok(offered.every((name) => name.startsWith(kind.source.id.replaceAll("-", "_")) || ["submit_card", "remember", "recall"].includes(name)), offered.join(", "));
+    });
+  }
+});
+
+describe("the card of a user interface", () => {
+  const withInterface = (uiUrl: string) => (config: ResolvedConfig): ResolvedConfig => ({
+    ...config,
+    applications: config.applications.map((application) => ({ ...application, type: "web", environments: application.environments.map((environment) => ({ ...environment, uiUrl })) })),
+  });
+  const SCREENS: SourceCardSubmission = {
+    domains: [{ id: "ordering", label: "Ordering", description: "Browsing orders.", items: [{ name: "/", summary: "The home page." }, { name: "/orders", summary: "The list of orders." }] }],
+    unassigned: [],
+  };
+
+  it("criteria 1 and 2 — places every screen visited, refuses a card that forgets one, and carries the titles and links the snapshots showed", async () => {
+    const site = await testSite({ "/": '<h1>Shop</h1><a href="/orders">Orders</a><a href="https://elsewhere.example/">Out</a>', "/orders": "<h1>Orders</h1>" });
+    try {
+      const { outcome, server } = await cartography(
+        [
+          { body: toolCalls(MODEL, [{ id: "g1", name: "shop_goto", arguments: { url: "/" } }]) },
+          { body: toolCalls(MODEL, [{ id: "s1", name: "shop_snapshot", arguments: {} }]) },
+          { body: toolCalls(MODEL, [{ id: "g2", name: "shop_goto", arguments: { url: "/orders?page=2" } }]) },
+          { body: toolCalls(MODEL, [submit({ domains: [{ ...SCREENS.domains[0]!, items: [SCREENS.domains[0]!.items[0]!] }], unassigned: [] })]) },
+          { body: toolCalls(MODEL, [submit(SCREENS, "c2")]) },
+          { body: answer(MODEL, "Done.") },
+        ],
+        { source: { id: "shop", type: "web", environment: "local" }, config: withInterface(site.origin) },
+      );
+      assert.ok(outcome.card, messages(outcome));
+      assert.match(JSON.stringify(server.requests[4]!.body), /Still to place[^}]*\/orders/);
+      const items = outcome.card.domains[0]!.items;
+      assert.deepEqual(items.map((item) => item.facts), [{ title: "/", links: ["/orders"] }, { title: "/orders", links: [] }]);
+      assert.equal(outcome.card.source.type, "web");
+      assert.ok(outcome.card.run.actions >= 2);
+      assert.match(outcome.cardPath!, /sources\/shop\.json$/);
+      assert.match(JSON.stringify(server.requests[0]!.body), /Write the card of the user interface of shop \(local\)/);
+    } finally {
+      await site.close();
+    }
+  });
+
+  it("writes no card of an application without a user interface, or whose interface fails", async () => {
+    const none = await cartography([], { source: { id: "shop", type: "web", environment: "local" } });
+    assert.match(messages(none.outcome), /The source shop does not answer: The application shop has no user interface in the environment local\./);
+    const site = await testSite({}, { "/": { status: 500, location: "/" } });
+    try {
+      const broken = await cartography([], { source: { id: "shop", type: "web", environment: "local" }, config: withInterface(site.origin) });
+      assert.match(messages(broken.outcome), /The source shop does not answer: .* answered with status 500\./);
+    } finally {
+      await site.close();
+    }
   });
 });
