@@ -13,7 +13,7 @@ describe("two test files of data access", () => {
   it("run in parallel without seeing the data of each other", async () => {
     const meeting = mkdtempSync(join(tmpdir(), "oqas-isolation-"));
     try {
-      const { NODE_TEST_CONTEXT: _nested, ...outer } = TEST_ENVIRONMENT;
+      const { NODE_TEST_CONTEXT: _nested, NODE_OPTIONS: _options, ...outer } = TEST_ENVIRONMENT;
       const env = { ...outer, OQAS_ISOLATION_MEETING: meeting };
       const run = await new Promise<{ code: number; out: string }>((resolve) =>
         execFile(process.execPath, ["--test", "--test-concurrency=2", "--test-reporter=tap", ...PROBES], { env, encoding: "utf8" }, (error, out) =>

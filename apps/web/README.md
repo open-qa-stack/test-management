@@ -30,6 +30,6 @@ To add a token:
 
 The tests run with `node --test`. `test/jsx.ts` registers a loader that compiles `.tsx` modules with the same transform as Vite, so components are rendered in Node with `react-dom/server`. The layout tests build the console with Vite and open it in Chromium, every request answered from the build.
 
-Node's coverage counts only the modules a test loads, and no test loads `src/main.tsx` in Node: it mounts the console in a browser. A layout test measures it in Chromium instead, maps the coverage of the build back to `src/main.tsx` through its source map, and fails on any line of it that did not run. Keep that module to the mount alone.
+Node's coverage counts only the modules a test loads, and no test loads `src/main.tsx` in Node: it mounts the console in a browser. A layout test measures it in Chromium instead, maps the coverage of the build back to `src/main.tsx` through its source map, and fails on any line of it that did not run. Keep that module to the mount alone. The manifest lists it under `coverage.measuredInBrowser`, so that `pnpm check` leaves its coverage to that test.
 
 `tsconfig.json` type-checks the console against the browser's types only, so code that needs Node does not compile; `test/tsconfig.json` adds Node's types for the tests.

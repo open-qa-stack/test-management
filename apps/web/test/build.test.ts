@@ -35,10 +35,10 @@ async function buildCopy(broken: boolean): Promise<number | null> {
 }
 
 describe("criterion 1 — the single check command builds the console with Vite, and fails if the build fails", () => {
-  it("chains the build of every package, before the tests", async () => {
+  it("is the check of the workspace, which runs the build of every package before the tests", async () => {
     const root = await scripts(ROOT);
-    assert.equal(root["build"], "pnpm -r build");
-    assert.match(root["check"] ?? "", /^pnpm typecheck && (?:.+ && )?pnpm build && (?:.+ && )?pnpm test$/);
+    assert.equal(root["build"], "pnpm -r --if-present build");
+    assert.equal(root["check"], "node --disable-warning=ExperimentalWarning packages/check/src/main.ts");
   });
 
   it("builds the console with Vite", async () => {

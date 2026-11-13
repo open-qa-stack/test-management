@@ -102,6 +102,8 @@ importers:
         specifier: 0.31.11
         version: 0.31.11
 
+  packages/check: {}
+
   packages/cli:
     dependencies:
       '@open-qa-stack/agents':
