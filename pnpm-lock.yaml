@@ -34,6 +34,28 @@ importers:
         specifier: workspace:*
         version: link:../testing
 
+  packages/cli:
+    dependencies:
+      '@open-qa-stack/agents':
+        specifier: workspace:*
+        version: link:../agents
+      '@open-qa-stack/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@open-qa-stack/harness':
+        specifier: workspace:*
+        version: link:../harness
+      '@open-qa-stack/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@open-qa-stack/tools':
+        specifier: workspace:*
+        version: link:../tools
+    devDependencies:
+      '@open-qa-stack/testing':
+        specifier: workspace:*
+        version: link:../testing
+
   packages/domain: {}
 
   packages/harness:

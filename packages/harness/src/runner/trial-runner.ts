@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, posix, relative } from "node:path";
 import type { ProposedTest, ReportedTest, TestReference, TestRunner, TestTrial, TriedTest } from "@open-qa-stack/domain";
-import { PinnedRun, type PinnedRunOptions } from "./pinned-run.ts";
+import { PinnedRun, type PinnedRunOptions, type Preparation } from "./pinned-run.ts";
 
 /** Folder of the trials, in the state folder of the test repository. */
 export const TRIALS_FOLDER = "trials";
@@ -32,6 +32,17 @@ export class TrialRunner implements TestRunner {
   public constructor(options: Omit<PinnedRunOptions, "tests">) {
     this.options = options;
     this.pinned = new PinnedRun({ ...options, tests: [] });
+  }
+
+  /**
+   * Makes the trials ready, once: the dependencies of the test repository and the browsers of the locked
+   * version, so that a test can be checked against them before its first trial.
+   *
+   * @returns The version installed, or why the tests cannot run.
+   * @throws Error when a command cannot be called.
+   */
+  public prepare(): Promise<Preparation> {
+    return this.pinned.prepare();
   }
 
   /** {@inheritDoc @open-qa-stack/domain#TestRunner.run} */

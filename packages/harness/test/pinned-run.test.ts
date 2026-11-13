@@ -587,3 +587,23 @@ describe("the references of a visual test, at its trial", () => {
     assert.equal(readFileSync(join(root, "apps", "shop", "look.spec.ts-snapshots", "kept.png"), "utf8"), "kept");
   });
 });
+
+describe("the preparation of the trials", () => {
+  it("installs once, before any trial, and gives the version installed", async () => {
+    const root = repository();
+    const fake = new FakeRunner(root, { list: fixture("steps.json"), report: { fixture: "steps.json" } });
+    const trials = new TrialRunner({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, runner: fake, now: NOW });
+    assert.deepEqual(await trials.prepare(), { ok: true, version: "1.64.1" });
+    await trials.run({ path: "apps/shop/steps.spec.ts", content: "// t\n" });
+    assert.equal(fake.commands.filter((command) => command.command[0] === "npm").length, 1);
+  });
+
+  it("serves a run given it, which installs nothing again", async () => {
+    const root = repository();
+    const fake = new FakeRunner(root, { list: fixture("steps.json"), report: { fixture: "steps.json" } });
+    const run = new PinnedRun({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, tests: ["apps/shop/steps.spec.ts"], runner: fake, now: NOW, preparation: Promise.resolve({ ok: false, reason: "The dependencies could not be installed: offline." }) });
+    const { result } = await run.run();
+    assert.deepEqual(result.tests.map((test) => [test.verdict, test.reason]), [["not_run", "The dependencies could not be installed: offline."]]);
+    assert.deepEqual(fake.commands, []);
+  });
+});

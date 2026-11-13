@@ -44,6 +44,8 @@ export interface PinnedRunOptions {
   readonly runner?: CommandRunner;
   /** The environment the test accounts are read from; that of the process by default. */
   readonly env?: Readonly<Record<string, string | undefined>>;
+  /** A preparation already made, such as that of the trials, reused rather than installing again. */
+  readonly preparation?: Promise<Preparation>;
   /** Longest wait for an address to answer, in milliseconds. */
   readonly reachTimeoutMs?: number;
   /** The clock of the dates; the system clock by default. */
@@ -135,13 +137,13 @@ export class PinnedRun {
 
   /**
    * Makes the run ready, once: installs the dependencies from the lockfile, then the browsers of the
-   * locked version, and checks the version installed.
+   * locked version, and checks the version installed; or takes the preparation it was given.
    *
    * @returns The version installed, or why the tests cannot run.
    * @throws Error when a command cannot be called.
    */
   public prepare(): Promise<Preparation> {
-    this.prepared ??= this.install();
+    this.prepared ??= this.options.preparation ?? this.install();
     return this.prepared;
   }
 

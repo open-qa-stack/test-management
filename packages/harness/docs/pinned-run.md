@@ -9,7 +9,7 @@ const outcome = await new PinnedRun({ config, environment: "local", repositoryRo
 
 ## The version
 
-The version is the one of `@playwright/test` that `package-lock.json` installs, not the range `package.json` declares. No version of Playwright is written in the harness. The dependencies are installed from the lockfile with `npm ci`, then the browsers of that version with `playwright install chromium`; the version then installed must be the locked one, exactly.
+The version is the one of `@playwright/test` that `package-lock.json` installs, not the range `package.json` declares. No version of Playwright is written in the harness. The dependencies are installed from the lockfile with `npm ci`, then the browsers of that version with `playwright install chromium`; the version then installed must be the locked one, exactly. A run given the `preparation` of another, such as that of the trials, installs nothing again.
 
 ## The steps
 

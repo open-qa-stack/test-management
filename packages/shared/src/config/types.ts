@@ -164,8 +164,15 @@ export interface OqasConfig {
   knowledge: Knowledge[];
   repository?: Repository;
   charter?: CharterSettings;
+  cartography?: CartographySettings;
   model: Model;
   autonomy: Autonomy;
+}
+
+/** How the sources are mapped. */
+export interface CartographySettings {
+  /** Most sources mapped at once, each in its own task; one by default. */
+  concurrency?: number;
 }
 
 /** A limit set to `null` is not bounded by the level. */
@@ -183,6 +190,7 @@ export interface ResolvedConfig {
   knowledge: Knowledge[];
   repository: Required<Repository>;
   charter: Required<CharterSettings>;
+  cartography: Required<CartographySettings>;
   model: Model;
   autonomy: { level: Autonomy["level"]; limits: ResolvedLimits };
 }

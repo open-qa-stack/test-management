@@ -37,6 +37,9 @@
     "charter": {
       "$ref": "#/$defs/charter"
     },
+    "cartography": {
+      "$ref": "#/$defs/cartography"
+    },
     "model": {
       "$ref": "#/$defs/model"
     },
@@ -442,6 +445,18 @@
           "type": "string",
           "minLength": 1,
           "description": "Path relative to the test repository root, which it may not leave."
+        }
+      }
+    },
+    "cartography": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "How the sources are mapped.",
+      "properties": {
+        "concurrency": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Most sources mapped at once, each in its own task; one by default."
         }
       }
     },

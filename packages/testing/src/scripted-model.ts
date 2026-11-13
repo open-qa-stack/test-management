@@ -23,7 +23,9 @@ export async function scriptedServer(replies: readonly { status?: number; body: 
     const chunks: Buffer[] = [];
     req.on("data", (c: Buffer) => chunks.push(c));
     req.on("end", () => {
-      requests.push({ body: JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown, headers: req.headers });
+      const text = Buffer.concat(chunks).toString("utf8");
+      // A request without a body, such as the list of the models, has none.
+      requests.push({ body: text === "" ? undefined : (JSON.parse(text) as unknown), headers: req.headers });
       const reply = replies[requests.length - 1] ?? { status: 500, body: { error: { message: "script exhausted" } } };
       res.writeHead(reply.status ?? 200, { "content-type": "application/json" });
       res.end("raw" in reply && reply.raw === true ? String(reply.body) : JSON.stringify(reply.body));
