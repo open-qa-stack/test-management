@@ -45,6 +45,17 @@ export function repeatedText(code: string, times: number, refusals: readonly Ref
 }
 
 /**
+ * The reasons of a refusal with every declared value masked, in what they say and in what they would accept.
+ *
+ * @param refusals - The reasons.
+ * @param mask - Masks the declared values of a text.
+ * @returns The reasons masked.
+ */
+export function maskedRefusals(refusals: readonly Refusal[], mask: (text: string) => string): Refusal[] {
+  return refusals.map((refusal) => ({ ...refusal, message: mask(refusal.message), ...(refusal.remedy === undefined ? {} : { remedy: mask(refusal.remedy) }) }));
+}
+
+/**
  * Journals each reason of a refusal, with its code first.
  *
  * @param journal - The journal.

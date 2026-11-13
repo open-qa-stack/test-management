@@ -17,6 +17,7 @@ import { DESIGNS_FOLDER, type DesignedTest, type DesignState } from "./design-st
 import { IndexMap } from "./index-map.ts";
 import { PlanProposal } from "./plan-proposal.ts";
 import { ScreenWatch } from "./screen-watch.ts";
+import { SourceWatch } from "./source-watch.ts";
 import type { TestCheck, TestRunner } from "@open-qa-stack/domain";
 import { declaredAddresses, declaredSecrets, testPackages } from "./spec-rules.ts";
 import type { ToolDefinition } from "@open-qa-stack/domain";
@@ -141,8 +142,8 @@ export class Designer {
     const owners = [...new Set([...index.sources.map((source) => source.id), ...readable.map((source) => source.id), ...applications.map((application) => application.id)])];
     const browser = browserTools(applications, { environment: index.environment, env, screenshotsDir: join(repositoryRoot, config.repository.stateDir, "screenshots"), ...this.options.browser });
     const screens = new ScreenWatch(applications.map((application) => application.id), browser.tools);
-    // Reading the logs or the source code is looking at what a failed run did, as a snapshot is.
-    const inspections = { count: 0 };
+    const access = { repositoryRoot, env, secrets: declaredValues(config, env), taskStart: start };
+    const reads = new SourceWatch(readable, knowledgeTools(readable, access), access.secrets);
     const proposals = new TestProposals(
       {
         repositoryRoot,
@@ -154,7 +155,8 @@ export class Designer {
         packages,
         screens,
         screenshots: this.options.screenshots ?? false,
-        looks: (application) => screens.looks(application) + inspections.count,
+        // Reading the logs or the source code is looking at what a failed run did, as a snapshot is.
+        looks: (application) => screens.looks(application) + reads.looks(),
       },
       journal,
     );
@@ -165,13 +167,13 @@ export class Designer {
         domains: index.domains.map((domain) => domain.id),
         secrets: declaredSecrets(config, env),
         screens,
+        reads,
         review: this.options.planReview ?? ACCEPT_EVERY_PLAN,
         carry: (accepted) => proposals.start(accepted),
       },
       journal,
     );
-    const access = { repositoryRoot, env, secrets: declaredValues(config, env), taskStart: start };
-    const knowledge = readable.flatMap((source) => knowledgeTools([source], access).map((tool) => (source.type === "logs" || source.type === "source-code" ? counted(tool, inspections) : tool)));
+    const knowledge = reads.tools();
     const notes = agentNotes(config, repositoryRoot, env, { role: "designer", task: id, now });
     const map = new IndexMap(index, await this.cards(index), [...screens.tools(), ...knowledge], owners);
     const events: AgentEvent[] = [];
@@ -282,17 +284,6 @@ function stoppedOnRefusal(tool: ToolDefinition, plan: PlanProposal): ToolDefinit
 function stepOf(failedStep: string | undefined): string {
   const number = failedStep === undefined ? undefined : /^(\d+)\. /.exec(failedStep)?.[1];
   return number === undefined ? "" : ` at step ${number}`;
-}
-
-/** A tool whose every call is counted. */
-function counted(tool: ToolDefinition, calls: { count: number }): ToolDefinition {
-  return {
-    ...tool,
-    execute: (args) => {
-      calls.count += 1;
-      return tool.execute(args);
-    },
-  };
 }
 
 /** How many tests a design obtained, in words. */

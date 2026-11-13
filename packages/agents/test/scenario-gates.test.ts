@@ -105,4 +105,15 @@ describe("the gates of a test against its scenario", () => {
     const inCell = { ...HELP, locatorOf: () => 'page.getByRole("cell").first()' };
     assert.deepEqual((await refusals(reversed, inCell)).map((refusal) => [refusal.code, refusal.remedy]), [["TEST-POLARITY", 'In step 2: await expect(page.getByRole("cell").first()).toContainText("ORD-1042");']]);
   });
+
+  it("refuse a value typed that is none of the data of the scenario, nor a part of one long enough to be checked", async () => {
+    const typed = spec([...FILLED, `    await page.getByRole("searchbox").fill("veld");`, `    await page.getByRole("searchbox").fill("");`, `    await page.getByRole("searchbox").fill("Brook");`, `    await page.getByRole("searchbox").fill("Ve");`, `    await page.getByLabel("Country").selectOption("Veldane");`]);
+    assert.deepEqual(await errors(typed), [
+      'TEST-TYPED: line 13 types "Brook", which is no value of the data of scenario search-order ("Veldane"). Type a value of the data.',
+      'TEST-TYPED: line 14 types "Ve", which is no value of the data of scenario search-order ("Veldane"). Type a value of the data.',
+    ]);
+    const syntax = await moduleSyntax(typed);
+    assert.ok(syntax.ok);
+    assert.match(scenarioErrors(syntax.outline, { ...SEARCH, data: [] }, HELP)[0]!.message, /search-order \(none\)\. Type a value of the data\.$/);
+  });
 });

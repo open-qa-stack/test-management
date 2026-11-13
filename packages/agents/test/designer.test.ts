@@ -164,7 +164,7 @@ const scenario = (id: string, kind = "other", changes: Record<string, unknown> =
   case: "nominal",
   application: "shop",
   domain: "orders",
-  sources: [{ source: "shop-api", item: "orders" }],
+  sources: [{ source: "shop", item: "/orders" }],
   data: [],
   steps: [{ action: "Open the orders", expects: [{ result: "The orders show", shows: ["Orders"], absent: [] }] }],
   ...changes,
@@ -237,8 +237,8 @@ interface Run {
 }
 
 async function design(script: readonly { status?: number; body: unknown }[], setup: Setup = {}): Promise<Run> {
-  // The designer looks at the orders page and submits its plan first, in a turn of their own, unless the test scripts it.
-  const server = await scriptedServer(setup.plan === false ? script : [{ body: toolCalls(MODEL, [OPEN, PLAN]) }, ...script]);
+  // The designer looks at the orders page, then submits its plan, each in a turn of its own, unless the test scripts it.
+  const server = await scriptedServer(setup.plan === false ? script : [{ body: toolCalls(MODEL, [OPEN]) }, { body: toolCalls(MODEL, [PLAN]) }, ...script]);
   const gateway = await ModelGateway.start({ kind: "live", upstream: { baseUrl: server.baseUrl } });
   const runtime = new CopilotAgentRuntime({ endpoint: gateway, model: MODEL, homeDirectory: mkdtempSync(join(workspace, "home-")) });
   const root = setup.root ?? repository();
@@ -308,7 +308,7 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     assert.deepEqual(git(root, "log", "-1", "--format=%an <%ae>%n%B", BRANCH).split("\n").slice(0, 4), ["Test Maintainer <maintainer@example.com>", "test: add 3 generated Playwright tests", "", "- apps/shop/list-orders.spec.ts: The list-orders scenario"]);
     assert.match(messages(outcome), /The design state was written to \.oqas\/designs\/design-20261113T100000Z\.json\.\nThe tests were committed on oqas\/design-test; the active branch of the test repository is oqas\/design-test\./);
     assert.equal(git(root, "status", "--porcelain", "--untracked-files=no"), "");
-    assert.equal(server.requests.length, 8);
+    assert.equal(server.requests.length, 9);
   });
 
   it("gives the agent the charter, the domains of the index and its tools, the screens, every source of the environment and the notes", async () => {
@@ -351,7 +351,7 @@ describe("criterion 2 — a plan holds four scenarios at most, and each gives on
   it("writes the four tests of a plan of four scenarios, then refuses any further call", async () => {
     const four = { ...PLAN, arguments: { scenarios: [...IDS, "cancel-order"].map((id) => scenario(id)) } };
     const after = run(spec("late"), "late");
-    const { outcome, root, server } = await design([{ body: toolCalls(MODEL, [OPEN, four]) }, ...replies([...valid(3), ...write("cancel-order"), [after]])], { plan: false });
+    const { outcome, root, server } = await design([{ body: toolCalls(MODEL, [OPEN]) }, { body: toolCalls(MODEL, [four]) }, ...replies([...valid(3), ...write("cancel-order"), [after]])], { plan: false });
     assert.equal(outcome.tests.length, 4);
     assert.equal(specsOf(root).length, 4);
     assert.match(told(server, "c-cancel-order"), /Scenario cancel-order closed: passed\.\nAll 4 scenarios are closed: 4 passed, 0 failing, 0 closed by the harness\.\nNext: answer with one sentence\. Call no more tools\./);
@@ -601,7 +601,7 @@ describe("the sheet of a scenario", () => {
   it("is what the agent is told once the plan is accepted, and once a scenario is closed: the scenario, its data, its file and its skeleton", async () => {
     const searched = scenario("list-orders", "other", { case: "negative", data: [{ value: "Ada", from: "shop" }, { value: "zzqx", from: "made-up" }] });
     const plan = { ...PLAN, arguments: { scenarios: [searched, scenario("place-order"), scenario("follow-order")] } };
-    const { server } = await design([{ body: toolCalls(MODEL, [OPEN, plan]) }, ...replies(valid(1))], { plan: false });
+    const { server } = await design([{ body: toolCalls(MODEL, [OPEN]) }, { body: toolCalls(MODEL, [SEARCH]) }, { body: toolCalls(MODEL, [plan]) }, ...replies(valid(1))], { plan: false });
     const sheet = told(server, "plan");
     assert.ok(
       sheet.startsWith(
@@ -774,7 +774,7 @@ describe("the repair contract", () => {
 
   it("tells a look at an application without a user interface by its logs and its code", async () => {
     const ledger = { ...PLAN, arguments: { scenarios: IDS.map((id) => scenario(id, "other", { application: "ledger" })) } };
-    const { server } = await design(replies([[OPEN, ledger], [run(broken("list-orders"), "f1")], [run(`${broken("list-orders")}// 2\n`, "blind")]]), { plan: false });
+    const { server } = await design(replies([[OPEN], [ledger], [run(broken("list-orders"), "f1")], [run(`${broken("list-orders")}// 2\n`, "blind")]]), { plan: false });
     assert.equal(told(server, "blind"), 'Refused (TEST-LOOK): look before you run again. Read the logs since 2026-11-13T10:00:00.000Z, or the source code, at the step that failed ("open the orders").\nNothing else was refused.');
   });
 });
@@ -964,7 +964,7 @@ describe("brief, criterion 4 — a review that refuses the plan stops the task, 
     const review: PlanReview = { review: async () => ({ accepted: false, reason: "The scenarios check only screens." }) };
     const runner = new FakeTestRunner();
     const look = { id: "look", name: "shop_goto", arguments: { url: "/orders" } };
-    const { outcome, root, server, before } = await design([{ body: toolCalls(MODEL, [PLAN, run(spec("x"), "r1")]) }, { body: toolCalls(MODEL, [{ ...PLAN, id: "plan-2" }, look]) }, { body: answer(MODEL, "Done.") }], { plan: false, planReview: review, runner });
+    const { outcome, root, server, before } = await design([{ body: toolCalls(MODEL, [OPEN]) }, { body: toolCalls(MODEL, [PLAN, run(spec("x"), "r1")]) }, { body: toolCalls(MODEL, [{ ...PLAN, id: "plan-2" }, look]) }, { body: answer(MODEL, "Done.") }], { plan: false, planReview: review, runner });
     assert.equal(outcome.ok, false);
     assert.equal(outcome.branch, undefined);
     // The trace of the session is all the design left.
@@ -974,7 +974,7 @@ describe("brief, criterion 4 — a review that refuses the plan stops the task, 
     assert.match(messages(outcome), /The plan was refused: The scenarios check only screens\. The design stops; no test is written\./);
     assert.match(messages(outcome), /No test was written: the plan was refused: The scenarios check only screens\./);
     for (const id of ["plan-2", "look"]) assert.match(toolResult(server, id), /The plan was refused: The scenarios check only screens\. The design is stopped; call no more tools\./);
-    assert.equal(server.requests.length, 3);
+    assert.equal(server.requests.length, 4);
   });
 });
 
@@ -982,7 +982,7 @@ describe("the plan of a design", () => {
   it("refuses two scenarios of one id, then accepts the plan fixed, and no second plan", async () => {
     const twice = { id: "plan-twice", name: "propose_plan", arguments: { scenarios: ["list-orders", "list-orders", "follow-order"].map((id) => scenario(id)) } };
     const again = { ...PLAN, id: "plan-again" };
-    const { outcome, server } = await design(replies([[OPEN, twice], [PLAN], [again], ...valid(3)]), { plan: false });
+    const { outcome, server } = await design(replies([[OPEN], [twice], [PLAN], [again], ...valid(3)]), { plan: false });
     assert.equal(outcome.ok, true, messages(outcome));
     assert.equal(told(server, "plan-twice"), "Refused (PLAN-ID): the id list-orders is given to several scenarios. Give each scenario its own id.\nNothing else was refused.");
     assert.match(messages(outcome), /\[PLAN-ID\] The plan was refused by the harness: the id list-orders/);
@@ -992,8 +992,8 @@ describe("the plan of a design", () => {
 
   it("reminds an agent that stopped after a refused plan of the codes it was refused for", async () => {
     const twice = { id: "plan-twice", name: "propose_plan", arguments: { scenarios: ["list-orders", "list-orders", "follow-order"].map((id) => scenario(id)) } };
-    const { server } = await design(replies([[twice]]), { plan: false });
-    const reminder = (server.requests[2]!.body as { messages: { role: string; content: string }[] }).messages.filter((message) => message.role === "user").at(-1)!.content;
+    const { server } = await design(replies([[OPEN], [twice]]), { plan: false });
+    const reminder = (server.requests[3]!.body as { messages: { role: string; content: string }[] }).messages.filter((message) => message.role === "user").at(-1)!.content;
     assert.match(reminder, /\nYou stopped before the end\. The plan was last refused for: PLAN-ID\.\nNext: /);
   });
 });
@@ -1001,7 +1001,7 @@ describe("the plan of a design", () => {
 describe("plans submitted in one turn", () => {
   it("accept one plan only", async () => {
     const other = { id: "plan-other", name: "propose_plan", arguments: { scenarios: ["a-one", "a-two", "a-three"].map((id) => scenario(id)) } };
-    const { outcome, server } = await design(replies([[OPEN, PLAN, other], ...valid(3)]), { plan: false });
+    const { outcome, server } = await design(replies([[OPEN], [PLAN, other], ...valid(3)]), { plan: false });
     assert.equal(outcome.ok, true, messages(outcome));
     assert.equal(outcome.journal.filter((entry) => entry.message.startsWith("The plan was accepted")).length, 1);
     assert.match(toolResult(server, "plan-other"), /A plan was already accepted; carry it out\./);
@@ -1009,7 +1009,7 @@ describe("plans submitted in one turn", () => {
 
   it("are refused once the review refused one of them", async () => {
     const review: PlanReview = { review: async () => ({ accepted: false, reason: "Not now." }) };
-    const { outcome, server } = await design([{ body: toolCalls(MODEL, [PLAN, { ...PLAN, id: "plan-2" }]) }, { body: answer(MODEL, "Done.") }], { plan: false, planReview: review });
+    const { outcome, server } = await design([{ body: toolCalls(MODEL, [OPEN]) }, { body: toolCalls(MODEL, [PLAN, { ...PLAN, id: "plan-2" }]) }, { body: answer(MODEL, "Done.") }], { plan: false, planReview: review });
     assert.equal(outcome.ok, false);
     assert.equal(outcome.journal.filter((entry) => entry.message.startsWith("The plan was refused: Not now.")).length, 1);
     assert.match(toolResult(server, "plan-2"), /The plan was refused: Not now\. The design is stopped/);
@@ -1019,12 +1019,13 @@ describe("plans submitted in one turn", () => {
 describe("what a plan may hold", () => {
   it("refuses the value of a declared variable, the plan being written to the state, and cites a source the index does not list", async () => {
     const leaky = { id: "plan-leaky", name: "propose_plan", arguments: { scenarios: [scenario("list-orders", "other", { data: [{ value: USERNAME, from: "shop" }] }), scenario("place-order"), scenario("follow-order")] } };
-    const beyond = { id: "plan-beyond", name: "propose_plan", arguments: { scenarios: [scenario("list-orders", "other", { sources: [{ source: "shop-db", item: "orders" }] }), scenario("place-order"), scenario("follow-order")] } };
-    const { outcome, server } = await design(replies([[OPEN, leaky], [beyond], ...valid(3)]), { plan: false });
+    const beyond = { id: "plan-beyond", name: "propose_plan", arguments: { scenarios: [scenario("list-orders", "other", { sources: [{ source: "shop-guide", item: "Guide" }] }), scenario("place-order"), scenario("follow-order")] } };
+    const guide = { id: "guide", name: "shop_guide_list_sections", arguments: {} };
+    const { outcome, server } = await design(replies([[OPEN], [leaky], [guide], [beyond], ...valid(3)]), { plan: false });
     assert.equal(outcome.ok, true, messages(outcome));
     assert.match(toolResult(server, "plan-leaky"), /Refused \(PLAN-SECRET\): the plan holds the value of SHOP_USERNAME\. Leave it out; a test reads it with process\.env\.SHOP_USERNAME\./);
     assert.ok(!messages(outcome).includes(USERNAME));
-    assert.deepEqual(stateOf(outcome).plan.scenarios[0]!.sources, [{ source: "shop-db", item: "orders" }]);
+    assert.deepEqual(stateOf(outcome).plan.scenarios[0]!.sources, [{ source: "shop-guide", item: "Guide" }]);
   });
 
   it("refuses a functional scenario none of whose texts an action of the agent made appear, and accepts it once the agent searched", async () => {
@@ -1068,7 +1069,7 @@ describe("the trace of a design", () => {
   });
 
   it("ends as truncated when a limit cut a design that gave its tests, as failed otherwise, and is not opened without a session", async () => {
-    const cut = await design([...valid(3).map((calls) => ({ body: toolCalls(MODEL, calls) })), { body: toolCalls(MODEL, [run(spec("late"), "late")]) }], { limits: { maxIterations: 7, maxDurationMinutes: 10, maxActions: 200 } });
+    const cut = await design([...valid(3).map((calls) => ({ body: toolCalls(MODEL, calls) })), { body: toolCalls(MODEL, [run(spec("late"), "late")]) }], { limits: { maxIterations: 8, maxDurationMinutes: 10, maxActions: 200 } });
     assert.equal(cut.outcome.ok, true, messages(cut.outcome));
     assert.equal(lines(cut.outcome.tracePath!).at(-1)!.event.outcome, "truncated");
     const few = await design(replies(valid(2)));

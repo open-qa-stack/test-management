@@ -173,6 +173,17 @@ export class ScreenWatch {
   }
 
   /**
+   * Whether a screen of the application showed a text, spaces and case aside.
+   *
+   * @param application - Identifier of the application.
+   * @param text - The text.
+   * @returns `true` when a line of its snapshots holds it; `false` for an application without a user interface.
+   */
+  public shows(application: string, text: string): boolean {
+    return observed(text, this.seen.get(application)?.lines ?? []);
+  }
+
+  /**
    * The locator of the element a screen of the application showed a text in, as its line gave it.
    *
    * @param application - Identifier of the application.

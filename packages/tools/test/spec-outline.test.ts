@@ -73,4 +73,16 @@ describe("the outline of a test", () => {
     assert.deepEqual(outline.steps.map((step) => [step.title, text.slice(step.start, step.end).split("(")[0]]), [["1. Open", "test.step"], [undefined, "test.step"]]);
     assert.ok(outline.steps[0]!.end < outline.steps[1]!.start);
   });
+
+  it("reads the values the test types or chooses, when they are written as strings", async () => {
+    const outline = await outlineOf(
+      [`await search.fill("Veldane");`, `await search.fill(process.env.SHOP_PASSWORD!);`, `await page.getByLabel("Country").selectOption('Wales');`, `await search.pressSequentially(\`zz\`);`, `await search.type("");`, `await search.fill();`, `fill("free");`, `await search.click("x");`].join("\n"),
+    );
+    assert.deepEqual(outline.typed, [
+      { line: 1, text: "Veldane" },
+      { line: 3, text: "Wales" },
+      { line: 4, text: "zz" },
+      { line: 5, text: "" },
+    ]);
+  });
 });

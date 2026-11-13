@@ -148,7 +148,7 @@ const isFinalRun = (command: StepCommand) => command.command[1] === "test" && !c
 const submit = (name: string, args: unknown, id: string) => ({ id, name, arguments: args });
 const card = { domains: [{ id: "orders", label: "Orders", description: "Placing an order.", items: [{ name: "Orders", summary: "How an order is placed." }] }], unassigned: [] };
 const index = { domains: [{ id: "orders", label: "Orders", description: "Placing and following an order.", references: [{ source: "order-specs", items: ["Orders"] }] }], unassigned: [] };
-const spec = (title: string) => `import { test, expect } from "@playwright/test";\n\ntest("${title}", async ({ request }) => {\n  await test.step("1. Get the orders", async () => {\n    const response = await request.get("/orders");\n    expect(response.ok(), "The orders answer").toBe(true);\n  });\n});\n`;
+const spec = (title: string) => `import { test, expect } from "@playwright/test";\n\ntest("${title}", async ({ request }) => {\n  await test.step("1. Get the orders", async () => {\n    const response = await request.get("/orders");\n    expect(response.ok(), "A customer places an order").toBe(true);\n  });\n});\n`;
 const IDS = ["test-1", "test-2", "test-3"];
 const scenario = (id: string) => ({
   id,
@@ -160,17 +160,18 @@ const scenario = (id: string) => ({
   domain: "orders",
   sources: [{ source: "order-specs", item: "Orders" }],
   data: [],
-  steps: [{ action: "Get the orders", expects: [{ result: "The orders answer", shows: ["The orders answer"], absent: [] }] }],
+  steps: [{ action: "Get the orders", expects: [{ result: "The orders answer", shows: ["A customer places an order"], absent: [] }] }],
 });
 const plan = submit("propose_plan", { scenarios: IDS.map(scenario) }, "plan");
 
-/** The replies of the model for the whole chain: the check of the server, the card, the index, then the plan and the design of three tests, each run then closed. */
+/** The replies of the model for the whole chain: the check of the server, the card, the index, then a read of the orders, the plan and the design of three tests, each run then closed. */
 const chain = () => [
   { body: { data: [] } },
   { body: toolCalls(MODEL, [submit("submit_card", card, "c1")]) },
   { body: answer(MODEL, "One domain.") },
   { body: toolCalls(MODEL, [submit("submit_index", index, "x1")]) },
   { body: answer(MODEL, "One domain.") },
+  { body: toolCalls(MODEL, [submit("order_specs_read_section", { number: 1 }, "read")]) },
   { body: toolCalls(MODEL, [plan]) },
   ...IDS.flatMap((id) => [{ body: toolCalls(MODEL, [submit("run_test", { content: spec(id) }, `r-${id}`)]) }, { body: toolCalls(MODEL, [submit("propose_test", {}, `p-${id}`)]) }]),
   ...Array.from({ length: 4 }, () => ({ body: answer(MODEL, "Done.") })),
@@ -335,8 +336,8 @@ describe("solo command, criterion 9 — the state of a complete run", () => {
     assert.ok(state.steps.find((step) => step.step === "cartography")!.modelRequests > 0 && state.steps.find((step) => step.step === "design")!.modelRequests > 0);
     assert.ok(state.steps.every((step) => step.durationMs > 0), JSON.stringify(state.steps));
     // Each step counts the requests of its own sessions: with the list of the models the prerequisites ask for, they are all the server received.
-    assert.deepEqual(state.steps.map((step) => step.modelRequests), [0, 0, 4, 8, 0]);
-    assert.equal(run.server.requests.length, 1 + 4 + 8);
+    assert.deepEqual(state.steps.map((step) => step.modelRequests), [0, 0, 4, 9, 0]);
+    assert.equal(run.server.requests.length, 1 + 4 + 9);
     assert.ok(state.durationMs > state.steps.reduce((total, step) => total + step.durationMs, 0) - 1);
   });
 });
@@ -511,7 +512,7 @@ describe("the edges of a run", () => {
     });
     assert.equal(run.code, 5, run.err);
     assert.match(run.err, /\[design\] error: The design stopped on an unexpected error/);
-    assert.equal(stateOf(run.root).steps.find((step) => step.step === "design")!.modelRequests, 8);
+    assert.equal(stateOf(run.root).steps.find((step) => step.step === "design")!.modelRequests, 9);
   });
 
   it("stops with 5 when the runtime of the agents cannot be opened, and still writes the state", async () => {

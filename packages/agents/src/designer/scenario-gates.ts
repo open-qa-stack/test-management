@@ -18,7 +18,7 @@ export interface ScenarioHelp {
 /**
  * What the gates refuse in a test against the scenario it carries out: not exactly one test, steps that are
  * not those of the plan, in its order, a text of an expect asserted in no `expect` of its step or asserted
- * the other way round, and an assertion that can only pass.
+ * the other way round, an assertion that can only pass, and a value typed that is none of the data.
  *
  * @param outline - The outline of the test.
  * @param scenario - The scenario of the plan.
@@ -51,7 +51,16 @@ export function scenarioErrors(outline: SpecOutline, scenario: PlannedScenario, 
       }
     });
   });
-  return [...refusals, ...outline.assertions.flatMap(tautology)];
+  return [...refusals, ...outline.assertions.flatMap(tautology), ...typedErrors(outline, scenario)];
+}
+
+/** The reasons values a test types are none of the data of its scenario: neither one of them, nor a part of one long enough to be checked; an empty value clears a field. */
+function typedErrors(outline: SpecOutline, scenario: PlannedScenario): Refusal[] {
+  const values = scenario.data.map((entry) => entry.value);
+  const listed = values.length === 0 ? "none" : values.map((value) => JSON.stringify(value)).join(", ");
+  return outline.typed
+    .filter(({ text }) => text !== "" && !values.includes(text) && !(checkable(text) && observed(text, values)))
+    .map(({ line, text }) => ({ code: "TEST-TYPED", message: `line ${line} types "${text}", which is no value of the data of scenario ${scenario.id} (${listed}). Type a value of the data.` }));
 }
 
 /**

@@ -210,8 +210,14 @@ function capped(lines: readonly string[]): string {
   return [...lines.slice(0, MAX_ENTRY_LINES - 1), `${lines.length - MAX_ENTRY_LINES + 1} more lines; ask ${ENTRY_TOOL} for one element at a time.`].join("\n");
 }
 
-/** The tools of each source, a tool going to the source whose scoped prefix is the longest start of its name. */
-function toolsBySource(tools: readonly string[], sources: readonly string[]): Map<string, string[]> {
+/**
+ * The tools of each source, a tool going to the source whose scoped prefix is the longest start of its name.
+ *
+ * @param tools - The names of the tools.
+ * @param sources - Identifiers of the sources the tools are scoped by.
+ * @returns The names of the tools of each source that has one, in their order.
+ */
+export function toolsBySource(tools: readonly string[], sources: readonly string[]): Map<string, string[]> {
   const prefixes = sources.map((source) => ({ source, prefix: scopedToolName(source, "") })).sort((a, b) => b.prefix.length - a.prefix.length);
   const bySource = new Map<string, string[]>();
   for (const tool of tools) {

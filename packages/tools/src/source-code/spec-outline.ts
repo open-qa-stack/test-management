@@ -2,6 +2,8 @@ import type { Node } from "@vscode/tree-sitter-wasm";
 
 /** The methods of a page or a locator that locate an element by what the user perceives. */
 const LOCATOR_METHODS = new Set(["getByRole", "getByText", "getByLabel", "getByPlaceholder", "getByTestId", "getByTitle", "getByAltText"]);
+/** The methods of a locator that type or choose a value. */
+const TYPING_METHODS = new Set(["fill", "type", "pressSequentially", "selectOption"]);
 
 /** A locator a test uses, by role, text, label, placeholder, test id, title or alternative text. */
 export interface SpecLocator {
@@ -11,6 +13,14 @@ export interface SpecLocator {
   readonly role?: string;
   /** The accessible name, the text, the label, the placeholder or the test id it looks for, when it is a string. */
   readonly text?: string;
+}
+
+/** A value a test types or chooses, written as a string. */
+export interface SpecTyped {
+  /** Its line, from 1. */
+  readonly line: number;
+  /** The value. */
+  readonly text: string;
 }
 
 /** A `test.step` of a test that no other step holds. */
@@ -44,8 +54,8 @@ export interface SpecAssertion {
 }
 
 /**
- * What a Playwright test holds, read once from its syntax tree: its tests, its steps, its locators and its
- * assertions.
+ * What a Playwright test holds, read once from its syntax tree: its tests, its steps, its locators, its
+ * assertions and the values it types.
  *
  * @remarks
  * Only what is written as a string literal is read: a name, a text or a role given as a regular
@@ -61,6 +71,8 @@ export class SpecOutline {
   public readonly locators: readonly SpecLocator[];
   /** The `expect` statements, in the order of the text. */
   public readonly assertions: readonly SpecAssertion[];
+  /** The values given as a string to `fill`, `type`, `pressSequentially` or `selectOption`, in the order of the text. */
+  public readonly typed: readonly SpecTyped[];
 
   /** @param root - The root of the syntax tree of the test, which the outline reads whole and does not keep. */
   public constructor(root: Node) {
@@ -73,6 +85,7 @@ export class SpecOutline {
     });
     this.locators = calls.flatMap((call) => locatorOf(call));
     this.assertions = root.descendantsOfType("expression_statement").flatMap((statement) => assertionOf(statement!));
+    this.typed = calls.flatMap((call) => typedBy(call));
   }
 }
 
@@ -106,6 +119,14 @@ function locatorOf(call: Node): SpecLocator[] {
   const name = options?.type === "object" ? options.namedChildren.find((pair) => pair!.type === "pair" && pair!.childForFieldName("key")!.text === "name") : undefined;
   const text = stringValue(name?.childForFieldName("value"));
   return [{ code, role: value, ...(text === undefined ? {} : { text }) }];
+}
+
+/** The value a call types, if it is one of the typing methods and its first argument is a string. */
+function typedBy(call: Node): SpecTyped[] {
+  const method = methodOf(call);
+  if (method === undefined || !TYPING_METHODS.has(method.text)) return [];
+  const text = stringValue(call.childForFieldName("arguments")!.namedChildren[0]);
+  return text === undefined ? [] : [{ line: call.startPosition.row + 1, text }];
 }
 
 /** The assertion a statement is, if it is an `expect` statement, awaited or not, that ends with a matcher. */

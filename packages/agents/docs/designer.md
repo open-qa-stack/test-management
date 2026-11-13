@@ -38,11 +38,15 @@ A test relies on screens the agent saw. The browser tools are those of `@open-qa
 
 An application without a user interface has no browser tools, and none of what follows that reads the screens applies to it.
 
+## The sources
+
+A plan relies on what the agent read. The tools of the knowledge sources return what they always do; the harness keeps, for each source, every text and number of what its tools returned, each value of the variables the configuration names masked first, up to 200,000 characters, the oldest going first. A call whose result is an error reads nothing. A call of a tool of a source of logs or of source code counts as a look at what a failed run did (see `TEST-LOOK`).
+
 ## Refusals
 
 Every refusal of `propose_plan`, `run_test` and `propose_test` gives each reason on a line of its own, which starts with `Refused (<code>):`, then ends with `Nothing else was refused.`: the agent fixes all of them at once. The journal gives each reason with its code first, such as `[PLAN-ID] The plan was refused by the harness: …`, so that a trial is scored by counting codes.
 
-The harness counts, for the plan and for each scenario, how many calls each code refused; the count of a scenario starts again when its test runs. From the third refusal of one code, the agent is told only what that gate would accept, after `Third refusal for the same reason. Do only this:` (then `Fourth`, `Fifth`): the skeleton of the scenario for `TEST-ONE` and `TEST-STEPS`; for `TEST-VALUE` and `TEST-POLARITY`, the assertion of each text in its step, on the element a screen showed it in when one did, such as `In step 2: await expect(page.getByRole("row", { name: "ORD-1042 Mira Veldane" })).toBeVisible();`, or `toBeHidden()` for a text the screen no longer shows; for `TEST-LOCATOR`, the closest elements the screens showed; for any other code, its first refusal alone. The fifth refusal of one code closes the scenario without a test: the agent is told `Scenario <id> was closed by the harness after 5 refusals for <code>. Go on with the next scenario.` and the sheet of the next one, the journal records it as an error, and the design state lists it in `unwritten`. The sixth plan the gates refuse stops the design, as a plan the review refuses does.
+The harness counts, for the plan and for each scenario, how many calls each code refused; the count of a scenario starts again when its test runs. From the third refusal of one code, the agent is told only what that gate would accept, after `Third refusal for the same reason. Do only this:` (then `Fourth`, `Fifth`): the skeleton of the scenario for `TEST-ONE` and `TEST-STEPS`; for `TEST-VALUE` and `TEST-POLARITY`, the assertion of each text in its step, on the element a screen showed it in when one did, such as `In step 2: await expect(page.getByRole("row", { name: "ORD-1042 Mira Veldane" })).toBeVisible();`, or `toBeHidden()` for a text the screen no longer shows; for `TEST-LOCATOR`, the closest elements the screens showed; for `PLAN-DATA`, the tool that reads the source and the last five texts it returned; for any other code, its first refusal alone. The fifth refusal of one code closes the scenario without a test: the agent is told `Scenario <id> was closed by the harness after 5 refusals for <code>. Go on with the next scenario.` and the sheet of the next one, the journal records it as an error, and the design state lists it in `unwritten`. The sixth plan the gates refuse stops the design, as a plan the review refuses does.
 
 A text is observed in what the tools returned when, its spaces collapsed and its case aside, it is part of one of their texts; a text shorter than three characters is not checked.
 
@@ -57,7 +61,7 @@ No test is run before a plan is accepted: `run_test` and `propose_test` are refu
 - its `data`: each value its test enters, with the source or the application whose tool showed it, or `made-up` for a value it invents;
 - its `steps`, one to eight, each an `action` of the user and zero to four `expects`, each a `result` in one sentence with the exact texts the screen then `shows` and those it no longer shows (`absent`).
 
-The harness numbers the steps from 1, and the expects of step `n` from `n.1`. A plan is refused, and the agent may submit another, when:
+The harness numbers the steps from 1, and the expects of step `n` from `n.1`. A source without any tool is held to none of the gates that read it, and a text or a value shorter than three characters is not checked. A plan is refused, and the agent may submit another, when:
 
 | Code | Cause |
 |---|---|
@@ -66,6 +70,9 @@ The harness numbers the steps from 1, and the expects of step `n` from `n.1`. A 
 | `PLAN-NEGATIVE` | The plan holds two functional scenarios or more, and none is negative. |
 | `PLAN-EXPECT` | A functional scenario has no expect, or an expect names no text. |
 | `PLAN-RESULT` | A functional scenario of an application with a user interface names no text that the agent saw appear on a screen after one of its actions, among those it `shows`, nor go, among those that are `absent`. |
+| `PLAN-READ` | A scenario cites a source nothing was read of: no call of one of its tools succeeded, or, for an application with a user interface, no page of it was opened, read or acted on. The refusal names the tool to call. |
+| `PLAN-DATA` | A value of the data comes from a source or an application, and was observed in nothing its tools returned, or in no snapshot of the application. |
+| `PLAN-SHOWN` | A text a scenario `shows` was observed in nothing any tool returned, and is no part of a value it invents (`made-up`); or a text that is `absent` was observed on no screen of its application, or in nothing any tool returned for an application without a user interface, and is no part of a value of its data. |
 
 The sixth plan the gates refuse stops the design (see [Refusals](#refusals)). A plan that keeps these rules goes to `planReview`, one plan at a time. Accepted, it is frozen and kept in the design state, no other may be submitted, and the agent is told the sheet of the first scenario. Refused, the journal gives the reason, every later call of the agent, whatever its tool, is refused, the agent is not reminded, and the design fails without writing any test or creating any branch. The brief is written to the state as it was given.
 
@@ -115,6 +122,7 @@ The skeleton parses and keeps the default charter and the gates below as it is: 
 | 3 | `TEST-VALUE` | A text an expect of step `n` names, in `shows` or `absent`, is observed in no string of an `expect` statement of the step `n` of the test: neither in its subject, such as the name of a locator, nor in what its matcher is given. |
 | 3 | `TEST-POLARITY` | A text the screen `shows` is held only by negative statements — `.not`, `toBeHidden`, `toHaveCount(0)` — or a text it no longer shows only by affirmative ones. |
 | 3 | `TEST-TAUT` | A text matcher — `toHaveText`, `toContainText`, `toHaveValue` — expects a text that the locator of its own subject finds the element by: it can only pass. |
+| 3 | `TEST-TYPED` | A string given to `fill`, `type`, `pressSequentially` or `selectOption` is neither empty, nor a value of the data of the scenario, nor a part of one of three characters or more. |
 | 3 | `TEST-LOCATOR` | The test uses a locator by role, text, label, placeholder, test id, title or alternative text that no snapshot showed: the role at the start of a line, and the name or the text observed in a line, the same or another — the name of a row is that of its cells. A name or a text given as a regular expression or a variable is not checked. The refusal gives the lines of the screens closest to those locators, five at most: the same role, or a shared word. |
 | 4 | `TEST-CHECK` | A finding of the `check` option, a `TestCheck` such as the `CharterCheck` of the harness, with its line, its column and the rule of the charter or the code of the compiler, then the example of the rule when it has one: `Line 12, column 9 (rule PW-WAIT-01): Unexpected use of page.waitForTimeout(). Example: …`. |
 

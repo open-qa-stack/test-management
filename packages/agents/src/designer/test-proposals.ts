@@ -7,7 +7,7 @@ import { DesignCursor, MAX_FAILED_RUNS } from "./design-cursor.ts";
 import { errorClass, failureHint } from "./run-failure.ts";
 import type { DesignedTest, FailureCause, Quarantine, UnwrittenScenario } from "./design-state.ts";
 import { PLAN_TOOL } from "./plan-proposal.ts";
-import { journalRefusals, refusalText, repeatedText, type Refusal } from "./refusal.ts";
+import { journalRefusals, maskedRefusals, refusalText, repeatedText, type Refusal } from "./refusal.ts";
 import { GUIDED_REFUSALS, MAX_REFUSALS, RefusalStreak } from "./refusal-streak.ts";
 import { scenarioErrors } from "./scenario-gates.ts";
 import { scenarioSheet, skeleton } from "./scenario-sheet.ts";
@@ -354,7 +354,7 @@ export class TestProposals {
    * is told only what the gate would accept, and the fifth closes the scenario without a test.
    */
   private refuse(what: string, refusals: readonly Refusal[]): string | { error: string } {
-    const masked = refusals.map((refusal) => ({ ...refusal, message: this.mask(refusal.message), ...(refusal.remedy === undefined ? {} : { remedy: this.mask(refusal.remedy) }) }));
+    const masked = maskedRefusals(refusals, (text) => this.mask(text));
     journalRefusals(this.journal, what, masked);
     this.streak.record(masked);
     const { code, times } = this.streak.repeated(masked);
