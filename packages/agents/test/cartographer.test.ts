@@ -254,7 +254,7 @@ describe("criterion 1 — the cartographer writes an index that passes the schem
     ]);
     assert.deepEqual([outcome.index!.status, outcome.index!.producedAt, outcome.index!.environment, outcome.index!.run.iterations], ["complete", "2026-11-13T10:00:00.000Z", "local", 2]);
     assert.deepEqual(toolsOffered(server, 0).sort(), ["recall", "remember", "submit_index"]);
-    assert.match(messages(outcome), /The card of shop is up to date; it was kept\.\nThe index is made: no index could be read\.\nThe index was accepted\.\nThe index was written to .*domain-index\.json, complete\./);
+    assert.match(messages(outcome), /The card of shop is up to date; it was kept\.\nThe index is made: no index could be read\.\nThe index was accepted\.\nThe index leaves 3 of its 11 elements in unassigned; a second submission limited to them was asked\.\nThe index was written to .*domain-index\.json, complete\./);
   });
 });
 
@@ -285,7 +285,8 @@ describe("criterion 3 — an index that omits a table is not written, and the jo
     const refused = await cartography([{ body: toolCalls(MODEL, [submit(invented)]) }, { body: answer(MODEL, "Done.") }]);
     const told = JSON.stringify(refused.server.requests[1]!.body);
     for (const fragment of ["- and 1 more", "Still to place, in a domain or in unassigned, each exactly as written:", "- shop-db: ", "public.schema_migrations"]) assert.ok(told.includes(fragment), fragment);
-    const twice = await cartography([{ body: toolCalls(MODEL, [submit(SUBMISSION, "a"), submit(SUBMISSION, "b")]) }, { body: answer(MODEL, "Done.") }]);
+    const placed = { domains: [...SUBMISSION.domains, { id: "platform", label: "Platform", description: "What serves every area.", references: SUBMISSION.unassigned }], unassigned: [] };
+    const twice = await cartography([{ body: toolCalls(MODEL, [submit(placed, "a"), submit(placed, "b")]) }, { body: answer(MODEL, "Done.") }]);
     assert.match(JSON.stringify(twice.server.requests[1]!.body), /The index was already accepted/);
     assert.equal(twice.outcome.index!.status, "complete");
   });
@@ -443,7 +444,8 @@ describe("criterion 9 — past 200 actions nothing more runs, and no complete in
   });
 
   it("marks truncated an index accepted before a limit stopped the consolidation, or made from a truncated card", async () => {
-    const { outcome } = await cartography(happy(), { limits: { maxIterations: 1, maxDurationMinutes: 10, maxActions: 200 } });
+    const placed = { domains: [...SUBMISSION.domains, { id: "operations", label: "Operations", description: "Keeping the shop running.", references: SUBMISSION.unassigned }], unassigned: [] };
+    const { outcome } = await cartography([{ body: toolCalls(MODEL, [submit(placed)]) }, { body: answer(MODEL, "Done.") }], { limits: { maxIterations: 1, maxDurationMinutes: 10, maxActions: 200 } });
     assert.deepEqual([outcome.index!.status, outcome.index!.run.iterations], ["truncated", 1]);
     const late = [{ body: toolCalls(MODEL, [{ id: "g1", name: "shop_goto", arguments: { url: "/" } }]) }, { body: toolCalls(MODEL, [submitCard(cardSubmission("shop", ["/"]))]) }];
     const screens = { ...SUBMISSION, domains: SUBMISSION.domains.map((d) => ({ ...d, references: d.references.filter((r) => r.source !== "shop") })) };
@@ -482,7 +484,7 @@ describe("a session that fails", () => {
   it("still writes, truncated, an index accepted before the consolidation failed", async () => {
     const { outcome } = await cartography([{ body: toolCalls(MODEL, [submit(SUBMISSION)]) }, { status: 500, body: { error: { message: "overloaded" } } }]);
     assert.equal(outcome.index!.status, "truncated");
-    assert.match(messages(outcome), /The index was accepted\.\nThe consolidation failed: .*\nThe index was written to/);
+    assert.match(messages(outcome), /The index was accepted\.\nThe index leaves 3 of its 11 elements in unassigned; [^\n]*\nThe consolidation failed: .*\nThe index was written to/);
   });
 
   it("journals the failure of the model, and writes nothing when no source has a card", async () => {
@@ -718,5 +720,59 @@ describe("faster cartography", () => {
       const ends = traceOf(outcome).flatMap((line, i, lines) => (line.event.type === "finished" ? [lines[i - 1]!.event.type] : []));
       assert.ok(ends.every((type) => type === "usage"), "each phase gives its usage just before its end");
     });
+  });
+});
+
+describe("domain filing, criterion 1 — with the cards written beforehand, the request names for a screen the domains of other cards that share its word", () => {
+  it("follows the screen of the orders with the domains of the contract, the base and the document that hold an order", async () => {
+    const { server } = await cartography(happy());
+    const { messages: sent } = server.requests[0]!.body as { messages: { role: string; content: string }[] };
+    const request = sent.find((message) => message.role === "user")!.content.split("\n");
+    assert.ok(request.includes("  - /orders: About /orders. — shares words with shop-api › all, shop-db › all, order-specs › all"), request.join("\n"));
+    assert.ok(request.includes("  - /: About /.") && request.includes("  - customers: About customers. — shares words with shop-db › all"));
+  });
+});
+
+describe("domain filing, criterion 3 — the elements an accepted index leaves in unassigned are asked again, limited to them", () => {
+  const orders = (shop: readonly string[]) => SUBMISSION.domains[0]!.references.map((references) => (references.source === "shop" ? { source: "shop", items: [...shop] } : references));
+  const second = (items: readonly string[]) => ({
+    domains: [
+      { id: "orders", label: "Orders", description: "Placing and following an order.", references: [{ source: "shop", items }] },
+      { id: "operations", label: "Operations", description: "Keeping the shop running.", references: [{ source: "shop-api", items: ["/health"] }, { source: "shop-db", items: ["public.schema_migrations"] }] },
+    ],
+    unassigned: [],
+  });
+
+  it("asks a second submission of the elements left, and writes the index it places them in", async () => {
+    const { outcome, server } = await cartography([{ body: toolCalls(MODEL, [submit(SUBMISSION)]) }, { body: toolCalls(MODEL, [submit(second(["/"]), "x2")]) }, { body: answer(MODEL, "Done.") }]);
+    const asked = JSON.stringify(server.requests[1]!.body);
+    for (const fragment of ["The index was accepted. It leaves in unassigned the elements below. Call submit_index once more with only them", "- shop-api: /health", "- shop-db: public.schema_migrations", "- shop: /"]) assert.ok(asked.includes(fragment), fragment);
+    assert.deepEqual(outcome.index!.domains.map((domain) => [domain.id, domain.references]), [
+      ["orders", orders(["/orders", "/"])],
+      ["customers", SUBMISSION.domains[1]!.references],
+      ["operations", second([]).domains[1]!.references],
+    ]);
+    assert.deepEqual([outcome.index!.unassigned, outcome.index!.status], [[], "complete"]);
+    assert.match(messages(outcome), /The second submission of the index was accepted\./);
+  });
+
+  it("keeps complete an index whose second submission a limit stopped, and a run after it keeps that index", async () => {
+    const replies = [{ body: toolCalls(MODEL, [submit(SUBMISSION)]) }, { body: toolCalls(MODEL, [submit(second(["/", "/orders"]), "x2")]) }, { body: answer(MODEL, "Done.") }];
+    const { outcome, root } = await cartography(replies, { limits: { maxIterations: 2, maxDurationMinutes: 10, maxActions: 200 } });
+    assert.match(messages(outcome), /The consolidation reached its iterations limit\./);
+    assert.deepEqual([outcome.index!.status, outcome.index!.unassigned, outcome.index!.run.iterations], ["complete", SUBMISSION.unassigned, 2]);
+    const consolidation = traceOf(outcome).find((line) => line.phase === "consolidation" && line.event.type === "finished");
+    assert.deepEqual(consolidation?.event, { type: "finished", outcome: "done" });
+    const content = readFileSync(indexFile(root), "utf8");
+    const again = await cartography([], { prepare: (made) => writeFileSync(indexFile(made), content) });
+    assert.deepEqual([again.server.requests.length, again.outcome.index], [0, outcome.index]);
+    assert.match(messages(again.outcome), /it was kept\./);
+  });
+
+  it("keeps the elements in unassigned when the second submission is refused and the agent answers instead", async () => {
+    const { outcome, server } = await cartography([{ body: toolCalls(MODEL, [submit(SUBMISSION)]) }, { body: toolCalls(MODEL, [submit(second(["/", "/orders"]), "x2")]) }, { body: answer(MODEL, "They belong to no domain.") }]);
+    assert.match(JSON.stringify(server.requests[2]!.body), /The second submission of the index was refused; the index accepted before is kept\. Fix it and submit again only what was asked\./);
+    assert.match(messages(outcome), /The second submission of the index was refused: \/domains\/0\/references\/0\/items\/1: \/orders is not an item of shop/);
+    assert.deepEqual([outcome.index!.domains[0]!.references, outcome.index!.unassigned], [orders(["/orders"]), SUBMISSION.unassigned]);
   });
 });

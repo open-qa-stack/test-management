@@ -73,10 +73,13 @@ export interface CartographyOutcome {
  * the configured autonomy. The index records the fingerprint of each card it is made of: when the index
  * already written is complete, of this environment, of the same sources and of the cards they have now, it is
  * kept, without the model, unless `force` is set. Otherwise a last task consolidates the cards, with the notes
- * the agents kept but none of the tools of the sources, and hands its index in with `submit_index`, which must
- * place every element of every card. A source without a card is `not_read`. The index is written only once a
+ * the agents kept but none of the tools of the sources, each element followed by the domains of other cards
+ * that share a word with it, and hands its index in with `submit_index`, which must place every element of every
+ * card in functional domains; the elements it leaves unassigned are asked once more. A source without a card is `not_read`. The index is written only once a
  * submission was accepted and the whole index passes its schema; it is `truncated` when a limit stopped the
- * consolidation, a card is truncated or a source was not read. Nothing is committed nor pushed.
+ * consolidation, a card is truncated or a source was not read. A limit reached while the elements left
+ * unassigned are asked once more only ends that second submission: the first stays as it was accepted, and
+ * the index is not truncated for it. Nothing is committed nor pushed.
  *
  * The run is traced in `<stateDir>/traces/`, line by line, and each line is handed to `observe` as it is
  * written: the phases `survey`, `card`, `consolidation` and `index`, each from its `started` line to its
@@ -152,13 +155,13 @@ export class Cartographer {
       endPhase(trace, phases, "failed");
       return { journal: journal.entries() };
     }
-    const submission = new HandedIn(domainIndexRules(inventory, new Set(sources.map((source) => source.id)), (id) => cards.has(id), configSecrets(config, env)), journal);
+    const submission = new HandedIn(domainIndexRules(inventory, new Map(sources.map((source) => [source.id, source.type] as const)), (id) => cards.has(id), configSecrets(config, env)), journal);
     const notes = agentNotes(config, repositoryRoot, env, { role: "cartographer", task: `index-${environment}-${now().toISOString()}`, now });
     const events: AgentEvent[] = [];
     const task = {
       instructions: CARTOGRAPHER_INSTRUCTIONS,
       tools: [...notes, submission.tool()],
-      request: cartographyRequest(environment, sources, cards),
+      request: cartographyRequest(environment, sources, cards, inventory),
       events,
       reminder: () => submission.reminder(),
       sent: (text: string) => trace.harness("consolidation", { type: "message", text }),
@@ -173,12 +176,13 @@ export class Cartographer {
     if (last.type === "error") journal.record("error", `The consolidation failed: ${last.error.message}`);
     if (last.type === "stopped") journal.record("error", `The consolidation reached its ${last.reason.limit} limit.`);
     const accepted = submission.accepted;
+    const settled = last.type === "end" || (last.type === "stopped" && submission.followUpPending);
     if (accepted === undefined) {
       journal.record("error", "No index was written: no index was accepted before the session ended.");
       endPhase(trace, phases, "failed", usage);
       return { journal: journal.entries() };
     }
-    endPhase(trace, phases, last.type === "end" ? "done" : "truncated", usage);
+    endPhase(trace, phases, settled ? "done" : "truncated", usage);
     phases.start("index");
     const states = sources.map((source): IndexSource => {
       const card = cards.get(source.id);
@@ -195,7 +199,7 @@ export class Cartographer {
         actions: counters.actions + sum(made.map((run) => run.actions)),
         durationMs: Math.round(counters.elapsedMs) + sum(made.map((run) => run.durationMs)),
       },
-      status: last.type === "end" && states.every((s) => s.state === "read") && [...cards.values()].every((card) => card.status === "complete") ? "complete" : "truncated",
+      status: settled && states.every((s) => s.state === "read") && [...cards.values()].every((card) => card.status === "complete") ? "complete" : "truncated",
       sources: states,
       ...accepted,
     };
