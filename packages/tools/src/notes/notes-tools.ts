@@ -1,5 +1,6 @@
 import type { ToolDefinition } from "@open-qa-stack/domain";
-import { redactText, secretForms } from "../browser/redact.ts";
+import { secretForms } from "../browser/redact.ts";
+import { secretPaths } from "../common/secret-paths.ts";
 import type { Notebook } from "./notebook.ts";
 
 /** Longest note an agent may write. */
@@ -46,7 +47,7 @@ export function notesTools(notebook: Notebook, writer: NoteWriter): ToolDefiniti
       },
       execute: async (args) => {
         const { text, tags: given, source } = args as { text: string; tags: string[]; source?: string };
-        if (redactText(text, forms) !== text) return { error: "The note holds a secret of the configuration; it was not kept. Write it without the secret." };
+        if (secretPaths({ text, tags: given, source }, forms).length > 0) return { error: "The note holds a secret of the configuration; it was not kept. Write it without the secret." };
         const now = (writer.now ?? (() => new Date()))().toISOString();
         await notebook.add({ text, tags: given.map((tag) => tag.toLowerCase()), ...(source === undefined ? {} : { source }), role: writer.role, task: writer.task, writtenAt: now });
         return "Kept.";

@@ -1,4 +1,5 @@
 import { placementErrors, unplacedItems, validateDomainSubmission, type DomainIndexSubmission, type IndexError, type SourceInventory, type SourceReferences } from "@open-qa-stack/shared";
+import { secretErrors } from "../common/config-secrets.ts";
 import type { SubmissionRules } from "../common/handed-in.ts";
 
 /** Name of the tool the cartographer hands its index in with. */
@@ -37,15 +38,17 @@ const SUBMISSION_SHAPE = {
  *
  * @remarks
  * A submission is checked against its schema, then it must place every element of the cards and invent
- * none, and refer to no source without a card. An item written after the name of its source
- * and a slash or a colon is read without it, and the references of a domain to one source are merged.
+ * none, refer to no source without a card and hold no secret. An item that is no element of its source but
+ * becomes one without the name of the source and a slash or a colon in front is read without them, and the
+ * references of a domain to one source are merged.
  *
  * @param inventory - The elements of the card of each source.
  * @param sources - Identifiers of every source of the run.
  * @param isRead - Whether a source has a card.
+ * @param secrets - The secrets of the configuration, which no index may hold.
  * @returns The rules.
  */
-export function domainIndexRules(inventory: SourceInventory, sources: ReadonlySet<string>, isRead: (source: string) => boolean): SubmissionRules<DomainIndexSubmission> {
+export function domainIndexRules(inventory: SourceInventory, sources: ReadonlySet<string>, isRead: (source: string) => boolean, secrets: readonly string[]): SubmissionRules<DomainIndexSubmission> {
   return {
     tool: SUBMIT_TOOL,
     what: "index",
@@ -54,8 +57,8 @@ export function domainIndexRules(inventory: SourceInventory, sources: ReadonlySe
     shape: SUBMISSION_SHAPE,
     validate: validateDomainSubmission,
     check: (valid) => {
-      const value = normalised(valid);
-      const errors = [...placementErrors(value, inventory, sources), ...unread(value, sources, isRead)];
+      const value = normalised(valid, inventory);
+      const errors = [...secretErrors(value, secrets), ...placementErrors(value, inventory, sources), ...unread(value, sources, isRead)];
       return { value, errors, unplaced: unplacedItems(value, inventory) };
     },
   };
@@ -73,18 +76,20 @@ function unread(submission: DomainIndexSubmission, sources: ReadonlySet<string>,
 }
 
 /**
- * Drops from each item the name of its source, which a model sometimes writes in front of it
- * (`orders-db/public.orders`), and merges the references of a list to one source, each item once.
+ * Drops from each item that is no element of its source the name of the source, which a model sometimes
+ * writes in front of it (`orders-db/public.orders`), and merges the references of a list to one source,
+ * each item once.
  */
-function normalised(submission: DomainIndexSubmission): DomainIndexSubmission {
-  return { domains: submission.domains.map((domain) => ({ ...domain, references: merged(domain.references) })), unassigned: merged(submission.unassigned) };
+function normalised(submission: DomainIndexSubmission, inventory: SourceInventory): DomainIndexSubmission {
+  return { domains: submission.domains.map((domain) => ({ ...domain, references: merged(domain.references, inventory) })), unassigned: merged(submission.unassigned, inventory) };
 }
 
-function merged(references: readonly SourceReferences[]): SourceReferences[] {
+function merged(references: readonly SourceReferences[], inventory: SourceInventory): SourceReferences[] {
   const bySource = new Map<string, Set<string>>();
   for (const { source, items } of references) {
     const kept = bySource.get(source) ?? new Set<string>();
-    for (const item of items) kept.add(item.startsWith(`${source}/`) || item.startsWith(`${source}:`) ? item.slice(source.length + 1) : item);
+    const known = new Set(inventory.get(source));
+    for (const item of items) kept.add(!known.has(item) && (item.startsWith(`${source}/`) || item.startsWith(`${source}:`)) ? item.slice(source.length + 1) : item);
     bySource.set(source, kept);
   }
   return [...bySource].map(([source, items]) => ({ source, items: [...items] }));

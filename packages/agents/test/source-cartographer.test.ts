@@ -397,3 +397,47 @@ describe("freshness, criterion 2 — the sources without an up-to-date card are 
     }
   });
 });
+
+describe("sources a card must still be made of", () => {
+  it("gives a source without any element an empty, complete card, without the model", async () => {
+    const root = mkdtempSync(join(workspace, "repo-"));
+    writeFileSync(join(root, "notes.md"), "Just text, no heading.\n");
+    const { outcome, server } = await cartography([], { source: { id: "notes", type: "document", path: "notes.md", attachments: [{ application: "shop" }] }, root });
+    assert.deepEqual([outcome.card?.status, outcome.card?.domains, outcome.card?.unassigned, server.requests.length], ["complete", [], [], 0]);
+    assert.match(messages(outcome), /The source notes has no element; its card is empty\./);
+  });
+
+  it("keeps the exact name of an element that starts with the name of its source", async () => {
+    const root = mkdtempSync(join(workspace, "repo-"));
+    mkdirSync(join(root, "code", "app", "models"), { recursive: true });
+    writeFileSync(join(root, "code", "app", "models", "user.ts"), "export class User {}\n");
+    const card = { domains: [{ id: "users", label: "Users", description: "The users.", items: [{ name: "app/models", summary: "The models." }] }], unassigned: [] };
+    const { outcome } = await cartography([{ body: toolCalls(MODEL, [submit(card)]) }, { body: answer(MODEL, "Done.") }], { source: { id: "app", type: "source-code", path: "code", commands: "none", attachments: [{ application: "shop" }] }, root });
+    assert.deepEqual(outcome.card?.domains[0]!.items.map((item) => item.name), ["app/models"], messages(outcome));
+  });
+
+  it("refuses a card that holds a secret of the configuration, without repeating it", async () => {
+    const secret = "postgresql://shop:secret@127.0.0.1:5999/shop";
+    const leaky = { ...CARD, domains: [{ ...CARD.domains[0]!, items: [{ ...CARD.domains[0]!.items[0]!, summary: `Read with ${secret}.` }] }, CARD.domains[1]!] };
+    const { outcome, server } = await cartography([{ body: toolCalls(MODEL, [submit(leaky)]) }, { body: toolCalls(MODEL, [submit(CARD, "c2")]) }, { body: answer(MODEL, "Done.") }]);
+    assert.match(messages(outcome), /The card was refused: \/domains\/0\/items\/0\/summary holds a secret of the configuration; write it without the secret\./);
+    assert.ok(outcome.card);
+    assert.ok(!readFileSync(outcome.cardPath!, "utf8").includes(secret) && !messages(outcome).includes(secret));
+    assert.ok(!JSON.stringify(server.requests[1]!.body).split("tool_call_id").slice(1).some((part) => part.includes(secret)), "the refusal does not repeat the secret");
+  });
+});
+
+describe("how mapSources runs the tasks", () => {
+  it("runs one task at a time when the number asked is not a whole number above zero, and throws a failure once every source ran", async () => {
+    const root = mkdtempSync(join(workspace, "repo-"));
+    for (const name of ["a.md", "b.md"]) writeFileSync(join(root, name), "No heading.\n");
+    const unused: AgentRuntime = { openSession: () => Promise.reject(new Error("no session expected")), close: async () => undefined };
+    const documents = ["a", "b"].map((id): Knowledge => ({ id, type: "document", path: `${id}.md`, attachments: [{ application: "shop" }] }));
+    const config = { ...configFor("http://127.0.0.1:1"), knowledge: documents };
+    const run = (concurrency: number) => mapSources({ config, environment: "local", repositoryRoot: root, env: {}, runtime: unused, concurrency });
+    for (const concurrency of [Number.NaN, 0, -2, 1.5]) assert.deepEqual((await run(concurrency)).map(({ source }) => source.id), ["a", "b"]);
+    rmSync(join(root, ".oqas", "index", "sources"), { recursive: true });
+    writeFileSync(join(root, ".oqas", "index", "sources"), "not a folder");
+    await assert.rejects(run(2), /EEXIST|ENOTDIR/);
+  });
+});

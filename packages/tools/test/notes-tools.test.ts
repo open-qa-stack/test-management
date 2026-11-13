@@ -43,11 +43,17 @@ describe("criterion 1 — a note is found by one of its tags and by a word of it
 });
 
 describe("criterion 2 — a note that holds a secret is refused", () => {
-  it("refuses the secret as it is or encoded in an address", async () => {
+  it("refuses the secret as it is or encoded in an address, in the text, a tag or the source", async () => {
     const notes = tools(join(folder, "secret.jsonl"));
     const remember = notes.get("remember")!;
-    for (const text of [`The password is ${SECRET}.`, `Sign in at /login?p=${encodeURIComponent(SECRET)}`]) {
-      assert.deepEqual(await remember.execute({ text, tags: ["accounts"] }), { error: "The note holds a secret of the configuration; it was not kept. Write it without the secret." });
+    const refused = [
+      { text: `The password is ${SECRET}.`, tags: ["accounts"] },
+      { text: `Sign in at /login?p=${encodeURIComponent(SECRET)}`, tags: ["accounts"] },
+      { text: "A test account.", tags: ["accounts", SECRET] },
+      { text: "A test account.", tags: ["accounts"], source: SECRET },
+    ];
+    for (const note of refused) {
+      assert.deepEqual(await remember.execute(note), { error: "The note holds a secret of the configuration; it was not kept. Write it without the secret." });
     }
     assert.deepEqual(await notes.get("recall")!.execute({}), []);
   });

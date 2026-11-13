@@ -4,6 +4,7 @@ import type { AgentEvent, AgentRuntime } from "@open-qa-stack/domain";
 import { validateDomainIndex, type DomainIndex, type IndexSource, type ResolvedConfig, type SourceCard } from "@open-qa-stack/shared";
 import type { BrowserAccess, KnowledgeAccess } from "@open-qa-stack/tools";
 import { agentNotes } from "../common/agent-notes.ts";
+import { configSecrets } from "../common/config-secrets.ts";
 import { runAgentTask, taskEnd, taskLimits } from "../common/agent-task.ts";
 import { HandedIn } from "../common/handed-in.ts";
 import { Journal, type JournalEntry } from "../common/journal.ts";
@@ -97,7 +98,7 @@ export class Cartographer {
       return { journal: journal.entries() };
     }
     const inventory = new Map([...cards].map(([id, card]) => [id, elementsOf(card)] as const));
-    const submission = new HandedIn(domainIndexRules(inventory, new Set(sources.map((source) => source.id)), (id) => cards.has(id)), journal);
+    const submission = new HandedIn(domainIndexRules(inventory, new Set(sources.map((source) => source.id)), (id) => cards.has(id), configSecrets(config, env)), journal);
     const notes = agentNotes(config, repositoryRoot, env, { role: "cartographer", task: `index-${environment}-${now().toISOString()}`, now });
     const events: AgentEvent[] = [];
     const task = { instructions: CARTOGRAPHER_INSTRUCTIONS, tools: [...notes, submission.tool()], request: cartographyRequest(environment, sources, cards), events, reminder: () => submission.reminder() };
