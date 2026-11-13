@@ -76,7 +76,7 @@ export const DEFAULT_CHARTER: readonly CharterRule[] = Object.freeze([
   {
     id: "PW-FACT-01",
     statement:
-      "Never invent a value: every label, message, field and value a test enters or checks comes from the domain index or the knowledge sources; leave out what they do not give.",
+      "Never invent a value: every label, message, field and value a test enters or checks comes from the domain index, the knowledge sources or the screens of the application; leave out what they do not give.",
     rationale: "A test checks the behaviour users see; a value guessed instead of read from the application tests nothing but the guess.",
     source: "https://playwright.dev/docs/best-practices#test-user-visible-behavior",
     example: `// The contract documents the message "Policy saved".\nawait expect(page.getByRole("status")).toHaveText("Policy saved");`,

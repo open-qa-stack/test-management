@@ -5,6 +5,7 @@ import { moduleSyntax, redactText, secretForms } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
 import type { DesignedTest } from "./design-state.ts";
 import type { PlanProposal } from "./plan-proposal.ts";
+import type { ScreenWatch } from "./screen-watch.ts";
 import type { TestCheck, TestFinding, TestReference, TestRunner, TestTrial, Verdict } from "@open-qa-stack/domain";
 import { addressErrors, fileErrors, importErrors, secretValueErrors, type DeclaredSecret } from "./spec-rules.ts";
 
@@ -49,6 +50,8 @@ export interface ProposalRules {
   readonly packages: readonly string[];
   /** The test plan, which must be accepted before any test is run or proposed. */
   readonly plan: PlanProposal;
+  /** What the agent saw of the screens, which a test must rely on. */
+  readonly screens: ScreenWatch;
 }
 
 /** The arguments of a proposal, once they match the schema of the tool. */
@@ -66,7 +69,7 @@ interface Proposal {
 }
 
 /** The arguments of a trial. */
-type Trial = Pick<Proposal, "application" | "file" | "content">;
+type Trial = Pick<Proposal, "application" | "scenario" | "file" | "content">;
 
 /**
  * The tests a designer proposes, one call of `propose_test` each, checked by the harness before they are
@@ -75,7 +78,10 @@ type Trial = Pick<Proposal, "application" | "file" | "content">;
  * @remarks
  * No test is run or proposed before the test plan is accepted, and each test names a scenario of it and
  * copies the `expect` assertion that verifies the expected result of that scenario; in a functional
- * scenario, that assertion follows an action and repeats no earlier check. A test is refused when its path is already taken, its text does not parse as TypeScript, it imports
+ * scenario, that assertion follows an action, repeats no earlier check, and names something the action
+ * produced. A test of an application with a user interface is run only once the agent looked at its
+ * screens — and did the steps itself, for a functional scenario — and uses only locators the screens
+ * showed. A test is refused when its path is already taken, its text does not parse as TypeScript, it imports
  * anything but `@playwright/test` or a relative path inside the test repository, imports another test,
  * holds an address of the configuration, or the proposal holds the value of a declared variable; then
  * when the check given finds something. A test that passes these rules is then run against the
@@ -127,7 +133,7 @@ export class TestProposals {
           application: { type: "string", enum: [...this.rules.applications], description: "Identifier of the one application the test is about." },
           domain: { type: "string", enum: [...this.rules.domains], description: "Identifier of the domain of the index the test comes from." },
           scenario: { type: "string", minLength: 1, description: "Identifier of the scenario of the accepted plan the test carries out." },
-          verifies: { type: "string", minLength: 1, description: "The assertion of the test that verifies the expected result of its scenario, copied as written in the test, such as: await expect(rows.first()).toContainText('Mustermann');" },
+          verifies: { type: "string", minLength: 1, description: "The assertion of the test that verifies the expected result of its scenario, copied as written in the test, such as: await expect(page.getByRole('row', { name: 'ORD-1042' })).toContainText('Mira Veldane');" },
           file: { type: "string", pattern: "^[a-z0-9]+(-[a-z0-9]+)*\\.spec\\.ts$", description: "Name of the file, such as view-policy.spec.ts; it is placed in the folder of its application." },
           reason: { type: "string", minLength: 1, description: "Why the test is worth running, in one sentence." },
           content: { type: "string", minLength: 1, description: "The whole text of the file, in TypeScript." },
@@ -153,10 +159,11 @@ export class TestProposals {
         type: "object",
         properties: {
           application: { type: "string", enum: [...this.rules.applications], description: "Identifier of the one application the test is about." },
+          scenario: { type: "string", minLength: 1, description: "Identifier of the scenario of the accepted plan the test carries out." },
           file: { type: "string", pattern: "^[a-z0-9]+(-[a-z0-9]+)*\\.spec\\.ts$", description: "Name of the file, such as view-policy.spec.ts." },
           content: { type: "string", minLength: 1, description: "The whole text of the file, in TypeScript." },
         },
-        required: ["application", "file", "content"],
+        required: ["application", "scenario", "file", "content"],
         additionalProperties: false,
       },
       execute: async (args) => this.tryTest(args as Trial),
@@ -183,14 +190,16 @@ export class TestProposals {
     const blocked = this.rules.plan.blocked();
     if (blocked !== undefined) return this.refuse(path, [blocked]);
     if (this.kept.length >= MAX_TESTS) return this.setAside(path);
-    const scenarios = this.rules.plan.accepted!.scenarios.map((scenario) => scenario.id);
-    if (!scenarios.includes(proposal.scenario)) return this.refuse(path, [`${proposal.scenario} is no scenario of the accepted plan; the scenarios are ${scenarios.join(", ")}.`]);
-    const errors = await this.errors(path, proposal.content, `${proposal.reason}\n${proposal.failure ?? ""}`);
+    const errors = await this.errors(path, proposal, `${proposal.reason}\n${proposal.failure ?? ""}`);
     if (errors.length > 0) return this.refuse(path, errors);
     if (!quotesAssertion(proposal.content, proposal.verifies)) return this.refuse(path, ["verifies must copy, as written in the test, the expect assertion that verifies the expected result of its scenario."]);
-    const { kind } = this.rules.plan.accepted!.scenarios.find((scenario) => scenario.id === proposal.scenario)!;
-    if (kind === "functional" && !followsAction(proposal.content, proposal.verifies)) {
-      return this.refuse(path, ["In a functional scenario, the assertion of verifies checks what an action produced: it comes after a goto, a click, a fill or a request, and repeats no check made before. Do the steps with the browser tools, see what the screen shows after the action, and assert that."]);
+    if (this.functional(proposal.scenario)) {
+      if (!followsAction(proposal.content, proposal.verifies)) {
+        return this.refuse(path, ["In a functional scenario, the assertion of verifies checks what an action produced: it comes after a goto, a click, a fill or a request, and repeats no check made before. Do the steps with the browser tools, see what the screen shows after the action, and assert that."]);
+      }
+      if (this.rules.screens.shownBefore(proposal.application, proposal.verifies)) {
+        return this.refuse(path, ["What verifies names was already on the page before the action: it verifies nothing of the scenario. Assert what appeared after the action, as the browser tools told you: a row, a text, a value."]);
+      }
     }
     const seen = this.trials.get(trialKey(path, proposal.content));
     const trial = seen ?? (await this.trial(path, proposal.content));
@@ -217,7 +226,7 @@ export class TestProposals {
     const path = posix.join(this.rules.appsDir, args.application, args.file);
     const blocked = this.rules.plan.blocked();
     if (blocked !== undefined) return this.refuse(path, [blocked], "could not be run");
-    const errors = await this.errors(path, args.content, "");
+    const errors = await this.errors(path, args, "");
     if (errors.length > 0) return this.refuse(path, errors, "could not be run");
     const trial = await this.trial(path, args.content);
     if (trial.error !== undefined) return this.refuse(path, [trial.error], "could not be run");
@@ -232,15 +241,27 @@ export class TestProposals {
     return trial;
   }
 
+  /** Whether a scenario of the accepted plan is functional. */
+  private functional(scenario: string): boolean {
+    return this.rules.plan.accepted!.scenarios.find((planned) => planned.id === scenario)!.kind === "functional";
+  }
+
   /** What the rules refuse in a test, its text and what goes with it; nothing when it may run. */
-  private async errors(path: string, content: string, comments: string): Promise<string[]> {
-    const { repositoryRoot, addresses, secrets, check } = this.rules;
+  private async errors(path: string, test: Trial, comments: string): Promise<string[]> {
+    const { repositoryRoot, addresses, secrets, check, screens } = this.rules;
+    const { content } = test;
+    const scenarios = this.rules.plan.accepted!.scenarios.map((scenario) => scenario.id);
+    if (!scenarios.includes(test.scenario)) return [`${test.scenario} is no scenario of the accepted plan; the scenarios are ${scenarios.join(", ")}.`];
+    const missing = screens.missing(test.application, this.functional(test.scenario));
+    if (missing !== undefined) return [missing];
     if (this.kept.some((test) => test.path === path) || existsSync(join(repositoryRoot, path))) return [`${path} is already taken; give the test another file name.`];
     const syntax = await moduleSyntax(content);
     if (!syntax.ok) return [`The test does not parse as TypeScript: ${syntax.error}.`];
     const errors = [...importErrors(syntax.imports, join(repositoryRoot, path), repositoryRoot, this.rules.packages), ...fileErrors(content), ...addressErrors(content, addresses), ...secretValueErrors(`${comments}\n${content}`, secrets)];
-    if (errors.length > 0 || check === undefined) return errors;
-    return (await check.check({ path, content })).map(findingText);
+    if (errors.length > 0) return errors;
+    const unseen = screens.unseen(test.application, content);
+    if (unseen.length > 0) return [`No screen you looked at showed ${unseen.join(", ")}. Use only locators the snapshots gave, copied as given; take a snapshot of the page at that step to find the right one.`];
+    return check === undefined ? [] : (await check.check({ path, content })).map(findingText);
   }
 
   private setAside(path: string): string {

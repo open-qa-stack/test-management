@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { AgentEvent, AgentRuntime } from "@open-qa-stack/domain";
 import { validateDomainIndex, type DomainIndex, type IndexSource, type ResolvedConfig, type SourceCard } from "@open-qa-stack/shared";
@@ -67,7 +67,8 @@ export interface CartographyOutcome {
  * Before any exploration, every source must answer; otherwise no session starts and no index is written.
  * The inventory a knowledge source gave then is the one its card is made of: no knowledge source is read twice.
  * Each source without an up-to-date card is then mapped on its own, in its own task, under the limits of
- * the configured autonomy. A last task consolidates the cards, with the notes the agents kept but none of
+ * the configured autonomy. When every card was kept and the index already written is complete, of this
+ * environment and of the same sources, it is kept too, without the model. Otherwise a last task consolidates the cards, with the notes the agents kept but none of
  * the tools of the sources, and hands its index in with `submit_index`, which must place every element of
  * every card. A source without a card is `not_read`. The index is written only once a submission was
  * accepted and the whole index passes its schema; it is `truncated` when a limit stopped the consolidation,
@@ -130,6 +131,15 @@ export class Cartographer {
     for (const { outcome } of results) journal.adopt(outcome.journal);
     const cards = new Map(results.flatMap(({ source, outcome }) => (outcome.card === undefined ? [] : [[source.id, outcome.card] as const])));
     phases.end(cardsOutcome(cards.size, results.length, [...cards.values()].every((card) => card.status === "complete")));
+    if (results.every(({ outcome }) => outcome.kept)) {
+      const kept = await this.upToDate(new Set(cards.keys()));
+      if (kept !== undefined) {
+        phases.start("index");
+        journal.record("info", `Every card is up to date, and so is the index ${kept.indexPath}; it was kept.`);
+        phases.end("kept");
+        return { ...kept, journal: journal.entries() };
+      }
+    }
     phases.start("consolidation");
     const inventory = new Map([...cards].map(([id, card]) => [id, elementsOf(card)] as const));
     if ([...inventory.values()].every((elements) => elements.length === 0)) {
@@ -183,6 +193,20 @@ export class Cartographer {
     const outcome = await this.write(index, journal);
     phases.end(outcome.index === undefined ? "failed" : outcome.index.status === "complete" ? "done" : "truncated");
     return outcome;
+  }
+
+  /** The index already written, when it is complete, of this environment, and of exactly the sources given. */
+  private async upToDate(sources: ReadonlySet<string>): Promise<{ indexPath: string; index: DomainIndex } | undefined> {
+    const indexPath = join(this.options.repositoryRoot, this.options.config.repository.indexDir, INDEX_FILE_NAME);
+    const content: unknown = await readFile(indexPath, "utf8").then(
+      (text) => JSON.parse(text) as unknown,
+      () => undefined,
+    ).catch(() => undefined);
+    const validation = validateDomainIndex(content);
+    if (!validation.ok) return undefined;
+    const index = validation.value;
+    const same = index.sources.length === sources.size && index.sources.every((source) => sources.has(source.id));
+    return index.status === "complete" && index.environment === this.options.environment && same ? { indexPath, index } : undefined;
   }
 
   private async write(index: DomainIndex, journal: Journal): Promise<Omit<CartographyOutcome, "tracePath">> {

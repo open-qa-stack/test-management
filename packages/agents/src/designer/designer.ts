@@ -16,6 +16,7 @@ import { designRequest } from "./designer-prompt.ts";
 import { DESIGNS_FOLDER, type DesignedTest, type DesignState } from "./design-state.ts";
 import { IndexMap } from "./index-map.ts";
 import { PlanProposal } from "./plan-proposal.ts";
+import { ScreenWatch } from "./screen-watch.ts";
 import type { TestCheck, TestRunner } from "@open-qa-stack/domain";
 import { declaredAddresses, declaredSecrets, testPackages } from "./spec-rules.ts";
 import type { ToolDefinition } from "@open-qa-stack/domain";
@@ -135,6 +136,8 @@ export class Designer {
     const readable = config.knowledge.filter((source) => source.attachments.some((a) => a.environment === undefined || a.environment === index.environment));
     // The sources a scenario may cite and a tool may belong to: the index is a map, not a limit.
     const owners = [...new Set([...index.sources.map((source) => source.id), ...readable.map((source) => source.id), ...applications.map((application) => application.id)])];
+    const browser = browserTools(applications, { environment: index.environment, env, screenshotsDir: join(repositoryRoot, config.repository.stateDir, "screenshots"), ...this.options.browser });
+    const screens = new ScreenWatch(applications.map((application) => application.id), browser.tools);
     const plan = new PlanProposal({ sources: owners, secrets: declaredSecrets(config, env), review: this.options.planReview ?? ACCEPT_EVERY_PLAN }, journal);
     const proposals = new TestProposals(
       {
@@ -148,16 +151,16 @@ export class Designer {
         runner: this.options.runner,
         packages,
         plan,
+        screens,
       },
       journal,
     );
-    const browser = browserTools(applications, { environment: index.environment, env, screenshotsDir: join(repositoryRoot, config.repository.stateDir, "screenshots"), ...this.options.browser });
     const knowledge = knowledgeTools(readable, { repositoryRoot, env, secrets: declaredValues(config, env), taskStart: start });
     const notes = agentNotes(config, repositoryRoot, env, { role: "designer", task: id, now });
-    const map = new IndexMap(index, await this.cards(index), [...browser.tools, ...knowledge], owners);
+    const map = new IndexMap(index, await this.cards(index), [...screens.tools(), ...knowledge], owners);
     const events: AgentEvent[] = [];
     const request = designRequest(this.options.brief, index.environment, map.domains(), applications, packages);
-    const tools = [...map.toolset(), ...browser.tools, ...knowledge, ...notes, plan.tool(), proposals.trialTool(), proposals.tool()].map((tool) => stoppedOnRefusal(tool, plan));
+    const tools = [...map.toolset(), ...screens.tools(), ...knowledge, ...notes, plan.tool(), proposals.trialTool(), proposals.tool()].map((tool) => stoppedOnRefusal(tool, plan));
     const opened = runTrace(this.options, `design-${index.environment}`, now);
     trace = opened;
     const phases = new TracedPhases(opened, "design");

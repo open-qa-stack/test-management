@@ -610,3 +610,48 @@ describe("trace, criterion 6 — an observer gets each line as it is written, an
     assert.deepEqual(ends.at(-1), ["card", "", "failed"]);
   });
 });
+
+describe("an index already up to date", () => {
+  const sources = [
+    { id: "shop-api", type: "openapi", state: "read" },
+    { id: "shop-db", type: "postgresql", state: "read" },
+    { id: "order-specs", type: "document", state: "read" },
+    { id: "shop", type: "web", state: "read" },
+  ];
+  const index = (changes: Record<string, unknown> = {}) => ({
+    formatVersion: 1,
+    producedAt: "2026-11-12T08:00:00.000Z",
+    environment: "local",
+    model: { provider: "openai", baseUrl: "http://127.0.0.1:1/v1", model: MODEL },
+    run: { iterations: 9, actions: 0, durationMs: 1 },
+    status: "complete",
+    sources,
+    ...SUBMISSION,
+    ...changes,
+  });
+  const written = (content: unknown) => (root: string) => writeFileSync(indexFile(root), typeof content === "string" ? content : JSON.stringify(content));
+
+  it("is kept without the model when every card was kept, and the trace says so", async () => {
+    const { outcome, root, server } = await cartography([], { prepare: written(index()) });
+    assert.equal(server.requests.length, 0);
+    assert.deepEqual([outcome.indexPath, outcome.index!.producedAt], [indexFile(root), "2026-11-12T08:00:00.000Z"]);
+    assert.match(messages(outcome), /Every card is up to date, and so is the index .*domain-index\.json; it was kept\./);
+    const phases = traceOf(outcome).filter((line) => line.source === undefined && (line.event.type === "started" || line.event.type === "finished"));
+    assert.deepEqual(phases.slice(-2).map((line) => [line.phase, line.event]), [["index", { type: "started" }], ["index", { type: "finished", outcome: "kept" }]]);
+    assert.ok(!phases.some((line) => line.phase === "consolidation"));
+  });
+
+  it("is made again when it is truncated, of another environment, of other sources, or unreadable", async () => {
+    for (const stale of [index({ status: "truncated", sources: [...sources.slice(0, 3), { ...sources[3]!, state: "not_read" }] }), index({ environment: "staging" }), index({ sources: sources.slice(0, 3), ...without("shop") }), "{ not json"]) {
+      const { outcome, server } = await cartography(happy(), { prepare: written(stale) });
+      assert.ok(server.requests.length > 0);
+      assert.equal(outcome.index!.producedAt, "2026-11-13T10:00:00.000Z");
+    }
+  });
+
+  it("is made again when a card was made again", async () => {
+    const { outcome, server } = await cartography([{ body: toolCalls(MODEL, [submitCard(cardSubmission("order-specs"))]) }, { body: answer(MODEL, "Done.") }, ...happy()], { prepare: written(index()), cards: ["shop-api", "shop-db", "shop"] });
+    assert.ok(server.requests.length > 0);
+    assert.equal(outcome.index!.producedAt, "2026-11-13T10:00:00.000Z", messages(outcome));
+  });
+});

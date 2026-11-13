@@ -23,6 +23,18 @@ Added rules come after the default ones, in the order of the file; their reason 
 
 `resolveCharter(config.charter)` applies the changes and returns the rules to follow, or the errors. `designerInstructions(rules, config.repository)` and `reviewerInstructions(rules, config.repository)` write the system instructions of each agent: its role, every rule by its identifier with its rationale and example, then the folders of the repository layout. All three are pure: they read no file and call no model or network.
 
+The instructions of the designer end with a method, which the reviewer does not get. The charter says what a test must keep; the method says how to get to a test that verifies a behaviour:
+
+1. open the screen with the browser tools and read the snapshot the opening returns;
+2. do the scenario by hand with the tools, each of which returns the lines that appeared;
+3. note what the action produced, which is what the test asserts, and take a snapshot when nothing appeared;
+4. write the test with the locators the tools returned: the one given for an element acted on, the role and the name, or a part of it that no other element holds, for an element only read;
+5. make each locator match one element, with `exact` or a parent, never by position;
+6. run it;
+7. when it fails, read the error, look at the screen again and fix the locator or the wait, without ever removing the assertion that verifies the scenario; when the application is at fault, run it once more and propose it as failing.
+
+It then says what makes an assertion worth writing — it checks the result of the action, with data seen on the screen or read in the sources, not that a field or a button is visible — and gives one worked example: the test of the orders search of an invented shop. The example parses as TypeScript and passes the check below against the default charter; the order it searches is reference data of the test environment, which the test only reads. The method is the same whatever the rules in force: a rule disabled in the configuration still shows in the example.
+
 ```ts
 const charter = resolveCharter(config.charter);
 if (!charter.ok) throw new Error(charter.errors.map((e) => `${e.path}: ${e.message}`).join("\n"));
@@ -65,7 +77,7 @@ The linter is oxlint, with its type-aware mode and the rules of `eslint-plugin-p
 | PW-STEP-01 | none | Not checked: which actions are business actions is left to review. |
 | PW-SHOT-01 | none | Not checked: no lint rule ties a screenshot to the end of a step. |
 | PW-ENV-01 | none | Not checked: no lint rule knows the addresses of the environments. |
-| PW-FACT-01 | none | Not checked: whether a value comes from the knowledge sources is left to review. |
+| PW-FACT-01 | none | Not checked: whether a value comes from the sources or the screens is left to review. |
 | PW-ORG-01 | none | Not checked: the path of a test is chosen before it is checked. |
 
 <!-- controls:end -->
@@ -179,7 +191,7 @@ await page.goto("/policies");
 
 ### PW-FACT-01
 
-Never invent a value: every label, message, field and value a test enters or checks comes from the domain index or the knowledge sources; leave out what they do not give.
+Never invent a value: every label, message, field and value a test enters or checks comes from the domain index, the knowledge sources or the screens of the application; leave out what they do not give.
 
 Why: A test checks the behaviour users see; a value guessed instead of read from the application tests nothing but the guess. See the [Playwright documentation](https://playwright.dev/docs/best-practices#test-user-visible-behavior).
 

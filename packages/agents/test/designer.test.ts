@@ -22,7 +22,9 @@ let site: TestSite;
 let workspace: string;
 
 before(async () => {
-  site = await testSite({ "/": "<h1>Shop</h1>", "/orders": "<h1>Orders</h1>" });
+  // The orders page shows an order once it is searched for.
+  const orders = `<h1>Orders</h1><input aria-label="Search orders"><button onclick="document.getElementById('found').hidden = false">Search</button><p id="found" hidden>Order 42 of Ada</p>`;
+  site = await testSite({ "/": "<h1>Shop</h1>", "/orders": orders });
   workspace = mkdtempSync(join(tmpdir(), "oqas-designer-"));
 });
 
@@ -153,9 +155,13 @@ function propose(file: string, changes: Record<string, unknown> = {}): { id: str
 }
 
 /** A scenario of the plan, about the orders of the shop. */
-const scenario = (id: string) => ({ id, title: `The ${id} scenario`, intent: `Verifies ${id}.`, kind: "functional", expected: "The orders show.", sources: [{ source: "shop-api", item: "orders" }] });
+const scenario = (id: string, kind = "other") => ({ id, title: `The ${id} scenario`, intent: `Verifies ${id}.`, kind, expected: "The orders show.", sources: [{ source: "shop-api", item: "orders" }] });
+/** A call that opens the orders page, which the designer must look at before it writes a test. */
+const OPEN = { id: "open", name: "shop_goto", arguments: { url: "/orders" } };
+/** A call that searches the orders, as a functional scenario needs the designer to have done. */
+const SEARCH = { id: "search", name: "shop_click", arguments: { target: { role: "button", name: "Search" } } };
 /** A call of `propose_plan` with three scenarios about the orders. */
-const PLAN = { id: "plan", name: "propose_plan", arguments: { scenarios: ["list-orders", "place-order", "follow-order"].map(scenario) } };
+const PLAN = { id: "plan", name: "propose_plan", arguments: { scenarios: ["list-orders", "place-order", "follow-order"].map((id) => scenario(id)) } };
 
 const valid = (count: number) => Array.from({ length: count }, (_, i) => propose(`test-${i + 1}.spec.ts`));
 /** A reply that makes the calls, then answers enough to end the task and every reminder. */
@@ -205,8 +211,8 @@ interface Run {
 }
 
 async function design(script: readonly { status?: number; body: unknown }[], setup: Setup = {}): Promise<Run> {
-  // The plan comes first, in a turn of its own, unless the test scripts it.
-  const server = await scriptedServer(setup.plan === false ? script : [{ body: toolCalls(MODEL, [PLAN]) }, ...script]);
+  // The designer looks at the orders page and submits its plan first, in a turn of their own, unless the test scripts it.
+  const server = await scriptedServer(setup.plan === false ? script : [{ body: toolCalls(MODEL, [OPEN, PLAN]) }, ...script]);
   const gateway = await ModelGateway.start({ kind: "live", upstream: { baseUrl: server.baseUrl } });
   const runtime = new CopilotAgentRuntime({ endpoint: gateway, model: MODEL, homeDirectory: mkdtempSync(join(workspace, "home-")) });
   const root = setup.root ?? repository();
@@ -528,8 +534,8 @@ describe("guiding the designer", () => {
 });
 
 /** A call of `run_test` for a test of the shop. */
-const tryTest = (file: string, content: string, id: string) => ({ id, name: "run_test", arguments: { application: "shop", file, content } });
-const broken = (file: string) => spec(file).replace("Orders", "BROKEN");
+const tryTest = (file: string, content: string, id: string) => ({ id, name: "run_test", arguments: { application: "shop", scenario: "list-orders", file, content } });
+const broken = (file: string) => `${spec(file)}// BROKEN\n`;
 /** The text of the result of a tool call, as the next request gives it to the model. */
 const toolResult = (server: ScriptedServer, callId: string) => {
   for (const request of server.requests) {
@@ -731,7 +737,7 @@ describe("brief, criterion 1 — from the brief, the index tools lead to the cus
     const find = { id: "f1", name: "index_find", arguments: { words: "customer search" } };
     const entry = { id: "e1", name: "index_entry", arguments: { source: "shop-guide", item: "Customer search" } };
     const read = { id: "s1", name: "shop_guide_read_section", arguments: { number: 2 } };
-    const { outcome, server } = await design([{ body: toolCalls(MODEL, [find]) }, { body: toolCalls(MODEL, [entry]) }, { body: toolCalls(MODEL, [read]) }, { body: toolCalls(MODEL, [PLAN]) }, ...replies(valid(3))], { root: customersRepository(), plan: false, brief: "tester la recherche d'un client" });
+    const { outcome, server } = await design([{ body: toolCalls(MODEL, [OPEN, find]) }, { body: toolCalls(MODEL, [entry]) }, { body: toolCalls(MODEL, [read]) }, { body: toolCalls(MODEL, [PLAN]) }, ...replies(valid(3))], { root: customersRepository(), plan: false, brief: "tester la recherche d'un client" });
     assert.equal(outcome.ok, true, messages(outcome));
     assert.ok(requestText(server).includes("<brief>\\ntester la recherche d'un client\\n</brief>"));
     assert.match(toolResult(server, "f1"), /customers \(Customers\): The customers of the shop\./);
@@ -787,9 +793,9 @@ describe("brief, criterion 4 — a review that refuses the plan stops the task, 
 
 describe("the plan of a design", () => {
   it("refuses two scenarios of one id, then accepts the plan fixed, and no second plan", async () => {
-    const twice = { id: "plan-twice", name: "propose_plan", arguments: { scenarios: ["list-orders", "list-orders", "follow-order"].map(scenario) } };
+    const twice = { id: "plan-twice", name: "propose_plan", arguments: { scenarios: ["list-orders", "list-orders", "follow-order"].map((id) => scenario(id)) } };
     const again = { ...PLAN, id: "plan-again" };
-    const { outcome, server } = await design([{ body: toolCalls(MODEL, [twice]) }, { body: toolCalls(MODEL, [PLAN]) }, { body: toolCalls(MODEL, [again]) }, ...replies(valid(3))], { plan: false });
+    const { outcome, server } = await design([{ body: toolCalls(MODEL, [OPEN, twice]) }, { body: toolCalls(MODEL, [PLAN]) }, { body: toolCalls(MODEL, [again]) }, ...replies(valid(3))], { plan: false });
     assert.equal(outcome.ok, true, messages(outcome));
     assert.match(toolResult(server, "plan-twice"), /The id list-orders is given to several scenarios; give each its own\./);
     assert.match(toolResult(server, "plan-again"), /A plan was already accepted; carry it out\./);
@@ -799,8 +805,8 @@ describe("the plan of a design", () => {
 
 describe("plans submitted in one turn", () => {
   it("accept one plan only", async () => {
-    const other = { id: "plan-other", name: "propose_plan", arguments: { scenarios: ["a-one", "a-two", "a-three"].map(scenario) } };
-    const { outcome, server } = await design([{ body: toolCalls(MODEL, [PLAN, other]) }, ...replies(valid(3))], { plan: false });
+    const other = { id: "plan-other", name: "propose_plan", arguments: { scenarios: ["a-one", "a-two", "a-three"].map((id) => scenario(id)) } };
+    const { outcome, server } = await design([{ body: toolCalls(MODEL, [OPEN, PLAN, other]) }, ...replies(valid(3))], { plan: false });
     assert.equal(outcome.ok, true, messages(outcome));
     assert.equal(outcome.journal.filter((entry) => entry.message.startsWith("The plan was accepted")).length, 1);
     assert.match(toolResult(server, "plan-other"), /A plan was already accepted; carry it out\./);
@@ -819,7 +825,7 @@ describe("what a plan may hold", () => {
   it("refuses the value of a declared variable, the plan being written to the state, and cites a source the index does not list", async () => {
     const leaky = { id: "plan-leaky", name: "propose_plan", arguments: { scenarios: [{ ...scenario("list-orders"), expected: `The orders of ${USERNAME} show.` }, scenario("place-order"), scenario("follow-order")] } };
     const beyond = { id: "plan-beyond", name: "propose_plan", arguments: { scenarios: [{ ...scenario("list-orders"), sources: [{ source: "shop-db", item: "orders" }] }, scenario("place-order"), scenario("follow-order")] } };
-    const { outcome, server } = await design([{ body: toolCalls(MODEL, [leaky]) }, { body: toolCalls(MODEL, [beyond]) }, ...replies(valid(3))], { plan: false });
+    const { outcome, server } = await design([{ body: toolCalls(MODEL, [OPEN, leaky]) }, { body: toolCalls(MODEL, [beyond]) }, ...replies(valid(3))], { plan: false });
     assert.equal(outcome.ok, true, messages(outcome));
     assert.match(toolResult(server, "plan-leaky"), /The plan holds the value of SHOP_USERNAME; leave it out: the plan is written to the design state\./);
     assert.ok(!messages(outcome).includes(USERNAME));
@@ -842,17 +848,52 @@ describe("the assertion a test is kept for", () => {
 
 describe("the assertion of a functional scenario", () => {
   const heading = 'await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();';
-  it("must follow an action and repeat no earlier check, and needs neither in another kind of scenario", async () => {
+  const found = 'await expect(page.getByText("Order 42 of Ada")).toBeVisible();';
+  const search = 'await page.getByRole("button", { name: "Search" }).click();';
+  const test = (...lines: string[]) => `import { test, expect } from "@playwright/test";\n\ntest("orders", async ({ page }) => {\n  await page.goto("/orders");\n${lines.map((line) => `  ${line}\n`).join("")}});\n`;
+  const plan = { id: "plan-kinds", name: "propose_plan", arguments: { scenarios: [scenario("list-orders", "functional"), scenario("place-order"), scenario("look", "visual")] } };
+
+  it("must follow an action, repeat no earlier check and name what the action produced; another kind of scenario needs none of it", async () => {
     const before = `import { test, expect } from "@playwright/test";\n\ntest("before", async ({ page }) => {\n  ${heading}\n  await page.goto("/orders");\n});\n`;
-    const repeated = `import { test, expect } from "@playwright/test";\n\ntest("repeated", async ({ page }) => {\n  await page.goto("/orders");\n  ${heading}\n  await page.getByRole("button", { name: "Search" }).click();\n  ${heading}\n});\n`;
-    const looks = { ...scenario("look"), kind: "visual" };
-    const plan = { id: "plan-kinds", name: "propose_plan", arguments: { scenarios: [scenario("list-orders"), scenario("place-order"), looks] } };
-    const calls = [propose("test-8.spec.ts", { content: before, verifies: heading }), propose("test-9.spec.ts", { content: repeated, verifies: heading }), propose("test-7.spec.ts", { content: before, verifies: heading, scenario: "look" }), ...valid(2)];
-    const { outcome, server } = await design([{ body: toolCalls(MODEL, [plan]) }, ...replies(calls)], { plan: false });
+    const calls = [
+      propose("test-6.spec.ts", { content: before, verifies: heading }),
+      propose("test-7.spec.ts", { content: test(heading, search, heading), verifies: heading }),
+      propose("test-8.spec.ts", { content: test(search, heading), verifies: heading }),
+      propose("test-9.spec.ts", { content: test(search, found), verifies: found }),
+      propose("test-5.spec.ts", { content: before, verifies: heading, scenario: "look" }),
+      propose("test-4.spec.ts", { scenario: "place-order" }),
+    ];
+    const { outcome, server } = await design([{ body: toolCalls(MODEL, [OPEN, plan]) }, { body: toolCalls(MODEL, [SEARCH]) }, ...replies(calls)], { plan: false });
     assert.equal(outcome.ok, true, messages(outcome));
     for (const call of calls.slice(0, 2)) assert.match(toolResult(server, call.id), /In a functional scenario, the assertion of verifies checks what an action produced: it comes after a goto, a click, a fill or a request, and repeats no check made before\./);
-    assert.deepEqual(outcome.tests.map((test) => [test.path, test.scenario]), [["apps/shop/test-7.spec.ts", "look"], ["apps/shop/test-1.spec.ts", "list-orders"], ["apps/shop/test-2.spec.ts", "list-orders"]]);
+    assert.match(toolResult(server, calls[2]!.id), /What verifies names was already on the page before the action: it verifies nothing of the scenario\./);
+    assert.deepEqual(outcome.tests.map((kept) => [kept.path, kept.scenario]), [["apps/shop/test-9.spec.ts", "list-orders"], ["apps/shop/test-5.spec.ts", "look"], ["apps/shop/test-4.spec.ts", "place-order"]]);
     assert.match(toolResult(server, "plan-kinds"), /do its steps with the browser tools and see what the screen shows after each action/);
+    // The click told the agent what it produced.
+    assert.match(toolResult(server, "search"), /Order 42 of Ada/);
+  });
+
+  it("is not run before the agent did the steps itself", async () => {
+    const runner = new FakeTestRunner();
+    const first = { ...tryTest("test-9.spec.ts", test(search, found), "r1") };
+    const { outcome, server } = await design([{ body: toolCalls(MODEL, [OPEN, plan]) }, { body: toolCalls(MODEL, [first]) }, { body: toolCalls(MODEL, [SEARCH]) }, { body: toolCalls(MODEL, [{ ...first, id: "r2" }]) }, ...replies([])], { plan: false, runner });
+    assert.match(toolResult(server, "r1"), /You have not done the steps of the scenario yourself yet\. Do them with shop_fill and shop_click, read what appears, then write the test from what you saw\./);
+    assert.match(toolResult(server, "r2"), /Run of the file: passed\./);
+    assert.equal(runner.runs.length, 1);
+    assert.equal(outcome.ok, false);
+  });
+});
+
+describe("the screens a test relies on", () => {
+  it("must have been looked at, and showed each locator of the test", async () => {
+    const invented = spec("test-8.spec.ts").replace('name: "Orders"', 'name: "Deliveries"');
+    const blind = tryTest("test-1.spec.ts", spec("test-1.spec.ts"), "blind");
+    const { outcome, server } = await design([{ body: toolCalls(MODEL, [PLAN]) }, { body: toolCalls(MODEL, [blind]) }, { body: toolCalls(MODEL, [OPEN]) }, ...replies([propose("test-8.spec.ts", { content: invented }), ...valid(3)])], { plan: false });
+    assert.equal(outcome.ok, true, messages(outcome));
+    assert.match(toolResult(server, "blind"), /You have not looked at the screens of shop yet\. Open the page of the scenario with shop_goto and read what it shows before you write its test\./);
+    assert.match(toolResult(server, "p-test-8.spec.ts-content"), /No screen you looked at showed getByRole\(.*heading.*Deliveries.*\)\. Use only locators the snapshots gave, copied as given/);
+    // Opening the page gave the agent what it shows, each element with its locator.
+    assert.match(toolResult(server, "open"), /heading .*Orders.*getByRole/);
   });
 });
 
@@ -866,7 +907,7 @@ describe("the trace of a design", () => {
     assert.ok(trace.every((line) => line.phase === "design"));
     assert.deepEqual([trace[0]!.event.type, trace.at(-1)!.event], ["started", { type: "finished", outcome: "done" }]);
     assert.match(trace.find((line) => line.event.type === "message")!.event.text!, /^Design Playwright tests for the environment local\./);
-    assert.deepEqual(trace.filter((line) => line.actor === "agent" && line.event.type === "tool-call").map((line) => line.event.tool), ["propose_plan", "propose_test", "propose_test", "propose_test"]);
+    assert.deepEqual(trace.filter((line) => line.actor === "agent" && line.event.type === "tool-call").map((line) => line.event.tool), ["shop_goto", "propose_plan", "propose_test", "propose_test", "propose_test"]);
     assert.ok(trace.some((line) => line.event.type === "journal" && line.event.message === "The test apps/shop/test-1.spec.ts was accepted."));
     assert.equal(seen.length, trace.length);
     assert.ok(!readFileSync(outcome.tracePath!, "utf8").includes(PASSWORD));

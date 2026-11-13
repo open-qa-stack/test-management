@@ -14,7 +14,7 @@ const outcome = await new Designer({ config, repositoryRoot, env, runtime, instr
 
 1. **Test repository.** The path must be the root of a git repository with a commit. No tracked file may be changed, no untracked file may lie outside the state folder (`repository.stateDir`) and the index folder (`repository.indexDir`), and the branch to create must not exist. Otherwise the journal names each problem, no session starts, and nothing is written. The untracked index the cartographer leaves does not stop the run.
 2. **Index.** `<indexDir>/domain-index.json` must match its schema. The request gives the agent the brief and one line per domain of the index, not the index whole: the agent looks it up (see [The index as a map](#the-index-as-a-map)).
-3. **Session.** The agent gets the browser tools of the applications of the environment of the index; the tools of every knowledge source attached to that environment or to none — documents, contracts, bases, source code and logs — the bases read in a read-only transaction, the logs masking the value of every variable the configuration names; and the notes. It explores, then submits a test plan with `propose_plan` (see [The plan](#the-plan)). Once the plan is accepted, it runs each test it writes with `run_test`, against the application, and fixes it until it passes; then it proposes it with `propose_test`, naming its scenario, under the limits of the configured autonomy, every trial counting against them. While no plan is accepted, or fewer than three tests are, an agent that stops is reminded up to three times.
+3. **Session.** The agent gets the browser tools of the applications of the environment of the index, watched (see [The screens](#the-screens)); the tools of every knowledge source attached to that environment or to none — documents, contracts, bases, source code and logs — the bases read in a read-only transaction, the logs masking the value of every variable the configuration names; and the notes. It explores, then submits a test plan with `propose_plan` (see [The plan](#the-plan)). Once the plan is accepted, it runs each test it writes with `run_test`, against the application, and fixes it until it passes; then it proposes it with `propose_test`, naming its scenario, under the limits of the configured autonomy, every trial counting against them. While no plan is accepted, or fewer than three tests are, an agent that stops is reminded up to three times.
 4. **Branch.** Once the session is over, a branch is created from the revision checked out, and stays checked out. The accepted tests and the design state are committed on it with the identity and the hooks of the repository. The message is `test: add <n> generated Playwright tests`, with one line per test, which gives the verdict and the failure of a test that does not pass. Nothing contacts a remote, and no existing branch nor the git configuration is changed.
 
 The branch is `oqas/design-<date>` by default, such as `oqas/design-20261113T100000Z`; `branch` gives another name.
@@ -27,6 +27,24 @@ The index tells where to look, without limiting where the agent may look:
 - `index_entry` takes a domain, or a source and one of its elements, and gives each source with its type and the tools of the agent that read it, such as `shop_guide_read_section` for a document, or says that no tool of the agent reads it. A tool belongs to the knowledge source or the application whose identifier its name starts with, the longest one when several do, the index listing it or not.
 
 The tools of a source read the whole source, not only what the index places in it.
+
+## The screens
+
+A test relies on screens the agent saw. The browser tools are those of `@open-qa-stack/tools`, with what the agent needs to see added to their results:
+
+- opening an address returns the snapshot of the page, each element with the locator a test uses for it;
+- `click`, `fill`, `select_option` and `check` return the lines of the snapshot that appeared after the action; when nothing appeared at first, the page is read once more, a moment later.
+
+For a test of an application with a user interface:
+
+| Refusal | Cause |
+|---|---|
+| `You have not looked at the screens of <application> yet…` | No snapshot of the application was taken. |
+| `You have not done the steps of the scenario yourself yet…` | The scenario is `functional`, and the agent did no action in the browser. |
+| `No screen you looked at showed <locators>…` | The test uses a locator by role, text, label, placeholder, test id, title or alternative text that no snapshot showed: the role at the start of a line, and the name or the text anywhere in it, whatever the case. A name or a text given as a regular expression or a variable is not checked. |
+| `What verifies names was already on the page before the action…` | In a `functional` scenario, every text the assertion of `verifies` names was on the page before any action since it was opened, and none appeared after one. An assertion that names no text, such as a count, is not concerned. |
+
+An application without a user interface is held to none of this.
 
 ## The plan
 
@@ -62,7 +80,7 @@ A proposal is refused, the journal says why, and the agent is told so that it ca
 
 No test is kept unless it ran. The `runner` option, a `TestRunner` such as the `TrialRunner` of the harness, runs a test file with the real runner against the application.
 
-- `run_test` checks the file against the rules above, then runs it, and tells the agent the verdict of each of its tests and, for one that did not pass, its whole error, the `test.step` that failed, the path of its trace, and the instant from which the logs of the services tell what happened. A file the rules refuse is not run.
+- `run_test` names the scenario the test carries out, checks the file against the rules above, then runs it, and tells the agent the verdict of each of its tests and, for one that did not pass, its whole error, the `test.step` that failed, the path of its trace, and the instant from which the logs of the services tell what happened. A file the rules refuse is not run.
 - `propose_test` runs the file too, unless that very text was already tried. The test is kept when each of its tests passed. When it failed, it is refused with what the run gave, unless the agent ran that very text with `run_test` and says, in `failure`, why the application rather than the test is at fault: it is then kept with the harness's verdict `failed` and that explanation, never as passed. A test that did not run to a verdict (`not_run`, `skipped`, `blocked`) is always refused.
 - A test writes no file: `saveAs`, `storageState`, `pdf` and any `path` option are refused. What the runner keeps goes to its own folder.
 - A visual test compares a page with its reference, with `toHaveScreenshot`. Its references are made at its first trial, and it runs again against them; they are committed with the test, listed in the design state, for review.
@@ -98,7 +116,9 @@ The state is written to `<stateDir>/designs/design-<date>.json`, and committed w
 
 ## Outcome
 
-`run()` returns `ok`, true when at least three tests were written; the branch and the path of the state, when tests were written; the tests; and the journal, as `{ level, message }` entries.
+The session is traced in `<stateDir>/traces/design-<environment>-<date>.jsonl`, in the format of the [trace of a cartography](./cartographer.md), with one phase, `design`: the request and each reminder, every reasoning, text and tool call of the agent with its result, each entry of the journal, and how the design ended — `done`, `truncated` when a limit cut a design that gave its tests, `failed` otherwise. Each line is handed to `observe` as it is written. A design stopped before its session writes no trace.
+
+`run()` returns `ok`, true when at least three tests were written; the path of the trace, when a session started; the branch and the path of the state, when tests were written; the tests; and the journal, as `{ level, message }` entries.
 
 - With one or two tests, they are written and committed all the same, and the journal gives their number.
 - With none, nothing is written and no branch is created.

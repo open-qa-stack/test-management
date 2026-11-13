@@ -65,7 +65,7 @@ export const CHARTER_CONTROLS: readonly CharterControl[] = Object.freeze([
   {
     rule: "PW-FACT-01",
     lint: [],
-    note: "Not checked: whether a value comes from the knowledge sources is left to review.",
+    note: "Not checked: whether a value comes from the sources or the screens is left to review.",
   },
   {
     rule: "PW-ORG-01",

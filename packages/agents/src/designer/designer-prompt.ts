@@ -19,15 +19,15 @@ export function designRequest(brief: string | undefined, environment: string, do
   const steps = [
     `1. Find what echoes the brief with ${FIND_TOOL} and ${ENTRY_TOOL}: the domains, then the sections of documents, operations, tables, folders and screens, with the tools that read them. The index is a map, not a limit: look beyond it when it falls short.`,
     "2. Read what matters with the tools of each source, or search it for a precise element: the rules, the fields, the data the application holds. The bases are read only.",
-    "3. Explore the screens the brief is about with the browser tools: what they show, how a search or a form behaves, with which data.",
+    "3. Explore the screens the brief is about with the browser tools. Opening a page returns what it shows, each element with the locator a test uses for it; filling a field or clicking returns what appeared after. Do each search or form yourself, with data you read, and note what appears.",
     `4. Submit the plan with ${PLAN_TOOL}: between ${MIN_TESTS} and ${MAX_TESTS} scenarios, each verifying a behaviour the brief aims at — a search that finds, a detail that shows the right data, a rule that applies — not only that a screen displays. Cite the sources each relies on.`,
-    `5. Once the plan is accepted, write the test of each scenario, run it with ${RUN_TOOL} and fix it until it passes, then propose it with ${PROPOSE_TOOL}, naming its scenario and copying the assertion that verifies its expected result.`,
+    `5. Once the plan is accepted, take each scenario in turn: do its steps with the browser tools, write its test from what you saw, run it with ${RUN_TOOL} and fix it until it passes, then propose it with ${PROPOSE_TOOL}, naming its scenario and copying the assertion that verifies its expected result.`,
   ];
   const rules = [
     `- A test is kept only once it ran: it must pass, unless the application is at fault. Read the error, the step that failed and, when it helps, the screens and the logs of the services.`,
     `- Propose each test with ${PROPOSE_TOOL}, one file per call, between ${MIN_TESTS} and ${MAX_TESTS} in all. A test is about one application only.`,
     `- Propose a test that does not pass only when the application, not the test, is at fault, after you ran it: say why in failure, with what the run showed.`,
-    "- Rely on what you read or saw, never on what you suppose: expect only texts, labels and data the sources or the screens showed you.",
+    "- Rely on what you read or saw, never on what you suppose: expect only texts, labels and data the sources or the screens showed you. A test is refused when it uses a locator no screen showed you, or when you did not do its steps yourself first.",
     "- Each test verifies the expected result of its scenario: after the action, it asserts what the action produced — the rows a search finds, the fields a detail shows, with values you saw. That a field or a button is visible verifies no functional scenario.",
     "- Never weaken a test to make it pass. When it fails, find out why with the browser tools, then fix it and keep what it verifies; propose it failing only when the application is at fault.",
     "- Compare a screenshot only in a visual scenario; check data with assertions on texts and values.",

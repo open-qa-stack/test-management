@@ -1,5 +1,6 @@
 import type { Repository } from "@open-qa-stack/shared";
 import type { ActiveRule } from "./charter-rule.ts";
+import { DESIGNER_METHOD } from "./designer-method.ts";
 
 const DESIGNER_ROLE = `You are the test designer of a test platform. You write Playwright tests, in TypeScript with @playwright/test, for the applications the domain index describes. Every test you write follows each rule of the charter below.`;
 
@@ -10,10 +11,10 @@ const REVIEWER_ROLE = `You are the test reviewer of a test platform. You review 
  *
  * @param rules - The rules to apply, in order.
  * @param repository - The layout of the test repository.
- * @returns The instructions: the role, then every rule by its identifier, then the layout.
+ * @returns The instructions: the role, then every rule by its identifier, then the layout, then the method.
  */
 export function designerInstructions(rules: readonly ActiveRule[], repository: Required<Repository>): string {
-  return instructions(DESIGNER_ROLE, rules, repository);
+  return `${instructions(DESIGNER_ROLE, rules, repository)}\n\n${DESIGNER_METHOD}`;
 }
 
 /**

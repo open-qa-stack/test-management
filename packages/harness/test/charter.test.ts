@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { DEFAULT_REPOSITORY, validateConfig, type CharterSettings } from "@open-qa-stack/shared";
+import { moduleSyntax } from "@open-qa-stack/tools";
 import { CHARTER_DOC_FILE, documentedSection, renderRules } from "../scripts/emit-charter-doc.ts";
+import { DESIGNER_METHOD, DESIGNER_METHOD_EXAMPLE } from "../src/charter/designer-method.ts";
 import { DEFAULT_CHARTER, designerInstructions, resolveCharter, reviewerInstructions, type ActiveRule, type CharterResolution } from "../src/index.ts";
 
 const NO_CHANGE: Required<CharterSettings> = { disable: [], add: [] };
@@ -151,6 +153,50 @@ describe("criterion 5 — the charter and its composition are tested without mod
     } finally {
       globalThis.fetch = original;
     }
+  });
+});
+
+describe("the method of the designer", () => {
+  const rules = rulesOf(resolveCharter(NO_CHANGE));
+
+  it("ends the instructions of the designer, after the charter and the layout, and stays out of the reviewer's", () => {
+    const instructions = designerInstructions(rules, DEFAULT_REPOSITORY);
+    assert.ok(instructions.endsWith(`\n\n${DESIGNER_METHOD}`));
+    assert.ok(instructions.indexOf("Repository layout:") < instructions.indexOf("Method, for each test:"));
+    assert.ok(!reviewerInstructions(rules, DEFAULT_REPOSITORY).includes("Method, for each test:"));
+  });
+
+  it("stays with the designer whatever the rules in force", () => {
+    assert.ok(designerInstructions([], DEFAULT_REPOSITORY).endsWith(DESIGNER_METHOD));
+  });
+
+  it("numbers seven steps, from the screen to the failure of a test", () => {
+    assert.deepEqual(
+      [...DESIGNER_METHOD.matchAll(/^(\d)\. /gm)].map((m) => m[1]),
+      ["1", "2", "3", "4", "5", "6", "7"],
+    );
+    assert.match(DESIGNER_METHOD, /^7\. When it fails, .*Never remove or weaken the assertion that verifies the scenario.*propose it as failing/m);
+  });
+
+  it("is short enough for a small model", () => {
+    assert.ok(DESIGNER_METHOD.length <= 3500);
+  });
+
+  it("gives its example whole, indented like the examples of the charter", () => {
+    const indented = DESIGNER_METHOD_EXAMPLE.split("\n").map((line) => (line === "" ? line : `    ${line}`)).join("\n");
+    assert.ok(DESIGNER_METHOD.endsWith(`\n${indented}`));
+    assert.doesNotMatch(DESIGNER_METHOD, /[ \t]$/m);
+  });
+
+  it("has an example that parses as TypeScript and imports the test runner only", async () => {
+    assert.deepEqual(await moduleSyntax(DESIGNER_METHOD_EXAMPLE), { ok: true, imports: [{ module: "@playwright/test", line: 1 }] });
+  });
+
+  it("has an example with a screenshot attached at the end of each step, and a relative path", () => {
+    const steps = DESIGNER_METHOD_EXAMPLE.split("await test.step(").slice(1);
+    assert.equal(steps.length, 2);
+    for (const step of steps) assert.match(step, /await testInfo\.attach\([^\n]*await page\.screenshot\(\)[^\n]*\n {2}\}\);/);
+    assert.deepEqual([...DESIGNER_METHOD_EXAMPLE.matchAll(/goto\("([^"]*)"\)/g)].map((m) => m[1]), ["/orders"]);
   });
 });
 

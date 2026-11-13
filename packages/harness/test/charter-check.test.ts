@@ -6,6 +6,7 @@ import { after, describe, it } from "node:test";
 import type { CharterSettings } from "@open-qa-stack/shared";
 import type { TestFinding } from "@open-qa-stack/domain";
 import { CHARTER_DOC_FILE, documentedSection, renderControls } from "../scripts/emit-charter-doc.ts";
+import { DESIGNER_METHOD_EXAMPLE } from "../src/charter/designer-method.ts";
 import { readLintReport } from "../src/test-check/lint-report.ts";
 import { CHARTER_CONTROLS, CharterCheck, DEFAULT_CHARTER, resolveCharter, type ActiveRule } from "../src/index.ts";
 
@@ -17,14 +18,14 @@ export interface Locator {
   first(): Locator;
   nth(index: number): Locator;
   textContent(): Promise<string | null>;
-  getByRole(role: string, options?: { name?: string }): Locator;
+  getByRole(role: string, options?: { name?: string; exact?: boolean }): Locator;
 }
 export interface ElementHandle { click(): Promise<void>; }
 export interface Page {
   goto(url: string): Promise<null>;
   waitForTimeout(timeout: number): Promise<void>;
   waitForSelector(selector: string): Promise<unknown>;
-  getByRole(role: string, options?: { name?: string }): Locator;
+  getByRole(role: string, options?: { name?: string; exact?: boolean }): Locator;
   getByLabel(text: string): Locator;
   getByTestId(id: string): Locator;
   getByTitle(text: string): Locator;
@@ -35,7 +36,7 @@ export interface Page {
 export interface TestInfo { attach(name: string, options: { body: Uint8Array; contentType: string }): Promise<void>; }
 type Body = (fixtures: { page: Page }, testInfo: TestInfo) => Promise<void>;
 export declare const test: { (title: string, body: Body): void; step<T>(title: string, body: () => Promise<T>): Promise<T> };
-interface Matchers { toBeVisible(): Promise<void>; toHaveText(text: string): Promise<void>; toBe(value: unknown): void; }
+interface Matchers { toBeVisible(): Promise<void>; toBeHidden(): Promise<void>; toHaveText(text: string): Promise<void>; toContainText(text: string): Promise<void>; toBe(value: unknown): void; }
 export declare function expect(actual: unknown): Matchers;
 `;
 
@@ -142,6 +143,10 @@ test("renews a policy", async ({ page }, testInfo) => {
 
   it("returns no finding for a test that imports a block of the repository by relative path", async () => {
     assert.deepEqual(await check.check({ path: PATH, content: conforming }), []);
+  });
+
+  it("returns no finding for the example of the method of the designer", async () => {
+    assert.deepEqual(await check.check({ path: "apps/shop/search-orders.spec.ts", content: `${DESIGNER_METHOD_EXAMPLE}\n` }), []);
   });
 
   it("writes nothing to the test repository and leaves no temporary folder behind", async () => {
