@@ -292,9 +292,13 @@ function findingText(finding: TestFinding): string {
   return `Line ${finding.line}, column ${finding.column} (${label}): ${finding.message}`;
 }
 
-/** Whether a text, spaces aside, is an `expect` assertion of a test. */
+/** A text without its spaces, its quotes all written alike, and without a last semicolon: what two writings of one assertion share. */
+function compact(text: string): string {
+  return text.replace(/\s+/g, "").replace(/['`]/g, '"').replace(/;$/, "");
+}
+
+/** Whether a text is an `expect` assertion of a test, whatever its spaces and the quotes it is written with. */
 function quotesAssertion(content: string, verifies: string): boolean {
-  const compact = (text: string) => text.replace(/\s+/g, "");
   return verifies.includes("expect") && compact(content).includes(compact(verifies));
 }
 
@@ -306,7 +310,6 @@ const ACTION = /\.(goto|click|dblclick|fill|press|type|check|uncheck|selectOptio
  * other line of the test makes the same check.
  */
 function followsAction(content: string, verifies: string): boolean {
-  const compact = (text: string) => text.replace(/\s+/g, "");
   const text = compact(content);
   const assertion = compact(verifies);
   const at = text.indexOf(assertion);

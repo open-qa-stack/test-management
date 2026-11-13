@@ -835,10 +835,11 @@ describe("what a plan may hold", () => {
 });
 
 describe("the assertion a test is kept for", () => {
-  it("must be an expect copied from the test, spaces aside", async () => {
+  it("must be an expect copied from the test, spaces and quotes aside", async () => {
     const elsewhere = propose("test-8.spec.ts", { verifies: "await expect(page).toHaveTitle('Shop');" });
     const vague = propose("test-9.spec.ts", { verifies: "the heading shows" });
-    const spaced = propose("test-1.spec.ts", { verifies: 'await expect(page.getByRole("heading",{name:"Orders"}))\n  .toBeVisible();' });
+    // The same assertion, with other spaces, other quotes and no semicolon.
+    const spaced = propose("test-1.spec.ts", { verifies: "await expect(page.getByRole('heading',{name:`Orders`}))\n  .toBeVisible()" });
     const { outcome, server } = await design(replies([elsewhere, vague, spaced, ...valid(3).slice(1)]));
     assert.equal(outcome.ok, true, messages(outcome));
     for (const call of [elsewhere, vague]) assert.match(toolResult(server, call.id), /verifies must copy, as written in the test, the expect assertion that verifies the expected result of its scenario\./);

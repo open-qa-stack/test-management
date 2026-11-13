@@ -64,7 +64,7 @@ A proposal is refused, the journal says why, and the agent is told so that it ca
 |---|---|
 | `No test plan is accepted yet…` | The plan was not submitted, or not accepted. |
 | `<scenario> is no scenario of the accepted plan` | The scenario named is not in the plan. |
-| `verifies must copy, as written in the test, the expect assertion…` | `verifies` is not an `expect` assertion found in the text of the test, spaces aside; it is checked once the text of the test keeps the other rules. |
+| `verifies must copy, as written in the test, the expect assertion…` | `verifies` is not an `expect` assertion found in the text of the test, whatever its spaces and the quotes it is written with; it is checked once the text of the test keeps the other rules. |
 | `In a functional scenario, the assertion of verifies checks what an action produced…` | In a scenario of kind `functional`, no navigation, input or request (`goto`, `click`, `fill`, `press`, `selectOption`, `check`, a `get` or `post` of a request…) comes before the assertion of `verifies`, or the same check is made elsewhere in the test. That a field shows verifies no behaviour. |
 | `… is already taken` | A test of the design, or a file of the repository, already has this path. |
 | `The test does not parse as TypeScript: line L, column C: …` | The first syntax error of the file. |
