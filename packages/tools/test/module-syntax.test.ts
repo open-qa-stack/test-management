@@ -38,15 +38,27 @@ describe("the syntax of a TypeScript module", () => {
   });
 
   it("gives the first error by line and column: a missing token, or an unexpected text", async () => {
-    assert.deepEqual(await moduleSyntax(`import { test } from "@playwright/test";\ntest("a", async ({ page }) => { await page.goto("/"; });\n`), { ok: false, error: `line 2, column 52: missing ")"` });
+    assert.deepEqual(await moduleSyntax(`import { test } from "@playwright/test";\ntest("a", async ({ page }) => { await page.goto("/"; });\n`), {
+      ok: false,
+      error: `line 2, column 52: missing ")"`,
+    });
     assert.deepEqual(await moduleSyntax(`const ok = 1;\nconst policy = {\n`), { ok: false, error: `line 2, column 1: unexpected "const policy = {"` });
-    assert.deepEqual(await moduleSyntax(`import { test } from "@playwright/test";\ntest("x", async () => {\n`), { ok: false, error: `line 1, column 1: unexpected "import { test } from \\"@playwright/test\\";"` });
+    assert.deepEqual(await moduleSyntax(`import { test } from "@playwright/test";\ntest("x", async () => {\n`), {
+      ok: false,
+      error: `line 1, column 1: unexpected "import { test } from \\"@playwright/test\\";"`,
+    });
   });
 });
 
 describe("a module named with an escape", () => {
   it("is a computed module: its text is not its name", async () => {
     const text = [`import fs from "node\\x3afs";`, `const pg = require("p\\u0067");`].join("\n");
-    assert.deepEqual(imported(await moduleSyntax(text)), { ok: true, imports: [{ module: undefined, line: 1 }, { module: undefined, line: 2 }] });
+    assert.deepEqual(imported(await moduleSyntax(text)), {
+      ok: true,
+      imports: [
+        { module: undefined, line: 1 },
+        { module: undefined, line: 2 },
+      ],
+    });
   });
 });

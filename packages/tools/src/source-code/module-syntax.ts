@@ -11,7 +11,8 @@ export interface ModuleImport {
 }
 
 /** What the syntax of a TypeScript file tells: its first error, or the modules it imports and the outline of the test it holds. */
-export type ModuleSyntax = { readonly ok: true; readonly imports: readonly ModuleImport[]; readonly outline: SpecOutline } | { readonly ok: false; readonly error: string };
+export type ModuleSyntax =
+  { readonly ok: true; readonly imports: readonly ModuleImport[]; readonly outline: SpecOutline } | { readonly ok: false; readonly error: string };
 
 /** Longest excerpt of the text an error quotes. */
 const MAX_EXCERPT = 40;
@@ -56,7 +57,8 @@ function describeError(node: Node): string {
 function importsOf(root: Node): ModuleImport[] {
   const found: ModuleImport[] = [];
   const visit = (node: Node): void => {
-    const source = node.type === "import_statement" || node.type === "export_statement" || node.type === "import_require_clause" ? node.childForFieldName("source") : null;
+    const source =
+      node.type === "import_statement" || node.type === "export_statement" || node.type === "import_require_clause" ? node.childForFieldName("source") : null;
     if (source !== null) found.push({ module: literal(source), line: source.startPosition.row + 1 });
     if (node.type === "call_expression" && isImportCall(node.childForFieldName("function")!)) {
       found.push({ module: literal(node.childForFieldName("arguments")!.namedChildren[0]), line: node.startPosition.row + 1 });

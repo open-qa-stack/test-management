@@ -7,7 +7,14 @@ import { lineCoverage, type ScriptCoverage } from "./line-coverage.ts";
 const MAP = { sources: ["a.ts", "b.ts"], mappings: "AAAA,I;AACA,ECAA,GDCA" };
 const SCRIPT: ScriptCoverage = {
   source: "a();\nif(x){b()}",
-  functions: [{ ranges: [{ startOffset: 0, endOffset: 15, count: 1 }, { startOffset: 9, endOffset: 15, count: 0 }] }],
+  functions: [
+    {
+      ranges: [
+        { startOffset: 0, endOffset: 15, count: 1 },
+        { startOffset: 9, endOffset: 15, count: 0 },
+      ],
+    },
+  ],
 };
 
 describe("line coverage", () => {

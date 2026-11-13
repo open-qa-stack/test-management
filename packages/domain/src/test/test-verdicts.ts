@@ -42,7 +42,8 @@ const NETWORK_ERROR = /net::ERR_(?!HTTP_RESPONSE_CODE_FAILURE|ABORTED\b)[A-Z_]+|
  */
 export function testVerdicts(facts: RunFacts): TestVerdict[] {
   const { reported } = facts;
-  if (reported === undefined) return facts.listed.map(({ id }) => ({ id, verdict: "indeterminate", reason: "The JSON of the reporter is missing, empty or unreadable." }));
+  if (reported === undefined)
+    return facts.listed.map(({ id }) => ({ id, verdict: "indeterminate", reason: "The JSON of the reporter is missing, empty or unreadable." }));
   const byId = new Map(reported.map((test) => [test.id, test]));
   return facts.listed.map(({ id }) => {
     const test = byId.get(id);
@@ -58,7 +59,11 @@ export function testVerdicts(facts: RunFacts): TestVerdict[] {
  * @returns Each address once.
  */
 export function networkFailureAddresses(reported: readonly ReportedTest[], addresses: readonly string[]): string[] {
-  return [...new Set(reported.flatMap((test) => (test.status === "unexpected" ? [networkFailureOf(test, addresses)] : [])).filter((address) => address !== undefined))];
+  return [
+    ...new Set(
+      reported.flatMap((test) => (test.status === "unexpected" ? [networkFailureOf(test, addresses)] : [])).filter((address) => address !== undefined),
+    ),
+  ];
 }
 
 function verdictOf(test: ReportedTest, facts: RunFacts): Omit<TestVerdict, "id"> {

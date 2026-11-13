@@ -31,7 +31,10 @@ export function documentSections(markdown: string): DocumentSection[] {
   });
   return headings.map((heading, i) => {
     const next = headings.slice(i + 1).find((h) => h.level <= heading.level);
-    const text = lines.slice(heading.line, next?.line ?? lines.length).join("\n").trim();
+    const text = lines
+      .slice(heading.line, next?.line ?? lines.length)
+      .join("\n")
+      .trim();
     return { number: i + 1, title: heading.title, level: heading.level, text };
   });
 }

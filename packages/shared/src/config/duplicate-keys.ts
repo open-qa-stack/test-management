@@ -1,8 +1,6 @@
 import { pointer } from "./errors.ts";
 
-type Frame =
-  | { kind: "object"; path: string; keys: Set<string>; key: string; expectKey: boolean }
-  | { kind: "array"; path: string; index: number };
+type Frame = { kind: "object"; path: string; keys: Set<string>; key: string; expectKey: boolean } | { kind: "array"; path: string; index: number };
 
 /**
  * Finds the keys written more than once in the same object.

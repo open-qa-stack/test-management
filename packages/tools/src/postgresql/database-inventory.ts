@@ -23,6 +23,10 @@ export async function databaseInventory(catalog: DatabaseCatalog): Promise<Sourc
       return [table, { columns: columns.get(table)?.length ?? 0, primaryKey: key?.primaryKey ?? [], foreignKeys: key?.foreignKeys ?? [] }] as const;
     }),
   );
-  const excerpts = new Map([...columns].map(([table, listed]) => [table, listed.map((column) => `${column.name} ${column.type}${column.nullable ? "" : " not null"}`).join(", ")] as const));
+  const excerpts = new Map(
+    [...columns].map(
+      ([table, listed]) => [table, listed.map((column) => `${column.name} ${column.type}${column.nullable ? "" : " not null"}`).join(", ")] as const,
+    ),
+  );
   return { items, facts, excerpts, fingerprint: fingerprintOf(JSON.stringify({ items, columns: [...columns], keys: [...keys] })) };
 }

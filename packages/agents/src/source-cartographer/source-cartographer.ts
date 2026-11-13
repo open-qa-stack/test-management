@@ -133,12 +133,23 @@ export class SourceCartographer {
       journal.record("info", `The card of ${source.id} is up to date; it was kept.`, source.id);
       return { cardPath, card: existing, kept: true, usage: NO_USAGE, journal: journal.entries() };
     }
-    if (subject.inventory().truncated === true) journal.record("error", `The source ${source.id} is too large to be read whole; its card is truncated.`, source.id);
+    if (subject.inventory().truncated === true)
+      journal.record("error", `The source ${source.id} is too large to be read whole; its card is truncated.`, source.id);
     if (source.type !== "web" && subject.inventory().items.length === 0) {
       journal.record("info", `The source ${source.id} has no element; its card is empty.`, source.id);
-      return { ...(await this.write(cardPath, this.card(subject, { iterations: 0, actions: 0, durationMs: 0 }, "complete", { domains: [], unassigned: [] }, now), journal)), usage: NO_USAGE };
+      return {
+        ...(await this.write(
+          cardPath,
+          this.card(subject, { iterations: 0, actions: 0, durationMs: 0 }, "complete", { domains: [], unassigned: [] }, now),
+          journal,
+        )),
+        usage: NO_USAGE,
+      };
     }
-    const submission = new HandedIn(cardRules(source.id, () => subject.inventory(), configSecrets(config, env)), journal);
+    const submission = new HandedIn(
+      cardRules(source.id, () => subject.inventory(), configSecrets(config, env)),
+      journal,
+    );
     const notes = agentNotes(config, repositoryRoot, env, { role: "cartographer", task: `card-${source.id}-${now().toISOString()}`, now });
     const task = {
       instructions: SOURCE_CARTOGRAPHER_INSTRUCTIONS,
@@ -178,7 +189,10 @@ export class SourceCartographer {
       model: { provider: config.model.provider, baseUrl: config.model.baseUrl, model: config.model.model },
       run,
       status: inventory.truncated === true ? "truncated" : status,
-      domains: accepted.domains.map((domain) => ({ ...domain, items: domain.items.map((item) => ({ ...item, facts: { ...inventory.facts.get(item.name) } })) })),
+      domains: accepted.domains.map((domain) => ({
+        ...domain,
+        items: domain.items.map((item) => ({ ...item, facts: { ...inventory.facts.get(item.name) } })),
+      })),
       unassigned: accepted.unassigned,
     };
   }
@@ -202,18 +216,28 @@ export class SourceCartographer {
   private subject(events: readonly AgentEvent[]): Promise<CardSubject> {
     const { config, source, repositoryRoot, env } = this.options;
     if (source.type === "web") {
-      return interfaceSubject(config, source, events, { env, screenshotsDir: join(repositoryRoot, config.repository.stateDir, "screenshots"), ...this.options.browser });
+      return interfaceSubject(config, source, events, {
+        env,
+        screenshotsDir: join(repositoryRoot, config.repository.stateDir, "screenshots"),
+        ...this.options.browser,
+      });
     }
-    return knowledgeSubject(source, { repositoryRoot, env, ...(this.options.sqlClient === undefined ? {} : { sqlClient: this.options.sqlClient }) }, this.options.inventory);
+    return knowledgeSubject(
+      source,
+      { repositoryRoot, env, ...(this.options.sqlClient === undefined ? {} : { sqlClient: this.options.sqlClient }) },
+      this.options.inventory,
+    );
   }
 }
 
 /** The card at `path`, when it is readable, complete, and its fingerprint is `fingerprint`. */
 async function upToDate(path: string, fingerprint: string): Promise<SourceCard | undefined> {
-  const content = await readFile(path, "utf8").then(
-    (text) => JSON.parse(text) as unknown,
-    () => undefined,
-  ).catch(() => undefined);
+  const content = await readFile(path, "utf8")
+    .then(
+      (text) => JSON.parse(text) as unknown,
+      () => undefined,
+    )
+    .catch(() => undefined);
   const validation = validateSourceCard(content);
   return validation.ok && validation.value.fingerprint === fingerprint && validation.value.status === "complete" ? validation.value : undefined;
 }

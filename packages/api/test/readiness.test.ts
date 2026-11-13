@@ -76,7 +76,10 @@ describe("an error of connection", () => {
     const run = await new Promise<{ out: string; err: string }>((resolve) =>
       execFile(process.execPath, [MAIN], { env, encoding: "utf8" }, (_error, out, err) => resolve({ out, err })),
     );
-    assert.equal(run.err, "The configuration is invalid:\n- OQAS_DATABASE_URL must be a PostgreSQL connection URL with a host name, starting with postgres:// or postgresql://.\n");
+    assert.equal(
+      run.err,
+      "The configuration is invalid:\n- OQAS_DATABASE_URL must be a PostgreSQL connection URL with a host name, starting with postgres:// or postgresql://.\n",
+    );
     assert.ok(!leaks(run.out + run.err, url));
   });
 });

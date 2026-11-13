@@ -83,8 +83,7 @@ export function validateConfig(content: string, env: EnvironmentVariables): Vali
 
 function documentErrors(config: OqasConfig): ConfigError[] {
   const errors: ConfigError[] = [];
-  const duplicate = (path: string, what: string) =>
-    errors.push(error("structure", path, "duplicate", `Duplicate ${what}.`));
+  const duplicate = (path: string, what: string) => errors.push(error("structure", path, "duplicate", `Duplicate ${what}.`));
 
   const appIds = new Set<string>();
   config.applications.forEach((app, i) => {
@@ -100,9 +99,7 @@ function documentErrors(config: OqasConfig): ConfigError[] {
 
       if (environment.uiUrl === undefined) {
         if (app.type !== "api") {
-          errors.push(
-            error("structure", pointer(envPath, "uiUrl"), "ui-url-required", "A web application needs a user interface URL."),
-          );
+          errors.push(error("structure", pointer(envPath, "uiUrl"), "ui-url-required", "A web application needs a user interface URL."));
         }
       } else {
         errors.push(...urlErrors(pointer(envPath, "uiUrl"), environment.uiUrl));
@@ -152,9 +149,7 @@ function documentErrors(config: OqasConfig): ConfigError[] {
 }
 
 function referenceErrors(config: OqasConfig, path: string, attachment: Attachment): ConfigError[] {
-  const missing = (field: string, what: string) => [
-    error("reference", pointer(path, field), "unknown-reference", `No ${what} with this name is declared.`),
-  ];
+  const missing = (field: string, what: string) => [error("reference", pointer(path, field), "unknown-reference", `No ${what} with this name is declared.`)];
   const app = config.applications.find((a) => a.id === attachment.application);
   if (app === undefined) return missing("application", "application");
   if (attachment.environment === undefined) {

@@ -61,7 +61,10 @@ export function knowledgeTools(knowledge: readonly Knowledge[], access: Knowledg
       case "source-code":
         return sourceCodeTools(source.id, new CodeFolder(resolve(access.repositoryRoot, source.path)), source.commands ?? "git");
       case "logs": {
-        const log = source.path === undefined ? new ContainerLogs(source.engine, source.container) : new LogFile(resolve(access.repositoryRoot, source.path), source.path);
+        const log =
+          source.path === undefined
+            ? new ContainerLogs(source.engine, source.container)
+            : new LogFile(resolve(access.repositoryRoot, source.path), source.path);
         return logsTools(source.id, log, taskStart, access.secrets ?? []);
       }
     }

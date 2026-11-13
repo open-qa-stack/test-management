@@ -25,7 +25,12 @@ export interface DeclaredSecret {
  */
 export function declaredAddresses(config: ResolvedConfig): string[] {
   const urls = [
-    ...config.applications.flatMap((application) => application.environments.flatMap((environment) => [...(environment.uiUrl === undefined ? [] : [environment.uiUrl]), ...(environment.apis ?? []).map((api) => api.baseUrl)])),
+    ...config.applications.flatMap((application) =>
+      application.environments.flatMap((environment) => [
+        ...(environment.uiUrl === undefined ? [] : [environment.uiUrl]),
+        ...(environment.apis ?? []).map((api) => api.baseUrl),
+      ]),
+    ),
     ...config.knowledge.flatMap((source) => (source.type === "openapi" && source.url !== undefined ? [source.url] : [])),
   ];
   return [...new Set(urls.flatMap((url) => [url.replace(/\/+$/, ""), new URL(url).host]))];
@@ -53,7 +58,9 @@ export function declaredSecrets(config: ResolvedConfig, env: Readonly<Record<str
  */
 export function testPackages(manifest: string | undefined): string[] {
   const parsed = parseManifest(manifest);
-  const names = [parsed?.dependencies, parsed?.devDependencies].flatMap((section) => (section !== null && typeof section === "object" ? Object.keys(section) : []));
+  const names = [parsed?.dependencies, parsed?.devDependencies].flatMap((section) =>
+    section !== null && typeof section === "object" ? Object.keys(section) : [],
+  );
   return names.length === 0 ? [TEST_MODULE] : [...new Set(names)];
 }
 
@@ -102,7 +109,9 @@ const FILE_WRITE = /\.(saveAs|storageState|pdf)\s*\(|\bpath\s*:/;
  */
 export function fileErrors(content: string): string[] {
   return FILE_WRITE.test(content)
-    ? ["The test writes a file (saveAs, storageState, pdf or a path option); a test writes no file, the runner keeps what it needs. To compare a page with its reference, use await expect(page).toHaveScreenshot()."]
+    ? [
+        "The test writes a file (saveAs, storageState, pdf or a path option); a test writes no file, the runner keeps what it needs. To compare a page with its reference, use await expect(page).toHaveScreenshot().",
+      ]
     : [];
 }
 
@@ -114,7 +123,9 @@ export function fileErrors(content: string): string[] {
  * @returns A sentence for each address it holds.
  */
 export function addressErrors(content: string, addresses: readonly string[]): string[] {
-  return addresses.filter((address) => content.includes(address)).map((address) => `The test holds ${address}, an address of the configuration; reach the application with a path relative to its base URL.`);
+  return addresses
+    .filter((address) => content.includes(address))
+    .map((address) => `The test holds ${address}, an address of the configuration; reach the application with a path relative to its base URL.`);
 }
 
 /**

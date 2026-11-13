@@ -32,7 +32,11 @@ export function logsTools(knowledgeId: string, source: LogSource, taskStart: Dat
       parameters: {
         type: "object",
         properties: {
-          since: { type: "string", minLength: 1, description: "Date and time to read from, ISO 8601, such as 2026-11-13T10:15:00Z; local time without an offset. The start of the task when absent." },
+          since: {
+            type: "string",
+            minLength: 1,
+            description: "Date and time to read from, ISO 8601, such as 2026-11-13T10:15:00Z; local time without an offset. The start of the task when absent.",
+          },
           filter: { type: "string", minLength: 1, maxLength: 200, description: "Keeps the lines that contain this text, ignoring case." },
           limit: { type: "integer", minimum: 1, maximum: MAX_LOG_LINES, description: `Most lines to return; ${DEFAULT_LOG_LINES} by default.` },
         },

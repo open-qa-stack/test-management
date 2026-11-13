@@ -170,18 +170,31 @@ export class PinnedRun {
     const report = posix.join(runDir, "report.json");
     await mkdir(join(this.options.repositoryRoot, runDir), { recursive: true });
     const output = posix.join(runDir, "test-results");
-    const ran = await this.step(["node_modules/.bin/playwright", "test", "--reporter=json", `--output=${output}`, ...options, ...files], { PLAYWRIGHT_JSON_OUTPUT_FILE: report });
+    const ran = await this.step(["node_modules/.bin/playwright", "test", "--reporter=json", `--output=${output}`, ...options, ...files], {
+      PLAYWRIGHT_JSON_OUTPUT_FILE: report,
+    });
     const reported = reportedTests(await readFile(join(this.options.repositoryRoot, report), "utf8").catch(() => ""));
     if (reported === undefined) {
       const runnerOutput = posix.join(runDir, "runner-output.txt");
       await writeFile(join(this.options.repositoryRoot, runnerOutput), `${ran.stdout}\n${ran.stderr}`);
-      return { addresses: before, runnerExitCode: ran.exitCode, runnerOutput, tests: testVerdicts({ listed, addresses: this.addresses(), unreachable: new Set() }) };
+      return {
+        addresses: before,
+        runnerExitCode: ran.exitCode,
+        runnerOutput,
+        tests: testVerdicts({ listed, addresses: this.addresses(), unreachable: new Set() }),
+      };
     }
     // A check after the run that could not run confirms nothing: no address is then found unreachable.
     const recheck = await this.reach(networkFailureAddresses(reported, this.addresses()));
     const after = recheck.ran ? recheck.addresses : [];
     const unreachable = new Set(after.filter((address) => !address.answers).map((address) => address.url));
-    return { addresses: [...before, ...after], runnerExitCode: ran.exitCode, report, reported, tests: testVerdicts({ listed, reported, addresses: this.addresses(), unreachable }) };
+    return {
+      addresses: [...before, ...after],
+      runnerExitCode: ran.exitCode,
+      report,
+      reported,
+      tests: testVerdicts({ listed, reported, addresses: this.addresses(), unreachable }),
+    };
   }
 
   private async steps(runDir: string, producedAt: string): Promise<RunResult> {
@@ -203,7 +216,8 @@ export class PinnedRun {
     const browsers = await this.step(["node_modules/.bin/playwright", "install", "chromium"]);
     if (browsers.exitCode !== 0) return { ok: false, version, reason: `The browsers of Playwright ${version} could not be installed: ${firstLine(browsers)}` };
     const resolved = await this.step(["node", "-p", "require('@playwright/test/package.json').version"]);
-    if (resolved.stdout.trim() !== version) return { ok: false, version, reason: `@playwright/test ${resolved.stdout.trim() || "cannot be found"} is installed, the lockfile asks for ${version}.` };
+    if (resolved.stdout.trim() !== version)
+      return { ok: false, version, reason: `@playwright/test ${resolved.stdout.trim() || "cannot be found"} is installed, the lockfile asks for ${version}.` };
     return { ok: true, version };
   }
 
@@ -244,7 +258,9 @@ export class PinnedRun {
       const base = env?.uiUrl ?? env?.apis?.[0]?.baseUrl;
       return base === undefined ? [] : [[baseUrlVariable(application.id), base] as const];
     });
-    const accounts = config.applications.flatMap((application) => (application.authentication.accounts ?? []).flatMap((account) => [account.usernameEnv, account.passwordEnv]));
+    const accounts = config.applications.flatMap((application) =>
+      (application.authentication.accounts ?? []).flatMap((account) => [account.usernameEnv, account.passwordEnv]),
+    );
     const credentials = accounts.flatMap((name) => (this.env[name] === undefined ? [] : [[name, this.env[name]] as const]));
     return { [ENVIRONMENT_VARIABLE]: this.options.environment, ...Object.fromEntries(urls), ...Object.fromEntries(credentials) };
   }
@@ -263,6 +279,9 @@ function blocked(listed: readonly ListedTest[], silent: readonly CheckedAddress[
 
 /** The first line a command printed on its error output, or on its standard output. */
 function firstLine(outcome: CommandOutcome): string {
-  const line = [outcome.stderr, outcome.stdout].flatMap((text) => text.split("\n")).map((text) => text.trim()).find((text) => text !== "");
+  const line = [outcome.stderr, outcome.stdout]
+    .flatMap((text) => text.split("\n"))
+    .map((text) => text.trim())
+    .find((text) => text !== "");
   return line ?? `exit code ${outcome.exitCode}.`;
 }

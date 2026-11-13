@@ -140,7 +140,10 @@ export class HandedIn<T> {
     const more = others.length > MAX_TOLD_ERRORS ? [`- and ${others.length - MAX_TOLD_ERRORS} more`] : [];
     const missing = [...unplaced].map(([source, items]) => `- ${source}: ${JSON.stringify(items)}`);
     const placing = missing.length === 0 ? [] : ["Still to place, in a domain or in unassigned, each exactly as written:", ...missing];
-    const header = this.pending === undefined ? `${refused}. Fix it and submit it again.` : `${refused}; the ${what} accepted before is kept. Fix it and submit again only what was asked.`;
+    const header =
+      this.pending === undefined
+        ? `${refused}. Fix it and submit it again.`
+        : `${refused}; the ${what} accepted before is kept. Fix it and submit again only what was asked.`;
     this.refusal = masked([header, ...told, ...more, ...placing].join("\n"));
     return { error: this.refusal };
   }

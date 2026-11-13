@@ -16,7 +16,11 @@ export type GeneratedSection = "rules" | "controls";
  */
 export function renderRules(charter: readonly CharterRule[] = DEFAULT_CHARTER): string {
   return charter
-    .map((rule) => [`### ${rule.id}`, rule.statement, `Why: ${rule.rationale} See the [Playwright documentation](${rule.source}).`, "```ts\n" + rule.example + "\n```"].join("\n\n"))
+    .map((rule) =>
+      [`### ${rule.id}`, rule.statement, `Why: ${rule.rationale} See the [Playwright documentation](${rule.source}).`, "```ts\n" + rule.example + "\n```"].join(
+        "\n\n",
+      ),
+    )
     .join("\n\n");
 }
 

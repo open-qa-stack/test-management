@@ -29,5 +29,10 @@ export function validateSourceCard(value: unknown): IndexValidation<SourceCard> 
 }
 
 function domainsOnce(domains: readonly { id: string }[]): IndexError[] {
-  return repeated(domains.map((domain) => domain.id), "/domains", "id", "domain");
+  return repeated(
+    domains.map((domain) => domain.id),
+    "/domains",
+    "id",
+    "domain",
+  );
 }

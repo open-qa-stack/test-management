@@ -9,7 +9,11 @@ describe("the screens a user interface showed the agent", () => {
   it("names a screen by its path and its route after #/, keeps the latest title, and the links to other screens of the site", () => {
     const events: AgentEvent[] = [
       result("shop_goto", { url: "http://shop.test/#/policies?x=1", title: "Policies" }),
-      result("shop_snapshot", { url: "http://shop.test/#/policies", title: "All policies", page: '- link "A" [ref=e1]:\n  - /url: "#/policies/7"\n- link "B":\n  - /url: \'/customers\'\n- link "Self":\n  - /url: "#/policies"\n- link "Out":\n  - /url: https://other.test/\n- link "Bad":\n  - /url: "http://[x"' }),
+      result("shop_snapshot", {
+        url: "http://shop.test/#/policies",
+        title: "All policies",
+        page: '- link "A" [ref=e1]:\n  - /url: "#/policies/7"\n- link "B":\n  - /url: \'/customers\'\n- link "Self":\n  - /url: "#/policies"\n- link "Out":\n  - /url: https://other.test/\n- link "Bad":\n  - /url: "http://[x"',
+      }),
       result("shop_goto", { url: "https://other.test/", title: "Other" }),
       result("shop_click", { error: "No such element." }),
       result("shop_console", [{ type: "log", text: "x" }]),

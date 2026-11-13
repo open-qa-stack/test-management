@@ -10,8 +10,23 @@ export const MAX_ANNOTATED_ELEMENTS = 150;
 
 /** Roles of the elements an agent acts on; any element the page shows as clickable is one too. */
 const INTERACTIVE_ROLES = new Set([
-  "button", "checkbox", "combobox", "link", "listbox", "menuitem", "menuitemcheckbox", "menuitemradio", "option",
-  "radio", "searchbox", "slider", "spinbutton", "switch", "tab", "textbox", "treeitem",
+  "button",
+  "checkbox",
+  "combobox",
+  "link",
+  "listbox",
+  "menuitem",
+  "menuitemcheckbox",
+  "menuitemradio",
+  "option",
+  "radio",
+  "searchbox",
+  "slider",
+  "spinbutton",
+  "switch",
+  "tab",
+  "textbox",
+  "treeitem",
 ]);
 
 /** An element line: indentation, then the role, then the quoted name, the whole line quoted when YAML needs it. */

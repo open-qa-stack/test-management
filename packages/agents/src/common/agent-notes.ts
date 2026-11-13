@@ -30,6 +30,11 @@ export interface NoteTaker {
  * @param taker - Who takes the notes.
  * @returns The tools `remember` and `recall`.
  */
-export function agentNotes(config: ResolvedConfig, repositoryRoot: string, env: Readonly<Record<string, string | undefined>>, taker: NoteTaker): ToolDefinition[] {
+export function agentNotes(
+  config: ResolvedConfig,
+  repositoryRoot: string,
+  env: Readonly<Record<string, string | undefined>>,
+  taker: NoteTaker,
+): ToolDefinition[] {
   return notesTools(new Notebook(join(repositoryRoot, config.repository.stateDir, NOTES_FILE)), { ...taker, secrets: configSecrets(config, env) });
 }

@@ -66,7 +66,11 @@ export class SourceWatch {
           this.called += 1;
           if (of.inspected) this.inspections += 1;
           const result = await tool.execute(args);
-          if (!failed(result)) this.keep(of.read, texts(result).map((text) => redactText(text, forms)));
+          if (!failed(result))
+            this.keep(
+              of.read,
+              texts(result).map((text) => redactText(text, forms)),
+            );
           return result;
         },
       };

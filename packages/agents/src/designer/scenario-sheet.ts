@@ -22,11 +22,26 @@ export function skeleton(scenario: PlannedScenario, screenshots: boolean): strin
       ...expect.shows.map((text) => `    await expect(page.getByText(${JSON.stringify(text)})).toBeVisible();`),
       ...expect.absent.map((text) => `    await expect(page.getByText(${JSON.stringify(text)})).toBeHidden();`),
     ]);
-    const attach = screenshots ? [`    await testInfo.attach(${JSON.stringify(String(number))}, { body: await page.screenshot(), contentType: "image/png" });`] : [];
-    return [`  await test.step(${JSON.stringify(`${number}. ${oneLine(step.action)}`)}, async () => {`, `    // Do: ${oneLine(step.action)}. Copy the code lines the browser tools returned.`, ...expects, ...attach, "  });"].join("\n");
+    const attach = screenshots
+      ? [`    await testInfo.attach(${JSON.stringify(String(number))}, { body: await page.screenshot(), contentType: "image/png" });`]
+      : [];
+    return [
+      `  await test.step(${JSON.stringify(`${number}. ${oneLine(step.action)}`)}, async () => {`,
+      `    // Do: ${oneLine(step.action)}. Copy the code lines the browser tools returned.`,
+      ...expects,
+      ...attach,
+      "  });",
+    ].join("\n");
   });
   const fixtures = screenshots ? "{ page }, testInfo" : "{ page }";
-  return [`import { expect, test } from "@playwright/test";`, "", `test(${JSON.stringify(oneLine(scenario.title))}, async (${fixtures}) => {`, ...steps, "});", ""].join("\n");
+  return [
+    `import { expect, test } from "@playwright/test";`,
+    "",
+    `test(${JSON.stringify(oneLine(scenario.title))}, async (${fixtures}) => {`,
+    ...steps,
+    "});",
+    "",
+  ].join("\n");
 }
 
 /**

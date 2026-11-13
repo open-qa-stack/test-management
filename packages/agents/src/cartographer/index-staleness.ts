@@ -15,7 +15,12 @@ import type { RunSource } from "./run-sources.ts";
  * @param cards - The card of each source that has one now.
  * @returns The first reason found, as the end of a sentence; none when the index is up to date.
  */
-export function indexStaleness(index: DomainIndex | undefined, environment: string, sources: readonly RunSource[], cards: ReadonlyMap<string, SourceCard>): string | undefined {
+export function indexStaleness(
+  index: DomainIndex | undefined,
+  environment: string,
+  sources: readonly RunSource[],
+  cards: ReadonlyMap<string, SourceCard>,
+): string | undefined {
   if (index === undefined) return "no index could be read";
   if (index.environment !== environment) return `the index at hand is of the environment ${index.environment}`;
   if (index.status !== "complete") return "the index at hand is truncated";

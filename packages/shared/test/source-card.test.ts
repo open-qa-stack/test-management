@@ -18,7 +18,9 @@ describe("the source card format", () => {
     assert.deepEqual(validateSourceCard(EXAMPLE), { ok: true, value: EXAMPLE });
     const wrong = structuredClone(EXAMPLE);
     wrong.domains[0]!.items[0]!.summary = "";
-    assert.deepEqual(errorsOf(validateSourceCard(wrong)), [{ path: "/domains/0/items/0/summary", message: "/domains/0/items/0/summary must NOT have fewer than 1 characters." }]);
+    assert.deepEqual(errorsOf(validateSourceCard(wrong)), [
+      { path: "/domains/0/items/0/summary", message: "/domains/0/items/0/summary must NOT have fewer than 1 characters." },
+    ]);
     const twice = structuredClone(EXAMPLE);
     twice.domains.push(twice.domains[0]!);
     assert.deepEqual(errorsOf(validateSourceCard(twice)), [{ path: "/domains/2/id", message: "/domains/2/id repeats the domain orders." }]);
@@ -27,11 +29,16 @@ describe("the source card format", () => {
 
 describe("a submission of the cartographer of one source", () => {
   it("gives names, summaries and key fields, but no facts, which the harness reads itself", () => {
-    const submission = { domains: [{ id: "orders", label: "Orders", description: "Orders.", items: [{ name: "public.orders", summary: "An order.", keyFields: ["status"] }] }], unassigned: [] };
+    const submission = {
+      domains: [{ id: "orders", label: "Orders", description: "Orders.", items: [{ name: "public.orders", summary: "An order.", keyFields: ["status"] }] }],
+      unassigned: [],
+    };
     assert.equal(validateSourceCardSubmission(submission).ok, true);
     const withFacts = structuredClone(submission) as { domains: { items: Record<string, unknown>[] }[] };
     withFacts.domains[0]!.items[0]!["facts"] = { columns: 1 };
-    assert.deepEqual(errorsOf(validateSourceCardSubmission(withFacts)), [{ path: "/domains/0/items/0/facts", message: "/domains/0/items/0/facts is not allowed." }]);
+    assert.deepEqual(errorsOf(validateSourceCardSubmission(withFacts)), [
+      { path: "/domains/0/items/0/facts", message: "/domains/0/items/0/facts is not allowed." },
+    ]);
     const twice = { ...submission, domains: [...submission.domains, submission.domains[0]!] };
     assert.deepEqual(errorsOf(validateSourceCardSubmission(twice)), [{ path: "/domains/1/id", message: "/domains/1/id repeats the domain orders." }]);
   });

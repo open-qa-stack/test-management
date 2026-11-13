@@ -97,7 +97,12 @@ export class DatabaseCatalog {
       keys.set(table, entry);
       const columns = (row["columns"] as string[]).map(String);
       if (row["kind"] === "p") entry.primaryKey = columns;
-      else entry.foreignKeys.push({ columns, references: `${String(row["referenced_schema"])}.${String(row["referenced_table"])}`, referencedColumns: (row["referenced_columns"] as string[]).map(String) });
+      else
+        entry.foreignKeys.push({
+          columns,
+          references: `${String(row["referenced_schema"])}.${String(row["referenced_table"])}`,
+          referencedColumns: (row["referenced_columns"] as string[]).map(String),
+        });
     }
     return keys;
   }

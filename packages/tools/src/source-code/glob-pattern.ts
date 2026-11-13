@@ -67,7 +67,8 @@ function matchSequence<T>(pattern: readonly string[], items: readonly T[], any: 
   let reachable = Array.from({ length: items.length + 1 }, (_, j) => j === 0);
   for (const part of pattern) {
     const first = reachable.indexOf(true);
-    reachable = part === any ? reachable.map((_, j) => first !== -1 && j >= first) : reachable.map((_, j) => j > 0 && reachable[j - 1]! && matches(part, items[j - 1]!));
+    reachable =
+      part === any ? reachable.map((_, j) => first !== -1 && j >= first) : reachable.map((_, j) => j > 0 && reachable[j - 1]! && matches(part, items[j - 1]!));
   }
   return reachable[items.length]!;
 }

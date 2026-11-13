@@ -8,7 +8,9 @@ describe("the sources of a cartography", () => {
     const result = validateConfig(
       JSON.stringify({
         formatVersion: 1,
-        applications: [{ id: "shop", name: "Shop", type: "web", authentication: { method: "none" }, environments: [{ name: "local", uiUrl: "http://127.0.0.1:1" }] }],
+        applications: [
+          { id: "shop", name: "Shop", type: "web", authentication: { method: "none" }, environments: [{ name: "local", uiUrl: "http://127.0.0.1:1" }] },
+        ],
         knowledge: [
           { id: "shop-logs", type: "logs", container: "shop", engine: "podman", attachments: [{ application: "shop" }] },
           { id: "specs", type: "document", path: "specs.md", attachments: [{ application: "shop" }] },
@@ -19,6 +21,9 @@ describe("the sources of a cartography", () => {
       {},
     );
     assert.ok(result.ok, JSON.stringify(result));
-    assert.deepEqual(runSources(result.config, "local").map((source) => source.id), ["specs", "shop"]);
+    assert.deepEqual(
+      runSources(result.config, "local").map((source) => source.id),
+      ["specs", "shop"],
+    );
   });
 });

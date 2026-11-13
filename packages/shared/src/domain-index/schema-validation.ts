@@ -36,7 +36,13 @@ export function repeated(values: readonly string[], list: string, key: string, w
 
 /** An Ajv error as a located message that names the field in fault. */
 function schemaError(error: ErrorObject): IndexError {
-  const named = error.keyword === "required" || error.keyword === "additionalProperties" ? pointer(error.instancePath, String(Object.values(error.params)[0])) : error.instancePath;
-  const message = error.keyword === "additionalProperties" ? `${named} is not allowed.` : `${error.instancePath === "" ? "The document" : error.instancePath} ${String(error.message)}.`;
+  const named =
+    error.keyword === "required" || error.keyword === "additionalProperties"
+      ? pointer(error.instancePath, String(Object.values(error.params)[0]))
+      : error.instancePath;
+  const message =
+    error.keyword === "additionalProperties"
+      ? `${named} is not allowed.`
+      : `${error.instancePath === "" ? "The document" : error.instancePath} ${String(error.message)}.`;
   return { path: named, message };
 }

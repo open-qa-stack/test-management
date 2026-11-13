@@ -11,7 +11,17 @@ export const MAX_ENGINE_OUTPUT_BYTES = 10_000_000;
  * The variables an engine needs to reach its service, passed on from the environment of the harness; no
  * other is, so that its keys and connection strings never reach the engine.
  */
-export const ENGINE_VARIABLES = ["PATH", "HOME", "XDG_RUNTIME_DIR", "XDG_CONFIG_HOME", "CONTAINER_HOST", "CONTAINER_CONNECTION", "DOCKER_HOST", "DOCKER_CONTEXT", "DOCKER_CONFIG"];
+export const ENGINE_VARIABLES = [
+  "PATH",
+  "HOME",
+  "XDG_RUNTIME_DIR",
+  "XDG_CONFIG_HOME",
+  "CONTAINER_HOST",
+  "CONTAINER_CONNECTION",
+  "DOCKER_HOST",
+  "DOCKER_CONTEXT",
+  "DOCKER_CONFIG",
+];
 
 /**
  * The logs of a container, read by the command line of its engine.
@@ -68,5 +78,8 @@ function outputLines(output: string): string[] {
 
 /** Orders lines by the timestamp the engine puts first, keeping the order of the lines that share one. */
 function byInstant(lines: readonly string[]): string[] {
-  return lines.map((line) => ({ line, instant: lineInstant(line) ?? 0 })).sort((a, b) => a.instant - b.instant).map(({ line }) => line);
+  return lines
+    .map((line) => ({ line, instant: lineInstant(line) ?? 0 }))
+    .sort((a, b) => a.instant - b.instant)
+    .map(({ line }) => line);
 }

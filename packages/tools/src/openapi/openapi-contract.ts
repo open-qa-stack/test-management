@@ -138,7 +138,10 @@ function resolveRefs(value: unknown, document: JsonObject, depth: number): unkno
   if (!isPlainObject(value)) return value;
   const ref = value["$ref"];
   if (typeof ref === "string" && ref.startsWith("#/") && depth < MAX_REF_DEPTH) {
-    const target = ref.slice(2).split("/").reduce<unknown>((node, segment) => child(node, segment.replaceAll("~1", "/").replaceAll("~0", "~")), document);
+    const target = ref
+      .slice(2)
+      .split("/")
+      .reduce<unknown>((node, segment) => child(node, segment.replaceAll("~1", "/").replaceAll("~0", "~")), document);
     return resolveRefs(target, document, depth + 1);
   }
   return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, resolveRefs(v, document, depth)]));

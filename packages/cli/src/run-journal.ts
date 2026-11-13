@@ -95,7 +95,10 @@ export class RunJournal {
   public record(step: Step, event: RunEntry["event"], message: string, counts: Pick<RunEntry, "durationMs" | "modelRequests"> = {}): void {
     const entry: RunEntry = { at: this.output.now().toISOString(), step, event, message: this.mask(message), ...counts };
     this.kept.push(entry);
-    const figures = [counts.durationMs === undefined ? undefined : `${Math.round(counts.durationMs / 100) / 10} s`, counts.modelRequests === undefined ? undefined : `${counts.modelRequests} model requests`].filter((figure) => figure !== undefined);
+    const figures = [
+      counts.durationMs === undefined ? undefined : `${Math.round(counts.durationMs / 100) / 10} s`,
+      counts.modelRequests === undefined ? undefined : `${counts.modelRequests} model requests`,
+    ].filter((figure) => figure !== undefined);
     this.output.write(`[${step}] ${event === "info" ? "" : `${event}: `}${entry.message}${figures.length === 0 ? "" : ` (${figures.join(", ")})`}\n`);
     if (this.file !== undefined) appendFileSync(this.file, `${JSON.stringify(entry)}\n`);
   }

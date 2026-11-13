@@ -39,14 +39,19 @@ export async function mapSources(options: SourcesCartographyOptions): Promise<So
   const { environment, concurrency = 1, inventories, ...rest } = options;
   const now = rest.now ?? (() => new Date());
   const shared = { ...rest, now, trace: rest.trace ?? runTrace(rest, `sources-${environment}`, now) };
-  const sources = runSources(options.config, environment).map((source): CardSource => (source.type === "web" ? { id: source.id, type: "web", environment } : source.knowledge));
+  const sources = runSources(options.config, environment).map((source): CardSource =>
+    source.type === "web" ? { id: source.id, type: "web", environment } : source.knowledge,
+  );
   const results: SourceCartographyResult[] = [];
   const failures: unknown[] = [];
   let next = 0;
   const worker = async () => {
     for (let i = next++; i < sources.length; i = next++) {
       try {
-        results[i] = { source: sources[i]!, outcome: await new SourceCartographer({ ...shared, source: sources[i]!, ...inventoryOf(inventories, sources[i]!.id) }).run() };
+        results[i] = {
+          source: sources[i]!,
+          outcome: await new SourceCartographer({ ...shared, source: sources[i]!, ...inventoryOf(inventories, sources[i]!.id) }).run(),
+        };
       } catch (failure) {
         failures.push(failure);
       }

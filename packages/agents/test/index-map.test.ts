@@ -20,8 +20,24 @@ const INDEX: DomainIndex = {
     { id: "stock-db", type: "postgresql", state: "read" },
   ],
   domains: [
-    { id: "customers", label: "Customers", description: "Who buys at the shop.", references: [{ source: "shop-api", items: ["customers"] }, { source: "guide", items: ["Recherche d'un client"] }] },
-    { id: "orders", label: "Orders", description: "Placing an order.", references: [{ source: "shop", items: ["/orders"] }, { source: "shop-api", items: ["customers", "customers"] }] },
+    {
+      id: "customers",
+      label: "Customers",
+      description: "Who buys at the shop.",
+      references: [
+        { source: "shop-api", items: ["customers"] },
+        { source: "guide", items: ["Recherche d'un client"] },
+      ],
+    },
+    {
+      id: "orders",
+      label: "Orders",
+      description: "Placing an order.",
+      references: [
+        { source: "shop", items: ["/orders"] },
+        { source: "shop-api", items: ["customers", "customers"] },
+      ],
+    },
     { id: "billing", label: "Billing", description: "Invoices.", references: [{ source: "shop-db", items: ["public.invoices"] }] },
   ],
   unassigned: [
@@ -38,7 +54,14 @@ const CARD: SourceCard = {
   model: INDEX.model,
   run: INDEX.run,
   status: "complete",
-  domains: [{ id: "customers", label: "Customers", description: "Customers.", items: [{ name: "customers", summary: "Finds a customer by name.", facts: { operations: ["GET /customers", "GET /customers/{id}"] } }] }],
+  domains: [
+    {
+      id: "customers",
+      label: "Customers",
+      description: "Customers.",
+      items: [{ name: "customers", summary: "Finds a customer by name.", facts: { operations: ["GET /customers", "GET /customers/{id}"] } }],
+    },
+  ],
   unassigned: [],
 };
 
@@ -56,7 +79,13 @@ const BASE_CARD: SourceCard = {
           name: "public.invoices",
           summary: "An invoice sent to a client.",
           keyFields: ["number", "client_name"],
-          facts: { columns: 6, primaryKey: ["id"], foreignKeys: [{ columns: ["order_id"], references: "public.orders", referencedColumns: ["id"] }], notes: "kept ten years", indexes: [] },
+          facts: {
+            columns: 6,
+            primaryKey: ["id"],
+            foreignKeys: [{ columns: ["order_id"], references: "public.orders", referencedColumns: ["id"] }],
+            notes: "kept ten years",
+            indexes: [],
+          },
         },
       ],
     },
@@ -79,7 +108,11 @@ const call = (definition: ToolDefinition, args: unknown) => definition.execute(a
 
 describe("the index as a map", () => {
   it("lists the domains in one line each", () => {
-    assert.deepEqual(map.domains(), ["- customers (Customers): Who buys at the shop.", "- orders (Orders): Placing an order.", "- billing (Billing): Invoices."]);
+    assert.deepEqual(map.domains(), [
+      "- customers (Customers): Who buys at the shop.",
+      "- orders (Orders): Placing an order.",
+      "- billing (Billing): Invoices.",
+    ]);
   });
 
   it("finds what echoes words, whatever the case, the accents and the plural, in the order of the index when they echo as much", async () => {
@@ -102,7 +135,10 @@ describe("the index as a map", () => {
     assert.match(String(await call(find, { words: "cus" })), /^Nothing of the index echoes "cus"\. Try other words/);
     assert.match(String(await call(find, { words: "an" })), /^Domains:\n- orders \(Orders\): Placing an order\./);
     // The archive echoes two words, the guide one: the archive comes first, though the index places it last.
-    assert.match(String(await call(find, { words: "old client files" })), /^Elements:\n- archive: Old customer files \(section\)\n- guide: Recherche d'un client \(section\)\n/);
+    assert.match(
+      String(await call(find, { words: "old client files" })),
+      /^Elements:\n- archive: Old customer files \(section\)\n- guide: Recherche d'un client \(section\)\n/,
+    );
     assert.equal(await call(find, { words: "a !" }), "Give at least one word of two letters or more.");
     assert.match(String(await call(find, { words: "orders" })), /^Domains:\n- orders \(Orders\): Placing an order\.\nElements:\n- shop: \/orders \(screen\)\n/);
   });
@@ -110,13 +146,27 @@ describe("the index as a map", () => {
   it("gives a domain with each of its sources and the tools of each, the longest prefix owning a tool", async () => {
     assert.equal(
       await call(entry, { domain: "orders" }),
-      ["orders (Orders): Placing an order.", "Source shop (web): read it with shop_goto.", "- shop: /orders (screen)", "Source shop-api (openapi): read it with shop_api_list_operations, shop_api_read_operation.", "- shop-api: customers — Finds a customer by name. (operations)"].join("\n"),
+      [
+        "orders (Orders): Placing an order.",
+        "Source shop (web): read it with shop_goto.",
+        "- shop: /orders (screen)",
+        "Source shop-api (openapi): read it with shop_api_list_operations, shop_api_read_operation.",
+        "- shop-api: customers — Finds a customer by name. (operations)",
+      ].join("\n"),
     );
   });
 
   it("gives an element with its domains, or none for one the index left unassigned, and a source no tool reads", async () => {
-    assert.match(String(await call(entry, { source: "shop-api", item: "customers" })), /\noperations: GET \/customers, GET \/customers\/\{id\}\nDomains: customers, orders\.$/);
-    assert.equal(await call(entry, { source: "archive", item: "Old customer files" }), ["Source archive (document): no tool of yours reads it.", "- archive: Old customer files (section)", "Domains: none, the index left it unassigned."].join("\n"));
+    assert.match(
+      String(await call(entry, { source: "shop-api", item: "customers" })),
+      /\noperations: GET \/customers, GET \/customers\/\{id\}\nDomains: customers, orders\.$/,
+    );
+    assert.equal(
+      await call(entry, { source: "archive", item: "Old customer files" }),
+      ["Source archive (document): no tool of yours reads it.", "- archive: Old customer files (section)", "Domains: none, the index left it unassigned."].join(
+        "\n",
+      ),
+    );
   });
 
   it("gives a table with its key fields, the facts of its card and the call that finds one of its rows", async () => {
@@ -136,7 +186,12 @@ describe("the index as a map", () => {
       ].join("\n"),
     );
     // No tool of the agent searches the stock base: no call is given.
-    assert.equal(await call(entry, { source: "stock-db", item: "public.items" }), ["Source stock-db (postgresql): no tool of yours reads it.", "- stock-db: public.items (table)", "Domains: none, the index left it unassigned."].join("\n"));
+    assert.equal(
+      await call(entry, { source: "stock-db", item: "public.items" }),
+      ["Source stock-db (postgresql): no tool of yours reads it.", "- stock-db: public.items (table)", "Domains: none, the index left it unassigned."].join(
+        "\n",
+      ),
+    );
   });
 
   it("finds an element by its key fields, and tells what the index holds for a text, or nothing", () => {
@@ -146,7 +201,11 @@ describe("the index as a map", () => {
 
   it("cuts an entry past sixty lines, and says how to read the rest", async () => {
     const items = Array.from({ length: 70 }, (_, i) => `/page-${i}`);
-    const wide: DomainIndex = { ...INDEX, domains: [{ id: "pages", label: "Pages", description: "Every page.", references: [{ source: "shop", items }] }], unassigned: [] };
+    const wide: DomainIndex = {
+      ...INDEX,
+      domains: [{ id: "pages", label: "Pages", description: "Every page.", references: [{ source: "shop", items }] }],
+      unassigned: [],
+    };
     const [, wideEntry] = new IndexMap(wide, new Map(), [], ["shop"]).toolset() as [ToolDefinition, ToolDefinition];
     const lines = String(await call(wideEntry, { domain: "pages" })).split("\n");
     assert.equal(lines.length, 60);
@@ -155,7 +214,9 @@ describe("the index as a map", () => {
 
   it("refuses an unknown domain, an element the index does not place, and a call without what to give", async () => {
     assert.deepEqual(await call(entry, { domain: "returns" }), { error: "No domain returns in the index; the domains are customers, orders, billing." });
-    assert.deepEqual(await call(entry, { source: "guide", item: "Returns" }), { error: "The index places no Returns in guide; index_find gives the elements it places." });
+    assert.deepEqual(await call(entry, { source: "guide", item: "Returns" }), {
+      error: "The index places no Returns in guide; index_find gives the elements it places.",
+    });
     assert.deepEqual(await call(entry, { source: "guide" }), { error: "Give a domain, or a source and an item." });
   });
 });

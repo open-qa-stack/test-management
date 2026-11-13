@@ -25,12 +25,20 @@ describe("the refusals of one scenario", () => {
 
 describe("a reason refused three times or more", () => {
   it("is told by what the gate would accept, each remedy once, and nothing of the other reasons", () => {
-    const refusals = [refusal("TEST-VALUE", "In step 1: assert it."), refusal("TEST-LOCATOR"), refusal("TEST-VALUE", "In step 1: assert it."), refusal("TEST-VALUE", "In step 2: assert that.")];
+    const refusals = [
+      refusal("TEST-VALUE", "In step 1: assert it."),
+      refusal("TEST-LOCATOR"),
+      refusal("TEST-VALUE", "In step 1: assert it."),
+      refusal("TEST-VALUE", "In step 2: assert that."),
+    ];
     assert.equal(repeatedText("TEST-VALUE", 3, refusals), "Third refusal for the same reason. Do only this:\nIn step 1: assert it.\nIn step 2: assert that.");
   });
 
   it("is told by its first error alone when its gate gives nothing else", () => {
-    assert.equal(repeatedText("TEST-LOCATOR", 4, [refusal("TEST-VALUE", "Assert it."), refusal("TEST-LOCATOR"), refusal("TEST-LOCATOR")]), "Fourth refusal for the same reason. Do only this:\nRefused (TEST-LOCATOR): the TEST-LOCATOR gate refuses.");
+    assert.equal(
+      repeatedText("TEST-LOCATOR", 4, [refusal("TEST-VALUE", "Assert it."), refusal("TEST-LOCATOR"), refusal("TEST-LOCATOR")]),
+      "Fourth refusal for the same reason. Do only this:\nRefused (TEST-LOCATOR): the TEST-LOCATOR gate refuses.",
+    );
     assert.match(repeatedText("PLAN-ID", 5, [refusal("PLAN-ID")]), /^Fifth refusal for the same reason\./);
   });
 });

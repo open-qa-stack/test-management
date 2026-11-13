@@ -30,7 +30,11 @@ export type HarnessEvent =
 /** What the agent did, as its session reported it; a runtime error is reduced to its name and message. */
 export type TracedAgentEvent =
   | Exclude<AgentEvent, { type: "error" }>
-  | { readonly type: "error"; readonly error: { readonly name: string; readonly message: string }; readonly counters?: Extract<AgentEvent, { type: "error" }>["counters"] };
+  | {
+      readonly type: "error";
+      readonly error: { readonly name: string; readonly message: string };
+      readonly counters?: Extract<AgentEvent, { type: "error" }>["counters"];
+    };
 
 /** A line of the trace of a run. */
 export type TraceLine = {

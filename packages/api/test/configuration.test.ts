@@ -23,7 +23,12 @@ function documentedVariables(): string[][] {
   const lines = readFileSync(RUNNING, "utf8").split("\n");
   const header = lines.findIndex((line) => line.startsWith("| Variable |"));
   const end = lines.indexOf("", header);
-  return lines.slice(header + 2, end).map((line) => line.slice(1, -1).split("|").map((cell) => cell.trim()));
+  return lines.slice(header + 2, end).map((line) =>
+    line
+      .slice(1, -1)
+      .split("|")
+      .map((cell) => cell.trim()),
+  );
 }
 
 /** Runs the API as a program with the given variables only, and gives its exit code and outputs. */
@@ -60,11 +65,10 @@ describe("the configuration of the API", () => {
   });
 
   it("names every variable at fault in one error", () => {
-    assert.deepEqual(violationsOf(() => ApiConfiguration.read({ OQAS_HOST: "" })), [
-      "OQAS_HOST must be a text that is not empty.",
-      "OQAS_PORT is required and is not set.",
-      "OQAS_DATABASE_URL is required and is not set.",
-    ]);
+    assert.deepEqual(
+      violationsOf(() => ApiConfiguration.read({ OQAS_HOST: "" })),
+      ["OQAS_HOST must be a text that is not empty.", "OQAS_PORT is required and is not set.", "OQAS_DATABASE_URL is required and is not set."],
+    );
   });
 
   it("documents a type, a description and an example for every variable", () => {
@@ -95,7 +99,10 @@ describe("the documentation of the configuration", () => {
 
 describe("a port", () => {
   it("is an integer from 1 to 65535, in decimal digits", () => {
-    assert.deepEqual(["1", "80", "65535"].map((raw) => portNumber.parse(raw)), [1, 80, 65535].map((value) => ({ ok: true, value })));
+    assert.deepEqual(
+      ["1", "80", "65535"].map((raw) => portNumber.parse(raw)),
+      [1, 80, 65535].map((value) => ({ ok: true, value })),
+    );
     for (const raw of ["", "0", "65536", "70000", "123456", "-1", "8080.5", "8e3", "0x50", " 80", "eighty"]) {
       assert.deepEqual(portNumber.parse(raw), { ok: false }, raw);
     }
@@ -108,7 +115,15 @@ describe("a database URL", () => {
       const parsed = databaseUrl.parse(raw);
       assert.ok(parsed.ok && parsed.value.reveal() === raw, raw);
     }
-    for (const raw of ["", "oqas", "mysql://127.0.0.1/oqas", "postgres:///oqas", "postgres:///oqas?host=/var/run/postgresql", "postgres://oqas:%zz@127.0.0.1/oqas", "http://127.0.0.1"]) {
+    for (const raw of [
+      "",
+      "oqas",
+      "mysql://127.0.0.1/oqas",
+      "postgres:///oqas",
+      "postgres:///oqas?host=/var/run/postgresql",
+      "postgres://oqas:%zz@127.0.0.1/oqas",
+      "http://127.0.0.1",
+    ]) {
       assert.deepEqual(databaseUrl.parse(raw), { ok: false }, raw);
     }
   });

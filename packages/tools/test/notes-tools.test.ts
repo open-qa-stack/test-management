@@ -32,12 +32,21 @@ describe("criterion 1 — a note is found by one of its tags and by a word of it
     await remember.execute({ text: "Policies are listed on the My Policies screen.", tags: ["policies", "screens"] });
     const recall = notes.get("recall")!;
     const byTag = (await recall.execute({ tags: ["policies"] })) as { text: string; tags: string[] }[];
-    assert.deepEqual(byTag.map((n) => n.text), ["Policies are listed on the My Policies screen.", "The demo customer has one health policy."]);
+    assert.deepEqual(
+      byTag.map((n) => n.text),
+      ["Policies are listed on the My Policies screen.", "The demo customer has one health policy."],
+    );
     assert.deepEqual(byTag[1]!.tags, ["policies", "demo"]);
     const byWord = (await recall.execute({ text: "backend quote" })) as { text: string; score: number }[];
-    assert.deepEqual(byWord.map((n) => [n.text, n.score]), [["Quote requests go through the self-service backend.", 2]]);
+    assert.deepEqual(
+      byWord.map((n) => [n.text, n.score]),
+      [["Quote requests go through the self-service backend.", 2]],
+    );
     assert.equal(((await recall.execute({ limit: 1 })) as unknown[]).length, 1);
-    assert.deepEqual(((await recall.execute({ source: "policy-db" })) as { source: string }[]).map((n) => n.source), ["policy-db"]);
+    assert.deepEqual(
+      ((await recall.execute({ source: "policy-db" })) as { source: string }[]).map((n) => n.source),
+      ["policy-db"],
+    );
     assert.deepEqual(await recall.execute({ tags: ["nothing"] }), []);
   });
 });
@@ -62,10 +71,17 @@ describe("criterion 2 — a note that holds a secret is refused", () => {
 describe("criterion 3 — notes outlive the session and are found by another task", () => {
   it("reads the notes another task wrote, skipping lines that are not notes", async () => {
     const path = join(folder, "shared.jsonl");
-    await tools(path, "first").get("remember")!.execute({ text: "Customers are created through the API.", tags: ["customers"] });
-    appendFileSync(path, "not json\n{\"text\": 3}\n");
-    const found = (await tools(path, "second").get("recall")!.execute({ tags: ["customers"] })) as { text: string; role: string }[];
-    assert.deepEqual(found.map((n) => [n.text, n.role]), [["Customers are created through the API.", "cartographer"]]);
+    await tools(path, "first")
+      .get("remember")!
+      .execute({ text: "Customers are created through the API.", tags: ["customers"] });
+    appendFileSync(path, 'not json\n{"text": 3}\n');
+    const found = (await tools(path, "second")
+      .get("recall")!
+      .execute({ tags: ["customers"] })) as { text: string; role: string }[];
+    assert.deepEqual(
+      found.map((n) => [n.text, n.role]),
+      [["Customers are created through the API.", "cartographer"]],
+    );
   });
 
   it("fails a search on a notebook it cannot read", async () => {

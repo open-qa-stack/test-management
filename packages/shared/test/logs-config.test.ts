@@ -13,7 +13,12 @@ describe("logs criterion 1 — a configuration that declares a log file or a con
     for (const path of ["logs/policy.log", "../policy-management/logs/app.log"]) {
       const result = validateVariant(logs({ path }));
       assert.equal(result.ok, true, JSON.stringify(result));
-      assert.deepEqual(result.ok && result.config.knowledge.at(-1), { id: "policy-logs", type: "logs", attachments: [{ application: "policy-management", environment: "local" }], path });
+      assert.deepEqual(result.ok && result.config.knowledge.at(-1), {
+        id: "policy-logs",
+        type: "logs",
+        attachments: [{ application: "policy-management", environment: "local" }],
+        path,
+      });
     }
   });
 
@@ -30,9 +35,10 @@ describe("logs criterion 1 — a configuration that declares a log file or a con
     ["a file with an engine", { path: "a.log", engine: "podman" }],
   ] as const) {
     it(`refuses ${what}, with one error`, () => {
-      assert.deepEqual(errorsOf(validateVariant(logs(fields))).map((e) => [e.path, e.rule, e.message]), [
-        ["/knowledge/8", "logs-source", 'Declare either "path", or "container" and "engine".'],
-      ]);
+      assert.deepEqual(
+        errorsOf(validateVariant(logs(fields))).map((e) => [e.path, e.rule, e.message]),
+        [["/knowledge/8", "logs-source", 'Declare either "path", or "container" and "engine".']],
+      );
     });
   }
 
@@ -43,7 +49,14 @@ describe("logs criterion 1 — a configuration that declares a log file or a con
   });
 
   it("refuses a log source attached to an environment the application does not have", () => {
-    const result = validateVariant((c) => listAt(c, "knowledge").push({ id: "policy-logs", type: "logs", attachments: [{ application: "policy-management", environment: "staging" }], path: "a.log" }));
+    const result = validateVariant((c) =>
+      listAt(c, "knowledge").push({
+        id: "policy-logs",
+        type: "logs",
+        attachments: [{ application: "policy-management", environment: "staging" }],
+        path: "a.log",
+      }),
+    );
     assert.deepEqual(pairs(errorsOf(result)), [["/knowledge/8/attachments/0/environment", "unknown-reference"]]);
   });
 });
@@ -53,13 +66,16 @@ describe("logs criterion 4 — the values to mask are those of every variable th
     const result = validateConfig(exampleText(), EXAMPLE_ENV);
     assert.ok(result.ok);
     const env = { ...EXAMPLE_ENV, CUSTOMER_CORE_DB_URL: EXAMPLE_ENV["POLICY_MANAGEMENT_DB_URL"], CSS_DEMO_USERNAME: "", UNRELATED: "not-named" };
-    assert.deepEqual(new Set(declaredValues(result.config, env)), new Set([
-      "demo-password-value",
-      "postgresql://user:secret@localhost:5433/customerselfservice",
-      "postgresql://user:secret@localhost:5433/customermanagement",
-      "postgresql://user:secret@localhost:5433/policymanagement",
-      "test-model-key-value",
-    ]));
+    assert.deepEqual(
+      new Set(declaredValues(result.config, env)),
+      new Set([
+        "demo-password-value",
+        "postgresql://user:secret@localhost:5433/customerselfservice",
+        "postgresql://user:secret@localhost:5433/customermanagement",
+        "postgresql://user:secret@localhost:5433/policymanagement",
+        "test-model-key-value",
+      ]),
+    );
     assert.equal(declaredValues(result.config, env).length, 5);
   });
 });

@@ -135,11 +135,19 @@ export class PlanProposal {
             items: {
               type: "object",
               properties: {
-                id: { type: "string", pattern: "^[a-z0-9]+(-[a-z0-9]+)*$", description: "A slug, unique in the plan, such as search-order-by-customer; it names the test file." },
+                id: {
+                  type: "string",
+                  pattern: "^[a-z0-9]+(-[a-z0-9]+)*$",
+                  description: "A slug, unique in the plan, such as search-order-by-customer; it names the test file.",
+                },
                 title: { type: "string", minLength: 1 },
                 intent: { type: "string", minLength: 1, description: "What the scenario verifies, and why, in one sentence." },
                 kind: { type: "string", enum: ["functional", "visual", "accessibility", "other"] },
-                case: { type: "string", enum: ["nominal", "negative"], description: "negative when the input matches nothing, is wrong or is forbidden; nominal otherwise." },
+                case: {
+                  type: "string",
+                  enum: ["nominal", "negative"],
+                  description: "negative when the input matches nothing, is wrong or is forbidden; nominal otherwise.",
+                },
                 application: { type: "string", enum: [...this.rules.applications], description: "Identifier of the one application the test is about." },
                 domain: { type: "string", enum: [...this.rules.domains], description: "Identifier of the domain of the index the scenario comes from." },
                 sources: {
@@ -148,7 +156,11 @@ export class PlanProposal {
                   items: {
                     type: "object",
                     properties: {
-                      source: { type: "string", enum: [...this.rules.sources], description: "Identifier of a source: a knowledge source, or an application for its screens." },
+                      source: {
+                        type: "string",
+                        enum: [...this.rules.sources],
+                        description: "Identifier of a source: a knowledge source, or an application for its screens.",
+                      },
                       item: { type: "string", description: "The element of the source, such as a section of a document." },
                     },
                     required: ["source"],
@@ -162,7 +174,11 @@ export class PlanProposal {
                     type: "object",
                     properties: {
                       value: { type: "string", minLength: 1, description: "A value the test enters, copied exactly as the tool showed it." },
-                      from: { type: "string", enum: [...this.rules.sources, MADE_UP], description: `The source or the application whose tool showed you the value, or ${MADE_UP}.` },
+                      from: {
+                        type: "string",
+                        enum: [...this.rules.sources, MADE_UP],
+                        description: `The source or the application whose tool showed you the value, or ${MADE_UP}.`,
+                      },
                     },
                     required: ["value", "from"],
                     additionalProperties: false,
@@ -248,15 +264,33 @@ export class PlanProposal {
   /** What the gates refuse in a plan its schema accepts: the count, the kinds, the sources and the shapes are the schema's. */
   private errors(plan: TestPlan): Refusal[] {
     const ids = plan.scenarios.map((scenario) => scenario.id);
-    const repeated = [...new Set(ids.filter((id, at) => ids.indexOf(id) !== at))].map((id) => ({ code: "PLAN-ID", message: `the id ${id} is given to several scenarios. Give each scenario its own id.` }));
+    const repeated = [...new Set(ids.filter((id, at) => ids.indexOf(id) !== at))].map((id) => ({
+      code: "PLAN-ID",
+      message: `the id ${id} is given to several scenarios. Give each scenario its own id.`,
+    }));
     const text = plan.scenarios.flatMap(planText).join("\n");
-    const secrets = heldVariables(text, this.rules.secrets).map((variable) => ({ code: "PLAN-SECRET", message: `the plan holds the value of ${variable}. Leave it out; a test reads it with process.env.${variable}.` }));
+    const secrets = heldVariables(text, this.rules.secrets).map((variable) => ({
+      code: "PLAN-SECRET",
+      message: `the plan holds the value of ${variable}. Leave it out; a test reads it with process.env.${variable}.`,
+    }));
     const functional = plan.scenarios.filter((scenario) => scenario.kind === "functional");
     const negative =
       functional.length >= 2 && !functional.some((scenario) => scenario.case === "negative")
-        ? [{ code: "PLAN-NEGATIVE", message: 'no functional scenario is negative. One must verify what the application answers when the input matches nothing, is wrong or is forbidden; set its case to "negative".' }]
+        ? [
+            {
+              code: "PLAN-NEGATIVE",
+              message:
+                'no functional scenario is negative. One must verify what the application answers when the input matches nothing, is wrong or is forbidden; set its case to "negative".',
+            },
+          ]
         : [];
-    return [...repeated, ...secrets, ...negative, ...functional.flatMap((scenario) => this.expectErrors(scenario)), ...plan.scenarios.flatMap((scenario) => this.readErrors(scenario))];
+    return [
+      ...repeated,
+      ...secrets,
+      ...negative,
+      ...functional.flatMap((scenario) => this.expectErrors(scenario)),
+      ...plan.scenarios.flatMap((scenario) => this.readErrors(scenario)),
+    ];
   }
 
   /** What the gates refuse in what a scenario relies on: a source it cites and nothing was read of, a value its source never showed, a text no tool showed. */
@@ -265,18 +299,33 @@ export class PlanProposal {
     // A source without any tool is held to nothing: nothing could be read of it.
     const tool = (source: string) => (screens.watches(source) ? scopedToolName(source, "goto") : reads.firstTool(source));
     const read = (source: string) => (screens.watches(source) ? screens.looks(source) > 0 : tool(source) === undefined || reads.read(source));
-    const showed = (source: string, text: string) => (screens.watches(source) ? screens.shows(source, text) : tool(source) === undefined || reads.shows(source, text));
+    const showed = (source: string, text: string) =>
+      screens.watches(source) ? screens.shows(source, text) : tool(source) === undefined || reads.shows(source, text);
     const anywhere = (text: string) => applications.some((application) => screens.shows(application, text)) || reads.shows(undefined, text);
-    const unread = [...new Set(scenario.sources.map((cited) => cited.source))].filter((source) => !read(source)).map((source) => ({ code: "PLAN-READ", message: `scenario ${scenario.id} cites ${source}, and you have read nothing of it. Call ${tool(source)} first.` }));
-    const unshown = scenario.data.filter((entry) => entry.from !== MADE_UP && checkable(entry.value) && !showed(entry.from, entry.value)).map((entry) => this.dataRefusal(entry.value, entry.from, tool(entry.from)!));
+    const unread = [...new Set(scenario.sources.map((cited) => cited.source))]
+      .filter((source) => !read(source))
+      .map((source) => ({
+        code: "PLAN-READ",
+        message: `scenario ${scenario.id} cites ${source}, and you have read nothing of it. Call ${tool(source)} first.`,
+      }));
+    const unshown = scenario.data
+      .filter((entry) => entry.from !== MADE_UP && checkable(entry.value) && !showed(entry.from, entry.value))
+      .map((entry) => this.dataRefusal(entry.value, entry.from, tool(entry.from)!));
     const values = scenario.data.map((entry) => entry.value);
     const madeUp = scenario.data.filter((entry) => entry.from === MADE_UP).map((entry) => entry.value);
     // A test finds a text on the screens of its application, as they give it; a base may give it otherwise.
     const seen = (text: string) => (screens.watches(scenario.application) ? screens.shows(scenario.application, text) : anywhere(text));
     const texts = scenario.steps.flatMap((step, at) =>
-      step.expects.flatMap((expect, k) => [...expect.shows.filter((text) => !seen(text) && !observed(text, madeUp)), ...expect.absent.filter((text) => !seen(text) && !observed(text, values))].filter(checkable).map((text) => ({ number: `${at + 1}.${k + 1}`, text }))),
+      step.expects.flatMap((expect, k) =>
+        [...expect.shows.filter((text) => !seen(text) && !observed(text, madeUp)), ...expect.absent.filter((text) => !seen(text) && !observed(text, values))]
+          .filter(checkable)
+          .map((text) => ({ number: `${at + 1}.${k + 1}`, text })),
+      ),
     );
-    const unseen = texts.map(({ number, text }) => ({ code: "PLAN-SHOWN", message: `scenario ${scenario.id}, expect ${number}, names "${text}", which ${screens.watches(scenario.application) ? `no screen of ${scenario.application} showed in this session. Do the step with the browser tools and copy the text as the screen gives it.` : "nothing you read in this session showed. Copy the text as a tool of a source gives it."}` }));
+    const unseen = texts.map(({ number, text }) => ({
+      code: "PLAN-SHOWN",
+      message: `scenario ${scenario.id}, expect ${number}, names "${text}", which ${screens.watches(scenario.application) ? `no screen of ${scenario.application} showed in this session. Do the step with the browser tools and copy the text as the screen gives it.` : "nothing you read in this session showed. Copy the text as a tool of a source gives it."}`,
+    }));
     return [...unread, ...unshown, ...unseen];
   }
 
@@ -284,21 +333,31 @@ export class PlanProposal {
   private dataRefusal(value: string, source: string, tool: string): Refusal {
     const message = `no result of ${source} showed "${value}" in this session. Read it first with ${tool}, or correct the value. A value the test invents has from "${MADE_UP}".`;
     const last = this.rules.reads.last(source, LAST_TEXTS).map((text) => `- ${text.length > MAX_TOLD_TEXT ? `${text.slice(0, MAX_TOLD_TEXT)}…` : text}`);
-    return last.length === 0 ? { code: "PLAN-DATA", message } : { code: "PLAN-DATA", message, remedy: [`Read "${value}" with ${tool}, or take a value ${source} showed you last:`, ...last].join("\n") };
+    return last.length === 0
+      ? { code: "PLAN-DATA", message }
+      : { code: "PLAN-DATA", message, remedy: [`Read "${value}" with ${tool}, or take a value ${source} showed you last:`, ...last].join("\n") };
   }
 
   /** What the gates refuse in the expects of a functional scenario. */
   private expectErrors(scenario: PlannedScenario): Refusal[] {
-    const told = "Give in shows the exact text the screen displays after the action, or in absent the text it no longer displays, as you read it: a name, a number, a message.";
+    const told =
+      "Give in shows the exact text the screen displays after the action, or in absent the text it no longer displays, as you read it: a name, a number, a message.";
     const expects = scenario.steps.flatMap((step, at) => step.expects.map((expect, k) => ({ number: `${at + 1}.${k + 1}`, expect })));
     if (expects.length === 0) return [{ code: "PLAN-EXPECT", message: `no step of scenario ${scenario.id} has an expect. ${told}` }];
-    const empty = expects.filter(({ expect }) => expect.shows.length + expect.absent.length === 0).map(({ number }) => ({ code: "PLAN-EXPECT", message: `expect ${number} of scenario ${scenario.id} names no text. ${told}` }));
+    const empty = expects
+      .filter(({ expect }) => expect.shows.length + expect.absent.length === 0)
+      .map(({ number }) => ({ code: "PLAN-EXPECT", message: `expect ${number} of scenario ${scenario.id} names no text. ${told}` }));
     if (empty.length > 0 || !this.rules.screens.watches(scenario.application)) return empty;
     const shows = expects.flatMap(({ expect }) => expect.shows);
     const absent = expects.flatMap(({ expect }) => expect.absent);
     if (this.rules.screens.changedByAction(scenario.application, shows, absent)) return [];
     const tool = (action: string) => scopedToolName(scenario.application, action);
-    return [{ code: "PLAN-RESULT", message: `no text scenario ${scenario.id} expects appeared, or went, after an action of yours on ${scenario.application}. Do its steps with ${tool("fill")} and ${tool("click")}, read what the result says appeared and went, and expect that.` }];
+    return [
+      {
+        code: "PLAN-RESULT",
+        message: `no text scenario ${scenario.id} expects appeared, or went, after an action of yours on ${scenario.application}. Do its steps with ${tool("fill")} and ${tool("click")}, read what the result says appeared and went, and expect that.`,
+      },
+    ];
   }
 }
 

@@ -31,7 +31,18 @@ const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd,
 function configText(modelUrl: string, changes: Record<string, unknown> = {}): string {
   return JSON.stringify({
     formatVersion: 1,
-    applications: [{ id: "shop", name: "Shop", type: "api", authentication: { method: "none" }, environments: [{ name: "local", apis: [{ name: "backend", baseUrl: siteUrl }] }, { name: "staging", apis: [{ name: "backend", baseUrl: "http://127.0.0.1:1" }] }] }],
+    applications: [
+      {
+        id: "shop",
+        name: "Shop",
+        type: "api",
+        authentication: { method: "none" },
+        environments: [
+          { name: "local", apis: [{ name: "backend", baseUrl: siteUrl }] },
+          { name: "staging", apis: [{ name: "backend", baseUrl: "http://127.0.0.1:1" }] },
+        ],
+      },
+    ],
     knowledge: [
       { id: "order-specs", type: "document", path: "specs/orders.md", attachments: [{ application: "shop", environment: "local" }] },
       { id: "shop-db", type: "postgresql", connectionStringEnv: "SHOP_DB_URL", attachments: [{ application: "shop", environment: "staging" }] },
@@ -54,11 +65,17 @@ function repository(config: string | undefined): string {
   mkdirSync(join(root, "specs"));
   writeFileSync(join(root, "specs", "orders.md"), "# Orders\n\nA customer places an order.\n");
   writeFileSync(join(root, "package.json"), JSON.stringify({ name: "tests", private: true, devDependencies: { "@playwright/test": "1.64.1" } }));
-  writeFileSync(join(root, "package-lock.json"), JSON.stringify({ lockfileVersion: 3, packages: { "": {}, "node_modules/@playwright/test": { version: "1.64.1" } } }));
+  writeFileSync(
+    join(root, "package-lock.json"),
+    JSON.stringify({ lockfileVersion: 3, packages: { "": {}, "node_modules/@playwright/test": { version: "1.64.1" } } }),
+  );
   writeFileSync(join(root, ".gitignore"), ".oqas/\nnode_modules/\n");
   // The types of @playwright/test the proposed tests are checked against: npm, a double here, installs nothing.
   mkdirSync(join(root, "node_modules", "@playwright", "test"), { recursive: true });
-  writeFileSync(join(root, "node_modules", "@playwright", "test", "package.json"), JSON.stringify({ name: "@playwright/test", version: "1.64.1", types: "index.d.ts" }));
+  writeFileSync(
+    join(root, "node_modules", "@playwright", "test", "package.json"),
+    JSON.stringify({ name: "@playwright/test", version: "1.64.1", types: "index.d.ts" }),
+  );
   writeFileSync(
     join(root, "node_modules", "@playwright", "test", "index.d.ts"),
     "export interface APIResponse { ok(): boolean; text(): Promise<string>; }\nexport interface APIRequestContext { get(url: string): Promise<APIResponse>; }\nexport declare const test: ((title: string, body: (fixtures: { request: APIRequestContext }) => Promise<void>) => void) & { step<T>(title: string, body: () => Promise<T>): Promise<T> };\nexport declare function expect(value: unknown, message?: string): { toBe(expected: unknown): void; toContain(expected: string): void };\n",
@@ -72,11 +89,22 @@ function repository(config: string | undefined): string {
 }
 
 /** The JSON of the reporter for test files, each one test, with the status the script gives. */
-function report(files: readonly string[], status: (file: string) => "expected" | "unexpected" | "skipped" = () => "expected", error = "Error: the total is wrong"): string {
+function report(
+  files: readonly string[],
+  status: (file: string) => "expected" | "unexpected" | "skipped" = () => "expected",
+  error = "Error: the total is wrong",
+): string {
   const suites = files.map((file) => {
     const reported = status(file);
-    const results = reported === "skipped" ? [{ status: "skipped", errors: [] }] : [{ status: reported === "expected" ? "passed" : "failed", errors: reported === "expected" ? [] : [{ message: error }] }];
-    return { title: file, file, specs: [{ title: "the test", file, line: 3, tests: [{ projectName: "shop", status: reported, expectedStatus: "passed", results }] }] };
+    const results =
+      reported === "skipped"
+        ? [{ status: "skipped", errors: [] }]
+        : [{ status: reported === "expected" ? "passed" : "failed", errors: reported === "expected" ? [] : [{ message: error }] }];
+    return {
+      title: file,
+      file,
+      specs: [{ title: "the test", file, line: 3, tests: [{ projectName: "shop", status: reported, expectedStatus: "passed", results }] }],
+    };
   });
   return JSON.stringify({ suites });
 }
@@ -113,13 +141,22 @@ class FakeRunner implements CommandRunner {
     this.commands.push(step);
     const [program, ...args] = step.command;
     const ok = (stdout = ""): CommandOutcome => ({ exitCode: 0, stdout, stderr: "" });
-    if (program === "npm" && args[0] === "--version") return this.script.npm === undefined ? ok("11.0.0\n") : { exitCode: this.script.npm, stdout: "", stderr: "npm: not found" };
+    if (program === "npm" && args[0] === "--version")
+      return this.script.npm === undefined ? ok("11.0.0\n") : { exitCode: this.script.npm, stdout: "", stderr: "npm: not found" };
     if (program === "npm" && this.script.installCrash === true) throw new Error("spawn npm EACCES");
-    if (program === "npm") return this.script.install === undefined ? ok() : { exitCode: this.script.install, stdout: "", stderr: this.script.installError ?? "npm error 404 Not Found\n" };
+    if (program === "npm")
+      return this.script.install === undefined
+        ? ok()
+        : { exitCode: this.script.install, stdout: "", stderr: this.script.installError ?? "npm error 404 Not Found\n" };
     if (program === "node" && args[0] === "-p") return ok("1.64.1\n");
     if (program === "node" && args[0] === "-e") {
-      if (this.script.downAfterDesign === true && this.listedTogether) return ok(JSON.stringify(args.slice(3).map((url) => ({ url, answers: false, error: "ECONNREFUSED" }))));
-      return new Promise((resolve) => execFile(process.execPath, ["-e", args[1]!, ...args.slice(2)], { encoding: "utf8" }, (error, stdout, stderr) => resolve({ exitCode: error === null ? 0 : 1, stdout, stderr })));
+      if (this.script.downAfterDesign === true && this.listedTogether)
+        return ok(JSON.stringify(args.slice(3).map((url) => ({ url, answers: false, error: "ECONNREFUSED" }))));
+      return new Promise((resolve) =>
+        execFile(process.execPath, ["-e", args[1]!, ...args.slice(2)], { encoding: "utf8" }, (error, stdout, stderr) =>
+          resolve({ exitCode: error === null ? 0 : 1, stdout, stderr }),
+        ),
+      );
     }
     if (args[0] === "install") return ok();
     const files = args.filter((arg) => arg.endsWith(".spec.ts"));
@@ -143,12 +180,20 @@ class FakeRunner implements CommandRunner {
 }
 
 /** A run of the tests at the end: no trial, more than one file. */
-const isFinalRun = (command: StepCommand) => command.command[1] === "test" && !command.command.includes("--list") && !command.command.includes("--update-snapshots=missing");
+const isFinalRun = (command: StepCommand) =>
+  command.command[1] === "test" && !command.command.includes("--list") && !command.command.includes("--update-snapshots=missing");
 
 const submit = (name: string, args: unknown, id: string) => ({ id, name, arguments: args });
-const card = { domains: [{ id: "orders", label: "Orders", description: "Placing an order.", items: [{ name: "Orders", summary: "How an order is placed." }] }], unassigned: [] };
-const index = { domains: [{ id: "orders", label: "Orders", description: "Placing and following an order.", references: [{ source: "order-specs", items: ["Orders"] }] }], unassigned: [] };
-const spec = (title: string) => `import { test, expect } from "@playwright/test";\n\ntest("${title}", async ({ request }) => {\n  await test.step("1. Get the orders", async () => {\n    const response = await request.get("/orders");\n    expect(await response.text()).toContain("A customer places an order");\n  });\n});\n`;
+const card = {
+  domains: [{ id: "orders", label: "Orders", description: "Placing an order.", items: [{ name: "Orders", summary: "How an order is placed." }] }],
+  unassigned: [],
+};
+const index = {
+  domains: [{ id: "orders", label: "Orders", description: "Placing and following an order.", references: [{ source: "order-specs", items: ["Orders"] }] }],
+  unassigned: [],
+};
+const spec = (title: string) =>
+  `import { test, expect } from "@playwright/test";\n\ntest("${title}", async ({ request }) => {\n  await test.step("1. Get the orders", async () => {\n    const response = await request.get("/orders");\n    expect(await response.text()).toContain("A customer places an order");\n  });\n});\n`;
 const IDS = ["test-1", "test-2", "test-3"];
 const scenario = (id: string) => ({
   id,
@@ -173,7 +218,10 @@ const chain = () => [
   { body: answer(MODEL, "One domain.") },
   { body: toolCalls(MODEL, [submit("order_specs_read_section", { number: 1 }, "read")]) },
   { body: toolCalls(MODEL, [plan]) },
-  ...IDS.flatMap((id) => [{ body: toolCalls(MODEL, [submit("run_test", { content: spec(id) }, `r-${id}`)]) }, { body: toolCalls(MODEL, [submit("propose_test", {}, `p-${id}`)]) }]),
+  ...IDS.flatMap((id) => [
+    { body: toolCalls(MODEL, [submit("run_test", { content: spec(id) }, `r-${id}`)]) },
+    { body: toolCalls(MODEL, [submit("propose_test", {}, `p-${id}`)]) },
+  ]),
   ...Array.from({ length: 4 }, () => ({ body: answer(MODEL, "Done.") })),
 ];
 
@@ -186,7 +234,19 @@ interface Run {
   readonly runner: FakeRunner;
 }
 
-async function solo(replies: readonly { body: unknown }[], setup: { config?: (modelUrl: string) => string | undefined; environment?: string; root?: (config: string | undefined) => string; script?: Script; modelUrl?: string; command?: boolean; now?: () => Date; brief?: string } = {}): Promise<Run> {
+async function solo(
+  replies: readonly { body: unknown }[],
+  setup: {
+    config?: (modelUrl: string) => string | undefined;
+    environment?: string;
+    root?: (config: string | undefined) => string;
+    script?: Script;
+    modelUrl?: string;
+    command?: boolean;
+    now?: () => Date;
+    brief?: string;
+  } = {},
+): Promise<Run> {
   const server = await scriptedServer(replies);
   const modelUrl = setup.modelUrl ?? server.baseUrl;
   const config = setup.config === undefined ? configText(modelUrl) : setup.config(modelUrl);
@@ -195,18 +255,28 @@ async function solo(replies: readonly { body: unknown }[], setup: { config?: (mo
   let err = "";
   let out = "";
   try {
-    const code = setup.command === true
-      ? await soloCommand(["--repository", root, ...(setup.environment === undefined ? [] : ["--environment", setup.environment]), ...(setup.brief === undefined ? [] : ["--brief", setup.brief]), "--force-cartography"], { env: { SHOP_DB_URL: WITNESS }, cwd: workspace, stdout: { write: (text) => (out += text) }, stderr: { write: (text) => (err += text) }, runner })
-      : await new SoloRun({
-          repositoryRoot: root,
-          ...(setup.environment === undefined ? {} : { environment: setup.environment }),
-          env: { SHOP_DB_URL: WITNESS },
-          write: (line) => (err += line),
-          print: (line) => (out += line),
-          openRuntime: (resolved) => liveRuntime(resolved, {}),
-          runner,
-          now: setup.now ?? (() => new Date("2026-11-13T12:00:00.000Z")),
-        }).run();
+    const code =
+      setup.command === true
+        ? await soloCommand(
+            [
+              "--repository",
+              root,
+              ...(setup.environment === undefined ? [] : ["--environment", setup.environment]),
+              ...(setup.brief === undefined ? [] : ["--brief", setup.brief]),
+              "--force-cartography",
+            ],
+            { env: { SHOP_DB_URL: WITNESS }, cwd: workspace, stdout: { write: (text) => (out += text) }, stderr: { write: (text) => (err += text) }, runner },
+          )
+        : await new SoloRun({
+            repositoryRoot: root,
+            ...(setup.environment === undefined ? {} : { environment: setup.environment }),
+            env: { SHOP_DB_URL: WITNESS },
+            write: (line) => (err += line),
+            print: (line) => (out += line),
+            openRuntime: (resolved) => liveRuntime(resolved, {}),
+            runner,
+            now: setup.now ?? (() => new Date("2026-11-13T12:00:00.000Z")),
+          }).run();
     return { code, root, err, out, server, runner };
   } finally {
     await server.close();
@@ -278,8 +348,13 @@ describe("solo command, criterion 4 — the whole chain, every test passed, exit
   it("runs the six steps in order, each with its start and its end", async () => {
     const run = await solo(chain(), { environment: "local" });
     assert.equal(run.code, 0, run.err);
-    const framing = journalOf(run.root).filter((entry) => entry.event === "started" || entry.event === "finished").map((entry) => `${entry.step}:${entry.event}`);
-    assert.deepEqual(framing, ["configuration", "prerequisites", "cartography", "design", "execution", "summary"].flatMap((step) => [`${step}:started`, `${step}:finished`]));
+    const framing = journalOf(run.root)
+      .filter((entry) => entry.event === "started" || entry.event === "finished")
+      .map((entry) => `${entry.step}:${entry.event}`);
+    assert.deepEqual(
+      framing,
+      ["configuration", "prerequisites", "cartography", "design", "execution", "summary"].flatMap((step) => [`${step}:started`, `${step}:finished`]),
+    );
     assert.match(run.out, /^Run oqas-2026-11-13T12-00-00-000Z: exit code 0\./);
     // The default charter ends each step with a screenshot: the skeleton of each test holds it.
     assert.ok(JSON.stringify(run.server.requests.map((request) => request.body)).includes("await testInfo.attach("));
@@ -301,14 +376,25 @@ describe("solo command, criterion 6 — an application that does not answer when
     assert.equal(run.code, 2, run.err);
     const state = stateOf(run.root);
     assert.equal(state.designed.length, 3);
-    assert.deepEqual(state.tests.map((test) => test.verdict), ["blocked", "blocked", "blocked"]);
+    assert.deepEqual(
+      state.tests.map((test) => test.verdict),
+      ["blocked", "blocked", "blocked"],
+    );
   });
 });
 
 describe("solo command, criteria 7 and 8 — a limit that stops a task is journaled; without a test designed, the command stops with 5 and runs nothing", () => {
   it("names the limit reached, writes no passed, and runs no test", async () => {
     const replies = [...chain().slice(0, 5), ...Array.from({ length: 3 }, () => ({ body: answer(MODEL, "I see nothing to test.") }))];
-    const config = (url: string) => configText(url, { autonomy: { level: "custom", task: { maxIterations: 2, maxDurationMinutes: 10, maxActions: 200 }, batch: { maxTests: 20, maxIdleRounds: 2 }, guardrailMinutes: 60 } });
+    const config = (url: string) =>
+      configText(url, {
+        autonomy: {
+          level: "custom",
+          task: { maxIterations: 2, maxDurationMinutes: 10, maxActions: 200 },
+          batch: { maxTests: 20, maxIdleRounds: 2 },
+          guardrailMinutes: 60,
+        },
+      });
     const run = await solo(replies, { environment: "local", config });
     assert.equal(run.code, 5, run.err);
     assert.match(run.err, /reached its iterations limit/);
@@ -330,13 +416,27 @@ describe("solo command, criterion 9 — the state of a complete run", () => {
     assert.match(state.branch!, /^oqas\/design-/);
     assert.match(state.report!, /^\.oqas\/runs\/run-.*\/report\.json$/);
     assert.ok(existsSync(join(run.root, state.run!)));
-    assert.deepEqual(state.tests.map((test) => test.verdict), ["passed", "passed", "passed"]);
+    assert.deepEqual(
+      state.tests.map((test) => test.verdict),
+      ["passed", "passed", "passed"],
+    );
     // The state is written by the summary, which therefore is not among its steps.
-    assert.deepEqual(state.steps.map((step) => step.step), ["configuration", "prerequisites", "cartography", "design", "execution"]);
-    assert.ok(state.steps.find((step) => step.step === "cartography")!.modelRequests > 0 && state.steps.find((step) => step.step === "design")!.modelRequests > 0);
-    assert.ok(state.steps.every((step) => step.durationMs > 0), JSON.stringify(state.steps));
+    assert.deepEqual(
+      state.steps.map((step) => step.step),
+      ["configuration", "prerequisites", "cartography", "design", "execution"],
+    );
+    assert.ok(
+      state.steps.find((step) => step.step === "cartography")!.modelRequests > 0 && state.steps.find((step) => step.step === "design")!.modelRequests > 0,
+    );
+    assert.ok(
+      state.steps.every((step) => step.durationMs > 0),
+      JSON.stringify(state.steps),
+    );
     // Each step counts the requests of its own sessions: with the list of the models the prerequisites ask for, they are all the server received.
-    assert.deepEqual(state.steps.map((step) => step.modelRequests), [0, 0, 4, 9, 0]);
+    assert.deepEqual(
+      state.steps.map((step) => step.modelRequests),
+      [0, 0, 4, 9, 0],
+    );
     assert.equal(run.server.requests.length, 1 + 4 + 9);
     assert.ok(state.durationMs > state.steps.reduce((total, step) => total + step.durationMs, 0) - 1);
   });
@@ -354,7 +454,10 @@ describe("solo command, criteria 10 and 11 — nothing is pushed, the git config
       },
     });
     assert.equal(run.code, 0, run.err);
-    assert.deepEqual({ remote: git(git(run.root, "remote", "get-url", "origin"), "for-each-ref"), config: git(run.root, "config", "--list", "--local") }, before);
+    assert.deepEqual(
+      { remote: git(git(run.root, "remote", "get-url", "origin"), "for-each-ref"), config: git(run.root, "config", "--list", "--local") },
+      before,
+    );
   });
 
   it("finds an uncommitted change again, unchanged", async () => {
@@ -374,11 +477,20 @@ describe("solo command, criteria 10 and 11 — nothing is pushed, the git config
 describe("solo command, criterion 12 — the value of the connection string appears nowhere", () => {
   it("is in neither the journal, the state, nor the outputs", async () => {
     const run = await solo(chain(), { environment: "local" });
-    for (const trace of [run.err, run.out, readFileSync(join(run.root, ".oqas", "runs", "oqas-2026-11-13T12-00-00-000Z.jsonl"), "utf8"), JSON.stringify(stateOf(run.root))]) assert.ok(!trace.includes("w1tness-pass"));
+    for (const trace of [
+      run.err,
+      run.out,
+      readFileSync(join(run.root, ".oqas", "runs", "oqas-2026-11-13T12-00-00-000Z.jsonl"), "utf8"),
+      JSON.stringify(stateOf(run.root)),
+    ])
+      assert.ok(!trace.includes("w1tness-pass"));
   });
 
   it("is masked in the reason of a verdict", async () => {
-    const run = await solo(chain(), { environment: "local", script: { final: (file) => (file.endsWith("test-2.spec.ts") ? "unexpected" : "expected"), finalError: `Error: cannot reach ${WITNESS}` } });
+    const run = await solo(chain(), {
+      environment: "local",
+      script: { final: (file) => (file.endsWith("test-2.spec.ts") ? "unexpected" : "expected"), finalError: `Error: cannot reach ${WITNESS}` },
+    });
     assert.equal(run.code, 1, run.err);
     const failed = stateOf(run.root).tests.find((test) => test.verdict === "failed")!;
     assert.match(failed.reason, /cannot reach \[secret\]/);
@@ -389,7 +501,13 @@ describe("solo command, criterion 12 — the value of the connection string appe
     const run = await solo(chain(), { environment: "local", script: { install: 1, installError: `npm error cannot reach ${WITNESS}\n` } });
     assert.equal(run.code, 5, run.err);
     assert.match(run.err, /npm error cannot reach \[secret\]/);
-    for (const trace of [run.err, run.out, readFileSync(join(run.root, ".oqas", "runs", "oqas-2026-11-13T12-00-00-000Z.jsonl"), "utf8"), JSON.stringify(stateOf(run.root))]) assert.ok(!trace.includes("w1tness-pass"));
+    for (const trace of [
+      run.err,
+      run.out,
+      readFileSync(join(run.root, ".oqas", "runs", "oqas-2026-11-13T12-00-00-000Z.jsonl"), "utf8"),
+      JSON.stringify(stateOf(run.root)),
+    ])
+      assert.ok(!trace.includes("w1tness-pass"));
   });
 });
 
@@ -398,7 +516,9 @@ describe("solo command, criterion 13 — the harness reaches only what the confi
     // The guard of the suite refuses any address outside this machine; here, the destinations are the scripted model and the site.
     const run = await solo(chain(), { environment: "local" });
     assert.ok(run.server.requests.length > 0);
-    assert.ok(run.runner.commands.filter((command) => command.command[1] === "-e").every((command) => command.command.slice(4).every((url) => url === siteUrl)));
+    assert.ok(
+      run.runner.commands.filter((command) => command.command[1] === "-e").every((command) => command.command.slice(4).every((url) => url === siteUrl)),
+    );
   });
 });
 
@@ -410,10 +530,19 @@ describe("solo command, criterion 14 — the command imports only shared, harnes
       .flatMap((file) => [...readFileSync(new URL(String(file), folder), "utf8").matchAll(/(?:from\s+|import\s*\(?\s*)"([^"]+)"/g)].map((match) => match[1]!));
     const allowed = /^(node:|\.\/|@open-qa-stack\/(shared|harness|agents|tools|domain)$)/;
     assert.ok(imported.length > 0);
-    assert.deepEqual(imported.filter((module) => !allowed.test(module)), []);
+    assert.deepEqual(
+      imported.filter((module) => !allowed.test(module)),
+      [],
+    );
     assert.ok(!imported.some((module) => module.includes("copilot")));
     const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { dependencies: Record<string, string> };
-    assert.deepEqual(Object.keys(manifest.dependencies).sort(), ["@open-qa-stack/agents", "@open-qa-stack/domain", "@open-qa-stack/harness", "@open-qa-stack/shared", "@open-qa-stack/tools"]);
+    assert.deepEqual(Object.keys(manifest.dependencies).sort(), [
+      "@open-qa-stack/agents",
+      "@open-qa-stack/domain",
+      "@open-qa-stack/harness",
+      "@open-qa-stack/shared",
+      "@open-qa-stack/tools",
+    ]);
   });
 });
 
@@ -465,13 +594,27 @@ describe("the edges of a run", () => {
   it("takes the folder it runs in as the test repository, and the only environment declared", async () => {
     const server = await scriptedServer([]);
     const single = configText(server.baseUrl, {
-      applications: [{ id: "shop", name: "Shop", type: "api", authentication: { method: "none" }, environments: [{ name: "local", apis: [{ name: "backend", baseUrl: siteUrl }] }] }],
+      applications: [
+        {
+          id: "shop",
+          name: "Shop",
+          type: "api",
+          authentication: { method: "none" },
+          environments: [{ name: "local", apis: [{ name: "backend", baseUrl: siteUrl }] }],
+        },
+      ],
       knowledge: [{ id: "order-specs", type: "document", path: "specs/orders.md", attachments: [{ application: "shop" }] }],
     });
     const root = repository(single);
     let err = "";
     try {
-      const code = await soloCommand([], { env: { SHOP_DB_URL: WITNESS }, cwd: root, stdout: { write: () => true }, stderr: { write: (text) => (err += text) }, runner: new FakeRunner(root, { npm: 127 }) });
+      const code = await soloCommand([], {
+        env: { SHOP_DB_URL: WITNESS },
+        cwd: root,
+        stdout: { write: () => true },
+        stderr: { write: (text) => (err += text) },
+        runner: new FakeRunner(root, { npm: 127 }),
+      });
       assert.equal(code, 4);
       assert.match(err, /the run targets the environment local\./);
     } finally {
@@ -486,7 +629,14 @@ describe("the edges of a run", () => {
     const down = `http://127.0.0.1:${await closedPort()}/v1`;
     const root = repository(configText(down));
     let err = "";
-    const code = await new SoloRun({ repositoryRoot: root, environment: "local", env: { SHOP_DB_URL: WITNESS }, write: (line) => (err += line), print: () => undefined, openRuntime: (config) => liveRuntime(config, {}) }).run();
+    const code = await new SoloRun({
+      repositoryRoot: root,
+      environment: "local",
+      env: { SHOP_DB_URL: WITNESS },
+      write: (line) => (err += line),
+      print: () => undefined,
+      openRuntime: (config) => liveRuntime(config, {}),
+    }).run();
     assert.equal(code, 4);
     assert.ok(!err.includes("npm cannot be run"), err);
   });
@@ -520,7 +670,16 @@ describe("the edges of a run", () => {
     const root = repository(configText(server.baseUrl));
     let err = "";
     try {
-      const code = await new SoloRun({ repositoryRoot: root, environment: "local", env: { SHOP_DB_URL: WITNESS }, write: (line) => (err += line), print: () => undefined, openRuntime: () => Promise.reject("no runtime"), runner: new FakeRunner(root), now: () => new Date("2026-11-13T12:00:00.000Z") }).run();
+      const code = await new SoloRun({
+        repositoryRoot: root,
+        environment: "local",
+        env: { SHOP_DB_URL: WITNESS },
+        write: (line) => (err += line),
+        print: () => undefined,
+        openRuntime: () => Promise.reject("no runtime"),
+        runner: new FakeRunner(root),
+        now: () => new Date("2026-11-13T12:00:00.000Z"),
+      }).run();
       assert.equal(code, 5);
       assert.match(err, /\[cartography\] error: The cartography stopped on an unexpected error: no runtime/);
       assert.equal(stateOf(root).exitCode, 5);
@@ -562,7 +721,16 @@ describe("the edges of a run", () => {
     mkdirSync(join(root, ".oqas", "runs", "oqas-2026-11-13T12-00-00-000Z.json"), { recursive: true });
     let err = "";
     try {
-      const run = new SoloRun({ repositoryRoot: root, environment: "local", env: { SHOP_DB_URL: WITNESS }, write: (line) => (err += line), print: () => undefined, openRuntime: () => Promise.reject(new Error("no runtime")), runner: new FakeRunner(root), now: () => new Date("2026-11-13T12:00:00.000Z") });
+      const run = new SoloRun({
+        repositoryRoot: root,
+        environment: "local",
+        env: { SHOP_DB_URL: WITNESS },
+        write: (line) => (err += line),
+        print: () => undefined,
+        openRuntime: () => Promise.reject(new Error("no runtime")),
+        runner: new FakeRunner(root),
+        now: () => new Date("2026-11-13T12:00:00.000Z"),
+      });
       await assert.rejects(run.run(), /EISDIR/);
       assert.match(err, /\[summary\] error: The summary stopped on an unexpected error: EISDIR/);
       assert.match(journalOf(root).at(-1)!.message, /The summary did not succeed\./);
@@ -577,7 +745,20 @@ describe("the edges of a run", () => {
     let err = "";
     try {
       // The lines of the summary are refused: the summary cannot even tell why it stopped.
-      const code = await soloCommand(["--environment", "local"], { env: { SHOP_DB_URL: WITNESS }, cwd: root, stdout: { write: () => true }, stderr: { write: (text) => { if (text.startsWith("[summary]")) throw new Error("the output is closed"); err += text; return true; } }, runner: new FakeRunner(root), connect: () => Promise.reject(new Error("no runtime")) });
+      const code = await soloCommand(["--environment", "local"], {
+        env: { SHOP_DB_URL: WITNESS },
+        cwd: root,
+        stdout: { write: () => true },
+        stderr: {
+          write: (text) => {
+            if (text.startsWith("[summary]")) throw new Error("the output is closed");
+            err += text;
+            return true;
+          },
+        },
+        runner: new FakeRunner(root),
+        connect: () => Promise.reject(new Error("no runtime")),
+      });
       assert.equal(code, 5);
       assert.match(err, /oqas stopped on an unexpected error: the output is closed/);
     } finally {

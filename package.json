@@ -13,11 +13,13 @@
     "lint": "oxlint --deny-warnings",
     "test": "pnpm -r test && pnpm -s test:lint-rules",
     "test:lint-rules": "node --test --experimental-test-coverage --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 --test-coverage-include='lint/*.ts' 'lint/test/**/*.test.ts'",
-    "check": "pnpm typecheck && pnpm lint && pnpm build && pnpm test"
+    "format": "prettier --write .",
+    "check": "pnpm typecheck && pnpm lint && prettier --check . && pnpm build && pnpm test"
   },
   "devDependencies": {
     "@types/node": "22.20.5",
     "oxlint": "1.93.0",
+    "prettier": "3.10.1",
     "typescript": "7.0.2"
   }
 }

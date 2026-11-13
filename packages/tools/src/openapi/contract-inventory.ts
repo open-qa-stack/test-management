@@ -19,5 +19,9 @@ export async function contractInventory(contract: OpenApiContract): Promise<Sour
       operations.set(item, [...(operations.get(item) ?? []), `${operation.method} ${operation.path}`]);
     }
   }
-  return { items: [...operations.keys()], facts: new Map([...operations].map(([item, list]) => [item, { operations: list }])), fingerprint: await contract.fingerprint() };
+  return {
+    items: [...operations.keys()],
+    facts: new Map([...operations].map(([item, list]) => [item, { operations: list }])),
+    fingerprint: await contract.fingerprint(),
+  };
 }

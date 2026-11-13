@@ -48,7 +48,12 @@ export async function codeInventory(folder: CodeFolder, maxItems = MAX_CODE_ITEM
   }
   while (folders.size > maxItems) mergeDeepest(folders);
   const items = [...folders.keys()].sort();
-  return { items, facts: new Map(items.map((item) => [item, folders.get(item)!])), fingerprint: fingerprintOf(JSON.stringify(digests)), ...(truncated ? { truncated } : {}) };
+  return {
+    items,
+    facts: new Map(items.map((item) => [item, folders.get(item)!])),
+    fingerprint: fingerprintOf(JSON.stringify(digests)),
+    ...(truncated ? { truncated } : {}),
+  };
 }
 
 /** Merges the deepest folder, the last in alphabetical order among those as deep, into its parent. */

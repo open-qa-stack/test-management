@@ -44,7 +44,15 @@ after(async () => {
 function configFor(uiUrl: string, apiUrl = `${uiUrl}/api`): ResolvedConfig {
   const text = JSON.stringify({
     formatVersion: 1,
-    applications: [{ id: "shop", name: "Shop", type: "web-and-api", authentication: { method: "none" }, environments: [{ name: "local", uiUrl, apis: [{ name: "backend", baseUrl: apiUrl }] }] }],
+    applications: [
+      {
+        id: "shop",
+        name: "Shop",
+        type: "web-and-api",
+        authentication: { method: "none" },
+        environments: [{ name: "local", uiUrl, apis: [{ name: "backend", baseUrl: apiUrl }] }],
+      },
+    ],
     knowledge: [],
     model: { mode: "provider-key", provider: "openai", baseUrl: "http://127.0.0.1:1/v1", model: "m" },
     autonomy: { level: "autonomous" },
@@ -100,17 +108,26 @@ class FakeRunner implements CommandRunner {
     this.commands.push(command);
     const [program, ...args] = command.command;
     const ok = (stdout = ""): CommandOutcome => ({ exitCode: 0, stdout, stderr: "" });
-    if (program === "npm") return this.script.installExit === undefined ? ok() : { exitCode: this.script.installExit, stdout: "", stderr: "npm error network unreachable\n" };
+    if (program === "npm")
+      return this.script.installExit === undefined ? ok() : { exitCode: this.script.installExit, stdout: "", stderr: "npm error network unreachable\n" };
     if (program === "node" && args[0] === "-p") return ok(`${this.script.resolved ?? "1.64.1"}\n`);
     if (program === "node" && args[0] === "-e" && this.ranTests && this.script.downAfterRun !== undefined) {
       return ok(JSON.stringify(args.slice(2).map((url) => ({ url, answers: url !== this.script.downAfterRun }))));
     }
     if (program === "node" && args[0] === "-e") {
       // Asynchronous, so that the site of the test, in this process, can answer meanwhile.
-      return new Promise((resolve) => execFile(process.execPath, ["-e", args[1]!, ...args.slice(2)], { encoding: "utf8" }, (error, stdout, stderr) => resolve({ exitCode: error === null ? 0 : 1, stdout, stderr })));
+      return new Promise((resolve) =>
+        execFile(process.execPath, ["-e", args[1]!, ...args.slice(2)], { encoding: "utf8" }, (error, stdout, stderr) =>
+          resolve({ exitCode: error === null ? 0 : 1, stdout, stderr }),
+        ),
+      );
     }
-    if (args[0] === "install") return this.script.browsersExit === undefined ? ok() : { exitCode: this.script.browsersExit, stdout: "", stderr: "Failed to download chromium\n" };
-    if (args.includes("--list")) return this.script.listExit === undefined ? ok(this.script.list ?? fixture("list.json")) : { exitCode: this.script.listExit, stdout: "", stderr: "Error: no tests found\n" };
+    if (args[0] === "install")
+      return this.script.browsersExit === undefined ? ok() : { exitCode: this.script.browsersExit, stdout: "", stderr: "Failed to download chromium\n" };
+    if (args.includes("--list"))
+      return this.script.listExit === undefined
+        ? ok(this.script.list ?? fixture("list.json"))
+        : { exitCode: this.script.listExit, stdout: "", stderr: "Error: no tests found\n" };
     const report = this.script.report ?? { fixture: "run.json" };
     if (report !== "none") {
       const target = command.env!["PLAYWRIGHT_JSON_OUTPUT_FILE"]!;
@@ -130,11 +147,20 @@ const FILES = ["apps/shop/a.spec.ts", "apps/shop/b.spec.ts"];
 const NOW = () => new Date("2026-11-13T12:00:00.000Z");
 
 async function runIn(root: string, runner: FakeRunner, uiUrl = siteUrl, apiUrl?: string): Promise<RunOutcome> {
-  return new PinnedRun({ config: configFor(uiUrl, apiUrl), environment: "local", repositoryRoot: root, tests: FILES, runner, now: NOW, reachTimeoutMs: 2000 }).run();
+  return new PinnedRun({
+    config: configFor(uiUrl, apiUrl),
+    environment: "local",
+    repositoryRoot: root,
+    tests: FILES,
+    runner,
+    now: NOW,
+    reachTimeoutMs: 2000,
+  }).run();
 }
 const verdicts = (outcome: RunOutcome) => outcome.result.tests.map((test) => test.verdict);
 /** How many tests got each verdict. */
-const tally = (outcome: RunOutcome) => outcome.result.tests.reduce<Record<string, number>>((counts, test) => ({ ...counts, [test.verdict]: (counts[test.verdict] ?? 0) + 1 }), {});
+const tally = (outcome: RunOutcome) =>
+  outcome.result.tests.reduce<Record<string, number>>((counts, test) => ({ ...counts, [test.verdict]: (counts[test.verdict] ?? 0) + 1 }), {});
 
 describe("criterion 1 — the tests run at the version the lockfile installs, on the machine", () => {
   it("installs the dependencies, then the browsers of the locked version, and gives each project its address", async () => {
@@ -142,11 +168,14 @@ describe("criterion 1 — the tests run at the version the lockfile installs, on
       const root = repository(version);
       const runner = new FakeRunner(root, { resolved: version });
       const outcome = await runIn(root, runner);
-      assert.deepEqual(runner.commands.slice(0, 3).map((command) => command.command), [
-        ["npm", "ci", "--no-audit", "--no-fund", "--no-update-notifier"],
-        ["node_modules/.bin/playwright", "install", "chromium"],
-        ["node", "-p", "require('@playwright/test/package.json').version"],
-      ]);
+      assert.deepEqual(
+        runner.commands.slice(0, 3).map((command) => command.command),
+        [
+          ["npm", "ci", "--no-audit", "--no-fund", "--no-update-notifier"],
+          ["node_modules/.bin/playwright", "install", "chromium"],
+          ["node", "-p", "require('@playwright/test/package.json').version"],
+        ],
+      );
       assert.equal(outcome.result.playwright, version);
       assert.deepEqual([runner.commands[0]!.env![baseUrlVariable("shop")], runner.commands[0]!.env!["OQAS_ENVIRONMENT"]], [siteUrl, "local"]);
     }
@@ -164,7 +193,15 @@ describe("criterion 1 — the tests run at the version the lockfile installs, on
   it("gives an application without an interface its first API as base address", async () => {
     const text = JSON.stringify({
       formatVersion: 1,
-      applications: [{ id: "billing", name: "Billing", type: "api", authentication: { method: "none" }, environments: [{ name: "local", apis: [{ name: "backend", baseUrl: `${siteUrl}/billing` }] }] }],
+      applications: [
+        {
+          id: "billing",
+          name: "Billing",
+          type: "api",
+          authentication: { method: "none" },
+          environments: [{ name: "local", apis: [{ name: "backend", baseUrl: `${siteUrl}/billing` }] }],
+        },
+      ],
       knowledge: [],
       model: { mode: "provider-key", provider: "openai", baseUrl: "http://127.0.0.1:1/v1", model: "m" },
       autonomy: { level: "autonomous" },
@@ -184,7 +221,10 @@ describe("criterion 2 — without a readable lockfile, or with another version i
     const engine = new FakeRunner(root);
     const outcome = await runIn(root, engine);
     assert.equal(engine.commands.length, 0);
-    assert.deepEqual(outcome.result.tests.map((test) => [test.id, test.verdict]), FILES.map((file) => [file, "not_run"]));
+    assert.deepEqual(
+      outcome.result.tests.map((test) => [test.id, test.verdict]),
+      FILES.map((file) => [file, "not_run"]),
+    );
     assert.match(outcome.result.tests[0]!.reason, /package-lock\.json/);
   });
 
@@ -209,7 +249,10 @@ describe("criterion 2 — without a readable lockfile, or with another version i
     assert.equal(failedBrowsers.result.tests[0]!.reason, "The browsers of Playwright 1.64.1 could not be installed: Failed to download chromium");
     const list = repository();
     const failedList = await runIn(list, new FakeRunner(list, { listExit: 1 }));
-    assert.deepEqual([verdicts(failedList), failedList.result.tests[0]!.reason], [["not_run", "not_run"], "The runner could not list the tests: Error: no tests found"]);
+    assert.deepEqual(
+      [verdicts(failedList), failedList.result.tests[0]!.reason],
+      [["not_run", "not_run"], "The runner could not list the tests: Error: no tests found"],
+    );
     const garbled = repository();
     assert.deepEqual(verdicts(await runIn(garbled, new FakeRunner(garbled, { list: "not json" }))), ["not_run", "not_run"]);
   });
@@ -222,18 +265,38 @@ describe("criterion 3 — an address that does not answer the check blocks every
     const outcome = await runIn(root, engine, siteUrl, down);
     assert.equal(engine.ranTests, false);
     const listed = listedTests(fixture("list.json"))!;
-    assert.deepEqual(outcome.result.tests.map((test) => test.id), listed.map((test) => test.id));
+    assert.deepEqual(
+      outcome.result.tests.map((test) => test.id),
+      listed.map((test) => test.id),
+    );
     assert.ok(outcome.result.tests.every((test) => test.verdict === "blocked" && test.reason === `${down} does not answer: no test was run.`));
-    assert.deepEqual(outcome.result.addresses.map((address) => [address.url, address.answers]), [[siteUrl, true], [down, false]]);
+    assert.deepEqual(
+      outcome.result.addresses.map((address) => [address.url, address.answers]),
+      [
+        [siteUrl, true],
+        [down, false],
+      ],
+    );
   });
 
   it("counts an address that does not answer in time as not answering", async () => {
     const root = repository();
     const runner = new FakeRunner(root);
-    const outcome = await new PinnedRun({ config: configFor(siteUrl, hung), environment: "local", repositoryRoot: root, tests: FILES, runner, now: NOW, reachTimeoutMs: 300 }).run();
+    const outcome = await new PinnedRun({
+      config: configFor(siteUrl, hung),
+      environment: "local",
+      repositoryRoot: root,
+      tests: FILES,
+      runner,
+      now: NOW,
+      reachTimeoutMs: 300,
+    }).run();
     assert.equal(runner.ranTests, false);
     assert.ok(outcome.result.tests.every((test) => test.verdict === "blocked"));
-    assert.deepEqual(outcome.result.addresses.find((address) => address.url === hung), { url: hung, answers: false, error: "TimeoutError" });
+    assert.deepEqual(
+      outcome.result.addresses.find((address) => address.url === hung),
+      { url: hung, answers: false, error: "TimeoutError" },
+    );
   });
 
   it("names every address that does not answer", async () => {
@@ -266,8 +329,18 @@ describe("criterion 5 — the verdicts of a recorded report of the real runner",
     const report = fixture("run.json").replaceAll(/Test timeout of 30000ms exceeded\./g, `page.goto: net::ERR_CONNECTION_REFUSED at ${siteUrl}/api/policies`);
     const unchecked = repository();
     const engine = new FakeRunner(unchecked, { report: { text: report } });
-    const cannotCheck: CommandRunner = { run: (command) => (command.command[1] === "-e" && engine.ranTests ? Promise.resolve({ exitCode: 1, stdout: "", stderr: "node: out of memory" }) : engine.run(command)) };
-    const notConfirmed = await new PinnedRun({ config: configFor(siteUrl, `${siteUrl}/api`), environment: "local", repositoryRoot: unchecked, tests: FILES, runner: cannotCheck, now: NOW }).run();
+    const cannotCheck: CommandRunner = {
+      run: (command) =>
+        command.command[1] === "-e" && engine.ranTests ? Promise.resolve({ exitCode: 1, stdout: "", stderr: "node: out of memory" }) : engine.run(command),
+    };
+    const notConfirmed = await new PinnedRun({
+      config: configFor(siteUrl, `${siteUrl}/api`),
+      environment: "local",
+      repositoryRoot: unchecked,
+      tests: FILES,
+      runner: cannotCheck,
+      now: NOW,
+    }).run();
     assert.deepEqual(Object.keys(tally(notConfirmed)).sort(), ["failed", "indeterminate"]);
     const blockedRoot = repository();
     const blocked = await runIn(blockedRoot, new FakeRunner(blockedRoot, { report: { text: report }, downAfterRun: siteUrl }), siteUrl, api);
@@ -284,7 +357,15 @@ describe("criterion 5 — each line of the mapping, from a report of the real ru
     const root = repository();
     const outcome = await runIn(root, new FakeRunner(root, { list: fixture("statuses.json"), report: { fixture: "statuses.json" } }));
     const byTitle = Object.fromEntries(outcome.result.tests.map((test) => [test.id.split(" › ").at(-1), test.verdict]));
-    assert.deepEqual(byTitle, { passes: "passed", fails: "failed", "is skipped": "skipped", "is flaky": "indeterminate", "is expected to fail": "indeterminate", "times out": "failed", "passes inside": "passed" });
+    assert.deepEqual(byTitle, {
+      passes: "passed",
+      fails: "failed",
+      "is skipped": "skipped",
+      "is flaky": "indeterminate",
+      "is expected to fail": "indeterminate",
+      "times out": "failed",
+      "passes inside": "passed",
+    });
     assert.ok(outcome.result.tests.some((test) => test.id.includes(" › a group › passes inside")));
   });
 });
@@ -337,18 +418,31 @@ describe("criterion 12 — the base of the test repository", () => {
     assert.deepEqual(manifest.devDependencies, { "@playwright/test": "1.64.1" });
     const source = files.find((file) => file.path === "playwright.config.ts")!.content;
     const imports = [...source.matchAll(/from\s+"([^"]+)"/g)].map((match) => match[1]);
-    assert.deepEqual(imports.filter((module) => module !== "@playwright/test" && !module!.startsWith("node:")), []);
+    assert.deepEqual(
+      imports.filter((module) => module !== "@playwright/test" && !module!.startsWith("node:")),
+      [],
+    );
     const root = mkdtempSync(join(workspace, "base-"));
     mkdirSync(join(root, "node_modules", "@playwright", "test"), { recursive: true });
-    writeFileSync(join(root, "node_modules", "@playwright", "test", "package.json"), JSON.stringify({ name: "@playwright/test", type: "module", exports: "./index.js" }));
+    writeFileSync(
+      join(root, "node_modules", "@playwright", "test", "package.json"),
+      JSON.stringify({ name: "@playwright/test", type: "module", exports: "./index.js" }),
+    );
     writeFileSync(join(root, "node_modules", "@playwright", "test", "index.js"), "export const defineConfig = (config) => config;\n");
     for (const file of files) writeFileSync(join(root, file.path), file.content);
-    const config = { applications: ["shop", "back-office"].map((id) => ({ id, environments: [{ name: "local", uiUrl: `http://${id}.test` }] })), repository: { appsDir: "tests" } };
+    const config = {
+      applications: ["shop", "back-office"].map((id) => ({ id, environments: [{ name: "local", uiUrl: `http://${id}.test` }] })),
+      repository: { appsDir: "tests" },
+    };
     writeFileSync(join(root, "oqas.json"), JSON.stringify(config));
     process.env["OQAS_ENVIRONMENT"] = "local";
     process.env[baseUrlVariable("back-office")] = "http://seen-from-the-container:3020";
     try {
-      const loaded = ((await import(join(root, "playwright.config.ts"))) as { default: { outputDir: string; projects: { name: string; testDir: string; use: { baseURL?: string } }[] } }).default;
+      const loaded = (
+        (await import(join(root, "playwright.config.ts"))) as {
+          default: { outputDir: string; projects: { name: string; testDir: string; use: { baseURL?: string } }[] };
+        }
+      ).default;
       assert.equal(loaded.outputDir, join(".oqas", "test-results"));
       assert.deepEqual(loaded.projects, [
         { name: "shop", testDir: "tests/shop", use: { baseURL: "http://shop.test" } },
@@ -372,16 +466,28 @@ describe("a check of the addresses that cannot run", () => {
   it("runs no test, and gives each file not_run with the reason, rather than blocked", async () => {
     const root = repository();
     const engine = new FakeRunner(root);
-    const broken: CommandRunner = { run: (command) => (command.command[1] === "-e" ? Promise.resolve({ exitCode: 127, stdout: "", stderr: "" }) : engine.run(command)) };
+    const broken: CommandRunner = {
+      run: (command) => (command.command[1] === "-e" ? Promise.resolve({ exitCode: 127, stdout: "", stderr: "" }) : engine.run(command)),
+    };
     const outcome = await new PinnedRun({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, tests: FILES, runner: broken }).run();
     assert.equal(engine.ranTests, false);
-    assert.deepEqual(outcome.result.tests.map((test) => [test.verdict, test.reason]), FILES.map(() => ["not_run", "The addresses could not be checked: exit code 127."]));
+    assert.deepEqual(
+      outcome.result.tests.map((test) => [test.verdict, test.reason]),
+      FILES.map(() => ["not_run", "The addresses could not be checked: exit code 127."]),
+    );
   });
 
   it("calls nothing for an environment without addresses", async () => {
     const root = repository();
     const engine = new FakeRunner(root);
-    const outcome = await new PinnedRun({ config: configFor(siteUrl), environment: "staging", repositoryRoot: root, tests: FILES, runner: engine, now: NOW }).run();
+    const outcome = await new PinnedRun({
+      config: configFor(siteUrl),
+      environment: "staging",
+      repositoryRoot: root,
+      tests: FILES,
+      runner: engine,
+      now: NOW,
+    }).run();
     assert.deepEqual(outcome.result.addresses, []);
     assert.equal(engine.ranTests, true);
   });
@@ -389,8 +495,44 @@ describe("a check of the addresses that cannot run", () => {
 
 describe("the reported tests", () => {
   it("read errors without a message as none, a suite without a title, and a test without errors", () => {
-    const report = { suites: [{ title: "a.spec.ts", file: "a.spec.ts", suites: [{ specs: [{ title: "t", file: "a.spec.ts", line: 3, tests: [{ projectName: "p", status: "unexpected", expectedStatus: "passed", results: [{ status: "failed", errors: [{}, { message: "m" }] }, { status: "failed" }] }] }] }] }] };
-    assert.deepEqual(reportedTests(JSON.stringify(report)), [{ id: "p › a.spec.ts:3 ›  › t", status: "unexpected", expectedStatus: "passed", attempts: [{ status: "failed", errors: ["m"] }, { status: "failed", errors: [] }] }]);
+    const report = {
+      suites: [
+        {
+          title: "a.spec.ts",
+          file: "a.spec.ts",
+          suites: [
+            {
+              specs: [
+                {
+                  title: "t",
+                  file: "a.spec.ts",
+                  line: 3,
+                  tests: [
+                    {
+                      projectName: "p",
+                      status: "unexpected",
+                      expectedStatus: "passed",
+                      results: [{ status: "failed", errors: [{}, { message: "m" }] }, { status: "failed" }],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    assert.deepEqual(reportedTests(JSON.stringify(report)), [
+      {
+        id: "p › a.spec.ts:3 ›  › t",
+        status: "unexpected",
+        expectedStatus: "passed",
+        attempts: [
+          { status: "failed", errors: ["m"] },
+          { status: "failed", errors: [] },
+        ],
+      },
+    ]);
   });
 });
 
@@ -398,7 +540,11 @@ describe("the local runner", () => {
   it("runs a command in the test repository, with the variables of the step, and returns its exit code", async () => {
     const root = mkdtempSync(join(workspace, "local-"));
     const runner = new LocalRunner(root);
-    const outcome = await runner.run({ command: [process.execPath, "-e", "console.log(process.cwd(), process.env.STEP); process.exit(3)"], env: { STEP: "one" }, timeoutMs: 10_000 });
+    const outcome = await runner.run({
+      command: [process.execPath, "-e", "console.log(process.cwd(), process.env.STEP); process.exit(3)"],
+      env: { STEP: "one" },
+      timeoutMs: 10_000,
+    });
     assert.deepEqual([outcome.exitCode, outcome.stdout.trim()], [3, `${realpathSync(root)} one`]);
     const plain = await runner.run({ command: [process.execPath, "-e", "process.stderr.write('x')"], timeoutMs: 10_000 });
     assert.deepEqual([plain.exitCode, plain.stderr], [0, "x"]);
@@ -416,20 +562,26 @@ describe("the run on the machine", () => {
     // A lockfile without package.json: npm refuses at once, without calling the registry.
     const root = repository();
     const outcome = await new PinnedRun({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, tests: FILES, now: NOW }).run();
-    assert.deepEqual(outcome.result.tests.map((test) => test.verdict), ["not_run", "not_run"]);
+    assert.deepEqual(
+      outcome.result.tests.map((test) => test.verdict),
+      ["not_run", "not_run"],
+    );
     assert.match(outcome.result.tests[0]!.reason, /^The dependencies could not be installed: npm/);
   });
 });
 
 describe("the trial of a test file", () => {
   const TRIED = { path: "apps/shop/steps.spec.ts", content: "// the test\n" };
-  const trialRunner = (root: string, runner: CommandRunner) => new TrialRunner({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, runner, now: NOW, reachTimeoutMs: 2000 });
+  const trialRunner = (root: string, runner: CommandRunner) =>
+    new TrialRunner({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, runner, now: NOW, reachTimeoutMs: 2000 });
 
   it("writes the file for its run only, runs it alone, and gives the whole error, the failed step and the trace", async () => {
     const root = repository();
     const fake = new FakeRunner(root, { list: fixture("steps.json"), report: { fixture: "steps.json" } });
     let present = false;
-    const runner: CommandRunner = { run: (command) => ((present ||= command.command.includes("--reporter=json") && existsSync(join(root, TRIED.path))), fake.run(command)) };
+    const runner: CommandRunner = {
+      run: (command) => ((present ||= command.command.includes("--reporter=json") && existsSync(join(root, TRIED.path))), fake.run(command)),
+    };
     const trial = await trialRunner(root, runner).run(TRIED);
     assert.equal(present, true);
     assert.equal(existsSync(join(root, TRIED.path)), false);
@@ -444,7 +596,10 @@ describe("the trial of a test file", () => {
 
   it("prepares once for every trial, and gives a trace relative to the test repository", async () => {
     const root = repository();
-    const fake = new FakeRunner(root, { list: fixture("steps.json"), report: { text: fixture("steps.json").replaceAll("/repo/out/", `${root}/.oqas/test-results/`) } });
+    const fake = new FakeRunner(root, {
+      list: fixture("steps.json"),
+      report: { text: fixture("steps.json").replaceAll("/repo/out/", `${root}/.oqas/test-results/`) },
+    });
     const runner = trialRunner(root, fake);
     const first = await runner.run(TRIED);
     await runner.run(TRIED);
@@ -455,33 +610,50 @@ describe("the trial of a test file", () => {
   it("gives a passed test as it is, and says why a file cannot run", async () => {
     const root = repository();
     const passed = await trialRunner(root, new FakeRunner(root, { list: fixture("statuses.json"), report: { fixture: "statuses.json" } })).run(TRIED);
-    assert.deepEqual(passed.tests.find((test) => test.id.endsWith(" › passes")), { id: passed.tests.find((test) => test.id.endsWith(" › passes"))!.id, verdict: "passed", reason: "Every attempt passed." });
+    assert.deepEqual(
+      passed.tests.find((test) => test.id.endsWith(" › passes")),
+      { id: passed.tests.find((test) => test.id.endsWith(" › passes"))!.id, verdict: "passed", reason: "Every attempt passed." },
+    );
     const noLock = repository(null);
     assert.match((await trialRunner(noLock, new FakeRunner(noLock)).run(TRIED)).error!, /package-lock\.json/);
     const taken = repository();
     mkdirSync(join(taken, "apps", "shop"), { recursive: true });
     writeFileSync(join(taken, TRIED.path), "// kept\n");
     const refused = await trialRunner(taken, new FakeRunner(taken)).run(TRIED);
-    assert.deepEqual([refused.tests, refused.error, readFileSync(join(taken, TRIED.path), "utf8")], [[], "apps/shop/steps.spec.ts already exists in the test repository; give the test another file name.", "// kept\n"]);
+    assert.deepEqual(
+      [refused.tests, refused.error, readFileSync(join(taken, TRIED.path), "utf8")],
+      [[], "apps/shop/steps.spec.ts already exists in the test repository; give the test another file name.", "// kept\n"],
+    );
     const listFails = repository();
     const unlisted = await trialRunner(listFails, new FakeRunner(listFails, { listExit: 1 })).run(TRIED);
-    assert.deepEqual(unlisted.tests.map((test) => [test.id, test.verdict]), [[TRIED.path, "not_run"]]);
+    assert.deepEqual(
+      unlisted.tests.map((test) => [test.id, test.verdict]),
+      [[TRIED.path, "not_run"]],
+    );
   });
 });
 
 describe("the trial of a test without an error message", () => {
   it("keeps the reason of the harness, and dates the trial with the system clock", async () => {
     const root = repository();
-    const report = JSON.parse(fixture("steps.json")) as { suites: { specs: { tests: { results: { errors: unknown[]; steps: unknown[]; attachments: unknown[] }[] }[] }[] }[] };
+    const report = JSON.parse(fixture("steps.json")) as {
+      suites: { specs: { tests: { results: { errors: unknown[]; steps: unknown[]; attachments: unknown[] }[] }[] }[] }[];
+    };
     const result = report.suites[0]!.specs[0]!.tests[0]!.results[0]!;
     result.errors = [];
     result.steps = [];
     result.attachments = [];
     const fake = new FakeRunner(root, { list: fixture("steps.json"), report: { text: JSON.stringify(report) } });
     const before = Date.now();
-    const trial = await new TrialRunner({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, runner: fake }).run({ path: "apps/shop/steps.spec.ts", content: "// t\n" });
+    const trial = await new TrialRunner({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, runner: fake }).run({
+      path: "apps/shop/steps.spec.ts",
+      content: "// t\n",
+    });
     assert.ok(Date.parse(trial.startedAt) >= before - 1000);
-    assert.deepEqual([trial.tests[0]!.verdict, trial.tests[0]!.reason, "failedStep" in trial.tests[0]!, "trace" in trial.tests[0]!], ["failed", "Failed, without an error message.", false, false]);
+    assert.deepEqual(
+      [trial.tests[0]!.verdict, trial.tests[0]!.reason, "failedStep" in trial.tests[0]!, "trace" in trial.tests[0]!],
+      ["failed", "Failed, without an error message.", false, false],
+    );
   });
 });
 
@@ -505,7 +677,9 @@ describe("the trials, one at a time", () => {
       },
     };
     const trials = new TrialRunner({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, runner: counted, now: NOW });
-    const [first, ...rest] = await Promise.allSettled(["a", "b", "c"].map((name) => trials.run({ path: `apps/shop/${name}.spec.ts`, content: `// ${name}\n` })));
+    const [first, ...rest] = await Promise.allSettled(
+      ["a", "b", "c"].map((name) => trials.run({ path: `apps/shop/${name}.spec.ts`, content: `// ${name}\n` })),
+    );
     assert.equal(first!.status, "rejected");
     assert.ok(rest.every((outcome) => outcome.status === "fulfilled"));
     assert.equal(most, 1);
@@ -515,10 +689,21 @@ describe("the trials, one at a time", () => {
     const root = repository();
     const report = JSON.parse(fixture("steps.json")) as { suites: { specs: { tests: { results: Record<string, unknown>[] }[] }[] }[] };
     const results = report.suites[0]!.specs[0]!.tests[0]!.results;
-    results.push({ status: "failed", errors: [{ message: "Error: the second try" }, { message: "Error: and its second error" }], steps: [{ title: "open the list", error: {} }], attachments: [{ name: "trace", path: join(root, ".oqas", "second", "trace.zip") }] });
+    results.push({
+      status: "failed",
+      errors: [{ message: "Error: the second try" }, { message: "Error: and its second error" }],
+      steps: [{ title: "open the list", error: {} }],
+      attachments: [{ name: "trace", path: join(root, ".oqas", "second", "trace.zip") }],
+    });
     const fake = new FakeRunner(root, { list: fixture("steps.json"), report: { text: JSON.stringify(report) } });
-    const trial = await new TrialRunner({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, runner: fake, now: NOW }).run({ path: "apps/shop/steps.spec.ts", content: "// t\n" });
-    assert.deepEqual([trial.tests[0]!.reason, trial.tests[0]!.failedStep, trial.tests[0]!.trace], ["Error: the second try\n\nError: and its second error", "open the list", join(".oqas", "second", "trace.zip")]);
+    const trial = await new TrialRunner({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, runner: fake, now: NOW }).run({
+      path: "apps/shop/steps.spec.ts",
+      content: "// t\n",
+    });
+    assert.deepEqual(
+      [trial.tests[0]!.reason, trial.tests[0]!.failedStep, trial.tests[0]!.trace],
+      ["Error: the second try\n\nError: and its second error", "open the list", join(".oqas", "second", "trace.zip")],
+    );
     const run = fake.commands.find((command) => command.command[1] === "test" && !command.command.includes("--list"))!;
     assert.ok(run.command.some((part) => /^--output=\.oqas\/trials\/trial-.*-1\/test-results$/.test(part)));
   });
@@ -528,7 +713,15 @@ describe("the environment of the tests", () => {
   it("holds the variables of the test accounts, read from the environment given", async () => {
     const text = JSON.stringify({
       formatVersion: 1,
-      applications: [{ id: "shop", name: "Shop", type: "web", authentication: { method: "form", accounts: [{ name: "demo", usernameEnv: "SHOP_USER", passwordEnv: "SHOP_PASSWORD" }] }, environments: [{ name: "local", uiUrl: siteUrl }] }],
+      applications: [
+        {
+          id: "shop",
+          name: "Shop",
+          type: "web",
+          authentication: { method: "form", accounts: [{ name: "demo", usernameEnv: "SHOP_USER", passwordEnv: "SHOP_PASSWORD" }] },
+          environments: [{ name: "local", uiUrl: siteUrl }],
+        },
+      ],
       knowledge: [],
       model: { mode: "provider-key", provider: "openai", baseUrl: "http://127.0.0.1:1/v1", model: "m", apiKeyEnv: "MODEL_KEY" },
       autonomy: { level: "autonomous" },
@@ -539,16 +732,31 @@ describe("the environment of the tests", () => {
     const root = repository();
     const runner = new FakeRunner(root);
     await new PinnedRun({ config: config.config, environment: "local", repositoryRoot: root, tests: FILES, runner, env, now: NOW }).run();
-    assert.deepEqual([runner.commands[0]!.env!["SHOP_USER"], runner.commands[0]!.env!["SHOP_PASSWORD"], runner.commands[0]!.env!["MODEL_KEY"]], ["max", "pw", undefined]);
+    assert.deepEqual(
+      [runner.commands[0]!.env!["SHOP_USER"], runner.commands[0]!.env!["SHOP_PASSWORD"], runner.commands[0]!.env!["MODEL_KEY"]],
+      ["max", "pw", undefined],
+    );
     const partial = new FakeRunner(root);
-    await new PinnedRun({ config: config.config, environment: "local", repositoryRoot: root, tests: FILES, runner: partial, env: { SHOP_USER: "max" }, now: () => new Date("2026-11-13T12:00:01.000Z") }).run();
+    await new PinnedRun({
+      config: config.config,
+      environment: "local",
+      repositoryRoot: root,
+      tests: FILES,
+      runner: partial,
+      env: { SHOP_USER: "max" },
+      now: () => new Date("2026-11-13T12:00:01.000Z"),
+    }).run();
     assert.deepEqual(["SHOP_USER" in partial.commands[0]!.env!, "SHOP_PASSWORD" in partial.commands[0]!.env!], [true, false]);
   });
 
   it("leaves out of a command every variable of the process that npm, the runner and the browsers do not need", async () => {
     process.env["OQAS_TEST_SECRET"] = "sk-secret";
     try {
-      const outcome = await new LocalRunner(workspace).run({ command: [process.execPath, "-e", "console.log(JSON.stringify([process.env.OQAS_TEST_SECRET ?? null, typeof process.env.PATH, process.env.STEP]))"], env: { STEP: "kept" }, timeoutMs: 10_000 });
+      const outcome = await new LocalRunner(workspace).run({
+        command: [process.execPath, "-e", "console.log(JSON.stringify([process.env.OQAS_TEST_SECRET ?? null, typeof process.env.PATH, process.env.STEP]))"],
+        env: { STEP: "kept" },
+        timeoutMs: 10_000,
+      });
       assert.deepEqual(JSON.parse(outcome.stdout), [null, "string", "kept"]);
     } finally {
       delete process.env["OQAS_TEST_SECRET"];
@@ -570,10 +778,22 @@ describe("the references of a visual test, at its trial", () => {
         return fake.run(command);
       },
     };
-    const trial = await new TrialRunner({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, runner, now: NOW }).run({ path: "apps/shop/look.spec.ts", content: "// t\n" });
-    assert.deepEqual(trial.references?.map((reference) => [reference.path, Buffer.from(reference.content).toString()]), [["apps/shop/look.spec.ts-snapshots/look-1-shop.png", "png"], ["apps/shop/look.spec.ts-snapshots/nested/look-2-shop.png", "png2"]]);
+    const trial = await new TrialRunner({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, runner, now: NOW }).run({
+      path: "apps/shop/look.spec.ts",
+      content: "// t\n",
+    });
+    assert.deepEqual(
+      trial.references?.map((reference) => [reference.path, Buffer.from(reference.content).toString()]),
+      [
+        ["apps/shop/look.spec.ts-snapshots/look-1-shop.png", "png"],
+        ["apps/shop/look.spec.ts-snapshots/nested/look-2-shop.png", "png2"],
+      ],
+    );
     const runs = fake.commands.filter((command) => command.command[1] === "test" && !command.command.includes("--list"));
-    assert.deepEqual(runs.map((command) => command.command.includes("--update-snapshots=missing")), [true, false]);
+    assert.deepEqual(
+      runs.map((command) => command.command.includes("--update-snapshots=missing")),
+      [true, false],
+    );
     assert.equal(existsSync(join(root, "apps", "shop", "look.spec.ts-snapshots")), false);
   });
 
@@ -582,7 +802,10 @@ describe("the references of a visual test, at its trial", () => {
     mkdirSync(join(root, "apps", "shop", "look.spec.ts-snapshots"), { recursive: true });
     writeFileSync(join(root, "apps", "shop", "look.spec.ts-snapshots", "kept.png"), "kept");
     const fake = new FakeRunner(root, { list: fixture("steps.json"), report: { fixture: "statuses.json" } });
-    const trial = await new TrialRunner({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, runner: fake, now: NOW }).run({ path: "apps/shop/look.spec.ts", content: "// t\n" });
+    const trial = await new TrialRunner({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, runner: fake, now: NOW }).run({
+      path: "apps/shop/look.spec.ts",
+      content: "// t\n",
+    });
     assert.equal(trial.references, undefined);
     assert.equal(readFileSync(join(root, "apps", "shop", "look.spec.ts-snapshots", "kept.png"), "utf8"), "kept");
   });
@@ -601,9 +824,20 @@ describe("the preparation of the trials", () => {
   it("serves a run given it, which installs nothing again", async () => {
     const root = repository();
     const fake = new FakeRunner(root, { list: fixture("steps.json"), report: { fixture: "steps.json" } });
-    const run = new PinnedRun({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, tests: ["apps/shop/steps.spec.ts"], runner: fake, now: NOW, preparation: Promise.resolve({ ok: false, reason: "The dependencies could not be installed: offline." }) });
+    const run = new PinnedRun({
+      config: configFor(siteUrl),
+      environment: "local",
+      repositoryRoot: root,
+      tests: ["apps/shop/steps.spec.ts"],
+      runner: fake,
+      now: NOW,
+      preparation: Promise.resolve({ ok: false, reason: "The dependencies could not be installed: offline." }),
+    });
     const { result } = await run.run();
-    assert.deepEqual(result.tests.map((test) => [test.verdict, test.reason]), [["not_run", "The dependencies could not be installed: offline."]]);
+    assert.deepEqual(
+      result.tests.map((test) => [test.verdict, test.reason]),
+      [["not_run", "The dependencies could not be installed: offline."]],
+    );
     assert.deepEqual(fake.commands, []);
   });
 });

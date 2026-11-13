@@ -31,5 +31,8 @@ export function configSecrets(config: ResolvedConfig, env: Readonly<Record<strin
  * @returns An error for each string that holds one, which names its place but never the secret.
  */
 export function secretErrors(value: unknown, secrets: readonly string[]): IndexError[] {
-  return secretPaths(value, secrets.flatMap(secretForms)).map((path) => ({ path, message: `${path} holds a secret of the configuration; write it without the secret.` }));
+  return secretPaths(value, secrets.flatMap(secretForms)).map((path) => ({
+    path,
+    message: `${path} holds a secret of the configuration; write it without the secret.`,
+  }));
 }

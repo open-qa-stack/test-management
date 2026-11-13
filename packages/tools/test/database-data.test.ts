@@ -25,17 +25,30 @@ class FakeDatabase implements SqlClient {
    */
   public constructor(options: { serverAccess?: boolean; data?: SqlResult } = {}) {
     this.serverAccess = options.serverAccess ?? false;
-    this.data = options.data ?? sqlResult([{ id: "1", owner: "Max Mustermann" }, { id: "2", owner: "Erika" }]);
+    this.data =
+      options.data ??
+      sqlResult([
+        { id: "1", owner: "Max Mustermann" },
+        { id: "2", owner: "Erika" },
+      ]);
   }
 
   /** {@inheritDoc SqlClient.query} */
   public async query(text: string, values: readonly unknown[]): Promise<SqlResult> {
     this.queries.push({ text, values });
-    if (text === TABLES_QUERY) return sqlResult([{ schema: "public", table: "policies" }, { schema: "public", table: "counters" }]);
+    if (text === TABLES_QUERY)
+      return sqlResult([
+        { schema: "public", table: "policies" },
+        { schema: "public", table: "counters" },
+      ]);
     if (text === COLUMNS_QUERY) {
       return sqlResult(
         values[1] === "policies"
-          ? [{ name: "id", type: "bigint", nullable: false }, { name: "owner", type: "character varying", nullable: true }, { name: "Note \"x\"", type: "text", nullable: true }]
+          ? [
+              { name: "id", type: "bigint", nullable: false },
+              { name: "owner", type: "character varying", nullable: true },
+              { name: 'Note "x"', type: "text", nullable: true },
+            ]
           : [{ name: "n", type: "integer", nullable: false }],
       );
     }
@@ -58,7 +71,10 @@ function tools(database: FakeDatabase): Map<string, ToolDefinition> {
 
 describe("criterion 1 — a database brings its data tools next to its catalog tools", () => {
   it("offers five tools", () => {
-    assert.deepEqual([...tools(new FakeDatabase()).keys()], ["policy_db_list_tables", "policy_db_describe_table", "policy_db_sample_rows", "policy_db_search", "policy_db_query"]);
+    assert.deepEqual(
+      [...tools(new FakeDatabase()).keys()],
+      ["policy_db_list_tables", "policy_db_describe_table", "policy_db_sample_rows", "policy_db_search", "policy_db_query"],
+    );
   });
 });
 
@@ -81,7 +97,9 @@ describe("criterion 2 — a sample returns the first rows of a known table, boun
 
   it("refuses a table the catalog does not know, without reading anything", async () => {
     const database = new FakeDatabase();
-    assert.deepEqual(await tools(database).get("policy_db_sample_rows")!.execute({ schema: "public", table: "policies; DROP" }), { error: "The database policy-db has no table public.policies; DROP." });
+    assert.deepEqual(await tools(database).get("policy_db_sample_rows")!.execute({ schema: "public", table: "policies; DROP" }), {
+      error: "The database policy-db has no table public.policies; DROP.",
+    });
     assert.deepEqual(database.dataQueries, []);
   });
 
@@ -96,15 +114,22 @@ describe("criterion 3 — a search finds a value in the text columns, as a param
     const value = "O'Brien'; DROP TABLE policies; --_%";
     await tools(database).get("policy_db_search")!.execute({ schema: "public", table: "policies", value });
     const [query] = database.dataQueries;
-    assert.equal(query!.text, `SELECT ${POLICY_COLUMNS} FROM "public"."policies" WHERE "owner"::text ILIKE $1 ESCAPE '\\' OR "Note ""x"""::text ILIKE $1 ESCAPE '\\' LIMIT 21`);
+    assert.equal(
+      query!.text,
+      `SELECT ${POLICY_COLUMNS} FROM "public"."policies" WHERE "owner"::text ILIKE $1 ESCAPE '\\' OR "Note ""x"""::text ILIKE $1 ESCAPE '\\' LIMIT 21`,
+    );
     assert.deepEqual(query!.values, ["%O'Brien'; DROP TABLE policies; --\\_\\%%"]);
   });
 
   it("answers a table without text column, or unknown, with an error", async () => {
     const database = new FakeDatabase();
     const search = tools(database).get("policy_db_search")!;
-    assert.deepEqual(await search.execute({ schema: "public", table: "counters", value: "x" }), { error: "The table public.counters has no text column to search." });
-    assert.deepEqual(await search.execute({ schema: "audit", table: "policies", value: "x" }), { error: "The database policy-db has no table audit.policies." });
+    assert.deepEqual(await search.execute({ schema: "public", table: "counters", value: "x" }), {
+      error: "The table public.counters has no text column to search.",
+    });
+    assert.deepEqual(await search.execute({ schema: "audit", table: "policies", value: "x" }), {
+      error: "The database policy-db has no table audit.policies.",
+    });
     assert.deepEqual(database.dataQueries, []);
   });
 });
@@ -166,10 +191,22 @@ describe("criterion 5 — a write through the free query fails, because the tran
         sent.push("end");
       },
     };
-    const all = knowledgeTools([DATABASE], { repositoryRoot: REPOSITORY, env: { POLICY_DB_URL: "postgresql://x" }, sqlClient: (url) => new PgSqlClient(url, () => readOnlyDatabase) });
+    const all = knowledgeTools([DATABASE], {
+      repositoryRoot: REPOSITORY,
+      env: { POLICY_DB_URL: "postgresql://x" },
+      sqlClient: (url) => new PgSqlClient(url, () => readOnlyDatabase),
+    });
     const query = all.find((t) => t.name === "policy_db_query")!;
-    await assert.rejects(Promise.resolve(query.execute({ sql: "SELECT nextval('policy_ids')" })), new Error("The database query failed: cannot execute nextval() in a read-only transaction."));
-    assert.deepEqual(sent.slice(-4), ["BEGIN READ ONLY", "SET LOCAL statement_timeout = 5000", "SELECT * FROM (SELECT nextval('policy_ids')\n) AS agent_query LIMIT 0", "end"]);
+    await assert.rejects(
+      Promise.resolve(query.execute({ sql: "SELECT nextval('policy_ids')" })),
+      new Error("The database query failed: cannot execute nextval() in a read-only transaction."),
+    );
+    assert.deepEqual(sent.slice(-4), [
+      "BEGIN READ ONLY",
+      "SET LOCAL statement_timeout = 5000",
+      "SELECT * FROM (SELECT nextval('policy_ids')\n) AS agent_query LIMIT 0",
+      "end",
+    ]);
     assert.ok(!sent.includes("COMMIT"));
   });
 });
@@ -186,12 +223,25 @@ describe("a free query that names a column or a table the database does not have
       end: async () => {},
     });
     const query = (failure: unknown) => {
-      const all = knowledgeTools([DATABASE], { repositoryRoot: REPOSITORY, env: { POLICY_DB_URL: "postgresql://x" }, sqlClient: (url) => new PgSqlClient(url, () => failing(failure)) });
+      const all = knowledgeTools([DATABASE], {
+        repositoryRoot: REPOSITORY,
+        env: { POLICY_DB_URL: "postgresql://x" },
+        sqlClient: (url) => new PgSqlClient(url, () => failing(failure)),
+      });
       return Promise.resolve(all.find((t) => t.name === "policy_db_query")!.execute({ sql: "SELECT ownr FROM policies" }));
     };
-    await assert.rejects(query(Object.assign(new Error('column "ownr" does not exist'), { code: "42703" })), new Error('The database query failed: column "ownr" does not exist. Call policy_db_describe_table for the exact names.'));
-    await assert.rejects(query(Object.assign(new Error('relation "policies" does not exist'), { code: "42P01" })), new Error('The database query failed: relation "policies" does not exist. Call policy_db_describe_table for the exact names.'));
-    await assert.rejects(query(Object.assign(new Error("syntax error at end of input"), { code: "42601" })), new Error("The database query failed: syntax error at end of input."));
+    await assert.rejects(
+      query(Object.assign(new Error('column "ownr" does not exist'), { code: "42703" })),
+      new Error('The database query failed: column "ownr" does not exist. Call policy_db_describe_table for the exact names.'),
+    );
+    await assert.rejects(
+      query(Object.assign(new Error('relation "policies" does not exist'), { code: "42P01" })),
+      new Error('The database query failed: relation "policies" does not exist. Call policy_db_describe_table for the exact names.'),
+    );
+    await assert.rejects(
+      query(Object.assign(new Error("syntax error at end of input"), { code: "42601" })),
+      new Error("The database query failed: syntax error at end of input."),
+    );
     await assert.rejects(query("plain"), new Error("The database query failed: unknown error."));
   });
 });
@@ -204,7 +254,12 @@ describe("criterion 6 — long values are cut by the database, and the answer sa
   it("marks a value one character too long as cut, and leaves the others", () => {
     const limit = "y".repeat(MAX_VALUE_LENGTH);
     const result = dataRows(sqlResult([{ text: "x".repeat(MAX_VALUE_LENGTH + 1), full: limit, none: null }]), 10);
-    assert.deepEqual(result, { columns: ["text", "full", "none"], rows: [{ text: `${"x".repeat(MAX_VALUE_LENGTH)}…`, full: limit, none: null }], moreRows: false, cutValues: true });
+    assert.deepEqual(result, {
+      columns: ["text", "full", "none"],
+      rows: [{ text: `${"x".repeat(MAX_VALUE_LENGTH)}…`, full: limit, none: null }],
+      moreRows: false,
+      cutValues: true,
+    });
     assert.deepEqual(dataRows(sqlResult([{ full: limit }]), 10).cutValues, false);
   });
 });

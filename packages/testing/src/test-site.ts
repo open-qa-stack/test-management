@@ -43,7 +43,9 @@ export async function testSite(pages: Readonly<Record<string, string>>, redirect
     } else if (page === undefined) {
       response.writeHead(404, { "content-type": "text/plain" }).end("not found");
     } else {
-      response.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(`<!doctype html><html><head><title>${path}</title></head><body>${page}</body></html>`);
+      response
+        .writeHead(200, { "content-type": "text/html; charset=utf-8" })
+        .end(`<!doctype html><html><head><title>${path}</title></head><body>${page}</body></html>`);
     }
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));

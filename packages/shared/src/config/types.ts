@@ -90,8 +90,7 @@ export type ContainerEngine = "podman" | "docker";
  * exactly one of the two.
  */
 export type LogsKnowledge = KnowledgeBase & { type: "logs" } & (
-    | { path: string; container?: never; engine?: never }
-    | { container: string; engine: ContainerEngine; path?: never }
+    { path: string; container?: never; engine?: never } | { container: string; engine: ContainerEngine; path?: never }
   );
 
 /** Something the agents may read about the applications. */
@@ -151,10 +150,7 @@ export interface CustomLimits {
 }
 
 /** How far the agents may go on their own. */
-export type Autonomy =
-  | { level: "supervised" }
-  | { level: "autonomous" }
-  | ({ level: "custom" } & CustomLimits);
+export type Autonomy = { level: "supervised" } | { level: "autonomous" } | ({ level: "custom" } & CustomLimits);
 
 /** The configuration file as written by the user, once it matches the schema. */
 export interface OqasConfig {

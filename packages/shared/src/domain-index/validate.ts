@@ -36,20 +36,37 @@ export function validateDomainIndex(value: unknown): IndexValidation<DomainIndex
 }
 
 function duplicateDomains({ domains }: DomainIndexSubmission): IndexError[] {
-  return repeated(domains.map((domain) => domain.id), "/domains", "id", "domain");
+  return repeated(
+    domains.map((domain) => domain.id),
+    "/domains",
+    "id",
+    "domain",
+  );
 }
 
 function duplicateSources({ sources }: DomainIndex): IndexError[] {
-  return repeated(sources.map((source) => source.id), "/sources", "id", "source");
+  return repeated(
+    sources.map((source) => source.id),
+    "/sources",
+    "id",
+    "source",
+  );
 }
 
 function cardsOfUnreadSources({ sources }: DomainIndex): IndexError[] {
   return sources.flatMap((source, i) =>
-    source.state === "not_read" && source.cardFingerprint !== undefined ? [{ path: `/sources/${i}/cardFingerprint`, message: `/sources/${i}/cardFingerprint is given although ${source.id} was not read.` }] : [],
+    source.state === "not_read" && source.cardFingerprint !== undefined
+      ? [{ path: `/sources/${i}/cardFingerprint`, message: `/sources/${i}/cardFingerprint is given although ${source.id} was not read.` }]
+      : [],
   );
 }
 
 function unlistedSources(index: DomainIndex, listed: ReadonlySet<string>): IndexError[] {
-  const groups = [...index.domains.flatMap((domain, i) => domain.references.map((r, j) => [`/domains/${i}/references/${j}`, r.source] as const)), ...index.unassigned.map((r, j) => [`/unassigned/${j}`, r.source] as const)];
-  return groups.filter(([, source]) => !listed.has(source)).map(([path, source]) => ({ path: `${path}/source`, message: `${path}/source names ${source}, which is not a listed source.` }));
+  const groups = [
+    ...index.domains.flatMap((domain, i) => domain.references.map((r, j) => [`/domains/${i}/references/${j}`, r.source] as const)),
+    ...index.unassigned.map((r, j) => [`/unassigned/${j}`, r.source] as const),
+  ];
+  return groups
+    .filter(([, source]) => !listed.has(source))
+    .map(([path, source]) => ({ path: `${path}/source`, message: `${path}/source names ${source}, which is not a listed source.` }));
 }

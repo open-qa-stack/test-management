@@ -46,11 +46,15 @@ export async function scriptedServer(replies: readonly { status?: number; body: 
  * @returns A chat completion that calls the given tools.
  */
 export function toolCalls(model: string, calls: readonly { id: string; name: string; arguments: unknown }[], content = ""): unknown {
-  return completion(model, {
-    role: "assistant",
-    content,
-    tool_calls: calls.map((c) => ({ type: "function", id: c.id, function: { name: c.name, arguments: JSON.stringify(c.arguments) } })),
-  }, "tool_calls");
+  return completion(
+    model,
+    {
+      role: "assistant",
+      content,
+      tool_calls: calls.map((c) => ({ type: "function", id: c.id, function: { name: c.name, arguments: JSON.stringify(c.arguments) } })),
+    },
+    "tool_calls",
+  );
 }
 
 /**

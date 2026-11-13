@@ -26,13 +26,26 @@ export interface FileOutline {
 
 /** The kind of each declaration node, whatever the grammar. */
 const DECLARATIONS: ReadonlyMap<string, string> = new Map([
-  ...["class_declaration", "abstract_class_declaration", "class_definition", "class_specifier", "class", "class_statement", "record_declaration"].map((t) => [t, "class"] as const),
+  ...["class_declaration", "abstract_class_declaration", "class_definition", "class_specifier", "class", "class_statement", "record_declaration"].map(
+    (t) => [t, "class"] as const,
+  ),
   ...["struct_declaration", "struct_item", "struct_specifier", "impl_item", "object_declaration", "module"].map((t) => [t, "class"] as const),
   ...["interface_declaration", "trait_declaration", "trait_item"].map((t) => [t, "interface"] as const),
   ...["enum_declaration", "enum_item", "enum_specifier"].map((t) => [t, "enum"] as const),
   ...["type_alias_declaration", "type_item"].map((t) => [t, "type"] as const),
-  ...["function_declaration", "function_definition", "function_item", "generator_function_declaration", "function_statement", "method", "singleton_method"].map((t) => [t, "function"] as const),
-  ...["method_declaration", "method_definition", "constructor_declaration", "method_signature", "abstract_method_signature", "method_elem", "class_method_definition", "function_signature_item"].map((t) => [t, "method"] as const),
+  ...["function_declaration", "function_definition", "function_item", "generator_function_declaration", "function_statement", "method", "singleton_method"].map(
+    (t) => [t, "function"] as const,
+  ),
+  ...[
+    "method_declaration",
+    "method_definition",
+    "constructor_declaration",
+    "method_signature",
+    "abstract_method_signature",
+    "method_elem",
+    "class_method_definition",
+    "function_signature_item",
+  ].map((t) => [t, "method"] as const),
 ]);
 
 /** Declarations whose functions are methods. */
@@ -65,7 +78,8 @@ const CALLS = new Set(["call_expression", "invocation_expression", "method_invoc
  * Calls that declare routes whatever their first argument: ASP.NET minimal APIs, Go net/http, gin and echo,
  * Django, Rails and Laravel resources.
  */
-const ROUTE_CALLS = /^(?:Map(?:Get|Post|Put|Delete|Patch|Methods|Group|Fallback)?|HandleFunc|Handle|GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS|Any|Group|path|re_path|resources|resource|apiResource)$/;
+const ROUTE_CALLS =
+  /^(?:Map(?:Get|Post|Put|Delete|Patch|Methods|Group|Fallback)?|HandleFunc|Handle|GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS|Any|Group|path|re_path|resources|resource|apiResource)$/;
 /** Calls that declare routes when given a path: Express, Fastify, Flask, Laravel, axum; and the Rails routing DSL. */
 const ROUTE_VERBS = /^(?:get|post|put|delete|patch|head|options|all|route|use)$/;
 /** First arguments that are literals: strings and symbols. */
@@ -158,7 +172,11 @@ function nameOf(node: Node): { readonly node: Node; readonly text: string } | un
   const name = node.childForFieldName("name");
   if (name !== null) return name.type === "string" ? undefined : { node: name, text: name.text };
   let declarator = node.childForFieldName("declarator");
-  for (let inner = declarator; inner !== null; inner = inner.childForFieldName("declarator") ?? (WRAPPED_DECLARATORS.has(inner.type) ? inner.firstNamedChild : null)) {
+  for (
+    let inner = declarator;
+    inner !== null;
+    inner = inner.childForFieldName("declarator") ?? (WRAPPED_DECLARATORS.has(inner.type) ? inner.firstNamedChild : null)
+  ) {
     declarator = inner;
   }
   const named = declarator ?? node.namedChildren.find((child) => NAME_NODES.has(child!.type)) ?? null;
@@ -168,7 +186,8 @@ function nameOf(node: Node): { readonly node: Node; readonly text: string } | un
 /** The annotations of a declaration that map routes: among its children and its modifiers, and around it. */
 function routeAnnotations(node: Node): OutlineSymbol[] {
   const around: Node[] = [];
-  for (let sibling = node.previousNamedSibling; sibling !== null && PRECEDING_ANNOTATIONS.has(sibling.type); sibling = sibling.previousNamedSibling) around.unshift(sibling);
+  for (let sibling = node.previousNamedSibling; sibling !== null && PRECEDING_ANNOTATIONS.has(sibling.type); sibling = sibling.previousNamedSibling)
+    around.unshift(sibling);
   if (node.parent?.type === "decorated_definition") around.push(...node.parent.namedChildren.map((child) => child!));
   const annotations = [...around, ...node.namedChildren.map((child) => child!)].flatMap((candidate) =>
     ANNOTATION_HOLDERS.has(candidate.type) ? candidate.descendantsOfType(ANNOTATIONS).map((d) => d!) : ANNOTATIONS.includes(candidate.type) ? [candidate] : [],

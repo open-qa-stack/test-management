@@ -159,7 +159,8 @@ function fail(res: ServerResponse, channel: GatewayChannel, failure: GatewayFail
 /** Answers with a completion, once the gate of its channel has counted the tokens the completion reports. */
 function serve(res: ServerResponse, channel: GatewayChannel, response: unknown): void {
   const usage = (response as { usage?: { prompt_tokens?: unknown; completion_tokens?: unknown } } | null)?.usage;
-  if (typeof usage?.prompt_tokens === "number" && typeof usage.completion_tokens === "number") channel.gate?.countTokens?.(usage.prompt_tokens, usage.completion_tokens);
+  if (typeof usage?.prompt_tokens === "number" && typeof usage.completion_tokens === "number")
+    channel.gate?.countTokens?.(usage.prompt_tokens, usage.completion_tokens);
   send(res, 200, response);
 }
 

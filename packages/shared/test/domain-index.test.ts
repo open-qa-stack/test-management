@@ -2,7 +2,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { Ajv2020 } from "ajv/dist/2020.js";
-import { domainIndexSchema, placementErrors, validateDomainIndex, validateDomainSubmission, type DomainIndex, type DomainIndexSubmission } from "../src/index.ts";
+import {
+  domainIndexSchema,
+  placementErrors,
+  validateDomainIndex,
+  validateDomainSubmission,
+  type DomainIndex,
+  type DomainIndexSubmission,
+} from "../src/index.ts";
 import { INDEX_SCHEMA_FILE, renderSchema } from "../scripts/emit-schema.ts";
 
 const EXAMPLE = JSON.parse(readFileSync(new URL("../examples/domain-index/domain-index.json", import.meta.url), "utf8")) as DomainIndex;
@@ -39,7 +46,10 @@ describe("the domain index format", () => {
     delete index.sources[3]!.cardFingerprint;
     index.sources.push({ ...index.sources[0]! });
     const result = validateDomainIndex(index);
-    assert.deepEqual((errorsOf(result) as { path: string }[]).map((e) => e.path), ["/domains/2/id", "/sources/4/id", "/unassigned/1/source", "/status"]);
+    assert.deepEqual(
+      (errorsOf(result) as { path: string }[]).map((e) => e.path),
+      ["/domains/2/id", "/sources/4/id", "/unassigned/1/source", "/status"],
+    );
     index.domains.pop();
     index.unassigned.pop();
     index.sources.pop();
@@ -55,7 +65,9 @@ describe("the domain index format", () => {
       { path: "/sources/0/cardFingerprint", message: '/sources/0/cardFingerprint must match pattern "^sha256:[0-9a-f]{64}$".' },
     ]);
     const unread = { ...index, status: "truncated", sources: [{ ...index.sources[0]!, state: "not_read" }, ...index.sources.slice(1)] };
-    assert.deepEqual(errorsOf(validateDomainIndex(unread)), [{ path: "/sources/0/cardFingerprint", message: "/sources/0/cardFingerprint is given although orders-api was not read." }]);
+    assert.deepEqual(errorsOf(validateDomainIndex(unread)), [
+      { path: "/sources/0/cardFingerprint", message: "/sources/0/cardFingerprint is given although orders-api was not read." },
+    ]);
   });
 });
 
@@ -78,7 +90,10 @@ describe("a submission of the cartographer", () => {
     });
     const twice = submission();
     twice.domains.push(twice.domains[1]!);
-    assert.deepEqual(validateDomainSubmission(twice), { ok: false, errors: [{ path: "/domains/2/id", message: "/domains/2/id repeats the domain customers." }] });
+    assert.deepEqual(validateDomainSubmission(twice), {
+      ok: false,
+      errors: [{ path: "/domains/2/id", message: "/domains/2/id repeats the domain customers." }],
+    });
   });
 
   it("places every tag and every table, and nothing else", () => {
@@ -88,7 +103,10 @@ describe("a submission of the cartographer", () => {
     forgetful.domains[0]!.references[1]!.items.push("public.invented");
     forgetful.domains[1]!.references.push({ source: "nowhere", items: ["x"] });
     assert.deepEqual(placementErrors(forgetful, inventory, sources), [
-      { path: "/domains/0/references/1/items/2", message: "/domains/0/references/1/items/2: public.invented is not an item of orders-db; use one of the items listed for it." },
+      {
+        path: "/domains/0/references/1/items/2",
+        message: "/domains/0/references/1/items/2: public.invented is not an item of orders-db; use one of the items listed for it.",
+      },
       { path: "/domains/1/references/3/source", message: "/domains/1/references/3/source names nowhere, which is not a source of this run." },
       { path: "", message: "public.schema_migrations of orders-db is in no domain nor in unassigned." },
     ]);

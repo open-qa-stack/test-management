@@ -81,5 +81,8 @@ export function databaseTools(knowledgeId: string, catalog: DatabaseCatalog, dat
 function keyOf(column: string, keys: TableKeys | undefined): { primaryKey?: true; references?: string } {
   const reference = keys?.foreignKeys.find((key) => key.columns.includes(column));
   const referenced = reference === undefined ? undefined : `${reference.references}.${reference.referencedColumns[reference.columns.indexOf(column)]!}`;
-  return { ...(keys?.primaryKey.includes(column) === true ? { primaryKey: true as const } : {}), ...(referenced === undefined ? {} : { references: referenced }) };
+  return {
+    ...(keys?.primaryKey.includes(column) === true ? { primaryKey: true as const } : {}),
+    ...(referenced === undefined ? {} : { references: referenced }),
+  };
 }

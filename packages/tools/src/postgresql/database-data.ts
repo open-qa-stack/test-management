@@ -52,7 +52,12 @@ export class DatabaseData {
   public async sample(schema: string, table: string, limit: number): Promise<DataRows | DataRefusal> {
     const columns = await this.columnsOf(schema, table);
     if (columns.length === 0) return this.noTable(schema, table);
-    return this.read(columns.map((c) => c.name), `${qualified(schema, table)} LIMIT ${limit + 1}`, [], limit);
+    return this.read(
+      columns.map((c) => c.name),
+      `${qualified(schema, table)} LIMIT ${limit + 1}`,
+      [],
+      limit,
+    );
   }
 
   /**
@@ -70,7 +75,12 @@ export class DatabaseData {
     if (searched.length === 0) return { error: `The table ${schema}.${table} has no text column to search.` };
     const where = searched.map((c) => `${sqlIdentifier(c.name)}::text ILIKE $1 ESCAPE '\\'`).join(" OR ");
     const pattern = `%${value.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
-    return this.read(columns.map((c) => c.name), `${qualified(schema, table)} WHERE ${where} LIMIT ${limit + 1}`, [pattern], limit);
+    return this.read(
+      columns.map((c) => c.name),
+      `${qualified(schema, table)} WHERE ${where} LIMIT ${limit + 1}`,
+      [pattern],
+      limit,
+    );
   }
 
   /**
@@ -118,7 +128,10 @@ export class DatabaseData {
     if (!known) return [];
     const [columns, keys] = await Promise.all([this.catalog.columns(schema, table), this.catalog.keys()]);
     const primaryKey = keys.get(`${schema}.${table}`)?.primaryKey ?? [];
-    return [...primaryKey.flatMap((name) => columns.filter((column) => column.name === name)), ...columns.filter((column) => !primaryKey.includes(column.name))];
+    return [
+      ...primaryKey.flatMap((name) => columns.filter((column) => column.name === name)),
+      ...columns.filter((column) => !primaryKey.includes(column.name)),
+    ];
   }
 
   private noTable(schema: string, table: string): DataRefusal {

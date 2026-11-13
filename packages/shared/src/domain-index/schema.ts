@@ -55,7 +55,11 @@ export const domainIndexSchema = {
   properties: {
     $schema: { type: "string" },
     formatVersion: { const: 1, description: "Version of the index format, independent of the product version." },
-    producedAt: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$", description: "Date and time of production, ISO 8601 in UTC." },
+    producedAt: {
+      type: "string",
+      pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$",
+      description: "Date and time of production, ISO 8601 in UTC.",
+    },
     environment: text,
     model: {
       type: "object",

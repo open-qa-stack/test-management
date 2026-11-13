@@ -67,4 +67,3 @@ export const recordingSchema = {
     },
   },
 } as const;
-

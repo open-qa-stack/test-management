@@ -99,7 +99,12 @@ export class PageLog {
    */
   public network(limit: number, assets: boolean): NetworkEntry[] {
     return this.exchanges
-      .map(({ request, outcome }): NetworkEntry => ({ method: request.method(), url: shortText(request.url()), resourceType: request.resourceType(), ...(outcome ?? { pending: true }) }))
+      .map(({ request, outcome }): NetworkEntry => ({
+        method: request.method(),
+        url: shortText(request.url()),
+        resourceType: request.resourceType(),
+        ...(outcome ?? { pending: true }),
+      }))
       .filter((entry) => assets || CALLS.has(entry.resourceType) || entry.failure !== undefined)
       .slice(-limit);
   }

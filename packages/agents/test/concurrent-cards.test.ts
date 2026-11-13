@@ -30,7 +30,17 @@ class InterleavedRuntime implements AgentRuntime {
         const own = source === "alpha" ? 3 : 7;
         await pause(source === "alpha" ? 40 : 5);
         const submit = options.tools.find((tool) => tool.name === "submit_card")!;
-        const card = { domains: [{ id: source, label: source, description: `What ${source} holds.`, items: [{ name: source === "alpha" ? "Alpha" : "Beta", summary: `The ${source} section.` }] }], unassigned: [] };
+        const card = {
+          domains: [
+            {
+              id: source,
+              label: source,
+              description: `What ${source} holds.`,
+              items: [{ name: source === "alpha" ? "Alpha" : "Beta", summary: `The ${source} section.` }],
+            },
+          ],
+          unassigned: [],
+        };
         yield { type: "tool-call", callId: `${source}-1`, tool: "submit_card", arguments: card };
         await pause(source === "alpha" ? 5 : 40);
         yield { type: "tool-result", callId: `${source}-1`, tool: "submit_card", result: await submit.execute(card) };
@@ -53,7 +63,15 @@ describe("solo command, criterion 19 — two cartography tasks at once keep each
     writeFileSync(join(root, "specs", "beta.md"), "# Beta\n\nThe second.\n");
     const text = JSON.stringify({
       formatVersion: 1,
-      applications: [{ id: "shop", name: "Shop", type: "api", authentication: { method: "none" }, environments: [{ name: "local", apis: [{ name: "b", baseUrl: "http://127.0.0.1:1" }] }] }],
+      applications: [
+        {
+          id: "shop",
+          name: "Shop",
+          type: "api",
+          authentication: { method: "none" },
+          environments: [{ name: "local", apis: [{ name: "b", baseUrl: "http://127.0.0.1:1" }] }],
+        },
+      ],
       knowledge: ["alpha", "beta"].map((id) => ({ id, type: "document", path: `specs/${id}.md`, attachments: [{ application: "shop" }] })),
       model: { mode: "provider-key", provider: "openai", baseUrl: "http://127.0.0.1:1/v1", model: "m" },
       autonomy: { level: "autonomous" },
@@ -62,13 +80,27 @@ describe("solo command, criterion 19 — two cartography tasks at once keep each
     const config = validateConfig(text, {});
     assert.ok(config.ok);
     const runtime = new InterleavedRuntime();
-    const results = await mapSources({ config: config.config, environment: "local", repositoryRoot: root, env: {}, runtime, concurrency: config.config.cartography.concurrency, now: () => new Date("2026-11-13T12:00:00.000Z") });
+    const results = await mapSources({
+      config: config.config,
+      environment: "local",
+      repositoryRoot: root,
+      env: {},
+      runtime,
+      concurrency: config.config.cartography.concurrency,
+      now: () => new Date("2026-11-13T12:00:00.000Z"),
+    });
     assert.equal(runtime.most, 2, "the two sessions overlap");
     for (const { source, outcome } of results) {
       const own = source.id === "alpha" ? 3 : 7;
       assert.deepEqual([outcome.card?.status, outcome.card?.run.iterations, outcome.card?.run.actions], ["complete", own, own], source.id);
-      assert.deepEqual(outcome.card?.domains.map((domain) => domain.id), [source.id]);
-      assert.ok(outcome.journal.every((entry) => entry.source === source.id), source.id);
+      assert.deepEqual(
+        outcome.card?.domains.map((domain) => domain.id),
+        [source.id],
+      );
+      assert.ok(
+        outcome.journal.every((entry) => entry.source === source.id),
+        source.id,
+      );
     }
   });
 });

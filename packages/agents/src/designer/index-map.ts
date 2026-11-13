@@ -14,7 +14,13 @@ const MIN_STEM = 4;
 const MAX_ENTRY_LINES = 60;
 
 /** What an element of a source is, by the type of its source. */
-const KINDS: Readonly<Record<IndexSourceType, string>> = { openapi: "operations", postgresql: "table", document: "section", "source-code": "folder", web: "screen" };
+const KINDS: Readonly<Record<IndexSourceType, string>> = {
+  openapi: "operations",
+  postgresql: "table",
+  document: "section",
+  "source-code": "folder",
+  web: "screen",
+};
 
 /** An element of a source, as the index places it. */
 interface Element {
@@ -51,7 +57,9 @@ export class IndexMap {
    */
   public constructor(index: DomainIndex, cards: ReadonlyMap<string, SourceCard>, tools: readonly ToolDefinition[], owners: readonly string[]) {
     this.index = index;
-    const described = new Map<string, CardItem>([...cards].flatMap(([source, card]) => card.domains.flatMap((domain) => domain.items.map((item) => [`${source}\n${item.name}`, item] as const))));
+    const described = new Map<string, CardItem>(
+      [...cards].flatMap(([source, card]) => card.domains.flatMap((domain) => domain.items.map((item) => [`${source}\n${item.name}`, item] as const))),
+    );
     const placed = new Map<string, { source: string; item: string; kind: string; domains: string[] }>();
     const place = (source: string, item: string, domain?: string) => {
       const key = `${source}\n${item}`;
@@ -60,7 +68,8 @@ export class IndexMap {
       if (domain !== undefined && !element.domains.includes(domain)) element.domains.push(domain);
       placed.set(key, element);
     };
-    for (const domain of index.domains) for (const references of domain.references) for (const item of references.items) place(references.source, item, domain.id);
+    for (const domain of index.domains)
+      for (const references of domain.references) for (const item of references.items) place(references.source, item, domain.id);
     for (const references of index.unassigned) for (const item of references.items) place(references.source, item);
     this.elements = [...placed].map(([key, element]) => {
       const card = described.get(key);
@@ -129,7 +138,8 @@ export class IndexMap {
       },
       {
         name: ENTRY_TOOL,
-        description: "Gives a domain of the index, or one element of a source, with what is known of it and the call that reads it: for a table, its keys, its key fields and the call that finds a row.",
+        description:
+          "Gives a domain of the index, or one element of a source, with what is known of it and the call that reads it: for a table, its keys, its key fields and the call that finds a row.",
         parameters: {
           type: "object",
           properties: {
@@ -148,7 +158,8 @@ export class IndexMap {
   private find(words: string): string {
     if (wordsOf(words).length === 0) return "Give at least one word of two letters or more.";
     const found = this.found(words);
-    if (found.length === 0) return `Nothing of the index echoes "${words}". Try other words, or read the sources with their tools: the index is a map, not a limit.`;
+    if (found.length === 0)
+      return `Nothing of the index echoes "${words}". Try other words, or read the sources with their tools: the index is a map, not a limit.`;
     return [...found, `Call ${ENTRY_TOOL} with a domain, or with a source and an item, to know what is known of them and which tools read them.`].join("\n");
   }
 
@@ -156,7 +167,8 @@ export class IndexMap {
   private entry(args: { domain?: string; source?: string; item?: string }): string | { error: string } {
     if (args.domain !== undefined) {
       const domain = this.index.domains.find((candidate) => candidate.id === args.domain);
-      if (domain === undefined) return { error: `No domain ${args.domain} in the index; the domains are ${this.index.domains.map((candidate) => candidate.id).join(", ")}.` };
+      if (domain === undefined)
+        return { error: `No domain ${args.domain} in the index; the domains are ${this.index.domains.map((candidate) => candidate.id).join(", ")}.` };
       const sources = domain.references.map((references) => [
         this.source(references.source),
         ...[...new Set(references.items)].map((item) => line(this.elements.find((element) => element.source === references.source && element.item === item)!)),

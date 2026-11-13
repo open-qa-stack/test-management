@@ -30,6 +30,9 @@ export function usageOf(counters: TaskCounters): ModelUsage {
 export function totalUsage(usages: readonly ModelUsage[]): ModelUsage {
   const reported = usages.filter((usage) => usage.inputTokens !== undefined);
   const sum = (values: readonly number[]) => values.reduce((total, value) => total + value, 0);
-  const tokens = reported.length === 0 ? {} : { inputTokens: sum(reported.map((usage) => usage.inputTokens!)), outputTokens: sum(reported.map((usage) => usage.outputTokens!)) };
+  const tokens =
+    reported.length === 0
+      ? {}
+      : { inputTokens: sum(reported.map((usage) => usage.inputTokens!)), outputTokens: sum(reported.map((usage) => usage.outputTokens!)) };
   return { requests: sum(usages.map((usage) => usage.requests)), ...tokens };
 }

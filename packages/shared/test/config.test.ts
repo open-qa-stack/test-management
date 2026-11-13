@@ -65,11 +65,7 @@ describe("criterion 4 — the example declares the four databases by environment
   const databases = knowledge.filter((k) => k["type"] === "postgresql");
 
   it("declares one PostgreSQL knowledge per database, each with its own variable and application", () => {
-    const declared = databases.map((k) => [
-      k["id"],
-      k["connectionStringEnv"],
-      (k["attachments"] as JsonObject[]).map((a) => a["application"]).join(","),
-    ]);
+    const declared = databases.map((k) => [k["id"], k["connectionStringEnv"], (k["attachments"] as JsonObject[]).map((a) => a["application"]).join(",")]);
     assert.deepEqual(declared, [
       ["customer-core-db", "CUSTOMER_CORE_DB_URL", "customer-management"],
       ["customer-self-service-db", "CUSTOMER_SELF_SERVICE_DB_URL", "customer-self-service"],
@@ -123,10 +119,13 @@ describe("criterion 6 — a value that is not a variable name is refused without
         at(c, "model")["apiKeyEnv"] = "sk-abc";
       }),
     );
-    assert.deepEqual(errors.toSorted((a, b) => a.path.localeCompare(b.path)).map((e) => [e.path, e.rule]), [
-      ["/applications/0/authentication/accounts/0/passwordEnv", "env-var-name"],
-      ["/model/apiKeyEnv", "env-var-name"],
-    ]);
+    assert.deepEqual(
+      errors.toSorted((a, b) => a.path.localeCompare(b.path)).map((e) => [e.path, e.rule]),
+      [
+        ["/applications/0/authentication/accounts/0/passwordEnv", "env-var-name"],
+        ["/model/apiKeyEnv", "env-var-name"],
+      ],
+    );
   });
 });
 
@@ -196,7 +195,10 @@ describe("criterion 10 — URLs are absolute, http or https, without credentials
         at(c, "model")["baseUrl"] = "v1";
       }),
     );
-    assert.deepEqual(errors.map((e) => [e.path, e.rule]), cases);
+    assert.deepEqual(
+      errors.map((e) => [e.path, e.rule]),
+      cases,
+    );
     assert.ok(!JSON.stringify(errors).includes("pass@"));
   });
 });
@@ -438,7 +440,9 @@ describe("test charter changes", () => {
   });
 
   it("requires a reason for every change, and refuses any other key", () => {
-    const errors = errorsOf(validateVariant((c) => (c["charter"] = { disable: [{ rule: "PW-WAIT-01" }], add: [{ ...add("TEAM-TAG-01"), reason: "" }], enable: [] })));
+    const errors = errorsOf(
+      validateVariant((c) => (c["charter"] = { disable: [{ rule: "PW-WAIT-01" }], add: [{ ...add("TEAM-TAG-01"), reason: "" }], enable: [] })),
+    );
     assert.deepEqual(
       errors.toSorted((a, b) => a.path.localeCompare(b.path)).map((e) => [e.path, e.rule]),
       [
@@ -468,10 +472,13 @@ describe("other structural rules", () => {
         at(c, "model")["mode"] = "github-app";
       }),
     );
-    assert.deepEqual(errors.map((e) => [e.path, e.rule]), [
-      ["/knowledge/0/type", "unknown-variant"],
-      ["/model/mode", "unknown-variant"],
-    ]);
+    assert.deepEqual(
+      errors.map((e) => [e.path, e.rule]),
+      [
+        ["/knowledge/0/type", "unknown-variant"],
+        ["/model/mode", "unknown-variant"],
+      ],
+    );
   });
 
   it("requires exactly one source for an OpenAPI contract", () => {
@@ -548,7 +555,10 @@ describe("hardening", () => {
   it("locates a repeated key inside arrays and escaped names", () => {
     const text = '{"a": [1, {"x": "\\"q", "y": 2}, {"k\\u0041": 1, "kA": 2}], "b": {"c": {}, "c": []}}';
     const errors = errorsOf(validateConfig(text, {}));
-    assert.deepEqual(errors.map((e) => e.path), ["/a/2/kA", "/b/c"]);
+    assert.deepEqual(
+      errors.map((e) => e.path),
+      ["/a/2/kA", "/b/c"],
+    );
   });
 
   it("checks a document that is a single value", () => {
@@ -591,13 +601,21 @@ describe("hardening", () => {
     const errors = errorsOf(
       validateVariant((c) => {
         at(c, "applications/0")["name"] = "";
-        c["autonomy"] = { level: "custom", task: { maxIterations: 0, maxDurationMinutes: 1, maxActions: 1 }, batch: { maxTests: 1, maxIdleRounds: 1 }, guardrailMinutes: 1 };
+        c["autonomy"] = {
+          level: "custom",
+          task: { maxIterations: 0, maxDurationMinutes: 1, maxActions: 1 },
+          batch: { maxTests: 1, maxIdleRounds: 1 },
+          guardrailMinutes: 1,
+        };
       }),
     );
-    assert.deepEqual(errors.map((e) => [e.path, e.rule]), [
-      ["/applications/0/name", "empty-value"],
-      ["/autonomy/task/maxIterations", "below-minimum"],
-    ]);
+    assert.deepEqual(
+      errors.map((e) => [e.path, e.rule]),
+      [
+        ["/applications/0/name", "empty-value"],
+        ["/autonomy/task/maxIterations", "below-minimum"],
+      ],
+    );
   });
 
   it("keeps its defaults frozen, whatever a caller does", () => {
@@ -611,7 +629,13 @@ describe("source code — a folder of the workstation, possibly outside the test
     listAt(c, "knowledge").push({ id: "policy-code", type: "source-code", attachments: [{ application: "policy-management" }], ...fields });
 
   it("accepts a folder inside or outside the repository, with any command level", () => {
-    for (const fields of [{ path: "app" }, { path: "../policy-management" }, { path: "../../x", commands: "none" }, { path: "x", commands: "git" }, { path: "x", commands: "shell" }]) {
+    for (const fields of [
+      { path: "app" },
+      { path: "../policy-management" },
+      { path: "../../x", commands: "none" },
+      { path: "x", commands: "git" },
+      { path: "x", commands: "shell" },
+    ]) {
       assert.equal(validateVariant(code(fields)).ok, true, JSON.stringify(fields));
     }
   });
@@ -634,7 +658,13 @@ describe("source code — a folder of the workstation, possibly outside the test
 
 describe("identifiers of knowledge and applications", () => {
   it("refuses a knowledge source named like an application, since both name the sources of an index", () => {
-    const e = only(errorsOf(validateVariant((c) => listAt(c, "knowledge").push({ id: "policy-management", type: "document", path: "specs/x.md", attachments: [{ application: "policy-management" }] }))));
+    const e = only(
+      errorsOf(
+        validateVariant((c) =>
+          listAt(c, "knowledge").push({ id: "policy-management", type: "document", path: "specs/x.md", attachments: [{ application: "policy-management" }] }),
+        ),
+      ),
+    );
     assert.deepEqual([e.path, e.rule, e.message], ["/knowledge/8/id", "duplicate", "The identifier is already given to an application."]);
   });
 });

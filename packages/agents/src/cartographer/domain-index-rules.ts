@@ -1,4 +1,13 @@
-import { placementErrors, unplacedItems, validateDomainSubmission, type DomainIndexSubmission, type IndexError, type IndexSourceType, type SourceInventory, type SourceReferences } from "@open-qa-stack/shared";
+import {
+  placementErrors,
+  unplacedItems,
+  validateDomainSubmission,
+  type DomainIndexSubmission,
+  type IndexError,
+  type IndexSourceType,
+  type SourceInventory,
+  type SourceReferences,
+} from "@open-qa-stack/shared";
 import { secretErrors } from "../common/config-secrets.ts";
 import { withUnassigned } from "../common/with-unassigned.ts";
 import type { FollowUp, SubmissionCheck, SubmissionRules } from "../common/handed-in.ts";
@@ -67,12 +76,27 @@ const SUBMISSION_SHAPE = {
  * @param secrets - The secrets of the configuration, which no index may hold.
  * @returns The rules.
  */
-export function domainIndexRules(inventory: SourceInventory, sources: ReadonlyMap<string, IndexSourceType>, isRead: (source: string) => boolean, secrets: readonly string[]): SubmissionRules<DomainIndexSubmission> {
+export function domainIndexRules(
+  inventory: SourceInventory,
+  sources: ReadonlyMap<string, IndexSourceType>,
+  isRead: (source: string) => boolean,
+  secrets: readonly string[],
+): SubmissionRules<DomainIndexSubmission> {
   const ids = new Set(sources.keys());
   const words = new ElementWords(inventory, sources);
-  const checked = (value: DomainIndexSubmission, elements: SourceInventory, filed: DomainIndexSubmission, touched?: ReadonlySet<string>): SubmissionCheck<DomainIndexSubmission> => ({
+  const checked = (
+    value: DomainIndexSubmission,
+    elements: SourceInventory,
+    filed: DomainIndexSubmission,
+    touched?: ReadonlySet<string>,
+  ): SubmissionCheck<DomainIndexSubmission> => ({
     value: filed,
-    errors: [...secretErrors(value, secrets), ...placementErrors(value, elements, ids), ...unread(value, ids, isRead), ...filingErrors(filed, sources, words, touched)],
+    errors: [
+      ...secretErrors(value, secrets),
+      ...placementErrors(value, elements, ids),
+      ...unread(value, ids, isRead),
+      ...filingErrors(filed, sources, words, touched),
+    ],
     unplaced: unplacedItems(value, elements),
   });
   return {
@@ -132,7 +156,12 @@ function merged(accepted: DomainIndexSubmission, second: DomainIndexSubmission):
  *
  * @param touched - The domains to check, when not all of them: a domain the first submission made stays as it was accepted.
  */
-function filingErrors(submission: DomainIndexSubmission, sources: ReadonlyMap<string, IndexSourceType>, words: ElementWords, touched?: ReadonlySet<string>): IndexError[] {
+function filingErrors(
+  submission: DomainIndexSubmission,
+  sources: ReadonlyMap<string, IndexSourceType>,
+  words: ElementWords,
+  touched?: ReadonlySet<string>,
+): IndexError[] {
   const errors: IndexError[] = [];
   submission.domains.forEach((domain, i) => {
     if (touched !== undefined && !touched.has(domain.id)) return;
@@ -149,13 +178,17 @@ function filingErrors(submission: DomainIndexSubmission, sources: ReadonlyMap<st
     for (const other of submission.domains) {
       const shared = other === domain ? [] : [...new Set(elementsOf(other).flatMap((theirs) => own.flatMap((element) => words.shared(element, theirs))))];
       if (shared.length === 0) continue;
-      errors.push({ path: `/domains/${i}`, message: `The domain ${domain.id} holds only ${KINDS[kind]}, although the domain ${other.id} shares words with them (${shared.join(", ")}); put each in the domain of its functional area.` });
+      errors.push({
+        path: `/domains/${i}`,
+        message: `The domain ${domain.id} holds only ${KINDS[kind]}, although the domain ${other.id} shares words with them (${shared.join(", ")}); put each in the domain of its functional area.`,
+      });
       return;
     }
   });
   submission.unassigned.forEach(({ source, items }, j) => {
     items.forEach((item, k) => {
-      if (placedIn(submission.domains, source, item)) errors.push({ path: `/unassigned/${j}/items/${k}`, message: `${item} of ${source} is both in a domain and in unassigned; it is one or the other.` });
+      if (placedIn(submission.domains, source, item))
+        errors.push({ path: `/unassigned/${j}/items/${k}`, message: `${item} of ${source} is both in a domain and in unassigned; it is one or the other.` });
     });
   });
   return errors;
@@ -183,14 +216,22 @@ function unread(submission: DomainIndexSubmission, sources: ReadonlySet<string>,
  * each item once.
  */
 function normalised(submission: DomainIndexSubmission, inventory: SourceInventory): DomainIndexSubmission {
-  return { domains: submission.domains.map((domain) => ({ ...domain, references: unprefixed(domain.references, inventory) })), unassigned: unprefixed(submission.unassigned, inventory) };
+  return {
+    domains: submission.domains.map((domain) => ({ ...domain, references: unprefixed(domain.references, inventory) })),
+    unassigned: unprefixed(submission.unassigned, inventory),
+  };
 }
 
 function unprefixed(references: readonly SourceReferences[], inventory: SourceInventory): SourceReferences[] {
   return grouped(
     references.map(({ source, items }) => {
       const known = new Set(inventory.get(source));
-      return { source, items: items.map((item) => (!known.has(item) && (item.startsWith(`${source}/`) || item.startsWith(`${source}:`)) ? item.slice(source.length + 1) : item)) };
+      return {
+        source,
+        items: items.map((item) =>
+          !known.has(item) && (item.startsWith(`${source}/`) || item.startsWith(`${source}:`)) ? item.slice(source.length + 1) : item,
+        ),
+      };
     }),
   );
 }

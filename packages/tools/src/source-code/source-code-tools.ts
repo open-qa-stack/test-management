@@ -69,14 +69,28 @@ export function sourceCodeTools(knowledgeId: string, folder: CodeFolder, command
         ["pattern"],
       ),
       execute: (args) => {
-        const { pattern, regex = false, caseSensitive = false, glob, context = 2, limit = 30 } = args as { pattern: string; regex?: boolean; caseSensitive?: boolean; glob?: string; context?: number; limit?: number };
+        const {
+          pattern,
+          regex = false,
+          caseSensitive = false,
+          glob,
+          context = 2,
+          limit = 30,
+        } = args as { pattern: string; regex?: boolean; caseSensitive?: boolean; glob?: string; context?: number; limit?: number };
         return searchCode(folder, { pattern, regex, caseSensitive, ...(glob === undefined ? {} : { glob }), context, limit });
       },
     },
     {
       name: name("read_file"),
       description: `Returns numbered lines of a file ${of}, ${MAX_READ_LINES} at most per call; read the next ones from the last line given.`,
-      parameters: object({ path, startLine: integer(1, Number.MAX_SAFE_INTEGER, "Defaults to 1."), endLine: integer(1, Number.MAX_SAFE_INTEGER, "Defaults to the end, within the bound.") }, ["path"]),
+      parameters: object(
+        {
+          path,
+          startLine: integer(1, Number.MAX_SAFE_INTEGER, "Defaults to 1."),
+          endLine: integer(1, Number.MAX_SAFE_INTEGER, "Defaults to the end, within the bound."),
+        },
+        ["path"],
+      ),
       execute: async (args) => {
         const { path: file, startLine = 1, endLine } = args as { path: string; startLine?: number; endLine?: number };
         const lines = fileLines(await folder.read(file));
@@ -86,7 +100,9 @@ export function sourceCodeTools(knowledgeId: string, folder: CodeFolder, command
     },
     {
       name: name("outline"),
-      description: `Lists the declarations of a source file ${of} with their lines: classes, interfaces, enums, functions, methods, and the annotations that map web routes. Reads ${parsedExtensions().map((e) => `.${e}`).join(" ")} files.`,
+      description: `Lists the declarations of a source file ${of} with their lines: classes, interfaces, enums, functions, methods, and the annotations that map web routes. Reads ${parsedExtensions()
+        .map((e) => `.${e}`)
+        .join(" ")} files.`,
       parameters: object({ path }, ["path"]),
       execute: async (args) => {
         const { path: file } = args as { path: string };
@@ -109,7 +125,11 @@ export function sourceCodeTools(knowledgeId: string, folder: CodeFolder, command
     {
       name: name("git_blame"),
       description: `Tells which commit last changed each line of a range of a file ${of}, ${MAX_BLAME_LINES} lines at most.`,
-      parameters: object({ path, startLine: integer(1, Number.MAX_SAFE_INTEGER, "First line."), endLine: integer(1, Number.MAX_SAFE_INTEGER, "Last line.") }, ["path", "startLine", "endLine"]),
+      parameters: object({ path, startLine: integer(1, Number.MAX_SAFE_INTEGER, "First line."), endLine: integer(1, Number.MAX_SAFE_INTEGER, "Last line.") }, [
+        "path",
+        "startLine",
+        "endLine",
+      ]),
       execute: (args) => {
         const { path: file, startLine, endLine } = args as { path: string; startLine: number; endLine: number };
         return history.blame(file, startLine, endLine);

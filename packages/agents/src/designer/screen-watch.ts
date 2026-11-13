@@ -75,31 +75,40 @@ export class ScreenWatch {
         this.record(seen, result, (args as { within?: unknown }).within === undefined);
         return result;
       });
-      wrap("goto", async (tool, args) => {
-        const state = (await tool.execute(args)) as object;
-        const shown = await read();
-        return { ...state, page: shown.page, truncated: shown.truncated };
-      }, "Returns what the page shows, and the line of code that does the same in a test.");
-      for (const action of ACTIONS) {
-        wrap(action, async (tool, args) => {
-          const previous = seen.last ?? (await read()).lines;
+      wrap(
+        "goto",
+        async (tool, args) => {
           const state = (await tool.execute(args)) as object;
-          const current = (await read()).lines;
-          const appeared = absent(current, previous);
-          for (const line of appeared) seen.produced.add(line);
-          const told = appeared.length === 0 ? "Nothing new appeared on the page." : appeared.slice(0, MAX_APPEARED).join("\n");
-          const gone = absent(previous, current);
-          for (const line of gone) seen.removed.add(line);
-          const more = gone.length > MAX_GONE ? [`${gone.length - MAX_GONE} more lines went.`] : [];
-          return {
-            ...state,
-            appeared: told,
-            ...(appeared.length > MAX_APPEARED ? { more: `${appeared.length - MAX_APPEARED} more lines appeared; take a snapshot to read them.` } : {}),
-            gone: gone.length === 0 ? "Nothing went from the page." : [...gone.slice(0, MAX_GONE), ...more].join("\n"),
-          };
-        }, "Returns what appeared, what went, and the line of code that does the same in a test.");
+          const shown = await read();
+          return { ...state, page: shown.page, truncated: shown.truncated };
+        },
+        "Returns what the page shows, and the line of code that does the same in a test.",
+      );
+      for (const action of ACTIONS) {
+        wrap(
+          action,
+          async (tool, args) => {
+            const previous = seen.last ?? (await read()).lines;
+            const state = (await tool.execute(args)) as object;
+            const current = (await read()).lines;
+            const appeared = absent(current, previous);
+            for (const line of appeared) seen.produced.add(line);
+            const told = appeared.length === 0 ? "Nothing new appeared on the page." : appeared.slice(0, MAX_APPEARED).join("\n");
+            const gone = absent(previous, current);
+            for (const line of gone) seen.removed.add(line);
+            const more = gone.length > MAX_GONE ? [`${gone.length - MAX_GONE} more lines went.`] : [];
+            return {
+              ...state,
+              appeared: told,
+              ...(appeared.length > MAX_APPEARED ? { more: `${appeared.length - MAX_APPEARED} more lines appeared; take a snapshot to read them.` } : {}),
+              gone: gone.length === 0 ? "Nothing went from the page." : [...gone.slice(0, MAX_GONE), ...more].join("\n"),
+            };
+          },
+          "Returns what appeared, what went, and the line of code that does the same in a test.",
+        );
       }
-      for (const name of byApplication.get(application)!.filter((name) => !owned.has(name))) wrap(name.slice(scopedToolName(application, "").length), (tool, args) => tool.execute(args));
+      for (const name of byApplication.get(application)!.filter((name) => !owned.has(name)))
+        wrap(name.slice(scopedToolName(application, "").length), (tool, args) => tool.execute(args));
     }
     this.watched = tools.map((tool) => owned.get(tool.name) ?? tool);
   }
@@ -150,7 +159,8 @@ export class ScreenWatch {
     if (seen === undefined) return [];
     const lines = [...seen.lines];
     const shown = ({ role, text }: SpecLocator) =>
-      (role === undefined || lines.some((line) => new RegExp(`^- '?${role}\\b`).test(line))) && (text === undefined || !checkable(text) || observed(text, lines));
+      (role === undefined || lines.some((line) => new RegExp(`^- '?${role}\\b`).test(line))) &&
+      (text === undefined || !checkable(text) || observed(text, lines));
     const missed = locators.filter((locator) => !shown(locator));
     return missed.filter((locator, at) => missed.findIndex((other) => other.code === locator.code) === at);
   }
@@ -168,7 +178,11 @@ export class ScreenWatch {
     const lines = [...this.seen.get(application)!.lines];
     const score = (line: string) => {
       const words = new Set(wordsOf(line));
-      return locators.reduce((total, { role, text }) => total + (role !== undefined && new RegExp(`^- '?${role}\\b`).test(line) ? 1 : 0) + wordsOf(text ?? "").filter((word) => words.has(word)).length, 0);
+      return locators.reduce(
+        (total, { role, text }) =>
+          total + (role !== undefined && new RegExp(`^- '?${role}\\b`).test(line) ? 1 : 0) + wordsOf(text ?? "").filter((word) => words.has(word)).length,
+        0,
+      );
     };
     return lines
       .map((line) => ({ line, score: score(line) }))
@@ -222,7 +236,12 @@ export class ScreenWatch {
 
   /** Keeps what a snapshot showed; one of the whole page is the one the next action is compared with. */
   private record(seen: Seen, snapshot: { page: string; truncated: boolean }, whole: boolean): { page: string; truncated: boolean; lines: Set<string> } {
-    const lines = new Set(snapshot.page.split("\n").map(normalized).filter((line) => line !== ""));
+    const lines = new Set(
+      snapshot.page
+        .split("\n")
+        .map(normalized)
+        .filter((line) => line !== ""),
+    );
     for (const line of lines) seen.lines.add(line);
     if (whole) seen.last = lines;
     return { ...snapshot, lines };
@@ -231,7 +250,10 @@ export class ScreenWatch {
 
 /** The words of a text that can tell an element, three letters or more, in lower case. */
 function wordsOf(text: string): string[] {
-  return text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((word) => word.length >= 3);
+  return text
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((word) => word.length >= 3);
 }
 
 /** The lines of a snapshot that another does not show. */

@@ -15,7 +15,10 @@ describe("solo command, criterion 18 — the number of cartography tasks at once
   it("refuses a value that is not a whole number of 1 or more, with its JSON path", () => {
     for (const concurrency of [0, -1, 1.5, "2"]) {
       const errors = errorsOf(validateVariant((config) => (config["cartography"] = { concurrency })));
-      assert.ok(errors.some((error) => error.path === "/cartography/concurrency"), JSON.stringify([concurrency, errors]));
+      assert.ok(
+        errors.some((error) => error.path === "/cartography/concurrency"),
+        JSON.stringify([concurrency, errors]),
+      );
     }
     assert.ok(errorsOf(validateVariant((config) => (config["cartography"] = { workers: 2 }))).some((error) => error.path.startsWith("/cartography")));
   });

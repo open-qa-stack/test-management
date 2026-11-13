@@ -24,7 +24,11 @@ class CatalogDouble implements SqlClient {
   /** {@inheritDoc SqlClient.query} */
   public async query(text: string): Promise<SqlResult> {
     this.queries.push(text);
-    if (text === TABLES_QUERY) return sqlResult([{ schema: "public", table: "policies" }, { schema: "public", table: "audit" }]);
+    if (text === TABLES_QUERY)
+      return sqlResult([
+        { schema: "public", table: "policies" },
+        { schema: "public", table: "audit" },
+      ]);
     if (text === ALL_COLUMNS_QUERY) {
       return sqlResult([
         { schema: "public", table: "policies", name: "id", type: "bigint", nullable: false },
@@ -35,7 +39,15 @@ class CatalogDouble implements SqlClient {
     if (text === KEYS_QUERY) {
       return sqlResult([
         { schema: "public", table: "policies", kind: "p", columns: ["id"], referenced_schema: null, referenced_table: null, referenced_columns: [] },
-        { schema: "public", table: "policies", kind: "f", columns: ["customer_id"], referenced_schema: "public", referenced_table: "customers", referenced_columns: ["id"] },
+        {
+          schema: "public",
+          table: "policies",
+          kind: "f",
+          columns: ["customer_id"],
+          referenced_schema: "public",
+          referenced_table: "customers",
+          referenced_columns: ["id"],
+        },
       ]);
     }
     throw new Error(`unexpected query ${text}`);
@@ -47,7 +59,10 @@ describe("the inventory of a knowledge source, read without the model", () => {
     const contract: Knowledge = { id: "policy-api", type: "openapi", path: "contracts/policies.json", attachments };
     const inventory = (await knowledgeInventory(contract, { repositoryRoot: REPOSITORY, env: {} }))!;
     assert.deepEqual(inventory.items, ["policies", "/policies"]);
-    assert.deepEqual(Object.fromEntries(inventory.facts), { policies: { operations: ["GET /policies", "POST /policies"] }, "/policies": { operations: ["GET /policies/{id}"] } });
+    assert.deepEqual(Object.fromEntries(inventory.facts), {
+      policies: { operations: ["GET /policies", "POST /policies"] },
+      "/policies": { operations: ["GET /policies/{id}"] },
+    });
     assert.match(inventory.fingerprint, /^sha256:[0-9a-f]{64}$/);
     assert.equal((await knowledgeInventory(contract, { repositoryRoot: REPOSITORY, env: {} }))!.fingerprint, inventory.fingerprint);
   });
@@ -59,7 +74,11 @@ describe("the inventory of a knowledge source, read without the model", () => {
     const inventory = (await knowledgeInventory(base, access))!;
     assert.deepEqual(inventory.items, ["public.policies", "public.audit"]);
     assert.deepEqual(Object.fromEntries(inventory.facts), {
-      "public.policies": { columns: 3, primaryKey: ["id"], foreignKeys: [{ columns: ["customer_id"], references: "public.customers", referencedColumns: ["id"] }] },
+      "public.policies": {
+        columns: 3,
+        primaryKey: ["id"],
+        foreignKeys: [{ columns: ["customer_id"], references: "public.customers", referencedColumns: ["id"] }],
+      },
       "public.audit": { columns: 0, primaryKey: [], foreignKeys: [] },
     });
     assert.deepEqual(Object.fromEntries(inventory.excerpts!), { "public.policies": "id bigint not null, premium numeric, customer_id bigint not null" });
@@ -70,7 +89,10 @@ describe("the inventory of a knowledge source, read without the model", () => {
 
   it("reaches a base with PostgreSQL itself by default", async () => {
     const base: Knowledge = { id: "policy-db", type: "postgresql", connectionStringEnv: "DB", attachments };
-    await assert.rejects(knowledgeInventory(base, { repositoryRoot: REPOSITORY, env: { DB: `postgresql://x@127.0.0.1:${await closedPort()}/x` } }), /ECONNREFUSED/);
+    await assert.rejects(
+      knowledgeInventory(base, { repositoryRoot: REPOSITORY, env: { DB: `postgresql://x@127.0.0.1:${await closedPort()}/x` } }),
+      /ECONNREFUSED/,
+    );
   });
 
   it("gives the chapters and sections of a document, numbered and leveled, a repeated title followed by its number", async () => {

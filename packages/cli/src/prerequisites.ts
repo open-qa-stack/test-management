@@ -33,7 +33,11 @@ export async function missingPrerequisites(config: ResolvedConfig, repositoryRoo
 
 /** Whether a folder is the root of a git repository with a commit, as the designer needs it. */
 async function gitRoot(folder: string): Promise<boolean> {
-  const top = await new Promise<string | undefined>((resolve) => execFile("git", ["rev-parse", "--show-toplevel", "--verify", "HEAD"], { cwd: folder }, (error, stdout) => resolve(error === null ? stdout.split("\n")[0] : undefined)));
+  const top = await new Promise<string | undefined>((resolve) =>
+    execFile("git", ["rev-parse", "--show-toplevel", "--verify", "HEAD"], { cwd: folder }, (error, stdout) =>
+      resolve(error === null ? stdout.split("\n")[0] : undefined),
+    ),
+  );
   return top !== undefined && (await realpath(top)) === (await realpath(folder));
 }
 

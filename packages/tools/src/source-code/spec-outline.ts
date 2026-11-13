@@ -81,10 +81,12 @@ export class SpecOutline {
     const calls = root.descendantsOfType("call_expression").map((call) => call!);
     this.tests = calls.filter((call) => isIdentifier(call.childForFieldName("function")!, "test")).length;
     const steps = calls.filter(isStep);
-    this.steps = steps.filter((step) => !steps.some((other) => other !== step && other.startIndex <= step.startIndex && step.endIndex <= other.endIndex)).map((step) => {
-      const title = stringValue(step.childForFieldName("arguments")!.namedChildren[0]);
-      return { ...(title === undefined ? {} : { title }), start: step.startIndex, end: step.endIndex };
-    });
+    this.steps = steps
+      .filter((step) => !steps.some((other) => other !== step && other.startIndex <= step.startIndex && step.endIndex <= other.endIndex))
+      .map((step) => {
+        const title = stringValue(step.childForFieldName("arguments")!.namedChildren[0]);
+        return { ...(title === undefined ? {} : { title }), start: step.startIndex, end: step.endIndex };
+      });
     this.locators = calls.flatMap((call) => locatorOf(call));
     this.assertions = root.descendantsOfType("expression_statement").flatMap((statement) => assertionOf(statement!));
     this.typed = calls.flatMap((call) => typedBy(call));
@@ -105,7 +107,9 @@ function isIdentifier(node: Node, name: string): boolean {
 /** Whether a call is `test.step(…)`. */
 function isStep(call: Node): boolean {
   const callee = call.childForFieldName("function")!;
-  return callee.type === "member_expression" && isIdentifier(callee.childForFieldName("object")!, "test") && callee.childForFieldName("property")!.text === "step";
+  return (
+    callee.type === "member_expression" && isIdentifier(callee.childForFieldName("object")!, "test") && callee.childForFieldName("property")!.text === "step"
+  );
 }
 
 /** The locator a call is, if it is one whose first argument is a string. */
@@ -118,7 +122,8 @@ function locatorOf(call: Node): SpecLocator[] {
   if (value === undefined) return [];
   const code = `${method.text}${args.text}`;
   if (method.text !== "getByRole") return [{ code, text: value }];
-  const name = options?.type === "object" ? options.namedChildren.find((pair) => pair!.type === "pair" && pair!.childForFieldName("key")!.text === "name") : undefined;
+  const name =
+    options?.type === "object" ? options.namedChildren.find((pair) => pair!.type === "pair" && pair!.childForFieldName("key")!.text === "name") : undefined;
   const text = stringValue(name?.childForFieldName("value"));
   return [{ code, role: value, ...(text === undefined ? {} : { text }) }];
 }
@@ -184,6 +189,7 @@ function strings(node: Node): string[] {
 
 /** The value of a string literal or of a template without substitution; `undefined` for any other expression, or none. */
 function stringValue(node: Node | null | undefined): string | undefined {
-  if (node?.type !== "string" && (node?.type !== "template_string" || node.namedChildren.some((child) => child!.type === "template_substitution"))) return undefined;
+  if (node?.type !== "string" && (node?.type !== "template_string" || node.namedChildren.some((child) => child!.type === "template_substitution")))
+    return undefined;
   return node.text.slice(1, -1).replace(/\\(.)/g, "$1");
 }

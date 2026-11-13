@@ -30,7 +30,8 @@ export function placementErrors(submission: DomainIndexSubmission, inventory: So
     }
     const known = inventory.get(source);
     items.forEach((item, k) => {
-      if (known !== undefined && !known.includes(item)) errors.push({ path: `${path}/items/${k}`, message: `${path}/items/${k}: ${item} is not an item of ${source}; use one of the items listed for it.` });
+      if (known !== undefined && !known.includes(item))
+        errors.push({ path: `${path}/items/${k}`, message: `${path}/items/${k}: ${item} is not an item of ${source}; use one of the items listed for it.` });
     });
   }
   for (const [source, items] of unplacedItems(submission, inventory)) {
@@ -47,7 +48,11 @@ export function placementErrors(submission: DomainIndexSubmission, inventory: So
  * @returns The sources that have items in no domain nor in `unassigned`, each with those items, in the order of the inventory.
  */
 export function unplacedItems(submission: DomainIndexSubmission, inventory: SourceInventory): Map<string, string[]> {
-  const placed = new Set([...submission.domains.flatMap((domain) => domain.references), ...submission.unassigned].flatMap(({ source, items }) => items.map((item) => `${source}\u0000${item}`)));
+  const placed = new Set(
+    [...submission.domains.flatMap((domain) => domain.references), ...submission.unassigned].flatMap(({ source, items }) =>
+      items.map((item) => `${source}\u0000${item}`),
+    ),
+  );
   const unplaced = new Map<string, string[]>();
   for (const [source, items] of inventory) {
     const missing = items.filter((item) => !placed.has(`${source}\u0000${item}`));

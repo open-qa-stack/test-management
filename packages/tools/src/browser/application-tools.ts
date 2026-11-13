@@ -59,17 +59,19 @@ export function applicationTools(application: Application, environment: Environm
   const name = (action: string) => scopedToolName(application.id, action);
   // The model may call several tools at once; on one page, they run one after the other, in order.
   let queue: Promise<unknown> = Promise.resolve();
-  const on = <T>(use: (page: ApplicationPage, args: T) => Promise<unknown>) => (args: unknown) => {
-    const run = queue.then(async () => {
-      try {
-        return redact(await use(await access.session.page(scope), args as T), secrets);
-      } catch (failure) {
-        throw new Error(redactText(failure instanceof Error ? failure.message : String(failure), secrets));
-      }
-    });
-    queue = run.catch(() => undefined);
-    return run;
-  };
+  const on =
+    <T>(use: (page: ApplicationPage, args: T) => Promise<unknown>) =>
+    (args: unknown) => {
+      const run = queue.then(async () => {
+        try {
+          return redact(await use(await access.session.page(scope), args as T), secrets);
+        } catch (failure) {
+          throw new Error(redactText(failure instanceof Error ? failure.message : String(failure), secrets));
+        }
+      });
+      queue = run.catch(() => undefined);
+      return run;
+    };
   const where = `of ${application.name} (${environment.name})`;
   let screenshots = 0;
   return [
@@ -106,7 +108,12 @@ export function applicationTools(application: Application, environment: Environm
           value: {
             oneOf: [
               { type: "string" },
-              { type: "object", properties: { account: { type: "string" }, field: { enum: ["username", "password"] } }, required: ["account", "field"], additionalProperties: false },
+              {
+                type: "object",
+                properties: { account: { type: "string" }, field: { enum: ["username", "password"] } },
+                required: ["account", "field"],
+                additionalProperties: false,
+              },
             ],
           },
         },
@@ -125,16 +132,30 @@ export function applicationTools(application: Application, environment: Environm
     {
       name: name("select_option"),
       description: `Chooses an option, by its label or value, in a list of the page ${where}. Returns where the page is, and the line of code that does the same in a test.`,
-      parameters: { type: "object", properties: { target: TARGET_SCHEMA, option: { type: "string" } }, required: ["target", "option"], additionalProperties: false },
+      parameters: {
+        type: "object",
+        properties: { target: TARGET_SCHEMA, option: { type: "string" } },
+        required: ["target", "option"],
+        additionalProperties: false,
+      },
       browserAction: true,
-      execute: on((page, { target, option }: { target: Target; option: string }) => acted(page, target, `selectOption(${JSON.stringify(option)})`, (element) => element.selectOption(option))),
+      execute: on((page, { target, option }: { target: Target; option: string }) =>
+        acted(page, target, `selectOption(${JSON.stringify(option)})`, (element) => element.selectOption(option)),
+      ),
     },
     {
       name: name("check"),
       description: `Checks or unchecks a checkbox or radio button of the page ${where}. Returns where the page is, and the line of code that does the same in a test.`,
-      parameters: { type: "object", properties: { target: TARGET_SCHEMA, checked: { type: "boolean" } }, required: ["target", "checked"], additionalProperties: false },
+      parameters: {
+        type: "object",
+        properties: { target: TARGET_SCHEMA, checked: { type: "boolean" } },
+        required: ["target", "checked"],
+        additionalProperties: false,
+      },
       browserAction: true,
-      execute: on((page, { target, checked }: { target: Target; checked: boolean }) => acted(page, target, checked ? "check()" : "uncheck()", (element) => element.setChecked(checked))),
+      execute: on((page, { target, checked }: { target: Target; checked: boolean }) =>
+        acted(page, target, checked ? "check()" : "uncheck()", (element) => element.setChecked(checked)),
+      ),
     },
     {
       name: name("wait_for"),
@@ -162,7 +183,11 @@ export function applicationTools(application: Application, environment: Environm
     {
       name: name("screenshot"),
       description: `Saves a screenshot of the page ${where} and returns where it is.`,
-      parameters: { type: "object", properties: { fullPage: { type: "boolean", description: "The whole page rather than the viewport." } }, additionalProperties: false },
+      parameters: {
+        type: "object",
+        properties: { fullPage: { type: "boolean", description: "The whole page rather than the viewport." } },
+        additionalProperties: false,
+      },
       execute: on(async (page, { fullPage }: { fullPage?: boolean }) => {
         const path = join(access.screenshotsDir, `${application.id}-${++screenshots}.png`);
         await page.screenshot(path, fullPage ?? false);
@@ -172,7 +197,11 @@ export function applicationTools(application: Application, environment: Environm
     {
       name: name("network"),
       description: `Returns the latest requests of the page ${where}, with their status: the document and its API calls, and the assets when asked.`,
-      parameters: { type: "object", properties: { limit: limit(`Defaults to ${DEFAULT_LOG_ENTRIES}.`), assets: { type: "boolean" } }, additionalProperties: false },
+      parameters: {
+        type: "object",
+        properties: { limit: limit(`Defaults to ${DEFAULT_LOG_ENTRIES}.`), assets: { type: "boolean" } },
+        additionalProperties: false,
+      },
       execute: on(async (page, { limit: count, assets }: { limit?: number; assets?: boolean }) => page.network(count ?? DEFAULT_LOG_ENTRIES, assets ?? false)),
     },
     {

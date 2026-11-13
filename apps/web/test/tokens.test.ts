@@ -144,11 +144,17 @@ describe("criterion 3 — the design tokens are CSS custom properties, and the o
 
   it("declares a token for each secondary colour of the design", () => {
     const values = new Set(rootDeclarations().values());
-    assert.deepEqual(SECONDARY_COLOURS.filter((colour) => !values.has(colour)), []);
+    assert.deepEqual(
+      SECONDARY_COLOURS.filter((colour) => !values.has(colour)),
+      [],
+    );
   });
 
   it("declares only custom properties at the root", () => {
-    assert.deepEqual([...rootDeclarations().keys()].filter((name) => !name.startsWith("--")), []);
+    assert.deepEqual(
+      [...rootDeclarations().keys()].filter((name) => !name.startsWith("--")),
+      [],
+    );
   });
 
   it("writes no colour literal outside the tokens file", () => {
@@ -190,11 +196,34 @@ describe("criterion 3 — the design tokens are CSS custom properties, and the o
   it("scans every page, style sheet, drawing and script of the console, outside dependencies, build and tests", async () => {
     const root = await mkdtemp(join(tmpdir(), "oqas-web-"));
     try {
-      for (const file of ["index.html", "README.md", "vite.config.mjs", "public/logo.svg", "src/a.jsx", "src/b.js", "src/c.ts", "src/d/e.css", TOKENS, "node_modules/x/index.js", "dist/a.js", "test/a.test.ts", "src/test/f.tsx"]) {
+      for (const file of [
+        "index.html",
+        "README.md",
+        "vite.config.mjs",
+        "public/logo.svg",
+        "src/a.jsx",
+        "src/b.js",
+        "src/c.ts",
+        "src/d/e.css",
+        TOKENS,
+        "node_modules/x/index.js",
+        "dist/a.js",
+        "test/a.test.ts",
+        "src/test/f.tsx",
+      ]) {
         await mkdir(dirname(join(root, file)), { recursive: true });
         await writeFile(join(root, file), "");
       }
-      assert.deepEqual(sources(pathToFileURL(`${root}/`)), ["index.html", "public/logo.svg", "src/a.jsx", "src/b.js", "src/c.ts", "src/d/e.css", "src/test/f.tsx", "vite.config.mjs"]);
+      assert.deepEqual(sources(pathToFileURL(`${root}/`)), [
+        "index.html",
+        "public/logo.svg",
+        "src/a.jsx",
+        "src/b.js",
+        "src/c.ts",
+        "src/d/e.css",
+        "src/test/f.tsx",
+        "vite.config.mjs",
+      ]);
     } finally {
       await rm(root, { recursive: true, force: true });
     }

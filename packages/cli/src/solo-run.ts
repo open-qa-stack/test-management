@@ -137,7 +137,15 @@ export class SoloRun {
     });
     if (!prerequisites.ok) return ExitCode.prerequisite;
     journal.keepIn(join(this.options.repositoryRoot, runsDir, `${runId}.jsonl`));
-    const state = { formatVersion: 1 as const, runId, environment, startedAt: started.toISOString(), designed: [] as string[], tests: [] as TestVerdict[], journal: posix.join(runsDir, `${runId}.jsonl`) };
+    const state = {
+      formatVersion: 1 as const,
+      runId,
+      environment,
+      startedAt: started.toISOString(),
+      designed: [] as string[],
+      tests: [] as TestVerdict[],
+      journal: posix.join(runsDir, `${runId}.jsonl`),
+    };
     let found: Partial<SoloRunState> = {};
     let open: OpenRuntime | undefined;
     const finish = async (exitCode: ExitCodeValue): Promise<ExitCodeValue> => {
@@ -156,7 +164,15 @@ export class SoloRun {
         // The runtime of the agents is opened by the first step that calls the model.
         open = await this.options.openRuntime(config);
         counted = new CountedRuntime(open.runtime);
-        const outcome = await new Cartographer({ config, environment, repositoryRoot: this.options.repositoryRoot, env: this.options.env, runtime: counted, concurrency: config.cartography.concurrency, ...(this.options.force === true ? { force: true } : {}) }).run();
+        const outcome = await new Cartographer({
+          config,
+          environment,
+          repositoryRoot: this.options.repositoryRoot,
+          env: this.options.env,
+          runtime: counted,
+          concurrency: config.cartography.concurrency,
+          ...(this.options.force === true ? { force: true } : {}),
+        }).run();
         this.relay(journal, "cartography", outcome.journal);
         return { value: outcome, ok: outcome.index !== undefined };
       });
@@ -189,12 +205,30 @@ export class SoloRun {
       if (!designed.ok) return ExitCode.interrupted;
       const executed = await timed("execution", async () => {
         // The dependencies the design installed serve the execution as well.
-        const outcome = await new PinnedRun({ config, environment, repositoryRoot: this.options.repositoryRoot, tests, runner, env: this.options.env, preparation: trials.prepare() }).run();
-        for (const test of outcome.result.tests) journal.record("execution", test.verdict === "passed" ? "info" : "error", `${test.verdict}: ${test.id}. ${test.verdict === "passed" ? "" : test.reason}`.trim());
+        const outcome = await new PinnedRun({
+          config,
+          environment,
+          repositoryRoot: this.options.repositoryRoot,
+          tests,
+          runner,
+          env: this.options.env,
+          preparation: trials.prepare(),
+        }).run();
+        for (const test of outcome.result.tests)
+          journal.record(
+            "execution",
+            test.verdict === "passed" ? "info" : "error",
+            `${test.verdict}: ${test.id}. ${test.verdict === "passed" ? "" : test.reason}`.trim(),
+          );
         return { value: outcome, ok: true };
       });
       const { result, resultPath } = executed.value;
-      found = { ...found, run: this.inRepository(resultPath), ...(result.report === undefined ? {} : { report: result.report }), tests: result.tests.map((test) => ({ ...test, reason: journal.mask(test.reason) })) };
+      found = {
+        ...found,
+        run: this.inRepository(resultPath),
+        ...(result.report === undefined ? {} : { report: result.report }),
+        tests: result.tests.map((test) => ({ ...test, reason: journal.mask(test.reason) })),
+      };
       return exitCodeOf(result.tests.map((test) => test.verdict));
     };
     let exitCode: ExitCodeValue;
@@ -213,7 +247,10 @@ export class SoloRun {
   }
 
   /** The configuration, the environment and the rules of the charter, or the exit code when they cannot be had. */
-  private async configuration(journal: RunJournal, now: () => Date): Promise<{ config: ResolvedConfig; environment: string; rules: ActiveRule[]; durationMs: number } | ExitCodeValue> {
+  private async configuration(
+    journal: RunJournal,
+    now: () => Date,
+  ): Promise<{ config: ResolvedConfig; environment: string; rules: ActiveRule[]; durationMs: number } | ExitCodeValue> {
     const at = now().getTime();
     journal.record("configuration", "started", "The configuration starts.");
     const path = join(this.options.repositoryRoot, CONFIG_FILE_NAME);
@@ -243,7 +280,10 @@ export class SoloRun {
       return ExitCode.configuration;
     }
     const durationMs = now().getTime() - at;
-    journal.record("configuration", "finished", `The configuration is valid; the run targets the environment ${environment}.`, { durationMs, modelRequests: 0 });
+    journal.record("configuration", "finished", `The configuration is valid; the run targets the environment ${environment}.`, {
+      durationMs,
+      modelRequests: 0,
+    });
     return { config: result.config, environment, rules: charter.rules, durationMs };
   }
 

@@ -76,10 +76,15 @@ describe("an API whose port is taken", () => {
     const { port } = taken.address() as { port: number };
     const database = await absentDatabase();
     try {
-      await assert.rejects(startApi({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port), OQAS_DATABASE_URL: await absentDatabase() }, { logger: false }), { code: "EADDRINUSE" });
+      await assert.rejects(startApi({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port), OQAS_DATABASE_URL: await absentDatabase() }, { logger: false }), {
+        code: "EADDRINUSE",
+      });
       const run = await new Promise<{ code: number | null; err: string }>((resolve) =>
-        execFile(process.execPath, [MAIN], { env: childEnvironment({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port), OQAS_DATABASE_URL: database }), encoding: "utf8" }, (error, _out, err) =>
-          resolve({ code: error === null ? 0 : (error.code as number), err }),
+        execFile(
+          process.execPath,
+          [MAIN],
+          { env: childEnvironment({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port), OQAS_DATABASE_URL: database }), encoding: "utf8" },
+          (error, _out, err) => resolve({ code: error === null ? 0 : (error.code as number), err }),
         ),
       );
       assert.equal(run.code, 1);

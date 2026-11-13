@@ -36,8 +36,13 @@ export class ElementWords {
     const rest = (source: string, words: readonly string[]) => words.slice(prefixes.get(source));
     this.words = new Map(
       split.map(({ source, items, words }) => {
-        const elsewhere = new Set(split.filter((other) => other.source !== source).flatMap((other) => other.words.flatMap((element) => rest(other.source, element))));
-        const kept = (element: readonly string[]) => [...element.slice(0, prefixes.get(source)).filter((word) => elsewhere.has(word)), ...rest(source, element)];
+        const elsewhere = new Set(
+          split.filter((other) => other.source !== source).flatMap((other) => other.words.flatMap((element) => rest(other.source, element))),
+        );
+        const kept = (element: readonly string[]) => [
+          ...element.slice(0, prefixes.get(source)).filter((word) => elsewhere.has(word)),
+          ...rest(source, element),
+        ];
         return [source, new Map(items.map((item, i) => [item, [...new Set(kept(words[i]!))]] as const))] as const;
       }),
     );

@@ -7,7 +7,12 @@ const packages = new URL("../../", import.meta.url);
 /** The modules imported by the sources of a package, by file. */
 function importsOf(sourceDir: string): Map<string, string[]> {
   const files = readdirSync(new URL(sourceDir, packages), { recursive: true, encoding: "utf8" }).filter((f) => f.endsWith(".ts"));
-  return new Map(files.map((f) => [f, [...readFileSync(new URL(`${sourceDir}/${f}`, packages), "utf8").matchAll(/(?:\bfrom|\bimport)\s*\(?\s*["']([^"']+)["']/g)].map((m) => m[1]!)]));
+  return new Map(
+    files.map((f) => [
+      f,
+      [...readFileSync(new URL(`${sourceDir}/${f}`, packages), "utf8").matchAll(/(?:\bfrom|\bimport)\s*\(?\s*["']([^"']+)["']/g)].map((m) => m[1]!),
+    ]),
+  );
 }
 
 function importers(sourceDir: string, modules: readonly string[]): string[] {

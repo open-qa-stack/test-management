@@ -33,7 +33,10 @@ describe("criterion 2 — only the Copilot implementation imports the SDK", () =
     const files = readdirSync(packages, { recursive: true, encoding: "utf8" }).filter((f) => f.endsWith(".ts") && !f.includes("node_modules"));
     const importers = files.filter((f) => importsOf(readFileSync(new URL(f, packages), "utf8")).includes("@github/copilot-sdk"));
     assert.ok(importers.length > 0);
-    assert.deepEqual(importers.filter((f) => !f.startsWith("harness/src/copilot/")), []);
+    assert.deepEqual(
+      importers.filter((f) => !f.startsWith("harness/src/copilot/")),
+      [],
+    );
     assert.deepEqual(importsOf(`import x from 'a'; import "b"; await import("c"); export { y } from "d";`), ["a", "b", "c", "d"]);
   });
 });
@@ -67,7 +70,10 @@ describe("criterion 4 — arguments that do not match the schema never reach the
     );
     assert.equal(runs, 0);
     const errors = events.filter((e) => e.type === "tool-error");
-    assert.deepEqual(errors.map((e) => [e.callId, e.tool, e.reason]), [["call-1", "convert_price", "invalid-arguments"]]);
+    assert.deepEqual(
+      errors.map((e) => [e.callId, e.tool, e.reason]),
+      [["call-1", "convert_price", "invalid-arguments"]],
+    );
     assert.match(errors[0]!.message, /arguments\/amount must be number/);
     assert.equal(events.at(-1)?.type, "end");
     assert.equal(TOOL_CALLING_CHECK.evaluate(events).argumentsMatchSchemas, false);
@@ -110,7 +116,9 @@ describe("criterion 7 — the tests run without a local model server", () => {
 });
 
 describe("criteria 8 and 9 — every recording declares its origin and holds no secret", () => {
-  const files = readdirSync(RECORDINGS).filter((f) => f.endsWith(".json")).sort();
+  const files = readdirSync(RECORDINGS)
+    .filter((f) => f.endsWith(".json"))
+    .sort();
 
   it("parses every recording and checks its origin", () => {
     assert.deepEqual(files, [RECORDED, ...Object.keys(SCENARIOS)].sort());
@@ -139,7 +147,13 @@ describe("invented tools", () => {
     );
     assert.deepEqual(events.slice(0, 2), [
       { type: "tool-call", callId: "call-1", tool: "delete_everything", arguments: {} },
-      { type: "tool-error", callId: "call-1", tool: "delete_everything", reason: "unknown-tool", message: "The session offers no tool named delete_everything." },
+      {
+        type: "tool-error",
+        callId: "call-1",
+        tool: "delete_everything",
+        reason: "unknown-tool",
+        message: "The session offers no tool named delete_everything.",
+      },
     ]);
     assert.equal(TOOL_CALLING_CHECK.evaluate(events).noOtherTool, false);
   });
@@ -150,7 +164,11 @@ describe("record mode", () => {
     const server = await scriptedServer([{ body: answer(MODEL, "Hello.") }]);
     try {
       const recording = await withRuntime(
-        { kind: "record", upstream: { baseUrl: server.baseUrl, apiKey: "sk-record-test" }, origin: { kind: "recorded", model: MODEL, server: "scripted", recordedOn: "2026-01-01" } },
+        {
+          kind: "record",
+          upstream: { baseUrl: server.baseUrl, apiKey: "sk-record-test" },
+          origin: { kind: "recorded", model: MODEL, server: "scripted", recordedOn: "2026-01-01" },
+        },
         MODEL,
         async (runtime, gateway) => {
           const events = await exchange(runtime, TOOL_CALLING_CHECK.session(), "Say hello.");
@@ -201,7 +219,19 @@ describe("live mode", () => {
   });
 
   it("ends the turn with an error when the session closes during it", async () => {
-    const server = await scriptedServer([{ body: { choices: [{ index: 0, finish_reason: "tool_calls", message: { role: "assistant", content: "", tool_calls: [{ type: "function", id: "c1", function: { name: "get_inventory", arguments: "{}" } }] } }] } }]);
+    const server = await scriptedServer([
+      {
+        body: {
+          choices: [
+            {
+              index: 0,
+              finish_reason: "tool_calls",
+              message: { role: "assistant", content: "", tool_calls: [{ type: "function", id: "c1", function: { name: "get_inventory", arguments: "{}" } }] },
+            },
+          ],
+        },
+      },
+    ]);
     try {
       await withRuntime({ kind: "live", upstream: { baseUrl: server.baseUrl } }, MODEL, async (runtime) => {
         let close: () => Promise<void> = async () => {};
@@ -219,7 +249,17 @@ describe("live mode", () => {
 
   it("reports a tool that fails, and keeps one runtime for several sessions", async () => {
     const server = await scriptedServer([
-      { body: { choices: [{ index: 0, finish_reason: "tool_calls", message: { role: "assistant", content: "", tool_calls: [{ type: "function", id: "c1", function: { name: "get_inventory", arguments: "{}" } }] } }] } },
+      {
+        body: {
+          choices: [
+            {
+              index: 0,
+              finish_reason: "tool_calls",
+              message: { role: "assistant", content: "", tool_calls: [{ type: "function", id: "c1", function: { name: "get_inventory", arguments: "{}" } }] },
+            },
+          ],
+        },
+      },
       { body: answer(MODEL, "The inventory is unavailable.") },
       { body: answer(MODEL, "Second session.") },
     ]);
@@ -227,7 +267,10 @@ describe("live mode", () => {
       await withRuntime({ kind: "live", upstream: { baseUrl: server.baseUrl } }, MODEL, async (runtime) => {
         const failing = TOOL_CALLING_CHECK.tools().map((t) => ({ ...t, execute: async () => Promise.reject(new Error("stock service down")) }));
         const first = await exchange(runtime, { instructions: "x", tools: failing }, "Check the stock.");
-        assert.deepEqual(first.filter((e) => e.type === "tool-error").map((e) => [e.reason, e.message]), [["failed", "stock service down"]]);
+        assert.deepEqual(
+          first.filter((e) => e.type === "tool-error").map((e) => [e.reason, e.message]),
+          [["failed", "stock service down"]],
+        );
         const second = await exchange(runtime, { instructions: "x", tools: [] }, "Again.");
         assert.deepEqual(second, [{ type: "text", text: "Second session." }, { type: "end" }]);
       });
@@ -254,7 +297,9 @@ describe("the reasoning of the model", () => {
     reply.choices[0]!.message.reasoning_content = "The user wants a greeting.";
     const server = await scriptedServer([{ body: reply }]);
     try {
-      const events = await withRuntime({ kind: "live", upstream: { baseUrl: server.baseUrl } }, MODEL, (runtime) => exchange(runtime, TOOL_CALLING_CHECK.session(), "Say hello."));
+      const events = await withRuntime({ kind: "live", upstream: { baseUrl: server.baseUrl } }, MODEL, (runtime) =>
+        exchange(runtime, TOOL_CALLING_CHECK.session(), "Say hello."),
+      );
       assert.deepEqual(events, [{ type: "reasoning", text: "The user wants a greeting." }, { type: "text", text: "Hello." }, { type: "end" }]);
     } finally {
       await server.close();
@@ -266,7 +311,9 @@ describe("the reasoning of the model", () => {
     reply.choices[0]!.message.reasoning_content = "  ";
     const server = await scriptedServer([{ body: reply }]);
     try {
-      const events = await withRuntime({ kind: "live", upstream: { baseUrl: server.baseUrl } }, MODEL, (runtime) => exchange(runtime, TOOL_CALLING_CHECK.session(), "Say hello."));
+      const events = await withRuntime({ kind: "live", upstream: { baseUrl: server.baseUrl } }, MODEL, (runtime) =>
+        exchange(runtime, TOOL_CALLING_CHECK.session(), "Say hello."),
+      );
       assert.deepEqual(events, [{ type: "text", text: "Hello." }, { type: "end" }]);
     } finally {
       await server.close();

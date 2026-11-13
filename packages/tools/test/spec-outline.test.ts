@@ -42,9 +42,23 @@ describe("the outline of a test", () => {
         `await done;`,
       ].join("\n"),
     );
-    const read = (located: string[], subject: string[], expected: string[], matcher: string, negative: boolean, alternative = false) => ({ located, subject, expected, matcher, negative, alternative });
+    const read = (located: string[], subject: string[], expected: string[], matcher: string, negative: boolean, alternative = false) => ({
+      located,
+      subject,
+      expected,
+      matcher,
+      negative,
+      alternative,
+    });
     assert.deepEqual(
-      outline.assertions.map(({ located, subject, expected, matcher, negative, alternative }) => ({ located, subject, expected, matcher, negative, alternative })),
+      outline.assertions.map(({ located, subject, expected, matcher, negative, alternative }) => ({
+        located,
+        subject,
+        expected,
+        matcher,
+        negative,
+        alternative,
+      })),
       [
         read(["ORD-1"], ["row", "ORD-1"], ["Ada"], "toContainText", false),
         read([], [], ["12"], "toHaveValue", false),
@@ -58,7 +72,10 @@ describe("the outline of a test", () => {
         read([], [], [], "toHaveText", false),
       ],
     );
-    assert.deepEqual(outline.assertions.map(({ line, start, code }) => [line, start, code.length]).slice(0, 2), [[1, 0, 76], [2, 77, 51]]);
+    assert.deepEqual(outline.assertions.map(({ line, start, code }) => [line, start, code.length]).slice(0, 2), [
+      [1, 0, 76],
+      [2, 77, 51],
+    ]);
   });
 
   it("counts the tests, and reads the steps no other step holds, with their title when it is a string", async () => {
@@ -74,13 +91,28 @@ describe("the outline of a test", () => {
     ].join("\n");
     const outline = await outlineOf(text);
     assert.equal(outline.tests, 2);
-    assert.deepEqual(outline.steps.map((step) => [step.title, text.slice(step.start, step.end).split("(")[0]]), [["1. Open", "test.step"], [undefined, "test.step"]]);
+    assert.deepEqual(
+      outline.steps.map((step) => [step.title, text.slice(step.start, step.end).split("(")[0]]),
+      [
+        ["1. Open", "test.step"],
+        [undefined, "test.step"],
+      ],
+    );
     assert.ok(outline.steps[0]!.end < outline.steps[1]!.start);
   });
 
   it("reads the values the test types or chooses, when they are written as strings", async () => {
     const outline = await outlineOf(
-      [`await search.fill("Veldane");`, `await search.fill(process.env.SHOP_PASSWORD!);`, `await page.getByLabel("Country").selectOption('Wales');`, `await search.pressSequentially(\`zz\`);`, `await search.type("");`, `await search.fill();`, `fill("free");`, `await search.click("x");`].join("\n"),
+      [
+        `await search.fill("Veldane");`,
+        `await search.fill(process.env.SHOP_PASSWORD!);`,
+        `await page.getByLabel("Country").selectOption('Wales');`,
+        `await search.pressSequentially(\`zz\`);`,
+        `await search.type("");`,
+        `await search.fill();`,
+        `fill("free");`,
+        `await search.click("x");`,
+      ].join("\n"),
     );
     assert.deepEqual(outline.typed, [
       { line: 1, text: "Veldane" },

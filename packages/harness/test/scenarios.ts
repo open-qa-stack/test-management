@@ -57,23 +57,38 @@ function readIndex(runs: Map<string, number>, clock: ManualClock, elapse = 0): T
 }
 
 /** A model reply that calls the named tools and, like a careless model, claims the test passed. */
-const calls = (names: readonly string[]) => toolCalls(MODEL, names.map((name, i) => ({ id: `call-${i + 1}`, name, arguments: {} })), CLAIM);
+const calls = (names: readonly string[]) =>
+  toolCalls(
+    MODEL,
+    names.map((name, i) => ({ id: `call-${i + 1}`, name, arguments: {} })),
+    CLAIM,
+  );
 const repeat = (count: number, name: string) => Array.from({ length: count }, () => name);
 const iterations = (count: number) => [...Array.from({ length: count }, () => calls(["read_index"])), answer(MODEL, "The test passed.")];
-const session = (limits: TaskLimits, tools: (clock: ManualClock, runs: Map<string, number>) => ToolDefinition[]) =>
+const session =
+  (limits: TaskLimits, tools: (clock: ManualClock, runs: Map<string, number>) => ToolDefinition[]) =>
   (clock: ManualClock, runs: Map<string, number>): SessionOptions => ({ instructions: "Test the application.", tools: tools(clock, runs), limits });
 
 /** Every scripted scenario, by recording file name. */
 export const SCENARIOS: Readonly<Record<string, Scenario>> = {
   "invalid-arguments.json": {
     purpose: "The model calls convert_price with arguments that do not match its schema, then gives up.",
-    replies: [toolCalls(MODEL, [{ id: "call-1", name: "convert_price", arguments: { amount: "lots", currency: "GBP" } }]), answer(MODEL, "I could not convert the price.")],
+    replies: [
+      toolCalls(MODEL, [{ id: "call-1", name: "convert_price", arguments: { amount: "lots", currency: "GBP" } }]),
+      answer(MODEL, "I could not convert the price."),
+    ],
     message: TOOL_CALLING_CHECK.message,
     session: () => TOOL_CALLING_CHECK.session(),
   },
   "unknown-tool.json": {
     purpose: "The model calls a tool the session does not offer next to one it does, then answers.",
-    replies: [toolCalls(MODEL, [{ id: "call-1", name: "delete_everything", arguments: {} }, { id: "call-2", name: "get_inventory", arguments: {} }]), answer(MODEL, "There are 7 items in stock.")],
+    replies: [
+      toolCalls(MODEL, [
+        { id: "call-1", name: "delete_everything", arguments: {} },
+        { id: "call-2", name: "get_inventory", arguments: {} },
+      ]),
+      answer(MODEL, "There are 7 items in stock."),
+    ],
     message: TOOL_CALLING_CHECK.message,
     session: () => TOOL_CALLING_CHECK.session(),
   },

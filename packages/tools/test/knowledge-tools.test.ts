@@ -33,14 +33,33 @@ class RecordingSqlClient implements SqlClient {
     if (text === KEYS_QUERY) {
       return sqlResult([
         { schema: "public", table: "insurancepolicies", kind: "p", columns: ["id"], referenced_schema: null, referenced_table: null, referenced_columns: [] },
-        { schema: "public", table: "insurancepolicies", kind: "f", columns: ["premium"], referenced_schema: "public", referenced_table: "prices", referenced_columns: ["amount"] },
-        { schema: "public", table: "prices", kind: "f", columns: ["currency"], referenced_schema: "public", referenced_table: "currencies", referenced_columns: ["code"] },
+        {
+          schema: "public",
+          table: "insurancepolicies",
+          kind: "f",
+          columns: ["premium"],
+          referenced_schema: "public",
+          referenced_table: "prices",
+          referenced_columns: ["amount"],
+        },
+        {
+          schema: "public",
+          table: "prices",
+          kind: "f",
+          columns: ["currency"],
+          referenced_schema: "public",
+          referenced_table: "currencies",
+          referenced_columns: ["code"],
+        },
       ]);
     }
     return sqlResult(
       text.includes("information_schema.tables")
         ? [{ schema: "public", table: "insurancepolicies" }]
-        : [{ name: "id", type: "bigint", nullable: false }, { name: "premium", type: "numeric", nullable: true }],
+        : [
+            { name: "id", type: "bigint", nullable: false },
+            { name: "premium", type: "numeric", nullable: true },
+          ],
     );
   }
 }
@@ -54,7 +73,10 @@ function tool(tools: ToolDefinition[], name: string): ToolDefinition {
 describe("criterion 1 — each declared source brings its tools, and only its own", () => {
   it("gives a contract and a document their tools, and no database tool", () => {
     const tools = knowledgeTools([CONTRACT, DOCUMENT], { repositoryRoot: REPOSITORY, env: {} });
-    assert.deepEqual(tools.map((t) => t.name), ["policy_api_list_operations", "policy_api_read_operation", "quote_specs_list_sections", "quote_specs_read_section"]);
+    assert.deepEqual(
+      tools.map((t) => t.name),
+      ["policy_api_list_operations", "policy_api_read_operation", "quote_specs_list_sections", "quote_specs_read_section"],
+    );
     assert.ok(tools.every((t) => t.browserAction !== true));
   });
 });
@@ -68,13 +90,28 @@ describe("criterion 2 — the contract tools read the operations of a contract",
       { method: "GET", path: "/policies/{id}", summary: "Read a policy" },
     ]);
     const read = tool(tools, "policy_api_read_operation");
-    assert.deepEqual(await read.execute({ method: "post", path: "/policies" }), { operationId: "createPolicy", responses: { "201": { description: "Created" } }, tags: ["policies", 3, " "] });
-    const one = (await read.execute({ method: "GET", path: "/policies/{id}" })) as { parameters: { name: string; description?: string }[]; responses: Record<string, { content: Record<string, { schema: unknown }> }> };
-    assert.deepEqual(one.parameters.map((p) => [p.name, p.description]), [["id", undefined], ["fields", "Fields to return"]]);
+    assert.deepEqual(await read.execute({ method: "post", path: "/policies" }), {
+      operationId: "createPolicy",
+      responses: { "201": { description: "Created" } },
+      tags: ["policies", 3, " "],
+    });
+    const one = (await read.execute({ method: "GET", path: "/policies/{id}" })) as {
+      parameters: { name: string; description?: string }[];
+      responses: Record<string, { content: Record<string, { schema: unknown }> }>;
+    };
+    assert.deepEqual(
+      one.parameters.map((p) => [p.name, p.description]),
+      [
+        ["id", undefined],
+        ["fields", "Fields to return"],
+      ],
+    );
     const schema = one.responses["200"]!.content["application/json"]!.schema as { properties: { owner: { properties: { name: unknown } } } };
     assert.deepEqual(schema.properties.owner.properties.name, { type: "string" });
     assert.ok(JSON.stringify(schema).includes('"$ref"'), "a recursive schema stops at the depth limit");
-    assert.deepEqual(await read.execute({ method: "parameters", path: "/policies/{id}" }), { error: "The contract has no operation PARAMETERS /policies/{id}." });
+    assert.deepEqual(await read.execute({ method: "parameters", path: "/policies/{id}" }), {
+      error: "The contract has no operation PARAMETERS /policies/{id}.",
+    });
     assert.deepEqual(await read.execute({ method: "GET", path: "constructor" }), { error: "The contract has no operation GET constructor." });
     assert.deepEqual(await read.execute({ method: "DELETE", path: "/policies" }), { error: "The contract has no operation DELETE /policies." });
     assert.deepEqual(await read.execute({ method: "GET", path: "/claims" }), { error: "The contract has no operation GET /claims." });
@@ -88,7 +125,10 @@ describe("criterion 2 — the contract tools read the operations of a contract",
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     try {
       const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/v3/api-docs`;
-      const list = tool(knowledgeTools([{ id: "moved-api", type: "openapi", url, attachments }], { repositoryRoot: REPOSITORY, env: {} }), "moved_api_list_operations");
+      const list = tool(
+        knowledgeTools([{ id: "moved-api", type: "openapi", url, attachments }], { repositoryRoot: REPOSITORY, env: {} }),
+        "moved_api_list_operations",
+      );
       await assert.rejects(list.execute({}));
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -105,7 +145,10 @@ describe("criterion 2 — the contract tools read the operations of a contract",
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     try {
       const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/v3/api-docs`;
-      const list = tool(knowledgeTools([{ id: "remote-api", type: "openapi", url, attachments }], { repositoryRoot: REPOSITORY, env: {} }), "remote_api_list_operations");
+      const list = tool(
+        knowledgeTools([{ id: "remote-api", type: "openapi", url, attachments }], { repositoryRoot: REPOSITORY, env: {} }),
+        "remote_api_list_operations",
+      );
       await assert.rejects(list.execute({}), /answered with status 503/);
       assert.deepEqual(await list.execute({}), []);
       assert.deepEqual(await list.execute({}), []);
@@ -138,10 +181,17 @@ describe("criterion 3 — the catalog tools read the catalog and nothing else", 
       { name: "id", type: "bigint", nullable: false, primaryKey: true },
       { name: "premium", type: "numeric", nullable: true, references: "public.prices.amount" },
     ]);
-    assert.deepEqual([...(await new DatabaseCatalog(client).keys()).values()], [
-      { table: "public.insurancepolicies", primaryKey: ["id"], foreignKeys: [{ columns: ["premium"], references: "public.prices", referencedColumns: ["amount"] }] },
-      { table: "public.prices", primaryKey: [], foreignKeys: [{ columns: ["currency"], references: "public.currencies", referencedColumns: ["code"] }] },
-    ]);
+    assert.deepEqual(
+      [...(await new DatabaseCatalog(client).keys()).values()],
+      [
+        {
+          table: "public.insurancepolicies",
+          primaryKey: ["id"],
+          foreignKeys: [{ columns: ["premium"], references: "public.prices", referencedColumns: ["amount"] }],
+        },
+        { table: "public.prices", primaryKey: [], foreignKeys: [{ columns: ["currency"], references: "public.currencies", referencedColumns: ["code"] }] },
+      ],
+    );
     assert.equal(client.queries.length, 4);
     for (const query of client.queries) assert.doesNotThrow(() => assertCatalogQuery(query));
   });
@@ -161,7 +211,10 @@ describe("criterion 3 — the catalog tools read the catalog and nothing else", 
 
   it("answers an error for a table the database does not have", async () => {
     const empty: SqlClient = { query: async () => sqlResult([]) };
-    const describe = tool(knowledgeTools([DATABASE], { repositoryRoot: REPOSITORY, env: { POLICY_DB_URL: "postgresql://x" }, sqlClient: () => empty }), "policy_db_describe_table");
+    const describe = tool(
+      knowledgeTools([DATABASE], { repositoryRoot: REPOSITORY, env: { POLICY_DB_URL: "postgresql://x" }, sqlClient: () => empty }),
+      "policy_db_describe_table",
+    );
     assert.deepEqual(await describe.execute({ schema: "public", table: "claims" }), { error: "The database policy-db has no table public.claims." });
     assert.deepEqual(await new DatabaseCatalog(empty).tables(), []);
   });
@@ -184,14 +237,27 @@ describe("criterion 3 — the catalog tools read the catalog and nothing else", 
     assert.deepEqual(await new PgSqlClient("postgresql://x", () => connection(false)).query(TABLES_QUERY, []), { columns: ["a"], rows: [{ a: 1 }] });
     assert.deepEqual(log, ["connect", "BEGIN READ ONLY", "SET LOCAL statement_timeout = 5000", TABLES_QUERY, "ROLLBACK", "end"]);
     log.length = 0;
-    await assert.rejects(new PgSqlClient("postgresql://secret@x", () => connection(true)).query(TABLES_QUERY, []), new Error("The database query failed: boom."));
+    await assert.rejects(
+      new PgSqlClient("postgresql://secret@x", () => connection(true)).query(TABLES_QUERY, []),
+      new Error("The database query failed: boom."),
+    );
     assert.deepEqual(log.at(-1), "end");
   });
 
   it("describes a driver error that has no message, without the connection string", async () => {
-    const refusing = (failure: unknown): PgConnection => ({ connect: () => Promise.reject(failure), query: async () => ({ rows: [], fields: [] }), end: async () => {} });
-    await assert.rejects(new PgSqlClient("postgresql://user:pw@x", () => refusing(Object.assign(new Error(""), { code: "ECONNREFUSED" }))).query(TABLES_QUERY, []), new Error("The database query failed: ECONNREFUSED."));
-    await assert.rejects(new PgSqlClient("postgresql://user:pw@x", () => refusing("plain")).query(TABLES_QUERY, []), new Error("The database query failed: unknown error."));
+    const refusing = (failure: unknown): PgConnection => ({
+      connect: () => Promise.reject(failure),
+      query: async () => ({ rows: [], fields: [] }),
+      end: async () => {},
+    });
+    await assert.rejects(
+      new PgSqlClient("postgresql://user:pw@x", () => refusing(Object.assign(new Error(""), { code: "ECONNREFUSED" }))).query(TABLES_QUERY, []),
+      new Error("The database query failed: ECONNREFUSED."),
+    );
+    await assert.rejects(
+      new PgSqlClient("postgresql://user:pw@x", () => refusing("plain")).query(TABLES_QUERY, []),
+      new Error("The database query failed: unknown error."),
+    );
   });
 });
 
@@ -255,6 +321,9 @@ describe("criterion 5 — a source that cannot be reached fails the call, not th
   it("reaches PostgreSQL by default, and reports a database that does not answer", async () => {
     const env = { POLICY_DB_URL: `postgresql://user:s3cret-pw@127.0.0.1:${await closedPort()}/policies` };
     const list = tool(knowledgeTools([DATABASE], { repositoryRoot: REPOSITORY, env }), "policy_db_list_tables");
-    await assert.rejects(list.execute({}), (error: Error) => /^The database query failed: .*ECONNREFUSED/.test(error.message) && !error.message.includes("s3cret-pw"));
+    await assert.rejects(
+      list.execute({}),
+      (error: Error) => /^The database query failed: .*ECONNREFUSED/.test(error.message) && !error.message.includes("s3cret-pw"),
+    );
   });
 });

@@ -24,7 +24,8 @@ Rules:
 export function sourceCardRequest(sourceId: string, type: string, inventory: SourceInventory): string {
   const lines = inventory.items.map((item) => `- ${item}${describe(inventory.facts.get(item))}${excerpt(inventory.excerpts?.get(item))}`);
   const names = JSON.stringify(inventory.items);
-  const read = inventory.excerpts === undefined || inventory.excerpts.size === 0 ? "" : " The indented line under a name is what the harness already read of it.";
+  const read =
+    inventory.excerpts === undefined || inventory.excerpts.size === 0 ? "" : " The indented line under a name is what the harness already read of it.";
   return `Write the card of the source ${sourceId} (${type}). Its ${inventory.items.length} elements, with what is already known of each:\n${lines.join("\n")}\n\nThe elements to place are exactly these names: ${names}. What follows each name in parentheses is known facts, not elements.${read} Call a tool only for what this request does not show, then hand the card in with ${SUBMIT_CARD_TOOL}.`;
 }
 

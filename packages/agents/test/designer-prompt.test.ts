@@ -7,11 +7,27 @@ const SHOP: Application = {
   id: "shop",
   name: "Shop",
   type: "web",
-  authentication: { method: "form", accounts: [{ name: "demo", usernameEnv: "SHOP_USERNAME", passwordEnv: "SHOP_PASSWORD" }, { name: "admin", usernameEnv: "SHOP_ADMIN_USERNAME", passwordEnv: "SHOP_ADMIN_PASSWORD" }] },
+  authentication: {
+    method: "form",
+    accounts: [
+      { name: "demo", usernameEnv: "SHOP_USERNAME", passwordEnv: "SHOP_PASSWORD" },
+      { name: "admin", usernameEnv: "SHOP_ADMIN_USERNAME", passwordEnv: "SHOP_ADMIN_PASSWORD" },
+    ],
+  },
   environments: [{ name: "local", uiUrl: "http://127.0.0.1:3000/" }],
 };
-const LEDGER: Application = { id: "ledger", name: "Ledger", type: "api", authentication: { method: "form", accounts: [{ name: "clerk", usernameEnv: "LEDGER_USERNAME", passwordEnv: "LEDGER_PASSWORD" }] }, environments: [{ name: "local", apis: [{ name: "api", baseUrl: "http://127.0.0.1:8100" }] }] };
-const DOMAINS = ["- orders (Orders): Placing and following an order.", "- customers (Customers): The customers of the shop.", "- invoices (Invoices): What a customer is billed."];
+const LEDGER: Application = {
+  id: "ledger",
+  name: "Ledger",
+  type: "api",
+  authentication: { method: "form", accounts: [{ name: "clerk", usernameEnv: "LEDGER_USERNAME", passwordEnv: "LEDGER_PASSWORD" }] },
+  environments: [{ name: "local", apis: [{ name: "api", baseUrl: "http://127.0.0.1:8100" }] }],
+};
+const DOMAINS = [
+  "- orders (Orders): Placing and following an order.",
+  "- customers (Customers): The customers of the shop.",
+  "- invoices (Invoices): What a customer is billed.",
+];
 
 describe("the request of a design", () => {
   it("gives the brief, what the index holds for it, the applications, the packages and the next call, and nothing of the rules", () => {
@@ -31,10 +47,24 @@ describe("the request of a design", () => {
 
   it("gives the domains of the index when nothing echoes the brief, or without one", () => {
     assert.match(designRequest("zebra", "local", [], DOMAINS, [SHOP], ["@playwright/test"]), /<\/brief>\n\nDomains of the index:\n- orders/);
-    const request = designRequest(undefined, "local", [], DOMAINS, [{ ...SHOP, environments: [{ name: "staging", uiUrl: "http://shop.test" }] }], ["@playwright/test"]);
+    const request = designRequest(
+      undefined,
+      "local",
+      [],
+      DOMAINS,
+      [{ ...SHOP, environments: [{ name: "staging", uiUrl: "http://shop.test" }] }],
+      ["@playwright/test"],
+    );
     assert.match(request, /^Design .*\n\nNo brief was given: design the tests that matter most across the domains below\.\n\nDomains of the index:\n/);
     // A user interface of another environment is none of this one's.
-    assert.match(request, /- shop \(Shop, web\): sign in with the accounts demo, admin; a test reads process\.env\.SHOP_USERNAME and process\.env\.SHOP_PASSWORD, process\.env\.SHOP_ADMIN_USERNAME and process\.env\.SHOP_ADMIN_PASSWORD\./);
-    assert.ok(request.endsWith("\n\nNext: call index_entry on the domains above that matter most, read what they hold, do it once on the screens, then call propose_plan."));
+    assert.match(
+      request,
+      /- shop \(Shop, web\): sign in with the accounts demo, admin; a test reads process\.env\.SHOP_USERNAME and process\.env\.SHOP_PASSWORD, process\.env\.SHOP_ADMIN_USERNAME and process\.env\.SHOP_ADMIN_PASSWORD\./,
+    );
+    assert.ok(
+      request.endsWith(
+        "\n\nNext: call index_entry on the domains above that matter most, read what they hold, do it once on the screens, then call propose_plan.",
+      ),
+    );
   });
 });

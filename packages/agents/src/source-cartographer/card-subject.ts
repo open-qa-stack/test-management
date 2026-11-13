@@ -1,6 +1,14 @@
 import type { AgentEvent, ToolDefinition } from "@open-qa-stack/domain";
 import type { MappedKnowledge, ResolvedConfig } from "@open-qa-stack/shared";
-import { browserTools, knowledgeInventory, knowledgeTools, scopedToolName, type BrowserAccess, type KnowledgeAccess, type SourceInventory } from "@open-qa-stack/tools";
+import {
+  browserTools,
+  knowledgeInventory,
+  knowledgeTools,
+  scopedToolName,
+  type BrowserAccess,
+  type KnowledgeAccess,
+  type SourceInventory,
+} from "@open-qa-stack/tools";
 import { surveySource } from "../cartographer/source-survey.ts";
 import { interfaceCardRequest, sourceCardRequest } from "./source-cartographer-prompt.ts";
 import { interfaceFingerprint, visitedScreens } from "./visited-screens.ts";
@@ -43,8 +51,16 @@ export interface CardSubject {
  */
 export async function knowledgeSubject(source: MappedKnowledge, access: KnowledgeAccess, read?: SourceInventory): Promise<CardSubject> {
   const inventory = read ?? (await knowledgeInventory(source, access));
-  const tools = knowledgeTools([source], access).filter((tool) => !(source.type === "postgresql" && DATA_TOOLS.some((action) => tool.name === scopedToolName(source.id, action))));
-  return { fingerprint: inventory.fingerprint, tools, request: sourceCardRequest(source.id, source.type, inventory), inventory: () => inventory, close: async () => undefined };
+  const tools = knowledgeTools([source], access).filter(
+    (tool) => !(source.type === "postgresql" && DATA_TOOLS.some((action) => tool.name === scopedToolName(source.id, action))),
+  );
+  return {
+    fingerprint: inventory.fingerprint,
+    tools,
+    request: sourceCardRequest(source.id, source.type, inventory),
+    inventory: () => inventory,
+    close: async () => undefined,
+  };
 }
 
 /**
@@ -65,7 +81,8 @@ export async function interfaceSubject(
 ): Promise<CardSubject> {
   const application = config.applications.find((candidate) => candidate.id === source.id);
   const uiUrl = application?.environments.find((environment) => environment.name === source.environment)?.uiUrl;
-  if (application === undefined || uiUrl === undefined) throw new Error(`The application ${source.id} has no user interface in the environment ${source.environment}.`);
+  if (application === undefined || uiUrl === undefined)
+    throw new Error(`The application ${source.id} has no user interface in the environment ${source.environment}.`);
   const survey = await surveySource({ id: source.id, type: "web", uiUrl }, { repositoryRoot: "", env: access.env });
   if (!survey.ok) throw new Error(survey.error);
   const browser = browserTools([application], { ...access, environment: source.environment });

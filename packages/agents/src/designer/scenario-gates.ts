@@ -28,26 +28,41 @@ export interface ScenarioHelp {
  */
 export function scenarioErrors(outline: SpecOutline, scenario: PlannedScenario, help: ScenarioHelp): Refusal[] {
   const refusals: Refusal[] = [];
-  if (outline.tests !== 1) refusals.push({ code: "TEST-ONE", message: `the file must hold exactly one test, that of scenario ${scenario.id}.`, remedy: help.skeleton });
+  if (outline.tests !== 1)
+    refusals.push({ code: "TEST-ONE", message: `the file must hold exactly one test, that of scenario ${scenario.id}.`, remedy: help.skeleton });
   const titles = outline.steps.map((step) => step.title ?? "");
   if (titles.length !== scenario.steps.length || titles.some((title, at) => !title.startsWith(`${at + 1}. `))) {
     const found = titles.length === 0 ? "none" : titles.map((title) => JSON.stringify(title)).join(", ");
-    refusals.push({ code: "TEST-STEPS", message: `the test must hold one test.step per step of the plan, in order, titled "1. …" to "${scenario.steps.length}. …". Found: ${found}. Start from the skeleton of the scenario.`, remedy: help.skeleton });
+    refusals.push({
+      code: "TEST-STEPS",
+      message: `the test must hold one test.step per step of the plan, in order, titled "1. …" to "${scenario.steps.length}. …". Found: ${found}. Start from the skeleton of the scenario.`,
+      remedy: help.skeleton,
+    });
   }
   scenario.steps.forEach((step, at) => {
     const number = at + 1;
     const range = outline.steps.find((candidate) => candidate.title?.startsWith(`${number}. `));
     const asserted = range === undefined ? [] : outline.assertions.filter((assertion) => range.start <= assertion.start && assertion.start < range.end);
     step.expects.forEach((expect, k) => {
-      const texts = [...expect.shows.map((text) => ({ text, negative: false })), ...expect.absent.map((text) => ({ text, negative: true }))].filter(({ text }) => checkable(text));
+      const texts = [...expect.shows.map((text) => ({ text, negative: false })), ...expect.absent.map((text) => ({ text, negative: true }))].filter(
+        ({ text }) => checkable(text),
+      );
       for (const { text, negative } of texts) {
         // An assertion on either of two elements may pass on the one that does not hold the text.
         const holding = asserted.filter((assertion) => !assertion.alternative && observed(text, [...assertion.subject, ...assertion.expected]));
         const remedy = `In step ${number}: ${assertionOf(text, negative, help.locatorOf(text))}`;
         if (holding.length === 0) {
-          refusals.push({ code: "TEST-VALUE", message: `step ${number} must assert "${text}": expect ${number}.${k + 1} of the plan names it (${expect.result}). No await expect of that step holds it. An expected text is never changed or dropped; when the application shows something else, keep the assertion and call ${PROPOSE_TOOL} with diagnosis.`, remedy });
+          refusals.push({
+            code: "TEST-VALUE",
+            message: `step ${number} must assert "${text}": expect ${number}.${k + 1} of the plan names it (${expect.result}). No await expect of that step holds it. An expected text is never changed or dropped; when the application shows something else, keep the assertion and call ${PROPOSE_TOOL} with diagnosis.`,
+            remedy,
+          });
         } else if (holding.every((assertion) => assertion.negative !== negative)) {
-          refusals.push({ code: "TEST-POLARITY", message: `expect ${number}.${k + 1} says the screen ${negative ? "no longer shows" : "shows"} "${text}", and step ${number} asserts the opposite. An expect is never reversed to pass. If the application does the opposite of the plan, call ${PROPOSE_TOOL} with diagnosis.`, remedy });
+          refusals.push({
+            code: "TEST-POLARITY",
+            message: `expect ${number}.${k + 1} says the screen ${negative ? "no longer shows" : "shows"} "${text}", and step ${number} asserts the opposite. An expect is never reversed to pass. If the application does the opposite of the plan, call ${PROPOSE_TOOL} with diagnosis.`,
+            remedy,
+          });
         }
       }
     });
@@ -61,7 +76,10 @@ function typedErrors(outline: SpecOutline, scenario: PlannedScenario): Refusal[]
   const listed = values.length === 0 ? "none" : values.map((value) => JSON.stringify(value)).join(", ");
   return outline.typed
     .filter(({ text }) => text !== "" && !values.includes(text) && !(checkable(text) && observed(text, values)))
-    .map(({ line, text }) => ({ code: "TEST-TYPED", message: `line ${line} types "${text}", which is no value of the data of scenario ${scenario.id} (${listed}). Type a value of the data.` }));
+    .map(({ line, text }) => ({
+      code: "TEST-TYPED",
+      message: `line ${line} types "${text}", which is no value of the data of scenario ${scenario.id} (${listed}). Type a value of the data.`,
+    }));
 }
 
 /**
@@ -72,12 +90,21 @@ function typedErrors(outline: SpecOutline, scenario: PlannedScenario): Refusal[]
 function assertionOf(text: string, negative: boolean, locator: string | undefined): string {
   const subject = locator ?? `page.getByText(${JSON.stringify(text)})`;
   if (negative) return `await expect(${subject}).toBeHidden();`;
-  return locator === undefined || observed(text, [locator]) ? `await expect(${subject}).toBeVisible();` : `await expect(${subject}).toContainText(${JSON.stringify(text)});`;
+  return locator === undefined || observed(text, [locator])
+    ? `await expect(${subject}).toBeVisible();`
+    : `await expect(${subject}).toContainText(${JSON.stringify(text)});`;
 }
 
 /** The reason an assertion can only pass, if it can: its matcher expects a text its own locator found the element by. */
 function tautology(assertion: SpecAssertion): Refusal[] {
   if (!TEXT_MATCHERS.has(assertion.matcher)) return [];
   const text = assertion.expected.find((expected) => checkable(expected) && observed(expected, assertion.located));
-  return text === undefined ? [] : [{ code: "TEST-TAUT", message: `line ${assertion.line} looks for "${text}" in an element found by that same text: it can only pass. Find the element by something else — its row, its label, its role — then expect the text.` }];
+  return text === undefined
+    ? []
+    : [
+        {
+          code: "TEST-TAUT",
+          message: `line ${assertion.line} looks for "${text}" in an element found by that same text: it can only pass. Find the element by something else — its row, its label, its role — then expect the text.`,
+        },
+      ];
 }

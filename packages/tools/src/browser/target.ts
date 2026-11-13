@@ -4,11 +4,7 @@ import type { Locator, Page } from "playwright-core";
  * How a browser tool designates an element: by the locators the test charter recommends, and nothing
  * else, so that what the agent explores is what a test can write.
  */
-export type Target =
-  | { readonly role: string; readonly name?: string }
-  | { readonly label: string }
-  | { readonly testId: string }
-  | { readonly text: string };
+export type Target = { readonly role: string; readonly name?: string } | { readonly label: string } | { readonly testId: string } | { readonly text: string };
 
 const text = { type: "string", minLength: 1 } as const;
 
@@ -50,7 +46,9 @@ export function locate(page: Page, target: Target): Locator {
 export function targetCode(target: Target): string {
   const quote = (value: string) => JSON.stringify(value);
   if ("role" in target) {
-    return target.name === undefined ? `page.getByRole(${quote(target.role)})` : `page.getByRole(${quote(target.role)}, { name: ${quote(target.name)}, exact: true })`;
+    return target.name === undefined
+      ? `page.getByRole(${quote(target.role)})`
+      : `page.getByRole(${quote(target.role)}, { name: ${quote(target.name)}, exact: true })`;
   }
   if ("label" in target) return `page.getByLabel(${quote(target.label)}, { exact: true })`;
   if ("testId" in target) return `page.getByTestId(${quote(target.testId)})`;

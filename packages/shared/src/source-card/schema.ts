@@ -10,7 +10,12 @@ const domainOf = (item: string) =>
     type: "object",
     additionalProperties: false,
     required: ["id", "label", "description", "items"],
-    properties: { id: { type: "string", pattern: SLUG_PATTERN }, label: text, description: text, items: { type: "array", minItems: 1, items: { $ref: `#/$defs/${item}` } } },
+    properties: {
+      id: { type: "string", pattern: SLUG_PATTERN },
+      label: text,
+      description: text,
+      items: { type: "array", minItems: 1, items: { $ref: `#/$defs/${item}` } },
+    },
   }) as const;
 
 /** JSON Schema (draft 2020-12) of what the cartographer of one source hands in. */
@@ -40,9 +45,23 @@ export const sourceCardSchema = {
       properties: { id: text, type: { enum: ["openapi", "postgresql", "document", "source-code", "web"] } },
     },
     fingerprint: text,
-    producedAt: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$", description: "Date and time of production, ISO 8601 in UTC." },
-    model: { type: "object", additionalProperties: false, required: ["provider", "baseUrl", "model"], properties: { provider: text, baseUrl: text, model: text } },
-    run: { type: "object", additionalProperties: false, required: ["iterations", "actions", "durationMs"], properties: { iterations: count, actions: count, durationMs: count } },
+    producedAt: {
+      type: "string",
+      pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$",
+      description: "Date and time of production, ISO 8601 in UTC.",
+    },
+    model: {
+      type: "object",
+      additionalProperties: false,
+      required: ["provider", "baseUrl", "model"],
+      properties: { provider: text, baseUrl: text, model: text },
+    },
+    run: {
+      type: "object",
+      additionalProperties: false,
+      required: ["iterations", "actions", "durationMs"],
+      properties: { iterations: count, actions: count, durationMs: count },
+    },
     status: { enum: ["complete", "truncated"] },
     domains: { type: "array", items: { $ref: "#/$defs/domain" } },
     unassigned: { type: "array", items: text },

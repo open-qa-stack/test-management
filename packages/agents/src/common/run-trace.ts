@@ -26,5 +26,9 @@ export interface RunTraceOptions {
  */
 export function runTrace(options: RunTraceOptions, name: string, now: () => Date): Trace {
   const { config, repositoryRoot, env, observe } = options;
-  return new Trace(Trace.pathFor(join(repositoryRoot, config.repository.stateDir), name, now()), { secrets: configSecrets(config, env), now, ...(observe === undefined ? {} : { observe }) });
+  return new Trace(Trace.pathFor(join(repositoryRoot, config.repository.stateDir), name, now()), {
+    secrets: configSecrets(config, env),
+    now,
+    ...(observe === undefined ? {} : { observe }),
+  });
 }

@@ -66,7 +66,9 @@ function testRepository(): string {
 /** Every file under a folder, relative to it, with its content. */
 function snapshot(root: string): Record<string, string> {
   const entries = readdirSync(root, { recursive: true, withFileTypes: true }).filter((entry) => entry.isFile());
-  return Object.fromEntries(entries.map((entry) => [join(entry.parentPath, entry.name).slice(root.length + 1), readFileSync(join(entry.parentPath, entry.name), "utf8")]));
+  return Object.fromEntries(
+    entries.map((entry) => [join(entry.parentPath, entry.name).slice(root.length + 1), readFileSync(join(entry.parentPath, entry.name), "utf8")]),
+  );
 }
 
 /** A test file whose single test runs `body`, then asserts on the page. */
@@ -153,7 +155,10 @@ test("renews a policy", async ({ page }, testInfo) => {
 
   it("writes nothing to the test repository and leaves no temporary folder behind", async () => {
     const before = snapshot(repository);
-    const folders = () => readdirSync(tmpdir()).filter((name) => name.startsWith("test-check-")).sort();
+    const folders = () =>
+      readdirSync(tmpdir())
+        .filter((name) => name.startsWith("test-check-"))
+        .sort();
     const foldersBefore = folders();
     await check.check({ path: PATH, content: conforming });
     await check.check({ path: PATH, content: spec("  const broken: number = '';") });
@@ -228,7 +233,9 @@ describe("criterion 4 — the table from rules of the charter to controls is doc
     const { example } = DEFAULT_CHARTER.find((rule) => rule.id === "PW-KEEP-01")!;
     for (const mark of ["fail", "fixme"]) {
       const findings = await check.check({ path: PATH, content: spec("").replace("test(", `test.${mark}(`) });
-      assert.deepEqual(findings, [{ kind: "charter", rule: "PW-KEEP-01", line: 3, column: 1, message: `'test.${mark}' is restricted from being used.`, example }]);
+      assert.deepEqual(findings, [
+        { kind: "charter", rule: "PW-KEEP-01", line: 3, column: 1, message: `'test.${mark}' is restricted from being used.`, example },
+      ]);
     }
   });
 
@@ -252,7 +259,13 @@ describe("criterion 4 — the table from rules of the charter to controls is doc
 });
 
 describe("the path of a proposed test", () => {
-  for (const path of ["/tmp/renew-policy.spec.ts", "../renew-policy.spec.ts", "apps/../../renew-policy.spec.ts", "node_modules/renew-policy.spec.ts", "apps/policies/renew-policy.spec.js"]) {
+  for (const path of [
+    "/tmp/renew-policy.spec.ts",
+    "../renew-policy.spec.ts",
+    "apps/../../renew-policy.spec.ts",
+    "node_modules/renew-policy.spec.ts",
+    "apps/policies/renew-policy.spec.js",
+  ]) {
     it(`is refused when it is ${path}`, async () => {
       await assert.rejects(check.check({ path, content: spec("") }), RangeError);
     });
@@ -272,7 +285,10 @@ describe("the report of the linter", () => {
     ["is null", "null"],
   ] as const) {
     it(`is refused with what the linter wrote when the output ${what}`, () => {
-      assert.throws(() => readLintReport({ stdout, stderr: "x Failed" }, charterRuleOf), (error: Error) => error.message.startsWith("The linter gave no report: x Failed"));
+      assert.throws(
+        () => readLintReport({ stdout, stderr: "x Failed" }, charterRuleOf),
+        (error: Error) => error.message.startsWith("The linter gave no report: x Failed"),
+      );
     });
   }
 

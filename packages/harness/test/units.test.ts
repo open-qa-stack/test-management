@@ -9,7 +9,15 @@ import { runtimeEnvironment } from "../src/copilot/runtime-environment.ts";
 import { runtimeError } from "../src/copilot/runtime-error.ts";
 import { canonicalRequest, describeRequest } from "../src/model-gateway/canonical-request.ts";
 import { SYSTEM_CLOCK } from "../src/guardrails/clock.ts";
-import { CopilotAgentRuntime, guardTool, ModelGateway, parseRecording, recordToolCallingCheck, RecordingFormatError, TOOL_CALLING_CHECK } from "../src/index.ts";
+import {
+  CopilotAgentRuntime,
+  guardTool,
+  ModelGateway,
+  parseRecording,
+  recordToolCallingCheck,
+  RecordingFormatError,
+  TOOL_CALLING_CHECK,
+} from "../src/index.ts";
 import { MODEL } from "./support.ts";
 
 describe("runtime errors from gateway failures", () => {
@@ -20,7 +28,10 @@ describe("runtime errors from gateway failures", () => {
     assert.equal(runtimeError({ kind: "invalid-response" }).message, "The model answered with a body that is not JSON.");
     assert.equal(runtimeError({ kind: "invalid-request" }).message, "The model runtime sent a request the gateway could not read.");
     assert.equal(runtimeError({ kind: "task-stopped" }).message, "The task was stopped by a limit before the model call.");
-    assert.equal(runtimeError({ kind: "unsupported", path: "GET /v1/models" }).message, "The model runtime sent a request the gateway does not support: GET /v1/models.");
+    assert.equal(
+      runtimeError({ kind: "unsupported", path: "GET /v1/models" }).message,
+      "The model runtime sent a request the gateway does not support: GET /v1/models.",
+    );
     assert.equal(runtimeError(undefined).message, "The model call failed.");
     assert.ok(runtimeError(undefined) instanceof ModelResponseError);
   });
@@ -136,12 +147,23 @@ describe("tool-calling check", () => {
 
   it("records a check against a model server, with its verdict", async () => {
     const server = await scriptedServer([
-      { body: toolCalls(MODEL, [{ id: "a", name: "get_inventory", arguments: {} }, { id: "b", name: "convert_price", arguments: { amount: 120, currency: "EUR" } }]) },
+      {
+        body: toolCalls(MODEL, [
+          { id: "a", name: "get_inventory", arguments: {} },
+          { id: "b", name: "convert_price", arguments: { amount: 120, currency: "EUR" } },
+        ]),
+      },
       { body: answer(MODEL, "7 items; 130.80 EUR.") },
     ]);
     const homeDirectory = mkdtempSync(join(tmpdir(), "oqas-copilot-test-"));
     try {
-      const result = await recordToolCallingCheck({ upstream: { baseUrl: server.baseUrl }, model: MODEL, server: "scripted", recordedOn: "2026-01-01", homeDirectory });
+      const result = await recordToolCallingCheck({
+        upstream: { baseUrl: server.baseUrl },
+        model: MODEL,
+        server: "scripted",
+        recordedOn: "2026-01-01",
+        homeDirectory,
+      });
       assert.deepEqual(result.verdict, { calledBothTools: true, argumentsMatchSchemas: true, noOtherTool: true, quotedResults: true });
       assert.equal(result.recording.exchanges.length, 2);
       assert.deepEqual(result.recording.origin, { kind: "recorded", model: MODEL, server: "scripted", recordedOn: "2026-01-01" });
@@ -176,7 +198,11 @@ describe("Copilot runtime", () => {
   it("closes without having started", async () => {
     const home = mkdtempSync(join(tmpdir(), "oqas-copilot-test-"));
     try {
-      const runtime = new CopilotAgentRuntime({ endpoint: { createChannel: () => ({ baseUrl: "http://127.0.0.1:9/v1", lastFailure: undefined }) }, model: "m", homeDirectory: home });
+      const runtime = new CopilotAgentRuntime({
+        endpoint: { createChannel: () => ({ baseUrl: "http://127.0.0.1:9/v1", lastFailure: undefined }) },
+        model: "m",
+        homeDirectory: home,
+      });
       await runtime.close();
     } finally {
       rmSync(home, { recursive: true, force: true });

@@ -10,7 +10,11 @@ describe("criterion 1 — the AgentRuntime contract depends on nothing", () => {
     assert.ok(files.length > 0);
     for (const file of files) {
       const imports = [...readFileSync(new URL(file, root), "utf8").matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)].map((m) => m[1]!);
-      assert.deepEqual(imports.filter((i) => !i.startsWith("./") && !i.startsWith("../")), [], file);
+      assert.deepEqual(
+        imports.filter((i) => !i.startsWith("./") && !i.startsWith("../")),
+        [],
+        file,
+      );
     }
   });
 });

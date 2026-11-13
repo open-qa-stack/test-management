@@ -59,7 +59,10 @@ describe("criterion 2 — without changes, the instructions of the designer and 
 
   it("lists every rule in the reviewer instructions, with its statement, rationale and example", () => {
     const instructions = reviewerInstructions(rules, DEFAULT_REPOSITORY);
-    assert.deepEqual(listedIds(instructions), DEFAULT_CHARTER.map((rule) => rule.id));
+    assert.deepEqual(
+      listedIds(instructions),
+      DEFAULT_CHARTER.map((rule) => rule.id),
+    );
     for (const rule of DEFAULT_CHARTER) {
       assert.ok(instructions.includes(`- ${rule.id}: ${rule.statement}\n  Why: ${rule.rationale}`), rule.id);
       for (const line of rule.example.split("\n")) assert.ok(instructions.includes(`\n    ${line}`), `${rule.id}: ${line}`);
@@ -97,12 +100,21 @@ describe("criterion 3 — a disabled rule leaves the instructions; an unknown on
     for (const compose of Object.values(COMPOSERS)) {
       const instructions = compose(rules, DEFAULT_REPOSITORY);
       assert.ok(!instructions.includes("PW-WAIT-01"));
-      assert.deepEqual(listedIds(instructions), DEFAULT_CHARTER.map((rule) => rule.id).filter((id) => id !== "PW-WAIT-01"));
+      assert.deepEqual(
+        listedIds(instructions),
+        DEFAULT_CHARTER.map((rule) => rule.id).filter((id) => id !== "PW-WAIT-01"),
+      );
     }
   });
 
   it("refuses an unknown rule with an error that names its path", () => {
-    const resolution = resolveCharter({ disable: [{ rule: "PW-WAIT-01", reason: "r" }, { rule: "PW-NAP-01", reason: "r" }], add: [] });
+    const resolution = resolveCharter({
+      disable: [
+        { rule: "PW-WAIT-01", reason: "r" },
+        { rule: "PW-NAP-01", reason: "r" },
+      ],
+      add: [],
+    });
     assert.deepEqual(resolution, {
       ok: false,
       errors: [{ kind: "reference", path: "/charter/disable/1/rule", rule: "unknown-charter-rule", message: "No rule of the charter has this identifier." }],
@@ -112,7 +124,10 @@ describe("criterion 3 — a disabled rule leaves the instructions; an unknown on
   it("refuses a file whose rule identifier is malformed before the charter is resolved", () => {
     const result = validateConfig(configWith({ disable: [{ rule: "pw-wait-01", reason: "r" }] }), {});
     assert.ok(!result.ok);
-    assert.deepEqual(result.errors.map((e) => [e.path, e.rule]), [["/charter/disable/0/rule", "charter-rule-id"]]);
+    assert.deepEqual(
+      result.errors.map((e) => [e.path, e.rule]),
+      [["/charter/disable/0/rule", "charter-rule-id"]],
+    );
   });
 });
 
@@ -176,7 +191,14 @@ describe("the guide of the designer", () => {
   it("says how the harness works, then three things to always do and three never to do, before the charter, and stays out of the reviewer's", () => {
     const instructions = designerInstructions(rules, DEFAULT_REPOSITORY);
     const sections = instructions.split("\n\n").map((section) => section.split("\n")[0]);
-    assert.deepEqual(sections.slice(0, 6), ["You design Playwright tests, in TypeScript with @playwright/test, for the applications of one test environment. You work on one scenario at a time.", "How this works", "Always", "Never", "When a run fails, you may fix a locator, wait for a result with an assertion on it, or change the form of an assertion. Nothing else.", "Charter. Every test is checked against these rules before it runs; a finding names the rule and shows an example."]);
+    assert.deepEqual(sections.slice(0, 6), [
+      "You design Playwright tests, in TypeScript with @playwright/test, for the applications of one test environment. You work on one scenario at a time.",
+      "How this works",
+      "Always",
+      "Never",
+      "When a run fails, you may fix a locator, wait for a result with an assertion on it, or change the form of an assertion. Nothing else.",
+      "Charter. Every test is checked against these rules before it runs; a finding names the rule and shows an example.",
+    ]);
     for (const heading of ["Always", "Never"]) assert.equal(instructions.split(`\n\n${heading}\n`)[1]!.split("\n\n")[0]!.split("\n").length, 3);
     assert.match(instructions, /^- Never change an expected text, remove, reverse or weaken an assertion, or skip a test, to make it pass\./m);
     assert.ok(!reviewerInstructions(rules, DEFAULT_REPOSITORY).includes("How this works"));
@@ -200,7 +222,10 @@ describe("the worked test", () => {
     const steps = DESIGNER_EXAMPLE.split("await test.step(").slice(1);
     assert.equal(steps.length, 2);
     for (const step of steps) assert.match(step, /await testInfo\.attach\([^\n]*await page\.screenshot\(\)[^\n]*\n {2}\}\);/);
-    assert.deepEqual([...DESIGNER_EXAMPLE.matchAll(/goto\("([^"]*)"\)/g)].map((m) => m[1]), ["/orders"]);
+    assert.deepEqual(
+      [...DESIGNER_EXAMPLE.matchAll(/goto\("([^"]*)"\)/g)].map((m) => m[1]),
+      ["/orders"],
+    );
   });
 });
 
@@ -224,7 +249,9 @@ describe("criterion 6 — the documentation describes the charter and how to tun
 function configWith(charter: CharterSettings): string {
   return JSON.stringify({
     formatVersion: 1,
-    applications: [{ id: "shop", name: "Shop", type: "web", authentication: { method: "none" }, environments: [{ name: "local", uiUrl: "http://localhost:3000" }] }],
+    applications: [
+      { id: "shop", name: "Shop", type: "web", authentication: { method: "none" }, environments: [{ name: "local", uiUrl: "http://localhost:3000" }] },
+    ],
     knowledge: [],
     charter,
     model: { mode: "provider-key", provider: "openai", baseUrl: "http://localhost:1234/v1", model: "local-model" },

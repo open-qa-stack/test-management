@@ -1,7 +1,15 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, posix } from "node:path";
 import type { AgentEvent, AgentRuntime, PlanReview } from "@open-qa-stack/domain";
-import { declaredValues, validateDomainIndex, validateSourceCard, type DomainIndex, type Knowledge, type ResolvedConfig, type SourceCard } from "@open-qa-stack/shared";
+import {
+  declaredValues,
+  validateDomainIndex,
+  validateSourceCard,
+  type DomainIndex,
+  type Knowledge,
+  type ResolvedConfig,
+  type SourceCard,
+} from "@open-qa-stack/shared";
 import { browserTools, knowledgeTools, scopedToolName, type BrowserAccess } from "@open-qa-stack/tools";
 import { agentNotes } from "../common/agent-notes.ts";
 import { runAgentTask, taskEnd, taskLimits } from "../common/agent-task.ts";
@@ -139,9 +147,19 @@ export class Designer {
     const packages = testPackages(await readFile(join(repositoryRoot, "package.json"), "utf8").catch(() => undefined));
     const readable = config.knowledge.filter((source) => source.attachments.some((a) => a.environment === undefined || a.environment === index.environment));
     // The sources a scenario may cite and a tool may belong to: the index is a map, not a limit.
-    const owners = [...new Set([...index.sources.map((source) => source.id), ...readable.map((source) => source.id), ...applications.map((application) => application.id)])];
-    const browser = browserTools(applications, { environment: index.environment, env, screenshotsDir: join(repositoryRoot, config.repository.stateDir, "screenshots"), ...this.options.browser });
-    const screens = new ScreenWatch(applications.map((application) => application.id), browser.tools);
+    const owners = [
+      ...new Set([...index.sources.map((source) => source.id), ...readable.map((source) => source.id), ...applications.map((application) => application.id)]),
+    ];
+    const browser = browserTools(applications, {
+      environment: index.environment,
+      env,
+      screenshotsDir: join(repositoryRoot, config.repository.stateDir, "screenshots"),
+      ...this.options.browser,
+    });
+    const screens = new ScreenWatch(
+      applications.map((application) => application.id),
+      browser.tools,
+    );
     const access = { repositoryRoot, env, secrets: declaredValues(config, env), taskStart: start };
     const reads = new SourceWatch(readable, withDataHint(knowledgeTools(readable, access), readable), access.secrets);
     const proposals = new TestProposals(
@@ -176,8 +194,17 @@ export class Designer {
     const notes = agentNotes(config, repositoryRoot, env, { role: "designer", task: id, now });
     const map = new IndexMap(index, await this.cards(index), [...screens.tools(), ...knowledge], owners);
     const events: AgentEvent[] = [];
-    const request = designRequest(this.options.brief, index.environment, this.options.brief === undefined ? [] : map.found(this.options.brief), map.domains(), applications, packages);
-    const tools = [...map.toolset(), ...screens.tools(), ...knowledge, ...notes, plan.tool(), proposals.trialTool(), proposals.tool()].map((tool) => stoppedOnRefusal(tool, plan));
+    const request = designRequest(
+      this.options.brief,
+      index.environment,
+      this.options.brief === undefined ? [] : map.found(this.options.brief),
+      map.domains(),
+      applications,
+      packages,
+    );
+    const tools = [...map.toolset(), ...screens.tools(), ...knowledge, ...notes, plan.tool(), proposals.trialTool(), proposals.tool()].map((tool) =>
+      stoppedOnRefusal(tool, plan),
+    );
     const opened = runTrace(this.options, `design-${index.environment}`, now);
     trace = opened;
     const phases = new TracedPhases(opened, "design");
@@ -197,34 +224,37 @@ export class Designer {
     // A design that fails or throws leaves its phase ended as failed.
     try {
       await runAgentTask(this.options.runtime, task, taskLimits(config)).finally(() => browser.close());
-    const { last, counters } = taskEnd(events);
-    if (last.type === "error") journal.record("error", `The session failed: ${last.error.message}`);
-    if (last.type === "stopped") journal.record("error", `The task reached its ${last.reason.limit} limit; no test was written for the scenario under way.`);
+      const { last, counters } = taskEnd(events);
+      if (last.type === "error") journal.record("error", `The session failed: ${last.error.message}`);
+      if (last.type === "stopped") journal.record("error", `The task reached its ${last.reason.limit} limit; no test was written for the scenario under way.`);
 
-    if (plan.refused !== undefined) return failed(`No test was written: the plan was refused: ${plan.refused}`);
-    const tests = proposals.accepted;
-    if (tests.length === 0) return failed(`No test was written: ${obtained(0)}, ${MIN_TESTS} at least are expected.`);
-    const state: DesignState = {
-      formatVersion: 2,
-      producedAt: start.toISOString(),
-      environment: index.environment,
-      ...(this.options.brief === undefined ? {} : { brief: this.options.brief }),
-      // Tests are accepted only under an accepted plan.
-      plan: plan.accepted!,
-      branch,
-      base: await repository.head(),
-      model: { provider: config.model.provider, baseUrl: config.model.baseUrl, model: config.model.model },
-      run: { iterations: counters.iterations, actions: counters.actions, durationMs: Math.round(counters.elapsedMs) },
-      tests: tests.map(({ content: _content, references, ...test }) => ({ ...test, ...(references.length === 0 ? {} : { references: references.map((reference) => reference.path) }) })),
-      unwritten: proposals.unwritten,
-    };
-    const statePath = posix.join(config.repository.stateDir, DESIGNS_FOLDER, `${id}.json`);
-    await this.write(repository, state, statePath, tests, journal);
-    const counted = tests.filter((test) => test.verdict === "passed" || test.quarantine?.cause === "application").length;
-    if (counted < MIN_TESTS) journal.record("error", `The design failed: ${obtained(counted)}, ${MIN_TESTS} at least are expected.`);
-    const ok = counted >= MIN_TESTS;
-    if (ok) phases.end(last.type === "end" ? "done" : "truncated");
-    return { ok, branch, statePath: join(repositoryRoot, statePath), tests: state.tests, journal: journal.entries(), tracePath: opened.path };
+      if (plan.refused !== undefined) return failed(`No test was written: the plan was refused: ${plan.refused}`);
+      const tests = proposals.accepted;
+      if (tests.length === 0) return failed(`No test was written: ${obtained(0)}, ${MIN_TESTS} at least are expected.`);
+      const state: DesignState = {
+        formatVersion: 2,
+        producedAt: start.toISOString(),
+        environment: index.environment,
+        ...(this.options.brief === undefined ? {} : { brief: this.options.brief }),
+        // Tests are accepted only under an accepted plan.
+        plan: plan.accepted!,
+        branch,
+        base: await repository.head(),
+        model: { provider: config.model.provider, baseUrl: config.model.baseUrl, model: config.model.model },
+        run: { iterations: counters.iterations, actions: counters.actions, durationMs: Math.round(counters.elapsedMs) },
+        tests: tests.map(({ content: _content, references, ...test }) => ({
+          ...test,
+          ...(references.length === 0 ? {} : { references: references.map((reference) => reference.path) }),
+        })),
+        unwritten: proposals.unwritten,
+      };
+      const statePath = posix.join(config.repository.stateDir, DESIGNS_FOLDER, `${id}.json`);
+      await this.write(repository, state, statePath, tests, journal);
+      const counted = tests.filter((test) => test.verdict === "passed" || test.quarantine?.cause === "application").length;
+      if (counted < MIN_TESTS) journal.record("error", `The design failed: ${obtained(counted)}, ${MIN_TESTS} at least are expected.`);
+      const ok = counted >= MIN_TESTS;
+      if (ok) phases.end(last.type === "end" ? "done" : "truncated");
+      return { ok, branch, statePath: join(repositoryRoot, statePath), tests: state.tests, journal: journal.entries(), tracePath: opened.path };
     } finally {
       phases.close();
     }
@@ -244,9 +274,17 @@ export class Designer {
       await writeFile(join(repositoryRoot, path), content);
     }
     const titles = new Map(state.plan.scenarios.map((scenario) => [scenario.id, scenario.title]));
-    const line = (test: AcceptedTest) => (test.quarantine === undefined ? `- ${test.path}: ${titles.get(test.scenario)}` : `- ${test.path}: failing (${test.quarantine.cause})${stepOf(test.quarantine.failedStep)}`);
+    const line = (test: AcceptedTest) =>
+      test.quarantine === undefined
+        ? `- ${test.path}: ${titles.get(test.scenario)}`
+        : `- ${test.path}: failing (${test.quarantine.cause})${stepOf(test.quarantine.failedStep)}`;
     const message = [`test: add ${tests.length} generated Playwright tests`, "", ...tests.map(line)].join("\n");
-    const committed = new Set(await repository.commit(files.map(([path]) => path), message));
+    const committed = new Set(
+      await repository.commit(
+        files.map(([path]) => path),
+        message,
+      ),
+    );
     for (const test of tests) journal.record("info", `The test ${test.path} was written.`);
     journal.record("info", `The design state was written to ${statePath}${committed.has(statePath) ? "" : ", which git ignores: it was not committed"}.`);
     journal.record("info", `The tests were committed on ${state.branch}; the active branch of the test repository is ${await repository.branch()}.`);
@@ -258,7 +296,9 @@ export class Designer {
     const content = await readJson(path);
     if (content === undefined) return `the domain index ${path} cannot be read.`;
     const validation = validateDomainIndex(content);
-    return validation.ok ? validation.value : `the domain index ${path} does not match its schema: ${validation.errors.map((error) => error.message).join(" ")}`;
+    return validation.ok
+      ? validation.value
+      : `the domain index ${path} does not match its schema: ${validation.errors.map((error) => error.message).join(" ")}`;
   }
 
   /** The cards of the sources of the index that have a readable one. */
@@ -288,7 +328,9 @@ function stepOf(failedStep: string | undefined): string {
 /** The tools of the sources, the search of each base saying that the data of a plan come from results such as its own. */
 function withDataHint(tools: readonly ToolDefinition[], sources: readonly Knowledge[]): ToolDefinition[] {
   const searches = new Set(sources.filter((source) => source.type === "postgresql").map((source) => scopedToolName(source.id, "search")));
-  return tools.map((tool) => (searches.has(tool.name) ? { ...tool, description: `${tool.description} A value of the data of a plan comes from a result such as this one.` } : tool));
+  return tools.map((tool) =>
+    searches.has(tool.name) ? { ...tool, description: `${tool.description} A value of the data of a plan comes from a result such as this one.` } : tool,
+  );
 }
 
 /** How many tests a design obtained, in words. */
@@ -298,8 +340,10 @@ function obtained(count: number): string {
 
 /** The JSON value of a file; `undefined` when it cannot be read or parsed. */
 async function readJson(path: string): Promise<unknown> {
-  return readFile(path, "utf8").then(
-    (text) => JSON.parse(text) as unknown,
-    () => undefined,
-  ).catch(() => undefined);
+  return readFile(path, "utf8")
+    .then(
+      (text) => JSON.parse(text) as unknown,
+      () => undefined,
+    )
+    .catch(() => undefined);
 }

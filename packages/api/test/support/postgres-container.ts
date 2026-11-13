@@ -49,7 +49,18 @@ export class PostgresContainer {
     const password = randomBytes(12).toString("hex");
     const port = await closedPort();
     const labels = ["--label", TEST_LABEL, ...(testRun === undefined || testRun === "" ? [] : ["--label", `${RUN_LABEL}=${testRun}`])];
-    await run(engine, ["run", "--detach", "--name", name, ...labels, "--env", `POSTGRES_PASSWORD=${password}`, "--publish", `127.0.0.1:${port}:5432`, postgresImage()]);
+    await run(engine, [
+      "run",
+      "--detach",
+      "--name",
+      name,
+      ...labels,
+      "--env",
+      `POSTGRES_PASSWORD=${password}`,
+      "--publish",
+      `127.0.0.1:${port}:5432`,
+      postgresImage(),
+    ]);
     const container = new PostgresContainer(engine, name, `postgres://postgres:${password}@127.0.0.1:${port}/postgres`);
     try {
       await container.#ready();

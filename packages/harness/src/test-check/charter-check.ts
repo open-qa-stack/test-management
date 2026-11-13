@@ -53,7 +53,9 @@ export class CharterCheck implements TestCheck {
     const controls = CHARTER_CONTROLS.filter((control) => inForce.has(control.rule));
     this.#repository = options.repository;
     this.#lint = controls.flatMap((control) => control.lint);
-    this.#charterRuleOf = new Map(controls.flatMap((control) => control.lint.map((lint) => [lint.name.slice(lint.name.indexOf("/") + 1), control.rule] as const)));
+    this.#charterRuleOf = new Map(
+      controls.flatMap((control) => control.lint.map((lint) => [lint.name.slice(lint.name.indexOf("/") + 1), control.rule] as const)),
+    );
     this.#examples = new Map(options.rules.flatMap((rule) => (rule.example === undefined ? [] : [[rule.id, rule.example] as const])));
   }
 
@@ -70,7 +72,10 @@ export class CharterCheck implements TestCheck {
       await mkdir(dirname(join(folder, path)), { recursive: true });
       await writeFile(join(folder, path), test.content);
       await symlink(join(this.#repository, "node_modules"), join(folder, "node_modules"), "dir");
-      await writeFile(join(folder, "tsconfig.json"), JSON.stringify({ compilerOptions: { ...COMPILER_OPTIONS, rootDirs: [".", this.#repository] }, files: [path] }));
+      await writeFile(
+        join(folder, "tsconfig.json"),
+        JSON.stringify({ compilerOptions: { ...COMPILER_OPTIONS, rootDirs: [".", this.#repository] }, files: [path] }),
+      );
       await writeFile(join(folder, "oxlintrc.json"), JSON.stringify(this.#configuration()));
       return readLintReport(await lint(folder, path), this.#charterRuleOf).map((finding) => {
         const example = finding.kind === "charter" ? this.#examples.get(finding.rule) : undefined;

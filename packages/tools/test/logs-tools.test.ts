@@ -104,7 +104,10 @@ describe("logs criterion 2 — the tool returns the lines written from the insta
 
   it("keeps the lines that contain the filter, ignoring case", async () => {
     const reading = await read(readLogs(FILE), { since: "2026-11-13T10:00:00Z", filter: "POLICYcontroller" });
-    assert.deepEqual(reading.lines.map((line) => line.slice(0, 19)), ["2026-11-13T10:04:59", "2026-11-13T10:05:00", "2026-11-13 11:06:00"]);
+    assert.deepEqual(
+      reading.lines.map((line) => line.slice(0, 19)),
+      ["2026-11-13T10:04:59", "2026-11-13T10:05:00", "2026-11-13 11:06:00"],
+    );
   });
 
   it("stops at the number of lines asked, and says lines were left out", async () => {
@@ -153,13 +156,16 @@ describe("logs criterion 2 — the tool returns the lines written from the insta
 
 describe("logs criterion 3 — a container is read by a fixed command, without a shell, that receives no text of the agent", () => {
   it("runs the engine logs command with the instant as its own argument, and filters the lines itself", async () => {
-    engine("podman", [
-      `echo "2026-11-13T10:04:00.000000000Z before"`,
-      `echo "2026-11-13T10:05:01.000000000Z out first"`,
-      `echo "2026-11-13T10:05:03.000000000Z out \\$(touch ${join(workspace, "ran")})"`,
-      `echo "no timestamp" >&2`,
-      `echo "2026-11-13T10:05:02.000000000Z err second" >&2`,
-    ].join("\n"));
+    engine(
+      "podman",
+      [
+        `echo "2026-11-13T10:04:00.000000000Z before"`,
+        `echo "2026-11-13T10:05:01.000000000Z out first"`,
+        `echo "2026-11-13T10:05:03.000000000Z out \\$(touch ${join(workspace, "ran")})"`,
+        `echo "no timestamp" >&2`,
+        `echo "2026-11-13T10:05:02.000000000Z err second" >&2`,
+      ].join("\n"),
+    );
     process.env["OQAS_TEST_SECRET_VARIABLE"] = "kept-from-the-engine";
     try {
       const filter = `$(touch ${join(workspace, "ran")}); "' --help`;
@@ -217,7 +223,9 @@ describe("logs criterion 4 — a value of a declared variable never appears in t
 
   it("masks them in the error of an engine too", async () => {
     engine("podman", `echo "Error: cannot connect to ${CONNECTION}" >&2; exit 125`);
-    await assert.rejects(readLogs(CONTAINER, { secrets }).execute({}), { message: "podman cannot read the logs of policy-backend: Error: cannot connect to [secret]" });
+    await assert.rejects(readLogs(CONTAINER, { secrets }).execute({}), {
+      message: "podman cannot read the logs of policy-backend: Error: cannot connect to [secret]",
+    });
   });
 });
 

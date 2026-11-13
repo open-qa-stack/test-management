@@ -27,10 +27,12 @@ export function documentInventory(markdown: string): SourceInventory {
   return {
     items: named.map(([name]) => name),
     facts: new Map(named.map(([name, { number, level }]) => [name, { number, level }])),
-    excerpts: new Map(named.flatMap(([name, { text }]) => {
-      const start = text.split("\n").slice(1).join(" ").replace(/\s+/g, " ").trim();
-      return start === "" ? [] : [[name, start.length <= SECTION_START_LENGTH ? start : `${start.slice(0, SECTION_START_LENGTH)}…`] as const];
-    })),
+    excerpts: new Map(
+      named.flatMap(([name, { text }]) => {
+        const start = text.split("\n").slice(1).join(" ").replace(/\s+/g, " ").trim();
+        return start === "" ? [] : [[name, start.length <= SECTION_START_LENGTH ? start : `${start.slice(0, SECTION_START_LENGTH)}…`] as const];
+      }),
+    ),
     fingerprint: fingerprintOf(markdown),
   };
 }

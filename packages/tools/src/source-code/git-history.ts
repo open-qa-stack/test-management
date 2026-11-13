@@ -29,7 +29,19 @@ const COMMIT = /^(?:[0-9a-f]{4,40}|HEAD(?:~\d{1,3})?)$/i;
  * file system monitor, signature checker, hooks. External diffs and text conversions are turned off by the
  * options of each command, and the working tree is never read, so that no clean filter runs.
  */
-const SAFE = ["-c", "core.pager=cat", "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", "-c", "log.showSignature=false", "-c", "diff.external=", "--no-pager"];
+const SAFE = [
+  "-c",
+  "core.pager=cat",
+  "-c",
+  "core.fsmonitor=false",
+  "-c",
+  "core.hooksPath=/dev/null",
+  "-c",
+  "log.showSignature=false",
+  "-c",
+  "diff.external=",
+  "--no-pager",
+];
 /** System and global settings ignored, no prompt, no lock, and every path taken literally, without pathspec magic. */
 const SAFE_ENV = { GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: "/dev/null", GIT_TERMINAL_PROMPT: "0", GIT_OPTIONAL_LOCKS: "0", GIT_LITERAL_PATHSPECS: "1" };
 
@@ -65,10 +77,13 @@ export class GitHistory {
    */
   public async log(path: string | undefined, limit: number): Promise<CommitSummary[]> {
     const output = await this.git(["log", `--max-count=${limit}`, "--date=short", "--format=%h%x09%ad%x09%an%x09%s", "--", await this.pathspec(path)]);
-    return output.split("\n").filter((line) => line !== "").map((line) => {
-      const [commit, date, author, ...subject] = line.split("\t");
-      return { commit: commit!, date: date!, author: author!, subject: subject.join("\t") };
-    });
+    return output
+      .split("\n")
+      .filter((line) => line !== "")
+      .map((line) => {
+        const [commit, date, author, ...subject] = line.split("\t");
+        return { commit: commit!, date: date!, author: author!, subject: subject.join("\t") };
+      });
   }
 
   /**
@@ -107,7 +122,8 @@ export class GitHistory {
 
   private async git(args: readonly string[]): Promise<string> {
     const result: ProcessResult = await runProcess("git", [...SAFE, ...args], await this.folder.rootPath(), this.timeoutMs, SAFE_ENV);
-    if (result.exitCode !== 0 && !result.truncated) throw new Error(`git ${args[0]} failed: ${result.timedOut ? "it ran out of time" : result.stderr.trim().split("\n")[0]}`);
+    if (result.exitCode !== 0 && !result.truncated)
+      throw new Error(`git ${args[0]} failed: ${result.timedOut ? "it ran out of time" : result.stderr.trim().split("\n")[0]}`);
     return result.truncated ? `${result.stdout}\n[output cut]` : result.stdout;
   }
 }

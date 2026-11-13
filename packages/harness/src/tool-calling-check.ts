@@ -27,8 +27,7 @@ export const TOOL_CALLING_CHECK = {
   /** System instructions of the check session. */
   instructions: "You are a test assistant. Use the provided tools when asked.",
   /** The message sent to the model. */
-  message:
-    "First call get_inventory. Then call convert_price with amount 120 and currency EUR. Finally answer in one sentence that quotes both tool results.",
+  message: "First call get_inventory. Then call convert_price with amount 120 and currency EUR. Finally answer in one sentence that quotes both tool results.",
 
   /** @returns The two tools of the check; their results are fixed and cannot be mistaken for each other. */
   tools(): ToolDefinition[] {

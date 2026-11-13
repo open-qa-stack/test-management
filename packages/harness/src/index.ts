@@ -20,7 +20,16 @@ export { recordToolCallingCheck, type CheckRecording, type CheckRecordingOptions
 export { CharterCheck, type CharterCheckOptions } from "./test-check/charter-check.ts";
 export { TOOL_CALLING_CHECK, type ToolCallingVerdict } from "./tool-calling-check.ts";
 export { guardTool, type GuardedTool, type ToolReply } from "./tools/guard-tool.ts";
-export { PinnedRun, RUNS_FOLDER, type CheckedAddress, type FilesRun, type PinnedRunOptions, type Preparation, type RunOutcome, type RunResult } from "./runner/pinned-run.ts";
+export {
+  PinnedRun,
+  RUNS_FOLDER,
+  type CheckedAddress,
+  type FilesRun,
+  type PinnedRunOptions,
+  type Preparation,
+  type RunOutcome,
+  type RunResult,
+} from "./runner/pinned-run.ts";
 export { LocalRunner } from "./runner/local-runner.ts";
 export { TRIALS_FOLDER, TrialRunner } from "./runner/trial-runner.ts";
 export { listedTests, reportedTests } from "./runner/reporter-json.ts";

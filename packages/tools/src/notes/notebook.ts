@@ -104,5 +104,10 @@ export class Notebook {
 
 /** The words of a text worth matching: three letters or more, in lower case. */
 function wordsOf(text: string): Set<string> {
-  return new Set(text.toLowerCase().split(/[^\p{L}\p{N}_]+/u).filter((word) => word.length >= 3));
+  return new Set(
+    text
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}_]+/u)
+      .filter((word) => word.length >= 3),
+  );
 }

@@ -32,8 +32,16 @@ describe("every JSONB column of the migrated schema", () => {
   it("has a GIN index, or a justified entry in the list of exceptions", async () => {
     const missing = await withMigrated(MIGRATIONS_FOLDER, jsonbColumnsWithoutGin);
     const excepted = new Set(JSONB_WITHOUT_GIN.map(key));
-    assert.deepEqual(missing.map(key).filter((column) => !excepted.has(column)), [], "add a GIN index in the migration, or a justified exception");
-    assert.deepEqual([...excepted].filter((column) => !missing.map(key).includes(column)), [], "remove the exceptions that no longer apply");
+    assert.deepEqual(
+      missing.map(key).filter((column) => !excepted.has(column)),
+      [],
+      "add a GIN index in the migration, or a justified exception",
+    );
+    assert.deepEqual(
+      [...excepted].filter((column) => !missing.map(key).includes(column)),
+      [],
+      "remove the exceptions that no longer apply",
+    );
     for (const exception of JSONB_WITHOUT_GIN) assert.ok(exception.reason.trim().length > 0, key(exception));
   });
 });

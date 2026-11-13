@@ -41,7 +41,14 @@ function program(path: string, variables: Record<string, string>): Promise<{ cod
 function firstFixtureMigrations(count: number): string {
   const folder = mkdtempSync(join(tmpdir(), "oqas-fixture-migrations-"));
   cpSync(FIXTURE, folder, { recursive: true });
-  const journal = { version: "7", dialect: "postgresql", entries: [{ idx: 0, version: "7", when: 1000, tag: "0000_items", breakpoints: true }, { idx: 1, version: "7", when: 2000, tag: "0001_notes", breakpoints: true }].slice(0, count) };
+  const journal = {
+    version: "7",
+    dialect: "postgresql",
+    entries: [
+      { idx: 0, version: "7", when: 1000, tag: "0000_items", breakpoints: true },
+      { idx: 1, version: "7", when: 2000, tag: "0001_notes", breakpoints: true },
+    ].slice(0, count),
+  };
   writeFileSync(join(folder, "meta", "_journal.json"), JSON.stringify(journal));
   return folder;
 }
@@ -50,7 +57,9 @@ async function tables(url: string): Promise<string[]> {
   const client = new pg.Client({ connectionString: url });
   await client.connect();
   try {
-    const { rows } = await client.query<{ name: string }>("select format('%I.%I', schemaname, tablename) as name from pg_tables where schemaname not in ('pg_catalog', 'information_schema') order by 1");
+    const { rows } = await client.query<{ name: string }>(
+      "select format('%I.%I', schemaname, tablename) as name from pg_tables where schemaname not in ('pg_catalog', 'information_schema') order by 1",
+    );
     return rows.map((row) => row.name);
   } finally {
     await client.end();
@@ -131,9 +140,15 @@ describe("the migration command", () => {
   it("lets an error reported by the server through, the transaction rolled back", async () => {
     const fresh = await isolatedDatabase();
     const broken = firstFixtureMigrations(2);
-    writeFileSync(join(broken, "0001_notes.sql"), 'CREATE TABLE "fixture_notes" ("id" integer PRIMARY KEY);\n--> statement-breakpoint\nSELECT * FROM "missing_table";');
+    writeFileSync(
+      join(broken, "0001_notes.sql"),
+      'CREATE TABLE "fixture_notes" ("id" integer PRIMARY KEY);\n--> statement-breakpoint\nSELECT * FROM "missing_table";',
+    );
     try {
-      await assert.rejects(runMigrations({ OQAS_DATABASE_URL: fresh.url }, broken), (error: Error) => error.cause instanceof pg.DatabaseError && /missing_table/.test(error.cause.message));
+      await assert.rejects(
+        runMigrations({ OQAS_DATABASE_URL: fresh.url }, broken),
+        (error: Error) => error.cause instanceof pg.DatabaseError && /missing_table/.test(error.cause.message),
+      );
       assert.deepEqual(await tables(fresh.url), ["drizzle.__drizzle_migrations"]);
     } finally {
       rmSync(broken, { recursive: true, force: true });
@@ -238,7 +253,10 @@ describe("pending migrations", () => {
       });
       await app.close();
       await assert.rejects(fetch(`http://127.0.0.1:${port}/health`));
-      assert.equal(new PendingMigrationsError(2).message, "The database schema is not up to date: 2 migrations are pending. Apply them with the migration command, then start the API again.");
+      assert.equal(
+        new PendingMigrationsError(2).message,
+        "The database schema is not up to date: 2 migrations are pending. Apply them with the migration command, then start the API again.",
+      );
     } finally {
       rmSync(first, { recursive: true, force: true });
       await db.close();
@@ -257,7 +275,10 @@ describe("pending migrations", () => {
       assert.equal(migrate.code, 1);
       assert.match(migrate.err, /created_at/);
       const port = await closedPort();
-      await assert.rejects(startApi({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port), OQAS_DATABASE_URL: fresh.url }, { logger: false }), (error) => error instanceof pg.DatabaseError);
+      await assert.rejects(
+        startApi({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port), OQAS_DATABASE_URL: fresh.url }, { logger: false }),
+        (error) => error instanceof pg.DatabaseError,
+      );
     } finally {
       await db.close();
       await fresh.drop();

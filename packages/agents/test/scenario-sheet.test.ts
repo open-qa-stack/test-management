@@ -21,7 +21,10 @@ export declare const expect: (actual: unknown) => { toBeVisible(): Promise<void>
 
 const repository = mkdtempSync(join(tmpdir(), "skeleton-"));
 after(() => rmSync(repository, { recursive: true, force: true }));
-for (const [path, content] of Object.entries({ "node_modules/@playwright/test/package.json": JSON.stringify({ name: "@playwright/test", version: "0.0.0", types: "index.d.ts" }), "node_modules/@playwright/test/index.d.ts": PLAYWRIGHT_TYPES })) {
+for (const [path, content] of Object.entries({
+  "node_modules/@playwright/test/package.json": JSON.stringify({ name: "@playwright/test", version: "0.0.0", types: "index.d.ts" }),
+  "node_modules/@playwright/test/index.d.ts": PLAYWRIGHT_TYPES,
+})) {
   mkdirSync(dirname(join(repository, path)), { recursive: true });
   writeFileSync(join(repository, path), content);
 }
@@ -88,8 +91,16 @@ describe("the sheet of a scenario", () => {
   it("names the scenario, its data and its file before the skeleton, and ends with the next call", () => {
     const cursor = new DesignCursor({ scenarios: [SEARCH, { ...SEARCH, id: "other", data: [] }] }, (scenario) => `apps/shop/${scenario.id}.spec.ts`);
     const sheet = scenarioSheet(cursor, false).split("\n");
-    assert.deepEqual(sheet.slice(0, 4), ['Scenario 1 of 2: search-order-by-customer — Search an order by "customer" name (functional, nominal), application shop.', 'Data: "Veldane" (orders-db).', "File: apps/shop/search-order-by-customer.spec.ts", ""]);
-    assert.equal(sheet.at(-1), "Next: do the steps of search-order-by-customer with the browser tools, fill its skeleton with the code they return, then call run_test.");
+    assert.deepEqual(sheet.slice(0, 4), [
+      'Scenario 1 of 2: search-order-by-customer — Search an order by "customer" name (functional, nominal), application shop.',
+      'Data: "Veldane" (orders-db).',
+      "File: apps/shop/search-order-by-customer.spec.ts",
+      "",
+    ]);
+    assert.equal(
+      sheet.at(-1),
+      "Next: do the steps of search-order-by-customer with the browser tools, fill its skeleton with the code they return, then call run_test.",
+    );
   });
 });
 
@@ -100,12 +111,23 @@ describe("the cursor of a design", () => {
       placed.push(scenario.id);
       return `apps/shop/${scenario.id}.spec.ts`;
     });
-    assert.deepEqual([cursor.scenario?.id, cursor.rank, cursor.path, placed], ["search-order-by-customer", 1, "apps/shop/search-order-by-customer.spec.ts", ["search-order-by-customer"]]);
-    const ran = (verdict?: "passed" | "failed") => ({ content: "x", ...(verdict === undefined ? {} : { verdict }), startedAt: "2026-11-13T10:00:00.000Z", looks: 0 });
+    assert.deepEqual(
+      [cursor.scenario?.id, cursor.rank, cursor.path, placed],
+      ["search-order-by-customer", 1, "apps/shop/search-order-by-customer.spec.ts", ["search-order-by-customer"]],
+    );
+    const ran = (verdict?: "passed" | "failed") => ({
+      content: "x",
+      ...(verdict === undefined ? {} : { verdict }),
+      startedAt: "2026-11-13T10:00:00.000Z",
+      looks: 0,
+    });
     cursor.record("other", ran("passed"));
     assert.deepEqual(cursor.runs, []);
     cursor.record("search-order-by-customer", ran("failed"));
-    assert.equal(cursor.next(), "Next: look at the page at the failed step, fix the locator or the wait, then call run_test with the whole corrected file (failed runs: 1 of 3).");
+    assert.equal(
+      cursor.next(),
+      "Next: look at the page at the failed step, fix the locator or the wait, then call run_test with the whole corrected file (failed runs: 1 of 3).",
+    );
     cursor.record("search-order-by-customer", ran("passed"));
     assert.deepEqual([cursor.next(), cursor.failedRuns], ["Next: call propose_test.", 1]);
     cursor.record("search-order-by-customer", ran());

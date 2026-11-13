@@ -13,7 +13,13 @@ describe("the notes of the agents", () => {
     const text = JSON.stringify({
       formatVersion: 1,
       applications: [
-        { id: "shop", name: "Shop", type: "web", authentication: { method: "form", accounts: [{ name: "demo", usernameEnv: "SHOP_USER", passwordEnv: "SHOP_PASSWORD" }] }, environments: [{ name: "local", uiUrl: "http://127.0.0.1:1" }] },
+        {
+          id: "shop",
+          name: "Shop",
+          type: "web",
+          authentication: { method: "form", accounts: [{ name: "demo", usernameEnv: "SHOP_USER", passwordEnv: "SHOP_PASSWORD" }] },
+          environments: [{ name: "local", uiUrl: "http://127.0.0.1:1" }],
+        },
       ],
       knowledge: [
         { id: "shop-db", type: "postgresql", connectionStringEnv: "SHOP_DB_URL", attachments: [{ application: "shop" }] },
@@ -27,7 +33,8 @@ describe("the notes of the agents", () => {
     const root = mkdtempSync(join(tmpdir(), "oqas-agent-notes-"));
     try {
       const [remember] = agentNotes(result.config, root, env, { role: "cartographer", task: "t" });
-      for (const secret of [env.SHOP_DB_URL, env.MODEL_KEY]) assert.ok("error" in ((await remember!.execute({ text: `It is ${secret}.`, tags: ["x"] })) as object), secret);
+      for (const secret of [env.SHOP_DB_URL, env.MODEL_KEY])
+        assert.ok("error" in ((await remember!.execute({ text: `It is ${secret}.`, tags: ["x"] })) as object), secret);
       assert.equal(await remember!.execute({ text: "A plain fact.", tags: ["x"] }), "Kept.");
       assert.equal(await remember!.execute({ text: "The doc gives pw-123456 and dbpw.", tags: ["x"] }), "Kept.");
       assert.match(readFileSync(join(root, ".oqas", NOTES_FILE), "utf8"), /A plain fact\./);
@@ -54,7 +61,15 @@ describe("the secrets of a configuration", () => {
   it("are its connection strings and the key of the model, never the passwords alone", () => {
     const text = JSON.stringify({
       formatVersion: 1,
-      applications: [{ id: "shop", name: "Shop", type: "web", authentication: { method: "form", accounts: [{ name: "demo", usernameEnv: "SHOP_USER", passwordEnv: "SHOP_PASSWORD" }] }, environments: [{ name: "local", uiUrl: "http://127.0.0.1:1" }] }],
+      applications: [
+        {
+          id: "shop",
+          name: "Shop",
+          type: "web",
+          authentication: { method: "form", accounts: [{ name: "demo", usernameEnv: "SHOP_USER", passwordEnv: "SHOP_PASSWORD" }] },
+          environments: [{ name: "local", uiUrl: "http://127.0.0.1:1" }],
+        },
+      ],
       knowledge: [{ id: "shop-db", type: "postgresql", connectionStringEnv: "DB", attachments: [{ application: "shop" }] }],
       model: { mode: "provider-key", provider: "openai", baseUrl: "http://127.0.0.1:2/v1", model: "m", apiKeyEnv: "MODEL_KEY" },
       autonomy: { level: "autonomous" },

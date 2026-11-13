@@ -18,7 +18,12 @@ async function replay(file: string): Promise<Replay> {
   const scenario = SCENARIOS[file]!;
   const clock = new ManualClock();
   const runs = new Map<string, number>();
-  const events = await withRuntime({ kind: "replay", recording: loadRecording(file) }, MODEL, (runtime) => exchange(runtime, scenario.session(clock, runs), scenario.message), clock);
+  const events = await withRuntime(
+    { kind: "replay", recording: loadRecording(file) },
+    MODEL,
+    (runtime) => exchange(runtime, scenario.session(clock, runs), scenario.message),
+    clock,
+  );
   const last = events.at(-1);
   assert.equal(last?.type, "stopped", JSON.stringify(events.slice(-3)));
   return { events, runs, stop: (last as Extract<AgentEvent, { type: "stopped" }>).reason };
@@ -153,7 +158,10 @@ describe("a task that ends within its limits says what it used", () => {
 
 describe("the tokens of a task", () => {
   it("adds up the tokens each answer reports, and gives none when the model reports none", async () => {
-    const withUsage = (body: unknown, prompt: number, completion: number) => ({ ...(body as object), usage: { prompt_tokens: prompt, completion_tokens: completion, total_tokens: prompt + completion } });
+    const withUsage = (body: unknown, prompt: number, completion: number) => ({
+      ...(body as object),
+      usage: { prompt_tokens: prompt, completion_tokens: completion, total_tokens: prompt + completion },
+    });
     const { usage: _, ...silent } = answer(MODEL, "Done.") as { usage: unknown };
     const server = await scriptedServer([
       { body: withUsage(toolCalls(MODEL, [{ id: "n1", name: "noop", arguments: {} }]), 120, 8) },
@@ -202,8 +210,15 @@ describe("budgets of concurrent sessions", () => {
             return "done";
           },
         };
-        const events = await exchange(runtime, { instructions: "x", tools: [openOther], limits: { maxIterations: 1, maxDurationMs: null, maxActions: null } }, "Go.");
-        assert.deepEqual(stoppedEvent(events).reason, { limit: "iterations", counters: { iterations: 1, actions: 0, elapsedMs: stoppedEvent(events).reason.counters.elapsedMs, inputTokens: 1, outputTokens: 1 } });
+        const events = await exchange(
+          runtime,
+          { instructions: "x", tools: [openOther], limits: { maxIterations: 1, maxDurationMs: null, maxActions: null } },
+          "Go.",
+        );
+        assert.deepEqual(stoppedEvent(events).reason, {
+          limit: "iterations",
+          counters: { iterations: 1, actions: 0, elapsedMs: stoppedEvent(events).reason.counters.elapsedMs, inputTokens: 1, outputTokens: 1 },
+        });
       });
       assert.equal(server.requests.length, 2);
     } finally {
@@ -214,12 +229,23 @@ describe("budgets of concurrent sessions", () => {
   it("reports a call to an unknown tool once, even after the task stopped", async () => {
     const runs = new Map<string, number>();
     const clock = new ManualClock();
-    const server = await scriptedServer([{ body: toolCalls(MODEL, [{ id: "c1", name: "click", arguments: {} }, { id: "c2", name: "click", arguments: {} }, { id: "c3", name: "ghost", arguments: {} }]) }]);
+    const server = await scriptedServer([
+      {
+        body: toolCalls(MODEL, [
+          { id: "c1", name: "click", arguments: {} },
+          { id: "c2", name: "click", arguments: {} },
+          { id: "c3", name: "ghost", arguments: {} },
+        ]),
+      },
+    ]);
     try {
       const events = await withRuntime({ kind: "live", upstream: { baseUrl: server.baseUrl } }, MODEL, (runtime) =>
         exchange(runtime, SCENARIOS["limit-actions-mixed.json"]!.session(clock, runs), "Click.").then((all) => all),
       );
-      assert.deepEqual(events.filter((e) => e.type === "tool-error" && e.callId === "c3").map((e) => e.type === "tool-error" && e.reason), ["unknown-tool"]);
+      assert.deepEqual(
+        events.filter((e) => e.type === "tool-error" && e.callId === "c3").map((e) => e.type === "tool-error" && e.reason),
+        ["unknown-tool"],
+      );
     } finally {
       await server.close();
     }

@@ -48,11 +48,22 @@ function page(snapshots: string[]): { tools: ToolDefinition[]; calls: string[] }
   };
 }
 
-const LIST = ['- heading "Orders" [level=1] [ref=e2] → page.getByRole("heading", { name: "Orders", exact: true })', '- button "Search" [ref=e3] [cursor=pointer] → page.getByRole("button", { name: "Search", exact: true })', "  - /url: /orders"].join("\n");
+const LIST = [
+  '- heading "Orders" [level=1] [ref=e2] → page.getByRole("heading", { name: "Orders", exact: true })',
+  '- button "Search" [ref=e3] [cursor=pointer] → page.getByRole("button", { name: "Search", exact: true })',
+  "  - /url: /orders",
+].join("\n");
 const FOUND = `${LIST.replace("[ref=e3]", "[ref=e9]")}\n  - paragraph [ref=e10]: Order 42 of Ada\n- row [ref=e11]:\n  - cell "Ada Lovelace" [ref=e12]`;
 /** The list as the agent is given it: without the references, the marks of what can be clicked, nor the addresses of the links. */
-const SHOWN = ['- heading "Orders" [level=1] → page.getByRole("heading", { name: "Orders", exact: true })', '- button "Search" → page.getByRole("button", { name: "Search", exact: true })'].join("\n");
-const run = (watch: ScreenWatch, action: string) => watch.tools().find((tool) => tool.name === `shop_${action}`)!.execute({}) as Promise<Record<string, unknown>>;
+const SHOWN = [
+  '- heading "Orders" [level=1] → page.getByRole("heading", { name: "Orders", exact: true })',
+  '- button "Search" → page.getByRole("button", { name: "Search", exact: true })',
+].join("\n");
+const run = (watch: ScreenWatch, action: string) =>
+  watch
+    .tools()
+    .find((tool) => tool.name === `shop_${action}`)!
+    .execute({}) as Promise<Record<string, unknown>>;
 
 describe("the screens the designer watches", () => {
   it("returns the page when it is opened, and what appeared after an action, the references of the elements aside", async () => {
@@ -62,10 +73,18 @@ describe("the screens the designer watches", () => {
     const watch = new ScreenWatch(["shop", "ledger"], [...tools, unwatched]);
     assert.equal(watch.tools().at(-1), unwatched);
     assert.deepEqual(await run(watch, "goto"), { url: "http://127.0.0.1/orders", title: "Orders", page: SHOWN, truncated: false });
-    assert.deepEqual(await run(watch, "click"), { url: "http://127.0.0.1/orders", title: "Orders", appeared: '- paragraph: Order 42 of Ada\n- row:\n- cell "Ada Lovelace"', gone: "Nothing went from the page." });
+    assert.deepEqual(await run(watch, "click"), {
+      url: "http://127.0.0.1/orders",
+      title: "Orders",
+      appeared: '- paragraph: Order 42 of Ada\n- row:\n- cell "Ada Lovelace"',
+      gone: "Nothing went from the page.",
+    });
     assert.equal(((await run(watch, "snapshot")) as { page: string }).page.split("\n")[0], SHOWN.split("\n")[0]);
     assert.deepEqual(calls, ["goto", "snapshot", "click", "snapshot", "snapshot"]);
-    assert.deepEqual(watch.tools().map((tool) => tool.name), [...tools, unwatched].map((tool) => tool.name));
+    assert.deepEqual(
+      watch.tools().map((tool) => tool.name),
+      [...tools, unwatched].map((tool) => tool.name),
+    );
     assert.equal(await run(watch, "network").then((result) => JSON.stringify(result)), "[]");
     // Every browser tool of the application is a look at it, whether the watch adds to its result or not.
     assert.deepEqual([watch.looks("shop"), watch.looks("ledger")], [4, 0]);
@@ -89,7 +108,10 @@ describe("the screens the designer watches", () => {
     const watch = new ScreenWatch(["shop"], tools);
     await run(watch, "goto");
     // A part of the page, such as a table, holds fewer lines than the page: what the action changed is told against the page.
-    await watch.tools().find((tool) => tool.name === "shop_snapshot")!.execute({ within: { role: "heading" } });
+    await watch
+      .tools()
+      .find((tool) => tool.name === "shop_snapshot")!
+      .execute({ within: { role: "heading" } });
     const result = await run(watch, "click");
     assert.deepEqual([result["appeared"], result["gone"]], ['- paragraph: Order 42 of Ada\n- row:\n- cell "Ada Lovelace"', "Nothing went from the page."]);
     assert.deepEqual(calls, ["goto", "snapshot", "snapshot", "click", "snapshot"]);
@@ -118,15 +140,27 @@ describe("the screens the designer watches", () => {
     await run(watch2, "click");
     // The name of a row is that of its cells, on other lines; a role no screen showed is refused whatever its name.
     const test = `page.getByRole("heading", { name: 'orders' }); page.getByRole("button"); page.getByRole("row", { name: "Ada Lovelace" }); page.getByRole("link", { name: "Orders" }); page.getByText("Deliveries"); page.getByText("Deliveries"); page.getByLabel(\`Search\`); page.getByRole("dialog", { name: /Order/ });`;
-    assert.deepEqual((watch2.unseen("shop", await locators(test))).map((locator) => locator.code), ['getByRole("link", { name: "Orders" })', 'getByText("Deliveries")', 'getByRole("dialog", { name: /Order/ })']);
-    assert.deepEqual(watch.unseen("shop", await locators('page.getByRole("row", { name: "Ada Lovelace" })')).map((locator) => locator.code), ['getByRole("row", { name: "Ada Lovelace" })']);
+    assert.deepEqual(
+      watch2.unseen("shop", await locators(test)).map((locator) => locator.code),
+      ['getByRole("link", { name: "Orders" })', 'getByText("Deliveries")', 'getByRole("dialog", { name: /Order/ })'],
+    );
+    assert.deepEqual(
+      watch.unseen("shop", await locators('page.getByRole("row", { name: "Ada Lovelace" })')).map((locator) => locator.code),
+      ['getByRole("row", { name: "Ada Lovelace" })'],
+    );
   });
 
   it("gives the lines closest to locators no screen showed: same role or shared words, the most shared first, five at most", async () => {
     const rows = Array.from({ length: 7 }, (_, row) => `- row "Order ${row} of Ada" → page.getByRole("row", { name: "Order ${row} of Ada" })`).join("\n");
-    const watch = new ScreenWatch(["shop"], page([`${LIST}\n- link "Ada Brook" → page.getByRole("link", { name: "Ada Brook" })\n${rows}\n- paragraph: Ada`]).tools);
+    const watch = new ScreenWatch(
+      ["shop"],
+      page([`${LIST}\n- link "Ada Brook" → page.getByRole("link", { name: "Ada Brook" })\n${rows}\n- paragraph: Ada`]).tools,
+    );
     await run(watch, "goto");
-    assert.deepEqual(watch.nearest("shop", await locators('page.getByRole("link", { name: "Brook Ada" })')), ['- link "Ada Brook" → page.getByRole("link", { name: "Ada Brook" })', ...[0, 1, 2, 3].map((row) => `- row "Order ${row} of Ada" → page.getByRole("row", { name: "Order ${row} of Ada" })`)]);
+    assert.deepEqual(watch.nearest("shop", await locators('page.getByRole("link", { name: "Brook Ada" })')), [
+      '- link "Ada Brook" → page.getByRole("link", { name: "Ada Brook" })',
+      ...[0, 1, 2, 3].map((row) => `- row "Order ${row} of Ada" → page.getByRole("row", { name: "Order ${row} of Ada" })`),
+    ]);
     assert.deepEqual(watch.nearest("shop", await locators('page.getByText("Deliveries"); page.getByRole("paragraph");')), ["- paragraph: Ada"]);
   });
 
@@ -136,29 +170,44 @@ describe("the screens the designer watches", () => {
     assert.equal(watch.changedByAction("shop", ["Orders"], []), false);
     await run(watch, "click");
     // What was on the page before the action, and stays, was not made by it.
-    assert.deepEqual([watch.changedByAction("shop", ["Orders"], []), watch.changedByAction("shop", [], ["order  42 OF ada"]), watch.changedByAction("shop", ["Order 42"], [])], [false, true, false]);
+    assert.deepEqual(
+      [watch.changedByAction("shop", ["Orders"], []), watch.changedByAction("shop", [], ["order  42 OF ada"]), watch.changedByAction("shop", ["Order 42"], [])],
+      [false, true, false],
+    );
     await run(watch, "click");
-    assert.deepEqual([watch.changedByAction("shop", ["Ada Lovelace"], []), watch.changedByAction("shop", ["Nowhere", "Order 42 of Ada"], ["Search"])], [true, true]);
+    assert.deepEqual(
+      [watch.changedByAction("shop", ["Ada Lovelace"], []), watch.changedByAction("shop", ["Nowhere", "Order 42 of Ada"], ["Search"])],
+      [true, true],
+    );
     // A text too short to be checked is taken as made by an action.
     assert.equal(watch.changedByAction("shop", ["OK"], []), true);
   });
 
   it("gives the locator of the element a screen showed a text in, the last seen first", async () => {
-    const watch = new ScreenWatch(["shop", "ledger"], page([LIST, LIST, `${LIST}\n- row "ORD-1042 Orders" → page.getByRole("row", { name: "ORD-1042 Orders" })`]).tools);
+    const watch = new ScreenWatch(
+      ["shop", "ledger"],
+      page([LIST, LIST, `${LIST}\n- row "ORD-1042 Orders" → page.getByRole("row", { name: "ORD-1042 Orders" })`]).tools,
+    );
     await run(watch, "goto");
     assert.equal(watch.locatorOf("shop", "orders"), 'page.getByRole("heading", { name: "Orders", exact: true })');
     await run(watch, "click");
-    assert.deepEqual([watch.locatorOf("shop", "orders"), watch.locatorOf("shop", "Ada"), watch.locatorOf("ledger", "Orders")], ['page.getByRole("row", { name: "ORD-1042 Orders" })', undefined, undefined]);
+    assert.deepEqual(
+      [watch.locatorOf("shop", "orders"), watch.locatorOf("shop", "Ada"), watch.locatorOf("ledger", "Orders")],
+      ['page.getByRole("row", { name: "ORD-1042 Orders" })', undefined, undefined],
+    );
   });
 
   it("says in the description of each tool what it adds to its result", () => {
     const state = "Returns where the page is, and the line of code that does the same in a test.";
     const tools = page([LIST]).tools.map((tool) => ({ ...tool, description: `Acts on the page. ${state}` }));
     const described = new Map(new ScreenWatch(["shop"], tools).tools().map((tool) => [tool.name, tool.description]));
-    assert.deepEqual([described.get("shop_goto"), described.get("shop_click"), described.get("shop_snapshot")], [
-      "Acts on the page. Returns what the page shows, and the line of code that does the same in a test.",
-      "Acts on the page. Returns what appeared, what went, and the line of code that does the same in a test.",
-      `Acts on the page. ${state}`,
-    ]);
+    assert.deepEqual(
+      [described.get("shop_goto"), described.get("shop_click"), described.get("shop_snapshot")],
+      [
+        "Acts on the page. Returns what the page shows, and the line of code that does the same in a test.",
+        "Acts on the page. Returns what appeared, what went, and the line of code that does the same in a test.",
+        `Acts on the page. ${state}`,
+      ],
+    );
   });
 });

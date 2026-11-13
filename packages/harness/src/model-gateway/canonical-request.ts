@@ -44,9 +44,7 @@ function canonicalMessage(m: WireMessage): CanonicalMessage {
     role: m.role,
     content: typeof m.content === "string" ? m.content.replace(DATETIME, "") : null,
     ...(m.tool_call_id === undefined ? {} : { toolCallId: m.tool_call_id }),
-    ...(m.tool_calls === undefined
-      ? {}
-      : { toolCalls: m.tool_calls.map((c) => ({ id: c.id, name: c.function.name, arguments: c.function.arguments })) }),
+    ...(m.tool_calls === undefined ? {} : { toolCalls: m.tool_calls.map((c) => ({ id: c.id, name: c.function.name, arguments: c.function.arguments })) }),
   };
 }
 

@@ -133,11 +133,22 @@ export class Cartographer {
     }
     endPhase(trace, phases, "done");
     phases.start("card");
-    const inventories = new Map(surveys.flatMap(([source, survey]) => (survey.ok && survey.inventory !== undefined ? [[source.id, survey.inventory] as const] : [])));
+    const inventories = new Map(
+      surveys.flatMap(([source, survey]) => (survey.ok && survey.inventory !== undefined ? [[source.id, survey.inventory] as const] : [])),
+    );
     const results = await mapSources({ ...this.options, now, inventories, trace });
     for (const { outcome } of results) journal.adopt(outcome.journal);
     const cards = new Map(results.flatMap(({ source, outcome }) => (outcome.card === undefined ? [] : [[source.id, outcome.card] as const])));
-    endPhase(trace, phases, cardsOutcome(cards.size, results.length, [...cards.values()].every((card) => card.status === "complete")), totalUsage(results.map(({ outcome }) => outcome.usage)));
+    endPhase(
+      trace,
+      phases,
+      cardsOutcome(
+        cards.size,
+        results.length,
+        [...cards.values()].every((card) => card.status === "complete"),
+      ),
+      totalUsage(results.map(({ outcome }) => outcome.usage)),
+    );
     const indexPath = this.indexPath();
     const previous = await readIndex(indexPath);
     const stale = this.options.force === true ? "force is set" : indexStaleness(previous, environment, sources, cards);
@@ -155,7 +166,10 @@ export class Cartographer {
       endPhase(trace, phases, "failed");
       return { journal: journal.entries() };
     }
-    const submission = new HandedIn(domainIndexRules(inventory, new Map(sources.map((source) => [source.id, source.type] as const)), (id) => cards.has(id), configSecrets(config, env)), journal);
+    const submission = new HandedIn(
+      domainIndexRules(inventory, new Map(sources.map((source) => [source.id, source.type] as const)), (id) => cards.has(id), configSecrets(config, env)),
+      journal,
+    );
     const notes = agentNotes(config, repositoryRoot, env, { role: "cartographer", task: `index-${environment}-${now().toISOString()}`, now });
     const events: AgentEvent[] = [];
     const task = {
@@ -186,7 +200,9 @@ export class Cartographer {
     phases.start("index");
     const states = sources.map((source): IndexSource => {
       const card = cards.get(source.id);
-      return card === undefined ? { id: source.id, type: source.type, state: "not_read" } : { id: source.id, type: source.type, state: "read", cardFingerprint: cardFingerprint(card) };
+      return card === undefined
+        ? { id: source.id, type: source.type, state: "not_read" }
+        : { id: source.id, type: source.type, state: "read", cardFingerprint: cardFingerprint(card) };
     });
     const made = results.flatMap(({ outcome }) => (outcome.card === undefined || outcome.kept ? [] : [outcome.card.run]));
     const index: DomainIndex = {
@@ -229,10 +245,12 @@ export class Cartographer {
 
 /** The index at `path`, when it is readable and passes its schema. */
 async function readIndex(path: string): Promise<DomainIndex | undefined> {
-  const content: unknown = await readFile(path, "utf8").then(
-    (text) => JSON.parse(text) as unknown,
-    () => undefined,
-  ).catch(() => undefined);
+  const content: unknown = await readFile(path, "utf8")
+    .then(
+      (text) => JSON.parse(text) as unknown,
+      () => undefined,
+    )
+    .catch(() => undefined);
   const validation = validateDomainIndex(content);
   return validation.ok ? validation.value : undefined;
 }

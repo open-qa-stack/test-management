@@ -33,23 +33,34 @@ export interface ProcessResult {
  * @returns What it printed and how it ended; a program that fails is a result, not an error.
  * @throws Error when the program cannot be started.
  */
-export function runProcess(file: string, args: readonly string[], cwd: string, timeoutMs: number, env: Readonly<Record<string, string>> = {}): Promise<ProcessResult> {
+export function runProcess(
+  file: string,
+  args: readonly string[],
+  cwd: string,
+  timeoutMs: number,
+  env: Readonly<Record<string, string>> = {},
+): Promise<ProcessResult> {
   return new Promise((resolve, reject) => {
-    execFile(file, [...args], { cwd, env: { PATH: process.env["PATH"], ...env }, timeout: timeoutMs, maxBuffer: 1_000_000, encoding: "utf8" }, (failure, stdout, stderr) => {
-      const code = (failure as { code?: unknown } | null)?.code;
-      if (typeof code === "string" && code !== "ERR_CHILD_PROCESS_STDIO_MAXBUFFER") {
-        reject(new Error(`${file} cannot be run: ${code}.`));
-        return;
-      }
-      const timedOut = (failure as { killed?: boolean } | null)?.killed === true;
-      const cut = (text: string) => (text.length > MAX_OUTPUT_LENGTH ? text.slice(0, MAX_OUTPUT_LENGTH) : text);
-      resolve({
-        exitCode: failure === null ? 0 : typeof code === "number" ? code : null,
-        stdout: cut(stdout),
-        stderr: cut(stderr),
-        timedOut,
-        truncated: stdout.length > MAX_OUTPUT_LENGTH || stderr.length > MAX_OUTPUT_LENGTH || code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER",
-      });
-    });
+    execFile(
+      file,
+      [...args],
+      { cwd, env: { PATH: process.env["PATH"], ...env }, timeout: timeoutMs, maxBuffer: 1_000_000, encoding: "utf8" },
+      (failure, stdout, stderr) => {
+        const code = (failure as { code?: unknown } | null)?.code;
+        if (typeof code === "string" && code !== "ERR_CHILD_PROCESS_STDIO_MAXBUFFER") {
+          reject(new Error(`${file} cannot be run: ${code}.`));
+          return;
+        }
+        const timedOut = (failure as { killed?: boolean } | null)?.killed === true;
+        const cut = (text: string) => (text.length > MAX_OUTPUT_LENGTH ? text.slice(0, MAX_OUTPUT_LENGTH) : text);
+        resolve({
+          exitCode: failure === null ? 0 : typeof code === "number" ? code : null,
+          stdout: cut(stdout),
+          stderr: cut(stderr),
+          timedOut,
+          truncated: stdout.length > MAX_OUTPUT_LENGTH || stderr.length > MAX_OUTPUT_LENGTH || code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER",
+        });
+      },
+    );
   });
 }

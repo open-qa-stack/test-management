@@ -29,16 +29,30 @@ Rules:
  * @param inventory - The elements of each card.
  * @returns The message to send to the cartographer.
  */
-export function cartographyRequest(environment: string, sources: readonly RunSource[], cards: ReadonlyMap<string, SourceCard>, inventory: SourceInventory): string {
+export function cartographyRequest(
+  environment: string,
+  sources: readonly RunSource[],
+  cards: ReadonlyMap<string, SourceCard>,
+  inventory: SourceInventory,
+): string {
   const words = new ElementWords(inventory, new Map([...cards].map(([id, card]) => [id, card.source.type] as const)));
   const echoes = (source: string, item: string) => {
-    const domains = [...cards].flatMap(([other, card]) => card.domains.filter((domain) => domain.items.some(({ name }) => words.shared({ source, item }, { source: other, item: name }).length > 0)).map((domain) => `${other} › ${domain.id}`));
+    const domains = [...cards].flatMap(([other, card]) =>
+      card.domains
+        .filter((domain) => domain.items.some(({ name }) => words.shared({ source, item }, { source: other, item: name }).length > 0))
+        .map((domain) => `${other} › ${domain.id}`),
+    );
     return domains.length === 0 ? "" : ` — shares words with ${domains.join(", ")}`;
   };
   const blocks = sources.map((source) => {
     const card = cards.get(source.id);
     if (card === undefined) return `## ${source.id} (${source.type}): no card; leave it out.`;
-    const domains = card.domains.map((domain) => [`- ${domain.label} (${domain.id}): ${domain.description}`, ...domain.items.map((item) => `  - ${item.name}: ${item.summary}${echoes(source.id, item.name)}`)].join("\n"));
+    const domains = card.domains.map((domain) =>
+      [
+        `- ${domain.label} (${domain.id}): ${domain.description}`,
+        ...domain.items.map((item) => `  - ${item.name}: ${item.summary}${echoes(source.id, item.name)}`),
+      ].join("\n"),
+    );
     const echoing = card.unassigned.flatMap((item) => {
       const echo = echoes(source.id, item);
       return echo === "" ? [] : [`  - ${item}${echo}`];

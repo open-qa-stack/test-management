@@ -20,8 +20,18 @@ import { PLAN_TOOL } from "./plan-proposal.ts";
  * @param packages - The packages a test may import.
  * @returns The message to send to the designer.
  */
-export function designRequest(brief: string | undefined, environment: string, found: readonly string[], domains: readonly string[], applications: readonly Application[], packages: readonly string[]): string {
-  const asked = brief === undefined ? "No brief was given: design the tests that matter most across the domains below." : `Brief of the developer, in their words:\n<brief>\n${brief}\n</brief>`;
+export function designRequest(
+  brief: string | undefined,
+  environment: string,
+  found: readonly string[],
+  domains: readonly string[],
+  applications: readonly Application[],
+  packages: readonly string[],
+): string {
+  const asked =
+    brief === undefined
+      ? "No brief was given: design the tests that matter most across the domains below."
+      : `Brief of the developer, in their words:\n<brief>\n${brief}\n</brief>`;
   const known = applications.map((application) => `- ${application.id} (${application.name}, ${application.type}): ${signIn(application, environment)}`);
   const next =
     brief === undefined

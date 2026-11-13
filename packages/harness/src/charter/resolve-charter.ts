@@ -21,7 +21,12 @@ export function resolveCharter(settings: Required<CharterSettings>, charter: rea
   const errors: ConfigError[] = [];
   settings.disable.forEach((item, i) => {
     if (!known.has(item.rule)) {
-      errors.push({ kind: "reference", path: `/charter/disable/${i}/rule`, rule: "unknown-charter-rule", message: "No rule of the charter has this identifier." });
+      errors.push({
+        kind: "reference",
+        path: `/charter/disable/${i}/rule`,
+        rule: "unknown-charter-rule",
+        message: "No rule of the charter has this identifier.",
+      });
     }
   });
   settings.add.forEach((item, i) => {
@@ -32,7 +37,9 @@ export function resolveCharter(settings: Required<CharterSettings>, charter: rea
   if (errors.length > 0) return { ok: false, errors };
 
   const disabled = new Set(settings.disable.map((item) => item.rule));
-  const kept = charter.filter((rule) => !disabled.has(rule.id)).map(({ id, statement, rationale, example }): ActiveRule => ({ id, statement, rationale, example }));
+  const kept = charter
+    .filter((rule) => !disabled.has(rule.id))
+    .map(({ id, statement, rationale, example }): ActiveRule => ({ id, statement, rationale, example }));
   const added = settings.add.map(({ id, statement, reason }): ActiveRule => ({ id, statement, rationale: reason }));
   return { ok: true, rules: [...kept, ...added] };
 }

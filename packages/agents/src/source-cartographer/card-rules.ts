@@ -61,7 +61,8 @@ export function cardRules(sourceId: string, inventory: () => SourceInventory, se
     check: (valid) => {
       const { items } = inventory();
       const known = new Set(items);
-      const bare = (name: string) => (!known.has(name) && (name.startsWith(`${sourceId}/`) || name.startsWith(`${sourceId}:`)) ? name.slice(sourceId.length + 1) : name);
+      const bare = (name: string) =>
+        !known.has(name) && (name.startsWith(`${sourceId}/`) || name.startsWith(`${sourceId}:`)) ? name.slice(sourceId.length + 1) : name;
       const value: SourceCardSubmission = {
         domains: valid.domains.map((domain) => ({ ...domain, items: domain.items.map((item) => ({ ...item, name: bare(item.name) })) })),
         unassigned: valid.unassigned.map(bare),
@@ -70,7 +71,9 @@ export function cardRules(sourceId: string, inventory: () => SourceInventory, se
         ...value.domains.flatMap((domain, i) => domain.items.map((item, k) => [`/domains/${i}/items/${k}/name`, item.name] as const)),
         ...value.unassigned.map((name, k) => [`/unassigned/${k}`, name] as const),
       ];
-      const invented = named.filter(([, name]) => !known.has(name)).map(([path, name]) => ({ path, message: `${path}: ${name} is not an element of ${sourceId}; use one of the elements listed.` }));
+      const invented = named
+        .filter(([, name]) => !known.has(name))
+        .map(([path, name]) => ({ path, message: `${path}: ${name} is not an element of ${sourceId}; use one of the elements listed.` }));
       const errors: IndexError[] = [...secretErrors(value, secrets), ...invented];
       const placed = new Set(named.map(([, name]) => name));
       const missing = items.filter((item) => !placed.has(item));
@@ -79,4 +82,3 @@ export function cardRules(sourceId: string, inventory: () => SourceInventory, se
     },
   };
 }
-
