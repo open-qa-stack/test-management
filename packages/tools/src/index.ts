@@ -11,3 +11,4 @@ export { redactText, secretForms } from "./browser/redact.ts";
 export { secretPaths } from "./common/secret-paths.ts";
 export { MAX_SCANNED_FILES } from "./source-code/code-folder.ts";
 export { moduleSyntax, type ModuleImport, type ModuleSyntax } from "./source-code/module-syntax.ts";
+export type { SpecAssertion, SpecLocator, SpecOutline } from "./source-code/spec-outline.ts";

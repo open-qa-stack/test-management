@@ -201,7 +201,9 @@ describe("the method of the designer", () => {
   });
 
   it("has an example that parses as TypeScript and imports the test runner only", async () => {
-    assert.deepEqual(await moduleSyntax(DESIGNER_METHOD_EXAMPLE), { ok: true, imports: [{ module: "@playwright/test", line: 1 }] });
+    const syntax = await moduleSyntax(DESIGNER_METHOD_EXAMPLE);
+    assert.ok(syntax.ok);
+    assert.deepEqual(syntax.imports, [{ module: "@playwright/test", line: 1 }]);
   });
 
   it("has an example with a screenshot attached at the end of each step, and a relative path", () => {

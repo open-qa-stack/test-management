@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { join, posix } from "node:path";
 import type { ToolDefinition } from "@open-qa-stack/domain";
-import { moduleSyntax, redactText, secretForms } from "@open-qa-stack/tools";
+import { moduleSyntax, redactText, secretForms, type SpecAssertion, type SpecOutline } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
 import type { DesignedTest } from "./design-state.ts";
 import type { PlanProposal } from "./plan-proposal.ts";
@@ -190,14 +190,16 @@ export class TestProposals {
     const blocked = this.rules.plan.blocked();
     if (blocked !== undefined) return this.refuse(path, [blocked]);
     if (this.kept.length >= MAX_TESTS) return this.setAside(path);
-    const errors = await this.errors(path, proposal, `${proposal.reason}\n${proposal.failure ?? ""}`);
+    const { errors, outline } = await this.checked(path, proposal, `${proposal.reason}\n${proposal.failure ?? ""}`);
     if (errors.length > 0) return this.refuse(path, errors);
-    if (!quotesAssertion(proposal.content, proposal.verifies)) return this.refuse(path, ["verifies must copy, as written in the test, the expect assertion that verifies the expected result of its scenario."]);
+    // A text the rules accept parses, and has its outline.
+    const quoted = quoting(outline!, proposal.verifies);
+    if (quoted.length === 0) return this.refuse(path, ["verifies must copy, as written in the test, the expect assertion that verifies the expected result of its scenario."]);
     if (this.functional(proposal.scenario)) {
-      if (!followsAction(proposal.content, proposal.verifies)) {
+      if (quoted.length > 1 || !outline!.actsBefore(quoted[0]!.start)) {
         return this.refuse(path, ["In a functional scenario, the assertion of verifies checks what an action produced: it comes after a goto, a click, a fill or a request, and repeats no check made before. Do the steps with the browser tools, see what the screen shows after the action, and assert that."]);
       }
-      if (this.rules.screens.shownBefore(proposal.application, proposal.verifies)) {
+      if (this.rules.screens.shownBefore(proposal.application, quoted[0]!.texts)) {
         return this.refuse(path, ["What verifies names was already on the page before the action: it verifies nothing of the scenario. Assert what appeared after the action, as the browser tools told you: a row, a text, a value."]);
       }
     }
@@ -226,7 +228,7 @@ export class TestProposals {
     const path = posix.join(this.rules.appsDir, args.application, args.file);
     const blocked = this.rules.plan.blocked();
     if (blocked !== undefined) return this.refuse(path, [blocked], "could not be run");
-    const errors = await this.errors(path, args, "");
+    const { errors } = await this.checked(path, args, "");
     if (errors.length > 0) return this.refuse(path, errors, "could not be run");
     const trial = await this.trial(path, args.content);
     if (trial.error !== undefined) return this.refuse(path, [trial.error], "could not be run");
@@ -246,22 +248,26 @@ export class TestProposals {
     return this.rules.plan.accepted!.scenarios.find((planned) => planned.id === scenario)!.kind === "functional";
   }
 
-  /** What the rules refuse in a test, its text and what goes with it; nothing when it may run. */
-  private async errors(path: string, test: Trial, comments: string): Promise<string[]> {
+  /**
+   * What the rules refuse in a test, its text and what goes with it, and the outline of the test once it
+   * parses; no error when it may run.
+   */
+  private async checked(path: string, test: Trial, comments: string): Promise<{ readonly errors: readonly string[]; readonly outline?: SpecOutline }> {
     const { repositoryRoot, addresses, secrets, check, screens } = this.rules;
     const { content } = test;
     const scenarios = this.rules.plan.accepted!.scenarios.map((scenario) => scenario.id);
-    if (!scenarios.includes(test.scenario)) return [`${test.scenario} is no scenario of the accepted plan; the scenarios are ${scenarios.join(", ")}.`];
+    if (!scenarios.includes(test.scenario)) return { errors: [`${test.scenario} is no scenario of the accepted plan; the scenarios are ${scenarios.join(", ")}.`] };
     const missing = screens.missing(test.application, this.functional(test.scenario));
-    if (missing !== undefined) return [missing];
-    if (this.kept.some((test) => test.path === path) || existsSync(join(repositoryRoot, path))) return [`${path} is already taken; give the test another file name.`];
+    if (missing !== undefined) return { errors: [missing] };
+    if (this.kept.some((test) => test.path === path) || existsSync(join(repositoryRoot, path))) return { errors: [`${path} is already taken; give the test another file name.`] };
     const syntax = await moduleSyntax(content);
-    if (!syntax.ok) return [`The test does not parse as TypeScript: ${syntax.error}.`];
+    if (!syntax.ok) return { errors: [`The test does not parse as TypeScript: ${syntax.error}.`] };
+    const { outline } = syntax;
     const errors = [...importErrors(syntax.imports, join(repositoryRoot, path), repositoryRoot, this.rules.packages), ...fileErrors(content), ...addressErrors(content, addresses), ...secretValueErrors(`${comments}\n${content}`, secrets)];
-    if (errors.length > 0) return errors;
-    const unseen = screens.unseen(test.application, content);
-    if (unseen.length > 0) return [`No screen you looked at showed ${unseen.join(", ")}. Use only locators the snapshots gave, copied as given; take a snapshot of the page at that step to find the right one.`];
-    return check === undefined ? [] : (await check.check({ path, content })).map(findingText);
+    if (errors.length > 0) return { errors };
+    const unseen = screens.unseen(test.application, outline.locators);
+    if (unseen.length > 0) return { errors: [`No screen you looked at showed ${unseen.join(", ")}. Use only locators the snapshots gave, copied as given; take a snapshot of the page at that step to find the right one.`] };
+    return { errors: check === undefined ? [] : (await check.check({ path, content })).map(findingText), outline };
   }
 
   private setAside(path: string): string {
@@ -298,23 +304,11 @@ function compact(text: string): string {
   return text.replace(/\s+/g, "").replace(/['`]/g, '"').replace(/;$/, "");
 }
 
-/** Whether a text is an `expect` assertion of a test, whatever its spaces and the quotes it is written with. */
-function quotesAssertion(content: string, verifies: string): boolean {
-  return verifies.includes("expect") && compact(content).includes(compact(verifies));
-}
-
-/** An action of a test: a navigation, an input, or a request to an API. */
-const ACTION = /\.(goto|click|dblclick|fill|press|type|check|uncheck|selectOption|setInputFiles|get|post|put|patch|delete|fetch)\(/g;
-
-/**
- * Whether an assertion, spaces aside, checks what an action produced: an action comes before it, and no
- * other line of the test makes the same check.
- */
-function followsAction(content: string, verifies: string): boolean {
-  const text = compact(content);
-  const assertion = compact(verifies);
-  const at = text.indexOf(assertion);
-  return text.indexOf(assertion, at + 1) === -1 && [...text.slice(0, at).matchAll(ACTION)].length > 0;
+/** The `expect` assertions of a test that a text copies, whatever its spaces and the quotes it is written with; none when it names no `expect`. */
+function quoting(outline: SpecOutline, verifies: string): SpecAssertion[] {
+  if (!verifies.includes("expect")) return [];
+  const copied = compact(verifies);
+  return outline.assertions.filter((assertion) => compact(assertion.code).includes(copied));
 }
 
 /** The key of the trial of a text at a path. */

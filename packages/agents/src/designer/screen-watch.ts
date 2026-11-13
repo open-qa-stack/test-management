@@ -1,6 +1,5 @@
 import type { ToolDefinition } from "@open-qa-stack/domain";
-import { scopedToolName } from "@open-qa-stack/tools";
-import { namedTexts, usedLocators, type UsedLocator } from "./test-locators.ts";
+import { scopedToolName, type SpecLocator } from "@open-qa-stack/tools";
 
 /** The browser tools that change the page of an application. */
 const ACTIONS = ["click", "fill", "select_option", "check"];
@@ -123,20 +122,20 @@ export class ScreenWatch {
    * The locators of a test that no screen of the application showed.
    *
    * @param application - Identifier of the application.
-   * @param content - Text of the test.
+   * @param locators - The locators of the test, as its outline reads them.
    * @remarks
    * A screen shows a locator when one of its lines starts with the role, and one of its lines holds the name
    * or the text, whatever the case: the name of a row or a list is that of what it holds, on other lines.
    *
    * @returns Each such locator, once, as the test writes it; none for an application without a user interface.
    */
-  public unseen(application: string, content: string): string[] {
+  public unseen(application: string, locators: readonly SpecLocator[]): string[] {
     const seen = this.seen.get(application);
     if (seen === undefined) return [];
     const lines = [...seen.lines];
-    const shown = ({ role, text }: UsedLocator) =>
+    const shown = ({ role, text }: SpecLocator) =>
       (role === undefined || lines.some((line) => new RegExp(`^- '?${role}\\b`).test(line))) && (text === undefined || lines.some((line) => line.toLowerCase().includes(text.toLowerCase())));
-    return [...new Set(usedLocators(content).filter((locator) => !shown(locator)).map((locator) => locator.code))];
+    return [...new Set(locators.filter((locator) => !shown(locator)).map((locator) => locator.code))];
   }
 
   /**
@@ -144,12 +143,12 @@ export class ScreenWatch {
    * produced: such an assertion verifies no behaviour.
    *
    * @param application - Identifier of the application.
-   * @param assertion - Text of the assertion.
+   * @param named - The texts the assertion names, as its outline reads them.
    * @returns `true` when every text it names was on the page before the action; `false` when it names none, or one that an action produced.
    */
-  public shownBefore(application: string, assertion: string): boolean {
+  public shownBefore(application: string, named: readonly string[]): boolean {
     const seen = this.seen.get(application);
-    const texts = namedTexts(assertion).map((text) => text.toLowerCase());
+    const texts = named.map((text) => text.toLowerCase());
     if (seen === undefined || texts.length === 0) return false;
     const within = (lines: ReadonlySet<string>, text: string) => [...lines].some((line) => line.toLowerCase().includes(text));
     return texts.every((text) => within(seen.before, text) && !within(seen.produced, text));

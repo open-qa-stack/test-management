@@ -1,4 +1,5 @@
 import type { Node } from "@vscode/tree-sitter-wasm";
+import { SpecOutline } from "./spec-outline.ts";
 import { parseSource } from "./syntax-parser.ts";
 
 /** A module a TypeScript file imports, re-exports or requires. */
@@ -9,8 +10,8 @@ export interface ModuleImport {
   readonly line: number;
 }
 
-/** What the syntax of a TypeScript file tells: its first error, or the modules it imports. */
-export type ModuleSyntax = { readonly ok: true; readonly imports: readonly ModuleImport[] } | { readonly ok: false; readonly error: string };
+/** What the syntax of a TypeScript file tells: its first error, or the modules it imports and the outline of the test it holds. */
+export type ModuleSyntax = { readonly ok: true; readonly imports: readonly ModuleImport[]; readonly outline: SpecOutline } | { readonly ok: false; readonly error: string };
 
 /** Longest excerpt of the text an error quotes. */
 const MAX_EXCERPT = 40;
@@ -23,7 +24,7 @@ const MAX_EXCERPT = 40;
  * `import(…)` and `require(…)` calls, in the order of the file.
  *
  * @param text - Text of the file.
- * @returns Its first syntax error, by line and column, or every module it imports.
+ * @returns Its first syntax error, by line and column, or every module it imports and its outline as a test.
  * @throws Error when the grammar cannot be loaded.
  */
 export async function moduleSyntax(text: string): Promise<ModuleSyntax> {
@@ -32,7 +33,7 @@ export async function moduleSyntax(text: string): Promise<ModuleSyntax> {
   try {
     const root = tree.rootNode;
     if (root.hasError) return { ok: false, error: describeError(firstError(root)) };
-    return { ok: true, imports: importsOf(root) };
+    return { ok: true, imports: importsOf(root), outline: new SpecOutline(root) };
   } finally {
     tree.delete();
   }

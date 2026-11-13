@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { moduleSyntax } from "../src/index.ts";
+import { moduleSyntax, type ModuleSyntax } from "../src/index.ts";
+
+/** What a syntax tells, without the outline of the test, which the tests of the outline check. */
+function imported(syntax: ModuleSyntax): { ok: boolean; imports?: unknown; error?: string } {
+  return syntax.ok ? { ok: true, imports: syntax.imports } : syntax;
+}
 
 describe("the syntax of a TypeScript module", () => {
   it("lists every module imported, re-exported or required, in the order of the file", async () => {
@@ -17,7 +22,7 @@ describe("the syntax of a TypeScript module", () => {
       `const nothing = require();`,
       `test("opens", async ({ page }) => { await page.goto("/"); });`,
     ].join("\n");
-    assert.deepEqual(await moduleSyntax(text), {
+    assert.deepEqual(imported(await moduleSyntax(text)), {
       ok: true,
       imports: [
         { module: "@playwright/test", line: 1 },
@@ -42,6 +47,6 @@ describe("the syntax of a TypeScript module", () => {
 describe("a module named with an escape", () => {
   it("is a computed module: its text is not its name", async () => {
     const text = [`import fs from "node\\x3afs";`, `const pg = require("p\\u0067");`].join("\n");
-    assert.deepEqual(await moduleSyntax(text), { ok: true, imports: [{ module: undefined, line: 1 }, { module: undefined, line: 2 }] });
+    assert.deepEqual(imported(await moduleSyntax(text)), { ok: true, imports: [{ module: undefined, line: 1 }, { module: undefined, line: 2 }] });
   });
 });

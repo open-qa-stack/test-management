@@ -1,8 +1,19 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { ToolDefinition } from "@open-qa-stack/domain";
+import { moduleSyntax, type SpecOutline } from "@open-qa-stack/tools";
 import { ScreenWatch } from "../src/designer/screen-watch.ts";
-import { namedTexts, usedLocators } from "../src/designer/test-locators.ts";
+
+/** The outline of a text of a test. */
+async function outlineOf(text: string): Promise<SpecOutline> {
+  const syntax = await moduleSyntax(text);
+  assert.ok(syntax.ok);
+  return syntax.outline;
+}
+/** The locators of a text of a test. */
+const locators = async (text: string) => (await outlineOf(text)).locators;
+/** The texts the one assertion of a text names. */
+const named = async (assertion: string) => (await outlineOf(assertion)).assertions[0]!.texts;
 
 /**
  * A page double: it shows the snapshots queued, the last one repeated, moving to the next when it is opened
@@ -100,7 +111,7 @@ describe("the screens the designer watches", () => {
     await run(watch, "click");
     assert.equal(watch.missing("shop", true), undefined);
     // An application without a user interface is held to nothing.
-    assert.deepEqual([watch.missing("ledger", true), watch.unseen("ledger", 'page.getByText("x")'), watch.shownBefore("ledger", 'expect(page.getByText("x"))')], [undefined, [], false]);
+    assert.deepEqual([watch.missing("ledger", true), watch.unseen("ledger", await locators('page.getByText("x")')), watch.shownBefore("ledger", ["x"])], [undefined, [], false]);
   });
 
   it("names the locators no screen showed, by role and by text, whatever the case", async () => {
@@ -110,35 +121,21 @@ describe("the screens the designer watches", () => {
     await run(watch2, "click");
     // The name of a row is that of its cells, on other lines; a role no screen showed is refused whatever its name.
     const test = `page.getByRole("heading", { name: 'orders' }); page.getByRole("button"); page.getByRole("row", { name: "Ada Lovelace" }); page.getByRole("link", { name: "Orders" }); page.getByText("Deliveries"); page.getByText("Deliveries"); page.getByLabel(\`Search\`); page.getByRole("dialog", { name: /Order/ });`;
-    assert.deepEqual(watch2.unseen("shop", test), ['getByRole("link", { name: "Orders" })', 'getByText("Deliveries")', 'getByRole("dialog", { name: /Order/ })']);
-    assert.deepEqual(watch.unseen("shop", 'page.getByRole("row", { name: "Ada Lovelace" })'), ['getByRole("row", { name: "Ada Lovelace" })']);
+    assert.deepEqual(watch2.unseen("shop", await locators(test)), ['getByRole("link", { name: "Orders" })', 'getByText("Deliveries")', 'getByRole("dialog", { name: /Order/ })']);
+    assert.deepEqual(watch.unseen("shop", await locators('page.getByRole("row", { name: "Ada Lovelace" })')), ['getByRole("row", { name: "Ada Lovelace" })']);
   });
 
   it("tells an assertion that names only what the page showed before the action", async () => {
     const watch = new ScreenWatch(["shop"], page([LIST, LIST, FOUND, LIST]).tools);
     await run(watch, "goto");
     await run(watch, "click");
-    assert.equal(watch.shownBefore("shop", 'await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();'), true);
-    assert.equal(watch.shownBefore("shop", 'await expect(page.getByRole("paragraph")).toContainText("Order 42");'), false);
-    assert.equal(watch.shownBefore("shop", 'await expect(page.getByRole("heading", { name: "Orders" })).toHaveText("Order 42 of Ada");'), false);
-    assert.equal(watch.shownBefore("shop", 'await expect(page.getByRole("row")).toHaveCount(1);'), false);
-    assert.equal(watch.shownBefore("shop", 'await expect(page.getByText("Nowhere")).toBeVisible();'), false);
+    assert.equal(watch.shownBefore("shop", await named('await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();')), true);
+    assert.equal(watch.shownBefore("shop", await named('await expect(page.getByRole("paragraph")).toContainText("Order 42");')), false);
+    assert.equal(watch.shownBefore("shop", await named('await expect(page.getByRole("heading", { name: "Orders" })).toHaveText("Order 42 of Ada");')), false);
+    assert.equal(watch.shownBefore("shop", await named('await expect(page.getByRole("row")).toHaveCount(1);')), false);
+    assert.equal(watch.shownBefore("shop", await named('await expect(page.getByText("Nowhere")).toBeVisible();')), false);
     // Opening the page again starts over what it showed before any action.
     await run(watch, "goto");
-    assert.equal(watch.shownBefore("shop", 'await expect(page.getByRole("button", { name: "Search" })).toBeVisible();'), true);
-  });
-});
-
-describe("the locators of a test", () => {
-  it("are read in the order of the text, with the name or the text they look for when it is a string", () => {
-    assert.deepEqual(usedLocators(`page.getByTestId('total'); page.getByRole("cell", { exact: true, name: "It\\'s 5 \\"CHF\\"" }); page.getByRole("list"); page.getByPlaceholder(name);`), [
-      { code: "getByTestId('total')", text: "total" },
-      { code: `getByRole("cell", { exact: true, name: "It\\'s 5 \\"CHF\\"" })`, role: "cell", text: `It's 5 "CHF"` },
-      { code: 'getByRole("list")', role: "list" },
-    ]);
-  });
-
-  it("give, with what an assertion expects, the texts it names", () => {
-    assert.deepEqual(namedTexts(`await expect(page.getByRole("row", { name: "ORD-1" })).toContainText('Ada'); await expect(total).toHaveValue("12"); await expect(page.getByRole("status")).toHaveText(/done/);`), ["ORD-1", "Ada", "12"]);
+    assert.equal(watch.shownBefore("shop", await named('await expect(page.getByRole("button", { name: "Search" })).toBeVisible();')), true);
   });
 });
