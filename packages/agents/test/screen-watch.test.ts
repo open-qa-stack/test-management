@@ -113,8 +113,16 @@ describe("the screens the designer watches", () => {
     await run(watch2, "click");
     // The name of a row is that of its cells, on other lines; a role no screen showed is refused whatever its name.
     const test = `page.getByRole("heading", { name: 'orders' }); page.getByRole("button"); page.getByRole("row", { name: "Ada Lovelace" }); page.getByRole("link", { name: "Orders" }); page.getByText("Deliveries"); page.getByText("Deliveries"); page.getByLabel(\`Search\`); page.getByRole("dialog", { name: /Order/ });`;
-    assert.deepEqual(watch2.unseen("shop", await locators(test)), ['getByRole("link", { name: "Orders" })', 'getByText("Deliveries")', 'getByRole("dialog", { name: /Order/ })']);
-    assert.deepEqual(watch.unseen("shop", await locators('page.getByRole("row", { name: "Ada Lovelace" })')), ['getByRole("row", { name: "Ada Lovelace" })']);
+    assert.deepEqual((watch2.unseen("shop", await locators(test))).map((locator) => locator.code), ['getByRole("link", { name: "Orders" })', 'getByText("Deliveries")', 'getByRole("dialog", { name: /Order/ })']);
+    assert.deepEqual(watch.unseen("shop", await locators('page.getByRole("row", { name: "Ada Lovelace" })')).map((locator) => locator.code), ['getByRole("row", { name: "Ada Lovelace" })']);
+  });
+
+  it("gives the lines closest to locators no screen showed: same role or shared words, the most shared first, five at most", async () => {
+    const rows = Array.from({ length: 7 }, (_, row) => `- row "Order ${row} of Ada" → page.getByRole("row", { name: "Order ${row} of Ada" })`).join("\n");
+    const watch = new ScreenWatch(["shop"], page([`${LIST}\n- link "Ada Brook" → page.getByRole("link", { name: "Ada Brook" })\n${rows}\n- paragraph: Ada`]).tools);
+    await run(watch, "goto");
+    assert.deepEqual(watch.nearest("shop", await locators('page.getByRole("link", { name: "Brook Ada" })')), ['- link "Ada Brook" → page.getByRole("link", { name: "Ada Brook" })', ...[0, 1, 2, 3].map((row) => `- row "Order ${row} of Ada" → page.getByRole("row", { name: "Order ${row} of Ada" })`)]);
+    assert.deepEqual(watch.nearest("shop", await locators('page.getByText("Deliveries"); page.getByRole("paragraph");')), ["- paragraph: Ada"]);
   });
 
   it("tells whether an action made a text appear, or made one go, spaces and case aside", async () => {

@@ -905,8 +905,7 @@ describe("what a plan may hold", () => {
     const found = { result: "The order shows", shows: ["Order 42 of Ada"], absent: [] };
     const functional = (id: string, kase: string) => scenario(id, "functional", { case: kase, steps: [{ action: "Open the orders", expects: [] }, { action: "Search the orders", expects: [found] }] });
     const plan = (id: string) => ({ id, name: "propose_plan", arguments: { scenarios: [functional("list-orders", "nominal"), functional("place-order", "negative"), scenario("follow-order")] } });
-    const { outcome, server } = await design(replies([[OPEN], [plan("seen")], [SEARCH], [plan("done")], ...valid(3)]), { plan: false });
-    assert.equal(outcome.ok, true, messages(outcome));
+    const { server } = await design(replies([[OPEN], [plan("seen")], [SEARCH], [plan("done")]]), { plan: false });
     assert.match(toolResult(server, "seen"), /Refused \(PLAN-RESULT\): no text scenario list-orders expects appeared, or went, after an action of yours on shop\. Do its steps with shop_fill and shop_click/);
     assert.match(toolResult(server, "search"), /Order 42 of Ada/);
     assert.match(told(server, "done"), /^The plan was accepted\./);
@@ -915,10 +914,12 @@ describe("what a plan may hold", () => {
 
 describe("the screens a test relies on", () => {
   it("showed each locator of the test", async () => {
-    const invented = spec("list-orders").replace('name: "Orders"', 'name: "Deliveries"');
-    const { outcome, server } = await design(replies([[run(invented, "invented")], ...valid(3)]));
+    const invented = spec("list-orders").replace('name: "Orders"', 'name: "Orders to deliver"');
+    const far = spec("list-orders").replace("  });\n});", '    await page.getByTestId("zzqx").click();\n  });\n});');
+    const { outcome, server } = await design(replies([[run(invented, "invented"), run(far, "far")], ...valid(3)]));
     assert.equal(outcome.ok, true, messages(outcome));
-    assert.match(toolResult(server, "invented"), /Refused \(TEST-LOCATOR\): no screen you looked at showed getByRole\(.*heading.*Deliveries.*\)\. Copy a locator as given/);
+    assert.match(told(server, "invented"), /^Refused \(TEST-LOCATOR\): no screen you looked at showed getByRole\("heading", \{ name: "Orders to deliver" \}\)\.\nClosest elements you saw:\n- heading "Orders" \[level=1\]\n- textbox "Search orders" → [^\n]+\nCopy a locator as given, or take shop_snapshot at that step\.\nNothing else was refused\.$/);
+    assert.match(told(server, "far"), /^Refused \(TEST-LOCATOR\): no screen you looked at showed getByTestId\("zzqx"\)\.\nCopy a locator as given/);
     // Opening the page gave the agent what it shows, each element with its locator.
     assert.match(toolResult(server, "open"), /heading .*Orders.*getByRole/);
   });

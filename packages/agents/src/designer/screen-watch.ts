@@ -8,6 +8,8 @@ const ACTIONS = ["click", "fill", "select_option", "check"];
 const MAX_APPEARED = 60;
 /** Most lines an action tells the agent went. */
 const MAX_GONE = 20;
+/** Most lines told as the closest to a locator no screen showed. */
+const MAX_NEAREST = 5;
 
 /** What the designer saw of the screens of one application. */
 interface Seen {
@@ -116,15 +118,39 @@ export class ScreenWatch {
    * observed in one of its lines: the name of a row or a list is that of what it holds, on other lines. A
    * name or a text too short to be checked is taken as shown.
    *
-   * @returns Each such locator, once, as the test writes it; none for an application without a user interface.
+   * @returns Each such locator, once by the way the test writes it; none for an application without a user interface.
    */
-  public unseen(application: string, locators: readonly SpecLocator[]): string[] {
+  public unseen(application: string, locators: readonly SpecLocator[]): SpecLocator[] {
     const seen = this.seen.get(application);
     if (seen === undefined) return [];
     const lines = [...seen.lines];
     const shown = ({ role, text }: SpecLocator) =>
       (role === undefined || lines.some((line) => new RegExp(`^- '?${role}\\b`).test(line))) && (text === undefined || !checkable(text) || observed(text, lines));
-    return [...new Set(locators.filter((locator) => !shown(locator)).map((locator) => locator.code))];
+    const missed = locators.filter((locator) => !shown(locator));
+    return missed.filter((locator, at) => missed.findIndex((other) => other.code === locator.code) === at);
+  }
+
+  /**
+   * The lines of the screens of an application closest to locators no screen showed, so that the agent
+   * picks the element it meant: those that start with the same role or share a word with what a locator
+   * looks for, the most shared first. An element the agent can act on ends with its locator.
+   *
+   * @param application - Identifier of the application.
+   * @param locators - The locators no screen showed.
+   * @returns Five lines at most, as the snapshots gave them.
+   */
+  public nearest(application: string, locators: readonly SpecLocator[]): string[] {
+    const lines = [...this.seen.get(application)!.lines];
+    const score = (line: string) => {
+      const words = new Set(wordsOf(line));
+      return locators.reduce((total, { role, text }) => total + (role !== undefined && new RegExp(`^- '?${role}\\b`).test(line) ? 1 : 0) + wordsOf(text ?? "").filter((word) => words.has(word)).length, 0);
+    };
+    return lines
+      .map((line) => ({ line, score: score(line) }))
+      .filter((scored) => scored.score > 0)
+      .sort((one, other) => other.score - one.score)
+      .slice(0, MAX_NEAREST)
+      .map((scored) => scored.line);
   }
 
   /**
@@ -151,6 +177,11 @@ export class ScreenWatch {
     if (whole) seen.last = lines;
     return { ...snapshot, lines };
   }
+}
+
+/** The words of a text that can tell an element, three letters or more, in lower case. */
+function wordsOf(text: string): string[] {
+  return text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((word) => word.length >= 3);
 }
 
 /** The lines of a snapshot that another does not show. */

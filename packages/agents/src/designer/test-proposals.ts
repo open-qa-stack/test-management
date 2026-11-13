@@ -1,12 +1,13 @@
 import { existsSync } from "node:fs";
 import { join, posix } from "node:path";
 import type { PlannedScenario, TestPlan, ToolDefinition } from "@open-qa-stack/domain";
-import { moduleSyntax, redactText, secretForms } from "@open-qa-stack/tools";
+import { moduleSyntax, redactText, scopedToolName, secretForms, type SpecLocator } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
 import { DesignCursor } from "./design-cursor.ts";
 import type { DesignedTest, FailureCause, Quarantine } from "./design-state.ts";
 import { PLAN_TOOL } from "./plan-proposal.ts";
 import { journalRefusals, refusalText, type Refusal } from "./refusal.ts";
+import { scenarioErrors } from "./scenario-gates.ts";
 import { scenarioSheet } from "./scenario-sheet.ts";
 import type { ScreenWatch } from "./screen-watch.ts";
 import type { TestCheck, TestFinding, TestReference, TestRunner, TestTrial, Verdict } from "@open-qa-stack/domain";
@@ -262,9 +263,19 @@ export class TestProposals {
       ...coded("TEST-SECRET", secretValueErrors(content, secrets)),
     ];
     if (written.length > 0) return written;
-    const unseen = screens.unseen(scenario.application, syntax.outline.locators);
-    if (unseen.length > 0) return [{ code: "TEST-LOCATOR", message: `no screen you looked at showed ${unseen.join(", ")}. Copy a locator as given, or take a snapshot at that step.` }];
+    const { outline } = syntax;
+    const unseen = screens.unseen(scenario.application, outline.locators);
+    const located = unseen.length === 0 ? [] : [{ code: "TEST-LOCATOR", message: this.unseenMessage(scenario.application, unseen) }];
+    const planned = [...scenarioErrors(outline, scenario), ...located];
+    if (planned.length > 0) return planned;
     return check === undefined ? [] : coded("TEST-CHECK", (await check.check({ path, content })).map(findingText));
+  }
+
+  /** What the agent is told of locators no screen showed: them, and the closest elements it saw. */
+  private unseenMessage(application: string, unseen: readonly SpecLocator[]): string {
+    const nearest = this.rules.screens.nearest(application, unseen);
+    const closest = nearest.length === 0 ? [] : ["Closest elements you saw:", ...nearest];
+    return [`no screen you looked at showed ${unseen.map((locator) => locator.code).join(", ")}.`, ...closest, `Copy a locator as given, or take ${scopedToolName(application, "snapshot")} at that step.`].join("\n");
   }
 
   private refuse(what: string, refusals: readonly Refusal[]): { error: string } {

@@ -93,7 +93,7 @@ test("Search an order by customer name", async ({ page }, testInfo) => {
 Next: do the steps of search-order-by-customer with the browser tools, fill its skeleton with the code they return, then call run_test.
 ```
 
-The skeleton parses and keeps the default charter as it is: one `test.step` per step of the plan, titled by its number then its action, and an assertion of each text of its expects. The screenshot of each step is there when the `screenshots` option says so, as the solo command does while the rule `PW-SHOT-01` of the charter is active.
+The skeleton parses and keeps the default charter and the gates below as it is: one `test.step` per step of the plan, titled by its number then its action, and an assertion of each text of its expects, which finds it anywhere on the page; the agent may find its element better, never change the text. The screenshot of each step is there when the `screenshots` option says so, as the solo command does while the rule `PW-SHOT-01` of the charter is active.
 
 `run_test` takes the whole text of the file, checks it, then runs it against the application. The checks come in tiers; the first tier that refuses gives all its reasons, and a text refused is not run:
 
@@ -105,7 +105,12 @@ The skeleton parses and keeps the default charter as it is: one `test.step` per 
 | 2 | `TEST-FILE` | The test writes a file: `saveAs`, `storageState`, `pdf` or any `path` option. What the runner keeps goes to its own folder. |
 | 2 | `TEST-ADDRESS` | The test holds a user interface, an API or a contract URL the configuration declares, written in full or by its host. Tests reach an application by paths relative to the base URL that the Playwright configuration gives. |
 | 2 | `TEST-SECRET` | The test holds the value of a variable the configuration names; a test that signs in reads its account with `process.env`. |
-| 3 | `TEST-LOCATOR` | The test uses a locator by role, text, label, placeholder, test id, title or alternative text that no snapshot showed: the role at the start of a line, and the name or the text observed in a line, the same or another — the name of a row is that of its cells. A name or a text given as a regular expression or a variable is not checked. |
+| 3 | `TEST-ONE` | The file does not hold exactly one `test(…)`. |
+| 3 | `TEST-STEPS` | The `test.step` calls that no other step holds are not one per step of the plan, in its order, each titled by its number, a dot and a space, such as `2. Search the orders of Veldane`; the rest of a title is free. |
+| 3 | `TEST-VALUE` | A text an expect of step `n` names, in `shows` or `absent`, is observed in no string of an `expect` statement of the step `n` of the test: neither in its subject, such as the name of a locator, nor in what its matcher is given. |
+| 3 | `TEST-POLARITY` | A text the screen `shows` is held only by negative statements — `.not`, `toBeHidden`, `toHaveCount(0)` — or a text it no longer shows only by affirmative ones. |
+| 3 | `TEST-TAUT` | A text matcher — `toHaveText`, `toContainText`, `toHaveValue` — expects a text that the locator of its own subject finds the element by: it can only pass. |
+| 3 | `TEST-LOCATOR` | The test uses a locator by role, text, label, placeholder, test id, title or alternative text that no snapshot showed: the role at the start of a line, and the name or the text observed in a line, the same or another — the name of a row is that of its cells. A name or a text given as a regular expression or a variable is not checked. The refusal gives the lines of the screens closest to those locators, five at most: the same role, or a shared word. |
 | 4 | `TEST-CHECK` | A finding of the `check` option, a `TestCheck` such as the `CharterCheck` of the harness, with its line, its column and the rule of the charter or the code of the compiler, then the example of the rule when it has one: `Line 12, column 9 (rule PW-WAIT-01): Unexpected use of page.waitForTimeout(). Example: …`. |
 
 A text the checks accept is run with the `runner` option, a `TestRunner` such as the `TrialRunner` of the harness. The agent is told the verdict of each of its tests and, for one that did not pass, its whole error, the `test.step` that failed, the path of its trace, and the instant from which the logs of the services tell what happened, then the next call. A test writes no file. A visual test compares a page with its reference, with `toHaveScreenshot`; its references are made at its first run, committed with the test, and listed in the design state.

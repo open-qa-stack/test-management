@@ -23,26 +23,54 @@ describe("the outline of a test", () => {
     ]);
   });
 
-  it("reads each expect statement, awaited or not, with the texts its locators look for and those its matcher expects", async () => {
+  it("reads each expect statement, awaited or not, with the strings of its subject and of its matcher, and whether it is negative", async () => {
     const outline = await outlineOf(
       [
         `await expect(page.getByRole("row", { name: "ORD-1" })).toContainText('Ada');`,
-        `await expect(total).toHaveValue("12");`,
+        `await expect(total, "the total").toHaveValue("12");`,
         `expect.soft(page.getByRole("status")).not.toHaveText(/done/);`,
-        `await expect(page.getByText("Saved")).toBeVisible();`,
+        `await expect(page.getByText(\`Saved\`)).toBeHidden();`,
+        `await expect(page.getByText("Gone")).not.toBeHidden();`,
+        `await expect(rows).toHaveCount(0);`,
+        `await expect(rows).not.toHaveCount(2);`,
+        `await expect(page.getByText(\`\${name}\`)).toHaveText(\`\${name}!\`);`,
         `await page.getByRole("button", { name: "Save" }).click();`,
         `expected("x");`,
+        `expect(total);`,
         `await done;`,
       ].join("\n"),
     );
+    const read = (located: string[], subject: string[], expected: string[], matcher: string, negative: boolean) => ({ located, subject, expected, matcher, negative });
     assert.deepEqual(
-      outline.assertions,
+      outline.assertions.map(({ located, subject, expected, matcher, negative }) => ({ located, subject, expected, matcher, negative })),
       [
-        { code: `await expect(page.getByRole("row", { name: "ORD-1" })).toContainText('Ada');`, texts: ["ORD-1", "Ada"] },
-        { code: `await expect(total).toHaveValue("12");`, texts: ["12"] },
-        { code: `expect.soft(page.getByRole("status")).not.toHaveText(/done/);`, texts: [] },
-        { code: `await expect(page.getByText("Saved")).toBeVisible();`, texts: ["Saved"] },
+        read(["ORD-1"], ["row", "ORD-1"], ["Ada"], "toContainText", false),
+        read([], ["the total"], ["12"], "toHaveValue", false),
+        read([], ["status"], [], "toHaveText", true),
+        read(["Saved"], ["Saved"], [], "toBeHidden", true),
+        read(["Gone"], ["Gone"], [], "toBeHidden", false),
+        read([], [], [], "toHaveCount", true),
+        read([], [], [], "toHaveCount", true),
+        read([], [], [], "toHaveText", false),
       ],
     );
+    assert.deepEqual(outline.assertions.map(({ line, start, code }) => [line, start, code.length]).slice(0, 2), [[1, 0, 76], [2, 77, 51]]);
+  });
+
+  it("counts the tests, and reads the steps no other step holds, with their title when it is a string", async () => {
+    const text = [
+      `test("a", async ({ page }) => {`,
+      `  await test.step("1. Open", async () => {`,
+      `    await test.step("inner", async () => {});`,
+      `  });`,
+      `  await test.step(title, async () => {});`,
+      `});`,
+      `test.describe("group", () => {});`,
+      `test("b", async () => {});`,
+    ].join("\n");
+    const outline = await outlineOf(text);
+    assert.equal(outline.tests, 2);
+    assert.deepEqual(outline.steps.map((step) => [step.title, text.slice(step.start, step.end).split("(")[0]]), [["1. Open", "test.step"], [undefined, "test.step"]]);
+    assert.ok(outline.steps[0]!.end < outline.steps[1]!.start);
   });
 });
