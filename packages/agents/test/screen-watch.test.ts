@@ -4,11 +4,8 @@ import type { ToolDefinition } from "@open-qa-stack/domain";
 import { ScreenWatch } from "../src/designer/screen-watch.ts";
 import { namedTexts, usedLocators } from "../src/designer/test-locators.ts";
 
-/**
- * A page double: it shows the snapshots queued, one after the other, the last one repeated. It moves to the
- * next when it is opened or acted on, or, for a page that changes late, each time it is read.
- */
-function page(snapshots: string[], late = false): { tools: ToolDefinition[]; calls: string[] } {
+/** A page double: it shows the snapshots queued, the last one repeated, moving to the next when it is opened or acted on. */
+function page(snapshots: string[]): { tools: ToolDefinition[]; calls: string[] } {
   const calls: string[] = [];
   let shown = snapshots.shift()!;
   const tool = (action: string, execute: () => unknown): ToolDefinition => ({
@@ -29,11 +26,7 @@ function page(snapshots: string[], late = false): { tools: ToolDefinition[]; cal
     calls,
     tools: [
       tool("goto", next),
-      tool("snapshot", () => {
-        const read = { url: state.url, title: state.title, page: shown, truncated: false };
-        if (late) next();
-        return read;
-      }),
+      tool("snapshot", () => ({ url: state.url, title: state.title, page: shown, truncated: false })),
       tool("click", next),
       tool("fill", next),
       tool("select_option", next),
@@ -50,7 +43,7 @@ const run = (watch: ScreenWatch, action: string) => watch.tools().find((tool) =>
 describe("the screens the designer watches", () => {
   it("returns the page when it is opened, and what appeared after an action, the references of the elements aside", async () => {
     const { tools, calls } = page([LIST, LIST, FOUND]);
-    const watch = new ScreenWatch(["shop", "ledger"], tools, 0);
+    const watch = new ScreenWatch(["shop", "ledger"], tools);
     assert.deepEqual(await run(watch, "goto"), { url: "http://127.0.0.1/orders", title: "Orders", page: LIST, truncated: false });
     assert.deepEqual(await run(watch, "click"), { url: "http://127.0.0.1/orders", title: "Orders", appeared: "- paragraph: Order 42 of Ada" });
     assert.deepEqual(calls, ["goto", "snapshot", "click", "snapshot"]);
@@ -58,21 +51,15 @@ describe("the screens the designer watches", () => {
     assert.equal(await run(watch, "network").then((result) => JSON.stringify(result)), "[]");
   });
 
-  it("reads the page once more, a moment later, when nothing appeared at first, and says when nothing did", async () => {
-    // Read after it is opened, then twice after the action: the order shows at the second reading only.
-    const late = page([LIST, LIST, LIST, LIST, FOUND], true);
-    const watch = new ScreenWatch(["shop"], late.tools, 0);
-    await run(watch, "goto");
-    assert.equal((await run(watch, "fill"))["appeared"], "- paragraph: Order 42 of Ada");
-    assert.deepEqual(late.calls, ["goto", "snapshot", "fill", "snapshot", "snapshot"]);
-    const still = new ScreenWatch(["shop"], page([LIST]).tools, 0);
+  it("says when an action made nothing appear", async () => {
+    const still = new ScreenWatch(["shop"], page([LIST]).tools);
     assert.equal((await run(still, "check"))["appeared"], "Nothing new appeared on the page.");
   });
 
   it("reads the page before an action when it was not read yet, and cuts a long list of what appeared", async () => {
     const rows = Array.from({ length: 70 }, (_, row) => `- row "Order ${row}"`).join("\n");
     const { tools, calls } = page([LIST, `${LIST}\n${rows}`]);
-    const watch = new ScreenWatch(["shop"], tools, 0);
+    const watch = new ScreenWatch(["shop"], tools);
     const result = await run(watch, "select_option");
     assert.deepEqual(calls, ["snapshot", "select_option", "snapshot"]);
     assert.equal(String(result["appeared"]).split("\n").length, 60);
@@ -80,7 +67,7 @@ describe("the screens the designer watches", () => {
   });
 
   it("asks the agent to look at the screens, then to do the steps of a scenario that acts", async () => {
-    const watch = new ScreenWatch(["shop", "ledger"], page([LIST, FOUND]).tools, 0);
+    const watch = new ScreenWatch(["shop", "ledger"], page([LIST, FOUND]).tools);
     assert.match(watch.missing("shop", false)!, /^You have not looked at the screens of shop yet\. Open the page of the scenario with shop_goto/);
     await run(watch, "snapshot");
     assert.equal(watch.missing("shop", false), undefined);
@@ -92,14 +79,14 @@ describe("the screens the designer watches", () => {
   });
 
   it("names the locators no screen showed, by role and by text, whatever the case", async () => {
-    const watch = new ScreenWatch(["shop"], page([LIST]).tools, 0);
+    const watch = new ScreenWatch(["shop"], page([LIST]).tools);
     await run(watch, "goto");
     const test = `page.getByRole("heading", { name: 'orders' }); page.getByRole("button"); page.getByRole("link", { name: "Orders" }); page.getByText("Deliveries"); page.getByText("Deliveries"); page.getByLabel(\`Search\`); page.getByRole("row", { name: /Order/ });`;
     assert.deepEqual(watch.unseen("shop", test), ['getByRole("link", { name: "Orders" })', 'getByText("Deliveries")', 'getByRole("row", { name: /Order/ })']);
   });
 
   it("tells an assertion that names only what the page showed before the action", async () => {
-    const watch = new ScreenWatch(["shop"], page([LIST, LIST, FOUND, LIST]).tools, 0);
+    const watch = new ScreenWatch(["shop"], page([LIST, LIST, FOUND, LIST]).tools);
     await run(watch, "goto");
     await run(watch, "click");
     assert.equal(watch.shownBefore("shop", 'await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();'), true);

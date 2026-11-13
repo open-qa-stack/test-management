@@ -1,3 +1,4 @@
+import { setTimeout as wait } from "node:timers/promises";
 import { errors, type Browser, type Locator, type Page, type Route } from "playwright-core";
 import { PageLog, type ConsoleEntry, type NetworkEntry } from "./page-log.ts";
 import { pageSnapshot, type PageSnapshot } from "./page-snapshot.ts";
@@ -8,6 +9,10 @@ import { locate, targetCode, type Target } from "./target.ts";
 export const LOG_CAPACITY = 50;
 /** Most redirects a navigation may follow. */
 export const MAX_REDIRECTS = 10;
+/** How long a page must send no request to be held as settled, in milliseconds. */
+export const QUIET_MS = 300;
+/** How often the requests of a page are looked at while it settles, in milliseconds. */
+const POLL_MS = 50;
 
 /** Where an application's page may go. */
 export interface PageScope {
@@ -25,6 +30,8 @@ export interface PageTimeouts {
   readonly actionMs: number;
   /** For a navigation to load. */
   readonly navigationMs: number;
+  /** For the requests of the page to end, after it is opened or acted on. */
+  readonly settleMs: number;
 }
 
 /** Where the page is. */
@@ -42,7 +49,8 @@ export type Until = { readonly target: Target; readonly state: "visible" | "hidd
  * The page of one application in a browser context of its own, kept on the application's addresses.
  *
  * @remarks
- * A navigation of the page, whatever starts it, is refused unless it goes to one of the origins of the
+ * Once it is opened or acted on, the page is given time to load what it asks its services, so that it is
+ * read with its data. A navigation of the page, whatever starts it, is refused unless it goes to one of the origins of the
  * application. Its redirects are followed hop by hop by the harness before the browser receives an answer,
  * so that no redirect reaches another origin either; the browser is then sent to the last address, which is
  * thus requested twice. A form sent with `POST` is sent once, the hops after a `303` going by `GET`. A refused navigation is cancelled the way a
@@ -55,6 +63,8 @@ export class ApplicationPage {
   private readonly timeouts: PageTimeouts;
   private readonly page: Page;
   private readonly log: PageLog;
+  /** The requests the page sent that have not ended. */
+  private pending = 0;
 
   private constructor(scope: PageScope, timeouts: PageTimeouts, page: Page, log: PageLog) {
     this.scope = scope;
@@ -73,16 +83,21 @@ export class ApplicationPage {
    * @throws Error when the user interface cannot be loaded.
    */
   public static async open(browser: Browser, scope: PageScope, timeouts: PageTimeouts): Promise<ApplicationPage> {
-    const context = await browser.newContext();
+    // The page is served through the guard, which hides where it comes from: without this grant, the browser refuses the calls a local interface makes to its own local services.
+    const context = await browser.newContext({ permissions: ["local-network-access"] });
     context.setDefaultTimeout(timeouts.actionMs);
     context.setDefaultNavigationTimeout(timeouts.navigationMs);
     const page = await context.newPage();
     const log = new PageLog(LOG_CAPACITY);
     log.listen(page);
     const opened = new ApplicationPage(scope, timeouts, page, log);
+    page.on("request", () => opened.pending++);
+    page.on("requestfinished", () => opened.pending--);
+    page.on("requestfailed", () => opened.pending--);
     await context.route("**/*", (route) => opened.guard(route));
     try {
       await page.goto(scope.uiUrl);
+      await opened.settled();
     } catch (failure) {
       await context.close();
       throw new Error(`The user interface of ${scope.applicationId} at ${scope.uiUrl} cannot be loaded: ${firstLine(failure)}`);
@@ -115,6 +130,7 @@ export class ApplicationPage {
     } catch (failure) {
       throw new Error(`${shortText(address.href)} did not load: ${firstLine(failure)}`);
     }
+    await this.settled();
   }
 
   /**
@@ -139,6 +155,22 @@ export class ApplicationPage {
       await action(locate(this.page, target));
     } catch (failure) {
       throw await this.failed(failure, `${targetCode(target)} did not become ready within ${this.timeouts.actionMs} ms.`, target);
+    }
+    await this.settled();
+  }
+
+  /**
+   * Waits until the page has sent no request for `QUIET_MS`, so that what it loads from its services is
+   * on the screen when it is read; gives up once the settling time is over, as for a page that keeps a
+   * request open.
+   */
+  private async settled(): Promise<void> {
+    const deadline = Date.now() + this.timeouts.settleMs;
+    let quietSince = Date.now();
+    while (Date.now() < deadline) {
+      if (this.pending > 0) quietSince = Date.now();
+      else if (Date.now() - quietSince >= QUIET_MS) return;
+      await wait(POLL_MS);
     }
   }
 

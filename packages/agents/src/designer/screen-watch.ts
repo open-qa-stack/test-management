@@ -1,4 +1,3 @@
-import { setTimeout as wait } from "node:timers/promises";
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import { scopedToolName } from "@open-qa-stack/tools";
 import { namedTexts, usedLocators, type UsedLocator } from "./test-locators.ts";
@@ -7,8 +6,6 @@ import { namedTexts, usedLocators, type UsedLocator } from "./test-locators.ts";
 const ACTIONS = ["click", "fill", "select_option", "check"];
 /** Most lines an action tells the agent appeared. */
 const MAX_APPEARED = 60;
-/** How long a screen that shows nothing new is given before it is read again, in milliseconds. */
-const SETTLE_MS = 600;
 
 /** What the designer saw of the screens of one application. */
 interface Seen {
@@ -32,7 +29,7 @@ interface Seen {
  * @remarks
  * The tools it gives are those it was given, with what the agent needs to see added to their results:
  * opening an address returns the snapshot of the page, and an action returns the lines of the snapshot that
- * appeared after it — read once more, a moment later, when nothing appeared at first. It remembers, for
+ * appeared after it. It remembers, for
  * each application, every line the snapshots showed, those shown before any action since the page was
  * opened, and those an action produced. An application without a user interface has no such tools, and is
  * held to nothing.
@@ -40,15 +37,12 @@ interface Seen {
 export class ScreenWatch {
   private readonly seen = new Map<string, Seen>();
   private readonly watched: ToolDefinition[];
-  private readonly settleMs: number;
 
   /**
    * @param applications - Identifiers of the applications the browser tools may be of.
    * @param tools - The browser tools, named after their application.
-   * @param settleMs - How long a screen that shows nothing new is given before it is read again.
    */
-  public constructor(applications: readonly string[], tools: readonly ToolDefinition[], settleMs = SETTLE_MS) {
-    this.settleMs = settleMs;
+  public constructor(applications: readonly string[], tools: readonly ToolDefinition[]) {
     const byName = new Map(tools.map((tool) => [tool.name, tool]));
     const owned = new Map<string, ToolDefinition>();
     for (const application of applications) {
@@ -79,11 +73,7 @@ export class ScreenWatch {
           const state = (await tool.execute(args)) as object;
           seen.acted = true;
           seen.everActed = true;
-          let appeared = this.appeared(previous, (await read()).lines);
-          if (appeared.length === 0) {
-            await wait(this.settleMs);
-            appeared = this.appeared(previous, (await read()).lines);
-          }
+          const appeared = this.appeared(previous, (await read()).lines);
           for (const line of appeared) seen.produced.add(line);
           const told = appeared.length === 0 ? "Nothing new appeared on the page." : appeared.slice(0, MAX_APPEARED).join("\n");
           return { ...state, appeared: told, ...(appeared.length > MAX_APPEARED ? { more: `${appeared.length - MAX_APPEARED} more lines appeared; take a snapshot to read them.` } : {}) };

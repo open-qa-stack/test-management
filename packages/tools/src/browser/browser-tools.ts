@@ -8,6 +8,8 @@ import { BrowserSession } from "./browser-session.ts";
 export const ACTION_TIMEOUT_MS = 5000;
 /** Default wait for a navigation to load, in milliseconds. */
 export const NAVIGATION_TIMEOUT_MS = 15_000;
+/** Longest wait for the requests of a page to end once it is opened or acted on, in milliseconds. */
+export const SETTLE_TIMEOUT_MS = 3000;
 
 /** What the browser tools of a session need. */
 export interface BrowserAccess {
@@ -21,6 +23,8 @@ export interface BrowserAccess {
   readonly actionTimeoutMs?: number;
   /** Wait for a navigation to load; `NAVIGATION_TIMEOUT_MS` by default. */
   readonly navigationTimeoutMs?: number;
+  /** Wait for the requests of a page to end once it is opened or acted on; `SETTLE_TIMEOUT_MS` by default. */
+  readonly settleTimeoutMs?: number;
   /** Starts the browser; a headless Chromium by default. */
   readonly launch?: () => Promise<Browser>;
 }
@@ -48,6 +52,7 @@ export function browserTools(applications: readonly Application[], access: Brows
   const session = new BrowserSession(access.launch ?? (() => chromium.launch()), {
     actionMs: access.actionTimeoutMs ?? ACTION_TIMEOUT_MS,
     navigationMs: access.navigationTimeoutMs ?? NAVIGATION_TIMEOUT_MS,
+    settleMs: access.settleTimeoutMs ?? SETTLE_TIMEOUT_MS,
   });
   const tools = applications.flatMap((application) => {
     const environment = application.environments.find((e) => e.name === access.environment);
