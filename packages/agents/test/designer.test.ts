@@ -8,7 +8,8 @@ import { CopilotAgentRuntime, designerInstructions, ModelGateway, resolveCharter
 import { validateConfig, type DomainIndex, type ResolvedConfig, type SourceCard } from "@open-qa-stack/shared";
 import { answer, scriptedServer, testSite, toolCalls, type ScriptedServer, type TestSite } from "@open-qa-stack/testing";
 import { moduleSyntax } from "@open-qa-stack/tools";
-import { Designer, type DesignOutcome, type DesignState, type SpecCheck } from "../src/index.ts";
+import type { TestCheck } from "@open-qa-stack/domain";
+import { Designer, type DesignOutcome, type DesignState } from "../src/index.ts";
 
 const MODEL = "test-model";
 const BRANCH = "oqas/design-test";
@@ -153,7 +154,7 @@ const replies = (calls: readonly ReturnType<typeof propose>[]) => [{ body: toolC
 interface Setup {
   readonly root?: string;
   readonly limits?: { maxIterations: number; maxDurationMinutes: number; maxActions: number };
-  readonly check?: SpecCheck;
+  readonly check?: TestCheck;
   readonly branch?: string | null;
   readonly env?: Readonly<Record<string, string>>;
 }
@@ -433,13 +434,19 @@ describe("criterion 11 — the designer imports neither the SDK nor a package it
 
 describe("guiding the designer", () => {
   it("refuses a taken file name, a domain the index lacks, and a test the check finds fault with", async () => {
-    const check: SpecCheck = { check: async (proposed) => (proposed.path.endsWith("waits.spec.ts") ? ["PW-WAIT-01: line 4 waits for a fixed time."] : []) };
+    const check: TestCheck = {
+      check: async (proposed) =>
+        proposed.path.endsWith("waits.spec.ts")
+          ? [{ kind: "charter", rule: "PW-WAIT-01", line: 4, column: 9, message: "Wait for a state, never for a fixed time." }, { kind: "compiler", code: "TS2304", line: 2, column: 1, message: "Cannot find name 'testInfo'." }]
+          : [],
+    };
     const root = repository();
     const { outcome } = await design(replies([propose("test-1.spec.ts"), propose("test-1.spec.ts"), propose("specs.spec.ts", { domain: "returns" }), propose("waits.spec.ts"), ...valid(3).slice(1)]), { root, check });
     const journal = messages(outcome);
     assert.match(journal, /apps\/shop\/test-1\.spec\.ts was refused: apps\/shop\/test-1\.spec\.ts is already taken/);
     assert.match(journal, /propose_test: .*domain/);
-    assert.match(journal, /waits\.spec\.ts was refused: PW-WAIT-01: line 4 waits for a fixed time\./);
+    assert.match(journal, /waits\.spec\.ts was refused: Line 4, column 9 \(rule PW-WAIT-01\): Wait for a state, never for a fixed time\./);
+    assert.match(journal, /waits\.spec\.ts was refused: Line 2, column 1 \(compiler TS2304\): Cannot find name 'testInfo'\./);
     assert.equal(outcome.tests.length, 3);
   });
 

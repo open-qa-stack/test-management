@@ -4,7 +4,7 @@ import type { ToolDefinition } from "@open-qa-stack/domain";
 import { moduleSyntax, redactText, secretForms } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
 import type { DesignedTest } from "./design-state.ts";
-import type { SpecCheck } from "./spec-check.ts";
+import type { TestCheck, TestFinding } from "@open-qa-stack/domain";
 import { addressErrors, importErrors, secretValueErrors, type DeclaredSecret } from "./spec-rules.ts";
 
 /** Name of the tool the designer proposes a test with. */
@@ -35,7 +35,7 @@ export interface ProposalRules {
   /** The values no proposal may hold, masked in every refusal. */
   readonly secrets: readonly DeclaredSecret[];
   /** The check run on a test the harness found nothing to refuse in, if any. */
-  readonly check?: SpecCheck;
+  readonly check?: TestCheck;
 }
 
 /** The arguments of a proposal, once they match the schema of the tool. */
@@ -146,7 +146,7 @@ export class TestProposals {
       ...secretValueErrors(`${proposal.reason}\n${proposal.content}`, secrets),
     ];
     if (errors.length > 0 || check === undefined) return errors;
-    return [...(await check.check({ path, content: proposal.content }))];
+    return (await check.check({ path, content: proposal.content })).map(findingText);
   }
 
   private refuse(path: string, errors: readonly string[]): { error: string } {
@@ -154,4 +154,10 @@ export class TestProposals {
     for (const error of errors) this.journal.record("error", masked(`The test ${path} was refused: ${error}`));
     return { error: masked([`The test ${path} was refused. Fix it and propose it again.`, ...errors.map((error) => `- ${error}`)].join("\n")) };
   }
+}
+
+/** A finding of the check, in one sentence the agent can act on: where, what, and the rule or the code. */
+function findingText(finding: TestFinding): string {
+  const label = finding.kind === "charter" ? `rule ${finding.rule}` : `compiler ${finding.code}`;
+  return `Line ${finding.line}, column ${finding.column} (${label}): ${finding.message}`;
 }

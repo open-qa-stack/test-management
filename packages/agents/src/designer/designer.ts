@@ -10,7 +10,7 @@ import { INDEX_FILE_NAME } from "../cartographer/cartographer.ts";
 import { CARDS_FOLDER } from "../source-cartographer/source-cartographer.ts";
 import { designRequest } from "./designer-prompt.ts";
 import { DESIGNS_FOLDER, type DesignedTest, type DesignState } from "./design-state.ts";
-import type { SpecCheck } from "./spec-check.ts";
+import type { TestCheck } from "@open-qa-stack/domain";
 import { declaredAddresses, declaredSecrets } from "./spec-rules.ts";
 import { MIN_TESTS, TestProposals, type AcceptedTest } from "./test-proposals.ts";
 import { TestRepository } from "./test-repository.ts";
@@ -31,7 +31,7 @@ export interface DesignerOptions {
   /** System instructions of the designer, composed from the test charter by the caller. */
   readonly instructions: string;
   /** A check run on each test before it is accepted, such as one against the charter; none by default. */
-  readonly check?: SpecCheck;
+  readonly check?: TestCheck;
   /** Name of the branch to create; `oqas/design-<date>` by default. */
   readonly branch?: string;
   /** How the browser starts and waits; a headless Chromium with the default waits otherwise. */
