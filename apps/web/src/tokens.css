@@ -1,0 +1,54 @@
+:root {
+  --bg: #f4f5f7;
+  --surface: #fff;
+  --line: #e3e6eb;
+  --line-soft: #eef0f3;
+  --text: #1a1d23;
+  --text-2: #4b5563;
+  --text-3: #6b7280;
+  --text-4: #9aa3b0;
+  --primary: #2458d6;
+  --primary-soft: #eef2fb;
+  --primary-line: #c9d6f5;
+  --ok: #15803d;
+  --ok-soft: #e4f5ea;
+  --ko: #b91c1c;
+  --ko-soft: #fde8e8;
+  --warn: #b45309;
+  --warn-soft: #fdf0dc;
+  --ai: #6d28d9;
+  --ai-soft: #f1ecfd;
+  --ai-line: #d9d0f5;
+  --neutral: #5b6472;
+  --neutral-soft: #eef0f3;
+  --r: 6px;
+  --row: 36px;
+  --fs: 13px;
+
+  --surface-soft: #fafbfc;
+  --primary-hover: #1f4dbd;
+  --primary-faint: #f4f7fe;
+  --primary-tint: #dfe6f7;
+  --primary-count: #dbe4fa;
+  --on-primary: #fff;
+  --link-hover: #1a44ad;
+  --ko-faint: #fff5f5;
+  --ko-line: #f1b8b8;
+  --warn-faint: #fffbf3;
+  --warn-line: #f3dfb8;
+  --warn-strong: #8a5a12;
+  --ai-faint: #faf8ff;
+  --field-line: #d6dae1;
+  --field-readonly: #f8f9fb;
+  --skeleton-shine: #f6f7f9;
+  --skeleton-line: #e9ecf1;
+  --inverse: #1a1d23;
+  --on-inverse: #fff;
+  --inverse-link: #9cc0ff;
+  --overlay: rgba(20, 24, 33, 0.38);
+  --shadow-modal: rgba(20, 24, 33, 0.25);
+  --shadow-toast: rgba(0, 0, 0, 0.25);
+
+  --font: Inter, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
