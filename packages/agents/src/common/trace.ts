@@ -21,7 +21,7 @@ export interface TraceOptions {
 }
 
 /**
- * The trace of a cartography: what the harness did and what the agent thought, called and received, phase
+ * The trace of a run, a cartography or a design: what the harness did and what the agent thought, called and received, phase
  * by phase, written line by line to a JSON Lines file.
  *
  * @remarks

@@ -194,6 +194,7 @@ interface Setup {
   readonly plan?: boolean;
   readonly brief?: string;
   readonly planReview?: PlanReview;
+  readonly observe?: (line: { event: { type: string } }) => void;
 }
 
 interface Run {
@@ -226,6 +227,7 @@ async function design(script: readonly { status?: number; body: unknown }[], set
       runner: setup.runner ?? new FakeTestRunner(),
       ...(setup.brief === undefined ? {} : { brief: setup.brief }),
       ...(setup.planReview === undefined ? {} : { planReview: setup.planReview }),
+      ...(setup.observe === undefined ? {} : { observe: setup.observe }),
     });
     return { outcome: await designer.run(), root, server, before };
   } finally {
@@ -772,7 +774,9 @@ describe("brief, criterion 4 — a review that refuses the plan stops the task, 
     const { outcome, root, server, before } = await design([{ body: toolCalls(MODEL, [PLAN, ...valid(3)]) }, { body: toolCalls(MODEL, [{ ...PLAN, id: "plan-2" }, look]) }, { body: answer(MODEL, "Done.") }], { plan: false, planReview: review, runner });
     assert.equal(outcome.ok, false);
     assert.equal(outcome.branch, undefined);
-    assert.deepEqual(snapshot(root), before);
+    // The trace of the session is all the design left.
+    assert.deepEqual({ ...snapshot(root), status: "" }, { ...before, status: "" });
+    assert.deepEqual(git(root, "status", "--porcelain", "--untracked-files=all").split("\n").filter((line) => !line.includes(".oqas/index/")), [`?? .oqas/traces/${outcome.tracePath!.split("/").at(-1)}`]);
     assert.deepEqual(runner.runs, []);
     assert.match(messages(outcome), /The plan was refused: The scenarios check only screens\. The design stops; no test is written\./);
     assert.match(messages(outcome), /No test was written: the plan was refused: The scenarios check only screens\./);
@@ -849,5 +853,37 @@ describe("the assertion of a functional scenario", () => {
     for (const call of calls.slice(0, 2)) assert.match(toolResult(server, call.id), /In a functional scenario, the assertion of verifies checks what an action produced: it comes after a goto, a click, a fill or a request, and repeats no check made before\./);
     assert.deepEqual(outcome.tests.map((test) => [test.path, test.scenario]), [["apps/shop/test-7.spec.ts", "look"], ["apps/shop/test-1.spec.ts", "list-orders"], ["apps/shop/test-2.spec.ts", "list-orders"]]);
     assert.match(toolResult(server, "plan-kinds"), /do its steps with the browser tools and see what the screen shows after each action/);
+  });
+});
+
+describe("the trace of a design", () => {
+  const lines = (path: string) => readFileSync(path, "utf8").trim().split("\n").map((line) => JSON.parse(line) as { phase: string; actor: string; event: { type: string; outcome?: string; tool?: string; text?: string; message?: string } });
+
+  it("holds the request, each call of the agent with its result, the journal, and ends as done", async () => {
+    const seen: string[] = [];
+    const { outcome } = await design(replies(valid(3)), { observe: (line) => seen.push(line.event.type) });
+    const trace = lines(outcome.tracePath!);
+    assert.ok(trace.every((line) => line.phase === "design"));
+    assert.deepEqual([trace[0]!.event.type, trace.at(-1)!.event], ["started", { type: "finished", outcome: "done" }]);
+    assert.match(trace.find((line) => line.event.type === "message")!.event.text!, /^Design Playwright tests for the environment local\./);
+    assert.deepEqual(trace.filter((line) => line.actor === "agent" && line.event.type === "tool-call").map((line) => line.event.tool), ["propose_plan", "propose_test", "propose_test", "propose_test"]);
+    assert.ok(trace.some((line) => line.event.type === "journal" && line.event.message === "The test apps/shop/test-1.spec.ts was accepted."));
+    assert.equal(seen.length, trace.length);
+    assert.ok(!readFileSync(outcome.tracePath!, "utf8").includes(PASSWORD));
+  });
+
+  it("ends as truncated when a limit cut a design that gave its tests, as failed otherwise, and is not opened without a session", async () => {
+    const cut = await design([{ body: toolCalls(MODEL, valid(3)) }, { body: toolCalls(MODEL, [propose("late.spec.ts")]) }], { limits: { maxIterations: 3, maxDurationMinutes: 10, maxActions: 200 } });
+    assert.equal(cut.outcome.ok, true, messages(cut.outcome));
+    assert.equal(lines(cut.outcome.tracePath!).at(-1)!.event.outcome, "truncated");
+    const few = await design(replies(valid(2)));
+    assert.equal(lines(few.outcome.tracePath!).at(-1)!.event.outcome, "failed");
+    const none = await design(replies([]));
+    assert.equal(lines(none.outcome.tracePath!).at(-1)!.event.outcome, "failed");
+    const dirty = repository();
+    writeFileSync(join(dirty, "specs", "orders.md"), "changed\n");
+    const stopped = await design(replies(valid(3)), { root: dirty });
+    assert.equal(stopped.outcome.tracePath, undefined);
+    assert.ok(!existsSync(join(dirty, ".oqas", "traces")));
   });
 });

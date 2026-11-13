@@ -6,6 +6,10 @@ import { browserTools, knowledgeTools, type BrowserAccess } from "@open-qa-stack
 import { agentNotes } from "../common/agent-notes.ts";
 import { runAgentTask, taskEnd, taskLimits } from "../common/agent-task.ts";
 import { Journal, type JournalEntry } from "../common/journal.ts";
+import { runTrace } from "../common/run-trace.ts";
+import type { Trace } from "../common/trace.ts";
+import type { TraceLine } from "../common/trace-line.ts";
+import { TracedPhases } from "../common/traced-phases.ts";
 import { INDEX_FILE_NAME } from "../cartographer/cartographer.ts";
 import { CARDS_FOLDER } from "../source-cartographer/source-cartographer.ts";
 import { designRequest } from "./designer-prompt.ts";
@@ -45,6 +49,8 @@ export interface DesignerOptions {
   readonly branch?: string;
   /** How the browser starts and waits; a headless Chromium with the default waits otherwise. */
   readonly browser?: Pick<BrowserAccess, "launch" | "actionTimeoutMs" | "navigationTimeoutMs">;
+  /** Receives each line of the trace as it is written, to follow the design while it runs. */
+  readonly observe?: (line: TraceLine) => void;
   /** The clock of the dates; the system clock by default. */
   readonly now?: () => Date;
 }
@@ -61,6 +67,8 @@ export interface DesignOutcome {
   readonly tests: readonly DesignedTest[];
   /** What the run checked, refused and wrote. */
   readonly journal: readonly JournalEntry[];
+  /** Where the trace of the session is written, when a session started. */
+  readonly tracePath?: string;
 }
 
 /** Accepts every plan as it is: the designer works on its own. */
@@ -103,10 +111,13 @@ export class Designer {
    */
   public async run(): Promise<DesignOutcome> {
     const { config, repositoryRoot, env } = this.options;
-    const journal = new Journal();
+    // The trace opens with the session: a design stopped before it writes nothing to the test repository.
+    let trace: Trace | undefined;
+    const traced = () => (trace === undefined ? {} : { tracePath: trace.path });
+    const journal = new Journal((entry) => trace?.harness("design", { type: "journal", level: entry.level, message: entry.message }));
     const failed = (message: string): DesignOutcome => {
       journal.record("error", message);
-      return { ok: false, tests: [], journal: journal.entries() };
+      return { ok: false, tests: [], journal: journal.entries(), ...traced() };
     };
     const now = this.options.now ?? (() => new Date());
     const start = now();
@@ -147,9 +158,25 @@ export class Designer {
     const events: AgentEvent[] = [];
     const request = designRequest(this.options.brief, index.environment, map.domains(), applications, packages);
     const tools = [...map.toolset(), ...browser.tools, ...knowledge, ...notes, plan.tool(), proposals.trialTool(), proposals.tool()].map((tool) => stoppedOnRefusal(tool, plan));
-    const task = { instructions: this.options.instructions, tools, request, events, reminder: () => proposals.reminder() };
-    await runAgentTask(this.options.runtime, task, taskLimits(config)).finally(() => browser.close());
-    for (const event of events) if (event.type === "tool-error") journal.record("error", `${event.tool}: ${event.message}`);
+    const opened = runTrace(this.options, `design-${index.environment}`, now);
+    trace = opened;
+    const phases = new TracedPhases(opened, "design");
+    phases.start("design");
+    const task = {
+      instructions: this.options.instructions,
+      tools,
+      request,
+      events,
+      reminder: () => proposals.reminder(),
+      sent: (text: string) => opened.harness("design", { type: "message", text }),
+      received: (event: AgentEvent) => {
+        opened.agent("design", event);
+        if (event.type === "tool-error") journal.record("error", `${event.tool}: ${event.message}`);
+      },
+    };
+    // A design that fails or throws leaves its phase ended as failed.
+    try {
+      await runAgentTask(this.options.runtime, task, taskLimits(config)).finally(() => browser.close());
     const { last, counters } = taskEnd(events);
     if (last.type === "error") journal.record("error", `The session failed: ${last.error.message}`);
     if (last.type === "stopped") journal.record("error", `The task reached its ${last.reason.limit} limit; no test was written for the proposal under way.`);
@@ -173,7 +200,12 @@ export class Designer {
     const statePath = posix.join(config.repository.stateDir, DESIGNS_FOLDER, `${id}.json`);
     await this.write(repository, state, statePath, tests, journal);
     if (tests.length < MIN_TESTS) journal.record("error", `The design failed: ${obtained(tests.length)}, ${MIN_TESTS} at least are expected.`);
-    return { ok: tests.length >= MIN_TESTS, branch, statePath: join(repositoryRoot, statePath), tests: state.tests, journal: journal.entries() };
+    const ok = tests.length >= MIN_TESTS;
+    if (ok) phases.end(last.type === "end" ? "done" : "truncated");
+    return { ok, branch, statePath: join(repositoryRoot, statePath), tests: state.tests, journal: journal.entries(), tracePath: opened.path };
+    } finally {
+      phases.close();
+    }
   }
 
   /** Creates the branch, writes the tests and the state, and commits them. */

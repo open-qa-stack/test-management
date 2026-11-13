@@ -1,7 +1,10 @@
 import type { AgentEvent } from "@open-qa-stack/domain";
 
-/** A phase of a cartography, in the order they run: checking the sources, a card per source, the search for the domains, the index. */
-export type TracePhase = "survey" | "card" | "consolidation" | "index";
+/**
+ * A phase of a run. Those of a cartography, in the order they run: checking the sources, a card per source,
+ * the search for the domains, the index. That of a design: `design`, the whole session of the designer.
+ */
+export type TracePhase = "survey" | "card" | "consolidation" | "index" | "design";
 
 /** How a phase ended: `kept` for a card already up to date, `truncated` when a limit or a truncated source cut it short. */
 export type PhaseOutcome = "done" | "kept" | "truncated" | "failed";
@@ -26,7 +29,7 @@ export type TracedAgentEvent =
   | Exclude<AgentEvent, { type: "error" }>
   | { readonly type: "error"; readonly error: { readonly name: string; readonly message: string }; readonly counters?: Extract<AgentEvent, { type: "error" }>["counters"] };
 
-/** A line of the trace of a cartography. */
+/** A line of the trace of a run. */
 export type TraceLine = {
   /** When it was written, as an ISO 8601 date. */
   readonly at: string;
