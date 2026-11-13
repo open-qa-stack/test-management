@@ -16,6 +16,10 @@ export interface AgentTask {
   readonly events: AgentEvent[];
   /** The next message after a turn that ended normally, if any. */
   readonly reminder: () => string | undefined;
+  /** Receives each message sent to the agent, before it is sent. */
+  readonly sent?: (message: string) => void;
+  /** Receives each event as it comes, after it was added to `events`. */
+  readonly received?: (event: AgentEvent) => void;
 }
 
 /**
@@ -43,7 +47,11 @@ export async function runAgentTask(runtime: AgentRuntime, task: AgentTask, limit
   try {
     let message: string | undefined = task.request;
     for (let turn = 0; message !== undefined; turn++) {
-      for await (const event of session.send(message)) task.events.push(event);
+      task.sent?.(message);
+      for await (const event of session.send(message)) {
+        task.events.push(event);
+        task.received?.(event);
+      }
       message = turn < MAX_REMINDERS && task.events.at(-1)!.type === "end" ? task.reminder() : undefined;
     }
   } finally {

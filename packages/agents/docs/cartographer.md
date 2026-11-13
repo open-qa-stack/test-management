@@ -7,7 +7,7 @@ It works in two steps: each source is first mapped on its own into a [source car
 ## A run
 
 1. **Sources.** The run reads the knowledge sources attached to the environment, or to no environment, and the user interface of each application that has one in it. Logs are left out: they tell what a service did, not what an application holds. It discovers nothing else.
-2. **Check.** Every source must answer before any exploration: its inventory must be readable, and the address of a user interface must not answer with a server error. If one does not, the journal names it and its cause, no session starts, and no index is written. The inventory read here is the one the card of the source is made of: no source is read twice.
+2. **Check.** Every source must answer before any exploration: its inventory must be readable, and the address of a user interface must not answer with a server error. If one does not, the journal names it and its cause, no session starts, and no index is written. The inventory a knowledge source gives here is the one its card is made of: no knowledge source is read twice.
 3. **Cards.** Each source without an up-to-date card is mapped by `SourceCartographer`, in a task of its own, under the limits of the configured autonomy (`mapSources`, one source at a time unless `concurrency` says otherwise). A card whose fingerprint is the source's is kept without the model, unless `force` is set.
 4. **Consolidation.** A last task gets the cards, element by element, and the notes the agents kept, but none of the tools of the sources. It hands the index in with `submit_index`. A submission that breaks the schema, repeats a domain, forgets or invents an element of a card, or refers to a source without a card is refused: the journal records why, and the agent is told so it can submit again while its limits allow. The first accepted submission is kept.
 5. **Index.** The index is written only if a submission was accepted and the whole index passes its schema. A source is `read` when it has a card. The index is `truncated` when a limit stopped the consolidation, a card is truncated or a source has no card, and `complete` otherwise. Its `run` adds the cards made in this run to the consolidation. Nothing is committed nor pushed.
@@ -30,6 +30,23 @@ The agent gets the tools of this source only — the catalog of a base, never it
 
 Every agent can keep tagged notes with `remember` and find them with `recall`, in `<stateDir>/memory/notes.jsonl`. A note, a card or an index that holds a connection string or the key of the model is refused. A password alone is not checked: the tools never give it to the agent, and one read in a source is often a word of the application's names.
 
+## Trace
+
+Every cartography writes a trace to `<stateDir>/traces/cartography-<environment>-<date>.jsonl`, one JSON line as each thing happens, so that a run stopped short leaves its trace up to the stop. `observe`, when given, receives each line at the moment it is written, to follow the cartography while it runs.
+
+A line holds its date (`at`), its phase, the source when there is one, its actor and its event:
+
+| Phase | What it covers |
+|---|---|
+| `survey` | Checking that every source answers, and what each inventory counts. |
+| `card` | The card of each source: its inventory, the card kept or made, the session of its agent. |
+| `consolidation` | The search for the domains, from the cards. |
+| `index` | Writing the index. |
+
+Each phase has a `started` and a `finished` line from the `harness`, once for the whole run and once per source in `card`; `finished` gives its outcome, `done`, `kept`, `truncated` or `failed`, even when the run throws. In between, the harness writes `survey`, `inventory`, `journal` and `message` lines (each message sent to an agent: the request, then the reminders), and each agent its session as it reported it: `reasoning` when the model gives it, `text`, `tool-call` with its arguments, `tool-result`, `tool-error`, then `end`, `stopped` or `error`.
+
+The connection strings and the key of the model are masked in every line, in every form a tool could give them, and a string longer than 10 000 characters is cut, with the number of characters left out.
+
 ## Outcome
 
-`run()` returns the path and content of the index when it was written, and the journal: `{ level, message, source? }` entries for every check, refusal, tool error and write, those of each card first. Neither the index, the cards nor the journal holds a connection string or a key; the passwords of the accounts never reach the agent through the tools.
+`run()` returns the path and content of the index when it was written, the path of the trace, and the journal: `{ level, message, source? }` entries for every check, refusal, tool error and write, those of each card first. Neither the index, the cards nor the journal holds a connection string or a key; the passwords of the accounts never reach the agent through the tools.
