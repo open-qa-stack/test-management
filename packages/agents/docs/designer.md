@@ -33,7 +33,7 @@ A proposal is refused, the journal says why, and the agent is told so that it ca
 | `Line N imports <path>, another test file` | A relative path to a `.spec` or `.test` file: a test never imports another. |
 | `The test holds <address>, an address of the configuration` | A user interface, an API or a contract URL the configuration declares, written in full or by its host. Tests reach an application by paths relative to the base URL that the Playwright configuration gives. |
 | `The proposal holds the value of <VARIABLE>` | The value of a variable the configuration names — a test account, a connection string, the key of the model — in the reason or the text of the test. A test that signs in reads its account with `process.env`. |
-| A finding of the check | The `check` option, when given, is run on a test the rules above accept; each finding it returns refuses the test. |
+| A finding of the check | The `check` option, a `TestCheck` such as the `CharterCheck` of the harness, is run on a test the rules above accept; each finding refuses the test, and goes back to the agent with its line, its column and the rule of the charter or the code of the compiler. |
 
 Every value of the variables the configuration names is masked in the journal and in what the agent is told. Once four tests are accepted, any further proposal is set aside, and the journal names it.
 
