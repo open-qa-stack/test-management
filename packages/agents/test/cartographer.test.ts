@@ -8,7 +8,7 @@ import { CopilotAgentRuntime, ModelGateway } from "@open-qa-stack/harness";
 import { validateConfig, validateDomainIndex, type DomainIndexSubmission, type ResolvedConfig, type SourceCard, type SourceCardSubmission } from "@open-qa-stack/shared";
 import { answer, closedPort, scriptedServer, testSite, toolCalls, type ScriptedServer, type TestSite } from "@open-qa-stack/testing";
 import { fingerprintOf, knowledgeInventory, type SqlClient } from "@open-qa-stack/tools";
-import { Cartographer, INDEX_FILE_NAME, type CartographyOutcome, type TraceLine } from "../src/index.ts";
+import { Cartographer, INDEX_FILE_NAME, MAX_TRACED_LENGTH, type CartographyOutcome, type TraceLine } from "../src/index.ts";
 
 const MODEL = "test-model";
 const DB_URL = "postgresql://shop:s3cret-db-pass@127.0.0.1:5999/shop";
@@ -514,8 +514,11 @@ describe("trace, criterion 1 — the trace holds the phases in order, and each t
     for (const { id, name, arguments: args } of [...tables, submitCard(cardSubmission("shop-db")), submit(SUBMISSION)]) {
       const call = lines.find((line) => line.actor === "agent" && line.event.type === "tool-call" && line.event.callId === id);
       assert.deepEqual(call?.event, { type: "tool-call", callId: id, tool: name, arguments: args }, name);
-      assert.ok(lines.some((line) => line.actor === "agent" && line.event.type === "tool-result" && line.event.callId === id), name);
+      const result = lines.find((line) => line.actor === "agent" && line.event.type === "tool-result" && line.event.callId === id);
+      assert.ok(result?.event.type === "tool-result" && result.event.tool === name, name);
     }
+    const listed = lines.find((line) => line.event.type === "tool-result" && line.event.callId === "c1");
+    for (const table of TABLES) assert.match(JSON.stringify(listed?.event), new RegExp(table));
     assert.ok(lines.filter((line) => line.phase === "card" && line.actor === "agent").every((line) => line.source === "shop-db"));
     const inventory = lines.find((line) => line.source === "shop-db" && line.event.type === "inventory");
     assert.ok(inventory?.event.type === "inventory" && inventory.event.items === TABLES.length && !inventory.event.truncated && inventory.event.fingerprint !== "");
@@ -549,10 +552,13 @@ describe("trace, criterion 3 — a card kept because it is up to date leaves a h
 });
 
 describe("trace, criterion 4 — no connection string is in the trace", () => {
-  it("masks the connection string of the base, the base mapped in the run", async () => {
-    const { outcome } = await cartography(mappingTheBase([{ id: "c1", name: "shop_db_list_tables", arguments: {} }]), { cards: ["shop-api", "order-specs", "shop"] });
+  it("masks the connection string the agents write, and cuts a string too long, the base mapped in the run", async () => {
+    const echo = [{ id: "c1", name: "shop_db_list_tables", arguments: { note: `Read from ${DB_URL}` } }];
+    const replies = [...mappingTheBase(echo).slice(0, -2), { body: toolCalls(MODEL, [submit(SUBMISSION)]) }, { body: answer(MODEL, `Done with ${DB_URL}. ${"z".repeat(MAX_TRACED_LENGTH + 1)}`) }];
+    const { outcome } = await cartography(replies, { cards: ["shop-api", "order-specs", "shop"] });
     const trace = readFileSync(outcome.tracePath, "utf8");
-    assert.ok(trace.length > 0 && !trace.includes(DB_URL));
+    assert.ok(trace.includes("[secret]") && !trace.includes(DB_URL) && !trace.includes("s3cret-db-pass"));
+    assert.match(trace, /"Done with \[secret\]\. z+\[… 21 characters cut\]"/);
   });
 });
 

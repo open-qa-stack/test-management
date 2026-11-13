@@ -19,11 +19,11 @@ describe("trace, criterion 4 — the key of the model and the connection strings
     const path = Trace.pathFor(workspace, "cartography-local", AT);
     assert.equal(path, join(workspace, TRACES_FOLDER, "cartography-local-2026-11-13T10-00-00-000Z.jsonl"));
     const trace = new Trace(path, { secrets: ["", "sk-model key", "postgresql://u:p@h/db"], now: () => AT });
-    trace.agent("card", { type: "tool-result", callId: "c1", tool: "t", result: { text: "key sk-model key, url postgresql%3A%2F%2Fu%3Ap%40h%2Fdb", rows: [1, null, true] } }, "shop-db");
+    trace.agent("card", { type: "tool-result", callId: "c1", tool: "t", result: { text: "key sk-model key, url postgresql%3A%2F%2Fu%3Ap%40h%2Fdb", rows: [1, null, true], "postgresql://u:p@h/db": { "sk-model key": 1 } } }, "shop-db");
     trace.harness("survey", { type: "message", text: "x".repeat(MAX_TRACED_LENGTH + 5) });
     trace.harness("survey", { type: "message", text: "y".repeat(MAX_TRACED_LENGTH) });
     const [result, cut, whole] = read(path);
-    assert.deepEqual(result, { at: AT.toISOString(), phase: "card", source: "shop-db", actor: "agent", event: { type: "tool-result", callId: "c1", tool: "t", result: { text: "key [secret], url [secret]", rows: [1, null, true] } } });
+    assert.deepEqual(result, { at: AT.toISOString(), phase: "card", source: "shop-db", actor: "agent", event: { type: "tool-result", callId: "c1", tool: "t", result: { text: "key [secret], url [secret]", rows: [1, null, true], "[secret]": { "[secret]": 1 } } } });
     assert.equal(cut!.event.type === "message" && cut!.event.text, `${"x".repeat(MAX_TRACED_LENGTH)}[… 5 characters cut]`);
     assert.equal(whole!.event.type === "message" && whole!.event.text.length, MAX_TRACED_LENGTH);
   });

@@ -143,10 +143,12 @@ export class SourceCartographer {
       events,
       reminder: () => submission.reminder(),
       sent: (text: string) => trace.harness("card", { type: "message", text }, source.id),
-      received: (event: AgentEvent) => trace.agent("card", event, source.id),
+      received: (event: AgentEvent) => {
+        trace.agent("card", event, source.id);
+        if (event.type === "tool-error") journal.record("error", `${event.tool}: ${event.message}`, source.id);
+      },
     };
     await runAgentTask(this.options.runtime, task, taskLimits(config)).finally(() => subject.close());
-    for (const event of events) if (event.type === "tool-error") journal.record("error", `${event.tool}: ${event.message}`, source.id);
     const { last, counters } = taskEnd(events);
     if (last.type === "error") journal.record("error", `The session failed: ${last.error.message}`, source.id);
     if (last.type === "stopped") journal.record("error", `The task reached its ${last.reason.limit} limit.`, source.id);

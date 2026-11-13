@@ -89,11 +89,11 @@ export class Trace {
     this.options.observe?.(kept);
   }
 
-  /** A value with its secrets masked and its long strings cut, however deep. */
+  /** A value with its secrets masked and its long strings cut, keys included, however deep. */
   private kept(value: unknown): unknown {
     if (typeof value === "string") return cut(redactText(value, this.forms));
     if (Array.isArray(value)) return value.map((item) => this.kept(item));
-    if (typeof value === "object" && value !== null) return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, this.kept(item)]));
+    if (typeof value === "object" && value !== null) return Object.fromEntries(Object.entries(value).map(([key, item]) => [cut(redactText(key, this.forms)), this.kept(item)]));
     return value;
   }
 }

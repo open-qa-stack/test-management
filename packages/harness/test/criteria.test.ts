@@ -260,4 +260,16 @@ describe("the reasoning of the model", () => {
       await server.close();
     }
   });
+
+  it("is left out when it is only blank", async () => {
+    const reply = answer(MODEL, "Hello.") as { choices: { message: Record<string, unknown> }[] };
+    reply.choices[0]!.message.reasoning_content = "  ";
+    const server = await scriptedServer([{ body: reply }]);
+    try {
+      const events = await withRuntime({ kind: "live", upstream: { baseUrl: server.baseUrl } }, MODEL, (runtime) => exchange(runtime, TOOL_CALLING_CHECK.session(), "Say hello."));
+      assert.deepEqual(events, [{ type: "text", text: "Hello." }, { type: "end" }]);
+    } finally {
+      await server.close();
+    }
+  });
 });
