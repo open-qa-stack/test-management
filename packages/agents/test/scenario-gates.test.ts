@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { PlannedScenario } from "@open-qa-stack/domain";
 import { moduleSyntax } from "@open-qa-stack/tools";
+import type { Refusal } from "../src/designer/refusal.ts";
 import { scenarioErrors } from "../src/designer/scenario-gates.ts";
 
 const SEARCH: PlannedScenario = {
@@ -29,10 +30,20 @@ const FILLED = [
 /** A test of the scenario, whose second step holds the lines given. */
 const spec = (second: readonly string[], first = OPEN, extra = "") => `import { expect, test } from "@playwright/test";\n\ntest("search", async ({ page }) => {\n${first}\n  await test.step("2. Search the orders of Veldane", async () => {\n${second.join("\n")}\n  });\n});\n${extra}`;
 
-async function errors(text: string): Promise<string[]> {
+/** What a refusal gives as accepted: a skeleton, and the elements a screen showed the texts in. */
+const HELP = {
+  skeleton: "The skeleton.",
+  locatorOf: (text: string) => new Map([["ORD-1042", 'page.getByRole("row", { name: "ORD-1042 Mira Veldane" })']]).get(text),
+};
+
+async function refusals(text: string, help = HELP): Promise<Refusal[]> {
   const syntax = await moduleSyntax(text);
   assert.ok(syntax.ok, JSON.stringify(syntax));
-  return scenarioErrors(syntax.outline, SEARCH).map((refusal) => `${refusal.code}: ${refusal.message}`);
+  return scenarioErrors(syntax.outline, SEARCH, help);
+}
+
+async function errors(text: string): Promise<string[]> {
+  return (await refusals(text)).map((refusal) => `${refusal.code}: ${refusal.message}`);
 }
 
 describe("the gates of a test against its scenario", () => {
@@ -77,5 +88,21 @@ describe("the gates of a test against its scenario", () => {
     assert.deepEqual(await errors(tautology), [
       'TEST-TAUT: line 11 looks for "Veldane" in an element found by that same text: it can only pass. Find the element by something else — its row, its label, its role — then expect the text.',
     ]);
+  });
+
+  it("give what they would accept: the skeleton for the form of the test, an assertion of each text in its step", async () => {
+    const flat = `import { test } from "@playwright/test";\n\ntest("one", async () => {});\ntest("two", async () => {});\n`;
+    assert.deepEqual((await refusals(flat)).map((refusal) => [refusal.code, refusal.remedy]), [
+      ["TEST-ONE", "The skeleton."],
+      ["TEST-STEPS", "The skeleton."],
+      // The element the screen showed it in, by a locator that names it: it is visible.
+      ["TEST-VALUE", 'In step 2: await expect(page.getByRole("row", { name: "ORD-1042 Mira Veldane" })).toBeVisible();'],
+      // No screen gave its element: the text, anywhere on the page, is hidden.
+      ["TEST-VALUE", 'In step 2: await expect(page.getByText("ORD-1057")).toBeHidden();'],
+    ]);
+    const reversed = spec([`    await expect(page.getByText("ORD-1042")).toBeHidden();`, ...FILLED.slice(2)]);
+    // The element the screen showed it in, by a locator that does not name it: it holds the text.
+    const inCell = { ...HELP, locatorOf: () => 'page.getByRole("cell").first()' };
+    assert.deepEqual((await refusals(reversed, inCell)).map((refusal) => [refusal.code, refusal.remedy]), [["TEST-POLARITY", 'In step 2: await expect(page.getByRole("cell").first()).toContainText("ORD-1042");']]);
   });
 });

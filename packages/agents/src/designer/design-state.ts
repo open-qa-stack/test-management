@@ -46,6 +46,14 @@ export interface DesignedTest {
   readonly references?: readonly string[];
 }
 
+/** A scenario of the plan the harness closed without a test. */
+export interface UnwrittenScenario {
+  /** Identifier of the scenario. */
+  readonly scenario: string;
+  /** The code of the gate it was closed on: the one that refused it five times, or `TEST-STOP` when none of its runs gave a verdict. */
+  readonly code: string;
+}
+
 /** The state of a design, written next to the tests on their branch. */
 export interface DesignState {
   readonly formatVersion: 2;
@@ -67,4 +75,6 @@ export interface DesignState {
   readonly run: IndexRun;
   /** The tests written, in the order they were accepted. */
   readonly tests: readonly DesignedTest[];
+  /** The scenarios the harness closed without a test, in the order of the plan. */
+  readonly unwritten: readonly UnwrittenScenario[];
 }

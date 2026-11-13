@@ -5,11 +5,12 @@ import { moduleSyntax, redactText, scopedToolName, secretForms, type SpecLocator
 import type { Journal } from "../common/journal.ts";
 import { DesignCursor, MAX_FAILED_RUNS } from "./design-cursor.ts";
 import { errorClass, failureHint } from "./run-failure.ts";
-import type { DesignedTest, FailureCause, Quarantine } from "./design-state.ts";
+import type { DesignedTest, FailureCause, Quarantine, UnwrittenScenario } from "./design-state.ts";
 import { PLAN_TOOL } from "./plan-proposal.ts";
-import { journalRefusals, refusalText, type Refusal } from "./refusal.ts";
+import { journalRefusals, refusalText, repeatedText, type Refusal } from "./refusal.ts";
+import { GUIDED_REFUSALS, MAX_REFUSALS, RefusalStreak } from "./refusal-streak.ts";
 import { scenarioErrors } from "./scenario-gates.ts";
-import { scenarioSheet } from "./scenario-sheet.ts";
+import { scenarioSheet, skeleton } from "./scenario-sheet.ts";
 import type { ScreenWatch } from "./screen-watch.ts";
 import type { TestCheck, TestFinding, TestReference, TestRunner, TestTrial, Verdict } from "@open-qa-stack/domain";
 import { addressErrors, fileErrors, heldVariables, importErrors, secretValueErrors, type DeclaredSecret } from "./spec-rules.ts";
@@ -84,8 +85,10 @@ export class TestProposals {
   private readonly kept: AcceptedTest[] = [];
   private readonly forms: readonly string[];
   private cursor: DesignCursor | undefined;
-  /** How many scenarios were closed without a test. */
-  private unwritten = 0;
+  /** The scenarios the harness closed without a test. */
+  private readonly closed: UnwrittenScenario[] = [];
+  /** The refusals of the calls about the scenario open since its test last ran. */
+  private readonly streak = new RefusalStreak();
   /** The references a run made, by the text that ran. */
   private readonly references = new Map<string, readonly TestReference[]>();
 
@@ -106,6 +109,15 @@ export class TestProposals {
    */
   public get accepted(): AcceptedTest[] {
     return [...this.kept];
+  }
+
+  /**
+   * The scenarios the harness closed without a test.
+   *
+   * @returns A copy, in the order of the plan.
+   */
+  public get unwritten(): UnwrittenScenario[] {
+    return [...this.closed];
   }
 
   /**
@@ -198,6 +210,7 @@ export class TestProposals {
     if (refusals.length > 0) return this.refuse(what, refusals);
     const looks = this.rules.looks(scenario.application);
     const trial = await this.rules.runner.run({ path, content });
+    this.streak.reset();
     if (trial.error !== undefined) {
       cursor.record(scenario.id, { content, startedAt: trial.startedAt, looks });
       this.journal.record("error", this.mask(`The test ${path} could not run: ${trial.error}`));
@@ -249,7 +262,7 @@ export class TestProposals {
     if (last === undefined) return this.refuse(what, [{ code: "PROPOSE-RUN", message: `scenario ${scenario.id} has not run. Call ${RUN_TOOL} first.` }]);
     if (last.verdict !== "passed" && last.verdict !== "failed") {
       if (left) return this.refuse(what, [{ code: "PROPOSE-RUN", message: `scenario ${scenario.id} has not run to a verdict. Call ${RUN_TOOL} first.` }]);
-      this.unwritten += 1;
+      this.closed.push({ scenario: scenario.id, code: "TEST-STOP" });
       this.journal.record("error", `The scenario ${scenario.id} was closed without a test: none of its ${MAX_FAILED_RUNS} runs gave a verdict.`);
       return this.next(cursor, `Scenario ${scenario.id} closed without a test: none of its runs gave a verdict.`);
     }
@@ -276,9 +289,10 @@ export class TestProposals {
   /** Closes the scenario open, and tells the agent so, then the sheet of the next one or how the scenarios ended. */
   private next(cursor: DesignCursor, closed: string): string {
     cursor.close();
+    this.streak.reset();
     if (cursor.scenario !== undefined) return `${closed}\n\n${this.opened(cursor)}`;
     const failing = this.kept.filter((test) => test.verdict !== "passed").length;
-    return `${closed}\nAll ${cursor.plan.scenarios.length} scenarios are closed: ${this.kept.length - failing} passed, ${failing} failing, ${this.unwritten} without a test.\n${cursor.next()}`;
+    return `${closed}\nAll ${cursor.plan.scenarios.length} scenarios are closed: ${this.kept.length - failing} passed, ${failing} failing, ${this.closed.length} closed by the harness.\n${cursor.next()}`;
   }
 
   /** The scenario open and the file of its test, or why there is none. */
@@ -320,23 +334,36 @@ export class TestProposals {
     if (written.length > 0) return written;
     const { outline } = syntax;
     const unseen = screens.unseen(scenario.application, outline.locators);
-    const located = unseen.length === 0 ? [] : [{ code: "TEST-LOCATOR", message: this.unseenMessage(scenario.application, unseen) }];
-    const planned = [...scenarioErrors(outline, scenario), ...located];
+    const located = unseen.length === 0 ? [] : [this.unseenRefusal(scenario.application, unseen)];
+    const help = { skeleton: skeleton(scenario, this.rules.screenshots), locatorOf: (text: string) => screens.locatorOf(scenario.application, text) };
+    const planned = [...scenarioErrors(outline, scenario, help), ...located];
     if (planned.length > 0) return planned;
     return check === undefined ? [] : coded("TEST-CHECK", (await check.check({ path, content })).map(findingText));
   }
 
-  /** What the agent is told of locators no screen showed: them, and the closest elements it saw. */
-  private unseenMessage(application: string, unseen: readonly SpecLocator[]): string {
+  /** The refusal of locators no screen showed: them, and the closest elements the agent saw, which are what the gate would accept. */
+  private unseenRefusal(application: string, unseen: readonly SpecLocator[]): Refusal {
     const nearest = this.rules.screens.nearest(application, unseen);
     const closest = nearest.length === 0 ? [] : ["Closest elements you saw:", ...nearest];
-    return [`no screen you looked at showed ${unseen.map((locator) => locator.code).join(", ")}.`, ...closest, `Copy a locator as given, or take ${scopedToolName(application, "snapshot")} at that step.`].join("\n");
+    const message = [`no screen you looked at showed ${unseen.map((locator) => locator.code).join(", ")}.`, ...closest, `Copy a locator as given, or take ${scopedToolName(application, "snapshot")} at that step.`].join("\n");
+    return { code: "TEST-LOCATOR", message, ...(nearest.length === 0 ? {} : { remedy: ["Copy the locator of one of these elements, as given:", ...nearest].join("\n") }) };
   }
 
-  private refuse(what: string, refusals: readonly Refusal[]): { error: string } {
-    const masked = refusals.map(({ code, message }) => ({ code, message: this.mask(message) }));
+  /**
+   * Refuses a call about the scenario open, and counts it: from the third refusal of one reason the agent
+   * is told only what the gate would accept, and the fifth closes the scenario without a test.
+   */
+  private refuse(what: string, refusals: readonly Refusal[]): string | { error: string } {
+    const masked = refusals.map((refusal) => ({ ...refusal, message: this.mask(refusal.message), ...(refusal.remedy === undefined ? {} : { remedy: this.mask(refusal.remedy) }) }));
     journalRefusals(this.journal, what, masked);
-    return { error: refusalText(masked) };
+    this.streak.record(masked);
+    const { code, times } = this.streak.repeated(masked);
+    if (times < GUIDED_REFUSALS) return { error: refusalText(masked) };
+    if (times < MAX_REFUSALS) return { error: repeatedText(code, times, masked) };
+    const scenario = this.cursor!.scenario!.id;
+    this.closed.push({ scenario, code });
+    this.journal.record("error", `The scenario ${scenario} was closed by the harness after ${MAX_REFUSALS} refusals for ${code}; it has no test.`);
+    return this.next(this.cursor!, `Scenario ${scenario} was closed by the harness after ${MAX_REFUSALS} refusals for ${code}. Go on with the next scenario.`);
   }
 
   /** What a trial gave, for the agent, every declared value masked before the error is cut. */

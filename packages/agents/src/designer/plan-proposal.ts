@@ -1,7 +1,8 @@
 import type { PlannedScenario, PlanReview, TestPlan, ToolDefinition } from "@open-qa-stack/domain";
 import { scopedToolName } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
-import { journalRefusals, refusalText, type Refusal } from "./refusal.ts";
+import { journalRefusals, refusalText, repeatedText, type Refusal } from "./refusal.ts";
+import { GUIDED_REFUSALS, RefusalStreak } from "./refusal-streak.ts";
 import type { ScreenWatch } from "./screen-watch.ts";
 import { heldVariables, type DeclaredSecret } from "./spec-rules.ts";
 import { MAX_TESTS, MIN_TESTS } from "./test-proposals.ts";
@@ -12,6 +13,8 @@ export const PLAN_TOOL = "propose_plan";
 export const MADE_UP = "made-up";
 /** The last line of what the agent is told while no plan is accepted. */
 export const PLAN_NEXT = `Next: read what the brief is about and do it once on the screens, then call ${PLAN_TOOL}.`;
+/** Plans the gates of the harness may refuse before the design stops. */
+export const MAX_REFUSED_PLANS = 6;
 
 /** What a plan is checked against. */
 export interface PlanRules {
@@ -42,8 +45,9 @@ export interface PlanRules {
  * repeat, the value of a declared variable, a plan of two functional scenarios or more without a negative
  * one, a functional scenario whose expects name no text, and, for an application with a user interface, a
  * functional scenario none of whose texts appeared, or went, after an action of the agent; the agent may
- * then submit another. A plan that keeps these rules goes to the review, one plan at a time: accepted, it is
- * frozen, and no other may be submitted; refused, the design stops.
+ * then submit another; from the third refusal of one reason, it is told only what the gate would accept,
+ * and the sixth plan the gates refuse stops the design. A plan that keeps these rules goes to the review, one
+ * plan at a time: accepted, it is frozen, and no other may be submitted; refused, the design stops.
  */
 export class PlanProposal {
   private readonly rules: PlanRules;
@@ -51,6 +55,8 @@ export class PlanProposal {
   private plan: TestPlan | undefined;
   private refusal: string | undefined;
   private lastCodes: readonly string[] = [];
+  private readonly streak = new RefusalStreak();
+  private refusedPlans = 0;
 
   /**
    * @param rules - What the plan is checked against.
@@ -71,9 +77,9 @@ export class PlanProposal {
   }
 
   /**
-   * Why the review refused the plan, if it did.
+   * Why the design stopped on its plan, if it did: the review refused it, or the gates refused too many.
    *
-   * @returns The reason, or `undefined` while no plan was refused.
+   * @returns The reason, or `undefined` while no plan was refused for good.
    */
   public get refused(): string | undefined {
     return this.refusal;
@@ -197,11 +203,7 @@ export class PlanProposal {
     // Once a plan is refused, the designer refuses every call before it reaches a tool.
     if (this.plan !== undefined) return { error: "A plan was already accepted; carry it out." };
     const refusals = this.errors(plan);
-    if (refusals.length > 0) {
-      this.lastCodes = [...new Set(refusals.map((refusal) => refusal.code))];
-      journalRefusals(this.journal, "The plan was refused by the harness", refusals);
-      return { error: refusalText(refusals) };
-    }
+    if (refusals.length > 0) return this.refuse(refusals);
     const decision = await this.rules.review.review(plan);
     // Plans submitted in one turn are reviewed at once: another may have been decided meanwhile.
     if (this.refusal !== undefined) return { error: this.blocked() };
@@ -214,6 +216,21 @@ export class PlanProposal {
     this.plan = plan;
     this.journal.record("info", `The plan was accepted: ${plan.scenarios.map((scenario) => scenario.id).join(", ")}.`);
     return `The plan was accepted.\n\n${this.rules.carry(plan)}`;
+  }
+
+  /** Refuses a plan, and counts it: from the third refusal of one reason the agent is told only what the gate would accept, and the last plan stops the design. */
+  private refuse(refusals: readonly Refusal[]): { error: string } {
+    this.lastCodes = [...new Set(refusals.map((refusal) => refusal.code))];
+    journalRefusals(this.journal, "The plan was refused by the harness", refusals);
+    this.refusedPlans += 1;
+    if (this.refusedPlans >= MAX_REFUSED_PLANS) {
+      this.refusal = `the harness refused ${MAX_REFUSED_PLANS} plans, the last one for ${this.lastCodes.join(", ")}.`;
+      this.journal.record("error", `The plan was refused: ${this.refusal} The design stops; no test is written.`);
+      return { error: this.blocked() };
+    }
+    this.streak.record(refusals);
+    const { code, times } = this.streak.repeated(refusals);
+    return { error: times < GUIDED_REFUSALS ? refusalText(refusals) : repeatedText(code, times, refusals) };
   }
 
   /** What the gates refuse in a plan its schema accepts: the count, the kinds, the sources and the shapes are the schema's. */

@@ -137,4 +137,12 @@ describe("the screens the designer watches", () => {
     // A text too short to be checked is taken as made by an action.
     assert.equal(watch.changedByAction("shop", ["OK"], []), true);
   });
+
+  it("gives the locator of the element a screen showed a text in, the last seen first", async () => {
+    const watch = new ScreenWatch(["shop", "ledger"], page([LIST, LIST, `${LIST}\n- row "ORD-1042 Orders" → page.getByRole("row", { name: "ORD-1042 Orders" })`]).tools);
+    await run(watch, "goto");
+    assert.equal(watch.locatorOf("shop", "orders"), 'page.getByRole("heading", { name: "Orders", exact: true })');
+    await run(watch, "click");
+    assert.deepEqual([watch.locatorOf("shop", "orders"), watch.locatorOf("shop", "Ada"), watch.locatorOf("ledger", "Orders")], ['page.getByRole("row", { name: "ORD-1042 Orders" })', undefined, undefined]);
+  });
 });

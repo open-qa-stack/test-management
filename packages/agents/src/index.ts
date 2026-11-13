@@ -6,7 +6,7 @@ export { mapSources, type SourceCartographyResult, type SourcesCartographyOption
 export { MAX_TRACED_LENGTH, TRACES_FOLDER } from "./common/trace.ts";
 export type { HarnessEvent, PhaseOutcome, TracedAgentEvent, TraceLine, TracePhase } from "./common/trace-line.ts";
 export { BRANCH_PREFIX, Designer, type DesignerOptions, type DesignOutcome } from "./designer/designer.ts";
-export { DESIGNS_FOLDER, type DesignedRun, type DesignedTest, type DesignState, type FailureCause, type Quarantine } from "./designer/design-state.ts";
+export { DESIGNS_FOLDER, type DesignedRun, type DesignedTest, type DesignState, type FailureCause, type Quarantine, type UnwrittenScenario } from "./designer/design-state.ts";
 export type { ErrorClass } from "./designer/run-failure.ts";
 export { MAX_TESTS, MIN_TESTS, PROPOSE_TOOL, RUN_TOOL } from "./designer/test-proposals.ts";
 export { ENTRY_TOOL, FIND_TOOL } from "./designer/index-map.ts";

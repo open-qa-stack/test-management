@@ -122,4 +122,23 @@ describe("the gates of a plan", () => {
       error: "Refused (PLAN-SECRET): the plan holds the value of SHOP_PASSWORD. Leave it out; a test reads it with process.env.SHOP_PASSWORD.\nNothing else was refused.",
     });
   });
+
+  it("tell only the first error of a reason refused three times, and stop the design at the sixth plan they refuse", async () => {
+    const { proposal: made, journal } = proposal();
+    const twice = { scenarios: [scenario("a"), scenario("a"), scenario("b"), scenario("b")] };
+    const idError = "Refused (PLAN-ID): the id a is given to several scenarios. Give each scenario its own id.";
+    const told = [];
+    for (let at = 0; at < 6; at += 1) told.push(((await submit(made, twice)) as { error: string }).error);
+    assert.deepEqual(told.slice(0, 5), [
+      `${idError}\nRefused (PLAN-ID): the id b is given to several scenarios. Give each scenario its own id.\nNothing else was refused.`,
+      `${idError}\nRefused (PLAN-ID): the id b is given to several scenarios. Give each scenario its own id.\nNothing else was refused.`,
+      `Third refusal for the same reason. Do only this:\n${idError}`,
+      `Fourth refusal for the same reason. Do only this:\n${idError}`,
+      `Fifth refusal for the same reason. Do only this:\n${idError}`,
+    ]);
+    assert.equal(told[5], "The plan was refused: the harness refused 6 plans, the last one for PLAN-ID. The design is stopped; call no more tools.");
+    assert.deepEqual([made.refused, made.reminder()], ["the harness refused 6 plans, the last one for PLAN-ID.", undefined]);
+    assert.equal(journal.entries().at(-1)!.message, "The plan was refused: the harness refused 6 plans, the last one for PLAN-ID. The design stops; no test is written.");
+    assert.deepEqual(await submit(made, plan("x", "y", "z")), { error: told[5] });
+  });
 });

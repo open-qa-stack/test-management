@@ -6,7 +6,16 @@ export interface Refusal {
   readonly code: string;
   /** What is wrong and what to do, in sentences the agent can act on. */
   readonly message: string;
+  /** What the gate would accept, told alone once it refused the same reason three times; the message alone when none is given. */
+  readonly remedy?: string;
 }
+
+/** How the refusal of a reason the agent was refused for twice already starts, by how many times it was refused. */
+const REPEATED = new Map([
+  [3, "Third"],
+  [4, "Fourth"],
+  [5, "Fifth"],
+]);
 
 /**
  * What the agent is told of a refusal: every reason, one line each, with its code, then a line that says
@@ -17,6 +26,22 @@ export interface Refusal {
  */
 export function refusalText(refusals: readonly Refusal[]): string {
   return [...refusals.map(({ code, message }) => `Refused (${code}): ${message}`), "Nothing else was refused."].join("\n");
+}
+
+/**
+ * What the agent is told of a reason it was refused for three times or more: only what the gate would
+ * accept, from each refusal of that code, or the first of them when they give nothing else.
+ *
+ * @param code - The code refused again.
+ * @param times - How many times it was refused, three to five.
+ * @param refusals - The reasons of the refusal, one of them at least of that code.
+ * @returns The text of the refusal.
+ */
+export function repeatedText(code: string, times: number, refusals: readonly Refusal[]): string {
+  const same = refusals.filter((refusal) => refusal.code === code);
+  const remedies = [...new Set(same.flatMap((refusal) => (refusal.remedy === undefined ? [] : [refusal.remedy])))];
+  const told = remedies.length === 0 ? [`Refused (${code}): ${same[0]!.message}`] : remedies;
+  return [`${REPEATED.get(times)} refusal for the same reason. Do only this:`, ...told].join("\n");
 }
 
 /**

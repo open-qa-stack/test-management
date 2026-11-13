@@ -173,6 +173,20 @@ export class ScreenWatch {
   }
 
   /**
+   * The locator of the element a screen of the application showed a text in, as its line gave it.
+   *
+   * @param application - Identifier of the application.
+   * @param text - The text.
+   * @returns The locator of the last line seen that holds the text and ends with one; `undefined` when none
+   * does, and for an application without a user interface.
+   */
+  public locatorOf(application: string, text: string): string | undefined {
+    const lines = [...(this.seen.get(application)?.lines ?? [])].reverse();
+    const line = lines.find((candidate) => candidate.includes(" → page.") && observed(text, [candidate]));
+    return line?.slice(line.indexOf(" → page.") + " → ".length);
+  }
+
+  /**
    * Whether an action of the agent made a text appear on a screen of the application, or made one go.
    *
    * @param application - Identifier of the application.

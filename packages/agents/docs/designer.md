@@ -42,6 +42,8 @@ An application without a user interface has no browser tools, and none of what f
 
 Every refusal of `propose_plan`, `run_test` and `propose_test` gives each reason on a line of its own, which starts with `Refused (<code>):`, then ends with `Nothing else was refused.`: the agent fixes all of them at once. The journal gives each reason with its code first, such as `[PLAN-ID] The plan was refused by the harness: …`, so that a trial is scored by counting codes.
 
+The harness counts, for the plan and for each scenario, how many calls each code refused; the count of a scenario starts again when its test runs. From the third refusal of one code, the agent is told only what that gate would accept, after `Third refusal for the same reason. Do only this:` (then `Fourth`, `Fifth`): the skeleton of the scenario for `TEST-ONE` and `TEST-STEPS`; for `TEST-VALUE` and `TEST-POLARITY`, the assertion of each text in its step, on the element a screen showed it in when one did, such as `In step 2: await expect(page.getByRole("row", { name: "ORD-1042 Mira Veldane" })).toBeVisible();`, or `toBeHidden()` for a text the screen no longer shows; for `TEST-LOCATOR`, the closest elements the screens showed; for any other code, its first refusal alone. The fifth refusal of one code closes the scenario without a test: the agent is told `Scenario <id> was closed by the harness after 5 refusals for <code>. Go on with the next scenario.` and the sheet of the next one, the journal records it as an error, and the design state lists it in `unwritten`. The sixth plan the gates refuse stops the design, as a plan the review refuses does.
+
 A text is observed in what the tools returned when, its spaces collapsed and its case aside, it is part of one of their texts; a text shorter than three characters is not checked.
 
 ## The plan
@@ -65,7 +67,7 @@ The harness numbers the steps from 1, and the expects of step `n` from `n.1`. A 
 | `PLAN-EXPECT` | A functional scenario has no expect, or an expect names no text. |
 | `PLAN-RESULT` | A functional scenario of an application with a user interface names no text that the agent saw appear on a screen after one of its actions, among those it `shows`, nor go, among those that are `absent`. |
 
-A plan that keeps these rules goes to `planReview`, one plan at a time. Accepted, it is frozen and kept in the design state, no other may be submitted, and the agent is told the sheet of the first scenario. Refused, the journal gives the reason, every later call of the agent, whatever its tool, is refused, the agent is not reminded, and the design fails without writing any test or creating any branch. The brief is written to the state as it was given.
+The sixth plan the gates refuse stops the design (see [Refusals](#refusals)). A plan that keeps these rules goes to `planReview`, one plan at a time. Accepted, it is frozen and kept in the design state, no other may be submitted, and the agent is told the sheet of the first scenario. Refused, the journal gives the reason, every later call of the agent, whatever its tool, is refused, the agent is not reminded, and the design fails without writing any test or creating any branch. The brief is written to the state as it was given.
 
 ## Writing each test
 
@@ -126,7 +128,7 @@ A text the checks accept is run with the `runner` option, a `TestRunner` such as
 | `locator` | A timeout waiting for an element, on an action | The element is not on the screen at that step: redo the steps before it with the browser tools. |
 | `other` | Anything else | Read it, and look at the page at that step. | A test writes no file. A visual test compares a page with its reference, with `toHaveScreenshot`; its references are made at its first run, committed with the test, and listed in the design state.
 
-`propose_test` closes the scenario open with the text of its last run, which is not run again, and opens the next one, whose sheet the agent is told; once all are closed, the agent is told how many passed, how many fail, and how many were closed without a test. It is refused when:
+`propose_test` closes the scenario open with the text of its last run, which is not run again, and opens the next one, whose sheet the agent is told; once all are closed, the agent is told how many passed, how many fail, and how many the harness closed without a test. It is refused when:
 
 | Code | Cause |
 |---|---|
@@ -136,7 +138,7 @@ A text the checks accept is run with the `runner` option, a `TestRunner` such as
 | `PROPOSE-CAUSE` | The cause is `application` or `plan`, and the last run did not fail on an assertion: it stopped before any check of the application. |
 | `PROPOSE-SECRET` | The evidence of the diagnosis holds the value of a variable the configuration names. |
 
-Every refusal leaves a way out: a run that fails again counts, and a scenario with three failed runs is closed with the cause `test`, or without a test when none of its runs gave a verdict.
+Every refusal leaves a way out: a run that fails again counts, a scenario with three failed runs is closed with the cause `test`, or without a test when none of its runs gave a verdict, and a scenario refused five times for one reason is closed by the harness.
 
 A test whose last run passed is kept as passed, whatever the diagnosis says. One whose last run failed is kept unchanged, as failing, with the `cause` of the diagnosis — `application` when the application does not do what the plan expects, `plan` when an expected text of the plan is wrong, `test` when the test could not be made to work — its `evidence`: what the run showed and what the agent checked, and the step and the class its last run failed on. The verdict is always the harness's. A test kept failing counts towards the three a design expects only when the application is at fault.
 
@@ -144,7 +146,7 @@ Every value of the variables the configuration names is masked in the journal an
 
 ## Design state
 
-The state is written to `<stateDir>/designs/design-<date>.json`, and committed with the tests unless git ignores it. It holds the brief, when one was given, the plan accepted, and each test kept, in the order of the plan, with the scenario it carries out and each of its runs, with its verdict and, for one that failed, its class and its step; the application, the domain and the reason of a test are those of its scenario:
+The state is written to `<stateDir>/designs/design-<date>.json`, and committed with the tests unless git ignores it. It holds the brief, when one was given, the plan accepted, each test kept, in the order of the plan, with the scenario it carries out and each of its runs, with its verdict and, for one that failed, its class and its step, and in `unwritten` each scenario the harness closed without a test, with the code it was closed on: the one that refused it five times, or `TEST-STOP` when none of its runs gave a verdict. The application, the domain and the reason of a test are those of its scenario:
 
 ```json
 {
@@ -182,7 +184,8 @@ The state is written to `<stateDir>/designs/design-<date>.json`, and committed w
       "quarantine": { "cause": "application", "evidence": "The total stays empty although the order has two lines.", "failedStep": "2. Open the order", "errorClass": "assertion" }
     },
     { "path": "apps/shop/orders-look.spec.ts", "scenario": "orders-look", "verdict": "passed", "runs": [{ "verdict": "passed" }], "references": ["apps/shop/orders-look.spec.ts-snapshots/orders-look-1-shop.png"] }
-  ]
+  ],
+  "unwritten": [{ "scenario": "search-nothing", "code": "TEST-VALUE" }]
 }
 ```
 
@@ -194,7 +197,7 @@ The session is traced in `<stateDir>/traces/design-<environment>-<date>.jsonl`, 
 
 - With fewer than three such tests, those kept are written and committed all the same, and the journal gives their number.
 - With none, nothing is written and no branch is created.
-- When the plan is refused, nothing is written and no branch is created; the journal gives the reason.
+- When the plan is refused, by the review or six times by the gates, nothing is written and no branch is created; the journal gives the reason.
 - When a limit of the autonomy stops the task, the journal names the limit. The tests of the scenarios closed before it are written; the scenario under way is not.
 
 The designer neither runs the tests nor judges them.

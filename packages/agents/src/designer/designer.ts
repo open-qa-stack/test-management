@@ -215,6 +215,7 @@ export class Designer {
       model: { provider: config.model.provider, baseUrl: config.model.baseUrl, model: config.model.model },
       run: { iterations: counters.iterations, actions: counters.actions, durationMs: Math.round(counters.elapsedMs) },
       tests: tests.map(({ content: _content, references, ...test }) => ({ ...test, ...(references.length === 0 ? {} : { references: references.map((reference) => reference.path) }) })),
+      unwritten: proposals.unwritten,
     };
     const statePath = posix.join(config.repository.stateDir, DESIGNS_FOLDER, `${id}.json`);
     await this.write(repository, state, statePath, tests, journal);
