@@ -23,6 +23,7 @@ describe("the plugin of the workspace", () => {
 
 describe("the rule that keeps the domain pure", () => {
   const framework = (source: string) => ({ messageId: "framework", data: { source } });
+  const storage = (source: string) => ({ messageId: "storage", data: { source } });
   new RuleTester({ languageOptions: { sourceType: "module" } }).run("pure-domain", pureDomain, {
     valid: [
       { filename: "rule.ts", code: 'import { readFile } from "node:fs/promises";\nimport type { Verdict } from "./verdict.ts";' },
@@ -30,6 +31,7 @@ describe("the rule that keeps the domain pure", () => {
       { filename: "rule.ts", code: 'const module = await import("./verdict.ts");\nconst named = await import(name);' },
       { filename: "rule.ts", code: 'import { fastifyLike } from "fastify-like";\nimport { nest } from "nestjs";' },
       { filename: "rule.ts", code: 'export type Verdict = import("./verdict.ts").Verdict;' },
+      { filename: "rule.ts", code: 'import { page } from "pgs";\nimport { drizzle } from "drizzle-orm-like";\nimport { sql } from "postgresql";' },
     ],
     invalid: [
       { filename: "rule.ts", code: 'import { Injectable } from "@nestjs/common";', errors: [framework("@nestjs/common")] },
@@ -41,6 +43,14 @@ describe("the rule that keeps the domain pure", () => {
       { filename: "rule.ts", code: 'import { types } from "fastify/types";', errors: [framework("fastify/types")] },
       { filename: "rule.ts", code: 'type App = import("@nestjs/common").INestApplication;', errors: [framework("@nestjs/common")] },
       { filename: "rule.ts", code: 'export type Reply = import("fastify").FastifyReply;', errors: [framework("fastify")] },
+      { filename: "rule.ts", code: 'import { pgTable } from "drizzle-orm/pg-core";', errors: [storage("drizzle-orm/pg-core")] },
+      { filename: "rule.ts", code: 'import { eq } from "drizzle-orm";', errors: [storage("drizzle-orm")] },
+      { filename: "rule.ts", code: 'import { defineConfig } from "drizzle-kit";', errors: [storage("drizzle-kit")] },
+      { filename: "rule.ts", code: 'import pg from "pg";', errors: [storage("pg")] },
+      { filename: "rule.ts", code: 'import type { PoolClient } from "pg";', errors: [storage("pg")] },
+      { filename: "rule.ts", code: 'export { Pool } from "pg-pool";', errors: [storage("pg-pool")] },
+      { filename: "rule.ts", code: 'const sql = await import("postgres");', errors: [storage("postgres")] },
+      { filename: "rule.ts", code: 'export type C = import("pg").PoolClient;', errors: [storage("pg")] },
       { filename: "rule.ts", code: "@sealed\nexport class Limits {}", errors: [{ messageId: "decorator" }] },
       { filename: "rule.ts", code: "export class Limits {\n  @logged\n  check(): void {}\n}", errors: [{ messageId: "decorator" }] },
     ],
@@ -60,6 +70,8 @@ describe("the lint configuration of the workspace", () => {
     "packages/api/test/startup.test.ts": 'export const coverage = process.env["NODE_V8_COVERAGE"];\n',
     "packages/api/test/support/environment.ts": "export const environment = process.env;\n",
     "packages/domain/src/test/limits.ts": 'import { Injectable } from "@nestjs/common";\n@Injectable()\nexport class Limits {}\n',
+    "packages/domain/src/test/store.ts": 'import { pgTable } from "drizzle-orm/pg-core";\nimport pg from "pg";\nexport const tables = { pgTable, pg };\n',
+    "packages/api/src/database/store.ts": 'import { pgTable } from "drizzle-orm/pg-core";\nimport pg from "pg";\nexport const tables = { pgTable, pg };\n',
     "packages/harness/src/runner.ts": 'import "reflect-metadata";\nexport const home = process.env["HOME"];\n',
   };
   for (const [path, content] of Object.entries(files)) {
@@ -67,7 +79,7 @@ describe("the lint configuration of the workspace", () => {
     writeFileSync(join(workspace, path), content);
   }
 
-  it("refuses process.env in the API outside its configuration module and its test support, and the framework in the domain only", async () => {
+  it("refuses process.env in the API outside its configuration module and its test support, and the framework and storage in the domain only", async () => {
     const output = await new Promise<string>((resolve) =>
       execFile(OXLINT, ["--format", "json"], { cwd: workspace, encoding: "utf8" }, (_error, out) => resolve(out)),
     );
@@ -77,6 +89,8 @@ describe("the lint configuration of the workspace", () => {
       "packages/api/test/startup.test.ts node(no-process-env)",
       "packages/domain/src/test/limits.ts open-qa-stack(pure-domain)",
       "packages/domain/src/test/limits.ts open-qa-stack(pure-domain)",
+      "packages/domain/src/test/store.ts open-qa-stack(pure-domain)",
+      "packages/domain/src/test/store.ts open-qa-stack(pure-domain)",
     ]);
   });
 });
