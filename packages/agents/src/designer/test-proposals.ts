@@ -122,12 +122,11 @@ export class TestProposals {
 
   private async propose(proposal: Proposal): Promise<string | { error: string }> {
     const path = posix.join(this.rules.appsDir, proposal.application, proposal.file);
-    if (this.kept.length >= MAX_TESTS) {
-      this.journal.record("info", `The test ${path} was set aside: ${MAX_TESTS} tests were already accepted.`);
-      return `${MAX_TESTS} tests were already accepted; this one was set aside. Answer with one sentence; call no more tools.`;
-    }
+    if (this.kept.length >= MAX_TESTS) return this.setAside(path);
     const errors = await this.errors(path, proposal);
     if (errors.length > 0) return this.refuse(path, errors);
+    // Proposals made in one turn are checked at once: others may have been accepted during the check.
+    if (this.kept.length >= MAX_TESTS) return this.setAside(path);
     this.kept.push({ path, application: proposal.application, domain: proposal.domain, reason: proposal.reason, content: proposal.content });
     this.journal.record("info", `The test ${path} was accepted.`);
     const count = this.kept.length;
@@ -147,6 +146,11 @@ export class TestProposals {
     ];
     if (errors.length > 0 || check === undefined) return errors;
     return (await check.check({ path, content: proposal.content })).map(findingText);
+  }
+
+  private setAside(path: string): string {
+    this.journal.record("info", `The test ${path} was set aside: ${MAX_TESTS} tests were already accepted.`);
+    return `${MAX_TESTS} tests were already accepted; this one was set aside. Answer with one sentence; call no more tools.`;
   }
 
   private refuse(path: string, errors: readonly string[]): { error: string } {

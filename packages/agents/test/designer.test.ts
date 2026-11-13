@@ -254,6 +254,14 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
 });
 
 describe("criterion 2 — of five valid tests, exactly four are written and the journal names the one set aside", () => {
+  it("writes four when five proposals of one turn are checked at once", async () => {
+    const slow: TestCheck = { check: () => new Promise((resolve) => setTimeout(() => resolve([]), 50)) };
+    const { outcome, root } = await design(replies(valid(5)), { check: slow });
+    assert.equal(outcome.tests.length, 4);
+    assert.equal(filesOf(root).filter((path) => path.endsWith(".spec.ts")).length, 4);
+    assert.match(messages(outcome), /was set aside: 4 tests were already accepted/);
+  });
+
   it("writes the first four and journals the fifth", async () => {
     const { outcome, root } = await design(replies(valid(5)));
     assert.equal(outcome.ok, true);
