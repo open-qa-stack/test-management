@@ -1,6 +1,7 @@
 import { validateSourceCardSubmission, type IndexError, type SourceCardSubmission } from "@open-qa-stack/shared";
 import type { SourceInventory } from "@open-qa-stack/tools";
 import { secretErrors } from "../common/config-secrets.ts";
+import { withUnassigned } from "../common/with-unassigned.ts";
 import type { SubmissionRules } from "../common/handed-in.ts";
 
 /** Name of the tool the cartographer of a source hands its card in with. */
@@ -39,7 +40,7 @@ const CARD_SHAPE = {
  * How the cartographer of one source hands its card in.
  *
  * @remarks
- * A submission is checked against its schema, then it must place every element of the inventory, invent
+ * A submission without `unassigned` puts no element there. It is checked against its schema, then it must place every element of the inventory, invent
  * none and hold no secret outside the names of the elements, which come from the source itself. A name that is no element but becomes one without the name of the source and a
  * slash or a colon in front is read without them.
  *
@@ -56,7 +57,7 @@ export function cardRules(sourceId: string, inventory: () => SourceInventory, se
     secrets,
     description: `Hands in the card of the source ${sourceId}: its elements grouped by functional domain, each with a one-sentence summary and its important fields, and in unassigned the elements you put in no domain. Every element of the source must appear once at least.`,
     shape: CARD_SHAPE,
-    validate: validateSourceCardSubmission,
+    validate: (args) => validateSourceCardSubmission(withUnassigned(args)),
     check: (valid) => {
       const { items } = inventory();
       const known = new Set(items);
@@ -79,3 +80,4 @@ export function cardRules(sourceId: string, inventory: () => SourceInventory, se
     },
   };
 }
+

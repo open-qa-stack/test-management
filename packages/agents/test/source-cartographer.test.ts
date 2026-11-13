@@ -132,6 +132,8 @@ describe("criterion 1 — the keys of a base are read from the catalog alone", (
     const { server } = await cartography(happy(), { database });
     const request = JSON.stringify(server.requests[0]!.body);
     assert.ok(request.includes(JSON.stringify(`- public.orders (columns: 3; primaryKey: ["id"]; foreignKeys: [{"columns":["customer_id"],"references":"public.customers","referencedColumns":["id"]}])`).slice(1, -1)));
+    assert.ok(request.includes(JSON.stringify(`Its 3 elements, with what is already known of each:`).slice(1, -1)));
+    assert.ok(request.includes(JSON.stringify(`The elements to place are exactly these names: ["public.orders","public.customers","public.schema_migrations"]. What follows each name in parentheses is known facts, not elements.`).slice(1, -1)));
     for (const query of database.queries) assert.match(query, /information_schema|pg_catalog/);
   });
 });
@@ -165,9 +167,14 @@ describe("criterion 3 — a card that forgets or invents a table is refused, wit
     assert.equal(outcome.card!.status, "complete");
   });
 
+  it("reads a card without unassigned as one that puts no element there", async () => {
+    const { outcome } = await cartography([{ body: toolCalls(MODEL, [submit({ domains: [{ ...CARD.domains[0]!, items: [...CARD.domains[0]!.items, { name: "public.schema_migrations", summary: "Migrations." }] }, CARD.domains[1]!] })]) }, { body: answer(MODEL, "Done.") }]);
+    assert.deepEqual(outcome.card?.unassigned, [], messages(outcome));
+  });
+
   it("journals a submission that breaks the schema, and writes nothing without an accepted card", async () => {
     const { outcome } = await cartography([{ body: toolCalls(MODEL, [submit({ domains: [] })]) }, ...Array.from({ length: 4 }, () => ({ body: answer(MODEL, "Done.") }))]);
-    assert.match(messages(outcome), /The card was refused: The document must have required property 'unassigned'\./);
+    assert.match(messages(outcome), /The card was refused: \/domains must NOT have fewer than 1 items\./);
     assert.match(messages(outcome), /The agent stopped without an accepted card; it was reminded to hand one in\./);
     assert.match(messages(outcome), /No card was written: no card was accepted before the session ended\./);
     assert.equal(outcome.cardPath, undefined);

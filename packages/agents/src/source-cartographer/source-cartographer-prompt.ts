@@ -22,7 +22,8 @@ Rules:
  */
 export function sourceCardRequest(sourceId: string, type: string, inventory: SourceInventory): string {
   const lines = inventory.items.map((item) => `- ${item}${describe(inventory.facts.get(item))}`);
-  return `Write the card of the source ${sourceId} (${type}). Its elements, with what is already known of each:\n${lines.join("\n")}\n\nRead what you need with the tools, then hand the card in with ${SUBMIT_CARD_TOOL}.`;
+  const names = JSON.stringify(inventory.items);
+  return `Write the card of the source ${sourceId} (${type}). Its ${inventory.items.length} elements, with what is already known of each:\n${lines.join("\n")}\n\nThe elements to place are exactly these names: ${names}. What follows each name in parentheses is known facts, not elements. Read what you need with the tools, then hand the card in with ${SUBMIT_CARD_TOOL}.`;
 }
 
 /** The facts of an element, in a few words: its keys and links, or its operations. */

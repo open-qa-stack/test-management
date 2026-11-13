@@ -1,5 +1,6 @@
 import { placementErrors, unplacedItems, validateDomainSubmission, type DomainIndexSubmission, type IndexError, type SourceInventory, type SourceReferences } from "@open-qa-stack/shared";
 import { secretErrors } from "../common/config-secrets.ts";
+import { withUnassigned } from "../common/with-unassigned.ts";
 import type { SubmissionRules } from "../common/handed-in.ts";
 
 /** Name of the tool the cartographer hands its index in with. */
@@ -37,7 +38,7 @@ const SUBMISSION_SHAPE = {
  * How the cartographer hands its domain index in.
  *
  * @remarks
- * A submission is checked against its schema, then it must place every element of the cards and invent
+ * A submission without `unassigned` puts nothing there. It is checked against its schema, then it must place every element of the cards and invent
  * none, refer to no source without a card and hold no secret outside the names of the sources and of the
  * elements of their cards, which come from the sources themselves. An item that is no element of its source but
  * becomes one without the name of the source and a slash or a colon in front is read without them, and the
@@ -57,7 +58,7 @@ export function domainIndexRules(inventory: SourceInventory, sources: ReadonlySe
     description:
       "Hands in the domain index: the domains, each with coarse references into the sources, and in unassigned the elements you put in no domain. Every element of every card must appear once at least.",
     shape: SUBMISSION_SHAPE,
-    validate: validateDomainSubmission,
+    validate: (args) => validateDomainSubmission(withUnassigned(args)),
     check: (valid) => {
       const value = normalised(valid, inventory);
       const errors = [...secretErrors(written(value, inventory), secrets), ...placementErrors(value, inventory, sources), ...unread(value, sources, isRead)];

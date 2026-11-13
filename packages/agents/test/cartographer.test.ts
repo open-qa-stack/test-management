@@ -306,11 +306,12 @@ describe("guiding a model that stumbles", () => {
 
 describe("criterion 4 — an index that breaks the schema is not written, and the journal names the field", () => {
   it("journals the field of a submission that breaks the schema, a missing, an empty or an extra one", async () => {
-    const wrong = { domains: [{ ...SUBMISSION.domains[0]!, label: "", confidence: 0.9 }, SUBMISSION.domains[1]!] };
+    const { description: _, ...undescribed } = SUBMISSION.domains[1]!;
+    const wrong = { domains: [{ ...SUBMISSION.domains[0]!, label: "", confidence: 0.9 }, undescribed] };
     const { outcome, root, server } = await cartography([{ body: toolCalls(MODEL, [submit(wrong)]) }, { body: answer(MODEL, "Done.") }]);
     assert.equal(existsSync(indexFile(root)), false);
     const text = messages(outcome);
-    assert.match(text, /The index was refused: The document must have required property 'unassigned'\./);
+    assert.match(text, /The index was refused: \/domains\/1 must have required property 'description'\./);
     assert.match(text, /The index was refused: \/domains\/0\/label must NOT have fewer than 1 characters\./);
     assert.match(text, /The index was refused: \/domains\/0\/confidence is not allowed\./);
     assert.match(JSON.stringify(server.requests[1]!.body), /confidence is not allowed/);
