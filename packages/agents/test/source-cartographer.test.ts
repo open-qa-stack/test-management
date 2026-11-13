@@ -3,12 +3,13 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, before, describe, it } from "node:test";
+import type { AgentRuntime } from "@open-qa-stack/domain";
 import { CopilotAgentRuntime, ModelGateway } from "@open-qa-stack/harness";
 import { validateConfig, validateSourceCard, type Knowledge, type ResolvedConfig, type SourceCardSubmission } from "@open-qa-stack/shared";
 import { answer, closedPort, scriptedServer, testSite, toolCalls, type ScriptedServer } from "@open-qa-stack/testing";
 import type { SqlClient, SqlResult } from "@open-qa-stack/tools";
 import { sourceCardRequest } from "../src/source-cartographer/source-cartographer-prompt.ts";
-import { CARDS_FOLDER, SourceCartographer, type CardSource, type SourceCartographyOutcome } from "../src/index.ts";
+import { CARDS_FOLDER, mapSources, SourceCartographer, type CardSource, type SourceCartographyOutcome } from "../src/index.ts";
 
 const MODEL = "test-model";
 const DB: Knowledge = { id: "shop-db", type: "postgresql", connectionStringEnv: "SHOP_DB_URL", attachments: [{ application: "shop" }] };
@@ -181,7 +182,7 @@ describe("criterion 4 — the cartographer of a source offers only the tools of 
   });
 });
 
-describe("freshness of a card", () => {
+describe("freshness, criterion 1 — an unchanged source is not mapped again; a changed one is", () => {
   it("keeps an up-to-date card without calling the model, and makes it again when forced or when the source changed", async () => {
     const root = mkdtempSync(join(workspace, "repo-"));
     const database = new CatalogDouble();
@@ -331,6 +332,66 @@ describe("the card of a user interface", () => {
     try {
       const broken = await cartography([], { source: { id: "shop", type: "web", environment: "local" }, config: withInterface(site.origin) });
       assert.match(messages(broken.outcome), /The source shop does not answer: .* answered with status 500\./);
+    } finally {
+      await site.close();
+    }
+  });
+});
+
+describe("freshness, criterion 2 — the sources without an up-to-date card are mapped one by one, in separate tasks", () => {
+  it("opens one session per source, with the tools of that source only, then keeps every card", async () => {
+    const root = mkdtempSync(join(workspace, "repo-"));
+    writeFileSync(join(root, "specs.md"), "# Orders\n\n## Place an order\n");
+    const specs: SourceCardSubmission = { domains: [{ id: "ordering", label: "Ordering", description: "Placing orders.", items: [{ name: "Orders", summary: "The orders." }] }], unassigned: ["Place an order"] };
+    const map = async (replies: readonly { body: unknown }[], concurrency?: number) => {
+      const server = await scriptedServer(replies);
+      const gateway = await ModelGateway.start({ kind: "live", upstream: { baseUrl: server.baseUrl } });
+      const runtime = new CopilotAgentRuntime({ endpoint: gateway, model: MODEL, homeDirectory: mkdtempSync(join(workspace, "home-")) });
+      try {
+        const results = await mapSources({
+          config: configFor(server.baseUrl),
+          environment: "local",
+          repositoryRoot: root,
+          env: { SHOP_DB_URL: "postgresql://shop:secret@127.0.0.1:5999/shop" },
+          runtime,
+          sqlClient: () => new CatalogDouble(),
+          ...(concurrency === undefined ? {} : { concurrency }),
+        });
+        return { results, server };
+      } finally {
+        await runtime.close();
+        await gateway.close();
+        await server.close();
+      }
+    };
+    const first = await map([...happy(), { body: toolCalls(MODEL, [submit(specs)]) }, { body: answer(MODEL, "One domain.") }]);
+    assert.deepEqual(first.results.map(({ source, outcome }) => [source.id, outcome.kept, outcome.card?.status]), [["shop-db", false, "complete"], ["specs", false, "complete"]]);
+    const toolsOf = (request: number) => (first.server.requests[request]!.body as { tools: { function: { name: string } }[] }).tools.map((tool) => tool.function.name);
+    assert.ok(toolsOf(0).includes("shop_db_describe_table") && !toolsOf(0).some((name) => name.startsWith("specs_")));
+    assert.ok(toolsOf(3).includes("specs_read_section") && !toolsOf(3).some((name) => name.startsWith("shop_db_")));
+    assert.equal((first.server.requests[3]!.body as { messages: unknown[] }).messages.length, 2, "the second source starts a session of its own");
+    const again = await map([], 2);
+    assert.deepEqual([again.results.map(({ outcome }) => outcome.kept), again.server.requests.length], [[true, true], 0]);
+  });
+
+  it("keeps the card of a user interface until it is forced", async () => {
+    const site = await testSite({ "/": "<h1>Shop</h1>" });
+    try {
+      const root = mkdtempSync(join(workspace, "repo-"));
+      const setup = {
+        source: { id: "shop", type: "web", environment: "local" } as const,
+        root,
+        config: (config: ResolvedConfig): ResolvedConfig => ({ ...config, applications: config.applications.map((a) => ({ ...a, type: "web", environments: a.environments.map((e) => ({ ...e, uiUrl: site.origin })) })) }),
+      };
+      const card = { domains: [{ id: "home", label: "Home", description: "The home page.", items: [{ name: "/", summary: "The home page." }] }], unassigned: [] };
+      const script = () => [{ body: toolCalls(MODEL, [{ id: "g1", name: "shop_goto", arguments: { url: "/" } }]) }, { body: toolCalls(MODEL, [submit(card)]) }, { body: answer(MODEL, "Done.") }];
+      assert.equal((await cartography(script(), setup)).outcome.kept, false);
+      assert.equal((await cartography([], setup)).outcome.kept, true);
+      assert.equal((await cartography(script(), { ...setup, force: true })).outcome.kept, false);
+      const unused: AgentRuntime = { openSession: () => Promise.reject(new Error("no session expected")), close: async () => undefined };
+      const config = setup.config({ ...configFor("http://127.0.0.1:1"), knowledge: [] });
+      const results = await mapSources({ config, environment: "local", repositoryRoot: root, env: {}, runtime: unused });
+      assert.deepEqual(results.map(({ source, outcome }) => [source, outcome.kept]), [[{ id: "shop", type: "web", environment: "local" }, true]]);
     } finally {
       await site.close();
     }

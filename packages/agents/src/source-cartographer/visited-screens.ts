@@ -11,7 +11,9 @@ const LINK = /^\s*- \/url: (.+)$/;
  * A screen is named by its path on the user interface, with the route after `#/` of an application that
  * routes in the fragment, and without its query: `/customers`, `/#/policies`. Addresses of other sites are
  * no screens. The elements are the screens visited, in the order of the first visit; the facts of each are
- * its latest title and the other screens its snapshots link to. The fingerprint covers both.
+ * its latest title and the other screens its snapshots link to. The fingerprint is that of the address of
+ * the interface: what an interface shows cannot be read without exploring it, so its card is made again on
+ * demand only.
  *
  * @param events - The events of the session so far.
  * @param applicationId - Identifier of the application, which names its tools.
@@ -38,7 +40,7 @@ export function visitedScreens(events: readonly AgentEvent[], applicationId: str
   }
   const items = [...screens.keys()];
   const facts = new Map(items.map((item) => [item, { title: screens.get(item)!.title, links: [...screens.get(item)!.links].sort() }]));
-  return { items, facts, fingerprint: fingerprintOf(JSON.stringify([...facts])) };
+  return { items, facts, fingerprint: interfaceFingerprint(uiUrl) };
 }
 
 /** Whether a tool result tells where a page is: an address, a title and, for a snapshot, the page. */
@@ -57,4 +59,14 @@ function screenOf(address: string, from: URL, base: URL): string | undefined {
 /** A YAML scalar without its quotes. */
 function unquoted(text: string): string {
   return /^(["']).*\1$/.test(text) ? text.slice(1, -1) : text;
+}
+
+/**
+ * The fingerprint of a user interface, known before any exploration.
+ *
+ * @param uiUrl - Address of the interface.
+ * @returns The fingerprint of its address.
+ */
+export function interfaceFingerprint(uiUrl: string): string {
+  return fingerprintOf(uiUrl);
 }

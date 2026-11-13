@@ -22,6 +22,7 @@ describe("the screens a user interface showed the agent", () => {
     const inventory = visitedScreens(events, "shop", "http://shop.test/");
     assert.deepEqual(inventory.items, ["/#/policies", "/admin", "/customers"]);
     assert.deepEqual(inventory.facts.get("/#/policies"), { title: "All policies", links: ["/#/policies/7", "/customers"] });
-    assert.notEqual(visitedScreens(events.slice(0, 1), "shop", "http://shop.test/").fingerprint, inventory.fingerprint);
+    assert.equal(visitedScreens(events.slice(0, 1), "shop", "http://shop.test/").fingerprint, inventory.fingerprint);
+    assert.notEqual(visitedScreens(events, "shop", "http://shop.test:8080/").fingerprint, inventory.fingerprint);
   });
 });

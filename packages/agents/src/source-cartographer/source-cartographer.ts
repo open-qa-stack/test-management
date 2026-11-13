@@ -54,9 +54,10 @@ export interface SourceCartographyOutcome {
  *
  * @remarks
  * For a knowledge source, the harness reads the inventory without the model — its elements, their
- * structural facts and its fingerprint — and a complete card whose fingerprint is the source's is kept as
- * it is. For a user interface, the elements are the screens the agent visits, read from what the browser
- * tools answer, and the card is made every time. The agent gets the tools of this source only — the catalog
+ * structural facts and its fingerprint. For a user interface, the elements are the screens the agent
+ * visits, read from what the browser tools answer, and the fingerprint is that of its address, so that its
+ * card is made again on demand only. A complete card whose fingerprint is the source's is kept as it is,
+ * unless `force` is set. The agent gets the tools of this source only — the catalog
  * of a base, never its rows — and hands its card in with `submit_card`, which must place every element and
  * invent none. The facts the harness read are joined to the card before it is written. Nothing is
  * committed nor pushed.
@@ -87,7 +88,7 @@ export class SourceCartographer {
       return { kept: false, journal: journal.entries() };
     }
     const cardPath = join(repositoryRoot, config.repository.indexDir, CARDS_FOLDER, `${source.id}.json`);
-    const existing = subject.fingerprint === undefined || this.options.force === true ? undefined : await upToDate(cardPath, subject.fingerprint);
+    const existing = this.options.force === true ? undefined : await upToDate(cardPath, subject.fingerprint);
     if (existing !== undefined) {
       journal.record("info", `The card of ${source.id} is up to date; it was kept.`, source.id);
       return { cardPath, card: existing, kept: true, journal: journal.entries() };
@@ -110,7 +111,7 @@ export class SourceCartographer {
     const card: SourceCard = {
       formatVersion: 1,
       source: { id: source.id, type: source.type },
-      fingerprint: inventory.fingerprint,
+      fingerprint: subject.fingerprint,
       producedAt: now().toISOString(),
       model: { provider: config.model.provider, baseUrl: config.model.baseUrl, model: config.model.model },
       run: { iterations: counters.iterations, actions: counters.actions, durationMs: Math.round(counters.elapsedMs) },

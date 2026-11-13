@@ -3,7 +3,7 @@ import type { Knowledge, ResolvedConfig } from "@open-qa-stack/shared";
 import { browserTools, knowledgeInventory, knowledgeTools, scopedToolName, type BrowserAccess, type KnowledgeAccess, type SourceInventory } from "@open-qa-stack/tools";
 import { surveySource } from "../cartographer/source-survey.ts";
 import { interfaceCardRequest, sourceCardRequest } from "./source-cartographer-prompt.ts";
-import { visitedScreens } from "./visited-screens.ts";
+import { interfaceFingerprint, visitedScreens } from "./visited-screens.ts";
 
 /** Tools of a database that read rows: the cartographer of a source reads the catalog only. */
 const DATA_TOOLS = ["sample_rows", "search", "query"];
@@ -20,8 +20,8 @@ export type CardSource = Knowledge | InterfaceSource;
 
 /** What the cartographer of a source works on: the tools of the source, and what the card must place. */
 export interface CardSubject {
-  /** Fingerprint of the source before any exploration; `undefined` when only the exploration tells it. */
-  readonly fingerprint: string | undefined;
+  /** Fingerprint of the source, known before any exploration. */
+  readonly fingerprint: string;
   /** The tools of this source only. */
   readonly tools: readonly ToolDefinition[];
   /** The message that starts the cartography. */
@@ -69,7 +69,7 @@ export async function interfaceSubject(
   if (!survey.ok) throw new Error(survey.error);
   const browser = browserTools([application], { ...access, environment: source.environment });
   return {
-    fingerprint: undefined,
+    fingerprint: interfaceFingerprint(uiUrl),
     tools: browser.tools,
     request: interfaceCardRequest(source.id, source.environment, uiUrl),
     inventory: () => visitedScreens(events, source.id, uiUrl),
