@@ -16,6 +16,10 @@ export interface TaskCounters {
   readonly actions: number;
   /** Time since the task started, in milliseconds. */
   readonly elapsedMs: number;
+  /** Tokens sent to the model, when it reported them. */
+  readonly inputTokens?: number;
+  /** Tokens the model produced, when it reported them. */
+  readonly outputTokens?: number;
 }
 
 /** Why a task was stopped: the limit it reached, and its counters at that moment. */

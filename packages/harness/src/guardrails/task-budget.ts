@@ -16,6 +16,7 @@ export class TaskBudget implements RequestGate {
   private readonly startedAt: number;
   private iterations = 0;
   private actions = 0;
+  private tokens: { input: number; output: number } | undefined;
   private reason: StopReason | undefined;
 
   /**
@@ -41,10 +42,11 @@ export class TaskBudget implements RequestGate {
   /**
    * What the task has used so far.
    *
-   * @returns Its iterations, browser actions and elapsed time.
+   * @returns Its iterations, browser actions and elapsed time, and its tokens once the model reported some.
    */
   public get counters(): TaskCounters {
-    return { iterations: this.iterations, actions: this.actions, elapsedMs: this.elapsedMs };
+    const tokens = this.tokens === undefined ? {} : { inputTokens: this.tokens.input, outputTokens: this.tokens.output };
+    return { iterations: this.iterations, actions: this.actions, elapsedMs: this.elapsedMs, ...tokens };
   }
 
   private get elapsedMs(): number {
@@ -57,6 +59,11 @@ export class TaskBudget implements RequestGate {
     if (this.stopped) return;
     if (exceeds(this.iterations + 1, this.limits.maxIterations)) return this.stop("iterations");
     this.iterations++;
+  }
+
+  /** {@inheritDoc RequestGate.countTokens} */
+  public countTokens(input: number, output: number): void {
+    this.tokens = { input: (this.tokens?.input ?? 0) + input, output: (this.tokens?.output ?? 0) + output };
   }
 
   /**

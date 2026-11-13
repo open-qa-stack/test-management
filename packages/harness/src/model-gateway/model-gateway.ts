@@ -112,7 +112,7 @@ export class ModelGateway implements ModelEndpoint {
     const index = exchanges.findIndex((e, i) => !this.replayed.has(i) && JSON.stringify(e.request) === key);
     if (index < 0) return fail(res, channel, { kind: "replay-miss", request: describeRequest(request, channel.requestCount) });
     this.replayed.add(index);
-    send(res, 200, exchanges[index]!.response);
+    serve(res, channel, exchanges[index]!.response);
   }
 
   private async forward(res: ServerResponse, channel: GatewayChannel, upstream: Upstream, body: string, request: CanonicalRequest): Promise<void> {
@@ -137,7 +137,7 @@ export class ModelGateway implements ModelEndpoint {
       return fail(res, channel, { kind: "invalid-response" });
     }
     if (this.mode.kind === "record") this.recorded.push({ request, response });
-    send(res, 200, response);
+    serve(res, channel, response);
   }
 }
 
@@ -154,6 +154,13 @@ function bearer(apiKey: string | undefined): Record<string, string> {
 function fail(res: ServerResponse, channel: GatewayChannel, failure: GatewayFailure): void {
   channel.fail(failure);
   send(res, 400, { error: { message: `Model gateway: ${failure.kind}.`, type: "gateway_error" } });
+}
+
+/** Answers with a completion, once the gate of its channel has counted the tokens the completion reports. */
+function serve(res: ServerResponse, channel: GatewayChannel, response: unknown): void {
+  const usage = (response as { usage?: { prompt_tokens?: unknown; completion_tokens?: unknown } } | null)?.usage;
+  if (typeof usage?.prompt_tokens === "number" && typeof usage.completion_tokens === "number") channel.gate?.countTokens?.(usage.prompt_tokens, usage.completion_tokens);
+  send(res, 200, response);
 }
 
 function send(res: ServerResponse, status: number, body: unknown): void {

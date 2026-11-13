@@ -104,7 +104,7 @@ describe("criterion 6 — a stopped task is never passed, whatever the model say
 describe("criterion 7 — the stop reason carries the three counters", () => {
   it("gives iterations, actions and elapsed time at the stop", async () => {
     const { stop } = await replay("limit-actions.json");
-    assert.deepEqual(stop.counters, { iterations: 1, actions: 200, elapsedMs: 0 });
+    assert.deepEqual(stop.counters, { iterations: 1, actions: 200, elapsedMs: 0, inputTokens: 1, outputTokens: 1 });
   });
 });
 
@@ -151,6 +151,39 @@ describe("a task that ends within its limits says what it used", () => {
   });
 });
 
+describe("the tokens of a task", () => {
+  it("adds up the tokens each answer reports, and gives none when the model reports none", async () => {
+    const withUsage = (body: unknown, prompt: number, completion: number) => ({ ...(body as object), usage: { prompt_tokens: prompt, completion_tokens: completion, total_tokens: prompt + completion } });
+    const { usage: _, ...silent } = answer(MODEL, "Done.") as { usage: unknown };
+    const server = await scriptedServer([
+      { body: withUsage(toolCalls(MODEL, [{ id: "n1", name: "noop", arguments: {} }]), 120, 8) },
+      { body: withUsage(answer(MODEL, "Done."), 140, 5) },
+      { body: silent },
+    ]);
+    const noop: ToolDefinition = { name: "noop", description: "Does nothing.", parameters: { type: "object" }, execute: async () => "ok" };
+    const limits = { maxIterations: 5, maxDurationMs: null, maxActions: null };
+    try {
+      const [reported, unreported] = await withRuntime({ kind: "live", upstream: { baseUrl: server.baseUrl } }, MODEL, async (runtime) => [
+        await exchange(runtime, { instructions: "x", tools: [noop], limits }, "Go."),
+        await exchange(runtime, { instructions: "x", tools: [], limits }, "Go."),
+      ]);
+      const counters = (events: readonly AgentEvent[]) => (events.at(-1) as Extract<AgentEvent, { type: "end" }>).counters;
+      assert.deepEqual([counters(reported!)?.iterations, counters(reported!)?.inputTokens, counters(reported!)?.outputTokens], [2, 260, 13]);
+      assert.deepEqual(Object.keys(counters(unreported!)!).sort(), ["actions", "elapsedMs", "iterations"]);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("counts on the budget on its own, from the first tokens reported", () => {
+    const budget = new TaskBudget({ maxIterations: null, maxDurationMs: null, maxActions: null }, new ManualClock());
+    assert.equal("inputTokens" in budget.counters, false);
+    budget.countTokens(10, 2);
+    budget.countTokens(4, 1);
+    assert.deepEqual(budget.counters, { iterations: 0, actions: 0, elapsedMs: 0, inputTokens: 14, outputTokens: 3 });
+  });
+});
+
 describe("budgets of concurrent sessions", () => {
   it("keeps each session's limits on its own channel", async () => {
     const server = await scriptedServer([
@@ -170,7 +203,7 @@ describe("budgets of concurrent sessions", () => {
           },
         };
         const events = await exchange(runtime, { instructions: "x", tools: [openOther], limits: { maxIterations: 1, maxDurationMs: null, maxActions: null } }, "Go.");
-        assert.deepEqual(stoppedEvent(events).reason, { limit: "iterations", counters: { iterations: 1, actions: 0, elapsedMs: stoppedEvent(events).reason.counters.elapsedMs } });
+        assert.deepEqual(stoppedEvent(events).reason, { limit: "iterations", counters: { iterations: 1, actions: 0, elapsedMs: stoppedEvent(events).reason.counters.elapsedMs, inputTokens: 1, outputTokens: 1 } });
       });
       assert.equal(server.requests.length, 2);
     } finally {
