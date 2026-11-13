@@ -1,5 +1,6 @@
 import type { ColumnSummary, DatabaseCatalog } from "./database-catalog.ts";
 import { dataRows, type DataRows } from "./data-rows.ts";
+import { scopedToolName } from "../common/tool-name.ts";
 import { readSubquery } from "./read-query.ts";
 import type { SqlClient } from "./sql-client.ts";
 import { shortTextColumns, sqlIdentifier } from "./sql-text.ts";
@@ -11,6 +12,8 @@ export interface DataRefusal {
 }
 
 const TEXT_TYPES = new Set(["text", "character varying", "character", "uuid"]);
+/** The SQLSTATE codes of a query that names a column, or a table, the database does not have. */
+const UNKNOWN_NAMES = new Set(["42703", "42P01"]);
 
 /**
  * Reads the data of a database: samples, searches and free read queries, always bounded.
@@ -74,7 +77,8 @@ export class DatabaseData {
    * @param sql - A single `SELECT` or `WITH` query.
    * @param limit - Rows to return, already bounded.
    * @returns Its rows, or why it was not run.
-   * @throws Error when the database cannot be reached or rejects the query.
+   * @throws Error when the database cannot be reached or rejects the query; for a column or a table it does
+   * not have, the error ends with the tool that lists the columns of a table.
    */
   public async query(sql: string, limit: number): Promise<DataRows | DataRefusal> {
     let subquery: string;
@@ -89,10 +93,23 @@ export class DatabaseData {
           "Free queries are refused: the role of the database connection can reach the server's files or programs. Declare a connection with a role that is neither a superuser nor a member of pg_read_server_files, pg_write_server_files or pg_execute_server_program.",
       };
     }
-    const { columns } = await this.client.query(`SELECT * FROM ${subquery} LIMIT 0`, []);
-    const repeated = columns.find((name, index) => columns.indexOf(name) !== index);
-    if (repeated !== undefined) return { error: `The query returns more than one column named ${repeated}. Give each column its own name.` };
-    return this.read(columns, `${subquery} LIMIT ${limit + 1}`, [], limit);
+    return this.named(async () => {
+      const { columns } = await this.client.query(`SELECT * FROM ${subquery} LIMIT 0`, []);
+      const repeated = columns.find((name, index) => columns.indexOf(name) !== index);
+      if (repeated !== undefined) return { error: `The query returns more than one column named ${repeated}. Give each column its own name.` };
+      return this.read(columns, `${subquery} LIMIT ${limit + 1}`, [], limit);
+    });
+  }
+
+  /** Runs a free query, its error ending with the tool that gives the exact names when it names a column or a table the database does not have. */
+  private async named<T>(query: () => Promise<T>): Promise<T> {
+    try {
+      return await query();
+    } catch (failure) {
+      const { message, cause } = failure as Error;
+      if (!UNKNOWN_NAMES.has((cause as { code?: string } | undefined)?.code ?? "")) throw failure;
+      throw new Error(`${message} Call ${scopedToolName(this.knowledgeId, "describe_table")} for the exact names.`, { cause });
+    }
   }
 
   /** The columns of a table the catalog knows, those of its primary key first; none for another table. */

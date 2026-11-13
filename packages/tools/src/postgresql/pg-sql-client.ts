@@ -23,7 +23,8 @@ const connectWithPg: PgConnect = (connectionString) =>
  * @remarks
  * Each query opens a connection, runs in a read-only transaction with a statement timeout, is rolled
  * back and closes the connection, so that a tool can neither write nor hang the session. Agents read the
- * catalog rarely: nothing is kept open between tool calls. Errors never repeat the connection string.
+ * catalog rarely: nothing is kept open between tool calls. Errors never repeat the connection string, and
+ * carry the error of the driver as their cause, with its SQLSTATE `code`.
  */
 export class PgSqlClient implements SqlClient {
   private readonly connectionString: string;
@@ -43,7 +44,7 @@ export class PgSqlClient implements SqlClient {
     const connection = this.connect(this.connectionString);
     const result = this.runReadOnly(connection, text, values).finally(() => connection.end());
     return result.catch((failure: unknown) => {
-      throw new Error(`The database query failed: ${describe(failure)}.`);
+      throw new Error(`The database query failed: ${describe(failure)}.`, { cause: failure });
     });
   }
 

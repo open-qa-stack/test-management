@@ -174,6 +174,28 @@ describe("criterion 5 — a write through the free query fails, because the tran
   });
 });
 
+describe("a free query that names a column or a table the database does not have", () => {
+  it("fails with the tool that gives the exact names, and any other refusal as the database gave it", async () => {
+    const failing = (failure: unknown): PgConnection => ({
+      connect: async () => {},
+      query: async (text: string) => {
+        if (text === SERVER_ACCESS_QUERY) return { rows: [{ server_access: false }], fields: [{ name: "server_access" }] };
+        if (text.includes("agent_query")) throw failure;
+        return { rows: [], fields: [] };
+      },
+      end: async () => {},
+    });
+    const query = (failure: unknown) => {
+      const all = knowledgeTools([DATABASE], { repositoryRoot: REPOSITORY, env: { POLICY_DB_URL: "postgresql://x" }, sqlClient: (url) => new PgSqlClient(url, () => failing(failure)) });
+      return Promise.resolve(all.find((t) => t.name === "policy_db_query")!.execute({ sql: "SELECT ownr FROM policies" }));
+    };
+    await assert.rejects(query(Object.assign(new Error('column "ownr" does not exist'), { code: "42703" })), new Error('The database query failed: column "ownr" does not exist. Call policy_db_describe_table for the exact names.'));
+    await assert.rejects(query(Object.assign(new Error('relation "policies" does not exist'), { code: "42P01" })), new Error('The database query failed: relation "policies" does not exist. Call policy_db_describe_table for the exact names.'));
+    await assert.rejects(query(Object.assign(new Error("syntax error at end of input"), { code: "42601" })), new Error("The database query failed: syntax error at end of input."));
+    await assert.rejects(query("plain"), new Error("The database query failed: unknown error."));
+  });
+});
+
 describe("criterion 6 — long values are cut by the database, and the answer says so", () => {
   it("reads every column as text cut one character beyond the limit", () => {
     assert.equal(shortTextColumns(["a", 'b"c']), `left("a"::text, ${MAX_VALUE_LENGTH + 1}) AS "a", left("b""c"::text, ${MAX_VALUE_LENGTH + 1}) AS "b""c"`);
