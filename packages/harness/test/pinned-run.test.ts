@@ -587,3 +587,14 @@ describe("the references of a visual test, at its trial", () => {
     assert.equal(readFileSync(join(root, "apps", "shop", "look.spec.ts-snapshots", "kept.png"), "utf8"), "kept");
   });
 });
+
+describe("the preparation of the trials", () => {
+  it("installs once, before any trial, and gives the version installed", async () => {
+    const root = repository();
+    const fake = new FakeRunner(root, { list: fixture("steps.json"), report: { fixture: "steps.json" } });
+    const trials = new TrialRunner({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, runner: fake, now: NOW });
+    assert.deepEqual(await trials.prepare(), { ok: true, version: "1.64.1" });
+    await trials.run({ path: "apps/shop/steps.spec.ts", content: "// t\n" });
+    assert.equal(fake.commands.filter((command) => command.command[0] === "npm").length, 1);
+  });
+});

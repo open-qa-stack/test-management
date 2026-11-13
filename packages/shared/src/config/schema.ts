@@ -64,6 +64,7 @@ export const configSchema = {
     knowledge: { type: "array", items: { $ref: "#/$defs/knowledge" } },
     repository: { $ref: "#/$defs/repository" },
     charter: { $ref: "#/$defs/charter" },
+    cartography: { $ref: "#/$defs/cartography" },
     model: { $ref: "#/$defs/model" },
     autonomy: { $ref: "#/$defs/autonomy" },
   },
@@ -179,6 +180,14 @@ export const configSchema = {
         journeysDir: relativePath,
         stateDir: relativePath,
         indexDir: relativePath,
+      },
+    },
+    cartography: {
+      type: "object",
+      additionalProperties: false,
+      description: "How the sources are mapped.",
+      properties: {
+        concurrency: { ...positiveInteger, description: "Most sources mapped at once, each in its own task; one by default." },
       },
     },
     charter: {

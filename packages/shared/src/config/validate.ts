@@ -74,6 +74,7 @@ export function validateConfig(content: string, env: EnvironmentVariables): Vali
       knowledge: data.knowledge,
       repository: { ...DEFAULT_REPOSITORY, ...data.repository },
       charter: { disable: data.charter?.disable ?? [], add: data.charter?.add ?? [] },
+      cartography: { concurrency: data.cartography?.concurrency ?? 1 },
       model: data.model,
       autonomy: { level: data.autonomy.level, limits: resolveLimits(data.autonomy) },
     },

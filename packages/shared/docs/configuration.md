@@ -35,6 +35,7 @@ Types used below: a *slug* matches `^[a-z0-9]+(-[a-z0-9]+)*$`; a *variable* is t
 | `knowledge` | array of [knowledge sources](#knowledge), possibly empty | yes | `[]` |
 | `repository` | [repository layout](#repository) | no | `{ "journeysDir": "journeys" }` |
 | `charter` | [test charter changes](#charter) | no | see below |
+| `cartography` | [how the sources are mapped](#cartography) | no | `{ "concurrency": 2 }` |
 | `model` | [model connection](#model) | yes | see below |
 | `autonomy` | [autonomy level](#autonomy) | yes | `{ "level": "supervised" }` |
 
@@ -137,6 +138,14 @@ A rule identifier is made of upper case words and digits separated by hyphens, s
   "add": [{ "id": "TEAM-TAG-01", "statement": "Tag every test with its domain, such as @policies.", "reason": "The nightly run selects tests by domain." }]
 }
 ```
+
+### Cartography
+
+| Key | Type | Default | Example |
+|---|---|---|---|
+| `concurrency` | integer, 1 or more | `1` | `2` |
+
+`concurrency` is the most sources mapped at once, each in a task of its own with its own session of the model. More than one needs a model server that answers several requests at once; a value that is not a whole number of 1 or more is refused with its JSON path, such as `/cartography/concurrency`.
 
 ### Model
 

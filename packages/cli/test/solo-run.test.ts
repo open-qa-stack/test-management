@@ -1,0 +1,437 @@
+import assert from "node:assert/strict";
+import { execFile, execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { after, before, describe, it } from "node:test";
+import type { CommandOutcome, CommandRunner, StepCommand } from "@open-qa-stack/domain";
+import { answer, closedPort, scriptedServer, toolCalls, type ScriptedServer } from "@open-qa-stack/testing";
+import { liveRuntime, soloCommand, SoloRun, type RunEntry, type SoloRunState } from "../src/index.ts";
+
+const MODEL = "test-model";
+const WITNESS = "postgresql://shop:w1tness-pass@127.0.0.1:5999/shop";
+const workspace = mkdtempSync(join(tmpdir(), "oqas-cli-"));
+let site: Server;
+let siteUrl = "";
+before(async () => {
+  site = createServer((_request, response) => response.writeHead(200).end("ok"));
+  await new Promise<void>((resolve) => site.listen(0, "127.0.0.1", resolve));
+  siteUrl = `http://127.0.0.1:${(site.address() as AddressInfo).port}`;
+});
+after(async () => {
+  await new Promise<void>((resolve) => site.close(() => resolve()));
+  rmSync(workspace, { recursive: true, force: true });
+});
+
+const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: "pipe" }).trim();
+
+/** The configuration of a test repository: one API of the shop, one document, a base declared for another environment. */
+function configText(modelUrl: string, changes: Record<string, unknown> = {}): string {
+  return JSON.stringify({
+    formatVersion: 1,
+    applications: [{ id: "shop", name: "Shop", type: "api", authentication: { method: "none" }, environments: [{ name: "local", apis: [{ name: "backend", baseUrl: siteUrl }] }, { name: "staging", apis: [{ name: "backend", baseUrl: "http://127.0.0.1:1" }] }] }],
+    knowledge: [
+      { id: "order-specs", type: "document", path: "specs/orders.md", attachments: [{ application: "shop", environment: "local" }] },
+      { id: "shop-db", type: "postgresql", connectionStringEnv: "SHOP_DB_URL", attachments: [{ application: "shop", environment: "staging" }] },
+    ],
+    model: { mode: "provider-key", provider: "openai", baseUrl: modelUrl, model: MODEL },
+    autonomy: { level: "autonomous" },
+    ...changes,
+  });
+}
+
+/** A test repository with a remote, its configuration, a document and the base of the tests. */
+function repository(config: string | undefined): string {
+  const root = mkdtempSync(join(workspace, "repo-"));
+  const remote = mkdtempSync(join(workspace, "remote-"));
+  git(remote, "init", "-q", "--bare", "-b", "main");
+  git(root, "init", "-q", "-b", "main");
+  git(root, "config", "user.name", "Test Maintainer");
+  git(root, "config", "user.email", "maintainer@example.com");
+  git(root, "config", "commit.gpgsign", "false");
+  mkdirSync(join(root, "specs"));
+  writeFileSync(join(root, "specs", "orders.md"), "# Orders\n\nA customer places an order.\n");
+  writeFileSync(join(root, "package.json"), JSON.stringify({ name: "tests", private: true, devDependencies: { "@playwright/test": "1.64.1" } }));
+  writeFileSync(join(root, "package-lock.json"), JSON.stringify({ lockfileVersion: 3, packages: { "": {}, "node_modules/@playwright/test": { version: "1.64.1" } } }));
+  writeFileSync(join(root, ".gitignore"), ".oqas/\nnode_modules/\n");
+  // The types of @playwright/test the proposed tests are checked against: npm, a double here, installs nothing.
+  mkdirSync(join(root, "node_modules", "@playwright", "test"), { recursive: true });
+  writeFileSync(join(root, "node_modules", "@playwright", "test", "package.json"), JSON.stringify({ name: "@playwright/test", version: "1.64.1", types: "index.d.ts" }));
+  writeFileSync(
+    join(root, "node_modules", "@playwright", "test", "index.d.ts"),
+    "export interface APIResponse { ok(): boolean; }\nexport interface APIRequestContext { get(url: string): Promise<APIResponse>; }\nexport declare function test(title: string, body: (fixtures: { request: APIRequestContext }) => Promise<void>): void;\nexport declare function expect(value: unknown): { toBe(expected: unknown): void };\n",
+  );
+  if (config !== undefined) writeFileSync(join(root, "oqas.json"), config);
+  git(root, "add", "-A");
+  git(root, "commit", "-q", "-m", "chore: start the test repository");
+  git(root, "remote", "add", "origin", remote);
+  git(root, "push", "-q", "origin", "main");
+  return root;
+}
+
+/** The JSON of the reporter for test files, each one test, with the status the script gives. */
+function report(files: readonly string[], status: (file: string) => "expected" | "unexpected" | "skipped" = () => "expected"): string {
+  const suites = files.map((file) => {
+    const reported = status(file);
+    const results = reported === "skipped" ? [{ status: "skipped", errors: [] }] : [{ status: reported === "expected" ? "passed" : "failed", errors: reported === "expected" ? [] : [{ message: "Error: the total is wrong" }] }];
+    return { title: file, file, specs: [{ title: "the test", file, line: 3, tests: [{ projectName: "shop", status: reported, expectedStatus: "passed", results }] }] };
+  });
+  return JSON.stringify({ suites });
+}
+
+interface Script {
+  /** The exit code of `npm --version`. */
+  readonly npm?: number;
+  /** The exit code of `npm ci`. */
+  readonly install?: number;
+  /** The status of a test file when the tests run at the end, after the design. */
+  readonly final?: (file: string) => "expected" | "unexpected" | "skipped";
+  /** Whether the declared addresses stop answering once the design is over. */
+  readonly downAfterDesign?: boolean;
+}
+
+/** Runs the commands of the machine and of the tests: npm and Playwright are answered as scripted, the check of the addresses runs locally. */
+class FakeRunner implements CommandRunner {
+  public readonly commands: StepCommand[] = [];
+  private readonly root: string;
+  private readonly script: Script;
+
+  public constructor(root: string, script: Script = {}) {
+    this.root = root;
+    this.script = script;
+  }
+
+  public async run(step: StepCommand): Promise<CommandOutcome> {
+    this.commands.push(step);
+    const [program, ...args] = step.command;
+    const ok = (stdout = ""): CommandOutcome => ({ exitCode: 0, stdout, stderr: "" });
+    if (program === "npm" && args[0] === "--version") return this.script.npm === undefined ? ok("11.0.0\n") : { exitCode: this.script.npm, stdout: "", stderr: "npm: not found" };
+    if (program === "npm") return this.script.install === undefined ? ok() : { exitCode: this.script.install, stdout: "", stderr: "npm error 404 Not Found\n" };
+    if (program === "node" && args[0] === "-p") return ok("1.64.1\n");
+    if (program === "node" && args[0] === "-e") {
+      if (this.script.downAfterDesign === true && this.listedTogether) return ok(JSON.stringify(args.slice(3).map((url) => ({ url, answers: false, error: "ECONNREFUSED" }))));
+      return new Promise((resolve) => execFile(process.execPath, ["-e", args[1]!, ...args.slice(2)], { encoding: "utf8" }, (error, stdout, stderr) => resolve({ exitCode: error === null ? 0 : 1, stdout, stderr })));
+    }
+    if (args[0] === "install") return ok();
+    const files = args.filter((arg) => arg.endsWith(".spec.ts"));
+    if (args.includes("--list")) return ok(report(files));
+    const trial = args.includes("--update-snapshots=missing");
+    const out = step.env!["PLAYWRIGHT_JSON_OUTPUT_FILE"]!;
+    mkdirSync(join(this.root, out, ".."), { recursive: true });
+    writeFileSync(join(this.root, out), report(files, trial ? () => "expected" : (this.script.final ?? (() => "expected"))));
+    return { exitCode: 0, stdout: "", stderr: "" };
+  }
+
+  /** Whether the tests designed already ran together, at the end. */
+  public get finalRuns(): number {
+    return this.commands.filter(isFinalRun).length;
+  }
+
+  /** Whether the tests designed were listed together, as they are once the design is over. */
+  private get listedTogether(): boolean {
+    return this.commands.some((command) => command.command.includes("--list") && command.command.filter((arg) => arg.endsWith(".spec.ts")).length > 1);
+  }
+}
+
+/** A run of the tests at the end: no trial, more than one file. */
+const isFinalRun = (command: StepCommand) => command.command[1] === "test" && !command.command.includes("--list") && !command.command.includes("--update-snapshots=missing");
+
+const submit = (name: string, args: unknown, id: string) => ({ id, name, arguments: args });
+const card = { domains: [{ id: "orders", label: "Orders", description: "Placing an order.", items: [{ name: "Orders", summary: "How an order is placed." }] }], unassigned: [] };
+const index = { domains: [{ id: "orders", label: "Orders", description: "Placing and following an order.", references: [{ source: "order-specs", items: ["Orders"] }] }], unassigned: [] };
+const spec = (title: string) => `import { test, expect } from "@playwright/test";\n\ntest("${title}", async ({ request }) => {\n  const response = await request.get("/orders");\n  expect(response.ok()).toBe(true);\n});\n`;
+const propose = (file: string) => submit("propose_test", { application: "shop", domain: "orders", file, reason: `Checks ${file}.`, content: spec(file) }, `p-${file}`);
+
+/** The replies of the model for the whole chain: the check of the server, the card, the index, then the design of three tests. */
+const chain = (proposals: readonly ReturnType<typeof propose>[] = [propose("test-1.spec.ts"), propose("test-2.spec.ts"), propose("test-3.spec.ts")]) => [
+  { body: { data: [] } },
+  { body: toolCalls(MODEL, [submit("submit_card", card, "c1")]) },
+  { body: answer(MODEL, "One domain.") },
+  { body: toolCalls(MODEL, [submit("submit_index", index, "x1")]) },
+  { body: answer(MODEL, "One domain.") },
+  { body: toolCalls(MODEL, proposals) },
+  ...Array.from({ length: 4 }, () => ({ body: answer(MODEL, "Done.") })),
+];
+
+interface Run {
+  readonly code: number;
+  readonly root: string;
+  readonly err: string;
+  readonly out: string;
+  readonly server: ScriptedServer;
+  readonly runner: FakeRunner;
+}
+
+async function solo(replies: readonly { body: unknown }[], setup: { config?: (modelUrl: string) => string | undefined; environment?: string; root?: (config: string | undefined) => string; script?: Script; modelUrl?: string; command?: boolean } = {}): Promise<Run> {
+  const server = await scriptedServer(replies);
+  const modelUrl = setup.modelUrl ?? server.baseUrl;
+  const config = setup.config === undefined ? configText(modelUrl) : setup.config(modelUrl);
+  const root = (setup.root ?? repository)(config);
+  const runner = new FakeRunner(root, setup.script);
+  let err = "";
+  let out = "";
+  try {
+    const code = setup.command === true
+      ? await soloCommand(["--repository", root, ...(setup.environment === undefined ? [] : ["--environment", setup.environment]), "--force-cartography"], { env: { SHOP_DB_URL: WITNESS }, cwd: workspace, stdout: { write: (text) => (out += text) }, stderr: { write: (text) => (err += text) }, runner })
+      : await new SoloRun({
+          repositoryRoot: root,
+          ...(setup.environment === undefined ? {} : { environment: setup.environment }),
+          env: { SHOP_DB_URL: WITNESS },
+          write: (line) => (err += line),
+          print: (line) => (out += line),
+          openRuntime: (resolved) => liveRuntime(resolved, {}),
+          runner,
+          now: () => new Date("2026-11-13T12:00:00.000Z"),
+        }).run();
+    return { code, root, err, out, server, runner };
+  } finally {
+    await server.close();
+  }
+}
+
+const stateOf = (root: string) => JSON.parse(readFileSync(join(root, ".oqas", "runs", "oqas-2026-11-13T12-00-00-000Z.json"), "utf8")) as SoloRunState;
+const journalOf = (root: string) =>
+  readFileSync(join(root, ".oqas", "runs", "oqas-2026-11-13T12-00-00-000Z.jsonl"), "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line) as RunEntry);
+/** Every file git does not track, ignored ones included, but the types the tests are checked against. */
+const untracked = (root: string) =>
+  git(root, "status", "--porcelain", "--untracked-files=all", "--ignored")
+    .split("\n")
+    .filter((line) => line !== "" && !line.includes("node_modules/"))
+    .join("\n");
+
+describe("solo command, criterion 1 — without a configuration, the command stops with 3 and touches nothing", () => {
+  it("calls no model, runs nothing, and creates no file", async () => {
+    const run = await solo([], { config: () => undefined });
+    assert.equal(run.code, 3);
+    assert.deepEqual([run.server.requests.length, run.runner.commands.length, untracked(run.root)], [0, 0, ""]);
+    assert.match(run.err, /oqas\.json cannot be read/);
+  });
+});
+
+describe("solo command, criterion 2 — an invalid configuration, or an environment not declared, stops with 3", () => {
+  it("names the JSON path at fault, and writes nothing", async () => {
+    const run = await solo([], { config: (url) => JSON.parse(JSON.stringify(configText(url))).replace('"autonomous"', '"reckless"') });
+    assert.equal(run.code, 3);
+    assert.match(run.err, /\/autonomy\/level/);
+    assert.deepEqual([run.server.requests.length, untracked(run.root)], [0, ""]);
+  });
+
+  it("names the environment at fault, and asks for one when several are declared", async () => {
+    const unknown = await solo([], { environment: "production" });
+    assert.equal(unknown.code, 3);
+    assert.match(unknown.err, /The environment production is not declared; the configuration declares local, staging\./);
+    const unnamed = await solo([], { config: (url) => configText(url) });
+    assert.equal(unnamed.code, 3);
+    assert.match(unnamed.err, /Several environments are declared \(local, staging\); name one with --environment\./);
+  });
+});
+
+describe("solo command, criterion 3 — a missing prerequisite stops with 4, and nothing is mapped", () => {
+  it("names the folder that is no git repository, the model server that does not answer, and npm", async () => {
+    const down = `http://127.0.0.1:${await closedPort()}/v1`;
+    const run = await solo([], {
+      environment: "local",
+      modelUrl: down,
+      script: { npm: 127 },
+      root: (config) => {
+        const root = mkdtempSync(join(workspace, "plain-"));
+        writeFileSync(join(root, "oqas.json"), config!);
+        return root;
+      },
+    });
+    assert.equal(run.code, 4);
+    assert.match(run.err, /is not a git repository/);
+    assert.match(run.err, new RegExp(`The model server at ${down.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")} does not answer`));
+    assert.match(run.err, /npm cannot be run/);
+    assert.ok(!run.err.includes("[cartography]"));
+  });
+});
+
+describe("solo command, criterion 4 — the whole chain, every test passed, exits with 0", () => {
+  it("runs the six steps in order, each with its start and its end", async () => {
+    const run = await solo(chain(), { environment: "local" });
+    assert.equal(run.code, 0, run.err);
+    const framing = journalOf(run.root).filter((entry) => entry.event === "started" || entry.event === "finished").map((entry) => `${entry.step}:${entry.event}`);
+    assert.deepEqual(framing, ["configuration", "prerequisites", "cartography", "design", "execution", "summary"].flatMap((step) => [`${step}:started`, `${step}:finished`]));
+    assert.match(run.out, /^Run oqas-2026-11-13T12-00-00-000Z: exit code 0\./);
+  });
+});
+
+describe("solo command, criterion 5 — a failed test exits with 1; a blocked or indeterminate one, without a failure, with 2", () => {
+  it("exits with 1 when a test fails at the end, and with 2 when one is skipped", async () => {
+    const failed = await solo(chain(), { environment: "local", script: { final: (file) => (file.endsWith("test-2.spec.ts") ? "unexpected" : "expected") } });
+    assert.equal(failed.code, 1, failed.err);
+    const skipped = await solo(chain(), { environment: "local", script: { final: (file) => (file.endsWith("test-2.spec.ts") ? "skipped" : "expected") } });
+    assert.equal(skipped.code, 2, skipped.err);
+  });
+});
+
+describe("solo command, criterion 6 — an application that does not answer when the tests run blocks them, and exits with 2", () => {
+  it("gives blocked to every test in the state", async () => {
+    const run = await solo(chain(), { environment: "local", script: { downAfterDesign: true } });
+    assert.equal(run.code, 2, run.err);
+    assert.ok(stateOf(run.root).tests.every((test) => test.verdict === "blocked"));
+  });
+});
+
+describe("solo command, criteria 7 and 8 — a limit that stops a task is journaled; without a test designed, the command stops with 5 and runs nothing", () => {
+  it("names the limit reached, writes no passed, and runs no test", async () => {
+    const replies = [...chain().slice(0, 5), ...Array.from({ length: 3 }, () => ({ body: answer(MODEL, "I see nothing to test.") }))];
+    const config = (url: string) => configText(url, { autonomy: { level: "custom", task: { maxIterations: 2, maxDurationMinutes: 10, maxActions: 200 }, batch: { maxTests: 20, maxIdleRounds: 2 }, guardrailMinutes: 60 } });
+    const run = await solo(replies, { environment: "local", config });
+    assert.equal(run.code, 5, run.err);
+    assert.match(run.err, /reached its iterations limit/);
+    assert.equal(run.runner.finalRuns, 0);
+    assert.ok(stateOf(run.root).tests.every((test) => test.verdict !== "passed"));
+  });
+});
+
+describe("solo command, criterion 9 — the state of a complete run", () => {
+  it("holds the run, the index, the tests and their branch, the report, a verdict per test, and the duration and requests of each step", async () => {
+    const run = await solo(chain(), { environment: "local" });
+    const state = stateOf(run.root);
+    assert.equal(state.runId, "oqas-2026-11-13T12-00-00-000Z");
+    assert.equal(state.index, join(".oqas", "index", "domain-index.json"));
+    assert.deepEqual([...state.designed].sort(), ["apps/shop/test-1.spec.ts", "apps/shop/test-2.spec.ts", "apps/shop/test-3.spec.ts"]);
+    assert.match(state.branch!, /^oqas\/design-/);
+    assert.match(state.report!, /^\.oqas\/runs\/run-.*\/report\.json$/);
+    assert.ok(existsSync(join(run.root, state.run!)));
+    assert.deepEqual(state.tests.map((test) => test.verdict), ["passed", "passed", "passed"]);
+    // The state is written by the summary, which therefore is not among its steps.
+    assert.deepEqual(state.steps.map((step) => step.step), ["prerequisites", "cartography", "design", "execution"]);
+    assert.ok(state.steps.find((step) => step.step === "cartography")!.modelRequests > 0 && state.steps.find((step) => step.step === "design")!.modelRequests > 0);
+    assert.ok(state.steps.every((step) => step.durationMs >= 0));
+  });
+});
+
+describe("solo command, criteria 10 and 11 — nothing is pushed, the git configuration stays, and an uncommitted change is kept", () => {
+  it("leaves the remote and the git configuration as they were after a complete run", async () => {
+    let before = { remote: "", config: "" };
+    const run = await solo(chain(), {
+      environment: "local",
+      root: (config) => {
+        const root = repository(config);
+        before = { remote: git(git(root, "remote", "get-url", "origin"), "for-each-ref"), config: git(root, "config", "--list", "--local") };
+        return root;
+      },
+    });
+    assert.equal(run.code, 0, run.err);
+    assert.deepEqual({ remote: git(git(run.root, "remote", "get-url", "origin"), "for-each-ref"), config: git(run.root, "config", "--list", "--local") }, before);
+  });
+
+  it("finds an uncommitted change again, unchanged", async () => {
+    const run = await solo(chain(), {
+      environment: "local",
+      root: (config) => {
+        const root = repository(config);
+        writeFileSync(join(root, "specs", "orders.md"), "# Orders\n\nAn edit under way.\n");
+        return root;
+      },
+    });
+    assert.equal(run.code, 5);
+    assert.equal(readFileSync(join(run.root, "specs", "orders.md"), "utf8"), "# Orders\n\nAn edit under way.\n");
+  });
+});
+
+describe("solo command, criterion 12 — the value of the connection string appears nowhere", () => {
+  it("is in neither the journal, the state, nor the outputs", async () => {
+    const run = await solo(chain(), { environment: "local" });
+    for (const trace of [run.err, run.out, readFileSync(join(run.root, ".oqas", "runs", "oqas-2026-11-13T12-00-00-000Z.jsonl"), "utf8"), JSON.stringify(stateOf(run.root))]) assert.ok(!trace.includes("w1tness-pass"));
+  });
+});
+
+describe("solo command, criterion 13 — the harness reaches only what the configuration declares", () => {
+  it("calls the model server and the declared address, and nothing else", async () => {
+    // The guard of the suite refuses any address outside this machine; here, the destinations are the scripted model and the site.
+    const run = await solo(chain(), { environment: "local" });
+    assert.ok(run.server.requests.length > 0);
+    assert.ok(run.runner.commands.filter((command) => command.command[1] === "-e").every((command) => command.command.slice(4).every((url) => url === siteUrl)));
+  });
+});
+
+describe("solo command, criterion 14 — the command imports only shared, harness, agents, tools and domain", () => {
+  it("imports no other package, and never the SDK of the agents", () => {
+    const folder = new URL("../src/", import.meta.url);
+    const imported = readdirSync(folder).flatMap((file) => [...readFileSync(new URL(file, folder), "utf8").matchAll(/from\s+"([^"]+)"/g)].map((match) => match[1]!));
+    const allowed = /^(node:|\.\/|@open-qa-stack\/(shared|harness|agents|tools|domain)$)/;
+    assert.deepEqual(imported.filter((module) => !allowed.test(module)), []);
+    assert.ok(!imported.some((module) => module.includes("copilot")));
+  });
+});
+
+describe("solo command, criterion 15 — no test opens a model nor installs anything", () => {
+  it("answers every command of npm and Playwright with the double", async () => {
+    const run = await solo(chain(), { environment: "local" });
+    assert.ok(run.runner.commands.some((command) => command.command[0] === "npm" && command.command[1] === "ci"));
+    assert.ok(run.runner.commands.every((command) => ["npm", "node", "node_modules/.bin/playwright"].includes(command.command[0]!)));
+  });
+});
+
+describe("solo command, the charter and the dependencies", () => {
+  it("stops with 3, before the model, on a charter that disables an unknown rule", async () => {
+    const run = await solo([], { environment: "local", config: (url) => configText(url, { charter: { disable: [{ rule: "PW-NOPE-01", reason: "No." }] } }) });
+    assert.equal(run.code, 3);
+    assert.match(run.err, /\/charter\/disable\/0\/rule/);
+    assert.equal(run.server.requests.length, 0);
+  });
+
+  it("stops with 5 before designing when the dependencies of the test repository cannot be installed", async () => {
+    const run = await solo(chain(), { environment: "local", script: { install: 1 } });
+    assert.equal(run.code, 5);
+    assert.match(run.err, /\[design\] error: The dependencies could not be installed: npm error 404 Not Found/);
+    assert.ok(!run.err.includes("propose"));
+  });
+});
+
+describe("the command oqas", () => {
+  it("runs the whole chain from its arguments, with the system clock and the live runtime", async () => {
+    const run = await solo(chain(), { environment: "local", command: true });
+    assert.equal(run.code, 0, run.err);
+    assert.match(run.out, /^Run oqas-\d{4}-\d{2}-\d{2}T.*: exit code 0\./);
+  });
+});
+
+describe("the edges of a run", () => {
+  it("takes the folder it runs in as the test repository, and the only environment declared", async () => {
+    const server = await scriptedServer([]);
+    const single = configText(server.baseUrl, {
+      applications: [{ id: "shop", name: "Shop", type: "api", authentication: { method: "none" }, environments: [{ name: "local", apis: [{ name: "backend", baseUrl: siteUrl }] }] }],
+      knowledge: [{ id: "order-specs", type: "document", path: "specs/orders.md", attachments: [{ application: "shop" }] }],
+    });
+    const root = repository(single);
+    let err = "";
+    try {
+      const code = await soloCommand([], { env: { SHOP_DB_URL: WITNESS }, cwd: root, stdout: { write: () => true }, stderr: { write: (text) => (err += text) }, runner: new FakeRunner(root, { npm: 127 }) });
+      assert.equal(code, 4);
+      assert.match(err, /the run targets the environment local\./);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("names the whole document for an error of syntax, and checks npm with the machine's runner by default", async () => {
+    const broken = await solo([], { config: () => "{" });
+    assert.equal(broken.code, 3);
+    assert.match(broken.err, /\[configuration\] error: \/: /);
+    const down = `http://127.0.0.1:${await closedPort()}/v1`;
+    const root = repository(configText(down));
+    let err = "";
+    const code = await new SoloRun({ repositoryRoot: root, environment: "local", env: { SHOP_DB_URL: WITNESS }, write: (line) => (err += line), print: () => undefined, openRuntime: (config) => liveRuntime(config, {}) }).run();
+    assert.equal(code, 4);
+    assert.ok(!err.includes("npm cannot be run"), err);
+  });
+
+  it("stops with 5 when no index is written, and designs nothing", async () => {
+    const replies = [{ body: { data: [] } }, ...Array.from({ length: 6 }, () => ({ body: answer(MODEL, "Nothing to say.") }))];
+    const run = await solo(replies, { environment: "local" });
+    assert.equal(run.code, 5);
+    assert.match(run.err, /No index was written/);
+    assert.ok(!run.err.includes("[design]"));
+    assert.equal(stateOf(run.root).index, undefined);
+  });
+});
