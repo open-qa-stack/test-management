@@ -1,5 +1,6 @@
 import type { JsonSchema, ToolDefinition } from "@open-qa-stack/domain";
 import type { IndexError, IndexValidation } from "@open-qa-stack/shared";
+import { redactText, secretForms } from "@open-qa-stack/tools";
 import type { Journal } from "./journal.ts";
 
 /** Most errors told to the agent at once, besides the items still to place. */
@@ -21,6 +22,10 @@ export interface SubmissionRules<T> {
   readonly tool: string;
   /** What the result is, for messages: `index`, `card`… */
   readonly what: string;
+  /** The source the result is about, which names the journal entries; none for a result about several. */
+  readonly source?: string;
+  /** Secrets of the configuration, masked in every refusal journaled or told. */
+  readonly secrets: readonly string[];
   /** Description of the tool, written for the model. */
   readonly description: string;
   /** The shape of a submission given to the model; its rules are left to `validate` and `check`. */
@@ -36,8 +41,8 @@ export interface SubmissionRules<T> {
  *
  * @remarks
  * A refused submission is journaled and explained to the agent — the errors, then by source every item
- * still to place — so that it may submit again while its limits allow. Only the first accepted submission
- * is kept.
+ * still to place — so that it may submit again while its limits allow, every secret of the configuration
+ * masked. Only the first accepted submission is kept.
  */
 export class HandedIn<T> {
   private readonly rules: SubmissionRules<T>;
@@ -80,7 +85,7 @@ export class HandedIn<T> {
   public reminder(): string | undefined {
     if (this.kept !== undefined) return undefined;
     const { what, tool } = this.rules;
-    this.journal.record("info", `The agent stopped without an accepted ${what}; it was reminded to hand one in.`);
+    this.record("info", `The agent stopped without an accepted ${what}; it was reminded to hand one in.`);
     return `You have not handed in an accepted ${what} yet. Call ${tool} now.${this.refusal === undefined ? "" : `\n\n${this.refusal}`}`;
   }
 
@@ -92,19 +97,25 @@ export class HandedIn<T> {
     const { value, errors, unplaced } = this.rules.check(validation.value);
     if (errors.length > 0) return this.refuse(errors, unplaced);
     this.kept = value;
-    this.journal.record("info", `The ${what} was accepted.`);
+    this.record("info", `The ${what} was accepted.`);
     return `The ${what} was accepted. Answer with one sentence that sums it up; call no more tools.`;
   }
 
   private refuse(errors: readonly IndexError[], unplaced: ReadonlyMap<string, readonly string[]>): { error: string } {
     const { what } = this.rules;
-    for (const error of errors) this.journal.record("error", `The ${what} was refused: ${error.message}`);
+    const forms = this.rules.secrets.filter((secret) => secret !== "").flatMap(secretForms);
+    const masked = (text: string) => redactText(text, forms);
+    for (const error of errors) this.record("error", masked(`The ${what} was refused: ${error.message}`));
     const others = errors.filter((error) => error.path !== "");
     const told = others.slice(0, MAX_TOLD_ERRORS).map((error) => `- ${error.message}`);
     const more = others.length > MAX_TOLD_ERRORS ? [`- and ${others.length - MAX_TOLD_ERRORS} more`] : [];
     const missing = [...unplaced].map(([source, items]) => `- ${source}: ${JSON.stringify(items)}`);
     const placing = missing.length === 0 ? [] : ["Still to place, in a domain or in unassigned, each exactly as written:", ...missing];
-    this.refusal = [`The ${what} was refused. Fix it and submit it again.`, ...told, ...more, ...placing].join("\n");
+    this.refusal = masked([`The ${what} was refused. Fix it and submit it again.`, ...told, ...more, ...placing].join("\n"));
     return { error: this.refusal };
+  }
+
+  private record(level: "info" | "error", message: string): void {
+    this.journal.record(level, message, this.rules.source);
   }
 }

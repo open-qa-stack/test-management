@@ -95,6 +95,7 @@ export class SourceCartographer {
       return { cardPath, card: existing, kept: true, journal: journal.entries() };
     }
     const now = this.options.now ?? (() => new Date());
+    if (subject.inventory().truncated === true) journal.record("error", `The source ${source.id} is too large to be read whole; its card is truncated.`, source.id);
     if (source.type !== "web" && subject.inventory().items.length === 0) {
       journal.record("info", `The source ${source.id} has no element; its card is empty.`, source.id);
       return this.write(cardPath, this.card(subject, { iterations: 0, actions: 0, durationMs: 0 }, "complete", { domains: [], unassigned: [] }, now), journal);
@@ -127,7 +128,7 @@ export class SourceCartographer {
       producedAt: now().toISOString(),
       model: { provider: config.model.provider, baseUrl: config.model.baseUrl, model: config.model.model },
       run,
-      status,
+      status: inventory.truncated === true ? "truncated" : status,
       domains: accepted.domains.map((domain) => ({ ...domain, items: domain.items.map((item) => ({ ...item, facts: { ...inventory.facts.get(item.name) } })) })),
       unassigned: accepted.unassigned,
     };

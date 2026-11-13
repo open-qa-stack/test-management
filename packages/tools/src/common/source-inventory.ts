@@ -9,4 +9,6 @@ export interface SourceInventory {
   readonly facts: ReadonlyMap<string, Readonly<Record<string, unknown>>>;
   /** Fingerprint of the source as it was read. */
   readonly fingerprint: string;
+  /** Whether the harness read only part of the source, which was too large; the elements are then partial. */
+  readonly truncated?: boolean;
 }

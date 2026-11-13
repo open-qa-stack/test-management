@@ -93,11 +93,11 @@ export class Cartographer {
     const results = await mapSources({ ...this.options, now });
     for (const { outcome } of results) for (const entry of outcome.journal) journal.record(entry.level, entry.message, entry.source);
     const cards = new Map(results.flatMap(({ source, outcome }) => (outcome.card === undefined ? [] : [[source.id, outcome.card] as const])));
-    if (cards.size === 0) {
-      journal.record("error", "No index was written: no source has a card.");
+    const inventory = new Map([...cards].map(([id, card]) => [id, elementsOf(card)] as const));
+    if ([...inventory.values()].every((elements) => elements.length === 0)) {
+      journal.record("error", `No index was written: ${cards.size === 0 ? "no source has a card" : "the cards hold no element"}.`);
       return { journal: journal.entries() };
     }
-    const inventory = new Map([...cards].map(([id, card]) => [id, elementsOf(card)] as const));
     const submission = new HandedIn(domainIndexRules(inventory, new Set(sources.map((source) => source.id)), (id) => cards.has(id), configSecrets(config, env)), journal);
     const notes = agentNotes(config, repositoryRoot, env, { role: "cartographer", task: `index-${environment}-${now().toISOString()}`, now });
     const events: AgentEvent[] = [];

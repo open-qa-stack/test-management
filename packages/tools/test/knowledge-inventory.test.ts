@@ -111,6 +111,8 @@ describe("the inventory of a knowledge source, read without the model", () => {
       assert.deepEqual(merged.facts.get("domain"), { files: 2, routes: [] });
       assert.deepEqual(merged.facts.get("web"), { files: 1, routes: ["app.get('/policies', …)"] });
       assert.deepEqual((await codeInventory(folder, 1)).items, ["."]);
+      assert.equal((await codeInventory(folder)).truncated, undefined);
+      assert.equal((await codeInventory(new CodeFolder(root, 2))).truncated, true);
       write("domain/policy/policy.ts", "export class Policy { id = 1 }\n");
       assert.notEqual((await codeInventory(folder, 3)).fingerprint, merged.fingerprint);
     } finally {

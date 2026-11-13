@@ -24,7 +24,7 @@ type FolderFacts = {
  * folders are merged into their parent until there are no more, so that `domain/policy` and
  * `domain/customer` become `domain`. The facts of each are its number of files and the routes their
  * outlines declare. A file that cannot be read counts in no folder. The fingerprint covers the path and the
- * content of every file counted.
+ * content of every file counted. Past the most files a listing looks at, the inventory is `truncated`.
  *
  * @param folder - The folder of the code.
  * @param maxItems - Most folders kept; `MAX_CODE_ITEMS` by default.
@@ -33,7 +33,7 @@ type FolderFacts = {
  */
 export async function codeInventory(folder: CodeFolder, maxItems = MAX_CODE_ITEMS): Promise<SourceInventory> {
   const extensions = new Set(parsedExtensions());
-  const { files } = await folder.list();
+  const { files, truncated } = await folder.list();
   const folders = new Map<string, FolderFacts>();
   const digests: [string, string][] = [];
   for (const file of files.filter((path) => extensions.has(extname(path).slice(1).toLowerCase()))) {
@@ -48,7 +48,7 @@ export async function codeInventory(folder: CodeFolder, maxItems = MAX_CODE_ITEM
   }
   while (folders.size > maxItems) mergeDeepest(folders);
   const items = [...folders.keys()].sort();
-  return { items, facts: new Map(items.map((item) => [item, folders.get(item)!])), fingerprint: fingerprintOf(JSON.stringify(digests)) };
+  return { items, facts: new Map(items.map((item) => [item, folders.get(item)!])), fingerprint: fingerprintOf(JSON.stringify(digests)), ...(truncated ? { truncated } : {}) };
 }
 
 /** Merges the deepest folder, the last in alphabetical order among those as deep, into its parent. */

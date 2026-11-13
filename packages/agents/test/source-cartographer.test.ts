@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, before, describe, it } from "node:test";
@@ -7,9 +7,9 @@ import type { AgentRuntime } from "@open-qa-stack/domain";
 import { CopilotAgentRuntime, ModelGateway } from "@open-qa-stack/harness";
 import { validateConfig, validateSourceCard, type Knowledge, type ResolvedConfig, type SourceCardSubmission } from "@open-qa-stack/shared";
 import { answer, closedPort, scriptedServer, testSite, toolCalls, type ScriptedServer } from "@open-qa-stack/testing";
-import type { SqlClient, SqlResult } from "@open-qa-stack/tools";
+import { MAX_SCANNED_FILES, type SqlClient, type SqlResult } from "@open-qa-stack/tools";
 import { sourceCardRequest } from "../src/source-cartographer/source-cartographer-prompt.ts";
-import { CARDS_FOLDER, mapSources, SourceCartographer, type CardSource, type SourceCartographyOutcome } from "../src/index.ts";
+import { CARDS_FOLDER, Cartographer, mapSources, SourceCartographer, type CardSource, type SourceCartographyOutcome } from "../src/index.ts";
 
 const MODEL = "test-model";
 const DB: Knowledge = { id: "shop-db", type: "postgresql", connectionStringEnv: "SHOP_DB_URL", attachments: [{ application: "shop" }] };
@@ -64,7 +64,7 @@ function configFor(modelUrl: string, limits = { maxIterations: 20, maxDurationMi
     model: { mode: "provider-key", provider: "openai", baseUrl: modelUrl, model: MODEL },
     autonomy: { level: "custom", task: limits, batch: { maxTests: 1, maxIdleRounds: 1 }, guardrailMinutes: 1 },
   });
-  const result = validateConfig(text, { SHOP_DB_URL: "postgresql://shop:secret@127.0.0.1:5999/shop" });
+  const result = validateConfig(text, { SHOP_DB_URL: "postgresql://shop:s3cr3t-pw@127.0.0.1:5999/shop" });
   assert.ok(result.ok, JSON.stringify(result));
   return result.config;
 }
@@ -109,7 +109,7 @@ async function cartography(replies: readonly { status?: number; body: unknown }[
       config: setup.config === undefined ? config : setup.config(config),
       source: setup.source ?? DB,
       repositoryRoot: setup.root ?? mkdtempSync(join(workspace, "repo-")),
-      env: { SHOP_DB_URL: "postgresql://shop:secret@127.0.0.1:5999/shop" },
+      env: { SHOP_DB_URL: "postgresql://shop:s3cr3t-pw@127.0.0.1:5999/shop" },
       runtime,
       ...(setup.realDatabase === true ? {} : { sqlClient: () => setup.database ?? new CatalogDouble() }),
       ...(setup.systemClock === true ? {} : { now: () => new Date("2026-11-13T03:00:00.000Z") }),
@@ -352,7 +352,7 @@ describe("freshness, criterion 2 — the sources without an up-to-date card are 
           config: configFor(server.baseUrl),
           environment: "local",
           repositoryRoot: root,
-          env: { SHOP_DB_URL: "postgresql://shop:secret@127.0.0.1:5999/shop" },
+          env: { SHOP_DB_URL: "postgresql://shop:s3cr3t-pw@127.0.0.1:5999/shop" },
           runtime,
           sqlClient: () => new CatalogDouble(),
           ...(concurrency === undefined ? {} : { concurrency }),
@@ -417,27 +417,57 @@ describe("sources a card must still be made of", () => {
   });
 
   it("refuses a card that holds a secret of the configuration, without repeating it", async () => {
-    const secret = "postgresql://shop:secret@127.0.0.1:5999/shop";
-    const leaky = { ...CARD, domains: [{ ...CARD.domains[0]!, items: [{ ...CARD.domains[0]!.items[0]!, summary: `Read with ${secret}.` }] }, CARD.domains[1]!] };
+    const secret = "postgresql://shop:s3cr3t-pw@127.0.0.1:5999/shop";
+    const leaky = { domains: [{ ...CARD.domains[0]!, items: [{ ...CARD.domains[0]!.items[0]!, summary: `Read with ${secret}.` }] }, CARD.domains[1]!], unassigned: [...CARD.unassigned, "s3cr3t-pw"] };
     const { outcome, server } = await cartography([{ body: toolCalls(MODEL, [submit(leaky)]) }, { body: toolCalls(MODEL, [submit(CARD, "c2")]) }, { body: answer(MODEL, "Done.") }]);
     assert.match(messages(outcome), /The card was refused: \/domains\/0\/items\/0\/summary holds a secret of the configuration; write it without the secret\./);
     assert.ok(outcome.card);
-    assert.ok(!readFileSync(outcome.cardPath!, "utf8").includes(secret) && !messages(outcome).includes(secret));
-    assert.ok(!JSON.stringify(server.requests[1]!.body).split("tool_call_id").slice(1).some((part) => part.includes(secret)), "the refusal does not repeat the secret");
+    for (const trace of [readFileSync(outcome.cardPath!, "utf8"), messages(outcome)]) assert.ok(!trace.includes("s3cr3t-pw"));
+    assert.match(messages(outcome), /\[secret\] is not an element of shop-db/);
+    assert.ok(!JSON.stringify(server.requests[1]!.body).split("tool_call_id").slice(1).some((part) => part.includes("s3cr3t-pw")), "the refusal does not repeat the secret");
+    assert.ok(outcome.journal.filter((entry) => entry.message.startsWith("The card was")).every((entry) => entry.source === "shop-db"));
   });
 });
 
 describe("how mapSources runs the tasks", () => {
-  it("runs one task at a time when the number asked is not a whole number above zero, and throws a failure once every source ran", async () => {
+  it("runs one task at a time when the number asked is not a whole number above zero, in the order of the configuration", async () => {
     const root = mkdtempSync(join(workspace, "repo-"));
     for (const name of ["a.md", "b.md"]) writeFileSync(join(root, name), "No heading.\n");
     const unused: AgentRuntime = { openSession: () => Promise.reject(new Error("no session expected")), close: async () => undefined };
     const documents = ["a", "b"].map((id): Knowledge => ({ id, type: "document", path: `${id}.md`, attachments: [{ application: "shop" }] }));
     const config = { ...configFor("http://127.0.0.1:1"), knowledge: documents };
-    const run = (concurrency: number) => mapSources({ config, environment: "local", repositoryRoot: root, env: {}, runtime: unused, concurrency });
-    for (const concurrency of [Number.NaN, 0, -2, 1.5]) assert.deepEqual((await run(concurrency)).map(({ source }) => source.id), ["a", "b"]);
-    rmSync(join(root, ".oqas", "index", "sources"), { recursive: true });
-    writeFileSync(join(root, ".oqas", "index", "sources"), "not a folder");
-    await assert.rejects(run(2), /EEXIST|ENOTDIR/);
+    const run = (concurrency?: number) => mapSources({ config, environment: "local", repositoryRoot: root, env: {}, runtime: unused, ...(concurrency === undefined ? {} : { concurrency }) });
+    for (const concurrency of [Number.NaN, 0, -2, 1.5, 2]) assert.deepEqual((await run(concurrency)).map(({ source }) => source.id), ["a", "b"]);
+  });
+
+  it("maps every other source before it throws the failure of one", async () => {
+    const root = mkdtempSync(join(workspace, "repo-"));
+    for (const name of ["a.md", "b.md"]) writeFileSync(join(root, name), "No heading.\n");
+    mkdirSync(join(root, ".oqas", "index", "sources", "a.json"), { recursive: true });
+    const unused: AgentRuntime = { openSession: () => Promise.reject(new Error("no session expected")), close: async () => undefined };
+    const documents = ["a", "b"].map((id): Knowledge => ({ id, type: "document", path: `${id}.md`, attachments: [{ application: "shop" }] }));
+    await assert.rejects(mapSources({ config: { ...configFor("http://127.0.0.1:1"), knowledge: documents }, environment: "local", repositoryRoot: root, env: {}, runtime: unused }), /EISDIR/);
+    assert.ok(existsSync(join(root, ".oqas", "index", "sources", "b.json")));
+  });
+});
+
+describe("what no index is made of", () => {
+  it("writes no index when the cards hold no element, without consolidating", async () => {
+    const root = mkdtempSync(join(workspace, "repo-"));
+    writeFileSync(join(root, "notes.md"), "No heading.\n");
+    const unused: AgentRuntime = { openSession: () => Promise.reject(new Error("no session expected")), close: async () => undefined };
+    const config = { ...configFor("http://127.0.0.1:1"), knowledge: [{ id: "notes", type: "document", path: "notes.md", attachments: [{ application: "shop" }] } as Knowledge] };
+    const outcome = await new Cartographer({ config, environment: "local", repositoryRoot: root, env: {}, runtime: unused }).run();
+    assert.equal(outcome.index, undefined);
+    assert.match(outcome.journal.map((entry) => entry.message).join("\n"), /No index was written: the cards hold no element\./);
+  });
+
+  it("truncates the card of source code too large to be read whole", async () => {
+    const root = mkdtempSync(join(workspace, "repo-"));
+    mkdirSync(join(root, "code"));
+    for (let i = 0; i <= MAX_SCANNED_FILES; i++) writeFileSync(join(root, "code", `f${i}.txt`), "");
+    const { outcome } = await cartography([], { source: { id: "big", type: "source-code", path: "code", commands: "none", attachments: [{ application: "shop" }] }, root });
+    assert.equal(outcome.card?.status, "truncated");
+    assert.match(messages(outcome), /The source big is too large to be read whole; its card is truncated\./);
   });
 });
