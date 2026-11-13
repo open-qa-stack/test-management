@@ -18,14 +18,17 @@ describe("the name of an element that starts with the name of its source", () =>
     assert.deepEqual(index.errors.map((error) => error.message), ["/domains/0/description holds a secret of the configuration; write it without the secret."]);
   });
 
-  it("is not searched for a secret, since the source gave it; what the agent wrote is", () => {
-    const inventory = { items: ["admin-hunter2"], facts: new Map(), fingerprint: fingerprintOf("") };
-    const item = (summary: string) => ({ domains: [{ id: "all", label: "All", description: "All.", items: [{ name: "admin-hunter2", summary }] }], unassigned: [] });
-    assert.deepEqual(cardRules("app", () => inventory, ["hunter2"]).check(item("Admins.")).errors, []);
-    assert.deepEqual(cardRules("app", () => inventory, ["hunter2"]).check(item("Uses hunter2.")).errors.map((e) => e.path), ["/domains/0/items/0/summary"]);
-    const index = (source: string, items: string[]) => domainIndexRules(new Map([["app", ["admin-hunter2"]]]), new Set(["app"]), () => true, ["hunter2"]).check({ domains: [{ id: "all", label: "All", description: "All.", references: [{ source, items }] }], unassigned: [] });
-    assert.deepEqual(index("app", ["admin-hunter2"]).errors, []);
-    assert.deepEqual(index("hunter2", ["x"]).errors.map((e) => e.path)[0], "/domains/0/references/0/source");
-    assert.ok(index("app", ["admin-hunter2", "hunter2-x"]).errors.some((e) => e.path === "/domains/0/references/0/items/1"));
+  it("does not hide a secret the names of the source show, and hides the others", () => {
+    const inventory = { items: ["com/lakesidemutual/domain"], facts: new Map(), fingerprint: fingerprintOf("") };
+    const card = (summary: string, name = "com/lakesidemutual/domain") => ({ domains: [{ id: "all", label: "All", description: "All.", items: [{ name, summary }] }], unassigned: [] });
+    const rules = cardRules("app", () => inventory, ["lakeside", "hunter2"]);
+    assert.deepEqual(rules.check(card("The lakeside domain.")).errors, []);
+    assert.deepEqual(rules.secrets(), ["hunter2"]);
+    assert.deepEqual(rules.check(card("Uses hunter2.")).errors.map((e) => e.path), ["/domains/0/items/0/summary"]);
+    const index = domainIndexRules(new Map([["app", ["com/lakesidemutual/domain"]]]), new Set(["app"]), () => true, ["lakeside", "hunter2"]);
+    assert.deepEqual(index.secrets(), ["hunter2"]);
+    const references = (items: string[]) => ({ domains: [{ id: "all", label: "All", description: "All.", references: [{ source: "app", items }] }], unassigned: [] });
+    assert.deepEqual(index.check(references(["com/lakesidemutual/domain"])).errors, []);
+    assert.ok(index.check(references(["com/lakesidemutual/domain", "hunter2-x"])).errors.some((e) => e.path === "/domains/0/references/0/items/1" && e.message.includes("holds a secret")));
   });
 });

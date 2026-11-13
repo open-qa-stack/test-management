@@ -47,3 +47,16 @@ function connectionPasswords(connection: string): string[] {
 export function secretErrors(value: unknown, secrets: readonly string[]): IndexError[] {
   return secretPaths(value, secrets.flatMap(secretForms)).map((path) => ({ path, message: `${path} holds a secret of the configuration; write it without the secret.` }));
 }
+
+/**
+ * The secrets the agent must not see written: those of the configuration that no name given by the sources
+ * holds. A secret the source shows itself — a password that is also a word of its tables or folders, as
+ * `shop` in `shop_orders` — was given to the agent with those names, and masking it would garble them.
+ *
+ * @param secrets - The secrets of the configuration.
+ * @param names - The names the harness gave the agent: sources and their elements.
+ * @returns The secrets none of the names holds, in any form.
+ */
+export function hiddenSecrets(secrets: readonly string[], names: readonly string[]): string[] {
+  return secrets.filter((secret) => !secretForms(secret).some((form) => names.some((name) => name.includes(form))));
+}
