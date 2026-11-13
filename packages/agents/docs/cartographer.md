@@ -19,7 +19,7 @@ It works in two steps: each source is first mapped on its own into a [source car
 | Source | Elements | Facts read by the harness | Also in the request |
 |---|---|---|---|
 | Contract | Its tags, and the first path segment of each operation without tag | The operations of each, as `METHOD /path` | |
-| Base | Its tables, as `schema.table`, read from the catalog only | Number of columns, primary key, foreign keys | Its columns, each with its type |
+| Base | Its tables, as `schema.table`, read from the catalog only | Number of columns, primary key, foreign keys | Its columns, each with its type and whether it may be null |
 | Document | Its sections of the two highest levels; a repeated title is followed by its number, as `Overview (§7)` | Number and level | The start of its text, up to 300 characters |
 | Source code | The folders that hold files a grammar reads; past forty, the deepest are merged into their parent | Number of files, routes their outlines declare | |
 | User interface | The screens the agent visited, by path, with the route after `#/` and without the query | Latest title, links to other screens its snapshots showed | |
@@ -47,7 +47,7 @@ A line holds its date (`at`), its phase, the source when there is one, its actor
 | `consolidation` | The search for the domains, from the cards. |
 | `index` | Writing the index. |
 
-Each phase has a `started` and a `finished` line from the `harness`, once for the whole run and once per source in `card`; `finished` gives its outcome, `done`, `kept`, `truncated` or `failed`, even when the run throws. In between, the harness writes `survey`, `inventory`, `journal` and `message` lines (each message sent to an agent: the request, then the reminders), and, just before each `finished`, a `usage` line: the `requests` the phase, or the card of the source, sent to the model, and the `inputTokens` and `outputTokens` when the model reported them; the line of the `card` phase as a whole adds up those of the sources. Each agent its session as it reported it: `reasoning` when the model gives it, `text`, `tool-call` with its arguments, `tool-result`, `tool-error`, then `end`, `stopped` or `error`.
+Each phase has a `started` and a `finished` line from the `harness`, once for the whole run and once per source in `card`; `finished` gives its outcome, `done`, `kept`, `truncated` or `failed`, even when the run throws. In between, the harness writes `survey`, `inventory`, `journal` and `message` lines (each message sent to an agent: the request, then the reminders), and, just before each `finished` unless the run throws, a `usage` line: the `requests` the phase, or the card of the source, sent to the model, and the `inputTokens` and `outputTokens` when the model reported them; the line of the `card` phase as a whole adds up those of the sources. Each agent its session as it reported it: `reasoning` when the model gives it, `text`, `tool-call` with its arguments, `tool-result`, `tool-error`, then `end`, `stopped` or `error`.
 
 The connection strings and the key of the model are masked in every line, in every form a tool could give them, and a string longer than 10 000 characters is cut, with the number of characters left out.
 
