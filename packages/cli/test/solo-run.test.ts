@@ -61,7 +61,7 @@ function repository(config: string | undefined): string {
   writeFileSync(join(root, "node_modules", "@playwright", "test", "package.json"), JSON.stringify({ name: "@playwright/test", version: "1.64.1", types: "index.d.ts" }));
   writeFileSync(
     join(root, "node_modules", "@playwright", "test", "index.d.ts"),
-    "export interface APIResponse { ok(): boolean; }\nexport interface APIRequestContext { get(url: string): Promise<APIResponse>; }\nexport declare const test: ((title: string, body: (fixtures: { request: APIRequestContext }) => Promise<void>) => void) & { step<T>(title: string, body: () => Promise<T>): Promise<T> };\nexport declare function expect(value: unknown, message?: string): { toBe(expected: unknown): void };\n",
+    "export interface APIResponse { ok(): boolean; text(): Promise<string>; }\nexport interface APIRequestContext { get(url: string): Promise<APIResponse>; }\nexport declare const test: ((title: string, body: (fixtures: { request: APIRequestContext }) => Promise<void>) => void) & { step<T>(title: string, body: () => Promise<T>): Promise<T> };\nexport declare function expect(value: unknown, message?: string): { toBe(expected: unknown): void; toContain(expected: string): void };\n",
   );
   if (config !== undefined) writeFileSync(join(root, "oqas.json"), config);
   git(root, "add", "-A");
@@ -148,7 +148,7 @@ const isFinalRun = (command: StepCommand) => command.command[1] === "test" && !c
 const submit = (name: string, args: unknown, id: string) => ({ id, name, arguments: args });
 const card = { domains: [{ id: "orders", label: "Orders", description: "Placing an order.", items: [{ name: "Orders", summary: "How an order is placed." }] }], unassigned: [] };
 const index = { domains: [{ id: "orders", label: "Orders", description: "Placing and following an order.", references: [{ source: "order-specs", items: ["Orders"] }] }], unassigned: [] };
-const spec = (title: string) => `import { test, expect } from "@playwright/test";\n\ntest("${title}", async ({ request }) => {\n  await test.step("1. Get the orders", async () => {\n    const response = await request.get("/orders");\n    expect(response.ok(), "A customer places an order").toBe(true);\n  });\n});\n`;
+const spec = (title: string) => `import { test, expect } from "@playwright/test";\n\ntest("${title}", async ({ request }) => {\n  await test.step("1. Get the orders", async () => {\n    const response = await request.get("/orders");\n    expect(await response.text()).toContain("A customer places an order");\n  });\n});\n`;
 const IDS = ["test-1", "test-2", "test-3"];
 const scenario = (id: string) => ({
   id,

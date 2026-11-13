@@ -23,11 +23,13 @@ describe("the outline of a test", () => {
     ]);
   });
 
-  it("reads each expect statement, awaited or not, with the strings of its subject and of its matcher, and whether it is negative", async () => {
+  it("reads each expect statement, awaited or not, with the strings of its subject, without its message, and of its matcher, and whether it is negative or chains .or", async () => {
     const outline = await outlineOf(
       [
         `await expect(page.getByRole("row", { name: "ORD-1" })).toContainText('Ada');`,
         `await expect(total, "the total").toHaveValue("12");`,
+        `await expect(page.getByText("Ada").or(page.getByText("None")), "a name").toBeVisible();`,
+        `expect().toBeTruthy();`,
         `expect.soft(page.getByRole("status")).not.toHaveText(/done/);`,
         `await expect(page.getByText(\`Saved\`)).toBeHidden();`,
         `await expect(page.getByText("Gone")).not.toBeHidden();`,
@@ -40,12 +42,14 @@ describe("the outline of a test", () => {
         `await done;`,
       ].join("\n"),
     );
-    const read = (located: string[], subject: string[], expected: string[], matcher: string, negative: boolean) => ({ located, subject, expected, matcher, negative });
+    const read = (located: string[], subject: string[], expected: string[], matcher: string, negative: boolean, alternative = false) => ({ located, subject, expected, matcher, negative, alternative });
     assert.deepEqual(
-      outline.assertions.map(({ located, subject, expected, matcher, negative }) => ({ located, subject, expected, matcher, negative })),
+      outline.assertions.map(({ located, subject, expected, matcher, negative, alternative }) => ({ located, subject, expected, matcher, negative, alternative })),
       [
         read(["ORD-1"], ["row", "ORD-1"], ["Ada"], "toContainText", false),
-        read([], ["the total"], ["12"], "toHaveValue", false),
+        read([], [], ["12"], "toHaveValue", false),
+        read(["Ada", "None"], ["Ada", "None"], [], "toBeVisible", false, true),
+        read([], [], [], "toBeTruthy", false),
         read([], ["status"], [], "toHaveText", true),
         read(["Saved"], ["Saved"], [], "toBeHidden", true),
         read(["Gone"], ["Gone"], [], "toBeHidden", false),

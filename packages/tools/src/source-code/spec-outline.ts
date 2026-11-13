@@ -43,8 +43,10 @@ export interface SpecAssertion {
   readonly start: number;
   /** The texts the locators of its subject look for. */
   readonly located: readonly string[];
-  /** Every string of its subject, the arguments of `expect`: those of its locators, and its message. */
+  /** Every string of its subject, the first argument of `expect`, such as the name of a locator; its message is left out. */
   readonly subject: readonly string[];
+  /** Whether its subject chains `.or(…)`: it then holds when either element does. */
+  readonly alternative: boolean;
   /** Every string its matcher is given, such as the text of `toContainText`. */
   readonly expected: readonly string[];
   /** The name of its matcher, such as `toBeVisible`. */
@@ -136,9 +138,10 @@ function assertionOf(statement: Node): SpecAssertion[] {
   const subject = chain.type === "call_expression" ? expectCall(chain.childForFieldName("function")!) : undefined;
   const matcher = chain.type === "call_expression" ? methodOf(chain) : undefined;
   if (subject === undefined || matcher === undefined) return [];
-  const subjectArgs = subject.childForFieldName("arguments")!;
+  const target = subject.childForFieldName("arguments")!.namedChildren[0];
   const matcherArgs = chain.childForFieldName("arguments")!;
-  const located = subjectArgs.descendantsOfType("call_expression").flatMap((call) => locatorOf(call!).flatMap((locator) => (locator.text === undefined ? [] : [locator.text])));
+  const calls = target?.descendantsOfType("call_expression").map((call) => call!) ?? [];
+  const located = calls.flatMap((call) => locatorOf(call).flatMap((locator) => (locator.text === undefined ? [] : [locator.text])));
   const first = matcherArgs.namedChildren[0];
   const hidden = matcher.text === "toBeHidden" || (matcher.text === "toHaveCount" && first?.type === "number" && Number(first.text) === 0);
   return [
@@ -147,7 +150,8 @@ function assertionOf(statement: Node): SpecAssertion[] {
       line: statement.startPosition.row + 1,
       start: statement.startIndex,
       located,
-      subject: strings(subjectArgs),
+      subject: target ? strings(target) : [],
+      alternative: calls.some((call) => methodOf(call)?.text === "or"),
       expected: strings(matcherArgs),
       matcher: matcher.text,
       negative: negated(chain.childForFieldName("function")!) !== hidden,

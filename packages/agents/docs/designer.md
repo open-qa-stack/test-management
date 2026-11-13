@@ -120,7 +120,7 @@ The skeleton parses and keeps the default charter and the gates below as it is: 
 | 2 | `TEST-SECRET` | The test holds the value of a variable the configuration names; a test that signs in reads its account with `process.env`. |
 | 3 | `TEST-ONE` | The file does not hold exactly one `test(…)`. |
 | 3 | `TEST-STEPS` | The `test.step` calls that no other step holds are not one per step of the plan, in its order, each titled by its number, a dot and a space, such as `2. Search the orders of Veldane`; the rest of a title is free. |
-| 3 | `TEST-VALUE` | A text an expect of step `n` names, in `shows` or `absent`, is observed in no string of an `expect` statement of the step `n` of the test: neither in its subject, such as the name of a locator, nor in what its matcher is given. |
+| 3 | `TEST-VALUE` | A text an expect of step `n` names, in `shows` or `absent`, is observed in no string of an `expect` statement of the step `n` of the test: neither in its subject, the first argument of `expect`, such as the name of a locator, nor in what its matcher is given. The message of an `expect` holds no text, nor does a statement whose subject chains `.or(…)`, which may pass on the other element. |
 | 3 | `TEST-POLARITY` | A text the screen `shows` is held only by negative statements — `.not`, `toBeHidden`, `toHaveCount(0)` — or a text it no longer shows only by affirmative ones. |
 | 3 | `TEST-TAUT` | A text matcher — `toHaveText`, `toContainText`, `toHaveValue` — expects a text that the locator of its own subject finds the element by: it can only pass. |
 | 3 | `TEST-TYPED` | A string given to `fill`, `type`, `pressSequentially` or `selectOption` is neither empty, nor a value of the data of the scenario, nor a part of one of three characters or more. |

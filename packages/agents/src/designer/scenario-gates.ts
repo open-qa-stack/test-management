@@ -17,8 +17,8 @@ export interface ScenarioHelp {
 
 /**
  * What the gates refuse in a test against the scenario it carries out: not exactly one test, steps that are
- * not those of the plan, in its order, a text of an expect asserted in no `expect` of its step or asserted
- * the other way round, an assertion that can only pass, and a value typed that is none of the data.
+ * not those of the plan, in its order, a text of an expect asserted in no `expect` of its step — its
+ * message aside, and an `expect` on `.or(…)` holding none — or asserted the other way round, an assertion that can only pass, and a value typed that is none of the data.
  *
  * @param outline - The outline of the test.
  * @param scenario - The scenario of the plan.
@@ -28,7 +28,7 @@ export interface ScenarioHelp {
  */
 export function scenarioErrors(outline: SpecOutline, scenario: PlannedScenario, help: ScenarioHelp): Refusal[] {
   const refusals: Refusal[] = [];
-    if (outline.tests !== 1) refusals.push({ code: "TEST-ONE", message: `the file must hold exactly one test, that of scenario ${scenario.id}.`, remedy: help.skeleton });
+  if (outline.tests !== 1) refusals.push({ code: "TEST-ONE", message: `the file must hold exactly one test, that of scenario ${scenario.id}.`, remedy: help.skeleton });
   const titles = outline.steps.map((step) => step.title ?? "");
   if (titles.length !== scenario.steps.length || titles.some((title, at) => !title.startsWith(`${at + 1}. `))) {
     const found = titles.length === 0 ? "none" : titles.map((title) => JSON.stringify(title)).join(", ");
@@ -41,7 +41,8 @@ export function scenarioErrors(outline: SpecOutline, scenario: PlannedScenario, 
     step.expects.forEach((expect, k) => {
       const texts = [...expect.shows.map((text) => ({ text, negative: false })), ...expect.absent.map((text) => ({ text, negative: true }))].filter(({ text }) => checkable(text));
       for (const { text, negative } of texts) {
-        const holding = asserted.filter((assertion) => observed(text, [...assertion.subject, ...assertion.expected]));
+        // An assertion on either of two elements may pass on the one that does not hold the text.
+        const holding = asserted.filter((assertion) => !assertion.alternative && observed(text, [...assertion.subject, ...assertion.expected]));
         const remedy = `In step ${number}: ${assertionOf(text, negative, help.locatorOf(text))}`;
         if (holding.length === 0) {
           refusals.push({ code: "TEST-VALUE", message: `step ${number} must assert "${text}": expect ${number}.${k + 1} of the plan names it (${expect.result}). No await expect of that step holds it. An expected text is never changed or dropped; when the application shows something else, keep the assertion and call ${PROPOSE_TOOL} with diagnosis.`, remedy });

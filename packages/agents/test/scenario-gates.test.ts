@@ -73,6 +73,13 @@ describe("the gates of a test against its scenario", () => {
     assert.deepEqual((await errors(spec([FILLED[0]!, `    await expect(page.getByRole("row", { name: "ORD-10" })).toBeVisible();`, FILLED[2]!]))).map((error) => error.split(":")[0]), ["TEST-VALUE"]);
   });
 
+  it("refuse a planned text held only by the message of an expect, or by one element of an .or", async () => {
+    const messages = spec([FILLED[0]!, `    await expect(page.getByRole("table"), "ORD-1042").toBeVisible();`, `    await expect(page.getByRole("table"), "ORD-1057").not.toBeVisible();`]);
+    assert.deepEqual((await errors(messages)).map((error) => error.split(":")[0]), ["TEST-VALUE", "TEST-VALUE"]);
+    const either = spec([FILLED[0]!, `    await expect(page.getByText("ORD-1042").or(page.getByText("No orders"))).toBeVisible();`, FILLED[2]!]);
+    assert.deepEqual((await errors(either)).map((error) => error.split(":")[0]), ["TEST-VALUE"]);
+  });
+
   it("refuse a text asserted only the other way round", async () => {
     const reversed = spec([`    await expect(page.getByText("ORD-1042")).toBeHidden();`, `    await expect(page.getByText("ORD-1042")).not.toBeVisible();`, `    await expect(page.getByRole("row", { name: "ORD-1057" })).toBeVisible();`, `    await expect(page.getByRole("row", { name: "ORD-1057" })).not.toHaveCount(0);`]);
     assert.deepEqual(await errors(reversed), [
