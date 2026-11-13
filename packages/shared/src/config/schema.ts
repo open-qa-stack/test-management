@@ -3,6 +3,9 @@ export const ENV_VAR_PATTERN = "^[A-Z_][A-Z0-9_]*$";
 /** Pattern of identifiers: lower case letters and digits separated by hyphens. */
 export const SLUG_PATTERN = "^[a-z0-9]+(-[a-z0-9]+)*$";
 
+/** Pattern of test charter rule identifiers: upper case words and digits separated by hyphens, such as `PW-WAIT-01`. */
+export const CHARTER_RULE_ID_PATTERN = "^[A-Z]+(-[A-Z0-9]+)+$";
+
 const envVar = {
   type: "string",
   pattern: ENV_VAR_PATTERN,
@@ -22,6 +25,10 @@ const folderPath = {
   minLength: 1,
   description: "Path relative to the test repository root; it may lead outside, to code kept in another repository.",
 } as const;
+const charterRuleId = { type: "string", pattern: CHARTER_RULE_ID_PATTERN } as const;
+/** Pattern of container names, as Podman and Docker accept them. */
+export const CONTAINER_NAME_PATTERN = "^[A-Za-z0-9][A-Za-z0-9_.-]*$";
+
 const positiveInteger = { type: "integer", minimum: 1 } as const;
 
 const attachment = {
@@ -56,6 +63,7 @@ export const configSchema = {
     applications: { type: "array", minItems: 1, items: { $ref: "#/$defs/application" } },
     knowledge: { type: "array", items: { $ref: "#/$defs/knowledge" } },
     repository: { $ref: "#/$defs/repository" },
+    charter: { $ref: "#/$defs/charter" },
     model: { $ref: "#/$defs/model" },
     autonomy: { $ref: "#/$defs/autonomy" },
   },
@@ -144,6 +152,22 @@ export const configSchema = {
             },
           },
         },
+        {
+          type: "object",
+          additionalProperties: false,
+          required: ["id", "type", "attachments"],
+          properties: {
+            ...knowledgeCommon,
+            type: { const: "logs" },
+            path: { ...folderPath, description: "Log file, relative to the test repository root; it may lead outside." },
+            container: { type: "string", pattern: CONTAINER_NAME_PATTERN, description: "Name of the container whose logs are read." },
+            engine: { enum: ["podman", "docker"], description: "Container engine whose command reads the logs of the container." },
+          },
+          oneOf: [
+            { required: ["path"], not: { anyOf: [{ required: ["container"] }, { required: ["engine"] }] } },
+            { required: ["container", "engine"], not: { required: ["path"] } },
+          ],
+        },
       ],
     },
     repository: {
@@ -155,6 +179,31 @@ export const configSchema = {
         journeysDir: relativePath,
         stateDir: relativePath,
         indexDir: relativePath,
+      },
+    },
+    charter: {
+      type: "object",
+      additionalProperties: false,
+      description: "Changes to the default test charter the designer and the reviewer apply.",
+      properties: {
+        disable: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["rule", "reason"],
+            properties: { rule: charterRuleId, reason: label },
+          },
+        },
+        add: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["id", "statement", "reason"],
+            properties: { id: charterRuleId, statement: label, reason: label },
+          },
+        },
       },
     },
     model: {

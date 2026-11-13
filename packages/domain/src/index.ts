@@ -8,4 +8,5 @@ export { ReplayMissError } from "./agent/errors/replay-miss-error.ts";
 export { SessionClosedError } from "./agent/errors/session-closed-error.ts";
 export type { StopReason, TaskCounters, TaskLimits } from "./agent/task-limits.ts";
 export type { JsonSchema, ToolDefinition } from "./agent/tool-definition.ts";
+export type { CharterFinding, CompilerFinding, FindingPosition, ProposedTest, TestCheck, TestFinding } from "./test/test-check.ts";
 export type { Verdict } from "./test/verdict.ts";

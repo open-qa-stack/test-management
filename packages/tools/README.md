@@ -9,6 +9,7 @@ The tools agents call during a session, outside the agent core. Every tool is a 
 | `src/postgresql/` | Read the catalog and the data of a PostgreSQL database, read-only and bounded. |
 | `src/document/` | Read a document of the test repository, section by section. |
 | `src/source-code/` | List, search, read and outline the source code of an application in the languages of the tree-sitter build of VS Code (C#, Java, JavaScript, TypeScript, Python, Go, Rust, PHP, Ruby, C++…), and read its git history or run commands in it, as the configuration allows. |
+| `src/logs/` | Read the lines a service logged from an instant, in a file or a container, masked and bounded. |
 | `src/common/` | What several kinds of tools share: tool names, files of the test repository. |
 
 `browserTools(applications, access)` gives the browser tools of a session; `knowledgeTools(knowledge, access)` gives the tools of the declared knowledge sources — see [docs/knowledge-tools.md](docs/knowledge-tools.md). A new kind of tool gets its own folder and is exported from `src/index.ts`.

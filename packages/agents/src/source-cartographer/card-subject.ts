@@ -1,5 +1,5 @@
 import type { AgentEvent, ToolDefinition } from "@open-qa-stack/domain";
-import type { Knowledge, ResolvedConfig } from "@open-qa-stack/shared";
+import type { MappedKnowledge, ResolvedConfig } from "@open-qa-stack/shared";
 import { browserTools, knowledgeInventory, knowledgeTools, scopedToolName, type BrowserAccess, type KnowledgeAccess, type SourceInventory } from "@open-qa-stack/tools";
 import { surveySource } from "../cartographer/source-survey.ts";
 import { interfaceCardRequest, sourceCardRequest } from "./source-cartographer-prompt.ts";
@@ -16,7 +16,7 @@ export interface InterfaceSource {
 }
 
 /** A source a card is made of: a knowledge source, or the user interface of an application. */
-export type CardSource = Knowledge | InterfaceSource;
+export type CardSource = MappedKnowledge | InterfaceSource;
 
 /** What the cartographer of a source works on: the tools of the source, and what the card must place. */
 export interface CardSubject {
@@ -41,7 +41,7 @@ export interface CardSubject {
  * @returns Its tools — the catalog of a base, never its rows — and its inventory.
  * @throws Error when the source does not answer.
  */
-export async function knowledgeSubject(source: Knowledge, access: KnowledgeAccess, read?: SourceInventory): Promise<CardSubject> {
+export async function knowledgeSubject(source: MappedKnowledge, access: KnowledgeAccess, read?: SourceInventory): Promise<CardSubject> {
   const inventory = read ?? (await knowledgeInventory(source, access));
   const tools = knowledgeTools([source], access).filter((tool) => !(source.type === "postgresql" && DATA_TOOLS.some((action) => tool.name === scopedToolName(source.id, action))));
   return { fingerprint: inventory.fingerprint, tools, request: sourceCardRequest(source.id, source.type, inventory), inventory: () => inventory, close: async () => undefined };

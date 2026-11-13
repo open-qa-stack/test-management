@@ -1,6 +1,7 @@
 import { posix } from "node:path";
 import { Ajv2020, type ErrorObject } from "ajv/dist/2020.js";
 import { resolveLimits } from "./autonomy.ts";
+import { declaredVariables } from "./declared-variables.ts";
 import { duplicateKeyPaths } from "./duplicate-keys.ts";
 import { configError as error, pointer, structureError } from "./errors.ts";
 import { STATE_DIR_NAME } from "./file-names.ts";
@@ -19,8 +20,8 @@ export const DEFAULT_REPOSITORY: Readonly<Required<Repository>> = Object.freeze(
   indexDir: `${STATE_DIR_NAME}/index`,
 });
 
-// `strictRequired` is relaxed because the OpenAPI source alternatives require keys that only their
-// enclosing branch defines.
+// `strictRequired` is relaxed because the alternatives of the OpenAPI and log sources require keys that
+// only their enclosing branch defines.
 const ajv = new Ajv2020({ allErrors: true, strict: true, strictRequired: false, discriminator: true });
 const validateShape = ajv.compile<OqasConfig>(configSchema);
 
@@ -72,6 +73,7 @@ export function validateConfig(content: string, env: EnvironmentVariables): Vali
       applications: data.applications,
       knowledge: data.knowledge,
       repository: { ...DEFAULT_REPOSITORY, ...data.repository },
+      charter: { disable: data.charter?.disable ?? [], add: data.charter?.add ?? [] },
       model: data.model,
       autonomy: { level: data.autonomy.level, limits: resolveLimits(data.autonomy) },
     },
@@ -128,8 +130,15 @@ function documentErrors(config: OqasConfig): ConfigError[] {
 
     if (item.type === "openapi" && item.url !== undefined) errors.push(...urlErrors(pointer(itemPath, "url"), item.url));
     if (item.type !== "postgresql" && item.path !== undefined) {
-      errors.push(...pathErrors(pointer(itemPath, "path"), item.path, item.type === "source-code"));
+      errors.push(...pathErrors(pointer(itemPath, "path"), item.path, item.type === "source-code" || item.type === "logs"));
     }
+  });
+
+  (config.charter?.disable ?? []).forEach((item, i, all) => {
+    if (all.findIndex((other) => other.rule === item.rule) < i) duplicate(pointer(pointer("/charter/disable", i), "rule"), "disabled rule");
+  });
+  (config.charter?.add ?? []).forEach((item, i, all) => {
+    if (all.findIndex((other) => other.id === item.id) < i) duplicate(pointer(pointer("/charter/add", i), "id"), "added rule");
   });
 
   for (const [key, value] of Object.entries(config.repository ?? {})) {
@@ -190,19 +199,7 @@ function pathErrors(path: string, value: string, mayLeaveRoot = false): ConfigEr
 }
 
 function environmentErrors(config: OqasConfig, env: EnvironmentVariables): ConfigError[] {
-  const references: Array<[string, string]> = [];
-  config.applications.forEach((app, i) => {
-    (app.authentication.accounts ?? []).forEach((account, j) => {
-      const base = pointer(pointer(pointer(pointer("/applications", i), "authentication"), "accounts"), j);
-      references.push([pointer(base, "usernameEnv"), account.usernameEnv], [pointer(base, "passwordEnv"), account.passwordEnv]);
-    });
-  });
-  config.knowledge.forEach((item, i) => {
-    if (item.type === "postgresql") references.push([pointer(pointer("/knowledge", i), "connectionStringEnv"), item.connectionStringEnv]);
-  });
-  if (config.model.apiKeyEnv !== undefined) references.push(["/model/apiKeyEnv", config.model.apiKeyEnv]);
-
-  return references
-    .filter(([, name]) => env[name] === undefined || env[name] === "")
-    .map(([path, name]) => error("environment", path, "env-var-missing", `Environment variable ${name} is not set.`));
+  return declaredVariables(config)
+    .filter(({ name }) => env[name] === undefined || env[name] === "")
+    .map(({ path, name }) => error("environment", path, "env-var-missing", `Environment variable ${name} is not set.`));
 }

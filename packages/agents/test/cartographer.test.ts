@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { CopilotAgentRuntime, ModelGateway } from "@open-qa-stack/harness";
-import { validateConfig, validateDomainIndex, type DomainIndexSubmission, type ResolvedConfig, type SourceCard, type SourceCardSubmission } from "@open-qa-stack/shared";
+import { validateConfig, validateDomainIndex, type DomainIndexSubmission, type MappedKnowledge, type ResolvedConfig, type SourceCard, type SourceCardSubmission } from "@open-qa-stack/shared";
 import { answer, closedPort, scriptedServer, testSite, toolCalls, type ScriptedServer, type TestSite } from "@open-qa-stack/testing";
 import { fingerprintOf, knowledgeInventory, type SqlClient } from "@open-qa-stack/tools";
 import { Cartographer, INDEX_FILE_NAME, MAX_TRACED_LENGTH, type CartographyOutcome, type TraceLine } from "../src/index.ts";
@@ -144,7 +144,7 @@ function cardSubmission(id: string, elements: readonly string[] = ELEMENTS[id]!)
 async function writeCards(root: string, config: ResolvedConfig, database: SqlClient, ids: readonly string[]): Promise<void> {
   mkdirSync(join(root, ".oqas", "index", "sources"), { recursive: true });
   for (const id of ids) {
-    const knowledge = config.knowledge.find((source) => source.id === id);
+    const knowledge = config.knowledge.find((source): source is MappedKnowledge => source.id === id && source.type !== "logs");
     const fingerprint = knowledge === undefined ? fingerprintOf(config.applications[0]!.environments[0]!.uiUrl!) : (await knowledgeInventory(knowledge, { repositoryRoot: root, env: { SHOP_DB_URL: DB_URL }, sqlClient: () => database })).fingerprint;
     const card: SourceCard = {
       formatVersion: 1,

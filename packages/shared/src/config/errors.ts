@@ -1,5 +1,5 @@
 import type { ErrorObject } from "ajv/dist/2020.js";
-import { ENV_VAR_PATTERN } from "./schema.ts";
+import { CHARTER_RULE_ID_PATTERN, configSchema, CONTAINER_NAME_PATTERN, ENV_VAR_PATTERN, SLUG_PATTERN } from "./schema.ts";
 import type { ConfigError } from "./types.ts";
 
 /**
@@ -34,6 +34,28 @@ const BY_KEYWORD: Readonly<Record<string, readonly [rule: string, message: strin
   minimum: ["below-minimum", "Value below the minimum."],
 };
 
+const BY_PATTERN: Readonly<Record<string, readonly [rule: string, message: string]>> = {
+  [ENV_VAR_PATTERN]: ["env-var-name", "Expected the name of an environment variable (upper case letters, digits and underscores)."],
+  [SLUG_PATTERN]: ["slug", "Expected lower case letters and digits separated by hyphens."],
+  [CHARTER_RULE_ID_PATTERN]: ["charter-rule-id", "Expected upper case words and digits separated by hyphens."],
+  [CONTAINER_NAME_PATTERN]: ["container-name", "Expected a container name: letters, digits, underscores, dots and hyphens, starting with a letter or a digit."],
+};
+
+/** The knowledge sources whose keys are alternatives, and what their error says. */
+const SOURCE_ALTERNATIVES: Readonly<Record<string, readonly [rule: string, message: string]>> = {
+  openapi: ["openapi-source", 'Declare exactly one of "url" or "path".'],
+  logs: ["logs-source", 'Declare either "path", or "container" and "engine".'],
+};
+
+/**
+ * The type of the knowledge source whose alternatives an Ajv schema path designates: `#/oneOf/0/oneOf`, relative to
+ * the definition of knowledge sources, is the first type.
+ */
+function sourceTypeOf(schemaPath: string): string {
+  const branch = Number(/^#\/oneOf\/(\d+)\/oneOf$/.exec(schemaPath)![1]);
+  return configSchema.$defs.knowledge.oneOf[branch]!.properties.type.const;
+}
+
 /**
  * Translates an Ajv error into a configuration error.
  *
@@ -59,17 +81,14 @@ export function structureError(e: ErrorObject): ConfigError {
     // `formatVersion` is the only `const` checked on its own: the others are discriminator tags.
     case "const":
       return configError("structure", e.instancePath, "format-version", "Unsupported format version; expected 1.");
-    case "pattern":
-      return params["pattern"] === ENV_VAR_PATTERN
-        ? configError(
-            "structure",
-            e.instancePath,
-            "env-var-name",
-            "Expected the name of an environment variable (upper case letters, digits and underscores).",
-          )
-        : configError("structure", e.instancePath, "slug", "Expected lower case letters and digits separated by hyphens.");
-    case "oneOf":
-      return configError("structure", e.instancePath, "openapi-source", 'Declare exactly one of "url" or "path".');
+    case "pattern": {
+      const [rule, message] = BY_PATTERN[String(params["pattern"])]!;
+      return configError("structure", e.instancePath, rule, message);
+    }
+    case "oneOf": {
+      const [rule, message] = SOURCE_ALTERNATIVES[sourceTypeOf(e.schemaPath)]!;
+      return configError("structure", e.instancePath, rule, message);
+    }
     default: {
       const [rule, message] = BY_KEYWORD[e.keyword] ?? [e.keyword, "Invalid value."];
       return configError("structure", e.instancePath, rule, message);

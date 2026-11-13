@@ -388,6 +388,66 @@ describe("criterion 19 — the documentation examples are valid", () => {
     const result = validateVariant((c) => (c["autonomy"] = JSON.parse(custom) as JsonObject));
     assert.equal(result.ok, true, JSON.stringify(result));
   });
+
+  it("has a charter example that validates", () => {
+    const charter = blocks.find((b) => b.includes('"disable"'));
+    assert.ok(charter);
+    const result = validateVariant((c) => (c["charter"] = JSON.parse(charter) as JsonObject));
+    assert.equal(result.ok, true, JSON.stringify(result));
+  });
+});
+
+describe("test charter changes", () => {
+  const disable = (rule: string) => ({ rule, reason: "Not relevant here." });
+  const add = (id: string) => ({ id, statement: "Tag every test with its domain.", reason: "Runs select tests by domain." });
+
+  it("defaults to no change", () => {
+    const result = validateConfig(exampleText(), EXAMPLE_ENV);
+    assert.ok(result.ok);
+    assert.deepEqual(result.config.charter, { disable: [], add: [] });
+  });
+
+  it("keeps the rules the file disables and adds, in order", () => {
+    const result = validateVariant((c) => (c["charter"] = { disable: [disable("PW-WAIT-01")], add: [add("TEAM-TAG-01"), add("TEAM-TAG-02")] }));
+    assert.ok(result.ok);
+    assert.deepEqual(result.config.charter, { disable: [disable("PW-WAIT-01")], add: [add("TEAM-TAG-01"), add("TEAM-TAG-02")] });
+  });
+
+  it("refuses an identifier that is not upper case words separated by hyphens", () => {
+    const errors = errorsOf(validateVariant((c) => (c["charter"] = { disable: [disable("pw-wait-01")], add: [add("TAG")] })));
+    assert.deepEqual(
+      errors.map((e) => [e.path, e.rule]),
+      [
+        ["/charter/disable/0/rule", "charter-rule-id"],
+        ["/charter/add/0/id", "charter-rule-id"],
+      ],
+    );
+  });
+
+  it("refuses a rule disabled twice and an identifier added twice", () => {
+    const errors = errorsOf(
+      validateVariant((c) => (c["charter"] = { disable: [disable("PW-WAIT-01"), disable("PW-WAIT-01")], add: [add("TEAM-TAG-01"), add("TEAM-TAG-01")] })),
+    );
+    assert.deepEqual(
+      errors.map((e) => [e.path, e.rule]),
+      [
+        ["/charter/disable/1/rule", "duplicate"],
+        ["/charter/add/1/id", "duplicate"],
+      ],
+    );
+  });
+
+  it("requires a reason for every change, and refuses any other key", () => {
+    const errors = errorsOf(validateVariant((c) => (c["charter"] = { disable: [{ rule: "PW-WAIT-01" }], add: [{ ...add("TEAM-TAG-01"), reason: "" }], enable: [] })));
+    assert.deepEqual(
+      errors.map((e) => [e.path, e.rule]).sort(),
+      [
+        ["/charter/add/0/reason", "empty-value"],
+        ["/charter/disable/0/reason", "required"],
+        ["/charter/enable", "unknown-key"],
+      ],
+    );
+  });
 });
 
 describe("other structural rules", () => {

@@ -82,8 +82,26 @@ export interface SourceCodeKnowledge extends KnowledgeBase {
   commands?: SourceCodeCommands;
 }
 
+/** A container engine whose command line reads the logs of a container. */
+export type ContainerEngine = "podman" | "docker";
+
+/**
+ * The logs of a service: a file of the workstation, or a container read by the command of its engine;
+ * exactly one of the two.
+ */
+export type LogsKnowledge = KnowledgeBase & { type: "logs" } & (
+    | { path: string; container?: never; engine?: never }
+    | { container: string; engine: ContainerEngine; path?: never }
+  );
+
 /** Something the agents may read about the applications. */
-export type Knowledge = OpenApiKnowledge | PostgresqlKnowledge | DocumentKnowledge | SourceCodeKnowledge;
+export type Knowledge = OpenApiKnowledge | PostgresqlKnowledge | DocumentKnowledge | SourceCodeKnowledge | LogsKnowledge;
+
+/**
+ * The knowledge sources a cartography maps into domains: all but logs, which tell what a service did, not
+ * what an application holds.
+ */
+export type MappedKnowledge = Exclude<Knowledge, LogsKnowledge>;
 
 /** Layout of the test repository; every folder is relative to its root. */
 export interface Repository {
@@ -92,6 +110,25 @@ export interface Repository {
   journeysDir?: string;
   stateDir?: string;
   indexDir?: string;
+}
+
+/** A rule of the default test charter the designer and the reviewer should not apply, with the reason. */
+export interface DisabledCharterRule {
+  rule: string;
+  reason: string;
+}
+
+/** A rule the designer and the reviewer apply after the default ones. */
+export interface AddedCharterRule {
+  id: string;
+  statement: string;
+  reason: string;
+}
+
+/** Changes to the default test charter. */
+export interface CharterSettings {
+  disable?: DisabledCharterRule[];
+  add?: AddedCharterRule[];
 }
 
 /** A model served by an OpenAI-compatible server, reached with a provider key. */
@@ -126,6 +163,7 @@ export interface OqasConfig {
   applications: Application[];
   knowledge: Knowledge[];
   repository?: Repository;
+  charter?: CharterSettings;
   model: Model;
   autonomy: Autonomy;
 }
@@ -144,6 +182,7 @@ export interface ResolvedConfig {
   applications: Application[];
   knowledge: Knowledge[];
   repository: Required<Repository>;
+  charter: Required<CharterSettings>;
   model: Model;
   autonomy: { level: Autonomy["level"]; limits: ResolvedLimits };
 }

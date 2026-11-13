@@ -2,9 +2,6 @@ import type { ElementHandle, Page } from "playwright-core";
 import { readFacts, sameElement, type ElementFacts } from "./element-facts.ts";
 import { locate, type Target } from "./target.ts";
 
-/** Longest wait for an element of a snapshot that is being read, in milliseconds. */
-export const ELEMENT_READ_TIMEOUT_MS = 200;
-
 /** The locator recommended for an element, or why there is none. */
 export type Recommendation =
   | { readonly kind: "unique"; readonly target: Target }
@@ -29,10 +26,10 @@ export type Recommendation =
  * @returns The recommendation.
  */
 export async function recommendTarget(page: Page, ref: string, role: string, name: string): Promise<Recommendation> {
-  const element = await page
+  const [element] = await page
     .getByRef(ref)
-    .elementHandle({ timeout: ELEMENT_READ_TIMEOUT_MS })
-    .catch(() => undefined);
+    .elementHandles()
+    .catch((): ElementHandle[] => []);
   if (element === undefined) return { kind: "changed" };
   const ownCandidates: Target[] = role === "generic" ? [] : [name === "" ? { role } : { role, name }];
   const recommendation = await element

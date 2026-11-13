@@ -6,7 +6,7 @@ It works in two steps: each source is first mapped on its own into a [source car
 
 ## A run
 
-1. **Sources.** The run reads the knowledge sources attached to the environment, or to no environment, and the user interface of each application that has one in it. It discovers nothing else.
+1. **Sources.** The run reads the knowledge sources attached to the environment, or to no environment, and the user interface of each application that has one in it. Logs are left out: they tell what a service did, not what an application holds. It discovers nothing else.
 2. **Check.** Every source must answer before any exploration: its inventory must be readable, and the address of a user interface must not answer with a server error. If one does not, the journal names it and its cause, no session starts, and no index is written. The inventory a knowledge source gives here is the one its card is made of: no knowledge source is read twice.
 3. **Cards.** Each source without an up-to-date card is mapped by `SourceCartographer`, in a task of its own, under the limits of the configured autonomy (`mapSources`, one source at a time unless `concurrency` says otherwise). A card whose fingerprint is the source's is kept without the model, unless `force` is set.
 4. **Consolidation.** A last task gets the cards, element by element, and the notes the agents kept, but none of the tools of the sources. It hands the index in with `submit_index`. A submission that breaks the schema, repeats a domain, forgets or invents an element of a card, or refers to a source without a card is refused: the journal records why, and the agent is told so it can submit again while its limits allow. The first accepted submission is kept.

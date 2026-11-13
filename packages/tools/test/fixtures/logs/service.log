@@ -1,0 +1,8 @@
+Starting the service
+2026-11-13T10:00:00.000Z  INFO 1 --- [main] o.e.policy.Application : Started Application in 4.2 seconds
+2026-11-13T10:04:59.999Z DEBUG 1 --- [exec-1] o.e.policy.PolicyController : GET /policies
+2026-11-13T10:05:00.000Z  WARN 1 --- [exec-2] o.e.policy.PolicyController : Refused policy: the end date precedes the start date
+java.lang.IllegalArgumentException: the end date precedes the start date
+	at o.e.policy.Period.<init>(Period.java:21)
+2026-11-13 11:06:00,250+01:00  INFO 1 --- [exec-3] o.e.policy.PolicyController : POST /policies created policy 7
+2026-11-13T10:07:00.000Z ERROR 1 --- [exec-4] o.e.policy.RiskClient : Risk server unreachable
