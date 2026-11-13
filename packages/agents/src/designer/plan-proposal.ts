@@ -1,38 +1,56 @@
-import type { PlanReview, TestPlan, ToolDefinition } from "@open-qa-stack/domain";
+import type { PlannedScenario, PlanReview, TestPlan, ToolDefinition } from "@open-qa-stack/domain";
+import { scopedToolName } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
+import { journalRefusals, refusalText, type Refusal } from "./refusal.ts";
+import type { ScreenWatch } from "./screen-watch.ts";
 import { heldVariables, type DeclaredSecret } from "./spec-rules.ts";
 import { MAX_TESTS, MIN_TESTS } from "./test-proposals.ts";
 
 /** Name of the tool the designer submits its test plan with. */
 export const PLAN_TOOL = "propose_plan";
+/** What the `from` of a value the test invents says. */
+export const MADE_UP = "made-up";
+/** The last line of what the agent is told while no plan is accepted. */
+export const PLAN_NEXT = `Next: read what the brief is about and do it once on the screens, then call ${PLAN_TOOL}.`;
 
 /** What a plan is checked against. */
 export interface PlanRules {
   /** Identifiers of the sources a scenario may cite: those of the index, and every knowledge source and application the agent has tools of. */
   readonly sources: readonly string[];
+  /** Identifiers of the applications a scenario may be about. */
+  readonly applications: readonly string[];
+  /** Identifiers of the domains of the index. */
+  readonly domains: readonly string[];
   /** The values no plan may hold: the plan is written to the design state. */
   readonly secrets: readonly DeclaredSecret[];
+  /** What the agent saw of the screens, which the expected results of a functional scenario must come from. */
+  readonly screens: ScreenWatch;
   /** Decides whether a plan that passes the rules may be carried out. */
   readonly review: PlanReview;
+  /** Starts carrying out the plan accepted, and gives what the agent is told of it: the sheet of its first scenario. */
+  readonly carry: (plan: TestPlan) => string;
 }
 
 /**
- * The test plan of a design, submitted with `propose_plan` before any test is run or proposed.
+ * The test plan of a design, submitted with `propose_plan` before any test is run.
  *
  * @remarks
- * A plan holds between `MIN_TESTS` and `MAX_TESTS` scenarios, each with a slug of its own, a title, its
- * intent, its kind, the result it expects and at least one source it relies on; the schema of the tool
- * checks all but the slugs and the values of the declared variables, which no plan may hold. A plan that
- * breaks these rules is refused, and the agent may submit another. One that keeps them goes to the review,
- * one plan at a time:
- * accepted, it is kept, and no other may be submitted; refused, the design stops, and no test may be run or
- * proposed.
+ * A plan holds between `MIN_TESTS` and `MAX_TESTS` scenarios. Each names its case, its application, its
+ * domain, its sources, the values its test enters and its steps; each step has one action and the results
+ * it expects, with the exact texts the screen shows, or no longer shows, after it. The schema of the tool
+ * checks the shape. The gates of the harness refuse, all at once and each with its code, the slugs that
+ * repeat, the value of a declared variable, a plan of two functional scenarios or more without a negative
+ * one, a functional scenario whose expects name no text, and, for an application with a user interface, a
+ * functional scenario none of whose texts appeared, or went, after an action of the agent; the agent may
+ * then submit another. A plan that keeps these rules goes to the review, one plan at a time: accepted, it is
+ * frozen, and no other may be submitted; refused, the design stops.
  */
 export class PlanProposal {
   private readonly rules: PlanRules;
   private readonly journal: Journal;
   private plan: TestPlan | undefined;
   private refusal: string | undefined;
+  private lastCodes: readonly string[] = [];
 
   /**
    * @param rules - What the plan is checked against.
@@ -62,14 +80,24 @@ export class PlanProposal {
   }
 
   /**
-   * Why a test may not be run or proposed yet: no plan accepted, or a plan refused.
+   * What the agent is told of every call once the review refused the plan.
    *
-   * @returns The message for the agent, or `undefined` once a plan is accepted.
+   * @returns The message, which gives the reason of the review.
    */
-  public blocked(): string | undefined {
-    if (this.refusal !== undefined) return `The plan was refused: ${this.refusal} The design is stopped; call no more tools.`;
-    if (this.plan === undefined) return `No test plan is accepted yet. Submit the plan with ${PLAN_TOOL} first: each scenario with its title, its intent, its kind, the expected result and its sources.`;
-    return undefined;
+  public blocked(): string {
+    return `The plan was refused: ${this.refusal} The design is stopped; call no more tools.`;
+  }
+
+  /**
+   * The message that reminds an agent which stopped before a plan was accepted.
+   *
+   * @returns The reminder; `undefined` once a plan is accepted or refused by the review.
+   */
+  public reminder(): string | undefined {
+    if (this.plan !== undefined || this.refusal !== undefined) return undefined;
+    this.journal.record("info", "The agent stopped without an accepted plan; it was reminded to submit one.");
+    const state = this.lastCodes.length === 0 ? "No plan is accepted yet." : `The plan was last refused for: ${this.lastCodes.join(", ")}.`;
+    return `You stopped before the end. ${state}\n${PLAN_NEXT}`;
   }
 
   /**
@@ -78,9 +106,10 @@ export class PlanProposal {
    * @returns The tool.
    */
   public tool(): ToolDefinition {
+    const texts = (description: string) => ({ type: "array", maxItems: 8, items: { type: "string", minLength: 1 }, description });
     return {
       name: PLAN_TOOL,
-      description: `Submits the test plan, before any test is run or proposed: between ${MIN_TESTS} and ${MAX_TESTS} scenarios, which verify what the brief aims at; each test carries out one of them.`,
+      description: `Submits the test plan, once you have read the sources and done the brief once on the screens. ${MIN_TESTS} to ${MAX_TESTS} scenarios; with two functional scenarios or more, one is negative. Each scenario gives its data (every value the test enters, with the source that showed it, or "${MADE_UP}" for a value the test invents), then its steps as a user does them. A step has one action and 0 to 4 expects; an expect states one result seen after the action, with in shows the exact texts the screen then displays and in absent the exact texts it no longer displays. Each step becomes one test.step, and each text one assertion.`,
       parameters: {
         type: "object",
         properties: {
@@ -91,11 +120,13 @@ export class PlanProposal {
             items: {
               type: "object",
               properties: {
-                id: { type: "string", pattern: "^[a-z0-9]+(-[a-z0-9]+)*$", description: "A slug, unique in the plan, such as search-customer-by-name; the test written for it names it." },
+                id: { type: "string", pattern: "^[a-z0-9]+(-[a-z0-9]+)*$", description: "A slug, unique in the plan, such as search-order-by-customer; it names the test file." },
                 title: { type: "string", minLength: 1 },
                 intent: { type: "string", minLength: 1, description: "What the scenario verifies, and why, in one sentence." },
                 kind: { type: "string", enum: ["functional", "visual", "accessibility", "other"] },
-                expected: { type: "string", minLength: 1, description: "What the test expects of the application." },
+                case: { type: "string", enum: ["nominal", "negative"], description: "negative when the input matches nothing, is wrong or is forbidden; nominal otherwise." },
+                application: { type: "string", enum: [...this.rules.applications], description: "Identifier of the one application the test is about." },
+                domain: { type: "string", enum: [...this.rules.domains], description: "Identifier of the domain of the index the scenario comes from." },
                 sources: {
                   type: "array",
                   minItems: 1,
@@ -109,8 +140,48 @@ export class PlanProposal {
                     additionalProperties: false,
                   },
                 },
+                data: {
+                  type: "array",
+                  maxItems: 12,
+                  items: {
+                    type: "object",
+                    properties: {
+                      value: { type: "string", minLength: 1, description: "A value the test enters, copied exactly as the tool showed it." },
+                      from: { type: "string", enum: [...this.rules.sources, MADE_UP], description: `The source or the application whose tool showed you the value, or ${MADE_UP}.` },
+                    },
+                    required: ["value", "from"],
+                    additionalProperties: false,
+                  },
+                },
+                steps: {
+                  type: "array",
+                  minItems: 1,
+                  maxItems: 8,
+                  items: {
+                    type: "object",
+                    properties: {
+                      action: { type: "string", minLength: 1, description: "What the user does, in one sentence, such as: Search the orders of Veldane." },
+                      expects: {
+                        type: "array",
+                        maxItems: 4,
+                        items: {
+                          type: "object",
+                          properties: {
+                            result: { type: "string", minLength: 1, description: "One result seen after the action, in one sentence." },
+                            shows: texts("The exact texts the screen displays for this result, as you read them: a name, a number, a message."),
+                            absent: texts("The exact texts the screen no longer displays after the action, such as a row the search filtered out."),
+                          },
+                          required: ["result", "shows", "absent"],
+                          additionalProperties: false,
+                        },
+                      },
+                    },
+                    required: ["action", "expects"],
+                    additionalProperties: false,
+                  },
+                },
               },
-              required: ["id", "title", "intent", "kind", "expected", "sources"],
+              required: ["id", "title", "intent", "kind", "case", "application", "domain", "sources", "data", "steps"],
               additionalProperties: false,
             },
           },
@@ -125,30 +196,63 @@ export class PlanProposal {
   private async submit(plan: TestPlan): Promise<string | { error: string }> {
     // Once a plan is refused, the designer refuses every call before it reaches a tool.
     if (this.plan !== undefined) return { error: "A plan was already accepted; carry it out." };
-    const errors = this.errors(plan);
-    if (errors.length > 0) {
-      for (const error of errors) this.journal.record("error", `The plan was refused by the harness: ${error}`);
-      return { error: ["The plan was refused. Fix it, then submit it again.", ...errors.map((error) => `- ${error}`)].join("\n") };
+    const refusals = this.errors(plan);
+    if (refusals.length > 0) {
+      this.lastCodes = [...new Set(refusals.map((refusal) => refusal.code))];
+      journalRefusals(this.journal, "The plan was refused by the harness", refusals);
+      return { error: refusalText(refusals) };
     }
     const decision = await this.rules.review.review(plan);
     // Plans submitted in one turn are reviewed at once: another may have been decided meanwhile.
-    if (this.refusal !== undefined) return { error: this.blocked()! };
+    if (this.refusal !== undefined) return { error: this.blocked() };
     if (this.plan !== undefined) return { error: "A plan was already accepted; carry it out." };
     if (!decision.accepted) {
       this.refusal = decision.reason;
       this.journal.record("error", `The plan was refused: ${decision.reason} The design stops; no test is written.`);
-      return { error: this.blocked()! };
+      return { error: this.blocked() };
     }
     this.plan = plan;
     this.journal.record("info", `The plan was accepted: ${plan.scenarios.map((scenario) => scenario.id).join(", ")}.`);
-    return "The plan was accepted. For each scenario, do its steps with the browser tools and see what the screen shows after each action; then write the test, asserting what you saw, run it and fix it, and propose it with its scenario.";
+    return `The plan was accepted.\n\n${this.rules.carry(plan)}`;
   }
 
-  /** What the rules refuse in a plan its schema accepts: the count, the kinds and the sources are the schema's. */
-  private errors(plan: TestPlan): string[] {
+  /** What the gates refuse in a plan its schema accepts: the count, the kinds, the sources and the shapes are the schema's. */
+  private errors(plan: TestPlan): Refusal[] {
     const ids = plan.scenarios.map((scenario) => scenario.id);
-    const repeated = [...new Set(ids.filter((id, at) => ids.indexOf(id) !== at))].map((id) => `The id ${id} is given to several scenarios; give each its own.`);
-    const text = plan.scenarios.flatMap((scenario) => [scenario.id, scenario.title, scenario.intent, scenario.expected, ...scenario.sources.map((source) => source.item ?? "")]).join("\n");
-    return [...repeated, ...heldVariables(text, this.rules.secrets).map((variable) => `The plan holds the value of ${variable}; leave it out: the plan is written to the design state.`)];
+    const repeated = [...new Set(ids.filter((id, at) => ids.indexOf(id) !== at))].map((id) => ({ code: "PLAN-ID", message: `the id ${id} is given to several scenarios. Give each scenario its own id.` }));
+    const text = plan.scenarios.flatMap(planText).join("\n");
+    const secrets = heldVariables(text, this.rules.secrets).map((variable) => ({ code: "PLAN-SECRET", message: `the plan holds the value of ${variable}. Leave it out; a test reads it with process.env.${variable}.` }));
+    const functional = plan.scenarios.filter((scenario) => scenario.kind === "functional");
+    const negative =
+      functional.length >= 2 && !plan.scenarios.some((scenario) => scenario.case === "negative")
+        ? [{ code: "PLAN-NEGATIVE", message: 'no scenario is negative. One must verify what the application answers when the input matches nothing, is wrong or is forbidden; set its case to "negative".' }]
+        : [];
+    return [...repeated, ...secrets, ...negative, ...functional.flatMap((scenario) => this.expectErrors(scenario))];
   }
+
+  /** What the gates refuse in the expects of a functional scenario. */
+  private expectErrors(scenario: PlannedScenario): Refusal[] {
+    const told = "Give in shows the exact text the screen displays after the action, or in absent the text it no longer displays, as you read it: a name, a number, a message.";
+    const expects = scenario.steps.flatMap((step, at) => step.expects.map((expect, k) => ({ number: `${at + 1}.${k + 1}`, expect })));
+    if (expects.length === 0) return [{ code: "PLAN-EXPECT", message: `no step of scenario ${scenario.id} has an expect. ${told}` }];
+    const empty = expects.filter(({ expect }) => expect.shows.length + expect.absent.length === 0).map(({ number }) => ({ code: "PLAN-EXPECT", message: `expect ${number} of scenario ${scenario.id} names no text. ${told}` }));
+    if (empty.length > 0 || !this.rules.screens.watches(scenario.application)) return empty;
+    const shows = expects.flatMap(({ expect }) => expect.shows);
+    const absent = expects.flatMap(({ expect }) => expect.absent);
+    if (this.rules.screens.changedByAction(scenario.application, shows, absent)) return [];
+    const tool = (action: string) => scopedToolName(scenario.application, action);
+    return [{ code: "PLAN-RESULT", message: `no text scenario ${scenario.id} expects appeared, or went, after an action of yours on ${scenario.application}. Do its steps with ${tool("fill")} and ${tool("click")}, read what the result says appeared and went, and expect that.` }];
+  }
+}
+
+/** Every text of a scenario the agent wrote, which the design state keeps. */
+function planText(scenario: PlannedScenario): string[] {
+  return [
+    scenario.id,
+    scenario.title,
+    scenario.intent,
+    ...scenario.sources.map((source) => source.item ?? ""),
+    ...scenario.data.map((entry) => entry.value),
+    ...scenario.steps.flatMap((step) => [step.action, ...step.expects.flatMap((expect) => [expect.result, ...expect.shows, ...expect.absent])]),
+  ];
 }

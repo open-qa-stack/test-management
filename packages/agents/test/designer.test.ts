@@ -143,29 +143,52 @@ function snapshot(root: string): Record<string, string> {
   };
 }
 
+/** The test of a scenario whose one step opens the orders and asserts their heading, as the plan expects. */
 const spec = (title: string) =>
-  `import { test, expect } from "@playwright/test";\n\ntest("${title}", async ({ page }) => {\n  await page.goto("/orders");\n  await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();\n});\n`;
+  `import { test, expect } from "@playwright/test";\n\ntest("${title}", async ({ page }) => {\n  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n    await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();\n  });\n});\n`;
 
-/** A call of `propose_test` for a test of the shop about orders. */
-function propose(file: string, changes: Record<string, unknown> = {}): { id: string; name: string; arguments: unknown } {
-  const content = (changes["content"] as string | undefined) ?? spec(file);
-  // The assertion the test is kept for: its first expect, as written.
-  const verifies = content.split("\n").find((line) => line.includes("expect("))?.trim() ?? "expect";
-  return { id: `p-${file}-${Object.keys(changes).join("-")}`, name: "propose_test", arguments: { application: "shop", domain: "orders", scenario: "list-orders", verifies, file, reason: `Checks ${file}.`, content, ...changes } };
+/** A call of a tool by the model. */
+interface Call {
+  readonly id: string;
+  readonly name: string;
+  readonly arguments: unknown;
 }
 
-/** A scenario of the plan, about the orders of the shop. */
-const scenario = (id: string, kind = "other") => ({ id, title: `The ${id} scenario`, intent: `Verifies ${id}.`, kind, expected: "The orders show.", sources: [{ source: "shop-api", item: "orders" }] });
-/** A call that opens the orders page, which the designer must look at before it writes a test. */
+/** A scenario of the plan, about the orders of the shop: its one step opens them and expects their heading. */
+const scenario = (id: string, kind = "other", changes: Record<string, unknown> = {}) => ({
+  id,
+  title: `The ${id} scenario`,
+  intent: `Verifies ${id}.`,
+  kind,
+  case: "nominal",
+  application: "shop",
+  domain: "orders",
+  sources: [{ source: "shop-api", item: "orders" }],
+  data: [],
+  steps: [{ action: "Open the orders", expects: [{ result: "The orders show", shows: ["Orders"], absent: [] }] }],
+  ...changes,
+});
+/** The scenarios of the plan, in its order. */
+const IDS = ["list-orders", "place-order", "follow-order"];
+/** A call that opens the orders page, which the designer looks at before it plans. */
 const OPEN = { id: "open", name: "shop_goto", arguments: { url: "/orders" } };
-/** A call that searches the orders, as a functional scenario needs the designer to have done. */
+/** A call that searches the orders, which makes their search result appear. */
 const SEARCH = { id: "search", name: "shop_click", arguments: { target: { role: "button", name: "Search" } } };
 /** A call of `propose_plan` with three scenarios about the orders. */
-const PLAN = { id: "plan", name: "propose_plan", arguments: { scenarios: ["list-orders", "place-order", "follow-order"].map((id) => scenario(id)) } };
+const PLAN = { id: "plan", name: "propose_plan", arguments: { scenarios: IDS.map((id) => scenario(id)) } };
 
-const valid = (count: number) => Array.from({ length: count }, (_, i) => propose(`test-${i + 1}.spec.ts`));
-/** A reply that makes the calls, then answers enough to end the task and every reminder. */
-const replies = (calls: readonly ReturnType<typeof propose>[]) => [{ body: toolCalls(MODEL, calls) }, ...Array.from({ length: 4 }, () => ({ body: answer(MODEL, "Done.") }))];
+/** A call of `run_test`. */
+const run = (content: string, id: string): Call => ({ id, name: "run_test", arguments: { content } });
+/** A call of `propose_test`, with a diagnosis when one is given. */
+const close = (id: string, diagnosis?: { cause: string; evidence: string }): Call => ({ id, name: "propose_test", arguments: diagnosis === undefined ? {} : { diagnosis } });
+/** The turns that run, then close, the test of the scenario open, each call in a turn of its own. */
+const write = (name: string, content = spec(name), diagnosis?: { cause: string; evidence: string }): Call[][] => [[run(content, `r-${name}`)], [close(`c-${name}`, diagnosis)]];
+/** The turns that write the tests of the first scenarios of the plan, each passing. */
+const valid = (count: number) => IDS.slice(0, count).flatMap((id) => write(id));
+/** The replies that make the calls of each turn, then answer enough to end the task and every reminder. */
+const replies = (turns: readonly (readonly Call[])[]) => [...turns.map((calls) => ({ body: toolCalls(MODEL, calls) })), ...Array.from({ length: 4 }, () => ({ body: answer(MODEL, "Done.") }))];
+/** A test that fails when it runs. */
+const broken = (title: string) => `${spec(title)}// BROKEN\n`;
 
 /**
  * A runner of the tests that runs nothing: a test fails, with an error, a step and a trace, when its text
@@ -249,24 +272,40 @@ const filesOf = (root: string, branch = BRANCH) => git(root, "ls-tree", "-r", "-
 const toolsOffered = (server: ScriptedServer) => (server.requests[0]!.body as { tools: { function: { name: string } }[] }).tools.map((tool) => tool.function.name);
 const requestText = (server: ScriptedServer) => JSON.stringify(server.requests[0]!.body);
 
+/** The text of the result of a tool call, as the next request gives it to the model. */
+const toolResult = (server: ScriptedServer, callId: string) => {
+  for (const request of server.requests) {
+    const found = (request.body as { messages: { role: string; tool_call_id?: string; content?: unknown }[] }).messages.find((message) => message.role === "tool" && message.tool_call_id === callId);
+    if (found !== undefined) return JSON.stringify(found.content);
+  }
+  return "";
+};
+/** What the agent was told of a tool call: its result, or the error of a refusal. */
+const told = (server: ScriptedServer, callId: string) => {
+  const { result } = JSON.parse(JSON.parse(toolResult(server, callId)) as string) as { result: string | { error: string } };
+  return typeof result === "string" ? result : result.error;
+};
+const stateOf = (outcome: DesignOutcome) => JSON.parse(readFileSync(outcome.statePath!, "utf8")) as DesignState;
+const specsOf = (root: string, branch = BRANCH) => filesOf(root, branch).filter((path) => path.endsWith(".spec.ts"));
+
 describe("criterion 1 — three valid tests are written on a new branch, in the folder of their application, with a state", () => {
   it("writes exactly three spec files and the state that lists them, commits them on the branch, and stays on it", async () => {
     const { outcome, root, server } = await design(replies(valid(3)));
     assert.equal(outcome.ok, true);
     assert.equal(git(root, "branch", "--show-current"), BRANCH);
-    assert.deepEqual(filesOf(root).filter((path) => path.endsWith(".spec.ts")), ["apps/shop/test-1.spec.ts", "apps/shop/test-2.spec.ts", "apps/shop/test-3.spec.ts"]);
-    assert.equal(readFileSync(join(root, "apps", "shop", "test-1.spec.ts"), "utf8"), spec("test-1.spec.ts"));
-    const state = JSON.parse(readFileSync(outcome.statePath!, "utf8")) as DesignState;
+    assert.deepEqual(specsOf(root), ["apps/shop/follow-order.spec.ts", "apps/shop/list-orders.spec.ts", "apps/shop/place-order.spec.ts"]);
+    assert.equal(readFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "utf8"), spec("list-orders"));
+    const state = stateOf(outcome);
     assert.equal(outcome.statePath, join(root, ".oqas", "designs", "design-20261113T100000Z.json"));
     assert.ok(filesOf(root).includes(".oqas/designs/design-20261113T100000Z.json"));
-    assert.deepEqual(state.tests, [1, 2, 3].map((i) => ({ path: `apps/shop/test-${i}.spec.ts`, application: "shop", domain: "orders", scenario: "list-orders", verifies: 'await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();', reason: `Checks test-${i}.spec.ts.`, verdict: "passed" })));
-    assert.deepEqual([state.plan, state.brief], [PLAN.arguments, undefined]);
+    assert.deepEqual(state.tests, IDS.map((id) => ({ path: `apps/shop/${id}.spec.ts`, scenario: id, verdict: "passed" })));
+    assert.deepEqual([state.formatVersion, state.plan, state.brief], [2, PLAN.arguments, undefined]);
     assert.deepEqual(outcome.tests, state.tests);
     assert.deepEqual([state.branch, state.base, state.environment, state.producedAt, state.model.model], [BRANCH, git(root, "rev-parse", "main"), "local", "2026-11-13T10:00:00.000Z", MODEL]);
-    assert.deepEqual(git(root, "log", "-1", "--format=%an <%ae>%n%B", BRANCH).split("\n").slice(0, 3), ["Test Maintainer <maintainer@example.com>", "test: add 3 generated Playwright tests", ""]);
+    assert.deepEqual(git(root, "log", "-1", "--format=%an <%ae>%n%B", BRANCH).split("\n").slice(0, 4), ["Test Maintainer <maintainer@example.com>", "test: add 3 generated Playwright tests", "", "- apps/shop/list-orders.spec.ts: The list-orders scenario"]);
     assert.match(messages(outcome), /The design state was written to \.oqas\/designs\/design-20261113T100000Z\.json\.\nThe tests were committed on oqas\/design-test; the active branch of the test repository is oqas\/design-test\./);
     assert.equal(git(root, "status", "--porcelain", "--untracked-files=no"), "");
-    assert.equal(server.requests.length, 3);
+    assert.equal(server.requests.length, 8);
   });
 
   it("gives the agent the charter, the domains of the index and its tools, the screens, every source of the environment and the notes", async () => {
@@ -296,40 +335,46 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     writeFileSync(join(root, ".gitignore"), ".oqas/\n");
     git(root, "add", ".gitignore");
     git(root, "commit", "-q", "-m", "chore: ignore the state");
-    const { outcome } = await design(replies([...valid(2), propose("last.spec.ts", { content: spec("last").trimEnd() })]), { root, branch: null });
+    const { outcome } = await design(replies([...valid(2), ...write("follow-order", spec("follow-order").trimEnd())]), { root, branch: null });
     assert.match(outcome.branch!, /^oqas\/design-\d{8}T\d{6}Z$/);
-    assert.equal(readFileSync(join(root, "apps", "shop", "last.spec.ts"), "utf8"), spec("last"));
+    assert.equal(readFileSync(join(root, "apps", "shop", "follow-order.spec.ts"), "utf8"), spec("follow-order"));
     assert.ok(!filesOf(root, outcome.branch).some((path) => path.startsWith(".oqas/")));
     assert.ok(existsSync(outcome.statePath!));
     assert.match(messages(outcome), /which git ignores: it was not committed\./);
   });
 });
 
-describe("criterion 2 — of five valid tests, exactly four are written and the journal names the one set aside", () => {
-  it("writes four when five proposals of one turn are checked at once", async () => {
-    const slow: TestCheck = { check: () => new Promise((resolve) => setTimeout(() => resolve([]), 50)) };
-    const { outcome, root } = await design(replies(valid(5)), { check: slow });
+describe("criterion 2 — a plan holds four scenarios at most, and each gives one test", () => {
+  it("writes the four tests of a plan of four scenarios, then refuses any further call", async () => {
+    const four = { ...PLAN, arguments: { scenarios: [...IDS, "cancel-order"].map((id) => scenario(id)) } };
+    const after = run(spec("late"), "late");
+    const { outcome, root, server } = await design([{ body: toolCalls(MODEL, [OPEN, four]) }, ...replies([...valid(3), ...write("cancel-order"), [after]])], { plan: false });
     assert.equal(outcome.tests.length, 4);
-    assert.equal(filesOf(root).filter((path) => path.endsWith(".spec.ts")).length, 4);
-    assert.match(messages(outcome), /was set aside: 4 tests were already accepted/);
-  });
-
-  it("writes the first four and journals the fifth", async () => {
-    const { outcome, root } = await design(replies(valid(5)));
-    assert.equal(outcome.ok, true);
-    assert.equal(filesOf(root).filter((path) => path.endsWith(".spec.ts")).length, 4);
-    assert.ok(!existsSync(join(root, "apps", "shop", "test-5.spec.ts")));
-    assert.match(messages(outcome), /The test apps\/shop\/test-5\.spec\.ts was set aside: 4 tests were already accepted\./);
+    assert.equal(specsOf(root).length, 4);
+    assert.match(told(server, "c-cancel-order"), /Scenario cancel-order closed: passed\.\nAll 4 scenarios are closed: 4 passed, 0 failing\.\nNext: answer with one sentence\. Call no more tools\./);
+    assert.match(toolResult(server, "late"), /Refused \(PLAN-DONE\): every scenario of the plan is closed\./);
   });
 });
 
 describe("criterion 3 — with two valid tests the design fails, the journal says 2, and both files are on the branch", () => {
   it("reminds the agent, then keeps the two tests and fails", async () => {
-    const { outcome, root } = await design(replies(valid(2)));
+    const { outcome, root, server } = await design(replies(valid(2)));
     assert.equal(outcome.ok, false);
     assert.match(messages(outcome), /The design failed: 2 tests were obtained, 3 at least are expected\./);
-    assert.match(messages(outcome), /The agent stopped with fewer than 3 accepted tests \(2\); it was reminded to propose more\./);
-    assert.deepEqual(filesOf(root).filter((path) => path.endsWith(".spec.ts")), ["apps/shop/test-1.spec.ts", "apps/shop/test-2.spec.ts"]);
+    assert.match(messages(outcome), /The agent stopped before scenario follow-order was closed; it was reminded to go on\./);
+    assert.deepEqual(specsOf(root), ["apps/shop/list-orders.spec.ts", "apps/shop/place-order.spec.ts"]);
+    const reminder = (server.requests.at(-1)!.body as { messages: { role: string; content: string }[] }).messages.filter((message) => message.role === "user").at(-1)!.content;
+    assert.match(reminder, /\nYou stopped before the end\. Scenario 3 of 3, follow-order: its test has not run\.\nNext: do the steps of follow-order with the browser tools/);
+  });
+
+  it("reminds an agent that stopped of where the scenario open stands", async () => {
+    const done = { body: answer(MODEL, "Done.") };
+    const { server } = await design([{ body: toolCalls(MODEL, [run(spec("list-orders"), "r1")]) }, done, { body: toolCalls(MODEL, [run(broken("list-orders"), "r2")]) }, done, done, done]);
+    const reminders = server.requests.flatMap((request) => (request.body as { messages: { role: string; content: string }[] }).messages.filter((message) => message.role === "user").slice(1).map((message) => message.content.split("\n\n").at(-1)!));
+    assert.deepEqual([...new Set(reminders)], [
+      "You stopped before the end. Scenario 1 of 3, list-orders: its test passed and is not closed.\nNext: call propose_test.",
+      "You stopped before the end. Scenario 1 of 3, list-orders: its last run failed.\nNext: look at the page at the failed step, fix the locator or the wait, then call run_test with the whole corrected file.",
+    ]);
   });
 
   it("writes nothing and creates no branch when no test was obtained, the session failing", async () => {
@@ -340,58 +385,63 @@ describe("criterion 3 — with two valid tests the design fails, the journal say
   });
 });
 
-describe("criterion 4 — a test that imports anything but @playwright/test or a relative path is not written, and the journal names the module", () => {
+describe("criterion 4 — a test that imports anything but @playwright/test or a relative path is not run, and the journal names the module", () => {
   it("refuses a platform package, a computed module, a path outside the repository and another test", async () => {
     const imports = (line: string) => `${line}\n${spec("imports")}`;
-    const { outcome, root } = await design(
-      replies([
-        propose("platform.spec.ts", { content: imports(`import { Designer } from "@open-qa-stack/agents";`) }),
-        propose("computed.spec.ts", { content: imports(`const helper = await import(process.env.HELPER!);`) }),
-        propose("outside.spec.ts", { content: imports(`import { secret } from "../../../outside.ts";`) }),
-        propose("chained.spec.ts", { content: imports(`import "./test-1.spec.ts";`) }),
-        propose("helped.spec.ts", { content: imports(`import { openOrders } from "./helpers/orders.ts";`) }),
-        ...valid(2),
-      ]),
-    );
+    const refused = [
+      run(imports(`import { Designer } from "@open-qa-stack/agents";`), "platform"),
+      run(imports(`const helper = await import(process.env.HELPER!);`), "computed"),
+      run(imports(`import { secret } from "../../../outside.ts";`), "outside"),
+      run(imports(`import "./test-1.spec.ts";`), "chained"),
+    ];
+    const helped = imports(`import { openOrders } from "./helpers/orders.ts";`);
+    const runner = new FakeTestRunner();
+    const { outcome, root, server } = await design(replies([refused, ...write("list-orders", helped), ...valid(3).slice(2)]), { runner });
     const journal = messages(outcome);
-    assert.match(journal, /The test apps\/shop\/platform\.spec\.ts was refused: Line 1 imports @open-qa-stack\/agents; import only @playwright\/test/);
-    assert.match(journal, /computed\.spec\.ts was refused: Line 1 imports a module whose name is computed/);
-    assert.match(journal, /outside\.spec\.ts was refused: Line 1 imports \.\.\/\.\.\/\.\.\/outside\.ts, outside the test repository\./);
-    assert.match(journal, /chained\.spec\.ts was refused: Line 1 imports \.\/test-1\.spec\.ts, another test file/);
-    const written = filesOf(root).filter((path) => path.endsWith(".spec.ts"));
-    assert.deepEqual(written, ["apps/shop/helped.spec.ts", "apps/shop/test-1.spec.ts", "apps/shop/test-2.spec.ts"]);
+    assert.match(journal, /\[TEST-IMPORT\] The test apps\/shop\/list-orders\.spec\.ts could not be run: Line 1 imports @open-qa-stack\/agents; import only @playwright\/test/);
+    assert.match(journal, /\[TEST-IMPORT\] .*: Line 1 imports a module whose name is computed/);
+    assert.match(journal, /\[TEST-IMPORT\] .*: Line 1 imports \.\.\/\.\.\/\.\.\/outside\.ts, outside the test repository\./);
+    assert.match(journal, /\[TEST-IMPORT\] .*: Line 1 imports \.\/test-1\.spec\.ts, another test file/);
+    assert.match(told(server, "platform"), /^Refused \(TEST-IMPORT\): Line 1 imports @open-qa-stack\/agents; .*\nNothing else was refused\.$/);
+    assert.deepEqual([runner.runs.length, runner.runs[0]!.content], [3, helped]);
+    assert.equal(readFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "utf8"), helped);
   });
 });
 
-describe("criterion 5 — a test that does not parse as TypeScript is not written, and the journal holds the parse error", () => {
+describe("criterion 5 — a test that does not parse as TypeScript is not run, and the journal holds the parse error", () => {
   it("refuses it with the line and column of the error", async () => {
-    const { outcome, root } = await design(replies([propose("broken.spec.ts", { content: `import { test } from "@playwright/test";\ntest("x", async () => {\n` }), ...valid(3)]));
-    assert.match(messages(outcome), /The test apps\/shop\/broken\.spec\.ts was refused: The test does not parse as TypeScript: line \d+, column \d+: (missing|unexpected) /);
-    assert.ok(!filesOf(root).includes("apps/shop/broken.spec.ts"));
+    const { outcome } = await design(replies([[run(`import { test } from "@playwright/test";\ntest("x", async () => {\n`, "parse")], ...valid(3)]));
+    assert.match(messages(outcome), /\[TEST-SYNTAX\] The test apps\/shop\/list-orders\.spec\.ts could not be run: The test does not parse as TypeScript: line \d+, column \d+: (missing|unexpected) /);
     assert.equal(outcome.ok, true);
   });
 });
 
-describe("criterion 6 — a test that holds a declared address or the value of an account variable is not written", () => {
+describe("criterion 6 — a test that holds a declared address or the value of an account variable is not run", () => {
   it("refuses an address, a host, a username and a password, and masks the values in the journal", async () => {
-    const { outcome, root, server } = await design(
+    const runner = new FakeTestRunner();
+    const { outcome, server } = await design(
       replies([
-        propose("address.spec.ts", { content: spec("x").replace(`"/orders"`, `"${site.origin}/orders"`) }),
-        propose("host.spec.ts", { content: spec("x").replace(`"/orders"`, `"//ledger.test:8100/orders"`) }),
-        propose("login.spec.ts", { content: spec("x").replace(`"/orders"`, `"/login?user=${encodeURIComponent(USERNAME)}"`), reason: `Signs in with ${PASSWORD}.` }),
-        propose("leaky.spec.ts", { content: `const password = "${PASSWORD}";\ntest("x", async () => {\n` }),
+        [
+          run(spec("x").replace(`"/orders"`, `"${site.origin}/orders"`), "address"),
+          run(spec("x").replace(`"/orders"`, `"//ledger.test:8100/orders"`), "host"),
+          run(spec("x").replace(`"/orders"`, `"/login?user=${encodeURIComponent(USERNAME)}"`), "login"),
+          run(`const password = "${PASSWORD}";\ntest("x", async () => {\n`, "leaky"),
+        ],
+        [run(broken("list-orders"), "failing")],
+        [close("leaked", { cause: "application", evidence: `It signs in with ${PASSWORD}.` })],
         ...valid(3),
       ]),
+      { runner },
     );
     const journal = messages(outcome);
-    assert.match(journal, new RegExp(`address\\.spec\\.ts was refused: The test holds ${site.origin.replaceAll(".", "\\.")}, an address of the configuration`));
-    assert.match(journal, /host\.spec\.ts was refused: The test holds ledger\.test:8100, an address of the configuration/);
-    assert.match(journal, /login\.spec\.ts was refused: The proposal holds the value of SHOP_USERNAME; read it with process\.env\.SHOP_USERNAME instead\./);
-    assert.match(journal, /login\.spec\.ts was refused: The proposal holds the value of SHOP_PASSWORD/);
-    for (const path of ["address", "host", "login", "leaky"]) assert.ok(!filesOf(root).includes(`apps/shop/${path}.spec.ts`));
+    assert.match(journal, new RegExp(`\\[TEST-ADDRESS\\] .*: The test holds ${site.origin.replaceAll(".", "\\.")}, an address of the configuration`));
+    assert.match(journal, /\[TEST-ADDRESS\] .*: The test holds ledger\.test:8100, an address of the configuration/);
+    assert.match(journal, /\[TEST-SECRET\] .*: The proposal holds the value of SHOP_USERNAME; read it with process\.env\.SHOP_USERNAME instead\./);
+    assert.match(toolResult(server, "leaked"), /Refused \(PROPOSE-SECRET\): the diagnosis holds the value of SHOP_PASSWORD\. Leave it out; a test reads it with process\.env\.SHOP_PASSWORD\./);
+    assert.match(journal, /\[TEST-SYNTAX\] .*: The test does not parse as TypeScript: line 1, column 1: unexpected "const password = \\"\[secret\]\\";"/);
+    assert.equal(runner.runs.length, 4);
     const told = server.requests.flatMap((request) => (request.body as { messages: { role: string; content: unknown }[] }).messages.filter((message) => message.role === "tool"));
     const traces = [journal, JSON.stringify(told)].join("\n");
-    assert.match(journal, /leaky\.spec\.ts was refused: The test does not parse as TypeScript: line 1, column 1: unexpected "const password = \\"\[secret\]\\";"/);
     assert.ok(!traces.includes(PASSWORD) && !traces.includes(USERNAME) && !traces.includes(encodeURIComponent(USERNAME)));
   });
 
@@ -445,8 +495,8 @@ describe("criterion 7 — a dirty working tree or a taken branch stops the desig
 
 describe("criterion 8 — the references of the remote are the same before and after the design, whatever its outcome", () => {
   it("contacts no remote when the design succeeds, fails, or stops before the session", async () => {
-    for (const calls of [valid(3), valid(1)]) {
-      const { root, before } = await design(replies(calls));
+    for (const turns of [valid(3), valid(1)]) {
+      const { root, before } = await design(replies(turns));
       assert.equal(snapshot(root).remote, before.remote);
     }
     const root = repository();
@@ -456,19 +506,19 @@ describe("criterion 8 — the references of the remote are the same before and a
   });
 });
 
-describe("criterion 9 — past the action limit the task is cut, the journal says so, and the proposal under way is not written", () => {
-  it("writes the test accepted before the cut, not the one proposed after the 201st action", async () => {
+describe("criterion 9 — past the action limit the task is cut, the journal says so, and the scenario under way is not written", () => {
+  it("writes the test closed before the cut, not the one run after the 201st action", async () => {
     const actions = Array.from({ length: 201 }, (_, i) => ({ id: `g${i}`, name: "shop_goto", arguments: { url: "/" } }));
-    const { outcome, root } = await design([{ body: toolCalls(MODEL, [propose("first.spec.ts")]) }, { body: toolCalls(MODEL, [...actions, propose("late.spec.ts")]) }, { body: answer(MODEL, "Done.") }]);
-    assert.match(messages(outcome), /The task reached its actions limit; no test was written for the proposal under way\./);
-    assert.deepEqual(filesOf(root).filter((path) => path.endsWith(".spec.ts")), ["apps/shop/first.spec.ts"]);
+    const { outcome, root } = await design([...valid(1).map((calls) => ({ body: toolCalls(MODEL, calls) })), { body: toolCalls(MODEL, [...actions, run(spec("place-order"), "late")]) }, { body: answer(MODEL, "Done.") }]);
+    assert.match(messages(outcome), /The task reached its actions limit; no test was written for the scenario under way\./);
+    assert.deepEqual(specsOf(root), ["apps/shop/list-orders.spec.ts"]);
     assert.match(messages(outcome), /The design failed: 1 test was obtained, 3 at least are expected\./);
   });
 });
 
 describe("criterion 10 — no generated test imports another, and nothing is written in the journeys or the blocks", () => {
-  it("holds for three, five and two proposals", async () => {
-    for (const count of [3, 5, 2]) {
+  it("holds for three and two tests", async () => {
+    for (const count of [3, 2]) {
       const { root } = await design(replies(valid(count)));
       const files = filesOf(root);
       assert.deepEqual(files.filter((path) => path.startsWith("parcours/") || path.includes("/blocs/")), []);
@@ -485,7 +535,7 @@ describe("criterion 11 — the designer imports neither the SDK nor a package it
   it("imports only node modules, its own files and @open-qa-stack/domain, shared and tools", () => {
     const folder = new URL("../src/", import.meta.url);
     const files = readdirSync(folder, { recursive: true, encoding: "utf8" }).filter((file) => file.endsWith(".ts"));
-    const imported = files.flatMap((file) => [...readFileSync(new URL(file, folder), "utf8").matchAll(/(?:\bfrom|\bimport)\s*\(?\s*["']([^"']+)["']/g)].map((match) => match[1]!));
+    const imported = files.flatMap((file) => [...readFileSync(new URL(file, folder), "utf8").matchAll(/^(?:import|export)\b[^;]*?\bfrom\s*["']([^"']+)["'];$|^import\s*["']([^"']+)["'];$/gm)].map((match) => (match[1] ?? match[2])!));
     const allowed = (module: string) => module.startsWith("node:") || module.startsWith(".") || ["@open-qa-stack/domain", "@open-qa-stack/shared", "@open-qa-stack/tools"].includes(module);
     assert.ok(files.some((file) => file.startsWith("designer")));
     assert.deepEqual(imported.filter((module) => !allowed(module)), []);
@@ -493,10 +543,10 @@ describe("criterion 11 — the designer imports neither the SDK nor a package it
 });
 
 describe("guiding the designer", () => {
-  it("refuses a taken file name, a domain the index lacks, and a test the check finds fault with", async () => {
+  it("refuses a test the check finds fault with, each finding with its line, its rule or code, and the example of its rule", async () => {
     const check: TestCheck = {
       check: async (proposed) =>
-        proposed.path.endsWith("waits.spec.ts")
+        proposed.content.includes("waits")
           ? [
               { kind: "charter", rule: "PW-WAIT-01", line: 4, column: 9, message: "Wait for a state, never for a fixed time.", example: 'await expect(page.getByRole("table")).toBeVisible();' },
               { kind: "charter", rule: "TEAM-TAG-01", line: 1, column: 1, message: "Tag the test." },
@@ -504,26 +554,31 @@ describe("guiding the designer", () => {
             ]
           : [],
     };
-    const root = repository();
-    const { outcome } = await design(replies([propose("test-1.spec.ts"), propose("test-1.spec.ts"), propose("specs.spec.ts", { domain: "returns" }), propose("waits.spec.ts"), ...valid(3).slice(1)]), { root, check });
-    const journal = messages(outcome);
-    assert.match(journal, /apps\/shop\/test-1\.spec\.ts was refused: apps\/shop\/test-1\.spec\.ts is already taken/);
-    assert.match(journal, /propose_test: .*domain/);
-    assert.match(journal, /waits\.spec\.ts was refused: Line 4, column 9 \(rule PW-WAIT-01\): Wait for a state, never for a fixed time\. Example: await expect\(page\.getByRole\("table"\)\)\.toBeVisible\(\);\n/);
-    assert.match(journal, /waits\.spec\.ts was refused: Line 1, column 1 \(rule TEAM-TAG-01\): Tag the test\.\n/);
-    assert.match(journal, /waits\.spec\.ts was refused: Line 2, column 1 \(compiler TS2304\): Cannot find name 'testInfo'\./);
+    const { outcome, server } = await design(replies([[run(spec("waits"), "waits")], ...valid(3)]), { check });
+    assert.equal(
+      told(server, "waits"),
+      [
+        'Refused (TEST-CHECK): Line 4, column 9 (rule PW-WAIT-01): Wait for a state, never for a fixed time. Example: await expect(page.getByRole("table")).toBeVisible();',
+        "Refused (TEST-CHECK): Line 1, column 1 (rule TEAM-TAG-01): Tag the test.",
+        "Refused (TEST-CHECK): Line 2, column 1 (compiler TS2304): Cannot find name 'testInfo'.",
+        "Nothing else was refused.",
+      ].join("\n"),
+    );
+    assert.match(messages(outcome), /\[TEST-CHECK\] The test apps\/shop\/list-orders\.spec\.ts could not be run: Line 1, column 1 \(rule TEAM-TAG-01\): Tag the test\./);
     assert.equal(outcome.tests.length, 3);
   });
 
-  it("refuses a file that already exists in the test repository", async () => {
+  it("names the test of a scenario after it, with a number when a file of the repository already has that path", async () => {
     const root = repository();
     mkdirSync(join(root, "apps", "shop"), { recursive: true });
-    writeFileSync(join(root, "apps", "shop", "test-1.spec.ts"), "// kept\n");
+    writeFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "// kept\n");
+    writeFileSync(join(root, "apps", "shop", "list-orders-2.spec.ts"), "// kept\n");
     git(root, "add", "-A", "apps");
     git(root, "commit", "-q", "-m", "test: keep a test");
-    const { outcome } = await design(replies(valid(4)), { root });
-    assert.match(messages(outcome), /test-1\.spec\.ts is already taken/);
-    assert.equal(readFileSync(join(root, "apps", "shop", "test-1.spec.ts"), "utf8"), "// kept\n");
+    const { outcome, server } = await design(replies(valid(3)), { root });
+    assert.deepEqual(outcome.tests.map((test) => test.path), ["apps/shop/list-orders-3.spec.ts", "apps/shop/place-order.spec.ts", "apps/shop/follow-order.spec.ts"]);
+    assert.equal(readFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "utf8"), "// kept\n");
+    assert.match(toolResult(server, "plan"), /File: apps\/shop\/list-orders-3\.spec\.ts/);
   });
 
   it("designs nothing without a readable index that matches its schema", async () => {
@@ -538,145 +593,136 @@ describe("guiding the designer", () => {
   });
 });
 
-/** A call of `run_test` for a test of the shop. */
-const tryTest = (file: string, content: string, id: string) => ({ id, name: "run_test", arguments: { application: "shop", scenario: "list-orders", file, content } });
-const broken = (file: string) => `${spec(file)}// BROKEN\n`;
-/** The text of the result of a tool call, as the next request gives it to the model. */
-const toolResult = (server: ScriptedServer, callId: string) => {
-  for (const request of server.requests) {
-    const found = (request.body as { messages: { role: string; tool_call_id?: string; content?: unknown }[] }).messages.find((message) => message.role === "tool" && message.tool_call_id === callId);
-    if (found !== undefined) return JSON.stringify(found.content);
-  }
-  return "";
-};
+describe("the sheet of a scenario", () => {
+  it("is what the agent is told once the plan is accepted, and once a scenario is closed: the scenario, its data, its file and its skeleton", async () => {
+    const searched = scenario("list-orders", "other", { case: "negative", data: [{ value: "Ada", from: "shop" }, { value: "zzqx", from: "made-up" }] });
+    const plan = { ...PLAN, arguments: { scenarios: [searched, scenario("place-order"), scenario("follow-order")] } };
+    const { server } = await design([{ body: toolCalls(MODEL, [OPEN, plan]) }, ...replies(valid(1))], { plan: false });
+    const sheet = told(server, "plan");
+    assert.ok(
+      sheet.startsWith(
+        'The plan was accepted.\n\nScenario 1 of 3: list-orders — The list-orders scenario (other, negative), application shop.\nData: "Ada" (shop); "zzqx" (made-up).\nFile: apps/shop/list-orders.spec.ts\n\nimport { expect, test } from "@playwright/test";\n\ntest("The list-orders scenario", async ({ page }) => {\n  await test.step("1. Open the orders", async () => {\n    // Do: Open the orders. Copy the code lines the browser tools returned.\n    // Expect 1.1: The orders show.\n    await expect(page.getByText(\"Orders\")).toBeVisible();\n  });\n});\n',
+      ),
+      sheet,
+    );
+    assert.ok(sheet.endsWith("Next: do the steps of list-orders with the browser tools, fill its skeleton with the code they return, then call run_test."));
+    assert.match(told(server, "c-list-orders"), /^Scenario list-orders closed: passed\.\n\nScenario 2 of 3: place-order — .*\nData: none\.\nFile: apps\/shop\/place-order\.spec\.ts/);
+  });
+});
 
 describe("loop, criterion 1 — a test that fails, then is fixed, is run twice and passes", () => {
   it("runs the broken text, then the fixed one, and keeps the test as passed", async () => {
     const runner = new FakeTestRunner();
-    const turns = [[tryTest("test-1.spec.ts", broken("test-1.spec.ts"), "r1")], [tryTest("test-1.spec.ts", spec("test-1.spec.ts"), "r2")], valid(3)];
-    const { outcome } = await design([...turns.map((calls) => ({ body: toolCalls(MODEL, calls) })), ...replies([]).slice(1)], { runner });
-    assert.deepEqual(runner.runs.filter((run) => run.path === "apps/shop/test-1.spec.ts").map((run) => run.content.includes("BROKEN")), [true, false]);
-    assert.equal(outcome.tests.find((test) => test.path === "apps/shop/test-1.spec.ts")?.verdict, "passed");
-    assert.equal(runner.runs.length, 4, "a text already tried is not run again when it is proposed");
-    assert.match(messages(outcome), /The test apps\/shop\/test-1\.spec\.ts was run: failed\.\nThe test apps\/shop\/test-1\.spec\.ts was run: passed\./);
+    const { outcome, server } = await design(replies([[run(broken("list-orders"), "r1")], ...valid(3)]), { runner });
+    assert.deepEqual(runner.runs.filter((test) => test.path === "apps/shop/list-orders.spec.ts").map((test) => test.content.includes("BROKEN")), [true, false]);
+    assert.equal(outcome.tests.find((test) => test.path === "apps/shop/list-orders.spec.ts")?.verdict, "passed");
+    assert.equal(runner.runs.length, 4, "a scenario is closed with the text of its last run, which is not run again");
+    assert.match(messages(outcome), /The test apps\/shop\/list-orders\.spec\.ts was run: failed\.\nThe test apps\/shop\/list-orders\.spec\.ts was run: passed\./);
+    assert.match(told(server, "r-list-orders"), /^Run of the file: passed\.\n- shop › apps\/shop\/list-orders\.spec\.ts › the test: passed\.\nNext: call propose_test\.$/);
   });
 });
 
 describe("loop, criterion 2 — the result told to the agent holds the assertion, the failed step and the trace", () => {
   it("gives the error in full, the step, the trace and the instant to read the logs from", async () => {
-    const call = tryTest("test-1.spec.ts", broken("test-1.spec.ts"), "r1");
-    const { server } = await design(replies([call, ...valid(3)]));
+    const { server } = await design(replies([[run(broken("list-orders"), "r1")], ...valid(3)]));
     const told = toolResult(server, "r1");
-    for (const part of ["Run of the file: failed.", "expect(locator).toBeVisible() failed", "getByRole('heading', { name: 'Orders' })", "Failed step: open the orders", "Trace: .oqas/test-results/trace.zip", "since 2026-11-13T10:00:00.000Z"]) assert.ok(told.includes(part), part);
+    for (const part of ["Run of the file: failed.", "expect(locator).toBeVisible() failed", "getByRole('heading', { name: 'Orders' })", "Failed step: open the orders", "Trace: .oqas/test-results/trace.zip", "since 2026-11-13T10:00:00.000Z", "Next: look at the page at the failed step"]) assert.ok(told.includes(part), part);
   });
 
   it("refuses to run a test the rules refuse, and tells why when a test cannot run", async () => {
     const runner = new FakeTestRunner();
-    const outside = tryTest("test-1.spec.ts", `import fs from "node:fs";\n${spec("test-1.spec.ts")}`, "r1");
-    const { server } = await design(replies([outside, ...valid(3)]), { runner });
-    assert.match(toolResult(server, "r1"), /could not be run/);
-    assert.ok(runner.runs.every((run) => !run.content.includes("node:fs")));
+    const { server } = await design(replies([[run(`import fs from "node:fs";\n${spec("list-orders")}`, "r1")], ...valid(3)]), { runner });
+    assert.match(toolResult(server, "r1"), /Refused \(TEST-IMPORT\): Line 1 imports node:fs/);
+    assert.ok(runner.runs.every((test) => !test.content.includes("node:fs")));
     const failing = new FakeTestRunner("The browsers of Playwright 1.64.1 could not be installed: offline");
-    const cannot = await design(replies([tryTest("test-1.spec.ts", spec("test-1.spec.ts"), "r2"), ...valid(3)]), { runner: failing });
-    assert.match(toolResult(cannot.server, "r2"), /could not be run[^"]*offline/);
+    const cannot = await design(replies(valid(1)), { runner: failing });
+    assert.match(toolResult(cannot.server, "r-list-orders"), /Run of the file: it could not run: The browsers of Playwright 1\.64\.1 could not be installed: offline/);
+    assert.match(toolResult(cannot.server, "c-list-orders"), /Refused \(PROPOSE-RUN\): scenario list-orders has not run to a verdict\. Call run_test first\./);
     assert.equal(cannot.outcome.tests.length, 0);
-    assert.match(messages(cannot.outcome), /test-1\.spec\.ts was refused: The test could not run: The browsers/);
+    assert.match(messages(cannot.outcome), /The test apps\/shop\/list-orders\.spec\.ts could not run: The browsers/);
   });
 });
 
-describe("loop, criterion 3 — the trials count against the limits, and a test not fixed is never kept as passed", () => {
+describe("loop, criterion 3 — the runs count against the limits, and a test not fixed is never kept as passed", () => {
   it("stops at the limit of iterations, and keeps no test that did not pass", async () => {
-    const trials = Array.from({ length: 6 }, (_, i) => ({ body: toolCalls(MODEL, [tryTest("test-1.spec.ts", `${broken("test-1.spec.ts")}// ${i}\n`, `r${i}`)]) }));
+    const trials = Array.from({ length: 6 }, (_, i) => ({ body: toolCalls(MODEL, [run(`${broken("list-orders")}// ${i}\n`, `r${i}`)]) }));
     const { outcome } = await design([...trials, { body: answer(MODEL, "Done.") }], { limits: { maxIterations: 3, maxDurationMinutes: 10, maxActions: 200 } });
     assert.match(messages(outcome), /The task reached its iterations limit/);
     assert.deepEqual(outcome.tests, []);
     assert.equal(outcome.ok, false);
   });
 
-  it("refuses a proposal that does not pass, with what the run gave, when the agent says nothing of the application", async () => {
-    const { outcome, server } = await design(replies([propose("test-1.spec.ts", { content: broken("test-1.spec.ts") }), ...valid(3)]));
-    assert.match(messages(outcome), /test-1\.spec\.ts was refused: It does not pass\. Fix it, or, if the application is at fault/);
+  it("refuses to close a scenario whose last run failed without a diagnosis, and one that has not run", async () => {
+    const { outcome, server } = await design(replies([[close("early")], [run(broken("list-orders"), "r1")], [close("blind")], ...valid(3)]));
+    assert.match(toolResult(server, "early"), /Refused \(PROPOSE-RUN\): scenario list-orders has not run\. Call run_test first\./);
+    assert.match(toolResult(server, "blind"), /Refused \(PROPOSE-DIAG\): the last run of scenario list-orders failed\. Repair it with run_test, or give diagnosis: the cause and what the run showed\./);
+    assert.match(messages(outcome), /\[PROPOSE-DIAG\] The scenario list-orders could not be closed: the last run/);
     assert.ok(outcome.tests.every((test) => test.verdict === "passed"));
-    assert.ok(toolResult(server, "p-test-1.spec.ts-content").includes("Failed step: open the orders"));
   });
 });
 
-describe("loop, criterion 4 — a failure blamed on the application is kept with its explanation and the harness's verdict", () => {
-  it("writes the test with its verdict failed and the explanation in the state", async () => {
-    const blamed = propose("test-4.spec.ts", { content: broken("test-4.spec.ts"), failure: "The total stays empty although the order has two lines: the service returns no total." });
-    const turns = [[tryTest("test-4.spec.ts", broken("test-4.spec.ts"), "r4")], [...valid(3), blamed]];
-    const { outcome, root } = await design([...turns.map((calls) => ({ body: toolCalls(MODEL, calls) })), ...replies([]).slice(1)]);
-    const test = outcome.tests.find((candidate) => candidate.path === "apps/shop/test-4.spec.ts");
-    assert.deepEqual([test?.verdict, test?.failure], ["failed", "The total stays empty although the order has two lines: the service returns no total."]);
-    const state = JSON.parse(readFileSync(outcome.statePath!, "utf8")) as DesignState;
-    assert.equal(state.tests.find((candidate) => candidate.path === "apps/shop/test-4.spec.ts")?.verdict, "failed");
-    assert.ok(filesOf(root).includes("apps/shop/test-4.spec.ts"));
+describe("loop, criterion 4 — a failing test is kept with its diagnosis and the harness's verdict", () => {
+  it("writes the test with its verdict failed and its quarantine in the state, and counts it only when the application is at fault", async () => {
+    const blamed = write("follow-order", broken("follow-order"), { cause: "application", evidence: "The total stays empty although the order has two lines." });
+    const { outcome, root, server } = await design(replies([...valid(2), ...blamed]));
+    assert.equal(outcome.ok, true, messages(outcome));
+    const test = stateOf(outcome).tests.find((candidate) => candidate.scenario === "follow-order");
+    assert.deepEqual(test, { path: "apps/shop/follow-order.spec.ts", scenario: "follow-order", verdict: "failed", quarantine: { cause: "application", evidence: "The total stays empty although the order has two lines." } });
+    assert.equal(readFileSync(join(root, "apps", "shop", "follow-order.spec.ts"), "utf8"), broken("follow-order"));
+    assert.match(git(root, "log", "-1", "--format=%B", BRANCH), /- apps\/shop\/follow-order\.spec\.ts: failing \(application\)/);
+    assert.match(told(server, "c-follow-order"), /Scenario follow-order closed: failing \(application\), kept for a person to decide\.\nAll 3 scenarios are closed: 2 passed, 1 failing\./);
+    const own = await design(replies([...valid(2), ...write("follow-order", broken("follow-order"), { cause: "test", evidence: "The heading never shows." })]));
+    assert.equal(own.outcome.ok, false);
+    assert.equal(own.outcome.tests.length, 3);
+    assert.match(messages(own.outcome), /The design failed: 2 tests were obtained/);
   });
 });
 
-describe("what a trial tells the agent", () => {
+describe("what a run tells the agent", () => {
   it("cuts a long error, and counts a file whose run gives no test as not run", async () => {
     const long: TestRunner = { run: async (test) => ({ startedAt: "2026-11-13T10:00:00.000Z", tests: [{ id: `shop › ${test.path} › t`, verdict: "failed", reason: "x".repeat(5000) }] }) };
-    const cut = await design(replies([tryTest("test-1.spec.ts", spec("test-1.spec.ts"), "r1"), ...valid(3)]), { runner: long as FakeTestRunner });
-    const told = toolResult(cut.server, "r1");
+    const cut = await design(replies(valid(1)), { runner: long as FakeTestRunner });
+    const told = toolResult(cut.server, "r-list-orders");
     assert.ok(told.includes(`${"x".repeat(4000)}…`) && !told.includes("x".repeat(4001)) && !told.includes("Failed step"));
     const empty: TestRunner = { run: async () => ({ startedAt: "2026-11-13T10:00:00.000Z", tests: [] }) };
-    const none = await design(replies([tryTest("test-1.spec.ts", spec("test-1.spec.ts"), "r1"), ...valid(3)]), { runner: empty as FakeTestRunner });
-    assert.match(toolResult(none.server, "r1"), /Run of the file: not_run\./);
+    const none = await design(replies(valid(1)), { runner: empty as FakeTestRunner });
+    assert.match(toolResult(none.server, "r-list-orders"), /Run of the file: not_run\./);
     assert.deepEqual(none.outcome.tests, []);
   });
 });
 
 describe("what the designer may keep", () => {
-  const turns = (...calls: ReturnType<typeof propose>[][]) => [...calls.map((call) => ({ body: toolCalls(MODEL, call) })), ...replies([]).slice(1)];
-
-  it("refuses a failure blamed on the application for a text the agent never saw run, and keeps a passing test as passed whatever it claims", async () => {
-    const blind = propose("test-4.spec.ts", { content: broken("test-4.spec.ts"), failure: "The service returns no total." });
-    const claimed = propose("test-5.spec.ts", { failure: "The service returns no total." });
-    const { outcome } = await design(replies([...valid(2), blind, claimed]));
-    assert.match(messages(outcome), /test-4\.spec\.ts was refused: It does not pass\. Fix it, or, if the application is at fault, run it with run_test/);
-    const kept = outcome.tests.find((test) => test.path === "apps/shop/test-5.spec.ts");
-    assert.deepEqual([kept?.verdict, kept !== undefined && "failure" in kept], ["passed", false]);
+  it("keeps a passing test as passed whatever the diagnosis claims", async () => {
+    const { outcome } = await design(replies([...valid(2), ...write("follow-order", spec("follow-order"), { cause: "application", evidence: "The service returns no total." })]));
+    const kept = outcome.tests.find((test) => test.scenario === "follow-order");
+    assert.deepEqual([kept?.verdict, kept !== undefined && "quarantine" in kept], ["passed", false]);
   });
 
-  it("never keeps a test that did not run to a verdict, even with a failure", async () => {
+  it("never keeps a test that did not run to a verdict, even with a diagnosis", async () => {
     for (const verdict of ["skipped", "blocked"] as const) {
       const runner: TestRunner = { run: async (test) => ({ startedAt: "2026-11-13T10:00:00.000Z", tests: [{ id: `shop › ${test.path} › t`, verdict, reason: "x" }] }) };
-      const { outcome } = await design(turns([tryTest("test-1.spec.ts", spec("test-1.spec.ts"), "r1")], [propose("test-1.spec.ts", { failure: "The application is down." })]), { runner: runner as FakeTestRunner });
+      const { outcome, server } = await design(replies(write("list-orders", spec("list-orders"), { cause: "application", evidence: "The application is down." })), { runner: runner as FakeTestRunner });
       assert.deepEqual(outcome.tests, [], verdict);
-      assert.match(messages(outcome), new RegExp(`did not run to a verdict \\(${verdict}\\)`));
+      assert.match(toolResult(server, "c-list-orders"), /Refused \(PROPOSE-RUN\): scenario list-orders has not run to a verdict/);
     }
-  });
-
-  it("keeps one test of two proposed at once at the same path", async () => {
-    const slow: TestRunner = { run: (test) => new Promise((resolve) => setTimeout(() => resolve({ startedAt: "2026-11-13T10:00:00.000Z", tests: [{ id: `shop › ${test.path} › t`, verdict: "passed", reason: "ok" }] }), 50)) };
-    const { outcome } = await design(replies([propose("test-1.spec.ts"), propose("test-1.spec.ts", { reason: "Another." }), propose("test-2.spec.ts"), propose("test-3.spec.ts")]), { runner: slow as FakeTestRunner });
-    assert.equal(outcome.tests.filter((test) => test.path === "apps/shop/test-1.spec.ts").length, 1);
   });
 
   it("refuses a test that writes a file, without running it", async () => {
     const runner = new FakeTestRunner();
-    const writes = spec("test-1.spec.ts").replace("});\n", "  await page.screenshot({ path: \"/tmp/x.png\" });\n});\n");
-    const { outcome } = await design(replies([tryTest("test-1.spec.ts", writes, "r1"), propose("test-9.spec.ts", { content: writes }), ...valid(3)]), { runner });
-    assert.match(messages(outcome), /test-1\.spec\.ts could not be run: The test writes a file/);
-    assert.match(messages(outcome), /test-9\.spec\.ts was refused: The test writes a file/);
-    assert.ok(runner.runs.every((run) => !run.content.includes("screenshot")));
-  });
-
-  it("gives the verdict and the failure of a test that does not pass in the commit message", async () => {
-    const blamed = propose("test-4.spec.ts", { content: broken("test-4.spec.ts"), failure: "The service returns no total." });
-    const { root } = await design(turns([tryTest("test-4.spec.ts", broken("test-4.spec.ts"), "r4")], [...valid(3), blamed]));
-    assert.match(git(root, "log", "-1", "--format=%B", BRANCH), /- apps\/shop\/test-4\.spec\.ts \(failed\): Checks test-4\.spec\.ts\. Failure: The service returns no total\./);
+    const writes = spec("list-orders").replace("  });\n", "    await page.screenshot({ path: \"/tmp/x.png\" });\n  });\n");
+    const { outcome } = await design(replies([[run(writes, "r1")], ...valid(3)]), { runner });
+    assert.match(messages(outcome), /\[TEST-FILE\] The test apps\/shop\/list-orders\.spec\.ts could not be run: The test writes a file/);
+    assert.ok(runner.runs.every((test) => !test.content.includes("screenshot")));
   });
 });
 
 describe("a visual test", () => {
   it("is run and kept: it opens a page and compares a full capture with its reference", async () => {
     const runner = new FakeTestRunner();
-    const visual = `import { test, expect } from "@playwright/test";\n\ntest("the list of orders looks as it should", async ({ page }) => {\n  await page.goto("/orders");\n  await expect(page).toHaveScreenshot({ fullPage: true });\n});\n`;
-    const { outcome } = await design(replies([propose("orders-look.spec.ts", { content: visual }), ...valid(2)]), { runner });
-    assert.equal(outcome.tests.find((test) => test.path === "apps/shop/orders-look.spec.ts")?.verdict, "passed", messages(outcome));
-    assert.ok(runner.runs.some((run) => run.content === visual));
+    const visual = `import { test, expect } from "@playwright/test";\n\ntest("the list of orders looks as it should", async ({ page }) => {\n  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n    await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();\n    await expect(page).toHaveScreenshot({ fullPage: true });\n  });\n});\n`;
+    const { outcome } = await design(replies([...write("list-orders", visual), ...valid(3).slice(2)]), { runner });
+    assert.equal(outcome.tests.find((test) => test.path === "apps/shop/list-orders.spec.ts")?.verdict, "passed", messages(outcome));
+    assert.ok(runner.runs.some((test) => test.content === visual));
   });
 });
 
@@ -688,24 +734,24 @@ describe("the packages a test may import", () => {
 
   it("let an accessibility test import axe-core when the test repository declares it, and refuse a package it does not", async () => {
     const manifest = JSON.stringify({ devDependencies: { "@playwright/test": "1.64.1", "@axe-core/playwright": "4.11.0" } });
-    const a11y = `import { test, expect } from "@playwright/test";\nimport AxeBuilder from "@axe-core/playwright";\n\ntest("the orders have no accessibility violation", async ({ page }) => {\n  await page.goto("/orders");\n  const results = await new AxeBuilder({ page }).analyze();\n  expect(results.violations).toEqual([]);\n});\n`;
-    const other = spec("test-9.spec.ts").replace('from "@playwright/test";', 'from "@playwright/test";\nimport { faker } from "@faker-js/faker";');
-    const { outcome, server } = await design(replies([propose("orders-a11y.spec.ts", { content: a11y }), propose("test-9.spec.ts", { content: other }), ...valid(2)]), { root: repository(INDEX, manifest) });
-    assert.equal(outcome.tests.find((test) => test.path === "apps/shop/orders-a11y.spec.ts")?.verdict, "passed", messages(outcome));
-    assert.match(messages(outcome), /test-9\.spec\.ts was refused: Line 2 imports @faker-js\/faker; import only @playwright\/test, @axe-core\/playwright or a relative path/);
+    const a11y = spec("list-orders").replace('from "@playwright/test";', 'from "@playwright/test";\nimport AxeBuilder from "@axe-core/playwright";').replace("  });\n});", "    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);\n  });\n});");
+    const other = spec("x").replace('from "@playwright/test";', 'from "@playwright/test";\nimport { faker } from "@faker-js/faker";');
+    const { outcome, server } = await design(replies([[run(other, "faker")], ...write("list-orders", a11y), ...valid(3).slice(2)]), { root: repository(INDEX, manifest) });
+    assert.equal(outcome.tests.find((test) => test.path === "apps/shop/list-orders.spec.ts")?.verdict, "passed", messages(outcome));
+    assert.match(toolResult(server, "faker"), /Refused \(TEST-IMPORT\): Line 2 imports @faker-js\/faker; import only @playwright\/test, @axe-core\/playwright or a relative path/);
     assert.match(JSON.stringify(server.requests[0]!.body), /Import only the packages of the test repository \(@playwright\/test, @axe-core\/playwright\)/);
   });
 });
 
 describe("the references of a visual test", () => {
   it("are written and committed with the test, and listed in the state", async () => {
-    const reference = { path: "apps/shop/orders-look.spec.ts-snapshots/orders-look-1-shop.png", content: new Uint8Array([137, 80, 78, 71]) };
-    const runner: TestRunner = { run: async (test) => ({ startedAt: "2026-11-13T10:00:00.000Z", tests: [{ id: `shop › ${test.path} › t`, verdict: "passed", reason: "ok" }], ...(test.path.endsWith("orders-look.spec.ts") ? { references: [reference] } : {}) }) };
-    const { outcome, root } = await design(replies([propose("orders-look.spec.ts"), ...valid(2)]), { runner: runner as FakeTestRunner });
+    const reference = { path: "apps/shop/list-orders.spec.ts-snapshots/list-orders-1-shop.png", content: new Uint8Array([137, 80, 78, 71]) };
+    const runner: TestRunner = { run: async (test) => ({ startedAt: "2026-11-13T10:00:00.000Z", tests: [{ id: `shop › ${test.path} › t`, verdict: "passed", reason: "ok" }], ...(test.path.endsWith("list-orders.spec.ts") ? { references: [reference] } : {}) }) };
+    const { outcome, root } = await design(replies(valid(3)), { runner: runner as FakeTestRunner });
     assert.ok(filesOf(root).includes(reference.path));
     assert.deepEqual([...readFileSync(join(root, reference.path))], [137, 80, 78, 71]);
-    assert.deepEqual(outcome.tests.find((test) => test.path === "apps/shop/orders-look.spec.ts")?.references, [reference.path]);
-    assert.ok(outcome.tests.filter((test) => test.path !== "apps/shop/orders-look.spec.ts").every((test) => !("references" in test)));
+    assert.deepEqual(outcome.tests.find((test) => test.path === "apps/shop/list-orders.spec.ts")?.references, [reference.path]);
+    assert.ok(outcome.tests.filter((test) => test.path !== "apps/shop/list-orders.spec.ts").every((test) => !("references" in test)));
   });
 });
 
@@ -742,7 +788,7 @@ describe("brief, criterion 1 — from the brief, the index tools lead to the cus
     const find = { id: "f1", name: "index_find", arguments: { words: "customer search" } };
     const entry = { id: "e1", name: "index_entry", arguments: { source: "shop-guide", item: "Customer search" } };
     const read = { id: "s1", name: "shop_guide_read_section", arguments: { number: 2 } };
-    const { outcome, server } = await design([{ body: toolCalls(MODEL, [OPEN, find]) }, { body: toolCalls(MODEL, [entry]) }, { body: toolCalls(MODEL, [read]) }, { body: toolCalls(MODEL, [PLAN]) }, ...replies(valid(3))], { root: customersRepository(), plan: false, brief: "tester la recherche d'un client" });
+    const { outcome, server } = await design(replies([[OPEN, find], [entry], [read], [PLAN], ...valid(3)]), { root: customersRepository(), plan: false, brief: "tester la recherche d'un client" });
     assert.equal(outcome.ok, true, messages(outcome));
     assert.ok(requestText(server).includes("<brief>\\ntester la recherche d'un client\\n</brief>"));
     assert.match(toolResult(server, "f1"), /customers \(Customers\): The customers of the shop\./);
@@ -750,8 +796,7 @@ describe("brief, criterion 1 — from the brief, the index tools lead to the cus
     assert.match(toolResult(server, "e1"), /Source shop-guide \(document\): read it with shop_guide_list_sections, shop_guide_read_section\./);
     assert.match(toolResult(server, "e1"), /Domains: customers\./);
     assert.match(toolResult(server, "s1"), /finds a customer by the start of their last name/);
-    const state = JSON.parse(readFileSync(outcome.statePath!, "utf8")) as DesignState;
-    assert.equal(state.brief, "tester la recherche d'un client");
+    assert.equal(stateOf(outcome).brief, "tester la recherche d'un client");
   });
 });
 
@@ -769,22 +814,22 @@ describe("the request of a brief", () => {
 describe("brief, criterion 2 — without an accepted plan, run_test and propose_test are refused with a message that asks for the plan", () => {
   it("runs nothing, keeps nothing, and reminds the agent to submit the plan", async () => {
     const runner = new FakeTestRunner();
-    const { outcome, server } = await design([{ body: toolCalls(MODEL, [tryTest("test-1.spec.ts", spec("test-1.spec.ts"), "r1"), propose("test-1.spec.ts")]) }, ...replies([])], { plan: false, runner });
+    const { outcome, server } = await design(replies([[run(spec("list-orders"), "r1"), close("c1")]]), { plan: false, runner });
     assert.equal(outcome.ok, false);
     assert.deepEqual(runner.runs, []);
-    for (const id of ["r1", propose("test-1.spec.ts").id]) assert.match(toolResult(server, id), /No test plan is accepted yet\. Submit the plan with propose_plan first/);
+    for (const id of ["r1", "c1"]) assert.equal(told(server, id), "Refused (PLAN-NONE): no plan is accepted yet. Call propose_plan first.\nNothing else was refused.");
     assert.match(messages(outcome), /The agent stopped without an accepted plan; it was reminded to submit one\./);
+    const reminder = (server.requests[2]!.body as { messages: { role: string; content: string }[] }).messages.filter((message) => message.role === "user").at(-1)!.content;
+    assert.ok(reminder.endsWith("\n\nYou stopped before the end. No plan is accepted yet.\nNext: read what the brief is about and do it once on the screens, then call propose_plan."), reminder);
   });
 });
 
 describe("brief, criterion 3 — the plan is written to the design state, and each test kept names its scenario", () => {
-  it("keeps the plan, the scenario of each test, and refuses a test of a scenario the plan does not hold", async () => {
-    const calls = [propose("test-1.spec.ts"), propose("test-2.spec.ts", { scenario: "place-order" }), propose("test-9.spec.ts", { scenario: "return-order" }), propose("test-3.spec.ts", { scenario: "follow-order" })];
-    const { outcome } = await design(replies(calls));
-    const state = JSON.parse(readFileSync(outcome.statePath!, "utf8")) as DesignState;
+  it("keeps the plan, and the scenario of each test, in the order of the plan", async () => {
+    const { outcome } = await design(replies(valid(3)));
+    const state = stateOf(outcome);
     assert.deepEqual(state.plan, PLAN.arguments);
-    assert.deepEqual(state.tests.map((test) => [test.path, test.scenario]), [["apps/shop/test-1.spec.ts", "list-orders"], ["apps/shop/test-2.spec.ts", "place-order"], ["apps/shop/test-3.spec.ts", "follow-order"]]);
-    assert.match(messages(outcome), /return-order is no scenario of the accepted plan; the scenarios are list-orders, place-order, follow-order\./);
+    assert.deepEqual(state.tests.map((test) => [test.path, test.scenario]), IDS.map((id) => [`apps/shop/${id}.spec.ts`, id]));
   });
 });
 
@@ -793,7 +838,7 @@ describe("brief, criterion 4 — a review that refuses the plan stops the task, 
     const review: PlanReview = { review: async () => ({ accepted: false, reason: "The scenarios check only screens." }) };
     const runner = new FakeTestRunner();
     const look = { id: "look", name: "shop_goto", arguments: { url: "/orders" } };
-    const { outcome, root, server, before } = await design([{ body: toolCalls(MODEL, [PLAN, ...valid(3)]) }, { body: toolCalls(MODEL, [{ ...PLAN, id: "plan-2" }, look]) }, { body: answer(MODEL, "Done.") }], { plan: false, planReview: review, runner });
+    const { outcome, root, server, before } = await design([{ body: toolCalls(MODEL, [PLAN, run(spec("x"), "r1")]) }, { body: toolCalls(MODEL, [{ ...PLAN, id: "plan-2" }, look]) }, { body: answer(MODEL, "Done.") }], { plan: false, planReview: review, runner });
     assert.equal(outcome.ok, false);
     assert.equal(outcome.branch, undefined);
     // The trace of the session is all the design left.
@@ -811,18 +856,26 @@ describe("the plan of a design", () => {
   it("refuses two scenarios of one id, then accepts the plan fixed, and no second plan", async () => {
     const twice = { id: "plan-twice", name: "propose_plan", arguments: { scenarios: ["list-orders", "list-orders", "follow-order"].map((id) => scenario(id)) } };
     const again = { ...PLAN, id: "plan-again" };
-    const { outcome, server } = await design([{ body: toolCalls(MODEL, [OPEN, twice]) }, { body: toolCalls(MODEL, [PLAN]) }, { body: toolCalls(MODEL, [again]) }, ...replies(valid(3))], { plan: false });
+    const { outcome, server } = await design(replies([[OPEN, twice], [PLAN], [again], ...valid(3)]), { plan: false });
     assert.equal(outcome.ok, true, messages(outcome));
-    assert.match(toolResult(server, "plan-twice"), /The id list-orders is given to several scenarios; give each its own\./);
+    assert.equal(told(server, "plan-twice"), "Refused (PLAN-ID): the id list-orders is given to several scenarios. Give each scenario its own id.\nNothing else was refused.");
+    assert.match(messages(outcome), /\[PLAN-ID\] The plan was refused by the harness: the id list-orders/);
     assert.match(toolResult(server, "plan-again"), /A plan was already accepted; carry it out\./);
     assert.match(messages(outcome), /The plan was accepted: list-orders, place-order, follow-order\./);
+  });
+
+  it("reminds an agent that stopped after a refused plan of the codes it was refused for", async () => {
+    const twice = { id: "plan-twice", name: "propose_plan", arguments: { scenarios: ["list-orders", "list-orders", "follow-order"].map((id) => scenario(id)) } };
+    const { server } = await design(replies([[twice]]), { plan: false });
+    const reminder = (server.requests[2]!.body as { messages: { role: string; content: string }[] }).messages.filter((message) => message.role === "user").at(-1)!.content;
+    assert.match(reminder, /\nYou stopped before the end\. The plan was last refused for: PLAN-ID\.\nNext: /);
   });
 });
 
 describe("plans submitted in one turn", () => {
   it("accept one plan only", async () => {
     const other = { id: "plan-other", name: "propose_plan", arguments: { scenarios: ["a-one", "a-two", "a-three"].map((id) => scenario(id)) } };
-    const { outcome, server } = await design([{ body: toolCalls(MODEL, [OPEN, PLAN, other]) }, ...replies(valid(3))], { plan: false });
+    const { outcome, server } = await design(replies([[OPEN, PLAN, other], ...valid(3)]), { plan: false });
     assert.equal(outcome.ok, true, messages(outcome));
     assert.equal(outcome.journal.filter((entry) => entry.message.startsWith("The plan was accepted")).length, 1);
     assert.match(toolResult(server, "plan-other"), /A plan was already accepted; carry it out\./);
@@ -839,76 +892,33 @@ describe("plans submitted in one turn", () => {
 
 describe("what a plan may hold", () => {
   it("refuses the value of a declared variable, the plan being written to the state, and cites a source the index does not list", async () => {
-    const leaky = { id: "plan-leaky", name: "propose_plan", arguments: { scenarios: [{ ...scenario("list-orders"), expected: `The orders of ${USERNAME} show.` }, scenario("place-order"), scenario("follow-order")] } };
-    const beyond = { id: "plan-beyond", name: "propose_plan", arguments: { scenarios: [{ ...scenario("list-orders"), sources: [{ source: "shop-db", item: "orders" }] }, scenario("place-order"), scenario("follow-order")] } };
-    const { outcome, server } = await design([{ body: toolCalls(MODEL, [OPEN, leaky]) }, { body: toolCalls(MODEL, [beyond]) }, ...replies(valid(3))], { plan: false });
+    const leaky = { id: "plan-leaky", name: "propose_plan", arguments: { scenarios: [scenario("list-orders", "other", { data: [{ value: USERNAME, from: "shop" }] }), scenario("place-order"), scenario("follow-order")] } };
+    const beyond = { id: "plan-beyond", name: "propose_plan", arguments: { scenarios: [scenario("list-orders", "other", { sources: [{ source: "shop-db", item: "orders" }] }), scenario("place-order"), scenario("follow-order")] } };
+    const { outcome, server } = await design(replies([[OPEN, leaky], [beyond], ...valid(3)]), { plan: false });
     assert.equal(outcome.ok, true, messages(outcome));
-    assert.match(toolResult(server, "plan-leaky"), /The plan holds the value of SHOP_USERNAME; leave it out: the plan is written to the design state\./);
+    assert.match(toolResult(server, "plan-leaky"), /Refused \(PLAN-SECRET\): the plan holds the value of SHOP_USERNAME\. Leave it out; a test reads it with process\.env\.SHOP_USERNAME\./);
     assert.ok(!messages(outcome).includes(USERNAME));
-    const state = JSON.parse(readFileSync(outcome.statePath!, "utf8")) as DesignState;
-    assert.deepEqual(state.plan.scenarios[0]!.sources, [{ source: "shop-db", item: "orders" }]);
+    assert.deepEqual(stateOf(outcome).plan.scenarios[0]!.sources, [{ source: "shop-db", item: "orders" }]);
   });
-});
 
-describe("the assertion a test is kept for", () => {
-  it("must be an expect copied from the test, spaces and quotes aside", async () => {
-    const elsewhere = propose("test-8.spec.ts", { verifies: "await expect(page).toHaveTitle('Shop');" });
-    const vague = propose("test-9.spec.ts", { verifies: "the heading shows" });
-    // The same assertion, with other spaces, other quotes and no semicolon.
-    const spaced = propose("test-1.spec.ts", { verifies: "await expect(page.getByRole('heading',{name:`Orders`}))\n  .toBeVisible()" });
-    const { outcome, server } = await design(replies([elsewhere, vague, spaced, ...valid(3).slice(1)]));
+  it("refuses a functional scenario none of whose texts an action of the agent made appear, and accepts it once the agent searched", async () => {
+    const found = { result: "The order shows", shows: ["Order 42 of Ada"], absent: [] };
+    const functional = (id: string, kase: string) => scenario(id, "functional", { case: kase, steps: [{ action: "Open the orders", expects: [] }, { action: "Search the orders", expects: [found] }] });
+    const plan = (id: string) => ({ id, name: "propose_plan", arguments: { scenarios: [functional("list-orders", "nominal"), functional("place-order", "negative"), scenario("follow-order")] } });
+    const { outcome, server } = await design(replies([[OPEN], [plan("seen")], [SEARCH], [plan("done")], ...valid(3)]), { plan: false });
     assert.equal(outcome.ok, true, messages(outcome));
-    for (const call of [elsewhere, vague]) assert.match(toolResult(server, call.id), /verifies must copy, as written in the test, the expect assertion that verifies the expected result of its scenario\./);
-    assert.deepEqual(outcome.tests.map((test) => test.path), ["apps/shop/test-1.spec.ts", "apps/shop/test-2.spec.ts", "apps/shop/test-3.spec.ts"]);
-  });
-});
-
-describe("the assertion of a functional scenario", () => {
-  const heading = 'await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();';
-  const found = 'await expect(page.getByText("Order 42 of Ada")).toBeVisible();';
-  const search = 'await page.getByRole("button", { name: "Search" }).click();';
-  const test = (...lines: string[]) => `import { test, expect } from "@playwright/test";\n\ntest("orders", async ({ page }) => {\n  await page.goto("/orders");\n${lines.map((line) => `  ${line}\n`).join("")}});\n`;
-  const plan = { id: "plan-kinds", name: "propose_plan", arguments: { scenarios: [scenario("list-orders", "functional"), scenario("place-order"), scenario("look", "visual")] } };
-
-  it("must follow an action, repeat no earlier check and name what the action produced; another kind of scenario needs none of it", async () => {
-    const before = `import { test, expect } from "@playwright/test";\n\ntest("before", async ({ page }) => {\n  ${heading}\n  await page.goto("/orders");\n});\n`;
-    const calls = [
-      propose("test-6.spec.ts", { content: before, verifies: heading }),
-      propose("test-7.spec.ts", { content: test(heading, search, heading), verifies: heading }),
-      propose("test-8.spec.ts", { content: test(search, heading), verifies: heading }),
-      propose("test-9.spec.ts", { content: test(search, found), verifies: found }),
-      propose("test-5.spec.ts", { content: before, verifies: heading, scenario: "look" }),
-      propose("test-4.spec.ts", { scenario: "place-order" }),
-    ];
-    const { outcome, server } = await design([{ body: toolCalls(MODEL, [OPEN, plan]) }, { body: toolCalls(MODEL, [SEARCH]) }, ...replies(calls)], { plan: false });
-    assert.equal(outcome.ok, true, messages(outcome));
-    for (const call of calls.slice(0, 2)) assert.match(toolResult(server, call.id), /In a functional scenario, the assertion of verifies checks what an action produced: it comes after a goto, a click, a fill or a request, and repeats no check made before\./);
-    assert.match(toolResult(server, calls[2]!.id), /What verifies names was already on the page before the action: it verifies nothing of the scenario\./);
-    assert.deepEqual(outcome.tests.map((kept) => [kept.path, kept.scenario]), [["apps/shop/test-9.spec.ts", "list-orders"], ["apps/shop/test-5.spec.ts", "look"], ["apps/shop/test-4.spec.ts", "place-order"]]);
-    assert.match(toolResult(server, "plan-kinds"), /do its steps with the browser tools and see what the screen shows after each action/);
-    // The click told the agent what it produced.
+    assert.match(toolResult(server, "seen"), /Refused \(PLAN-RESULT\): no text scenario list-orders expects appeared, or went, after an action of yours on shop\. Do its steps with shop_fill and shop_click/);
     assert.match(toolResult(server, "search"), /Order 42 of Ada/);
-  });
-
-  it("is not run before the agent did the steps itself", async () => {
-    const runner = new FakeTestRunner();
-    const first = { ...tryTest("test-9.spec.ts", test(search, found), "r1") };
-    const { outcome, server } = await design([{ body: toolCalls(MODEL, [OPEN, plan]) }, { body: toolCalls(MODEL, [first]) }, { body: toolCalls(MODEL, [SEARCH]) }, { body: toolCalls(MODEL, [{ ...first, id: "r2" }]) }, ...replies([])], { plan: false, runner });
-    assert.match(toolResult(server, "r1"), /You have not done the steps of the scenario yourself yet\. Do them with shop_fill and shop_click, read what appears, then write the test from what you saw\./);
-    assert.match(toolResult(server, "r2"), /Run of the file: passed\./);
-    assert.equal(runner.runs.length, 1);
-    assert.equal(outcome.ok, false);
+    assert.match(told(server, "done"), /^The plan was accepted\./);
   });
 });
 
 describe("the screens a test relies on", () => {
-  it("must have been looked at, and showed each locator of the test", async () => {
-    const invented = spec("test-8.spec.ts").replace('name: "Orders"', 'name: "Deliveries"');
-    const blind = tryTest("test-1.spec.ts", spec("test-1.spec.ts"), "blind");
-    const { outcome, server } = await design([{ body: toolCalls(MODEL, [PLAN]) }, { body: toolCalls(MODEL, [blind]) }, { body: toolCalls(MODEL, [OPEN]) }, ...replies([propose("test-8.spec.ts", { content: invented }), ...valid(3)])], { plan: false });
+  it("showed each locator of the test", async () => {
+    const invented = spec("list-orders").replace('name: "Orders"', 'name: "Deliveries"');
+    const { outcome, server } = await design(replies([[run(invented, "invented")], ...valid(3)]));
     assert.equal(outcome.ok, true, messages(outcome));
-    assert.match(toolResult(server, "blind"), /You have not looked at the screens of shop yet\. Open the page of the scenario with shop_goto and read what it shows before you write its test\./);
-    assert.match(toolResult(server, "p-test-8.spec.ts-content"), /No screen you looked at showed getByRole\(.*heading.*Deliveries.*\)\. Use only locators the snapshots gave, copied as given/);
+    assert.match(toolResult(server, "invented"), /Refused \(TEST-LOCATOR\): no screen you looked at showed getByRole\(.*heading.*Deliveries.*\)\. Copy a locator as given/);
     // Opening the page gave the agent what it shows, each element with its locator.
     assert.match(toolResult(server, "open"), /heading .*Orders.*getByRole/);
   });
@@ -924,14 +934,14 @@ describe("the trace of a design", () => {
     assert.ok(trace.every((line) => line.phase === "design"));
     assert.deepEqual([trace[0]!.event.type, trace.at(-1)!.event], ["started", { type: "finished", outcome: "done" }]);
     assert.match(trace.find((line) => line.event.type === "message")!.event.text!, /^Design Playwright tests for the environment local\./);
-    assert.deepEqual(trace.filter((line) => line.actor === "agent" && line.event.type === "tool-call").map((line) => line.event.tool), ["shop_goto", "propose_plan", "propose_test", "propose_test", "propose_test"]);
-    assert.ok(trace.some((line) => line.event.type === "journal" && line.event.message === "The test apps/shop/test-1.spec.ts was accepted."));
+    assert.deepEqual(trace.filter((line) => line.actor === "agent" && line.event.type === "tool-call").map((line) => line.event.tool), ["shop_goto", "propose_plan", ...IDS.flatMap(() => ["run_test", "propose_test"])]);
+    assert.ok(trace.some((line) => line.event.type === "journal" && line.event.message === "The scenario list-orders was closed: passed; its test is apps/shop/list-orders.spec.ts."));
     assert.equal(seen.length, trace.length);
     assert.ok(!readFileSync(outcome.tracePath!, "utf8").includes(PASSWORD));
   });
 
   it("ends as truncated when a limit cut a design that gave its tests, as failed otherwise, and is not opened without a session", async () => {
-    const cut = await design([{ body: toolCalls(MODEL, valid(3)) }, { body: toolCalls(MODEL, [propose("late.spec.ts")]) }], { limits: { maxIterations: 3, maxDurationMinutes: 10, maxActions: 200 } });
+    const cut = await design([...valid(3).map((calls) => ({ body: toolCalls(MODEL, calls) })), { body: toolCalls(MODEL, [run(spec("late"), "late")]) }], { limits: { maxIterations: 7, maxDurationMinutes: 10, maxActions: 200 } });
     assert.equal(cut.outcome.ok, true, messages(cut.outcome));
     assert.equal(lines(cut.outcome.tracePath!).at(-1)!.event.outcome, "truncated");
     const few = await design(replies(valid(2)));

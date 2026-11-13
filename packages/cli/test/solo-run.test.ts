@@ -61,7 +61,7 @@ function repository(config: string | undefined): string {
   writeFileSync(join(root, "node_modules", "@playwright", "test", "package.json"), JSON.stringify({ name: "@playwright/test", version: "1.64.1", types: "index.d.ts" }));
   writeFileSync(
     join(root, "node_modules", "@playwright", "test", "index.d.ts"),
-    "export interface APIResponse { ok(): boolean; }\nexport interface APIRequestContext { get(url: string): Promise<APIResponse>; }\nexport declare function test(title: string, body: (fixtures: { request: APIRequestContext }) => Promise<void>): void;\nexport declare function expect(value: unknown): { toBe(expected: unknown): void };\n",
+    "export interface APIResponse { ok(): boolean; }\nexport interface APIRequestContext { get(url: string): Promise<APIResponse>; }\nexport declare const test: ((title: string, body: (fixtures: { request: APIRequestContext }) => Promise<void>) => void) & { step<T>(title: string, body: () => Promise<T>): Promise<T> };\nexport declare function expect(value: unknown, message?: string): { toBe(expected: unknown): void };\n",
   );
   if (config !== undefined) writeFileSync(join(root, "oqas.json"), config);
   git(root, "add", "-A");
@@ -148,20 +148,31 @@ const isFinalRun = (command: StepCommand) => command.command[1] === "test" && !c
 const submit = (name: string, args: unknown, id: string) => ({ id, name, arguments: args });
 const card = { domains: [{ id: "orders", label: "Orders", description: "Placing an order.", items: [{ name: "Orders", summary: "How an order is placed." }] }], unassigned: [] };
 const index = { domains: [{ id: "orders", label: "Orders", description: "Placing and following an order.", references: [{ source: "order-specs", items: ["Orders"] }] }], unassigned: [] };
-const spec = (title: string) => `import { test, expect } from "@playwright/test";\n\ntest("${title}", async ({ request }) => {\n  const response = await request.get("/orders");\n  expect(response.ok()).toBe(true);\n});\n`;
-const propose = (file: string) => submit("propose_test", { application: "shop", domain: "orders", scenario: "list-orders", verifies: "expect(response.ok()).toBe(true);", file, reason: `Checks ${file}.`, content: spec(file) }, `p-${file}`);
-const scenario = (id: string) => ({ id, title: `The ${id} scenario`, intent: `Verifies ${id}.`, kind: "functional", expected: "The orders answer.", sources: [{ source: "order-specs", item: "Orders" }] });
-const plan = submit("propose_plan", { scenarios: ["list-orders", "place-order", "follow-order"].map(scenario) }, "plan");
+const spec = (title: string) => `import { test, expect } from "@playwright/test";\n\ntest("${title}", async ({ request }) => {\n  await test.step("1. Get the orders", async () => {\n    const response = await request.get("/orders");\n    expect(response.ok(), "The orders answer").toBe(true);\n  });\n});\n`;
+const IDS = ["test-1", "test-2", "test-3"];
+const scenario = (id: string) => ({
+  id,
+  title: `The ${id} scenario`,
+  intent: `Verifies ${id}.`,
+  kind: "functional",
+  case: id === "test-3" ? "negative" : "nominal",
+  application: "shop",
+  domain: "orders",
+  sources: [{ source: "order-specs", item: "Orders" }],
+  data: [],
+  steps: [{ action: "Get the orders", expects: [{ result: "The orders answer", shows: ["The orders answer"], absent: [] }] }],
+});
+const plan = submit("propose_plan", { scenarios: IDS.map(scenario) }, "plan");
 
-/** The replies of the model for the whole chain: the check of the server, the card, the index, then the plan and the design of three tests. */
-const chain = (proposals: readonly ReturnType<typeof propose>[] = [propose("test-1.spec.ts"), propose("test-2.spec.ts"), propose("test-3.spec.ts")]) => [
+/** The replies of the model for the whole chain: the check of the server, the card, the index, then the plan and the design of three tests, each run then closed. */
+const chain = () => [
   { body: { data: [] } },
   { body: toolCalls(MODEL, [submit("submit_card", card, "c1")]) },
   { body: answer(MODEL, "One domain.") },
   { body: toolCalls(MODEL, [submit("submit_index", index, "x1")]) },
   { body: answer(MODEL, "One domain.") },
   { body: toolCalls(MODEL, [plan]) },
-  { body: toolCalls(MODEL, proposals) },
+  ...IDS.flatMap((id) => [{ body: toolCalls(MODEL, [submit("run_test", { content: spec(id) }, `r-${id}`)]) }, { body: toolCalls(MODEL, [submit("propose_test", {}, `p-${id}`)]) }]),
   ...Array.from({ length: 4 }, () => ({ body: answer(MODEL, "Done.") })),
 ];
 
@@ -269,6 +280,8 @@ describe("solo command, criterion 4 — the whole chain, every test passed, exit
     const framing = journalOf(run.root).filter((entry) => entry.event === "started" || entry.event === "finished").map((entry) => `${entry.step}:${entry.event}`);
     assert.deepEqual(framing, ["configuration", "prerequisites", "cartography", "design", "execution", "summary"].flatMap((step) => [`${step}:started`, `${step}:finished`]));
     assert.match(run.out, /^Run oqas-2026-11-13T12-00-00-000Z: exit code 0\./);
+    // The default charter ends each step with a screenshot: the skeleton of each test holds it.
+    assert.ok(JSON.stringify(run.server.requests.map((request) => request.body)).includes("await testInfo.attach("));
   });
 });
 
@@ -322,8 +335,8 @@ describe("solo command, criterion 9 — the state of a complete run", () => {
     assert.ok(state.steps.find((step) => step.step === "cartography")!.modelRequests > 0 && state.steps.find((step) => step.step === "design")!.modelRequests > 0);
     assert.ok(state.steps.every((step) => step.durationMs > 0), JSON.stringify(state.steps));
     // Each step counts the requests of its own sessions: with the list of the models the prerequisites ask for, they are all the server received.
-    assert.deepEqual(state.steps.map((step) => step.modelRequests), [0, 0, 4, 3, 0]);
-    assert.equal(run.server.requests.length, 1 + 4 + 3);
+    assert.deepEqual(state.steps.map((step) => step.modelRequests), [0, 0, 4, 8, 0]);
+    assert.equal(run.server.requests.length, 1 + 4 + 8);
     assert.ok(state.durationMs > state.steps.reduce((total, step) => total + step.durationMs, 0) - 1);
   });
 });
@@ -498,7 +511,7 @@ describe("the edges of a run", () => {
     });
     assert.equal(run.code, 5, run.err);
     assert.match(run.err, /\[design\] error: The design stopped on an unexpected error/);
-    assert.equal(stateOf(run.root).steps.find((step) => step.step === "design")!.modelRequests, 3);
+    assert.equal(stateOf(run.root).steps.find((step) => step.step === "design")!.modelRequests, 8);
   });
 
   it("stops with 5 when the runtime of the agents cannot be opened, and still writes the state", async () => {

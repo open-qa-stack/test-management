@@ -12,8 +12,6 @@ async function outlineOf(text: string): Promise<SpecOutline> {
 }
 /** The locators of a text of a test. */
 const locators = async (text: string) => (await outlineOf(text)).locators;
-/** The texts the one assertion of a text names. */
-const named = async (assertion: string) => (await outlineOf(assertion)).assertions[0]!.texts;
 
 /**
  * A page double: it shows the snapshots queued, the last one repeated, moving to the next when it is opened
@@ -102,16 +100,10 @@ describe("the screens the designer watches", () => {
     assert.equal(result["more"], "10 more lines appeared; take a snapshot to read them.");
   });
 
-  it("asks the agent to look at the screens, then to do the steps of a scenario that acts", async () => {
-    const watch = new ScreenWatch(["shop", "ledger"], page([LIST, FOUND]).tools);
-    assert.match(watch.missing("shop", false)!, /^You have not looked at the screens of shop yet\. Open the page of the scenario with shop_goto/);
-    await run(watch, "snapshot");
-    assert.equal(watch.missing("shop", false), undefined);
-    assert.match(watch.missing("shop", true)!, /^You have not done the steps of the scenario yourself yet\. Do them with shop_fill and shop_click/);
-    await run(watch, "click");
-    assert.equal(watch.missing("shop", true), undefined);
-    // An application without a user interface is held to nothing.
-    assert.deepEqual([watch.missing("ledger", true), watch.unseen("ledger", await locators('page.getByText("x")')), watch.shownBefore("ledger", ["x"])], [undefined, [], false]);
+  it("tells the applications it watches, and holds those without a user interface to nothing", async () => {
+    const watch = new ScreenWatch(["shop", "ledger"], page([LIST]).tools);
+    assert.deepEqual([watch.watches("shop"), watch.watches("ledger")], [true, false]);
+    assert.deepEqual(watch.unseen("ledger", await locators('page.getByText("x")')), []);
   });
 
   it("names the locators no screen showed, by role and by text, whatever the case", async () => {
@@ -125,17 +117,16 @@ describe("the screens the designer watches", () => {
     assert.deepEqual(watch.unseen("shop", await locators('page.getByRole("row", { name: "Ada Lovelace" })')), ['getByRole("row", { name: "Ada Lovelace" })']);
   });
 
-  it("tells an assertion that names only what the page showed before the action", async () => {
-    const watch = new ScreenWatch(["shop"], page([LIST, LIST, FOUND, LIST]).tools);
+  it("tells whether an action made a text appear, or made one go, spaces and case aside", async () => {
+    const watch = new ScreenWatch(["shop"], page([FOUND, FOUND, LIST, FOUND]).tools);
     await run(watch, "goto");
+    assert.equal(watch.changedByAction("shop", ["Orders"], []), false);
     await run(watch, "click");
-    assert.equal(watch.shownBefore("shop", await named('await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();')), true);
-    assert.equal(watch.shownBefore("shop", await named('await expect(page.getByRole("paragraph")).toContainText("Order 42");')), false);
-    assert.equal(watch.shownBefore("shop", await named('await expect(page.getByRole("heading", { name: "Orders" })).toHaveText("Order 42 of Ada");')), false);
-    assert.equal(watch.shownBefore("shop", await named('await expect(page.getByRole("row")).toHaveCount(1);')), false);
-    assert.equal(watch.shownBefore("shop", await named('await expect(page.getByText("Nowhere")).toBeVisible();')), false);
-    // Opening the page again starts over what it showed before any action.
-    await run(watch, "goto");
-    assert.equal(watch.shownBefore("shop", await named('await expect(page.getByRole("button", { name: "Search" })).toBeVisible();')), true);
+    // What was on the page before the action, and stays, was not made by it.
+    assert.deepEqual([watch.changedByAction("shop", ["Orders"], []), watch.changedByAction("shop", [], ["order  42 OF ada"]), watch.changedByAction("shop", ["Order 42"], [])], [false, true, false]);
+    await run(watch, "click");
+    assert.deepEqual([watch.changedByAction("shop", ["Ada Lovelace"], []), watch.changedByAction("shop", ["Nowhere", "Order 42 of Ada"], ["Search"])], [true, true]);
+    // A text too short to be checked is taken as made by an action.
+    assert.equal(watch.changedByAction("shop", ["OK"], []), true);
   });
 });

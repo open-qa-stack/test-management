@@ -46,6 +46,8 @@ export interface DesignerOptions {
   readonly brief?: string;
   /** Decides whether the test plan may be carried out; every plan is accepted as it is by default. */
   readonly planReview?: PlanReview;
+  /** Whether each step of a test ends with a screenshot attached to the report, as the charter may ask; the skeleton of a test then holds it. `false` by default. */
+  readonly screenshots?: boolean;
   /** Name of the branch to create; `oqas/design-<date>` by default. */
   readonly branch?: string;
   /** How the browser starts and waits; a headless Chromium with the default waits otherwise. */
@@ -58,7 +60,7 @@ export interface DesignerOptions {
 
 /** What a design produced. */
 export interface DesignOutcome {
-  /** Whether at least three tests were written. */
+  /** Whether at least three tests were written that passed, or that fail because of the application. */
   readonly ok: boolean;
   /** The branch created, when tests were written; it is the one checked out. */
   readonly branch?: string;
@@ -87,14 +89,15 @@ const ACCEPT_EVERY_PLAN: PlanReview = { review: async () => ({ accepted: true })
  * it looks up the rest with `index_find` and `index_entry`, which name the tools of each source. It gets the browser tools of the applications, the
  * tools of every knowledge source of the environment — the bases read only — and the notes. It submits a
  * test plan with `propose_plan`, which `planReview` accepts or refuses; refused, the design stops and no
- * test is written. Once the plan is accepted, it runs each test it writes with `run_test`, through `runner`,
- * against the application, and proposes it with `propose_test`, naming its scenario, which runs it too
- * unless that very text was already tried, under the limits of the configured autonomy, every trial
- * counting against them. A test is kept when it passes, or when it failed
- * in a run the agent saw and the agent holds the application at fault; its verdict is the harness's. Once
- * the session is over, the accepted tests, in the folder of their application, and the design state are
- * committed on a new branch from the revision checked out, which stays checked out. Nothing contacts a
- * remote. With fewer than three tests, those obtained are still written and the design fails.
+ * test is written. Once the plan is accepted, the harness opens its scenarios one at a time, in order, and
+ * names the file of each test; the agent runs the test with `run_test`, through `runner`, against the
+ * application, then closes the scenario with `propose_test`, under the limits of the configured autonomy,
+ * every run counting against them. The test of a scenario is kept with the text of its last run: as passed,
+ * or as failing with the cause the agent gives; its verdict is the harness's. Once the session is over, the
+ * kept tests, in the folder of their application, and the design state are committed on a new branch from
+ * the revision checked out, which stays checked out. Nothing contacts a remote. A design succeeds with three
+ * tests that passed or that fail because of the application; with fewer, those kept are still written and
+ * the design fails.
  */
 export class Designer {
   private readonly options: DesignerOptions;
@@ -138,20 +141,29 @@ export class Designer {
     const owners = [...new Set([...index.sources.map((source) => source.id), ...readable.map((source) => source.id), ...applications.map((application) => application.id)])];
     const browser = browserTools(applications, { environment: index.environment, env, screenshotsDir: join(repositoryRoot, config.repository.stateDir, "screenshots"), ...this.options.browser });
     const screens = new ScreenWatch(applications.map((application) => application.id), browser.tools);
-    const plan = new PlanProposal({ sources: owners, secrets: declaredSecrets(config, env), review: this.options.planReview ?? ACCEPT_EVERY_PLAN }, journal);
     const proposals = new TestProposals(
       {
         repositoryRoot,
         appsDir: config.repository.appsDir,
-        applications: applications.map((application) => application.id),
-        domains: index.domains.map((domain) => domain.id),
         addresses: declaredAddresses(config),
         secrets: declaredSecrets(config, env),
         ...(this.options.check === undefined ? {} : { check: this.options.check }),
         runner: this.options.runner,
         packages,
-        plan,
         screens,
+        screenshots: this.options.screenshots ?? false,
+      },
+      journal,
+    );
+    const plan = new PlanProposal(
+      {
+        sources: owners,
+        applications: applications.map((application) => application.id),
+        domains: index.domains.map((domain) => domain.id),
+        secrets: declaredSecrets(config, env),
+        screens,
+        review: this.options.planReview ?? ACCEPT_EVERY_PLAN,
+        carry: (accepted) => proposals.start(accepted),
       },
       journal,
     );
@@ -170,7 +182,7 @@ export class Designer {
       tools,
       request,
       events,
-      reminder: () => proposals.reminder(),
+      reminder: () => plan.reminder() ?? proposals.reminder(),
       sent: (text: string) => opened.harness("design", { type: "message", text }),
       received: (event: AgentEvent) => {
         opened.agent("design", event);
@@ -182,13 +194,13 @@ export class Designer {
       await runAgentTask(this.options.runtime, task, taskLimits(config)).finally(() => browser.close());
     const { last, counters } = taskEnd(events);
     if (last.type === "error") journal.record("error", `The session failed: ${last.error.message}`);
-    if (last.type === "stopped") journal.record("error", `The task reached its ${last.reason.limit} limit; no test was written for the proposal under way.`);
+    if (last.type === "stopped") journal.record("error", `The task reached its ${last.reason.limit} limit; no test was written for the scenario under way.`);
 
     if (plan.refused !== undefined) return failed(`No test was written: the plan was refused: ${plan.refused}`);
     const tests = proposals.accepted;
     if (tests.length === 0) return failed(`No test was written: ${obtained(0)}, ${MIN_TESTS} at least are expected.`);
     const state: DesignState = {
-      formatVersion: 1,
+      formatVersion: 2,
       producedAt: start.toISOString(),
       environment: index.environment,
       ...(this.options.brief === undefined ? {} : { brief: this.options.brief }),
@@ -202,8 +214,9 @@ export class Designer {
     };
     const statePath = posix.join(config.repository.stateDir, DESIGNS_FOLDER, `${id}.json`);
     await this.write(repository, state, statePath, tests, journal);
-    if (tests.length < MIN_TESTS) journal.record("error", `The design failed: ${obtained(tests.length)}, ${MIN_TESTS} at least are expected.`);
-    const ok = tests.length >= MIN_TESTS;
+    const counted = tests.filter((test) => test.verdict === "passed" || test.quarantine?.cause === "application").length;
+    if (counted < MIN_TESTS) journal.record("error", `The design failed: ${obtained(counted)}, ${MIN_TESTS} at least are expected.`);
+    const ok = counted >= MIN_TESTS;
     if (ok) phases.end(last.type === "end" ? "done" : "truncated");
     return { ok, branch, statePath: join(repositoryRoot, statePath), tests: state.tests, journal: journal.entries(), tracePath: opened.path };
     } finally {
@@ -224,7 +237,8 @@ export class Designer {
       await mkdir(dirname(join(repositoryRoot, path)), { recursive: true });
       await writeFile(join(repositoryRoot, path), content);
     }
-    const line = (test: AcceptedTest) => (test.verdict === "passed" ? `- ${test.path}: ${test.reason}` : `- ${test.path} (${test.verdict}): ${test.reason} Failure: ${test.failure}`);
+    const titles = new Map(state.plan.scenarios.map((scenario) => [scenario.id, scenario.title]));
+    const line = (test: AcceptedTest) => (test.quarantine === undefined ? `- ${test.path}: ${titles.get(test.scenario)}` : `- ${test.path}: failing (${test.quarantine.cause})`);
     const message = [`test: add ${tests.length} generated Playwright tests`, "", ...tests.map(line)].join("\n");
     const committed = new Set(await repository.commit(files.map(([path]) => path), message));
     for (const test of tests) journal.record("info", `The test ${test.path} was written.`);
@@ -256,7 +270,7 @@ export class Designer {
 
 /** A tool that refuses every call once the plan is refused: the design is stopped. */
 function stoppedOnRefusal(tool: ToolDefinition, plan: PlanProposal): ToolDefinition {
-  return { ...tool, execute: async (args) => (plan.refused === undefined ? tool.execute(args) : { error: plan.blocked()! }) };
+  return { ...tool, execute: async (args) => (plan.refused === undefined ? tool.execute(args) : { error: plan.blocked() }) };
 }
 
 /** How many tests a design obtained, in words. */

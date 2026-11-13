@@ -1,0 +1,31 @@
+/** Fewest characters a text needs to be checked: a shorter one matches too much by chance. */
+const SHORTEST_CHECKED = 3;
+
+/**
+ * Whether a text is long enough for a gate to check it.
+ *
+ * @param text - The text.
+ * @returns `true` when it holds three characters or more, spaces collapsed.
+ */
+export function checkable(text: string): boolean {
+  return folded(text).length >= SHORTEST_CHECKED;
+}
+
+/**
+ * Whether a text was observed in what the tools returned: spaces collapsed and case aside, it is part of one
+ * of their texts. Every gate that asks whether something was seen or read asks it this way.
+ *
+ * @param text - The text looked for.
+ * @param texts - What the tools returned, such as the lines of the snapshots.
+ * @returns `true` when one of them holds it.
+ */
+export function observed(text: string, texts: Iterable<string>): boolean {
+  const looked = folded(text);
+  for (const candidate of texts) if (folded(candidate).includes(looked)) return true;
+  return false;
+}
+
+/** A text with its spaces collapsed, in lower case. */
+function folded(text: string): string {
+  return text.replace(/\s+/g, " ").trim().toLowerCase();
+}

@@ -4,31 +4,34 @@ import type { IndexModel, IndexRun } from "@open-qa-stack/shared";
 /** Folder of the design states, in the state folder of the test repository. */
 export const DESIGNS_FOLDER = "designs";
 
-/** A test the designer wrote, as its design state lists it. */
+/** Who is at fault, for a test kept failing. */
+export type FailureCause = "application" | "plan" | "test";
+
+/** Why a test is kept failing, as the agent diagnosed it. */
+export interface Quarantine {
+  /** `application`: it does not do what the plan expects; `plan`: an expected text of the plan is wrong; `test`: the test could not be made to work. */
+  readonly cause: FailureCause;
+  /** What the run showed and what the agent checked. */
+  readonly evidence: string;
+}
+
+/** A test the designer wrote, as its design state lists it; its application, its domain and its reason are those of its scenario. */
 export interface DesignedTest {
   /** Path of the file, relative to the root of the test repository, with forward slashes. */
   readonly path: string;
-  /** Identifier of the application the test is about. */
-  readonly application: string;
-  /** Identifier of the domain of the index the test comes from. */
-  readonly domain: string;
   /** Identifier of the scenario of the plan the test carries out. */
   readonly scenario: string;
-  /** The assertion of the test that verifies the expected result of its scenario. */
-  readonly verifies: string;
-  /** Why the test is worth running, in one sentence. */
-  readonly reason: string;
-  /** Its verdict when it was last run, as the harness pronounced it: `passed`, or another when the application is at fault. */
+  /** The verdict of its last run, as the harness pronounced it: `passed` or `failed`. */
   readonly verdict: Verdict;
-  /** For a test that does not pass, why the agent holds the application at fault. */
-  readonly failure?: string;
+  /** For a test kept failing, why. */
+  readonly quarantine?: Quarantine;
   /** The references of its visual comparisons, written with it, relative to the root of the test repository. */
   readonly references?: readonly string[];
 }
 
 /** The state of a design, written next to the tests on their branch. */
 export interface DesignState {
-  readonly formatVersion: 1;
+  readonly formatVersion: 2;
   /** Date and time of the design, ISO 8601 in UTC. */
   readonly producedAt: string;
   /** Name of the environment of the domain index. */

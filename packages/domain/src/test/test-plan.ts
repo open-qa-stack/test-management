@@ -9,18 +9,54 @@ export interface ScenarioSource {
   readonly item?: string;
 }
 
+/** Whether a scenario follows the expected path, or what the application answers to an input that matches nothing, is wrong or is forbidden. */
+export type ScenarioCase = "nominal" | "negative";
+
+/** A value a test enters, with what showed it. */
+export interface ScenarioValue {
+  /** The value, as the tool that showed it gave it. */
+  readonly value: string;
+  /** The identifier of the source or the application whose tool showed it, or `made-up` for a value the test invents. */
+  readonly from: string;
+}
+
+/** A result a step expects to see after its action. */
+export interface PlannedExpect {
+  /** The result, in one sentence. */
+  readonly result: string;
+  /** The exact texts the screen then displays. */
+  readonly shows: readonly string[];
+  /** The exact texts the screen no longer displays. */
+  readonly absent: readonly string[];
+}
+
+/** A step of a scenario: one action of the user and what it should produce. Its test writes it as one `test.step`. */
+export interface PlannedStep {
+  /** What the user does, in one sentence. */
+  readonly action: string;
+  /** What the step expects after the action; none for a step that only leads to the next. */
+  readonly expects: readonly PlannedExpect[];
+}
+
 /** A scenario of a test plan: one test to write. */
 export interface PlannedScenario {
-  /** A slug, unique in the plan, that the test written for it names. */
+  /** A slug, unique in the plan, that names the file of its test. */
   readonly id: string;
   readonly title: string;
   /** What the scenario is meant to verify, and why. */
   readonly intent: string;
   readonly kind: ScenarioKind;
-  /** What the test expects of the application. */
-  readonly expected: string;
+  readonly case: ScenarioCase;
+  /** Identifier of the one application the test is about. */
+  readonly application: string;
+  /** Identifier of the domain of the index the scenario comes from. */
+  readonly domain: string;
   /** The sources the scenario relies on. */
   readonly sources: readonly ScenarioSource[];
+  /** The values the test enters. */
+  readonly data: readonly ScenarioValue[];
+  /** The steps, in the order the user does them. */
+  readonly steps: readonly PlannedStep[];
 }
 
 /** The tests an agent means to write, before it writes any. */

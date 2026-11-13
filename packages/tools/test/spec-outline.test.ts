@@ -36,7 +36,7 @@ describe("the outline of a test", () => {
       ].join("\n"),
     );
     assert.deepEqual(
-      outline.assertions.map(({ code, texts }) => ({ code, texts })),
+      outline.assertions,
       [
         { code: `await expect(page.getByRole("row", { name: "ORD-1" })).toContainText('Ada');`, texts: ["ORD-1", "Ada"] },
         { code: `await expect(total).toHaveValue("12");`, texts: ["12"] },
@@ -44,14 +44,5 @@ describe("the outline of a test", () => {
         { code: `await expect(page.getByText("Saved")).toBeVisible();`, texts: ["Saved"] },
       ],
     );
-  });
-
-  it("tells whether a navigation, an input or a request comes before an assertion", async () => {
-    const outline = await outlineOf(
-      [`await expect(page.getByText("Orders")).toBeVisible();`, `await page.goto("/orders");`, `await expect(page.getByText("Ada")).toBeVisible();`, `await expect(page.getByText(page.title())).toBeVisible();`].join("\n"),
-    );
-    const [before, after] = outline.assertions;
-    assert.deepEqual([outline.actsBefore(before!.start), outline.actsBefore(after!.start)], [false, true]);
-    assert.equal((await outlineOf(`await expect(page.getByText("Ada")).toBeVisible();`)).actsBefore(Number.MAX_SAFE_INTEGER), false);
   });
 });

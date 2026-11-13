@@ -2,8 +2,6 @@ import type { Node } from "@vscode/tree-sitter-wasm";
 
 /** The methods of a page or a locator that locate an element by what the user perceives. */
 const LOCATOR_METHODS = new Set(["getByRole", "getByText", "getByLabel", "getByPlaceholder", "getByTestId", "getByTitle", "getByAltText"]);
-/** The methods that navigate, enter something, or send a request to an API. */
-const ACTION_METHODS = new Set(["goto", "click", "dblclick", "fill", "press", "type", "check", "uncheck", "selectOption", "setInputFiles", "get", "post", "put", "patch", "delete", "fetch"]);
 /** The matchers whose first argument is a text the element must hold. */
 const TEXT_MATCHERS = new Set(["toHaveText", "toContainText", "toHaveValue"]);
 
@@ -21,15 +19,12 @@ export interface SpecLocator {
 export interface SpecAssertion {
   /** The statement as the test writes it. */
   readonly code: string;
-  /** Where it starts in the text, to tell what comes before it. */
-  readonly start: number;
   /** The texts it names: those its locators look for, then those its matcher expects. */
   readonly texts: readonly string[];
 }
 
 /**
- * What a Playwright test holds, read once from its syntax tree: its locators, its assertions and where its
- * actions are.
+ * What a Playwright test holds, read once from its syntax tree: its locators and its assertions.
  *
  * @remarks
  * Only what is written as a string literal is read: a name, a text or a role given as a regular
@@ -41,28 +36,14 @@ export class SpecOutline {
   public readonly locators: readonly SpecLocator[];
   /** The `expect` statements, in the order of the text. */
   public readonly assertions: readonly SpecAssertion[];
-  readonly #actions: readonly number[];
 
   /** @param root - The root of the syntax tree of the test, which the outline reads whole and does not keep. */
   public constructor(root: Node) {
     const calls = root.descendantsOfType("call_expression").map((call) => call!);
     this.locators = calls.flatMap((call) => locatorOf(call));
-    this.#actions = calls.flatMap((call) => {
-      const method = methodOf(call);
-      return method !== undefined && ACTION_METHODS.has(method.text) ? [method.startIndex] : [];
-    });
     this.assertions = root.descendantsOfType("expression_statement").flatMap((statement) => assertionOf(statement!));
   }
 
-  /**
-   * Whether an action — a navigation, an input or a request — comes before a point of the text.
-   *
-   * @param start - Where in the text, as `SpecAssertion.start` gives it.
-   * @returns `true` when one does.
-   */
-  public actsBefore(start: number): boolean {
-    return this.#actions.some((at) => at < start);
-  }
 }
 
 /** The name of the method a call calls on an object, such as `click` in `button.click()`. */
@@ -94,7 +75,7 @@ function assertionOf(statement: Node): SpecAssertion[] {
   const located = statement.descendantsOfType("call_expression").flatMap((call) => locatorOf(call!).flatMap((locator) => (locator.text === undefined ? [] : [locator.text])));
   const matcher = methodOf(chain);
   const expected = matcher !== undefined && TEXT_MATCHERS.has(matcher.text) ? stringValue(chain.childForFieldName("arguments")!.namedChildren[0]) : undefined;
-  return [{ code: statement.text, start: statement.startIndex, texts: [...located, ...(expected === undefined ? [] : [expected])] }];
+  return [{ code: statement.text, texts: [...located, ...(expected === undefined ? [] : [expected])] }];
 }
 
 /** Whether a chain of calls starts with `expect`, such as `expect(total).not.toHaveText("0")` or `expect.soft(total)`. */

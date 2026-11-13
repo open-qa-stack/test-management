@@ -1,5 +1,6 @@
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import { scopedToolName, type SpecLocator } from "@open-qa-stack/tools";
+import { checkable, observed } from "./observed.ts";
 
 /** The browser tools that change the page of an application. */
 const ACTIONS = ["click", "fill", "select_option", "check"];
@@ -12,16 +13,12 @@ const MAX_GONE = 20;
 interface Seen {
   /** Every line a snapshot showed. */
   readonly lines: Set<string>;
-  /** The lines shown before any action, since the page was last opened. */
-  readonly before: Set<string>;
   /** The lines that appeared after an action. */
   readonly produced: Set<string>;
+  /** The lines that went after an action. */
+  readonly removed: Set<string>;
   /** The lines of the last snapshot of the whole page. */
   last: Set<string> | undefined;
-  /** Whether an action was done since the page was last opened. */
-  acted: boolean;
-  /** Whether an action was ever done. */
-  everActed: boolean;
 }
 
 /**
@@ -32,8 +29,8 @@ interface Seen {
  * opening an address returns the snapshot of the page, and an action returns the lines of the snapshot that
  * appeared after it and those that went. A snapshot is given without what a test has no use for — the reference of each
  * element, the address of each link — so that a long session holds more screens. It remembers, for
- * each application, every line the snapshots showed, those shown before any action since the page was
- * opened, and those an action produced. An application without a user interface has no such tools, and is
+ * each application, every line the snapshots showed, those an action produced and those an action
+ * removed. An application without a user interface has no such tools, and is
  * held to nothing.
  */
 export class ScreenWatch {
@@ -50,7 +47,7 @@ export class ScreenWatch {
     for (const application of applications) {
       const snapshot = byName.get(scopedToolName(application, "snapshot"));
       if (snapshot === undefined) continue;
-      const seen: Seen = { lines: new Set(), before: new Set(), produced: new Set(), last: undefined, acted: false, everActed: false };
+      const seen: Seen = { lines: new Set(), produced: new Set(), removed: new Set(), last: undefined };
       this.seen.set(application, seen);
       const read = async () => this.record(seen, compact((await snapshot.execute({})) as { page: string; truncated: boolean }), true);
       const wrap = (action: string, execute: (tool: ToolDefinition, args: unknown) => Promise<unknown>) => {
@@ -64,8 +61,6 @@ export class ScreenWatch {
       });
       wrap("goto", async (tool, args) => {
         const state = (await tool.execute(args)) as object;
-        seen.acted = false;
-        seen.before.clear();
         const shown = await read();
         return { ...state, page: shown.page, truncated: shown.truncated };
       });
@@ -73,13 +68,12 @@ export class ScreenWatch {
         wrap(action, async (tool, args) => {
           const previous = seen.last ?? (await read()).lines;
           const state = (await tool.execute(args)) as object;
-          seen.acted = true;
-          seen.everActed = true;
           const current = (await read()).lines;
           const appeared = absent(current, previous);
           for (const line of appeared) seen.produced.add(line);
           const told = appeared.length === 0 ? "Nothing new appeared on the page." : appeared.slice(0, MAX_APPEARED).join("\n");
           const gone = absent(previous, current);
+          for (const line of gone) seen.removed.add(line);
           const more = gone.length > MAX_GONE ? [`${gone.length - MAX_GONE} more lines went.`] : [];
           return {
             ...state,
@@ -103,19 +97,13 @@ export class ScreenWatch {
   }
 
   /**
-   * Why a test of an application may not be written yet.
+   * Whether the agent has the browser tools of an application, which its scenarios are held to.
    *
    * @param application - Identifier of the application.
-   * @param acts - Whether the test is of a scenario that acts on the application, which the agent must have done itself.
-   * @returns What the agent must do first with the browser tools; `undefined` when it did, or the application has no user interface.
+   * @returns `true` for an application with a user interface.
    */
-  public missing(application: string, acts: boolean): string | undefined {
-    const seen = this.seen.get(application);
-    if (seen === undefined) return undefined;
-    const tool = (action: string) => scopedToolName(application, action);
-    if (seen.lines.size === 0) return `You have not looked at the screens of ${application} yet. Open the page of the scenario with ${tool("goto")} and read what it shows before you write its test.`;
-    if (acts && !seen.everActed) return `You have not done the steps of the scenario yourself yet. Do them with ${tool("fill")} and ${tool("click")}, read what appears, then write the test from what you saw.`;
-    return undefined;
+  public watches(application: string): boolean {
+    return this.seen.has(application);
   }
 
   /**
@@ -124,8 +112,9 @@ export class ScreenWatch {
    * @param application - Identifier of the application.
    * @param locators - The locators of the test, as its outline reads them.
    * @remarks
-   * A screen shows a locator when one of its lines starts with the role, and one of its lines holds the name
-   * or the text, whatever the case: the name of a row or a list is that of what it holds, on other lines.
+   * A screen shows a locator when one of its lines starts with the role, and the name or the text was
+   * observed in one of its lines: the name of a row or a list is that of what it holds, on other lines. A
+   * name or a text too short to be checked is taken as shown.
    *
    * @returns Each such locator, once, as the test writes it; none for an application without a user interface.
    */
@@ -134,33 +123,31 @@ export class ScreenWatch {
     if (seen === undefined) return [];
     const lines = [...seen.lines];
     const shown = ({ role, text }: SpecLocator) =>
-      (role === undefined || lines.some((line) => new RegExp(`^- '?${role}\\b`).test(line))) && (text === undefined || lines.some((line) => line.toLowerCase().includes(text.toLowerCase())));
+      (role === undefined || lines.some((line) => new RegExp(`^- '?${role}\\b`).test(line))) && (text === undefined || !checkable(text) || observed(text, lines));
     return [...new Set(locators.filter((locator) => !shown(locator)).map((locator) => locator.code))];
   }
 
   /**
-   * Whether an assertion only names what the page showed before any action, and nothing an action
-   * produced: such an assertion verifies no behaviour.
+   * Whether an action of the agent made a text appear on a screen of the application, or made one go.
    *
    * @param application - Identifier of the application.
-   * @param named - The texts the assertion names, as its outline reads them.
-   * @returns `true` when every text it names was on the page before the action; `false` when it names none, or one that an action produced.
+   * @param shows - Texts expected on the screen after an action.
+   * @param absent - Texts expected gone from the screen after an action.
+   * @returns `true` when one of `shows` was observed in a line an action produced, or one of `absent` in a
+   * line an action removed; `true` too when none of them is long enough to be checked.
    */
-  public shownBefore(application: string, named: readonly string[]): boolean {
-    const seen = this.seen.get(application);
-    const texts = named.map((text) => text.toLowerCase());
-    if (seen === undefined || texts.length === 0) return false;
-    const within = (lines: ReadonlySet<string>, text: string) => [...lines].some((line) => line.toLowerCase().includes(text));
-    return texts.every((text) => within(seen.before, text) && !within(seen.produced, text));
+  public changedByAction(application: string, shows: readonly string[], absent: readonly string[]): boolean {
+    const seen = this.seen.get(application)!;
+    const appeared = shows.filter(checkable);
+    const went = absent.filter(checkable);
+    if (appeared.length + went.length === 0) return true;
+    return appeared.some((text) => observed(text, seen.produced)) || went.some((text) => observed(text, seen.removed));
   }
 
   /** Keeps what a snapshot showed; one of the whole page is the one the next action is compared with. */
   private record(seen: Seen, snapshot: { page: string; truncated: boolean }, whole: boolean): { page: string; truncated: boolean; lines: Set<string> } {
     const lines = new Set(snapshot.page.split("\n").map(normalized).filter((line) => line !== ""));
-    for (const line of lines) {
-      seen.lines.add(line);
-      if (!seen.acted) seen.before.add(line);
-    }
+    for (const line of lines) seen.lines.add(line);
     if (whole) seen.last = lines;
     return { ...snapshot, lines };
   }

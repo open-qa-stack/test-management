@@ -10,6 +10,9 @@ import { missingPrerequisites } from "./prerequisites.ts";
 import { CountedRuntime } from "./counted-runtime.ts";
 import { RunJournal, type Step } from "./run-journal.ts";
 
+/** The rule of the charter that ends each step of a test with a screenshot, which the skeleton of a test then holds. */
+const SCREENSHOT_RULE = "PW-SHOT-01";
+
 /** What a run of the solo command needs. */
 export interface SoloRunOptions {
   /** Absolute path of the test repository. */
@@ -174,6 +177,7 @@ export class SoloRun {
           runtime: counted!,
           instructions: designerInstructions(rules, config.repository),
           check: new CharterCheck({ repository: this.options.repositoryRoot, rules }),
+          screenshots: rules.some((rule) => rule.id === SCREENSHOT_RULE),
           runner: trials,
           ...(this.options.brief === undefined ? {} : { brief: this.options.brief }),
         }).run();

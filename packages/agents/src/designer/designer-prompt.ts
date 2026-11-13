@@ -22,16 +22,16 @@ export function designRequest(brief: string | undefined, environment: string, fo
     `1. Find what echoes the brief with ${FIND_TOOL} and ${ENTRY_TOOL}: the domains, then the sections of documents, operations, tables, folders and screens, with the tools that read them. The index is a map, not a limit: look beyond it when it falls short.`,
     "2. Read what matters with the tools of each source, or search it for a precise element: the rules, the fields, the data the application holds. The bases are read only.",
     "3. Explore the screens the brief is about with the browser tools. Opening a page returns what it shows, each element with the locator a test uses for it; filling a field or clicking returns what appeared after. Do each search or form yourself, with data you read, and note what appears.",
-    `4. Submit the plan with ${PLAN_TOOL}: between ${MIN_TESTS} and ${MAX_TESTS} scenarios, each verifying a behaviour the brief aims at — a search that finds, a detail that shows the right data, a rule that applies — not only that a screen displays. Cite the sources each relies on.`,
-    `5. Once the plan is accepted, take each scenario in turn: do its steps with the browser tools, write its test from what you saw, run it with ${RUN_TOOL} and fix it until it passes, then propose it with ${PROPOSE_TOOL}, naming its scenario and copying the assertion that verifies its expected result.`,
+    `4. Submit the plan with ${PLAN_TOOL}: between ${MIN_TESTS} and ${MAX_TESTS} scenarios, each verifying a behaviour the brief aims at — a search that finds, a detail that shows the right data, a rule that applies — not only that a screen displays. Give each scenario the values its test enters and its steps, each step with the exact texts the screen shows, or no longer shows, after its action. Cite the sources each relies on.`,
+    `5. Once the plan is accepted, the harness opens each scenario in turn and gives the skeleton of its test: do its steps with the browser tools, fill the skeleton with the code they return, run it with ${RUN_TOOL} and fix it until it passes, then close the scenario with ${PROPOSE_TOOL}.`,
   ];
   const rules = [
     `- A test is kept only once it ran: it must pass, unless the application is at fault. Read the error, the step that failed and, when it helps, the screens and the logs of the services.`,
-    `- Propose each test with ${PROPOSE_TOOL}, one file per call, between ${MIN_TESTS} and ${MAX_TESTS} in all. A test is about one application only.`,
-    `- Propose a test that does not pass only when the application, not the test, is at fault, after you ran it: say why in failure, with what the run showed.`,
-    "- Rely on what you read or saw, never on what you suppose: expect only texts, labels and data the sources or the screens showed you. A test is refused when it uses a locator no screen showed you, or when you did not do its steps yourself first.",
+    `- A test is about the application of its scenario only; the harness names its file.`,
+    `- When the last run failed and you cannot repair the test, close the scenario with ${PROPOSE_TOOL} and a diagnosis: its cause and what the run showed. The test is kept failing.`,
+    "- Rely on what you read or saw, never on what you suppose: expect only texts, labels and data the sources or the screens showed you. A test is refused when it uses a locator no screen showed you.",
     "- Each test verifies the expected result of its scenario: after the action, it asserts what the action produced — the rows a search finds, the fields a detail shows, with values you saw. That a field or a button is visible verifies no functional scenario.",
-    "- Never weaken a test to make it pass. When it fails, find out why with the browser tools, then fix it and keep what it verifies; propose it failing only when the application is at fault.",
+    "- Never weaken a test to make it pass. When it fails, find out why with the browser tools, then fix it and keep what it verifies.",
     "- Compare a screenshot only in a visual scenario; check data with assertions on texts and values.",
     "- A test may create, change or delete data of the application in this test environment, as long as it relies on no data written before it: it makes what it needs itself.",
     `- Import only the packages of the test repository (${packages.join(", ")}), or a relative path inside it; never another test file.`,
@@ -39,7 +39,6 @@ export function designRequest(brief: string | undefined, environment: string, fo
     `- Reach an application with paths relative to its base URL, such as await page.goto("/"); the Playwright configuration gives the base URL. Never write an address or a host.`,
     "- A test that signs in reads its account from the environment variables named below, with process.env; never write a username or a password.",
     "- A test writes no file: no saveAs, storageState, pdf or path option; the runner keeps the traces and screenshots.",
-    "- Give the domain of the index the test comes from, and why the test is worth running in one sentence.",
   ];
   const known = applications.map((application) => `- ${application.id} (${application.name}, ${application.type}): ${signIn(application)}`);
   return [
