@@ -13,12 +13,16 @@ export interface StartOptions {
 
 /**
  * Reads the configuration, then starts the API on the Fastify adapter and listens on the configured
- * address. `SIGTERM` and `SIGINT` close it, then the process exits on that signal.
+ * address. A database that cannot be reached does not stop the startup: the API starts, and reports
+ * itself not ready until the database answers. `SIGTERM` and `SIGINT` close it, then the process exits
+ * on that signal.
  *
  * @param env - The environment the configuration is read from.
  * @param options - How the API is started.
  * @returns The application, listening.
  * @throws {@link ConfigurationError} before anything starts, when the configuration is invalid.
+ * @throws {@link PendingMigrationsError} before anything listens, when the database answers but has not
+ * applied every versioned migration.
  */
 export async function startApi(env: Environment, options: StartOptions = {}): Promise<NestFastifyApplication> {
   const configuration = ApiConfiguration.read(env);

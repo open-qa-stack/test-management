@@ -1,0 +1,15 @@
+# The PostgreSQL database of a development instance, reachable from this machine only.
+name: oqas
+services:
+  database:
+    image: docker.io/library/postgres:18.7-alpine3.24
+    environment:
+      POSTGRES_USER: oqas
+      POSTGRES_DB: oqas
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "127.0.0.1:${OQAS_DATABASE_PORT:-5432}:5432"
+    volumes:
+      - database:/var/lib/postgresql
+volumes:
+  database:

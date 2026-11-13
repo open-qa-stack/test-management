@@ -1,3 +1,5 @@
+import { DatabaseUrl } from "./database-url.ts";
+
 const PORT_DIGITS = /^[0-9]{1,5}$/;
 
 /** Outcome of reading the raw value of a variable. */
@@ -25,5 +27,14 @@ export const nonEmptyText: ValueType<string> = {
   rule: "a text that is not empty",
   parse(raw) {
     return raw === "" ? { ok: false } : { ok: true, value: raw };
+  },
+};
+
+/** A PostgreSQL connection URL, such as `postgres://user:password@host:5432/database`. */
+export const databaseUrl: ValueType<DatabaseUrl> = {
+  rule: "a PostgreSQL connection URL with a host name, starting with postgres:// or postgresql://",
+  parse(raw) {
+    const value = DatabaseUrl.parse(raw);
+    return value === undefined ? { ok: false } : { ok: true, value };
   },
 };

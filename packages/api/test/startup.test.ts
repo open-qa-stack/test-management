@@ -12,10 +12,15 @@ import { childEnvironment } from "./support/environment.ts";
 const MAIN = fileURLToPath(new URL("../src/main.js", import.meta.url));
 const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
 
+/** A database nothing listens for: the API starts all the same, not ready. */
+async function absentDatabase(): Promise<string> {
+  return `postgres://oqas@127.0.0.1:${await closedPort()}/oqas`;
+}
+
 describe("an API started with a valid configuration", () => {
   it("listens on the configured port, and its health route answers 200 with the documented body", async () => {
     const port = await closedPort();
-    const app = await startApi({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port) }, { logger: false });
+    const app = await startApi({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port), OQAS_DATABASE_URL: await absentDatabase() }, { logger: false });
     try {
       const response = await fetch(`http://127.0.0.1:${port}/health`);
       assert.equal(response.status, 200);
@@ -28,7 +33,7 @@ describe("an API started with a valid configuration", () => {
 
   it("runs on an underlying Fastify instance", async () => {
     const port = await closedPort();
-    const app = await startApi({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port) }, { logger: false });
+    const app = await startApi({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port), OQAS_DATABASE_URL: await absentDatabase() }, { logger: false });
     try {
       const adapter = app.getHttpAdapter();
       assert.ok(adapter instanceof FastifyAdapter);
@@ -44,7 +49,7 @@ describe("an API started with a valid configuration", () => {
   for (const stop of ["SIGTERM", "SIGINT"] as const) {
     it(`logs where it listens, then closes and exits on ${stop}`, async () => {
       const port = await closedPort();
-      const env = childEnvironment({ NO_COLOR: "1", OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port) });
+      const env = childEnvironment({ NO_COLOR: "1", OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port), OQAS_DATABASE_URL: await absentDatabase() });
       const child = spawn(process.execPath, ["--enable-source-maps", MAIN], { env });
       let output = "";
       const listening = new Promise<void>((resolve) =>
@@ -69,10 +74,11 @@ describe("an API whose port is taken", () => {
     const taken = createServer();
     await new Promise<void>((resolve) => taken.listen(0, "127.0.0.1", resolve));
     const { port } = taken.address() as { port: number };
+    const database = await absentDatabase();
     try {
-      await assert.rejects(startApi({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port) }, { logger: false }), { code: "EADDRINUSE" });
+      await assert.rejects(startApi({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port), OQAS_DATABASE_URL: await absentDatabase() }, { logger: false }), { code: "EADDRINUSE" });
       const run = await new Promise<{ code: number | null; err: string }>((resolve) =>
-        execFile(process.execPath, [MAIN], { env: childEnvironment({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port) }), encoding: "utf8" }, (error, _out, err) =>
+        execFile(process.execPath, [MAIN], { env: childEnvironment({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port), OQAS_DATABASE_URL: database }), encoding: "utf8" }, (error, _out, err) =>
           resolve({ code: error === null ? 0 : (error.code as number), err }),
         ),
       );

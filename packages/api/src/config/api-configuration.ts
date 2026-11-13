@@ -1,4 +1,5 @@
 import { API_VARIABLES } from "./api-variables.ts";
+import type { DatabaseUrl } from "./database-url.ts";
 import type { Environment } from "./environment-variable.ts";
 import { readVariables } from "./read-variables.ts";
 
@@ -8,10 +9,13 @@ export class ApiConfiguration {
   readonly host: string;
   /** The TCP port the API listens on. */
   readonly port: number;
+  /** The connection URL of the database, a secret. */
+  readonly database: DatabaseUrl;
 
-  private constructor(host: string, port: number) {
+  private constructor(host: string, port: number, database: DatabaseUrl) {
     this.host = host;
     this.port = port;
+    this.database = database;
     Object.freeze(this);
   }
 
@@ -22,7 +26,7 @@ export class ApiConfiguration {
    * @throws {@link ConfigurationError} naming every variable that is missing or invalid.
    */
   static read(env: Environment): ApiConfiguration {
-    const { host, port } = readVariables(API_VARIABLES, env);
-    return new ApiConfiguration(host, port);
+    const { host, port, database } = readVariables(API_VARIABLES, env);
+    return new ApiConfiguration(host, port, database);
   }
 }

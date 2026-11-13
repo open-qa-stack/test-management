@@ -1,17 +1,20 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
+import { once } from "node:events";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
+import { closedPort } from "@open-qa-stack/testing";
 import { ApiConfiguration } from "../src/config/api-configuration.ts";
 import { API_VARIABLES } from "../src/config/api-variables.ts";
 import { ConfigurationError } from "../src/config/configuration-error.ts";
 import type { EnvironmentVariable } from "../src/config/environment-variable.ts";
 import { processEnvironment } from "../src/config/process-environment.ts";
 import { readVariables } from "../src/config/read-variables.ts";
-import { nonEmptyText, portNumber, type ValueType } from "../src/config/value-type.ts";
+import { databaseUrl, nonEmptyText, portNumber, type ValueType } from "../src/config/value-type.ts";
 import { childEnvironment, TEST_ENVIRONMENT } from "./support/environment.ts";
 
+const DATABASE = "postgres://oqas:secret@127.0.0.1:5432/oqas";
 const MAIN = fileURLToPath(new URL("../src/main.js", import.meta.url));
 const RUNNING = fileURLToPath(new URL("../../docs/running.md", import.meta.url));
 
@@ -44,11 +47,12 @@ function violationsOf(action: () => unknown): readonly string[] {
 
 describe("the configuration of the API", () => {
   it("is read from the environment, with the default address", () => {
-    const configuration = ApiConfiguration.read({ OQAS_PORT: "8080" });
+    const configuration = ApiConfiguration.read({ OQAS_PORT: "8080", OQAS_DATABASE_URL: DATABASE });
     assert.deepEqual({ host: configuration.host, port: configuration.port }, { host: "0.0.0.0", port: 8080 });
+    assert.equal(configuration.database.reveal(), DATABASE);
     assert.ok(Object.isFrozen(configuration));
-    assert.equal(ApiConfiguration.read({ OQAS_HOST: "127.0.0.1", OQAS_PORT: "1" }).host, "127.0.0.1");
-    assert.equal(ApiConfiguration.read({ OQAS_PORT: "65535" }).port, 65535);
+    assert.equal(ApiConfiguration.read({ OQAS_HOST: "127.0.0.1", OQAS_PORT: "1", OQAS_DATABASE_URL: DATABASE }).host, "127.0.0.1");
+    assert.equal(ApiConfiguration.read({ OQAS_PORT: "65535", OQAS_DATABASE_URL: DATABASE }).port, 65535);
   });
 
   it("is read from the environment of the process", () => {
@@ -59,6 +63,7 @@ describe("the configuration of the API", () => {
     assert.deepEqual(violationsOf(() => ApiConfiguration.read({ OQAS_HOST: "" })), [
       "OQAS_HOST must be a text that is not empty.",
       "OQAS_PORT is required and is not set.",
+      "OQAS_DATABASE_URL is required and is not set.",
     ]);
   });
 
@@ -97,6 +102,18 @@ describe("a port", () => {
   });
 });
 
+describe("a database URL", () => {
+  it("is a postgres or postgresql URL with a host name", () => {
+    for (const raw of ["postgres://127.0.0.1/oqas", "postgresql://oqas:p%40ss@db.example:5432/oqas?sslmode=require"]) {
+      const parsed = databaseUrl.parse(raw);
+      assert.ok(parsed.ok && parsed.value.reveal() === raw, raw);
+    }
+    for (const raw of ["", "oqas", "mysql://127.0.0.1/oqas", "postgres:///oqas", "postgres:///oqas?host=/var/run/postgresql", "postgres://oqas:%zz@127.0.0.1/oqas", "http://127.0.0.1"]) {
+      assert.deepEqual(databaseUrl.parse(raw), { ok: false }, raw);
+    }
+  });
+});
+
 describe("a text", () => {
   it("is not empty", () => {
     assert.deepEqual(nonEmptyText.parse("x"), { ok: true, value: "x" });
@@ -106,7 +123,7 @@ describe("a text", () => {
 
 describe("a missing mandatory variable", () => {
   it("stops the startup with a non-zero exit code and a message that names the variable", async () => {
-    const run = await api({});
+    const run = await api({ OQAS_DATABASE_URL: DATABASE });
     assert.equal(run.code, 1);
     assert.equal(run.err, "The configuration is invalid:\n- OQAS_PORT is required and is not set.\n");
     assert.equal(run.out, "");
@@ -116,7 +133,7 @@ describe("a missing mandatory variable", () => {
 describe("an invalid value", () => {
   for (const raw of ["eighty", "70000", "-1"]) {
     it(`stops the startup with a message that names the variable without the value: ${raw}`, async () => {
-      const run = await api({ OQAS_PORT: raw });
+      const run = await api({ OQAS_PORT: raw, OQAS_DATABASE_URL: DATABASE });
       assert.equal(run.code, 1);
       assert.equal(run.err, "The configuration is invalid:\n- OQAS_PORT must be an integer from 1 to 65535.\n");
       assert.ok(!run.err.includes(raw) && !run.out.includes(raw));
@@ -143,4 +160,46 @@ describe("a variable declared secret", () => {
     const secret = WITNESS.padEnd(40, "0");
     assert.deepEqual(readVariables(variables, { TEST_TOKEN: secret, TEST_PORT: "8080" }), { token: secret, port: 8080 });
   });
+});
+
+describe("every variable declared secret", () => {
+  const WITNESS = "witness-5b8e1c09";
+  /** For each secret variable, a valid and an invalid value that both hold the witness. */
+  const witnessValues = async (): Promise<Record<string, { valid: string; invalid: string }>> => ({
+    OQAS_DATABASE_URL: { valid: `postgres://oqas:${WITNESS}@127.0.0.1:${await closedPort()}/oqas`, invalid: `postgres://oqas:${WITNESS}@/oqas` },
+  });
+  const secrets = (Object.values(API_VARIABLES) as EnvironmentVariable<unknown>[]).filter((variable) => variable.secret).map((variable) => variable.name);
+  const baseline = async () => ({ NO_COLOR: "1", OQAS_HOST: "127.0.0.1", OQAS_PORT: String(await closedPort()), OQAS_DATABASE_URL: DATABASE });
+
+  /** Starts the API, stops it once it listens, and gives everything it wrote. */
+  async function startAndStop(variables: Record<string, string>): Promise<string> {
+    const child = spawn(process.execPath, ["--enable-source-maps", MAIN], { env: childEnvironment(variables) });
+    let output = "";
+    for (const stream of [child.stdout, child.stderr]) {
+      stream.on("data", (chunk: Buffer) => {
+        output += chunk.toString();
+        if (output.includes("Listening on")) child.kill("SIGTERM");
+      });
+    }
+    await once(child, "exit");
+    return output;
+  }
+
+  it("has witness values in this test", async () => {
+    assert.deepEqual(Object.keys(await witnessValues()), secrets);
+    assert.ok(secrets.length > 0);
+  });
+
+  for (const name of secrets) {
+    it(`never appears in the outputs of a startup: ${name}`, async () => {
+      const { valid, invalid } = (await witnessValues())[name] as { valid: string; invalid: string };
+      const started = await startAndStop({ ...(await baseline()), [name]: valid });
+      assert.match(started, /Listening on/);
+      assert.ok(!started.includes(WITNESS), started);
+      const refused = await api({ ...(await baseline()), [name]: invalid });
+      assert.equal(refused.code, 1);
+      assert.match(refused.err, new RegExp(`^- ${name} must be`, "m"));
+      assert.ok(!refused.out.includes(WITNESS) && !refused.err.includes(WITNESS), refused.err);
+    });
+  }
 });
