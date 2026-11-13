@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { FastifyAdapter } from "@nestjs/platform-fastify";
 import { closedPort } from "@open-qa-stack/testing";
 import { startApi } from "../src/start-api.ts";
+import { childEnvironment } from "./support/environment.ts";
 
 const MAIN = fileURLToPath(new URL("../src/main.js", import.meta.url));
 const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
@@ -43,7 +44,7 @@ describe("an API started with a valid configuration", () => {
   for (const stop of ["SIGTERM", "SIGINT"] as const) {
     it(`logs where it listens, then closes and exits on ${stop}`, async () => {
       const port = await closedPort();
-      const env = { NODE_V8_COVERAGE: process.env["NODE_V8_COVERAGE"] ?? "", NO_COLOR: "1", OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port) };
+      const env = childEnvironment({ NO_COLOR: "1", OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port) });
       const child = spawn(process.execPath, ["--enable-source-maps", MAIN], { env });
       let output = "";
       const listening = new Promise<void>((resolve) =>
@@ -71,7 +72,7 @@ describe("an API whose port is taken", () => {
     try {
       await assert.rejects(startApi({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port) }, { logger: false }), { code: "EADDRINUSE" });
       const run = await new Promise<{ code: number | null; err: string }>((resolve) =>
-        execFile(process.execPath, [MAIN], { env: { NODE_V8_COVERAGE: process.env["NODE_V8_COVERAGE"] ?? "", OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port) }, encoding: "utf8" }, (error, _out, err) =>
+        execFile(process.execPath, [MAIN], { env: childEnvironment({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port) }), encoding: "utf8" }, (error, _out, err) =>
           resolve({ code: error === null ? 0 : (error.code as number), err }),
         ),
       );

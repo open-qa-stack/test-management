@@ -10,6 +10,7 @@ import type { EnvironmentVariable } from "../src/config/environment-variable.ts"
 import { processEnvironment } from "../src/config/process-environment.ts";
 import { readVariables } from "../src/config/read-variables.ts";
 import { nonEmptyText, portNumber, type ValueType } from "../src/config/value-type.ts";
+import { childEnvironment, TEST_ENVIRONMENT } from "./support/environment.ts";
 
 const MAIN = fileURLToPath(new URL("../src/main.js", import.meta.url));
 const RUNNING = fileURLToPath(new URL("../../docs/running.md", import.meta.url));
@@ -24,9 +25,8 @@ function documentedVariables(): string[][] {
 
 /** Runs the API as a program with the given variables only, and gives its exit code and outputs. */
 function api(variables: Record<string, string>): Promise<{ code: number | null; out: string; err: string }> {
-  const env = { NODE_V8_COVERAGE: process.env["NODE_V8_COVERAGE"] ?? "", ...variables };
   return new Promise((resolve) =>
-    execFile(process.execPath, ["--enable-source-maps", MAIN], { env, encoding: "utf8", timeout: 10_000 }, (error, out, err) =>
+    execFile(process.execPath, ["--enable-source-maps", MAIN], { env: childEnvironment(variables), encoding: "utf8", timeout: 10_000 }, (error, out, err) =>
       resolve({ code: error === null ? 0 : (error.code as number), out, err }),
     ),
   );
@@ -52,7 +52,7 @@ describe("the configuration of the API", () => {
   });
 
   it("is read from the environment of the process", () => {
-    assert.equal(processEnvironment(), process.env);
+    assert.equal(processEnvironment(), TEST_ENVIRONMENT);
   });
 
   it("names every variable at fault in one error", () => {

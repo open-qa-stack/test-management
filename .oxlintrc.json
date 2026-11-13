@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": { "correctness": "off" },
+  "jsPlugins": ["./lint/plugin.ts"],
+  "ignorePatterns": ["**/dist/**", "**/test/fixtures/**"],
+  "overrides": [
+    {
+      "files": ["packages/api/src/**", "packages/api/test/**"],
+      "plugins": ["node"],
+      "rules": { "node/no-process-env": "error" }
+    },
+    {
+      "files": ["packages/api/src/config/**", "packages/api/test/support/**"],
+      "plugins": ["node"],
+      "rules": { "node/no-process-env": "off" }
+    },
+    {
+      "files": ["packages/domain/**"],
+      "rules": { "open-qa-stack/pure-domain": "error" }
+    }
+  ]
+}
