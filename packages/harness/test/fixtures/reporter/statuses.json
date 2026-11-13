@@ -1,0 +1,572 @@
+{
+ "config": {
+  "argv": [
+   "node",
+   "/repo/node_modules/.bin/playwright",
+   "test",
+   "--reporter=json"
+  ],
+  "configFile": "/repo/playwright.config.mjs",
+  "rootDir": "/repo/apps",
+  "failOnFlakyTests": false,
+  "forbidOnly": false,
+  "fullyParallel": false,
+  "globalSetup": null,
+  "globalTeardown": null,
+  "globalTimeout": 0,
+  "grep": {},
+  "grepInvert": null,
+  "maxFailures": 0,
+  "metadata": {
+   "actualWorkers": 1
+  },
+  "preserveOutput": "always",
+  "projects": [
+   {
+    "outputDir": "/repo/test-results",
+    "repeatEach": 1,
+    "retries": 1,
+    "metadata": {
+     "actualWorkers": 1
+    },
+    "id": "shop",
+    "name": "shop",
+    "testDir": "/repo/apps/shop",
+    "testIgnore": [],
+    "testMatch": [
+     "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+    ],
+    "timeout": 1000
+   }
+  ],
+  "filteredProjects": [
+   {
+    "grep": {},
+    "grepInvert": null,
+    "outputDir": "/repo/test-results",
+    "repeatEach": 1,
+    "retries": 1,
+    "metadata": {
+     "actualWorkers": 1
+    },
+    "name": "shop",
+    "testDir": "/repo/apps/shop",
+    "snapshotDir": "/repo/apps/shop",
+    "testIgnore": [],
+    "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
+    "timeout": 1000,
+    "use": {},
+    "dependencies": [],
+    "ignoreSnapshots": false,
+    "__projectId": "shop"
+   }
+  ],
+  "quiet": false,
+  "reporter": [
+   [
+    "json"
+   ]
+  ],
+  "reportSlowTests": {
+   "max": 5,
+   "threshold": 300000
+  },
+  "shard": null,
+  "tags": [],
+  "updateSnapshots": "default",
+  "updateSourceMethod": "patch",
+  "version": "1.64.1",
+  "workers": 5,
+  "webServer": null
+ },
+ "suites": [
+  {
+   "title": "shop/statuses.spec.ts",
+   "file": "shop/statuses.spec.ts",
+   "column": 0,
+   "line": 0,
+   "specs": [
+    {
+     "title": "passes",
+     "ok": true,
+     "tags": [],
+     "tests": [
+      {
+       "timeout": 1000,
+       "annotations": [],
+       "expectedStatus": "passed",
+       "projectId": "shop",
+       "projectName": "shop",
+       "results": [
+        {
+         "workerIndex": 0,
+         "parallelIndex": 0,
+         "status": "passed",
+         "duration": 2,
+         "errors": [],
+         "stdout": [],
+         "stderr": [],
+         "retry": 0,
+         "startTime": "2026-11-13T11:31:55.457Z",
+         "annotations": [],
+         "attachments": []
+        }
+       ],
+       "status": "expected"
+      }
+     ],
+     "id": "a651859d0acdd829a2cf-7e6135cbfa128ad90f63",
+     "file": "shop/statuses.spec.ts",
+     "line": 4,
+     "column": 5
+    },
+    {
+     "title": "fails",
+     "ok": false,
+     "tags": [],
+     "tests": [
+      {
+       "timeout": 1000,
+       "annotations": [],
+       "expectedStatus": "passed",
+       "projectId": "shop",
+       "projectName": "shop",
+       "results": [
+        {
+         "workerIndex": 0,
+         "parallelIndex": 0,
+         "status": "failed",
+         "duration": 1,
+         "error": {
+          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m",
+          "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n    at /repo/apps/shop/statuses.spec.ts:5:39",
+          "location": {
+           "file": "/repo/apps/shop/statuses.spec.ts",
+           "column": 39,
+           "line": 5
+          },
+          "snippet": "  3 |\n  4 | test(\"passes\", async () => { expect(1).toBe(1); });\n> 5 | test(\"fails\", async () => { expect(1).toBe(2); });\n    |                                       ^\n  6 | test.skip(\"is skipped\", async () => {});\n  7 | test(\"is flaky\", async ({}, testInfo) => { if (testInfo.retry === 0) expect(\"first\").toBe(\"second\"); });\n  8 | test(\"is expected to fail\", async () => { test.fail(); expect(1).toBe(2); });"
+         },
+         "errors": [
+          {
+           "location": {
+            "file": "/repo/apps/shop/statuses.spec.ts",
+            "column": 39,
+            "line": 5
+           },
+           "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n\n  3 |\n  4 | test(\"passes\", async () => { expect(1).toBe(1); });\n> 5 | test(\"fails\", async () => { expect(1).toBe(2); });\n    |                                       ^\n  6 | test.skip(\"is skipped\", async () => {});\n  7 | test(\"is flaky\", async ({}, testInfo) => { if (testInfo.retry === 0) expect(\"first\").toBe(\"second\"); });\n  8 | test(\"is expected to fail\", async () => { test.fail(); expect(1).toBe(2); });\n    at /repo/apps/shop/statuses.spec.ts:5:39"
+          }
+         ],
+         "stdout": [],
+         "stderr": [],
+         "retry": 0,
+         "startTime": "2026-11-13T11:31:55.473Z",
+         "annotations": [],
+         "attachments": [
+          {
+           "name": "error-context",
+           "contentType": "text/markdown",
+           "path": "/repo/test-results/statuses-fails-shop/error-context.md"
+          }
+         ],
+         "errorLocation": {
+          "file": "/repo/apps/shop/statuses.spec.ts",
+          "column": 39,
+          "line": 5
+         }
+        },
+        {
+         "workerIndex": 1,
+         "parallelIndex": 0,
+         "status": "failed",
+         "duration": 2,
+         "error": {
+          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m",
+          "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n    at /repo/apps/shop/statuses.spec.ts:5:39",
+          "location": {
+           "file": "/repo/apps/shop/statuses.spec.ts",
+           "column": 39,
+           "line": 5
+          },
+          "snippet": "  3 |\n  4 | test(\"passes\", async () => { expect(1).toBe(1); });\n> 5 | test(\"fails\", async () => { expect(1).toBe(2); });\n    |                                       ^\n  6 | test.skip(\"is skipped\", async () => {});\n  7 | test(\"is flaky\", async ({}, testInfo) => { if (testInfo.retry === 0) expect(\"first\").toBe(\"second\"); });\n  8 | test(\"is expected to fail\", async () => { test.fail(); expect(1).toBe(2); });"
+         },
+         "errors": [
+          {
+           "location": {
+            "file": "/repo/apps/shop/statuses.spec.ts",
+            "column": 39,
+            "line": 5
+           },
+           "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n\n  3 |\n  4 | test(\"passes\", async () => { expect(1).toBe(1); });\n> 5 | test(\"fails\", async () => { expect(1).toBe(2); });\n    |                                       ^\n  6 | test.skip(\"is skipped\", async () => {});\n  7 | test(\"is flaky\", async ({}, testInfo) => { if (testInfo.retry === 0) expect(\"first\").toBe(\"second\"); });\n  8 | test(\"is expected to fail\", async () => { test.fail(); expect(1).toBe(2); });\n    at /repo/apps/shop/statuses.spec.ts:5:39"
+          }
+         ],
+         "stdout": [],
+         "stderr": [],
+         "retry": 1,
+         "startTime": "2026-11-13T11:31:55.644Z",
+         "annotations": [],
+         "attachments": [
+          {
+           "name": "error-context",
+           "contentType": "text/markdown",
+           "path": "/repo/test-results/statuses-fails-shop-retry1/error-context.md"
+          }
+         ],
+         "errorLocation": {
+          "file": "/repo/apps/shop/statuses.spec.ts",
+          "column": 39,
+          "line": 5
+         }
+        }
+       ],
+       "status": "unexpected"
+      }
+     ],
+     "id": "a651859d0acdd829a2cf-c56ca3239e435cbbbba9",
+     "file": "shop/statuses.spec.ts",
+     "line": 5,
+     "column": 5
+    },
+    {
+     "title": "is skipped",
+     "ok": true,
+     "tags": [],
+     "tests": [
+      {
+       "timeout": 1000,
+       "annotations": [
+        {
+         "type": "skip",
+         "location": {
+          "file": "/repo/apps/shop/statuses.spec.ts",
+          "line": 6,
+          "column": 6
+         }
+        }
+       ],
+       "expectedStatus": "skipped",
+       "projectId": "shop",
+       "projectName": "shop",
+       "results": [
+        {
+         "workerIndex": 2,
+         "parallelIndex": 0,
+         "status": "skipped",
+         "duration": 0,
+         "errors": [],
+         "stdout": [],
+         "stderr": [],
+         "retry": 0,
+         "startTime": "2026-11-13T11:31:55.824Z",
+         "annotations": [
+          {
+           "type": "skip",
+           "location": {
+            "file": "/repo/apps/shop/statuses.spec.ts",
+            "line": 6,
+            "column": 6
+           }
+          }
+         ],
+         "attachments": []
+        }
+       ],
+       "status": "skipped"
+      }
+     ],
+     "id": "a651859d0acdd829a2cf-c294544a543b28556d06",
+     "file": "shop/statuses.spec.ts",
+     "line": 6,
+     "column": 6
+    },
+    {
+     "title": "is flaky",
+     "ok": true,
+     "tags": [],
+     "tests": [
+      {
+       "timeout": 1000,
+       "annotations": [],
+       "expectedStatus": "passed",
+       "projectId": "shop",
+       "projectName": "shop",
+       "results": [
+        {
+         "workerIndex": 2,
+         "parallelIndex": 0,
+         "status": "failed",
+         "duration": 3,
+         "error": {
+          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m\"second\"\u001b[39m\nReceived: \u001b[31m\"first\"\u001b[39m",
+          "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m\"second\"\u001b[39m\nReceived: \u001b[31m\"first\"\u001b[39m\n    at /repo/apps/shop/statuses.spec.ts:7:86",
+          "location": {
+           "file": "/repo/apps/shop/statuses.spec.ts",
+           "column": 86,
+           "line": 7
+          },
+          "snippet": "   5 | test(\"fails\", async () => { expect(1).toBe(2); });\n   6 | test.skip(\"is skipped\", async () => {});\n>  7 | test(\"is flaky\", async ({}, testInfo) => { if (testInfo.retry === 0) expect(\"first\").toBe(\"second\"); });\n     |                                                                                      ^\n   8 | test(\"is expected to fail\", async () => { test.fail(); expect(1).toBe(2); });\n   9 | test(\"times out\", async () => { await new Promise((resolve) => setTimeout(resolve, 5000)); });\n  10 | test.describe(\"a group\", () => { test(\"passes inside\", async () => {}); });"
+         },
+         "errors": [
+          {
+           "location": {
+            "file": "/repo/apps/shop/statuses.spec.ts",
+            "column": 86,
+            "line": 7
+           },
+           "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m\"second\"\u001b[39m\nReceived: \u001b[31m\"first\"\u001b[39m\n\n   5 | test(\"fails\", async () => { expect(1).toBe(2); });\n   6 | test.skip(\"is skipped\", async () => {});\n>  7 | test(\"is flaky\", async ({}, testInfo) => { if (testInfo.retry === 0) expect(\"first\").toBe(\"second\"); });\n     |                                                                                      ^\n   8 | test(\"is expected to fail\", async () => { test.fail(); expect(1).toBe(2); });\n   9 | test(\"times out\", async () => { await new Promise((resolve) => setTimeout(resolve, 5000)); });\n  10 | test.describe(\"a group\", () => { test(\"passes inside\", async () => {}); });\n    at /repo/apps/shop/statuses.spec.ts:7:86"
+          }
+         ],
+         "stdout": [],
+         "stderr": [],
+         "retry": 0,
+         "startTime": "2026-11-13T11:31:55.824Z",
+         "annotations": [],
+         "attachments": [
+          {
+           "name": "error-context",
+           "contentType": "text/markdown",
+           "path": "/repo/test-results/statuses-is-flaky-shop/error-context.md"
+          }
+         ],
+         "errorLocation": {
+          "file": "/repo/apps/shop/statuses.spec.ts",
+          "column": 86,
+          "line": 7
+         }
+        },
+        {
+         "workerIndex": 3,
+         "parallelIndex": 0,
+         "status": "passed",
+         "duration": 0,
+         "errors": [],
+         "stdout": [],
+         "stderr": [],
+         "retry": 1,
+         "startTime": "2026-11-13T11:31:56.011Z",
+         "annotations": [],
+         "attachments": []
+        }
+       ],
+       "status": "flaky"
+      }
+     ],
+     "id": "a651859d0acdd829a2cf-a84fadaea1a5f352c1e6",
+     "file": "shop/statuses.spec.ts",
+     "line": 7,
+     "column": 5
+    },
+    {
+     "title": "is expected to fail",
+     "ok": true,
+     "tags": [],
+     "tests": [
+      {
+       "timeout": 1000,
+       "annotations": [
+        {
+         "type": "fail",
+         "location": {
+          "file": "/repo/apps/shop/statuses.spec.ts",
+          "line": 8,
+          "column": 48
+         }
+        }
+       ],
+       "expectedStatus": "failed",
+       "projectId": "shop",
+       "projectName": "shop",
+       "results": [
+        {
+         "workerIndex": 3,
+         "parallelIndex": 0,
+         "status": "failed",
+         "duration": 2,
+         "error": {
+          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m",
+          "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n    at /repo/apps/shop/statuses.spec.ts:8:66",
+          "location": {
+           "file": "/repo/apps/shop/statuses.spec.ts",
+           "column": 66,
+           "line": 8
+          },
+          "snippet": "   6 | test.skip(\"is skipped\", async () => {});\n   7 | test(\"is flaky\", async ({}, testInfo) => { if (testInfo.retry === 0) expect(\"first\").toBe(\"second\"); });\n>  8 | test(\"is expected to fail\", async () => { test.fail(); expect(1).toBe(2); });\n     |                                                                  ^\n   9 | test(\"times out\", async () => { await new Promise((resolve) => setTimeout(resolve, 5000)); });\n  10 | test.describe(\"a group\", () => { test(\"passes inside\", async () => {}); });\n  11 |"
+         },
+         "errors": [
+          {
+           "location": {
+            "file": "/repo/apps/shop/statuses.spec.ts",
+            "column": 66,
+            "line": 8
+           },
+           "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n\n   6 | test.skip(\"is skipped\", async () => {});\n   7 | test(\"is flaky\", async ({}, testInfo) => { if (testInfo.retry === 0) expect(\"first\").toBe(\"second\"); });\n>  8 | test(\"is expected to fail\", async () => { test.fail(); expect(1).toBe(2); });\n     |                                                                  ^\n   9 | test(\"times out\", async () => { await new Promise((resolve) => setTimeout(resolve, 5000)); });\n  10 | test.describe(\"a group\", () => { test(\"passes inside\", async () => {}); });\n  11 |\n    at /repo/apps/shop/statuses.spec.ts:8:66"
+          }
+         ],
+         "stdout": [],
+         "stderr": [],
+         "retry": 0,
+         "startTime": "2026-11-13T11:31:56.025Z",
+         "annotations": [
+          {
+           "type": "fail",
+           "location": {
+            "file": "/repo/apps/shop/statuses.spec.ts",
+            "line": 8,
+            "column": 48
+           }
+          }
+         ],
+         "attachments": [
+          {
+           "name": "error-context",
+           "contentType": "text/markdown",
+           "path": "/repo/test-results/statuses-is-expected-to-fail-shop/error-context.md"
+          }
+         ],
+         "errorLocation": {
+          "file": "/repo/apps/shop/statuses.spec.ts",
+          "column": 66,
+          "line": 8
+         }
+        }
+       ],
+       "status": "expected"
+      }
+     ],
+     "id": "a651859d0acdd829a2cf-5d8aba5c402bbbdfe1c1",
+     "file": "shop/statuses.spec.ts",
+     "line": 8,
+     "column": 5
+    },
+    {
+     "title": "times out",
+     "ok": false,
+     "tags": [],
+     "tests": [
+      {
+       "timeout": 1000,
+       "annotations": [],
+       "expectedStatus": "passed",
+       "projectId": "shop",
+       "projectName": "shop",
+       "results": [
+        {
+         "workerIndex": 3,
+         "parallelIndex": 0,
+         "status": "timedOut",
+         "duration": 1003,
+         "error": {
+          "message": "\u001b[31mTest timeout of 1000ms exceeded.\u001b[39m",
+          "stack": "\u001b[31mTest timeout of 1000ms exceeded.\u001b[39m"
+         },
+         "errors": [
+          {
+           "message": "\u001b[31mTest timeout of 1000ms exceeded.\u001b[39m"
+          }
+         ],
+         "stdout": [],
+         "stderr": [],
+         "retry": 0,
+         "startTime": "2026-11-13T11:31:56.032Z",
+         "annotations": [],
+         "attachments": [
+          {
+           "name": "error-context",
+           "contentType": "text/markdown",
+           "path": "/repo/test-results/statuses-times-out-shop/error-context.md"
+          }
+         ]
+        },
+        {
+         "workerIndex": 4,
+         "parallelIndex": 0,
+         "status": "timedOut",
+         "duration": 1003,
+         "error": {
+          "message": "\u001b[31mTest timeout of 1000ms exceeded.\u001b[39m",
+          "stack": "\u001b[31mTest timeout of 1000ms exceeded.\u001b[39m"
+         },
+         "errors": [
+          {
+           "message": "\u001b[31mTest timeout of 1000ms exceeded.\u001b[39m"
+          }
+         ],
+         "stdout": [],
+         "stderr": [],
+         "retry": 1,
+         "startTime": "2026-11-13T11:31:57.251Z",
+         "annotations": [],
+         "attachments": [
+          {
+           "name": "error-context",
+           "contentType": "text/markdown",
+           "path": "/repo/test-results/statuses-times-out-shop-retry1/error-context.md"
+          }
+         ]
+        }
+       ],
+       "status": "unexpected"
+      }
+     ],
+     "id": "a651859d0acdd829a2cf-9ee5fadf90da0505ed2e",
+     "file": "shop/statuses.spec.ts",
+     "line": 9,
+     "column": 5
+    }
+   ],
+   "suites": [
+    {
+     "title": "a group",
+     "file": "shop/statuses.spec.ts",
+     "line": 10,
+     "column": 6,
+     "specs": [
+      {
+       "title": "passes inside",
+       "ok": true,
+       "tags": [],
+       "tests": [
+        {
+         "timeout": 1000,
+         "annotations": [],
+         "expectedStatus": "passed",
+         "projectId": "shop",
+         "projectName": "shop",
+         "results": [
+          {
+           "workerIndex": 5,
+           "parallelIndex": 0,
+           "status": "passed",
+           "duration": 0,
+           "errors": [],
+           "stdout": [],
+           "stderr": [],
+           "retry": 0,
+           "startTime": "2026-11-13T11:31:58.476Z",
+           "annotations": [],
+           "attachments": []
+          }
+         ],
+         "status": "expected"
+        }
+       ],
+       "id": "a651859d0acdd829a2cf-68984ebfd6bb500091e8",
+       "file": "shop/statuses.spec.ts",
+       "line": 10,
+       "column": 38
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "errors": [],
+ "stats": {
+  "startTime": "2026-11-13T11:31:55.266Z",
+  "duration": 3229.607,
+  "expected": 3,
+  "skipped": 1,
+  "unexpected": 2,
+  "flaky": 1
+ }
+}

@@ -10,3 +10,7 @@ export type { StopReason, TaskCounters, TaskLimits } from "./agent/task-limits.t
 export type { JsonSchema, ToolDefinition } from "./agent/tool-definition.ts";
 export type { CharterFinding, CompilerFinding, FindingPosition, ProposedTest, TestCheck, TestFinding } from "./test/test-check.ts";
 export type { Verdict } from "./test/verdict.ts";
+export type { CommandOutcome, CommandRunner, StepCommand } from "./test/command-runner.ts";
+export { lockedPlaywrightVersion } from "./test/playwright-version.ts";
+export type { AttemptStatus, ListedTest, ReportedAttempt, ReportedStatus, ReportedTest } from "./test/reported-test.ts";
+export { networkFailureAddresses, testVerdicts, type RunFacts, type TestVerdict } from "./test/test-verdicts.ts";
