@@ -30,7 +30,8 @@ export interface Redirect {
 export async function testSite(pages: Readonly<Record<string, string>>, redirects: Readonly<Record<string, Redirect>> = {}): Promise<TestSite> {
   const requested: string[] = [];
   const server: Server = createServer((request, response) => {
-    const path = (request.url ?? "/").split("?")[0]!;
+    // A server always gives its requests a URL.
+    const path = request.url!.split("?")[0]!;
     requested.push(`${request.method} ${request.url}`);
     const redirect = redirects[path];
     const page = pages[path];
