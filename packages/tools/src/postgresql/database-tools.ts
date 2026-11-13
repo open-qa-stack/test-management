@@ -1,5 +1,5 @@
 import type { ToolDefinition } from "@open-qa-stack/domain";
-import type { DatabaseCatalog } from "./database-catalog.ts";
+import type { DatabaseCatalog, TableKeys } from "./database-catalog.ts";
 import type { DatabaseData } from "./database-data.ts";
 import { MAX_ROWS, rowLimit } from "./read-query.ts";
 import { scopedToolName } from "../common/tool-name.ts";
@@ -27,7 +27,7 @@ export function databaseTools(knowledgeId: string, catalog: DatabaseCatalog, dat
     },
     {
       name: scopedToolName(knowledgeId, "describe_table"),
-      description: `Lists the columns of a table of the database ${knowledgeId}: name, type, nullable. Reads the catalog only.`,
+      description: `Lists the columns of a table of the database ${knowledgeId}: name, type, nullable, and whether it belongs to the primary key or references another table. Reads the catalog only.`,
       parameters: {
         type: "object",
         properties: { schema: { type: "string" }, table: { type: "string" } },
@@ -37,7 +37,9 @@ export function databaseTools(knowledgeId: string, catalog: DatabaseCatalog, dat
       execute: async (args) => {
         const { schema, table } = args as { schema: string; table: string };
         const columns = await catalog.columns(schema, table);
-        return columns.length > 0 ? columns : { error: `The database ${knowledgeId} has no table ${schema}.${table}.` };
+        if (columns.length === 0) return { error: `The database ${knowledgeId} has no table ${schema}.${table}.` };
+        const keys = (await catalog.keys()).get(`${schema}.${table}`);
+        return columns.map((column) => ({ ...column, ...keyOf(column.name, keys) }));
       },
     },
     {
@@ -73,4 +75,11 @@ export function databaseTools(knowledgeId: string, catalog: DatabaseCatalog, dat
       },
     },
   ];
+}
+
+/** What a column is in the keys of its table: part of the primary key, and the column it references. */
+function keyOf(column: string, keys: TableKeys | undefined): { primaryKey?: true; references?: string } {
+  const reference = keys?.foreignKeys.find((key) => key.columns.includes(column));
+  const referenced = reference === undefined ? undefined : `${reference.references}.${reference.referencedColumns[reference.columns.indexOf(column)]!}`;
+  return { ...(keys?.primaryKey.includes(column) === true ? { primaryKey: true as const } : {}), ...(referenced === undefined ? {} : { references: referenced }) };
 }

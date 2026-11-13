@@ -9,6 +9,7 @@ import { OpenApiContract } from "./openapi/openapi-contract.ts";
 import { openApiTools } from "./openapi/openapi-tools.ts";
 import { PgSqlClient } from "./postgresql/pg-sql-client.ts";
 import type { SqlClient } from "./postgresql/sql-client.ts";
+import { lazySqlClient } from "./postgresql/lazy-sql-client.ts";
 import { CodeFolder } from "./source-code/code-folder.ts";
 import { sourceCodeTools } from "./source-code/source-code-tools.ts";
 
@@ -35,13 +36,12 @@ export interface KnowledgeAccess {
  * @returns The tools, source after source.
  */
 export function knowledgeTools(knowledge: readonly Knowledge[], access: KnowledgeAccess): ToolDefinition[] {
-  const sqlClient = access.sqlClient ?? ((connectionString: string) => new PgSqlClient(connectionString));
   return knowledge.flatMap((source) => {
     switch (source.type) {
       case "openapi":
         return openApiTools(source.id, new OpenApiContract(source, access.repositoryRoot));
       case "postgresql": {
-        const client = lazySqlClient(source.connectionStringEnv, access.env, sqlClient);
+        const client = lazySqlClient(source.connectionStringEnv, access.env, access.sqlClient ?? defaultSqlClient);
         const catalog = new DatabaseCatalog(client);
         return databaseTools(source.id, catalog, new DatabaseData(source.id, client, catalog));
       }
@@ -53,15 +53,7 @@ export function knowledgeTools(knowledge: readonly Knowledge[], access: Knowledg
   });
 }
 
-/** A client that reads its connection string only when a query runs, so that a missing one fails the call. */
-function lazySqlClient(variable: string, env: KnowledgeAccess["env"], make: (connectionString: string) => SqlClient): SqlClient {
-  return {
-    query: (text, values) => {
-      const connectionString = env[variable];
-      if (connectionString === undefined || connectionString === "") {
-        return Promise.reject(new Error(`Environment variable ${variable} is not set.`));
-      }
-      return make(connectionString).query(text, values);
-    },
-  };
+/** Reaches a database with PostgreSQL itself. */
+export function defaultSqlClient(connectionString: string): SqlClient {
+  return new PgSqlClient(connectionString);
 }

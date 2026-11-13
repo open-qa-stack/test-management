@@ -37,6 +37,7 @@ class CatalogDouble implements SqlClient {
   /** {@inheritDoc SqlClient.query} */
   public async query(text: string): Promise<{ columns: string[]; rows: Record<string, unknown>[] }> {
     this.queries.push(text);
+    if (text.includes("pg_constraint")) return { columns: [], rows: [] };
     if (text.includes("information_schema.tables")) return { columns: ["schema", "table"], rows: this.tables.map((table) => ({ schema: "public", table })) };
     return { columns: ["name", "type", "nullable"], rows: [{ name: "id", type: "bigint", nullable: false }] };
   }
@@ -225,13 +226,47 @@ describe("criterion 3 — an index that omits a table is not written, and the jo
     assert.match(messages(outcome), /No index was written: no index was accepted before the session ended\./);
   });
 
-  it("tells at most thirty errors at once, and keeps the first index accepted", async () => {
+  it("tells at most thirty errors at once, then every item still to place, by source", async () => {
     const many = new CatalogDouble(Array.from({ length: 40 }, (_, i) => `t${i}`));
-    const refused = await cartography([{ body: toolCalls(MODEL, [submit(INVENTORIED)]) }, { body: answer(MODEL, "Done.") }], {}, many);
-    assert.match(JSON.stringify(refused.server.requests[1]!.body), /and \d+ more/);
+    const invented = { ...INVENTORIED, unassigned: [{ source: "shop-db", items: Array.from({ length: 31 }, (_, i) => `public.x${i}`) }] };
+    const refused = await cartography([{ body: toolCalls(MODEL, [submit(invented)]) }, { body: answer(MODEL, "Done.") }], {}, many);
+    const told = JSON.stringify(refused.server.requests[1]!.body);
+    for (const fragment of ["- and 4 more", "Still to place, in a domain or in unassigned, each exactly as written:", "- shop-api: ", "/health", "- shop-db: ", "public.t39"]) assert.ok(told.includes(fragment), fragment);
     const twice = await cartography([{ body: toolCalls(MODEL, [submit(INVENTORIED, "a"), submit(INVENTORIED, "b")]) }, { body: answer(MODEL, "Done.") }]);
-    assert.match(JSON.stringify(twice.server.requests[1]!.body), /An index was already accepted/);
+    assert.match(JSON.stringify(twice.server.requests[1]!.body), /The index was already accepted/);
     assert.equal(twice.outcome.index!.status, "truncated");
+  });
+});
+
+describe("guiding a model that stumbles", () => {
+  it("reads an item written after the name of its source, and reminds an agent that stops without an accepted index", async () => {
+    const prefixed = {
+      ...INVENTORIED,
+      unassigned: [
+        { source: "shop-api", items: ["shop-api//health"] },
+        { source: "shop-db", items: ["shop-db:public.schema_migrations"] },
+      ],
+    };
+    const { outcome, server } = await cartography([
+      { body: answer(MODEL, "I will now explore the application.") },
+      { body: toolCalls(MODEL, [submit(prefixed)]) },
+      { body: answer(MODEL, "Two domains.") },
+    ]);
+    assert.match(JSON.stringify(server.requests[1]!.body), /You have not handed in an accepted index yet\. Call submit_index now\./);
+    assert.deepEqual(outcome.index!.unassigned, INVENTORIED.unassigned);
+    assert.match(messages(outcome), /The agent stopped without an accepted index; it was reminded to hand one in\.\nThe index was accepted\./);
+  });
+
+  it("stops reminding after three times, with the latest refusal each time", async () => {
+    const forgetful = { ...INVENTORIED, unassigned: [] };
+    const { outcome, server } = await cartography([
+      { body: toolCalls(MODEL, [submit(forgetful)]) },
+      ...Array.from({ length: 4 }, () => ({ body: answer(MODEL, "Done.") })),
+    ]);
+    assert.equal(server.requests.length, 5);
+    assert.match(JSON.stringify(server.requests[4]!.body), /Still to place/);
+    assert.equal(outcome.journal.filter((e) => e.message.startsWith("The agent stopped without an accepted index")).length, 3);
+    assert.match(messages(outcome), /No index was written: no index was accepted before the session ended\./);
   });
 });
 

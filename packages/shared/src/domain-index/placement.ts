@@ -19,7 +19,6 @@ export type SourceInventory = ReadonlyMap<string, readonly string[]>;
  */
 export function placementErrors(submission: DomainIndexSubmission, inventory: SourceInventory, sources: ReadonlySet<string>): IndexError[] {
   const errors: IndexError[] = [];
-  const placed = new Map<string, Set<string>>();
   const groups = [
     ...submission.domains.flatMap((domain, i) => domain.references.map((references, j) => [`/domains/${i}/references/${j}`, references] as const)),
     ...submission.unassigned.map((references, j) => [`/unassigned/${j}`, references] as const),
@@ -32,13 +31,27 @@ export function placementErrors(submission: DomainIndexSubmission, inventory: So
     const known = inventory.get(source);
     items.forEach((item, k) => {
       if (known !== undefined && !known.includes(item)) errors.push({ path: `${path}/items/${k}`, message: `${path}/items/${k}: ${item} is not an item of ${source}; use one of the items listed for it.` });
-      placed.set(source, (placed.get(source) ?? new Set()).add(item));
     });
   }
-  for (const [source, items] of inventory) {
-    for (const item of items) {
-      if (!placed.get(source)?.has(item)) errors.push({ path: "", message: `${item} of ${source} is in no domain nor in unassigned.` });
-    }
+  for (const [source, items] of unplacedItems(submission, inventory)) {
+    for (const item of items) errors.push({ path: "", message: `${item} of ${source} is in no domain nor in unassigned.` });
   }
   return errors;
+}
+
+/**
+ * Lists, by source, the items a submission still has to place.
+ *
+ * @param submission - What the agent handed in, already valid against its schema.
+ * @param inventory - The items of each inventoried source.
+ * @returns The sources that have items in no domain nor in `unassigned`, each with those items, in the order of the inventory.
+ */
+export function unplacedItems(submission: DomainIndexSubmission, inventory: SourceInventory): Map<string, string[]> {
+  const placed = new Set([...submission.domains.flatMap((domain) => domain.references), ...submission.unassigned].flatMap(({ source, items }) => items.map((item) => `${source}\u0000${item}`)));
+  const unplaced = new Map<string, string[]>();
+  for (const [source, items] of inventory) {
+    const missing = items.filter((item) => !placed.has(`${source}\u0000${item}`));
+    if (missing.length > 0) unplaced.set(source, missing);
+  }
+  return unplaced;
 }

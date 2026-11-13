@@ -1,0 +1,40 @@
+{
+  "$schema": "../../schema/oqas-source-card.schema.json",
+  "formatVersion": 1,
+  "source": { "id": "orders-db", "type": "postgresql" },
+  "fingerprint": "sha256:4f1c0f1a8e0b6c2d9e3a7b5c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e",
+  "producedAt": "2026-11-13T02:15:00Z",
+  "model": { "provider": "openai", "baseUrl": "http://localhost:1234/v1", "model": "local-model" },
+  "run": { "iterations": 6, "actions": 0, "durationMs": 48000 },
+  "status": "complete",
+  "domains": [
+    {
+      "id": "orders",
+      "label": "Orders",
+      "description": "Orders placed by customers and their lines.",
+      "items": [
+        {
+          "name": "public.orders",
+          "summary": "One order of a customer, with its status and total.",
+          "keyFields": ["status", "total", "placed_at"],
+          "facts": { "columns": 7, "primaryKey": ["id"], "foreignKeys": [{ "columns": ["customer_id"], "references": "public.customers", "referencedColumns": ["id"] }] }
+        },
+        {
+          "name": "public.order_lines",
+          "summary": "A product and its quantity within an order.",
+          "keyFields": ["quantity", "unit_price"],
+          "facts": { "columns": 5, "primaryKey": ["id"], "foreignKeys": [{ "columns": ["order_id"], "references": "public.orders", "referencedColumns": ["id"] }] }
+        }
+      ]
+    },
+    {
+      "id": "customers",
+      "label": "Customers",
+      "description": "The customers of the shop.",
+      "items": [
+        { "name": "public.customers", "summary": "A customer and how to reach them.", "keyFields": ["email"], "facts": { "columns": 4, "primaryKey": ["id"], "foreignKeys": [] } }
+      ]
+    }
+  ],
+  "unassigned": ["public.schema_migrations"]
+}

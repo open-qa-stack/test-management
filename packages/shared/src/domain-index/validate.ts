@@ -1,5 +1,5 @@
-import { Ajv2020, type ErrorObject, type ValidateFunction } from "ajv/dist/2020.js";
-import { pointer } from "../config/errors.ts";
+import { Ajv2020 } from "ajv/dist/2020.js";
+import { repeated, validate } from "./schema-validation.ts";
 import { domainIndexSchema, domainSubmissionSchema } from "./schema.ts";
 import type { DomainIndex, DomainIndexSubmission, IndexError, IndexValidation } from "./types.ts";
 
@@ -35,34 +35,12 @@ export function validateDomainIndex(value: unknown): IndexValidation<DomainIndex
   });
 }
 
-function validate<T>(check: ValidateFunction<T>, value: unknown, rules: (valid: T) => IndexError[]): IndexValidation<T> {
-  if (!check(value)) return { ok: false, errors: check.errors!.map(schemaError) };
-  const errors = rules(value);
-  return errors.length === 0 ? { ok: true, value } : { ok: false, errors };
-}
-
-function schemaError(error: ErrorObject): IndexError {
-  const named = error.keyword === "required" || error.keyword === "additionalProperties" ? pointer(error.instancePath, String(Object.values(error.params)[0])) : error.instancePath;
-  const message = error.keyword === "additionalProperties" ? `${named} is not allowed.` : `${error.instancePath === "" ? "The document" : error.instancePath} ${String(error.message)}.`;
-  return { path: named, message };
-}
-
 function duplicateDomains({ domains }: DomainIndexSubmission): IndexError[] {
-  const seen = new Set<string>();
-  return domains.flatMap((domain, i) => {
-    const repeated = seen.has(domain.id);
-    seen.add(domain.id);
-    return repeated ? [{ path: `/domains/${i}/id`, message: `/domains/${i}/id repeats the domain ${domain.id}.` }] : [];
-  });
+  return repeated(domains.map((domain) => domain.id), "/domains", "id", "domain");
 }
 
 function duplicateSources({ sources }: DomainIndex): IndexError[] {
-  const seen = new Set<string>();
-  return sources.flatMap((source, i) => {
-    const repeated = seen.has(source.id);
-    seen.add(source.id);
-    return repeated ? [{ path: `/sources/${i}/id`, message: `/sources/${i}/id repeats the source ${source.id}.` }] : [];
-  });
+  return repeated(sources.map((source) => source.id), "/sources", "id", "source");
 }
 
 function unlistedSources(index: DomainIndex, listed: ReadonlySet<string>): IndexError[] {

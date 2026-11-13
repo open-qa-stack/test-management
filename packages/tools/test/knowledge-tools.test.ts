@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import type { Knowledge } from "@open-qa-stack/shared";
-import { assertCatalogQuery, COLUMNS_QUERY, SERVER_ACCESS_QUERY, TABLES_QUERY } from "../src/postgresql/catalog-query.ts";
+import { assertCatalogQuery, COLUMNS_QUERY, KEYS_QUERY, SERVER_ACCESS_QUERY, TABLES_QUERY } from "../src/postgresql/catalog-query.ts";
 import { DatabaseCatalog } from "../src/postgresql/database-catalog.ts";
 import { documentSections } from "../src/document/document-sections.ts";
 import { PgSqlClient, type PgConnection } from "../src/postgresql/pg-sql-client.ts";
@@ -30,6 +30,13 @@ class RecordingSqlClient implements SqlClient {
   /** {@inheritDoc SqlClient.query} */
   public async query(text: string): Promise<SqlResult> {
     this.queries.push(text);
+    if (text === KEYS_QUERY) {
+      return sqlResult([
+        { schema: "public", table: "insurancepolicies", kind: "p", columns: ["id"], referenced_schema: null, referenced_table: null, referenced_columns: [] },
+        { schema: "public", table: "insurancepolicies", kind: "f", columns: ["premium"], referenced_schema: "public", referenced_table: "prices", referenced_columns: ["amount"] },
+        { schema: "public", table: "prices", kind: "f", columns: ["currency"], referenced_schema: "public", referenced_table: "currencies", referenced_columns: ["code"] },
+      ]);
+    }
     return sqlResult(
       text.includes("information_schema.tables")
         ? [{ schema: "public", table: "insurancepolicies" }]
@@ -128,10 +135,14 @@ describe("criterion 3 — the catalog tools read the catalog and nothing else", 
     const tools = knowledgeTools([DATABASE], { repositoryRoot: REPOSITORY, env: { POLICY_DB_URL: "postgresql://x" }, sqlClient: () => client });
     assert.deepEqual(await tool(tools, "policy_db_list_tables").execute({}), [{ schema: "public", table: "insurancepolicies" }]);
     assert.deepEqual(await tool(tools, "policy_db_describe_table").execute({ schema: "public", table: "insurancepolicies" }), [
-      { name: "id", type: "bigint", nullable: false },
-      { name: "premium", type: "numeric", nullable: true },
+      { name: "id", type: "bigint", nullable: false, primaryKey: true },
+      { name: "premium", type: "numeric", nullable: true, references: "public.prices.amount" },
     ]);
-    assert.equal(client.queries.length, 2);
+    assert.deepEqual([...(await new DatabaseCatalog(client).keys()).values()], [
+      { table: "public.insurancepolicies", primaryKey: ["id"], foreignKeys: [{ columns: ["premium"], references: "public.prices", referencedColumns: ["amount"] }] },
+      { table: "public.prices", primaryKey: [], foreignKeys: [{ columns: ["currency"], references: "public.currencies", referencedColumns: ["code"] }] },
+    ]);
+    assert.equal(client.queries.length, 4);
     for (const query of client.queries) assert.doesNotThrow(() => assertCatalogQuery(query));
   });
 
@@ -145,7 +156,7 @@ describe("criterion 3 — the catalog tools read the catalog and nothing else", 
     ]) {
       assert.throws(() => assertCatalogQuery(query), /Only the catalog queries/, query);
     }
-    for (const query of [TABLES_QUERY, COLUMNS_QUERY, SERVER_ACCESS_QUERY]) assert.doesNotThrow(() => assertCatalogQuery(query));
+    for (const query of [TABLES_QUERY, COLUMNS_QUERY, KEYS_QUERY, SERVER_ACCESS_QUERY]) assert.doesNotThrow(() => assertCatalogQuery(query));
   });
 
   it("answers an error for a table the database does not have", async () => {

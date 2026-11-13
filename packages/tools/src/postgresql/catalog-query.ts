@@ -3,9 +3,32 @@ export const TABLES_QUERY = `SELECT table_schema AS schema, table_name AS table 
   WHERE table_type = 'BASE TABLE' AND table_schema NOT IN ('pg_catalog', 'information_schema')
   ORDER BY table_schema, table_name`;
 
+/** The columns of every table, without the catalog's own, table by table and in order. */
+export const ALL_COLUMNS_QUERY = `SELECT table_schema AS schema, table_name AS table, column_name AS name, data_type AS type, is_nullable = 'YES' AS nullable
+  FROM information_schema.columns WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+  ORDER BY table_schema, table_name, ordinal_position`;
+
 /** The columns of one table, in order; `$1` is its schema and `$2` its name. */
 export const COLUMNS_QUERY = `SELECT column_name AS name, data_type AS type, is_nullable = 'YES' AS nullable FROM information_schema.columns
   WHERE table_schema = $1 AND table_name = $2 ORDER BY ordinal_position`;
+
+/**
+ * The primary and foreign keys of every table, without the catalog's own: for each, its kind (`p` or `f`),
+ * its columns in order and, for a foreign key, the table and columns it references.
+ */
+export const KEYS_QUERY = `SELECT n.nspname AS schema, c.relname AS table, con.contype AS kind,
+    ARRAY(SELECT a.attname FROM unnest(con.conkey) WITH ORDINALITY AS k(attnum, position)
+      JOIN pg_catalog.pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = k.attnum ORDER BY k.position)::text[] AS columns,
+    rn.nspname AS referenced_schema, rc.relname AS referenced_table,
+    ARRAY(SELECT a.attname FROM unnest(con.confkey) WITH ORDINALITY AS k(attnum, position)
+      JOIN pg_catalog.pg_attribute a ON a.attrelid = con.confrelid AND a.attnum = k.attnum ORDER BY k.position)::text[] AS referenced_columns
+  FROM pg_catalog.pg_constraint con
+  JOIN pg_catalog.pg_class c ON c.oid = con.conrelid
+  JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+  LEFT JOIN pg_catalog.pg_class rc ON rc.oid = con.confrelid
+  LEFT JOIN pg_catalog.pg_namespace rn ON rn.oid = rc.relnamespace
+  WHERE con.contype IN ('p', 'f') AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+  ORDER BY n.nspname, c.relname, con.contype DESC, con.conname`;
 
 /**
  * Whether the role of the connection can reach the database server itself: a superuser, or a member of
@@ -18,7 +41,7 @@ export const SERVER_ACCESS_QUERY = `SELECT r.rolsuper OR EXISTS (
   ) AS server_access
   FROM pg_catalog.pg_roles r WHERE r.rolname = current_user`;
 
-const ALLOWED = new Set([TABLES_QUERY, COLUMNS_QUERY, SERVER_ACCESS_QUERY]);
+const ALLOWED = new Set([TABLES_QUERY, COLUMNS_QUERY, ALL_COLUMNS_QUERY, KEYS_QUERY, SERVER_ACCESS_QUERY]);
 
 /**
  * Refuses any query but the fixed catalog queries.

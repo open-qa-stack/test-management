@@ -1,4 +1,5 @@
 import type { OpenApiKnowledge } from "@open-qa-stack/shared";
+import { fingerprintOf } from "../common/fingerprint.ts";
 import { readRepositoryFile } from "../common/repository-file.ts";
 
 /** An operation of an OpenAPI contract, as the list tool shows it. */
@@ -77,6 +78,16 @@ export class OpenApiContract {
     if (!isPlainObject(operation)) return undefined;
     const parameters = mergeParameters(child(item, "parameters"), operation["parameters"]);
     return resolveRefs({ ...operation, ...(parameters.length === 0 ? {} : { parameters }) }, document, 0);
+  }
+
+  /**
+   * Fingerprints the contract.
+   *
+   * @returns The fingerprint of its document as loaded.
+   * @throws Error when the contract cannot be loaded.
+   */
+  public async fingerprint(): Promise<string> {
+    return fingerprintOf(JSON.stringify(await this.document()));
   }
 
   private document(): Promise<JsonObject> {

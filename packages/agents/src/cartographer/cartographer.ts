@@ -1,11 +1,14 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { AgentEvent, AgentRuntime, TaskCounters, TaskLimits, TerminalEvent, ToolDefinition } from "@open-qa-stack/domain";
+import type { AgentEvent, AgentRuntime, ToolDefinition } from "@open-qa-stack/domain";
 import { validateDomainIndex, type DomainIndex, type IndexSource, type ResolvedConfig } from "@open-qa-stack/shared";
 import { browserTools, knowledgeTools, scopedToolName, type BrowserAccess, type KnowledgeAccess } from "@open-qa-stack/tools";
 import { CARTOGRAPHER_INSTRUCTIONS, cartographyRequest } from "./cartographer-prompt.ts";
-import { IndexSubmission } from "./index-submission.ts";
-import { Journal, type JournalEntry } from "./journal.ts";
+import { agentNotes } from "../common/agent-notes.ts";
+import { runAgentTask, taskEnd, taskLimits } from "../common/agent-task.ts";
+import { HandedIn } from "../common/handed-in.ts";
+import { Journal, type JournalEntry } from "../common/journal.ts";
+import { domainIndexRules } from "./domain-index-rules.ts";
 import { runSources, type RunSource } from "./run-sources.ts";
 import { surveySource } from "./source-survey.ts";
 
@@ -80,22 +83,25 @@ export class Cartographer {
       { repositoryRoot, env, ...(this.options.sqlClient === undefined ? {} : { sqlClient: this.options.sqlClient }) },
     ).filter((tool) => !isDataTool(tool, sources));
     const byName = new Map(knowledge.map((tool) => [tool.name, tool]));
-    const surveys = await Promise.all(sources.map(async (source) => [source, await surveySource(source, byName)] as const));
+    const access = { repositoryRoot, env, ...(this.options.sqlClient === undefined ? {} : { sqlClient: this.options.sqlClient }) };
+    const surveys = await Promise.all(sources.map(async (source) => [source, await surveySource(source, byName, access)] as const));
     const failures = surveys.flatMap(([source, survey]) => (survey.ok ? [] : [[source, survey.error] as const]));
     for (const [source, error] of failures) journal.record("error", `The source ${source.id} does not answer: ${error}`, source.id);
     if (failures.length > 0) {
       journal.record("error", "No index was written: every declared source must answer before the exploration.");
       return { journal: journal.entries() };
     }
-    const inventory = new Map(surveys.flatMap(([source, survey]) => (survey.ok && survey.items !== undefined ? [[source.id, survey.items] as const] : [])));
+    const inventory = new Map(surveys.flatMap(([source, survey]) => (survey.ok && survey.inventory !== undefined ? [[source.id, survey.inventory.items] as const] : [])));
     const events: AgentEvent[] = [];
     const isRead = (id: string) => inventory.has(id) || readSources(sources, events).has(id);
-    const submission = new IndexSubmission(inventory, new Set(sources.map((source) => source.id)), journal, isRead);
+    const submission = new HandedIn(domainIndexRules(inventory, new Set(sources.map((source) => source.id)), isRead), journal);
     const browser = browserTools(config.applications, { environment, env, screenshotsDir: join(repositoryRoot, config.repository.stateDir, "screenshots"), ...this.options.browser });
-    await this.explore([...knowledge, ...browser.tools, submission.tool()], cartographyRequest(environment, sources, inventory), events).finally(() => browser.close());
+    const now = this.options.now ?? (() => new Date());
+    const notes = agentNotes(config, repositoryRoot, env, { role: "cartographer", task: `index-${environment}-${now().toISOString()}`, now });
+    const task = { instructions: CARTOGRAPHER_INSTRUCTIONS, tools: [...knowledge, ...browser.tools, ...notes, submission.tool()], request: cartographyRequest(environment, sources, inventory), events, reminder: () => submission.reminder() };
+    await runAgentTask(this.options.runtime, task, taskLimits(config)).finally(() => browser.close());
     for (const event of events) if (event.type === "tool-error") journal.record("error", `${event.tool}: ${event.message}`);
-    // A session always ends a turn with a terminal event.
-    const last = events.at(-1) as TerminalEvent;
+    const { last, counters } = taskEnd(events);
     const accepted = submission.accepted;
     if (last.type === "error") journal.record("error", `The session failed: ${last.error.message}`);
     if (last.type === "stopped") journal.record("error", `The task reached its ${last.reason.limit} limit.`);
@@ -103,12 +109,10 @@ export class Cartographer {
       journal.record("error", "No index was written: no index was accepted before the session ended.");
       return { journal: journal.entries() };
     }
-    // The session always has limits, so whatever ends it carries counters.
-    const counters: TaskCounters = last.type === "stopped" ? last.reason.counters : last.counters!;
     const states = sources.map((source): IndexSource => ({ id: source.id, type: source.type, state: isRead(source.id) ? "read" : "not_read" }));
     const index: DomainIndex = {
       formatVersion: 1,
-      producedAt: (this.options.now ?? (() => new Date()))().toISOString(),
+      producedAt: now().toISOString(),
       environment,
       model: { provider: config.model.provider, baseUrl: config.model.baseUrl, model: config.model.model },
       run: { iterations: counters.iterations, actions: counters.actions, durationMs: Math.round(counters.elapsedMs) },
@@ -117,18 +121,6 @@ export class Cartographer {
       ...accepted,
     };
     return this.write(index, journal);
-  }
-
-  /** Runs the agent's session, adding each event to `events` as it comes, so that a submission sees what was read. */
-  private async explore(tools: readonly ToolDefinition[], request: string, events: AgentEvent[]): Promise<void> {
-    const { task } = this.options.config.autonomy.limits;
-    const limits: TaskLimits = { maxIterations: task.maxIterations, maxDurationMs: task.maxDurationMinutes === null ? null : task.maxDurationMinutes * 60_000, maxActions: task.maxActions };
-    const session = await this.options.runtime.openSession({ instructions: CARTOGRAPHER_INSTRUCTIONS, tools, limits });
-    try {
-      for await (const event of session.send(request)) events.push(event);
-    } finally {
-      await session.close();
-    }
   }
 
   private async write(index: DomainIndex, journal: Journal): Promise<CartographyOutcome> {

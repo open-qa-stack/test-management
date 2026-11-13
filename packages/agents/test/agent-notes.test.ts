@@ -1,0 +1,49 @@
+import assert from "node:assert/strict";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, it } from "node:test";
+import { validateConfig } from "@open-qa-stack/shared";
+import { agentNotes, NOTES_FILE } from "../src/common/agent-notes.ts";
+
+describe("the notes of the agents", () => {
+  it("refuse every secret the configuration reads from the environment, and live in the state folder", async () => {
+    const env = { SHOP_PASSWORD: "pw-123456", SHOP_DB_URL: "postgresql://u:dbpw@h/db", MODEL_KEY: "key-abcdef" };
+    const text = JSON.stringify({
+      formatVersion: 1,
+      applications: [
+        { id: "shop", name: "Shop", type: "web", authentication: { method: "form", accounts: [{ name: "demo", usernameEnv: "SHOP_USER", passwordEnv: "SHOP_PASSWORD" }] }, environments: [{ name: "local", uiUrl: "http://127.0.0.1:1" }] },
+      ],
+      knowledge: [
+        { id: "shop-db", type: "postgresql", connectionStringEnv: "SHOP_DB_URL", attachments: [{ application: "shop" }] },
+        { id: "other-db", type: "postgresql", connectionStringEnv: "OTHER_DB_URL", attachments: [{ application: "shop" }] },
+      ],
+      model: { mode: "provider-key", provider: "openai", baseUrl: "http://127.0.0.1:2/v1", model: "m", apiKeyEnv: "MODEL_KEY" },
+      autonomy: { level: "autonomous" },
+    });
+    const result = validateConfig(text, { ...env, SHOP_USER: "max", OTHER_DB_URL: "x" });
+    assert.ok(result.ok);
+    const root = mkdtempSync(join(tmpdir(), "oqas-agent-notes-"));
+    try {
+      const [remember] = agentNotes(result.config, root, env, { role: "cartographer", task: "t" });
+      for (const secret of Object.values(env)) assert.ok("error" in ((await remember!.execute({ text: `It is ${secret}.`, tags: ["x"] })) as object), secret);
+      assert.equal(await remember!.execute({ text: "A plain fact.", tags: ["x"] }), "Kept.");
+      assert.match(readFileSync(join(root, ".oqas", NOTES_FILE), "utf8"), /A plain fact\./);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("have no key of the model to refuse when the model needs none", () => {
+    const text = JSON.stringify({
+      formatVersion: 1,
+      applications: [{ id: "shop", name: "Shop", type: "api", authentication: { method: "none" }, environments: [{ name: "local" }] }],
+      knowledge: [],
+      model: { mode: "provider-key", provider: "openai", baseUrl: "http://127.0.0.1:2/v1", model: "m" },
+      autonomy: { level: "autonomous" },
+    });
+    const result = validateConfig(text, {});
+    assert.ok(result.ok, JSON.stringify(result));
+    assert.equal(agentNotes(result.config, "/tmp", {}, { role: "r", task: "t" }).length, 2);
+  });
+});
