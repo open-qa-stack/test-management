@@ -1,5 +1,5 @@
 import type { ToolDefinition } from "@open-qa-stack/domain";
-import type { DomainIndex, SourceCard } from "@open-qa-stack/shared";
+import type { CardItem, DomainIndex, IndexSourceType, SourceCard } from "@open-qa-stack/shared";
 import { scopedToolName } from "@open-qa-stack/tools";
 
 /** Name of the tool that finds the domains and elements of the index that echo words. */
@@ -10,20 +10,28 @@ export const ENTRY_TOOL = "index_entry";
 const MAX_FOUND = 12;
 /** Shortest word a search matches on its start. */
 const MIN_STEM = 4;
+/** Most lines `index_entry` gives. */
+const MAX_ENTRY_LINES = 60;
+
+/** What an element of a source is, by the type of its source. */
+const KINDS: Readonly<Record<IndexSourceType, string>> = { openapi: "operations", postgresql: "table", document: "section", "source-code": "folder", web: "screen" };
 
 /** An element of a source, as the index places it. */
 interface Element {
   readonly source: string;
   readonly item: string;
-  /** What the card of the source says of it, when it does. */
-  readonly summary?: string;
+  /** What it is: a table, a screen, a section, operations or a folder. */
+  readonly kind: string;
+  /** What the card of the source says of it, when it does: its summary, its key fields and the facts the harness read. */
+  readonly card?: CardItem;
   /** The domains it belongs to; none for an element the index left unassigned. */
   readonly domains: readonly string[];
 }
 
 /**
  * The domain index as a map the designer looks things up in, rather than a text it receives whole: which
- * domains and elements echo a request, then, for one of them, its sources and the tools that read them.
+ * domains and elements echo a request, then, for one of them, what its card holds, its sources and the
+ * tools that read them, and, for a table, the call that finds one of its rows.
  *
  * @remarks
  * Words match without regard to case or accents, a word matching another it begins, or that begins it,
@@ -43,19 +51,20 @@ export class IndexMap {
    */
   public constructor(index: DomainIndex, cards: ReadonlyMap<string, SourceCard>, tools: readonly ToolDefinition[], owners: readonly string[]) {
     this.index = index;
-    const summaries = new Map<string, string>([...cards].flatMap(([source, card]) => card.domains.flatMap((domain) => domain.items.map((item) => [`${source}\n${item.name}`, item.summary] as const))));
-    const placed = new Map<string, { source: string; item: string; domains: string[] }>();
+    const described = new Map<string, CardItem>([...cards].flatMap(([source, card]) => card.domains.flatMap((domain) => domain.items.map((item) => [`${source}\n${item.name}`, item] as const))));
+    const placed = new Map<string, { source: string; item: string; kind: string; domains: string[] }>();
     const place = (source: string, item: string, domain?: string) => {
       const key = `${source}\n${item}`;
-      const element = placed.get(key) ?? { source, item, domains: [] };
+      // A valid index lists every source it refers to.
+      const element = placed.get(key) ?? { source, item, kind: KINDS[index.sources.find((candidate) => candidate.id === source)!.type], domains: [] };
       if (domain !== undefined && !element.domains.includes(domain)) element.domains.push(domain);
       placed.set(key, element);
     };
     for (const domain of index.domains) for (const references of domain.references) for (const item of references.items) place(references.source, item, domain.id);
     for (const references of index.unassigned) for (const item of references.items) place(references.source, item);
     this.elements = [...placed].map(([key, element]) => {
-      const summary = summaries.get(key);
-      return summary === undefined ? element : { ...element, summary };
+      const card = described.get(key);
+      return card === undefined ? element : { ...element, card };
     });
     this.tools = toolsBySource(
       tools.map((tool) => tool.name),
@@ -70,6 +79,34 @@ export class IndexMap {
    */
   public domains(): string[] {
     return this.index.domains.map((domain) => `- ${domain.id} (${domain.label}): ${domain.description}`);
+  }
+
+  /**
+   * The domains and the elements of the index that echo words, those that echo most first, at most
+   * `MAX_FOUND` of each: what an element is called, its summary and its key fields are searched.
+   *
+   * @param words - Words of what is looked for, such as the brief of a design.
+   * @returns The lines that give them, under `Domains:` and `Elements:`; none when nothing echoes.
+   */
+  public found(words: string): string[] {
+    const stems = wordsOf(words);
+    const score = (text: string) => {
+      const own = wordsOf(text);
+      return stems.filter((stem) => own.some((word) => echoes(word, stem))).length;
+    };
+    const ranked = <T>(entries: readonly T[], text: (entry: T) => string) =>
+      entries
+        .map((entry) => ({ entry, score: score(text(entry)) }))
+        .filter(({ score }) => score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, MAX_FOUND)
+        .map(({ entry }) => entry);
+    const domains = ranked(this.index.domains, (domain) => `${domain.id} ${domain.label} ${domain.description}`);
+    const elements = ranked(this.elements, (element) => `${element.item} ${element.card?.summary ?? ""} ${(element.card?.keyFields ?? []).join(" ")}`);
+    return [
+      ...(domains.length === 0 ? [] : ["Domains:", ...domains.map((domain) => `- ${domain.id} (${domain.label}): ${domain.description}`)]),
+      ...(elements.length === 0 ? [] : ["Elements:", ...elements.map((element) => line(element))]),
+    ];
   }
 
   /**
@@ -92,7 +129,7 @@ export class IndexMap {
       },
       {
         name: ENTRY_TOOL,
-        description: "Gives a domain of the index, or one element of a source, with each source it is in and the tools that read that source.",
+        description: "Gives a domain of the index, or one element of a source, with what is known of it, each source it is in and the tools that read that source: for a table, its keys, its key fields and the call that finds a row.",
         parameters: {
           type: "object",
           properties: {
@@ -107,29 +144,12 @@ export class IndexMap {
     ];
   }
 
-  /** The domains and elements that echo words, those that echo most first. */
+  /** The domains and elements that echo words, with what to do next. */
   private find(words: string): string {
-    const stems = wordsOf(words);
-    if (stems.length === 0) return "Give at least one word of two letters or more.";
-    const score = (text: string) => {
-      const own = wordsOf(text);
-      return stems.filter((stem) => own.some((word) => echoes(word, stem))).length;
-    };
-    const ranked = <T>(entries: readonly T[], text: (entry: T) => string) =>
-      entries
-        .map((entry) => ({ entry, score: score(text(entry)) }))
-        .filter(({ score }) => score > 0)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, MAX_FOUND)
-        .map(({ entry }) => entry);
-    const domains = ranked(this.index.domains, (domain) => `${domain.id} ${domain.label} ${domain.description}`);
-    const elements = ranked(this.elements, (element) => `${element.item} ${element.summary ?? ""}`);
-    if (domains.length === 0 && elements.length === 0) return `Nothing of the index echoes "${words}". Try other words, or read the sources with their tools: the index is a map, not a limit.`;
-    return [
-      ...(domains.length === 0 ? [] : ["Domains:", ...domains.map((domain) => `- ${domain.id} (${domain.label}): ${domain.description}`)]),
-      ...(elements.length === 0 ? [] : ["Elements:", ...elements.map((element) => this.line(element))]),
-      `Call ${ENTRY_TOOL} with a domain, or with a source and an item, to know which tools read them.`,
-    ].join("\n");
+    if (wordsOf(words).length === 0) return "Give at least one word of two letters or more.";
+    const found = this.found(words);
+    if (found.length === 0) return `Nothing of the index echoes "${words}". Try other words, or read the sources with their tools: the index is a map, not a limit.`;
+    return [...found, `Call ${ENTRY_TOOL} with a domain, or with a source and an item, to know what is known of them and which tools read them.`].join("\n");
   }
 
   /** A domain, or an element, with its sources and their tools. */
@@ -139,14 +159,30 @@ export class IndexMap {
       if (domain === undefined) return { error: `No domain ${args.domain} in the index; the domains are ${this.index.domains.map((candidate) => candidate.id).join(", ")}.` };
       const sources = domain.references.map((references) => [
         this.source(references.source),
-        ...[...new Set(references.items)].map((item) => this.line(this.elements.find((element) => element.source === references.source && element.item === item)!)),
+        ...[...new Set(references.items)].map((item) => line(this.elements.find((element) => element.source === references.source && element.item === item)!)),
       ]);
-      return [`${domain.id} (${domain.label}): ${domain.description}`, ...sources.flat()].join("\n");
+      return capped([`${domain.id} (${domain.label}): ${domain.description}`, ...sources.flat()]);
     }
     if (args.source === undefined || args.item === undefined) return { error: "Give a domain, or a source and an item." };
     const element = this.elements.find((candidate) => candidate.source === args.source && candidate.item === args.item);
     if (element === undefined) return { error: `The index places no ${args.item} in ${args.source}; ${FIND_TOOL} gives the elements it places.` };
-    return [this.source(element.source), this.line(element), `Domains: ${element.domains.length === 0 ? "none, the index left it unassigned" : element.domains.join(", ")}.`].join("\n");
+    return capped([
+      this.source(element.source),
+      line(element),
+      ...(element.card?.keyFields === undefined ? [] : [`Key fields: ${element.card.keyFields.join(", ")}.`]),
+      ...Object.entries(element.card?.facts ?? {}).map(([name, value]) => `${name}: ${factText(value)}`),
+      ...this.rowCall(element),
+      `Domains: ${element.domains.length === 0 ? "none, the index left it unassigned" : element.domains.join(", ")}.`,
+    ]);
+  }
+
+  /** The call that finds a row of a table, named `schema.table`, when the agent has the search tool of its base. */
+  private rowCall(element: Element): string[] {
+    const search = scopedToolName(element.source, "search");
+    const at = element.item.indexOf(".");
+    if (element.kind !== "table" || !(this.tools.get(element.source) ?? []).includes(search)) return [];
+    const quoted = (text: string) => JSON.stringify(text);
+    return [`Find a row: ${search}({ "schema": ${quoted(element.item.slice(0, at))}, "table": ${quoted(element.item.slice(at + 1))}, "value": "<text>" })`];
   }
 
   /** A source, with its type and the tools that read it; a valid index lists every source it refers to. */
@@ -155,11 +191,23 @@ export class IndexMap {
     const tools = this.tools.get(id) ?? [];
     return `Source ${id} (${type}): ${tools.length === 0 ? "no tool of yours reads it" : `read it with ${tools.join(", ")}`}.`;
   }
+}
 
-  /** An element, in one line. */
-  private line(element: Element): string {
-    return `- ${element.source}: ${element.item}${element.summary === undefined ? "" : ` — ${element.summary}`}`;
-  }
+/** An element, in one line: its source, its name, its summary and what it is. */
+function line(element: Element): string {
+  return `- ${element.source}: ${element.item}${element.card === undefined ? "" : ` — ${element.card.summary}`} (${element.kind})`;
+}
+
+/** A fact of a card, in words: a list joined by commas, anything else as JSON. */
+function factText(value: unknown): string {
+  if (Array.isArray(value)) return value.length === 0 ? "none" : value.map((entry) => (typeof entry === "string" ? entry : JSON.stringify(entry))).join(", ");
+  return typeof value === "string" ? value : JSON.stringify(value);
+}
+
+/** Lines joined, at most `MAX_ENTRY_LINES` of them. */
+function capped(lines: readonly string[]): string {
+  if (lines.length <= MAX_ENTRY_LINES) return lines.join("\n");
+  return [...lines.slice(0, MAX_ENTRY_LINES - 1), `${lines.length - MAX_ENTRY_LINES + 1} more lines; ask ${ENTRY_TOOL} for one element at a time.`].join("\n");
 }
 
 /** The tools of each source, a tool going to the source whose scoped prefix is the longest start of its name. */

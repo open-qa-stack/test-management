@@ -755,6 +755,17 @@ describe("brief, criterion 1 — from the brief, the index tools lead to the cus
   });
 });
 
+describe("the request of a brief", () => {
+  it("holds what the index holds for the brief, what echoes most first, in place of the domains, and the domains when nothing echoes it", async () => {
+    const { server } = await design(replies(valid(3)), { brief: "Follow the orders" });
+    const request = requestText(server);
+    assert.ok(request.includes("What the index holds for this brief:\\nDomains:\\n- orders (Orders): Placing and following an order.\\n- customers (Customers): The customers of the shop.\\nElements:\\n- shop-api: orders — Lists and places the orders of a customer. (operations)\\n- shop: /orders (screen)"), request);
+    assert.ok(!request.includes("Domains of the index:"));
+    const unknown = requestText((await design(replies(valid(3)), { brief: "zebra" })).server);
+    assert.ok(unknown.includes("Domains of the index:\\n- orders (Orders)"));
+  });
+});
+
 describe("brief, criterion 2 — without an accepted plan, run_test and propose_test are refused with a message that asks for the plan", () => {
   it("runs nothing, keeps nothing, and reminds the agent to submit the plan", async () => {
     const runner = new FakeTestRunner();

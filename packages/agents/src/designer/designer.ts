@@ -82,9 +82,9 @@ const ACCEPT_EVERY_PLAN: PlanReview = { review: async () => ({ accepted: true })
  * @remarks
  * Before any session, the index must be readable, and the test repository must be the root of a git
  * repository with no tracked file changed, no untracked file outside the folders of the state and the index,
- * and no branch of the name to create; otherwise nothing is written. The agent gets the brief and the
- * domains of the index, not the index whole: it looks up what echoes the brief with `index_find` and
- * `index_entry`, which name the tools of each source. It gets the browser tools of the applications, the
+ * and no branch of the name to create; otherwise nothing is written. The agent gets the brief and what the
+ * index holds for it, or the domains of the index when nothing of it echoes the brief, not the index whole:
+ * it looks up the rest with `index_find` and `index_entry`, which name the tools of each source. It gets the browser tools of the applications, the
  * tools of every knowledge source of the environment — the bases read only — and the notes. It submits a
  * test plan with `propose_plan`, which `planReview` accepts or refuses; refused, the design stops and no
  * test is written. Once the plan is accepted, it runs each test it writes with `run_test`, through `runner`,
@@ -159,7 +159,7 @@ export class Designer {
     const notes = agentNotes(config, repositoryRoot, env, { role: "designer", task: id, now });
     const map = new IndexMap(index, await this.cards(index), [...screens.tools(), ...knowledge], owners);
     const events: AgentEvent[] = [];
-    const request = designRequest(this.options.brief, index.environment, map.domains(), applications, packages);
+    const request = designRequest(this.options.brief, index.environment, this.options.brief === undefined ? [] : map.found(this.options.brief), map.domains(), applications, packages);
     const tools = [...map.toolset(), ...screens.tools(), ...knowledge, ...notes, plan.tool(), proposals.trialTool(), proposals.tool()].map((tool) => stoppedOnRefusal(tool, plan));
     const opened = runTrace(this.options, `design-${index.environment}`, now);
     trace = opened;

@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import type { Knowledge } from "@open-qa-stack/shared";
-import { COLUMNS_QUERY, SERVER_ACCESS_QUERY, TABLES_QUERY } from "../src/postgresql/catalog-query.ts";
+import { COLUMNS_QUERY, KEYS_QUERY, SERVER_ACCESS_QUERY, TABLES_QUERY } from "../src/postgresql/catalog-query.ts";
 import { dataRows, MAX_VALUE_LENGTH } from "../src/postgresql/data-rows.ts";
 import { PgSqlClient, type PgConnection } from "../src/postgresql/pg-sql-client.ts";
 import { DEFAULT_ROWS, MAX_ROWS, rowLimit } from "../src/postgresql/read-query.ts";
@@ -39,13 +39,15 @@ class FakeDatabase implements SqlClient {
           : [{ name: "n", type: "integer", nullable: false }],
       );
     }
+    // The primary key of the policies is their owner, which the table does not list first.
+    if (text === KEYS_QUERY) return sqlResult([{ schema: "public", table: "policies", kind: "p", columns: ["owner"] }]);
     if (text === SERVER_ACCESS_QUERY) return sqlResult([{ server_access: this.serverAccess }]);
     return text.endsWith(" LIMIT 0") ? sqlResult([], this.data.columns) : this.data;
   }
 
   /** The data queries, without the catalog ones. */
   public get dataQueries(): { text: string; values: readonly unknown[] }[] {
-    return this.queries.filter((q) => ![TABLES_QUERY, COLUMNS_QUERY, SERVER_ACCESS_QUERY].includes(q.text));
+    return this.queries.filter((q) => ![TABLES_QUERY, COLUMNS_QUERY, KEYS_QUERY, SERVER_ACCESS_QUERY].includes(q.text));
   }
 }
 
@@ -60,7 +62,8 @@ describe("criterion 1 — a database brings its data tools next to its catalog t
   });
 });
 
-const POLICY_COLUMNS = `left("id"::text, 301) AS "id", left("owner"::text, 301) AS "owner", left("Note ""x"""::text, 301) AS "Note ""x"""`;
+/** The columns of the policies as a sample or a search reads them: the primary key first, then the others in their order. */
+const POLICY_COLUMNS = `left("owner"::text, 301) AS "owner", left("id"::text, 301) AS "id", left("Note ""x"""::text, 301) AS "Note ""x"""`;
 
 describe("criterion 2 — a sample returns the first rows of a known table, bounded", () => {
   it("returns the rows with their columns, and asks for one row more to tell whether others exist", async () => {

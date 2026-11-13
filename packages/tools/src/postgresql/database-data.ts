@@ -17,7 +17,8 @@ const TEXT_TYPES = new Set(["text", "character varying", "character", "uuid"]);
  *
  * @remarks
  * Every read runs through the client's read-only transaction and fetches each value as short text, so
- * that neither the number of rows nor the size of a value can exhaust the harness. Samples and searches
+ * that neither the number of rows nor the size of a value can exhaust the harness. A sample or a search
+ * gives the columns of the primary key first, then the others in the order of the table. Samples and searches
  * only touch a table the catalog knows, with quoted identifiers and the searched value as a parameter.
  * A free query first runs with no rows to learn its columns; it is refused when the connection's role can
  * reach the database server, or when two of its columns share a name, since one would hide the other.
@@ -42,7 +43,7 @@ export class DatabaseData {
    * @param schema - Schema of the table.
    * @param table - Name of the table.
    * @param limit - Rows to return, already bounded.
-   * @returns The first rows of the table, or why there are none.
+   * @returns The first rows of the table, the columns of its primary key first, or why there are none.
    * @throws Error when the database cannot be reached.
    */
   public async sample(schema: string, table: string, limit: number): Promise<DataRows | DataRefusal> {
@@ -56,7 +57,7 @@ export class DatabaseData {
    * @param table - Name of the table.
    * @param value - Text to find, in any case, anywhere in a text column.
    * @param limit - Rows to return, already bounded.
-   * @returns The rows where a text column contains `value`, or why there are none.
+   * @returns The rows where a text column contains `value`, the columns of its primary key first, or why there are none.
    * @throws Error when the database cannot be reached.
    */
   public async search(schema: string, table: string, value: string, limit: number): Promise<DataRows | DataRefusal> {
@@ -94,9 +95,13 @@ export class DatabaseData {
     return this.read(columns, `${subquery} LIMIT ${limit + 1}`, [], limit);
   }
 
+  /** The columns of a table the catalog knows, those of its primary key first; none for another table. */
   private async columnsOf(schema: string, table: string): Promise<ColumnSummary[]> {
     const known = (await this.catalog.tables()).some((t) => t.schema === schema && t.table === table);
-    return known ? this.catalog.columns(schema, table) : [];
+    if (!known) return [];
+    const [columns, keys] = await Promise.all([this.catalog.columns(schema, table), this.catalog.keys()]);
+    const primaryKey = keys.get(`${schema}.${table}`)?.primaryKey ?? [];
+    return [...primaryKey.flatMap((name) => columns.filter((column) => column.name === name)), ...columns.filter((column) => !primaryKey.includes(column.name))];
   }
 
   private noTable(schema: string, table: string): DataRefusal {

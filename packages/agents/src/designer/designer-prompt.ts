@@ -5,16 +5,18 @@ import { MAX_TESTS, MIN_TESTS, PROPOSE_TOOL, RUN_TOOL } from "./test-proposals.t
 
 /**
  * Writes the request that starts a design: the brief, the way to go from it to the tests, the rules of a
- * test, the applications and how to sign in to them, then the domains of the index.
+ * test, the applications and how to sign in to them, then what the index holds for the brief, or its
+ * domains when nothing of it echoes the brief.
  *
  * @param brief - What the developer wants tested, in their own words, if anything.
  * @param environment - The environment the tests run against.
+ * @param found - What the index holds for the brief, as `IndexMap.found` gives it; none without a brief.
  * @param domains - The domains of the index, a line each.
  * @param applications - The applications a test may be about.
  * @param packages - The packages a test may import.
  * @returns The message to send to the designer.
  */
-export function designRequest(brief: string | undefined, environment: string, domains: readonly string[], applications: readonly Application[], packages: readonly string[]): string {
+export function designRequest(brief: string | undefined, environment: string, found: readonly string[], domains: readonly string[], applications: readonly Application[], packages: readonly string[]): string {
   const asked = brief === undefined ? "No brief was given: design the tests that matter most across the domains of the index." : `The brief of the developer, in their words:\n<brief>\n${brief}\n</brief>`;
   const steps = [
     `1. Find what echoes the brief with ${FIND_TOOL} and ${ENTRY_TOOL}: the domains, then the sections of documents, operations, tables, folders and screens, with the tools that read them. The index is a map, not a limit: look beyond it when it falls short.`,
@@ -46,7 +48,7 @@ export function designRequest(brief: string | undefined, environment: string, do
     `How to go about it:\n${steps.join("\n")}`,
     `Rules:\n${rules.join("\n")}`,
     `Applications:\n${known.join("\n")}`,
-    `Domains of the index:\n${domains.join("\n")}`,
+    found.length === 0 ? `Domains of the index:\n${domains.join("\n")}` : `What the index holds for this brief:\n${found.join("\n")}`,
   ].join("\n\n");
 }
 
