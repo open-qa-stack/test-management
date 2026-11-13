@@ -36,13 +36,13 @@ const SUBMISSION_SHAPE = {
  * How the cartographer hands its domain index in.
  *
  * @remarks
- * A submission is checked against its schema, then it must place every tag and table read and invent
- * none, and refer to no source the agent has not read yet. An item written after the name of its source
+ * A submission is checked against its schema, then it must place every element of the cards and invent
+ * none, and refer to no source without a card. An item written after the name of its source
  * and a slash or a colon is read without it, and the references of a domain to one source are merged.
  *
- * @param inventory - The items of each inventoried source.
+ * @param inventory - The elements of the card of each source.
  * @param sources - Identifiers of every source of the run.
- * @param isRead - Whether a source has been read so far.
+ * @param isRead - Whether a source has a card.
  * @returns The rules.
  */
 export function domainIndexRules(inventory: SourceInventory, sources: ReadonlySet<string>, isRead: (source: string) => boolean): SubmissionRules<DomainIndexSubmission> {
@@ -50,7 +50,7 @@ export function domainIndexRules(inventory: SourceInventory, sources: ReadonlySe
     tool: SUBMIT_TOOL,
     what: "index",
     description:
-      "Hands in the domain index: the domains, each with coarse references into the sources, and in unassigned what you read but put in no domain. Every tag and table listed for a contract or a base must appear once at least. Call it once your exploration is done.",
+      "Hands in the domain index: the domains, each with coarse references into the sources, and in unassigned the elements you put in no domain. Every element of every card must appear once at least.",
     shape: SUBMISSION_SHAPE,
     validate: validateDomainSubmission,
     check: (valid) => {
@@ -61,7 +61,7 @@ export function domainIndexRules(inventory: SourceInventory, sources: ReadonlySe
   };
 }
 
-/** References to sources of the run that the agent has not read: it would have invented them. */
+/** References to sources of the run that have no card: the agent would have invented them. */
 function unread(submission: DomainIndexSubmission, sources: ReadonlySet<string>, isRead: (source: string) => boolean): IndexError[] {
   const groups = [
     ...submission.domains.flatMap((domain, i) => domain.references.map((references, j) => [`/domains/${i}/references/${j}`, references.source] as const)),
@@ -69,7 +69,7 @@ function unread(submission: DomainIndexSubmission, sources: ReadonlySet<string>,
   ];
   return groups
     .filter(([, source]) => sources.has(source) && !isRead(source))
-    .map(([path, source]) => ({ path: `${path}/source`, message: `${path}/source refers to ${source}, which you have not read; read it first, or leave it out.` }));
+    .map(([path, source]) => ({ path: `${path}/source`, message: `${path}/source refers to ${source}, which has no card; leave it out.` }));
 }
 
 /**

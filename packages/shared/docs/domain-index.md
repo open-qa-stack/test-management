@@ -1,6 +1,6 @@
 # Domain index
 
-The cartographer writes the domain index of an application in the test repository, at `<indexDir>/domain-index.json` (`.oqas/index/domain-index.json` by default). It tells the test designers where to look for each functional domain; it holds coarse references only, never a mapping operation by operation, column by column, or between a screen, an operation and a table. Its JSON Schema is `schema/oqas-domain-index.schema.json`; `validateDomainIndex` applies it, then the rules that span the document.
+The cartographer writes the domain index of an application in the test repository, by consolidating the [cards](source-card.md) of its sources, at `<indexDir>/domain-index.json` (`.oqas/index/domain-index.json` by default). It tells the test designers where to look for each functional domain; it holds coarse references only, never a mapping operation by operation, column by column, or between a screen, an operation and a table. Its JSON Schema is `schema/oqas-domain-index.schema.json`; `validateDomainIndex` applies it, then the rules that span the document.
 
 | Key | Content |
 |---|---|
@@ -9,16 +9,16 @@ The cartographer writes the domain index of an application in the test repositor
 | `environment` | Name of the environment explored. |
 | `model` | `provider`, `baseUrl` and `model` of the model used; never a key. |
 | `run` | `iterations`, `actions` and `durationMs` the run used, as the harness measured them. |
-| `status` | `complete`, or `truncated` when a limit stopped the task or a source was not read. A `complete` index has every source read. |
-| `sources` | Each source of the run: `id` (a knowledge source, or an application for its user interface), `type` (`openapi`, `postgresql`, `document`, `source-code`, `web`) and `state` (`read`, `not_read`). |
+| `status` | `complete`, or `truncated` when a limit stopped the task, a card is truncated or a source was not read. A `complete` index has every source read. |
+| `sources` | Each source of the run: `id` (a knowledge source, or an application for its user interface), `type` (`openapi`, `postgresql`, `document`, `source-code`, `web`) and `state` (`read` when it has a card, `not_read` otherwise). |
 | `domains` | Each domain: `id` (an English slug, unique), `label`, a one-sentence `description`, and `references`, a list of `{ source, items }`. |
-| `unassigned` | What was read but put in no domain, as `{ source, items }`. |
+| `unassigned` | The elements of the cards put in no domain, as `{ source, items }`. |
 
-Items are tags or path prefixes for a contract, `schema.table` for a base, URL paths for a user interface, section titles for a document, folders or files for source code. Every reference names a source of the index.
+Items are the elements of the cards: tags or path prefixes for a contract, `schema.table` for a base, screen paths for a user interface, section titles for a document, folders for source code. Every reference names a source of the index.
 
 ## Placement
 
-Before an index is written, `placementErrors` checks the domains and `unassigned` against what the harness read itself, without the model: every tag of each contract — or the first path segment of an operation without tag — and every table of each base appears in a domain or in `unassigned`, and no item is given for such a source that it does not have. References to other sources are free.
+Before an index is written, `placementErrors` checks the domains and `unassigned` against an inventory of items by source: every item of each source inventoried appears in a domain or in `unassigned`, and no item is given for such a source that it does not have. The cartographer gives it the elements of each card.
 
 ## Example
 

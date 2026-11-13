@@ -1,33 +1,33 @@
-import type { SourceInventory } from "@open-qa-stack/shared";
+import type { SourceCard } from "@open-qa-stack/shared";
 import { SUBMIT_TOOL } from "./domain-index-rules.ts";
 import type { RunSource } from "./run-sources.ts";
 
-/** System instructions of the cartographer. */
-export const CARTOGRAPHER_INSTRUCTIONS = `You are the cartographer of a test platform. You explore an application through the sources its team declared, and you write an index of its functional domains, so that the test designers know where to look.
+/** System instructions of the consolidation. */
+export const CARTOGRAPHER_INSTRUCTIONS = `You are the cartographer of a test platform. Each source of an application — contracts, databases, documents, source code, user interfaces — already has its card, which groups its elements by functional domain. You consolidate the cards into one index of the application's functional domains, so that the test designers know where to look.
 
 Rules:
-- Use only the tools you are given; never guess an address, a table, a tag or a screen that a tool did not show you.
-- A domain is a functional area that users would name: orders, policies, customers, claims… Give each an English slug as its id, a short label and one sentence of description.
-- References stay coarse: tags or path prefixes of a contract, tables of a base, URL paths of a user interface, section titles of a document, folders or files of source code. Never list operations one by one, columns, or links between a screen, an operation and a table.
-- Every domain has an id, a label, a description and references; each reference names one source by its id, exactly as listed below, and gives its items.
-- Every tag and table listed below for a contract or a base must be placed, in a domain or in unassigned, using the items exactly as listed, without the name of the source in front.
-- Explore the user interfaces by reading pages and following links; sign in with the declared test accounts when a screen requires it. Never submit any other form.
-- Keep with remember the facts worth knowing for the agents that will write tests, and recall what earlier agents kept.
-- When you know the domains, call ${SUBMIT_TOOL}. If it refuses the index, fix what it says and call it again. Then answer with one sentence.`;
+- Work from the cards and the notes only; never invent a source or an element they do not show.
+- A domain of the application is a functional area users would name: orders, policies, customers, claims… It usually gathers the domains of several cards: the screens, the operations, the tables and the sections of one area. Give each an English slug as its id, a short label and one sentence of description.
+- References stay coarse: they name a source by its id, exactly as listed below, and give the elements of its card that belong to the domain, exactly as listed, without the name of the source in front.
+- Every element of every card must be placed, in a domain or in unassigned.
+- Recall what the agents that made the cards kept, when it helps; keep with remember what the test designers should know about the application as a whole.
+- When the index is ready, call ${SUBMIT_TOOL}. If it refuses the index, fix what it says and call it again. Then answer with one sentence.`;
 
 /**
- * Writes the request that starts a cartography: the sources, and the items each domain must place.
+ * Writes the request that starts the consolidation: the cards of the sources, element by element.
  *
- * @param environment - Name of the environment explored.
+ * @param environment - Name of the environment.
  * @param sources - The sources of the run.
- * @param inventory - The items of each contract and base, read by the harness.
+ * @param cards - The card of each source that has one.
  * @returns The message to send to the cartographer.
  */
-export function cartographyRequest(environment: string, sources: readonly RunSource[], inventory: SourceInventory): string {
-  const lines = sources.map((source) => {
-    const items = inventory.get(source.id);
-    const where = source.type === "web" ? ` at ${source.uiUrl}` : "";
-    return `- ${source.id} (${source.type})${where}${items === undefined ? "" : `, items to place: ${JSON.stringify(items)}`}`;
+export function cartographyRequest(environment: string, sources: readonly RunSource[], cards: ReadonlyMap<string, SourceCard>): string {
+  const blocks = sources.map((source) => {
+    const card = cards.get(source.id);
+    if (card === undefined) return `## ${source.id} (${source.type}): no card; leave it out.`;
+    const domains = card.domains.map((domain) => [`- ${domain.label} (${domain.id}): ${domain.description}`, ...domain.items.map((item) => `  - ${item.name}: ${item.summary}`)].join("\n"));
+    const unassigned = card.unassigned.length === 0 ? [] : [`- Unassigned: ${card.unassigned.join(", ")}`];
+    return [`## ${source.id} (${source.type})`, ...domains, ...unassigned].join("\n");
   });
-  return `Map the application in the environment ${environment}. Its sources:\n${lines.join("\n")}\n\nExplore what you need, then hand in the index with ${SUBMIT_TOOL}.`;
+  return `Consolidate the index of the application in the environment ${environment}. The cards of its sources:\n\n${blocks.join("\n\n")}\n\nHand the index in with ${SUBMIT_TOOL}.`;
 }
