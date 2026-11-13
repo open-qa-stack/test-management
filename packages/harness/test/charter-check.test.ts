@@ -6,7 +6,7 @@ import { after, describe, it } from "node:test";
 import type { CharterSettings } from "@open-qa-stack/shared";
 import type { TestFinding } from "@open-qa-stack/domain";
 import { CHARTER_DOC_FILE, documentedSection, renderControls } from "../scripts/emit-charter-doc.ts";
-import { DESIGNER_METHOD_EXAMPLE } from "../src/charter/designer-method.ts";
+import { DESIGNER_EXAMPLE } from "./designer-example.ts";
 import { readLintReport } from "../src/test-check/lint-report.ts";
 import { CHARTER_CONTROLS, CharterCheck, DEFAULT_CHARTER, resolveCharter, type ActiveRule } from "../src/index.ts";
 
@@ -148,7 +148,7 @@ test("renews a policy", async ({ page }, testInfo) => {
   });
 
   it("returns no finding for the example of the method of the designer", async () => {
-    assert.deepEqual(await check.check({ path: "apps/shop/search-orders.spec.ts", content: `${DESIGNER_METHOD_EXAMPLE}\n` }), []);
+    assert.deepEqual(await check.check({ path: "apps/shop/search-orders.spec.ts", content: `${DESIGNER_EXAMPLE}\n` }), []);
   });
 
   it("writes nothing to the test repository and leaves no temporary folder behind", async () => {

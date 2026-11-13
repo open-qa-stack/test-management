@@ -317,14 +317,22 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     assert.ok(["shop_goto", "propose_plan", "run_test", "propose_test", "remember", "recall", "index_find", "index_entry"].every((tool) => tools.includes(tool)));
     for (const source of ["order_specs_", "shop_guide_", "shop_api_", "ledger_api_", "shop_db_query"]) assert.ok(tools.some((tool) => tool.startsWith(source)), source);
     assert.deepEqual(tools.filter((tool) => /^(staging_specs|legacy)_/.test(tool)), []);
+    const described = new Map((server.requests[0]!.body as { tools: { function: { name: string; description: string } }[] }).tools.map((tool) => [tool.function.name, tool.function.description]));
+    assert.match(described.get("shop_db_search")!, /Read-only\. A value of the data of a plan comes from a result such as this one\.$/);
+    assert.doesNotMatch(described.get("shop_db_query")!, /data of a plan/);
+    assert.match(described.get("shop_goto")!, /Returns what the page shows, and the line of code that does the same in a test\.$/);
+    assert.match(described.get("run_test")!, /^Checks the test of the open scenario against the plan, then runs it/);
+    assert.match(described.get("propose_plan")!, /The harness refuses a value or a text no tool showed you\.$/);
     const request = requestText(server);
     for (const fragment of [
       "PW-WAIT-01",
       "No brief was given",
       "- orders (Orders): Placing and following an order.",
       "- customers (Customers): The customers of the shop.",
-      "- shop (Shop, web-and-api): signs in with a form; account demo: username in process.env.SHOP_USERNAME, password in process.env.SHOP_PASSWORD.",
+      "- shop (Shop, web-and-api): sign in with shop_fill and the account demo; the result gives the line a test writes.",
       "- ledger (Ledger, api): no sign-in.",
+      "A test may import: @playwright/test.",
+      "Next: call index_entry on the domains above that matter most, read what they hold, do it once on the screens, then call propose_plan.",
     ]) {
       assert.ok(request.includes(JSON.stringify(fragment).slice(1, -1)), fragment);
     }
@@ -376,7 +384,7 @@ describe("criterion 3 — with two valid tests the design fails, the journal say
     const reminders = server.requests.flatMap((request) => (request.body as { messages: { role: string; content: string }[] }).messages.filter((message) => message.role === "user").slice(1).map((message) => message.content.split("\n\n").at(-1)!));
     assert.deepEqual([...new Set(reminders)], [
       "You stopped before the end. Scenario 1 of 3, list-orders: its test passed and is not closed.\nNext: call propose_test.",
-      "You stopped before the end. Scenario 1 of 3, list-orders: its last run failed.\nNext: look at the page at the failed step, fix the locator or the wait, then call run_test with the whole corrected file (failed runs: 1 of 3).",
+      "You stopped before the end. Scenario 1 of 3, list-orders: its last run failed (1 of 3).\nNext: look at the page at the failed step, fix the locator or the wait, then call run_test with the whole corrected file (failed runs: 1 of 3).",
     ]);
   });
 
@@ -865,7 +873,7 @@ describe("the packages a test may import", () => {
     const { outcome, server } = await design(replies([[run(other, "faker")], ...write("list-orders", a11y), ...valid(3).slice(2)]), { root: repository(INDEX, manifest) });
     assert.equal(outcome.tests.find((test) => test.path === "apps/shop/list-orders.spec.ts")?.verdict, "passed", messages(outcome));
     assert.match(toolResult(server, "faker"), /Refused \(TEST-IMPORT\): Line 2 imports @faker-js\/faker; import only @playwright\/test, @axe-core\/playwright or a relative path/);
-    assert.match(JSON.stringify(server.requests[0]!.body), /Import only the packages of the test repository \(@playwright\/test, @axe-core\/playwright\)/);
+    assert.match(JSON.stringify(server.requests[0]!.body), /A test may import: @playwright\/test, @axe-core\/playwright\./);
   });
 });
 
@@ -932,6 +940,8 @@ describe("the request of a brief", () => {
     const request = requestText(server);
     assert.ok(request.includes("What the index holds for this brief:\\nDomains:\\n- orders (Orders): Placing and following an order.\\n- customers (Customers): The customers of the shop.\\nElements:\\n- shop-api: orders — Lists and places the orders of a customer. (operations)\\n- shop: /orders (screen)"), request);
     assert.ok(!request.includes("Domains of the index:"));
+    assert.ok(request.includes("Brief of the developer, in their words:\\n<brief>\\nFollow the orders\\n</brief>"), request);
+    assert.ok(request.includes("Next: call index_entry on the elements above that the brief is about, read them, do the brief once on the screens, then call propose_plan."), request);
     const unknown = requestText((await design(replies(valid(3)), { brief: "zebra" })).server);
     assert.ok(unknown.includes("Domains of the index:\\n- orders (Orders)"));
   });

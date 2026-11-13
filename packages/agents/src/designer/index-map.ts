@@ -118,7 +118,7 @@ export class IndexMap {
     return [
       {
         name: FIND_TOOL,
-        description: `Finds the domains and the elements of the domain index that echo words: sections of documents, operations of contracts, tables, folders of code, screens. Give the words in the language of the index, with synonyms. Then call ${ENTRY_TOOL} to know where an element is and which tool reads it.`,
+        description: `Finds what echoes words in the index: domains, sections of documents, operations, tables, folders of code, screens. Give the words in the language of the index, with synonyms. Then call ${ENTRY_TOOL} on an element.`,
         parameters: {
           type: "object",
           properties: { words: { type: "string", minLength: 1, description: "Words of what you look for, such as: customer search profile." } },
@@ -129,7 +129,7 @@ export class IndexMap {
       },
       {
         name: ENTRY_TOOL,
-        description: "Gives a domain of the index, or one element of a source, with what is known of it, each source it is in and the tools that read that source: for a table, its keys, its key fields and the call that finds a row.",
+        description: "Gives a domain of the index, or one element of a source, with what is known of it and the call that reads it: for a table, its keys, its key fields and the call that finds a row.",
         parameters: {
           type: "object",
           properties: {

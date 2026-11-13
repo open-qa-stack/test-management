@@ -1,12 +1,16 @@
 import type { Application } from "@open-qa-stack/shared";
-import { ENTRY_TOOL, FIND_TOOL } from "./index-map.ts";
+import { scopedToolName } from "@open-qa-stack/tools";
+import { ENTRY_TOOL } from "./index-map.ts";
 import { PLAN_TOOL } from "./plan-proposal.ts";
-import { MAX_TESTS, MIN_TESTS, PROPOSE_TOOL, RUN_TOOL } from "./test-proposals.ts";
 
 /**
- * Writes the request that starts a design: the brief, the way to go from it to the tests, the rules of a
- * test, the applications and how to sign in to them, then what the index holds for the brief, or its
- * domains when nothing of it echoes the brief.
+ * Writes the request that starts a design: the brief, what the index holds for it, or its domains when
+ * nothing of it echoes the brief, the applications and how to sign in to them, the packages a test may
+ * import, then the next call.
+ *
+ * @remarks
+ * The rules of a test are not repeated: each is a gate of the harness, told when it refuses, or a line of
+ * the system instructions.
  *
  * @param brief - What the developer wants tested, in their own words, if anything.
  * @param environment - The environment the tests run against.
@@ -17,42 +21,28 @@ import { MAX_TESTS, MIN_TESTS, PROPOSE_TOOL, RUN_TOOL } from "./test-proposals.t
  * @returns The message to send to the designer.
  */
 export function designRequest(brief: string | undefined, environment: string, found: readonly string[], domains: readonly string[], applications: readonly Application[], packages: readonly string[]): string {
-  const asked = brief === undefined ? "No brief was given: design the tests that matter most across the domains of the index." : `The brief of the developer, in their words:\n<brief>\n${brief}\n</brief>`;
-  const steps = [
-    `1. Find what echoes the brief with ${FIND_TOOL} and ${ENTRY_TOOL}: the domains, then the sections of documents, operations, tables, folders and screens, with the tools that read them. The index is a map, not a limit: look beyond it when it falls short.`,
-    "2. Read what matters with the tools of each source, or search it for a precise element: the rules, the fields, the data the application holds. The bases are read only.",
-    "3. Explore the screens the brief is about with the browser tools. Opening a page returns what it shows, each element with the locator a test uses for it; filling a field or clicking returns what appeared after. Do each search or form yourself, with data you read, and note what appears.",
-    `4. Submit the plan with ${PLAN_TOOL}: between ${MIN_TESTS} and ${MAX_TESTS} scenarios, each verifying a behaviour the brief aims at — a search that finds, a detail that shows the right data, a rule that applies — not only that a screen displays. Give each scenario the values its test enters and its steps, each step with the exact texts the screen shows, or no longer shows, after its action. Cite the sources each relies on.`,
-    `5. Once the plan is accepted, the harness opens each scenario in turn and gives the skeleton of its test: do its steps with the browser tools, fill the skeleton with the code they return, run it with ${RUN_TOOL} and fix it until it passes, then close the scenario with ${PROPOSE_TOOL}.`,
-  ];
-  const rules = [
-    `- A test is kept only once it ran: it must pass, unless the application is at fault. Read the error, the step that failed and, when it helps, the screens and the logs of the services.`,
-    `- A test is about the application of its scenario only; the harness names its file.`,
-    `- When the last run failed and you cannot repair the test, close the scenario with ${PROPOSE_TOOL} and a diagnosis: its cause and what the run showed. The test is kept failing.`,
-    "- Rely on what you read or saw, never on what you suppose: expect only texts, labels and data the sources or the screens showed you. A test is refused when it uses a locator no screen showed you.",
-    "- Each test verifies the expected result of its scenario: after the action, it asserts what the action produced — the rows a search finds, the fields a detail shows, with values you saw. That a field or a button is visible verifies no functional scenario.",
-    "- Never weaken a test to make it pass. When it fails, find out why with the browser tools, then fix it and keep what it verifies.",
-    "- Compare a screenshot only in a visual scenario; check data with assertions on texts and values.",
-    "- A test may create, change or delete data of the application in this test environment, as long as it relies on no data written before it: it makes what it needs itself.",
-    `- Import only the packages of the test repository (${packages.join(", ")}), or a relative path inside it; never another test file.`,
-    "- A visual test compares a page with its reference, with await expect(page).toHaveScreenshot(); the reference is made at its first run and kept with the test.",
-    `- Reach an application with paths relative to its base URL, such as await page.goto("/"); the Playwright configuration gives the base URL. Never write an address or a host.`,
-    "- A test that signs in reads its account from the environment variables named below, with process.env; never write a username or a password.",
-    "- A test writes no file: no saveAs, storageState, pdf or path option; the runner keeps the traces and screenshots.",
-  ];
-  const known = applications.map((application) => `- ${application.id} (${application.name}, ${application.type}): ${signIn(application)}`);
+  const asked = brief === undefined ? "No brief was given: design the tests that matter most across the domains below." : `Brief of the developer, in their words:\n<brief>\n${brief}\n</brief>`;
+  const known = applications.map((application) => `- ${application.id} (${application.name}, ${application.type}): ${signIn(application, environment)}`);
+  const next =
+    brief === undefined
+      ? `Next: call ${ENTRY_TOOL} on the domains above that matter most, read what they hold, do it once on the screens, then call ${PLAN_TOOL}.`
+      : `Next: call ${ENTRY_TOOL} on the elements above that the brief is about, read them, do the brief once on the screens, then call ${PLAN_TOOL}.`;
   return [
     `Design Playwright tests for the environment ${environment}.`,
     asked,
-    `How to go about it:\n${steps.join("\n")}`,
-    `Rules:\n${rules.join("\n")}`,
-    `Applications:\n${known.join("\n")}`,
     found.length === 0 ? `Domains of the index:\n${domains.join("\n")}` : `What the index holds for this brief:\n${found.join("\n")}`,
+    `Applications:\n${known.join("\n")}`,
+    `A test may import: ${packages.join(", ")}.`,
+    next,
   ].join("\n\n");
 }
 
-function signIn(application: Application): string {
+/** How a test signs in to an application: with its fill tool, whose result gives the line, or from the environment without a user interface. */
+function signIn(application: Application, environment: string): string {
   const accounts = application.authentication.accounts ?? [];
   if (accounts.length === 0) return "no sign-in.";
-  return `signs in with a form; ${accounts.map((account) => `account ${account.name}: username in process.env.${account.usernameEnv}, password in process.env.${account.passwordEnv}`).join("; ")}.`;
+  const names = `${accounts.length === 1 ? "the account" : "the accounts"} ${accounts.map((account) => account.name).join(", ")}`;
+  const screens = application.environments.some((candidate) => candidate.name === environment && candidate.uiUrl !== undefined);
+  if (screens) return `sign in with ${scopedToolName(application.id, "fill")} and ${names}; the result gives the line a test writes.`;
+  return `sign in with ${names}; a test reads ${accounts.map((account) => `process.env.${account.usernameEnv} and process.env.${account.passwordEnv}`).join(", ")}.`;
 }

@@ -139,7 +139,7 @@ export class TestProposals {
   public trialTool(): ToolDefinition {
     return {
       name: RUN_TOOL,
-      description: `Checks the test of the open scenario, then runs it against the application with the real runner. Give the whole file: one test, one test.step per step of the plan, as in the skeleton. Returns the verdict, the error, the step that failed and what to look at. After a failed run you may fix a locator or a wait; the expected texts of the plan stay. A scenario has ${MAX_FAILED_RUNS} failed runs at most.`,
+      description: `Checks the test of the open scenario against the plan, then runs it against the application with the real runner. Give the whole file: one test, one test.step per step of the plan, as in the skeleton. Returns the verdict, the error, the step that failed and what to look at. After a failed run you may fix a locator or a wait; the expected texts of the plan stay. A scenario has ${MAX_FAILED_RUNS} failed runs at most.`,
       parameters: {
         type: "object",
         properties: { content: { type: "string", minLength: 1, description: "The whole text of the file, in TypeScript." } },
@@ -193,7 +193,7 @@ export class TestProposals {
     if (scenario === undefined) return undefined;
     const last = cursor!.runs.at(-1);
     const where = `Scenario ${cursor!.rank} of ${cursor!.plan.scenarios.length}, ${scenario.id}`;
-    const state = last === undefined ? "its test has not run" : last.verdict === "passed" ? "its test passed and is not closed" : "its last run failed";
+    const state = last === undefined ? "its test has not run" : last.verdict === "passed" ? "its test passed and is not closed" : `its last run failed (${cursor!.failedRuns} of ${MAX_FAILED_RUNS})`;
     this.journal.record("info", `The agent stopped before scenario ${scenario.id} was closed; it was reminded to go on.`);
     return `You stopped before the end. ${where}: ${state}.\n${cursor!.next()}`;
   }

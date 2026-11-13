@@ -145,4 +145,15 @@ describe("the screens the designer watches", () => {
     await run(watch, "click");
     assert.deepEqual([watch.locatorOf("shop", "orders"), watch.locatorOf("shop", "Ada"), watch.locatorOf("ledger", "Orders")], ['page.getByRole("row", { name: "ORD-1042 Orders" })', undefined, undefined]);
   });
+
+  it("says in the description of each tool what it adds to its result", () => {
+    const state = "Returns where the page is, and the line of code that does the same in a test.";
+    const tools = page([LIST]).tools.map((tool) => ({ ...tool, description: `Acts on the page. ${state}` }));
+    const described = new Map(new ScreenWatch(["shop"], tools).tools().map((tool) => [tool.name, tool.description]));
+    assert.deepEqual([described.get("shop_goto"), described.get("shop_click"), described.get("shop_snapshot")], [
+      "Acts on the page. Returns what the page shows, and the line of code that does the same in a test.",
+      "Acts on the page. Returns what appeared, what went, and the line of code that does the same in a test.",
+      `Acts on the page. ${state}`,
+    ]);
+  });
 });

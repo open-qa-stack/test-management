@@ -1,8 +1,8 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, posix } from "node:path";
 import type { AgentEvent, AgentRuntime, PlanReview } from "@open-qa-stack/domain";
-import { declaredValues, validateDomainIndex, validateSourceCard, type DomainIndex, type ResolvedConfig, type SourceCard } from "@open-qa-stack/shared";
-import { browserTools, knowledgeTools, type BrowserAccess } from "@open-qa-stack/tools";
+import { declaredValues, validateDomainIndex, validateSourceCard, type DomainIndex, type Knowledge, type ResolvedConfig, type SourceCard } from "@open-qa-stack/shared";
+import { browserTools, knowledgeTools, scopedToolName, type BrowserAccess } from "@open-qa-stack/tools";
 import { agentNotes } from "../common/agent-notes.ts";
 import { runAgentTask, taskEnd, taskLimits } from "../common/agent-task.ts";
 import { Journal, type JournalEntry } from "../common/journal.ts";
@@ -143,7 +143,7 @@ export class Designer {
     const browser = browserTools(applications, { environment: index.environment, env, screenshotsDir: join(repositoryRoot, config.repository.stateDir, "screenshots"), ...this.options.browser });
     const screens = new ScreenWatch(applications.map((application) => application.id), browser.tools);
     const access = { repositoryRoot, env, secrets: declaredValues(config, env), taskStart: start };
-    const reads = new SourceWatch(readable, knowledgeTools(readable, access), access.secrets);
+    const reads = new SourceWatch(readable, withDataHint(knowledgeTools(readable, access), readable), access.secrets);
     const proposals = new TestProposals(
       {
         repositoryRoot,
@@ -284,6 +284,12 @@ function stoppedOnRefusal(tool: ToolDefinition, plan: PlanProposal): ToolDefinit
 function stepOf(failedStep: string | undefined): string {
   const number = failedStep === undefined ? undefined : /^(\d+)\. /.exec(failedStep)?.[1];
   return number === undefined ? "" : ` at step ${number}`;
+}
+
+/** The tools of the sources, the search of each base saying that the data of a plan come from results such as its own. */
+function withDataHint(tools: readonly ToolDefinition[], sources: readonly Knowledge[]): ToolDefinition[] {
+  const searches = new Set(sources.filter((source) => source.type === "postgresql").map((source) => scopedToolName(source.id, "search")));
+  return tools.map((tool) => (searches.has(tool.name) ? { ...tool, description: `${tool.description} A value of the data of a plan comes from a result such as this one.` } : tool));
 }
 
 /** How many tests a design obtained, in words. */

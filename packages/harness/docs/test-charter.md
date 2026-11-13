@@ -21,19 +21,11 @@ Added rules come after the default ones, in the order of the file; their reason 
 
 ## Instructions
 
-`resolveCharter(config.charter)` applies the changes and returns the rules to follow, or the errors. `designerInstructions(rules, config.repository)` and `reviewerInstructions(rules, config.repository)` write the system instructions of each agent: its role, the rules, then the folders of the repository layout. The reviewer gets every rule by its identifier with its rationale and example; the designer gets one line per rule, its identifier and its statement, and the example of a rule comes back with each finding of the check that cites it. All three are pure: they read no file and call no model or network.
+`resolveCharter(config.charter)` applies the changes and returns the rules to follow, or the errors. `designerInstructions(rules, config.repository)` and `reviewerInstructions(rules, config.repository)` write the system instructions of each agent. All three are pure: they read no file and call no model or network.
 
-The instructions of the designer end with a method, which the reviewer does not get. The charter says what a test must keep; the method says how to get to a test that verifies a behaviour:
+The reviewer gets its role, every rule by its identifier with its rationale and example, then the folders of the repository layout.
 
-1. open the screen with the browser tools and read the snapshot the opening returns;
-2. do the scenario by hand with the tools, each of which returns the lines that appeared;
-3. note what the action produced, which is what the test asserts, and take a snapshot when nothing appeared;
-4. write the test with the locators the tools returned: the one given for an element acted on, the role and the name, or a part of it that no other element holds, for an element only read;
-5. make each locator match one element, with `exact` or a parent, never by position;
-6. run it;
-7. when it fails, read the error, look at the screen again and fix the locator or the wait, without ever removing the assertion that verifies the scenario; when the application is at fault, run it once more and propose it as failing.
-
-It then says what makes an assertion worth writing — it checks the result of the action, with data seen on the screen or read in the sources, not that a field or a button is visible — and gives one worked example: the test of the orders search of an invented shop. The example parses as TypeScript and passes the check below against the default charter; the order it searches is reference data of the test environment, which the test only reads. The method is the same whatever the rules in force: a rule disabled in the configuration still shows in the example.
+The designer gets how it works with the harness — every plan and test is checked, a refusal says what to fix, each result of its plan, run and close tools names the next call, and it looks rather than guesses — then three things it always does: use only texts and values a tool showed it, do the steps of a scenario on the screens before planning it and before writing its test, copy locators and code lines as the tools return them; three it never does: change an expected text or weaken, reverse or skip an assertion to make a test pass, write a host or a credential, locate by CSS, XPath or position or wait for a fixed time; and what it may change after a failed run. Then come the rules, one line each, their identifier and their statement — the example of a rule comes back with each finding of the check that cites it — and the folder of the tests of an application. The procedure itself is the harness's: its gates and the `Next:` line of its results tell each step.
 
 ```ts
 const charter = resolveCharter(config.charter);

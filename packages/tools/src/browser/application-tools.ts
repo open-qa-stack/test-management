@@ -85,7 +85,7 @@ export function applicationTools(application: Application, environment: Environm
     },
     {
       name: name("snapshot"),
-      description: `Returns the accessibility tree of the page ${where}. Each element you can act on ends with the Playwright locator a test should use for it. within limits it to one part, such as a table, a form or a dialog.`,
+      description: `Returns what the page ${where} shows. Each element you can act on ends with the locator a test uses for it. within limits it to one part, such as a table or a dialog.`,
       parameters: { type: "object", properties: { within: TARGET_SCHEMA }, additionalProperties: false },
       execute: on((page, { within }: { within?: Target }) => page.snapshot(within)),
     },

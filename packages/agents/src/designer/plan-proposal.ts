@@ -124,7 +124,7 @@ export class PlanProposal {
     const texts = (description: string) => ({ type: "array", maxItems: 8, items: { type: "string", minLength: 1 }, description });
     return {
       name: PLAN_TOOL,
-      description: `Submits the test plan, once you have read the sources and done the brief once on the screens. ${MIN_TESTS} to ${MAX_TESTS} scenarios; with two functional scenarios or more, one is negative. Each scenario gives its data (every value the test enters, with the source that showed it, or "${MADE_UP}" for a value the test invents), then its steps as a user does them. A step has one action and 0 to 4 expects; an expect states one result seen after the action, with in shows the exact texts the screen then displays and in absent the exact texts it no longer displays. Each step becomes one test.step, and each text one assertion.`,
+      description: `Submits the test plan, once you have read the sources and done the brief once on the screens. ${MIN_TESTS} to ${MAX_TESTS} scenarios; with two functional scenarios or more, one is negative. Each scenario gives its data (every value the test enters, with the source that showed it, or "${MADE_UP}" for a value the test invents), then its steps as a user does them. A step has one action and 0 to 4 expects; an expect states one result seen after the action, with in shows the exact texts the screen then displays and in absent the exact texts it no longer displays. Each step becomes one test.step, and each text one assertion. The harness refuses a value or a text no tool showed you.`,
       parameters: {
         type: "object",
         properties: {

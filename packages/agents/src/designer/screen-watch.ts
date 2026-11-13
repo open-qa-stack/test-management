@@ -10,6 +10,8 @@ const MAX_APPEARED = 60;
 const MAX_GONE = 20;
 /** Most lines told as the closest to a locator no screen showed. */
 const MAX_NEAREST = 5;
+/** What the browser tools say they return, which the watch adds to. */
+const PAGE_STATE = "Returns where the page is, and the line of code that does the same in a test.";
 
 /** What the designer saw of the screens of one application. */
 interface Seen {
@@ -29,7 +31,8 @@ interface Seen {
  * Watches what the designer does with the browser tools, so that a test relies on screens it saw.
  *
  * @remarks
- * The tools it gives are those it was given, with what the agent needs to see added to their results:
+ * The tools it gives are those it was given, with what the agent needs to see added to their results, and
+ * to their descriptions:
  * opening an address returns the snapshot of the page, and an action returns the lines of the snapshot that
  * appeared after it and those that went. A snapshot is given without what a test has no use for — the reference of each
  * element, the address of each link — so that a long session holds more screens. It remembers, for
@@ -54,10 +57,11 @@ export class ScreenWatch {
       const seen: Seen = { lines: new Set(), produced: new Set(), removed: new Set(), last: undefined, looks: 0 };
       this.seen.set(application, seen);
       const read = async () => this.record(seen, compact((await snapshot.execute({})) as { page: string; truncated: boolean }), true);
-      const wrap = (action: string, execute: (tool: ToolDefinition, args: unknown) => Promise<unknown>) => {
+      const wrap = (action: string, execute: (tool: ToolDefinition, args: unknown) => Promise<unknown>, returns?: string) => {
         const tool = byName.get(scopedToolName(application, action))!;
         owned.set(tool.name, {
           ...tool,
+          ...(returns === undefined ? {} : { description: tool.description.replace(PAGE_STATE, returns) }),
           execute: (args) => {
             seen.looks += 1;
             return execute(tool, args);
@@ -73,7 +77,7 @@ export class ScreenWatch {
         const state = (await tool.execute(args)) as object;
         const shown = await read();
         return { ...state, page: shown.page, truncated: shown.truncated };
-      });
+      }, "Returns what the page shows, and the line of code that does the same in a test.");
       for (const action of ACTIONS) {
         wrap(action, async (tool, args) => {
           const previous = seen.last ?? (await read()).lines;
@@ -91,7 +95,7 @@ export class ScreenWatch {
             ...(appeared.length > MAX_APPEARED ? { more: `${appeared.length - MAX_APPEARED} more lines appeared; take a snapshot to read them.` } : {}),
             gone: gone.length === 0 ? "Nothing went from the page." : [...gone.slice(0, MAX_GONE), ...more].join("\n"),
           };
-        });
+        }, "Returns what appeared, what went, and the line of code that does the same in a test.");
       }
     }
     this.watched = tools.map((tool) => owned.get(tool.name) ?? tool);
