@@ -8,7 +8,8 @@ import { CopilotAgentRuntime, designerInstructions, ModelGateway, resolveCharter
 import { validateConfig, type DomainIndex, type ResolvedConfig, type SourceCard } from "@open-qa-stack/shared";
 import { answer, scriptedServer, testSite, toolCalls, type ScriptedServer, type TestSite } from "@open-qa-stack/testing";
 import { moduleSyntax } from "@open-qa-stack/tools";
-import type { TestCheck } from "@open-qa-stack/domain";
+import type { ProposedTest, TestCheck, TestRunner, TestTrial } from "@open-qa-stack/domain";
+import { testPackages } from "../src/designer/spec-rules.ts";
 import { Designer, type DesignOutcome, type DesignState } from "../src/index.ts";
 
 const MODEL = "test-model";
@@ -104,8 +105,9 @@ const CARD: SourceCard = {
 };
 
 /** A test repository under git with one commit, pushed to a local bare remote, and an untracked index. */
-function repository(index: unknown = INDEX): string {
+function repository(index: unknown = INDEX, manifest?: string): string {
   const root = mkdtempSync(join(workspace, "repo-"));
+  if (manifest !== undefined) writeFileSync(join(root, "package.json"), manifest);
   mkdirSync(join(root, "specs"));
   mkdirSync(join(root, "contracts"));
   writeFileSync(join(root, "specs", "orders.md"), "# Orders\n\nA customer places an order.\n");
@@ -151,7 +153,30 @@ const valid = (count: number) => Array.from({ length: count }, (_, i) => propose
 /** A reply that makes the calls, then answers enough to end the task and every reminder. */
 const replies = (calls: readonly ReturnType<typeof propose>[]) => [{ body: toolCalls(MODEL, calls) }, ...Array.from({ length: 4 }, () => ({ body: answer(MODEL, "Done.") }))];
 
+/**
+ * A runner of the tests that runs nothing: a test fails, with an error, a step and a trace, when its text
+ * holds `BROKEN`, and passes otherwise; it remembers each test it was given.
+ */
+class FakeTestRunner implements TestRunner {
+  public readonly runs: ProposedTest[] = [];
+  private readonly error: string | undefined;
+
+  public constructor(error?: string) {
+    this.error = error;
+  }
+
+  public async run(test: ProposedTest): Promise<TestTrial> {
+    this.runs.push(test);
+    if (this.error !== undefined) return { startedAt: "2026-11-13T10:00:00.000Z", tests: [], error: this.error };
+    const id = `shop › ${test.path} › the test`;
+    const broken = test.content.includes("BROKEN");
+    const failed = { id, verdict: "failed" as const, reason: "Error: expect(locator).toBeVisible() failed\n\nLocator: getByRole('heading', { name: 'Orders' })", failedStep: "open the orders", trace: ".oqas/test-results/trace.zip" };
+    return { startedAt: "2026-11-13T10:00:00.000Z", tests: [broken ? failed : { id, verdict: "passed", reason: "Every attempt passed." }] };
+  }
+}
+
 interface Setup {
+  readonly runner?: FakeTestRunner;
   readonly root?: string;
   readonly limits?: { maxIterations: number; maxDurationMinutes: number; maxActions: number };
   readonly check?: TestCheck;
@@ -185,6 +210,7 @@ async function design(script: readonly { status?: number; body: unknown }[], set
       browser: { actionTimeoutMs: 1000, navigationTimeoutMs: 3000 },
       ...(setup.branch === null ? {} : { branch: setup.branch ?? BRANCH, now: () => new Date("2026-11-13T10:00:00.000Z") }),
       ...(setup.check === undefined ? {} : { check: setup.check }),
+      runner: setup.runner ?? new FakeTestRunner(),
     });
     return { outcome: await designer.run(), root, server, before };
   } finally {
@@ -210,7 +236,7 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     const state = JSON.parse(readFileSync(outcome.statePath!, "utf8")) as DesignState;
     assert.equal(outcome.statePath, join(root, ".oqas", "designs", "design-20261113T100000Z.json"));
     assert.ok(filesOf(root).includes(".oqas/designs/design-20261113T100000Z.json"));
-    assert.deepEqual(state.tests, [1, 2, 3].map((i) => ({ path: `apps/shop/test-${i}.spec.ts`, application: "shop", domain: "orders", reason: `Checks test-${i}.spec.ts.` })));
+    assert.deepEqual(state.tests, [1, 2, 3].map((i) => ({ path: `apps/shop/test-${i}.spec.ts`, application: "shop", domain: "orders", reason: `Checks test-${i}.spec.ts.`, verdict: "passed" })));
     assert.deepEqual(outcome.tests, state.tests);
     assert.deepEqual([state.branch, state.base, state.environment, state.producedAt, state.model.model], [BRANCH, git(root, "rev-parse", "main"), "local", "2026-11-13T10:00:00.000Z", MODEL]);
     assert.deepEqual(git(root, "log", "-1", "--format=%an <%ae>%n%B", BRANCH).split("\n").slice(0, 3), ["Test Maintainer <maintainer@example.com>", "test: add 3 generated Playwright tests", ""]);
@@ -478,5 +504,176 @@ describe("guiding the designer", () => {
       assert.match(messages(outcome), new RegExp(`^No test was designed: the domain index .*domain-index\\.json ${reason.source}`));
       assert.equal(server.requests.length, 0);
     }
+  });
+});
+
+/** A call of `run_test` for a test of the shop. */
+const tryTest = (file: string, content: string, id: string) => ({ id, name: "run_test", arguments: { application: "shop", file, content } });
+const broken = (file: string) => spec(file).replace("Orders", "BROKEN");
+/** The text of the result of a tool call, as the next request gives it to the model. */
+const toolResult = (server: ScriptedServer, callId: string) => {
+  for (const request of server.requests) {
+    const found = (request.body as { messages: { role: string; tool_call_id?: string; content?: unknown }[] }).messages.find((message) => message.role === "tool" && message.tool_call_id === callId);
+    if (found !== undefined) return JSON.stringify(found.content);
+  }
+  return "";
+};
+
+describe("loop, criterion 1 — a test that fails, then is fixed, is run twice and passes", () => {
+  it("runs the broken text, then the fixed one, and keeps the test as passed", async () => {
+    const runner = new FakeTestRunner();
+    const turns = [[tryTest("test-1.spec.ts", broken("test-1.spec.ts"), "r1")], [tryTest("test-1.spec.ts", spec("test-1.spec.ts"), "r2")], valid(3)];
+    const { outcome } = await design([...turns.map((calls) => ({ body: toolCalls(MODEL, calls) })), ...replies([]).slice(1)], { runner });
+    assert.deepEqual(runner.runs.filter((run) => run.path === "apps/shop/test-1.spec.ts").map((run) => run.content.includes("BROKEN")), [true, false]);
+    assert.equal(outcome.tests.find((test) => test.path === "apps/shop/test-1.spec.ts")?.verdict, "passed");
+    assert.equal(runner.runs.length, 4, "a text already tried is not run again when it is proposed");
+    assert.match(messages(outcome), /The test apps\/shop\/test-1\.spec\.ts was run: failed\.\nThe test apps\/shop\/test-1\.spec\.ts was run: passed\./);
+  });
+});
+
+describe("loop, criterion 2 — the result told to the agent holds the assertion, the failed step and the trace", () => {
+  it("gives the error in full, the step, the trace and the instant to read the logs from", async () => {
+    const call = tryTest("test-1.spec.ts", broken("test-1.spec.ts"), "r1");
+    const { server } = await design(replies([call, ...valid(3)]));
+    const told = toolResult(server, "r1");
+    for (const part of ["Run of the file: failed.", "expect(locator).toBeVisible() failed", "getByRole('heading', { name: 'Orders' })", "Failed step: open the orders", "Trace: .oqas/test-results/trace.zip", "since 2026-11-13T10:00:00.000Z"]) assert.ok(told.includes(part), part);
+  });
+
+  it("refuses to run a test the rules refuse, and tells why when a test cannot run", async () => {
+    const runner = new FakeTestRunner();
+    const outside = tryTest("test-1.spec.ts", `import fs from "node:fs";\n${spec("test-1.spec.ts")}`, "r1");
+    const { server } = await design(replies([outside, ...valid(3)]), { runner });
+    assert.match(toolResult(server, "r1"), /could not be run/);
+    assert.ok(runner.runs.every((run) => !run.content.includes("node:fs")));
+    const failing = new FakeTestRunner("The browsers of Playwright 1.64.1 could not be installed: offline");
+    const cannot = await design(replies([tryTest("test-1.spec.ts", spec("test-1.spec.ts"), "r2"), ...valid(3)]), { runner: failing });
+    assert.match(toolResult(cannot.server, "r2"), /could not be run[^"]*offline/);
+    assert.equal(cannot.outcome.tests.length, 0);
+    assert.match(messages(cannot.outcome), /test-1\.spec\.ts was refused: The test could not run: The browsers/);
+  });
+});
+
+describe("loop, criterion 3 — the trials count against the limits, and a test not fixed is never kept as passed", () => {
+  it("stops at the limit of iterations, and keeps no test that did not pass", async () => {
+    const trials = Array.from({ length: 6 }, (_, i) => ({ body: toolCalls(MODEL, [tryTest("test-1.spec.ts", `${broken("test-1.spec.ts")}// ${i}\n`, `r${i}`)]) }));
+    const { outcome } = await design([...trials, { body: answer(MODEL, "Done.") }], { limits: { maxIterations: 3, maxDurationMinutes: 10, maxActions: 200 } });
+    assert.match(messages(outcome), /The task reached its iterations limit/);
+    assert.deepEqual(outcome.tests, []);
+    assert.equal(outcome.ok, false);
+  });
+
+  it("refuses a proposal that does not pass, with what the run gave, when the agent says nothing of the application", async () => {
+    const { outcome, server } = await design(replies([propose("test-1.spec.ts", { content: broken("test-1.spec.ts") }), ...valid(3)]));
+    assert.match(messages(outcome), /test-1\.spec\.ts was refused: It does not pass\. Fix it, or, if the application is at fault/);
+    assert.ok(outcome.tests.every((test) => test.verdict === "passed"));
+    assert.ok(toolResult(server, "p-test-1.spec.ts-content").includes("Failed step: open the orders"));
+  });
+});
+
+describe("loop, criterion 4 — a failure blamed on the application is kept with its explanation and the harness's verdict", () => {
+  it("writes the test with its verdict failed and the explanation in the state", async () => {
+    const blamed = propose("test-4.spec.ts", { content: broken("test-4.spec.ts"), failure: "The total stays empty although the order has two lines: the service returns no total." });
+    const turns = [[tryTest("test-4.spec.ts", broken("test-4.spec.ts"), "r4")], [...valid(3), blamed]];
+    const { outcome, root } = await design([...turns.map((calls) => ({ body: toolCalls(MODEL, calls) })), ...replies([]).slice(1)]);
+    const test = outcome.tests.find((candidate) => candidate.path === "apps/shop/test-4.spec.ts");
+    assert.deepEqual([test?.verdict, test?.failure], ["failed", "The total stays empty although the order has two lines: the service returns no total."]);
+    const state = JSON.parse(readFileSync(outcome.statePath!, "utf8")) as DesignState;
+    assert.equal(state.tests.find((candidate) => candidate.path === "apps/shop/test-4.spec.ts")?.verdict, "failed");
+    assert.ok(filesOf(root).includes("apps/shop/test-4.spec.ts"));
+  });
+});
+
+describe("what a trial tells the agent", () => {
+  it("cuts a long error, and counts a file whose run gives no test as not run", async () => {
+    const long: TestRunner = { run: async (test) => ({ startedAt: "2026-11-13T10:00:00.000Z", tests: [{ id: `shop › ${test.path} › t`, verdict: "failed", reason: "x".repeat(5000) }] }) };
+    const cut = await design(replies([tryTest("test-1.spec.ts", spec("test-1.spec.ts"), "r1"), ...valid(3)]), { runner: long as FakeTestRunner });
+    const told = toolResult(cut.server, "r1");
+    assert.ok(told.includes(`${"x".repeat(4000)}…`) && !told.includes("x".repeat(4001)) && !told.includes("Failed step"));
+    const empty: TestRunner = { run: async () => ({ startedAt: "2026-11-13T10:00:00.000Z", tests: [] }) };
+    const none = await design(replies([tryTest("test-1.spec.ts", spec("test-1.spec.ts"), "r1"), ...valid(3)]), { runner: empty as FakeTestRunner });
+    assert.match(toolResult(none.server, "r1"), /Run of the file: not_run\./);
+    assert.deepEqual(none.outcome.tests, []);
+  });
+});
+
+describe("what the designer may keep", () => {
+  const turns = (...calls: ReturnType<typeof propose>[][]) => [...calls.map((call) => ({ body: toolCalls(MODEL, call) })), ...replies([]).slice(1)];
+
+  it("refuses a failure blamed on the application for a text the agent never saw run, and keeps a passing test as passed whatever it claims", async () => {
+    const blind = propose("test-4.spec.ts", { content: broken("test-4.spec.ts"), failure: "The service returns no total." });
+    const claimed = propose("test-5.spec.ts", { failure: "The service returns no total." });
+    const { outcome } = await design(replies([...valid(2), blind, claimed]));
+    assert.match(messages(outcome), /test-4\.spec\.ts was refused: It does not pass\. Fix it, or, if the application is at fault, run it with run_test/);
+    const kept = outcome.tests.find((test) => test.path === "apps/shop/test-5.spec.ts");
+    assert.deepEqual([kept?.verdict, kept !== undefined && "failure" in kept], ["passed", false]);
+  });
+
+  it("never keeps a test that did not run to a verdict, even with a failure", async () => {
+    for (const verdict of ["skipped", "blocked"] as const) {
+      const runner: TestRunner = { run: async (test) => ({ startedAt: "2026-11-13T10:00:00.000Z", tests: [{ id: `shop › ${test.path} › t`, verdict, reason: "x" }] }) };
+      const { outcome } = await design(turns([tryTest("test-1.spec.ts", spec("test-1.spec.ts"), "r1")], [propose("test-1.spec.ts", { failure: "The application is down." })]), { runner: runner as FakeTestRunner });
+      assert.deepEqual(outcome.tests, [], verdict);
+      assert.match(messages(outcome), new RegExp(`did not run to a verdict \\(${verdict}\\)`));
+    }
+  });
+
+  it("keeps one test of two proposed at once at the same path", async () => {
+    const slow: TestRunner = { run: (test) => new Promise((resolve) => setTimeout(() => resolve({ startedAt: "2026-11-13T10:00:00.000Z", tests: [{ id: `shop › ${test.path} › t`, verdict: "passed", reason: "ok" }] }), 50)) };
+    const { outcome } = await design(replies([propose("test-1.spec.ts"), propose("test-1.spec.ts", { reason: "Another." }), propose("test-2.spec.ts"), propose("test-3.spec.ts")]), { runner: slow as FakeTestRunner });
+    assert.equal(outcome.tests.filter((test) => test.path === "apps/shop/test-1.spec.ts").length, 1);
+  });
+
+  it("refuses a test that writes a file, without running it", async () => {
+    const runner = new FakeTestRunner();
+    const writes = spec("test-1.spec.ts").replace("});\n", "  await page.screenshot({ path: \"/tmp/x.png\" });\n});\n");
+    const { outcome } = await design(replies([tryTest("test-1.spec.ts", writes, "r1"), propose("test-9.spec.ts", { content: writes }), ...valid(3)]), { runner });
+    assert.match(messages(outcome), /test-1\.spec\.ts could not be run: The test writes a file/);
+    assert.match(messages(outcome), /test-9\.spec\.ts was refused: The test writes a file/);
+    assert.ok(runner.runs.every((run) => !run.content.includes("screenshot")));
+  });
+
+  it("gives the verdict and the failure of a test that does not pass in the commit message", async () => {
+    const blamed = propose("test-4.spec.ts", { content: broken("test-4.spec.ts"), failure: "The service returns no total." });
+    const { root } = await design(turns([tryTest("test-4.spec.ts", broken("test-4.spec.ts"), "r4")], [...valid(3), blamed]));
+    assert.match(git(root, "log", "-1", "--format=%B", BRANCH), /- apps\/shop\/test-4\.spec\.ts \(failed\): Checks test-4\.spec\.ts\. Failure: The service returns no total\./);
+  });
+});
+
+describe("a visual test", () => {
+  it("is run and kept: it opens a page and compares a full capture with its reference", async () => {
+    const runner = new FakeTestRunner();
+    const visual = `import { test, expect } from "@playwright/test";\n\ntest("the list of orders looks as it should", async ({ page }) => {\n  await page.goto("/orders");\n  await expect(page).toHaveScreenshot({ fullPage: true });\n});\n`;
+    const { outcome } = await design(replies([propose("orders-look.spec.ts", { content: visual }), ...valid(2)]), { runner });
+    assert.equal(outcome.tests.find((test) => test.path === "apps/shop/orders-look.spec.ts")?.verdict, "passed", messages(outcome));
+    assert.ok(runner.runs.some((run) => run.content === visual));
+  });
+});
+
+describe("the packages a test may import", () => {
+  it("are those the package.json of the test repository declares, and @playwright/test without one", () => {
+    assert.deepEqual(testPackages(JSON.stringify({ dependencies: { "@axe-core/playwright": "4.11.0" }, devDependencies: { "@playwright/test": "1.64.1", "@axe-core/playwright": "4.11.0" } })), ["@axe-core/playwright", "@playwright/test"]);
+    for (const manifest of [undefined, "{ not json", "null", "{}", JSON.stringify({ dependencies: "x", devDependencies: null })]) assert.deepEqual(testPackages(manifest), ["@playwright/test"], String(manifest));
+  });
+
+  it("let an accessibility test import axe-core when the test repository declares it, and refuse a package it does not", async () => {
+    const manifest = JSON.stringify({ devDependencies: { "@playwright/test": "1.64.1", "@axe-core/playwright": "4.11.0" } });
+    const a11y = `import { test, expect } from "@playwright/test";\nimport AxeBuilder from "@axe-core/playwright";\n\ntest("the orders have no accessibility violation", async ({ page }) => {\n  await page.goto("/orders");\n  const results = await new AxeBuilder({ page }).analyze();\n  expect(results.violations).toEqual([]);\n});\n`;
+    const other = spec("test-9.spec.ts").replace('from "@playwright/test";', 'from "@playwright/test";\nimport { faker } from "@faker-js/faker";');
+    const { outcome, server } = await design(replies([propose("orders-a11y.spec.ts", { content: a11y }), propose("test-9.spec.ts", { content: other }), ...valid(2)]), { root: repository(INDEX, manifest) });
+    assert.equal(outcome.tests.find((test) => test.path === "apps/shop/orders-a11y.spec.ts")?.verdict, "passed", messages(outcome));
+    assert.match(messages(outcome), /test-9\.spec\.ts was refused: Line 2 imports @faker-js\/faker; import only @playwright\/test, @axe-core\/playwright or a relative path/);
+    assert.match(JSON.stringify(server.requests[0]!.body), /Import only the packages of the test repository \(@playwright\/test, @axe-core\/playwright\)/);
+  });
+});
+
+describe("the references of a visual test", () => {
+  it("are written and committed with the test, and listed in the state", async () => {
+    const reference = { path: "apps/shop/orders-look.spec.ts-snapshots/orders-look-1-shop.png", content: new Uint8Array([137, 80, 78, 71]) };
+    const runner: TestRunner = { run: async (test) => ({ startedAt: "2026-11-13T10:00:00.000Z", tests: [{ id: `shop › ${test.path} › t`, verdict: "passed", reason: "ok" }], ...(test.path.endsWith("orders-look.spec.ts") ? { references: [reference] } : {}) }) };
+    const { outcome, root } = await design(replies([propose("orders-look.spec.ts"), ...valid(2)]), { runner: runner as FakeTestRunner });
+    assert.ok(filesOf(root).includes(reference.path));
+    assert.deepEqual([...readFileSync(join(root, reference.path))], [137, 80, 78, 71]);
+    assert.deepEqual(outcome.tests.find((test) => test.path === "apps/shop/orders-look.spec.ts")?.references, [reference.path]);
+    assert.ok(outcome.tests.filter((test) => test.path !== "apps/shop/orders-look.spec.ts").every((test) => !("references" in test)));
   });
 });

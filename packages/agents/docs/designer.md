@@ -1,19 +1,19 @@
 # Designer
 
-`new Designer(options).run()` writes three or four Playwright tests, from the [domain index](../../shared/docs/domain-index.md) of the test repository, on a new local branch. It needs the resolved configuration, the path of the test repository, the environment variables the configuration names, an `AgentRuntime`, and the system instructions of the designer, which the caller composes from the test charter:
+`new Designer(options).run()` writes three or four Playwright tests, from the [domain index](../../shared/docs/domain-index.md) of the test repository, on a new local branch. It needs the resolved configuration, the path of the test repository, the environment variables the configuration names, an `AgentRuntime`, a `TestRunner` that runs each test against the application (such as the `TrialRunner` of the harness), and the system instructions of the designer, which the caller composes from the test charter:
 
 ```ts
 const charter = resolveCharter(config.charter);
 const instructions = designerInstructions(charter.rules, config.repository);
-const outcome = await new Designer({ config, repositoryRoot, env, runtime, instructions }).run();
+const outcome = await new Designer({ config, repositoryRoot, env, runtime, instructions, runner }).run();
 ```
 
 ## A run
 
 1. **Test repository.** The path must be the root of a git repository with a commit. No tracked file may be changed, no untracked file may lie outside the state folder (`repository.stateDir`) and the index folder (`repository.indexDir`), and the branch to create must not exist. Otherwise the journal names each problem, no session starts, and nothing is written. The untracked index the cartographer leaves does not stop the run.
 2. **Index.** `<indexDir>/domain-index.json` must match its schema. The designer reads no contract and no base itself: the request gives the agent every domain of the index, each element with the summary its card gives, when the card is readable.
-3. **Session.** The agent gets the browser tools of the applications of the environment of the index, to check a screen or a label; the tools of the documents, the source code and the logs attached to that environment or to none, the logs masking the value of every variable the configuration names; and the notes. It gets no tool of a contract or a base. It proposes each test with `propose_test`, under the limits of the configured autonomy. While fewer than three tests are accepted, an agent that stops is reminded up to three times.
-4. **Branch.** Once the session is over, a branch is created from the revision checked out, and stays checked out. The accepted tests and the design state are committed on it with the identity and the hooks of the repository. The message is `test: add <n> generated Playwright tests`, with one line per test. Nothing contacts a remote, and no existing branch nor the git configuration is changed.
+3. **Session.** The agent gets the browser tools of the applications of the environment of the index, to check a screen or a label; the tools of the documents, the source code and the logs attached to that environment or to none, the logs masking the value of every variable the configuration names; and the notes. It gets no tool of a contract or a base. It runs each test it writes with `run_test`, against the application, and fixes it until it passes; then it proposes it with `propose_test`, under the limits of the configured autonomy, every trial counting against them. While fewer than three tests are accepted, an agent that stops is reminded up to three times.
+4. **Branch.** Once the session is over, a branch is created from the revision checked out, and stays checked out. The accepted tests and the design state are committed on it with the identity and the hooks of the repository. The message is `test: add <n> generated Playwright tests`, with one line per test, which gives the verdict and the failure of a test that does not pass. Nothing contacts a remote, and no existing branch nor the git configuration is changed.
 
 The branch is `oqas/design-<date>` by default, such as `oqas/design-20261113T100000Z`; `branch` gives another name.
 
@@ -27,13 +27,22 @@ A proposal is refused, the journal says why, and the agent is told so that it ca
 |---|---|
 | `… is already taken` | A test of the design, or a file of the repository, already has this path. |
 | `The test does not parse as TypeScript: line L, column C: …` | The first syntax error of the file. |
-| `Line N imports <module>; import only @playwright/test or a relative path…` | The file imports any package but `@playwright/test`, a platform package included. |
+| `Line N imports <module>; import only <packages> or a relative path…` | The file imports a package the `package.json` of the test repository does not declare, a platform package included. The team chooses the tools its tests may use, such as `@axe-core/playwright` for accessibility, by declaring them; without any declared, only `@playwright/test`. |
 | `Line N imports a module whose name is computed` | An `import(…)` or `require(…)` of anything but a string. |
 | `Line N imports <path>, outside the test repository.` | A relative path that leaves the repository. |
 | `Line N imports <path>, another test file` | A relative path to a `.spec` or `.test` file: a test never imports another. |
 | `The test holds <address>, an address of the configuration` | A user interface, an API or a contract URL the configuration declares, written in full or by its host. Tests reach an application by paths relative to the base URL that the Playwright configuration gives. |
 | `The proposal holds the value of <VARIABLE>` | The value of a variable the configuration names — a test account, a connection string, the key of the model — in the reason or the text of the test. A test that signs in reads its account with `process.env`. |
 | A finding of the check | The `check` option, a `TestCheck` such as the `CharterCheck` of the harness, is run on a test the rules above accept; each finding refuses the test, and goes back to the agent with its line, its column and the rule of the charter or the code of the compiler. |
+
+## Running each test
+
+No test is kept unless it ran. The `runner` option, a `TestRunner` such as the `TrialRunner` of the harness, runs a test file with the real runner against the application.
+
+- `run_test` checks the file against the rules above, then runs it, and tells the agent the verdict of each of its tests and, for one that did not pass, its whole error, the `test.step` that failed, the path of its trace, and the instant from which the logs of the services tell what happened. A file the rules refuse is not run.
+- `propose_test` runs the file too, unless that very text was already tried. The test is kept when each of its tests passed. When it failed, it is refused with what the run gave, unless the agent ran that very text with `run_test` and says, in `failure`, why the application rather than the test is at fault: it is then kept with the harness's verdict `failed` and that explanation, never as passed. A test that did not run to a verdict (`not_run`, `skipped`, `blocked`) is always refused.
+- A test writes no file: `saveAs`, `storageState`, `pdf` and any `path` option are refused. What the runner keeps goes to its own folder.
+- A visual test compares a page with its reference, with `toHaveScreenshot`. Its references are made at its first trial, and it runs again against them; they are committed with the test, listed in the design state, for review.
 
 Every value of the variables the configuration names is masked in the journal and in what the agent is told. Once four tests are accepted, any further proposal is set aside, and the journal names it.
 
@@ -51,7 +60,9 @@ The state is written to `<stateDir>/designs/design-<date>.json`, and committed w
   "model": { "provider": "openai", "baseUrl": "http://localhost:1234/v1", "model": "<model>" },
   "run": { "iterations": 6, "actions": 3, "durationMs": 81234 },
   "tests": [
-    { "path": "apps/policy-management/list-policies.spec.ts", "application": "policy-management", "domain": "policies", "reason": "Checks that the policies of a customer are listed." }
+    { "path": "apps/policy-management/list-policies.spec.ts", "application": "policy-management", "domain": "policies", "reason": "Checks that the policies of a customer are listed.", "verdict": "passed" },
+    { "path": "apps/policy-management/quote-total.spec.ts", "application": "policy-management", "domain": "quote-requests", "reason": "Checks the total of a quote.", "verdict": "failed", "failure": "The total stays empty although the quote has two lines." },
+    { "path": "apps/policy-management/policies-look.spec.ts", "application": "policy-management", "domain": "policies", "reason": "Checks that the list of policies looks as it should.", "verdict": "passed", "references": ["apps/policy-management/policies-look.spec.ts-snapshots/policies-look-1-policy-management.png"] }
   ]
 }
 ```

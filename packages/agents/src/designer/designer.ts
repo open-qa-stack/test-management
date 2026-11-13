@@ -10,8 +10,8 @@ import { INDEX_FILE_NAME } from "../cartographer/cartographer.ts";
 import { CARDS_FOLDER } from "../source-cartographer/source-cartographer.ts";
 import { designRequest } from "./designer-prompt.ts";
 import { DESIGNS_FOLDER, type DesignedTest, type DesignState } from "./design-state.ts";
-import type { TestCheck } from "@open-qa-stack/domain";
-import { declaredAddresses, declaredSecrets } from "./spec-rules.ts";
+import type { TestCheck, TestRunner } from "@open-qa-stack/domain";
+import { declaredAddresses, declaredSecrets, testPackages } from "./spec-rules.ts";
 import { MIN_TESTS, TestProposals, type AcceptedTest } from "./test-proposals.ts";
 import { TestRepository } from "./test-repository.ts";
 
@@ -32,6 +32,8 @@ export interface DesignerOptions {
   readonly instructions: string;
   /** A check run on each test before it is accepted, such as one against the charter; none by default. */
   readonly check?: TestCheck;
+  /** Runs each test against the application before it is kept, such as the `TrialRunner` of the harness. */
+  readonly runner: TestRunner;
   /** Name of the branch to create; `oqas/design-<date>` by default. */
   readonly branch?: string;
   /** How the browser starts and waits; a headless Chromium with the default waits otherwise. */
@@ -64,7 +66,10 @@ export interface DesignOutcome {
  * and no branch of the name to create; otherwise nothing is written. The agent gets the index and what the
  * cards say of each element, the browser tools of the applications, the tools of the documents, the source
  * code and the logs — never those of a contract or a base, whose substance the index holds — and the notes.
- * It proposes its tests one by one with `propose_test`, under the limits of the configured autonomy. Once
+ * It runs each test it writes with `run_test`, through `runner`, against the application, and proposes it
+ * with `propose_test`, which runs it too unless that very text was already tried, under the limits of the
+ * configured autonomy, every trial counting against them. A test is kept when it passes, or when it failed
+ * in a run the agent saw and the agent holds the application at fault; its verdict is the harness's. Once
  * the session is over, the accepted tests, in the folder of their application, and the design state are
  * committed on a new branch from the revision checked out, which stays checked out. Nothing contacts a
  * remote. With fewer than three tests, those obtained are still written and the design fails.
@@ -102,6 +107,7 @@ export class Designer {
     if (typeof index === "string") return failed(`No test was designed: ${index}`);
 
     const applications = config.applications.filter((application) => application.environments.some((environment) => environment.name === index.environment));
+    const packages = testPackages(await readFile(join(repositoryRoot, "package.json"), "utf8").catch(() => undefined));
     const proposals = new TestProposals(
       {
         repositoryRoot,
@@ -111,6 +117,8 @@ export class Designer {
         addresses: declaredAddresses(config),
         secrets: declaredSecrets(config, env),
         ...(this.options.check === undefined ? {} : { check: this.options.check }),
+        runner: this.options.runner,
+        packages,
       },
       journal,
     );
@@ -119,8 +127,8 @@ export class Designer {
     const knowledge = knowledgeTools(readable, { repositoryRoot, env, secrets: declaredValues(config, env), taskStart: start });
     const notes = agentNotes(config, repositoryRoot, env, { role: "designer", task: id, now });
     const events: AgentEvent[] = [];
-    const request = designRequest(index, applications, await this.cards(index));
-    const task = { instructions: this.options.instructions, tools: [...browser.tools, ...knowledge, ...notes, proposals.tool()], request, events, reminder: () => proposals.reminder() };
+    const request = designRequest(index, applications, await this.cards(index), packages);
+    const task = { instructions: this.options.instructions, tools: [...browser.tools, ...knowledge, ...notes, proposals.trialTool(), proposals.tool()], request, events, reminder: () => proposals.reminder() };
     await runAgentTask(this.options.runtime, task, taskLimits(config)).finally(() => browser.close());
     for (const event of events) if (event.type === "tool-error") journal.record("error", `${event.tool}: ${event.message}`);
     const { last, counters } = taskEnd(events);
@@ -137,7 +145,7 @@ export class Designer {
       base: await repository.head(),
       model: { provider: config.model.provider, baseUrl: config.model.baseUrl, model: config.model.model },
       run: { iterations: counters.iterations, actions: counters.actions, durationMs: Math.round(counters.elapsedMs) },
-      tests: tests.map(({ path, application, domain, reason }) => ({ path, application, domain, reason })),
+      tests: tests.map(({ content: _content, references, ...test }) => ({ ...test, ...(references.length === 0 ? {} : { references: references.map((reference) => reference.path) }) })),
     };
     const statePath = posix.join(config.repository.stateDir, DESIGNS_FOLDER, `${id}.json`);
     await this.write(repository, state, statePath, tests, journal);
@@ -149,12 +157,17 @@ export class Designer {
   private async write(repository: TestRepository, state: DesignState, statePath: string, tests: readonly AcceptedTest[], journal: Journal): Promise<void> {
     const { repositoryRoot } = this.options;
     await repository.createBranch(state.branch);
-    const files = [...tests.map((test) => [test.path, test.content.endsWith("\n") ? test.content : `${test.content}\n`] as const), [statePath, `${JSON.stringify(state, null, 2)}\n`] as const];
+    const files: (readonly [string, string | Uint8Array])[] = [
+      ...tests.map((test) => [test.path, test.content.endsWith("\n") ? test.content : `${test.content}\n`] as const),
+      ...tests.flatMap((test) => test.references.map((reference) => [reference.path, reference.content] as const)),
+      [statePath, `${JSON.stringify(state, null, 2)}\n`] as const,
+    ];
     for (const [path, content] of files) {
       await mkdir(dirname(join(repositoryRoot, path)), { recursive: true });
       await writeFile(join(repositoryRoot, path), content);
     }
-    const message = [`test: add ${tests.length} generated Playwright tests`, "", ...tests.map((test) => `- ${test.path}: ${test.reason}`)].join("\n");
+    const line = (test: AcceptedTest) => (test.verdict === "passed" ? `- ${test.path}: ${test.reason}` : `- ${test.path} (${test.verdict}): ${test.reason} Failure: ${test.failure}`);
+    const message = [`test: add ${tests.length} generated Playwright tests`, "", ...tests.map(line)].join("\n");
     const committed = new Set(await repository.commit(files.map(([path]) => path), message));
     for (const test of tests) journal.record("info", `The test ${test.path} was written.`);
     journal.record("info", `The design state was written to ${statePath}${committed.has(statePath) ? "" : ", which git ignores: it was not committed"}.`);

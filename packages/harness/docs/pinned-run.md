@@ -13,14 +13,14 @@ The version is the one of `@playwright/test` that `package-lock.json` installs, 
 
 ## The steps
 
-Each step is a command run without a shell, in the test repository, with `OQAS_ENVIRONMENT` and the base address of each application set.
+Each step is a command run without a shell, in the test repository. It gets `OQAS_ENVIRONMENT`, the base address of each application and the variables of the test accounts, with only the variables of the process that npm, the runner and the browsers need: no key of a model nor connection string reaches the tests.
 
 1. **Install** the dependencies from the lockfile.
 2. **Install the browsers** of the locked version.
 3. **Check the version** installed against the locked one.
 4. **List** the given files with `playwright test --list --reporter=json`: these are the listed tests.
 5. **Check the addresses**: each address of the applications of the environment, interface and APIs, is called as declared. It answers when any HTTP response comes within the time limit, whatever its status.
-6. **Run** the given files with `playwright test --reporter=json`, the JSON written to the run folder.
+6. **Run** the given files with `playwright test --reporter=json`, the JSON and what the runner leaves, traces and screenshots, written to the run folder.
 7. **Check again** the declared addresses that failed tests met a network error towards.
 
 When the lockfile cannot be read, the dependencies or the browsers cannot be installed, the versions differ, the list fails or the addresses cannot be checked, no test runs, and each given file gets `not_run` with the reason. When an address does not answer before the run, no test runs, and each listed test gets `blocked` with the address.
@@ -50,6 +50,10 @@ A network error is a connection the browser or Node.js could not make (`net::ERR
 ## The result
 
 The result is written to `<stateDir>/runs/run-<date>.json`: each test with its identifier, verdict and reason, the version of Playwright, the addresses checked, the exit code of the runner, and the path of the raw JSON in `<stateDir>/runs/run-<date>/`, or of the output of the runner when the JSON could not be read. Nothing is committed nor pushed.
+
+## Trying a test while it is written
+
+`TrialRunner` implements `TestRunner` for the designer: it tries one test file at a time. The run is prepared once, at the first trial. The trials run one at a time. The file is written at its path for the time of its run, then removed; its report and its traces stay in its folder of `<stateDir>/trials/`. A trial gives each test of the file with its verdict and, for one that did not pass, every error of its last attempt, the step that failed and the path of its trace, relative to the test repository. A file already at that path is not overwritten: the trial says so. The references a visual comparison lacks are made at the first run (`--update-snapshots=missing`); the file then runs again against them, and they are given with the trial, then removed from the folder, to be written with the test. A folder of references already there is left as it is.
 
 ## The commands
 

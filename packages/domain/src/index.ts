@@ -14,3 +14,4 @@ export type { CommandOutcome, CommandRunner, StepCommand } from "./test/command-
 export { lockedPlaywrightVersion } from "./test/playwright-version.ts";
 export type { AttemptStatus, ListedTest, ReportedAttempt, ReportedStatus, ReportedTest } from "./test/reported-test.ts";
 export { networkFailureAddresses, testVerdicts, type RunFacts, type TestVerdict } from "./test/test-verdicts.ts";
+export type { TestReference, TestRunner, TestTrial, TriedTest } from "./test/test-runner.ts";

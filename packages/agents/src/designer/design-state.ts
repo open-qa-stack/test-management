@@ -1,3 +1,4 @@
+import type { Verdict } from "@open-qa-stack/domain";
 import type { IndexModel, IndexRun } from "@open-qa-stack/shared";
 
 /** Folder of the design states, in the state folder of the test repository. */
@@ -13,6 +14,12 @@ export interface DesignedTest {
   readonly domain: string;
   /** Why the test is worth running, in one sentence. */
   readonly reason: string;
+  /** Its verdict when it was last run, as the harness pronounced it: `passed`, or another when the application is at fault. */
+  readonly verdict: Verdict;
+  /** For a test that does not pass, why the agent holds the application at fault. */
+  readonly failure?: string;
+  /** The references of its visual comparisons, written with it, relative to the root of the test repository. */
+  readonly references?: readonly string[];
 }
 
 /** The state of a design, written next to the tests on their branch. */

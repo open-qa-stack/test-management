@@ -26,6 +26,7 @@ export const CHARTER_CONTROLS: readonly CharterControl[] = Object.freeze([
     rule: "PW-WAIT-01",
     lint: [
       { name: "playwright/no-wait-for-timeout" },
+      { name: "playwright/no-wait-for-selector" },
       {
         name: "no-restricted-globals",
         options: [
@@ -34,7 +35,7 @@ export const CHARTER_CONTROLS: readonly CharterControl[] = Object.freeze([
         ],
       },
     ],
-    note: "Flags page.waitForTimeout, setTimeout and setInterval.",
+    note: "Flags page.waitForTimeout, page.waitForSelector, setTimeout and setInterval.",
   },
   {
     rule: "PW-ISO-01",
