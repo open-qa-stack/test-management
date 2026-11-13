@@ -23,6 +23,25 @@ export const CHARTER_CONTROLS: readonly CharterControl[] = Object.freeze([
     note: "Flags a test without assertion, an assertion on a value read once from the page, and an assertion that is not awaited.",
   },
   {
+    rule: "PW-KEEP-01",
+    lint: [
+      { name: "playwright/no-skipped-test" },
+      { name: "playwright/no-focused-test" },
+      { name: "playwright/no-conditional-expect" },
+      { name: "playwright/no-conditional-in-test" },
+      { name: "playwright/no-force-option" },
+      {
+        name: "no-restricted-properties",
+        options: [
+          { object: "expect", property: "soft", message: "Never soften an assertion." },
+          { object: "test", property: "fail", message: "Never mark a test as expected to fail." },
+          { object: "test", property: "fixme", message: "Never mark a test to be fixed later." },
+        ],
+      },
+    ],
+    note: "Flags skipped and focused tests, test.fixme, test.fail, expect.soft, a condition in a test or around an assertion, and the force option of an action.",
+  },
+  {
     rule: "PW-WAIT-01",
     lint: [
       { name: "playwright/no-wait-for-timeout" },

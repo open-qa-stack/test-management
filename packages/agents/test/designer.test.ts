@@ -497,7 +497,11 @@ describe("guiding the designer", () => {
     const check: TestCheck = {
       check: async (proposed) =>
         proposed.path.endsWith("waits.spec.ts")
-          ? [{ kind: "charter", rule: "PW-WAIT-01", line: 4, column: 9, message: "Wait for a state, never for a fixed time." }, { kind: "compiler", code: "TS2304", line: 2, column: 1, message: "Cannot find name 'testInfo'." }]
+          ? [
+              { kind: "charter", rule: "PW-WAIT-01", line: 4, column: 9, message: "Wait for a state, never for a fixed time.", example: 'await expect(page.getByRole("table")).toBeVisible();' },
+              { kind: "charter", rule: "TEAM-TAG-01", line: 1, column: 1, message: "Tag the test." },
+              { kind: "compiler", code: "TS2304", line: 2, column: 1, message: "Cannot find name 'testInfo'." },
+            ]
           : [],
     };
     const root = repository();
@@ -505,7 +509,8 @@ describe("guiding the designer", () => {
     const journal = messages(outcome);
     assert.match(journal, /apps\/shop\/test-1\.spec\.ts was refused: apps\/shop\/test-1\.spec\.ts is already taken/);
     assert.match(journal, /propose_test: .*domain/);
-    assert.match(journal, /waits\.spec\.ts was refused: Line 4, column 9 \(rule PW-WAIT-01\): Wait for a state, never for a fixed time\./);
+    assert.match(journal, /waits\.spec\.ts was refused: Line 4, column 9 \(rule PW-WAIT-01\): Wait for a state, never for a fixed time\. Example: await expect\(page\.getByRole\("table"\)\)\.toBeVisible\(\);\n/);
+    assert.match(journal, /waits\.spec\.ts was refused: Line 1, column 1 \(rule TEAM-TAG-01\): Tag the test\.\n/);
     assert.match(journal, /waits\.spec\.ts was refused: Line 2, column 1 \(compiler TS2304\): Cannot find name 'testInfo'\./);
     assert.equal(outcome.tests.length, 3);
   });

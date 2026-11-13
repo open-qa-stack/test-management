@@ -286,10 +286,11 @@ export class TestProposals {
 
 }
 
-/** A finding of the check, in one sentence the agent can act on: where, what, and the rule or the code. */
+/** A finding of the check, in one sentence the agent can act on: where, what, the rule or the code, and the example of the rule. */
 function findingText(finding: TestFinding): string {
   const label = finding.kind === "charter" ? `rule ${finding.rule}` : `compiler ${finding.code}`;
-  return `Line ${finding.line}, column ${finding.column} (${label}): ${finding.message}`;
+  const example = finding.kind === "charter" && finding.example !== undefined ? ` Example: ${finding.example}` : "";
+  return `Line ${finding.line}, column ${finding.column} (${label}): ${finding.message}${example}`;
 }
 
 /** A text without its spaces, its quotes all written alike, and without a last semicolon: what two writings of one assertion share. */

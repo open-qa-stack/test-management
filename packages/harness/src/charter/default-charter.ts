@@ -30,6 +30,13 @@ export const DEFAULT_CHARTER: readonly CharterRule[] = Object.freeze([
     example: `await expect(page.getByRole("status")).toHaveText("Policy saved");`,
   },
   {
+    id: "PW-KEEP-01",
+    statement: "Never neutralise a test: no skip, fixme, expected failure, focused test, soft assertion, condition around an assertion, nor forced action.",
+    rationale: "A test that cannot fail verifies nothing; a failing test is reported, not silenced.",
+    source: "https://playwright.dev/docs/test-annotations",
+    example: `await page.getByRole("button", { name: "Renew" }).click();\nawait expect(page.getByRole("status")).toHaveText("Policy renewed");`,
+  },
+  {
     id: "PW-WAIT-01",
     statement: "Never wait for a fixed time: no page.waitForTimeout, no timer.",
     rationale: "Tests that wait for a fixed time are inherently flaky; locators and assertions already wait for the page.",

@@ -13,7 +13,7 @@ import { CHARTER_CONTROLS, CharterCheck, DEFAULT_CHARTER, resolveCharter, type A
 /** Types of `@playwright/test` that the proposed tests below use. */
 const PLAYWRIGHT_TYPES = `
 export interface Locator {
-  click(): Promise<void>;
+  click(options?: { force?: boolean }): Promise<void>;
   fill(value: string): Promise<void>;
   first(): Locator;
   nth(index: number): Locator;
@@ -35,9 +35,10 @@ export interface Page {
 }
 export interface TestInfo { attach(name: string, options: { body: Uint8Array; contentType: string }): Promise<void>; }
 type Body = (fixtures: { page: Page }, testInfo: TestInfo) => Promise<void>;
-export declare const test: { (title: string, body: Body): void; step<T>(title: string, body: () => Promise<T>): Promise<T> };
+type Declare = (title: string, body: Body) => void;
+export declare const test: Declare & { skip: Declare; only: Declare; fixme: Declare; fail: Declare; step<T>(title: string, body: () => Promise<T>): Promise<T> };
 interface Matchers { toBeVisible(): Promise<void>; toBeHidden(): Promise<void>; toHaveText(text: string): Promise<void>; toContainText(text: string): Promise<void>; toBe(value: unknown): void; }
-export declare function expect(actual: unknown): Matchers;
+export declare const expect: { (actual: unknown): Matchers; soft(actual: unknown): Matchers };
 `;
 
 const BLOCK = `import type { Page } from "@playwright/test";
@@ -94,7 +95,8 @@ function ruleIds(findings: readonly TestFinding[]): string[] {
 describe("criterion 1 — a test that waits with waitForTimeout goes back with a finding citing the wait rule", () => {
   it("cites PW-WAIT-01 at the line and column of the call", async () => {
     const findings = await check.check({ path: PATH, content: spec(`  await page.goto("/policies");\n  await page.waitForTimeout(2000);`) });
-    assert.deepEqual(findings, [{ kind: "charter", rule: "PW-WAIT-01", line: 5, column: 9, message: "Unexpected use of page.waitForTimeout()." }]);
+    const { example } = DEFAULT_CHARTER.find((rule) => rule.id === "PW-WAIT-01")!;
+    assert.deepEqual(findings, [{ kind: "charter", rule: "PW-WAIT-01", line: 5, column: 9, message: "Unexpected use of page.waitForTimeout().", example }]);
   });
 
   it("cites PW-WAIT-01 for a timer too", async () => {
@@ -170,6 +172,12 @@ const BREAKING: Record<string, string> = {
   "playwright/expect-expect": `import { test } from "@playwright/test";\n\ntest("renews a policy", async ({ page }) => {\n  await page.getByRole("button", { name: "Renew" }).click();\n});\n`,
   "playwright/prefer-web-first-assertions": spec(`  expect(await page.getByRole("status").textContent()).toBe("Policy renewed");`),
   "playwright/missing-playwright-await": spec(`  expect(page.getByRole("status")).toBeVisible();`),
+  "playwright/no-skipped-test": spec("").replace("test(", "test.skip("),
+  "playwright/no-focused-test": spec("").replace("test(", "test.only("),
+  "playwright/no-conditional-expect": spec(`  if (Date.now() > 0) await expect(page.getByRole("status")).toBeVisible();`),
+  "playwright/no-conditional-in-test": spec(`  if (Date.now() > 0) await page.goto("/policies");`),
+  "playwright/no-force-option": spec(`  await page.getByRole("button", { name: "Renew" }).click({ force: true });`),
+  "no-restricted-properties": spec(`  await expect.soft(page.getByRole("status")).toBeVisible();`),
   "playwright/no-wait-for-timeout": spec(`  await page.waitForTimeout(500);`),
   "playwright/no-wait-for-selector": spec(`  await page.waitForSelector('table[aria-label="Policies"]');`),
   "no-restricted-globals": spec(`  setInterval(() => undefined, 500);`),
@@ -215,6 +223,14 @@ describe("criterion 4 — the table from rules of the charter to controls is doc
       });
     }
   }
+
+  it("cites PW-KEEP-01 for a test marked as expected to fail or to be fixed later, with the example of the rule", async () => {
+    const { example } = DEFAULT_CHARTER.find((rule) => rule.id === "PW-KEEP-01")!;
+    for (const mark of ["fail", "fixme"]) {
+      const findings = await check.check({ path: PATH, content: spec("").replace("test(", `test.${mark}(`) });
+      assert.deepEqual(findings, [{ kind: "charter", rule: "PW-KEEP-01", line: 3, column: 1, message: `'test.${mark}' is restricted from being used.`, example }]);
+    }
+  });
 
   it("turns off the controls of a rule the configuration disables, and checks no added rule", async () => {
     const settings: Required<CharterSettings> = {

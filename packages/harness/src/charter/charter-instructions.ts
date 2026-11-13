@@ -11,10 +11,12 @@ const REVIEWER_ROLE = `You are the test reviewer of a test platform. You review 
  *
  * @param rules - The rules to apply, in order.
  * @param repository - The layout of the test repository.
- * @returns The instructions: the role, then every rule by its identifier, then the layout, then the method.
+ * @returns The instructions: the role, then every rule in one line, its identifier and its statement, then
+ * the layout, then the method. The example of a rule comes with each finding that cites it.
  */
 export function designerInstructions(rules: readonly ActiveRule[], repository: Required<Repository>): string {
-  return `${instructions(DESIGNER_ROLE, rules, repository)}\n\n${DESIGNER_METHOD}`;
+  const charter = rules.map((rule) => `- ${rule.id}: ${rule.statement}`);
+  return `${instructions(DESIGNER_ROLE, charter, repository)}\n\n${DESIGNER_METHOD}`;
 }
 
 /**
@@ -22,18 +24,19 @@ export function designerInstructions(rules: readonly ActiveRule[], repository: R
  *
  * @param rules - The rules to apply, in order.
  * @param repository - The layout of the test repository.
- * @returns The instructions: the role, then every rule by its identifier, then the layout.
+ * @returns The instructions: the role, then every rule by its identifier, with its rationale and example,
+ * then the layout.
  */
 export function reviewerInstructions(rules: readonly ActiveRule[], repository: Required<Repository>): string {
-  return instructions(REVIEWER_ROLE, rules, repository);
-}
-
-function instructions(role: string, rules: readonly ActiveRule[], repository: Required<Repository>): string {
   const charter = rules.map((rule) => {
     const lines = [`- ${rule.id}: ${rule.statement}`, `  Why: ${rule.rationale}`];
     if (rule.example !== undefined) lines.push("  Example:", ...rule.example.split("\n").map((line) => `    ${line}`));
     return lines.join("\n");
   });
+  return instructions(REVIEWER_ROLE, charter, repository);
+}
+
+function instructions(role: string, charter: readonly string[], repository: Required<Repository>): string {
   const layout = [
     `- Tests of an application: ${repository.appsDir}/<application id>/`,
     `- Blocks of an application: ${repository.appsDir}/<application id>/${repository.blocksDir}/`,

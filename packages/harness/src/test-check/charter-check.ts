@@ -45,6 +45,7 @@ export class CharterCheck implements TestCheck {
   readonly #repository: string;
   readonly #lint: readonly LintRule[];
   readonly #charterRuleOf: ReadonlyMap<string, string>;
+  readonly #examples: ReadonlyMap<string, string>;
 
   /** @param options - The test repository and the rules in force. */
   constructor(options: CharterCheckOptions) {
@@ -53,11 +54,13 @@ export class CharterCheck implements TestCheck {
     this.#repository = options.repository;
     this.#lint = controls.flatMap((control) => control.lint);
     this.#charterRuleOf = new Map(controls.flatMap((control) => control.lint.map((lint) => [lint.name.slice(lint.name.indexOf("/") + 1), control.rule] as const)));
+    this.#examples = new Map(options.rules.flatMap((rule) => (rule.example === undefined ? [] : [[rule.id, rule.example] as const])));
   }
 
   /**
    * @param test - The proposed file.
-   * @returns The compiler errors and the charter findings, by line and column; none when the test may be written.
+   * @returns The compiler errors and the charter findings, each with the example of its rule, by line and
+   * column; none when the test may be written.
    * @throws RangeError when the path is not a relative path to a `.ts` file inside the test repository.
    */
   async check(test: ProposedTest): Promise<readonly TestFinding[]> {
@@ -69,7 +72,10 @@ export class CharterCheck implements TestCheck {
       await symlink(join(this.#repository, "node_modules"), join(folder, "node_modules"), "dir");
       await writeFile(join(folder, "tsconfig.json"), JSON.stringify({ compilerOptions: { ...COMPILER_OPTIONS, rootDirs: [".", this.#repository] }, files: [path] }));
       await writeFile(join(folder, "oxlintrc.json"), JSON.stringify(this.#configuration()));
-      return readLintReport(await lint(folder, path), this.#charterRuleOf);
+      return readLintReport(await lint(folder, path), this.#charterRuleOf).map((finding) => {
+        const example = finding.kind === "charter" ? this.#examples.get(finding.rule) : undefined;
+        return example === undefined ? finding : { ...finding, example };
+      });
     } finally {
       await rm(folder, { recursive: true, force: true });
     }

@@ -26,6 +26,8 @@ export interface CharterFinding extends FindingPosition {
   /** Identifier of the rule of the charter, such as `PW-WAIT-01`. */
   readonly rule: string;
   readonly message: string;
+  /** A conforming excerpt of a test, as the rule gives it; none for a rule without example. */
+  readonly example?: string;
 }
 
 /** What a proposed test must change before it is written. */

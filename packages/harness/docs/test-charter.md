@@ -21,7 +21,7 @@ Added rules come after the default ones, in the order of the file; their reason 
 
 ## Instructions
 
-`resolveCharter(config.charter)` applies the changes and returns the rules to follow, or the errors. `designerInstructions(rules, config.repository)` and `reviewerInstructions(rules, config.repository)` write the system instructions of each agent: its role, every rule by its identifier with its rationale and example, then the folders of the repository layout. All three are pure: they read no file and call no model or network.
+`resolveCharter(config.charter)` applies the changes and returns the rules to follow, or the errors. `designerInstructions(rules, config.repository)` and `reviewerInstructions(rules, config.repository)` write the system instructions of each agent: its role, the rules, then the folders of the repository layout. The reviewer gets every rule by its identifier with its rationale and example; the designer gets one line per rule, its identifier and its statement, and the example of a rule comes back with each finding of the check that cites it. All three are pure: they read no file and call no model or network.
 
 The instructions of the designer end with a method, which the reviewer does not get. The charter says what a test must keep; the method says how to get to a test that verifies a behaviour:
 
@@ -46,7 +46,7 @@ const instructions = designerInstructions(charter.rules, config.repository);
 Before a proposed test is written to the test repository, `CharterCheck` type-checks it and lints it against the charter, without network and without running it. It returns the findings, by line and column, for the agent to correct its test:
 
 - a `compiler` finding carries the code of the TypeScript error, such as `TS2322`, or `syntax` when the file does not parse;
-- a `charter` finding carries the identifier of the rule it breaks, such as `PW-WAIT-01`.
+- a `charter` finding carries the identifier of the rule it breaks, such as `PW-WAIT-01`, and the example of that rule when it has one.
 
 No finding means the test may be written. The check filters; the review of the branch still decides.
 
@@ -71,6 +71,7 @@ The linter is oxlint, with its type-aware mode and the rules of `eslint-plugin-p
 | PW-LOC-01 | `playwright/prefer-native-locators`, `playwright/no-get-by-title` | Flags a locator that a getBy method replaces, and getByTitle. Whether getByRole came first is left to review. |
 | PW-LOC-02 | `playwright/no-raw-locators`, `playwright/no-element-handle`, `playwright/no-nth-methods` | Flags CSS and XPath locators, element handles, and first, last and nth. |
 | PW-ASSERT-01 | `playwright/expect-expect`, `playwright/prefer-web-first-assertions`, `playwright/missing-playwright-await` | Flags a test without assertion, an assertion on a value read once from the page, and an assertion that is not awaited. |
+| PW-KEEP-01 | `playwright/no-skipped-test`, `playwright/no-focused-test`, `playwright/no-conditional-expect`, `playwright/no-conditional-in-test`, `playwright/no-force-option`, `no-restricted-properties` | Flags skipped and focused tests, test.fixme, test.fail, expect.soft, a condition in a test or around an assertion, and the force option of an action. |
 | PW-WAIT-01 | `playwright/no-wait-for-timeout`, `playwright/no-wait-for-selector`, `no-restricted-globals` | Flags page.waitForTimeout, page.waitForSelector, setTimeout and setInterval. |
 | PW-ISO-01 | `playwright/no-export` | Flags an export from a test file, which another test could import. Shared state, order and serial mode are left to review. |
 | PW-DATA-01 | none | Not checked: how a test prepares and removes its data is left to review. |
@@ -116,6 +117,17 @@ Why: Web-first assertions retry until the condition holds or the timeout expires
 
 ```ts
 await expect(page.getByRole("status")).toHaveText("Policy saved");
+```
+
+### PW-KEEP-01
+
+Never neutralise a test: no skip, fixme, expected failure, focused test, soft assertion, condition around an assertion, nor forced action.
+
+Why: A test that cannot fail verifies nothing; a failing test is reported, not silenced. See the [Playwright documentation](https://playwright.dev/docs/test-annotations).
+
+```ts
+await page.getByRole("button", { name: "Renew" }).click();
+await expect(page.getByRole("status")).toHaveText("Policy renewed");
 ```
 
 ### PW-WAIT-01

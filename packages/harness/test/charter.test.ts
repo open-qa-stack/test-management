@@ -37,9 +37,9 @@ describe("criterion 1 — the charter lists its rules with identifier, statement
     for (const id of ids) assert.match(id, /^PW-[A-Z]+-\d{2}$/);
   });
 
-  it("covers locators, assertions, waits, isolation, data, steps, screenshots, environments, invented values and layout", () => {
+  it("covers locators, assertions, neutralised tests, waits, isolation, data, steps, screenshots, environments, invented values and layout", () => {
     const topics = new Set(DEFAULT_CHARTER.map((rule) => rule.id.split("-")[1]));
-    assert.deepEqual([...topics].sort(), ["ASSERT", "DATA", "ENV", "FACT", "ISO", "LOC", "ORG", "SHOT", "STEP", "WAIT"]);
+    assert.deepEqual([...topics].sort(), ["ASSERT", "DATA", "ENV", "FACT", "ISO", "KEEP", "LOC", "ORG", "SHOT", "STEP", "WAIT"]);
   });
 
   it("cannot be changed at run time", () => {
@@ -57,15 +57,23 @@ describe("criterion 2 — without changes, the instructions of the designer and 
     );
   });
 
+  it("lists every rule in the reviewer instructions, with its statement, rationale and example", () => {
+    const instructions = reviewerInstructions(rules, DEFAULT_REPOSITORY);
+    assert.deepEqual(listedIds(instructions), DEFAULT_CHARTER.map((rule) => rule.id));
+    for (const rule of DEFAULT_CHARTER) {
+      assert.ok(instructions.includes(`- ${rule.id}: ${rule.statement}\n  Why: ${rule.rationale}`), rule.id);
+      for (const line of rule.example.split("\n")) assert.ok(instructions.includes(`\n    ${line}`), `${rule.id}: ${line}`);
+    }
+  });
+
+  it("lists every rule in the designer instructions in one line, its identifier and its statement, without rationale or example", () => {
+    const instructions = designerInstructions(rules, DEFAULT_REPOSITORY);
+    const charter = instructions.slice(instructions.indexOf("Charter:\n") + "Charter:\n".length, instructions.indexOf("\n\nRepository layout:"));
+    assert.equal(charter, DEFAULT_CHARTER.map((rule) => `- ${rule.id}: ${rule.statement}`).join("\n"));
+    assert.ok(!instructions.includes("Why: "));
+  });
+
   for (const [role, compose] of Object.entries(COMPOSERS)) {
-    it(`lists every rule in the ${role} instructions, with its statement, rationale and example`, () => {
-      const instructions = compose(rules, DEFAULT_REPOSITORY);
-      assert.deepEqual(listedIds(instructions), DEFAULT_CHARTER.map((rule) => rule.id));
-      for (const rule of DEFAULT_CHARTER) {
-        assert.ok(instructions.includes(`- ${rule.id}: ${rule.statement}\n  Why: ${rule.rationale}`), rule.id);
-        for (const line of rule.example.split("\n")) assert.ok(instructions.includes(`\n    ${line}`), `${rule.id}: ${line}`);
-      }
-    });
 
     it(`gives the ${role} the folders of the repository layout`, () => {
       const instructions = compose(rules, { ...DEFAULT_REPOSITORY, appsDir: "tests", blocksDir: "blocks", journeysDir: "journeys" });
@@ -116,9 +124,13 @@ describe("criterion 4 — a rule added by the configuration comes after the defa
     it(`lists the added rules last in the ${role} instructions, in the order of the file, with their reason`, () => {
       const instructions = compose(rulesOf(resolveCharter({ disable: [], add: added })), DEFAULT_REPOSITORY);
       assert.deepEqual(listedIds(instructions), [...DEFAULT_CHARTER.map((rule) => rule.id), "TEAM-TAG-01", "TEAM-TAG-02"]);
-      assert.ok(instructions.includes("- TEAM-TAG-01: Tag every test with its domain.\n  Why: The nightly run selects tests by domain.\n- TEAM-TAG-02"));
     });
   }
+
+  it("gives the reviewer the reason of an added rule as its rationale", () => {
+    const instructions = reviewerInstructions(rulesOf(resolveCharter({ disable: [], add: added })), DEFAULT_REPOSITORY);
+    assert.ok(instructions.includes("- TEAM-TAG-01: Tag every test with its domain.\n  Why: The nightly run selects tests by domain.\n- TEAM-TAG-02"));
+  });
 
   it("refuses an added rule that takes the identifier of a default rule", () => {
     const resolution = resolveCharter({ disable: [{ rule: "PW-NAP-01", reason: "r" }], add: [{ id: "PW-LOC-01", statement: "s", reason: "r" }] });
