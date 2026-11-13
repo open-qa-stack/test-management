@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { execFile, execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { validateConfig } from "@open-qa-stack/shared";
 import { answer, scriptedServer } from "@open-qa-stack/testing";
-import { exitCodeOf, liveRuntime, missingPrerequisites, parseArguments, RunJournal, USAGE } from "../src/index.ts";
+import { AgentRuntimeError, type AgentEvent, type AgentRuntime } from "@open-qa-stack/domain";
+import { CountedRuntime, exitCodeOf, liveRuntime, missingPrerequisites, parseArguments, RunJournal, USAGE } from "../src/index.ts";
 
 const workspace = mkdtempSync(join(tmpdir(), "oqas-cli-units-"));
 after(() => rmSync(workspace, { recursive: true, force: true }));
@@ -44,6 +45,7 @@ describe("the options of the command", () => {
 describe("the exit code of a run that went to its end", () => {
   it("is 0 when every test passed, 1 when one failed, 2 otherwise, and 2 without any test", () => {
     assert.deepEqual([exitCodeOf(["passed", "passed"]), exitCodeOf(["passed", "failed", "blocked"]), exitCodeOf(["passed", "not_run"]), exitCodeOf([])], [0, 1, 2, 2]);
+    assert.deepEqual([exitCodeOf(["passed", "indeterminate"]), exitCodeOf(["passed", "blocked"]), exitCodeOf(["skipped"])], [2, 2, 2]);
   });
 });
 
@@ -77,6 +79,28 @@ describe("the prerequisites of the machine", () => {
     const missing = await missingPrerequisites(config.config, workspace, { run: () => Promise.reject(new Error("spawn npm ENOENT")) });
     assert.ok(missing.some((problem) => problem.startsWith("npm cannot be run")));
   });
+
+  it("count a folder inside a repository, or a repository without a commit, as no repository the designer can use", async () => {
+    const config = validateConfig(JSON.stringify({
+      formatVersion: 1,
+      applications: [{ id: "shop", name: "Shop", type: "api", authentication: { method: "none" }, environments: [{ name: "local", apis: [{ name: "b", baseUrl: "http://127.0.0.1:1" }] }] }],
+      knowledge: [],
+      model: { mode: "provider-key", provider: "openai", baseUrl: "http://127.0.0.1:1/v1/", model: "m" },
+      autonomy: { level: "autonomous" },
+    }), {});
+    assert.ok(config.ok);
+    const root = mkdtempSync(join(workspace, "repo-"));
+    execFileSync("git", ["init", "-q", "-b", "main"], { cwd: root });
+    const npm = { run: () => Promise.resolve({ exitCode: 0, stdout: "11.0.0\n", stderr: "" }) };
+    const empty = await missingPrerequisites(config.config, root, npm);
+    assert.ok(empty.some((problem) => problem.includes("is not the root of a git repository with a commit")));
+    execFileSync("git", ["-c", "user.name=T", "-c", "user.email=t@example.com", "-c", "commit.gpgsign=false", "commit", "-q", "--allow-empty", "-m", "first"], { cwd: root });
+    mkdirSync(join(root, "tests"));
+    const inside = await missingPrerequisites(config.config, join(root, "tests"), npm);
+    assert.ok(inside.some((problem) => problem.includes("is not the root of a git repository with a commit")));
+    const top = await missingPrerequisites(config.config, root, npm);
+    assert.ok(!top.some((problem) => problem.includes("git repository")));
+  });
 });
 
 describe("the runtime of the agents on the model of the configuration", () => {
@@ -101,5 +125,41 @@ describe("the runtime of the agents on the model of the configuration", () => {
       await server.close();
     }
     assert.equal(server.requests[0]!.headers.authorization, "Bearer sk-test");
+  });
+});
+
+describe("the count of the requests to the model", () => {
+  it("keeps the last counters of each session, whatever its end, and adds the sessions up", async () => {
+    const counters = (iterations: number) => ({ iterations, actions: 0, elapsedMs: 0 });
+    const turns: AgentEvent[][] = [
+      [{ type: "text", text: "Reading." }, { type: "end", counters: counters(2) }],
+      [{ type: "end", counters: counters(5) }],
+      [{ type: "stopped", reason: { limit: "iterations", counters: counters(3) } }],
+      [{ type: "error", error: new AgentRuntimeError("down"), counters: counters(4) }],
+      [{ type: "end" }],
+    ];
+    let closed = 0;
+    const inner: AgentRuntime = {
+      openSession: async () => ({
+        async *send() {
+          yield* turns.shift()!;
+        },
+        close: async () => void (closed += 1),
+      }),
+      close: async () => void (closed += 10),
+    };
+    const runtime = new CountedRuntime(inner);
+    const first = await runtime.openSession({ instructions: "", tools: [] });
+    for (const message of ["one", "two"]) for await (const event of first.send(message)) void event;
+    assert.equal(runtime.modelRequests, 5, "the counters of a session add up over its turns");
+    for (let session = 0; session < 3; session += 1) {
+      const next = await runtime.openSession({ instructions: "", tools: [] });
+      for await (const event of next.send("go")) void event;
+      await next.close();
+    }
+    assert.equal(runtime.modelRequests, 12);
+    await first.close();
+    await runtime.close();
+    assert.equal(closed, 14);
   });
 });

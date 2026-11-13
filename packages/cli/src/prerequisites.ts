@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { realpath } from "node:fs/promises";
 import type { CommandRunner } from "@open-qa-stack/domain";
 import type { ResolvedConfig } from "@open-qa-stack/shared";
 
@@ -6,7 +7,8 @@ import type { ResolvedConfig } from "@open-qa-stack/shared";
 export const MODEL_TIMEOUT_MS = 5000;
 
 /**
- * What the machine lacks to run the solo command: a git repository, a model server that answers, and npm.
+ * What the machine lacks to run the solo command: the root of a git repository with a commit, a model server
+ * that answers, and npm.
  *
  * @param config - The resolved configuration.
  * @param repositoryRoot - Absolute path of the test repository.
@@ -23,15 +25,16 @@ export async function missingPrerequisites(config: ResolvedConfig, repositoryRoo
     ),
   ]);
   return [
-    ...(repository ? [] : [`${repositoryRoot} is not a git repository; the tests are written on a branch of the test repository.`]),
+    ...(repository ? [] : [`${repositoryRoot} is not the root of a git repository with a commit; the tests are written on a branch of the test repository.`]),
     ...(model ? [] : [`The model server at ${config.model.baseUrl} does not answer.`]),
     ...(npm ? [] : ["npm cannot be run; it installs the dependencies of the test repository."]),
   ];
 }
 
-/** Whether a folder is inside a git work tree. */
-function gitRoot(folder: string): Promise<boolean> {
-  return new Promise((resolve) => execFile("git", ["rev-parse", "--is-inside-work-tree"], { cwd: folder }, (error, stdout) => resolve(error === null && stdout.trim() === "true")));
+/** Whether a folder is the root of a git repository with a commit, as the designer needs it. */
+async function gitRoot(folder: string): Promise<boolean> {
+  const top = await new Promise<string | undefined>((resolve) => execFile("git", ["rev-parse", "--show-toplevel", "--verify", "HEAD"], { cwd: folder }, (error, stdout) => resolve(error === null ? stdout.split("\n")[0] : undefined)));
+  return top !== undefined && (await realpath(top)) === (await realpath(folder));
 }
 
 /** Whether an address gives any HTTP response within the time limit. */

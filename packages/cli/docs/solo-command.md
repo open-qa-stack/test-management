@@ -17,14 +17,14 @@ oqas --environment local
 
 ## Steps
 
-Each step starts only when the one before succeeded.
+Each step starts only when the one before succeeded; once the prerequisites passed, the summary runs whatever the end of the others.
 
 1. **Configuration.** `oqas.json` is read and validated, the environment is chosen, and the test charter is resolved. A missing or invalid configuration stops the command before anything else: no model is called and no file of the repository is written.
-2. **Prerequisites.** The folder is a git repository, the model server of the configuration answers, and `npm` can be run.
+2. **Prerequisites.** The folder is the root of a git repository with a commit, the model server of the configuration answers, and `npm` can be run.
 3. **Cartography.** The sources without an up-to-date card are mapped, `cartography.concurrency` of them at once, then the cards are consolidated into the domain index (see the cartographer of `@open-qa-stack/agents`).
-4. **Design.** The dependencies of the test repository and the browsers of its locked version of `@playwright/test` are installed, then the designer writes three or four tests on a new local branch `oqas/design-<date>`, each run against the application before it is kept.
+4. **Design.** The dependencies of the test repository and the browsers of its locked version of `@playwright/test` are installed, once for the design and the execution, then the designer writes three or four tests on a new local branch `oqas/design-<date>`, each run against the application before it is kept.
 5. **Execution.** The tests designed run together, on the machine, with the real runner, and the harness pronounces a verdict per test from the JSON of the reporter (see `docs/pinned-run.md` of `@open-qa-stack/harness`).
-6. **Summary.** The state of the run is written, and the verdicts are printed.
+6. **Summary.** The runtime of the agents is closed, the state of the run is written, and the verdicts are printed.
 
 The limits of the autonomy level of the configuration apply to every task. A task stopped by a limit is journaled with the limit reached, and none of its tests is `passed`.
 
@@ -37,11 +37,11 @@ The limits of the autonomy level of the configuration apply to every task. A tas
 | `2` | The whole chain ran without a failure, but a test was `blocked`, `indeterminate`, `skipped` or `not_run`. |
 | `3` | The configuration is missing or invalid, the environment is not declared, or an option is wrong. |
 | `4` | A prerequisite of the machine is missing. |
-| `5` | A step stopped before the tests ran: no index was written, the dependencies could not be installed, or the design did not give three tests. |
+| `5` | The chain did not go to its end: no index was written, the dependencies could not be installed, the design did not give three tests, a step stopped on an unexpected error, which the journal tells, or the state could not be written. |
 
 ## Journal
 
-The journal goes to the error output, a line per entry, such as `[cartography] finished: The cartography succeeded. (95.2 s, 81 model requests)`. From the prerequisites on, it is also written to `<stateDir>/runs/oqas-<date>.jsonl`, a JSON object per line:
+The journal goes to the error output, a line per entry, such as `[cartography] finished: The cartography succeeded. (95.2 s, 81 model requests)`. Once the prerequisites pass, it is also written to `<stateDir>/runs/oqas-<date>.jsonl`, a JSON object per line, from the first entry of the configuration on; a run stopped by the configuration or the prerequisites writes no file:
 
 | Key | What it holds |
 |---|---|
@@ -49,7 +49,7 @@ The journal goes to the error output, a line per entry, such as `[cartography] f
 | `step` | `configuration`, `prerequisites`, `cartography`, `design`, `execution` or `summary`. |
 | `event` | `started` and `finished` frame each step; `info` and `error` tell what happened in it. |
 | `message` | What happened, in a sentence. |
-| `durationMs`, `modelRequests` | For `finished`: how long the step took, and how many requests it sent to the model. |
+| `durationMs`, `modelRequests` | For `finished`: how long the step took, and how many requests it sent to the model, whether it succeeded or not; a turn of an agent cut short before its end is not counted. |
 
 The standard output holds only the summary. Every value of the variables the configuration names is masked, in the journal and on both outputs.
 
@@ -65,7 +65,7 @@ The state of a run is written to `<stateDir>/runs/oqas-<date>.json`:
   "startedAt": "2026-11-13T12:00:00.000Z",
   "durationMs": 512345,
   "exitCode": 0,
-  "steps": [{ "step": "cartography", "durationMs": 95234, "modelRequests": 81 }],
+  "steps": [{ "step": "configuration", "durationMs": 12, "modelRequests": 0 }, { "step": "cartography", "durationMs": 95234, "modelRequests": 81 }],
   "index": ".oqas/index/domain-index.json",
   "branch": "oqas/design-20261113T120130Z",
   "designed": ["apps/shop/list-orders.spec.ts"],
@@ -76,7 +76,7 @@ The state of a run is written to `<stateDir>/runs/oqas-<date>.json`:
 }
 ```
 
-`steps` lists the steps that ran before the summary, which writes the state. `index`, `branch`, `run` and `report` are present once their step produced them.
+`steps` lists the steps that ran before the summary, which writes the state; a step that did not succeed is listed too, with the requests it sent to the model. `index`, `branch`, `run` and `report` are present once their step produced them, as paths relative to the test repository with forward slashes. The reason of each verdict has every declared secret masked.
 
 ## What it never does
 

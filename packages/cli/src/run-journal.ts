@@ -60,7 +60,17 @@ export class RunJournal {
    * @param entries - The entries, in order.
    */
   public adopt(entries: readonly RunEntry[]): void {
-    this.kept.push(...entries.map((entry) => ({ ...entry, message: redactText(entry.message, this.forms) })));
+    this.kept.push(...entries.map((entry) => ({ ...entry, message: this.mask(entry.message) })));
+  }
+
+  /**
+   * Masks every secret in a text, in every form.
+   *
+   * @param text - The text.
+   * @returns It, each secret replaced.
+   */
+  public mask(text: string): string {
+    return redactText(text, this.forms);
   }
 
   /**
@@ -83,7 +93,7 @@ export class RunJournal {
    * @param counts - For `finished`, the duration and the requests to the model.
    */
   public record(step: Step, event: RunEntry["event"], message: string, counts: Pick<RunEntry, "durationMs" | "modelRequests"> = {}): void {
-    const entry: RunEntry = { at: this.output.now().toISOString(), step, event, message: redactText(message, this.forms), ...counts };
+    const entry: RunEntry = { at: this.output.now().toISOString(), step, event, message: this.mask(message), ...counts };
     this.kept.push(entry);
     const figures = [counts.durationMs === undefined ? undefined : `${Math.round(counts.durationMs / 100) / 10} s`, counts.modelRequests === undefined ? undefined : `${counts.modelRequests} model requests`].filter((figure) => figure !== undefined);
     this.output.write(`[${step}] ${event === "info" ? "" : `${event}: `}${entry.message}${figures.length === 0 ? "" : ` (${figures.join(", ")})`}\n`);

@@ -24,8 +24,7 @@ export interface CommandIo {
  *
  * @param argv - The arguments, without the program.
  * @param io - The environment, the folder and the outputs.
- * @returns The exit code.
- * @throws Error when a file cannot be written, or git refuses the branch.
+ * @returns The exit code; `5` when the run stopped on an unexpected error, which goes to the error output.
  */
 export async function soloCommand(argv: readonly string[], io: CommandIo): Promise<ExitCodeValue> {
   const parsed = parseArguments(argv);
@@ -39,7 +38,7 @@ export async function soloCommand(argv: readonly string[], io: CommandIo): Promi
     return ExitCode.passed;
   }
   const connect = io.connect ?? liveRuntime;
-  return new SoloRun({
+  const run = new SoloRun({
     repositoryRoot: resolve(io.cwd, repository ?? "."),
     ...(environment === undefined ? {} : { environment }),
     force,
@@ -48,5 +47,11 @@ export async function soloCommand(argv: readonly string[], io: CommandIo): Promi
     print: (line) => io.stdout.write(line),
     openRuntime: (config) => connect(config, io.env),
     ...(io.runner === undefined ? {} : { runner: io.runner }),
-  }).run();
+  });
+  try {
+    return await run.run();
+  } catch (error) {
+    io.stderr.write(`oqas stopped on an unexpected error: ${error instanceof Error ? error.message : String(error)}\n`);
+    return ExitCode.interrupted;
+  }
 }
