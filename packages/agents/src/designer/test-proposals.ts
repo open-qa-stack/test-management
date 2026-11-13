@@ -4,7 +4,7 @@ import type { ToolDefinition } from "@open-qa-stack/domain";
 import { moduleSyntax, redactText, secretForms } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
 import type { DesignedTest } from "./design-state.ts";
-import type { TestCheck, TestFinding, TestRunner, TestTrial, Verdict } from "@open-qa-stack/domain";
+import type { TestCheck, TestFinding, TestReference, TestRunner, TestTrial, Verdict } from "@open-qa-stack/domain";
 import { addressErrors, fileErrors, importErrors, secretValueErrors, type DeclaredSecret } from "./spec-rules.ts";
 
 /** Name of the tool the designer proposes a test with. */
@@ -19,9 +19,11 @@ export const MIN_TESTS = 3;
 export const MAX_TESTS = 4;
 
 /** A test accepted, with its text. */
-export interface AcceptedTest extends DesignedTest {
+export interface AcceptedTest extends Omit<DesignedTest, "references"> {
   /** Text of the file. */
   readonly content: string;
+  /** The references of its visual comparisons, made at its run, to write with it. */
+  readonly references: readonly TestReference[];
 }
 
 /** What the proposals are checked against. */
@@ -42,6 +44,8 @@ export interface ProposalRules {
   readonly check?: TestCheck;
   /** Runs a test file against the application: every test is run before it is kept. */
   readonly runner: TestRunner;
+  /** The packages a test may import, as `testPackages` gives them. */
+  readonly packages: readonly string[];
 }
 
 /** The arguments of a proposal, once they match the schema of the tool. */
@@ -178,7 +182,7 @@ export class TestProposals {
     if (this.kept.length >= MAX_TESTS) return this.setAside(path);
     if (this.kept.some((test) => test.path === path)) return this.refuse(path, [`${path} is already taken; give the test another file name.`]);
     const failure = verdict === "passed" ? {} : { failure: proposal.failure! };
-    this.kept.push({ path, application: proposal.application, domain: proposal.domain, reason: proposal.reason, verdict, ...failure, content: proposal.content });
+    this.kept.push({ path, application: proposal.application, domain: proposal.domain, reason: proposal.reason, verdict, ...failure, content: proposal.content, references: trial.references ?? [] });
     this.journal.record("info", `The test ${path} was accepted.`);
     const count = this.kept.length;
     const next = count < MIN_TESTS ? `Propose at least ${MIN_TESTS - count} more.` : count < MAX_TESTS ? "You may propose one more, or answer with one sentence." : "Answer with one sentence; call no more tools.";
@@ -209,7 +213,7 @@ export class TestProposals {
     if (this.kept.some((test) => test.path === path) || existsSync(join(repositoryRoot, path))) return [`${path} is already taken; give the test another file name.`];
     const syntax = await moduleSyntax(content);
     if (!syntax.ok) return [`The test does not parse as TypeScript: ${syntax.error}.`];
-    const errors = [...importErrors(syntax.imports, join(repositoryRoot, path), repositoryRoot), ...fileErrors(content), ...addressErrors(content, addresses), ...secretValueErrors(`${comments}\n${content}`, secrets)];
+    const errors = [...importErrors(syntax.imports, join(repositoryRoot, path), repositoryRoot, this.rules.packages), ...fileErrors(content), ...addressErrors(content, addresses), ...secretValueErrors(`${comments}\n${content}`, secrets)];
     if (errors.length > 0 || check === undefined) return errors;
     return (await check.check({ path, content })).map(findingText);
   }

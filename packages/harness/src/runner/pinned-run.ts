@@ -151,10 +151,11 @@ export class PinnedRun {
    *
    * @param files - The test files, relative to the test repository.
    * @param runDir - The folder of this run, relative to the test repository.
+   * @param options - Arguments given to the runner when the files run, such as `--update-snapshots=missing`.
    * @returns The verdicts, the addresses checked, and what the runner left.
    * @throws Error when a command cannot be called.
    */
-  public async runFiles(files: readonly string[], runDir: string): Promise<FilesRun> {
+  public async runFiles(files: readonly string[], runDir: string, options: readonly string[] = []): Promise<FilesRun> {
     const notRun = (reason: string): FilesRun => ({ addresses: [], tests: files.map((id) => ({ id, verdict: "not_run", reason })) });
     const list = await this.step(["node_modules/.bin/playwright", "test", "--list", "--reporter=json", ...files]);
     const listed = list.exitCode === 0 ? listedTests(list.stdout) : undefined;
@@ -167,7 +168,7 @@ export class PinnedRun {
     const report = posix.join(runDir, "report.json");
     await mkdir(join(this.options.repositoryRoot, runDir), { recursive: true });
     const output = posix.join(runDir, "test-results");
-    const ran = await this.step(["node_modules/.bin/playwright", "test", "--reporter=json", `--output=${output}`, ...files], { PLAYWRIGHT_JSON_OUTPUT_FILE: report });
+    const ran = await this.step(["node_modules/.bin/playwright", "test", "--reporter=json", `--output=${output}`, ...options, ...files], { PLAYWRIGHT_JSON_OUTPUT_FILE: report });
     const reported = reportedTests(await readFile(join(this.options.repositoryRoot, report), "utf8").catch(() => ""));
     if (reported === undefined) {
       const runnerOutput = posix.join(runDir, "runner-output.txt");

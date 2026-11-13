@@ -45,19 +45,44 @@ export function declaredSecrets(config: ResolvedConfig, env: Readonly<Record<str
 }
 
 /**
- * Refuses every import of a test but `@playwright/test` and the relative paths inside the test repository
- * that name no other test file.
+ * The packages a generated test may import: those the `package.json` of the test repository declares, its
+ * team choosing its tools by installing them, and `@playwright/test` when it declares none.
+ *
+ * @param manifest - The text of `package.json`; none when it cannot be read.
+ * @returns The names of the packages, each once.
+ */
+export function testPackages(manifest: string | undefined): string[] {
+  const parsed = parseManifest(manifest);
+  const names = [parsed?.dependencies, parsed?.devDependencies].flatMap((section) => (section !== null && typeof section === "object" ? Object.keys(section) : []));
+  return names.length === 0 ? [TEST_MODULE] : [...new Set(names)];
+}
+
+/** The sections of a `package.json` that list packages; none when it cannot be read. */
+function parseManifest(manifest: string | undefined): { readonly dependencies?: unknown; readonly devDependencies?: unknown } | undefined {
+  if (manifest === undefined) return undefined;
+  try {
+    return (JSON.parse(manifest) as { dependencies?: unknown; devDependencies?: unknown } | null) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Refuses every import of a test but the packages of the test repository, or a path inside one, and the
+ * relative paths inside the test repository that name no other test file.
  *
  * @param imports - The modules the test imports.
  * @param path - Absolute path of the test.
  * @param repositoryRoot - Absolute path of the test repository.
+ * @param packages - The packages a test may import, as `testPackages` gives them.
  * @returns A sentence for each refused import, which names its module.
  */
-export function importErrors(imports: readonly ModuleImport[], path: string, repositoryRoot: string): string[] {
+export function importErrors(imports: readonly ModuleImport[], path: string, repositoryRoot: string, packages: readonly string[] = [TEST_MODULE]): string[] {
+  const allowed = `import only ${packages.join(", ")} or a relative path inside the test repository`;
   return imports.flatMap(({ module, line }) => {
-    if (module === TEST_MODULE) return [];
-    if (module === undefined) return [`Line ${line} imports a module whose name is computed; import only ${TEST_MODULE} or a relative path.`];
-    if (!module.startsWith("./") && !module.startsWith("../")) return [`Line ${line} imports ${module}; import only ${TEST_MODULE} or a relative path inside the test repository.`];
+    if (module !== undefined && packages.some((name) => module === name || module.startsWith(`${name}/`))) return [];
+    if (module === undefined) return [`Line ${line} imports a module whose name is computed; ${allowed}.`];
+    if (!module.startsWith("./") && !module.startsWith("../")) return [`Line ${line} imports ${module}; ${allowed}.`];
     const inside = relative(repositoryRoot, resolve(dirname(path), module));
     if (inside === ".." || inside.startsWith(`..${sep}`)) return [`Line ${line} imports ${module}, outside the test repository.`];
     if (TEST_FILE.test(module)) return [`Line ${line} imports ${module}, another test file; a test never imports another.`];

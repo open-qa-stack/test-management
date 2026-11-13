@@ -9,6 +9,7 @@ import { validateConfig, type DomainIndex, type ResolvedConfig, type SourceCard 
 import { answer, scriptedServer, testSite, toolCalls, type ScriptedServer, type TestSite } from "@open-qa-stack/testing";
 import { moduleSyntax } from "@open-qa-stack/tools";
 import type { ProposedTest, TestCheck, TestRunner, TestTrial } from "@open-qa-stack/domain";
+import { testPackages } from "../src/designer/spec-rules.ts";
 import { Designer, type DesignOutcome, type DesignState } from "../src/index.ts";
 
 const MODEL = "test-model";
@@ -104,8 +105,9 @@ const CARD: SourceCard = {
 };
 
 /** A test repository under git with one commit, pushed to a local bare remote, and an untracked index. */
-function repository(index: unknown = INDEX): string {
+function repository(index: unknown = INDEX, manifest?: string): string {
   const root = mkdtempSync(join(workspace, "repo-"));
+  if (manifest !== undefined) writeFileSync(join(root, "package.json"), manifest);
   mkdirSync(join(root, "specs"));
   mkdirSync(join(root, "contracts"));
   writeFileSync(join(root, "specs", "orders.md"), "# Orders\n\nA customer places an order.\n");
@@ -644,5 +646,34 @@ describe("a visual test", () => {
     const { outcome } = await design(replies([propose("orders-look.spec.ts", { content: visual }), ...valid(2)]), { runner });
     assert.equal(outcome.tests.find((test) => test.path === "apps/shop/orders-look.spec.ts")?.verdict, "passed", messages(outcome));
     assert.ok(runner.runs.some((run) => run.content === visual));
+  });
+});
+
+describe("the packages a test may import", () => {
+  it("are those the package.json of the test repository declares, and @playwright/test without one", () => {
+    assert.deepEqual(testPackages(JSON.stringify({ dependencies: { "@axe-core/playwright": "4.11.0" }, devDependencies: { "@playwright/test": "1.64.1", "@axe-core/playwright": "4.11.0" } })), ["@axe-core/playwright", "@playwright/test"]);
+    for (const manifest of [undefined, "{ not json", "null", "{}", JSON.stringify({ dependencies: "x", devDependencies: null })]) assert.deepEqual(testPackages(manifest), ["@playwright/test"], String(manifest));
+  });
+
+  it("let an accessibility test import axe-core when the test repository declares it, and refuse a package it does not", async () => {
+    const manifest = JSON.stringify({ devDependencies: { "@playwright/test": "1.64.1", "@axe-core/playwright": "4.11.0" } });
+    const a11y = `import { test, expect } from "@playwright/test";\nimport AxeBuilder from "@axe-core/playwright";\n\ntest("the orders have no accessibility violation", async ({ page }) => {\n  await page.goto("/orders");\n  const results = await new AxeBuilder({ page }).analyze();\n  expect(results.violations).toEqual([]);\n});\n`;
+    const other = spec("test-9.spec.ts").replace('from "@playwright/test";', 'from "@playwright/test";\nimport { faker } from "@faker-js/faker";');
+    const { outcome, server } = await design(replies([propose("orders-a11y.spec.ts", { content: a11y }), propose("test-9.spec.ts", { content: other }), ...valid(2)]), { root: repository(INDEX, manifest) });
+    assert.equal(outcome.tests.find((test) => test.path === "apps/shop/orders-a11y.spec.ts")?.verdict, "passed", messages(outcome));
+    assert.match(messages(outcome), /test-9\.spec\.ts was refused: Line 2 imports @faker-js\/faker; import only @playwright\/test, @axe-core\/playwright or a relative path/);
+    assert.match(JSON.stringify(server.requests[0]!.body), /Import only the packages of the test repository \(@playwright\/test, @axe-core\/playwright\)/);
+  });
+});
+
+describe("the references of a visual test", () => {
+  it("are written and committed with the test, and listed in the state", async () => {
+    const reference = { path: "apps/shop/orders-look.spec.ts-snapshots/orders-look-1-shop.png", content: new Uint8Array([137, 80, 78, 71]) };
+    const runner: TestRunner = { run: async (test) => ({ startedAt: "2026-11-13T10:00:00.000Z", tests: [{ id: `shop › ${test.path} › t`, verdict: "passed", reason: "ok" }], ...(test.path.endsWith("orders-look.spec.ts") ? { references: [reference] } : {}) }) };
+    const { outcome, root } = await design(replies([propose("orders-look.spec.ts"), ...valid(2)]), { runner: runner as FakeTestRunner });
+    assert.ok(filesOf(root).includes(reference.path));
+    assert.deepEqual([...readFileSync(join(root, reference.path))], [137, 80, 78, 71]);
+    assert.deepEqual(outcome.tests.find((test) => test.path === "apps/shop/orders-look.spec.ts")?.references, [reference.path]);
+    assert.ok(outcome.tests.filter((test) => test.path !== "apps/shop/orders-look.spec.ts").every((test) => !("references" in test)));
   });
 });

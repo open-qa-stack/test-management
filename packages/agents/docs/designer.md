@@ -27,7 +27,7 @@ A proposal is refused, the journal says why, and the agent is told so that it ca
 |---|---|
 | `… is already taken` | A test of the design, or a file of the repository, already has this path. |
 | `The test does not parse as TypeScript: line L, column C: …` | The first syntax error of the file. |
-| `Line N imports <module>; import only @playwright/test or a relative path…` | The file imports any package but `@playwright/test`, a platform package included. |
+| `Line N imports <module>; import only <packages> or a relative path…` | The file imports a package the `package.json` of the test repository does not declare, a platform package included. The team chooses the tools its tests may use, such as `@axe-core/playwright` for accessibility, by declaring them; without any declared, only `@playwright/test`. |
 | `Line N imports a module whose name is computed` | An `import(…)` or `require(…)` of anything but a string. |
 | `Line N imports <path>, outside the test repository.` | A relative path that leaves the repository. |
 | `Line N imports <path>, another test file` | A relative path to a `.spec` or `.test` file: a test never imports another. |
@@ -42,6 +42,7 @@ No test is kept unless it ran. The `runner` option, a `TestRunner` such as the `
 - `run_test` checks the file against the rules above, then runs it, and tells the agent the verdict of each of its tests and, for one that did not pass, its whole error, the `test.step` that failed, the path of its trace, and the instant from which the logs of the services tell what happened. A file the rules refuse is not run.
 - `propose_test` runs the file too, unless that very text was already tried. The test is kept when each of its tests passed. When it failed, it is refused with what the run gave, unless the agent ran that very text with `run_test` and says, in `failure`, why the application rather than the test is at fault: it is then kept with the harness's verdict `failed` and that explanation, never as passed. A test that did not run to a verdict (`not_run`, `skipped`, `blocked`) is always refused.
 - A test writes no file: `saveAs`, `storageState`, `pdf` and any `path` option are refused. What the runner keeps goes to its own folder.
+- A visual test compares a page with its reference, with `toHaveScreenshot`. Its references are made at its first trial, and it runs again against them; they are committed with the test, listed in the design state, for review.
 
 Every value of the variables the configuration names is masked in the journal and in what the agent is told. Once four tests are accepted, any further proposal is set aside, and the journal names it.
 
@@ -60,7 +61,8 @@ The state is written to `<stateDir>/designs/design-<date>.json`, and committed w
   "run": { "iterations": 6, "actions": 3, "durationMs": 81234 },
   "tests": [
     { "path": "apps/policy-management/list-policies.spec.ts", "application": "policy-management", "domain": "policies", "reason": "Checks that the policies of a customer are listed.", "verdict": "passed" },
-    { "path": "apps/policy-management/quote-total.spec.ts", "application": "policy-management", "domain": "quote-requests", "reason": "Checks the total of a quote.", "verdict": "failed", "failure": "The total stays empty although the quote has two lines." }
+    { "path": "apps/policy-management/quote-total.spec.ts", "application": "policy-management", "domain": "quote-requests", "reason": "Checks the total of a quote.", "verdict": "failed", "failure": "The total stays empty although the quote has two lines." },
+    { "path": "apps/policy-management/policies-look.spec.ts", "application": "policy-management", "domain": "policies", "reason": "Checks that the list of policies looks as it should.", "verdict": "passed", "references": ["apps/policy-management/policies-look.spec.ts-snapshots/policies-look-1-policy-management.png"] }
   ]
 }
 ```

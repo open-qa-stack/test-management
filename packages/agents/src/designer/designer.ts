@@ -11,7 +11,7 @@ import { CARDS_FOLDER } from "../source-cartographer/source-cartographer.ts";
 import { designRequest } from "./designer-prompt.ts";
 import { DESIGNS_FOLDER, type DesignedTest, type DesignState } from "./design-state.ts";
 import type { TestCheck, TestRunner } from "@open-qa-stack/domain";
-import { declaredAddresses, declaredSecrets } from "./spec-rules.ts";
+import { declaredAddresses, declaredSecrets, testPackages } from "./spec-rules.ts";
 import { MIN_TESTS, TestProposals, type AcceptedTest } from "./test-proposals.ts";
 import { TestRepository } from "./test-repository.ts";
 
@@ -107,6 +107,7 @@ export class Designer {
     if (typeof index === "string") return failed(`No test was designed: ${index}`);
 
     const applications = config.applications.filter((application) => application.environments.some((environment) => environment.name === index.environment));
+    const packages = testPackages(await readFile(join(repositoryRoot, "package.json"), "utf8").catch(() => undefined));
     const proposals = new TestProposals(
       {
         repositoryRoot,
@@ -117,6 +118,7 @@ export class Designer {
         secrets: declaredSecrets(config, env),
         ...(this.options.check === undefined ? {} : { check: this.options.check }),
         runner: this.options.runner,
+        packages,
       },
       journal,
     );
@@ -125,7 +127,7 @@ export class Designer {
     const knowledge = knowledgeTools(readable, { repositoryRoot, env, secrets: declaredValues(config, env), taskStart: start });
     const notes = agentNotes(config, repositoryRoot, env, { role: "designer", task: id, now });
     const events: AgentEvent[] = [];
-    const request = designRequest(index, applications, await this.cards(index));
+    const request = designRequest(index, applications, await this.cards(index), packages);
     const task = { instructions: this.options.instructions, tools: [...browser.tools, ...knowledge, ...notes, proposals.trialTool(), proposals.tool()], request, events, reminder: () => proposals.reminder() };
     await runAgentTask(this.options.runtime, task, taskLimits(config)).finally(() => browser.close());
     for (const event of events) if (event.type === "tool-error") journal.record("error", `${event.tool}: ${event.message}`);
@@ -143,7 +145,7 @@ export class Designer {
       base: await repository.head(),
       model: { provider: config.model.provider, baseUrl: config.model.baseUrl, model: config.model.model },
       run: { iterations: counters.iterations, actions: counters.actions, durationMs: Math.round(counters.elapsedMs) },
-      tests: tests.map(({ content: _content, ...test }) => test),
+      tests: tests.map(({ content: _content, references, ...test }) => ({ ...test, ...(references.length === 0 ? {} : { references: references.map((reference) => reference.path) }) })),
     };
     const statePath = posix.join(config.repository.stateDir, DESIGNS_FOLDER, `${id}.json`);
     await this.write(repository, state, statePath, tests, journal);
@@ -155,7 +157,11 @@ export class Designer {
   private async write(repository: TestRepository, state: DesignState, statePath: string, tests: readonly AcceptedTest[], journal: Journal): Promise<void> {
     const { repositoryRoot } = this.options;
     await repository.createBranch(state.branch);
-    const files = [...tests.map((test) => [test.path, test.content.endsWith("\n") ? test.content : `${test.content}\n`] as const), [statePath, `${JSON.stringify(state, null, 2)}\n`] as const];
+    const files: (readonly [string, string | Uint8Array])[] = [
+      ...tests.map((test) => [test.path, test.content.endsWith("\n") ? test.content : `${test.content}\n`] as const),
+      ...tests.flatMap((test) => test.references.map((reference) => [reference.path, reference.content] as const)),
+      [statePath, `${JSON.stringify(state, null, 2)}\n`] as const,
+    ];
     for (const [path, content] of files) {
       await mkdir(dirname(join(repositoryRoot, path)), { recursive: true });
       await writeFile(join(repositoryRoot, path), content);

@@ -555,3 +555,35 @@ describe("the environment of the tests", () => {
     }
   });
 });
+
+describe("the references of a visual test, at its trial", () => {
+  it("are made at the first run, then the file runs again against them; they are given and removed from the folder", async () => {
+    const root = repository();
+    const fake = new FakeRunner(root, { list: fixture("steps.json"), report: { fixture: "statuses.json" } });
+    const runner: CommandRunner = {
+      run: async (command) => {
+        if (command.command.includes("--update-snapshots=missing")) {
+          mkdirSync(join(root, "apps", "shop", "look.spec.ts-snapshots", "nested"), { recursive: true });
+          writeFileSync(join(root, "apps", "shop", "look.spec.ts-snapshots", "look-1-shop.png"), "png");
+          writeFileSync(join(root, "apps", "shop", "look.spec.ts-snapshots", "nested", "look-2-shop.png"), "png2");
+        }
+        return fake.run(command);
+      },
+    };
+    const trial = await new TrialRunner({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, runner, now: NOW }).run({ path: "apps/shop/look.spec.ts", content: "// t\n" });
+    assert.deepEqual(trial.references?.map((reference) => [reference.path, Buffer.from(reference.content).toString()]), [["apps/shop/look.spec.ts-snapshots/look-1-shop.png", "png"], ["apps/shop/look.spec.ts-snapshots/nested/look-2-shop.png", "png2"]]);
+    const runs = fake.commands.filter((command) => command.command[1] === "test" && !command.command.includes("--list"));
+    assert.deepEqual(runs.map((command) => command.command.includes("--update-snapshots=missing")), [true, false]);
+    assert.equal(existsSync(join(root, "apps", "shop", "look.spec.ts-snapshots")), false);
+  });
+
+  it("are not taken from a folder of references that was there before", async () => {
+    const root = repository();
+    mkdirSync(join(root, "apps", "shop", "look.spec.ts-snapshots"), { recursive: true });
+    writeFileSync(join(root, "apps", "shop", "look.spec.ts-snapshots", "kept.png"), "kept");
+    const fake = new FakeRunner(root, { list: fixture("steps.json"), report: { fixture: "statuses.json" } });
+    const trial = await new TrialRunner({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, runner: fake, now: NOW }).run({ path: "apps/shop/look.spec.ts", content: "// t\n" });
+    assert.equal(trial.references, undefined);
+    assert.equal(readFileSync(join(root, "apps", "shop", "look.spec.ts-snapshots", "kept.png"), "utf8"), "kept");
+  });
+});

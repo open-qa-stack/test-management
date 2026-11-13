@@ -1,6 +1,5 @@
 import type { Application, DomainIndex, SourceCard } from "@open-qa-stack/shared";
 import { MAX_TESTS, MIN_TESTS, PROPOSE_TOOL, RUN_TOOL } from "./test-proposals.ts";
-import { TEST_MODULE } from "./spec-rules.ts";
 
 /**
  * Writes the request that starts a design: the rules of a proposal, the applications and how to sign in to
@@ -9,14 +8,16 @@ import { TEST_MODULE } from "./spec-rules.ts";
  * @param index - The domain index.
  * @param applications - The applications a test may be about.
  * @param cards - The card of each source that has a readable one.
+ * @param packages - The packages a test may import.
  * @returns The message to send to the designer.
  */
-export function designRequest(index: DomainIndex, applications: readonly Application[], cards: ReadonlyMap<string, SourceCard>): string {
+export function designRequest(index: DomainIndex, applications: readonly Application[], cards: ReadonlyMap<string, SourceCard>, packages: readonly string[]): string {
   const rules = [
     `- Run each test with ${RUN_TOOL} before you propose it, and fix it until it passes: read the error, the step that failed and, when it helps, the screens and the logs of the services. A test is kept only once it ran: it must pass, unless the application is at fault (see below).`,
     `- Propose each test with ${PROPOSE_TOOL}, one file per call, between ${MIN_TESTS} and ${MAX_TESTS} in all. A test is about one application only.`,
     `- Propose a test that does not pass only when the application, not the test, is at fault, after you ran it: say why in failure, with what the run showed.`,
-    `- Import only ${TEST_MODULE}, or a relative path inside the test repository; never another test file.`,
+    `- Import only the packages of the test repository (${packages.join(", ")}), or a relative path inside it; never another test file.`,
+    "- A visual test compares a page with its reference, with await expect(page).toHaveScreenshot(); the reference is made at its first run and kept with the test.",
     `- Reach an application with paths relative to its base URL, such as await page.goto("/"); the Playwright configuration gives the base URL. Never write an address or a host.`,
     "- A test that signs in reads its account from the environment variables named below, with process.env; never write a username or a password.",
     "- A test writes no file: no saveAs, storageState, pdf or path option; the runner keeps the traces and screenshots.",

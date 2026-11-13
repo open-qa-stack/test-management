@@ -15,6 +15,14 @@ export interface TriedTest {
   readonly trace?: string;
 }
 
+/** A reference a visual test compares with, made at its first run. */
+export interface TestReference {
+  /** Path of the file, relative to the test repository, with forward slashes. */
+  readonly path: string;
+  /** Its content. */
+  readonly content: Uint8Array;
+}
+
 /** What trying a test file gave. */
 export interface TestTrial {
   /** When the run started, as an ISO 8601 date: the logs of the services are read from it. */
@@ -23,6 +31,8 @@ export interface TestTrial {
   readonly tests: readonly TriedTest[];
   /** Why the file could not run, when it could not. */
   readonly error?: string;
+  /** The references the run made for the visual comparisons of the file, to keep with it; none when it makes none. */
+  readonly references?: readonly TestReference[];
 }
 
 /**

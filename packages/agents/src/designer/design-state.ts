@@ -18,6 +18,8 @@ export interface DesignedTest {
   readonly verdict: Verdict;
   /** For a test that does not pass, why the agent holds the application at fault. */
   readonly failure?: string;
+  /** The references of its visual comparisons, written with it, relative to the root of the test repository. */
+  readonly references?: readonly string[];
 }
 
 /** The state of a design, written next to the tests on their branch. */
