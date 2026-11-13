@@ -58,6 +58,7 @@ function configFor(modelUrl: string, limits = { maxIterations: 20, maxDurationMi
       { id: "order-specs", type: "document", path: "specs/orders.md", attachments: [{ application: "shop", environment: "local" }] },
       { id: "shop-guide", type: "document", path: "specs/guide.md", attachments: [{ application: "shop" }] },
       { id: "staging-specs", type: "document", path: "specs/staging.md", attachments: [{ application: "shop", environment: "staging" }] },
+      { id: "shop-code", type: "source-code", path: "specs", attachments: [{ application: "shop" }] },
     ],
     model: { mode: "provider-key", provider: "openai", baseUrl: modelUrl, model: MODEL },
     autonomy: { level: "custom", task: limits, batch: { maxTests: 4, maxIdleRounds: 1 }, guardrailMinutes: 1 },
@@ -187,6 +188,8 @@ const write = (name: string, content = spec(name), diagnosis?: { cause: string; 
 const valid = (count: number) => IDS.slice(0, count).flatMap((id) => write(id));
 /** The replies that make the calls of each turn, then answer enough to end the task and every reminder. */
 const replies = (turns: readonly (readonly Call[])[]) => [...turns.map((calls) => ({ body: toolCalls(MODEL, calls) })), ...Array.from({ length: 4 }, () => ({ body: answer(MODEL, "Done.") }))];
+/** A call that looks at the page again, as the agent must between two runs that failed. */
+const look = (id: string): Call => ({ id, name: "shop_snapshot", arguments: {} });
 /** A test that fails when it runs. */
 const broken = (title: string) => `${spec(title)}// BROKEN\n`;
 
@@ -207,7 +210,7 @@ class FakeTestRunner implements TestRunner {
     if (this.error !== undefined) return { startedAt: "2026-11-13T10:00:00.000Z", tests: [], error: this.error };
     const id = `shop › ${test.path} › the test`;
     const broken = test.content.includes("BROKEN");
-    const failed = { id, verdict: "failed" as const, reason: "Error: expect(locator).toBeVisible() failed\n\nLocator: getByRole('heading', { name: 'Orders' })", failedStep: "open the orders", trace: ".oqas/test-results/trace.zip" };
+    const failed = { id, verdict: "failed" as const, reason: "Error: expect(locator).toBeVisible() failed\n\nLocator: getByRole('heading', { name: 'Orders' })\nExpected: visible\nReceived: hidden", failedStep: "open the orders", trace: ".oqas/test-results/trace.zip" };
     return { startedAt: "2026-11-13T10:00:00.000Z", tests: [broken ? failed : { id, verdict: "passed", reason: "Every attempt passed." }] };
   }
 }
@@ -298,7 +301,7 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     const state = stateOf(outcome);
     assert.equal(outcome.statePath, join(root, ".oqas", "designs", "design-20261113T100000Z.json"));
     assert.ok(filesOf(root).includes(".oqas/designs/design-20261113T100000Z.json"));
-    assert.deepEqual(state.tests, IDS.map((id) => ({ path: `apps/shop/${id}.spec.ts`, scenario: id, verdict: "passed" })));
+    assert.deepEqual(state.tests, IDS.map((id) => ({ path: `apps/shop/${id}.spec.ts`, scenario: id, verdict: "passed", runs: [{ verdict: "passed" }] })));
     assert.deepEqual([state.formatVersion, state.plan, state.brief], [2, PLAN.arguments, undefined]);
     assert.deepEqual(outcome.tests, state.tests);
     assert.deepEqual([state.branch, state.base, state.environment, state.producedAt, state.model.model], [BRANCH, git(root, "rev-parse", "main"), "local", "2026-11-13T10:00:00.000Z", MODEL]);
@@ -351,7 +354,7 @@ describe("criterion 2 — a plan holds four scenarios at most, and each gives on
     const { outcome, root, server } = await design([{ body: toolCalls(MODEL, [OPEN, four]) }, ...replies([...valid(3), ...write("cancel-order"), [after]])], { plan: false });
     assert.equal(outcome.tests.length, 4);
     assert.equal(specsOf(root).length, 4);
-    assert.match(told(server, "c-cancel-order"), /Scenario cancel-order closed: passed\.\nAll 4 scenarios are closed: 4 passed, 0 failing\.\nNext: answer with one sentence\. Call no more tools\./);
+    assert.match(told(server, "c-cancel-order"), /Scenario cancel-order closed: passed\.\nAll 4 scenarios are closed: 4 passed, 0 failing, 0 without a test\.\nNext: answer with one sentence\. Call no more tools\./);
     assert.match(toolResult(server, "late"), /Refused \(PLAN-DONE\): every scenario of the plan is closed\./);
   });
 });
@@ -373,7 +376,7 @@ describe("criterion 3 — with two valid tests the design fails, the journal say
     const reminders = server.requests.flatMap((request) => (request.body as { messages: { role: string; content: string }[] }).messages.filter((message) => message.role === "user").slice(1).map((message) => message.content.split("\n\n").at(-1)!));
     assert.deepEqual([...new Set(reminders)], [
       "You stopped before the end. Scenario 1 of 3, list-orders: its test passed and is not closed.\nNext: call propose_test.",
-      "You stopped before the end. Scenario 1 of 3, list-orders: its last run failed.\nNext: look at the page at the failed step, fix the locator or the wait, then call run_test with the whole corrected file.",
+      "You stopped before the end. Scenario 1 of 3, list-orders: its last run failed.\nNext: look at the page at the failed step, fix the locator or the wait, then call run_test with the whole corrected file (failed runs: 1 of 3).",
     ]);
   });
 
@@ -429,6 +432,7 @@ describe("criterion 6 — a test that holds a declared address or the value of a
         ],
         [run(broken("list-orders"), "failing")],
         [close("leaked", { cause: "application", evidence: `It signs in with ${PASSWORD}.` })],
+        [look("again")],
         ...valid(3),
       ]),
       { runner },
@@ -613,7 +617,7 @@ describe("the sheet of a scenario", () => {
 describe("loop, criterion 1 — a test that fails, then is fixed, is run twice and passes", () => {
   it("runs the broken text, then the fixed one, and keeps the test as passed", async () => {
     const runner = new FakeTestRunner();
-    const { outcome, server } = await design(replies([[run(broken("list-orders"), "r1")], ...valid(3)]), { runner });
+    const { outcome, server } = await design(replies([[run(broken("list-orders"), "r1")], [look("l1")], ...valid(3)]), { runner });
     assert.deepEqual(runner.runs.filter((test) => test.path === "apps/shop/list-orders.spec.ts").map((test) => test.content.includes("BROKEN")), [true, false]);
     assert.equal(outcome.tests.find((test) => test.path === "apps/shop/list-orders.spec.ts")?.verdict, "passed");
     assert.equal(runner.runs.length, 4, "a scenario is closed with the text of its last run, which is not run again");
@@ -624,7 +628,7 @@ describe("loop, criterion 1 — a test that fails, then is fixed, is run twice a
 
 describe("loop, criterion 2 — the result told to the agent holds the assertion, the failed step and the trace", () => {
   it("gives the error in full, the step, the trace and the instant to read the logs from", async () => {
-    const { server } = await design(replies([[run(broken("list-orders"), "r1")], ...valid(3)]));
+    const { server } = await design(replies([[run(broken("list-orders"), "r1")], [look("l1")], ...valid(3)]));
     const told = toolResult(server, "r1");
     for (const part of ["Run of the file: failed.", "expect(locator).toBeVisible() failed", "getByRole('heading', { name: 'Orders' })", "Failed step: open the orders", "Trace: .oqas/test-results/trace.zip", "since 2026-11-13T10:00:00.000Z", "Next: look at the page at the failed step"]) assert.ok(told.includes(part), part);
   });
@@ -653,9 +657,9 @@ describe("loop, criterion 3 — the runs count against the limits, and a test no
   });
 
   it("refuses to close a scenario whose last run failed without a diagnosis, and one that has not run", async () => {
-    const { outcome, server } = await design(replies([[close("early")], [run(broken("list-orders"), "r1")], [close("blind")], ...valid(3)]));
+    const { outcome, server } = await design(replies([[close("early")], [run(broken("list-orders"), "r1")], [close("blind")], [look("l1")], ...valid(3)]));
     assert.match(toolResult(server, "early"), /Refused \(PROPOSE-RUN\): scenario list-orders has not run\. Call run_test first\./);
-    assert.match(toolResult(server, "blind"), /Refused \(PROPOSE-DIAG\): the last run of scenario list-orders failed\. Repair it with run_test, or give diagnosis: the cause and what the run showed\./);
+    assert.match(toolResult(server, "blind"), /Refused \(PROPOSE-DIAG\): the last run of scenario list-orders failed\. Repair it with run_test \(failed runs: 1 of 3\), or give diagnosis: the cause and what the run showed\./);
     assert.match(messages(outcome), /\[PROPOSE-DIAG\] The scenario list-orders could not be closed: the last run/);
     assert.ok(outcome.tests.every((test) => test.verdict === "passed"));
   });
@@ -667,14 +671,109 @@ describe("loop, criterion 4 — a failing test is kept with its diagnosis and th
     const { outcome, root, server } = await design(replies([...valid(2), ...blamed]));
     assert.equal(outcome.ok, true, messages(outcome));
     const test = stateOf(outcome).tests.find((candidate) => candidate.scenario === "follow-order");
-    assert.deepEqual(test, { path: "apps/shop/follow-order.spec.ts", scenario: "follow-order", verdict: "failed", quarantine: { cause: "application", evidence: "The total stays empty although the order has two lines." } });
+    assert.deepEqual(test, {
+      path: "apps/shop/follow-order.spec.ts",
+      scenario: "follow-order",
+      verdict: "failed",
+      runs: [{ verdict: "failed", errorClass: "assertion", failedStep: "open the orders" }],
+      quarantine: { cause: "application", evidence: "The total stays empty although the order has two lines.", failedStep: "open the orders", errorClass: "assertion" },
+    });
     assert.equal(readFileSync(join(root, "apps", "shop", "follow-order.spec.ts"), "utf8"), broken("follow-order"));
     assert.match(git(root, "log", "-1", "--format=%B", BRANCH), /- apps\/shop\/follow-order\.spec\.ts: failing \(application\)/);
-    assert.match(told(server, "c-follow-order"), /Scenario follow-order closed: failing \(application\), kept for a person to decide\.\nAll 3 scenarios are closed: 2 passed, 1 failing\./);
-    const own = await design(replies([...valid(2), ...write("follow-order", broken("follow-order"), { cause: "test", evidence: "The heading never shows." })]));
+    assert.match(told(server, "c-follow-order"), /Scenario follow-order closed: failing \(application\), kept for a person to decide\.\nAll 3 scenarios are closed: 2 passed, 1 failing, 0 without a test\./);
+    const own = await design(replies([...valid(2), ...write("follow-order", broken("follow-order"), { cause: "plan", evidence: "The heading of the plan is wrong." })]));
     assert.equal(own.outcome.ok, false);
     assert.equal(own.outcome.tests.length, 3);
     assert.match(messages(own.outcome), /The design failed: 2 tests were obtained/);
+  });
+});
+
+/** A runner whose tests fail on an action at their first step when their text holds `LOCATOR`, and as the fake one does otherwise. */
+class StepRunner extends FakeTestRunner {
+  public override async run(test: ProposedTest): Promise<TestTrial> {
+    if (!test.content.includes("LOCATOR")) return super.run(test);
+    this.runs.push(test);
+    const reason = "TimeoutError: locator.click: Timeout 1000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: 'Search' })";
+    return { startedAt: "2026-11-13T10:00:00.000Z", tests: [{ id: `shop › ${test.path} › t`, verdict: "failed", reason, failedStep: "1. Open the orders" }] };
+  }
+}
+
+describe("the repair contract", () => {
+  it("asks for a look between two failed runs, refuses a text that already failed, and stops a scenario at its third failed run", async () => {
+    const failing = (marker: string) => `${broken("list-orders")}// ${marker}\n`;
+    const runner = new StepRunner();
+    const turns = [
+      [run(failing("1"), "f1")],
+      [run(failing("2"), "blind")],
+      [look("l1")],
+      [run(failing("1"), "same")],
+      [close("early", { cause: "test", evidence: "The heading never shows." })],
+      [run(failing("2"), "f2")],
+      [look("l2")],
+      [run(`${failing("3")}// LOCATOR\n`, "f3")],
+      [close("cause", { cause: "application", evidence: "The search does nothing." })],
+      [look("l3")],
+      [run(failing("4"), "stop")],
+      [close("kept", { cause: "test", evidence: "The search button cannot be reached." })],
+      ...valid(3).slice(2),
+    ];
+    const { outcome, root, server } = await design(replies(turns), { runner });
+    assert.match(told(server, "f1"), /\nThe application shows hidden where the plan expects visible\. The expected text stays\. .*\nFailed runs of list-orders: 1 of 3\.\nNext: look at the page at the failed step, fix the locator or the wait, then call run_test with the whole corrected file \(failed runs: 1 of 3\)\.$/);
+    assert.equal(told(server, "blind"), 'Refused (TEST-LOOK): look before you run again. Take shop_snapshot at the step that failed ("open the orders"), or read the logs since 2026-11-13T10:00:00.000Z.\nNothing else was refused.');
+    assert.equal(told(server, "same"), "Refused (TEST-SAME): this text already failed, and nothing changed. Fix the locator or the wait the error names, or call propose_test with diagnosis.\nNothing else was refused.");
+    assert.match(told(server, "early"), /^Refused \(PROPOSE-EARLY\): failed runs: 1 of 3\. Try a repair with run_test before giving up on the test itself\.\n/);
+    assert.match(told(server, "f3"), /\nThe element is not on the screen at that step\. .*\nFailed runs of list-orders: 3 of 3\.\nNext: call propose_test with diagnosis\.$/);
+    assert.match(told(server, "cause"), /^Refused \(PROPOSE-CAUSE\): cause "application" does not fit: the run failed on locator at step "1\. Open the orders", before any check of the application\. Fix the locator, or give cause "test"\.\n/);
+    assert.match(told(server, "stop"), /^Refused \(TEST-STOP\): scenario list-orders failed 3 runs\. Do not run it again\. Call propose_test with diagnosis/);
+    assert.match(told(server, "kept"), /^Scenario list-orders closed: failing \(test\), kept for a person to decide\./);
+    assert.equal(runner.runs.filter((test) => test.path === "apps/shop/list-orders.spec.ts").length, 3);
+    const kept = stateOf(outcome).tests[0]!;
+    assert.deepEqual([kept.runs, kept.quarantine], [
+      [{ verdict: "failed", errorClass: "assertion", failedStep: "open the orders" }, { verdict: "failed", errorClass: "assertion", failedStep: "open the orders" }, { verdict: "failed", errorClass: "locator", failedStep: "1. Open the orders" }],
+      { cause: "test", evidence: "The search button cannot be reached.", failedStep: "1. Open the orders", errorClass: "locator" },
+    ]);
+    assert.match(git(root, "log", "-1", "--format=%B", BRANCH), /- apps\/shop\/list-orders\.spec\.ts: failing \(test\) at step 1\n/);
+    assert.match(messages(outcome), /\[TEST-LOOK\] The test apps\/shop\/list-orders\.spec\.ts could not be run: look before you run again/);
+  });
+
+  it("closes without a test a scenario whose three runs gave no verdict, and counts a read of the code as a look", async () => {
+    const runner = new FakeTestRunner("The browsers of Playwright could not be installed: offline");
+    const code = (id: string): Call => ({ id, name: "shop_code_list_files", arguments: {} });
+    const turns = [[run(spec("a"), "n1")], [code("c1")], [run(spec("b"), "n2")], [look("l1")], [run(spec("c"), "n3")], [close("gone")]];
+    const { outcome, server } = await design(replies(turns), { runner });
+    assert.match(told(server, "n2"), /^Run of the file: it could not run: .*offline\nFailed runs of list-orders: 2 of 3\./);
+    assert.match(told(server, "gone"), /^Scenario list-orders closed without a test: none of its runs gave a verdict\.\n\nScenario 2 of 3: place-order/);
+    assert.match(messages(outcome), /The scenario list-orders was closed without a test: none of its 3 runs gave a verdict\./);
+    assert.deepEqual([runner.runs.length, outcome.tests], [3, []]);
+  });
+
+  it("keeps a test failing on another error than an assertion only as the test's fault, with every run, even one that gave no verdict", async () => {
+    const runner: TestRunner = {
+      run: async (test) => (test.content.includes("OFFLINE") ? { startedAt: "2026-11-13T10:00:00.000Z", tests: [], error: "offline" } : { startedAt: "2026-11-13T10:00:00.000Z", tests: [{ id: `shop › ${test.path} › t`, verdict: "failed", reason: "ReferenceError: total is not defined" }] }),
+    };
+    const text = (marker: string) => `${spec("list-orders")}// ${marker}\n`;
+    const turns = [
+      [run(text("OFFLINE"), "r0")],
+      [look("l0")],
+      [run(text("1"), "r1")],
+      [close("cause", { cause: "application", evidence: "The total is wrong." })],
+      [run(text("2"), "blind")],
+      [look("l1")],
+      [run(text("3"), "r3")],
+      [close("kept", { cause: "test", evidence: "The total cannot be read." })],
+    ];
+    const { outcome, root, server } = await design(replies(turns), { runner: runner as FakeTestRunner });
+    assert.match(told(server, "cause"), /^Refused \(PROPOSE-CAUSE\): cause "application" does not fit: the run failed on other, before any check of the application\./);
+    assert.match(told(server, "blind"), /^Refused \(TEST-LOOK\): look before you run again\. Take shop_snapshot at the step that failed, or read the logs since /);
+    const kept = stateOf(outcome).tests[0]!;
+    assert.deepEqual([kept.runs, kept.quarantine], [[{}, { verdict: "failed", errorClass: "other" }, { verdict: "failed", errorClass: "other" }], { cause: "test", evidence: "The total cannot be read.", errorClass: "other" }]);
+    assert.match(git(root, "log", "-1", "--format=%B", BRANCH), /- apps\/shop\/list-orders\.spec\.ts: failing \(test\)$/m);
+  });
+
+  it("tells a look at an application without a user interface by its logs and its code", async () => {
+    const ledger = { ...PLAN, arguments: { scenarios: IDS.map((id) => scenario(id, "other", { application: "ledger" })) } };
+    const { server } = await design(replies([[OPEN, ledger], [run(broken("list-orders"), "f1")], [run(`${broken("list-orders")}// 2\n`, "blind")]]), { plan: false });
+    assert.equal(told(server, "blind"), 'Refused (TEST-LOOK): look before you run again. Read the logs since 2026-11-13T10:00:00.000Z, or the source code, at the step that failed ("open the orders").\nNothing else was refused.');
   });
 });
 
@@ -683,7 +782,7 @@ describe("what a run tells the agent", () => {
     const long: TestRunner = { run: async (test) => ({ startedAt: "2026-11-13T10:00:00.000Z", tests: [{ id: `shop › ${test.path} › t`, verdict: "failed", reason: "x".repeat(5000) }] }) };
     const cut = await design(replies(valid(1)), { runner: long as FakeTestRunner });
     const told = toolResult(cut.server, "r-list-orders");
-    assert.ok(told.includes(`${"x".repeat(4000)}…`) && !told.includes("x".repeat(4001)) && !told.includes("Failed step"));
+    assert.ok(told.includes(`${"x".repeat(1500)}…`) && !told.includes("x".repeat(1501)) && !told.includes("Failed step"));
     const empty: TestRunner = { run: async () => ({ startedAt: "2026-11-13T10:00:00.000Z", tests: [] }) };
     const none = await design(replies(valid(1)), { runner: empty as FakeTestRunner });
     assert.match(toolResult(none.server, "r-list-orders"), /Run of the file: not_run\./);

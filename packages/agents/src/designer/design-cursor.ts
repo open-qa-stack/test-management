@@ -1,5 +1,9 @@
 import type { PlannedScenario, TestPlan, Verdict } from "@open-qa-stack/domain";
+import type { ErrorClass } from "./run-failure.ts";
 import { PROPOSE_TOOL, RUN_TOOL } from "./test-proposals.ts";
+
+/** Most runs of the test of a scenario that may fail before it may not run again. */
+export const MAX_FAILED_RUNS = 3;
 
 /** A run of the test of a scenario. */
 export interface ScenarioRun {
@@ -7,6 +11,14 @@ export interface ScenarioRun {
   readonly content: string;
   /** Its verdict; none when it could not run. */
   readonly verdict?: Verdict;
+  /** What it stopped on, when it failed. */
+  readonly errorClass?: ErrorClass;
+  /** The title of the `test.step` that failed, when one did. */
+  readonly failedStep?: string;
+  /** When it started, from which the logs of the services tell what happened. */
+  readonly startedAt: string;
+  /** How many times the agent had looked at the application, its logs or its code when it ran. */
+  readonly looks: number;
 }
 
 /**
@@ -72,6 +84,15 @@ export class DesignCursor {
   }
 
   /**
+   * How many runs of the test of the scenario open did not pass.
+   *
+   * @returns The count.
+   */
+  public get failedRuns(): number {
+    return this.#runs.filter((run) => run.verdict !== "passed").length;
+  }
+
+  /**
    * Counts a run of the test of a scenario, if that scenario is still the one open.
    *
    * @param scenario - Identifier of the scenario the run was made for.
@@ -100,6 +121,8 @@ export class DesignCursor {
     const last = this.#runs.at(-1);
     if (last === undefined) return `Next: do the steps of ${scenario.id} with the browser tools, fill its skeleton with the code they return, then call ${RUN_TOOL}.`;
     if (last.verdict === "passed") return `Next: call ${PROPOSE_TOOL}.`;
-    return `Next: look at the page at the failed step, fix the locator or the wait, then call ${RUN_TOOL} with the whole corrected file.`;
+    const failed = this.failedRuns;
+    if (failed >= MAX_FAILED_RUNS) return `Next: call ${PROPOSE_TOOL} with diagnosis.`;
+    return `Next: look at the page at the failed step, fix the locator or the wait, then call ${RUN_TOOL} with the whole corrected file (failed runs: ${failed} of ${MAX_FAILED_RUNS}).`;
   }
 }

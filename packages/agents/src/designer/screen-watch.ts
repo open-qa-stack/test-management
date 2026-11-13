@@ -21,6 +21,8 @@ interface Seen {
   readonly removed: Set<string>;
   /** The lines of the last snapshot of the whole page. */
   last: Set<string> | undefined;
+  /** How many times the agent opened a page, took a snapshot or acted. */
+  looks: number;
 }
 
 /**
@@ -49,12 +51,18 @@ export class ScreenWatch {
     for (const application of applications) {
       const snapshot = byName.get(scopedToolName(application, "snapshot"));
       if (snapshot === undefined) continue;
-      const seen: Seen = { lines: new Set(), produced: new Set(), removed: new Set(), last: undefined };
+      const seen: Seen = { lines: new Set(), produced: new Set(), removed: new Set(), last: undefined, looks: 0 };
       this.seen.set(application, seen);
       const read = async () => this.record(seen, compact((await snapshot.execute({})) as { page: string; truncated: boolean }), true);
       const wrap = (action: string, execute: (tool: ToolDefinition, args: unknown) => Promise<unknown>) => {
         const tool = byName.get(scopedToolName(application, action))!;
-        owned.set(tool.name, { ...tool, execute: (args) => execute(tool, args) });
+        owned.set(tool.name, {
+          ...tool,
+          execute: (args) => {
+            seen.looks += 1;
+            return execute(tool, args);
+          },
+        });
       };
       wrap("snapshot", async (tool, args) => {
         const result = compact((await tool.execute(args)) as { page: string; truncated: boolean });
@@ -106,6 +114,17 @@ export class ScreenWatch {
    */
   public watches(application: string): boolean {
     return this.seen.has(application);
+  }
+
+  /**
+   * How many times the agent looked at the screens of an application: opened a page, took a snapshot or
+   * acted on one.
+   *
+   * @param application - Identifier of the application.
+   * @returns The count; none for an application without a user interface.
+   */
+  public looks(application: string): number {
+    return this.seen.get(application)?.looks ?? 0;
   }
 
   /**

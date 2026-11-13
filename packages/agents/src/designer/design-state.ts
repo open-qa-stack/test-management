@@ -1,5 +1,6 @@
 import type { TestPlan, Verdict } from "@open-qa-stack/domain";
 import type { IndexModel, IndexRun } from "@open-qa-stack/shared";
+import type { ErrorClass } from "./run-failure.ts";
 
 /** Folder of the design states, in the state folder of the test repository. */
 export const DESIGNS_FOLDER = "designs";
@@ -13,6 +14,20 @@ export interface Quarantine {
   readonly cause: FailureCause;
   /** What the run showed and what the agent checked. */
   readonly evidence: string;
+  /** The title of the `test.step` the last run failed at, when it failed at one. */
+  readonly failedStep?: string;
+  /** What the last run stopped on. */
+  readonly errorClass: ErrorClass;
+}
+
+/** A run of a test while it was written, as its design state lists it. */
+export interface DesignedRun {
+  /** Its verdict; none when it could not run. */
+  readonly verdict?: Verdict;
+  /** What it stopped on, when it failed. */
+  readonly errorClass?: ErrorClass;
+  /** The title of the `test.step` that failed, when one did. */
+  readonly failedStep?: string;
 }
 
 /** A test the designer wrote, as its design state lists it; its application, its domain and its reason are those of its scenario. */
@@ -23,6 +38,8 @@ export interface DesignedTest {
   readonly scenario: string;
   /** The verdict of its last run, as the harness pronounced it: `passed` or `failed`. */
   readonly verdict: Verdict;
+  /** Its runs while it was written, in order. */
+  readonly runs: readonly DesignedRun[];
   /** For a test kept failing, why. */
   readonly quarantine?: Quarantine;
   /** The references of its visual comparisons, written with it, relative to the root of the test repository. */

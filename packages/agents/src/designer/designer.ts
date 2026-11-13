@@ -141,6 +141,8 @@ export class Designer {
     const owners = [...new Set([...index.sources.map((source) => source.id), ...readable.map((source) => source.id), ...applications.map((application) => application.id)])];
     const browser = browserTools(applications, { environment: index.environment, env, screenshotsDir: join(repositoryRoot, config.repository.stateDir, "screenshots"), ...this.options.browser });
     const screens = new ScreenWatch(applications.map((application) => application.id), browser.tools);
+    // Reading the logs or the source code is looking at what a failed run did, as a snapshot is.
+    const inspections = { count: 0 };
     const proposals = new TestProposals(
       {
         repositoryRoot,
@@ -152,6 +154,7 @@ export class Designer {
         packages,
         screens,
         screenshots: this.options.screenshots ?? false,
+        looks: (application) => screens.looks(application) + inspections.count,
       },
       journal,
     );
@@ -167,7 +170,8 @@ export class Designer {
       },
       journal,
     );
-    const knowledge = knowledgeTools(readable, { repositoryRoot, env, secrets: declaredValues(config, env), taskStart: start });
+    const access = { repositoryRoot, env, secrets: declaredValues(config, env), taskStart: start };
+    const knowledge = readable.flatMap((source) => knowledgeTools([source], access).map((tool) => (source.type === "logs" || source.type === "source-code" ? counted(tool, inspections) : tool)));
     const notes = agentNotes(config, repositoryRoot, env, { role: "designer", task: id, now });
     const map = new IndexMap(index, await this.cards(index), [...screens.tools(), ...knowledge], owners);
     const events: AgentEvent[] = [];
@@ -238,7 +242,7 @@ export class Designer {
       await writeFile(join(repositoryRoot, path), content);
     }
     const titles = new Map(state.plan.scenarios.map((scenario) => [scenario.id, scenario.title]));
-    const line = (test: AcceptedTest) => (test.quarantine === undefined ? `- ${test.path}: ${titles.get(test.scenario)}` : `- ${test.path}: failing (${test.quarantine.cause})`);
+    const line = (test: AcceptedTest) => (test.quarantine === undefined ? `- ${test.path}: ${titles.get(test.scenario)}` : `- ${test.path}: failing (${test.quarantine.cause})${stepOf(test.quarantine.failedStep)}`);
     const message = [`test: add ${tests.length} generated Playwright tests`, "", ...tests.map(line)].join("\n");
     const committed = new Set(await repository.commit(files.map(([path]) => path), message));
     for (const test of tests) journal.record("info", `The test ${test.path} was written.`);
@@ -271,6 +275,23 @@ export class Designer {
 /** A tool that refuses every call once the plan is refused: the design is stopped. */
 function stoppedOnRefusal(tool: ToolDefinition, plan: PlanProposal): ToolDefinition {
   return { ...tool, execute: async (args) => (plan.refused === undefined ? tool.execute(args) : { error: plan.blocked() }) };
+}
+
+/** Where a test kept failing failed, in words: the number of its step, when the title of the step gives it. */
+function stepOf(failedStep: string | undefined): string {
+  const number = failedStep === undefined ? undefined : /^(\d+)\. /.exec(failedStep)?.[1];
+  return number === undefined ? "" : ` at step ${number}`;
+}
+
+/** A tool whose every call is counted. */
+function counted(tool: ToolDefinition, calls: { count: number }): ToolDefinition {
+  return {
+    ...tool,
+    execute: (args) => {
+      calls.count += 1;
+      return tool.execute(args);
+    },
+  };
 }
 
 /** How many tests a design obtained, in words. */

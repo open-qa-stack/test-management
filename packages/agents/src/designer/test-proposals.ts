@@ -3,7 +3,8 @@ import { join, posix } from "node:path";
 import type { PlannedScenario, TestPlan, ToolDefinition } from "@open-qa-stack/domain";
 import { moduleSyntax, redactText, scopedToolName, secretForms, type SpecLocator } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
-import { DesignCursor } from "./design-cursor.ts";
+import { DesignCursor, MAX_FAILED_RUNS } from "./design-cursor.ts";
+import { errorClass, failureHint } from "./run-failure.ts";
 import type { DesignedTest, FailureCause, Quarantine } from "./design-state.ts";
 import { PLAN_TOOL } from "./plan-proposal.ts";
 import { journalRefusals, refusalText, type Refusal } from "./refusal.ts";
@@ -18,7 +19,7 @@ export const PROPOSE_TOOL = "propose_test";
 /** Name of the tool the designer runs the test of a scenario with. */
 export const RUN_TOOL = "run_test";
 /** Longest error told to the agent for a test that did not pass. */
-const MAX_TOLD_ERROR = 4000;
+const MAX_TOLD_ERROR = 1500;
 /** Fewest tests a design must give. */
 export const MIN_TESTS = 3;
 /** Most tests a design writes: the most scenarios a plan holds. */
@@ -52,6 +53,8 @@ export interface ProposalRules {
   readonly screens: ScreenWatch;
   /** Whether each step of a test ends with a screenshot attached to the report, as the charter may ask. */
   readonly screenshots: boolean;
+  /** How many times the agent has looked at an application so far: its screens, the logs or the source code. */
+  readonly looks: (application: string) => number;
 }
 
 /** What the agent says of a test whose last run failed. */
@@ -81,6 +84,8 @@ export class TestProposals {
   private readonly kept: AcceptedTest[] = [];
   private readonly forms: readonly string[];
   private cursor: DesignCursor | undefined;
+  /** How many scenarios were closed without a test. */
+  private unwritten = 0;
   /** The references a run made, by the text that ran. */
   private readonly references = new Map<string, readonly TestReference[]>();
 
@@ -122,7 +127,7 @@ export class TestProposals {
   public trialTool(): ToolDefinition {
     return {
       name: RUN_TOOL,
-      description: "Checks the test of the open scenario, then runs it against the application with the real runner. Give the whole file: one test, one test.step per step of the plan, as in the skeleton. Returns the verdict, the error, the step that failed and what to look at.",
+      description: `Checks the test of the open scenario, then runs it against the application with the real runner. Give the whole file: one test, one test.step per step of the plan, as in the skeleton. Returns the verdict, the error, the step that failed and what to look at. After a failed run you may fix a locator or a wait; the expected texts of the plan stay. A scenario has ${MAX_FAILED_RUNS} failed runs at most.`,
       parameters: {
         type: "object",
         properties: { content: { type: "string", minLength: 1, description: "The whole text of the file, in TypeScript." } },
@@ -186,19 +191,50 @@ export class TestProposals {
     const open = this.open();
     if ("error" in open) return open;
     const { cursor, scenario, path } = open;
+    const what = `The test ${path} could not be run`;
+    const repair = this.repairErrors(cursor, scenario, content);
+    if (repair.length > 0) return this.refuse(what, repair);
     const refusals = await this.checked(scenario, path, content);
-    if (refusals.length > 0) return this.refuse(`The test ${path} could not be run`, refusals);
+    if (refusals.length > 0) return this.refuse(what, refusals);
+    const looks = this.rules.looks(scenario.application);
     const trial = await this.rules.runner.run({ path, content });
     if (trial.error !== undefined) {
-      cursor.record(scenario.id, { content });
+      cursor.record(scenario.id, { content, startedAt: trial.startedAt, looks });
       this.journal.record("error", this.mask(`The test ${path} could not run: ${trial.error}`));
-      return this.mask(`Run of the file: it could not run: ${trial.error}\n${cursor.next()}`);
+      return this.mask([`Run of the file: it could not run: ${trial.error}`, this.failedRuns(cursor, scenario), cursor.next()].join("\n"));
     }
     const verdict = verdictOf(trial);
-    cursor.record(scenario.id, { content, verdict });
+    const failed = trial.tests.find((test) => test.verdict !== "passed");
+    const failure = failed === undefined ? {} : { errorClass: errorClass(failed.reason), ...(failed.failedStep === undefined ? {} : { failedStep: failed.failedStep }) };
+    cursor.record(scenario.id, { content, verdict, ...failure, startedAt: trial.startedAt, looks });
     this.references.set(content, trial.references ?? []);
     this.journal.record("info", `The test ${path} was run: ${verdict}.`);
-    return `${this.described(trial)}\n${cursor.next()}`;
+    const told = failed === undefined ? [] : [this.mask(failureHint(failed.reason, scenario.application)), this.failedRuns(cursor, scenario)];
+    return [this.described(trial), ...told, cursor.next()].join("\n");
+  }
+
+  /** What the repair contract refuses in a run: a scenario out of runs, a text that already failed, a run again without a look. */
+  private repairErrors(cursor: DesignCursor, scenario: PlannedScenario, content: string): Refusal[] {
+    const refusals: Refusal[] = [];
+    const failed = cursor.failedRuns;
+    if (failed >= MAX_FAILED_RUNS) {
+      refusals.push({ code: "TEST-STOP", message: `scenario ${scenario.id} failed ${failed} runs. Do not run it again. Call ${PROPOSE_TOOL} with diagnosis: the cause, and what the last run showed. The test is kept as failing, for a person to decide.` });
+    }
+    if (cursor.runs.some((run) => run.content === content && run.verdict !== "passed")) {
+      refusals.push({ code: "TEST-SAME", message: `this text already failed, and nothing changed. Fix the locator or the wait the error names, or call ${PROPOSE_TOOL} with diagnosis.` });
+    }
+    const last = cursor.runs.at(-1);
+    if (last !== undefined && last.verdict !== "passed" && this.rules.looks(scenario.application) === last.looks) {
+      const step = last.failedStep === undefined ? "" : ` (${JSON.stringify(last.failedStep)})`;
+      const look = this.rules.screens.watches(scenario.application) ? `Take ${scopedToolName(scenario.application, "snapshot")} at the step that failed${step}, or read the logs since ${last.startedAt}.` : `Read the logs since ${last.startedAt}, or the source code, at the step that failed${step}.`;
+      refusals.push({ code: "TEST-LOOK", message: `look before you run again. ${look}` });
+    }
+    return refusals;
+  }
+
+  /** The line that counts the failed runs of a scenario. */
+  private failedRuns(cursor: DesignCursor, scenario: PlannedScenario): string {
+    return `Failed runs of ${scenario.id}: ${cursor.failedRuns} of ${MAX_FAILED_RUNS}.`;
   }
 
   /** Closes the scenario open with the text of its last run. */
@@ -206,24 +242,43 @@ export class TestProposals {
     const open = this.open();
     if ("error" in open) return open;
     const { cursor, scenario, path } = open;
-    const last = cursor.runs.at(-1);
+    const runs = cursor.runs;
+    const last = runs.at(-1);
     const what = `The scenario ${scenario.id} could not be closed`;
-    if (last?.verdict !== "passed" && last?.verdict !== "failed") return this.refuse(what, [{ code: "PROPOSE-RUN", message: `scenario ${scenario.id} has not run${last === undefined ? "" : " to a verdict"}. Call ${RUN_TOOL} first.` }]);
+    const left = cursor.failedRuns < MAX_FAILED_RUNS;
+    if (last === undefined) return this.refuse(what, [{ code: "PROPOSE-RUN", message: `scenario ${scenario.id} has not run. Call ${RUN_TOOL} first.` }]);
+    if (last.verdict !== "passed" && last.verdict !== "failed") {
+      if (left) return this.refuse(what, [{ code: "PROPOSE-RUN", message: `scenario ${scenario.id} has not run to a verdict. Call ${RUN_TOOL} first.` }]);
+      this.unwritten += 1;
+      this.journal.record("error", `The scenario ${scenario.id} was closed without a test: none of its ${MAX_FAILED_RUNS} runs gave a verdict.`);
+      return this.next(cursor, `Scenario ${scenario.id} closed without a test: none of its runs gave a verdict.`);
+    }
     let quarantine: Quarantine | undefined;
     if (last.verdict === "failed") {
-      if (diagnosis === undefined) return this.refuse(what, [{ code: "PROPOSE-DIAG", message: `the last run of scenario ${scenario.id} failed. Repair it with ${RUN_TOOL}, or give diagnosis: the cause and what the run showed.` }]);
-      const held = heldVariables(diagnosis.evidence, this.rules.secrets).map((variable) => ({ code: "PROPOSE-SECRET", message: `the diagnosis holds the value of ${variable}. Leave it out; a test reads it with process.env.${variable}.` }));
-      if (held.length > 0) return this.refuse(what, held);
-      quarantine = { cause: diagnosis.cause, evidence: diagnosis.evidence };
+      if (diagnosis === undefined) return this.refuse(what, [{ code: "PROPOSE-DIAG", message: `the last run of scenario ${scenario.id} failed. Repair it with ${RUN_TOOL} (failed runs: ${cursor.failedRuns} of ${MAX_FAILED_RUNS}), or give diagnosis: the cause and what the run showed.` }]);
+      const refusals: Refusal[] = [];
+      if (diagnosis.cause === "test" && left) refusals.push({ code: "PROPOSE-EARLY", message: `failed runs: ${cursor.failedRuns} of ${MAX_FAILED_RUNS}. Try a repair with ${RUN_TOOL} before giving up on the test itself.` });
+      if (diagnosis.cause !== "test" && last.errorClass !== "assertion") {
+        const step = last.failedStep === undefined ? "" : ` at step ${JSON.stringify(last.failedStep)}`;
+        refusals.push({ code: "PROPOSE-CAUSE", message: `cause "${diagnosis.cause}" does not fit: the run failed on ${last.errorClass}${step}, before any check of the application. Fix the locator, or give cause "test".` });
+      }
+      refusals.push(...heldVariables(diagnosis.evidence, this.rules.secrets).map((variable) => ({ code: "PROPOSE-SECRET", message: `the diagnosis holds the value of ${variable}. Leave it out; a test reads it with process.env.${variable}.` })));
+      if (refusals.length > 0) return this.refuse(what, refusals);
+      quarantine = { cause: diagnosis.cause, evidence: diagnosis.evidence, ...(last.failedStep === undefined ? {} : { failedStep: last.failedStep }), errorClass: last.errorClass! };
     }
-    this.kept.push({ path, scenario: scenario.id, verdict: last.verdict, ...(quarantine === undefined ? {} : { quarantine }), content: last.content, references: this.references.get(last.content)! });
+    const kept = runs.map(({ verdict, errorClass: stopped, failedStep }) => ({ ...(verdict === undefined ? {} : { verdict }), ...(stopped === undefined ? {} : { errorClass: stopped }), ...(failedStep === undefined ? {} : { failedStep }) }));
+    this.kept.push({ path, scenario: scenario.id, verdict: last.verdict, runs: kept, ...(quarantine === undefined ? {} : { quarantine }), content: last.content, references: this.references.get(last.content)! });
     const outcome = quarantine === undefined ? "passed" : `failing (${quarantine.cause}), kept for a person to decide`;
     this.journal.record("info", `The scenario ${scenario.id} was closed: ${outcome}; its test is ${path}.`);
+    return this.next(cursor, `Scenario ${scenario.id} closed: ${outcome}.`);
+  }
+
+  /** Closes the scenario open, and tells the agent so, then the sheet of the next one or how the scenarios ended. */
+  private next(cursor: DesignCursor, closed: string): string {
     cursor.close();
-    const closed = `Scenario ${scenario.id} closed: ${outcome}.`;
     if (cursor.scenario !== undefined) return `${closed}\n\n${this.opened(cursor)}`;
     const failing = this.kept.filter((test) => test.verdict !== "passed").length;
-    return `${closed}\nAll ${cursor.plan.scenarios.length} scenarios are closed: ${this.kept.length - failing} passed, ${failing} failing.\n${cursor.next()}`;
+    return `${closed}\nAll ${cursor.plan.scenarios.length} scenarios are closed: ${this.kept.length - failing} passed, ${failing} failing, ${this.unwritten} without a test.\n${cursor.next()}`;
   }
 
   /** The scenario open and the file of its test, or why there is none. */

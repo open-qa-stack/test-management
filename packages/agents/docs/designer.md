@@ -15,7 +15,7 @@ const outcome = await new Designer({ config, repositoryRoot, env, runtime, instr
 1. **Test repository.** The path must be the root of a git repository with a commit. No tracked file may be changed, no untracked file may lie outside the state folder (`repository.stateDir`) and the index folder (`repository.indexDir`), and the branch to create must not exist. Otherwise the journal names each problem, no session starts, and nothing is written. The untracked index the cartographer leaves does not stop the run.
 2. **Index.** `<indexDir>/domain-index.json` must match its schema. The request gives the agent the brief and what the index holds for it, as `index_find` would give it for the words of the brief; without a brief, or when nothing echoes it, one line per domain of the index. The index is never given whole: the agent looks it up (see [The index as a map](#the-index-as-a-map)).
 3. **Session.** The agent gets the browser tools of the applications of the environment of the index, watched (see [The screens](#the-screens)); the tools of every knowledge source attached to that environment or to none — documents, contracts, bases, source code and logs — the bases read in a read-only transaction, the logs masking the value of every variable the configuration names; and the notes. It explores, then submits a test plan with `propose_plan` (see [The plan](#the-plan)). Once the plan is accepted, the harness opens its scenarios one at a time, in the order of the plan (see [Writing each test](#writing-each-test)): the agent runs the test of the scenario open with `run_test`, against the application, fixes it, and closes the scenario with `propose_test`, under the limits of the configured autonomy, every run counting against them. While no plan is accepted, or a scenario is open, an agent that stops is reminded up to three times, with where the design stands and the next call.
-4. **Branch.** Once the session is over, a branch is created from the revision checked out, and stays checked out. The kept tests and the design state are committed on it with the identity and the hooks of the repository. The message is `test: add <n> generated Playwright tests`, with one line per test: its path and the title of its scenario, or, for a test kept failing, `- <path>: failing (<cause>)`. Nothing contacts a remote, and no existing branch nor the git configuration is changed.
+4. **Branch.** Once the session is over, a branch is created from the revision checked out, and stays checked out. The kept tests and the design state are committed on it with the identity and the hooks of the repository. The message is `test: add <n> generated Playwright tests`, with one line per test: its path and the title of its scenario, or, for a test kept failing, `- <path>: failing (<cause>) at step <n>`, the number of the step its last run failed at. Nothing contacts a remote, and no existing branch nor the git configuration is changed.
 
 The branch is `oqas/design-<date>` by default, such as `oqas/design-20261113T100000Z`; `branch` gives another name.
 
@@ -100,6 +100,9 @@ The skeleton parses and keeps the default charter and the gates below as it is: 
 | Tier | Code | Cause |
 |---|---|---|
 | 1 | `PLAN-NONE`, `PLAN-DONE` | No plan is accepted, or every scenario is closed. |
+| 1 | `TEST-STOP` | The test of the scenario already failed three runs: it is closed with a diagnosis. |
+| 1 | `TEST-SAME` | This very text already ran and did not pass. |
+| 1 | `TEST-LOOK` | The last run failed, and since then the agent called no tool that opens, reads or acts on a page of the application, nor any tool of a source of logs or of source code. |
 | 2 | `TEST-SYNTAX` | The text does not parse as TypeScript; the first syntax error, with its line and column. |
 | 2 | `TEST-IMPORT` | The file imports a package the `package.json` of the test repository does not declare, a platform package included, a module whose name is computed, a relative path that leaves the repository, or another `.spec` or `.test` file. The team chooses the tools its tests may use, such as `@axe-core/playwright` for accessibility, by declaring them; without any declared, only `@playwright/test`. |
 | 2 | `TEST-FILE` | The test writes a file: `saveAs`, `storageState`, `pdf` or any `path` option. What the runner keeps goes to its own folder. |
@@ -113,23 +116,35 @@ The skeleton parses and keeps the default charter and the gates below as it is: 
 | 3 | `TEST-LOCATOR` | The test uses a locator by role, text, label, placeholder, test id, title or alternative text that no snapshot showed: the role at the start of a line, and the name or the text observed in a line, the same or another — the name of a row is that of its cells. A name or a text given as a regular expression or a variable is not checked. The refusal gives the lines of the screens closest to those locators, five at most: the same role, or a shared word. |
 | 4 | `TEST-CHECK` | A finding of the `check` option, a `TestCheck` such as the `CharterCheck` of the harness, with its line, its column and the rule of the charter or the code of the compiler, then the example of the rule when it has one: `Line 12, column 9 (rule PW-WAIT-01): Unexpected use of page.waitForTimeout(). Example: …`. |
 
-A text the checks accept is run with the `runner` option, a `TestRunner` such as the `TrialRunner` of the harness. The agent is told the verdict of each of its tests and, for one that did not pass, its whole error, the `test.step` that failed, the path of its trace, and the instant from which the logs of the services tell what happened, then the next call. A test writes no file. A visual test compares a page with its reference, with `toHaveScreenshot`; its references are made at its first run, committed with the test, and listed in the design state.
+A text the checks accept is run with the `runner` option, a `TestRunner` such as the `TrialRunner` of the harness. The agent is told the verdict of each of its tests and, for one that did not pass, its error, cut past 1,500 characters, the `test.step` that failed, the path of its trace, and the instant from which the logs of the services tell what happened; then one hint, picked by what the run stopped on, and how many runs of the scenario failed, out of three; then the next call. A run that could not happen, or gave no verdict, counts as failed.
 
-`propose_test` closes the scenario open with the text of its last run, which is not run again, and opens the next one, whose sheet the agent is told; once all are closed, the agent is told how many passed and how many fail. It is refused when:
+| Class | Read from the error | Hint |
+|---|---|---|
+| `strict` | `strict mode violation` | Start from the parent the snapshot shows, or use the full name. |
+| `navigation` | `net::ERR_`, `page.goto:`, a navigation timeout | Check the path; a test uses a path relative to the base URL. |
+| `assertion` | An `expect` whose error gives what was expected and received, or a `toBeVisible` or `toBeHidden` that timed out | What the application shows, cut past 200 characters, and what the plan expects, which stays: check the locator and the wait, or diagnose. |
+| `locator` | A timeout waiting for an element, on an action | The element is not on the screen at that step: redo the steps before it with the browser tools. |
+| `other` | Anything else | Read it, and look at the page at that step. | A test writes no file. A visual test compares a page with its reference, with `toHaveScreenshot`; its references are made at its first run, committed with the test, and listed in the design state.
+
+`propose_test` closes the scenario open with the text of its last run, which is not run again, and opens the next one, whose sheet the agent is told; once all are closed, the agent is told how many passed, how many fail, and how many were closed without a test. It is refused when:
 
 | Code | Cause |
 |---|---|
-| `PROPOSE-RUN` | The test of the scenario has not run, or its last run gave no verdict: it could not run, or was `not_run`, `skipped` or `blocked`. |
+| `PROPOSE-RUN` | The test of the scenario has not run, or its last run gave no verdict — it could not run, or was `not_run`, `skipped` or `blocked` — and fewer than three of its runs failed. With three, the scenario is closed without a test, and the journal says so. |
 | `PROPOSE-DIAG` | The last run failed, and no `diagnosis` is given. |
+| `PROPOSE-EARLY` | The cause is `test`, and fewer than three runs failed: the test is repaired first. |
+| `PROPOSE-CAUSE` | The cause is `application` or `plan`, and the last run did not fail on an assertion: it stopped before any check of the application. |
 | `PROPOSE-SECRET` | The evidence of the diagnosis holds the value of a variable the configuration names. |
 
-A test whose last run passed is kept as passed, whatever the diagnosis says. One whose last run failed is kept unchanged, as failing, with the `cause` of the diagnosis — `application` when the application does not do what the plan expects, `plan` when an expected text of the plan is wrong, `test` when the test could not be made to work — and its `evidence`: what the run showed and what the agent checked. The verdict is always the harness's. A test kept failing counts towards the three a design expects only when the application is at fault.
+Every refusal leaves a way out: a run that fails again counts, and a scenario with three failed runs is closed with the cause `test`, or without a test when none of its runs gave a verdict.
+
+A test whose last run passed is kept as passed, whatever the diagnosis says. One whose last run failed is kept unchanged, as failing, with the `cause` of the diagnosis — `application` when the application does not do what the plan expects, `plan` when an expected text of the plan is wrong, `test` when the test could not be made to work — its `evidence`: what the run showed and what the agent checked, and the step and the class its last run failed on. The verdict is always the harness's. A test kept failing counts towards the three a design expects only when the application is at fault.
 
 Every value of the variables the configuration names is masked in the journal and in what the agent is told.
 
 ## Design state
 
-The state is written to `<stateDir>/designs/design-<date>.json`, and committed with the tests unless git ignores it. It holds the brief, when one was given, the plan accepted, and each test kept, in the order of the plan, with the scenario it carries out; the application, the domain and the reason of a test are those of its scenario:
+The state is written to `<stateDir>/designs/design-<date>.json`, and committed with the tests unless git ignores it. It holds the brief, when one was given, the plan accepted, and each test kept, in the order of the plan, with the scenario it carries out and each of its runs, with its verdict and, for one that failed, its class and its step; the application, the domain and the reason of a test are those of its scenario:
 
 ```json
 {
@@ -158,9 +173,15 @@ The state is written to `<stateDir>/designs/design-<date>.json`, and committed w
   "model": { "provider": "openai", "baseUrl": "http://localhost:1234/v1", "model": "<model>" },
   "run": { "iterations": 6, "actions": 3, "durationMs": 81234 },
   "tests": [
-    { "path": "apps/shop/search-order-by-customer.spec.ts", "scenario": "search-order-by-customer", "verdict": "passed" },
-    { "path": "apps/shop/order-total.spec.ts", "scenario": "order-total", "verdict": "failed", "quarantine": { "cause": "application", "evidence": "The total stays empty although the order has two lines." } },
-    { "path": "apps/shop/orders-look.spec.ts", "scenario": "orders-look", "verdict": "passed", "references": ["apps/shop/orders-look.spec.ts-snapshots/orders-look-1-shop.png"] }
+    { "path": "apps/shop/search-order-by-customer.spec.ts", "scenario": "search-order-by-customer", "verdict": "passed", "runs": [{ "verdict": "failed", "errorClass": "strict", "failedStep": "1. Search the orders of Veldane" }, { "verdict": "passed" }] },
+    {
+      "path": "apps/shop/order-total.spec.ts",
+      "scenario": "order-total",
+      "verdict": "failed",
+      "runs": [{ "verdict": "failed", "errorClass": "assertion", "failedStep": "2. Open the order" }],
+      "quarantine": { "cause": "application", "evidence": "The total stays empty although the order has two lines.", "failedStep": "2. Open the order", "errorClass": "assertion" }
+    },
+    { "path": "apps/shop/orders-look.spec.ts", "scenario": "orders-look", "verdict": "passed", "runs": [{ "verdict": "passed" }], "references": ["apps/shop/orders-look.spec.ts-snapshots/orders-look-1-shop.png"] }
   ]
 }
 ```
