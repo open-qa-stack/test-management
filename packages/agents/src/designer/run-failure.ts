@@ -4,6 +4,8 @@ import { PROPOSE_TOOL } from "./test-proposals.ts";
 /** What a failed run stopped on, read from the error of the runner. */
 export type ErrorClass = "strict" | "locator" | "assertion" | "navigation" | "other";
 
+/** The first line of the error of a web-first assertion of a locator or a page, which says the matcher failed. */
+const MATCHER_FAILURE = /^(?:Error: )?expect\((?:locator|page)\)\.(?:not\.)?\w+\(.*\) failed/m;
 /** Longest part of what the application showed that a hint repeats. */
 const MAX_RECEIVED = 200;
 
@@ -17,7 +19,7 @@ const MAX_RECEIVED = 200;
 export function errorClass(error: string): ErrorClass {
   if (error.includes("strict mode violation")) return "strict";
   if (/net::ERR_|page\.goto:|[Nn]avigation timeout/.test(error)) return "navigation";
-  if (/^(?:Error: )?expect\(/m.test(error) && ((error.includes("Expected") && error.includes("Received")) || /toBe(?:Visible|Hidden)\(/.test(error))) return "assertion";
+  if (MATCHER_FAILURE.test(error) || (/^(?:Error: )?expect\(/m.test(error) && error.includes("Expected") && error.includes("Received"))) return "assertion";
   if (/Timeout \d+ms exceeded/.test(error) && error.includes("waiting for")) return "locator";
   return "other";
 }

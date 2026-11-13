@@ -85,13 +85,14 @@ describe("the gates of a plan", () => {
   const found = { result: "The order of Mira Veldane shows", shows: ["ORD-1042"], absent: [] };
   const functional = (id: string, changes: Partial<PlannedScenario> = {}) => scenario(id, { kind: "functional", steps: [{ action: "Open the orders", expects: [] }, { action: "Search the orders of Veldane", expects: [found] }], ...changes });
 
-  it("refuse, all at once and each with its code, a plan without a negative scenario and expects that name no text", async () => {
+  it("refuse, all at once and each with its code, a plan without a negative functional scenario and expects that name no text", async () => {
     const { proposal: made, journal } = await proposal();
     const empty = { result: "Something shows", shows: [], absent: [] };
-    const submitted = { scenarios: [functional("a", { steps: [{ action: "Open the orders", expects: [empty] }] }), functional("b", { steps: [{ action: "Open the orders", expects: [] }] }), scenario("c")] };
+    const submitted = { scenarios: [functional("a", { steps: [{ action: "Open the orders", expects: [empty] }] }), functional("b", { steps: [{ action: "Open the orders", expects: [] }] }), scenario("c", { kind: "visual", case: "negative" })] };
+    // A visual scenario that is negative verifies nothing of what the application answers.
     assert.deepEqual(await submit(made, submitted), {
       error: [
-        'Refused (PLAN-NEGATIVE): no scenario is negative. One must verify what the application answers when the input matches nothing, is wrong or is forbidden; set its case to "negative".',
+        'Refused (PLAN-NEGATIVE): no functional scenario is negative. One must verify what the application answers when the input matches nothing, is wrong or is forbidden; set its case to "negative".',
         "Refused (PLAN-EXPECT): expect 1.1 of scenario a names no text. Give in shows the exact text the screen displays after the action, or in absent the text it no longer displays, as you read it: a name, a number, a message.",
         "Refused (PLAN-EXPECT): no step of scenario b has an expect. Give in shows the exact text the screen displays after the action, or in absent the text it no longer displays, as you read it: a name, a number, a message.",
         "Nothing else was refused.",
@@ -125,6 +126,8 @@ describe("the gates of a plan", () => {
     // The text an application without a user interface no longer shows is one a tool returned.
     const gone = { result: "The order of Mira Veldane goes", shows: [], absent: ["Mira Veldane"] };
     const submitted = { scenarios: [functional("a", { application: "ledger", steps: [{ action: "Open the orders", expects: [found] }, { action: "Cancel the order", expects: [gone] }] }), scenario("b", { steps: [{ action: "Open the orders", expects: [] }] }), scenario("c")] };
+    const unread = { ...submitted, scenarios: [functional("a", { application: "ledger", steps: [{ action: "Open the orders", expects: [{ ...found, shows: ["ORD-2001"] }] }] }), ...submitted.scenarios.slice(1)] };
+    assert.deepEqual(await submit(made, unread), { error: 'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "ORD-2001", which nothing you read in this session showed. Copy the text as a tool of a source gives it.\nNothing else was refused.' });
     assert.equal(await submit(made, submitted), "The plan was accepted.\n\nScenario 1.");
   });
 
@@ -170,21 +173,25 @@ describe("the gates of a plan", () => {
       "Refused (PLAN-READ): scenario a cites shop, and you have read nothing of it. Call shop_goto first.",
       'Refused (PLAN-DATA): no result of orders-db showed "Veldane" in this session. Read it first with orders_db_search, or correct the value. A value the test invents has from "made-up".',
       'Refused (PLAN-DATA): no result of shop showed "Lena Brook" in this session. Read it first with shop_goto, or correct the value. A value the test invents has from "made-up".',
-      'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "No order matches zzqx", which nothing you read or saw in this session showed. Do the step with the browser tools and copy the text as the screen gives it.',
-      'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "Orders", which nothing you read or saw in this session showed. Do the step with the browser tools and copy the text as the screen gives it.',
-      'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "ORD-1057", which nothing you read or saw in this session showed. Do the step with the browser tools and copy the text as the screen gives it.',
-      'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "Gone", which nothing you read or saw in this session showed. Do the step with the browser tools and copy the text as the screen gives it.',
+      'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "No order matches zzqx", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
+      'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "Orders", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
+      'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "ORD-1057", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
+      'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "Gone", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
       "Refused (PLAN-READ): scenario b cites shop, and you have read nothing of it. Call shop_goto first.",
-      'Refused (PLAN-SHOWN): scenario b, expect 1.1, names "Orders", which nothing you read or saw in this session showed. Do the step with the browser tools and copy the text as the screen gives it.',
+      'Refused (PLAN-SHOWN): scenario b, expect 1.1, names "Orders", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
       "Refused (PLAN-READ): scenario c cites shop, and you have read nothing of it. Call shop_goto first.",
-      'Refused (PLAN-SHOWN): scenario c, expect 1.1, names "Orders", which nothing you read or saw in this session showed. Do the step with the browser tools and copy the text as the screen gives it.',
+      'Refused (PLAN-SHOWN): scenario c, expect 1.1, names "Orders", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
       "Nothing else was refused.",
     ]);
     await search!.execute({});
     await act(screens, "goto");
-    const fixed = { scenarios: [{ ...submitted.scenarios[0]!, sources: [{ source: "orders-db" }, { source: "shop" }, { source: "specs" }], data: [...data.slice(0, 4), { value: "ORD-1042", from: "orders-db" }], steps: [{ action: "Search zzqx", expects: [{ result: "Nothing matches", shows: ["mira veldane", "zzqx", "Orders"], absent: ["ORD-1057", "Lena"] }] }] }, scenario("b"), scenario("c")] };
-    // The texts of a source, spaces and case aside; a source without any tool is held to nothing.
-    assert.equal(await submit(made, fixed), "The plan was accepted.\n\nScenario 1.");
+    const fixed = (shows: string[]) => ({ scenarios: [{ ...submitted.scenarios[0]!, sources: [{ source: "orders-db" }, { source: "shop" }, { source: "specs" }], data: [...data.slice(0, 4), { value: "ORD-1042", from: "orders-db" }], steps: [{ action: "Search zzqx", expects: [{ result: "Nothing matches", shows, absent: ["ORD-1057", "Lena"] }] }] }, scenario("b"), scenario("c")] });
+    // A text the base gave, and no screen of the application: a test could not find it as the screen gives it.
+    assert.deepEqual(await submit(made, fixed(["Mira Veldane", "zzqx", "Orders"])), {
+      error: 'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "Mira Veldane", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.\nNothing else was refused.',
+    });
+    // The values of the data of a source, spaces and case aside; a source without any tool is held to nothing.
+    assert.equal(await submit(made, fixed(["orders", "zzqx", "Orders"])), "The plan was accepted.\n\nScenario 1.");
   });
 
   it("give the last texts of a source as what they would accept of a value it never showed", async () => {

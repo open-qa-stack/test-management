@@ -11,6 +11,8 @@ const INSPECTED = new Set<Knowledge["type"]>(["logs", "source-code"]);
 
 /** What the designer read of one source. */
 interface Read {
+  /** The type of the source. */
+  readonly type: Knowledge["type"];
   /** The tools of the source, in their order. */
   readonly tools: readonly string[];
   /** The texts its tools returned, the oldest first. */
@@ -28,12 +30,14 @@ interface Read {
  * @remarks
  * The tools it gives are those it was given, their results unchanged. It keeps, for each source, every text
  * of what its tools returned, each declared value masked first, up to `MAX_KEPT` characters, and counts the
- * calls of the tools of logs and of source code, which are a look at what a failed run did.
+ * calls of its tools: those of logs and of source code are a look at what a failed run did, and so is any
+ * of them for an application that has no screens to look at.
  */
 export class SourceWatch {
   private readonly reads = new Map<string, Read>();
   private readonly watched: ToolDefinition[];
   private inspections = 0;
+  private called = 0;
 
   /**
    * @param sources - The knowledge sources the tools are of.
@@ -49,7 +53,7 @@ export class SourceWatch {
     const owner = new Map<string, { readonly read: Read; readonly inspected: boolean }>();
     for (const source of sources) {
       const named = bySource.get(source.id) ?? [];
-      const read: Read = { tools: named, texts: [], length: 0, read: false };
+      const read: Read = { type: source.type, tools: named, texts: [], length: 0, read: false };
       this.reads.set(source.id, read);
       for (const tool of named) owner.set(tool, { read, inspected: INSPECTED.has(source.type) });
     }
@@ -59,6 +63,7 @@ export class SourceWatch {
       return {
         ...tool,
         execute: async (args) => {
+          this.called += 1;
           if (of.inspected) this.inspections += 1;
           const result = await tool.execute(args);
           if (!failed(result)) this.keep(of.read, texts(result).map((text) => redactText(text, forms)));
@@ -85,6 +90,16 @@ export class SourceWatch {
    */
   public firstTool(source: string): string | undefined {
     return this.reads.get(source)?.tools[0];
+  }
+
+  /**
+   * The first tool of each source that has one, of one type when it is given.
+   *
+   * @param type - The type of the sources; every type when none is given.
+   * @returns Their names, in the order of the sources.
+   */
+  public firstTools(type?: Knowledge["type"]): string[] {
+    return [...this.reads.values()].filter((read) => read.tools.length > 0 && (type === undefined || read.type === type)).map((read) => read.tools[0]!);
   }
 
   /**
@@ -127,6 +142,15 @@ export class SourceWatch {
    */
   public looks(): number {
     return this.inspections;
+  }
+
+  /**
+   * How many times the agent called a tool of a source, whatever its type and its result.
+   *
+   * @returns The count.
+   */
+  public calls(): number {
+    return this.called;
   }
 
   /** Keeps the texts of a result of a source, the oldest going once it holds too many characters. */

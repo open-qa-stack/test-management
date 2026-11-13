@@ -362,7 +362,7 @@ describe("criterion 2 — a plan holds four scenarios at most, and each gives on
     const { outcome, root, server } = await design([{ body: toolCalls(MODEL, [OPEN]) }, { body: toolCalls(MODEL, [four]) }, ...replies([...valid(3), ...write("cancel-order"), [after]])], { plan: false });
     assert.equal(outcome.tests.length, 4);
     assert.equal(specsOf(root).length, 4);
-    assert.match(told(server, "c-cancel-order"), /Scenario cancel-order closed: passed\.\nAll 4 scenarios are closed: 4 passed, 0 failing, 0 closed by the harness\.\nNext: answer with one sentence\. Call no more tools\./);
+    assert.match(told(server, "c-cancel-order"), /Scenario cancel-order closed: passed\.\nAll 4 scenarios are closed: 4 passed, 0 failing, 0 closed without a test\.\nNext: answer with one sentence\. Call no more tools\./);
     assert.match(toolResult(server, "late"), /Refused \(PLAN-DONE\): every scenario of the plan is closed\./);
   });
 });
@@ -620,6 +620,18 @@ describe("the sheet of a scenario", () => {
     assert.ok(sheet.endsWith("Next: do the steps of list-orders with the browser tools, fill its skeleton with the code they return, then call run_test."));
     assert.match(told(server, "c-list-orders"), /^Scenario list-orders closed: passed\.\n\nScenario 2 of 3: place-order — .*\nData: none\.\nFile: apps\/shop\/place-order\.spec\.ts/);
   });
+
+  it("runs as it is: its finding of a planned text anywhere on the page, which no screen may have shown, is not refused", async () => {
+    // The search for an invented value echoes it, which the agent did not see on a screen.
+    const invented = scenario("list-orders", "other", { data: [{ value: "zzqx", from: "made-up" }], steps: [{ action: "Search zzqx", expects: [{ result: "The search is echoed", shows: ["Orders", "zzqx"], absent: [] }] }] });
+    const plan = { ...PLAN, arguments: { scenarios: [invented, scenario("place-order"), scenario("follow-order")] } };
+    const sheetOf = (server: ScriptedServer) => told(server, "plan").slice(told(server, "plan").indexOf("import "), told(server, "plan").lastIndexOf("\nNext:"));
+    const first = await design([{ body: toolCalls(MODEL, [OPEN]) }, { body: toolCalls(MODEL, [plan]) }, { body: answer(MODEL, "Done.") }], { plan: false });
+    const skeletonText = sheetOf(first.server);
+    assert.match(skeletonText, /await expect\(page\.getByText\("zzqx"\)\)\.toBeVisible\(\);/);
+    const { server } = await design([{ body: toolCalls(MODEL, [OPEN]) }, { body: toolCalls(MODEL, [plan]) }, ...replies([[run(skeletonText, "r1")]])], { plan: false });
+    assert.match(told(server, "r1"), /^Run of the file: passed\./);
+  });
 });
 
 describe("loop, criterion 1 — a test that fails, then is fixed, is run twice and passes", () => {
@@ -688,7 +700,7 @@ describe("loop, criterion 4 — a failing test is kept with its diagnosis and th
     });
     assert.equal(readFileSync(join(root, "apps", "shop", "follow-order.spec.ts"), "utf8"), broken("follow-order"));
     assert.match(git(root, "log", "-1", "--format=%B", BRANCH), /- apps\/shop\/follow-order\.spec\.ts: failing \(application\)/);
-    assert.match(told(server, "c-follow-order"), /Scenario follow-order closed: failing \(application\), kept for a person to decide\.\nAll 3 scenarios are closed: 2 passed, 1 failing, 0 closed by the harness\./);
+    assert.match(told(server, "c-follow-order"), /Scenario follow-order closed: failing \(application\), kept for a person to decide\.\nAll 3 scenarios are closed: 2 passed, 1 failing, 0 closed without a test\./);
     const own = await design(replies([...valid(2), ...write("follow-order", broken("follow-order"), { cause: "plan", evidence: "The heading of the plan is wrong." })]));
     assert.equal(own.outcome.ok, false);
     assert.equal(own.outcome.tests.length, 3);
@@ -727,7 +739,7 @@ describe("the repair contract", () => {
     ];
     const { outcome, root, server } = await design(replies(turns), { runner });
     assert.match(told(server, "f1"), /\nThe application shows hidden where the plan expects visible\. The expected text stays\. .*\nFailed runs of list-orders: 1 of 3\.\nNext: look at the page at the failed step, fix the locator or the wait, then call run_test with the whole corrected file \(failed runs: 1 of 3\)\.$/);
-    assert.equal(told(server, "blind"), 'Refused (TEST-LOOK): look before you run again. Take shop_snapshot at the step that failed ("open the orders"), or read the logs since 2026-11-13T10:00:00.000Z.\nNothing else was refused.');
+    assert.equal(told(server, "blind"), 'Refused (TEST-LOOK): look before you run again. Take shop_snapshot at the step that failed ("open the orders").\nNothing else was refused.');
     assert.equal(told(server, "same"), "Refused (TEST-SAME): this text already failed, and nothing changed. Fix the locator or the wait the error names, or call propose_test with diagnosis.\nNothing else was refused.");
     assert.match(told(server, "early"), /^Refused \(PROPOSE-EARLY\): failed runs: 1 of 3\. Try a repair with run_test before giving up on the test itself\.\n/);
     assert.match(told(server, "f3"), /\nThe element is not on the screen at that step\. .*\nFailed runs of list-orders: 3 of 3\.\nNext: call propose_test with diagnosis\.$/);
@@ -774,16 +786,48 @@ describe("the repair contract", () => {
     ];
     const { outcome, root, server } = await design(replies(turns), { runner: runner as FakeTestRunner });
     assert.match(told(server, "cause"), /^Refused \(PROPOSE-CAUSE\): cause "application" does not fit: the run failed on other, before any check of the application\./);
-    assert.match(told(server, "blind"), /^Refused \(TEST-LOOK\): look before you run again\. Take shop_snapshot at the step that failed, or read the logs since /);
+    assert.match(told(server, "blind"), /^Refused \(TEST-LOOK\): look before you run again\. Take shop_snapshot at the step that failed\.\n/);
     const kept = stateOf(outcome).tests[0]!;
     assert.deepEqual([kept.runs, kept.quarantine], [[{}, { verdict: "failed", errorClass: "other" }, { verdict: "failed", errorClass: "other" }], { cause: "test", evidence: "The total cannot be read.", errorClass: "other" }]);
     assert.match(git(root, "log", "-1", "--format=%B", BRANCH), /- apps\/shop\/list-orders\.spec\.ts: failing \(test\)$/m);
   });
 
-  it("tells a look at an application without a user interface by its logs and its code", async () => {
+  it("tells a look at an application without a user interface by the tools of its sources, any of which counts", async () => {
     const ledger = { ...PLAN, arguments: { scenarios: IDS.map((id) => scenario(id, "other", { application: "ledger" })) } };
-    const { server } = await design(replies([[OPEN], [ledger], [run(broken("list-orders"), "f1")], [run(`${broken("list-orders")}// 2\n`, "blind")]]), { plan: false });
-    assert.equal(told(server, "blind"), 'Refused (TEST-LOOK): look before you run again. Read the logs since 2026-11-13T10:00:00.000Z, or the source code, at the step that failed ("open the orders").\nNothing else was refused.');
+    const contract: Call = { id: "contract", name: "ledger_api_list_operations", arguments: {} };
+    const turns = [[OPEN], [ledger], [run(broken("list-orders"), "f1")], [run(`${broken("list-orders")}// 2\n`, "blind")], [contract], [run(`${broken("list-orders")}// 3\n`, "f2")]];
+    const { server } = await design(replies(turns), { plan: false });
+    assert.equal(told(server, "blind"), 'Refused (TEST-LOOK): look before you run again. Read the source code with shop_code_list_files, at the step that failed ("open the orders").\nNothing else was refused.');
+    assert.match(told(server, "f2"), /^Run of the file: failed\./);
+  });
+
+  it("counts a call of any browser tool of the application as a look", async () => {
+    const console: Call = { id: "console", name: "shop_console", arguments: {} };
+    const { server } = await design(replies([[run(broken("list-orders"), "f1")], [console], [run(`${broken("list-orders")}// 2\n`, "f2")]]));
+    assert.match(told(server, "f2"), /^Run of the file: failed\./);
+  });
+
+  it("runs the calls of one turn one after the other, each seeing the run the previous recorded", async () => {
+    const runner = new FakeTestRunner();
+    const failing = (marker: string) => `${broken("list-orders")}// ${marker}\n`;
+    const { outcome, server } = await design(replies([[run(failing("1"), "f1")], [look("l1")], [run(failing("2"), "f2")], [look("l2")], [run(failing("3"), "t1"), run(failing("3"), "t2")]]), { runner });
+    assert.match(told(server, "t1"), /\nFailed runs of list-orders: 3 of 3\.\n/);
+    assert.match(told(server, "t2"), /^Refused \(TEST-STOP\): .*\nRefused \(TEST-SAME\): .*\nRefused \(TEST-LOOK\): /);
+    assert.equal(runner.runs.length, 3);
+    assert.match(messages(outcome), /\[TEST-SAME\] The test apps\/shop\/list-orders\.spec\.ts could not be run/);
+  });
+
+  it("keeps the last run that gave a verdict when the last of all gave none", async () => {
+    const runner: TestRunner = {
+      run: async (test) => (test.content.includes("OFFLINE") ? { startedAt: "2026-11-13T10:00:00.000Z", tests: [], error: "offline" } : new FakeTestRunner().run(test)),
+    };
+    const failing = (marker: string) => `${broken("list-orders")}// ${marker}\n`;
+    const turns = [[run(failing("1"), "f1")], [look("l1")], [run(failing("2"), "f2")], [look("l2")], [run(failing("OFFLINE"), "f3")], [close("kept", { cause: "application", evidence: "The heading never shows." })]];
+    const { outcome, root, server } = await design(replies(turns), { runner: runner as FakeTestRunner });
+    assert.match(told(server, "kept"), /^Scenario list-orders closed: failing \(application\), kept for a person to decide\./);
+    const kept = stateOf(outcome).tests[0]!;
+    assert.deepEqual([kept.runs.length, kept.quarantine?.cause, stateOf(outcome).unwritten], [3, "application", []]);
+    assert.equal(readFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "utf8"), failing("2"));
   });
 });
 
@@ -795,7 +839,8 @@ describe("refusals for the same reason", () => {
       [run(broken("list-orders"), "ran")],
       [look("l1")],
       ...["4", "5", "6", "7", "8"].map((marker) => [run(flat(marker), `s${marker}`)]),
-      ...valid(3).slice(2),
+      ...["1", "2", "3", "4", "5"].map((marker) => [run(flat(marker), `p${marker}`)]),
+      ...valid(3).slice(4),
     ];
     const { outcome, root, server } = await design(replies(turns));
     assert.match(told(server, "s2"), /^Refused \(TEST-STEPS\): .*\nRefused \(TEST-VALUE\): .*\nNothing else was refused\.$/);
@@ -805,10 +850,32 @@ describe("refusals for the same reason", () => {
     // A run starts the count again.
     assert.match(told(server, "s5"), /^Refused \(TEST-STEPS\): /);
     assert.match(told(server, "s7"), /^Fourth refusal for the same reason\. Do only this:\nimport /);
-    assert.match(told(server, "s8"), /^Scenario list-orders was closed by the harness after 5 refusals for TEST-STEPS\. Go on with the next scenario\.\n\nScenario 2 of 3: place-order/);
-    assert.match(told(server, "c-follow-order"), /All 3 scenarios are closed: 2 passed, 0 failing, 1 closed by the harness\./);
-    assert.match(messages(outcome), /The scenario list-orders was closed by the harness after 5 refusals for TEST-STEPS; it has no test\./);
-    assert.deepEqual([outcome.ok, specsOf(root), stateOf(outcome).unwritten], [false, ["apps/shop/follow-order.spec.ts", "apps/shop/place-order.spec.ts"], [{ scenario: "list-orders", code: "TEST-STEPS" }]]);
+    // The test that ran to a verdict before the refusals is kept as it ended.
+    assert.match(told(server, "s8"), /^Scenario list-orders was closed by the harness after 5 refusals for TEST-STEPS, with the test of its last run: failing \(test\), kept for a person to decide\. Go on with the next scenario\.\n\nScenario 2 of 3: place-order/);
+    assert.match(messages(outcome), /The scenario list-orders was closed by the harness after 5 refusals for TEST-STEPS; the test of its last run that gave a verdict is kept, failing \(test\), kept for a person to decide: apps\/shop\/list-orders\.spec\.ts\./);
+    // A scenario whose test never ran is closed without one.
+    assert.match(told(server, "p5"), /^Scenario place-order was closed by the harness after 5 refusals for TEST-STEPS\. Go on with the next scenario\.\n\nScenario 3 of 3: follow-order/);
+    assert.match(messages(outcome), /The scenario place-order was closed by the harness after 5 refusals for TEST-STEPS; it has no test\./);
+    assert.match(told(server, "c-follow-order"), /All 3 scenarios are closed: 1 passed, 1 failing, 1 closed without a test\./);
+    const state = stateOf(outcome);
+    assert.deepEqual([outcome.ok, specsOf(root), state.unwritten], [false, ["apps/shop/follow-order.spec.ts", "apps/shop/list-orders.spec.ts"], [{ scenario: "place-order", code: "TEST-STEPS" }]]);
+    assert.deepEqual([state.tests[0]!.closedBy, state.tests[0]!.quarantine], ["TEST-STEPS", { cause: "test", evidence: "closed by the harness after 5 refusals for TEST-STEPS", failedStep: "open the orders", errorClass: "assertion" }]);
+    assert.equal(readFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "utf8"), broken("list-orders"));
+  });
+
+  it("keep a failing test whose closing the agent kept asking for the wrong way, as failing, for the code refused", async () => {
+    const failing = (marker: string) => `${broken("list-orders")}// ${marker}\n`;
+    const runner = new StepRunner();
+    const runs = [[run(failing("1"), "f1")], [look("l1")], [run(failing("2"), "f2")], [look("l2")], [run(failing("3"), "f3")]];
+    const again = ["1", "2", "3", "4", "5"].map((marker) => [run(failing(`again ${marker}`), `a${marker}`)]);
+    const stopped = await design(replies([...runs, ...again]), { runner });
+    assert.match(told(stopped.server, "a5"), /^Scenario list-orders was closed by the harness after 5 refusals for TEST-STOP, with the test of its last run: failing \(test\), kept for a person to decide\./);
+    const kept = stateOf(stopped.outcome).tests[0]!;
+    assert.deepEqual([kept.verdict, kept.closedBy, kept.quarantine?.evidence, kept.runs.length, runner.runs.length], ["failed", "TEST-STOP", "closed by the harness after 5 refusals for TEST-STOP", 3, 3]);
+    const blamed = ["1", "2", "3", "4", "5"].map((marker) => [close(`b${marker}`, { cause: "application", evidence: "The search does nothing." })]);
+    const located = await design(replies([[run(`${failing("1")}// LOCATOR\n`, "f1")], ...blamed]), { runner: new StepRunner() });
+    assert.match(told(located.server, "b5"), /^Scenario list-orders was closed by the harness after 5 refusals for PROPOSE-CAUSE, with the test of its last run: failing \(test\)/);
+    assert.deepEqual(stateOf(located.outcome).tests.map((test) => [test.closedBy, test.quarantine?.errorClass]), [["PROPOSE-CAUSE", "locator"]]);
   });
 });
 

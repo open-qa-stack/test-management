@@ -44,6 +44,8 @@ export interface DesignedTest {
   readonly quarantine?: Quarantine;
   /** The references of its visual comparisons, written with it, relative to the root of the test repository. */
   readonly references?: readonly string[];
+  /** The code of the gate whose fifth refusal made the harness close its scenario, when it did. */
+  readonly closedBy?: string;
 }
 
 /** A scenario of the plan the harness closed without a test. */

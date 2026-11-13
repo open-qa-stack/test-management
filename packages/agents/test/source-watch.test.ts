@@ -48,12 +48,13 @@ describe("what the designer reads of the sources", () => {
     assert.deepEqual([watch.read("shop-db"), watch.shows("shop-db", "row-0-"), watch.shows("shop-db", "row-24-"), watch.last("shop-db", 100).length], [true, false, true, 20]);
   });
 
-  it("counts the calls of the tools of logs and of source code, as looks at what a run did", async () => {
+  it("counts the calls of the tools of logs and of source code, as looks at what a run did, the calls of every tool, and names the first tool of each source", async () => {
     const logs = tool("shop_logs_read_logs", ["started"]);
     const code = tool("shop_code_search", [{ error: "No match." }]);
     const section = tool("shop_read_section", ["# Orders"]);
     const watch = new SourceWatch(SOURCES, [logs, code, section], []);
     for (const watched of watch.tools()) await watched.execute({});
-    assert.deepEqual([watch.looks(), logs.calls, code.calls, section.calls], [2, 1, 1, 1]);
+    assert.deepEqual([watch.looks(), watch.calls(), logs.calls, code.calls, section.calls], [2, 3, 1, 1, 1]);
+    assert.deepEqual([watch.firstTools(), watch.firstTools("logs"), watch.firstTools("openapi")], [["shop_read_section", "shop_logs_read_logs", "shop_code_search"], ["shop_logs_read_logs"], []]);
   });
 });

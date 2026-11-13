@@ -3,7 +3,7 @@ import { join, posix } from "node:path";
 import type { PlannedScenario, TestPlan, ToolDefinition } from "@open-qa-stack/domain";
 import { moduleSyntax, redactText, scopedToolName, secretForms, type SpecLocator } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
-import { DesignCursor, MAX_FAILED_RUNS } from "./design-cursor.ts";
+import { DesignCursor, MAX_FAILED_RUNS, type ScenarioRun } from "./design-cursor.ts";
 import { errorClass, failureHint } from "./run-failure.ts";
 import type { DesignedTest, FailureCause, Quarantine, UnwrittenScenario } from "./design-state.ts";
 import { PLAN_TOOL } from "./plan-proposal.ts";
@@ -12,6 +12,7 @@ import { GUIDED_REFUSALS, MAX_REFUSALS, RefusalStreak } from "./refusal-streak.t
 import { scenarioErrors } from "./scenario-gates.ts";
 import { scenarioSheet, skeleton } from "./scenario-sheet.ts";
 import type { ScreenWatch } from "./screen-watch.ts";
+import type { SourceWatch } from "./source-watch.ts";
 import type { TestCheck, TestFinding, TestReference, TestRunner, TestTrial, Verdict } from "@open-qa-stack/domain";
 import { addressErrors, fileErrors, heldVariables, importErrors, secretValueErrors, type DeclaredSecret } from "./spec-rules.ts";
 
@@ -54,8 +55,8 @@ export interface ProposalRules {
   readonly screens: ScreenWatch;
   /** Whether each step of a test ends with a screenshot attached to the report, as the charter may ask. */
   readonly screenshots: boolean;
-  /** How many times the agent has looked at an application so far: its screens, the logs or the source code. */
-  readonly looks: (application: string) => number;
+  /** What the agent read of the knowledge sources, which may be a look at what a failed run did. */
+  readonly reads: SourceWatch;
 }
 
 /** What the agent says of a test whose last run failed. */
@@ -69,15 +70,26 @@ interface Diagnosis {
  *
  * @remarks
  * Once the plan is accepted, a cursor opens its first scenario and names the file of its test. `run_test`
- * takes the whole text of that file, checks it, and runs it against the application: a text is refused,
- * with every reason of the first tier that refuses it and its code, when it does not parse as TypeScript,
- * imports anything but the packages of the test repository or a relative path inside it, imports another
- * test, writes a file, holds an address of the configuration or the value of a declared variable; then when
- * it uses a locator no screen showed; then when the check given finds something. `propose_test` closes the
- * scenario open with the text of its last run, which must have run to a verdict: passed, it is kept as
- * passed; failed, it is kept unchanged, as failing, with the cause and the evidence the agent gives. The
- * verdict is the harness's, never the agent's. Every refusal is journaled with its code and told to the
- * agent, every declared value masked.
+ * takes the whole text of that file, checks it, and runs it against the application. A text is refused,
+ * with every reason of the first tier that refuses it and its code:
+ *
+ * 1. the repair: the scenario already failed three runs, this very text already failed, or the agent did
+ *    not look at the application since the last failed run;
+ * 2. the text: it does not parse as TypeScript, imports anything but the packages of the test repository or
+ *    a relative path inside it, imports another test, writes a file, holds an address of the configuration
+ *    or the value of a declared variable;
+ * 3. the scenario: not one test, not the steps of the plan, a planned text not asserted or asserted the
+ *    other way round, an assertion that can only pass, a value typed that is none of the data, a locator no
+ *    screen showed;
+ * 4. the check given, when it finds something.
+ *
+ * `propose_test` closes the scenario open with the text of its last run that gave a verdict: passed, it is
+ * kept as passed; failed, it is kept unchanged, as failing, with the cause and the evidence the agent gives.
+ * The verdict is the harness's, never the agent's. The calls run one at a time, each seeing the runs the
+ * previous recorded. Every refusal is journaled with its code and told to the agent, every declared value
+ * masked. From the third refusal of one reason since the test last ran, the agent is told only what the
+ * gate would accept; the fifth closes the scenario: with the text of its last run that gave a verdict,
+ * kept as it ended, a failing one with the cause `test`, or without a test when none did.
  */
 export class TestProposals {
   private readonly rules: ProposalRules;
@@ -91,6 +103,8 @@ export class TestProposals {
   private readonly streak = new RefusalStreak();
   /** The references a run made, by the text that ran. */
   private readonly references = new Map<string, readonly TestReference[]>();
+  /** The calls that run or close a test, one after the other. */
+  private queue: Promise<unknown> = Promise.resolve();
 
   /**
    * @param rules - What the tests are checked against.
@@ -146,7 +160,7 @@ export class TestProposals {
         required: ["content"],
         additionalProperties: false,
       },
-      execute: async (args) => this.tryTest((args as { content: string }).content),
+      execute: async (args) => this.serial(() => this.tryTest((args as { content: string }).content)),
     };
   }
 
@@ -178,7 +192,7 @@ export class TestProposals {
         },
         additionalProperties: false,
       },
-      execute: async (args) => this.propose((args as { diagnosis?: Diagnosis }).diagnosis),
+      execute: async (args) => this.serial(async () => this.propose((args as { diagnosis?: Diagnosis }).diagnosis)),
     };
   }
 
@@ -198,6 +212,19 @@ export class TestProposals {
     return `You stopped before the end. ${where}: ${state}.\n${cursor!.next()}`;
   }
 
+  /** Runs a call once the calls before it are done, whatever they gave. */
+  private serial<T>(call: () => Promise<T>): Promise<T> {
+    const done = this.queue.then(call);
+    this.queue = done.catch(() => undefined);
+    return done;
+  }
+
+  /** How many times the agent looked at an application: its screens and the logs or the code, or any source when it has no screens. */
+  private looks(application: string): number {
+    const { screens, reads } = this.rules;
+    return screens.watches(application) ? screens.looks(application) + reads.looks() : reads.calls();
+  }
+
   /** Checks the test of the scenario open, runs it, and tells the agent what the run gave. */
   private async tryTest(content: string): Promise<string | { error: string }> {
     const open = this.open();
@@ -208,7 +235,7 @@ export class TestProposals {
     if (repair.length > 0) return this.refuse(what, repair);
     const refusals = await this.checked(scenario, path, content);
     if (refusals.length > 0) return this.refuse(what, refusals);
-    const looks = this.rules.looks(scenario.application);
+    const looks = this.looks(scenario.application);
     const trial = await this.rules.runner.run({ path, content });
     this.streak.reset();
     if (trial.error !== undefined) {
@@ -237,12 +264,25 @@ export class TestProposals {
       refusals.push({ code: "TEST-SAME", message: `this text already failed, and nothing changed. Fix the locator or the wait the error names, or call ${PROPOSE_TOOL} with diagnosis.` });
     }
     const last = cursor.runs.at(-1);
-    if (last !== undefined && last.verdict !== "passed" && this.rules.looks(scenario.application) === last.looks) {
-      const step = last.failedStep === undefined ? "" : ` (${JSON.stringify(last.failedStep)})`;
-      const look = this.rules.screens.watches(scenario.application) ? `Take ${scopedToolName(scenario.application, "snapshot")} at the step that failed${step}, or read the logs since ${last.startedAt}.` : `Read the logs since ${last.startedAt}, or the source code, at the step that failed${step}.`;
-      refusals.push({ code: "TEST-LOOK", message: `look before you run again. ${look}` });
+    if (last !== undefined && last.verdict !== "passed" && this.looks(scenario.application) === last.looks) {
+      const look = this.lookAdvice(scenario, last);
+      if (look !== undefined) refusals.push({ code: "TEST-LOOK", message: `look before you run again. ${look}` });
     }
     return refusals;
+  }
+
+  /** How to look at what a failed run did, with the tools the agent has; none when it has no tool to look with. */
+  private lookAdvice(scenario: PlannedScenario, last: ScenarioRun): string | undefined {
+    const { screens, reads } = this.rules;
+    const step = last.failedStep === undefined ? "" : ` (${JSON.stringify(last.failedStep)})`;
+    const logs = reads.firstTools("logs").map((tool) => `read the logs since ${last.startedAt} with ${tool}`);
+    if (screens.watches(scenario.application)) return [`Take ${scopedToolName(scenario.application, "snapshot")} at the step that failed${step}`, ...logs].join(", or ") + ".";
+    const inspections = [...logs, ...reads.firstTools("source-code").map((tool) => `read the source code with ${tool}`)];
+    if (inspections.length > 0) return `${capitalised(inspections.join(", or "))}, at the step that failed${step}.`;
+    // Without screens, logs nor code, what a source holds is all there is to check the run against.
+    const cited = [...new Set(scenario.sources.flatMap(({ source }) => reads.firstTool(source) ?? []))];
+    const tools = cited.length === 0 ? reads.firstTools() : cited;
+    return tools.length === 0 ? undefined : `Read what a source tells of the step that failed${step}, with ${tools.join(" or ")}.`;
   }
 
   /** The line that counts the failed runs of a scenario. */
@@ -250,40 +290,54 @@ export class TestProposals {
     return `Failed runs of ${scenario.id}: ${cursor.failedRuns} of ${MAX_FAILED_RUNS}.`;
   }
 
-  /** Closes the scenario open with the text of its last run. */
+  /** Closes the scenario open with the text of its last run that gave a verdict. */
   private propose(diagnosis: Diagnosis | undefined): string | { error: string } {
     const open = this.open();
     if ("error" in open) return open;
-    const { cursor, scenario, path } = open;
-    const runs = cursor.runs;
-    const last = runs.at(-1);
+    const { cursor, scenario } = open;
+    const last = cursor.runs.at(-1);
     const what = `The scenario ${scenario.id} could not be closed`;
     const left = cursor.failedRuns < MAX_FAILED_RUNS;
     if (last === undefined) return this.refuse(what, [{ code: "PROPOSE-RUN", message: `scenario ${scenario.id} has not run. Call ${RUN_TOOL} first.` }]);
-    if (last.verdict !== "passed" && last.verdict !== "failed") {
-      if (left) return this.refuse(what, [{ code: "PROPOSE-RUN", message: `scenario ${scenario.id} has not run to a verdict. Call ${RUN_TOOL} first.` }]);
+    if (!judged(last) && left) return this.refuse(what, [{ code: "PROPOSE-RUN", message: `scenario ${scenario.id} has not run to a verdict. Call ${RUN_TOOL} first.` }]);
+    const ended = cursor.runs.findLast(judged);
+    if (ended === undefined) {
       this.closed.push({ scenario: scenario.id, code: "TEST-STOP" });
       this.journal.record("error", `The scenario ${scenario.id} was closed without a test: none of its ${MAX_FAILED_RUNS} runs gave a verdict.`);
       return this.next(cursor, `Scenario ${scenario.id} closed without a test: none of its runs gave a verdict.`);
     }
     let quarantine: Quarantine | undefined;
-    if (last.verdict === "failed") {
+    if (ended.verdict === "failed") {
       if (diagnosis === undefined) return this.refuse(what, [{ code: "PROPOSE-DIAG", message: `the last run of scenario ${scenario.id} failed. Repair it with ${RUN_TOOL} (failed runs: ${cursor.failedRuns} of ${MAX_FAILED_RUNS}), or give diagnosis: the cause and what the run showed.` }]);
       const refusals: Refusal[] = [];
       if (diagnosis.cause === "test" && left) refusals.push({ code: "PROPOSE-EARLY", message: `failed runs: ${cursor.failedRuns} of ${MAX_FAILED_RUNS}. Try a repair with ${RUN_TOOL} before giving up on the test itself.` });
-      if (diagnosis.cause !== "test" && last.errorClass !== "assertion") {
-        const step = last.failedStep === undefined ? "" : ` at step ${JSON.stringify(last.failedStep)}`;
-        refusals.push({ code: "PROPOSE-CAUSE", message: `cause "${diagnosis.cause}" does not fit: the run failed on ${last.errorClass}${step}, before any check of the application. Fix the locator, or give cause "test".` });
+      if (diagnosis.cause !== "test" && ended.errorClass !== "assertion") {
+        const step = ended.failedStep === undefined ? "" : ` at step ${JSON.stringify(ended.failedStep)}`;
+        refusals.push({ code: "PROPOSE-CAUSE", message: `cause "${diagnosis.cause}" does not fit: the run failed on ${ended.errorClass}${step}, before any check of the application. Fix the locator, or give cause "test".` });
       }
       refusals.push(...heldVariables(diagnosis.evidence, this.rules.secrets).map((variable) => ({ code: "PROPOSE-SECRET", message: `the diagnosis holds the value of ${variable}. Leave it out; a test reads it with process.env.${variable}.` })));
       if (refusals.length > 0) return this.refuse(what, refusals);
-      quarantine = { cause: diagnosis.cause, evidence: diagnosis.evidence, ...(last.failedStep === undefined ? {} : { failedStep: last.failedStep }), errorClass: last.errorClass! };
+      quarantine = quarantineOf(diagnosis.cause, diagnosis.evidence, ended);
     }
-    const kept = runs.map(({ verdict, errorClass: stopped, failedStep }) => ({ ...(verdict === undefined ? {} : { verdict }), ...(stopped === undefined ? {} : { errorClass: stopped }), ...(failedStep === undefined ? {} : { failedStep }) }));
-    this.kept.push({ path, scenario: scenario.id, verdict: last.verdict, runs: kept, ...(quarantine === undefined ? {} : { quarantine }), content: last.content, references: this.references.get(last.content)! });
-    const outcome = quarantine === undefined ? "passed" : `failing (${quarantine.cause}), kept for a person to decide`;
-    this.journal.record("info", `The scenario ${scenario.id} was closed: ${outcome}; its test is ${path}.`);
+    const outcome = this.keep(open, ended, quarantine);
+    this.journal.record("info", `The scenario ${scenario.id} was closed: ${outcome}; its test is ${open.path}.`);
     return this.next(cursor, `Scenario ${scenario.id} closed: ${outcome}.`);
+  }
+
+  /** Keeps the test of the scenario open with the text of one of its runs, and says how it ended. */
+  private keep(open: { readonly cursor: DesignCursor; readonly scenario: PlannedScenario; readonly path: string }, run: ScenarioRun, quarantine: Quarantine | undefined, closedBy?: string): string {
+    const runs = open.cursor.runs.map(({ verdict, errorClass: stopped, failedStep }) => ({ ...(verdict === undefined ? {} : { verdict }), ...(stopped === undefined ? {} : { errorClass: stopped }), ...(failedStep === undefined ? {} : { failedStep }) }));
+    this.kept.push({
+      path: open.path,
+      scenario: open.scenario.id,
+      verdict: run.verdict!,
+      runs,
+      ...(quarantine === undefined ? {} : { quarantine }),
+      ...(closedBy === undefined ? {} : { closedBy }),
+      content: run.content,
+      references: this.references.get(run.content)!,
+    });
+    return quarantine === undefined ? "passed" : `failing (${quarantine.cause}), kept for a person to decide`;
   }
 
   /** Closes the scenario open, and tells the agent so, then the sheet of the next one or how the scenarios ended. */
@@ -292,7 +346,7 @@ export class TestProposals {
     this.streak.reset();
     if (cursor.scenario !== undefined) return `${closed}\n\n${this.opened(cursor)}`;
     const failing = this.kept.filter((test) => test.verdict !== "passed").length;
-    return `${closed}\nAll ${cursor.plan.scenarios.length} scenarios are closed: ${this.kept.length - failing} passed, ${failing} failing, ${this.closed.length} closed by the harness.\n${cursor.next()}`;
+    return `${closed}\nAll ${cursor.plan.scenarios.length} scenarios are closed: ${this.kept.length - failing} passed, ${failing} failing, ${this.closed.length} closed without a test.\n${cursor.next()}`;
   }
 
   /** The scenario open and the file of its test, or why there is none. */
@@ -333,7 +387,9 @@ export class TestProposals {
     ];
     if (written.length > 0) return written;
     const { outline } = syntax;
-    const unseen = screens.unseen(scenario.application, outline.locators);
+    // The skeleton finds each planned text anywhere on the page, which the gates of the plan vouched for.
+    const texts = new Set(scenario.steps.flatMap((step) => step.expects.flatMap((expect) => [...expect.shows, ...expect.absent])));
+    const unseen = screens.unseen(scenario.application, outline.locators.filter((locator) => !(locator.code.startsWith("getByText(") && texts.has(locator.text!))));
     const located = unseen.length === 0 ? [] : [this.unseenRefusal(scenario.application, unseen)];
     const help = { skeleton: skeleton(scenario, this.rules.screenshots), locatorOf: (text: string) => screens.locatorOf(scenario.application, text) };
     const planned = [...scenarioErrors(outline, scenario, help), ...located];
@@ -351,7 +407,8 @@ export class TestProposals {
 
   /**
    * Refuses a call about the scenario open, and counts it: from the third refusal of one reason the agent
-   * is told only what the gate would accept, and the fifth closes the scenario without a test.
+   * is told only what the gate would accept, and the fifth closes the scenario, with the test of its last
+   * run that gave a verdict, or without a test when none did.
    */
   private refuse(what: string, refusals: readonly Refusal[]): string | { error: string } {
     const masked = maskedRefusals(refusals, (text) => this.mask(text));
@@ -360,10 +417,18 @@ export class TestProposals {
     const { code, times } = this.streak.repeated(masked);
     if (times < GUIDED_REFUSALS) return { error: refusalText(masked) };
     if (times < MAX_REFUSALS) return { error: repeatedText(code, times, masked) };
-    const scenario = this.cursor!.scenario!.id;
-    this.closed.push({ scenario, code });
-    this.journal.record("error", `The scenario ${scenario} was closed by the harness after ${MAX_REFUSALS} refusals for ${code}; it has no test.`);
-    return this.next(this.cursor!, `Scenario ${scenario} was closed by the harness after ${MAX_REFUSALS} refusals for ${code}. Go on with the next scenario.`);
+    const open = { cursor: this.cursor!, scenario: this.cursor!.scenario!, path: this.cursor!.path! };
+    const closing = `closed by the harness after ${MAX_REFUSALS} refusals for ${code}`;
+    const ended = open.cursor.runs.findLast(judged);
+    if (ended === undefined) {
+      this.closed.push({ scenario: open.scenario.id, code });
+      this.journal.record("error", `The scenario ${open.scenario.id} was ${closing}; it has no test.`);
+      return this.next(open.cursor, `Scenario ${open.scenario.id} was ${closing}. Go on with the next scenario.`);
+    }
+    // A test that ran to a verdict is kept as it ended: the refusals came after it.
+    const outcome = this.keep(open, ended, ended.verdict === "passed" ? undefined : quarantineOf("test", closing, ended), code);
+    this.journal.record("error", `The scenario ${open.scenario.id} was ${closing}; the test of its last run that gave a verdict is kept, ${outcome}: ${open.path}.`);
+    return this.next(open.cursor, `Scenario ${open.scenario.id} was ${closing}, with the test of its last run: ${outcome}. Go on with the next scenario.`);
   }
 
   /** What a trial gave, for the agent, every declared value masked before the error is cut. */
@@ -375,6 +440,21 @@ export class TestProposals {
   private mask(text: string): string {
     return redactText(text, this.forms);
   }
+}
+
+/** Whether a run gave a verdict: it passed or failed. */
+function judged(run: ScenarioRun): boolean {
+  return run.verdict === "passed" || run.verdict === "failed";
+}
+
+/** Why a test is kept failing: the cause and the evidence, with where and on what its run failed. */
+function quarantineOf(cause: FailureCause, evidence: string, run: ScenarioRun): Quarantine {
+  return { cause, evidence, ...(run.failedStep === undefined ? {} : { failedStep: run.failedStep }), errorClass: run.errorClass! };
+}
+
+/** A text with its first letter in upper case. */
+function capitalised(text: string): string {
+  return `${text[0]!.toUpperCase()}${text.slice(1)}`;
 }
 
 /** A finding of the check, in one sentence the agent can act on: where, what, the rule or the code, and the example of the rule. */

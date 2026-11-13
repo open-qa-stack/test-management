@@ -253,8 +253,8 @@ export class PlanProposal {
     const secrets = heldVariables(text, this.rules.secrets).map((variable) => ({ code: "PLAN-SECRET", message: `the plan holds the value of ${variable}. Leave it out; a test reads it with process.env.${variable}.` }));
     const functional = plan.scenarios.filter((scenario) => scenario.kind === "functional");
     const negative =
-      functional.length >= 2 && !plan.scenarios.some((scenario) => scenario.case === "negative")
-        ? [{ code: "PLAN-NEGATIVE", message: 'no scenario is negative. One must verify what the application answers when the input matches nothing, is wrong or is forbidden; set its case to "negative".' }]
+      functional.length >= 2 && !functional.some((scenario) => scenario.case === "negative")
+        ? [{ code: "PLAN-NEGATIVE", message: 'no functional scenario is negative. One must verify what the application answers when the input matches nothing, is wrong or is forbidden; set its case to "negative".' }]
         : [];
     return [...repeated, ...secrets, ...negative, ...functional.flatMap((scenario) => this.expectErrors(scenario)), ...plan.scenarios.flatMap((scenario) => this.readErrors(scenario))];
   }
@@ -271,11 +271,12 @@ export class PlanProposal {
     const unshown = scenario.data.filter((entry) => entry.from !== MADE_UP && checkable(entry.value) && !showed(entry.from, entry.value)).map((entry) => this.dataRefusal(entry.value, entry.from, tool(entry.from)!));
     const values = scenario.data.map((entry) => entry.value);
     const madeUp = scenario.data.filter((entry) => entry.from === MADE_UP).map((entry) => entry.value);
-    const gone = (text: string) => (screens.watches(scenario.application) ? screens.shows(scenario.application, text) : anywhere(text)) || observed(text, values);
+    // A test finds a text on the screens of its application, as they give it; a base may give it otherwise.
+    const seen = (text: string) => (screens.watches(scenario.application) ? screens.shows(scenario.application, text) : anywhere(text));
     const texts = scenario.steps.flatMap((step, at) =>
-      step.expects.flatMap((expect, k) => [...expect.shows.filter((text) => !anywhere(text) && !observed(text, madeUp)), ...expect.absent.filter((text) => !gone(text))].filter(checkable).map((text) => ({ number: `${at + 1}.${k + 1}`, text }))),
+      step.expects.flatMap((expect, k) => [...expect.shows.filter((text) => !seen(text) && !observed(text, madeUp)), ...expect.absent.filter((text) => !seen(text) && !observed(text, values))].filter(checkable).map((text) => ({ number: `${at + 1}.${k + 1}`, text }))),
     );
-    const unseen = texts.map(({ number, text }) => ({ code: "PLAN-SHOWN", message: `scenario ${scenario.id}, expect ${number}, names "${text}", which nothing you read or saw in this session showed. Do the step with the browser tools and copy the text as the screen gives it.` }));
+    const unseen = texts.map(({ number, text }) => ({ code: "PLAN-SHOWN", message: `scenario ${scenario.id}, expect ${number}, names "${text}", which ${screens.watches(scenario.application) ? `no screen of ${scenario.application} showed in this session. Do the step with the browser tools and copy the text as the screen gives it.` : "nothing you read in this session showed. Copy the text as a tool of a source gives it."}` }));
     return [...unread, ...unshown, ...unseen];
   }
 

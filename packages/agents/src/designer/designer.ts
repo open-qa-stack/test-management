@@ -155,8 +155,7 @@ export class Designer {
         packages,
         screens,
         screenshots: this.options.screenshots ?? false,
-        // Reading the logs or the source code is looking at what a failed run did, as a snapshot is.
-        looks: (application) => screens.looks(application) + reads.looks(),
+        reads,
       },
       journal,
     );

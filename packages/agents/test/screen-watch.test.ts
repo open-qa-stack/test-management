@@ -57,13 +57,18 @@ const run = (watch: ScreenWatch, action: string) => watch.tools().find((tool) =>
 describe("the screens the designer watches", () => {
   it("returns the page when it is opened, and what appeared after an action, the references of the elements aside", async () => {
     const { tools, calls } = page([LIST, LIST, FOUND]);
-    const watch = new ScreenWatch(["shop", "ledger"], tools);
+    // A tool of an application without a snapshot is given as it is.
+    const unwatched: ToolDefinition = { name: "ledger_network", description: "network", parameters: { type: "object" }, execute: async () => [] };
+    const watch = new ScreenWatch(["shop", "ledger"], [...tools, unwatched]);
+    assert.equal(watch.tools().at(-1), unwatched);
     assert.deepEqual(await run(watch, "goto"), { url: "http://127.0.0.1/orders", title: "Orders", page: SHOWN, truncated: false });
     assert.deepEqual(await run(watch, "click"), { url: "http://127.0.0.1/orders", title: "Orders", appeared: '- paragraph: Order 42 of Ada\n- row:\n- cell "Ada Lovelace"', gone: "Nothing went from the page." });
     assert.equal(((await run(watch, "snapshot")) as { page: string }).page.split("\n")[0], SHOWN.split("\n")[0]);
     assert.deepEqual(calls, ["goto", "snapshot", "click", "snapshot", "snapshot"]);
-    assert.deepEqual(watch.tools().map((tool) => tool.name), tools.map((tool) => tool.name));
+    assert.deepEqual(watch.tools().map((tool) => tool.name), [...tools, unwatched].map((tool) => tool.name));
     assert.equal(await run(watch, "network").then((result) => JSON.stringify(result)), "[]");
+    // Every browser tool of the application is a look at it, whether the watch adds to its result or not.
+    assert.deepEqual([watch.looks("shop"), watch.looks("ledger")], [4, 0]);
   });
 
   it("says when an action made nothing appear, and what went", async () => {

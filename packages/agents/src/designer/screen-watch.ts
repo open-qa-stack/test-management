@@ -1,5 +1,6 @@
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import { scopedToolName, type SpecLocator } from "@open-qa-stack/tools";
+import { toolsBySource } from "./index-map.ts";
 import { checkable, observed } from "./observed.ts";
 
 /** The browser tools that change the page of an application. */
@@ -23,7 +24,7 @@ interface Seen {
   readonly removed: Set<string>;
   /** The lines of the last snapshot of the whole page. */
   last: Set<string> | undefined;
-  /** How many times the agent opened a page, took a snapshot or acted. */
+  /** How many times the agent called one of the browser tools of the application. */
   looks: number;
 }
 
@@ -50,6 +51,7 @@ export class ScreenWatch {
    */
   public constructor(applications: readonly string[], tools: readonly ToolDefinition[]) {
     const byName = new Map(tools.map((tool) => [tool.name, tool]));
+    const byApplication = toolsBySource([...byName.keys()], applications);
     const owned = new Map<string, ToolDefinition>();
     for (const application of applications) {
       const snapshot = byName.get(scopedToolName(application, "snapshot"));
@@ -97,6 +99,7 @@ export class ScreenWatch {
           };
         }, "Returns what appeared, what went, and the line of code that does the same in a test.");
       }
+      for (const name of byApplication.get(application)!.filter((name) => !owned.has(name))) wrap(name.slice(scopedToolName(application, "").length), (tool, args) => tool.execute(args));
     }
     this.watched = tools.map((tool) => owned.get(tool.name) ?? tool);
   }
@@ -121,8 +124,7 @@ export class ScreenWatch {
   }
 
   /**
-   * How many times the agent looked at the screens of an application: opened a page, took a snapshot or
-   * acted on one.
+   * How many times the agent looked at the screens of an application: called any of its browser tools.
    *
    * @param application - Identifier of the application.
    * @returns The count; none for an application without a user interface.
