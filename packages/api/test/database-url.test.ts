@@ -19,7 +19,7 @@ describe("a database URL", () => {
 
   it("never prints itself, as a string, as JSON or when inspected", () => {
     const url = parsed(RAW);
-    for (const shown of [String(url), `${url}`, JSON.stringify({ url }), inspect(url), inspect({ url }, { depth: 5, showHidden: true })]) {
+    for (const shown of [String(url), JSON.stringify({ url }), inspect(url), inspect({ url }, { depth: 5, showHidden: true })]) {
       assert.ok(!shown.includes(PASSWORD) && !shown.includes(encodeURIComponent(PASSWORD)) && !shown.includes(RAW), shown);
     }
     assert.equal(String(url), "[redacted database URL]");

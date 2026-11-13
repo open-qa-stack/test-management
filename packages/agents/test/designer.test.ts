@@ -746,7 +746,7 @@ describe("the sheet of a scenario", () => {
     const sheet = told(server, "plan");
     assert.ok(
       sheet.startsWith(
-        'The plan was accepted.\n\nScenario 1 of 3: list-orders — The list-orders scenario (other, negative), application shop.\nData: "Ada" (shop); "zzqx" (made-up).\nFile: apps/shop/list-orders.spec.ts\n\nimport { expect, test } from "@playwright/test";\n\ntest("The list-orders scenario", async ({ page }) => {\n  await test.step("1. Open the orders", async () => {\n    // Do: Open the orders. Copy the code lines the browser tools returned.\n    // Expect 1.1: The orders show.\n    await expect(page.getByText(\"Orders\")).toBeVisible();\n  });\n});\n',
+        'The plan was accepted.\n\nScenario 1 of 3: list-orders — The list-orders scenario (other, negative), application shop.\nData: "Ada" (shop); "zzqx" (made-up).\nFile: apps/shop/list-orders.spec.ts\n\nimport { expect, test } from "@playwright/test";\n\ntest("The list-orders scenario", async ({ page }) => {\n  await test.step("1. Open the orders", async () => {\n    // Do: Open the orders. Copy the code lines the browser tools returned.\n    // Expect 1.1: The orders show.\n    await expect(page.getByText("Orders")).toBeVisible();\n  });\n});\n',
       ),
       sheet,
     );

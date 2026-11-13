@@ -10,7 +10,7 @@
   "scripts": {
     "typecheck": "pnpm -r typecheck && tsc -p lint/tsconfig.json",
     "build": "pnpm -r build",
-    "lint": "oxlint --deny-warnings",
+    "lint": "oxlint --type-aware --deny-warnings",
     "test": "pnpm -r test && pnpm -s test:lint-rules",
     "test:lint-rules": "node --test --experimental-test-coverage --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 --test-coverage-include='lint/*.ts' 'lint/test/**/*.test.ts'",
     "format": "prettier --write .",
@@ -19,6 +19,7 @@
   "devDependencies": {
     "@types/node": "22.20.5",
     "oxlint": "1.93.0",
+    "oxlint-tsgolint": "7.0.2007",
     "prettier": "3.10.1",
     "typescript": "7.0.2"
   }

@@ -106,6 +106,13 @@ const map = new IndexMap(
 const [find, entry] = map.toolset() as [ToolDefinition, ToolDefinition];
 const call = (definition: ToolDefinition, args: unknown) => definition.execute(args) as Promise<string | { error: string }>;
 
+/** Calls a tool that must answer with a text, and fails on the error it gives instead. */
+async function answer(definition: ToolDefinition, args: unknown): Promise<string> {
+  const result = await call(definition, args);
+  if (typeof result !== "string") assert.fail(result.error);
+  return result;
+}
+
 describe("the index as a map", () => {
   it("lists the domains in one line each", () => {
     assert.deepEqual(map.domains(), [
@@ -132,15 +139,15 @@ describe("the index as a map", () => {
   });
 
   it("matches a short word only whole, puts first what echoes most, and says when nothing echoes", async () => {
-    assert.match(String(await call(find, { words: "cus" })), /^Nothing of the index echoes "cus"\. Try other words/);
-    assert.match(String(await call(find, { words: "an" })), /^Domains:\n- orders \(Orders\): Placing an order\./);
+    assert.match(await answer(find, { words: "cus" }), /^Nothing of the index echoes "cus"\. Try other words/);
+    assert.match(await answer(find, { words: "an" }), /^Domains:\n- orders \(Orders\): Placing an order\./);
     // The archive echoes two words, the guide one: the archive comes first, though the index places it last.
     assert.match(
-      String(await call(find, { words: "old client files" })),
+      await answer(find, { words: "old client files" }),
       /^Elements:\n- archive: Old customer files \(section\)\n- guide: Recherche d'un client \(section\)\n/,
     );
     assert.equal(await call(find, { words: "a !" }), "Give at least one word of two letters or more.");
-    assert.match(String(await call(find, { words: "orders" })), /^Domains:\n- orders \(Orders\): Placing an order\.\nElements:\n- shop: \/orders \(screen\)\n/);
+    assert.match(await answer(find, { words: "orders" }), /^Domains:\n- orders \(Orders\): Placing an order\.\nElements:\n- shop: \/orders \(screen\)\n/);
   });
 
   it("gives a domain with each of its sources and the tools of each, the longest prefix owning a tool", async () => {
@@ -158,7 +165,7 @@ describe("the index as a map", () => {
 
   it("gives an element with its domains, or none for one the index left unassigned, and a source no tool reads", async () => {
     assert.match(
-      String(await call(entry, { source: "shop-api", item: "customers" })),
+      await answer(entry, { source: "shop-api", item: "customers" }),
       /\noperations: GET \/customers, GET \/customers\/\{id\}\nDomains: customers, orders\.$/,
     );
     assert.equal(
@@ -207,7 +214,7 @@ describe("the index as a map", () => {
       unassigned: [],
     };
     const [, wideEntry] = new IndexMap(wide, new Map(), [], ["shop"]).toolset() as [ToolDefinition, ToolDefinition];
-    const lines = String(await call(wideEntry, { domain: "pages" })).split("\n");
+    const lines = (await answer(wideEntry, { domain: "pages" })).split("\n");
     assert.equal(lines.length, 60);
     assert.equal(lines.at(-1), "13 more lines; ask index_entry for one element at a time.");
   });

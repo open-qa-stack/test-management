@@ -1,8 +1,18 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "categories": { "correctness": "off" },
   "jsPlugins": ["./lint/plugin.ts"],
   "ignorePatterns": ["**/dist/**", "**/test/fixtures/**"],
+  "rules": {
+    "no-control-regex": "off",
+    "no-unused-vars": ["warn", { "ignoreRestSiblings": true }],
+    "typescript/no-explicit-any": "error",
+    "typescript/no-floating-promises": [
+      "error",
+      {
+        "allowForKnownSafeCalls": [{ "from": "package", "package": "node:test", "name": ["describe", "it", "suite", "test"] }]
+      }
+    ]
+  },
   "overrides": [
     {
       "files": ["packages/api/src/**", "packages/api/test/**"],

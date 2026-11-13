@@ -8,6 +8,7 @@ import net from "node:net";
 
 import { MODEL_SERVER_PORT, NetworkAccessError } from "./network-access-error.ts";
 const LOOPBACK = new Set(["127.0.0.1", "::1", "localhost"]);
+// oxlint-disable-next-line typescript/unbound-method -- the original method, applied to each socket the guard lets through
 const connect = net.Socket.prototype.connect;
 
 function target(args: unknown[]): { host: string; port: number } {
