@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
+import { Agent, fetch, type Response } from "undici";
 import { canonicalRequest, describeRequest, type CanonicalRequest } from "./canonical-request.ts";
 import { GatewayChannel } from "./gateway-channel.ts";
 import type { GatewayFailure } from "./gateway-failure.ts";
@@ -9,6 +10,12 @@ import type { ModelEndpoint } from "./model-endpoint.ts";
 import type { Exchange, Recording } from "./recording.ts";
 import type { RequestGate } from "./request-gate.ts";
 import type { Upstream } from "./upstream.ts";
+
+/** Longest wait for a model to answer one call, in milliseconds: a local model may take minutes on a long context. */
+export const UPSTREAM_TIMEOUT_MS = 30 * 60_000;
+
+/** The connections to the model, which wait for its answer longer than the five minutes of the built-in `fetch`. */
+const UPSTREAM = new Agent({ headersTimeout: UPSTREAM_TIMEOUT_MS, bodyTimeout: UPSTREAM_TIMEOUT_MS });
 
 /** `/c/<channel>/v1/<operation>`: every request names the channel of its session. */
 const CHANNEL_PATH = /^\/c\/(\d+)\/v1(\/.*)$/;
@@ -116,6 +123,7 @@ export class ModelGateway implements ModelEndpoint {
         method: "POST",
         headers: { "content-type": "application/json", ...bearer(upstream.apiKey) },
         body,
+        dispatcher: UPSTREAM,
       });
       text = await answer.text();
     } catch {

@@ -243,6 +243,7 @@ describe("criterion 1 — a session gets the browser tools of each declared appl
     const launch = () => new Promise<never>((_, refuse) => setTimeout(() => refuse(new Error("too late")), 20));
     const toolset = browserTools(applications().slice(0, 1), { environment: "local", env: ENV, screenshotsDir: screenshots, launch });
     const call = toolset.tools[1]!.execute({});
+    await new Promise((resolve) => setImmediate(resolve));
     await toolset.close();
     await reject(call, /too late/);
   });
@@ -414,6 +415,18 @@ describe("criterion 4 — actions count against the task's action limit, snapsho
       tools.filter((t) => t.browserAction === true).map((t) => t.name),
       ["shop_goto", "shop_click", "shop_fill", "shop_select_option", "shop_check"],
     );
+  });
+});
+
+describe("calls made at once on one page", () => {
+  it("run one after the other, in order, so that none interrupts another", async () => {
+    await withTools(async (tool) => {
+      const results = await Promise.all([tool("shop_goto").execute({ url: "/second" }), tool("shop_goto").execute({ url: "/" }), tool("shop_snapshot").execute({})]);
+      assert.deepEqual(results.slice(0, 2), [{ url: `${site.origin}/second`, title: "/second" }, { url: `${site.origin}/`, title: "/" }]);
+      assert.match((results[2] as { page: string }).page, /heading "My Policies"/);
+      const [failed, next] = await Promise.allSettled([tool("shop_click").execute({ target: { role: "button", name: "Missing" } }), tool("shop_snapshot").execute({})]);
+      assert.deepEqual([failed.status, next.status], ["rejected", "fulfilled"]);
+    });
   });
 });
 

@@ -20,9 +20,9 @@ await runtime.close();
 | `tool-call` | The model called a tool, with these arguments. |
 | `tool-result` | The tool ran and returned this result. |
 | `tool-error` | The call produced no result: `unknown-tool` (the session offers no such tool), `invalid-arguments` (the arguments did not match the tool's schema, so the tool did not run) or `failed` (the tool threw). The model is told and may try again. |
-| `end` | The agent has answered the message. |
+| `end` | The agent has answered the message. A session with limits gives the counters it used: iterations, actions and elapsed time. |
 | `stopped` | The harness stopped the task at a limit: the reason names the limit (`iterations`, `duration` or `actions`) and gives the three counters. |
-| `error` | The turn cannot go on: `ModelUnreachableError` (the model server did not answer; the error names the address tried), `ReplayMissError` (a replayed session sent a request its recording lacks), `ModelResponseError` (the server answered with an error, or with something that is not JSON) or `SessionClosedError` (the session was closed during the turn). The session can take another message after a model error. |
+| `error` | The turn cannot go on: `ModelUnreachableError` (the model server did not answer; the error names the address tried), `ReplayMissError` (a replayed session sent a request its recording lacks), `ModelResponseError` (the server answered with an error, or with something that is not JSON) or `SessionClosedError` (the session was closed during the turn). The session can take another message after a model error. A session with limits gives its counters here too. |
 
 ## Limits
 
@@ -44,7 +44,7 @@ The runtime never calls the model server directly. It calls a `ModelGateway`, a 
 - in `record` mode, forwards each request and keeps every successful exchange as a [recording](recording-format.md);
 - in `replay` mode, answers from a recording and never contacts a model.
 
-Because the gateway makes the call, it knows why one fails, and the runtime turns that into a typed error. An API key is given to the gateway only: it is sent to the model server as a bearer token and never reaches the Copilot runtime, a recording, a log or an error. A failure is answered with status 400, which the Copilot runtime reports at once; it would otherwise retry an unreachable server for about twenty seconds. Each session talks to its own channel of the gateway (`createChannel`), which keeps its own limits and its own latest failure: sessions never see each other's.
+Because the gateway makes the call, it knows why one fails, and the runtime turns that into a typed error. An API key is given to the gateway only: it is sent to the model server as a bearer token and never reaches the Copilot runtime, a recording, a log or an error. A failure is answered with status 400, which the Copilot runtime reports at once; it would otherwise retry an unreachable server for about twenty seconds. Each session talks to its own channel of the gateway (`createChannel`), which keeps its own limits and its own latest failure: sessions never see each other's. The gateway waits up to thirty minutes for the model to answer one call, since a local model may take several minutes on a long conversation.
 
 ## Checking a model
 

@@ -1,0 +1,22 @@
+{
+  "name": "@open-qa-stack/agents",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test --test-concurrency=1 --import @open-qa-stack/testing/loopback-only --experimental-test-coverage --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 --test-coverage-include='src/**' 'test/**/*.test.ts'"
+  },
+  "dependencies": {
+    "@open-qa-stack/domain": "workspace:*",
+    "@open-qa-stack/shared": "workspace:*",
+    "@open-qa-stack/tools": "workspace:*"
+  },
+  "devDependencies": {
+    "@open-qa-stack/harness": "workspace:*",
+    "@open-qa-stack/testing": "workspace:*"
+  }
+}

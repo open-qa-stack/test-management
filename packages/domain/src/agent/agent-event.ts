@@ -1,5 +1,5 @@
 import type { AgentRuntimeError } from "./errors/agent-runtime-error.ts";
-import type { StopReason } from "./task-limits.ts";
+import type { StopReason, TaskCounters } from "./task-limits.ts";
 
 /** Something that happened in a session, in the order it happened. */
 export type AgentEvent =
@@ -22,12 +22,12 @@ export type AgentEvent =
       readonly reason: "unknown-tool" | "invalid-arguments" | "limit-reached" | "failed";
       readonly message: string;
     }
-  /** The agent has finished answering the message. */
-  | { readonly type: "end" }
+  /** The agent has finished answering the message; a task with limits says what it used. */
+  | { readonly type: "end"; readonly counters?: TaskCounters }
   /** The harness stopped the task because it reached a limit; no event follows. */
   | { readonly type: "stopped"; readonly reason: StopReason }
-  /** The session could not go on; no event follows. */
-  | { readonly type: "error"; readonly error: AgentRuntimeError };
+  /** The session could not go on; no event follows. A task with limits says what it used. */
+  | { readonly type: "error"; readonly error: AgentRuntimeError; readonly counters?: TaskCounters };
 
 /** The event that ends a turn. */
 export type TerminalEvent = Extract<AgentEvent, { type: "end" | "stopped" | "error" }>;

@@ -56,12 +56,12 @@ describe("criterion 2 — the contract tools read the operations of a contract",
   it("lists the operations of a contract stored in the repository and reads one", async () => {
     const tools = knowledgeTools([CONTRACT], { repositoryRoot: REPOSITORY, env: {} });
     assert.deepEqual(await tool(tools, "policy_api_list_operations").execute({}), [
-      { method: "GET", path: "/policies", operationId: "listPolicies", summary: "List policies" },
-      { method: "POST", path: "/policies", operationId: "createPolicy" },
+      { method: "GET", path: "/policies", operationId: "listPolicies", summary: "List policies", tags: ["policies"] },
+      { method: "POST", path: "/policies", operationId: "createPolicy", tags: ["policies"] },
       { method: "GET", path: "/policies/{id}", summary: "Read a policy" },
     ]);
     const read = tool(tools, "policy_api_read_operation");
-    assert.deepEqual(await read.execute({ method: "post", path: "/policies" }), { operationId: "createPolicy", responses: { "201": { description: "Created" } } });
+    assert.deepEqual(await read.execute({ method: "post", path: "/policies" }), { operationId: "createPolicy", responses: { "201": { description: "Created" } }, tags: ["policies", 3, " "] });
     const one = (await read.execute({ method: "GET", path: "/policies/{id}" })) as { parameters: { name: string; description?: string }[]; responses: Record<string, { content: Record<string, { schema: unknown }> }> };
     assert.deepEqual(one.parameters.map((p) => [p.name, p.description]), [["id", undefined], ["fields", "Fields to return"]]);
     const schema = one.responses["200"]!.content["application/json"]!.schema as { properties: { owner: { properties: { name: unknown } } } };

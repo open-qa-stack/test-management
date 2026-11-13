@@ -3,9 +3,9 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
-import { testSite } from "@open-qa-stack/testing";
+import { answer, scriptedServer, testSite, toolCalls } from "@open-qa-stack/testing";
 import { browserTools } from "@open-qa-stack/tools";
-import { answer, exchange, MODEL, scriptedServer, toolCalls, withRuntime } from "./support.ts";
+import { exchange, MODEL, withRuntime } from "./support.ts";
 
 describe("browser actions count against the task's action limit, snapshots do not", () => {
   it("stops a task at its second click under a limit of one action, whatever the snapshots", async () => {

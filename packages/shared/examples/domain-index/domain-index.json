@@ -1,0 +1,39 @@
+{
+  "$schema": "../../schema/oqas-domain-index.schema.json",
+  "formatVersion": 1,
+  "producedAt": "2026-11-13T09:30:00Z",
+  "environment": "local",
+  "model": { "provider": "openai", "baseUrl": "http://localhost:1234/v1", "model": "local-model" },
+  "run": { "iterations": 24, "actions": 31, "durationMs": 412000 },
+  "status": "complete",
+  "sources": [
+    { "id": "orders-api", "type": "openapi", "state": "read" },
+    { "id": "orders-db", "type": "postgresql", "state": "read" },
+    { "id": "storefront", "type": "web", "state": "read" },
+    { "id": "order-specs", "type": "document", "state": "read" }
+  ],
+  "domains": [
+    {
+      "id": "orders",
+      "label": "Orders",
+      "description": "Placing, paying and following an order.",
+      "references": [
+        { "source": "orders-api", "items": ["orders", "payments"] },
+        { "source": "orders-db", "items": ["public.orders", "public.order_lines"] },
+        { "source": "storefront", "items": ["/cart", "/checkout", "/orders"] },
+        { "source": "order-specs", "items": ["Placing an order"] }
+      ]
+    },
+    {
+      "id": "customers",
+      "label": "Customers",
+      "description": "Signing up, signing in and managing one's profile.",
+      "references": [
+        { "source": "orders-api", "items": ["customers"] },
+        { "source": "orders-db", "items": ["public.customers"] },
+        { "source": "storefront", "items": ["/login", "/profile"] }
+      ]
+    }
+  ],
+  "unassigned": [{ "source": "orders-db", "items": ["public.schema_migrations"] }]
+}

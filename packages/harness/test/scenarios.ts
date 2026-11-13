@@ -1,6 +1,7 @@
 import type { SessionOptions, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
+import { answer, toolCalls } from "@open-qa-stack/testing";
 import { TOOL_CALLING_CHECK, type Clock } from "../src/index.ts";
-import { answer, MODEL, toolCalls } from "./support.ts";
+import { MODEL } from "./support.ts";
 
 /** A clock the tests move by hand. */
 export class ManualClock implements Clock {

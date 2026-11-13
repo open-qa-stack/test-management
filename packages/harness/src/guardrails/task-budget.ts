@@ -38,12 +38,17 @@ export class TaskBudget implements RequestGate {
     return this.reason;
   }
 
-  private get elapsedMs(): number {
-    return this.clock.now() - this.startedAt;
+  /**
+   * What the task has used so far.
+   *
+   * @returns Its iterations, browser actions and elapsed time.
+   */
+  public get counters(): TaskCounters {
+    return { iterations: this.iterations, actions: this.actions, elapsedMs: this.elapsedMs };
   }
 
-  private get counters(): TaskCounters {
-    return { iterations: this.iterations, actions: this.actions, elapsedMs: this.elapsedMs };
+  private get elapsedMs(): number {
+    return this.clock.now() - this.startedAt;
   }
 
   /** Counts a model call, unless it would exceed the iteration limit. */

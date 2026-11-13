@@ -101,8 +101,10 @@ export class CopilotAgentSession implements AgentSession {
   }
 
   private finishTurn(): void {
-    const stop = this.wiring.budget?.stopReason;
+    const budget = this.wiring.budget;
+    const stop = budget?.stopReason;
     if (stop !== undefined) return this.relay.finish({ type: "stopped", reason: stop });
-    this.relay.finish(this.pendingError === undefined ? { type: "end" } : { type: "error", error: this.pendingError });
+    const counters = budget === undefined ? {} : { counters: budget.counters };
+    this.relay.finish(this.pendingError === undefined ? { type: "end", ...counters } : { type: "error", error: this.pendingError, ...counters });
   }
 }

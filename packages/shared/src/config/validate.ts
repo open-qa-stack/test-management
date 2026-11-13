@@ -119,6 +119,7 @@ function documentErrors(config: OqasConfig): ConfigError[] {
   config.knowledge.forEach((item, i) => {
     const itemPath = pointer("/knowledge", i);
     if (knowledgeIds.has(item.id)) duplicate(pointer(itemPath, "id"), "knowledge id");
+    if (appIds.has(item.id)) errors.push(error("structure", pointer(itemPath, "id"), "duplicate", "The identifier is already given to an application."));
     knowledgeIds.add(item.id);
 
     item.attachments.forEach((attachment, j) => {

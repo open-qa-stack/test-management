@@ -3,3 +3,7 @@ export { CONFIG_FILE_NAME, STATE_DIR_NAME } from "./config/file-names.ts";
 export { configSchema, ENV_VAR_PATTERN, SLUG_PATTERN } from "./config/schema.ts";
 export type * from "./config/types.ts";
 export { DEFAULT_REPOSITORY, validateConfig, type EnvironmentVariables } from "./config/validate.ts";
+export { placementErrors, type SourceInventory } from "./domain-index/placement.ts";
+export { domainIndexSchema, domainSubmissionSchema } from "./domain-index/schema.ts";
+export type * from "./domain-index/types.ts";
+export { validateDomainIndex, validateDomainSubmission } from "./domain-index/validate.ts";

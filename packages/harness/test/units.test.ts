@@ -4,12 +4,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { ModelResponseError, ModelUnreachableError, ReplayMissError, type AgentEvent } from "@open-qa-stack/domain";
+import { answer, scriptedServer, toolCalls } from "@open-qa-stack/testing";
 import { runtimeEnvironment } from "../src/copilot/runtime-environment.ts";
 import { runtimeError } from "../src/copilot/runtime-error.ts";
 import { canonicalRequest, describeRequest } from "../src/model-gateway/canonical-request.ts";
 import { SYSTEM_CLOCK } from "../src/guardrails/clock.ts";
 import { CopilotAgentRuntime, guardTool, ModelGateway, parseRecording, recordToolCallingCheck, RecordingFormatError, TOOL_CALLING_CHECK } from "../src/index.ts";
-import { answer, MODEL, scriptedServer, toolCalls } from "./support.ts";
+import { MODEL } from "./support.ts";
 
 describe("runtime errors from gateway failures", () => {
   it("maps each failure to its error", () => {

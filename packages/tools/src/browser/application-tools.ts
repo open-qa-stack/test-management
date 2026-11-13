@@ -36,7 +36,9 @@ const limit = (description: string) => ({ type: "integer", minimum: 1, maximum: 
  *
  * @remarks
  * Tools that change the page count as browser actions; snapshots, waits, screenshots and logs do not.
- * Tools that act return where the page is afterwards. The agent types a test account's credentials by
+ * Calls on the page of the application run one after the other, in the order they came, so that
+ * calls the model makes at once do not interrupt each other. Tools that act return where the page is
+ * afterwards. The agent types a test account's credentials by
  * naming the account, never by their value; the passwords are masked in everything the tools return,
  * errors included, in the forms a page may show them.
  *
@@ -49,12 +51,18 @@ export function applicationTools(application: Application, environment: Environm
   const scope = pageScope(application.id, environment);
   const secrets = (application.authentication.accounts ?? []).flatMap((account) => nonEmpty(access.env[account.passwordEnv]).flatMap(secretForms));
   const name = (action: string) => scopedToolName(application.id, action);
-  const on = <T>(use: (page: ApplicationPage, args: T) => Promise<unknown>) => async (args: unknown) => {
-    try {
-      return redact(await use(await access.session.page(scope), args as T), secrets);
-    } catch (failure) {
-      throw new Error(redactText(failure instanceof Error ? failure.message : String(failure), secrets));
-    }
+  // The model may call several tools at once; on one page, they run one after the other, in order.
+  let queue: Promise<unknown> = Promise.resolve();
+  const on = <T>(use: (page: ApplicationPage, args: T) => Promise<unknown>) => (args: unknown) => {
+    const run = queue.then(async () => {
+      try {
+        return redact(await use(await access.session.page(scope), args as T), secrets);
+      } catch (failure) {
+        throw new Error(redactText(failure instanceof Error ? failure.message : String(failure), secrets));
+      }
+    });
+    queue = run.catch(() => undefined);
+    return run;
   };
   const where = `of ${application.name} (${environment.name})`;
   let screenshots = 0;

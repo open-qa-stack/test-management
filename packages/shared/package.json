@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./oqas.schema.json": "./schema/oqas.schema.json"
+    "./oqas.schema.json": "./schema/oqas.schema.json",
+    "./oqas-domain-index.schema.json": "./schema/oqas-domain-index.schema.json"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

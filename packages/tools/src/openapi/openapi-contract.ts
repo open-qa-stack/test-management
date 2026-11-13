@@ -9,6 +9,8 @@ export interface OperationSummary {
   readonly path: string;
   readonly operationId?: string;
   readonly summary?: string;
+  /** Tags that group the operation, as the contract writes them. */
+  readonly tags?: readonly string[];
 }
 
 /** The HTTP methods an OpenAPI path item may hold operations for. */
@@ -100,12 +102,14 @@ async function fetchContract(url: string): Promise<string> {
 }
 
 function summarize(method: string, path: string, operation: JsonObject): OperationSummary {
-  const { operationId, summary } = operation;
+  const { operationId, summary, tags } = operation;
+  const named = Array.isArray(tags) ? tags.filter((tag): tag is string => typeof tag === "string" && tag.trim() !== "") : [];
   return {
     method: method.toUpperCase(),
     path,
     ...(typeof operationId === "string" ? { operationId } : {}),
     ...(typeof summary === "string" ? { summary } : {}),
+    ...(named.length > 0 ? { tags: named } : {}),
   };
 }
 

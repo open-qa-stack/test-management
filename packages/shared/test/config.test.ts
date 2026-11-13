@@ -571,3 +571,10 @@ describe("source code — a folder of the workstation, possibly outside the test
     assert.equal(validateVariant(code({})).ok, false);
   });
 });
+
+describe("identifiers of knowledge and applications", () => {
+  it("refuses a knowledge source named like an application, since both name the sources of an index", () => {
+    const e = only(errorsOf(validateVariant((c) => listAt(c, "knowledge").push({ id: "policy-management", type: "document", path: "specs/x.md", attachments: [{ application: "policy-management" }] }))));
+    assert.deepEqual([e.path, e.rule, e.message], ["/knowledge/8/id", "duplicate", "The identifier is already given to an application."]);
+  });
+});

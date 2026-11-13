@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { AgentEvent, StopReason, ToolDefinition } from "@open-qa-stack/domain";
+import { answer, scriptedServer, toolCalls } from "@open-qa-stack/testing";
 import { TaskBudget } from "../src/guardrails/task-budget.ts";
 import { turnVerdict } from "../src/guardrails/turn-verdict.ts";
 import { CLAIM, ManualClock, SCENARIOS } from "./scenarios.ts";
-import { answer, exchange, loadRecording, MODEL, scriptedServer, toolCalls, withRuntime } from "./support.ts";
+import { exchange, loadRecording, MODEL, withRuntime } from "./support.ts";
 
 interface Replay {
   readonly events: AgentEvent[];
@@ -132,6 +133,21 @@ describe("criterion 8 — the budget on its own, without SDK, network or model",
     clock.advance(1001);
     budget.startToolCall(true);
     assert.deepEqual(budget.stopReason, { limit: "duration", counters: { iterations: 1, actions: 50, elapsedMs: 1001 } });
+  });
+});
+
+describe("a task that ends within its limits says what it used", () => {
+  it("gives the counters with the end of the turn", async () => {
+    const server = await scriptedServer([{ body: answer(MODEL, "Done.") }]);
+    try {
+      const events = await withRuntime({ kind: "live", upstream: { baseUrl: server.baseUrl } }, MODEL, (runtime) =>
+        exchange(runtime, { instructions: "x", tools: [], limits: { maxIterations: 5, maxDurationMs: null, maxActions: null } }, "Go."),
+      );
+      const last = events.at(-1);
+      assert.deepEqual(last?.type === "end" && [last.counters?.iterations, last.counters?.actions], [1, 0]);
+    } finally {
+      await server.close();
+    }
   });
 });
 

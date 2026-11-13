@@ -16,7 +16,8 @@
     "@github/copilot-sdk": "1.0.31",
     "@open-qa-stack/domain": "workspace:*",
     "@open-qa-stack/shared": "workspace:*",
-    "ajv": "8.20.0"
+    "ajv": "8.20.0",
+    "undici": "7.30.1"
   },
   "devDependencies": {
     "@open-qa-stack/testing": "workspace:*",

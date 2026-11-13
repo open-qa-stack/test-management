@@ -1,27 +1,106 @@
 {
   "openapi": "3.0.1",
-  "info": { "title": "Policies", "version": "1" },
+  "info": {
+    "title": "Policies",
+    "version": "1"
+  },
   "paths": {
     "/policies": {
-      "get": { "operationId": "listPolicies", "summary": "List policies", "responses": { "200": { "description": "The policies" } } },
-      "post": { "operationId": "createPolicy", "responses": { "201": { "description": "Created" } } }
+      "get": {
+        "operationId": "listPolicies",
+        "summary": "List policies",
+        "responses": {
+          "200": {
+            "description": "The policies"
+          }
+        },
+        "tags": [
+          "policies"
+        ]
+      },
+      "post": {
+        "operationId": "createPolicy",
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "policies",
+          3,
+          " "
+        ]
+      }
     },
     "/policies/{id}": {
       "parameters": [
-        { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
-        { "name": "fields", "in": "query", "schema": { "type": "string" } }
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "fields",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        }
       ],
       "get": {
         "summary": "Read a policy",
-        "parameters": [{ "name": "fields", "in": "query", "description": "Fields to return", "schema": { "type": "string" } }],
-        "responses": { "200": { "description": "The policy", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Policy" } } } } }
+        "parameters": [
+          {
+            "name": "fields",
+            "in": "query",
+            "description": "Fields to return",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Policy"
+                }
+              }
+            }
+          }
+        }
       }
     }
   },
   "components": {
     "schemas": {
-      "Policy": { "type": "object", "properties": { "id": { "type": "string" }, "owner": { "$ref": "#/components/schemas/Customer" } } },
-      "Customer": { "type": "object", "properties": { "name": { "type": "string" }, "referrer": { "$ref": "#/components/schemas/Customer" } } }
+      "Policy": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "owner": {
+            "$ref": "#/components/schemas/Customer"
+          }
+        }
+      },
+      "Customer": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "referrer": {
+            "$ref": "#/components/schemas/Customer"
+          }
+        }
+      }
     }
   }
 }
