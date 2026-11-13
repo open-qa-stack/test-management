@@ -17,7 +17,7 @@ Each error has a `kind`, a `path` (a JSON Pointer to the offending location, `""
 | Kind | Rules |
 |---|---|
 | `syntax` | `json` |
-| `structure` | `required`, `unknown-key`, `duplicate-key`, `wrong-type`, `empty-value`, `too-few-items`, `below-minimum`, `unknown-variant`, `format-version`, `slug`, `env-var-name`, `openapi-source`, `duplicate`, `ui-url-required`, `url-absolute`, `url-scheme`, `url-credentials`, `path-absolute`, `path-outside-root`, `path-invalid` |
+| `structure` | `required`, `unknown-key`, `duplicate-key`, `wrong-type`, `empty-value`, `too-few-items`, `below-minimum`, `unknown-variant`, `format-version`, `slug`, `env-var-name`, `charter-rule-id`, `openapi-source`, `duplicate`, `ui-url-required`, `url-absolute`, `url-scheme`, `url-credentials`, `path-absolute`, `path-outside-root`, `path-invalid` |
 | `reference` | `unknown-reference`, `api-without-environment` |
 | `environment` | `env-var-missing` |
 
@@ -34,6 +34,7 @@ Types used below: a *slug* matches `^[a-z0-9]+(-[a-z0-9]+)*$`; a *variable* is t
 | `applications` | array of [applications](#application), at least one | yes | see below |
 | `knowledge` | array of [knowledge sources](#knowledge), possibly empty | yes | `[]` |
 | `repository` | [repository layout](#repository) | no | `{ "journeysDir": "journeys" }` |
+| `charter` | [test charter changes](#charter) | no | see below |
 | `model` | [model connection](#model) | yes | see below |
 | `autonomy` | [autonomy level](#autonomy) | yes | `{ "level": "supervised" }` |
 
@@ -114,6 +115,24 @@ All keys are optional paths.
 | `journeysDir` | `parcours` | Folder holding multi-application journeys. |
 | `stateDir` | `.oqas` | Where the solo mode keeps its state. |
 | `indexDir` | `.oqas/index` | Where the mapper writes its index by domain. |
+
+### Charter
+
+The test designer and the reviewer apply the default test charter of `@open-qa-stack/harness`, described in its `docs/test-charter.md`. The `charter` key changes it; both of its keys are optional.
+
+| Key | Type | Example |
+|---|---|---|
+| `disable` | array of `{ "rule", "reason" }`: the identifier of a default rule, and why it does not apply | `[{ "rule": "PW-WAIT-01", "reason": "The legacy grid has no loading state." }]` |
+| `add` | array of `{ "id", "statement", "reason" }`: a rule of your own, applied after the default ones | see below |
+
+A rule identifier is made of upper case words and digits separated by hyphens, such as `PW-WAIT-01` or `TEAM-NAMING-01`. A rule disabled twice, or an identifier added twice, is refused as a `duplicate`. When the charter is applied, a disabled identifier that names no default rule is refused with `unknown-charter-rule`, and an added identifier already taken by a default rule with `duplicate`; both errors point at the offending key, such as `/charter/disable/0/rule`.
+
+```json
+{
+  "disable": [{ "rule": "PW-SHOT-01", "reason": "Screenshots are taken by the reporter." }],
+  "add": [{ "id": "TEAM-TAG-01", "statement": "Tag every test with its domain, such as @policies.", "reason": "The nightly run selects tests by domain." }]
+}
+```
 
 ### Model
 

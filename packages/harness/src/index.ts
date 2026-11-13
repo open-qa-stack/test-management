@@ -1,3 +1,7 @@
+export { designerInstructions, reviewerInstructions } from "./charter/charter-instructions.ts";
+export type { ActiveRule, CharterRule } from "./charter/charter-rule.ts";
+export { DEFAULT_CHARTER } from "./charter/default-charter.ts";
+export { resolveCharter, type CharterResolution } from "./charter/resolve-charter.ts";
 export { CopilotAgentRuntime, type CopilotRuntimeOptions } from "./copilot/copilot-agent-runtime.ts";
 export type { Clock } from "./guardrails/clock.ts";
 export type { CanonicalMessage, CanonicalRequest } from "./model-gateway/canonical-request.ts";
