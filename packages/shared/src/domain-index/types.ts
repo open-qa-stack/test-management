@@ -12,6 +12,8 @@ export interface IndexSource {
   id: string;
   type: IndexSourceType;
   state: IndexSourceState;
+  /** Fingerprint of the card the source was read from; a source not read has none. */
+  cardFingerprint?: string;
 }
 
 /** Coarse references into one source: tags or path prefixes of a contract, tables of a base, URL paths of an interface, sections of a document, folders or files of source code. */

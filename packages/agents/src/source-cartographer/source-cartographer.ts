@@ -8,6 +8,7 @@ import { configSecrets } from "../common/config-secrets.ts";
 import { runAgentTask, taskEnd, taskLimits } from "../common/agent-task.ts";
 import { HandedIn } from "../common/handed-in.ts";
 import { Journal, type JournalEntry } from "../common/journal.ts";
+import { NO_USAGE, usageOf, type ModelUsage } from "../common/model-usage.ts";
 import { runTrace } from "../common/run-trace.ts";
 import type { Trace } from "../common/trace.ts";
 import type { PhaseOutcome, TraceLine } from "../common/trace-line.ts";
@@ -54,6 +55,8 @@ export interface SourceCartographyOutcome {
   readonly card?: SourceCard;
   /** Whether an up-to-date card was kept rather than made again. */
   readonly kept: boolean;
+  /** What the cartography asked of the model; nothing when the card was kept. */
+  readonly usage: ModelUsage;
   /** What the run checked, refused and wrote. */
   readonly journal: readonly JournalEntry[];
   /** Where the trace of the cartography is written. */
@@ -75,8 +78,8 @@ export interface SourceCartographyOutcome {
  * committed nor pushed.
  *
  * Every step is traced in the `card` phase, from its `started` line to its `finished` line, even when the
- * cartography throws: the inventory, each message sent to the agent, each event of its session and each
- * entry of the journal.
+ * cartography throws: the inventory, each message sent to the agent, each event of its session, each
+ * entry of the journal, and the `usage` of the model just before the end.
  */
 export class SourceCartographer {
   private readonly options: SourceCartographerOptions;
@@ -99,6 +102,7 @@ export class SourceCartographer {
     trace.harness("card", { type: "started" }, source.id);
     try {
       const outcome = await this.map(trace, now);
+      trace.harness("card", { type: "usage", ...outcome.usage }, source.id);
       trace.harness("card", { type: "finished", outcome: outcomeOf(outcome) }, source.id);
       return { ...outcome, tracePath: trace.path };
     } catch (failure) {
@@ -117,7 +121,7 @@ export class SourceCartographer {
       subject = await this.subject(events);
     } catch (failure) {
       journal.record("error", `The source ${source.id} does not answer: ${failure instanceof Error ? failure.message : String(failure)}`, source.id);
-      return { kept: false, journal: journal.entries() };
+      return { kept: false, usage: NO_USAGE, journal: journal.entries() };
     }
     if (source.type !== "web") {
       const { items, fingerprint, truncated } = subject.inventory();
@@ -127,12 +131,12 @@ export class SourceCartographer {
     const existing = this.options.force === true ? undefined : await upToDate(cardPath, subject.fingerprint);
     if (existing !== undefined) {
       journal.record("info", `The card of ${source.id} is up to date; it was kept.`, source.id);
-      return { cardPath, card: existing, kept: true, journal: journal.entries() };
+      return { cardPath, card: existing, kept: true, usage: NO_USAGE, journal: journal.entries() };
     }
     if (subject.inventory().truncated === true) journal.record("error", `The source ${source.id} is too large to be read whole; its card is truncated.`, source.id);
     if (source.type !== "web" && subject.inventory().items.length === 0) {
       journal.record("info", `The source ${source.id} has no element; its card is empty.`, source.id);
-      return this.write(cardPath, this.card(subject, { iterations: 0, actions: 0, durationMs: 0 }, "complete", { domains: [], unassigned: [] }, now), journal);
+      return { ...(await this.write(cardPath, this.card(subject, { iterations: 0, actions: 0, durationMs: 0 }, "complete", { domains: [], unassigned: [] }, now), journal)), usage: NO_USAGE };
     }
     const submission = new HandedIn(cardRules(source.id, () => subject.inventory(), configSecrets(config, env)), journal);
     const notes = agentNotes(config, repositoryRoot, env, { role: "cartographer", task: `card-${source.id}-${now().toISOString()}`, now });
@@ -150,15 +154,16 @@ export class SourceCartographer {
     };
     await runAgentTask(this.options.runtime, task, taskLimits(config)).finally(() => subject.close());
     const { last, counters } = taskEnd(events);
+    const usage = usageOf(counters);
     if (last.type === "error") journal.record("error", `The session failed: ${last.error.message}`, source.id);
     if (last.type === "stopped") journal.record("error", `The task reached its ${last.reason.limit} limit.`, source.id);
     const accepted = submission.accepted;
     if (accepted === undefined) {
       journal.record("error", "No card was written: no card was accepted before the session ended.", source.id);
-      return { kept: false, journal: journal.entries() };
+      return { kept: false, usage, journal: journal.entries() };
     }
     const run = { iterations: counters.iterations, actions: counters.actions, durationMs: Math.round(counters.elapsedMs) };
-    return this.write(cardPath, this.card(subject, run, last.type === "end" ? "complete" : "truncated", accepted, now), journal);
+    return { ...(await this.write(cardPath, this.card(subject, run, last.type === "end" ? "complete" : "truncated", accepted, now), journal)), usage };
   }
 
   /** The card of a submission, with the facts the harness read joined to each element. */
@@ -179,7 +184,7 @@ export class SourceCartographer {
   }
 
   /** Writes a card that passes its schema. */
-  private async write(cardPath: string, card: SourceCard, journal: Journal): Promise<Omit<SourceCartographyOutcome, "tracePath">> {
+  private async write(cardPath: string, card: SourceCard, journal: Journal): Promise<Omit<SourceCartographyOutcome, "tracePath" | "usage">> {
     const { source } = this.options;
     const validation = validateSourceCard(card);
     if (!validation.ok) {
@@ -214,7 +219,7 @@ async function upToDate(path: string, fingerprint: string): Promise<SourceCard |
 }
 
 /** How the cartography of a source ended, for its trace. */
-function outcomeOf(outcome: Omit<SourceCartographyOutcome, "tracePath">): PhaseOutcome {
+function outcomeOf(outcome: Omit<SourceCartographyOutcome, "tracePath" | "usage">): PhaseOutcome {
   if (outcome.kept) return "kept";
   if (outcome.card === undefined) return "failed";
   return outcome.card.status === "complete" ? "done" : "truncated";

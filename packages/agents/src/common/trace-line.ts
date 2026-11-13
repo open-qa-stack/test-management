@@ -1,4 +1,5 @@
 import type { AgentEvent } from "@open-qa-stack/domain";
+import type { ModelUsage } from "./model-usage.ts";
 
 /**
  * A phase of a run. Those of a cartography, in the order they run: checking the sources, a card per source,
@@ -22,7 +23,9 @@ export type HarnessEvent =
   /** An entry of the journal: a check, a refusal, a write. */
   | { readonly type: "journal"; readonly level: "info" | "error"; readonly message: string }
   /** A message the harness sent to the agent: the request, then each reminder. */
-  | { readonly type: "message"; readonly text: string };
+  | { readonly type: "message"; readonly text: string }
+  /** What a phase, or the card of a source, asked of the model, just before its end. */
+  | ({ readonly type: "usage" } & ModelUsage);
 
 /** What the agent did, as its session reported it; a runtime error is reduced to its name and message. */
 export type TracedAgentEvent =

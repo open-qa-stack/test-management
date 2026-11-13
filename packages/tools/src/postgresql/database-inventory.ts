@@ -7,8 +7,8 @@ import type { DatabaseCatalog } from "./database-catalog.ts";
  *
  * @remarks
  * The elements are its tables, as `schema.table`. The facts of each are its number of columns, its
- * primary key and its foreign keys. The fingerprint covers the tables, their columns and their keys, so
- * that any change of structure changes it.
+ * primary key and its foreign keys; its excerpt lists its columns, each with its type. The fingerprint
+ * covers the tables, their columns and their keys, so that any change of structure changes it.
  *
  * @param catalog - The catalog of the database.
  * @returns The inventory of the database.
@@ -23,5 +23,6 @@ export async function databaseInventory(catalog: DatabaseCatalog): Promise<Sourc
       return [table, { columns: columns.get(table)?.length ?? 0, primaryKey: key?.primaryKey ?? [], foreignKeys: key?.foreignKeys ?? [] }] as const;
     }),
   );
-  return { items, facts, fingerprint: fingerprintOf(JSON.stringify({ items, columns: [...columns], keys: [...keys] })) };
+  const excerpts = new Map([...columns].map(([table, listed]) => [table, listed.map((column) => `${column.name} ${column.type}${column.nullable ? "" : " not null"}`).join(", ")] as const));
+  return { items, facts, excerpts, fingerprint: fingerprintOf(JSON.stringify({ items, columns: [...columns], keys: [...keys] })) };
 }

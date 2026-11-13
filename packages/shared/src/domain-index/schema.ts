@@ -76,7 +76,12 @@ export const domainIndexSchema = {
         type: "object",
         additionalProperties: false,
         required: ["id", "type", "state"],
-        properties: { id: text, type: { enum: ["openapi", "postgresql", "document", "source-code", "web"] }, state: { enum: ["read", "not_read"] } },
+        properties: {
+          id: text,
+          type: { enum: ["openapi", "postgresql", "document", "source-code", "web"] },
+          state: { enum: ["read", "not_read"] },
+          cardFingerprint: { type: "string", pattern: "^sha256:[0-9a-f]{64}$", description: "Fingerprint of the card the source was read from." },
+        },
       },
     },
     ...submissionProperties,

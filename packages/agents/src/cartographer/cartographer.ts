@@ -1,5 +1,5 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import type { AgentEvent, AgentRuntime } from "@open-qa-stack/domain";
 import { validateDomainIndex, type DomainIndex, type IndexSource, type ResolvedConfig, type SourceCard } from "@open-qa-stack/shared";
 import type { BrowserAccess, KnowledgeAccess } from "@open-qa-stack/tools";
@@ -8,13 +8,16 @@ import { configSecrets } from "../common/config-secrets.ts";
 import { runAgentTask, taskEnd, taskLimits } from "../common/agent-task.ts";
 import { HandedIn } from "../common/handed-in.ts";
 import { Journal, type JournalEntry } from "../common/journal.ts";
+import { NO_USAGE, totalUsage, usageOf, type ModelUsage } from "../common/model-usage.ts";
 import { runTrace } from "../common/run-trace.ts";
 import type { Trace } from "../common/trace.ts";
 import type { HarnessEvent, PhaseOutcome, TraceLine } from "../common/trace-line.ts";
 import { TracedPhases } from "../common/traced-phases.ts";
 import { mapSources } from "../source-cartographer/sources-cartography.ts";
+import { cardFingerprint } from "./card-fingerprint.ts";
 import { CARTOGRAPHER_INSTRUCTIONS, cartographyRequest } from "./cartographer-prompt.ts";
 import { domainIndexRules } from "./domain-index-rules.ts";
+import { indexStaleness } from "./index-staleness.ts";
 import { runSources } from "./run-sources.ts";
 import { surveySource, type SurveyResult } from "./source-survey.ts";
 
@@ -67,17 +70,18 @@ export interface CartographyOutcome {
  * Before any exploration, every source must answer; otherwise no session starts and no index is written.
  * The inventory a knowledge source gave then is the one its card is made of: no knowledge source is read twice.
  * Each source without an up-to-date card is then mapped on its own, in its own task, under the limits of
- * the configured autonomy. When every card was kept and the index already written is complete, of this
- * environment and of the same sources, it is kept too, without the model. Otherwise a last task consolidates the cards, with the notes the agents kept but none of
- * the tools of the sources, and hands its index in with `submit_index`, which must place every element of
- * every card. A source without a card is `not_read`. The index is written only once a submission was
- * accepted and the whole index passes its schema; it is `truncated` when a limit stopped the consolidation,
- * a card is truncated or a source was not read. Nothing is committed nor pushed.
+ * the configured autonomy. The index records the fingerprint of each card it is made of: when the index
+ * already written is complete, of this environment, of the same sources and of the cards they have now, it is
+ * kept, without the model, unless `force` is set. Otherwise a last task consolidates the cards, with the notes
+ * the agents kept but none of the tools of the sources, and hands its index in with `submit_index`, which must
+ * place every element of every card. A source without a card is `not_read`. The index is written only once a
+ * submission was accepted and the whole index passes its schema; it is `truncated` when a limit stopped the
+ * consolidation, a card is truncated or a source was not read. Nothing is committed nor pushed.
  *
  * The run is traced in `<stateDir>/traces/`, line by line, and each line is handed to `observe` as it is
  * written: the phases `survey`, `card`, `consolidation` and `index`, each from its `started` line to its
- * `finished` line even when the run throws, what the harness did in each, and every message, reasoning,
- * text and tool call of the agents.
+ * `finished` line even when the run throws, what the harness did in each, what each phase and the card of
+ * each source asked of the model, and every message, reasoning, text and tool call of the agents.
  */
 export class Cartographer {
   private readonly options: CartographerOptions;
@@ -121,30 +125,31 @@ export class Cartographer {
     for (const [source, survey] of surveys) if (!survey.ok) journal.record("error", `The source ${source.id} does not answer: ${survey.error}`, source.id);
     if (surveys.some(([, survey]) => !survey.ok)) {
       journal.record("error", "No index was written: every declared source must answer before the exploration.");
-      phases.end("failed");
+      endPhase(trace, phases, "failed");
       return { journal: journal.entries() };
     }
-    phases.end("done");
+    endPhase(trace, phases, "done");
     phases.start("card");
     const inventories = new Map(surveys.flatMap(([source, survey]) => (survey.ok && survey.inventory !== undefined ? [[source.id, survey.inventory] as const] : [])));
     const results = await mapSources({ ...this.options, now, inventories, trace });
     for (const { outcome } of results) journal.adopt(outcome.journal);
     const cards = new Map(results.flatMap(({ source, outcome }) => (outcome.card === undefined ? [] : [[source.id, outcome.card] as const])));
-    phases.end(cardsOutcome(cards.size, results.length, [...cards.values()].every((card) => card.status === "complete")));
-    if (results.every(({ outcome }) => outcome.kept)) {
-      const kept = await this.upToDate(new Set(cards.keys()));
-      if (kept !== undefined) {
-        phases.start("index");
-        journal.record("info", `Every card is up to date, and so is the index ${kept.indexPath}; it was kept.`);
-        phases.end("kept");
-        return { ...kept, journal: journal.entries() };
-      }
+    endPhase(trace, phases, cardsOutcome(cards.size, results.length, [...cards.values()].every((card) => card.status === "complete")), totalUsage(results.map(({ outcome }) => outcome.usage)));
+    const indexPath = this.indexPath();
+    const previous = await readIndex(indexPath);
+    const stale = this.options.force === true ? "force is set" : indexStaleness(previous, environment, sources, cards);
+    if (previous !== undefined && stale === undefined) {
+      phases.start("index");
+      journal.record("info", `The index ${indexPath} is complete and made of the cards every source has now, by their fingerprints; it was kept.`);
+      endPhase(trace, phases, "kept");
+      return { indexPath, index: previous, journal: journal.entries() };
     }
     phases.start("consolidation");
+    journal.record("info", `The index is made: ${stale}.`);
     const inventory = new Map([...cards].map(([id, card]) => [id, elementsOf(card)] as const));
     if ([...inventory.values()].every((elements) => elements.length === 0)) {
       journal.record("error", `No index was written: ${cards.size === 0 ? "no source has a card" : "the cards hold no element"}.`);
-      phases.end("failed");
+      endPhase(trace, phases, "failed");
       return { journal: journal.entries() };
     }
     const submission = new HandedIn(domainIndexRules(inventory, new Set(sources.map((source) => source.id)), (id) => cards.has(id), configSecrets(config, env)), journal);
@@ -164,17 +169,21 @@ export class Cartographer {
     };
     await runAgentTask(this.options.runtime, task, taskLimits(config));
     const { last, counters } = taskEnd(events);
+    const usage = usageOf(counters);
     if (last.type === "error") journal.record("error", `The consolidation failed: ${last.error.message}`);
     if (last.type === "stopped") journal.record("error", `The consolidation reached its ${last.reason.limit} limit.`);
     const accepted = submission.accepted;
     if (accepted === undefined) {
       journal.record("error", "No index was written: no index was accepted before the session ended.");
-      phases.end("failed");
+      endPhase(trace, phases, "failed", usage);
       return { journal: journal.entries() };
     }
-    phases.end(last.type === "end" ? "done" : "truncated");
+    endPhase(trace, phases, last.type === "end" ? "done" : "truncated", usage);
     phases.start("index");
-    const states = sources.map((source): IndexSource => ({ id: source.id, type: source.type, state: cards.has(source.id) ? "read" : "not_read" }));
+    const states = sources.map((source): IndexSource => {
+      const card = cards.get(source.id);
+      return card === undefined ? { id: source.id, type: source.type, state: "not_read" } : { id: source.id, type: source.type, state: "read", cardFingerprint: cardFingerprint(card) };
+    });
     const made = results.flatMap(({ outcome }) => (outcome.card === undefined || outcome.kept ? [] : [outcome.card.run]));
     const index: DomainIndex = {
       formatVersion: 1,
@@ -190,39 +199,44 @@ export class Cartographer {
       sources: states,
       ...accepted,
     };
-    const outcome = await this.write(index, journal);
-    phases.end(outcome.index === undefined ? "failed" : outcome.index.status === "complete" ? "done" : "truncated");
+    const outcome = await this.write(indexPath, index, journal);
+    endPhase(trace, phases, outcome.index === undefined ? "failed" : outcome.index.status === "complete" ? "done" : "truncated");
     return outcome;
   }
 
-  /** The index already written, when it is complete, of this environment, and of exactly the sources given. */
-  private async upToDate(sources: ReadonlySet<string>): Promise<{ indexPath: string; index: DomainIndex } | undefined> {
-    const indexPath = join(this.options.repositoryRoot, this.options.config.repository.indexDir, INDEX_FILE_NAME);
-    const content: unknown = await readFile(indexPath, "utf8").then(
-      (text) => JSON.parse(text) as unknown,
-      () => undefined,
-    ).catch(() => undefined);
-    const validation = validateDomainIndex(content);
-    if (!validation.ok) return undefined;
-    const index = validation.value;
-    const same = index.sources.length === sources.size && index.sources.every((source) => sources.has(source.id));
-    return index.status === "complete" && index.environment === this.options.environment && same ? { indexPath, index } : undefined;
+  /** Where the index is written, in the test repository. */
+  private indexPath(): string {
+    return join(this.options.repositoryRoot, this.options.config.repository.indexDir, INDEX_FILE_NAME);
   }
 
-  private async write(index: DomainIndex, journal: Journal): Promise<Omit<CartographyOutcome, "tracePath">> {
+  private async write(indexPath: string, index: DomainIndex, journal: Journal): Promise<Omit<CartographyOutcome, "tracePath">> {
     const validation = validateDomainIndex(index);
     if (!validation.ok) {
       for (const error of validation.errors) journal.record("error", `The index does not match its schema: ${error.message}`);
       journal.record("error", "No index was written.");
       return { journal: journal.entries() };
     }
-    const folder = join(this.options.repositoryRoot, this.options.config.repository.indexDir);
-    const indexPath = join(folder, INDEX_FILE_NAME);
-    await mkdir(folder, { recursive: true });
+    await mkdir(dirname(indexPath), { recursive: true });
     await writeFile(indexPath, `${JSON.stringify(index, null, 2)}\n`);
     journal.record("info", `The index was written to ${indexPath}, ${index.status}.`);
     return { indexPath, index, journal: journal.entries() };
   }
+}
+
+/** The index at `path`, when it is readable and passes its schema. */
+async function readIndex(path: string): Promise<DomainIndex | undefined> {
+  const content: unknown = await readFile(path, "utf8").then(
+    (text) => JSON.parse(text) as unknown,
+    () => undefined,
+  ).catch(() => undefined);
+  const validation = validateDomainIndex(content);
+  return validation.ok ? validation.value : undefined;
+}
+
+/** Ends the phase open, after the line of what it asked of the model. */
+function endPhase(trace: Trace, phases: TracedPhases, outcome: PhaseOutcome, usage: ModelUsage = NO_USAGE): void {
+  trace.harness(phases.current, { type: "usage", ...usage });
+  phases.end(outcome);
 }
 
 /** What a source answered at the check, for its trace line. */

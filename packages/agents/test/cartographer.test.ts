@@ -99,6 +99,8 @@ interface Setup {
   readonly cards?: readonly string[];
   /** Receives each line of the trace as it is written. */
   readonly observe?: (line: TraceLine) => void;
+  /** Maps every source again, and makes the index again. */
+  readonly force?: boolean;
   /** Changes the repository once its cards are written, before the run. */
   readonly prepare?: (root: string) => void;
 }
@@ -221,6 +223,7 @@ async function cartography(replies: readonly { status?: number; body: unknown }[
       ...(setup.realDatabase === true ? {} : { sqlClient: () => database }),
       ...(setup.autonomous === true ? {} : { now: () => new Date("2026-11-13T10:00:00.000Z") }),
       ...(setup.observe === undefined ? {} : { observe: setup.observe }),
+      ...(setup.force === undefined ? {} : { force: setup.force }),
     });
     return { outcome: await cartographer.run(), server, root, database, before };
   } finally {
@@ -233,6 +236,8 @@ async function cartography(replies: readonly { status?: number; body: unknown }[
 const happy = () => [{ body: toolCalls(MODEL, [submit(SUBMISSION)]) }, { body: answer(MODEL, "Two domains: orders and customers.") }];
 const messages = (outcome: CartographyOutcome) => outcome.journal.map((entry) => entry.message).join("\n");
 const indexFile = (root: string) => join(root, ".oqas", "index", INDEX_FILE_NAME);
+/** The fingerprint of the card of a source, as written in the repository: a digest of its JSON content. */
+const cardPrint = (root: string, id: string) => fingerprintOf(JSON.stringify(JSON.parse(readFileSync(join(root, ".oqas", "index", "sources", `${id}.json`), "utf8"))));
 const toolsOffered = (server: ScriptedServer, request: number) => (server.requests[request]!.body as { tools: { function: { name: string } }[] }).tools.map((tool) => tool.function.name);
 
 describe("criterion 1 — the cartographer writes an index that passes the schema of the index format", () => {
@@ -242,14 +247,14 @@ describe("criterion 1 — the cartographer writes an index that passes the schem
     const written = JSON.parse(readFileSync(indexFile(root), "utf8")) as unknown;
     assert.deepEqual(validateDomainIndex(written), { ok: true, value: outcome.index });
     assert.deepEqual(outcome.index!.sources, [
-      { id: "shop-api", type: "openapi", state: "read" },
-      { id: "shop-db", type: "postgresql", state: "read" },
-      { id: "order-specs", type: "document", state: "read" },
-      { id: "shop", type: "web", state: "read" },
+      { id: "shop-api", type: "openapi", state: "read", cardFingerprint: cardPrint(root, "shop-api") },
+      { id: "shop-db", type: "postgresql", state: "read", cardFingerprint: cardPrint(root, "shop-db") },
+      { id: "order-specs", type: "document", state: "read", cardFingerprint: cardPrint(root, "order-specs") },
+      { id: "shop", type: "web", state: "read", cardFingerprint: cardPrint(root, "shop") },
     ]);
     assert.deepEqual([outcome.index!.status, outcome.index!.producedAt, outcome.index!.environment, outcome.index!.run.iterations], ["complete", "2026-11-13T10:00:00.000Z", "local", 2]);
     assert.deepEqual(toolsOffered(server, 0).sort(), ["recall", "remember", "submit_index"]);
-    assert.match(messages(outcome), /The card of shop is up to date; it was kept\.\nThe index was accepted\.\nThe index was written to .*domain-index\.json, complete\./);
+    assert.match(messages(outcome), /The card of shop is up to date; it was kept\.\nThe index is made: no index could be read\.\nThe index was accepted\.\nThe index was written to .*domain-index\.json, complete\./);
   });
 });
 
@@ -454,9 +459,9 @@ describe("criterion 10 — a declared document is listed, read when it has a car
     const refersToIt = { ...SUBMISSION, unassigned: [...SUBMISSION.unassigned, { source: "specs-1", items: ["Returns"] }] };
     const { outcome, server } = await cartography([...noCard, { body: toolCalls(MODEL, [submit(refersToIt)]) }, { body: toolCalls(MODEL, [submit(SUBMISSION, "x2")]) }, { body: answer(MODEL, "Done.") }], { documents: ["specs/orders.md", "specs/returns.md"] });
     assert.match(JSON.stringify(server.requests[5]!.body), /refers to specs-1, which has no card; leave it out/);
-    assert.deepEqual(outcome.index!.sources.filter((s) => s.type === "document"), [
-      { id: "order-specs", type: "document", state: "read" },
-      { id: "specs-1", type: "document", state: "not_read" },
+    assert.deepEqual(outcome.index!.sources.filter((s) => s.type === "document").map((s) => [s.id, s.state, s.cardFingerprint !== undefined]), [
+      ["order-specs", "read", true],
+      ["specs-1", "not_read", false],
     ]);
     assert.equal(outcome.index!.status, "truncated");
     assert.match(JSON.stringify(server.requests[4]!.body), /## specs-1 \(document\): no card; leave it out\./);
@@ -611,47 +616,107 @@ describe("trace, criterion 6 — an observer gets each line as it is written, an
   });
 });
 
-describe("an index already up to date", () => {
-  const sources = [
-    { id: "shop-api", type: "openapi", state: "read" },
-    { id: "shop-db", type: "postgresql", state: "read" },
-    { id: "order-specs", type: "document", state: "read" },
-    { id: "shop", type: "web", state: "read" },
-  ];
-  const index = (changes: Record<string, unknown> = {}) => ({
+describe("faster cartography", () => {
+  const sources = (ids: readonly string[]) => (root: string) =>
+    ids.map((id) => ({ id, type: id === "shop" ? "web" : id === "shop-db" ? "postgresql" : id === "shop-api" ? "openapi" : "document", state: "read", cardFingerprint: cardPrint(root, id) }));
+  const ALL = ["shop-api", "shop-db", "order-specs", "shop"];
+  /** An index of the cards of the repository, as a run made it before. */
+  const index = (root: string, changes: object = {}, ids: readonly string[] = ALL) => ({
     formatVersion: 1,
     producedAt: "2026-11-12T08:00:00.000Z",
     environment: "local",
     model: { provider: "openai", baseUrl: "http://127.0.0.1:1/v1", model: MODEL },
     run: { iterations: 9, actions: 0, durationMs: 1 },
     status: "complete",
-    sources,
+    sources: sources(ids)(root),
     ...SUBMISSION,
     ...changes,
   });
-  const written = (content: unknown) => (root: string) => writeFileSync(indexFile(root), typeof content === "string" ? content : JSON.stringify(content));
+  const written = (content: (root: string) => unknown) => (root: string): void => {
+    const value = content(root);
+    writeFileSync(indexFile(root), typeof value === "string" ? value : JSON.stringify(value));
+  };
+  const usages = (lines: readonly TraceLine[]) =>
+    lines.flatMap((line) => (line.event.type === "usage" ? [[line.phase, line.source ?? "", line.event.requests, line.event.inputTokens, line.event.outputTokens]] : []));
 
-  it("is kept without the model when every card was kept, and the trace says so", async () => {
-    const { outcome, root, server } = await cartography([], { prepare: written(index()) });
-    assert.equal(server.requests.length, 0);
-    assert.deepEqual([outcome.indexPath, outcome.index!.producedAt], [indexFile(root), "2026-11-12T08:00:00.000Z"]);
-    assert.match(messages(outcome), /Every card is up to date, and so is the index .*domain-index\.json; it was kept\./);
-    const phases = traceOf(outcome).filter((line) => line.source === undefined && (line.event.type === "started" || line.event.type === "finished"));
-    assert.deepEqual(phases.slice(-2).map((line) => [line.phase, line.event]), [["index", { type: "started" }], ["index", { type: "finished", outcome: "kept" }]]);
-    assert.ok(!phases.some((line) => line.phase === "consolidation"));
+  describe("faster cartography, criterion 1 — up-to-date cards and an index made of them send no request and keep the index", () => {
+    it("keeps the index without any request to the model, and the trace says why", async () => {
+      const { outcome, root, server } = await cartography([], { prepare: written((made) => index(made)) });
+      assert.equal(server.requests.length, 0);
+      assert.deepEqual([outcome.indexPath, outcome.index!.producedAt], [indexFile(root), "2026-11-12T08:00:00.000Z"]);
+      const lines = traceOf(outcome);
+      const why = lines.find((line) => line.phase === "index" && line.event.type === "journal");
+      assert.match(why?.event.type === "journal" ? why.event.message : "", /^The index .*domain-index\.json is complete and made of the cards every source has now, by their fingerprints; it was kept\.$/);
+      const phases = lines.filter((line) => line.source === undefined && (line.event.type === "started" || line.event.type === "finished"));
+      assert.deepEqual(phases.slice(-2).map((line) => [line.phase, line.event]), [["index", { type: "started" }], ["index", { type: "finished", outcome: "kept" }]]);
+      assert.ok(!lines.some((line) => line.phase === "consolidation" || line.actor === "agent"));
+      assert.ok(usages(lines).every(([, , requests, input]) => requests === 0 && input === undefined));
+    });
+
+    it("makes the index again when it is truncated, of another environment, unreadable, recorded no fingerprint, or force is set", async () => {
+      const stale: readonly [(root: string) => unknown, string][] = [
+        [(root) => ({ ...index(root), status: "truncated", sources: [...sources(ALL.slice(0, 3))(root), { id: "shop", type: "web", state: "not_read" }] }), "the index at hand is truncated"],
+        [(root) => index(root, { environment: "staging" }), "the index at hand is of the environment staging"],
+        [() => "{ not json", "no index could be read"],
+        [(root) => index(root, { sources: sources(ALL)(root).map(({ cardFingerprint: _, ...source }) => source) }), "the card of shop-api is not the one the index at hand was made of"],
+      ];
+      for (const [content, reason] of stale) {
+        const { outcome, server } = await cartography(happy(), { prepare: written(content) });
+        assert.ok(server.requests.length > 0, reason);
+        assert.equal(outcome.index!.producedAt, "2026-11-13T10:00:00.000Z", reason);
+        assert.ok(messages(outcome).includes(`The index is made: ${reason}.`), messages(outcome));
+      }
+      const silent = Array.from({ length: 16 }, () => ({ body: answer(MODEL, "Nothing to say.") }));
+      const forced = await cartography(silent, { force: true, prepare: written((made) => index(made)) });
+      assert.ok(forced.server.requests.length > 0);
+      assert.match(messages(forced.outcome), /The index is made: force is set\./);
+    });
   });
 
-  it("is made again when it is truncated, of another environment, of other sources, or unreadable", async () => {
-    for (const stale of [index({ status: "truncated", sources: [...sources.slice(0, 3), { ...sources[3]!, state: "not_read" }] }), index({ environment: "staging" }), index({ sources: sources.slice(0, 3), ...without("shop") }), "{ not json"]) {
-      const { outcome, server } = await cartography(happy(), { prepare: written(stale) });
-      assert.ok(server.requests.length > 0);
-      assert.equal(outcome.index!.producedAt, "2026-11-13T10:00:00.000Z");
-    }
+  describe("faster cartography, criterion 2 — a card made again, added or removed makes the consolidation again, with the new fingerprints", () => {
+    it("consolidates again when a card was made again, and records its new fingerprint", async () => {
+      let before = "";
+      const remade = [{ body: toolCalls(MODEL, [submitCard(cardSubmission("order-specs"))]) }, { body: answer(MODEL, "Done.") }, ...happy()];
+      const prepare = (root: string) => {
+        written(index)(root);
+        before = cardPrint(root, "order-specs");
+        writeFileSync(join(root, "specs", "orders.md"), "# Orders\n\n## Placing an order\n\nA customer places an order, then pays it.\n");
+      };
+      const { outcome, root, server } = await cartography(remade, { prepare });
+      assert.equal(server.requests.length, 4);
+      assert.match(messages(outcome), /The index is made: the card of order-specs is not the one the index at hand was made of\./);
+      const recorded = outcome.index!.sources.find((source) => source.id === "order-specs")!.cardFingerprint;
+      assert.ok(recorded === cardPrint(root, "order-specs") && recorded !== before);
+      assert.deepEqual(outcome.index!.sources.map((source) => source.cardFingerprint), ALL.map((id) => cardPrint(root, id)));
+    });
+
+    it("consolidates again when a source was added or removed, and records the fingerprints of the cards of the run", async () => {
+      const added = await cartography(happy(), { prepare: written((root) => index(root, without("shop"), ALL.slice(0, 3))) });
+      assert.match(messages(added.outcome), /The index is made: shop is not a source of the index at hand\./);
+      assert.deepEqual(added.outcome.index!.sources.map((source) => [source.id, source.cardFingerprint]), ALL.map((id) => [id, cardPrint(added.root, id)]));
+      const gone = { id: "old-specs", type: "document", state: "read", cardFingerprint: `sha256:${"0".repeat(64)}` };
+      const removed = await cartography(happy(), { prepare: written((root) => index(root, { sources: [...sources(ALL)(root), gone] })) });
+      assert.match(messages(removed.outcome), /The index is made: old-specs is no longer a source of the run\./);
+      assert.deepEqual(removed.outcome.index!.sources.map((source) => [source.id, source.cardFingerprint]), ALL.map((id) => [id, cardPrint(removed.root, id)]));
+    });
   });
 
-  it("is made again when a card was made again", async () => {
-    const { outcome, server } = await cartography([{ body: toolCalls(MODEL, [submitCard(cardSubmission("order-specs"))]) }, { body: answer(MODEL, "Done.") }, ...happy()], { prepare: written(index()), cards: ["shop-api", "shop-db", "shop"] });
-    assert.ok(server.requests.length > 0);
-    assert.equal(outcome.index!.producedAt, "2026-11-13T10:00:00.000Z", messages(outcome));
+  describe("faster cartography, criterion 3 — the trace gives the requests to the model of each phase and of each source", () => {
+    it("counts the requests and the tokens of each phase and of each card, on scripted answers", async () => {
+      const { outcome, server } = await cartography(mappingTheBase([{ id: "c1", name: "shop_db_list_tables", arguments: {} }]), { cards: ["shop-api", "order-specs", "shop"] });
+      assert.equal(server.requests.length, 5);
+      assert.deepEqual(usages(traceOf(outcome)), [
+        ["survey", "", 0, undefined, undefined],
+        ["card", "shop-api", 0, undefined, undefined],
+        ["card", "shop-db", 3, 3, 3],
+        ["card", "order-specs", 0, undefined, undefined],
+        ["card", "shop", 0, undefined, undefined],
+        ["card", "", 3, 3, 3],
+        ["consolidation", "", 2, 2, 2],
+        ["index", "", 0, undefined, undefined],
+      ]);
+      const ends = traceOf(outcome).flatMap((line, i, lines) => (line.event.type === "finished" ? [lines[i - 1]!.event.type] : []));
+      assert.ok(ends.every((type) => type === "usage"), "each phase gives its usage just before its end");
+    });
   });
 });

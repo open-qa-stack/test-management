@@ -10,7 +10,7 @@ The cartographer writes the domain index of an application in the test repositor
 | `model` | `provider`, `baseUrl` and `model` of the model used; never a key. |
 | `run` | `iterations`, `actions` and `durationMs` the run used, as the harness measured them. |
 | `status` | `complete`, or `truncated` when a limit stopped the task, a card is truncated or a source was not read. A `complete` index has every source read. |
-| `sources` | Each source of the run: `id` (a knowledge source, or an application for its user interface), `type` (`openapi`, `postgresql`, `document`, `source-code`, `web`) and `state` (`read` when it has a card, `not_read` otherwise). |
+| `sources` | Each source of the run: `id` (a knowledge source, or an application for its user interface), `type` (`openapi`, `postgresql`, `document`, `source-code`, `web`), `state` (`read` when it has a card, `not_read` otherwise) and, for a source read, `cardFingerprint`: `sha256:` and a digest of the card it was read from, so that an index whose cards have not changed since is known to be up to date. A source not read has no `cardFingerprint`. |
 | `domains` | Each domain: `id` (an English slug, unique), `label`, a one-sentence `description`, and `references`, a list of `{ source, items }`. |
 | `unassigned` | The elements of the cards put in no domain, as `{ source, items }`. |
 
@@ -33,10 +33,10 @@ An excerpt of [examples/domain-index/domain-index.json](../examples/domain-index
   "run": { "iterations": 24, "actions": 31, "durationMs": 412000 },
   "status": "complete",
   "sources": [
-    { "id": "orders-api", "type": "openapi", "state": "read" },
-    { "id": "orders-db", "type": "postgresql", "state": "read" },
-    { "id": "storefront", "type": "web", "state": "read" },
-    { "id": "order-specs", "type": "document", "state": "read" }
+    { "id": "orders-api", "type": "openapi", "state": "read", "cardFingerprint": "sha256:235a34306ef94a36e7b700d6f71ec8348621418e8dedbd65429162f31a1e2d71" },
+    { "id": "orders-db", "type": "postgresql", "state": "read", "cardFingerprint": "sha256:3496bdf970420909df73d7e3067da98b0ff9f373819fa4c89f1a6cc68c3c2084" },
+    { "id": "storefront", "type": "web", "state": "read", "cardFingerprint": "sha256:c6a9a4e6cd25229fca050c5bc87d0da377c01f18b3ceadf9a57754a7d6090ab8" },
+    { "id": "order-specs", "type": "document", "state": "read", "cardFingerprint": "sha256:668a09bb5cabc59117e06131331d90dda14b976de35cbe617f045bcda72ac051" }
   ],
   "domains": [
     {

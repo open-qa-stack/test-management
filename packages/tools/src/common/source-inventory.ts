@@ -7,6 +7,11 @@ export interface SourceInventory {
   readonly items: readonly string[];
   /** Facts of each element, by name; an element may have none. */
   readonly facts: ReadonlyMap<string, Readonly<Record<string, unknown>>>;
+  /**
+   * What the harness read of each element beyond its facts, by name, for the request of its card only: the
+   * columns of a table, the start of a section.
+   */
+  readonly excerpts?: ReadonlyMap<string, string>;
   /** Fingerprint of the source as it was read. */
   readonly fingerprint: string;
   /** Whether the harness read only part of the source, which was too large; the elements are then partial. */

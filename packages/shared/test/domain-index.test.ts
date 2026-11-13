@@ -36,6 +36,7 @@ describe("the domain index format", () => {
     index.domains.push({ ...index.domains[0]! });
     index.unassigned.push({ source: "elsewhere", items: ["x"] });
     index.sources[3]!.state = "not_read";
+    delete index.sources[3]!.cardFingerprint;
     index.sources.push({ ...index.sources[0]! });
     const result = validateDomainIndex(index);
     assert.deepEqual((errorsOf(result) as { path: string }[]).map((e) => e.path), ["/domains/2/id", "/sources/4/id", "/unassigned/1/source", "/status"]);
@@ -43,6 +44,18 @@ describe("the domain index format", () => {
     index.unassigned.pop();
     index.sources.pop();
     assert.equal(validateDomainIndex({ ...index, status: "truncated" }).ok, true);
+  });
+
+  it("records the fingerprint of the card of each source read, and of no source not read", () => {
+    const index = copy();
+    assert.ok(index.sources.every((source) => /^sha256:[0-9a-f]{64}$/.test(source.cardFingerprint!)));
+    const legacy = { ...index, sources: index.sources.map(({ cardFingerprint: _, ...source }) => source) };
+    assert.equal(validateDomainIndex(legacy).ok, true);
+    assert.deepEqual(errorsOf(validateDomainIndex({ ...index, sources: [{ ...index.sources[0]!, cardFingerprint: "abc" }, ...index.sources.slice(1)] })), [
+      { path: "/sources/0/cardFingerprint", message: '/sources/0/cardFingerprint must match pattern "^sha256:[0-9a-f]{64}$".' },
+    ]);
+    const unread = { ...index, status: "truncated", sources: [{ ...index.sources[0]!, state: "not_read" }, ...index.sources.slice(1)] };
+    assert.deepEqual(errorsOf(validateDomainIndex(unread)), [{ path: "/sources/0/cardFingerprint", message: "/sources/0/cardFingerprint is given although orders-api was not read." }]);
   });
 });
 

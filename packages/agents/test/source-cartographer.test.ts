@@ -253,7 +253,24 @@ describe("defaults and tool errors", () => {
 
 describe("the request of a cartography", () => {
   it("lists an element without facts by its name alone", () => {
-    assert.equal(sourceCardRequest("x", "postgresql", { items: ["a", "b"], facts: new Map([["b", {}]]), fingerprint: "f" }).split("\n").slice(1, 3).join("|"), "- a|- b");
+    const request = sourceCardRequest("x", "postgresql", { items: ["a", "b"], facts: new Map([["b", {}]]), fingerprint: "f" });
+    assert.equal(request.split("\n").slice(1, 3).join("|"), "- a|- b");
+    assert.ok(!request.includes("indented line"));
+  });
+});
+
+describe("faster cartography — the request of a card gives the agent what the harness already read", () => {
+  it("gives the columns of each table under it, and still offers the tools of the base", async () => {
+    const { server } = await cartography(happy(), { database: new CatalogDouble() });
+    const request = (server.requests[0]!.body as { messages: { role: string; content: string }[] }).messages.find((message) => message.role === "user")!.content;
+    assert.match(request, /\n- public\.orders \([^\n]*\)\n  id bigint not null, customer_id bigint not null, status text not null\n- public\.customers /);
+    assert.match(request, /The indented line under a name is what the harness already read of it\. Call a tool only for what this request does not show/);
+    assert.ok((server.requests[0]!.body as { tools: { function: { name: string } }[] }).tools.some((tool) => tool.function.name === "shop_db_describe_table"));
+  });
+
+  it("gives the start of each section of a document under its name", () => {
+    const request = sourceCardRequest("specs", "document", { items: ["Orders", "Returns"], facts: new Map([["Orders", { number: 1, level: 1 }]]), excerpts: new Map([["Orders", "A customer places an order."]]), fingerprint: "f" });
+    assert.equal(request.split("\n").slice(1, 4).join("|"), "- Orders (number: 1; level: 1)|  A customer places an order.|- Returns");
   });
 });
 

@@ -18,8 +18,8 @@ export function validateDomainSubmission(value: unknown): IndexValidation<Domain
 }
 
 /**
- * Validates a domain index: the schema, unique domain and source identifiers, references to listed sources only, and
- * a status that is `complete` only when every source was read.
+ * Validates a domain index: the schema, unique domain and source identifiers, references to listed sources only, a
+ * card fingerprint for sources read only, and a status that is `complete` only when every source was read.
  *
  * @param value - The index.
  * @returns The index, or every error found, each with its location.
@@ -27,7 +27,7 @@ export function validateDomainSubmission(value: unknown): IndexValidation<Domain
 export function validateDomainIndex(value: unknown): IndexValidation<DomainIndex> {
   return validate(checkIndex, value, (index) => {
     const listed = new Set(index.sources.map((source) => source.id));
-    const errors = [...duplicateDomains(index), ...duplicateSources(index), ...unlistedSources(index, listed)];
+    const errors = [...duplicateDomains(index), ...duplicateSources(index), ...unlistedSources(index, listed), ...cardsOfUnreadSources(index)];
     if (index.status === "complete" && index.sources.some((source) => source.state === "not_read")) {
       errors.push({ path: "/status", message: "/status is complete although a source was not read." });
     }
@@ -41,6 +41,12 @@ function duplicateDomains({ domains }: DomainIndexSubmission): IndexError[] {
 
 function duplicateSources({ sources }: DomainIndex): IndexError[] {
   return repeated(sources.map((source) => source.id), "/sources", "id", "source");
+}
+
+function cardsOfUnreadSources({ sources }: DomainIndex): IndexError[] {
+  return sources.flatMap((source, i) =>
+    source.state === "not_read" && source.cardFingerprint !== undefined ? [{ path: `/sources/${i}/cardFingerprint`, message: `/sources/${i}/cardFingerprint is given although ${source.id} was not read.` }] : [],
+  );
 }
 
 function unlistedSources(index: DomainIndex, listed: ReadonlySet<string>): IndexError[] {

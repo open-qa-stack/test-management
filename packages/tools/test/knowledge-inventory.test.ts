@@ -9,7 +9,7 @@ import { ALL_COLUMNS_QUERY, KEYS_QUERY, TABLES_QUERY } from "../src/postgresql/c
 import { knowledgeInventory, type SqlClient, type SqlResult } from "../src/index.ts";
 import { closedPort } from "@open-qa-stack/testing";
 import { sqlResult } from "./sql-result.ts";
-import { documentInventory } from "../src/document/document-inventory.ts";
+import { documentInventory, SECTION_START_LENGTH } from "../src/document/document-inventory.ts";
 import { CodeFolder } from "../src/source-code/code-folder.ts";
 import { codeInventory } from "../src/source-code/code-inventory.ts";
 
@@ -62,6 +62,7 @@ describe("the inventory of a knowledge source, read without the model", () => {
       "public.policies": { columns: 3, primaryKey: ["id"], foreignKeys: [{ columns: ["customer_id"], references: "public.customers", referencedColumns: ["id"] }] },
       "public.audit": { columns: 0, primaryKey: [], foreignKeys: [] },
     });
+    assert.deepEqual(Object.fromEntries(inventory.excerpts!), { "public.policies": "id bigint not null, premium numeric, customer_id bigint not null" });
     catalog.premiumType = "integer";
     assert.notEqual((await knowledgeInventory(base, access))!.fingerprint, inventory.fingerprint);
     assert.ok(catalog.queries.every((query) => /information_schema|pg_catalog/.test(query)));
@@ -77,9 +78,16 @@ describe("the inventory of a knowledge source, read without the model", () => {
     const inventory = await knowledgeInventory(document, { repositoryRoot: REPOSITORY, env: {} });
     assert.deepEqual(inventory.items, ["Quotes", "Request a quote", "Answer a quote", "Policies"]);
     assert.deepEqual(inventory.facts.get("Answer a quote"), { number: 3, level: 2 });
+    assert.equal(inventory.excerpts!.get("Answer a quote"), "The agent accepts or rejects it.");
     const twice = documentInventory("## Quotes\n### Rules\n#### Deep\n## Policies\n### Rules\n");
     assert.deepEqual(twice.items, ["Quotes", "Rules (§2)", "Policies", "Rules (§5)"]);
     assert.notEqual(twice.fingerprint, inventory.fingerprint);
+  });
+
+  it("gives the start of each section of a document, on one line and cut past its length", () => {
+    const long = "word ".repeat(SECTION_START_LENGTH);
+    const inventory = documentInventory(`## Quotes\n\nA quote is\nasked  online.\n## Empty\n## Long\n\n${long}`);
+    assert.deepEqual(Object.fromEntries(inventory.excerpts!), { Quotes: "A quote is asked online.", Long: `${long.slice(0, SECTION_START_LENGTH)}…` });
   });
 
   it("gives the folders of source code with their files and routes, read by the grammars only", async () => {
