@@ -1,0 +1,483 @@
+{
+ "config": {
+  "argv": [
+   "/usr/bin/node",
+   "/work/node_modules/.bin/playwright",
+   "test",
+   "--reporter=json"
+  ],
+  "configFile": "/work/playwright.config.ts",
+  "rootDir": "/work/apps",
+  "failOnFlakyTests": false,
+  "forbidOnly": true,
+  "fullyParallel": false,
+  "globalSetup": null,
+  "globalTeardown": null,
+  "globalTimeout": 0,
+  "grep": {},
+  "grepInvert": null,
+  "maxFailures": 0,
+  "metadata": {
+   "actualWorkers": 2
+  },
+  "preserveOutput": "always",
+  "projects": [
+   {
+    "outputDir": "/work/test-results",
+    "repeatEach": 1,
+    "retries": 0,
+    "metadata": {
+     "actualWorkers": 2
+    },
+    "id": "policy-management",
+    "name": "policy-management",
+    "testDir": "/work/apps/policy-management",
+    "testIgnore": [],
+    "testMatch": [
+     "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+    ],
+    "timeout": 30000
+   }
+  ],
+  "filteredProjects": [
+   {
+    "grep": {},
+    "grepInvert": null,
+    "outputDir": "/work/test-results",
+    "repeatEach": 1,
+    "retries": 0,
+    "metadata": {
+     "actualWorkers": 2
+    },
+    "name": "policy-management",
+    "testDir": "/work/apps/policy-management",
+    "snapshotDir": "/work/apps/policy-management",
+    "testIgnore": [],
+    "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
+    "timeout": 30000,
+    "use": {
+     "trace": "retain-on-failure",
+     "screenshot": "only-on-failure",
+     "baseURL": "http://localhost:3010"
+    },
+    "dependencies": [],
+    "ignoreSnapshots": false,
+    "__projectId": "policy-management"
+   }
+  ],
+  "quiet": false,
+  "reporter": [
+   [
+    "json"
+   ]
+  ],
+  "reportSlowTests": {
+   "max": 5,
+   "threshold": 300000
+  },
+  "shard": null,
+  "tags": [],
+  "updateSnapshots": "default",
+  "updateSourceMethod": "patch",
+  "version": "1.64.1",
+  "workers": 2,
+  "webServer": null
+ },
+ "suites": [
+  {
+   "title": "policy-management/acceptance-criteria.spec.ts",
+   "file": "policy-management/acceptance-criteria.spec.ts",
+   "column": 0,
+   "line": 0,
+   "specs": [
+    {
+     "title": "meets acceptance criteria",
+     "ok": false,
+     "tags": [],
+     "tests": [
+      {
+       "timeout": 30000,
+       "annotations": [],
+       "expectedStatus": "passed",
+       "projectId": "policy-management",
+       "projectName": "policy-management",
+       "results": [
+        {
+         "workerIndex": 0,
+         "parallelIndex": 0,
+         "status": "failed",
+         "duration": 6078,
+         "error": {
+          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('table', { name: 'Policies' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" getByRole('table', { name: 'Policies' }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('table', { name: 'Policies' })\u001b[22m\n",
+          "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('table', { name: 'Policies' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" getByRole('table', { name: 'Policies' }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('table', { name: 'Policies' })\u001b[22m\n\n    at /work/apps/policy-management/acceptance-criteria.spec.ts:10:63",
+          "location": {
+           "file": "/work/apps/policy-management/acceptance-criteria.spec.ts",
+           "column": 63,
+           "line": 10
+          },
+          "snippet": "   8 |   \n   9 |   // The policies table should be present\n> 10 |   await expect(page.getByRole('table', { name: 'Policies' })).toBeVisible();\n     |                                                               ^\n  11 |   \n  12 |   // The page should show the \"Loading...\" message while loading policies\n  13 |   await expect(page.getByText('Loading...')).toBeVisible();"
+         },
+         "errors": [
+          {
+           "location": {
+            "file": "/work/apps/policy-management/acceptance-criteria.spec.ts",
+            "column": 63,
+            "line": 10
+           },
+           "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('table', { name: 'Policies' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" getByRole('table', { name: 'Policies' }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('table', { name: 'Policies' })\u001b[22m\n\n\n   8 |   \n   9 |   // The policies table should be present\n> 10 |   await expect(page.getByRole('table', { name: 'Policies' })).toBeVisible();\n     |                                                               ^\n  11 |   \n  12 |   // The page should show the \"Loading...\" message while loading policies\n  13 |   await expect(page.getByText('Loading...')).toBeVisible();\n    at /work/apps/policy-management/acceptance-criteria.spec.ts:10:63"
+          }
+         ],
+         "stdout": [],
+         "stderr": [],
+         "retry": 0,
+         "startTime": "2026-11-13T11:11:25.688Z",
+         "annotations": [],
+         "attachments": [
+          {
+           "name": "screenshot",
+           "contentType": "image/png",
+           "path": "/work/test-results/acceptance-criteria-meets-acceptance-criteria-policy-management/test-failed-1.png"
+          },
+          {
+           "name": "error-context",
+           "contentType": "text/markdown",
+           "path": "/work/test-results/acceptance-criteria-meets-acceptance-criteria-policy-management/error-context.md"
+          },
+          {
+           "name": "trace",
+           "contentType": "application/zip",
+           "path": "/work/test-results/acceptance-criteria-meets-acceptance-criteria-policy-management/trace.zip"
+          }
+         ],
+         "errorLocation": {
+          "file": "/work/apps/policy-management/acceptance-criteria.spec.ts",
+          "column": 63,
+          "line": 10
+         }
+        }
+       ],
+       "status": "unexpected"
+      }
+     ],
+     "id": "608813ad232f4002f2e1-32901abcbddcab5cdab0",
+     "file": "policy-management/acceptance-criteria.spec.ts",
+     "line": 3,
+     "column": 1
+    }
+   ]
+  },
+  {
+   "title": "policy-management/browse-policies.spec.ts",
+   "file": "policy-management/browse-policies.spec.ts",
+   "column": 0,
+   "line": 0,
+   "specs": [
+    {
+     "title": "can browse policies",
+     "ok": false,
+     "tags": [],
+     "tests": [
+      {
+       "timeout": 30000,
+       "annotations": [],
+       "expectedStatus": "passed",
+       "projectId": "policy-management",
+       "projectName": "policy-management",
+       "results": [
+        {
+         "workerIndex": 1,
+         "parallelIndex": 1,
+         "status": "failed",
+         "duration": 6079,
+         "error": {
+          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('table', { name: 'Policies' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" getByRole('table', { name: 'Policies' }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('table', { name: 'Policies' })\u001b[22m\n",
+          "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('table', { name: 'Policies' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" getByRole('table', { name: 'Policies' }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('table', { name: 'Policies' })\u001b[22m\n\n    at /work/apps/policy-management/browse-policies.spec.ts:10:63",
+          "location": {
+           "file": "/work/apps/policy-management/browse-policies.spec.ts",
+           "column": 63,
+           "line": 10
+          },
+          "snippet": "   8 |\n   9 |   // Verify the policies table is present\n> 10 |   await expect(page.getByRole('table', { name: 'Policies' })).toBeVisible();\n     |                                                               ^\n  11 |\n  12 |   // Verify pagination controls are present\n  13 |   await expect(page.getByRole('button', { name: 'Previous' })).toBeVisible();"
+         },
+         "errors": [
+          {
+           "location": {
+            "file": "/work/apps/policy-management/browse-policies.spec.ts",
+            "column": 63,
+            "line": 10
+           },
+           "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('table', { name: 'Policies' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" getByRole('table', { name: 'Policies' }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('table', { name: 'Policies' })\u001b[22m\n\n\n   8 |\n   9 |   // Verify the policies table is present\n> 10 |   await expect(page.getByRole('table', { name: 'Policies' })).toBeVisible();\n     |                                                               ^\n  11 |\n  12 |   // Verify pagination controls are present\n  13 |   await expect(page.getByRole('button', { name: 'Previous' })).toBeVisible();\n    at /work/apps/policy-management/browse-policies.spec.ts:10:63"
+          }
+         ],
+         "stdout": [],
+         "stderr": [],
+         "retry": 0,
+         "startTime": "2026-11-13T11:11:25.689Z",
+         "annotations": [],
+         "attachments": [
+          {
+           "name": "screenshot",
+           "contentType": "image/png",
+           "path": "/work/test-results/browse-policies-can-browse-policies-policy-management/test-failed-1.png"
+          },
+          {
+           "name": "error-context",
+           "contentType": "text/markdown",
+           "path": "/work/test-results/browse-policies-can-browse-policies-policy-management/error-context.md"
+          },
+          {
+           "name": "trace",
+           "contentType": "application/zip",
+           "path": "/work/test-results/browse-policies-can-browse-policies-policy-management/trace.zip"
+          }
+         ],
+         "errorLocation": {
+          "file": "/work/apps/policy-management/browse-policies.spec.ts",
+          "column": 63,
+          "line": 10
+         }
+        }
+       ],
+       "status": "unexpected"
+      }
+     ],
+     "id": "9ec994f704eed1bd195c-93901230df06409562e5",
+     "file": "policy-management/browse-policies.spec.ts",
+     "line": 3,
+     "column": 1
+    }
+   ]
+  },
+  {
+   "title": "policy-management/search-customers.spec.ts",
+   "file": "policy-management/search-customers.spec.ts",
+   "column": 0,
+   "line": 0,
+   "specs": [
+    {
+     "title": "can search customers",
+     "ok": false,
+     "tags": [],
+     "tests": [
+      {
+       "timeout": 30000,
+       "annotations": [],
+       "expectedStatus": "passed",
+       "projectId": "policy-management",
+       "projectName": "policy-management",
+       "results": [
+        {
+         "workerIndex": 2,
+         "parallelIndex": 1,
+         "status": "timedOut",
+         "duration": 30110,
+         "error": {
+          "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
+          "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+         },
+         "errors": [
+          {
+           "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+          },
+          {
+           "location": {
+            "file": "/work/apps/policy-management/search-customers.spec.ts",
+            "column": 14,
+            "line": 7
+           },
+           "message": "Error: page.waitForSelector: Test timeout of 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('table[aria-label=\"Customers\"]') to be visible\u001b[22m\n\n\n   5 |\n   6 |   // Wait for the customer table to be visible\n>  7 |   await page.waitForSelector('table[aria-label=\"Customers\"]');\n     |              ^\n   8 |\n   9 |   // Fill the search input with a test value\n  10 |   await page.getByPlaceholder('Search...').fill('test');\n    at /work/apps/policy-management/search-customers.spec.ts:7:14"
+          }
+         ],
+         "stdout": [],
+         "stderr": [],
+         "retry": 0,
+         "startTime": "2026-11-13T11:11:32.492Z",
+         "annotations": [],
+         "attachments": [
+          {
+           "name": "screenshot",
+           "contentType": "image/png",
+           "path": "/work/test-results/search-customers-can-search-customers-policy-management/test-failed-1.png"
+          },
+          {
+           "name": "error-context",
+           "contentType": "text/markdown",
+           "path": "/work/test-results/search-customers-can-search-customers-policy-management/error-context.md"
+          },
+          {
+           "name": "trace",
+           "contentType": "application/zip",
+           "path": "/work/test-results/search-customers-can-search-customers-policy-management/trace.zip"
+          }
+         ]
+        }
+       ],
+       "status": "unexpected"
+      }
+     ],
+     "id": "9ab4c73b2e1885bee96b-27f824dc544b15cfcde3",
+     "file": "policy-management/search-customers.spec.ts",
+     "line": 3,
+     "column": 1
+    }
+   ]
+  },
+  {
+   "title": "policy-management/view-policy.spec.ts",
+   "file": "policy-management/view-policy.spec.ts",
+   "column": 0,
+   "line": 0,
+   "specs": [
+    {
+     "title": "can view a policy detail",
+     "ok": false,
+     "tags": [],
+     "tests": [
+      {
+       "timeout": 30000,
+       "annotations": [],
+       "expectedStatus": "passed",
+       "projectId": "policy-management",
+       "projectName": "policy-management",
+       "results": [
+        {
+         "workerIndex": 3,
+         "parallelIndex": 0,
+         "status": "timedOut",
+         "duration": 30106,
+         "error": {
+          "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
+          "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+         },
+         "errors": [
+          {
+           "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+          },
+          {
+           "location": {
+            "file": "/work/apps/policy-management/view-policy.spec.ts",
+            "column": 14,
+            "line": 7
+           },
+           "message": "Error: page.waitForSelector: Test timeout of 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('table[aria-label=\"Policies\"]') to be visible\u001b[22m\n\n\n   5 |\n   6 |   // Wait for the policies table to be visible\n>  7 |   await page.waitForSelector('table[aria-label=\"Policies\"]');\n     |              ^\n   8 |\n   9 |   // Click on the first policy's \"Show Details\" link\n  10 |   const firstPolicyDetailsLink = page.getByRole('link', { name: 'Show Details' });\n    at /work/apps/policy-management/view-policy.spec.ts:7:14"
+          }
+         ],
+         "stdout": [],
+         "stderr": [],
+         "retry": 0,
+         "startTime": "2026-11-13T11:11:32.491Z",
+         "annotations": [],
+         "attachments": [
+          {
+           "name": "screenshot",
+           "contentType": "image/png",
+           "path": "/work/test-results/view-policy-can-view-a-policy-detail-policy-management/test-failed-1.png"
+          },
+          {
+           "name": "error-context",
+           "contentType": "text/markdown",
+           "path": "/work/test-results/view-policy-can-view-a-policy-detail-policy-management/error-context.md"
+          },
+          {
+           "name": "trace",
+           "contentType": "application/zip",
+           "path": "/work/test-results/view-policy-can-view-a-policy-detail-policy-management/trace.zip"
+          }
+         ]
+        }
+       ],
+       "status": "unexpected"
+      }
+     ],
+     "id": "7d2f49a9581d95cedf31-f93becc8ef0f164b1c27",
+     "file": "policy-management/view-policy.spec.ts",
+     "line": 3,
+     "column": 1
+    }
+   ]
+  },
+  {
+   "title": "policy-management/view-quote-request.spec.ts",
+   "file": "policy-management/view-quote-request.spec.ts",
+   "column": 0,
+   "line": 0,
+   "specs": [
+    {
+     "title": "can view a quote request detail",
+     "ok": false,
+     "tags": [],
+     "tests": [
+      {
+       "timeout": 30000,
+       "annotations": [],
+       "expectedStatus": "passed",
+       "projectId": "policy-management",
+       "projectName": "policy-management",
+       "results": [
+        {
+         "workerIndex": 4,
+         "parallelIndex": 0,
+         "status": "timedOut",
+         "duration": 30097,
+         "error": {
+          "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
+          "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+         },
+         "errors": [
+          {
+           "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+          },
+          {
+           "location": {
+            "file": "/work/apps/policy-management/view-quote-request.spec.ts",
+            "column": 14,
+            "line": 7
+           },
+           "message": "Error: page.waitForSelector: Test timeout of 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('table[aria-label=\"Insurance Quote Requests\"]') to be visible\u001b[22m\n\n\n   5 |\n   6 |   // Wait for the quote requests table to be visible\n>  7 |   await page.waitForSelector('table[aria-label=\"Insurance Quote Requests\"]');\n     |              ^\n   8 |\n   9 |   // Click on the first quote request's \"Show Details\" link\n  10 |   const firstQuoteRequestDetailsLink = page.getByRole('link', { name: 'Show Details' });\n    at /work/apps/policy-management/view-quote-request.spec.ts:7:14"
+          }
+         ],
+         "stdout": [],
+         "stderr": [],
+         "retry": 0,
+         "startTime": "2026-11-13T11:12:02.868Z",
+         "annotations": [],
+         "attachments": [
+          {
+           "name": "screenshot",
+           "contentType": "image/png",
+           "path": "/work/test-results/view-quote-request-can-view-a-quote-request-detail-policy-management/test-failed-1.png"
+          },
+          {
+           "name": "error-context",
+           "contentType": "text/markdown",
+           "path": "/work/test-results/view-quote-request-can-view-a-quote-request-detail-policy-management/error-context.md"
+          },
+          {
+           "name": "trace",
+           "contentType": "application/zip",
+           "path": "/work/test-results/view-quote-request-can-view-a-quote-request-detail-policy-management/trace.zip"
+          }
+         ]
+        }
+       ],
+       "status": "unexpected"
+      }
+     ],
+     "id": "ab1e74ee0d9eff21b07d-03ddd422d9ecdabc6e3b",
+     "file": "policy-management/view-quote-request.spec.ts",
+     "line": 3,
+     "column": 1
+    }
+   ]
+  }
+ ],
+ "errors": [],
+ "stats": {
+  "startTime": "2026-11-13T11:11:25.456Z",
+  "duration": 67608.58499999999,
+  "expected": 0,
+  "skipped": 0,
+  "unexpected": 5,
+  "flaky": 0
+ }
+}

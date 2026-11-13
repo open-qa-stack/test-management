@@ -1,0 +1,252 @@
+{
+ "config": {
+  "argv": [
+   "/usr/bin/node",
+   "/work/node_modules/.bin/playwright",
+   "test",
+   "--list",
+   "--reporter=json"
+  ],
+  "configFile": "/work/playwright.config.ts",
+  "rootDir": "/work/apps",
+  "failOnFlakyTests": false,
+  "forbidOnly": true,
+  "fullyParallel": false,
+  "globalSetup": null,
+  "globalTeardown": null,
+  "globalTimeout": 0,
+  "grep": {},
+  "grepInvert": null,
+  "maxFailures": 0,
+  "metadata": {},
+  "preserveOutput": "always",
+  "projects": [
+   {
+    "outputDir": "/work/test-results",
+    "repeatEach": 1,
+    "retries": 0,
+    "metadata": {},
+    "id": "policy-management",
+    "name": "policy-management",
+    "testDir": "/work/apps/policy-management",
+    "testIgnore": [],
+    "testMatch": [
+     "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+    ],
+    "timeout": 30000
+   }
+  ],
+  "filteredProjects": [
+   {
+    "grep": {},
+    "grepInvert": null,
+    "outputDir": "/work/test-results",
+    "repeatEach": 1,
+    "retries": 0,
+    "metadata": {},
+    "name": "policy-management",
+    "testDir": "/work/apps/policy-management",
+    "snapshotDir": "/work/apps/policy-management",
+    "testIgnore": [],
+    "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
+    "timeout": 30000,
+    "use": {
+     "trace": "retain-on-failure",
+     "screenshot": "only-on-failure",
+     "baseURL": "http://localhost:3010"
+    },
+    "dependencies": [],
+    "ignoreSnapshots": false,
+    "__projectId": "policy-management"
+   }
+  ],
+  "quiet": false,
+  "reporter": [
+   [
+    "json"
+   ]
+  ],
+  "reportSlowTests": {
+   "max": 5,
+   "threshold": 300000
+  },
+  "shard": null,
+  "tags": [],
+  "updateSnapshots": "default",
+  "updateSourceMethod": "patch",
+  "version": "1.64.1",
+  "workers": 2,
+  "webServer": null
+ },
+ "suites": [
+  {
+   "title": "policy-management/acceptance-criteria.spec.ts",
+   "file": "policy-management/acceptance-criteria.spec.ts",
+   "column": 0,
+   "line": 0,
+   "specs": [
+    {
+     "title": "meets acceptance criteria",
+     "ok": true,
+     "tags": [],
+     "tests": [
+      {
+       "timeout": 30000,
+       "annotations": [],
+       "expectedStatus": "passed",
+       "projectId": "policy-management",
+       "projectName": "policy-management",
+       "results": [],
+       "status": "skipped"
+      }
+     ],
+     "id": "608813ad232f4002f2e1-32901abcbddcab5cdab0",
+     "file": "policy-management/acceptance-criteria.spec.ts",
+     "line": 3,
+     "column": 1
+    },
+    {
+     "title": "is listed but never reported",
+     "ok": true,
+     "tags": [],
+     "tests": [
+      {
+       "timeout": 30000,
+       "annotations": [],
+       "expectedStatus": "passed",
+       "projectId": "policy-management",
+       "projectName": "policy-management",
+       "results": [],
+       "status": "skipped"
+      }
+     ],
+     "id": "extra",
+     "file": "policy-management/acceptance-criteria.spec.ts",
+     "line": 99,
+     "column": 1
+    }
+   ]
+  },
+  {
+   "title": "policy-management/browse-policies.spec.ts",
+   "file": "policy-management/browse-policies.spec.ts",
+   "column": 0,
+   "line": 0,
+   "specs": [
+    {
+     "title": "can browse policies",
+     "ok": true,
+     "tags": [],
+     "tests": [
+      {
+       "timeout": 30000,
+       "annotations": [],
+       "expectedStatus": "passed",
+       "projectId": "policy-management",
+       "projectName": "policy-management",
+       "results": [],
+       "status": "skipped"
+      }
+     ],
+     "id": "9ec994f704eed1bd195c-93901230df06409562e5",
+     "file": "policy-management/browse-policies.spec.ts",
+     "line": 3,
+     "column": 1
+    }
+   ]
+  },
+  {
+   "title": "policy-management/search-customers.spec.ts",
+   "file": "policy-management/search-customers.spec.ts",
+   "column": 0,
+   "line": 0,
+   "specs": [
+    {
+     "title": "can search customers",
+     "ok": true,
+     "tags": [],
+     "tests": [
+      {
+       "timeout": 30000,
+       "annotations": [],
+       "expectedStatus": "passed",
+       "projectId": "policy-management",
+       "projectName": "policy-management",
+       "results": [],
+       "status": "skipped"
+      }
+     ],
+     "id": "9ab4c73b2e1885bee96b-27f824dc544b15cfcde3",
+     "file": "policy-management/search-customers.spec.ts",
+     "line": 3,
+     "column": 1
+    }
+   ]
+  },
+  {
+   "title": "policy-management/view-policy.spec.ts",
+   "file": "policy-management/view-policy.spec.ts",
+   "column": 0,
+   "line": 0,
+   "specs": [
+    {
+     "title": "can view a policy detail",
+     "ok": true,
+     "tags": [],
+     "tests": [
+      {
+       "timeout": 30000,
+       "annotations": [],
+       "expectedStatus": "passed",
+       "projectId": "policy-management",
+       "projectName": "policy-management",
+       "results": [],
+       "status": "skipped"
+      }
+     ],
+     "id": "7d2f49a9581d95cedf31-f93becc8ef0f164b1c27",
+     "file": "policy-management/view-policy.spec.ts",
+     "line": 3,
+     "column": 1
+    }
+   ]
+  },
+  {
+   "title": "policy-management/view-quote-request.spec.ts",
+   "file": "policy-management/view-quote-request.spec.ts",
+   "column": 0,
+   "line": 0,
+   "specs": [
+    {
+     "title": "can view a quote request detail",
+     "ok": true,
+     "tags": [],
+     "tests": [
+      {
+       "timeout": 30000,
+       "annotations": [],
+       "expectedStatus": "passed",
+       "projectId": "policy-management",
+       "projectName": "policy-management",
+       "results": [],
+       "status": "skipped"
+      }
+     ],
+     "id": "ab1e74ee0d9eff21b07d-03ddd422d9ecdabc6e3b",
+     "file": "policy-management/view-quote-request.spec.ts",
+     "line": 3,
+     "column": 1
+    }
+   ]
+  }
+ ],
+ "errors": [],
+ "stats": {
+  "startTime": "2026-11-13T11:12:56.745Z",
+  "duration": 32.506,
+  "expected": 0,
+  "skipped": 5,
+  "unexpected": 0,
+  "flaky": 0
+ }
+}
