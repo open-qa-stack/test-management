@@ -17,6 +17,7 @@ import { recommendTarget } from "../src/browser/recommended-target.ts";
 import { redact, SECRET_MASK, secretForms } from "../src/browser/redact.ts";
 import { MAX_TEXT_LENGTH, shortText } from "../src/browser/short-text.ts";
 import { closedPort, NetworkAccessError, testSite, type TestSite } from "@open-qa-stack/testing";
+import { ACTION_TIMEOUT_MS, NAVIGATION_TIMEOUT_MS } from "../src/browser/browser-tools.ts";
 import { browserTools, type BrowserAccess, type BrowserToolset } from "../src/index.ts";
 
 const PASSWORD = 'p@ss "word" 42';
@@ -109,8 +110,6 @@ async function withTools<T>(use: (tool: (name: string) => ToolDefinition, toolse
     environment: "local",
     env: ENV,
     screenshotsDir: screenshots,
-    actionTimeoutMs: 300,
-    navigationTimeoutMs: 3000,
     ...access,
   });
   const tool = (name: string) => {
@@ -127,6 +126,16 @@ async function withTools<T>(use: (tool: (name: string) => ToolDefinition, toolse
 
 const page = async (tool: (name: string) => ToolDefinition, app = "shop") => ((await tool(`${app}_snapshot`).execute({})) as { page: string }).page;
 const line = (text: string, element: string) => text.split("\n").find((l) => l.includes(element)) ?? `(no line with ${element})`;
+/** Reads `read` again until `done` holds of what it gives, then returns that; the deadline only bounds a test that fails. */
+async function eventually<T>(read: () => Promise<T>, done: (value: T) => boolean): Promise<T> {
+  const deadline = Date.now() + ACTION_TIMEOUT_MS;
+  for (;;) {
+    const value = await read();
+    if (done(value) || Date.now() > deadline) return value;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+}
+
 const reject = (call: Promise<unknown>, message: RegExp) =>
   assert.rejects(call, (failure: unknown) => {
     assert.match(failure instanceof Error ? failure.message : String(failure), message);
@@ -212,7 +221,7 @@ describe("criterion 1 — a session gets the browser tools of each declared appl
 
   it("says when the user interface cannot be loaded, and tries again at the next call", async () => {
     const down: Application = { id: "down", name: "Down", type: "web", authentication: { method: "none" }, environments: [{ name: "local", uiUrl: `http://127.0.0.1:${downPort}` }] };
-    const toolset = browserTools([down], { environment: "local", env: {}, screenshotsDir: screenshots, navigationTimeoutMs: 3000 });
+    const toolset = browserTools([down], { environment: "local", env: {}, screenshotsDir: screenshots });
     try {
       const snapshot = toolset.tools.find((t) => t.name === "down_snapshot")!;
       await reject(snapshot.execute({}), new RegExp(`^The user interface of down at http://127\\.0\\.0\\.1:${downPort} cannot be loaded: .*ERR_CONNECTION_FAILED`));
@@ -240,11 +249,19 @@ describe("criterion 1 — a session gets the browser tools of each declared appl
   });
 
   it("closes a browser that is still starting", async () => {
-    const launch = () => new Promise<never>((_, refuse) => setTimeout(() => refuse(new Error("too late")), 20));
+    let refuse: (failure: Error) => void = () => undefined;
+    let launched: () => void = () => undefined;
+    const starting = new Promise<void>((resolve) => (launched = resolve));
+    const launch = () => {
+      launched();
+      return new Promise<never>((_, fail) => (refuse = fail));
+    };
     const toolset = browserTools(applications().slice(0, 1), { environment: "local", env: ENV, screenshotsDir: screenshots, launch });
     const call = toolset.tools[1]!.execute({});
-    await new Promise((resolve) => setImmediate(resolve));
-    await toolset.close();
+    await starting;
+    const closing = toolset.close();
+    refuse(new Error("too late"));
+    await closing;
     await reject(call, /too late/);
   });
 });
@@ -312,11 +329,11 @@ describe("criterion 2 — a snapshot lists the elements one can act on, with rol
   });
 
   it("marks an element the page replaced while the snapshot was taken, without failing the snapshot", async () => {
-    const gone = { getByRef: () => ({ elementHandle: () => Promise.reject(new Error("element was detached")) }) };
+    const gone = { getByRef: () => ({ elementHandles: () => Promise.reject(new Error("element was detached")) }) };
     assert.deepEqual(await recommendTarget(gone as unknown as Page, "e1", "button", "Save"), { kind: "changed" });
     let disposed = false;
     const handle = { evaluate: () => Promise.reject(new Error("element was detached")), dispose: async () => void (disposed = true) };
-    const replaced = { getByRef: () => ({ elementHandle: async () => handle }) };
+    const replaced = { getByRef: () => ({ elementHandles: async () => [handle] }) };
     assert.deepEqual(await recommendTarget(replaced as unknown as Page, "e1", "button", "Save"), { kind: "changed" });
     assert.equal(disposed, true);
     const page = { ...gone, ariaSnapshot: async () => '- button "Save" [ref=e1]', url: () => "http://shop.test/", title: async () => "Shop" };
@@ -350,7 +367,7 @@ describe("criterion 3 — actions use the recommended locators, and a failed act
       await tool("shop_check").execute({ target: { role: "checkbox" }, checked: true });
       await tool("shop_wait_for").execute({ target: { text: "Banner" } });
       await tool("shop_click").execute({ target: { role: "button", name: "Dismiss" } });
-      await tool("shop_wait_for").execute({ target: { text: "Banner" }, state: "hidden", timeoutMs: 1000 });
+      await tool("shop_wait_for").execute({ target: { text: "Banner" }, state: "hidden" });
       const text = await page(tool);
       assert.match(text, /option "Car" \[selected\]/);
       assert.match(text, /checkbox \[checked\]/);
@@ -365,7 +382,10 @@ describe("criterion 3 — actions use the recommended locators, and a failed act
         tool("shop_click").execute({ target: { role: "button", name: "Missing" } }),
         new RegExp(`^page\\.getByRole\\("button", \\{ name: "Missing", exact: true \\}\\) matches no element\\.\\n\\nThe page is now at ${site.origin}/:\\n- generic`),
       );
-      await reject(tool("shop_click").execute({ target: { role: "button", name: "Locked" } }), /^page\.getByRole\("button", \{ name: "Locked", exact: true \}\) did not become ready within 300 ms\.\n\nThe page is now at/);
+      await reject(
+        tool("shop_click").execute({ target: { role: "button", name: "Locked" } }),
+        new RegExp(String.raw`^page\.getByRole\("button", \{ name: "Locked", exact: true \}\) did not become ready within ${ACTION_TIMEOUT_MS} ms\.\n\nThe page is now at`),
+      );
       await reject(tool("shop_click").execute({ target: { text: "Again" } }), /^page\.getByText\("Again", \{ exact: true \}\) matches more than one element; use a locator that matches one\.\n\nThe page is now at/);
       await reject(tool("shop_fill").execute({ target: { role: "button", name: "Sign in" }, value: "x" }), /Element is not an <input>.*\n\nThe page is now at/s);
       await reject(tool("shop_wait_for").execute({ target: { text: "Never" }, timeoutMs: 100 }), /^page\.getByText\("Never", \{ exact: true \}\) matches no element\./);
@@ -387,7 +407,7 @@ describe("criterion 3 — actions use the recommended locators, and a failed act
   });
 
   it("reports what an action threw when it is not an error, and a page it cannot read", async () => {
-    const session = new BrowserSession(() => chromium.launch(), { actionMs: 300, navigationMs: 3000 });
+    const session = new BrowserSession(() => chromium.launch(), { actionMs: ACTION_TIMEOUT_MS, navigationMs: NAVIGATION_TIMEOUT_MS });
     try {
       const shop = await session.page({ applicationId: "shop", uiUrl: site.origin, origins: new Set([site.origin]) });
       await reject(
@@ -436,7 +456,7 @@ describe("criterion 5 — the agent reads the requests and the console of the pa
       await tool("shop_click").execute({ target: { role: "button", name: "Sign in" } });
       await tool("shop_wait_for").execute({ target: { text: "Card" } });
       const calls = async (args: object) => ((await tool("shop_network").execute(args)) as { method: string; url: string; resourceType: string; status?: number }[]);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await eventually(() => calls({ assets: true }), (all) => all.some((c) => c.resourceType === "fetch") && all.every((c) => !("pending" in c)));
       assert.deepEqual(await calls({}), [
         { method: "GET", url: `${site.origin}/`, resourceType: "document", status: 200 },
         { method: "GET", url: `${site.origin}/api/ping`, resourceType: "fetch", status: 200 },
@@ -490,8 +510,7 @@ describe("criterion 5 — the agent reads the requests and the console of the pa
     await withTools(async (tool) => {
       await tool("shop_click").execute({ target: { role: "button", name: "Sign in" } });
       await tool("shop_click").execute({ target: { role: "button", name: "Break" } });
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      assert.deepEqual(await tool("shop_console").execute({}), [
+      assert.deepEqual(await eventually(() => tool("shop_console").execute({}) as Promise<unknown[]>, (lines) => lines.length === 3), [
         { type: "log", text: "signed in" },
         { type: "error", text: "boom" },
         { type: "pageerror", text: "kaput" },
