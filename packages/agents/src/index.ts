@@ -8,3 +8,5 @@ export type { HarnessEvent, PhaseOutcome, TracedAgentEvent, TraceLine, TracePhas
 export { BRANCH_PREFIX, Designer, type DesignerOptions, type DesignOutcome } from "./designer/designer.ts";
 export { DESIGNS_FOLDER, type DesignedTest, type DesignState } from "./designer/design-state.ts";
 export { MAX_TESTS, MIN_TESTS, PROPOSE_TOOL, RUN_TOOL } from "./designer/test-proposals.ts";
+export { ENTRY_TOOL, FIND_TOOL } from "./designer/index-map.ts";
+export { PLAN_TOOL } from "./designer/plan-proposal.ts";

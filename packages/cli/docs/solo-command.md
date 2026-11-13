@@ -3,7 +3,7 @@
 `oqas` runs Open QA Stack on a development machine, without an instance. In a test repository that holds `oqas.json`, it maps the target application, designs Playwright tests on a new local branch, runs them, and gives a verdict per test. Nothing is pushed.
 
 ```sh
-oqas --environment local
+oqas --environment local --brief "Test the search of a customer and their profile."
 ```
 
 ## Options
@@ -12,6 +12,7 @@ oqas --environment local
 |---|---|---|
 | `--repository <folder>` | the current folder | The test repository, which holds `oqas.json`. |
 | `--environment <name>` | the only environment declared | The environment to run against. With several declared, it must be given. |
+| `--brief <text>` | the whole domain index | What to test, in your words: a domain, a ticket, a rule, a journey. The designer looks up what echoes it in the index, explores, and plans its tests from it. |
 | `--force-cartography` | off | Maps every source again, even those whose card is up to date. |
 | `--help` | | Prints the usage. |
 
@@ -22,7 +23,7 @@ Each step starts only when the one before succeeded; once the prerequisites pass
 1. **Configuration.** `oqas.json` is read and validated, the environment is chosen, and the test charter is resolved. A missing or invalid configuration stops the command before anything else: no model is called and no file of the repository is written.
 2. **Prerequisites.** The folder is the root of a git repository with a commit, the model server of the configuration answers, and `npm` can be run.
 3. **Cartography.** The sources without an up-to-date card are mapped, `cartography.concurrency` of them at once, then the cards are consolidated into the domain index (see the cartographer of `@open-qa-stack/agents`).
-4. **Design.** The dependencies of the test repository and the browsers of its locked version of `@playwright/test` are installed, once for the design and the execution, then the designer writes three or four tests on a new local branch `oqas/design-<date>`, each run against the application before it is kept.
+4. **Design.** The dependencies of the test repository and the browsers of its locked version of `@playwright/test` are installed, once for the design and the execution, then the designer, from the brief, plans then writes three or four tests on a new local branch `oqas/design-<date>`, each run against the application before it is kept. Its plan is accepted as it is.
 5. **Execution.** The tests designed run together, on the machine, with the real runner, and the harness pronounces a verdict per test from the JSON of the reporter (see `docs/pinned-run.md` of `@open-qa-stack/harness`).
 6. **Summary.** The runtime of the agents is closed, the state of the run is written, and the verdicts are printed.
 

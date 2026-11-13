@@ -12,7 +12,7 @@ export const ExitCode = {
   configuration: 3,
   /** A prerequisite of the machine is missing. */
   prerequisite: 4,
-  /** A step stopped before the tests ran, on an error or for want of a test. */
+  /** The chain did not go to its end: a step stopped on an error or for want of a test, or the state could not be written. */
   interrupted: 5,
 } as const;
 

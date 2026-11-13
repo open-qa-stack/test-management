@@ -30,6 +30,8 @@ describe("the options of the command", () => {
     assert.deepEqual(parseArguments(["--repository"]), { ok: false, error: "--repository needs a value." });
     assert.deepEqual(parseArguments(["--environment", "--help"]), { ok: false, error: "--environment needs a value." });
     assert.deepEqual(parseArguments(["--push"]), { ok: false, error: "Unknown option --push; see oqas --help." });
+    assert.deepEqual(parseArguments(["--brief", "tester la recherche d'un client"]), { ok: true, arguments: { brief: "tester la recherche d'un client", force: false, help: false } });
+    assert.deepEqual(parseArguments(["--brief", "  "]), { ok: false, error: "--brief needs a value." });
   });
 
   it("are the program's: --help prints the usage, a wrong option and a missing configuration exit with 3", async () => {

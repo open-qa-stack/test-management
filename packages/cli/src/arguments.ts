@@ -4,6 +4,8 @@ export interface Arguments {
   readonly repository?: string;
   /** The environment the run targets; the only one declared by default. */
   readonly environment?: string;
+  /** What to test, in the developer's words; the whole domain index by default. */
+  readonly brief?: string;
   /** Whether to map every source again, even those whose card is up to date. */
   readonly force: boolean;
   /** Whether to print the usage and stop. */
@@ -11,18 +13,19 @@ export interface Arguments {
 }
 
 /** How to run the command, as `oqas --help` prints it. */
-export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>] [--force-cartography]
+export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>] [--brief <text>] [--force-cartography]
 
 Maps the target application, designs Playwright tests on a new local branch, runs them and gives a verdict per test.
 
 Options:
   --repository <folder>  The test repository, which holds oqas.json; the current folder by default.
   --environment <name>   The environment to run against; the only one declared by default.
+  --brief <text>         What to test, in your words: a domain, a ticket, a rule, a journey.
   --force-cartography    Map every source again, even those whose card is up to date.
   --help                 Print this help.
 
 Exit codes: 0 every test passed, 1 a test failed, 2 a test was blocked, indeterminate, skipped or not run,
-3 the configuration or the options are invalid, 4 a prerequisite is missing, 5 a step stopped before the tests ran.
+3 the configuration or the options are invalid, 4 a prerequisite is missing, 5 the chain did not go to its end.
 `;
 
 /**
@@ -32,17 +35,17 @@ Exit codes: 0 every test passed, 1 a test failed, 2 a test was blocked, indeterm
  * @returns The options, or why they are refused.
  */
 export function parseArguments(argv: readonly string[]): { readonly ok: true; readonly arguments: Arguments } | { readonly ok: false; readonly error: string } {
-  const values: { repository?: string; environment?: string } = {};
+  const values: { repository?: string; environment?: string; brief?: string } = {};
   let force = false;
   let help = false;
   for (let i = 0; i < argv.length; i++) {
     const argument = argv[i]!;
     if (argument === "--help") help = true;
     else if (argument === "--force-cartography") force = true;
-    else if (argument === "--repository" || argument === "--environment") {
+    else if (argument === "--repository" || argument === "--environment" || argument === "--brief") {
       const value = argv[i + 1];
-      if (value === undefined || value.startsWith("--")) return { ok: false, error: `${argument} needs a value.` };
-      values[argument === "--repository" ? "repository" : "environment"] = value;
+      if (value === undefined || value.trim() === "" || value.startsWith("--")) return { ok: false, error: `${argument} needs a value.` };
+      values[argument.slice(2) as keyof typeof values] = value;
       i++;
     } else return { ok: false, error: `Unknown option ${argument}; see oqas --help.` };
   }

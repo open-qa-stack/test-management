@@ -126,7 +126,16 @@ export function addressErrors(content: string, addresses: readonly string[]): st
  * @returns A sentence for each variable whose value it holds, which names the variable, never the value.
  */
 export function secretValueErrors(text: string, secrets: readonly DeclaredSecret[]): string[] {
-  return secrets
-    .filter(({ value }) => secretForms(value).some((form) => text.includes(form)))
-    .map(({ variable }) => `The proposal holds the value of ${variable}; read it with process.env.${variable} instead.`);
+  return heldVariables(text, secrets).map((variable) => `The proposal holds the value of ${variable}; read it with process.env.${variable} instead.`);
+}
+
+/**
+ * The variables the configuration names whose value a text holds, in any form a tool may show it.
+ *
+ * @param text - The text.
+ * @param secrets - The declared values.
+ * @returns The names of the variables, never their values.
+ */
+export function heldVariables(text: string, secrets: readonly DeclaredSecret[]): string[] {
+  return secrets.filter(({ value }) => secretForms(value).some((form) => text.includes(form))).map(({ variable }) => variable);
 }

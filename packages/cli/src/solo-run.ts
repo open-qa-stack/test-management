@@ -18,6 +18,8 @@ export interface SoloRunOptions {
   readonly environment?: string;
   /** Maps every source again, even those whose card is up to date. */
   readonly force?: boolean;
+  /** What to test, in the developer's words; the designer works on the whole domain index without it. */
+  readonly brief?: string;
   /** The environment of the process: the secrets and the accounts the configuration names. */
   readonly env: Readonly<Record<string, string | undefined>>;
   /** Receives the journal, a line at a time: the error output. */
@@ -173,6 +175,7 @@ export class SoloRun {
           instructions: designerInstructions(rules, config.repository),
           check: new CharterCheck({ repository: this.options.repositoryRoot, rules }),
           runner: trials,
+          ...(this.options.brief === undefined ? {} : { brief: this.options.brief }),
         }).run();
         this.relay(journal, "design", outcome.journal);
         return { value: outcome, ok: outcome.ok };

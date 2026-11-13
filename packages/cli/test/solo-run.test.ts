@@ -149,15 +149,18 @@ const submit = (name: string, args: unknown, id: string) => ({ id, name, argumen
 const card = { domains: [{ id: "orders", label: "Orders", description: "Placing an order.", items: [{ name: "Orders", summary: "How an order is placed." }] }], unassigned: [] };
 const index = { domains: [{ id: "orders", label: "Orders", description: "Placing and following an order.", references: [{ source: "order-specs", items: ["Orders"] }] }], unassigned: [] };
 const spec = (title: string) => `import { test, expect } from "@playwright/test";\n\ntest("${title}", async ({ request }) => {\n  const response = await request.get("/orders");\n  expect(response.ok()).toBe(true);\n});\n`;
-const propose = (file: string) => submit("propose_test", { application: "shop", domain: "orders", file, reason: `Checks ${file}.`, content: spec(file) }, `p-${file}`);
+const propose = (file: string) => submit("propose_test", { application: "shop", domain: "orders", scenario: "list-orders", verifies: "expect(response.ok()).toBe(true);", file, reason: `Checks ${file}.`, content: spec(file) }, `p-${file}`);
+const scenario = (id: string) => ({ id, title: `The ${id} scenario`, intent: `Verifies ${id}.`, kind: "functional", expected: "The orders answer.", sources: [{ source: "order-specs", item: "Orders" }] });
+const plan = submit("propose_plan", { scenarios: ["list-orders", "place-order", "follow-order"].map(scenario) }, "plan");
 
-/** The replies of the model for the whole chain: the check of the server, the card, the index, then the design of three tests. */
+/** The replies of the model for the whole chain: the check of the server, the card, the index, then the plan and the design of three tests. */
 const chain = (proposals: readonly ReturnType<typeof propose>[] = [propose("test-1.spec.ts"), propose("test-2.spec.ts"), propose("test-3.spec.ts")]) => [
   { body: { data: [] } },
   { body: toolCalls(MODEL, [submit("submit_card", card, "c1")]) },
   { body: answer(MODEL, "One domain.") },
   { body: toolCalls(MODEL, [submit("submit_index", index, "x1")]) },
   { body: answer(MODEL, "One domain.") },
+  { body: toolCalls(MODEL, [plan]) },
   { body: toolCalls(MODEL, proposals) },
   ...Array.from({ length: 4 }, () => ({ body: answer(MODEL, "Done.") })),
 ];
@@ -171,7 +174,7 @@ interface Run {
   readonly runner: FakeRunner;
 }
 
-async function solo(replies: readonly { body: unknown }[], setup: { config?: (modelUrl: string) => string | undefined; environment?: string; root?: (config: string | undefined) => string; script?: Script; modelUrl?: string; command?: boolean; now?: () => Date } = {}): Promise<Run> {
+async function solo(replies: readonly { body: unknown }[], setup: { config?: (modelUrl: string) => string | undefined; environment?: string; root?: (config: string | undefined) => string; script?: Script; modelUrl?: string; command?: boolean; now?: () => Date; brief?: string } = {}): Promise<Run> {
   const server = await scriptedServer(replies);
   const modelUrl = setup.modelUrl ?? server.baseUrl;
   const config = setup.config === undefined ? configText(modelUrl) : setup.config(modelUrl);
@@ -181,7 +184,7 @@ async function solo(replies: readonly { body: unknown }[], setup: { config?: (mo
   let out = "";
   try {
     const code = setup.command === true
-      ? await soloCommand(["--repository", root, ...(setup.environment === undefined ? [] : ["--environment", setup.environment]), "--force-cartography"], { env: { SHOP_DB_URL: WITNESS }, cwd: workspace, stdout: { write: (text) => (out += text) }, stderr: { write: (text) => (err += text) }, runner })
+      ? await soloCommand(["--repository", root, ...(setup.environment === undefined ? [] : ["--environment", setup.environment]), ...(setup.brief === undefined ? [] : ["--brief", setup.brief]), "--force-cartography"], { env: { SHOP_DB_URL: WITNESS }, cwd: workspace, stdout: { write: (text) => (out += text) }, stderr: { write: (text) => (err += text) }, runner })
       : await new SoloRun({
           repositoryRoot: root,
           ...(setup.environment === undefined ? {} : { environment: setup.environment }),
@@ -319,8 +322,8 @@ describe("solo command, criterion 9 — the state of a complete run", () => {
     assert.ok(state.steps.find((step) => step.step === "cartography")!.modelRequests > 0 && state.steps.find((step) => step.step === "design")!.modelRequests > 0);
     assert.ok(state.steps.every((step) => step.durationMs > 0), JSON.stringify(state.steps));
     // Each step counts the requests of its own sessions: with the list of the models the prerequisites ask for, they are all the server received.
-    assert.deepEqual(state.steps.map((step) => step.modelRequests), [0, 0, 4, 2, 0]);
-    assert.equal(run.server.requests.length, 1 + 4 + 2);
+    assert.deepEqual(state.steps.map((step) => step.modelRequests), [0, 0, 4, 3, 0]);
+    assert.equal(run.server.requests.length, 1 + 4 + 3);
     assert.ok(state.durationMs > state.steps.reduce((total, step) => total + step.durationMs, 0) - 1);
   });
 });
@@ -433,6 +436,17 @@ describe("the command oqas", () => {
   });
 });
 
+describe("the brief of a run", () => {
+  it("goes from the option to the designer, and to the state of the design", async () => {
+    const run = await solo(chain(), { environment: "local", command: true, brief: "tester la recherche d'un client" });
+    assert.equal(run.code, 0, run.err);
+    assert.ok(run.server.requests.some((request) => (JSON.stringify(request.body) ?? "").includes("<brief>\\ntester la recherche d'un client\\n</brief>")));
+    const designs = join(run.root, ".oqas", "designs");
+    const [design] = readdirSync(designs);
+    assert.equal((JSON.parse(readFileSync(join(designs, design!), "utf8")) as { brief: string }).brief, "tester la recherche d'un client");
+  });
+});
+
 describe("the edges of a run", () => {
   it("takes the folder it runs in as the test repository, and the only environment declared", async () => {
     const server = await scriptedServer([]);
@@ -484,7 +498,7 @@ describe("the edges of a run", () => {
     });
     assert.equal(run.code, 5, run.err);
     assert.match(run.err, /\[design\] error: The design stopped on an unexpected error/);
-    assert.equal(stateOf(run.root).steps.find((step) => step.step === "design")!.modelRequests, 2);
+    assert.equal(stateOf(run.root).steps.find((step) => step.step === "design")!.modelRequests, 3);
   });
 
   it("stops with 5 when the runtime of the agents cannot be opened, and still writes the state", async () => {

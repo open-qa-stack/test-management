@@ -8,7 +8,7 @@ import { CopilotAgentRuntime, designerInstructions, ModelGateway, resolveCharter
 import { validateConfig, type DomainIndex, type ResolvedConfig, type SourceCard } from "@open-qa-stack/shared";
 import { answer, scriptedServer, testSite, toolCalls, type ScriptedServer, type TestSite } from "@open-qa-stack/testing";
 import { moduleSyntax } from "@open-qa-stack/tools";
-import type { ProposedTest, TestCheck, TestRunner, TestTrial } from "@open-qa-stack/domain";
+import type { PlanReview, ProposedTest, TestCheck, TestRunner, TestTrial } from "@open-qa-stack/domain";
 import { testPackages } from "../src/designer/spec-rules.ts";
 import { Designer, type DesignOutcome, type DesignState } from "../src/index.ts";
 
@@ -146,8 +146,16 @@ const spec = (title: string) =>
 
 /** A call of `propose_test` for a test of the shop about orders. */
 function propose(file: string, changes: Record<string, unknown> = {}): { id: string; name: string; arguments: unknown } {
-  return { id: `p-${file}-${Object.keys(changes).join("-")}`, name: "propose_test", arguments: { application: "shop", domain: "orders", file, reason: `Checks ${file}.`, content: spec(file), ...changes } };
+  const content = (changes["content"] as string | undefined) ?? spec(file);
+  // The assertion the test is kept for: its first expect, as written.
+  const verifies = content.split("\n").find((line) => line.includes("expect("))?.trim() ?? "expect";
+  return { id: `p-${file}-${Object.keys(changes).join("-")}`, name: "propose_test", arguments: { application: "shop", domain: "orders", scenario: "list-orders", verifies, file, reason: `Checks ${file}.`, content, ...changes } };
 }
+
+/** A scenario of the plan, about the orders of the shop. */
+const scenario = (id: string) => ({ id, title: `The ${id} scenario`, intent: `Verifies ${id}.`, kind: "functional", expected: "The orders show.", sources: [{ source: "shop-api", item: "orders" }] });
+/** A call of `propose_plan` with three scenarios about the orders. */
+const PLAN = { id: "plan", name: "propose_plan", arguments: { scenarios: ["list-orders", "place-order", "follow-order"].map(scenario) } };
 
 const valid = (count: number) => Array.from({ length: count }, (_, i) => propose(`test-${i + 1}.spec.ts`));
 /** A reply that makes the calls, then answers enough to end the task and every reminder. */
@@ -182,6 +190,10 @@ interface Setup {
   readonly check?: TestCheck;
   readonly branch?: string | null;
   readonly env?: Readonly<Record<string, string>>;
+  /** Whether the plan is submitted before the script; it is by default. */
+  readonly plan?: boolean;
+  readonly brief?: string;
+  readonly planReview?: PlanReview;
 }
 
 interface Run {
@@ -192,7 +204,8 @@ interface Run {
 }
 
 async function design(script: readonly { status?: number; body: unknown }[], setup: Setup = {}): Promise<Run> {
-  const server = await scriptedServer(script);
+  // The plan comes first, in a turn of its own, unless the test scripts it.
+  const server = await scriptedServer(setup.plan === false ? script : [{ body: toolCalls(MODEL, [PLAN]) }, ...script]);
   const gateway = await ModelGateway.start({ kind: "live", upstream: { baseUrl: server.baseUrl } });
   const runtime = new CopilotAgentRuntime({ endpoint: gateway, model: MODEL, homeDirectory: mkdtempSync(join(workspace, "home-")) });
   const root = setup.root ?? repository();
@@ -211,6 +224,8 @@ async function design(script: readonly { status?: number; body: unknown }[], set
       ...(setup.branch === null ? {} : { branch: setup.branch ?? BRANCH, now: () => new Date("2026-11-13T10:00:00.000Z") }),
       ...(setup.check === undefined ? {} : { check: setup.check }),
       runner: setup.runner ?? new FakeTestRunner(),
+      ...(setup.brief === undefined ? {} : { brief: setup.brief }),
+      ...(setup.planReview === undefined ? {} : { planReview: setup.planReview }),
     });
     return { outcome: await designer.run(), root, server, before };
   } finally {
@@ -236,33 +251,36 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     const state = JSON.parse(readFileSync(outcome.statePath!, "utf8")) as DesignState;
     assert.equal(outcome.statePath, join(root, ".oqas", "designs", "design-20261113T100000Z.json"));
     assert.ok(filesOf(root).includes(".oqas/designs/design-20261113T100000Z.json"));
-    assert.deepEqual(state.tests, [1, 2, 3].map((i) => ({ path: `apps/shop/test-${i}.spec.ts`, application: "shop", domain: "orders", reason: `Checks test-${i}.spec.ts.`, verdict: "passed" })));
+    assert.deepEqual(state.tests, [1, 2, 3].map((i) => ({ path: `apps/shop/test-${i}.spec.ts`, application: "shop", domain: "orders", scenario: "list-orders", verifies: 'await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();', reason: `Checks test-${i}.spec.ts.`, verdict: "passed" })));
+    assert.deepEqual([state.plan, state.brief], [PLAN.arguments, undefined]);
     assert.deepEqual(outcome.tests, state.tests);
     assert.deepEqual([state.branch, state.base, state.environment, state.producedAt, state.model.model], [BRANCH, git(root, "rev-parse", "main"), "local", "2026-11-13T10:00:00.000Z", MODEL]);
     assert.deepEqual(git(root, "log", "-1", "--format=%an <%ae>%n%B", BRANCH).split("\n").slice(0, 3), ["Test Maintainer <maintainer@example.com>", "test: add 3 generated Playwright tests", ""]);
     assert.match(messages(outcome), /The design state was written to \.oqas\/designs\/design-20261113T100000Z\.json\.\nThe tests were committed on oqas\/design-test; the active branch of the test repository is oqas\/design-test\./);
     assert.equal(git(root, "status", "--porcelain", "--untracked-files=no"), "");
-    assert.equal(server.requests.length, 2);
+    assert.equal(server.requests.length, 3);
   });
 
-  it("gives the agent the charter, the index with what the cards say, the screens, the documents and the notes, but no contract nor base", async () => {
+  it("gives the agent the charter, the domains of the index and its tools, the screens, every source of the environment and the notes", async () => {
     const { server } = await design(replies(valid(3)));
     const tools = toolsOffered(server);
-    assert.ok(tools.includes("shop_goto") && tools.includes("propose_test") && tools.includes("remember") && tools.includes("recall"));
-    assert.ok(tools.some((tool) => tool.startsWith("order_specs_")) && tools.some((tool) => tool.startsWith("shop_guide_")));
-    assert.deepEqual(tools.filter((tool) => /^(shop_api|ledger_api|shop_db|staging_specs|legacy)_/.test(tool)), []);
+    assert.ok(["shop_goto", "propose_plan", "run_test", "propose_test", "remember", "recall", "index_find", "index_entry"].every((tool) => tools.includes(tool)));
+    for (const source of ["order_specs_", "shop_guide_", "shop_api_", "ledger_api_", "shop_db_query"]) assert.ok(tools.some((tool) => tool.startsWith(source)), source);
+    assert.deepEqual(tools.filter((tool) => /^(staging_specs|legacy)_/.test(tool)), []);
     const request = requestText(server);
     for (const fragment of [
       "PW-WAIT-01",
-      "## orders: Orders",
-      "- shop-api: orders — Lists and places the orders of a customer.",
-      "- shop: /orders",
+      "No brief was given",
+      "- orders (Orders): Placing and following an order.",
+      "- customers (Customers): The customers of the shop.",
       "- shop (Shop, web-and-api): signs in with a form; account demo: username in process.env.SHOP_USERNAME, password in process.env.SHOP_PASSWORD.",
       "- ledger (Ledger, api): no sign-in.",
     ]) {
       assert.ok(request.includes(JSON.stringify(fragment).slice(1, -1)), fragment);
     }
     assert.ok(!request.includes("Legacy"));
+    // The index is looked up, not given whole.
+    assert.ok(!request.includes("Lists and places the orders of a customer."));
   });
 
   it("names the branch after the date by default, ends the file with a new line, and leaves out a state git ignores", async () => {
@@ -688,5 +706,148 @@ describe("the files the harness writes itself", () => {
     const { outcome } = await design(replies(valid(3)), { root });
     assert.equal(outcome.ok, true, messages(outcome));
     assert.match(git(root, "status", "--porcelain"), /\.oqas\/index\/domain-index\.json/);
+  });
+});
+
+/** An index whose customers are described in a section of the guide, and whose guide has that section. */
+const CUSTOMERS: DomainIndex = {
+  ...INDEX,
+  sources: [...INDEX.sources, { id: "shop-guide", type: "document", state: "read" }],
+  domains: [INDEX.domains[0]!, { ...INDEX.domains[1]!, references: [{ source: "shop-api", items: ["customers"] }, { source: "shop-guide", items: ["Customer search"] }] }],
+};
+
+/** A test repository whose guide describes the search of a customer. */
+function customersRepository(): string {
+  const root = repository(CUSTOMERS);
+  writeFileSync(join(root, "specs", "guide.md"), "# Guide\n\n## Customer search\n\nA clerk finds a customer by the start of their last name; the list shows each match with their city.\n");
+  git(root, "commit", "-q", "-am", "docs: describe the search of a customer");
+  return root;
+}
+
+describe("brief, criterion 1 — from the brief, the index tools lead to the customers and the section of the guide, which is read", () => {
+  it("finds the domain and the section, names the tool of the guide, and reads it", async () => {
+    const find = { id: "f1", name: "index_find", arguments: { words: "customer search" } };
+    const entry = { id: "e1", name: "index_entry", arguments: { source: "shop-guide", item: "Customer search" } };
+    const read = { id: "s1", name: "shop_guide_read_section", arguments: { number: 2 } };
+    const { outcome, server } = await design([{ body: toolCalls(MODEL, [find]) }, { body: toolCalls(MODEL, [entry]) }, { body: toolCalls(MODEL, [read]) }, { body: toolCalls(MODEL, [PLAN]) }, ...replies(valid(3))], { root: customersRepository(), plan: false, brief: "tester la recherche d'un client" });
+    assert.equal(outcome.ok, true, messages(outcome));
+    assert.ok(requestText(server).includes("<brief>\\ntester la recherche d'un client\\n</brief>"));
+    assert.match(toolResult(server, "f1"), /customers \(Customers\): The customers of the shop\./);
+    assert.match(toolResult(server, "f1"), /shop-guide: Customer search/);
+    assert.match(toolResult(server, "e1"), /Source shop-guide \(document\): read it with shop_guide_list_sections, shop_guide_read_section\./);
+    assert.match(toolResult(server, "e1"), /Domains: customers\./);
+    assert.match(toolResult(server, "s1"), /finds a customer by the start of their last name/);
+    const state = JSON.parse(readFileSync(outcome.statePath!, "utf8")) as DesignState;
+    assert.equal(state.brief, "tester la recherche d'un client");
+  });
+});
+
+describe("brief, criterion 2 — without an accepted plan, run_test and propose_test are refused with a message that asks for the plan", () => {
+  it("runs nothing, keeps nothing, and reminds the agent to submit the plan", async () => {
+    const runner = new FakeTestRunner();
+    const { outcome, server } = await design([{ body: toolCalls(MODEL, [tryTest("test-1.spec.ts", spec("test-1.spec.ts"), "r1"), propose("test-1.spec.ts")]) }, ...replies([])], { plan: false, runner });
+    assert.equal(outcome.ok, false);
+    assert.deepEqual(runner.runs, []);
+    for (const id of ["r1", propose("test-1.spec.ts").id]) assert.match(toolResult(server, id), /No test plan is accepted yet\. Submit the plan with propose_plan first/);
+    assert.match(messages(outcome), /The agent stopped without an accepted plan; it was reminded to submit one\./);
+  });
+});
+
+describe("brief, criterion 3 — the plan is written to the design state, and each test kept names its scenario", () => {
+  it("keeps the plan, the scenario of each test, and refuses a test of a scenario the plan does not hold", async () => {
+    const calls = [propose("test-1.spec.ts"), propose("test-2.spec.ts", { scenario: "place-order" }), propose("test-9.spec.ts", { scenario: "return-order" }), propose("test-3.spec.ts", { scenario: "follow-order" })];
+    const { outcome } = await design(replies(calls));
+    const state = JSON.parse(readFileSync(outcome.statePath!, "utf8")) as DesignState;
+    assert.deepEqual(state.plan, PLAN.arguments);
+    assert.deepEqual(state.tests.map((test) => [test.path, test.scenario]), [["apps/shop/test-1.spec.ts", "list-orders"], ["apps/shop/test-2.spec.ts", "place-order"], ["apps/shop/test-3.spec.ts", "follow-order"]]);
+    assert.match(messages(outcome), /return-order is no scenario of the accepted plan; the scenarios are list-orders, place-order, follow-order\./);
+  });
+});
+
+describe("brief, criterion 4 — a review that refuses the plan stops the task, no test is written, and the journal says so", () => {
+  it("creates no branch, writes nothing, refuses every later call, and reminds the agent of nothing", async () => {
+    const review: PlanReview = { review: async () => ({ accepted: false, reason: "The scenarios check only screens." }) };
+    const runner = new FakeTestRunner();
+    const look = { id: "look", name: "shop_goto", arguments: { url: "/orders" } };
+    const { outcome, root, server, before } = await design([{ body: toolCalls(MODEL, [PLAN, ...valid(3)]) }, { body: toolCalls(MODEL, [{ ...PLAN, id: "plan-2" }, look]) }, { body: answer(MODEL, "Done.") }], { plan: false, planReview: review, runner });
+    assert.equal(outcome.ok, false);
+    assert.equal(outcome.branch, undefined);
+    assert.deepEqual(snapshot(root), before);
+    assert.deepEqual(runner.runs, []);
+    assert.match(messages(outcome), /The plan was refused: The scenarios check only screens\. The design stops; no test is written\./);
+    assert.match(messages(outcome), /No test was written: the plan was refused: The scenarios check only screens\./);
+    for (const id of ["plan-2", "look"]) assert.match(toolResult(server, id), /The plan was refused: The scenarios check only screens\. The design is stopped; call no more tools\./);
+    assert.equal(server.requests.length, 3);
+  });
+});
+
+describe("the plan of a design", () => {
+  it("refuses two scenarios of one id, then accepts the plan fixed, and no second plan", async () => {
+    const twice = { id: "plan-twice", name: "propose_plan", arguments: { scenarios: ["list-orders", "list-orders", "follow-order"].map(scenario) } };
+    const again = { ...PLAN, id: "plan-again" };
+    const { outcome, server } = await design([{ body: toolCalls(MODEL, [twice]) }, { body: toolCalls(MODEL, [PLAN]) }, { body: toolCalls(MODEL, [again]) }, ...replies(valid(3))], { plan: false });
+    assert.equal(outcome.ok, true, messages(outcome));
+    assert.match(toolResult(server, "plan-twice"), /The id list-orders is given to several scenarios; give each its own\./);
+    assert.match(toolResult(server, "plan-again"), /A plan was already accepted; carry it out\./);
+    assert.match(messages(outcome), /The plan was accepted: list-orders, place-order, follow-order\./);
+  });
+});
+
+describe("plans submitted in one turn", () => {
+  it("accept one plan only", async () => {
+    const other = { id: "plan-other", name: "propose_plan", arguments: { scenarios: ["a-one", "a-two", "a-three"].map(scenario) } };
+    const { outcome, server } = await design([{ body: toolCalls(MODEL, [PLAN, other]) }, ...replies(valid(3))], { plan: false });
+    assert.equal(outcome.ok, true, messages(outcome));
+    assert.equal(outcome.journal.filter((entry) => entry.message.startsWith("The plan was accepted")).length, 1);
+    assert.match(toolResult(server, "plan-other"), /A plan was already accepted; carry it out\./);
+  });
+
+  it("are refused once the review refused one of them", async () => {
+    const review: PlanReview = { review: async () => ({ accepted: false, reason: "Not now." }) };
+    const { outcome, server } = await design([{ body: toolCalls(MODEL, [PLAN, { ...PLAN, id: "plan-2" }]) }, { body: answer(MODEL, "Done.") }], { plan: false, planReview: review });
+    assert.equal(outcome.ok, false);
+    assert.equal(outcome.journal.filter((entry) => entry.message.startsWith("The plan was refused: Not now.")).length, 1);
+    assert.match(toolResult(server, "plan-2"), /The plan was refused: Not now\. The design is stopped/);
+  });
+});
+
+describe("what a plan may hold", () => {
+  it("refuses the value of a declared variable, the plan being written to the state, and cites a source the index does not list", async () => {
+    const leaky = { id: "plan-leaky", name: "propose_plan", arguments: { scenarios: [{ ...scenario("list-orders"), expected: `The orders of ${USERNAME} show.` }, scenario("place-order"), scenario("follow-order")] } };
+    const beyond = { id: "plan-beyond", name: "propose_plan", arguments: { scenarios: [{ ...scenario("list-orders"), sources: [{ source: "shop-db", item: "orders" }] }, scenario("place-order"), scenario("follow-order")] } };
+    const { outcome, server } = await design([{ body: toolCalls(MODEL, [leaky]) }, { body: toolCalls(MODEL, [beyond]) }, ...replies(valid(3))], { plan: false });
+    assert.equal(outcome.ok, true, messages(outcome));
+    assert.match(toolResult(server, "plan-leaky"), /The plan holds the value of SHOP_USERNAME; leave it out: the plan is written to the design state\./);
+    assert.ok(!messages(outcome).includes(USERNAME));
+    const state = JSON.parse(readFileSync(outcome.statePath!, "utf8")) as DesignState;
+    assert.deepEqual(state.plan.scenarios[0]!.sources, [{ source: "shop-db", item: "orders" }]);
+  });
+});
+
+describe("the assertion a test is kept for", () => {
+  it("must be an expect copied from the test, spaces aside", async () => {
+    const elsewhere = propose("test-8.spec.ts", { verifies: "await expect(page).toHaveTitle('Shop');" });
+    const vague = propose("test-9.spec.ts", { verifies: "the heading shows" });
+    const spaced = propose("test-1.spec.ts", { verifies: 'await expect(page.getByRole("heading",{name:"Orders"}))\n  .toBeVisible();' });
+    const { outcome, server } = await design(replies([elsewhere, vague, spaced, ...valid(3).slice(1)]));
+    assert.equal(outcome.ok, true, messages(outcome));
+    for (const call of [elsewhere, vague]) assert.match(toolResult(server, call.id), /verifies must copy, as written in the test, the expect assertion that verifies the expected result of its scenario\./);
+    assert.deepEqual(outcome.tests.map((test) => test.path), ["apps/shop/test-1.spec.ts", "apps/shop/test-2.spec.ts", "apps/shop/test-3.spec.ts"]);
+  });
+});
+
+describe("the assertion of a functional scenario", () => {
+  const heading = 'await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();';
+  it("must follow an action and repeat no earlier check, and needs neither in another kind of scenario", async () => {
+    const before = `import { test, expect } from "@playwright/test";\n\ntest("before", async ({ page }) => {\n  ${heading}\n  await page.goto("/orders");\n});\n`;
+    const repeated = `import { test, expect } from "@playwright/test";\n\ntest("repeated", async ({ page }) => {\n  await page.goto("/orders");\n  ${heading}\n  await page.getByRole("button", { name: "Search" }).click();\n  ${heading}\n});\n`;
+    const looks = { ...scenario("look"), kind: "visual" };
+    const plan = { id: "plan-kinds", name: "propose_plan", arguments: { scenarios: [scenario("list-orders"), scenario("place-order"), looks] } };
+    const calls = [propose("test-8.spec.ts", { content: before, verifies: heading }), propose("test-9.spec.ts", { content: repeated, verifies: heading }), propose("test-7.spec.ts", { content: before, verifies: heading, scenario: "look" }), ...valid(2)];
+    const { outcome, server } = await design([{ body: toolCalls(MODEL, [plan]) }, ...replies(calls)], { plan: false });
+    assert.equal(outcome.ok, true, messages(outcome));
+    for (const call of calls.slice(0, 2)) assert.match(toolResult(server, call.id), /In a functional scenario, the assertion of verifies checks what an action produced: it comes after a goto, a click, a fill or a request, and repeats no check made before\./);
+    assert.deepEqual(outcome.tests.map((test) => [test.path, test.scenario]), [["apps/shop/test-7.spec.ts", "look"], ["apps/shop/test-1.spec.ts", "list-orders"], ["apps/shop/test-2.spec.ts", "list-orders"]]);
+    assert.match(toolResult(server, "plan-kinds"), /do its steps with the browser tools and see what the screen shows after each action/);
   });
 });

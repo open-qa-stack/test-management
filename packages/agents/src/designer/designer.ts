@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, posix } from "node:path";
-import type { AgentEvent, AgentRuntime } from "@open-qa-stack/domain";
+import type { AgentEvent, AgentRuntime, PlanReview } from "@open-qa-stack/domain";
 import { declaredValues, validateDomainIndex, validateSourceCard, type DomainIndex, type ResolvedConfig, type SourceCard } from "@open-qa-stack/shared";
 import { browserTools, knowledgeTools, type BrowserAccess } from "@open-qa-stack/tools";
 import { agentNotes } from "../common/agent-notes.ts";
@@ -10,8 +10,11 @@ import { INDEX_FILE_NAME } from "../cartographer/cartographer.ts";
 import { CARDS_FOLDER } from "../source-cartographer/source-cartographer.ts";
 import { designRequest } from "./designer-prompt.ts";
 import { DESIGNS_FOLDER, type DesignedTest, type DesignState } from "./design-state.ts";
+import { IndexMap } from "./index-map.ts";
+import { PlanProposal } from "./plan-proposal.ts";
 import type { TestCheck, TestRunner } from "@open-qa-stack/domain";
 import { declaredAddresses, declaredSecrets, testPackages } from "./spec-rules.ts";
+import type { ToolDefinition } from "@open-qa-stack/domain";
 import { MIN_TESTS, TestProposals, type AcceptedTest } from "./test-proposals.ts";
 import { TestRepository } from "./test-repository.ts";
 
@@ -34,6 +37,10 @@ export interface DesignerOptions {
   readonly check?: TestCheck;
   /** Runs each test against the application before it is kept, such as the `TrialRunner` of the harness. */
   readonly runner: TestRunner;
+  /** What the developer wants tested, in their own words: a domain, a ticket, a rule, a journey; the whole index when absent. */
+  readonly brief?: string;
+  /** Decides whether the test plan may be carried out; every plan is accepted as it is by default. */
+  readonly planReview?: PlanReview;
   /** Name of the branch to create; `oqas/design-<date>` by default. */
   readonly branch?: string;
   /** How the browser starts and waits; a headless Chromium with the default waits otherwise. */
@@ -56,19 +63,25 @@ export interface DesignOutcome {
   readonly journal: readonly JournalEntry[];
 }
 
+/** Accepts every plan as it is: the designer works on its own. */
+const ACCEPT_EVERY_PLAN: PlanReview = { review: async () => ({ accepted: true }) };
+
 /**
- * The designer: from the domain index of the test repository, it writes three or four Playwright tests on
- * a new local branch, with the state of the design.
+ * The designer: from a brief and the domain index of the test repository, it plans then writes three or
+ * four Playwright tests on a new local branch, with the state of the design.
  *
  * @remarks
  * Before any session, the index must be readable, and the test repository must be the root of a git
  * repository with no tracked file changed, no untracked file outside the folders of the state and the index,
- * and no branch of the name to create; otherwise nothing is written. The agent gets the index and what the
- * cards say of each element, the browser tools of the applications, the tools of the documents, the source
- * code and the logs — never those of a contract or a base, whose substance the index holds — and the notes.
- * It runs each test it writes with `run_test`, through `runner`, against the application, and proposes it
- * with `propose_test`, which runs it too unless that very text was already tried, under the limits of the
- * configured autonomy, every trial counting against them. A test is kept when it passes, or when it failed
+ * and no branch of the name to create; otherwise nothing is written. The agent gets the brief and the
+ * domains of the index, not the index whole: it looks up what echoes the brief with `index_find` and
+ * `index_entry`, which name the tools of each source. It gets the browser tools of the applications, the
+ * tools of every knowledge source of the environment — the bases read only — and the notes. It submits a
+ * test plan with `propose_plan`, which `planReview` accepts or refuses; refused, the design stops and no
+ * test is written. Once the plan is accepted, it runs each test it writes with `run_test`, through `runner`,
+ * against the application, and proposes it with `propose_test`, naming its scenario, which runs it too
+ * unless that very text was already tried, under the limits of the configured autonomy, every trial
+ * counting against them. A test is kept when it passes, or when it failed
  * in a run the agent saw and the agent holds the application at fault; its verdict is the harness's. Once
  * the session is over, the accepted tests, in the folder of their application, and the design state are
  * committed on a new branch from the revision checked out, which stays checked out. Nothing contacts a
@@ -108,6 +121,10 @@ export class Designer {
 
     const applications = config.applications.filter((application) => application.environments.some((environment) => environment.name === index.environment));
     const packages = testPackages(await readFile(join(repositoryRoot, "package.json"), "utf8").catch(() => undefined));
+    const readable = config.knowledge.filter((source) => source.attachments.some((a) => a.environment === undefined || a.environment === index.environment));
+    // The sources a scenario may cite and a tool may belong to: the index is a map, not a limit.
+    const owners = [...new Set([...index.sources.map((source) => source.id), ...readable.map((source) => source.id), ...applications.map((application) => application.id)])];
+    const plan = new PlanProposal({ sources: owners, secrets: declaredSecrets(config, env), review: this.options.planReview ?? ACCEPT_EVERY_PLAN }, journal);
     const proposals = new TestProposals(
       {
         repositoryRoot,
@@ -119,28 +136,34 @@ export class Designer {
         ...(this.options.check === undefined ? {} : { check: this.options.check }),
         runner: this.options.runner,
         packages,
+        plan,
       },
       journal,
     );
     const browser = browserTools(applications, { environment: index.environment, env, screenshotsDir: join(repositoryRoot, config.repository.stateDir, "screenshots"), ...this.options.browser });
-    const readable = config.knowledge.filter((source) => source.type !== "openapi" && source.type !== "postgresql" && source.attachments.some((a) => a.environment === undefined || a.environment === index.environment));
     const knowledge = knowledgeTools(readable, { repositoryRoot, env, secrets: declaredValues(config, env), taskStart: start });
     const notes = agentNotes(config, repositoryRoot, env, { role: "designer", task: id, now });
+    const map = new IndexMap(index, await this.cards(index), [...browser.tools, ...knowledge], owners);
     const events: AgentEvent[] = [];
-    const request = designRequest(index, applications, await this.cards(index), packages);
-    const task = { instructions: this.options.instructions, tools: [...browser.tools, ...knowledge, ...notes, proposals.trialTool(), proposals.tool()], request, events, reminder: () => proposals.reminder() };
+    const request = designRequest(this.options.brief, index.environment, map.domains(), applications, packages);
+    const tools = [...map.toolset(), ...browser.tools, ...knowledge, ...notes, plan.tool(), proposals.trialTool(), proposals.tool()].map((tool) => stoppedOnRefusal(tool, plan));
+    const task = { instructions: this.options.instructions, tools, request, events, reminder: () => proposals.reminder() };
     await runAgentTask(this.options.runtime, task, taskLimits(config)).finally(() => browser.close());
     for (const event of events) if (event.type === "tool-error") journal.record("error", `${event.tool}: ${event.message}`);
     const { last, counters } = taskEnd(events);
     if (last.type === "error") journal.record("error", `The session failed: ${last.error.message}`);
     if (last.type === "stopped") journal.record("error", `The task reached its ${last.reason.limit} limit; no test was written for the proposal under way.`);
 
+    if (plan.refused !== undefined) return failed(`No test was written: the plan was refused: ${plan.refused}`);
     const tests = proposals.accepted;
     if (tests.length === 0) return failed(`No test was written: ${obtained(0)}, ${MIN_TESTS} at least are expected.`);
     const state: DesignState = {
       formatVersion: 1,
       producedAt: start.toISOString(),
       environment: index.environment,
+      ...(this.options.brief === undefined ? {} : { brief: this.options.brief }),
+      // Tests are accepted only under an accepted plan.
+      plan: plan.accepted!,
       branch,
       base: await repository.head(),
       model: { provider: config.model.provider, baseUrl: config.model.baseUrl, model: config.model.model },
@@ -194,6 +217,11 @@ export class Designer {
     );
     return new Map(read.flat());
   }
+}
+
+/** A tool that refuses every call once the plan is refused: the design is stopped. */
+function stoppedOnRefusal(tool: ToolDefinition, plan: PlanProposal): ToolDefinition {
+  return { ...tool, execute: async (args) => (plan.refused === undefined ? tool.execute(args) : { error: plan.blocked()! }) };
 }
 
 /** How many tests a design obtained, in words. */

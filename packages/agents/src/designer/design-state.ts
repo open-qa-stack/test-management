@@ -1,4 +1,4 @@
-import type { Verdict } from "@open-qa-stack/domain";
+import type { TestPlan, Verdict } from "@open-qa-stack/domain";
 import type { IndexModel, IndexRun } from "@open-qa-stack/shared";
 
 /** Folder of the design states, in the state folder of the test repository. */
@@ -12,6 +12,10 @@ export interface DesignedTest {
   readonly application: string;
   /** Identifier of the domain of the index the test comes from. */
   readonly domain: string;
+  /** Identifier of the scenario of the plan the test carries out. */
+  readonly scenario: string;
+  /** The assertion of the test that verifies the expected result of its scenario. */
+  readonly verifies: string;
   /** Why the test is worth running, in one sentence. */
   readonly reason: string;
   /** Its verdict when it was last run, as the harness pronounced it: `passed`, or another when the application is at fault. */
@@ -29,6 +33,10 @@ export interface DesignState {
   readonly producedAt: string;
   /** Name of the environment of the domain index. */
   readonly environment: string;
+  /** The brief the design started from, in the developer's words, when one was given. */
+  readonly brief?: string;
+  /** The test plan accepted before the tests were written. */
+  readonly plan: TestPlan;
   /** The branch the tests were written on. */
   readonly branch: string;
   /** The revision the branch was created from. */

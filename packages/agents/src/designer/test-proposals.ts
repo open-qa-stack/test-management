@@ -4,6 +4,7 @@ import type { ToolDefinition } from "@open-qa-stack/domain";
 import { moduleSyntax, redactText, secretForms } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
 import type { DesignedTest } from "./design-state.ts";
+import type { PlanProposal } from "./plan-proposal.ts";
 import type { TestCheck, TestFinding, TestReference, TestRunner, TestTrial, Verdict } from "@open-qa-stack/domain";
 import { addressErrors, fileErrors, importErrors, secretValueErrors, type DeclaredSecret } from "./spec-rules.ts";
 
@@ -46,12 +47,17 @@ export interface ProposalRules {
   readonly runner: TestRunner;
   /** The packages a test may import, as `testPackages` gives them. */
   readonly packages: readonly string[];
+  /** The test plan, which must be accepted before any test is run or proposed. */
+  readonly plan: PlanProposal;
 }
 
 /** The arguments of a proposal, once they match the schema of the tool. */
 interface Proposal {
   readonly application: string;
   readonly domain: string;
+  readonly scenario: string;
+  /** The assertion of the test that verifies the expected result of its scenario, as written in it. */
+  readonly verifies: string;
   readonly file: string;
   readonly reason: string;
   readonly content: string;
@@ -67,7 +73,9 @@ type Trial = Pick<Proposal, "application" | "file" | "content">;
  * kept.
  *
  * @remarks
- * A test is refused when its path is already taken, its text does not parse as TypeScript, it imports
+ * No test is run or proposed before the test plan is accepted, and each test names a scenario of it and
+ * copies the `expect` assertion that verifies the expected result of that scenario; in a functional
+ * scenario, that assertion follows an action and repeats no earlier check. A test is refused when its path is already taken, its text does not parse as TypeScript, it imports
  * anything but `@playwright/test` or a relative path inside the test repository, imports another test,
  * holds an address of the configuration, or the proposal holds the value of a declared variable; then
  * when the check given finds something. A test that passes these rules is then run against the
@@ -118,12 +126,14 @@ export class TestProposals {
         properties: {
           application: { type: "string", enum: [...this.rules.applications], description: "Identifier of the one application the test is about." },
           domain: { type: "string", enum: [...this.rules.domains], description: "Identifier of the domain of the index the test comes from." },
+          scenario: { type: "string", minLength: 1, description: "Identifier of the scenario of the accepted plan the test carries out." },
+          verifies: { type: "string", minLength: 1, description: "The assertion of the test that verifies the expected result of its scenario, copied as written in the test, such as: await expect(rows.first()).toContainText('Mustermann');" },
           file: { type: "string", pattern: "^[a-z0-9]+(-[a-z0-9]+)*\\.spec\\.ts$", description: "Name of the file, such as view-policy.spec.ts; it is placed in the folder of its application." },
           reason: { type: "string", minLength: 1, description: "Why the test is worth running, in one sentence." },
           content: { type: "string", minLength: 1, description: "The whole text of the file, in TypeScript." },
           failure: { type: "string", minLength: 1, description: "Only for a test that does not pass: why the application, not the test, is at fault, with what the run showed." },
         },
-        required: ["application", "domain", "file", "reason", "content"],
+        required: ["application", "domain", "scenario", "verifies", "file", "reason", "content"],
         additionalProperties: false,
       },
       execute: async (args) => this.propose(args as Proposal),
@@ -159,16 +169,29 @@ export class TestProposals {
    * @returns The reminder; `undefined` once `MIN_TESTS` tests were accepted.
    */
   public reminder(): string | undefined {
-    if (this.kept.length >= MIN_TESTS) return undefined;
+    if (this.kept.length >= MIN_TESTS || this.rules.plan.refused !== undefined) return undefined;
+    if (this.rules.plan.accepted === undefined) {
+      this.journal.record("info", "The agent stopped without an accepted plan; it was reminded to submit one.");
+      return this.rules.plan.blocked();
+    }
     this.journal.record("info", `The agent stopped with fewer than ${MIN_TESTS} accepted tests (${this.kept.length}); it was reminded to propose more.`);
     return `Accepted tests so far: ${this.kept.length}. Propose at least ${MIN_TESTS} tests, and at most ${MAX_TESTS}, with ${PROPOSE_TOOL} now.`;
   }
 
   private async propose(proposal: Proposal): Promise<string | { error: string }> {
     const path = posix.join(this.rules.appsDir, proposal.application, proposal.file);
+    const blocked = this.rules.plan.blocked();
+    if (blocked !== undefined) return this.refuse(path, [blocked]);
     if (this.kept.length >= MAX_TESTS) return this.setAside(path);
+    const scenarios = this.rules.plan.accepted!.scenarios.map((scenario) => scenario.id);
+    if (!scenarios.includes(proposal.scenario)) return this.refuse(path, [`${proposal.scenario} is no scenario of the accepted plan; the scenarios are ${scenarios.join(", ")}.`]);
     const errors = await this.errors(path, proposal.content, `${proposal.reason}\n${proposal.failure ?? ""}`);
     if (errors.length > 0) return this.refuse(path, errors);
+    if (!quotesAssertion(proposal.content, proposal.verifies)) return this.refuse(path, ["verifies must copy, as written in the test, the expect assertion that verifies the expected result of its scenario."]);
+    const { kind } = this.rules.plan.accepted!.scenarios.find((scenario) => scenario.id === proposal.scenario)!;
+    if (kind === "functional" && !followsAction(proposal.content, proposal.verifies)) {
+      return this.refuse(path, ["In a functional scenario, the assertion of verifies checks what an action produced: it comes after a goto, a click, a fill or a request, and repeats no check made before. Do the steps with the browser tools, see what the screen shows after the action, and assert that."]);
+    }
     const seen = this.trials.get(trialKey(path, proposal.content));
     const trial = seen ?? (await this.trial(path, proposal.content));
     if (trial.error !== undefined) return this.refuse(path, [`The test could not run: ${trial.error}`]);
@@ -182,7 +205,7 @@ export class TestProposals {
     if (this.kept.length >= MAX_TESTS) return this.setAside(path);
     if (this.kept.some((test) => test.path === path)) return this.refuse(path, [`${path} is already taken; give the test another file name.`]);
     const failure = verdict === "passed" ? {} : { failure: proposal.failure! };
-    this.kept.push({ path, application: proposal.application, domain: proposal.domain, reason: proposal.reason, verdict, ...failure, content: proposal.content, references: trial.references ?? [] });
+    this.kept.push({ path, application: proposal.application, domain: proposal.domain, scenario: proposal.scenario, verifies: proposal.verifies.trim(), reason: proposal.reason, verdict, ...failure, content: proposal.content, references: trial.references ?? [] });
     this.journal.record("info", `The test ${path} was accepted.`);
     const count = this.kept.length;
     const next = count < MIN_TESTS ? `Propose at least ${MIN_TESTS - count} more.` : count < MAX_TESTS ? "You may propose one more, or answer with one sentence." : "Answer with one sentence; call no more tools.";
@@ -192,6 +215,8 @@ export class TestProposals {
   /** Tries a test the rules accept, and tells the agent what the run gave. */
   private async tryTest(args: Trial): Promise<string | { error: string }> {
     const path = posix.join(this.rules.appsDir, args.application, args.file);
+    const blocked = this.rules.plan.blocked();
+    if (blocked !== undefined) return this.refuse(path, [blocked], "could not be run");
     const errors = await this.errors(path, args.content, "");
     if (errors.length > 0) return this.refuse(path, errors, "could not be run");
     const trial = await this.trial(path, args.content);
@@ -244,6 +269,27 @@ export class TestProposals {
 function findingText(finding: TestFinding): string {
   const label = finding.kind === "charter" ? `rule ${finding.rule}` : `compiler ${finding.code}`;
   return `Line ${finding.line}, column ${finding.column} (${label}): ${finding.message}`;
+}
+
+/** Whether a text, spaces aside, is an `expect` assertion of a test. */
+function quotesAssertion(content: string, verifies: string): boolean {
+  const compact = (text: string) => text.replace(/\s+/g, "");
+  return verifies.includes("expect") && compact(content).includes(compact(verifies));
+}
+
+/** An action of a test: a navigation, an input, or a request to an API. */
+const ACTION = /\.(goto|click|dblclick|fill|press|type|check|uncheck|selectOption|setInputFiles|get|post|put|patch|delete|fetch)\(/g;
+
+/**
+ * Whether an assertion, spaces aside, checks what an action produced: an action comes before it, and no
+ * other line of the test makes the same check.
+ */
+function followsAction(content: string, verifies: string): boolean {
+  const compact = (text: string) => text.replace(/\s+/g, "");
+  const text = compact(content);
+  const assertion = compact(verifies);
+  const at = text.indexOf(assertion);
+  return text.indexOf(assertion, at + 1) === -1 && [...text.slice(0, at).matchAll(ACTION)].length > 0;
 }
 
 /** The key of the trial of a text at a path. */

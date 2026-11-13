@@ -15,3 +15,4 @@ export { lockedPlaywrightVersion } from "./test/playwright-version.ts";
 export type { AttemptStatus, ListedTest, ReportedAttempt, ReportedStatus, ReportedTest } from "./test/reported-test.ts";
 export { networkFailureAddresses, testVerdicts, type RunFacts, type TestVerdict } from "./test/test-verdicts.ts";
 export type { TestReference, TestRunner, TestTrial, TriedTest } from "./test/test-runner.ts";
+export type { PlanDecision, PlannedScenario, PlanReview, ScenarioKind, ScenarioSource, TestPlan } from "./test/test-plan.ts";
