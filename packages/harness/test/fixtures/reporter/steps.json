@@ -1,0 +1,208 @@
+{
+ "config": {
+  "argv": [
+   "node",
+   "/repo/node_modules/.bin/playwright",
+   "test",
+   "--reporter=json"
+  ],
+  "configFile": "/repo/playwright.steps.mjs",
+  "rootDir": "/repo/steps",
+  "failOnFlakyTests": false,
+  "forbidOnly": false,
+  "fullyParallel": false,
+  "globalSetup": null,
+  "globalTeardown": null,
+  "globalTimeout": 0,
+  "grep": {},
+  "grepInvert": null,
+  "maxFailures": 0,
+  "metadata": {
+   "actualWorkers": 1
+  },
+  "preserveOutput": "always",
+  "projects": [
+   {
+    "outputDir": "/repo/out",
+    "repeatEach": 1,
+    "retries": 0,
+    "metadata": {
+     "actualWorkers": 1
+    },
+    "id": "shop",
+    "name": "shop",
+    "testDir": "/repo/steps",
+    "testIgnore": [],
+    "testMatch": [
+     "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+    ],
+    "timeout": 30000
+   }
+  ],
+  "filteredProjects": [
+   {
+    "grep": {},
+    "grepInvert": null,
+    "outputDir": "/repo/out",
+    "repeatEach": 1,
+    "retries": 0,
+    "metadata": {
+     "actualWorkers": 1
+    },
+    "name": "shop",
+    "testDir": "/repo/steps",
+    "snapshotDir": "/repo/steps",
+    "testIgnore": [],
+    "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
+    "timeout": 30000,
+    "use": {
+     "trace": "retain-on-failure"
+    },
+    "dependencies": [],
+    "ignoreSnapshots": false,
+    "__projectId": "shop"
+   }
+  ],
+  "quiet": false,
+  "reporter": [
+   [
+    "json"
+   ]
+  ],
+  "reportSlowTests": {
+   "max": 5,
+   "threshold": 300000
+  },
+  "shard": null,
+  "tags": [],
+  "updateSnapshots": "default",
+  "updateSourceMethod": "patch",
+  "version": "1.64.1",
+  "workers": 5,
+  "webServer": null
+ },
+ "suites": [
+  {
+   "title": "steps.spec.ts",
+   "file": "steps.spec.ts",
+   "column": 0,
+   "line": 0,
+   "specs": [
+    {
+     "title": "fails in a step",
+     "ok": false,
+     "tags": [],
+     "tests": [
+      {
+       "timeout": 30000,
+       "annotations": [],
+       "expectedStatus": "passed",
+       "projectId": "shop",
+       "projectName": "shop",
+       "results": [
+        {
+         "workerIndex": 0,
+         "parallelIndex": 0,
+         "status": "failed",
+         "duration": 214,
+         "error": {
+          "message": "Error: the total of the list\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m",
+          "stack": "Error: the total of the list\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n    at /repo/steps/steps.spec.ts:5:87\n    at /repo/steps/steps.spec.ts:5:5\n    at /repo/steps/steps.spec.ts:4:3",
+          "location": {
+           "file": "/repo/steps/steps.spec.ts",
+           "column": 87,
+           "line": 5
+          },
+          "snippet": "  3 |   await test.step(\"open the list\", async () => {});\n  4 |   await test.step(\"check the total\", async () => {\n> 5 |     await test.step(\"read the cell\", async () => { expect(1, \"the total of the list\").toBe(2); });\n    |                                                                                       ^\n  6 |   });\n  7 | });\n  8 |"
+         },
+         "errors": [
+          {
+           "location": {
+            "file": "/repo/steps/steps.spec.ts",
+            "column": 87,
+            "line": 5
+           },
+           "message": "Error: the total of the list\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n\n  3 |   await test.step(\"open the list\", async () => {});\n  4 |   await test.step(\"check the total\", async () => {\n> 5 |     await test.step(\"read the cell\", async () => { expect(1, \"the total of the list\").toBe(2); });\n    |                                                                                       ^\n  6 |   });\n  7 | });\n  8 |\n    at /repo/steps/steps.spec.ts:5:87\n    at /repo/steps/steps.spec.ts:5:5\n    at /repo/steps/steps.spec.ts:4:3"
+          }
+         ],
+         "stdout": [],
+         "stderr": [],
+         "retry": 0,
+         "steps": [
+          {
+           "title": "open the list",
+           "duration": 0
+          },
+          {
+           "title": "check the total",
+           "duration": 3,
+           "error": {
+            "message": "Error: the total of the list\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m",
+            "stack": "Error: the total of the list\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n    at /repo/steps/steps.spec.ts:5:87\n    at /repo/steps/steps.spec.ts:5:5\n    at /repo/steps/steps.spec.ts:4:3",
+            "location": {
+             "file": "/repo/steps/steps.spec.ts",
+             "column": 87,
+             "line": 5
+            },
+            "snippet": "  3 |   await test.step(\"open the list\", async () => {});\n  4 |   await test.step(\"check the total\", async () => {\n> 5 |     await test.step(\"read the cell\", async () => { expect(1, \"the total of the list\").toBe(2); });\n    |                                                                                       ^\n  6 |   });\n  7 | });\n  8 |"
+           },
+           "steps": [
+            {
+             "title": "read the cell",
+             "duration": 2,
+             "error": {
+              "message": "Error: the total of the list\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m",
+              "stack": "Error: the total of the list\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n    at /repo/steps/steps.spec.ts:5:87\n    at /repo/steps/steps.spec.ts:5:5\n    at /repo/steps/steps.spec.ts:4:3",
+              "location": {
+               "file": "/repo/steps/steps.spec.ts",
+               "column": 87,
+               "line": 5
+              },
+              "snippet": "  3 |   await test.step(\"open the list\", async () => {});\n  4 |   await test.step(\"check the total\", async () => {\n> 5 |     await test.step(\"read the cell\", async () => { expect(1, \"the total of the list\").toBe(2); });\n    |                                                                                       ^\n  6 |   });\n  7 | });\n  8 |"
+             }
+            }
+           ]
+          }
+         ],
+         "startTime": "2026-11-13T11:40:40.446Z",
+         "annotations": [],
+         "attachments": [
+          {
+           "name": "error-context",
+           "contentType": "text/markdown",
+           "path": "/repo/out/steps-fails-in-a-step-shop/error-context.md"
+          },
+          {
+           "name": "trace",
+           "contentType": "application/zip",
+           "path": "/repo/out/steps-fails-in-a-step-shop/trace.zip"
+          }
+         ],
+         "errorLocation": {
+          "file": "/repo/steps/steps.spec.ts",
+          "column": 87,
+          "line": 5
+         }
+        }
+       ],
+       "status": "unexpected"
+      }
+     ],
+     "id": "4e26b0a726fab6cf18bf-626ae8a988b99ec74595",
+     "file": "steps.spec.ts",
+     "line": 2,
+     "column": 5
+    }
+   ]
+  }
+ ],
+ "errors": [],
+ "stats": {
+  "startTime": "2026-11-13T11:40:40.257Z",
+  "duration": 649.916,
+  "expected": 0,
+  "skipped": 0,
+  "unexpected": 1,
+  "flaky": 0
+ }
+}

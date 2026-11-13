@@ -1,4 +1,4 @@
-import type { AttemptStatus, ListedTest, ReportedStatus, ReportedTest } from "@open-qa-stack/domain";
+import type { AttemptStatus, ListedTest, ReportedAttempt, ReportedStatus, ReportedTest } from "@open-qa-stack/domain";
 
 /** The part of the JSON of the Playwright reporter the harness reads. */
 interface JsonSuite {
@@ -19,7 +19,20 @@ interface JsonTest {
   readonly projectName: string;
   readonly status: ReportedStatus;
   readonly expectedStatus: AttemptStatus;
-  readonly results: readonly { readonly status: AttemptStatus; readonly errors?: readonly { readonly message?: string }[] }[];
+  readonly results: readonly JsonResult[];
+}
+
+interface JsonResult {
+  readonly status: AttemptStatus;
+  readonly errors?: readonly { readonly message?: string }[];
+  readonly steps?: readonly JsonStep[];
+  readonly attachments?: readonly { readonly name: string; readonly path?: string }[];
+}
+
+interface JsonStep {
+  readonly title: string;
+  readonly error?: unknown;
+  readonly steps?: readonly JsonStep[];
 }
 
 /** One test of a report, with what identifies it. */
@@ -49,7 +62,7 @@ export function reportedTests(json: string): ReportedTest[] | undefined {
     id,
     status: test.status,
     expectedStatus: test.expectedStatus,
-    attempts: test.results.map((result) => ({ status: result.status, errors: (result.errors ?? []).flatMap((error) => (error.message === undefined ? [] : [error.message])) })),
+    attempts: test.results.map(attemptOf),
   }));
 }
 
@@ -71,4 +84,20 @@ function walk(suite: JsonSuite, titles: readonly string[]): Found[] {
     spec.tests.map((test) => ({ id: [test.projectName, `${spec.file}:${spec.line}`, ...path, spec.title].join(" › "), test })),
   );
   return [...own, ...(suite.suites ?? []).flatMap((child) => walk(child, path))];
+}
+
+/** An attempt, with the step that failed and its trace when the report gives them. */
+function attemptOf(result: JsonResult): ReportedAttempt {
+  const errors = (result.errors ?? []).flatMap((error) => (error.message === undefined ? [] : [error.message]));
+  const failedStep = failedStepOf(result.steps ?? []);
+  const trace = result.attachments?.find((attachment) => attachment.name === "trace")?.path;
+  return { status: result.status, errors, ...(failedStep === undefined ? {} : { failedStep }), ...(trace === undefined ? {} : { trace }) };
+}
+
+/** The titles, from the outer to the inner one, of the innermost failed step; a step that failed holds its failed steps. */
+function failedStepOf(steps: readonly JsonStep[]): string | undefined {
+  const failed = steps.find((step) => step.error !== undefined);
+  if (failed === undefined) return undefined;
+  const inner = failedStepOf(failed.steps ?? []);
+  return inner === undefined ? failed.title : `${failed.title} › ${inner}`;
 }

@@ -23,6 +23,7 @@ export interface ElementHandle { click(): Promise<void>; }
 export interface Page {
   goto(url: string): Promise<null>;
   waitForTimeout(timeout: number): Promise<void>;
+  waitForSelector(selector: string): Promise<unknown>;
   getByRole(role: string, options?: { name?: string }): Locator;
   getByLabel(text: string): Locator;
   getByTestId(id: string): Locator;
@@ -165,6 +166,7 @@ const BREAKING: Record<string, string> = {
   "playwright/prefer-web-first-assertions": spec(`  expect(await page.getByRole("status").textContent()).toBe("Policy renewed");`),
   "playwright/missing-playwright-await": spec(`  expect(page.getByRole("status")).toBeVisible();`),
   "playwright/no-wait-for-timeout": spec(`  await page.waitForTimeout(500);`),
+  "playwright/no-wait-for-selector": spec(`  await page.waitForSelector('table[aria-label="Policies"]');`),
   "no-restricted-globals": spec(`  setInterval(() => undefined, 500);`),
   "playwright/no-export": `export const POLICY = "P-001";\n\n${spec("")}`,
 };

@@ -12,7 +12,7 @@ const outcome = await new Designer({ config, repositoryRoot, env, runtime, instr
 
 1. **Test repository.** The path must be the root of a git repository with a commit. No tracked file may be changed, no untracked file may lie outside the state folder (`repository.stateDir`) and the index folder (`repository.indexDir`), and the branch to create must not exist. Otherwise the journal names each problem, no session starts, and nothing is written. The untracked index the cartographer leaves does not stop the run.
 2. **Index.** `<indexDir>/domain-index.json` must match its schema. The designer reads no contract and no base itself: the request gives the agent every domain of the index, each element with the summary its card gives, when the card is readable.
-3. **Session.** The agent gets the browser tools of the applications of the environment of the index, to check a screen or a label; the tools of the documents, the source code and the logs attached to that environment or to none, the logs masking the value of every variable the configuration names; and the notes. It gets no tool of a contract or a base. It proposes each test with `propose_test`, under the limits of the configured autonomy. While fewer than three tests are accepted, an agent that stops is reminded up to three times.
+3. **Session.** The agent gets the browser tools of the applications of the environment of the index, to check a screen or a label; the tools of the documents, the source code and the logs attached to that environment or to none, the logs masking the value of every variable the configuration names; and the notes. It gets no tool of a contract or a base. It runs each test it writes with `run_test`, against the application, and fixes it until it passes; then it proposes it with `propose_test`, under the limits of the configured autonomy, every trial counting against them. While fewer than three tests are accepted, an agent that stops is reminded up to three times.
 4. **Branch.** Once the session is over, a branch is created from the revision checked out, and stays checked out. The accepted tests and the design state are committed on it with the identity and the hooks of the repository. The message is `test: add <n> generated Playwright tests`, with one line per test. Nothing contacts a remote, and no existing branch nor the git configuration is changed.
 
 The branch is `oqas/design-<date>` by default, such as `oqas/design-20261113T100000Z`; `branch` gives another name.
@@ -35,6 +35,13 @@ A proposal is refused, the journal says why, and the agent is told so that it ca
 | `The proposal holds the value of <VARIABLE>` | The value of a variable the configuration names — a test account, a connection string, the key of the model — in the reason or the text of the test. A test that signs in reads its account with `process.env`. |
 | A finding of the check | The `check` option, a `TestCheck` such as the `CharterCheck` of the harness, is run on a test the rules above accept; each finding refuses the test, and goes back to the agent with its line, its column and the rule of the charter or the code of the compiler. |
 
+## Running each test
+
+No test is kept unless it ran. The `runner` option, a `TestRunner` such as the `TrialRunner` of the harness, runs a test file with the real runner against the application.
+
+- `run_test` checks the file against the rules above, then runs it, and tells the agent the verdict of each of its tests and, for one that did not pass, its whole error, the `test.step` that failed, the path of its trace, and the instant from which the logs of the services tell what happened. A file the rules refuse is not run.
+- `propose_test` runs the file too, unless that very text was already tried. The test is kept when each of its tests passed. When it does not pass, it is refused with what the run gave, unless the agent says, in `failure`, why the application rather than the test is at fault: it is then kept with the harness's verdict and that explanation, never as passed.
+
 Every value of the variables the configuration names is masked in the journal and in what the agent is told. Once four tests are accepted, any further proposal is set aside, and the journal names it.
 
 ## Design state
@@ -51,7 +58,8 @@ The state is written to `<stateDir>/designs/design-<date>.json`, and committed w
   "model": { "provider": "openai", "baseUrl": "http://localhost:1234/v1", "model": "<model>" },
   "run": { "iterations": 6, "actions": 3, "durationMs": 81234 },
   "tests": [
-    { "path": "apps/policy-management/list-policies.spec.ts", "application": "policy-management", "domain": "policies", "reason": "Checks that the policies of a customer are listed." }
+    { "path": "apps/policy-management/list-policies.spec.ts", "application": "policy-management", "domain": "policies", "reason": "Checks that the policies of a customer are listed.", "verdict": "passed" },
+    { "path": "apps/policy-management/quote-total.spec.ts", "application": "policy-management", "domain": "quote-requests", "reason": "Checks the total of a quote.", "verdict": "failed", "failure": "The total stays empty although the quote has two lines." }
   ]
 }
 ```

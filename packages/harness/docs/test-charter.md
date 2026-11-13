@@ -59,7 +59,7 @@ The linter is oxlint, with its type-aware mode and the rules of `eslint-plugin-p
 | PW-LOC-01 | `playwright/prefer-native-locators`, `playwright/no-get-by-title` | Flags a locator that a getBy method replaces, and getByTitle. Whether getByRole came first is left to review. |
 | PW-LOC-02 | `playwright/no-raw-locators`, `playwright/no-element-handle`, `playwright/no-nth-methods` | Flags CSS and XPath locators, element handles, and first, last and nth. |
 | PW-ASSERT-01 | `playwright/expect-expect`, `playwright/prefer-web-first-assertions`, `playwright/missing-playwright-await` | Flags a test without assertion, an assertion on a value read once from the page, and an assertion that is not awaited. |
-| PW-WAIT-01 | `playwright/no-wait-for-timeout`, `no-restricted-globals` | Flags page.waitForTimeout, setTimeout and setInterval. |
+| PW-WAIT-01 | `playwright/no-wait-for-timeout`, `playwright/no-wait-for-selector`, `no-restricted-globals` | Flags page.waitForTimeout, page.waitForSelector, setTimeout and setInterval. |
 | PW-ISO-01 | `playwright/no-export` | Flags an export from a test file, which another test could import. Shared state, order and serial mode are left to review. |
 | PW-DATA-01 | none | Not checked: how a test prepares and removes its data is left to review. |
 | PW-STEP-01 | none | Not checked: which actions are business actions is left to review. |

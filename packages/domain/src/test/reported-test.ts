@@ -15,6 +15,10 @@ export interface ReportedAttempt {
   readonly status: AttemptStatus;
   /** The messages of its errors. */
   readonly errors: readonly string[];
+  /** Title of the innermost `test.step` that failed, when one did. */
+  readonly failedStep?: string;
+  /** Path of its trace, as the runner wrote it, when one was kept. */
+  readonly trace?: string;
 }
 
 /** A test as the runner reports it after a run. */

@@ -51,6 +51,10 @@ A network error is a connection the browser or Node.js could not make (`net::ERR
 
 The result is written to `<stateDir>/runs/run-<date>.json`: each test with its identifier, verdict and reason, the version of Playwright, the addresses checked, the exit code of the runner, and the path of the raw JSON in `<stateDir>/runs/run-<date>/`, or of the output of the runner when the JSON could not be read. Nothing is committed nor pushed.
 
+## Trying a test while it is written
+
+`TrialRunner` implements `TestRunner` for the designer: it tries one test file at a time. The run is prepared once, at the first trial. The file is written at its path for the time of its run, then removed; its report and its traces stay in `<stateDir>/trials/` and `<stateDir>/test-results/`. A trial gives each test of the file with its verdict and, for one that did not pass, its whole error, the step that failed and the path of its trace, relative to the test repository. A file already at that path is not overwritten: the trial says so.
+
 ## The commands
 
 The commands go through `CommandRunner`, an interface of the domain. `LocalRunner` runs them on the machine, in the test repository, with the environment of the process; the tests of the harness give another, so that they install and run nothing.

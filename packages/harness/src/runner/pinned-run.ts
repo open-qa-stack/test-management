@@ -6,6 +6,7 @@ import {
   testVerdicts,
   type CommandOutcome,
   type CommandRunner,
+  type ReportedTest,
   type ListedTest,
   type TestVerdict,
   type Verdict,
@@ -72,6 +73,15 @@ export interface RunResult {
   readonly tests: readonly TestVerdict[];
 }
 
+/** A run made ready: the version installed, or why the tests cannot run. */
+export type Preparation = { readonly ok: true; readonly version: string } | { readonly ok: false; readonly reason: string; readonly version?: string };
+
+/** What running files gave: the verdicts, the addresses checked, and what the runner left. */
+export interface FilesRun extends Pick<RunResult, "addresses" | "runnerExitCode" | "report" | "runnerOutput" | "tests"> {
+  /** The tests of the reporter's JSON, when it could be read. */
+  readonly reported?: readonly ReportedTest[];
+}
+
 /** What a run produced. */
 export interface RunOutcome {
   /** Where the result was written. */
@@ -92,10 +102,13 @@ export interface RunOutcome {
  */
 export class PinnedRun {
   private readonly options: PinnedRunOptions;
+  private readonly runner: CommandRunner;
+  private prepared: Promise<Preparation> | undefined;
 
   /** @param options - What the run needs. */
   public constructor(options: PinnedRunOptions) {
     this.options = options;
+    this.runner = options.runner ?? new LocalRunner(options.repositoryRoot);
   }
 
   /**
@@ -116,47 +129,79 @@ export class PinnedRun {
     return { resultPath, result };
   }
 
-  private async steps(runDir: string, producedAt: string): Promise<RunResult> {
-    const { environment, tests } = this.options;
-    const base = { formatVersion: 1 as const, producedAt, environment, addresses: [] as CheckedAddress[] };
-    const notRun = (reason: string) => tests.map((id) => ({ id, verdict: "not_run" as Verdict, reason }));
-    const lockfile = await readFile(join(this.options.repositoryRoot, "package-lock.json"), "utf8").catch(() => undefined);
-    const version = lockfile === undefined ? undefined : lockedPlaywrightVersion(lockfile);
-    if (version === undefined) return { ...base, tests: notRun("package-lock.json is missing, cannot be read, or does not install @playwright/test.") };
-    const runner = this.options.runner ?? new LocalRunner(this.options.repositoryRoot);
-    const known = { ...base, playwright: version };
-    const step = (command: readonly string[], env: Readonly<Record<string, string>> = {}) => runner.run({ command, env: { ...this.projectEnv(), ...env }, timeoutMs: STEP_TIMEOUT_MS });
-    const install = await step(["npm", "ci", "--no-audit", "--no-fund", "--no-update-notifier"]);
-    if (install.exitCode !== 0) return { ...known, tests: notRun(`The dependencies could not be installed: ${firstLine(install)}`) };
-    const browsers = await step(["node_modules/.bin/playwright", "install", "chromium"]);
-    if (browsers.exitCode !== 0) return { ...known, tests: notRun(`The browsers of Playwright ${version} could not be installed: ${firstLine(browsers)}`) };
-    const resolved = await step(["node", "-p", "require('@playwright/test/package.json').version"]);
-    if (resolved.stdout.trim() !== version) return { ...known, tests: notRun(`@playwright/test ${resolved.stdout.trim() || "cannot be found"} is installed, the lockfile asks for ${version}.`) };
-    const list = await step(["node_modules/.bin/playwright", "test", "--list", "--reporter=json", ...tests]);
+  /**
+   * Makes the run ready, once: installs the dependencies from the lockfile, then the browsers of the
+   * locked version, and checks the version installed.
+   *
+   * @returns The version installed, or why the tests cannot run.
+   * @throws Error when a command cannot be called.
+   */
+  public prepare(): Promise<Preparation> {
+    this.prepared ??= this.install();
+    return this.prepared;
+  }
+
+  /**
+   * Lists the given files, checks the addresses, runs the files and pronounces the verdicts. The run must be
+   * prepared.
+   *
+   * @param files - The test files, relative to the test repository.
+   * @param runDir - The folder of this run, relative to the test repository.
+   * @returns The verdicts, the addresses checked, and what the runner left.
+   * @throws Error when a command cannot be called.
+   */
+  public async runFiles(files: readonly string[], runDir: string): Promise<FilesRun> {
+    const notRun = (reason: string): FilesRun => ({ addresses: [], tests: files.map((id) => ({ id, verdict: "not_run", reason })) });
+    const list = await this.step(["node_modules/.bin/playwright", "test", "--list", "--reporter=json", ...files]);
     const listed = list.exitCode === 0 ? listedTests(list.stdout) : undefined;
-    if (listed === undefined) return { ...known, tests: notRun(`The runner could not list the tests: ${firstLine(list)}`) };
-    const reach = (urls: readonly string[]) => this.reach(runner, urls);
-    const checked = await reach(this.addresses());
-    if (!checked.ran) return { ...known, tests: notRun(`The addresses could not be checked: ${checked.reason}`) };
+    if (listed === undefined) return notRun(`The runner could not list the tests: ${firstLine(list)}`);
+    const checked = await this.reach(this.addresses());
+    if (!checked.ran) return notRun(`The addresses could not be checked: ${checked.reason}`);
     const before = checked.addresses;
     const silent = before.filter((address) => !address.answers);
-    if (silent.length > 0) return { ...known, addresses: before, tests: blocked(listed, silent) };
+    if (silent.length > 0) return { addresses: before, tests: blocked(listed, silent) };
     const report = posix.join(runDir, "report.json");
     await mkdir(join(this.options.repositoryRoot, runDir), { recursive: true });
-    const ran = await step(["node_modules/.bin/playwright", "test", "--reporter=json", ...tests], { PLAYWRIGHT_JSON_OUTPUT_FILE: report });
+    const ran = await this.step(["node_modules/.bin/playwright", "test", "--reporter=json", ...files], { PLAYWRIGHT_JSON_OUTPUT_FILE: report });
     const reported = reportedTests(await readFile(join(this.options.repositoryRoot, report), "utf8").catch(() => ""));
     if (reported === undefined) {
       const runnerOutput = posix.join(runDir, "runner-output.txt");
       await writeFile(join(this.options.repositoryRoot, runnerOutput), `${ran.stdout}\n${ran.stderr}`);
-      const verdicts = testVerdicts({ listed, addresses: this.addresses(), unreachable: new Set() });
-      return { ...known, addresses: before, runnerExitCode: ran.exitCode, runnerOutput, tests: verdicts };
+      return { addresses: before, runnerExitCode: ran.exitCode, runnerOutput, tests: testVerdicts({ listed, addresses: this.addresses(), unreachable: new Set() }) };
     }
     // A check after the run that could not run confirms nothing: no address is then found unreachable.
-    const recheck = await reach(networkFailureAddresses(reported, this.addresses()));
+    const recheck = await this.reach(networkFailureAddresses(reported, this.addresses()));
     const after = recheck.ran ? recheck.addresses : [];
     const unreachable = new Set(after.filter((address) => !address.answers).map((address) => address.url));
-    const verdicts = testVerdicts({ listed, reported, addresses: this.addresses(), unreachable });
-    return { ...known, addresses: [...before, ...after], runnerExitCode: ran.exitCode, report, tests: verdicts };
+    return { addresses: [...before, ...after], runnerExitCode: ran.exitCode, report, reported, tests: testVerdicts({ listed, reported, addresses: this.addresses(), unreachable }) };
+  }
+
+  private async steps(runDir: string, producedAt: string): Promise<RunResult> {
+    const { environment, tests } = this.options;
+    const base = { formatVersion: 1 as const, producedAt, environment };
+    const prepared = await this.prepare();
+    const version = prepared.version === undefined ? {} : { playwright: prepared.version };
+    if (!prepared.ok) return { ...base, ...version, addresses: [], tests: tests.map((id) => ({ id, verdict: "not_run" as Verdict, reason: prepared.reason })) };
+    const { reported: _reported, ...ran } = await this.runFiles(tests, runDir);
+    return { ...base, ...version, ...ran };
+  }
+
+  private async install(): Promise<Preparation> {
+    const lockfile = await readFile(join(this.options.repositoryRoot, "package-lock.json"), "utf8").catch(() => undefined);
+    const version = lockfile === undefined ? undefined : lockedPlaywrightVersion(lockfile);
+    if (version === undefined) return { ok: false, reason: "package-lock.json is missing, cannot be read, or does not install @playwright/test." };
+    const install = await this.step(["npm", "ci", "--no-audit", "--no-fund", "--no-update-notifier"]);
+    if (install.exitCode !== 0) return { ok: false, version, reason: `The dependencies could not be installed: ${firstLine(install)}` };
+    const browsers = await this.step(["node_modules/.bin/playwright", "install", "chromium"]);
+    if (browsers.exitCode !== 0) return { ok: false, version, reason: `The browsers of Playwright ${version} could not be installed: ${firstLine(browsers)}` };
+    const resolved = await this.step(["node", "-p", "require('@playwright/test/package.json').version"]);
+    if (resolved.stdout.trim() !== version) return { ok: false, version, reason: `@playwright/test ${resolved.stdout.trim() || "cannot be found"} is installed, the lockfile asks for ${version}.` };
+    return { ok: true, version };
+  }
+
+  /** Runs a command of a step, with the environment of the tests. */
+  private step(command: readonly string[], env: Readonly<Record<string, string>> = {}): Promise<CommandOutcome> {
+    return this.runner.run({ command, env: { ...this.projectEnv(), ...env }, timeoutMs: STEP_TIMEOUT_MS });
   }
 
   /** The addresses of the applications of the environment, as declared: their interface and their APIs. */
@@ -169,10 +214,10 @@ export class PinnedRun {
   }
 
   /** Calls each address from where the tests run; when the check itself cannot run, it found nothing. */
-  private async reach(runner: CommandRunner, urls: readonly string[]): Promise<{ ran: true; addresses: CheckedAddress[] } | { ran: false; reason: string }> {
+  private async reach(urls: readonly string[]): Promise<{ ran: true; addresses: CheckedAddress[] } | { ran: false; reason: string }> {
     if (urls.length === 0) return { ran: true, addresses: [] };
     const timeout = this.options.reachTimeoutMs ?? REACH_TIMEOUT_MS;
-    const outcome = await runner.run({ command: ["node", "-e", REACH_SCRIPT, String(timeout), ...urls], timeoutMs: STEP_TIMEOUT_MS });
+    const outcome = await this.runner.run({ command: ["node", "-e", REACH_SCRIPT, String(timeout), ...urls], timeoutMs: STEP_TIMEOUT_MS });
     try {
       return { ran: true, addresses: JSON.parse(outcome.stdout) as CheckedAddress[] };
     } catch {

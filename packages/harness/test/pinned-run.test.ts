@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -9,7 +9,7 @@ import { after, before, describe, it } from "node:test";
 import type { CommandOutcome, CommandRunner, StepCommand } from "@open-qa-stack/domain";
 import { validateConfig, type ResolvedConfig } from "@open-qa-stack/shared";
 import { closedPort } from "@open-qa-stack/testing";
-import { baseUrlVariable, listedTests, LocalRunner, PinnedRun, reportedTests, testRepositoryBase, type RunOutcome } from "../src/index.ts";
+import { baseUrlVariable, listedTests, LocalRunner, PinnedRun, reportedTests, testRepositoryBase, TrialRunner, type RunOutcome } from "../src/index.ts";
 
 const workspace = mkdtempSync(join(tmpdir(), "oqas-pinned-run-"));
 const FIXTURES = new URL("./fixtures/reporter/", import.meta.url);
@@ -418,5 +418,69 @@ describe("the run on the machine", () => {
     const outcome = await new PinnedRun({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, tests: FILES, now: NOW }).run();
     assert.deepEqual(outcome.result.tests.map((test) => test.verdict), ["not_run", "not_run"]);
     assert.match(outcome.result.tests[0]!.reason, /^The dependencies could not be installed: npm/);
+  });
+});
+
+describe("the trial of a test file", () => {
+  const TRIED = { path: "apps/shop/steps.spec.ts", content: "// the test\n" };
+  const trialRunner = (root: string, runner: CommandRunner) => new TrialRunner({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, runner, now: NOW, reachTimeoutMs: 2000 });
+
+  it("writes the file for its run only, runs it alone, and gives the whole error, the failed step and the trace", async () => {
+    const root = repository();
+    const fake = new FakeRunner(root, { list: fixture("steps.json"), report: { fixture: "steps.json" } });
+    let present = false;
+    const runner: CommandRunner = { run: (command) => ((present ||= command.command.includes("--reporter=json") && existsSync(join(root, TRIED.path))), fake.run(command)) };
+    const trial = await trialRunner(root, runner).run(TRIED);
+    assert.equal(present, true);
+    assert.equal(existsSync(join(root, TRIED.path)), false);
+    assert.equal(trial.startedAt, "2026-11-13T12:00:00.000Z");
+    const [tried] = trial.tests;
+    // The recorded trace lies outside this repository: it is given as the runner wrote it, relative to the test repository.
+    assert.deepEqual([tried!.verdict, tried!.failedStep], ["failed", "check the total › read the cell"]);
+    assert.match(tried!.trace!, /out\/steps-fails-in-a-step-shop\/trace\.zip$/);
+    assert.match(tried!.reason, /^Error: the total of the list\n\nexpect\(received\)\.toBe\(expected\)/);
+    assert.ok(fake.commands.filter((command) => command.command[1] === "test").every((command) => command.command.at(-1) === TRIED.path));
+  });
+
+  it("prepares once for every trial, and gives a trace relative to the test repository", async () => {
+    const root = repository();
+    const fake = new FakeRunner(root, { list: fixture("steps.json"), report: { text: fixture("steps.json").replaceAll("/repo/out/", `${root}/.oqas/test-results/`) } });
+    const runner = trialRunner(root, fake);
+    const first = await runner.run(TRIED);
+    await runner.run(TRIED);
+    assert.equal(fake.commands.filter((command) => command.command[0] === "npm").length, 1);
+    assert.equal(first.tests[0]!.trace, ".oqas/test-results/steps-fails-in-a-step-shop/trace.zip");
+  });
+
+  it("gives a passed test as it is, and says why a file cannot run", async () => {
+    const root = repository();
+    const passed = await trialRunner(root, new FakeRunner(root, { list: fixture("statuses.json"), report: { fixture: "statuses.json" } })).run(TRIED);
+    assert.deepEqual(passed.tests.find((test) => test.id.endsWith(" › passes")), { id: passed.tests.find((test) => test.id.endsWith(" › passes"))!.id, verdict: "passed", reason: "Every attempt passed." });
+    const noLock = repository(null);
+    assert.match((await trialRunner(noLock, new FakeRunner(noLock)).run(TRIED)).error!, /package-lock\.json/);
+    const taken = repository();
+    mkdirSync(join(taken, "apps", "shop"), { recursive: true });
+    writeFileSync(join(taken, TRIED.path), "// kept\n");
+    const refused = await trialRunner(taken, new FakeRunner(taken)).run(TRIED);
+    assert.deepEqual([refused.tests, refused.error, readFileSync(join(taken, TRIED.path), "utf8")], [[], "apps/shop/steps.spec.ts already exists in the test repository; give the test another file name.", "// kept\n"]);
+    const listFails = repository();
+    const unlisted = await trialRunner(listFails, new FakeRunner(listFails, { listExit: 1 })).run(TRIED);
+    assert.deepEqual(unlisted.tests.map((test) => [test.id, test.verdict]), [[TRIED.path, "not_run"]]);
+  });
+});
+
+describe("the trial of a test without an error message", () => {
+  it("keeps the reason of the harness, and dates the trial with the system clock", async () => {
+    const root = repository();
+    const report = JSON.parse(fixture("steps.json")) as { suites: { specs: { tests: { results: { errors: unknown[]; steps: unknown[]; attachments: unknown[] }[] }[] }[] }[] };
+    const result = report.suites[0]!.specs[0]!.tests[0]!.results[0]!;
+    result.errors = [];
+    result.steps = [];
+    result.attachments = [];
+    const fake = new FakeRunner(root, { list: fixture("steps.json"), report: { text: JSON.stringify(report) } });
+    const before = Date.now();
+    const trial = await new TrialRunner({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, runner: fake }).run({ path: "apps/shop/steps.spec.ts", content: "// t\n" });
+    assert.ok(Date.parse(trial.startedAt) >= before - 1000);
+    assert.deepEqual([trial.tests[0]!.verdict, trial.tests[0]!.reason, "failedStep" in trial.tests[0]!, "trace" in trial.tests[0]!], ["failed", "Failed, without an error message.", false, false]);
   });
 });

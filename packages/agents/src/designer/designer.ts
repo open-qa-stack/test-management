@@ -10,7 +10,7 @@ import { INDEX_FILE_NAME } from "../cartographer/cartographer.ts";
 import { CARDS_FOLDER } from "../source-cartographer/source-cartographer.ts";
 import { designRequest } from "./designer-prompt.ts";
 import { DESIGNS_FOLDER, type DesignedTest, type DesignState } from "./design-state.ts";
-import type { TestCheck } from "@open-qa-stack/domain";
+import type { TestCheck, TestRunner } from "@open-qa-stack/domain";
 import { declaredAddresses, declaredSecrets } from "./spec-rules.ts";
 import { MIN_TESTS, TestProposals, type AcceptedTest } from "./test-proposals.ts";
 import { TestRepository } from "./test-repository.ts";
@@ -32,6 +32,8 @@ export interface DesignerOptions {
   readonly instructions: string;
   /** A check run on each test before it is accepted, such as one against the charter; none by default. */
   readonly check?: TestCheck;
+  /** Runs each test against the application before it is kept, such as the `TrialRunner` of the harness. */
+  readonly runner: TestRunner;
   /** Name of the branch to create; `oqas/design-<date>` by default. */
   readonly branch?: string;
   /** How the browser starts and waits; a headless Chromium with the default waits otherwise. */
@@ -111,6 +113,7 @@ export class Designer {
         addresses: declaredAddresses(config),
         secrets: declaredSecrets(config, env),
         ...(this.options.check === undefined ? {} : { check: this.options.check }),
+        runner: this.options.runner,
       },
       journal,
     );
@@ -120,7 +123,7 @@ export class Designer {
     const notes = agentNotes(config, repositoryRoot, env, { role: "designer", task: id, now });
     const events: AgentEvent[] = [];
     const request = designRequest(index, applications, await this.cards(index));
-    const task = { instructions: this.options.instructions, tools: [...browser.tools, ...knowledge, ...notes, proposals.tool()], request, events, reminder: () => proposals.reminder() };
+    const task = { instructions: this.options.instructions, tools: [...browser.tools, ...knowledge, ...notes, proposals.trialTool(), proposals.tool()], request, events, reminder: () => proposals.reminder() };
     await runAgentTask(this.options.runtime, task, taskLimits(config)).finally(() => browser.close());
     for (const event of events) if (event.type === "tool-error") journal.record("error", `${event.tool}: ${event.message}`);
     const { last, counters } = taskEnd(events);
@@ -137,7 +140,7 @@ export class Designer {
       base: await repository.head(),
       model: { provider: config.model.provider, baseUrl: config.model.baseUrl, model: config.model.model },
       run: { iterations: counters.iterations, actions: counters.actions, durationMs: Math.round(counters.elapsedMs) },
-      tests: tests.map(({ path, application, domain, reason }) => ({ path, application, domain, reason })),
+      tests: tests.map(({ content: _content, ...test }) => test),
     };
     const statePath = posix.join(config.repository.stateDir, DESIGNS_FOLDER, `${id}.json`);
     await this.write(repository, state, statePath, tests, journal);
