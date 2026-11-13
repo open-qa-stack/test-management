@@ -29,7 +29,8 @@ interface Seen {
  * @remarks
  * The tools it gives are those it was given, with what the agent needs to see added to their results:
  * opening an address returns the snapshot of the page, and an action returns the lines of the snapshot that
- * appeared after it. It remembers, for
+ * appeared after it. A snapshot is given without what a test has no use for — the reference of each
+ * element, the address of each link — so that a long session holds more screens. It remembers, for
  * each application, every line the snapshots showed, those shown before any action since the page was
  * opened, and those an action produced. An application without a user interface has no such tools, and is
  * held to nothing.
@@ -50,13 +51,13 @@ export class ScreenWatch {
       if (snapshot === undefined) continue;
       const seen: Seen = { lines: new Set(), before: new Set(), produced: new Set(), last: undefined, acted: false, everActed: false };
       this.seen.set(application, seen);
-      const read = async () => this.record(seen, (await snapshot.execute({})) as { page: string; truncated: boolean });
+      const read = async () => this.record(seen, compact((await snapshot.execute({})) as { page: string; truncated: boolean }));
       const wrap = (action: string, execute: (tool: ToolDefinition, args: unknown) => Promise<unknown>) => {
         const tool = byName.get(scopedToolName(application, action))!;
         owned.set(tool.name, { ...tool, execute: (args) => execute(tool, args) });
       };
       wrap("snapshot", async (tool, args) => {
-        const result = (await tool.execute(args)) as { page: string; truncated: boolean };
+        const result = compact((await tool.execute(args)) as { page: string; truncated: boolean });
         this.record(seen, result);
         return result;
       });
@@ -113,13 +114,19 @@ export class ScreenWatch {
    *
    * @param application - Identifier of the application.
    * @param content - Text of the test.
+   * @remarks
+   * A screen shows a locator when one of its lines starts with the role, and one of its lines holds the name
+   * or the text, whatever the case: the name of a row or a list is that of what it holds, on other lines.
+   *
    * @returns Each such locator, once, as the test writes it; none for an application without a user interface.
    */
   public unseen(application: string, content: string): string[] {
     const seen = this.seen.get(application);
     if (seen === undefined) return [];
     const lines = [...seen.lines];
-    return [...new Set(usedLocators(content).filter((locator) => !lines.some((line) => shows(line, locator))).map((locator) => locator.code))];
+    const shown = ({ role, text }: UsedLocator) =>
+      (role === undefined || lines.some((line) => new RegExp(`^- '?${role}\\b`).test(line))) && (text === undefined || lines.some((line) => line.toLowerCase().includes(text.toLowerCase())));
+    return [...new Set(usedLocators(content).filter((locator) => !shown(locator)).map((locator) => locator.code))];
   }
 
   /**
@@ -155,13 +162,13 @@ export class ScreenWatch {
   }
 }
 
-/** A line of a snapshot without its indentation nor the reference of its element, which changes from one snapshot to the next. */
+/** A line of a snapshot without its indentation. */
 function normalized(line: string): string {
-  return line.replace(/\s*\[ref=[^\]]+\]/g, "").trim();
+  return line.trim();
 }
 
-/** Whether a line of a snapshot shows what a locator looks for: its role at the start of the line, and its text anywhere in it, whatever the case. */
-function shows(line: string, locator: UsedLocator): boolean {
-  if (locator.role !== undefined && !new RegExp(`^- '?${locator.role}\\b`).test(line)) return false;
-  return locator.text === undefined || line.toLowerCase().includes(locator.text.toLowerCase());
+/** A snapshot without the reference of each element, which changes from one snapshot to the next, the mark of what can be clicked, nor the address of each link. */
+function compact<T extends { page: string }>(snapshot: T): T {
+  const lines = snapshot.page.split("\n").filter((line) => !/^\s*- \/url:/.test(line));
+  return { ...snapshot, page: lines.map((line) => line.replace(/ \[(?:ref=[^\]]+|cursor=pointer)\]/g, "")).join("\n") };
 }

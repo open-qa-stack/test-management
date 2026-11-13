@@ -32,7 +32,7 @@ The tools of a source read the whole source, not only what the index places in i
 
 A test relies on screens the agent saw. The browser tools are those of `@open-qa-stack/tools`, with what the agent needs to see added to their results:
 
-- opening an address returns the snapshot of the page, each element with the locator a test uses for it;
+- opening an address returns the snapshot of the page, each element with the locator a test uses for it, without the reference of each element nor the address of each link, which a test has no use for;
 - `click`, `fill`, `select_option` and `check` return the lines of the snapshot that appeared after the action.
 
 For a test of an application with a user interface:
@@ -41,7 +41,7 @@ For a test of an application with a user interface:
 |---|---|
 | `You have not looked at the screens of <application> yet…` | No snapshot of the application was taken. |
 | `You have not done the steps of the scenario yourself yet…` | The scenario is `functional`, and the agent did no action in the browser. |
-| `No screen you looked at showed <locators>…` | The test uses a locator by role, text, label, placeholder, test id, title or alternative text that no snapshot showed: the role at the start of a line, and the name or the text anywhere in it, whatever the case. A name or a text given as a regular expression or a variable is not checked. |
+| `No screen you looked at showed <locators>…` | The test uses a locator by role, text, label, placeholder, test id, title or alternative text that no snapshot showed: the role at the start of a line, and the name or the text in a line, the same or another — the name of a row is that of its cells — whatever the case. A name or a text given as a regular expression or a variable is not checked. |
 | `What verifies names was already on the page before the action…` | In a `functional` scenario, every text the assertion of `verifies` names was on the page before any action since it was opened, and none appeared after one. An assertion that names no text, such as a count, is not concerned. |
 
 An application without a user interface is held to none of this.

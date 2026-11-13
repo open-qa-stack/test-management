@@ -36,17 +36,20 @@ function page(snapshots: string[]): { tools: ToolDefinition[]; calls: string[] }
   };
 }
 
-const LIST = ['- heading "Orders" [level=1] [ref=e2] → page.getByRole("heading", { name: "Orders", exact: true })', '- button "Search" [ref=e3] → page.getByRole("button", { name: "Search", exact: true })'].join("\n");
-const FOUND = `${LIST.replace("[ref=e3]", "[ref=e9]")}\n  - paragraph [ref=e10]: Order 42 of Ada`;
+const LIST = ['- heading "Orders" [level=1] [ref=e2] → page.getByRole("heading", { name: "Orders", exact: true })', '- button "Search" [ref=e3] [cursor=pointer] → page.getByRole("button", { name: "Search", exact: true })', "  - /url: /orders"].join("\n");
+const FOUND = `${LIST.replace("[ref=e3]", "[ref=e9]")}\n  - paragraph [ref=e10]: Order 42 of Ada\n- row [ref=e11]:\n  - cell "Ada Lovelace" [ref=e12]`;
+/** The list as the agent is given it: without the references, the marks of what can be clicked, nor the addresses of the links. */
+const SHOWN = ['- heading "Orders" [level=1] → page.getByRole("heading", { name: "Orders", exact: true })', '- button "Search" → page.getByRole("button", { name: "Search", exact: true })'].join("\n");
 const run = (watch: ScreenWatch, action: string) => watch.tools().find((tool) => tool.name === `shop_${action}`)!.execute({}) as Promise<Record<string, unknown>>;
 
 describe("the screens the designer watches", () => {
   it("returns the page when it is opened, and what appeared after an action, the references of the elements aside", async () => {
     const { tools, calls } = page([LIST, LIST, FOUND]);
     const watch = new ScreenWatch(["shop", "ledger"], tools);
-    assert.deepEqual(await run(watch, "goto"), { url: "http://127.0.0.1/orders", title: "Orders", page: LIST, truncated: false });
-    assert.deepEqual(await run(watch, "click"), { url: "http://127.0.0.1/orders", title: "Orders", appeared: "- paragraph: Order 42 of Ada" });
-    assert.deepEqual(calls, ["goto", "snapshot", "click", "snapshot"]);
+    assert.deepEqual(await run(watch, "goto"), { url: "http://127.0.0.1/orders", title: "Orders", page: SHOWN, truncated: false });
+    assert.deepEqual(await run(watch, "click"), { url: "http://127.0.0.1/orders", title: "Orders", appeared: '- paragraph: Order 42 of Ada\n- row:\n- cell "Ada Lovelace"' });
+    assert.equal(((await run(watch, "snapshot")) as { page: string }).page.split("\n")[0], SHOWN.split("\n")[0]);
+    assert.deepEqual(calls, ["goto", "snapshot", "click", "snapshot", "snapshot"]);
     assert.deepEqual(watch.tools().map((tool) => tool.name), tools.map((tool) => tool.name));
     assert.equal(await run(watch, "network").then((result) => JSON.stringify(result)), "[]");
   });
@@ -81,8 +84,12 @@ describe("the screens the designer watches", () => {
   it("names the locators no screen showed, by role and by text, whatever the case", async () => {
     const watch = new ScreenWatch(["shop"], page([LIST]).tools);
     await run(watch, "goto");
-    const test = `page.getByRole("heading", { name: 'orders' }); page.getByRole("button"); page.getByRole("link", { name: "Orders" }); page.getByText("Deliveries"); page.getByText("Deliveries"); page.getByLabel(\`Search\`); page.getByRole("row", { name: /Order/ });`;
-    assert.deepEqual(watch.unseen("shop", test), ['getByRole("link", { name: "Orders" })', 'getByText("Deliveries")', 'getByRole("row", { name: /Order/ })']);
+    const watch2 = new ScreenWatch(["shop"], page([LIST, FOUND]).tools);
+    await run(watch2, "click");
+    // The name of a row is that of its cells, on other lines; a role no screen showed is refused whatever its name.
+    const test = `page.getByRole("heading", { name: 'orders' }); page.getByRole("button"); page.getByRole("row", { name: "Ada Lovelace" }); page.getByRole("link", { name: "Orders" }); page.getByText("Deliveries"); page.getByText("Deliveries"); page.getByLabel(\`Search\`); page.getByRole("dialog", { name: /Order/ });`;
+    assert.deepEqual(watch2.unseen("shop", test), ['getByRole("link", { name: "Orders" })', 'getByText("Deliveries")', 'getByRole("dialog", { name: /Order/ })']);
+    assert.deepEqual(watch.unseen("shop", 'page.getByRole("row", { name: "Ada Lovelace" })'), ['getByRole("row", { name: "Ada Lovelace" })']);
   });
 
   it("tells an assertion that names only what the page showed before the action", async () => {
