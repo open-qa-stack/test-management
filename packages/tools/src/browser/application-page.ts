@@ -134,13 +134,23 @@ export class ApplicationPage {
   }
 
   /**
-   * Reads what the page shows.
+   * Reads what the page shows, or one part of it.
    *
+   * @param within - The one element whose subtree to read, such as a table or a dialog; the whole page otherwise.
    * @returns Its snapshot.
-   * @throws Error when the page cannot be read, for instance while it navigates.
+   * @throws Error when the page cannot be read, for instance while it navigates; or, with `within`, when no
+   * element, or more than one, matches it in time.
    */
-  public snapshot(): Promise<PageSnapshot> {
-    return pageSnapshot(this.page);
+  public async snapshot(within?: Target): Promise<PageSnapshot> {
+    if (within === undefined) return pageSnapshot(this.page);
+    const part = locate(this.page, within);
+    try {
+      // A snapshot does not wait for its element: the wait tells a missing element from several.
+      await part.waitFor({ state: "attached" });
+      return await pageSnapshot(this.page, part);
+    } catch (failure) {
+      throw await this.failed(failure, `${targetCode(within)} did not appear within ${this.timeouts.actionMs} ms.`, within);
+    }
   }
 
   /**

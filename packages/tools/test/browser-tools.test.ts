@@ -51,12 +51,15 @@ const HOME = `
 
 let site: TestSite;
 let elsewhere: TestSite;
+/** The API of the back office, on an origin of its own. */
+let api: TestSite;
 let screenshots: string;
 let downPort: number;
 
 before(async () => {
   downPort = await closedPort();
   elsewhere = await testSite({ "/": "<p>Elsewhere</p>", "/x": "<p>X</p>" });
+  api = await testSite({ "/x": "<p>X</p>" });
   site = await testSite(
     {
       "/": HOME.replace('href="#"', `href="${elsewhere.origin}/x"`),
@@ -87,6 +90,7 @@ before(async () => {
 after(async () => {
   await site.close();
   await elsewhere.close();
+  await api.close();
   rmSync(screenshots, { recursive: true, force: true });
 });
 
@@ -102,7 +106,7 @@ function applications(): Application[] {
         { name: "staging" },
       ],
     },
-    { id: "back-office", name: "Back office", type: "web", authentication: { method: "none" }, environments: [{ name: "local", uiUrl: `${site.origin}/second` }] },
+    { id: "back-office", name: "Back office", type: "web", authentication: { method: "none" }, environments: [{ name: "local", uiUrl: `${site.origin}/second`, apis: [{ name: "api", baseUrl: api.origin }] }] },
     { id: "ledger", name: "Ledger", type: "api", authentication: { method: "none" }, environments: [{ name: "local", apis: [{ name: "api", baseUrl: site.origin }] }] },
   ];
 }
@@ -161,10 +165,12 @@ describe("criterion 1 — a session gets the browser tools of each declared appl
     });
   });
 
-  it("opens an address of the application, absolute or relative", async () => {
+  it("opens an address of the application, absolute or relative, and gives the line a test writes, by its path on the user interface", async () => {
     await withTools(async (tool) => {
-      assert.deepEqual(await tool("shop_goto").execute({ url: "/second" }), { url: `${site.origin}/second`, title: "/second" });
-      assert.deepEqual(await tool("shop_goto").execute({ url: `${site.origin}/` }), { url: `${site.origin}/`, title: "/" });
+      assert.deepEqual(await tool("shop_goto").execute({ url: "/second" }), { url: `${site.origin}/second`, title: "/second", code: 'await page.goto("/second");' });
+      assert.deepEqual(await tool("shop_goto").execute({ url: `${site.origin}/?tab=1#top` }), { url: `${site.origin}/?tab=1#top`, title: "/", code: 'await page.goto("/?tab=1#top");' });
+      // An address of an API of the application is given whole: it is not on the user interface.
+      assert.equal(((await tool("back_office_goto").execute({ url: `${api.origin}/x` })) as { code: string }).code, `await page.goto("${api.origin}/x");`);
     });
   });
 
@@ -178,7 +184,7 @@ describe("criterion 1 — a session gets the browser tools of each declared appl
 
   it("refuses a navigation to another host started by the page, and shows it among the requests", async () => {
     await withTools(async (tool) => {
-      assert.deepEqual(await tool("shop_click").execute({ target: { role: "link", name: "Elsewhere" } }), { url: `${site.origin}/`, title: "/" });
+      assert.deepEqual(await tool("shop_click").execute({ target: { role: "link", name: "Elsewhere" } }), { url: `${site.origin}/`, title: "/", code: 'await page.getByRole("link", { name: "Elsewhere", exact: true }).click();' });
       const refused = ((await tool("shop_network").execute({})) as { url: string; failure?: string }[]).filter((entry) => entry.failure === REFUSED);
       assert.deepEqual(refused.map((entry) => entry.url), [`${elsewhere.origin}/x`]);
       assert.deepEqual(elsewhere.requested, []);
@@ -192,7 +198,7 @@ describe("criterion 1 — a session gets the browser tools of each declared appl
       assert.deepEqual(elsewhere.requested, []);
       const refused = ((await tool("shop_network").execute({})) as { url: string; failure?: string }[]).filter((entry) => entry.failure === REFUSED);
       assert.deepEqual(refused.map((entry) => new URL(entry.url).pathname), ["/go", "/hop2"]);
-      assert.deepEqual(await tool("shop_goto").execute({ url: "/hop" }), { url: `${site.origin}/second`, title: "/second" });
+      assert.deepEqual(await tool("shop_goto").execute({ url: "/hop" }), { url: `${site.origin}/second`, title: "/second", code: 'await page.goto("/hop");' });
       await reject(tool("shop_goto").execute({ url: "/loop" }), /did not load: .*ERR_FAILED/);
     });
   });
@@ -292,6 +298,20 @@ describe("criterion 2 — a snapshot lists the elements one can act on, with rol
     });
   });
 
+  it("reads one part of the page, with the locators of its elements, and says when that part is not on the page", async () => {
+    await withTools(
+      async (tool) => {
+        const part = ((await tool("shop_snapshot").execute({ within: { role: "combobox", name: "Kind" } })) as { page: string }).page;
+        assert.match(part, /^- combobox "Kind" \[ref=e\d+\]: → page\.getByRole\("combobox", \{ name: "Kind", exact: true \}\)\n/);
+        assert.match(part, /option "Car"/);
+        assert.doesNotMatch(part, /My Policies/);
+        await reject(tool("shop_snapshot").execute({ within: { role: "dialog" } }), /^page\.getByRole\("dialog"\) matches no element\.\n\nThe page is now at .*\n- generic/);
+        await reject(tool("shop_snapshot").execute({ within: { text: "Again" } }), /^page\.getByText\("Again", \{ exact: true \}\) matches more than one element; use a locator that matches one\./);
+      },
+      { actionTimeoutMs: 300 },
+    );
+  });
+
   it("says when no locator matches one element only, and when none applies", async () => {
     await withTools(async (tool) => {
       const text = await page(tool);
@@ -352,22 +372,35 @@ describe("criterion 2 — a snapshot lists the elements one can act on, with rol
 describe("criterion 3 — actions use the recommended locators, and a failed action says why with the page", () => {
   it("fills and clicks by role, label and test id", async () => {
     await withTools(async (tool) => {
-      await tool("shop_fill").execute({ target: { label: "Email" }, value: "eve@example.com" });
-      await tool("shop_fill").execute({ target: { label: "Promo" }, value: "SPRING" });
-      await tool("shop_click").execute({ target: { role: "button", name: "Sign in" } });
-      await tool("shop_click").execute({ target: { testId: "delete-1" } });
-      await tool("shop_click").execute({ target: { text: "Card" } });
+      const codes = [
+        await tool("shop_fill").execute({ target: { label: "Email" }, value: "eve@example.com" }),
+        await tool("shop_fill").execute({ target: { label: "Promo" }, value: 'SPRING "24"' }),
+        await tool("shop_click").execute({ target: { role: "button", name: "Sign in" } }),
+        await tool("shop_click").execute({ target: { testId: "delete-1" } }),
+        await tool("shop_click").execute({ target: { text: "Card" } }),
+      ].map((result) => (result as { code: string }).code);
+      assert.deepEqual(codes, [
+        'await page.getByLabel("Email", { exact: true }).fill("eve@example.com");',
+        'await page.getByLabel("Promo", { exact: true }).fill("SPRING \\"24\\"");',
+        'await page.getByRole("button", { name: "Sign in", exact: true }).click();',
+        'await page.getByTestId("delete-1").click();',
+        'await page.getByText("Card", { exact: true }).click();',
+      ]);
       const text = await page(tool);
       assert.match(text, /paragraph \[ref=e\d+\]: Hello eve@example\.com$/m);
-      assert.match(text, /textbox "Promo Code" \[ref=e\d+\]: SPRING →/);
+      assert.match(text, /textbox "Promo Code" \[ref=e\d+\]: SPRING "24" →/);
       assert.match(text, /: Card opened/);
     });
   });
 
   it("chooses an option, checks a box, and waits for an element, a hidden one or an address", async () => {
     await withTools(async (tool) => {
-      await tool("shop_select_option").execute({ target: { role: "combobox", name: "Kind" }, option: "Car" });
-      await tool("shop_check").execute({ target: { role: "checkbox" }, checked: true });
+      const codes = [
+        await tool("shop_select_option").execute({ target: { role: "combobox", name: "Kind" }, option: "Car" }),
+        await tool("shop_check").execute({ target: { role: "checkbox" }, checked: false }),
+        await tool("shop_check").execute({ target: { role: "checkbox" }, checked: true }),
+      ].map((result) => (result as { code: string }).code);
+      assert.deepEqual(codes, ['await page.getByRole("combobox", { name: "Kind", exact: true }).selectOption("Car");', 'await page.getByRole("checkbox").uncheck();', 'await page.getByRole("checkbox").check();']);
       await tool("shop_wait_for").execute({ target: { text: "Banner" } });
       await tool("shop_click").execute({ target: { role: "button", name: "Dismiss" } });
       await tool("shop_wait_for").execute({ target: { text: "Banner" }, state: "hidden" });
@@ -445,7 +478,7 @@ describe("calls made at once on one page", () => {
   it("run one after the other, in order, so that none interrupts another", async () => {
     await withTools(async (tool) => {
       const results = await Promise.all([tool("shop_goto").execute({ url: "/second" }), tool("shop_goto").execute({ url: "/" }), tool("shop_snapshot").execute({})]);
-      assert.deepEqual(results.slice(0, 2), [{ url: `${site.origin}/second`, title: "/second" }, { url: `${site.origin}/`, title: "/" }]);
+      assert.deepEqual(results.slice(0, 2), [{ url: `${site.origin}/second`, title: "/second", code: 'await page.goto("/second");' }, { url: `${site.origin}/`, title: "/", code: 'await page.goto("/");' }]);
       assert.match((results[2] as { page: string }).page, /heading "My Policies"/);
       const [failed, next] = await Promise.allSettled([tool("shop_click").execute({ target: { role: "button", name: "Missing" } }), tool("shop_snapshot").execute({})]);
       assert.deepEqual([failed.status, next.status], ["rejected", "fulfilled"]);
@@ -533,8 +566,15 @@ describe("criterion 6 — the tests run on a page served locally, without networ
 describe("test accounts — the agent types them by name, and their passwords never reach the model", () => {
   it("types a declared account by its name, and masks its password in everything returned, in every form", async () => {
     await withTools(async (tool) => {
-      await tool("shop_fill").execute({ target: { label: "Email" }, value: { account: "demo", field: "username" } });
-      await tool("shop_fill").execute({ target: { role: "textbox", name: "Password" }, value: { account: "demo", field: "password" } });
+      const typed = [
+        await tool("shop_fill").execute({ target: { label: "Email" }, value: { account: "demo", field: "username" } }),
+        await tool("shop_fill").execute({ target: { role: "textbox", name: "Password" }, value: { account: "demo", field: "password" } }),
+      ];
+      // A test reads the credential from the variable of the account, never by its value.
+      assert.deepEqual(
+        typed.map((result) => (result as { code: string }).code),
+        ['await page.getByLabel("Email", { exact: true }).fill(process.env.SHOP_USER!);', 'await page.getByRole("textbox", { name: "Password", exact: true }).fill(process.env.SHOP_PASSWORD!);'],
+      );
       const returned = [await tool("shop_click").execute({ target: { role: "button", name: "Sign in" } }), await tool("shop_snapshot").execute({})];
       const text = await page(tool);
       assert.match(text, new RegExp(`Hello max@example\\.com \\${SECRET_MASK}`));

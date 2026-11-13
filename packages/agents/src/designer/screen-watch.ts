@@ -6,6 +6,8 @@ import { namedTexts, usedLocators, type UsedLocator } from "./test-locators.ts";
 const ACTIONS = ["click", "fill", "select_option", "check"];
 /** Most lines an action tells the agent appeared. */
 const MAX_APPEARED = 60;
+/** Most lines an action tells the agent went. */
+const MAX_GONE = 20;
 
 /** What the designer saw of the screens of one application. */
 interface Seen {
@@ -15,7 +17,7 @@ interface Seen {
   readonly before: Set<string>;
   /** The lines that appeared after an action. */
   readonly produced: Set<string>;
-  /** The lines of the last snapshot. */
+  /** The lines of the last snapshot of the whole page. */
   last: Set<string> | undefined;
   /** Whether an action was done since the page was last opened. */
   acted: boolean;
@@ -29,7 +31,7 @@ interface Seen {
  * @remarks
  * The tools it gives are those it was given, with what the agent needs to see added to their results:
  * opening an address returns the snapshot of the page, and an action returns the lines of the snapshot that
- * appeared after it. A snapshot is given without what a test has no use for — the reference of each
+ * appeared after it and those that went. A snapshot is given without what a test has no use for — the reference of each
  * element, the address of each link — so that a long session holds more screens. It remembers, for
  * each application, every line the snapshots showed, those shown before any action since the page was
  * opened, and those an action produced. An application without a user interface has no such tools, and is
@@ -51,14 +53,14 @@ export class ScreenWatch {
       if (snapshot === undefined) continue;
       const seen: Seen = { lines: new Set(), before: new Set(), produced: new Set(), last: undefined, acted: false, everActed: false };
       this.seen.set(application, seen);
-      const read = async () => this.record(seen, compact((await snapshot.execute({})) as { page: string; truncated: boolean }));
+      const read = async () => this.record(seen, compact((await snapshot.execute({})) as { page: string; truncated: boolean }), true);
       const wrap = (action: string, execute: (tool: ToolDefinition, args: unknown) => Promise<unknown>) => {
         const tool = byName.get(scopedToolName(application, action))!;
         owned.set(tool.name, { ...tool, execute: (args) => execute(tool, args) });
       };
       wrap("snapshot", async (tool, args) => {
         const result = compact((await tool.execute(args)) as { page: string; truncated: boolean });
-        this.record(seen, result);
+        this.record(seen, result, (args as { within?: unknown }).within === undefined);
         return result;
       });
       wrap("goto", async (tool, args) => {
@@ -74,10 +76,18 @@ export class ScreenWatch {
           const state = (await tool.execute(args)) as object;
           seen.acted = true;
           seen.everActed = true;
-          const appeared = this.appeared(previous, (await read()).lines);
+          const current = (await read()).lines;
+          const appeared = absent(current, previous);
           for (const line of appeared) seen.produced.add(line);
           const told = appeared.length === 0 ? "Nothing new appeared on the page." : appeared.slice(0, MAX_APPEARED).join("\n");
-          return { ...state, appeared: told, ...(appeared.length > MAX_APPEARED ? { more: `${appeared.length - MAX_APPEARED} more lines appeared; take a snapshot to read them.` } : {}) };
+          const gone = absent(previous, current);
+          const more = gone.length > MAX_GONE ? [`${gone.length - MAX_GONE} more lines went.`] : [];
+          return {
+            ...state,
+            appeared: told,
+            ...(appeared.length > MAX_APPEARED ? { more: `${appeared.length - MAX_APPEARED} more lines appeared; take a snapshot to read them.` } : {}),
+            gone: gone.length === 0 ? "Nothing went from the page." : [...gone.slice(0, MAX_GONE), ...more].join("\n"),
+          };
         });
       }
     }
@@ -145,21 +155,21 @@ export class ScreenWatch {
     return texts.every((text) => within(seen.before, text) && !within(seen.produced, text));
   }
 
-  /** Keeps what a snapshot showed. */
-  private record(seen: Seen, snapshot: { page: string; truncated: boolean }): { page: string; truncated: boolean; lines: Set<string> } {
+  /** Keeps what a snapshot showed; one of the whole page is the one the next action is compared with. */
+  private record(seen: Seen, snapshot: { page: string; truncated: boolean }, whole: boolean): { page: string; truncated: boolean; lines: Set<string> } {
     const lines = new Set(snapshot.page.split("\n").map(normalized).filter((line) => line !== ""));
     for (const line of lines) {
       seen.lines.add(line);
       if (!seen.acted) seen.before.add(line);
     }
-    seen.last = lines;
+    if (whole) seen.last = lines;
     return { ...snapshot, lines };
   }
+}
 
-  /** The lines of a snapshot that the one before did not show. */
-  private appeared(previous: ReadonlySet<string>, lines: ReadonlySet<string>): string[] {
-    return [...lines].filter((line) => !previous.has(line));
-  }
+/** The lines of a snapshot that another does not show. */
+function absent(lines: ReadonlySet<string>, other: ReadonlySet<string>): string[] {
+  return [...lines].filter((line) => !other.has(line));
 }
 
 /** A line of a snapshot without its indentation. */

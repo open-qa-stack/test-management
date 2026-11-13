@@ -6,7 +6,7 @@ import { scopedToolName } from "../common/tool-name.ts";
 import { LOG_CAPACITY, type ApplicationPage, type PageScope, type PageState, type Until } from "./application-page.ts";
 import type { BrowserSession } from "./browser-session.ts";
 import { redact, redactText, secretForms } from "./redact.ts";
-import { TARGET_SCHEMA, type Target } from "./target.ts";
+import { TARGET_SCHEMA, targetCode, type Target } from "./target.ts";
 
 /** Longest wait an agent may ask for, in milliseconds. */
 export const MAX_WAIT_MS = 15_000;
@@ -15,8 +15,13 @@ export const DEFAULT_WAIT_MS = 5000;
 /** Entries a log tool returns when the agent does not say. */
 const DEFAULT_LOG_ENTRIES = 20;
 
-/** A value to type, or the credential of a declared test account, which the model never sees. */
-type FillValue = string | { readonly account: string; readonly field: "username" | "password" };
+/** The credential of a declared test account, which the model never sees. */
+type Credential = { readonly account: string; readonly field: "username" | "password" };
+/** A value to type, or the credential of a declared test account. */
+type FillValue = string | Credential;
+
+/** Where the page is after a tool, and the line of code that does the same in a test. */
+type Done = PageState & { readonly code: string };
 
 /** What the browser tools of an application need. */
 export interface ApplicationToolAccess {
@@ -38,7 +43,8 @@ const limit = (description: string) => ({ type: "integer", minimum: 1, maximum: 
  * Tools that change the page count as browser actions; snapshots, waits, screenshots and logs do not.
  * Calls on the page of the application run one after the other, in the order they came, so that
  * calls the model makes at once do not interrupt each other. Tools that act return where the page is
- * afterwards. The agent types a test account's credentials by
+ * afterwards, and the line of code a test writes to do the same: a path relative to the user interface for
+ * an address of it, and the environment variable of a credential rather than its value. The agent types a test account's credentials by
  * naming the account, never by their value; the passwords are masked in everything the tools return,
  * errors included, in the forms a page may show them.
  *
@@ -69,30 +75,30 @@ export function applicationTools(application: Application, environment: Environm
   return [
     {
       name: name("goto"),
-      description: `Opens an address ${where}, absolute or relative to ${environment.uiUrl}. Other sites are refused.`,
+      description: `Opens an address ${where}, absolute or relative to ${environment.uiUrl}. Other sites are refused. Returns where the page is, and the line of code that does the same in a test.`,
       parameters: { type: "object", properties: { url: { type: "string", minLength: 1 } }, required: ["url"], additionalProperties: false },
       browserAction: true,
-      execute: on(async (page, { url }: { url: string }) => {
+      execute: on(async (page, { url }: { url: string }): Promise<Done> => {
         await page.goto(url);
-        return page.state();
+        return { ...(await page.state()), code: `await page.goto(${JSON.stringify(testAddress(url, environment.uiUrl))});` };
       }),
     },
     {
       name: name("snapshot"),
-      description: `Returns the accessibility tree of the page ${where}. Each element you can act on ends with the Playwright locator a test should use for it.`,
-      parameters: { type: "object", properties: {}, additionalProperties: false },
-      execute: on((page) => page.snapshot()),
+      description: `Returns the accessibility tree of the page ${where}. Each element you can act on ends with the Playwright locator a test should use for it. within limits it to one part, such as a table, a form or a dialog.`,
+      parameters: { type: "object", properties: { within: TARGET_SCHEMA }, additionalProperties: false },
+      execute: on((page, { within }: { within?: Target }) => page.snapshot(within)),
     },
     {
       name: name("click"),
-      description: `Clicks an element of the page ${where}.`,
+      description: `Clicks an element of the page ${where}. Returns where the page is, and the line of code that does the same in a test.`,
       parameters: { type: "object", properties: { target: TARGET_SCHEMA }, required: ["target"], additionalProperties: false },
       browserAction: true,
-      execute: on((page, { target }: { target: Target }) => acted(page, target, (element) => element.click())),
+      execute: on((page, { target }: { target: Target }) => acted(page, target, "click()", (element) => element.click())),
     },
     {
       name: name("fill"),
-      description: `Fills a field of the page ${where}. To type a test account's credential, give { "account": <name>, "field": "username" | "password" } as the value: you are never given the password. Accounts: ${accountNames(application)}.`,
+      description: `Fills a field of the page ${where}. To type a test account's credential, give { "account": <name>, "field": "username" | "password" } as the value: you are never given the password. Accounts: ${accountNames(application)}. Returns where the page is, and the line of code that does the same in a test.`,
       parameters: {
         type: "object",
         properties: {
@@ -109,23 +115,26 @@ export function applicationTools(application: Application, environment: Environm
       },
       browserAction: true,
       execute: on((page, { target, value }: { target: Target; value: FillValue }) => {
-        const text = typeof value === "string" ? value : credential(application, access.env, value);
-        return acted(page, target, (element) => element.fill(text));
+        if (typeof value === "string") return acted(page, target, `fill(${JSON.stringify(value)})`, (element) => element.fill(value));
+        const variable = credentialVariable(application, value);
+        const text = access.env[variable];
+        if (text === undefined || text === "") throw new Error(`Environment variable ${variable} is not set.`);
+        return acted(page, target, `fill(process.env.${variable}!)`, (element) => element.fill(text));
       }),
     },
     {
       name: name("select_option"),
-      description: `Chooses an option, by its label or value, in a list of the page ${where}.`,
+      description: `Chooses an option, by its label or value, in a list of the page ${where}. Returns where the page is, and the line of code that does the same in a test.`,
       parameters: { type: "object", properties: { target: TARGET_SCHEMA, option: { type: "string" } }, required: ["target", "option"], additionalProperties: false },
       browserAction: true,
-      execute: on((page, { target, option }: { target: Target; option: string }) => acted(page, target, (element) => element.selectOption(option))),
+      execute: on((page, { target, option }: { target: Target; option: string }) => acted(page, target, `selectOption(${JSON.stringify(option)})`, (element) => element.selectOption(option))),
     },
     {
       name: name("check"),
-      description: `Checks or unchecks a checkbox or radio button of the page ${where}.`,
+      description: `Checks or unchecks a checkbox or radio button of the page ${where}. Returns where the page is, and the line of code that does the same in a test.`,
       parameters: { type: "object", properties: { target: TARGET_SCHEMA, checked: { type: "boolean" } }, required: ["target", "checked"], additionalProperties: false },
       browserAction: true,
-      execute: on((page, { target, checked }: { target: Target; checked: boolean }) => acted(page, target, (element) => element.setChecked(checked))),
+      execute: on((page, { target, checked }: { target: Target; checked: boolean }) => acted(page, target, checked ? "check()" : "uncheck()", (element) => element.setChecked(checked))),
     },
     {
       name: name("wait_for"),
@@ -175,10 +184,17 @@ export function applicationTools(application: Application, environment: Environm
   ];
 }
 
-/** Acts on an element, then says where the page is. */
-async function acted(page: ApplicationPage, target: Target, action: (element: Locator) => Promise<unknown>): Promise<PageState> {
+/** Acts on an element, then says where the page is, and how a test does the same: the call of `method` on the locator of the target. */
+async function acted(page: ApplicationPage, target: Target, method: string, action: (element: Locator) => Promise<unknown>): Promise<Done> {
   await page.act(target, action);
-  return page.state();
+  return { ...(await page.state()), code: `await ${targetCode(target)}.${method};` };
+}
+
+/** The address a test opens for one given to a tool: its path when it is on the user interface, which the base URL of the test then completes. */
+function testAddress(url: string, uiUrl: string): string {
+  // The page opened it: it parses.
+  const address = new URL(url, uiUrl);
+  return address.origin === new URL(uiUrl).origin ? `${address.pathname}${address.search}${address.hash}` : address.href;
 }
 
 function pageScope(applicationId: string, environment: Environment & { uiUrl: string }): PageScope {
@@ -191,13 +207,11 @@ function accountNames(application: Application): string {
   return accounts.length === 0 ? "none" : accounts.map((account) => account.name).join(", ");
 }
 
-function credential(application: Application, env: ApplicationToolAccess["env"], { account, field }: { account: string; field: "username" | "password" }): string {
+/** The environment variable that holds a credential of a declared test account. */
+function credentialVariable(application: Application, { account, field }: Credential): string {
   const declared: Account | undefined = application.authentication.accounts?.find((a) => a.name === account);
   if (declared === undefined) throw new Error(`${application.id} has no test account named ${account}; accounts: ${accountNames(application)}.`);
-  const variable = field === "username" ? declared.usernameEnv : declared.passwordEnv;
-  const value = env[variable];
-  if (value === undefined || value === "") throw new Error(`Environment variable ${variable} is not set.`);
-  return value;
+  return field === "username" ? declared.usernameEnv : declared.passwordEnv;
 }
 
 function nonEmpty(value: string | undefined): string[] {

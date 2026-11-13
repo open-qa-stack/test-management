@@ -4,17 +4,20 @@ import type { ToolDefinition } from "@open-qa-stack/domain";
 import { ScreenWatch } from "../src/designer/screen-watch.ts";
 import { namedTexts, usedLocators } from "../src/designer/test-locators.ts";
 
-/** A page double: it shows the snapshots queued, the last one repeated, moving to the next when it is opened or acted on. */
+/**
+ * A page double: it shows the snapshots queued, the last one repeated, moving to the next when it is opened
+ * or acted on; a snapshot of a part of the page gives its first line.
+ */
 function page(snapshots: string[]): { tools: ToolDefinition[]; calls: string[] } {
   const calls: string[] = [];
   let shown = snapshots.shift()!;
-  const tool = (action: string, execute: () => unknown): ToolDefinition => ({
+  const tool = (action: string, execute: (args: { within?: unknown }) => unknown): ToolDefinition => ({
     name: `shop_${action}`,
     description: action,
     parameters: { type: "object" },
-    execute: async () => {
+    execute: async (args) => {
       calls.push(action);
-      return execute();
+      return execute(args as { within?: unknown });
     },
   });
   const state = { url: "http://127.0.0.1/orders", title: "Orders" };
@@ -26,7 +29,7 @@ function page(snapshots: string[]): { tools: ToolDefinition[]; calls: string[] }
     calls,
     tools: [
       tool("goto", next),
-      tool("snapshot", () => ({ url: state.url, title: state.title, page: shown, truncated: false })),
+      tool("snapshot", ({ within }) => ({ url: state.url, title: state.title, page: within === undefined ? shown : shown.split("\n")[0]!, truncated: false })),
       tool("click", next),
       tool("fill", next),
       tool("select_option", next),
@@ -47,16 +50,35 @@ describe("the screens the designer watches", () => {
     const { tools, calls } = page([LIST, LIST, FOUND]);
     const watch = new ScreenWatch(["shop", "ledger"], tools);
     assert.deepEqual(await run(watch, "goto"), { url: "http://127.0.0.1/orders", title: "Orders", page: SHOWN, truncated: false });
-    assert.deepEqual(await run(watch, "click"), { url: "http://127.0.0.1/orders", title: "Orders", appeared: '- paragraph: Order 42 of Ada\n- row:\n- cell "Ada Lovelace"' });
+    assert.deepEqual(await run(watch, "click"), { url: "http://127.0.0.1/orders", title: "Orders", appeared: '- paragraph: Order 42 of Ada\n- row:\n- cell "Ada Lovelace"', gone: "Nothing went from the page." });
     assert.equal(((await run(watch, "snapshot")) as { page: string }).page.split("\n")[0], SHOWN.split("\n")[0]);
     assert.deepEqual(calls, ["goto", "snapshot", "click", "snapshot", "snapshot"]);
     assert.deepEqual(watch.tools().map((tool) => tool.name), tools.map((tool) => tool.name));
     assert.equal(await run(watch, "network").then((result) => JSON.stringify(result)), "[]");
   });
 
-  it("says when an action made nothing appear", async () => {
+  it("says when an action made nothing appear, and what went", async () => {
     const still = new ScreenWatch(["shop"], page([LIST]).tools);
     assert.equal((await run(still, "check"))["appeared"], "Nothing new appeared on the page.");
+    const filtered = new ScreenWatch(["shop"], page([FOUND, LIST]).tools);
+    assert.equal((await run(filtered, "click"))["gone"], '- paragraph: Order 42 of Ada\n- row:\n- cell "Ada Lovelace"');
+  });
+
+  it("cuts a long list of what went", async () => {
+    const rows = Array.from({ length: 25 }, (_, row) => `- row "Order ${row}"`).join("\n");
+    const result = await run(new ScreenWatch(["shop"], page([`${LIST}\n${rows}`, LIST]).tools), "fill");
+    assert.deepEqual(String(result["gone"]).split("\n").slice(19), ['- row "Order 19"', "5 more lines went."]);
+  });
+
+  it("compares an action with the last snapshot of the whole page, not with one of its parts", async () => {
+    const { tools, calls } = page([LIST, LIST, FOUND]);
+    const watch = new ScreenWatch(["shop"], tools);
+    await run(watch, "goto");
+    // A part of the page, such as a table, holds fewer lines than the page: what the action changed is told against the page.
+    await watch.tools().find((tool) => tool.name === "shop_snapshot")!.execute({ within: { role: "heading" } });
+    const result = await run(watch, "click");
+    assert.deepEqual([result["appeared"], result["gone"]], ['- paragraph: Order 42 of Ada\n- row:\n- cell "Ada Lovelace"', "Nothing went from the page."]);
+    assert.deepEqual(calls, ["goto", "snapshot", "snapshot", "click", "snapshot"]);
   });
 
   it("reads the page before an action when it was not read yet, and cuts a long list of what appeared", async () => {

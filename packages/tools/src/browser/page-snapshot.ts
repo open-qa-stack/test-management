@@ -1,4 +1,4 @@
-import type { Page } from "playwright-core";
+import type { Locator, Page } from "playwright-core";
 import { recommendTarget, type Recommendation } from "./recommended-target.ts";
 import { shortText } from "./short-text.ts";
 import { targetCode } from "./target.ts";
@@ -51,11 +51,12 @@ interface SnapshotElement {
  * page itself.
  *
  * @param page - The page.
+ * @param within - The one element whose subtree to read, such as a table or a dialog; the whole page otherwise.
  * @returns The snapshot.
  * @throws Error when the page cannot be read, for instance while it navigates.
  */
-export async function pageSnapshot(page: Page): Promise<PageSnapshot> {
-  const tree = await page.ariaSnapshot({ mode: "ai" });
+export async function pageSnapshot(page: Page, within?: Locator): Promise<PageSnapshot> {
+  const tree = await (within ?? page).ariaSnapshot({ mode: "ai" });
   const lines: string[] = [];
   let annotated = 0;
   let truncated = false;

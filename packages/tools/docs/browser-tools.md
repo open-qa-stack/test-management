@@ -5,7 +5,7 @@
 | Tool | What it does | Browser action |
 |---|---|---|
 | `<id>_goto` | Opens an address of the application, absolute or relative to its user interface. | yes |
-| `<id>_snapshot` | Returns the accessibility tree of the page, each element one can act on followed by its recommended locator. | no |
+| `<id>_snapshot` | Returns the accessibility tree of the page, each element one can act on followed by its recommended locator; with `within`, an element designated as for an action, only the tree of that element, such as a table or a dialog. | no |
 | `<id>_click` | Clicks an element. | yes |
 | `<id>_fill` | Fills a field with a text, or with the credential of a declared test account. | yes |
 | `<id>_select_option` | Chooses an option of a list, by its label or value. | yes |
@@ -16,6 +16,18 @@
 | `<id>_console` | Returns the latest console messages and uncaught errors of the page. | no |
 
 `<id>` is the identifier of the application, with hyphens turned into underscores: `customer-self-service` gives `customer_self_service_click`. Browser actions count against the action limit of the task; the other tools do not.
+
+`goto`, `click`, `fill`, `select_option` and `check` return the address and the title of the page afterwards, and in `code` the line a Playwright test writes to do the same:
+
+| Call | `code` |
+|---|---|
+| `shop_goto` with `http://localhost:3000/orders?status=open`, the user interface being at `http://localhost:3000` | `await page.goto("/orders?status=open");` |
+| `shop_click` on `{ "role": "button", "name": "Search" }` | `await page.getByRole("button", { name: "Search", exact: true }).click();` |
+| `shop_fill` on `{ "label": "Email" }` with `{ "account": "demo", "field": "username" }`, the account reading its user name from `SHOP_USER` | `await page.getByLabel("Email", { exact: true }).fill(process.env.SHOP_USER!);` |
+| `shop_select_option` on `{ "role": "combobox", "name": "Kind" }` with `Car` | `await page.getByRole("combobox", { name: "Kind", exact: true }).selectOption("Car");` |
+| `shop_check` on `{ "role": "checkbox" }` with `checked: false` | `await page.getByRole("checkbox").uncheck();` |
+
+An address of the user interface becomes its path, query and fragment, which the base URL of the test completes; an address of an API of the application is given whole. A credential is read from the variable its account declares, never written.
 
 ## Elements and locators
 
@@ -38,4 +50,4 @@ The agent types a credential by naming the account and the field, `{ "account": 
 
 ## Failures
 
-An action that fails says why — no element matches, the element did not become ready in time, or several elements match — followed by a snapshot of the page as it is now, so that the agent can choose its next step without another call. A user interface that does not load, an unknown account or an unset variable fails the call and not the session.
+An action that fails, or a snapshot whose `within` matches no element or several, says why — no element matches, the element did not become ready in time, or several elements match — followed by a snapshot of the page as it is now, so that the agent can choose its next step without another call. A user interface that does not load, an unknown account or an unset variable fails the call and not the session.

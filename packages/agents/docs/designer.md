@@ -33,7 +33,8 @@ The tools of a source read the whole source, not only what the index places in i
 A test relies on screens the agent saw. The browser tools are those of `@open-qa-stack/tools`, with what the agent needs to see added to their results:
 
 - opening an address returns the snapshot of the page, each element with the locator a test uses for it, without the reference of each element nor the address of each link, which a test has no use for;
-- `click`, `fill`, `select_option` and `check` return the lines of the snapshot that appeared after the action.
+- `click`, `fill`, `select_option` and `check` return the lines of the snapshot that appeared after the action (`appeared`), sixty at most, and those that went (`gone`), twenty at most; a snapshot of a part of the page, taken with `within`, is not what the next action is compared with;
+- each of these tools returns in `code` the line a test writes to do the same, as the [browser tools](../../tools/docs/browser-tools.md) give it.
 
 For a test of an application with a user interface:
 
