@@ -8,7 +8,7 @@ import { CopilotAgentRuntime, ModelGateway } from "@open-qa-stack/harness";
 import { validateConfig, validateDomainIndex, type DomainIndexSubmission, type ResolvedConfig, type SourceCard, type SourceCardSubmission } from "@open-qa-stack/shared";
 import { answer, closedPort, scriptedServer, testSite, toolCalls, type ScriptedServer, type TestSite } from "@open-qa-stack/testing";
 import { fingerprintOf, knowledgeInventory, type SqlClient } from "@open-qa-stack/tools";
-import { Cartographer, INDEX_FILE_NAME, type CartographyOutcome } from "../src/index.ts";
+import { Cartographer, INDEX_FILE_NAME, type CartographyOutcome, type TraceLine } from "../src/index.ts";
 
 const MODEL = "test-model";
 const DB_URL = "postgresql://shop:s3cret-db-pass@127.0.0.1:5999/shop";
@@ -97,6 +97,10 @@ interface Setup {
   readonly autonomous?: boolean;
   /** Sources whose up-to-date card is in the repository before the run; all four by default. */
   readonly cards?: readonly string[];
+  /** Receives each line of the trace as it is written. */
+  readonly observe?: (line: TraceLine) => void;
+  /** Changes the repository once its cards are written, before the run. */
+  readonly prepare?: (root: string) => void;
 }
 
 function configFor(modelUrl: string, setup: Setup = {}): ResolvedConfig {
@@ -206,6 +210,7 @@ async function cartography(replies: readonly { status?: number; body: unknown }[
   try {
     const config = configFor(server.baseUrl, setup);
     await writeCards(root, config, database, setup.cards ?? Object.keys(ELEMENTS));
+    setup.prepare?.(root);
     const cartographer = new Cartographer({
       config,
       environment: setup.environment ?? "local",
@@ -215,6 +220,7 @@ async function cartography(replies: readonly { status?: number; body: unknown }[
       browser: { actionTimeoutMs: 1000, navigationTimeoutMs: 3000 },
       ...(setup.realDatabase === true ? {} : { sqlClient: () => database }),
       ...(setup.autonomous === true ? {} : { now: () => new Date("2026-11-13T10:00:00.000Z") }),
+      ...(setup.observe === undefined ? {} : { observe: setup.observe }),
     });
     return { outcome: await cartographer.run(), server, root, database, before };
   } finally {
@@ -481,5 +487,120 @@ describe("a session that fails", () => {
     assert.match(messages(consolidation.outcome), /The consolidation failed: /);
     const cards = await cartography([], { cards: [] }, new CatalogDouble(), `http://127.0.0.1:${down}/v1`);
     assert.match(messages(cards.outcome), /The session failed: [^]*No index was written: no source has a card\./);
+  });
+});
+
+/** The lines of the trace of a cartography, each read back from its file. */
+const traceOf = (outcome: CartographyOutcome): TraceLine[] =>
+  readFileSync(outcome.tracePath, "utf8")
+    .split("\n")
+    .filter((line) => line !== "")
+    .map((line) => JSON.parse(line) as TraceLine);
+const PHASES = ["survey", "card", "consolidation", "index"];
+/** Whether every phase started, for a source or for the whole run, has its end. */
+const everyStartEnds = (lines: readonly TraceLine[]) => {
+  const ends = (type: string) => lines.filter((line) => line.actor === "harness" && line.event.type === type).map((line) => `${line.phase}:${line.source ?? ""}`);
+  return JSON.stringify(ends("started").sort()) === JSON.stringify(ends("finished").sort());
+};
+
+describe("trace, criterion 1 — the trace holds the phases in order, and each tool call with its arguments and result", () => {
+  it("writes survey, then card, then consolidation, then index lines, and every call of the agents", async () => {
+    const tables = [{ id: "c1", name: "shop_db_list_tables", arguments: {} }, { id: "c2", name: "shop_db_describe_table", arguments: { schema: "public", table: "orders" } }];
+    const { outcome } = await cartography(mappingTheBase(tables), { cards: ["shop-api", "order-specs", "shop"] });
+    const lines = traceOf(outcome);
+    const order = lines.map((line) => PHASES.indexOf(line.phase));
+    assert.deepEqual(order, [...order].sort((a, b) => a - b));
+    assert.deepEqual([...new Set(lines.map((line) => line.phase))], PHASES);
+    for (const { id, name, arguments: args } of [...tables, submitCard(cardSubmission("shop-db")), submit(SUBMISSION)]) {
+      const call = lines.find((line) => line.actor === "agent" && line.event.type === "tool-call" && line.event.callId === id);
+      assert.deepEqual(call?.event, { type: "tool-call", callId: id, tool: name, arguments: args }, name);
+      assert.ok(lines.some((line) => line.actor === "agent" && line.event.type === "tool-result" && line.event.callId === id), name);
+    }
+    assert.ok(lines.filter((line) => line.phase === "card" && line.actor === "agent").every((line) => line.source === "shop-db"));
+    const inventory = lines.find((line) => line.source === "shop-db" && line.event.type === "inventory");
+    assert.ok(inventory?.event.type === "inventory" && inventory.event.items === TABLES.length && !inventory.event.truncated && inventory.event.fingerprint !== "");
+    assert.ok(lines.some((line) => line.phase === "consolidation" && line.event.type === "message" && line.event.text.includes("submit_index")));
+    assert.ok(everyStartEnds(lines));
+    assert.deepEqual(lines.filter((line) => line.event.type === "finished" && line.source === undefined).map((line) => [line.phase, line.event.type === "finished" && line.event.outcome]), [["survey", "done"], ["card", "done"], ["consolidation", "done"], ["index", "done"]]);
+  });
+});
+
+describe("trace, criterion 2 — a reasoning of the model is in the trace, in its place among the tool calls", () => {
+  it("writes the reasoning of the agent of a card before the call it led to", async () => {
+    const thinking = toolCalls(MODEL, [{ id: "c1", name: "shop_db_list_tables", arguments: {} }]) as { choices: { message: Record<string, unknown> }[] };
+    thinking.choices[0]!.message.reasoning_content = "I list the tables first.";
+    const { outcome } = await cartography([{ body: thinking }, ...mappingTheBase([]).slice(1)], { cards: ["shop-api", "order-specs", "shop"] });
+    const agent = traceOf(outcome).filter((line) => line.actor === "agent" && line.source === "shop-db").map((line) => line.event);
+    assert.deepEqual(agent.slice(0, 2), [{ type: "reasoning", text: "I list the tables first." }, { type: "tool-call", callId: "c1", tool: "shop_db_list_tables", arguments: {} }]);
+  });
+});
+
+describe("trace, criterion 3 — a card kept because it is up to date leaves a harness line, and no line of an agent", () => {
+  it("says the card was kept, for each source whose card is up to date", async () => {
+    const { outcome } = await cartography(happy());
+    const lines = traceOf(outcome);
+    for (const source of ["shop-api", "shop-db", "order-specs", "shop"]) {
+      const own = lines.filter((line) => line.source === source && line.phase === "card");
+      assert.ok(own.every((line) => line.actor === "harness"), source);
+      assert.ok(own.some((line) => line.event.type === "journal" && line.event.message === `The card of ${source} is up to date; it was kept.`), source);
+      assert.deepEqual(own.at(-1)?.event, { type: "finished", outcome: "kept" }, source);
+    }
+  });
+});
+
+describe("trace, criterion 4 — no connection string is in the trace", () => {
+  it("masks the connection string of the base, the base mapped in the run", async () => {
+    const { outcome } = await cartography(mappingTheBase([{ id: "c1", name: "shop_db_list_tables", arguments: {} }]), { cards: ["shop-api", "order-specs", "shop"] });
+    const trace = readFileSync(outcome.tracePath, "utf8");
+    assert.ok(trace.length > 0 && !trace.includes(DB_URL));
+  });
+});
+
+describe("trace, criterion 5 — a cartography stopped by a limit leaves a trace readable up to the stop", () => {
+  it("ends every phase it started, the task of the interface stopped at its limit", async () => {
+    const actions = Array.from({ length: 201 }, (_, i) => ({ id: `g${i}`, name: "shop_goto", arguments: { url: "/" } }));
+    const { outcome } = await cartography([{ body: toolCalls(MODEL, actions) }, { body: toolCalls(MODEL, [submit(without("shop"))]) }, { body: answer(MODEL, "Done.") }], { cards: ["shop-api", "shop-db", "order-specs"] });
+    const lines = traceOf(outcome);
+    assert.ok(lines.some((line) => line.source === "shop" && line.actor === "agent" && line.event.type === "stopped"));
+    assert.deepEqual(lines.filter((line) => line.source === "shop").at(-1)?.event, { type: "finished", outcome: "failed" });
+    assert.ok(everyStartEnds(lines));
+  });
+});
+
+describe("trace, criterion 6 — an observer gets each line as it is written, and every phase started ends", () => {
+  it("knows a phase has started before it is over, and gets the lines of the file in their order", async () => {
+    const seen: TraceLine[] = [];
+    let root = "";
+    let indexBeforeConsolidation: boolean | undefined;
+    const observe = (line: TraceLine) => {
+      seen.push(line);
+      if (line.phase === "consolidation" && line.event.type === "started") indexBeforeConsolidation = existsSync(indexFile(root));
+    };
+    const run = await cartography(mappingTheBase([{ id: "c1", name: "shop_db_list_tables", arguments: {} }]), { cards: ["shop-api", "order-specs", "shop"], observe, prepare: (made) => (root = made) });
+    assert.deepEqual(seen, traceOf(run.outcome));
+    const started = seen.findIndex((line) => line.source === "shop-db" && line.event.type === "started");
+    const firstCall = seen.findIndex((line) => line.source === "shop-db" && line.event.type === "tool-call");
+    assert.ok(started >= 0 && started < firstCall);
+    assert.equal(indexBeforeConsolidation, false);
+  });
+
+  it("ends as failed the phases a source that does not answer stops, and those a run that throws leaves open", async () => {
+    const down = await closedPort();
+    const silent = await cartography([], { uiUrl: `http://127.0.0.1:${down}`, cards: [] });
+    const survey = traceOf(silent.outcome);
+    assert.ok(survey.some((line) => line.source === "shop" && line.event.type === "survey" && !line.event.answers && line.event.error !== undefined));
+    assert.deepEqual(survey.at(-1)?.event, { type: "finished", outcome: "failed" });
+    assert.ok(everyStartEnds(survey) && survey.every((line) => line.phase === "survey"));
+    const observed: TraceLine[] = [];
+    const blocked = cartography(mappingTheBase([]).slice(1), {
+      cards: ["shop-api", "order-specs", "shop"],
+      observe: (line) => observed.push(line),
+      prepare: (root) => mkdirSync(join(root, ".oqas", "index", "sources", "shop-db.json")),
+    });
+    await assert.rejects(blocked);
+    assert.ok(everyStartEnds(observed));
+    const ends = observed.filter((line) => line.event.type === "finished").map((line) => [line.phase, line.source ?? "", line.event.type === "finished" && line.event.outcome]);
+    assert.ok(ends.some(([phase, source, outcome]) => phase === "card" && source === "shop-db" && outcome === "failed"));
+    assert.deepEqual(ends.at(-1), ["card", "", "failed"]);
   });
 });

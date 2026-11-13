@@ -8,6 +8,9 @@ import { configSecrets } from "../common/config-secrets.ts";
 import { runAgentTask, taskEnd, taskLimits } from "../common/agent-task.ts";
 import { HandedIn } from "../common/handed-in.ts";
 import { Journal, type JournalEntry } from "../common/journal.ts";
+import { runTrace } from "../common/run-trace.ts";
+import type { Trace } from "../common/trace.ts";
+import type { PhaseOutcome, TraceLine } from "../common/trace-line.ts";
 import { cardRules } from "./card-rules.ts";
 import { interfaceSubject, knowledgeSubject, type CardSource, type CardSubject } from "./card-subject.ts";
 import { SOURCE_CARTOGRAPHER_INSTRUCTIONS } from "./source-cartographer-prompt.ts";
@@ -37,6 +40,10 @@ export interface SourceCartographerOptions {
   readonly force?: boolean;
   /** The clock of the card date; the system clock by default. */
   readonly now?: () => Date;
+  /** The trace the cartography writes to; a trace of its own, in the state folder, otherwise. */
+  readonly trace?: Trace;
+  /** Receives each line of the trace of its own as it is written; unused when `trace` is given. */
+  readonly observe?: (line: TraceLine) => void;
 }
 
 /** What the cartography of one source produced. */
@@ -49,6 +56,8 @@ export interface SourceCartographyOutcome {
   readonly kept: boolean;
   /** What the run checked, refused and wrote. */
   readonly journal: readonly JournalEntry[];
+  /** Where the trace of the cartography is written. */
+  readonly tracePath: string;
 }
 
 /**
@@ -64,6 +73,10 @@ export interface SourceCartographyOutcome {
  * of a base, never its rows — and hands its card in with `submit_card`, which must place every element and
  * invent none. The facts the harness read are joined to the card before it is written. Nothing is
  * committed nor pushed.
+ *
+ * Every step is traced in the `card` phase, from its `started` line to its `finished` line, even when the
+ * cartography throws: the inventory, each message sent to the agent, each event of its session and each
+ * entry of the journal.
  */
 export class SourceCartographer {
   private readonly options: SourceCartographerOptions;
@@ -80,8 +93,24 @@ export class SourceCartographer {
    * @throws Error when the card cannot be written to the disk.
    */
   public async run(): Promise<SourceCartographyOutcome> {
+    const { source } = this.options;
+    const now = this.options.now ?? (() => new Date());
+    const trace = this.options.trace ?? runTrace(this.options, `card-${source.id}`, now);
+    trace.harness("card", { type: "started" }, source.id);
+    try {
+      const outcome = await this.map(trace, now);
+      trace.harness("card", { type: "finished", outcome: outcomeOf(outcome) }, source.id);
+      return { ...outcome, tracePath: trace.path };
+    } catch (failure) {
+      trace.harness("card", { type: "finished", outcome: "failed" }, source.id);
+      throw failure;
+    }
+  }
+
+  /** Maps the source, every step traced. */
+  private async map(trace: Trace, now: () => Date): Promise<Omit<SourceCartographyOutcome, "tracePath">> {
     const { config, source, repositoryRoot, env } = this.options;
-    const journal = new Journal();
+    const journal = new Journal((entry) => trace.harness("card", { type: "journal", level: entry.level, message: entry.message }, source.id));
     const events: AgentEvent[] = [];
     let subject: CardSubject;
     try {
@@ -90,13 +119,16 @@ export class SourceCartographer {
       journal.record("error", `The source ${source.id} does not answer: ${failure instanceof Error ? failure.message : String(failure)}`, source.id);
       return { kept: false, journal: journal.entries() };
     }
+    if (source.type !== "web") {
+      const { items, fingerprint, truncated } = subject.inventory();
+      trace.harness("card", { type: "inventory", items: items.length, fingerprint, truncated: truncated === true }, source.id);
+    }
     const cardPath = join(repositoryRoot, config.repository.indexDir, CARDS_FOLDER, `${source.id}.json`);
     const existing = this.options.force === true ? undefined : await upToDate(cardPath, subject.fingerprint);
     if (existing !== undefined) {
       journal.record("info", `The card of ${source.id} is up to date; it was kept.`, source.id);
       return { cardPath, card: existing, kept: true, journal: journal.entries() };
     }
-    const now = this.options.now ?? (() => new Date());
     if (subject.inventory().truncated === true) journal.record("error", `The source ${source.id} is too large to be read whole; its card is truncated.`, source.id);
     if (source.type !== "web" && subject.inventory().items.length === 0) {
       journal.record("info", `The source ${source.id} has no element; its card is empty.`, source.id);
@@ -104,7 +136,15 @@ export class SourceCartographer {
     }
     const submission = new HandedIn(cardRules(source.id, () => subject.inventory(), configSecrets(config, env)), journal);
     const notes = agentNotes(config, repositoryRoot, env, { role: "cartographer", task: `card-${source.id}-${now().toISOString()}`, now });
-    const task = { instructions: SOURCE_CARTOGRAPHER_INSTRUCTIONS, tools: [...subject.tools, ...notes, submission.tool()], request: subject.request, events, reminder: () => submission.reminder() };
+    const task = {
+      instructions: SOURCE_CARTOGRAPHER_INSTRUCTIONS,
+      tools: [...subject.tools, ...notes, submission.tool()],
+      request: subject.request,
+      events,
+      reminder: () => submission.reminder(),
+      sent: (text: string) => trace.harness("card", { type: "message", text }, source.id),
+      received: (event: AgentEvent) => trace.agent("card", event, source.id),
+    };
     await runAgentTask(this.options.runtime, task, taskLimits(config)).finally(() => subject.close());
     for (const event of events) if (event.type === "tool-error") journal.record("error", `${event.tool}: ${event.message}`, source.id);
     const { last, counters } = taskEnd(events);
@@ -137,7 +177,7 @@ export class SourceCartographer {
   }
 
   /** Writes a card that passes its schema. */
-  private async write(cardPath: string, card: SourceCard, journal: Journal): Promise<SourceCartographyOutcome> {
+  private async write(cardPath: string, card: SourceCard, journal: Journal): Promise<Omit<SourceCartographyOutcome, "tracePath">> {
     const { source } = this.options;
     const validation = validateSourceCard(card);
     if (!validation.ok) {
@@ -169,4 +209,11 @@ async function upToDate(path: string, fingerprint: string): Promise<SourceCard |
   ).catch(() => undefined);
   const validation = validateSourceCard(content);
   return validation.ok && validation.value.fingerprint === fingerprint && validation.value.status === "complete" ? validation.value : undefined;
+}
+
+/** How the cartography of a source ended, for its trace. */
+function outcomeOf(outcome: Omit<SourceCartographyOutcome, "tracePath">): PhaseOutcome {
+  if (outcome.kept) return "kept";
+  if (outcome.card === undefined) return "failed";
+  return outcome.card.status === "complete" ? "done" : "truncated";
 }

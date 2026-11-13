@@ -5,6 +5,8 @@ import type { StopReason, TaskCounters } from "./task-limits.ts";
 export type AgentEvent =
   /** Text the model produced. */
   | { readonly type: "text"; readonly text: string }
+  /** What the model thought before it answered or called a tool, when the model gives it. */
+  | { readonly type: "reasoning"; readonly text: string }
   /** The model called a tool. */
   | { readonly type: "tool-call"; readonly callId: string; readonly tool: string; readonly arguments: unknown }
   /** A tool ran and returned `result`. */

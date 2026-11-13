@@ -17,6 +17,12 @@ export interface JournalEntry {
  */
 export class Journal {
   private readonly lines: JournalEntry[] = [];
+  private readonly onRecord: ((entry: JournalEntry) => void) | undefined;
+
+  /** @param onRecord - Receives each entry recorded, as it is. */
+  public constructor(onRecord?: (entry: JournalEntry) => void) {
+    this.onRecord = onRecord;
+  }
 
   /**
    * Adds an entry.
@@ -26,7 +32,18 @@ export class Journal {
    * @param source - The source concerned, when there is one.
    */
   public record(level: JournalEntry["level"], message: string, source?: string): void {
-    this.lines.push(source === undefined ? { level, message } : { level, message, source });
+    const entry = source === undefined ? { level, message } : { level, message, source };
+    this.lines.push(entry);
+    this.onRecord?.(entry);
+  }
+
+  /**
+   * Adds entries recorded by another journal, which already handed them on.
+   *
+   * @param entries - The entries, in order.
+   */
+  public adopt(entries: readonly JournalEntry[]): void {
+    this.lines.push(...entries);
   }
 
   /**

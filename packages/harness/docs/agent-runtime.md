@@ -6,7 +6,7 @@ The harness talks to a model through the `AgentRuntime` interface of `@open-qa-s
 const runtime: AgentRuntime = new CopilotAgentRuntime({ endpoint: gateway, model: "qwen/qwen3-coder-30b", homeDirectory });
 const session = await runtime.openSession({ instructions, tools });
 for await (const event of session.send("Map the application.")) {
-  // text, tool-call, tool-result, tool-error, then end or error
+  // reasoning, text, tool-call, tool-result, tool-error, then end or error
 }
 await session.close();
 await runtime.close();
@@ -16,6 +16,7 @@ await runtime.close();
 
 | Event | Meaning |
 |---|---|
+| `reasoning` | What the model thought before it answered or called a tool, when the model gives it. |
 | `text` | Text the model produced. |
 | `tool-call` | The model called a tool, with these arguments. |
 | `tool-result` | The tool ran and returned this result. |

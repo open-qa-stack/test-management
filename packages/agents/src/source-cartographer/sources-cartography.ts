@@ -1,5 +1,6 @@
 import type { SourceInventory } from "@open-qa-stack/tools";
 import { runSources } from "../cartographer/run-sources.ts";
+import { runTrace } from "../common/run-trace.ts";
 import type { CardSource } from "./card-subject.ts";
 import { SourceCartographer, type SourceCartographerOptions, type SourceCartographyOutcome } from "./source-cartographer.ts";
 
@@ -27,14 +28,17 @@ export interface SourceCartographyResult {
  * environment, or to none, then the user interface of each application that has one there. Each gets its
  * own cartographer, and so its own session; a source whose card is up to date is kept without the model.
  * Up to `concurrency` sources are mapped at once, in the order of the configuration. When the cartography of
- * a source throws, the others still run to their end before the first failure is thrown.
+ * a source throws, the others still run to their end before the first failure is thrown. Every source is
+ * traced to the same trace: the one given, or one of its own in the state folder.
  *
  * @param options - What the cartography needs.
  * @returns The outcome of each source, in the order of the configuration.
  * @throws Error when a card cannot be written to the disk, once every other source was mapped.
  */
 export async function mapSources(options: SourcesCartographyOptions): Promise<SourceCartographyResult[]> {
-  const { environment, concurrency = 1, inventories, ...shared } = options;
+  const { environment, concurrency = 1, inventories, ...rest } = options;
+  const now = rest.now ?? (() => new Date());
+  const shared = { ...rest, now, trace: rest.trace ?? runTrace(rest, `sources-${environment}`, now) };
   const sources = runSources(options.config, environment).map((source): CardSource => (source.type === "web" ? { id: source.id, type: "web", environment } : source.knowledge));
   const results: SourceCartographyResult[] = [];
   const failures: unknown[] = [];

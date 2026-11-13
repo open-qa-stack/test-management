@@ -66,6 +66,7 @@ export class CopilotAgentSession implements AgentSession {
   private forward(event: SessionEvent): void {
     switch (event.type) {
       case "assistant.message":
+        if (event.data.reasoningText !== undefined && event.data.reasoningText.trim() !== "") this.relay.push({ type: "reasoning", text: event.data.reasoningText });
         if (event.data.content.trim() !== "") this.relay.push({ type: "text", text: event.data.content });
         return;
       case "tool.execution_start":
