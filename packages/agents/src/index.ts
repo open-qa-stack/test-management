@@ -5,3 +5,7 @@ export type { CardSource, InterfaceSource } from "./source-cartographer/card-sub
 export { mapSources, type SourceCartographyResult, type SourcesCartographyOptions } from "./source-cartographer/sources-cartography.ts";
 export { MAX_TRACED_LENGTH, TRACES_FOLDER } from "./common/trace.ts";
 export type { HarnessEvent, PhaseOutcome, TracedAgentEvent, TraceLine, TracePhase } from "./common/trace-line.ts";
+export { BRANCH_PREFIX, Designer, type DesignerOptions, type DesignOutcome } from "./designer/designer.ts";
+export { DESIGNS_FOLDER, type DesignedTest, type DesignState } from "./designer/design-state.ts";
+export type { ProposedSpec, SpecCheck } from "./designer/spec-check.ts";
+export { MAX_TESTS, MIN_TESTS, PROPOSE_TOOL } from "./designer/test-proposals.ts";
