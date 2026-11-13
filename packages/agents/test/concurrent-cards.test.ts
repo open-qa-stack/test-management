@@ -22,9 +22,8 @@ class InterleavedRuntime implements AgentRuntime {
   public most = 0;
 
   public async openSession(options: SessionOptions): Promise<AgentSession> {
-    const runtime = this;
-    runtime.open += 1;
-    runtime.most = Math.max(runtime.most, runtime.open);
+    this.open += 1;
+    this.most = Math.max(this.most, this.open);
     return {
       async *send(message: string): AsyncIterable<AgentEvent> {
         const source = /the source ([a-z0-9-]+)/.exec(message)![1]!;
@@ -37,8 +36,8 @@ class InterleavedRuntime implements AgentRuntime {
         yield { type: "tool-result", callId: `${source}-1`, tool: "submit_card", result: await submit.execute(card) };
         yield { type: "end", counters: { iterations: own, actions: own, elapsedMs: own } };
       },
-      async close() {
-        runtime.open -= 1;
+      close: async () => {
+        this.open -= 1;
       },
     };
   }

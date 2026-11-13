@@ -20,7 +20,7 @@ export const SECTION_START_LENGTH = 300;
  */
 export function documentInventory(markdown: string): SourceInventory {
   const sections = documentSections(markdown);
-  const levels = [...new Set(sections.map((section) => section.level))].sort().slice(0, 2);
+  const levels = [...new Set(sections.map((section) => section.level))].sort((a, b) => a - b).slice(0, 2);
   const kept = sections.filter((section) => levels.includes(section.level));
   const repeated = new Set(kept.filter((section, i) => kept.findIndex((other) => other.title === section.title) !== i).map((section) => section.title));
   const named = kept.map((section) => [repeated.has(section.title) ? `${section.title} (§${section.number})` : section.title, section] as const);

@@ -123,7 +123,7 @@ describe("criterion 6 — a value that is not a variable name is refused without
         at(c, "model")["apiKeyEnv"] = "sk-abc";
       }),
     );
-    assert.deepEqual(errors.map((e) => [e.path, e.rule]).sort(), [
+    assert.deepEqual(errors.toSorted((a, b) => a.path.localeCompare(b.path)).map((e) => [e.path, e.rule]), [
       ["/applications/0/authentication/accounts/0/passwordEnv", "env-var-name"],
       ["/model/apiKeyEnv", "env-var-name"],
     ]);
@@ -440,7 +440,7 @@ describe("test charter changes", () => {
   it("requires a reason for every change, and refuses any other key", () => {
     const errors = errorsOf(validateVariant((c) => (c["charter"] = { disable: [{ rule: "PW-WAIT-01" }], add: [{ ...add("TEAM-TAG-01"), reason: "" }], enable: [] })));
     assert.deepEqual(
-      errors.map((e) => [e.path, e.rule]).sort(),
+      errors.toSorted((a, b) => a.path.localeCompare(b.path)).map((e) => [e.path, e.rule]),
       [
         ["/charter/add/0/reason", "empty-value"],
         ["/charter/disable/0/reason", "required"],

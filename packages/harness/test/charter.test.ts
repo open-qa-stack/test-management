@@ -38,7 +38,7 @@ describe("criterion 1 — the charter lists its rules with identifier, statement
   });
 
   it("covers locators, assertions, neutralised tests, waits, isolation, data, steps, screenshots, environments, invented values and layout", () => {
-    const topics = new Set(DEFAULT_CHARTER.map((rule) => rule.id.split("-")[1]));
+    const topics = new Set(DEFAULT_CHARTER.map((rule) => rule.id.split("-")[1]!));
     assert.deepEqual([...topics].sort(), ["ASSERT", "DATA", "ENV", "FACT", "ISO", "KEEP", "LOC", "ORG", "SHOT", "STEP", "WAIT"]);
   });
 
