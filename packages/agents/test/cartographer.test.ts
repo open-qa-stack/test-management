@@ -399,6 +399,16 @@ describe("criterion 7 — the database tool only queries the catalog", () => {
   });
 });
 
+describe("single read, criterion 1 — a full cartography sends each catalog query once", () => {
+  it("reads the catalog of the base at the check only, when its agent calls no tool", async () => {
+    const replies = [{ body: toolCalls(MODEL, [submitCard(cardSubmission("shop-db"))]) }, { body: answer(MODEL, "Done.") }, ...happy()];
+    const { database, outcome } = await cartography(replies, { cards: ["shop-api", "order-specs", "shop"] });
+    assert.equal(outcome.index!.status, "complete");
+    assert.ok(database.queries.length > 0);
+    assert.equal(new Set(database.queries).size, database.queries.length);
+  });
+});
+
 describe("criterion 8 — the connection string appears in neither the index, the journal, nor the model exchanges", () => {
   it("keeps the secret out of every trace, the base mapped in the run", async () => {
     const { outcome, root, server } = await cartography(mappingTheBase([{ id: "c1", name: "shop_db_list_tables", arguments: {} }]), { cards: ["shop-api", "order-specs", "shop"] });
