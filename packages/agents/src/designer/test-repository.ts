@@ -27,7 +27,7 @@ export class TestRepository {
    * an untracked file outside the reserved folders.
    *
    * @param branch - Name of the branch to create.
-   * @param reserved - Folders, relative to the root, where untracked files are expected.
+   * @param reserved - Folders, relative to the root, that the harness writes: the files it changes or adds there are expected.
    * @returns A sentence for each problem; none when the branch can be created.
    */
   public async problems(branch: string, reserved: readonly string[]): Promise<string[]> {
@@ -36,9 +36,10 @@ export class TestRepository {
     const problems: string[] = [];
     if (!(await this.succeeds("check-ref-format", "--branch", branch))) problems.push(`${branch} is not a valid branch name.`);
     else if (await this.succeeds("show-ref", "--verify", "--quiet", `refs/heads/${branch}`)) problems.push(`The branch ${branch} already exists.`);
-    const changed = (await this.git("status", "--porcelain", "--untracked-files=no")).split("\n").filter((line) => line !== "");
-    if (changed.length > 0) problems.push(`Tracked files are changed: ${changed.map((line) => line.slice(3)).join(", ")}.`);
     const folders = reserved.map((folder) => `${posix.normalize(folder).replace(/\/+$/, "")}/`);
+    // The harness writes the state and the index itself: a change there is its own, not the developer's.
+    const changed = (await this.git("status", "--porcelain", "--untracked-files=no")).split("\n").filter((line) => line !== "").map((line) => line.slice(3)).filter((path) => !folders.some((folder) => path.startsWith(folder)));
+    if (changed.length > 0) problems.push(`Tracked files are changed: ${changed.join(", ")}.`);
     const untracked = (await this.git("ls-files", "--others", "--exclude-standard", "-z")).split("\0").filter((path) => path !== "" && !folders.some((folder) => path.startsWith(folder)));
     if (untracked.length > 0) problems.push(`Untracked files are outside the folders of the state and the index: ${untracked.join(", ")}.`);
     return problems;

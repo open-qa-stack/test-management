@@ -677,3 +677,16 @@ describe("the references of a visual test", () => {
     assert.ok(outcome.tests.filter((test) => test.path !== "apps/shop/orders-look.spec.ts").every((test) => !("references" in test)));
   });
 });
+
+describe("the files the harness writes itself", () => {
+  it("do not stop a design when they are tracked and changed, as an index committed then rewritten", async () => {
+    const root = repository();
+    git(root, "add", "-f", ".oqas/index");
+    git(root, "commit", "-q", "-m", "chore: keep the index");
+    const indexFile = join(root, ".oqas", "index", "domain-index.json");
+    writeFileSync(indexFile, `${readFileSync(indexFile, "utf8")}\n`);
+    const { outcome } = await design(replies(valid(3)), { root });
+    assert.equal(outcome.ok, true, messages(outcome));
+    assert.match(git(root, "status", "--porcelain"), /\.oqas\/index\/domain-index\.json/);
+  });
+});
