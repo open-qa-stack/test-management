@@ -5,14 +5,14 @@ import { dirname, join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import type { AgentRuntime } from "@open-qa-stack/domain";
 import { CopilotAgentRuntime, ModelGateway } from "@open-qa-stack/harness";
-import { validateConfig, validateSourceCard, type Knowledge, type ResolvedConfig, type SourceCardSubmission } from "@open-qa-stack/shared";
+import { validateConfig, validateSourceCard, type Knowledge, type MappedKnowledge, type ResolvedConfig, type SourceCardSubmission } from "@open-qa-stack/shared";
 import { answer, closedPort, scriptedServer, testSite, toolCalls, type ScriptedServer } from "@open-qa-stack/testing";
 import { knowledgeInventory, MAX_SCANNED_FILES, type SourceInventory, type SqlClient, type SqlResult } from "@open-qa-stack/tools";
 import { sourceCardRequest } from "../src/source-cartographer/source-cartographer-prompt.ts";
 import { CARDS_FOLDER, Cartographer, mapSources, SourceCartographer, type CardSource, type SourceCartographyOutcome } from "../src/index.ts";
 
 const MODEL = "test-model";
-const DB: Knowledge = { id: "shop-db", type: "postgresql", connectionStringEnv: "SHOP_DB_URL", attachments: [{ application: "shop" }] };
+const DB: MappedKnowledge = { id: "shop-db", type: "postgresql", connectionStringEnv: "SHOP_DB_URL", attachments: [{ application: "shop" }] };
 
 /** A catalog of three tables, whose structure can change, which remembers every query. */
 class CatalogDouble implements SqlClient {
@@ -258,7 +258,7 @@ describe("the request of a cartography", () => {
 });
 
 /** A source of each other kind, the files it reads, and a card that places all its elements. */
-const KINDS: readonly { readonly source: Knowledge; readonly files: Readonly<Record<string, string>>; readonly card: SourceCardSubmission; readonly facts: Readonly<Record<string, unknown>> }[] = [
+const KINDS: readonly { readonly source: MappedKnowledge; readonly files: Readonly<Record<string, string>>; readonly card: SourceCardSubmission; readonly facts: Readonly<Record<string, unknown>> }[] = [
   {
     source: { id: "shop-api", type: "openapi", path: "contracts/shop.json", attachments: [{ application: "shop" }] },
     files: { "contracts/shop.json": JSON.stringify({ openapi: "3.0.3", info: { title: "Shop", version: "1" }, paths: { "/orders": { get: { tags: ["orders"] }, post: { tags: ["orders"] } }, "/health": { get: {} } } }) },
@@ -413,7 +413,7 @@ describe("single read, criterion 2 — a card is made of the inventory read befo
     const root = mkdtempSync(join(workspace, "repo-"));
     mkdirSync(join(root, "code", "app", "models"), { recursive: true });
     writeFileSync(join(root, "code", "app", "models", "user.ts"), "export class User {}\n");
-    const source: Knowledge = { id: "app", type: "source-code", path: "code", commands: "none", attachments: [{ application: "shop" }] };
+    const source: MappedKnowledge = { id: "app", type: "source-code", path: "code", commands: "none", attachments: [{ application: "shop" }] };
     const inventory = await knowledgeInventory(source, { repositoryRoot: root, env: {} });
     rmSync(join(root, "code"), { recursive: true });
     const card = { domains: [{ id: "users", label: "Users", description: "The users.", items: [{ name: "app/models", summary: "The models." }] }], unassigned: [] };

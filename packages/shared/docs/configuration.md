@@ -82,14 +82,18 @@ Every knowledge source has an `id`, a `type`, `attachments`, and the keys its ty
 | Key | Type | Required | Example |
 |---|---|---|---|
 | `id` | slug, unique | yes | `"policy-management-api"` |
-| `type` | `openapi`, `postgresql`, `document` or `source-code` | yes | `"openapi"` |
+| `type` | `openapi`, `postgresql`, `document`, `source-code` or `logs` | yes | `"openapi"` |
 | `attachments` | array of [attachments](#attachment), at least one | yes | `[{ "application": "policy-management" }]` |
 | `url` | URL, for `openapi`; exactly one of `url` and `path` | see type | `"http://localhost:8090/v3/api-docs"` |
-| `path` | path, for `openapi`, `document` and `source-code` | see type | `"contracts/policy-management.json"`, `"specs/quotes.md"`, `"../policy-management"` |
+| `path` | path, for `openapi`, `document`, `source-code` and `logs` | see type | `"contracts/policy-management.json"`, `"specs/quotes.md"`, `"../policy-management"` |
 | `connectionStringEnv` | variable, for `postgresql` | see type | `"POLICY_MANAGEMENT_DB_URL"` |
 | `commands` | `none`, `git` or `shell`, for `source-code` | no, `git` by default | `"none"` |
+| `container` | container name, for `logs`; exactly one of `path` and `container` | see type | `"policy-management-backend"` |
+| `engine` | `podman` or `docker`, for `logs` with a `container` | with `container` | `"podman"` |
 
-The path of a contract or a document stays inside the test repository. The path of a `source-code` folder may lead outside it, since the code of an application often lives in another repository: `"../policy-management"`. The agents' reading and git tools never leave that folder.
+The path of a contract or a document stays inside the test repository. The path of a `source-code` folder, or of a log file, may lead outside it, since the code of an application often lives in another repository: `"../policy-management"`. The agents' reading and git tools never leave that folder.
+
+A `logs` source gives the agents the lines a service writes: those of a file, `{ "path": "../policy-management/logs/service.log" }`, or those of a container, `{ "container": "policy-management-backend", "engine": "podman" }`, read with `podman logs` or `docker logs`. Attach it to the environment the service runs in. The agents read it after an action, to see what the service did; the cartography does not map it.
 
 `commands` sets the risk an agent may take in a source code folder. With `none`, the agents only list, search and read files. With `git`, the default, they may also read the history with `git log`, `git blame` and `git show`, run without a shell and limited to the folder. With `shell`, they may run any command in the folder, with the rights of the user who runs the agents: such a command can write, and read outside the folder. Choose it only where you accept that risk.
 

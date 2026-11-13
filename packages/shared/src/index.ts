@@ -1,6 +1,7 @@
 export { resolveLimits } from "./config/autonomy.ts";
+export { declaredValues, declaredVariables, type DeclaredVariable, type VariableSections } from "./config/declared-variables.ts";
 export { CONFIG_FILE_NAME, STATE_DIR_NAME } from "./config/file-names.ts";
-export { configSchema, ENV_VAR_PATTERN, SLUG_PATTERN } from "./config/schema.ts";
+export { configSchema, CONTAINER_NAME_PATTERN, ENV_VAR_PATTERN, SLUG_PATTERN } from "./config/schema.ts";
 export type * from "./config/types.ts";
 export { DEFAULT_REPOSITORY, validateConfig, type EnvironmentVariables } from "./config/validate.ts";
 export { placementErrors, unplacedItems, type SourceInventory } from "./domain-index/placement.ts";
