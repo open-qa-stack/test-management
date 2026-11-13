@@ -22,8 +22,8 @@ await runtime.close();
 | `tool-result` | The tool ran and returned this result. |
 | `tool-error` | The call produced no result: `unknown-tool` (the session offers no such tool), `invalid-arguments` (the arguments did not match the tool's schema, so the tool did not run) or `failed` (the tool threw). The model is told and may try again. |
 | `end` | The agent has answered the message. A session with limits gives the counters it used: iterations, actions and elapsed time, and the tokens sent and received (`inputTokens`, `outputTokens`) once the model reported some. |
-| `stopped` | The harness stopped the task at a limit: the reason names the limit (`iterations`, `duration` or `actions`) and gives the three counters. |
-| `error` | The turn cannot go on: `ModelUnreachableError` (the model server did not answer; the error names the address tried), `ReplayMissError` (a replayed session sent a request its recording lacks), `ModelResponseError` (the server answered with an error, or with something that is not JSON) or `SessionClosedError` (the session was closed during the turn). The session can take another message after a model error. A session with limits gives its counters here too. |
+| `stopped` | The harness stopped the task at a limit: the reason names the limit (`iterations`, `duration` or `actions`) and gives its counters: iterations, actions, elapsed time and, once the model reported some, `inputTokens` and `outputTokens`. |
+| `error` | The turn cannot go on: `ModelUnreachableError` (the model server did not answer; the error names the address tried), `ReplayMissError` (a replayed session sent a request its recording lacks), `ModelResponseError` (the server answered with an error, or with something that is not JSON) or `SessionClosedError` (the session was closed during the turn). The session can take another message after a model error. A session with limits gives its counters here too, as `stopped` does. |
 
 ## Limits
 
