@@ -12,6 +12,9 @@ import type { SqlClient } from "./postgresql/sql-client.ts";
 import { lazySqlClient } from "./postgresql/lazy-sql-client.ts";
 import { CodeFolder } from "./source-code/code-folder.ts";
 import { sourceCodeTools } from "./source-code/source-code-tools.ts";
+import { ContainerLogs } from "./logs/container-logs.ts";
+import { LogFile } from "./logs/log-file.ts";
+import { logsTools } from "./logs/logs-tools.ts";
 
 /** What the tools of knowledge sources need to reach them. */
 export interface KnowledgeAccess {
@@ -21,6 +24,13 @@ export interface KnowledgeAccess {
   readonly env: Readonly<Record<string, string | undefined>>;
   /** Makes the SQL client of a database; PostgreSQL by default. */
   readonly sqlClient?: (connectionString: string) => SqlClient;
+  /**
+   * Values no log line may show: those of every environment variable the configuration names, as
+   * `declaredValues` of `@open-qa-stack/shared` gives them. None by default.
+   */
+  readonly secrets?: readonly string[];
+  /** The start of the task, from which the log tools read when the agent gives no instant; when the tools are made by default. */
+  readonly taskStart?: Date;
 }
 
 /**
@@ -36,6 +46,7 @@ export interface KnowledgeAccess {
  * @returns The tools, source after source.
  */
 export function knowledgeTools(knowledge: readonly Knowledge[], access: KnowledgeAccess): ToolDefinition[] {
+  const taskStart = access.taskStart ?? new Date();
   return knowledge.flatMap((source) => {
     switch (source.type) {
       case "openapi":
@@ -49,6 +60,10 @@ export function knowledgeTools(knowledge: readonly Knowledge[], access: Knowledg
         return documentTools(source.id, access.repositoryRoot, source.path);
       case "source-code":
         return sourceCodeTools(source.id, new CodeFolder(resolve(access.repositoryRoot, source.path)), source.commands ?? "git");
+      case "logs": {
+        const log = source.path === undefined ? new ContainerLogs(source.engine, source.container) : new LogFile(resolve(access.repositoryRoot, source.path), source.path);
+        return logsTools(source.id, log, taskStart, access.secrets ?? []);
+      }
     }
   });
 }

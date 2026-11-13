@@ -337,6 +337,80 @@
               "description": "Commands the agents may run in the folder: none, git history only (the default), or any shell command."
             }
           }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "type",
+            "attachments"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+            },
+            "attachments": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/attachment"
+              }
+            },
+            "type": {
+              "const": "logs"
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Log file, relative to the test repository root; it may lead outside."
+            },
+            "container": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+              "description": "Name of the container whose logs are read."
+            },
+            "engine": {
+              "enum": [
+                "podman",
+                "docker"
+              ],
+              "description": "Container engine whose command reads the logs of the container."
+            }
+          },
+          "oneOf": [
+            {
+              "required": [
+                "path"
+              ],
+              "not": {
+                "anyOf": [
+                  {
+                    "required": [
+                      "container"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "engine"
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "required": [
+                "container",
+                "engine"
+              ],
+              "not": {
+                "required": [
+                  "path"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
