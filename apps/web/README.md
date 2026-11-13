@@ -12,7 +12,9 @@ From the root of the workspace:
 | `pnpm --filter @open-qa-stack/web build` | Builds the console into `apps/web/dist/`. |
 | `pnpm check` | Type-checks, builds every package, the console included, and runs the tests; it fails if the console does not build. |
 
-`src/main.tsx` mounts the console; `src/shell.tsx` is the frame of every screen.
+## Layout
+
+`src/main.tsx` mounts the console; `src/shell.tsx` is the frame of every screen. Below 960 px wide, the shell keeps a tab bar at the bottom and hides the sidebar; from 960 px, it shows the sidebar and hides the tab bar.
 
 ## Design tokens
 
@@ -26,6 +28,8 @@ To add a token:
 
 ## Tests
 
-The tests run with `node --test`. `test/jsx.ts` registers a loader that compiles `.tsx` modules with the same transform as Vite, so components are rendered in Node with `react-dom/server`.
+The tests run with `node --test`. `test/jsx.ts` registers a loader that compiles `.tsx` modules with the same transform as Vite, so components are rendered in Node with `react-dom/server`. The layout tests build the console with Vite and open it in Chromium, every request answered from the build.
+
+Node's coverage counts only the modules a test loads, and no test loads `src/main.tsx` in Node: it mounts the console in a browser. A layout test measures it in Chromium instead, maps the coverage of the build back to `src/main.tsx` through its source map, and fails on any line of it that did not run. Keep that module to the mount alone.
 
 `tsconfig.json` type-checks the console against the browser's types only, so code that needs Node does not compile; `test/tsconfig.json` adds Node's types for the tests.

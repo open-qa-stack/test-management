@@ -7,7 +7,7 @@ export interface ShellProps {
 }
 
 /**
- * The frame of every screen: a sidebar, the page, and a tab bar.
+ * The frame of every screen: a sidebar from 960 px wide, a bottom tab bar below.
  *
  * @param props - The page to frame.
  * @returns The shell.

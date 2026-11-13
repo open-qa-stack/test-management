@@ -1,6 +1,12 @@
 const BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-function decode(segment: string): number[] {
+/**
+ * Decodes the base64 VLQ values of one segment of source map mappings.
+ *
+ * @param segment - The segment, between two commas or semicolons.
+ * @returns The values it encodes, in order.
+ */
+export function decode(segment: string): number[] {
   const values: number[] = [];
   let value = 0;
   let shift = 0;

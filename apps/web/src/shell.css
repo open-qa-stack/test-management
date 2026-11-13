@@ -1,0 +1,43 @@
+.shell {
+  display: grid;
+  min-height: 100dvh;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) 64px;
+  grid-template-areas: "page" "tab-bar";
+}
+
+.shell-sidebar {
+  display: none;
+  grid-area: sidebar;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+}
+
+.shell-page {
+  grid-area: page;
+  min-width: 0;
+}
+
+.shell-tab-bar {
+  grid-area: tab-bar;
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+}
+
+@media (min-width: 960px) {
+  .shell {
+    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: "sidebar page";
+  }
+
+  .shell-sidebar {
+    display: block;
+  }
+
+  .shell-tab-bar {
+    display: none;
+  }
+}
