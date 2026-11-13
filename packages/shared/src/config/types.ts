@@ -94,6 +94,25 @@ export interface Repository {
   indexDir?: string;
 }
 
+/** A rule of the default test charter the designer and the reviewer should not apply, with the reason. */
+export interface DisabledCharterRule {
+  rule: string;
+  reason: string;
+}
+
+/** A rule the designer and the reviewer apply after the default ones. */
+export interface AddedCharterRule {
+  id: string;
+  statement: string;
+  reason: string;
+}
+
+/** Changes to the default test charter. */
+export interface CharterSettings {
+  disable?: DisabledCharterRule[];
+  add?: AddedCharterRule[];
+}
+
 /** A model served by an OpenAI-compatible server, reached with a provider key. */
 export interface ProviderKeyModel {
   mode: "provider-key";
@@ -126,6 +145,7 @@ export interface OqasConfig {
   applications: Application[];
   knowledge: Knowledge[];
   repository?: Repository;
+  charter?: CharterSettings;
   model: Model;
   autonomy: Autonomy;
 }
@@ -144,6 +164,7 @@ export interface ResolvedConfig {
   applications: Application[];
   knowledge: Knowledge[];
   repository: Required<Repository>;
+  charter: Required<CharterSettings>;
   model: Model;
   autonomy: { level: Autonomy["level"]; limits: ResolvedLimits };
 }

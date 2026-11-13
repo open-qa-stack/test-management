@@ -34,6 +34,9 @@
     "repository": {
       "$ref": "#/$defs/repository"
     },
+    "charter": {
+      "$ref": "#/$defs/charter"
+    },
     "model": {
       "$ref": "#/$defs/model"
     },
@@ -365,6 +368,60 @@
           "type": "string",
           "minLength": 1,
           "description": "Path relative to the test repository root, which it may not leave."
+        }
+      }
+    },
+    "charter": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Changes to the default test charter the designer and the reviewer apply.",
+      "properties": {
+        "disable": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "rule",
+              "reason"
+            ],
+            "properties": {
+              "rule": {
+                "type": "string",
+                "pattern": "^[A-Z]+(-[A-Z0-9]+)+$"
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "add": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "statement",
+              "reason"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Z]+(-[A-Z0-9]+)+$"
+              },
+              "statement": {
+                "type": "string",
+                "minLength": 1
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
         }
       }
     },

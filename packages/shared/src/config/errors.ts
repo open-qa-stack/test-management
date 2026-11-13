@@ -1,5 +1,5 @@
 import type { ErrorObject } from "ajv/dist/2020.js";
-import { ENV_VAR_PATTERN } from "./schema.ts";
+import { CHARTER_RULE_ID_PATTERN, ENV_VAR_PATTERN } from "./schema.ts";
 import type { ConfigError } from "./types.ts";
 
 /**
@@ -60,13 +60,16 @@ export function structureError(e: ErrorObject): ConfigError {
     case "const":
       return configError("structure", e.instancePath, "format-version", "Unsupported format version; expected 1.");
     case "pattern":
-      return params["pattern"] === ENV_VAR_PATTERN
-        ? configError(
-            "structure",
-            e.instancePath,
-            "env-var-name",
-            "Expected the name of an environment variable (upper case letters, digits and underscores).",
-          )
+      if (params["pattern"] === ENV_VAR_PATTERN) {
+        return configError(
+          "structure",
+          e.instancePath,
+          "env-var-name",
+          "Expected the name of an environment variable (upper case letters, digits and underscores).",
+        );
+      }
+      return params["pattern"] === CHARTER_RULE_ID_PATTERN
+        ? configError("structure", e.instancePath, "charter-rule-id", "Expected upper case words and digits separated by hyphens.")
         : configError("structure", e.instancePath, "slug", "Expected lower case letters and digits separated by hyphens.");
     case "oneOf":
       return configError("structure", e.instancePath, "openapi-source", 'Declare exactly one of "url" or "path".');

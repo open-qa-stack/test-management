@@ -72,6 +72,7 @@ export function validateConfig(content: string, env: EnvironmentVariables): Vali
       applications: data.applications,
       knowledge: data.knowledge,
       repository: { ...DEFAULT_REPOSITORY, ...data.repository },
+      charter: { disable: data.charter?.disable ?? [], add: data.charter?.add ?? [] },
       model: data.model,
       autonomy: { level: data.autonomy.level, limits: resolveLimits(data.autonomy) },
     },
@@ -130,6 +131,13 @@ function documentErrors(config: OqasConfig): ConfigError[] {
     if (item.type !== "postgresql" && item.path !== undefined) {
       errors.push(...pathErrors(pointer(itemPath, "path"), item.path, item.type === "source-code"));
     }
+  });
+
+  (config.charter?.disable ?? []).forEach((item, i, all) => {
+    if (all.findIndex((other) => other.rule === item.rule) < i) duplicate(pointer(pointer("/charter/disable", i), "rule"), "disabled rule");
+  });
+  (config.charter?.add ?? []).forEach((item, i, all) => {
+    if (all.findIndex((other) => other.id === item.id) < i) duplicate(pointer(pointer("/charter/add", i), "id"), "added rule");
   });
 
   for (const [key, value] of Object.entries(config.repository ?? {})) {
