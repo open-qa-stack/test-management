@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { DEFAULT_REPOSITORY, validateConfig, type CharterSettings } from "@open-qa-stack/shared";
-import { CHARTER_DOC_FILE, documentedRules, renderRules } from "../scripts/emit-charter-doc.ts";
+import { CHARTER_DOC_FILE, documentedSection, renderRules } from "../scripts/emit-charter-doc.ts";
 import { DEFAULT_CHARTER, designerInstructions, resolveCharter, reviewerInstructions, type ActiveRule, type CharterResolution } from "../src/index.ts";
 
 const NO_CHANGE: Required<CharterSettings> = { disable: [], add: [] };
@@ -158,7 +158,7 @@ describe("criterion 6 — the documentation describes the charter and how to tun
   const doc = readFileSync(CHARTER_DOC_FILE, "utf8");
 
   it("lists every rule exactly as the charter holds it", () => {
-    assert.equal(documentedRules(doc), renderRules());
+    assert.equal(documentedSection(doc, "rules"), renderRules());
   });
 
   it("has a tuning example that the configuration and the charter accept", () => {
