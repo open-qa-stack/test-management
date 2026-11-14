@@ -43,6 +43,7 @@ class CatalogDouble implements SqlClient {
           ["public", "schema_migrations"],
         ],
       );
+    if (text.includes("pg_get_constraintdef") || text.includes("pg_get_indexdef")) return rows([], []);
     if (text.includes("pg_get_viewdef")) {
       const view = [["public", "open_orders", false, " SELECT id\n   FROM orders\n  WHERE status = 'open'::text;", ["id"], ["public.orders"]]];
       return rows(["schema", "view", "materialized", "definition", "columns", "reads"], this.view ? view : []);
@@ -79,7 +80,7 @@ class CatalogDouble implements SqlClient {
         ],
       };
     }
-    if (text.includes("ORDER BY table_schema, table_name, ordinal_position")) {
+    if (text.includes("format_type")) {
       const columns: unknown[][] = [
         ["public", "orders", "id", "bigint", false],
         ["public", "orders", "customer_id", "bigint", false],

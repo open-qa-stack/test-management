@@ -2,6 +2,8 @@ import {
   ALL_COLUMNS_QUERY,
   assertCatalogQuery,
   COLUMNS_QUERY,
+  CONSTRAINTS_QUERY,
+  INDEXES_QUERY,
   KEYS_QUERY,
   ROUTINES_QUERY,
   SERVER_ACCESS_QUERY,
@@ -27,6 +29,16 @@ export interface ColumnSummary {
   readonly type: string;
   /** Whether the column accepts `NULL`. */
   readonly nullable: boolean;
+  /** The clause that gives its value when a row gives none: its default, its identity or the expression that generates it. */
+  readonly default?: string;
+}
+
+/** A constraint or an index of a table, as the database writes it. */
+export interface NamedDefinition {
+  /** Its name. */
+  readonly name: string;
+  /** Its definition. */
+  readonly definition: string;
 }
 
 /** A foreign key of a table. */
@@ -96,6 +108,10 @@ export interface DatabaseStructure {
   readonly columns: ReadonlyMap<string, readonly ColumnSummary[]>;
   /** The keys of each table that has some, by `schema.table`. */
   readonly keys: ReadonlyMap<string, TableKeys>;
+  /** The unique, check and exclusion constraints of each table that has some, by `schema.table`. */
+  readonly constraints: ReadonlyMap<string, readonly NamedDefinition[]>;
+  /** The indexes of each table or materialized view that has some no constraint made, by `schema.name`. */
+  readonly indexes: ReadonlyMap<string, readonly NamedDefinition[]>;
   /** Its views, in the order of the catalog. */
   readonly views: readonly ViewSummary[];
   /** Its functions and procedures, in the order of the catalog. */
@@ -136,16 +152,44 @@ export class DatabaseCatalog {
   /**
    * Reads the columns of every table at once.
    *
-   * @returns The columns of each table, in order, by `schema.table`.
+   * @returns The columns of each table and view, in order, by `schema.name`.
    * @throws Error when the database cannot be reached.
    */
   public async allColumns(): Promise<Map<string, ColumnSummary[]>> {
     const columns = new Map<string, ColumnSummary[]>();
     for (const row of await this.read(ALL_COLUMNS_QUERY, [])) {
       const table = `${String(row["schema"])}.${String(row["table"])}`;
-      columns.set(table, [...(columns.get(table) ?? []), { name: String(row["name"]), type: String(row["type"]), nullable: row["nullable"] === true }]);
+      columns.set(table, [
+        ...(columns.get(table) ?? []),
+        {
+          name: String(row["name"]),
+          type: String(row["type"]),
+          nullable: row["nullable"] === true,
+          ...(typeof row["default"] === "string" ? { default: row["default"] } : {}),
+        },
+      ]);
     }
     return columns;
+  }
+
+  /**
+   * Reads the unique, check and exclusion constraints of every table.
+   *
+   * @returns The constraints of each table that has some, in the order of their names, by `schema.table`.
+   * @throws Error when the database cannot be reached.
+   */
+  public constraints(): Promise<Map<string, NamedDefinition[]>> {
+    return this.definitions(CONSTRAINTS_QUERY);
+  }
+
+  /**
+   * Reads the indexes of every table and materialized view, without those that back a constraint.
+   *
+   * @returns The indexes of each relation that has some, in the order of their names, by `schema.name`.
+   * @throws Error when the database cannot be reached.
+   */
+  public indexes(): Promise<Map<string, NamedDefinition[]>> {
+    return this.definitions(INDEXES_QUERY);
   }
 
   /**
@@ -228,19 +272,32 @@ export class DatabaseCatalog {
   /**
    * Reads the whole structure, each catalog query once.
    *
-   * @returns The tables of the database, their columns, keys and triggers, its views and its routines.
+   * @returns The tables of the database, their columns, keys, constraints, indexes and triggers, its views
+   * and its routines.
    * @throws Error when the database cannot be reached.
    */
   public async structure(): Promise<DatabaseStructure> {
-    const [tables, columns, keys, views, routines, triggers] = await Promise.all([
+    const [tables, columns, keys, constraints, indexes, views, routines, triggers] = await Promise.all([
       this.tables(),
       this.allColumns(),
       this.keys(),
+      this.constraints(),
+      this.indexes(),
       this.views(),
       this.routines(),
       this.triggers(),
     ]);
-    return { tables, columns, keys, views, routines, triggers };
+    return { tables, columns, keys, constraints, indexes, views, routines, triggers };
+  }
+
+  /** The named definitions a catalog query gives, by `schema.table`. */
+  private async definitions(query: string): Promise<Map<string, NamedDefinition[]>> {
+    const definitions = new Map<string, NamedDefinition[]>();
+    for (const row of await this.read(query, [])) {
+      const table = `${String(row["schema"])}.${String(row["table"])}`;
+      definitions.set(table, [...(definitions.get(table) ?? []), { name: String(row["name"]), definition: String(row["definition"]) }]);
+    }
+    return definitions;
   }
 
   /**

@@ -5,7 +5,16 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
 import type { Knowledge } from "@open-qa-stack/shared";
-import { ALL_COLUMNS_QUERY, KEYS_QUERY, ROUTINES_QUERY, TABLES_QUERY, TRIGGERS_QUERY, VIEWS_QUERY } from "../src/postgresql/catalog-query.ts";
+import {
+  ALL_COLUMNS_QUERY,
+  CONSTRAINTS_QUERY,
+  INDEXES_QUERY,
+  KEYS_QUERY,
+  ROUTINES_QUERY,
+  TABLES_QUERY,
+  TRIGGERS_QUERY,
+  VIEWS_QUERY,
+} from "../src/postgresql/catalog-query.ts";
 import { knowledgeInventory, type SqlClient, type SqlResult } from "../src/index.ts";
 import { closedPort } from "@open-qa-stack/testing";
 import { sqlResult } from "./sql-result.ts";
@@ -33,9 +42,21 @@ class CatalogDouble implements SqlClient {
     if (text === ALL_COLUMNS_QUERY) {
       return sqlResult([
         { schema: "public", table: "policies", name: "id", type: "bigint", nullable: false },
-        { schema: "public", table: "policies", name: "premium", type: this.premiumType, nullable: true },
+        { schema: "public", table: "policies", name: "premium", type: this.premiumType, nullable: true, default: "DEFAULT 0" },
         { schema: "public", table: "policies", name: "customer_id", type: "bigint", nullable: false },
         { schema: "public", table: "open_policies", name: "id", type: "bigint", nullable: true },
+      ]);
+    }
+    if (text === CONSTRAINTS_QUERY)
+      return sqlResult([{ schema: "public", table: "policies", name: "policies_premium_check", definition: "CHECK ((premium >= 0))" }]);
+    if (text === INDEXES_QUERY) {
+      return sqlResult([
+        {
+          schema: "public",
+          table: "policies",
+          name: "policies_customer_idx",
+          definition: "CREATE INDEX policies_customer_idx ON public.policies USING btree (customer_id)",
+        },
       ]);
     }
     if (text === VIEWS_QUERY) {
@@ -163,6 +184,23 @@ describe("the inventory of a knowledge source, read without the model", () => {
     );
     assert.deepEqual(inventory.export!.elements[0]!.links, ["public.customers", "public.stamp()"]);
     assert.equal(
+      inventory.export!.elements[0]!.definition,
+      [
+        "CREATE TABLE public.policies (",
+        "  id bigint NOT NULL,",
+        "  premium numeric DEFAULT 0,",
+        "  customer_id bigint NOT NULL,",
+        "  PRIMARY KEY (id),",
+        "  FOREIGN KEY (customer_id) REFERENCES public.customers (id),",
+        "  CONSTRAINT policies_premium_check CHECK ((premium >= 0))",
+        ");",
+        "",
+        "CREATE INDEX policies_customer_idx ON public.policies USING btree (customer_id);",
+        "",
+        "CREATE TRIGGER policies_stamp BEFORE INSERT ON public.policies FOR EACH ROW EXECUTE FUNCTION stamp();",
+      ].join("\n"),
+    );
+    assert.equal(
       inventory.export!.elements[2]!.definition,
       [
         "CREATE VIEW public.open_policies AS",
@@ -174,7 +212,10 @@ describe("the inventory of a knowledge source, read without the model", () => {
       ].join("\n"),
     );
     assert.equal(inventory.fingerprint, inventory.export!.fingerprint);
-    assert.deepEqual(catalog.queries.toSorted(), [ALL_COLUMNS_QUERY, KEYS_QUERY, ROUTINES_QUERY, TABLES_QUERY, TRIGGERS_QUERY, VIEWS_QUERY].toSorted());
+    assert.deepEqual(
+      catalog.queries.toSorted(),
+      [ALL_COLUMNS_QUERY, CONSTRAINTS_QUERY, INDEXES_QUERY, KEYS_QUERY, ROUTINES_QUERY, TABLES_QUERY, TRIGGERS_QUERY, VIEWS_QUERY].toSorted(),
+    );
     catalog.premiumType = "integer";
     assert.notEqual((await knowledgeInventory(base, access))!.fingerprint, inventory.fingerprint);
     catalog.premiumType = "numeric";

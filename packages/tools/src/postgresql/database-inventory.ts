@@ -10,9 +10,8 @@ import { columnList, databaseExport } from "./database-export.ts";
  * its tables, then its views, each as `schema.name`; its routines are in the export only. The facts of a
  * table are its kind, its number of columns, its primary key and its foreign keys; those of a view its
  * kind, its number of columns and the tables and views it reads; either has the names of its triggers when
- * it has some. The excerpt of an element lists its columns, each with its type, when `information_schema`
- * gives them. The fingerprint is that of the export, routines included, so that any change of structure
- * changes it.
+ * it has some. The excerpt of an element lists its columns, each with its type. The fingerprint is that of
+ * the export, routines included, so that any change of structure changes it.
  *
  * @param catalog - The catalog of the database.
  * @returns The inventory of the database, with its export.

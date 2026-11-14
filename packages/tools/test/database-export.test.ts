@@ -17,7 +17,10 @@ const trigger = (name: string, on: string, routine: string): TriggerSummary => (
  * A base of three tables — one with keys that references itself, one the catalog gives no column of — a view and a
  * materialized view, without routines nor triggers unless some are given.
  */
-function structure(premiumType = "numeric", more: Partial<Pick<DatabaseStructure, "routines" | "triggers">> = {}): DatabaseStructure {
+function structure(
+  premiumType = "numeric",
+  more: Partial<Pick<DatabaseStructure, "routines" | "triggers" | "constraints" | "indexes">> = {},
+): DatabaseStructure {
   const keys: TableKeys[] = [
     {
       table: "public.policies",
@@ -51,6 +54,8 @@ function structure(premiumType = "numeric", more: Partial<Pick<DatabaseStructure
       },
       { view: "reporting.premiums", materialized: true, definition: " SELECT 1;", columns: [], reads: [] },
     ],
+    constraints: new Map(),
+    indexes: new Map(),
     routines: [],
     triggers: new Map(),
     ...more,
@@ -117,6 +122,95 @@ describe("the export of a database", () => {
     assert.notEqual(after.fingerprint, before.fingerprint);
     assert.equal(databaseExport(structure()).fingerprint, before.fingerprint);
     assert.equal(before.fingerprint, fingerprintOf(before.elements.map((element) => element.fingerprint).join("\n")));
+  });
+});
+
+describe("the whole definition of a table", () => {
+  it("gives a column its default, identity or generation clause before NOT NULL, and leaves it out of the summary", () => {
+    const base = structure();
+    const columns = new Map([
+      ...base.columns,
+      [
+        "audit.events",
+        [
+          { name: "id", type: "bigint", nullable: false, default: "GENERATED ALWAYS AS IDENTITY" },
+          { name: "at", type: "timestamp(3) with time zone", nullable: false, default: "DEFAULT now()" },
+          { name: "label", type: "character varying(40)", nullable: true, default: "DEFAULT 'none'::character varying" },
+        ],
+      ],
+    ]);
+    const events = databaseExport({ ...base, columns }).elements[2]!;
+    assert.equal(
+      events.definition,
+      [
+        "CREATE TABLE audit.events (",
+        "  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,",
+        "  at timestamp(3) with time zone DEFAULT now() NOT NULL,",
+        "  label character varying(40) DEFAULT 'none'::character varying",
+        ");",
+      ].join("\n"),
+    );
+    assert.equal(events.summary, "table audit.events\n  columns: id bigint not null, at timestamp(3) with time zone not null, label character varying(40)");
+  });
+
+  it("gives its unique and check constraints after its keys, as the database writes them", () => {
+    const constraints = new Map([
+      [
+        "public.customers",
+        [
+          { name: "customers_number_check", definition: "CHECK ((number > 0))" },
+          { name: "customers_number_key", definition: "UNIQUE (number)" },
+        ],
+      ],
+    ]);
+    const customers = databaseExport(structure("numeric", { constraints })).elements[1]!;
+    assert.equal(
+      customers.definition,
+      [
+        "CREATE TABLE public.customers (",
+        "  country text NOT NULL,",
+        "  number integer NOT NULL,",
+        "  PRIMARY KEY (country, number),",
+        "  CONSTRAINT customers_number_check CHECK ((number > 0)),",
+        "  CONSTRAINT customers_number_key UNIQUE (number)",
+        ");",
+      ].join("\n"),
+    );
+    assert.ok(customers.summary.endsWith("\n  primary key: country, number\n  constraints: CHECK ((number > 0)); UNIQUE (number)"));
+  });
+
+  it("gives the indexes no constraint made after the table or the materialized view, and names them in the summary", () => {
+    const indexes = new Map([
+      [
+        "public.customers",
+        [
+          { name: "customers_country_idx", definition: "CREATE INDEX customers_country_idx ON public.customers USING btree (country)" },
+          { name: "customers_lower_idx", definition: "CREATE UNIQUE INDEX customers_lower_idx ON public.customers USING btree (lower(country))" },
+        ],
+      ],
+      ["reporting.premiums", [{ name: "premiums_idx", definition: "CREATE INDEX premiums_idx ON reporting.premiums USING btree (total)" }]],
+    ]);
+    const before = databaseExport(structure());
+    const after = databaseExport(structure("numeric", { indexes }));
+    assert.equal(
+      after.elements[1]!.definition,
+      [
+        before.elements[1]!.definition,
+        "",
+        "CREATE INDEX customers_country_idx ON public.customers USING btree (country);",
+        "",
+        "CREATE UNIQUE INDEX customers_lower_idx ON public.customers USING btree (lower(country));",
+      ].join("\n"),
+    );
+    assert.equal(after.elements[1]!.summary, `${before.elements[1]!.summary}\n  indexes: customers_country_idx, customers_lower_idx`);
+    assert.equal(
+      after.elements[4]!.definition,
+      "CREATE MATERIALIZED VIEW reporting.premiums AS\n SELECT 1;\n\nCREATE INDEX premiums_idx ON reporting.premiums USING btree (total);",
+    );
+    assert.deepEqual(
+      before.elements.map((element, i) => element.fingerprint === after.elements[i]!.fingerprint),
+      [true, false, true, true, false],
+    );
   });
 });
 

@@ -12,6 +12,8 @@ import {
   ALL_COLUMNS_QUERY,
   assertCatalogQuery,
   COLUMNS_QUERY,
+  CONSTRAINTS_QUERY,
+  INDEXES_QUERY,
   KEYS_QUERY,
   ROUTINES_QUERY,
   SERVER_ACCESS_QUERY,
@@ -216,7 +218,18 @@ describe("criterion 3 — the catalog tools read the catalog and nothing else", 
     ]) {
       assert.throws(() => assertCatalogQuery(query), /Only the catalog queries/, query);
     }
-    for (const query of [TABLES_QUERY, COLUMNS_QUERY, ALL_COLUMNS_QUERY, KEYS_QUERY, VIEWS_QUERY, ROUTINES_QUERY, TRIGGERS_QUERY, SERVER_ACCESS_QUERY])
+    for (const query of [
+      TABLES_QUERY,
+      COLUMNS_QUERY,
+      ALL_COLUMNS_QUERY,
+      KEYS_QUERY,
+      CONSTRAINTS_QUERY,
+      INDEXES_QUERY,
+      VIEWS_QUERY,
+      ROUTINES_QUERY,
+      TRIGGERS_QUERY,
+      SERVER_ACCESS_QUERY,
+    ])
       assert.doesNotThrow(() => assertCatalogQuery(query));
   });
 

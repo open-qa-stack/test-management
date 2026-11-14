@@ -1,5 +1,5 @@
 import { exportFile, sourceExport, type ElementDraft, type SourceExport } from "../common/source-export.ts";
-import type { ColumnSummary, DatabaseStructure, RoutineSummary, TableKeys, TriggerSummary, ViewSummary } from "./database-catalog.ts";
+import type { ColumnSummary, DatabaseStructure, NamedDefinition, RoutineSummary, TableKeys, TriggerSummary, ViewSummary } from "./database-catalog.ts";
 
 /**
  * Exports the structure of a database, element by element.
@@ -8,7 +8,8 @@ import type { ColumnSummary, DatabaseStructure, RoutineSummary, TableKeys, Trigg
  * The elements are its tables, then its views, each as `schema.name`, then its functions and procedures,
  * each as `schema.name(arguments)` so that two routines of one name stay apart, all in the order of the catalog.
  * PostgreSQL keeps no text of a table: its definition is written again from the catalog — its columns, each
- * with its type and whether it may be null, its primary key and its foreign keys — with the names as the
+ * with its whole type, its default and whether it may be null, its primary key, its foreign keys, its
+ * unique, check and exclusion constraints, then the indexes no constraint made — with the names as the
  * catalog gives them, unquoted. It is there to be read, not run. The names of a table are its columns and
  * its links the other tables its foreign keys reference. The definition of a view is its query as the
  * database writes it, its names are its columns and its links the tables and views it reads. The triggers
@@ -23,9 +24,10 @@ export function databaseExport(structure: DatabaseStructure): SourceExport {
   return sourceExport([
     ...structure.tables.map(({ schema, table }) => {
       const name = `${schema}.${table}`;
-      return withTriggers(tableElement(name, structure.columns.get(name) ?? [], structure.keys.get(name)), structure.triggers.get(name));
+      const element = tableElement(name, structure.columns.get(name) ?? [], structure.keys.get(name), structure.constraints.get(name));
+      return withTriggers(withIndexes(element, structure.indexes.get(name)), structure.triggers.get(name));
     }),
-    ...structure.views.map((view) => withTriggers(viewElement(view), structure.triggers.get(view.view))),
+    ...structure.views.map((view) => withTriggers(withIndexes(viewElement(view), structure.indexes.get(view.view)), structure.triggers.get(view.view))),
     ...structure.routines.map(routineElement),
   ]);
 }
@@ -41,13 +43,19 @@ export function columnList(columns: readonly ColumnSummary[]): string {
 }
 
 /** A table, as an element of the export. */
-function tableElement(name: string, columns: readonly ColumnSummary[], keys: TableKeys | undefined): ElementDraft {
+function tableElement(
+  name: string,
+  columns: readonly ColumnSummary[],
+  keys: TableKeys | undefined,
+  constraints: readonly NamedDefinition[] = [],
+): ElementDraft {
   const primaryKey = keys?.primaryKey ?? [];
   const foreignKeys = keys?.foreignKeys ?? [];
   const clauses = [
-    ...columns.map((column) => `${column.name} ${column.type}${column.nullable ? "" : " NOT NULL"}`),
+    ...columns.map((column) => `${column.name} ${column.type}${column.default === undefined ? "" : ` ${column.default}`}${column.nullable ? "" : " NOT NULL"}`),
     ...(primaryKey.length === 0 ? [] : [`PRIMARY KEY (${primaryKey.join(", ")})`]),
     ...foreignKeys.map((key) => `FOREIGN KEY (${key.columns.join(", ")}) REFERENCES ${key.references} (${key.referencedColumns.join(", ")})`),
+    ...constraints.map((constraint) => `CONSTRAINT ${constraint.name} ${constraint.definition}`),
   ];
   const summary = [
     `table ${name}`,
@@ -56,6 +64,7 @@ function tableElement(name: string, columns: readonly ColumnSummary[], keys: Tab
     ...(foreignKeys.length === 0
       ? []
       : [`foreign keys: ${foreignKeys.map((key) => `${key.columns.join(", ")} -> ${key.references} (${key.referencedColumns.join(", ")})`).join("; ")}`]),
+    ...(constraints.length === 0 ? [] : [`constraints: ${constraints.map((constraint) => constraint.definition).join("; ")}`]),
   ];
   return {
     name,
@@ -84,6 +93,16 @@ function viewElement(view: ViewSummary): ElementDraft {
     names: view.columns,
     links: view.reads,
     file: exportFile("views", view.view, "sql"),
+  };
+}
+
+/** A table or a materialized view with its indexes: their definitions after its own, their names in its summary. */
+function withIndexes(element: ElementDraft, indexes: readonly NamedDefinition[] = []): ElementDraft {
+  if (indexes.length === 0) return element;
+  return {
+    ...element,
+    summary: `${element.summary}\n  indexes: ${indexes.map((index) => index.name).join(", ")}`,
+    definition: `${element.definition}${indexes.map((index) => `\n\n${index.definition};`).join("")}`,
   };
 }
 

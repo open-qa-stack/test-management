@@ -19,7 +19,7 @@ It works in two steps: each source is first mapped on its own into a [source car
 | Source | Elements | Facts read by the harness | Also in the request |
 |---|---|---|---|
 | Contract | Its tags, and the first path segment of each operation without tag | The operations of each, as `METHOD /path` | |
-| Base | Its tables, then its views, materialized or not, each as `schema.name`, read from the catalog only | Its kind, `table` or `view`, and its number of columns; for a table, primary key and foreign keys; for a view, the tables and views it reads; for either, the names of its triggers when it has some | Its columns, each with its type and whether it may be null, when `information_schema` lists them |
+| Base | Its tables, then its views, materialized or not, each as `schema.name`, read from the catalog only | Its kind, `table` or `view`, and its number of columns; for a table, primary key and foreign keys; for a view, the tables and views it reads; for either, the names of its triggers when it has some | Its columns, each with its type and whether it may be null |
 | Document | Its sections of the two highest levels; a repeated title is followed by its number, as `Overview (§7)` | Number and level | The start of its text, up to 300 characters |
 | Source code | The folders that hold files a grammar reads; past forty, the deepest are merged into their parent | Number of files, routes their outlines declare | |
 | User interface | The screens the agent visited, by path, with the route after `#/` and without the query | Latest title, links to other screens its snapshots showed | |
