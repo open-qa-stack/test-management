@@ -11,7 +11,7 @@ Open QA Stack is licensed under the [Apache License, Version 2.0](LICENSE) (`Apa
 `pnpm check`, run at the root of the repository with the Node.js `.nvmrc` names, tells whether a commit can be delivered. It runs the steps below in order, stops at the first that fails, names it, and changes no file.
 
 1. **typecheck**: `tsc` in strict mode on every package and on the lint rules of the workspace.
-2. **lint**: oxlint with type information and the lint rules of the workspace, in `lint/`, warnings denied. An explicit `any` fails.
+2. **lint**: oxlint with type information and the lint rules of the workspace, in `lint/`, warnings denied, then the check of the manifests against [the package boundaries](#package-boundaries). An explicit `any` fails.
 3. **format**: Prettier, without rewriting anything. `pnpm format` rewrites the files it would change.
 4. **build**: the `build` script of every package that has one. The packages that run their TypeScript sources as they are have none.
 5. **coverage directives**: a `node:coverage ignore` or `node:coverage disable` comment in a source file gives, on its line or the line before, the URL of the issue of this repository that explains it, such as `https://github.com/open-qa-stack/test-management/issues/1`.
@@ -20,6 +20,30 @@ Open QA Stack is licensed under the [Apache License, Version 2.0](LICENSE) (`Apa
 8. **lint rules**: the tests of the lint rules of the workspace, which cover all of `lint/`.
 
 Once the dependencies are installed with `pnpm install --frozen-lockfile`, the check needs no network.
+
+## Package boundaries
+
+Each package depends only on the packages its row names. `pnpm lint` refuses any other import in the sources of a package, under its `src` folder, whatever its form: the name of the package or a path into it, a relative path out of the folder of the package or through its `node_modules`, a dynamic import or a `require` of a constant string, an `import … = require(…)`, a type-only import or a re-export. It refuses the same dependency in the `dependencies`, `peerDependencies` and `optionalDependencies` of the manifest of the package. Each refusal names the file, the line, the package, what it imports and the rule.
+
+| Package   | Folder             | Depends on                                       |
+| --------- | ------------------ | ------------------------------------------------ |
+| `domain`  | `packages/domain`  | nothing                                          |
+| `shared`  | `packages/shared`  | nothing                                          |
+| `api`     | `packages/api`     | `domain`, `shared`                               |
+| `harness` | `packages/harness` | `domain`, `shared`                               |
+| `tools`   | `packages/tools`   | `domain`, `shared`                               |
+| `agents`  | `packages/agents`  | `domain`, `shared`, `tools`                      |
+| `worker`  | `packages/worker`  | `harness`, `agents`, `tools`, `domain`, `shared` |
+| `cli`     | `packages/cli`     | `shared`, `harness`, `agents`, `tools`, `domain` |
+| `web`     | `apps/web`         | `shared`                                         |
+
+- `worker` has no folder yet: the table bounds it from its first file.
+- The domain imports no external module, those of Node.js included, but the ones listed under `external` in its row of the table, none for now. It holds no decorator, of the experimental TypeScript kind or of the standard one.
+- The command line keeps its two modes apart, the solo mode in `src/solo/` and the connected mode in `src/connected/`. An override of the lint configuration on `src/connected/` lets its files import `shared` only among the packages of the workspace, and no other file of the command line.
+- `@github/copilot-sdk` is imported under `packages/harness/src/copilot/` only, by the implementation of the agent runtime, and by no other file, a test included.
+- The tests of a package and its `devDependencies` are left out of the table: a test may run a package with the ones that use it, and the private `testing` package holds what the tests share.
+
+The table lives in `.oxlintrc.json`, as the options of the rule `open-qa-stack/package-boundaries`, which `lint/check-manifests.ts` also reads.
 
 ## Commits
 
