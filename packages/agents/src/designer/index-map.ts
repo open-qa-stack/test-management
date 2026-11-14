@@ -12,12 +12,8 @@ export const READ_TOOL = "knowledge_read";
 const MAX_LISTED = 40;
 /** Longest text `knowledge_domain` gives of the files of a source, and `knowledge_read` of the definition of an element, in characters. */
 const MAX_WRITTEN_LENGTH = 8000;
-/** Most domains, and most elements, a search gives. */
-const MAX_FOUND = 12;
 /** Shortest word a search matches on its start. */
 const MIN_STEM = 4;
-/** The words every brief holds, such as `tests` or `tester`, which tell nothing of what it is about. */
-const TEST_WORD = /^test(?:s|ed|ers?|ing)?$/;
 /** Most lines `knowledge_domain` and `knowledge_read` give of the elements of a card. */
 const MAX_ENTRY_LINES = 60;
 
@@ -116,46 +112,16 @@ export class IndexMap {
   }
 
   /**
-   * The domains of the index, in one line each, for the request of the designer.
+   * The domains of the knowledge, in one line each, for the request that starts the session that plans: what
+   * each is, and how many elements of each kind the sources hold of it.
    *
    * @returns The lines.
    */
   public domains(): string[] {
-    return this.index.domains.map((domain) => `- ${domain.id} (${domain.label}): ${domain.description}`);
-  }
-
-  /**
-   * The domains and the elements of the index that echo words, those that echo most first, at most
-   * `MAX_FOUND` of each: what an element is called, its summary and its key fields are searched. A word of
-   * the brief such as `test`, `tests` or `tester` is not looked for: every brief asks for tests, and it would
-   * find their folders.
-   *
-   * @param brief - The brief of a design.
-   * @returns The lines that give them, under `Domains:` and `Elements:`; none when nothing echoes.
-   */
-  public found(brief: string): string[] {
-    return this.echoing(wordsOf(brief).filter((word) => !TEST_WORD.test(word)));
-  }
-
-  /** The domains and the elements of the index that echo words, those that echo most first, at most `MAX_FOUND` of each. */
-  private echoing(stems: readonly string[]): string[] {
-    const score = (text: string) => {
-      const own = wordsOf(text);
-      return stems.filter((stem) => own.some((word) => echoes(word, stem))).length;
-    };
-    const ranked = <T>(entries: readonly T[], text: (entry: T) => string) =>
-      entries
-        .map((entry) => ({ entry, score: score(text(entry)) }))
-        .filter(({ score }) => score > 0)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, MAX_FOUND)
-        .map(({ entry }) => entry);
-    const domains = ranked(this.index.domains, (domain) => `${domain.id} ${domain.label} ${domain.description}`);
-    const elements = ranked(this.elements, (element) => `${element.item} ${element.card?.summary ?? ""} ${(element.card?.keyFields ?? []).join(" ")}`);
-    return [
-      ...(domains.length === 0 ? [] : ["Domains:", ...domains.map((domain) => `- ${domain.id} (${domain.label}): ${domain.description}`)]),
-      ...(elements.length === 0 ? [] : ["Elements:", ...elements.map((element) => line(element))]),
-    ];
+    return this.index.domains.map((domain) => {
+      const held = this.elements.filter((element) => element.domains.includes(domain.id));
+      return `- ${domain.id} (${domain.label}): ${domain.description} ${held.length === 0 ? "No element yet" : sentence(counted(held))}.`;
+    });
   }
 
   /**
@@ -317,6 +283,11 @@ function capped(lines: readonly string[]): string {
 /** A text cut to the longest length given, with what to do for the rest. */
 function shortened(text: string, rest: string): string {
   return text.length <= MAX_WRITTEN_LENGTH ? text : `${text.slice(0, MAX_WRITTEN_LENGTH)}\n… cut after ${MAX_WRITTEN_LENGTH} characters; ${rest}.`;
+}
+
+/** A text with its first letter in upper case. */
+function sentence(text: string): string {
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 }
 
 /** How many elements of each kind, in words, such as `2 tables, 1 screen`. */

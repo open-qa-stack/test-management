@@ -246,7 +246,7 @@ export class Designer {
         );
         const offered = [...session.screens.tools(), ...session.reads.tools()];
         const map = new IndexMap(index, await this.cards(index), offered, owners, await this.written(index));
-        const request = planRequest(brief, index.environment, brief === undefined ? [] : map.found(brief), map.domains(), applications);
+        const request = planRequest(brief, index.environment, map.domains(), applications);
         const notes = agentNotes(config, repositoryRoot, env, { role: "planner", task: id, now });
         const tools = [...map.toolset(), ...offered, ...notes, plan.tool()].map((tool) => endedWithPlan(tool, plan));
         const task = { instructions: PLANNER_INSTRUCTIONS, tools, request, reminder: () => plan.reminder() };

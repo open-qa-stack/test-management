@@ -135,12 +135,14 @@ async function answer(definition: ToolDefinition, args: unknown): Promise<string
 }
 
 describe("the knowledge as a map", () => {
-  it("lists the domains in one line each", () => {
+  it("lists the domains in one line each, with how many elements of each kind the sources hold of each", () => {
     assert.deepEqual(map.domains(), [
-      "- customers (Customers): Who buys at the shop.",
-      "- orders (Orders): Placing an order.",
-      "- billing (Billing): Invoices.",
+      "- customers (Customers): Who buys at the shop. 1 operations, 1 section.",
+      "- orders (Orders): Placing an order. 1 operations, 1 screen.",
+      "- billing (Billing): Invoices. 1 table.",
     ]);
+    const empty = new IndexMap({ ...INDEX, domains: [{ ...INDEX.domains[2]!, references: [] }] }, new Map(), [], []);
+    assert.deepEqual(empty.domains(), ["- billing (Billing): Invoices. No element yet."]);
   });
 
   it("gives a domain in short: its sources, what each holds of it and the tools that read each, the longest prefix owning a tool", async () => {
@@ -325,25 +327,5 @@ describe("the knowledge as a map", () => {
     assert.deepEqual(await call(read, { source: "guide", item: "Refunds" }), {
       error: "The knowledge places no Refunds in guide; knowledge_list gives the elements it places.",
     });
-  });
-
-  it("tells what the knowledge holds for a brief, or nothing, and looks for no test word, which every brief holds", () => {
-    assert.deepEqual(map.found("number"), ["Elements:", "- shop-db: public.invoices — An invoice sent to a client. (table)"]);
-    assert.deepEqual(map.found("zebra"), []);
-    assert.deepEqual(map.found("CUSTOMER recherché").slice(0, 3), ["Domains:", "- customers (Customers): Who buys at the shop.", "Elements:"]);
-    const tested = new IndexMap(
-      {
-        ...INDEX,
-        sources: [...INDEX.sources, { id: "code", type: "source-code", state: "read" }],
-        unassigned: [{ source: "code", items: ["src/test/tests", "src/testimonials"] }],
-      },
-      new Map(),
-      [],
-      ["shop"],
-    );
-    assert.deepEqual(tested.found("tester testing tests"), []);
-    assert.deepEqual(tested.found("tester billing"), ["Domains:", "- billing (Billing): Invoices."]);
-    // A word of the brief that only starts with test is looked for.
-    assert.deepEqual(tested.found("tests testimonials"), ["Elements:", "- code: src/test/tests (folder)", "- code: src/testimonials (folder)"]);
   });
 });

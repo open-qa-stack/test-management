@@ -1599,25 +1599,22 @@ describe("what the workflow of a source wrote of it", () => {
 });
 
 describe("the request of a brief", () => {
-  it("holds what the index holds for the brief, what echoes most first, in place of the domains, and the domains when nothing echoes it", async () => {
+  it("holds the brief and the domains of the knowledge with what the sources hold of each, whatever the brief, and nothing else of the knowledge", async () => {
     const { server } = await design(replies(valid(3)), { brief: "Follow the orders" });
     const request = requestText(server);
-    assert.ok(
-      request.includes(
-        "What the index holds for this brief:\\nDomains:\\n- orders (Orders): Placing and following an order.\\n- customers (Customers): The customers of the shop.\\nElements:\\n- shop-api: orders — Lists and places the orders of a customer. (operations)\\n- shop: /orders (screen)",
-      ),
-      request,
-    );
-    assert.ok(!request.includes("Domains of the index:"));
     assert.ok(request.includes("Brief of the developer, in their words:\\n<brief>\\nFollow the orders\\n</brief>"), request);
+    assert.match(request, /Knowledge of the applications, by domain:\\n- orders \(Orders\): Placing and following an order\. \d+ /);
+    // No element is given: the agent explores the knowledge by levels.
+    assert.ok(!request.includes("Elements:") && !request.includes("shop-api: orders"), request);
     assert.ok(
       request.includes(
         "Next: call knowledge_domain on the domain the brief is about, read what it needs, do the brief once on the screens, then call propose_plan.",
       ),
       request,
     );
+    // A brief no word of which is in the knowledge is given the same domains.
     const unknown = requestText((await design(replies(valid(3)), { brief: "zebra" })).server);
-    assert.ok(unknown.includes("Domains of the index:\\n- orders (Orders)"));
+    assert.match(unknown, /Knowledge of the applications, by domain:\\n- orders \(Orders\)/);
   });
 });
 

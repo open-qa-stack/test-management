@@ -29,9 +29,9 @@ Three rules cause most refusals
 Keep with remember a fact the agents after you should know, such as a rule or a pitfall of the application.`;
 
 /**
- * Writes the request that starts the session that plans: the brief, what the index holds for it, or its
- * domains when nothing of it echoes the brief, the applications and how to sign in to them, then the next
- * call.
+ * Writes the request that starts the session that plans: the brief, the domains of the knowledge with what
+ * the sources hold of each, the applications and how to sign in to them, then the next call. Nothing else of
+ * the knowledge is given: the agent explores it by levels.
  *
  * @remarks
  * The rules of a plan are not repeated: each is a gate of the harness, told when it refuses, or a line of
@@ -40,18 +40,11 @@ Keep with remember a fact the agents after you should know, such as a rule or a 
  *
  * @param brief - What the developer wants tested, in their own words, if anything.
  * @param environment - The environment the tests run against.
- * @param found - What the index holds for the brief, as `IndexMap.found` gives it; none without a brief.
- * @param domains - The domains of the index, a line each.
+ * @param domains - The domains of the knowledge, a line each, as `IndexMap.domains` gives them.
  * @param applications - The applications a test may be about.
  * @returns The message to send to the agent that plans.
  */
-export function planRequest(
-  brief: string | undefined,
-  environment: string,
-  found: readonly string[],
-  domains: readonly string[],
-  applications: readonly Application[],
-): string {
+export function planRequest(brief: string | undefined, environment: string, domains: readonly string[], applications: readonly Application[]): string {
   const asked =
     brief === undefined
       ? "No brief was given: plan the tests that matter most across the domains below."
@@ -64,7 +57,7 @@ export function planRequest(
   return [
     `Plan Playwright tests for the environment ${environment}.`,
     asked,
-    found.length === 0 ? `Domains of the index:\n${domains.join("\n")}` : `What the index holds for this brief:\n${found.join("\n")}`,
+    `Knowledge of the applications, by domain:\n${domains.join("\n")}`,
     `Applications:\n${known.join("\n")}`,
     next,
   ].join("\n\n");

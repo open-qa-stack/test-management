@@ -60,26 +60,27 @@ describe("the instructions of the agent that plans", () => {
 });
 
 describe("the request of the session that plans", () => {
-  it("gives the brief, what the index holds for it, the applications with how to sign in to them, and the next call, and nothing of a test", () => {
-    const found = ["Domains:", DOMAINS[0]!, "Elements:", "- shop: /orders (screen)"];
+  it("gives the brief, the domains of the knowledge, the applications with how to sign in to them, and the next call, and nothing of a test", () => {
     assert.equal(
-      planRequest("Test the search of an order.", "local", found, DOMAINS, [SHOP, LEDGER, OPEN]),
+      planRequest("Test the search of an order.", "local", DOMAINS, [SHOP, LEDGER, OPEN]),
       [
         "Plan Playwright tests for the environment local.",
         "Brief of the developer, in their words:\n<brief>\nTest the search of an order.\n</brief>",
-        `What the index holds for this brief:\n${found.join("\n")}`,
+        `Knowledge of the applications, by domain:\n${DOMAINS.join("\n")}`,
         "Applications:\n- shop (Shop, web): sign in with shop_fill and the accounts demo, admin.\n- ledger (Ledger, api): no screens; its tests sign in with the account clerk.\n- desk (Desk, api): no sign-in.",
         "Next: call knowledge_domain on the domain the brief is about, read what it needs, do the brief once on the screens, then call propose_plan.",
       ].join("\n\n"),
     );
   });
 
-  it("gives the domains of the index when nothing echoes the brief, or without one", () => {
-    assert.match(planRequest("zebra", "local", [], DOMAINS, [SHOP]), /<\/brief>\n\nDomains of the index:\n- orders/);
+  it("gives the same domains without a brief, and asks then for the tests that matter most", () => {
     // A user interface of another environment is none of this one's.
     const elsewhere = { ...SHOP, environments: [{ name: "staging", uiUrl: "http://shop.test" }] };
-    const request = planRequest(undefined, "local", [], DOMAINS, [elsewhere]);
-    assert.match(request, /^Plan .*\n\nNo brief was given: plan the tests that matter most across the domains below\.\n\nDomains of the index:\n/);
+    const request = planRequest(undefined, "local", DOMAINS, [elsewhere]);
+    assert.match(
+      request,
+      /^Plan .*\n\nNo brief was given: plan the tests that matter most across the domains below\.\n\nKnowledge of the applications, by domain:\n- orders/,
+    );
     assert.match(request, /- shop \(Shop, web\): no screens; its tests sign in with the accounts demo, admin\./);
     assert.ok(
       request.endsWith(
