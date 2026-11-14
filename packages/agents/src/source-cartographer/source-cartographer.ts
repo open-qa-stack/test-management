@@ -79,7 +79,7 @@ export interface SourceCartographyOutcome {
  * card is made again on demand only. A complete card whose fingerprint is the source's is kept as it is,
  * unless `force` is set.
  *
- * A source that has an export, a database or a contract, goes through `mapExportedSource`: its export and its manifest
+ * A source that has an export — a database, a contract, a document — goes through `mapExportedSource`: its export and its manifest
  * are written in the folder of the source beside its card, its elements are grouped into domains batch by
  * batch, and its card is derived from the manifest, unless no element at all was placed. For any other source, the agent gets the tools of this
  * source only and hands its card in with `submit_card`, which must place every element and invent none.

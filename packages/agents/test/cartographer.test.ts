@@ -943,14 +943,22 @@ describe("faster cartography", () => {
   describe("faster cartography, criterion 2 — a card made again, added or removed makes the consolidation again, with the new fingerprints", () => {
     it("consolidates again when a card was made again, and records its new fingerprint", async () => {
       let before = "";
-      const remade = [{ body: toolCalls(MODEL, [submitCard(cardSubmission("order-specs"))]) }, { body: answer(MODEL, "Done.") }, ...happy()];
+      // The document changed: its sections are placed again, the file of their domain is written, then the index is consolidated.
+      const sections = ELEMENTS["order-specs"]!.map((name) => ({ name, domain: "all", role: `About ${name}.` }));
+      const placement = { domains: [{ id: "all", label: "All", description: "Everything order-specs holds." }], items: sections };
+      const remade = [
+        { body: toolCalls(MODEL, [{ id: "p1", name: "place_elements", arguments: placement }]) },
+        { body: answer(MODEL, "Done.") },
+        { body: answer(MODEL, "`Orders` holds `Placing an order`.") },
+        ...happy(),
+      ];
       const prepare = (root: string) => {
         written(index)(root);
         before = cardPrint(root, "order-specs");
         writeFileSync(join(root, "specs", "orders.md"), "# Orders\n\n## Placing an order\n\nA customer places an order, then pays it.\n");
       };
       const { outcome, root, server } = await cartography(remade, { prepare });
-      assert.equal(server.requests.length, 4);
+      assert.equal(server.requests.length, 5);
       assert.match(messages(outcome), /The index is made: the card of order-specs is not the one the index at hand was made of\./);
       const recorded = outcome.index!.sources.find((source) => source.id === "order-specs")!.cardFingerprint;
       assert.ok(recorded === cardPrint(root, "order-specs") && recorded !== before);

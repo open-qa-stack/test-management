@@ -36,7 +36,7 @@ class InterleavedRuntime implements AgentRuntime {
               id: source,
               label: source,
               description: `What ${source} holds.`,
-              items: [{ name: source === "alpha" ? "Alpha" : "Beta", summary: `The ${source} section.` }],
+              items: [{ name: source === "alpha" ? "Alpha" : "Beta", summary: `The ${source} folder.` }],
             },
           ],
           unassigned: [],
@@ -58,9 +58,14 @@ class InterleavedRuntime implements AgentRuntime {
 describe("solo command, criterion 19 — two cartography tasks at once keep each its own events", () => {
   it("gives each card, its journal and its counters the events of its own session only", async () => {
     const root = mkdtempSync(join(workspace, "repo-"));
-    mkdirSync(join(root, "specs"));
-    writeFileSync(join(root, "specs", "alpha.md"), "# Alpha\n\nThe first.\n");
-    writeFileSync(join(root, "specs", "beta.md"), "# Beta\n\nThe second.\n");
+    // Two sources mapped with one card each: the code of two services, each with one folder.
+    for (const [source, folder] of [
+      ["alpha", "Alpha"],
+      ["beta", "Beta"],
+    ] as const) {
+      mkdirSync(join(root, "code", source, folder), { recursive: true });
+      writeFileSync(join(root, "code", source, folder, "index.ts"), `export const ${source} = 1;\n`);
+    }
     const text = JSON.stringify({
       formatVersion: 1,
       applications: [
@@ -72,7 +77,7 @@ describe("solo command, criterion 19 — two cartography tasks at once keep each
           environments: [{ name: "local", apis: [{ name: "b", baseUrl: "http://127.0.0.1:1" }] }],
         },
       ],
-      knowledge: ["alpha", "beta"].map((id) => ({ id, type: "document", path: `specs/${id}.md`, attachments: [{ application: "shop" }] })),
+      knowledge: ["alpha", "beta"].map((id) => ({ id, type: "source-code", path: `code/${id}`, commands: "none", attachments: [{ application: "shop" }] })),
       model: { mode: "provider-key", provider: "openai", baseUrl: "http://127.0.0.1:1/v1", model: "m" },
       autonomy: { level: "autonomous" },
       cartography: { concurrency: 2 },

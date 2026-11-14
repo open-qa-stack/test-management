@@ -131,8 +131,10 @@ function configFor(modelUrl: string, limits = { maxIterations: 20, maxMinutes: 1
 }
 
 /** A document of three sections, mapped with a card the agent hands in. */
-const DOC: MappedKnowledge = { id: "specs", type: "document", path: "specs.md", attachments: [{ application: "shop" }] };
-const DOC_TEXT = "# Orders\n\nA customer places an order.\n\n# Customers\n\nWho buys.\n\n# Migrations\n";
+/** A source mapped with one card, handed in with `submit_card`: the code of the shop, whose folders are its elements. */
+const CODE: MappedKnowledge = { id: "specs", type: "source-code", path: "code", commands: "none", attachments: [{ application: "shop" }] };
+/** The folders of the code, each with one file. */
+const CODE_FOLDERS = ["Orders", "Customers", "Migrations"];
 const DOMAINS = [
   { id: "orders", label: "Orders", description: "Orders placed by customers." },
   { id: "customers", label: "Customers", description: "The customers of the shop." },
@@ -188,7 +190,11 @@ async function cartography(replies: readonly { status?: number; body: unknown }[
   try {
     const config = configFor(server.baseUrl, setup.limits);
     const root = setup.root ?? mkdtempSync(join(workspace, "repo-"));
-    if (setup.source === DOC) writeFileSync(join(root, "specs.md"), DOC_TEXT);
+    if (setup.source === CODE)
+      for (const folder of CODE_FOLDERS) {
+        mkdirSync(join(root, "code", folder), { recursive: true });
+        writeFileSync(join(root, "code", folder, "index.ts"), `export const ${folder.toLowerCase()} = 1;\n`);
+      }
     const cartographer = new SourceCartographer({
       config: setup.config === undefined ? config : setup.config(config),
       source: setup.source ?? DB,
@@ -490,7 +496,7 @@ describe("criterion 3 — a card that forgets or invents an element is refused, 
     };
     const { outcome, server } = await cartography(
       [{ body: toolCalls(MODEL, [submit(wrong)]) }, { body: toolCalls(MODEL, [submit(CARD, "c2")]) }, { body: answer(MODEL, "Done.") }],
-      { source: DOC },
+      { source: CODE },
     );
     const told = JSON.stringify(server.requests[1]!.body);
     assert.ok(told.includes("Invoices is not an element of specs"));
@@ -514,7 +520,7 @@ describe("criterion 3 — a card that forgets or invents an element is refused, 
         { body: toolCalls(MODEL, [submit(forgetful, "c4")]) },
         { body: answer(MODEL, "Done.") },
       ],
-      { source: DOC },
+      { source: CODE },
     );
     assert.equal(messages(outcome).match(/the harness put/g)?.length, 1, messages(outcome));
     assert.match(messages(outcome), /2 submissions of the card in a row left items to place; the harness put the 1 of the latest in unassigned\./);
@@ -523,14 +529,14 @@ describe("criterion 3 — a card that forgets or invents an element is refused, 
 
   it("reads a card without unassigned as one that puts no element there", async () => {
     const whole = { domains: [{ ...CARD.domains[0]!, items: [...CARD.domains[0]!.items, { name: "Migrations", summary: "Migrations." }] }, CARD.domains[1]!] };
-    const { outcome } = await cartography([{ body: toolCalls(MODEL, [submit(whole)]) }, { body: answer(MODEL, "Done.") }], { source: DOC });
+    const { outcome } = await cartography([{ body: toolCalls(MODEL, [submit(whole)]) }, { body: answer(MODEL, "Done.") }], { source: CODE });
     assert.deepEqual(outcome.card?.unassigned, [], messages(outcome));
   });
 
   it("journals a submission that breaks the schema, and writes nothing without an accepted card", async () => {
     const { outcome } = await cartography(
       [{ body: toolCalls(MODEL, [submit({ domains: [] })]) }, ...Array.from({ length: 4 }, () => ({ body: answer(MODEL, "Done.") }))],
-      { source: DOC },
+      { source: CODE },
     );
     assert.match(messages(outcome), /The card was refused: \/domains must NOT have fewer than 1 items\./);
     assert.match(messages(outcome), /The agent stopped without an accepted card; it was reminded to hand one in\./);
@@ -540,10 +546,10 @@ describe("criterion 3 — a card that forgets or invents an element is refused, 
 });
 
 describe("criterion 4 — the cartographer of a source offers only the tools of that source", () => {
-  it("offers the tools of a document, the notes and submit_card", async () => {
-    const { server } = await cartography(documented(), { source: DOC });
+  it("offers the tools of the code, the notes and submit_card", async () => {
+    const { server } = await cartography(documented(), { source: CODE });
     const offered = (server.requests[0]!.body as { tools: { function: { name: string } }[] }).tools.map((t) => t.function.name).sort();
-    assert.deepEqual(offered, ["recall", "remember", "specs_list_sections", "specs_read_section", "submit_card"]);
+    assert.deepEqual(offered, ["recall", "remember", "specs_list_files", "specs_outline", "specs_read_file", "specs_search", "submit_card"]);
   });
 });
 
@@ -646,7 +652,7 @@ describe("the export of a base, written beside its card", () => {
     const kept = await cartography([], { root, database });
     assert.deepEqual([kept.outcome.kept, existsSync(folder)], [true, false]);
     assert.doesNotMatch(messages(kept.outcome), /The export of/);
-    const document = await cartography(documented(), { root, source: DOC });
+    const document = await cartography(documented(), { root, source: CODE });
     assert.deepEqual([document.outcome.card?.status, existsSync(document.outcome.cardPath!.replace(/\.json$/, ""))], ["complete", false]);
   });
 });
@@ -662,7 +668,7 @@ describe("what writes no card", () => {
   });
 
   it("a card that would not match its schema, or a session that failed before any card", async () => {
-    for (const setup of [{}, { source: DOC }]) {
+    for (const setup of [{}, { source: CODE }]) {
       const invalid = await cartography(setup.source === undefined ? happy() : documented(), {
         ...setup,
         config: (config) => ({ ...config, model: { ...config.model, model: "" } }),
@@ -674,17 +680,17 @@ describe("what writes no card", () => {
       assert.equal(invalid.outcome.card, undefined);
     }
     const down = await closedPort();
-    const failed = await cartography([], { source: DOC, modelUrl: `http://127.0.0.1:${down}/v1` });
+    const failed = await cartography([], { source: CODE, modelUrl: `http://127.0.0.1:${down}/v1` });
     assert.match(messages(failed.outcome), /The session failed: /);
   });
 
   it("but a card accepted before a limit stopped the task is written, truncated", async () => {
-    const { outcome } = await cartography(documented(), { source: DOC, limits: { maxIterations: 1, maxMinutes: 10, maxActions: 200 } });
+    const { outcome } = await cartography(documented(), { source: CODE, limits: { maxIterations: 1, maxMinutes: 10, maxActions: 200 } });
     assert.equal(outcome.card!.status, "truncated");
     assert.match(messages(outcome), /The task reached its iterations limit\./);
     assert.equal(outcome.stoppedBy, "iterations");
     const none = await cartography([{ body: toolCalls(MODEL, [submit({ domains: [] })]) }, { body: answer(MODEL, "Done.") }], {
-      source: DOC,
+      source: CODE,
       limits: { maxIterations: 1, maxMinutes: 10, maxActions: 200 },
     });
     assert.deepEqual([none.outcome.card, none.outcome.stoppedBy], [undefined, "iterations"]);
@@ -700,9 +706,9 @@ describe("defaults and tool errors", () => {
 
   it("journals a tool the agent called wrongly, for a card as for a batch, and dates the card with the system clock", async () => {
     const before = Date.now();
-    const wrong = [{ id: "w1", name: "specs_read_section", arguments: {} }];
-    const { outcome } = await cartography([{ body: toolCalls(MODEL, wrong) }, ...documented()], { source: DOC, systemClock: true });
-    assert.match(messages(outcome), /specs_read_section: The arguments do not match the schema of specs_read_section/);
+    const wrong = [{ id: "w1", name: "specs_read_file", arguments: {} }];
+    const { outcome } = await cartography([{ body: toolCalls(MODEL, wrong) }, ...documented()], { source: CODE, systemClock: true });
+    assert.match(messages(outcome), /specs_read_file: The arguments do not match the schema of specs_read_file/);
     assert.ok(Date.parse(outcome.card!.producedAt) >= before);
     const unknown = await cartography([{ body: toolCalls(MODEL, [{ id: "w1", name: "shop_db_list_tables", arguments: {} }]) }, ...happy()]);
     assert.match(messages(unknown.outcome), /shop_db_list_tables: /);
@@ -716,17 +722,6 @@ describe("the request of a cartography", () => {
     assert.equal(request.split("\n").slice(1, 3).join("|"), "- a|- b");
     assert.ok(!request.includes("indented line"));
   });
-
-  it("gives the start of each section of a document under its name", () => {
-    const request = sourceCardRequest("specs", "document", {
-      items: ["Orders", "Returns"],
-      facts: new Map([["Orders", { number: 1, level: 1 }]]),
-      excerpts: new Map([["Orders", "A customer places an order."]]),
-      fingerprint: "f",
-    });
-    assert.equal(request.split("\n").slice(1, 4).join("|"), "- Orders (number: 1; level: 1)|  A customer places an order.|- Returns");
-    assert.match(request, /The indented line under a name is what the harness already read of it\. Call a tool only for what this request does not show/);
-  });
 });
 
 /** A source of each other kind, the files it reads, and a card that places all its elements. */
@@ -736,25 +731,6 @@ const KINDS: readonly {
   readonly card: SourceCardSubmission;
   readonly facts: Readonly<Record<string, unknown>>;
 }[] = [
-  {
-    source: { id: "shop-specs", type: "document", path: "specs/shop.md", attachments: [{ application: "shop" }] },
-    files: { "specs/shop.md": "# Orders\n\n## Place an order\n\nText.\n\n### Detail\n\n# Customers\n" },
-    card: {
-      domains: [
-        {
-          id: "ordering",
-          label: "Ordering",
-          description: "Placing orders.",
-          items: [
-            { name: "Orders", summary: "The orders." },
-            { name: "Place an order", summary: "How an order is placed." },
-          ],
-        },
-      ],
-      unassigned: ["Customers"],
-    },
-    facts: { "Place an order": { number: 2, level: 2 } },
-  },
   {
     source: { id: "shop-code", type: "source-code", path: "code", commands: "none", attachments: [{ application: "shop" }] },
     files: { "code/web/orders.js": "app.post('/orders', place);\n", "code/domain/order.ts": "export class Order {}\n" },
@@ -851,6 +827,86 @@ describe("the workflow of an API contract", () => {
     );
     assert.match(instructions(3), /between backticks: `GET \/orders\/\{orderId\}`\.\n/);
     assert.match(instructions(3), /- In code, write an operation with its method and its path, and a schema under its name, as the request does\.\n/);
+  });
+});
+
+describe("the workflow of a document", () => {
+  it("exports its sections, has them grouped and documented in the words of a document, and derives the card of its sections", async () => {
+    const root = mkdtempSync(join(workspace, "repo-"));
+    const text = [
+      "# Orders",
+      "",
+      "What an order is.",
+      "",
+      "## Place an order",
+      "",
+      "A customer places an order.",
+      "",
+      "### Limits",
+      "",
+      "Ten lines.",
+      "",
+      "# Glossary",
+      "",
+    ];
+    writeFileSync(join(root, "shop.md"), text.join("\n"));
+    const source: CardSource = { id: "shop-specs", type: "document", path: "shop.md", attachments: [{ application: "shop" }] };
+    const ordering = { id: "ordering", label: "Ordering", description: "Placing orders." };
+    const placed = [
+      { name: "Orders", domain: "ordering", role: "What an order is." },
+      { name: "Place an order", domain: "ordering", role: "How an order is placed, and its limits." },
+    ];
+    const aside = { name: "Glossary", reason: "An empty glossary." };
+    const { outcome, server } = await cartography(
+      [
+        { body: toolCalls(MODEL, [place([...placed, aside], [ordering])]) },
+        { body: toolCalls(MODEL, [place([aside], undefined, "p2")]) },
+        { body: answer(MODEL, "Done.") },
+        { body: answer(MODEL, "`Orders` says what an order is; `Place an order` gives the rule of ten lines.") },
+      ],
+      { source, root },
+    );
+    assert.ok(outcome.card, messages(outcome));
+    assert.deepEqual(outcome.card.domains, [
+      {
+        ...ordering,
+        items: [
+          { name: "Orders", summary: "What an order is.", facts: { number: 1, level: 1 } },
+          { name: "Place an order", summary: "How an order is placed, and its limits.", facts: { number: 2, level: 2 } },
+        ],
+      },
+    ]);
+    assert.deepEqual([outcome.card.unassigned, outcome.card.status], [["Glossary"], "complete"]);
+    assert.deepEqual(
+      manifestOf(outcome).elements.map((element) => [element.name, element.kind, element.file]),
+      [
+        ["Orders", "section", "export/sections/Orders-" + manifestOf(outcome).elements[0]!.file.slice(-11)],
+        ["Place an order", "section", "export/sections/Place_an_order-" + manifestOf(outcome).elements[1]!.file.slice(-11)],
+        ["Glossary", "section", "export/sections/Glossary-" + manifestOf(outcome).elements[2]!.file.slice(-11)],
+      ],
+    );
+    const sent = (at: number) => (server.requests[at]!.body as { messages: { role: string; content: string }[] }).messages;
+    const instructions = (at: number) => sent(at).find((message) => message.role === "system")!.content;
+    assert.match(instructions(0), /You group the elements of one source of an application — the sections of a document — into functional domains/);
+    assert.ok(
+      sent(0)
+        .find((message) => message.role === "user")!
+        .content.includes(
+          [
+            "### Orders",
+            "section Orders (level 1, §1)",
+            "  starts: What an order is.",
+            "  sections: Place an order",
+            "",
+            "### Place an order",
+            "section Place an order (level 2, §2, in Orders)",
+            "  starts: A customer places an order. ### Limits Ten lines.",
+            "  headings: Limits",
+          ].join("\n"),
+        ),
+    );
+    assert.match(instructions(3), /You document one functional domain of one source of an application — the sections of a document — for the agents/);
+    assert.match(instructions(3), /- In code, write a section under its title, as the request does\.\n/);
   });
 });
 
@@ -955,10 +1011,17 @@ describe("freshness, criterion 2 — the sources without an up-to-date card are 
   it("opens one session per source, with the tools of that source only, then keeps every card", async () => {
     const root = mkdtempSync(join(workspace, "repo-"));
     writeFileSync(join(root, "specs.md"), "# Orders\n\n## Place an order\n");
-    const specs: SourceCardSubmission = {
-      domains: [{ id: "ordering", label: "Ordering", description: "Placing orders.", items: [{ name: "Orders", summary: "The orders." }] }],
-      unassigned: ["Place an order"],
-    };
+    // The document goes through the workflow of its export, as the base does: its sections placed, then the file of their domain.
+    const ordering = { id: "ordering", label: "Ordering", description: "Placing orders." };
+    const sections = [
+      { name: "Orders", domain: "ordering", role: "The orders." },
+      { name: "Place an order", domain: "ordering", role: "How an order is placed." },
+    ];
+    const specs = [
+      { body: toolCalls(MODEL, [place(sections, [ordering])]) },
+      { body: answer(MODEL, "Done.") },
+      { body: answer(MODEL, "`Orders` holds `Place an order`.") },
+    ];
     const map = async (replies: readonly { body: unknown }[], concurrency?: number) => {
       const server = await scriptedServer(replies);
       const gateway = await ModelGateway.start({ kind: "live", upstream: { baseUrl: server.baseUrl } });
@@ -980,7 +1043,7 @@ describe("freshness, criterion 2 — the sources without an up-to-date card are 
         await server.close();
       }
     };
-    const first = await map([...happy(), { body: toolCalls(MODEL, [submit(specs)]) }, { body: answer(MODEL, "One domain.") }]);
+    const first = await map([...happy(), ...specs]);
     assert.deepEqual(
       first.results.map(({ source, outcome }) => [source.id, outcome.kept, outcome.card?.status]),
       [
@@ -991,7 +1054,7 @@ describe("freshness, criterion 2 — the sources without an up-to-date card are 
     const toolsOf = (request: number) =>
       ((first.server.requests[request]!.body as { tools?: { function: { name: string } }[] }).tools ?? []).map((tool) => tool.function.name);
     assert.deepEqual([toolsOf(0), toolsOf(3)], [["place_elements"], []]);
-    assert.ok(toolsOf(5).includes("specs_read_section") && !toolsOf(5).some((name) => name.startsWith("shop_db_")));
+    assert.deepEqual(toolsOf(5), ["place_elements"]);
     assert.equal((first.server.requests[5]!.body as { messages: unknown[] }).messages.length, 2, "the second source starts a session of its own");
     const again = await map([], 2);
     assert.deepEqual([again.results.map(({ outcome }) => outcome.kept), again.server.requests.length], [[true, true], 0]);
@@ -1054,9 +1117,10 @@ describe("single read, criterion 2 — a card is made of the inventory read befo
 describe("sources a card must still be made of", () => {
   it("gives a source without any element an empty, complete card, without the model", async () => {
     const root = mkdtempSync(join(workspace, "repo-"));
-    writeFileSync(join(root, "notes.md"), "Just text, no heading.\n");
+    mkdirSync(join(root, "notes"));
+    writeFileSync(join(root, "notes", "readme.txt"), "Just text, no code.\n");
     const { outcome, server } = await cartography([], {
-      source: { id: "notes", type: "document", path: "notes.md", attachments: [{ application: "shop" }] },
+      source: { id: "notes", type: "source-code", path: "notes", commands: "none", attachments: [{ application: "shop" }] },
       root,
     });
     assert.deepEqual([outcome.card?.status, outcome.card?.domains, outcome.card?.unassigned, server.requests.length], ["complete", [], [], 0]);
@@ -1090,7 +1154,7 @@ describe("sources a card must still be made of", () => {
     };
     const { outcome, server } = await cartography(
       [{ body: toolCalls(MODEL, [submit(leaky)]) }, { body: toolCalls(MODEL, [submit(CARD, "c2")]) }, { body: answer(MODEL, "Done.") }],
-      { source: DOC },
+      { source: CODE },
     );
     assert.match(messages(outcome), /The card was refused: \/domains\/0\/items\/0\/summary holds a secret of the configuration; write it without the secret\./);
     assert.ok(outcome.card);

@@ -13,8 +13,8 @@ Rules:
 - When the card is ready, call ${SUBMIT_CARD_TOOL}. If it refuses the card, fix what it says and call it again. Then answer with one sentence.`;
 
 /**
- * Writes the request that starts the cartography of one source: its elements, what is known of them, and
- * what the harness read of each, so that the agent calls a tool only for what the request does not show.
+ * Writes the request that starts the cartography of one source: its elements and what is known of them, so
+ * that the agent calls a tool only for what the request does not show.
  *
  * @param sourceId - Identifier of the source.
  * @param type - Its kind.
@@ -22,22 +22,15 @@ Rules:
  * @returns The message to send to the cartographer.
  */
 export function sourceCardRequest(sourceId: string, type: string, inventory: SourceInventory): string {
-  const lines = inventory.items.map((item) => `- ${item}${describe(inventory.facts.get(item))}${excerpt(inventory.excerpts?.get(item))}`);
+  const lines = inventory.items.map((item) => `- ${item}${describe(inventory.facts.get(item))}`);
   const names = JSON.stringify(inventory.items);
-  const read =
-    inventory.excerpts === undefined || inventory.excerpts.size === 0 ? "" : " The indented line under a name is what the harness already read of it.";
-  return `Write the card of the source ${sourceId} (${type}). Its ${inventory.items.length} elements, with what is already known of each:\n${lines.join("\n")}\n\nThe elements to place are exactly these names: ${names}. What follows each name in parentheses is known facts, not elements.${read} Call a tool only for what this request does not show, then hand the card in with ${SUBMIT_CARD_TOOL}.`;
+  return `Write the card of the source ${sourceId} (${type}). Its ${inventory.items.length} elements, with what is already known of each:\n${lines.join("\n")}\n\nThe elements to place are exactly these names: ${names}. What follows each name in parentheses is known facts, not elements. Call a tool only for what this request does not show, then hand the card in with ${SUBMIT_CARD_TOOL}.`;
 }
 
 /** The facts of an element, in a few words: its keys and links, or its operations. */
 function describe(facts: Readonly<Record<string, unknown>> = {}): string {
   const parts = Object.entries(facts).map(([key, value]) => `${key}: ${JSON.stringify(value)}`);
   return parts.length === 0 ? "" : ` (${parts.join("; ")})`;
-}
-
-/** What the harness read of an element, on its own indented line. */
-function excerpt(text: string | undefined): string {
-  return text === undefined ? "" : `\n  ${text}`;
 }
 
 /**

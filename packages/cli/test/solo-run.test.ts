@@ -186,9 +186,9 @@ const isFinalRun = (command: StepCommand) =>
   command.command[1] === "test" && !command.command.includes("--list") && !command.command.includes("--update-snapshots=missing");
 
 const submit = (name: string, args: unknown, id: string) => ({ id, name, arguments: args });
-const card = {
-  domains: [{ id: "orders", label: "Orders", description: "Placing an order.", items: [{ name: "Orders", summary: "How an order is placed." }] }],
-  unassigned: [],
+const placement = {
+  domains: [{ id: "orders", label: "Orders", description: "Placing an order." }],
+  items: [{ name: "Orders", domain: "orders", role: "How an order is placed." }],
 };
 const index = {
   domains: [{ id: "orders", label: "Orders", description: "Placing and following an order.", references: [{ source: "order-specs", items: ["Orders"] }] }],
@@ -231,8 +231,10 @@ const written = (id: string) => [
 const planned = { body: toolCalls(MODEL, [plan]) };
 const chain = () => [
   { body: { data: [] } },
-  { body: toolCalls(MODEL, [submit("submit_card", card, "c1")]) },
-  { body: answer(MODEL, "One domain.") },
+  // The document goes through the workflow of its export: its one section is placed, then the file of its domain is written.
+  { body: toolCalls(MODEL, [submit("place_elements", placement, "c1")]) },
+  { body: answer(MODEL, "Done.") },
+  { body: answer(MODEL, "`Orders` says how an order is placed.") },
   { body: toolCalls(MODEL, [submit("submit_index", index, "x1")]) },
   { body: answer(MODEL, "One domain.") },
   read(),
@@ -454,9 +456,9 @@ describe("solo command, criterion 9 — the state of a complete run", () => {
     // Each step counts the requests of its own sessions: with the list of the models the prerequisites ask for, they are all the server received.
     assert.deepEqual(
       state.steps.map((step) => step.modelRequests),
-      [0, 0, 4, 12, 0],
+      [0, 0, 5, 12, 0],
     );
-    assert.equal(run.server.requests.length, 1 + 4 + 12);
+    assert.equal(run.server.requests.length, 1 + 5 + 12);
     assert.ok(state.durationMs > state.steps.reduce((total, step) => total + step.durationMs, 0) - 1);
   });
 });
@@ -877,7 +879,7 @@ describe("the guardrail of a run", () => {
   it("stops a task opened once the guardrail is reached, by its duration limit", async () => {
     const run = await guarded({ level: "autonomous", guardrailMinutes: 1 }, "2026-11-13T12:01:00.000Z");
     assert.equal(run.code, 5, run.err);
-    assert.match(run.err, /The task reached its duration limit\./);
+    assert.match(run.err, /The session of batch 1 of 1 reached its duration limit\./);
     assert.equal(run.limits[0]?.maxDurationMs, 0);
     assert.deepEqual(stateOf(run.root).stoppedBy, { step: "cartography", limit: "duration" });
   });
@@ -907,11 +909,11 @@ describe("autonomy, criterion 4 — a design stopped by maxIterations after a pl
     const replies = chain();
     // The first run: the check of the server, the cartography, the plan, test-1, then the session of test-2 cut at its fifth call, its test run but not closed.
     const cut = [written("test-2")[0]!, read("l1"), read("l2"), read("l3"), read("l4")];
-    const server = await scriptedServer([...replies.slice(0, 11), ...cut, { body: { data: [] } }, ...written("test-2"), ...written("test-3")]);
+    const server = await scriptedServer([...replies.slice(0, 12), ...cut, { body: { data: [] } }, ...written("test-2"), ...written("test-3")]);
     try {
       const first = await solo([], { environment: "local", modelUrl: server.baseUrl, config: boundedTo(5) });
       assert.equal(first.code, 5, first.err);
-      assert.equal(server.requests.length, 1 + 4 + 3 + 3 + 5);
+      assert.equal(server.requests.length, 1 + 5 + 3 + 3 + 5);
       assert.match(first.err, /The task reached its iterations limit; no test was written for the scenario under way\./);
       assert.match(first.out, new RegExp(`The design was stopped by its iterations limit; resume the run with: oqas --resume ${FIRST_RUN}\n`));
       const stopped = stateOf(first.root);
@@ -923,11 +925,11 @@ describe("autonomy, criterion 4 — a design stopped by maxIterations after a pl
       const resumed = await solo([], { root: () => first.root, modelUrl: server.baseUrl, config: boundedTo(5), resume: FIRST_RUN, now: later(13) });
       assert.equal(resumed.code, 0, resumed.err);
       // The first session of the run resumed is that of the first scenario not closed: it is given its sheet, not the test kept.
-      const session = server.requests[17]!.body;
+      const session = server.requests[18]!.body;
       assert.ok(JSON.stringify(session).includes("Scenario 2 of 3: test-2"), "the session is given the sheet of the scenario left");
       assert.ok(!JSON.stringify(session).includes("test-1"), "the session is not given the kept test");
       assert.ok(!offered(session).includes("propose_plan"));
-      assert.ok(!server.requests.slice(17).some((request) => JSON.stringify(request.body).includes('"name":"propose_plan"')));
+      assert.ok(!server.requests.slice(18).some((request) => JSON.stringify(request.body).includes('"name":"propose_plan"')));
       // The resumed design tries the tests of the scenarios left, never the kept one.
       assert.deepEqual(tried(resumed.runner), ["apps/shop/test-2.spec.ts", "apps/shop/test-3.spec.ts"]);
       const state = stateOf(first.root, "oqas-2026-11-13T13-00-00-000Z");
@@ -951,12 +953,12 @@ describe("autonomy, criterion 4 — a design stopped by maxIterations after a pl
   it("keeps the cards a cartography made, then the plan of a design stopped before its first test", async () => {
     const bad = { body: toolCalls(MODEL, [submit("submit_index", { domains: [], unassigned: [] }, "x0")]) };
     const server = await scriptedServer([
-      ...chain().slice(0, 3),
+      ...chain().slice(0, 4),
       bad,
       bad,
       { body: { data: [] } },
       // The index, the plan, at the second and last call of its session, then the session of test-1, cut before it ran anything.
-      ...chain().slice(3, 7),
+      ...chain().slice(4, 8),
       read("l1"),
       read("l2"),
       { body: { data: [] } },
@@ -995,7 +997,7 @@ describe("autonomy, criterion 4 — a design stopped by maxIterations after a pl
     const four = [...IDS, "test-4"];
     // The first run: the check of the server, the cartography, a plan of four scenarios, three tests, then the session of the fourth cut at its fourth call.
     const server = await scriptedServer([
-      ...chain().slice(0, 6),
+      ...chain().slice(0, 7),
       { body: toolCalls(MODEL, [submit("propose_plan", { scenarios: four.map(scenario) }, "plan")]) },
       ended,
       ...IDS.flatMap(written),

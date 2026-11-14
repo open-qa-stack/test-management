@@ -20,17 +20,19 @@ It works in two steps: each source is first mapped on its own into a [source car
 |---|---|---|---|
 | Contract | Its operations, each as `METHOD /path`; its named schemas are elements of its export only | Its kind, `operation`, its identifier and its tags when it has some | |
 | Base | Its tables, then its views, materialized or not, each as `schema.name`, read from the catalog only | Its kind, `table` or `view`, and its number of columns; for a table, primary key and foreign keys; for a view, the tables and views it reads; for either, the names of its triggers when it has some | |
-| Document | Its sections of the two highest levels; a repeated title is followed by its number, as `Overview (§7)` | Number and level | The start of its text, up to 300 characters |
+| Document | Its sections of the two highest levels; a repeated title is followed by its number, as `Overview (§7)` | Number and level | |
 | Source code | The folders that hold files a grammar reads; past forty, the deepest are merged into their parent | Number of files, routes their outlines declare | |
 | User interface | The screens the agent visited, by path, with the route after `#/` and without the query | Latest title, links to other screens its snapshots showed | |
 
-A base and a contract are not mapped with `submit_card`: see [The workflow of a base](#the-workflow-of-a-base), which a contract follows too. For any other source, the request gives the agent each element with its facts and, on an indented line, what else the harness read of it, so that it calls a tool only for what the request does not show; those are not kept in the card. The agent gets the tools of this source only, and the notes. It hands the card in with `submit_card`, which must place every element and invent none; the facts are joined to the card afterwards. The fingerprint of a contract or a document covers its text, that of a base the definition of each of its exported elements, routines and triggers included, that of source code the content of the files counted, and that of a user interface its address, so that its card is made again on demand only.
+A base, a contract and a document are not mapped with `submit_card`: see [The workflow of a base](#the-workflow-of-a-base), which a contract and a document follow too. For any other source, the request gives the agent each element with its facts and, on an indented line, what else the harness read of it, so that it calls a tool only for what the request does not show; those are not kept in the card. The agent gets the tools of this source only, and the notes. It hands the card in with `submit_card`, which must place every element and invent none; the facts are joined to the card afterwards. The fingerprint of a contract or a document covers its text, that of a base the definition of each of its exported elements, routines and triggers included, that of source code the content of the files counted, and that of a user interface its address, so that its card is made again on demand only.
 
 ## The workflow of a base
 
 A base has too many elements for one answer. Its card is derived from a workflow the harness drives, in the folder `<indexDir>/sources/<id>/`, beside the card.
 
 A contract follows the same workflow, from its own export: one element per operation, in `export/operations/`, then one per named schema, in `export/schemas/`, each defined by what the contract writes of it, as JSON, its references kept. The instructions of its sessions speak of operations and schemas where those of a base speak of tables, views and routines; its card holds its operations.
+
+A document follows it as well: one element per section of its two highest levels, in `export/sections/`, a chapter defined by its own text and a section by its whole text, as Markdown. The instructions of its sessions speak of sections. A document is read as Markdown, the one format read so far; the export works on the sections any reader gives, so that another format needs its reader only.
 
 The steps:
 
