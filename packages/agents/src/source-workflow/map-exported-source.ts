@@ -71,7 +71,7 @@ export async function mapExportedSource(options: ExportedSourceOptions): Promise
   journal.record("info", `The export of ${source.id} and its manifest were written to ${folder.root}.`, source.id);
   if (kept.size > 0)
     journal.record("info", `${kept.size} of the ${exported.elements.length} elements of ${source.id} did not change; they keep their place.`, source.id);
-  let used = await groupElements({ ...options, sourceId: source.id, grouping, former, afterBatch: record });
+  let used = await groupElements({ ...options, sourceId: source.id, sourceType: source.type, grouping, former, afterBatch: record });
   const vocabulary = exportVocabulary(source.id, exported);
   const domains = grouping.populated();
   for (const { id } of previous?.domains ?? []) {
@@ -90,7 +90,7 @@ export async function mapExportedSource(options: ExportedSourceOptions): Promise
       continue;
     }
     const others = domains.filter((other) => other.id !== domain.id);
-    const written = await writeDomain({ ...options, sourceId: source.id, domain, members, others, vocabulary });
+    const written = await writeDomain({ ...options, sourceId: source.id, sourceType: source.type, domain, members, others, vocabulary });
     used = addSessions(used, written);
     const file = await folder.writeDomain(domain.id, renderDomainFile(domain, written.body), written.refusedBody);
     files.set(domain.id, { file, writtenBy: written.writtenBy, ...(written.refused === undefined ? {} : { refused: written.refused }) });

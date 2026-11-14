@@ -1,5 +1,5 @@
 import type { AgentEvent, AgentRuntime, TaskLimits } from "@open-qa-stack/domain";
-import type { ManifestDomain } from "@open-qa-stack/shared";
+import type { IndexSourceType, ManifestDomain } from "@open-qa-stack/shared";
 import { redactText, secretForms, type ExportedElement } from "@open-qa-stack/tools";
 import { runAgentTask } from "../common/agent-task.ts";
 import type { Journal } from "../common/journal.ts";
@@ -7,12 +7,14 @@ import { citedNameProblems, type ExportVocabulary } from "./cited-names.ts";
 import { minimalBody, unfenced } from "./domain-file.ts";
 import { domainFileErrors } from "./domain-file-control.ts";
 import { sessionUse, type SessionsUse } from "./group-elements.ts";
-import { domainRequest, WRITING_INSTRUCTIONS } from "./writing-prompt.ts";
+import { domainRequest, writingInstructions } from "./writing-prompt.ts";
 
 /** What the writing of the file of a domain needs. */
 export interface WriteDomainOptions {
   /** Identifier of the source. */
   readonly sourceId: string;
+  /** What the source is, which the instructions name its elements by. */
+  readonly sourceType: IndexSourceType;
   /** The domain. */
   readonly domain: ManifestDomain;
   /** Its elements, each with its role. */
@@ -95,7 +97,7 @@ export async function writeDomain(options: WriteDomainOptions): Promise<WrittenD
     return [header, ...[...errors, ...doubts].map((problem) => `- ${problem}`)].join("\n");
   };
   const task = {
-    instructions: WRITING_INSTRUCTIONS,
+    instructions: writingInstructions(options.sourceType),
     tools: [],
     request: redactText(domainRequest(sourceId, domain, options.members, options.others), options.secrets.flatMap(secretForms)),
     events,

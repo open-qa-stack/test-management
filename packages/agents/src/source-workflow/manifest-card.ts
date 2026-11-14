@@ -6,7 +6,7 @@ import type { SourceInventory } from "@open-qa-stack/tools";
  *
  * @remarks
  * The card holds the elements of the inventory only — the tables and views of a database, not its
- * routines. A domain of the manifest that holds one of them is a domain of the card, the role of each
+ * routines; the operations of a contract, not its schemas. A domain of the manifest that holds one of them is a domain of the card, the role of each
  * element as its summary; the elements set aside or left unplaced are `unassigned`. The card is `complete`
  * when the manifest is.
  *

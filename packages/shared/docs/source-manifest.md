@@ -12,7 +12,7 @@ The manifest of a source lists the elements the harness exported from it without
 | `domains` | The functional domains made while the elements were grouped: `id` (an English slug, unique), `label`, a one-sentence `description`; then, once its file is written, `file`, its path relative to the folder of the manifest, `writtenBy`, `model` or `harness`, and `refused`, why the harness wrote it itself. |
 | `elements` | Each element exported, in the order of the export. |
 
-An element has its `name`, exactly as the source gives it and unique in the manifest, its `kind` in one word of the source (`table`, `view` or `routine` for a database), the `fingerprint` of its definition — an element whose fingerprint is the same did not change — and the `file` of its definition, as a path relative to the folder of the manifest, with forward slashes. Once the grouping settled it, it has one of:
+An element has its `name`, exactly as the source gives it and unique in the manifest, its `kind` in one word of the source (`table`, `view` or `routine` for a database, `operation` or `schema` for a contract), the `fingerprint` of its definition — an element whose fingerprint is the same did not change — and the `file` of its definition, as a path relative to the folder of the manifest, with forward slashes. Once the grouping settled it, it has one of:
 
 - `domain` and `role`: the domain it was placed in, and what it holds or does in one line; an element in a domain always has its role;
 - `dismissed`: why the model set it aside, in no domain;

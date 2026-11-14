@@ -60,6 +60,7 @@ async function grouped(turns: readonly Turn[], exported: SourceExport, grouping 
   let batchesOver = 0;
   const used = await groupElements({
     sourceId: "shop-db",
+    sourceType: "postgresql",
     exported,
     grouping,
     former: new Map(),

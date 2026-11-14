@@ -737,21 +737,6 @@ const KINDS: readonly {
   readonly facts: Readonly<Record<string, unknown>>;
 }[] = [
   {
-    source: { id: "shop-api", type: "openapi", path: "contracts/shop.json", attachments: [{ application: "shop" }] },
-    files: {
-      "contracts/shop.json": JSON.stringify({
-        openapi: "3.0.3",
-        info: { title: "Shop", version: "1" },
-        paths: { "/orders": { get: { tags: ["orders"] }, post: { tags: ["orders"] } }, "/health": { get: {} } },
-      }),
-    },
-    card: {
-      domains: [{ id: "ordering", label: "Ordering", description: "Placing orders.", items: [{ name: "orders", summary: "Lists and places orders." }] }],
-      unassigned: ["/health"],
-    },
-    facts: { orders: { operations: ["GET /orders", "POST /orders"] } },
-  },
-  {
     source: { id: "shop-specs", type: "document", path: "specs/shop.md", attachments: [{ application: "shop" }] },
     files: { "specs/shop.md": "# Orders\n\n## Place an order\n\nText.\n\n### Detail\n\n# Customers\n" },
     card: {
@@ -790,6 +775,84 @@ const KINDS: readonly {
     facts: { web: { files: 1, routes: ["app.post('/orders', …)"] } },
   },
 ];
+
+describe("the workflow of an API contract", () => {
+  it("exports its operations and its schemas, has them grouped and documented in the words of a contract, and derives the card of its operations", async () => {
+    const root = mkdtempSync(join(workspace, "repo-"));
+    mkdirSync(join(root, "contracts"));
+    const order = { $ref: "#/components/schemas/Order" };
+    const paths = {
+      "/orders": {
+        get: { tags: ["orders"], operationId: "listOrders", responses: { "200": { content: { "application/json": { schema: order } } } } },
+        post: { tags: ["orders"], requestBody: { content: { "application/json": { schema: order } } } },
+      },
+      "/health": { get: {} },
+    };
+    const schemas = { Order: { type: "object", properties: { status: { type: "string" } } } };
+    writeFileSync(
+      join(root, "contracts/shop.json"),
+      JSON.stringify({ openapi: "3.0.3", info: { title: "Shop", version: "1" }, paths, components: { schemas } }),
+    );
+    const source: CardSource = { id: "shop-api", type: "openapi", path: "contracts/shop.json", attachments: [{ application: "shop" }] };
+    const placed = [
+      { name: "GET /orders", domain: "ordering", role: "Lists the orders." },
+      { name: "POST /orders", domain: "ordering", role: "Places an order." },
+      { name: "Order", domain: "ordering", role: "An order and its status." },
+    ];
+    const aside = { name: "GET /health", reason: "A health check." };
+    const ordering = { id: "ordering", label: "Ordering", description: "Placing orders." };
+    const file = "| Element | Role |\n|---|---|\n| `GET /orders` | Lists. |\n| `POST /orders` | Places an `Order`. |";
+    const { outcome, server } = await cartography(
+      [
+        { body: toolCalls(MODEL, [place([...placed, aside], [ordering])]) },
+        { body: toolCalls(MODEL, [place([aside], undefined, "p2")]) },
+        { body: answer(MODEL, "Done.") },
+        { body: answer(MODEL, file) },
+      ],
+      { source, root },
+    );
+    assert.ok(outcome.card, messages(outcome));
+    assert.ok(validateSourceCard(JSON.parse(readFileSync(outcome.cardPath!, "utf8"))).ok);
+    // The card holds the operations, each with the facts read without the model; the schemas are elements of the export only.
+    assert.deepEqual(outcome.card.domains, [
+      {
+        ...ordering,
+        items: [
+          { name: "GET /orders", summary: "Lists the orders.", facts: { kind: "operation", operationId: "listOrders", tags: ["orders"] } },
+          { name: "POST /orders", summary: "Places an order.", facts: { kind: "operation", tags: ["orders"] } },
+        ],
+      },
+    ]);
+    assert.deepEqual([outcome.card.unassigned, outcome.card.status], [["GET /health"], "complete"]);
+    assert.deepEqual(
+      manifestOf(outcome).elements.map((element) => [element.name, element.kind, element.domain]),
+      [
+        ["GET /orders", "operation", "ordering"],
+        ["POST /orders", "operation", "ordering"],
+        ["GET /health", "operation", undefined],
+        ["Order", "schema", "ordering"],
+      ],
+    );
+    const sent = (at: number) => (server.requests[at]!.body as { messages: { role: string; content: string }[] }).messages;
+    const instructions = (at: number) => sent(at).find((message) => message.role === "system")!.content;
+    assert.match(
+      instructions(0),
+      /You group the elements of one source of an application — the operations and schemas of an API contract — into functional domains/,
+    );
+    assert.match(instructions(0), /only when it serves no functional area: a health check, a technical schema\./);
+    assert.ok(
+      sent(0)
+        .find((message) => message.role === "user")!
+        .content.includes("### GET /orders\noperation GET /orders\n  id: listOrders\n  tags: orders\n  responses: 200 Order"),
+    );
+    assert.match(
+      instructions(3),
+      /You document one functional domain of one source of an application — the operations and schemas of an API contract — for the agents/,
+    );
+    assert.match(instructions(3), /between backticks: `GET \/orders\/\{orderId\}`\.\n/);
+    assert.match(instructions(3), /- In code, write an operation with its method and its path, and a schema under its name, as the request does\.\n/);
+  });
+});
 
 describe("a card for every kind of source", () => {
   for (const kind of KINDS) {

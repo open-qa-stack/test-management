@@ -1,4 +1,5 @@
 import type { AgentEvent, AgentRuntime, StopReason, TaskLimits } from "@open-qa-stack/domain";
+import type { IndexSourceType } from "@open-qa-stack/shared";
 import { redactText, secretForms, type SourceExport } from "@open-qa-stack/tools";
 import { runAgentTask, taskEnd } from "../common/agent-task.ts";
 import type { Journal } from "../common/journal.ts";
@@ -6,12 +7,14 @@ import { totalUsage, usageOf, type ModelUsage } from "../common/model-usage.ts";
 import { BatchPlacement } from "./batch-placement.ts";
 import { elementBatches } from "./element-batches.ts";
 import type { Grouping } from "./grouping.ts";
-import { batchRequest, GROUPING_INSTRUCTIONS } from "./grouping-prompt.ts";
+import { batchRequest, groupingInstructions } from "./grouping-prompt.ts";
 
 /** What the grouping of the elements of a source needs. */
 export interface GroupElementsOptions {
   /** Identifier of the source. */
   readonly sourceId: string;
+  /** What the source is, which the instructions name its elements by. */
+  readonly sourceType: IndexSourceType;
   /** The export of the source. */
   readonly exported: SourceExport;
   /** The grouping the placements go to; its settled elements are not asked again. */
@@ -107,7 +110,7 @@ export async function groupElements(options: GroupElementsOptions): Promise<Sess
     const placement = new BatchPlacement({ sourceId, label, batch, grouping, secrets: options.secrets, journal });
     const events: AgentEvent[] = [];
     const task = {
-      instructions: GROUPING_INSTRUCTIONS,
+      instructions: groupingInstructions(options.sourceType),
       tools: [placement.tool()],
       request: redactText(batchRequest(sourceId, i + 1, batches.length, batch, grouping, options.former), forms),
       events,

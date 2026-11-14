@@ -693,7 +693,7 @@ describe("a session that fails", () => {
     const cards = await cartography([], { cards: [] }, new CatalogDouble(), `http://127.0.0.1:${down}/v1`);
     assert.match(
       messages(cards.outcome),
-      /The session failed: [^]*No card was written: no element of shop-db was placed\.[^]*No index was written: no source has a card\./,
+      /No card was written: no element of shop-api was placed\.[^]*No card was written: no element of shop-db was placed\.[^]*The session failed: [^]*No index was written: no source has a card\./,
     );
   });
 });
