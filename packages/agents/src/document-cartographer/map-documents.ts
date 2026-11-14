@@ -59,7 +59,8 @@ export async function mapDocuments(options: MapDocumentsOptions): Promise<Sessio
   const { source, documents, folder, journal, now } = options;
   const listing = await documents.list();
   const watch = new DocumentWatch(listing.files.map((file) => file.path));
-  const map = new DocumentMap({ sourceId: source.id, documents, files: listing.files, watch, secrets: options.secrets, journal });
+  const sections = new Map(await Promise.all(listing.files.map(async ({ path }) => [path, await documents.sections(path)] as const)));
+  const map = new DocumentMap({ sourceId: source.id, documents, files: listing.files, sections, watch, secrets: options.secrets, journal });
   const events: AgentEvent[] = [];
   const task = {
     instructions: documentCartographerInstructions(source.id),

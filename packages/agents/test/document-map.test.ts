@@ -24,17 +24,18 @@ const FILES: Readonly<Record<string, string>> = {
 type Told = string | { error: string };
 
 /** A map of the documents above, with the tools an agent explores them with and those it hands its map in with. */
-async function mapped(files: readonly string[] = Object.keys(FILES), path = "docs") {
+async function mapped(files: readonly string[] = Object.keys(FILES), path = "docs", texts: Readonly<Record<string, string>> = FILES) {
   const root = mkdtempSync(join(workspace, "repo-"));
   for (const path of files) {
     mkdirSync(join(root, "docs", path, ".."), { recursive: true });
-    writeFileSync(join(root, "docs", path), FILES[path]!);
+    writeFileSync(join(root, "docs", path), texts[path]!);
   }
   const documents = new DocumentSet(root, path);
   const listing = await documents.list();
   const watch = new DocumentWatch(listing.files.map((file) => file.path));
   const journal = new Journal();
-  const map = new DocumentMap({ sourceId: "specs", documents, files: listing.files, watch, secrets: ["s3cr3t-token"], journal });
+  const sections = new Map(await Promise.all(listing.files.map(async ({ path }) => [path, await documents.sections(path)] as const)));
+  const map = new DocumentMap({ sourceId: "specs", documents, files: listing.files, sections, watch, secrets: ["s3cr3t-token"], journal });
   const explore = watch.watched(documentTools("specs", documents));
   const call = (name: string, args: object = {}) => [...explore, ...map.tools()].find((tool) => tool.name === name)!.execute(args) as Promise<Told>;
   return { map, journal, call, watch };
@@ -45,7 +46,7 @@ const refusal = (what: string, ...problems: string[]) => ({
   error: [`Refused. ${what}. Fix what follows, and only that, then call the tool again.`, ...problems.map((problem) => `- ${problem}`)].join("\n"),
 });
 const left = (count: number, names: string) =>
-  `${count} documents are in no domain and not set aside: ${names}. Next: place each with write_domain, or set it aside with set_aside.`;
+  `${count} documents or sections are in no domain and not set aside: ${names}. Next: place each with write_domain, or set it aside with set_aside; a section that holds others covers them.`;
 
 describe("what an agent saw of the documents of a source", () => {
   it("is what its calls showed: the title of a document a listing returns, its outline, its text, and nothing for a call that fails", async () => {
@@ -145,7 +146,7 @@ describe("the map of the documents of a source, handed in domain by domain", () 
       ((await call("write_domain", { ...ORDERS, elements: many, body: "x" })) as { error: string }).error,
       /- The domain has 41 elements, 40 at most\. Split it into two domains\./,
     );
-    assert.deepEqual([map.closed, map.reminder()?.startsWith("You stopped before the end. 6 documents are in no domain")], [false, true]);
+    assert.deepEqual([map.closed, map.reminder()?.startsWith("You stopped before the end. 6 documents or sections are in no domain")], [false, true]);
     assert.ok(journal.entries().some((entry) => entry.message === "The domain orders was not kept: orders/cancel.md is given twice. Give each element once."));
   });
 
@@ -219,31 +220,31 @@ describe("the map of the documents of a source, handed in domain by domain", () 
     await call("specs_read_file", { file: "orders/cancel.md" });
     await call("write_domain", { ...ORDERS, elements: [{ file: "orders/cancel.md", role: "r" }], body: "`orders/cancel.md`" });
     assert.deepEqual(
-      await call("set_aside", { files: ["orders/cancel.md", "ghost.md", "orders/follow.md"], reason: " " }),
+      await call("set_aside", { elements: [{ file: "orders/cancel.md" }, { file: "ghost.md" }, { file: "orders/follow.md" }], reason: " " }),
       refusal(
-        "The documents were not set aside",
-        "orders/cancel.md is in the domain orders: a document is placed or set aside, not both.",
+        "Nothing was set aside",
+        "orders/cancel.md is in the domain orders: a document or a section is placed or set aside, not both.",
         "ghost.md is no document of specs. Use the paths specs_list_files gives.",
-        "You saw nothing of orders/follow.md. List its folder with specs_list_files, or list its sections, before you set it aside.",
+        "You saw nothing of orders/follow.md. List its folder with specs_list_files before you set it aside.",
         "Give the reason in one sentence of 200 characters at most.",
       ),
     );
     assert.deepEqual(
-      await call("set_aside", { files: "none", reason: "r" }),
-      refusal("The documents were not set aside", "Give in files the documents to set aside."),
+      await call("set_aside", { elements: "none", reason: "r" }),
+      refusal("Nothing was set aside", "Give in elements the documents, or the sections, to set aside."),
     );
     assert.deepEqual(
-      await call("set_aside", { files: ["changelog.md"], reason: "x".repeat(201) }),
-      refusal("The documents were not set aside", "Give the reason in one sentence of 200 characters at most."),
+      await call("set_aside", { elements: [{ file: "changelog.md" }], reason: "x".repeat(201) }),
+      refusal("Nothing was set aside", "Give the reason in one sentence of 200 characters at most."),
     );
     assert.equal(
-      await call("set_aside", { files: ["changelog.md", "glossary.md"], reason: "They  describe\nno feature." }),
-      `2 documents are set aside. ${left(3, "billing/invoice.md, orders/follow.md, orders/place.md")}`,
+      await call("set_aside", { elements: [{ file: "changelog.md" }, { file: "glossary.md" }], reason: "They  describe\nno feature." }),
+      `2 documents or sections are set aside. ${left(3, "billing/invoice.md, orders/follow.md, orders/place.md")}`,
     );
     await call("specs_list_sections", { file: "changelog.md" });
     assert.deepEqual(
       await call("write_domain", { id: "history", label: "History", description: "Changes.", elements: [{ file: "changelog.md", role: "r" }], body: "x" }),
-      refusal("The domain history was not kept", "changelog.md is set aside: a document is placed or set aside, not both."),
+      refusal("The domain history was not kept", "changelog.md is set aside: a document or a section is placed or set aside, not both."),
     );
     const { exported, grouping } = await map.result();
     assert.deepEqual(grouping.state("changelog.md"), { dismissed: "They describe no feature." });
@@ -253,6 +254,103 @@ describe("the map of the documents of a source, handed in domain by domain", () 
       /^document orders\/cancel\.md\n  starts: (Before it ships\. ){17}Before it s…$/,
     );
     assert.equal(exported.elements.find((element) => element.name === "changelog.md")!.definition, "# Changes\n");
+  });
+
+  it("holds a document cut into sections to every one of them: a section is covered by itself or by one that holds it, and the largest left are named", async () => {
+    const spec = [
+      "# Spec",
+      "",
+      "Intro.",
+      "",
+      "## Orders",
+      "",
+      "### Place",
+      "",
+      "A.",
+      "",
+      "### Cancel",
+      "",
+      "B.",
+      "",
+      "## Customers",
+      "",
+      "C.",
+      "",
+      "## Glossary",
+      "",
+      "D.",
+      "",
+    ].join("\n");
+    const { map, call } = await mapped(["spec.md", "notes.md"], "docs", { "spec.md": spec, "notes.md": "# Notes\n\n## Glossary\n" });
+    await call("specs_list_files");
+    await call("specs_read_file", { file: "spec.md" });
+    const orders = (section: number) => ({ ...ORDERS, elements: [{ file: "spec.md", section, role: "An order." }] });
+    // One section placed does not cover its document: the sections beside it, and those beside the ones that hold it, are still to place.
+    assert.equal(
+      await call("write_domain", { ...orders(3), body: "`spec.md § Place`" }),
+      `The domain orders is kept with 1 elements. ${left(4, "notes.md, spec.md § Cancel (section 4), spec.md § Customers (section 5), spec.md § Glossary (section 6)")}`,
+    );
+    // A section is set aside as a document is, once its outline was seen; one placed is not.
+    assert.deepEqual(
+      await call("set_aside", {
+        elements: [
+          { file: "spec.md", section: 3 },
+          { file: "spec.md", section: 9 },
+          { file: "notes.md", section: 2 },
+        ],
+        reason: "Words.",
+      }),
+      refusal(
+        "Nothing was set aside",
+        "spec.md § Place is in the domain orders: a document or a section is placed or set aside, not both.",
+        "spec.md has no section 9. Give a number specs_list_sections returns for it, or leave section out for the whole document.",
+        "You saw nothing of notes.md § Glossary. List the sections of notes.md with specs_list_sections before you set it aside.",
+      ),
+    );
+    assert.equal(
+      await call("set_aside", { elements: [{ file: "spec.md", section: 6 }, { file: "notes.md" }], reason: "Words, not features." }),
+      `2 documents or sections are set aside. ${left(2, "spec.md § Cancel (section 4), spec.md § Customers (section 5)")}`,
+    );
+    assert.deepEqual(
+      await call("write_domain", { id: "words", label: "Words", description: "Words.", elements: [{ file: "spec.md", section: 6, role: "r" }], body: "x" }),
+      refusal("The domain words was not kept", "spec.md § Glossary is set aside: a document or a section is placed or set aside, not both."),
+    );
+    // A section that holds others covers them: the chapter of the orders, handed in instead of one of its sections.
+    assert.equal(
+      await call("write_domain", { ...orders(2), body: "`spec.md § Orders`" }),
+      `The domain orders is kept with 1 elements. ${left(1, "spec.md § Customers (section 5)")}`,
+    );
+    assert.equal(map.closed, false);
+    const customers = {
+      id: "customers",
+      label: "Customers",
+      description: "Customers.",
+      elements: [{ file: "spec.md", section: 5, role: "A customer." }],
+      body: "`spec.md § Customers`",
+    };
+    assert.equal(
+      await call("write_domain", customers),
+      "The domain customers is kept with 1 elements. The whole source is placed or set aside. Answer with one sentence; call no more tools.",
+    );
+    const { exported, grouping } = await map.result();
+    assert.deepEqual(
+      exported.elements.map((element) => [element.name, element.kind, element.definition, grouping.state(element.name)]),
+      [
+        ["spec.md § Orders", "section", "## Orders\n\n### Place\n\nA.\n\n### Cancel\n\nB.", { domain: "orders", role: "An order." }],
+        ["spec.md § Customers", "section", "## Customers\n\nC.", { domain: "customers", role: "A customer." }],
+        ["spec.md § Glossary", "section", "## Glossary\n\nD.", { dismissed: "Words, not features." }],
+        ["notes.md", "document", "# Notes\n\n## Glossary\n", { dismissed: "Words, not features." }],
+      ],
+    );
+    // A section left when the session ends is an element all the same, unplaced.
+    const cut = await mapped(["spec.md"], "docs", { "spec.md": spec });
+    await cut.call("specs_list_sections", { file: "spec.md" });
+    await cut.call("write_domain", { ...orders(2), body: "`spec.md § Orders`" });
+    const ended = await cut.map.result();
+    assert.deepEqual(
+      ended.exported.elements.slice(1).map((element) => [element.name, ended.grouping.state(element.name)]),
+      ["spec.md § Customers", "spec.md § Glossary"].map((name) => [name, { unplaced: "The session of the agent ended before it was placed or set aside." }]),
+    );
   });
 
   it("asks once whether titles told enough when few documents of a domain were read, writes itself the file refused three times, and masks a secret", async () => {
@@ -297,7 +395,7 @@ describe("the map of the documents of a source, handed in domain by domain", () 
       ],
     );
     assert.ok(journal.entries().every((entry) => !entry.message.includes("s3cr3t-token")));
-    assert.ok(journal.entries().some((entry) => entry.message === "2 documents were left in no domain: changelog.md, glossary.md."));
+    assert.ok(journal.entries().some((entry) => entry.message === "2 documents or sections were left in no domain: changelog.md, glossary.md."));
   });
 
   it("is over once every document is placed or set aside, and closed by the harness after ten calls refused: what is placed stays", async () => {
@@ -311,7 +409,7 @@ describe("the map of the documents of a source, handed in domain by domain", () 
         elements: [{ file: "changelog.md", role: "r" }],
         body: "`changelog.md`",
       }),
-      "The domain history is kept with 1 elements. Every document is placed or set aside. Answer with one sentence; call no more tools.",
+      "The domain history is kept with 1 elements. The whole source is placed or set aside. Answer with one sentence; call no more tools.",
     );
     const over = { error: "The map is closed: what is placed stays, and the rest will be asked again later. Answer with one sentence; call no more tools." };
     assert.deepEqual(
@@ -320,7 +418,7 @@ describe("the map of the documents of a source, handed in domain by domain", () 
     );
     const { map, call, journal } = await mapped();
     const answers: Told[] = [];
-    for (let at = 0; at < 10; at += 1) answers.push(await call("set_aside", { files: ["ghost.md"], reason: "r" }));
+    for (let at = 0; at < 10; at += 1) answers.push(await call("set_aside", { elements: [{ file: "ghost.md" }], reason: "r" }));
     assert.deepEqual([answers[9], map.closed, map.reminder()], [over, true, undefined]);
     assert.equal(journal.entries().at(-1)!.message, "The map of specs was closed after 10 calls refused.");
     // Past twenty documents left, a result names the first twenty.
@@ -330,7 +428,7 @@ describe("the map of the documents of a source, handed in domain by domain", () 
     const documents = new DocumentSet(many, "docs");
     const listing = await documents.list();
     const watch = new DocumentWatch(listing.files.map((file) => file.path));
-    const large = new DocumentMap({ sourceId: "specs", documents, files: listing.files, watch, secrets: [], journal: new Journal() });
-    assert.match(large.reminder()!, /22 documents are in no domain and not set aside: d10\.md, .*, d29\.md, and 2 more\. Next: /);
+    const large = new DocumentMap({ sourceId: "specs", documents, files: listing.files, sections: new Map(), watch, secrets: [], journal: new Journal() });
+    assert.match(large.reminder()!, /22 documents or sections are in no domain and not set aside: d10\.md, .*, d29\.md, and 2 more\. Next: /);
   });
 });

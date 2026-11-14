@@ -868,7 +868,7 @@ describe("the cartography of the documents of a source, by the agent that reads 
       {
         body: toolCalls(MODEL, [
           call("w1", "write_domain", { ...ordering, elements, body }),
-          call("a1", "set_aside", { files: ["changelog.md"], reason: "A change log." }),
+          call("a1", "set_aside", { elements: [{ file: "changelog.md" }], reason: "A change log." }),
         ]),
       },
       { body: answer(MODEL, "One domain.") },
@@ -944,7 +944,7 @@ describe("the cartography of the documents of a source, by the agent that reads 
     const down = await closedPort();
     const failed = await cartography([], { source, root, modelUrl: `http://127.0.0.1:${down}/v1` });
     assert.match(messages(failed.outcome), /The session that maps shop-specs failed: /);
-    assert.match(messages(failed.outcome), /3 documents were left in no domain: changelog\.md, orders\/cancel\.md, orders\/place\.md\./);
+    assert.match(messages(failed.outcome), /3 documents or sections were left in no domain: changelog\.md, orders\/cancel\.md, orders\/place\.md\./);
     assert.match(messages(failed.outcome), /No card was written: no element of shop-specs was placed\./);
     assert.equal(existsSync(join(folder, "domains", "ordering.md")), false);
   });

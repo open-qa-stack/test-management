@@ -95,18 +95,20 @@ It gets the [tools of the documents](../../tools/docs/knowledge-tools.md#documen
 | Tool | What it hands in |
 |---|---|
 | `write_domain` | One domain: its `id`, `label` and `description`, its `elements` — each a `file`, with a `section` number for one of its sections, and a `role` — and the `body` of its file. A domain handed in again replaces what was kept of it. |
-| `set_aside` | The `files` that serve no functional area, with a `reason`. |
+| `set_aside` | The `elements` that serve no functional area — whole documents, or sections of a document, given as for `write_domain` — with a `reason`. |
 
 The harness holds what is handed in to the source and to what the agent looked at, which it watches call by call: a listing shows the title of a document, its sections show its outline, a read shows its text.
 
 | Answer | When |
 |---|---|
-| Refusal | An identifier that is no slug; a label, a description, a role or a reason that is empty or longer than 200 characters; a document or a section the source does not have; an element given twice, or already in another domain; a document set aside and placed; a document placed whose sections the agent neither listed nor read; a document set aside whose title it never saw; a body that does not name every element between backticks, is longer than 12,000 characters or holds a secret. A domain is kept whole or not at all. |
+| Refusal | An identifier that is no slug; a label, a description, a role or a reason that is empty or longer than 200 characters; a document or a section the source does not have; an element given twice, or already in another domain; a document or a section set aside and placed; a document placed whose sections the agent neither listed nor read; a document set aside whose title it never saw, or a section set aside of a document whose sections it never listed; a body that does not name every element between backticks, is longer than 12,000 characters or holds a secret. A domain is kept whole or not at all. |
 | Warning, once per domain | The agent read the text of less than a third of the documents of a domain of three or more: the same call again confirms that their titles told enough. |
+
+The map is over once the whole source is covered, and not before. A document is covered when it is placed or set aside whole. One the agent cut into sections is covered section by section: a section is covered by itself or by one that holds it, and each result names the sections still in no domain, the largest first, with their numbers. What comes before the first heading of a document, and the lines of a section before its first covered sub-section, are not counted.
 
 Every refusal has an exit. The third body refused for one domain is replaced by a table the harness writes, and the domain is kept. After ten calls refused the map is closed: what is placed stays. An agent that stops while documents are in no domain is reminded of them, three times at most.
 
-Once the session is over, the harness writes the folder of the source in the same shape as for a base: `export/`, with the text of each element — a document in `export/documents/`, a section in `export/sections/` — the file of each domain, and the manifest. A document in no domain and not set aside is never lost: it is an element of the manifest, left unplaced with why, and the manifest is then `truncated`. The card is derived from the manifest and bears the fingerprint of the documents: it is kept while none changes, and the documents are mapped again, all of them, when one does.
+Once the session is over, the harness writes the folder of the source in the same shape as for a base: `export/`, with the text of each element — a document in `export/documents/`, a section in `export/sections/` — the file of each domain, and the manifest. A document or a section in no domain and not set aside is never lost: it is an element of the manifest, left unplaced with why, and the manifest is then `truncated`. The card is derived from the manifest and bears the fingerprint of the documents: it is kept while none changes, and the documents are mapped again, all of them, when one does.
 
 ## Shared words
 

@@ -27,7 +27,7 @@ Method. Each step says when it is done.
 1. Walk the tree. ${tool("list_files")} gives the folders and the documents of one folder, each with its title and its length; call it on each folder. Done when you know what every folder holds.
 2. Get an idea of each document. ${tool("list_sections")} gives its headings without its text; ${tool("read_section")} and ${tool("read_file")} give the text, ${tool("search")} finds a word. Read what the headings do not tell. Done when you can say, for each document, what it is about.
 3. Name the domains: the functional areas a user would name, such as orders, customers, billing — not the chapters of a template, such as scope or glossary.
-4. Hand each domain in with ${WRITE_DOMAIN_TOOL}: its elements, then its file. Set aside with ${SET_ASIDE_TOOL} a document that serves no functional area, such as a change log. Done when the harness says every document is placed or set aside: answer with one sentence.
+4. Hand each domain in with ${WRITE_DOMAIN_TOOL}: its elements, then its file. Set aside with ${SET_ASIDE_TOOL} what serves no functional area: a document, such as a change log, or a section, such as a glossary. A document you cut into sections is covered section by section: the harness names the sections still in no domain, and a section that holds others covers them. Done when the harness says the whole source is placed or set aside: answer with one sentence.
 
 The grain of an element
 - An element is something a test can aim at: a use case, a screen, a business rule or a small group of rules, a feature.
