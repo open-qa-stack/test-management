@@ -1,7 +1,15 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, posix } from "node:path";
 import type { AgentEvent, AgentRuntime, PlanReview, StopReason, TerminalEvent, TestPlan } from "@open-qa-stack/domain";
-import { validateDomainIndex, validateSourceCard, type DomainIndex, type Knowledge, type ResolvedConfig, type SourceCard } from "@open-qa-stack/shared";
+import {
+  validateDomainIndex,
+  validateSourceCard,
+  validateSourceManifest,
+  type DomainIndex,
+  type Knowledge,
+  type ResolvedConfig,
+  type SourceCard,
+} from "@open-qa-stack/shared";
 import type { BrowserAccess } from "@open-qa-stack/tools";
 import { agentNotes, agentRecall } from "../common/agent-notes.ts";
 import { runAgentTask, taskEnd, taskLimits, type AgentTask } from "../common/agent-task.ts";
@@ -14,7 +22,8 @@ import { TracedPhases } from "../common/traced-phases.ts";
 import { INDEX_FILE_NAME } from "../cartographer/cartographer.ts";
 import { CARDS_FOLDER } from "../source-cartographer/source-cartographer.ts";
 import { DESIGNS_FOLDER, type DesignedTest, type DesignState, type TestClass } from "./design-state.ts";
-import { IndexMap } from "./index-map.ts";
+import { MANIFEST_FILE } from "../source-workflow/source-folder.ts";
+import { IndexMap, type WrittenSource } from "./index-map.ts";
 import { PLAN_FILE_SUFFIX, planFileText, readPlanFile, type PlanRecord } from "./plan-file.ts";
 import { PlanProposal } from "./plan-proposal.ts";
 import { PLANNER_INSTRUCTIONS, planRequest } from "./planner-prompt.ts";
@@ -106,8 +115,8 @@ const ACCEPT_EVERY_PLAN: PlanReview = { review: async () => ({ accepted: true })
  *
  * A design runs in several sessions, each with its own tools, watches, browser and limits of the configured
  * autonomy. The first plans: the agent gets the brief and what the index holds for it, or the domains of
- * the index when nothing of it echoes the brief, not the index whole, which it looks up with `index_find`
- * and `index_entry`; the browser tools of the applications, the tools of every knowledge source of the
+ * the index when nothing of it echoes the brief, not the index whole, which it explores by levels with
+ * `knowledge_domain`, `knowledge_list` and `knowledge_read`; the browser tools of the applications, the tools of every knowledge source of the
  * environment — the bases read only — and the notes. It submits a test plan with `propose_plan`, each step
  * citing the actions of its exploration that did it: the harness writes in the plan the lines of code of
  * those actions and the element the screens showed each expected text in. `planReview` accepts or refuses
@@ -236,7 +245,7 @@ export class Designer {
           journal,
         );
         const offered = [...session.screens.tools(), ...session.reads.tools()];
-        const map = new IndexMap(index, await this.cards(index), offered, owners);
+        const map = new IndexMap(index, await this.cards(index), offered, owners, await this.written(index));
         const request = planRequest(brief, index.environment, brief === undefined ? [] : map.found(brief), map.domains(), applications);
         const notes = agentNotes(config, repositoryRoot, env, { role: "planner", task: id, now });
         const tools = [...map.toolset(), ...offered, ...notes, plan.tool()].map((tool) => endedWithPlan(tool, plan));
@@ -429,6 +438,34 @@ export class Designer {
     );
     return new Map(read.flat());
   }
+
+  /** What the workflow of each source of the index wrote beside its card, for those whose manifest can be read: the file of each domain, and its export. */
+  private async written(index: DomainIndex): Promise<Map<string, WrittenSource>> {
+    const cards = join(this.options.repositoryRoot, this.options.config.repository.indexDir, CARDS_FOLDER);
+    const read = await Promise.all(
+      index.sources.map(async (source) => {
+        const folder = join(cards, source.id);
+        const validation = validateSourceManifest(await readJson(join(folder, MANIFEST_FILE)));
+        if (!validation.ok) return [];
+        const manifest = validation.value;
+        const files = await Promise.all(
+          manifest.domains.map(async (domain) => {
+            const text = domain.file === undefined ? undefined : await readText(join(folder, domain.file));
+            return text === undefined ? [] : [[domain.id, text] as const];
+          }),
+        );
+        // A file of the manifest is one the harness wrote in the folder of the source.
+        const written: WrittenSource = { manifest, files: new Map(files.flat()), read: (file) => readText(join(folder, file)) };
+        return [[source.id, written] as const];
+      }),
+    );
+    return new Map(read.flat());
+  }
+}
+
+/** A text file, or `undefined` when it cannot be read. */
+async function readText(path: string): Promise<string | undefined> {
+  return readFile(path, "utf8").catch(() => undefined);
 }
 
 /** A tool that refuses every call once the plan is refused, the design being stopped, or accepted, the session that plans being over. */

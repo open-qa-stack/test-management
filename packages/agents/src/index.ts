@@ -20,5 +20,5 @@ export {
 export { PLAN_FILE_SUFFIX, planFileText, readPlanFile, type PlanRecord } from "./designer/plan-file.ts";
 export type { ErrorClass } from "./designer/run-failure.ts";
 export { MAX_TESTS, MIN_TESTS, PROPOSE_TOOL, RUN_TOOL } from "./designer/test-proposals.ts";
-export { ENTRY_TOOL, FIND_TOOL } from "./designer/index-map.ts";
+export { DOMAIN_TOOL, LIST_TOOL, READ_TOOL } from "./designer/index-map.ts";
 export { PLAN_TOOL } from "./designer/plan-proposal.ts";

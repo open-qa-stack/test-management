@@ -49,7 +49,7 @@ describe("the instructions of the agent that plans", () => {
       'A result that starts with "The plan is not accepted yet" asks you, once,',
       'returns "action", its number',
       "you never write a locator",
-      "Call index_entry on the elements given with it, and index_find for what is missing.",
+      "Call knowledge_domain on its domain, then with a source for what it says of it; knowledge_list finds an element by words, knowledge_read gives one.",
     ])
       assert.ok(PLANNER_INSTRUCTIONS.includes(said), said);
     // It writes no test: nothing of the charter, of the runs nor of the files is its concern.
@@ -69,7 +69,7 @@ describe("the request of the session that plans", () => {
         "Brief of the developer, in their words:\n<brief>\nTest the search of an order.\n</brief>",
         `What the index holds for this brief:\n${found.join("\n")}`,
         "Applications:\n- shop (Shop, web): sign in with shop_fill and the accounts demo, admin.\n- ledger (Ledger, api): no screens; its tests sign in with the account clerk.\n- desk (Desk, api): no sign-in.",
-        "Next: call index_entry on the elements above that the brief is about, read them, do the brief once on the screens, then call propose_plan.",
+        "Next: call knowledge_domain on the domain the brief is about, read what it needs, do the brief once on the screens, then call propose_plan.",
       ].join("\n\n"),
     );
   });
@@ -83,7 +83,7 @@ describe("the request of the session that plans", () => {
     assert.match(request, /- shop \(Shop, web\): no screens; its tests sign in with the accounts demo, admin\./);
     assert.ok(
       request.endsWith(
-        "\n\nNext: call index_entry on the domains above that matter most, read what they hold, do it once on the screens, then call propose_plan.",
+        "\n\nNext: call knowledge_domain on the domains above that matter most, read what they hold, do it once on the screens, then call propose_plan.",
       ),
     );
   });

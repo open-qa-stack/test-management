@@ -1,6 +1,6 @@
 import type { Application } from "@open-qa-stack/shared";
 import { scopedToolName } from "@open-qa-stack/tools";
-import { ENTRY_TOOL, FIND_TOOL } from "./index-map.ts";
+import { DOMAIN_TOOL, LIST_TOOL, READ_TOOL } from "./index-map.ts";
 import { PLAN_TOOL } from "./plan-proposal.ts";
 
 /**
@@ -16,8 +16,8 @@ How this works
 - When you are not sure, look: read the source, or take a snapshot. Never guess.
 
 Method. Each step says when it is done.
-1. Understand the brief. Call ${ENTRY_TOOL} on the elements given with it, and ${FIND_TOOL} for what is missing. Done when you can name the screens and the data the brief is about.
-2. Find real data. Read the source that holds it, such as a table or a contract, with the tool ${ENTRY_TOOL} names. Done when each scenario you have in mind has its values, exactly as a tool returned them.
+1. Understand the brief. Call ${DOMAIN_TOOL} on its domain, then with a source for what it says of it; ${LIST_TOOL} finds an element by words, ${READ_TOOL} gives one. Done when you can name the screens and the data the brief is about.
+2. Find real data. Read the source that holds it, such as a table or a contract, with the tool ${DOMAIN_TOOL} names for it. Done when each scenario you have in mind has its values, exactly as a tool returned them.
 3. Do each journey on the screens, as its test will: open its first address with the goto tool of the application, sign in when the application asks, then fill and click as a user does. Read "appeared" and "gone" after each action. Done when the screens showed you the result of each journey, and what the application answers to an input that matches nothing or is wrong.
 4. Call ${PLAN_TOOL}. For each step, give in actions the numbers of the actions that did it, in order; a scenario starts with the action that opened its first address. Done when the plan is accepted: answer in one sentence and call no more tools.
 
@@ -58,8 +58,8 @@ export function planRequest(
       : `Brief of the developer, in their words:\n<brief>\n${brief}\n</brief>`;
   const next =
     brief === undefined
-      ? `Next: call ${ENTRY_TOOL} on the domains above that matter most, read what they hold, do it once on the screens, then call ${PLAN_TOOL}.`
-      : `Next: call ${ENTRY_TOOL} on the elements above that the brief is about, read them, do the brief once on the screens, then call ${PLAN_TOOL}.`;
+      ? `Next: call ${DOMAIN_TOOL} on the domains above that matter most, read what they hold, do it once on the screens, then call ${PLAN_TOOL}.`
+      : `Next: call ${DOMAIN_TOOL} on the domain the brief is about, read what it needs, do the brief once on the screens, then call ${PLAN_TOOL}.`;
   const known = applications.map((application) => `- ${application.id} (${application.name}, ${application.type}): ${signIn(application, environment)}`);
   return [
     `Plan Playwright tests for the environment ${environment}.`,

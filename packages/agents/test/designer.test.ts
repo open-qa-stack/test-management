@@ -421,7 +421,9 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     const { server } = await design(replies(valid(3)));
     const tools = toolsOffered(server);
     // The session that plans runs no test; that of a scenario submits no plan.
-    assert.ok(["shop_goto", "propose_plan", "remember", "recall", "index_find", "index_entry"].every((tool) => tools.includes(tool)));
+    assert.ok(
+      ["shop_goto", "propose_plan", "remember", "recall", "knowledge_domain", "knowledge_list", "knowledge_read"].every((tool) => tools.includes(tool)),
+    );
     assert.deepEqual(
       tools.filter((tool) => tool === "run_test" || tool === "propose_test"),
       [],
@@ -468,7 +470,7 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
       "- customers (Customers): The customers of the shop.",
       "- shop (Shop, web-and-api): sign in with shop_fill and the account demo.",
       "- ledger (Ledger, api): no sign-in.",
-      "Next: call index_entry on the domains above that matter most, read what they hold, do it once on the screens, then call propose_plan.",
+      "Next: call knowledge_domain on the domains above that matter most, read what they hold, do it once on the screens, then call propose_plan.",
     ]) {
       assert.ok(request.includes(JSON.stringify(fragment).slice(1, -1)), fragment);
     }
@@ -1532,10 +1534,10 @@ function customersRepository(): string {
   return root;
 }
 
-describe("brief, criterion 1 — from the brief, the index tools lead to the customers and the section of the guide, which is read", () => {
+describe("brief, criterion 1 — from the brief, the knowledge tools lead to the customers and the section of the guide, which is read", () => {
   it("finds the domain and the section, names the tool of the guide, and reads it", async () => {
-    const find = { id: "f1", name: "index_find", arguments: { words: "customer search" } };
-    const entry = { id: "e1", name: "index_entry", arguments: { source: "shop-guide", item: "Customer search" } };
+    const find = { id: "f1", name: "knowledge_list", arguments: { words: "customer search" } };
+    const entry = { id: "e1", name: "knowledge_read", arguments: { source: "shop-guide", item: "Customer search" } };
     const read = { id: "s1", name: "shop_guide_read_section", arguments: { number: 2 } };
     const { outcome, server } = await design(replies([[OPEN, find], [entry], [read], [PLAN], DONE, ...valid(3)]), {
       root: customersRepository(),
@@ -1544,12 +1546,55 @@ describe("brief, criterion 1 — from the brief, the index tools lead to the cus
     });
     assert.equal(outcome.ok, true, messages(outcome));
     assert.ok(requestText(server).includes("<brief>\\ntester la recherche d'un client\\n</brief>"));
-    assert.match(toolResult(server, "f1"), /customers \(Customers\): The customers of the shop\./);
     assert.match(toolResult(server, "f1"), /shop-guide: Customer search/);
     assert.match(toolResult(server, "e1"), /Source shop-guide \(document\): read it with shop_guide_list_sections, shop_guide_read_section\./);
     assert.match(toolResult(server, "e1"), /Domains: customers\./);
     assert.match(toolResult(server, "s1"), /finds a customer by the start of their last name/);
     assert.equal(stateOf(outcome).brief, "tester la recherche d'un client");
+  });
+});
+
+describe("what the workflow of a source wrote of it", () => {
+  it("is given by the knowledge tools: the file of its domain, and the definition of an element from its export", async () => {
+    const root = customersRepository();
+    const folder = join(root, ".oqas", "index", "sources", "shop-guide");
+    mkdirSync(join(folder, "domains"), { recursive: true });
+    mkdirSync(join(folder, "export", "sections"), { recursive: true });
+    writeFileSync(join(folder, "domains", "search.md"), "# Search (`search`)\n\n`Customer search` tells how a clerk finds a customer.");
+    writeFileSync(join(folder, "export", "sections", "customer-search.md"), "## Customer search\n\nBy the start of the last name.");
+    const described = { label: "Search", description: "Finding a customer." };
+    writeFileSync(
+      join(folder, "manifest.json"),
+      JSON.stringify({
+        formatVersion: 1,
+        source: { id: "shop-guide", type: "document" },
+        fingerprint: "sha256:0",
+        producedAt: "2026-11-13T09:00:00.000Z",
+        status: "complete",
+        // A domain may have no file yet, or one that was lost: neither is given.
+        domains: [
+          { id: "search", ...described, file: "domains/search.md", writtenBy: "model" },
+          { id: "pending", ...described },
+          { id: "lost", ...described, file: "domains/lost.md", writtenBy: "model" },
+        ],
+        elements: [
+          {
+            name: "Customer search",
+            kind: "section",
+            fingerprint: "sha256:1",
+            file: "export/sections/customer-search.md",
+            domain: "search",
+            role: "How to find a customer.",
+          },
+        ],
+      }),
+    );
+    const inDomain = { id: "d1", name: "knowledge_domain", arguments: { domain: "customers", source: "shop-guide" } };
+    const one = { id: "r1", name: "knowledge_read", arguments: { source: "shop-guide", item: "Customer search" } };
+    const { outcome, server } = await design(replies([[OPEN, inDomain], [one], [PLAN], DONE, ...valid(3)]), { root, plan: false });
+    assert.equal(outcome.ok, true, messages(outcome));
+    assert.match(toolResult(server, "d1"), /`Customer search` tells how a clerk finds a customer\./);
+    assert.match(toolResult(server, "r1"), /Definition, from export\/sections\/customer-search\.md:.*## Customer search/);
   });
 });
 
@@ -1567,7 +1612,7 @@ describe("the request of a brief", () => {
     assert.ok(request.includes("Brief of the developer, in their words:\\n<brief>\\nFollow the orders\\n</brief>"), request);
     assert.ok(
       request.includes(
-        "Next: call index_entry on the elements above that the brief is about, read them, do the brief once on the screens, then call propose_plan.",
+        "Next: call knowledge_domain on the domain the brief is about, read what it needs, do the brief once on the screens, then call propose_plan.",
       ),
       request,
     );
