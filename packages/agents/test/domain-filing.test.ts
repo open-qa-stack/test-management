@@ -217,16 +217,21 @@ describe("domain filing — the second submission", () => {
     assert.equal(rules().followUp!({ domains: [ORDERS, CUSTOMERS, domain("rest", REST)], unassigned: [] }), undefined);
   });
 
-  it("refuses an element that was already placed, and a new domain that breaks the rules of the first", () => {
+  it("leaves out an element already placed, and refuses an unknown one and a new domain that breaks the rules of the first", () => {
     const followUp = rules().followUp!({ domains: [ORDERS, CUSTOMERS], unassigned: REST })!;
+    // An error names the place of the element as the second submission gives it, after a domain it repeats whole.
     const again = followUp.check({
-      domains: [domain("orders", [{ source: "orders-db", items: ["public.orders"] }]), domain("screens", [{ source: "storefront", items: ["/orders/:id"] }])],
+      domains: [
+        CUSTOMERS,
+        domain("orders", [{ source: "orders-db", items: ["public.orders", "public.nowhere"] }]),
+        domain("screens", [{ source: "storefront", items: ["/orders/:id"] }]),
+      ],
       unassigned: REST.map((r) => ({ ...r, items: r.items.filter((item) => item !== "/orders/:id") })),
     });
     assert.deepEqual(
       again.errors.map((error) => error.message),
       [
-        "/domains/0/references/0/items/0: public.orders is not an item of orders-db; use one of the items listed for it.",
+        "/domains/1/references/0/items/1: public.nowhere is not an item of orders-db; use one of the items listed for it.",
         "The domain screens holds only screens, although the domain orders shares words with them (order); put each in the domain of its functional area.",
       ],
     );

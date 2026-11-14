@@ -68,7 +68,9 @@ const SUBMISSION_SHAPE = {
  * sections of the structure of documents only is refused. An element is in a domain or in `unassigned`, never
  * in both. Once a submission is accepted, the elements it left in `unassigned` are asked again, in a second
  * submission limited to them, with the domains that share a word with each: it puts them in domains of the
- * index, repeating their id, label and description, or in new ones, and is merged into the first.
+ * index, repeating their id, label and description, or in new ones, and is merged into the first. The
+ * elements the first placed in a domain are left out of the second, which may hand them in again; each
+ * error names the place of the element in the second as it was handed in.
  *
  * @param inventory - The elements of the card of each source.
  * @param sources - The type of every source of the run, by its identifier.
@@ -86,18 +88,18 @@ export function domainIndexRules(
   const words = new ElementWords(inventory, sources);
   const checked = (
     value: DomainIndexSubmission,
-    elements: SourceInventory,
+    placed: DomainIndexSubmission,
     filed: DomainIndexSubmission,
     touched?: ReadonlySet<string>,
   ): SubmissionCheck<DomainIndexSubmission> => ({
     value: filed,
     errors: [
       ...secretErrors(value, secrets),
-      ...placementErrors(value, elements, ids),
+      ...placementErrors(placed, inventory, ids),
       ...unread(value, ids, isRead),
       ...filingErrors(filed, sources, words, touched),
     ],
-    unplaced: unplacedItems(value, elements),
+    unplaced: unplacedItems(placed, inventory),
   });
   return {
     tool: SUBMIT_TOOL,
@@ -109,7 +111,7 @@ export function domainIndexRules(
     validate: (args) => validateDomainSubmission(withUnassigned(args)),
     check: (valid) => {
       const value = normalised(valid, inventory);
-      return checked(value, inventory, value);
+      return checked(value, value, value);
     },
     leaveAside: (value, unplaced) => ({
       ...value,
@@ -126,8 +128,9 @@ export function domainIndexRules(
         ].join("\n"),
         asked: `The index leaves ${lines.length} of its ${[...inventory.values()].flat().length} elements in unassigned; a second submission limited to them was asked.`,
         check: (valid) => {
-          const value = normalised(valid, left);
-          return checked(value, left, merged(accepted, value), new Set(value.domains.map((domain) => domain.id)));
+          const value = normalised(valid, inventory);
+          const filed = withoutPlaced(value, accepted);
+          return checked(value, withPlaced(value, accepted), merged(accepted, filed), new Set(filed.domains.map((domain) => domain.id)));
         },
       } satisfies FollowUp<DomainIndexSubmission>;
     },
@@ -137,6 +140,27 @@ export function domainIndexRules(
 /** Whether an element is placed in one of the domains. */
 function placedIn(domains: DomainIndexSubmission["domains"], source: string, item: string): boolean {
   return domains.some((domain) => domain.references.some((references) => references.source === source && references.items.includes(item)));
+}
+
+/**
+ * A second submission without the elements the first placed in a domain, which a model may hand in again
+ * with the rest of the index: what was accepted stays as it was. A domain left with nothing is dropped.
+ */
+function withoutPlaced(second: DomainIndexSubmission, accepted: DomainIndexSubmission): DomainIndexSubmission {
+  const left = (references: readonly SourceReferences[]) =>
+    references
+      .map(({ source, items }) => ({ source, items: items.filter((item) => !placedIn(accepted.domains, source, item)) }))
+      .filter(({ items }) => items.length > 0);
+  const domains = second.domains.map((domain) => ({ ...domain, references: left(domain.references) })).filter((domain) => domain.references.length > 0);
+  return { domains, unassigned: left(second.unassigned) };
+}
+
+/**
+ * A second submission with what the first placed in a domain added after its own unassigned, so that it is
+ * checked against every element of the cards, each error at the place the second gives it.
+ */
+function withPlaced(second: DomainIndexSubmission, accepted: DomainIndexSubmission): DomainIndexSubmission {
+  return { domains: second.domains, unassigned: [...second.unassigned, ...accepted.domains.flatMap((domain) => domain.references)] };
 }
 
 /** The domains of an index that share a word with an element, for the line that names it. */

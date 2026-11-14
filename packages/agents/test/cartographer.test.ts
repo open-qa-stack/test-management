@@ -1052,10 +1052,35 @@ describe("domain filing, criterion 3 — the elements an accepted index leaves i
     assert.match(messages(outcome), /The second submission of the index was accepted\./);
   });
 
+  it("takes a second submission that hands in the whole index again, leaving what the first placed as it was", async () => {
+    const whole = {
+      domains: [
+        ...SUBMISSION.domains.map((domain) => (domain.id === "orders" ? { ...domain, references: orders(["/orders", "/"]) } : domain)),
+        second([]).domains[1]!,
+      ],
+      unassigned: [{ source: "shop-api", items: ["orders"] }],
+    };
+    const { outcome } = await cartography([
+      { body: toolCalls(MODEL, [submit(SUBMISSION)]) },
+      { body: toolCalls(MODEL, [submit(whole, "x2")]) },
+      { body: answer(MODEL, "Done.") },
+    ]);
+    assert.match(messages(outcome), /The second submission of the index was accepted\./);
+    assert.deepEqual(
+      outcome.index!.domains.map((domain) => [domain.id, domain.references]),
+      [
+        ["orders", orders(["/orders", "/"])],
+        ["customers", SUBMISSION.domains[1]!.references],
+        ["operations", second([]).domains[1]!.references],
+      ],
+    );
+    assert.deepEqual([outcome.index!.unassigned, outcome.index!.status], [[], "complete"]);
+  });
+
   it("keeps complete an index whose second submission a limit stopped, and a run after it keeps that index", async () => {
     const replies = [
       { body: toolCalls(MODEL, [submit(SUBMISSION)]) },
-      { body: toolCalls(MODEL, [submit(second(["/", "/orders"]), "x2")]) },
+      { body: toolCalls(MODEL, [submit(second(["/", "/nowhere"]), "x2")]) },
       { body: answer(MODEL, "Done.") },
     ];
     const { outcome, root } = await cartography(replies, { limits: { maxIterations: 2, maxMinutes: 10, maxActions: 200 } });
@@ -1072,14 +1097,14 @@ describe("domain filing, criterion 3 — the elements an accepted index leaves i
   it("keeps the elements in unassigned when the second submission is refused and the agent answers instead", async () => {
     const { outcome, server } = await cartography([
       { body: toolCalls(MODEL, [submit(SUBMISSION)]) },
-      { body: toolCalls(MODEL, [submit(second(["/", "/orders"]), "x2")]) },
+      { body: toolCalls(MODEL, [submit(second(["/", "/nowhere"]), "x2")]) },
       { body: answer(MODEL, "They belong to no domain.") },
     ]);
     assert.match(
       JSON.stringify(server.requests[2]!.body),
       /The second submission of the index was refused; the index accepted before is kept\. Fix it and submit again only what was asked\./,
     );
-    assert.match(messages(outcome), /The second submission of the index was refused: \/domains\/0\/references\/0\/items\/1: \/orders is not an item of shop/);
+    assert.match(messages(outcome), /The second submission of the index was refused: \/domains\/0\/references\/0\/items\/1: \/nowhere is not an item of shop/);
     assert.deepEqual([outcome.index!.domains[0]!.references, outcome.index!.unassigned], [orders(["/orders"]), SUBMISSION.unassigned]);
   });
 });
