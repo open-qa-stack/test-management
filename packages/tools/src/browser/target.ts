@@ -19,7 +19,7 @@ const text = { type: "string", minLength: 1 } as const;
 const within = {
   type: "object",
   description:
-    'The part of the page that holds the element, when the locator of the snapshot starts with one, such as page.getByRole("row", { name: "Lena Veldane" }).',
+    'The part of the page that holds the element, when the locator of the snapshot starts with one: for a locator that starts with page.getByRole("row", { name: "…" }), the role row and that name, copied from the snapshot.',
   properties: { role: text, name: { type: "string" } },
   required: ["role"],
   additionalProperties: false,
