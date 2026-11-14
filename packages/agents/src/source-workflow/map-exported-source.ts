@@ -2,6 +2,7 @@ import type { AgentEvent, AgentRuntime, TaskLimits } from "@open-qa-stack/domain
 import type { SourceManifest } from "@open-qa-stack/shared";
 import type { SourceExport } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
+import { exportVocabulary } from "./cited-names.ts";
 import { renderDomainFile } from "./domain-file.ts";
 import { coverageErrors } from "./domain-file-control.ts";
 import { exportManifest, type DomainFile } from "./export-manifest.ts";
@@ -58,13 +59,14 @@ export async function mapExportedSource(options: ExportedSourceOptions): Promise
   await folder.writeManifest(exportManifest({ ...parts, flawed: partial }, now()));
   journal.record("info", `The export of ${source.id} and its manifest were written to ${folder.root}.`, source.id);
   let used = await groupElements({ ...options, sourceId: source.id, grouping });
+  const vocabulary = exportVocabulary(source.id, exported);
   for (const domain of grouping.domains()) {
     const members = exported.elements.flatMap((element) => {
       const state = grouping.state(element.name);
       return state !== undefined && "domain" in state && state.domain === domain.id ? [{ element, role: state.role }] : [];
     });
     const others = grouping.domains().filter((other) => other.id !== domain.id);
-    const written = await writeDomain({ ...options, sourceId: source.id, domain, members, others });
+    const written = await writeDomain({ ...options, sourceId: source.id, domain, members, others, vocabulary });
     used = addSessions(used, written);
     const file = await folder.writeDomain(domain.id, renderDomainFile(domain, written.body), written.refusedBody);
     files.set(domain.id, { file, writtenBy: written.writtenBy, ...(written.refused === undefined ? {} : { refused: written.refused }) });

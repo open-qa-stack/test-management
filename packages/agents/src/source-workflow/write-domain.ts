@@ -3,6 +3,7 @@ import type { ManifestDomain } from "@open-qa-stack/shared";
 import { redactText, secretForms, type ExportedElement } from "@open-qa-stack/tools";
 import { runAgentTask } from "../common/agent-task.ts";
 import type { Journal } from "../common/journal.ts";
+import { citedNameProblems, type ExportVocabulary } from "./cited-names.ts";
 import { minimalBody, unfenced } from "./domain-file.ts";
 import { domainFileErrors } from "./domain-file-control.ts";
 import { sessionUse, type SessionsUse } from "./group-elements.ts";
@@ -18,6 +19,8 @@ export interface WriteDomainOptions {
   readonly members: readonly { readonly element: ExportedElement; readonly role: string }[];
   /** The other domains of the source. */
   readonly others: readonly ManifestDomain[];
+  /** What the export of the source names, against which the names the file cites are checked. */
+  readonly vocabulary: ExportVocabulary;
   /** The runtime that opens the session. */
   readonly runtime: AgentRuntime;
   /** The limits of the session. */
@@ -48,8 +51,9 @@ export interface WrittenDomain extends SessionsUse {
  * Asks the model for the body of the file of one domain, in a session without tools, and checks it.
  *
  * @remarks
- * A code fence around the whole answer is taken away. A body the control refuses is answered with what is
- * wrong, up to the reminders of a task; the model answers again with the whole body. When no body passed,
+ * A code fence around the whole answer is taken away. A body the control refuses, or one that cites a name
+ * the export does not have, is answered with what is wrong, up to the reminders of a task; the model
+ * answers again with the whole body. What is only doubtful is told once: the same body again is then kept. When no body passed,
  * the harness writes a minimal one itself — the elements, their kind and their role — and says why.
  *
  * @param options - What the writing needs.
@@ -64,6 +68,7 @@ export async function writeDomain(options: WriteDomainOptions): Promise<WrittenD
   let accepted: string | undefined;
   let refusedBody: string | undefined;
   let refused = "The model gave no answer.";
+  let warned = false;
   const check = (): string | undefined => {
     const body = unfenced(
       events
@@ -72,15 +77,22 @@ export async function writeDomain(options: WriteDomainOptions): Promise<WrittenD
         .join(""),
     );
     read = events.length;
-    const errors = domainFileErrors(body, members, options.secrets);
-    if (errors.length === 0) {
+    const cited = citedNameProblems(body, options.vocabulary);
+    const errors = [...domainFileErrors(body, members, options.secrets), ...cited.errors];
+    const doubts = warned ? [] : cited.warnings;
+    if (errors.length === 0 && doubts.length === 0) {
       accepted = body;
       return undefined;
     }
+    warned ||= doubts.length > 0;
     refusedBody = body === "" ? refusedBody : body;
-    refused = errors.join(" ");
-    journal.record("error", `The file of the domain ${domain.id} was refused: ${refused}`, sourceId);
-    return ["The file was not kept. Fix what follows and answer again with the whole body.", ...errors.map((error) => `- ${error}`)].join("\n");
+    refused = [...errors, ...doubts].join(" ");
+    journal.record("error", `The file of the domain ${domain.id} was not kept: ${refused}`, sourceId);
+    const header =
+      errors.length === 0
+        ? "The file is not kept yet. Check what follows, then answer again with the whole body."
+        : "The file was not kept. Fix what follows and answer again with the whole body.";
+    return [header, ...[...errors, ...doubts].map((problem) => `- ${problem}`)].join("\n");
   };
   const task = {
     instructions: WRITING_INSTRUCTIONS,

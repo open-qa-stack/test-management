@@ -6,6 +6,7 @@ import type { ExportedElement } from "@open-qa-stack/tools";
 import { MAX_REMINDERS } from "../src/common/agent-task.ts";
 import { Journal } from "../src/common/journal.ts";
 import { minimalBody, renderDomainFile, unfenced } from "../src/source-workflow/domain-file.ts";
+import { exportVocabulary } from "../src/source-workflow/cited-names.ts";
 import { coverageErrors, domainFileErrors, MAX_DOMAIN_FILE_LENGTH } from "../src/source-workflow/domain-file-control.ts";
 import { writeDomain } from "../src/source-workflow/write-domain.ts";
 import { domainRequest } from "../src/source-workflow/writing-prompt.ts";
@@ -171,6 +172,7 @@ async function written(answers: readonly (string | AgentEvent)[]) {
     domain: ORDERS,
     members: ELEMENTS,
     others: [CUSTOMERS],
+    vocabulary: exportVocabulary("shop-db", { elements: ELEMENTS.map(({ element: exported }) => exported), fingerprint: "sha256:0" }),
     runtime,
     limits: LIMITS,
     secrets: [SECRET],
@@ -201,7 +203,33 @@ describe("the writing of the file of a domain", () => {
       ].join("\n"),
     );
     assert.equal(journal.length, 1);
-    assert.match(journal[0]!, /^The file of the domain orders was refused: public\.orders is named, but not between backticks\./);
+    assert.match(journal[0]!, /^The file of the domain orders was not kept: public\.orders is named, but not between backticks\./);
+  });
+
+  it("refuses a body that cites in its code a name the export of the source does not have, and keeps the next one", async () => {
+    const { outcome, sent, journal } = await written([`${GOOD}\n\nJoin \`public.payments\` to it.`, GOOD]);
+    assert.deepEqual([outcome.writtenBy, outcome.body, outcome.usage.requests], ["model", GOOD, 2]);
+    assert.equal(
+      sent[1],
+      [
+        "The file was not kept. Fix what follows and answer again with the whole body.",
+        "- public.payments is not an element of shop-db, and nothing in its export has this name. Remove it, or use a name the request shows.",
+      ].join("\n"),
+    );
+    assert.match(journal[0]!, /^The file of the domain orders was not kept: public\.payments is not an element of shop-db/);
+  });
+
+  it("asks once about a name that is only doubtful, and keeps the same body answered again", async () => {
+    const doubtful = `${GOOD}\n\nFilter on \`order_status\`.`;
+    const { outcome, sent } = await written([doubtful, doubtful]);
+    assert.deepEqual([outcome.writtenBy, outcome.body, outcome.usage.requests], ["model", doubtful, 2]);
+    assert.equal(
+      sent[1],
+      [
+        "The file is not kept yet. Check what follows, then answer again with the whole body.",
+        "- The export of shop-db writes these names nowhere: `order_status`. If they are columns or elements, use the names the request shows. If they are something else, answer again with the same body to confirm.",
+      ].join("\n"),
+    );
   });
 
   it("writes a minimal body itself once every reminder was refused, with the reason and the last body of the model", async () => {

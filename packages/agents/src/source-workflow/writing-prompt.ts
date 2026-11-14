@@ -9,7 +9,8 @@ export const WRITING_INSTRUCTIONS = `You document one functional domain of one s
 Rules:
 - Answer with the markdown body of the file and nothing else: no title, no code fence around it. The title is written for you.
 - Name every element of the domain at least once, exactly as the request writes it, between backticks: \`public.orders\`.
-- Say only what the request shows. Never invent an element, a column or a value.
+- Say only what the request shows. Never invent an element, a column or a value: a name written in code that the source does not have is refused.
+- In code, write a table or a view with its schema, as the request does. A routine may be named without its arguments.
 - A useful file has a table of the elements with their role, the columns worth searching or filtering on, how the elements link to each other and to the other domains, and a few hints on how to use them. Leave out a part you have nothing to say about.
 - Write in English, under ${MAX_DOMAIN_FILE_LENGTH} characters.`;
 

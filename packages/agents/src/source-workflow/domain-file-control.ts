@@ -1,5 +1,6 @@
 import type { SourceManifest } from "@open-qa-stack/shared";
 import { redactText, secretForms } from "@open-qa-stack/tools";
+import { cites } from "./cited-names.ts";
 import type { DomainMember } from "./domain-file.ts";
 
 /** Longest body of a domain file, in characters. */
@@ -10,8 +11,9 @@ export const MAX_DOMAIN_FILE_LENGTH = 12_000;
  *
  * @remarks
  * The harness refuses an empty body, one longer than `MAX_DOMAIN_FILE_LENGTH`, one that holds a secret of
- * the configuration — which it never repeats — and one that leaves an element of the domain unnamed. It
- * proposes the backticks around an element the body names without them.
+ * the configuration — which it never repeats — and one that leaves an element of the domain unnamed. An
+ * element with arguments, such as a routine, may be named without them. It proposes the backticks around an
+ * element the body names without them.
  *
  * @param body - The body, as the model wrote it.
  * @param members - The elements of the domain.
@@ -24,7 +26,7 @@ export function domainFileErrors(body: string, members: readonly DomainMember[],
   if (body.length > MAX_DOMAIN_FILE_LENGTH)
     errors.push(`The body has ${body.length} characters. Keep it under ${MAX_DOMAIN_FILE_LENGTH}: one line per element, and shorter hints.`);
   if (redactText(body, secrets.flatMap(secretForms)) !== body) errors.push("The body holds a secret of the configuration. Write it without the secret.");
-  const unquoted = members.filter((member) => !body.includes(`\`${member.name}\``));
+  const unquoted = members.filter((member) => !cites(body, member.name));
   const bare = unquoted.filter((member) => body.includes(member.name));
   const missing = unquoted.filter((member) => !bare.includes(member));
   for (const member of bare) errors.push(`${member.name} is named, but not between backticks. Proposed: \`${member.name}\`, where you name it.`);
@@ -47,8 +49,6 @@ export function coverageErrors(manifest: SourceManifest, files: ReadonlyMap<stri
   return manifest.elements.flatMap((element) => {
     if (element.dismissed !== undefined) return [];
     if (element.domain === undefined) return [`${element.name} is in no domain and was not set aside.`];
-    return files.get(element.domain)?.includes(`\`${element.name}\``) === true
-      ? []
-      : [`${element.name} is not named in the file of its domain ${element.domain}.`];
+    return cites(files.get(element.domain) ?? "", element.name) ? [] : [`${element.name} is not named in the file of its domain ${element.domain}.`];
   });
 }
