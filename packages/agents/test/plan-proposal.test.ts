@@ -265,9 +265,9 @@ describe("the gates of a plan", () => {
     assert.deepEqual(told.slice(0, 5), [
       `${idError}\nRefused (PLAN-ID): the id b is given to several scenarios. Give each scenario its own id.\nNothing else was refused.`,
       `${idError}\nRefused (PLAN-ID): the id b is given to several scenarios. Give each scenario its own id.\nNothing else was refused.`,
-      `Third refusal for the same reason. Do only this:\n${idError}`,
-      `Fourth refusal for the same reason. Do only this:\n${idError}`,
-      `Fifth refusal for the same reason. Do only this:\n${idError}`,
+      `Third refusal for the same reason. Do this:\n${idError}`,
+      `Fourth refusal for the same reason. Do this:\n${idError}`,
+      `Fifth refusal for the same reason. Do this:\n${idError}`,
     ]);
     assert.equal(told[5], "The plan was refused: the harness refused 6 plans, the last one for PLAN-ID. The design is stopped; call no more tools.");
     assert.deepEqual([made.refused, made.reminder()], ["the harness refused 6 plans, the last one for PLAN-ID.", undefined]);
@@ -415,7 +415,7 @@ describe("the gates of a plan", () => {
     for (let at = 0; at < 2; at += 1) await submit(made, wrong);
     assert.equal(
       ((await submit(made, wrong)) as { error: string }).error,
-      `Third refusal for the same reason. Do only this:\nRead "Veldano" with orders_db_search, or take a value orders-db showed you last:\n- ORD-1042\n- Mira Veldane\n- 7\n- ${"Long ".repeat(40)}…`,
+      `Third refusal for the same reason. Do this:\nRead "Veldano" with orders_db_search, or take a value orders-db showed you last:\n- ORD-1042\n- Mira Veldane\n- 7\n- ${"Long ".repeat(40)}…`,
     );
   });
 });

@@ -1094,10 +1094,10 @@ describe("refusals for the same reason", () => {
     assert.match(told(server, "s2"), /^Refused \(TEST-STEPS\): .*\nRefused \(TEST-VALUE\): .*\nNothing else was refused\.$/);
     const sheet = told(server, "plan");
     const skeletonText = sheet.slice(sheet.indexOf("import "), sheet.lastIndexOf("\nNext:"));
-    assert.equal(told(server, "s3"), `Third refusal for the same reason. Do only this:\n${skeletonText}`);
+    assert.equal(told(server, "s3"), `Third refusal for the same reason. Do this:\n${skeletonText}`);
     // A run starts the count again.
     assert.match(told(server, "s5"), /^Refused \(TEST-STEPS\): /);
-    assert.match(told(server, "s7"), /^Fourth refusal for the same reason\. Do only this:\nimport /);
+    assert.match(told(server, "s7"), /^Fourth refusal for the same reason\. Do this:\nimport /);
     // The test that ran to a verdict before the refusals is kept as it ended.
     assert.match(
       told(server, "s8"),

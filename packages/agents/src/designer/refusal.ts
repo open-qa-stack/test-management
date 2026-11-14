@@ -41,7 +41,7 @@ export function repeatedText(code: string, times: number, refusals: readonly Ref
   const same = refusals.filter((refusal) => refusal.code === code);
   const remedies = [...new Set(same.flatMap((refusal) => (refusal.remedy === undefined ? [] : [refusal.remedy])))];
   const told = remedies.length === 0 ? [`Refused (${code}): ${same[0]!.message}`] : remedies;
-  return [`${REPEATED.get(times)} refusal for the same reason. Do only this:`, ...told].join("\n");
+  return [`${REPEATED.get(times)} refusal for the same reason. Do this:`, ...told].join("\n");
 }
 
 /**

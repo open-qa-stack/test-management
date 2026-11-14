@@ -40,6 +40,16 @@ const HELP = {
   locatorOf: (text: string) => new Map([["ORD-1042", { locator: 'page.getByRole("row", { name: "ORD-1042 Mira Veldane" })', field: false }]]).get(text),
 };
 
+/** What a refusal of a text of the second step gives: every assertion of that step. */
+const STEP_TWO = [
+  "Step 2 must hold all of these, with its actions:",
+  // The element the screen showed it in, by a locator that names it: it is visible.
+  'await expect(page.getByRole("row", { name: "ORD-1042 Mira Veldane" })).toBeVisible();',
+  // No screen gave its element: the text, anywhere on the page.
+  'await expect(page.getByText("OK")).toBeVisible();',
+  'await expect(page.getByText("ORD-1057")).toBeHidden();',
+].join("\n");
+
 async function refusals(text: string, help = HELP): Promise<Refusal[]> {
   const syntax = await moduleSyntax(text);
   assert.ok(syntax.ok, JSON.stringify(syntax));
@@ -147,18 +157,17 @@ describe("the gates of a test against its scenario", () => {
       [
         ["TEST-ONE", "The skeleton."],
         ["TEST-STEPS", "The skeleton."],
-        // The element the screen showed it in, by a locator that names it: it is visible.
-        ["TEST-VALUE", 'In step 2: await expect(page.getByRole("row", { name: "ORD-1042 Mira Veldane" })).toBeVisible();'],
-        // No screen gave its element: the text, anywhere on the page, is hidden.
-        ["TEST-VALUE", 'In step 2: await expect(page.getByText("ORD-1057")).toBeHidden();'],
+        // Each refused text of a step gives the whole step, a text too short to be checked included.
+        ["TEST-VALUE", STEP_TWO],
+        ["TEST-VALUE", STEP_TWO],
       ],
     );
     const reversed = spec([`    await expect(page.getByText("ORD-1042")).toBeHidden();`, ...FILLED.slice(2)]);
     // The element the screen showed it in, by a locator that does not name it: it holds the text.
     const inCell = { ...HELP, locatorOf: () => ({ locator: 'page.getByRole("cell").first()', field: false }) };
     assert.deepEqual(
-      (await refusals(reversed, inCell)).map((refusal) => [refusal.code, refusal.remedy]),
-      [["TEST-POLARITY", 'In step 2: await expect(page.getByRole("cell").first()).toContainText("ORD-1042");']],
+      (await refusals(reversed, inCell)).map((refusal) => [refusal.code, refusal.remedy?.split("\n")[1]]),
+      [["TEST-POLARITY", 'await expect(page.getByRole("cell").first()).toContainText("ORD-1042");']],
     );
   });
 

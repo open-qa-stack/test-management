@@ -45,6 +45,15 @@ export function scenarioErrors(outline: SpecOutline, scenario: PlannedScenario, 
     const number = at + 1;
     const range = outline.steps.find((candidate) => candidate.title?.startsWith(`${number}. `));
     const asserted = range === undefined ? [] : outline.assertions.filter((assertion) => range.start <= assertion.start && assertion.start < range.end);
+    const planned = step.expects.flatMap((expect) => [
+      ...expect.shows.map((text) => ({ text, negative: false })),
+      ...expect.absent.map((text) => ({ text, negative: true })),
+    ]);
+    // The whole step, for a model that would keep only the lines it is given.
+    const remedy = [
+      `Step ${number} must hold all of these, with its actions:`,
+      ...planned.map(({ text, negative }) => assertionOf(text, negative, help.locatorOf(text, negative))),
+    ].join("\n");
     step.expects.forEach((expect, k) => {
       const texts = [...expect.shows.map((text) => ({ text, negative: false })), ...expect.absent.map((text) => ({ text, negative: true }))].filter(
         ({ text }) => checkable(text),
@@ -52,7 +61,6 @@ export function scenarioErrors(outline: SpecOutline, scenario: PlannedScenario, 
       for (const { text, negative } of texts) {
         // An assertion on either of two elements may pass on the one that does not hold the text.
         const holding = asserted.filter((assertion) => !assertion.alternative && observed(text, [...assertion.subject, ...assertion.expected]));
-        const remedy = `In step ${number}: ${assertionOf(text, negative, help.locatorOf(text, negative))}`;
         if (holding.length === 0) {
           refusals.push({
             code: "TEST-VALUE",
