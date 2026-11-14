@@ -274,15 +274,19 @@ describe("the request of a batch", () => {
     for (let i = 0; i < MAX_DOMAIN_ELEMENTS; i++) grouping.place(`public.o${i}`, ORDERS, "An order table.");
     grouping.place("public.customers", { id: "customers", label: "Customers", description: "The customers." }, "A customer.");
     grouping.dismiss("public.audit", "Technical.");
+    // A domain an earlier run left, which holds no element yet, and an element that changed since it was placed there.
+    grouping.remember({ id: "returns", label: "Returns", description: "Orders sent back." });
+    const former = new Map([["public.payments", "returns"]]);
     const batch = [element("public.invoices", { links: ["public.customers", "public.audit", "public.unknown"] }), element("public.payments")];
     assert.equal(
-      batchRequest("shop-db", 2, 3, batch, grouping),
+      batchRequest("shop-db", 2, 3, batch, grouping, former),
       [
         "Batch 2 of 3 of the source shop-db.",
         "",
         "Domains so far:",
         `- orders — Order management: Orders placed by customers. (${MAX_DOMAIN_ELEMENTS} placed, full: place nothing more in it; such as public.o0, public.o1, public.o2)`,
         "- customers — Customers: The customers. (1 placed; such as public.customers)",
+        "- returns — Returns: Orders sent back. (0 placed)",
         "",
         "The 2 elements to place, each named by its ### line:",
         "",
@@ -292,6 +296,7 @@ describe("the request of a batch", () => {
         "",
         "### public.payments",
         "table public.payments",
+        "It changed since it was placed in returns.",
         "",
         "Call place_elements with these 2 elements.",
       ].join("\n"),

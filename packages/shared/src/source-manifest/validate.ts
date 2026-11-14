@@ -10,7 +10,7 @@ const checkPlacement = ajv.compile<PlacementSubmission>(placementSubmissionSchem
 
 /**
  * Validates a source manifest: the schema, then domains and elements named once, and each element in a
- * domain of the manifest.
+ * domain of the manifest with its role.
  *
  * @param value - The manifest.
  * @returns The manifest, or every error found, each with its location.
@@ -24,7 +24,12 @@ export function validateSourceManifest(value: unknown): IndexValidation<SourceMa
         ? []
         : [{ path: `/elements/${i}/domain`, message: `/elements/${i}/domain names the domain ${element.domain}, which the manifest does not have.` }],
     );
-    return [...repeated(domains, "/domains", "id", "domain"), ...repeated(names, "/elements", "name", "element"), ...strays];
+    const mute = manifest.elements.flatMap((element, i) =>
+      element.domain === undefined || element.role !== undefined
+        ? []
+        : [{ path: `/elements/${i}/role`, message: `/elements/${i} is in a domain and has no role.` }],
+    );
+    return [...repeated(domains, "/domains", "id", "domain"), ...repeated(names, "/elements", "name", "element"), ...strays, ...mute];
   });
 }
 

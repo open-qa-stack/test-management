@@ -53,6 +53,15 @@ describe("the source manifest format", () => {
       { path: "/elements/1/domain", message: "/elements/1/domain names the domain billing, which the manifest does not have." },
     ]);
   });
+
+  it("refuses an element in a domain that has no role", () => {
+    const mute = structuredClone(EXAMPLE);
+    const placed = mute.elements.findIndex((element) => element.domain !== undefined);
+    delete mute.elements[placed]!.role;
+    assert.deepEqual(errorsOf(validateSourceManifest(mute)), [
+      { path: `/elements/${placed}/role`, message: `/elements/${placed} is in a domain and has no role.` },
+    ]);
+  });
 });
 
 describe("what the model hands in for a batch of elements", () => {

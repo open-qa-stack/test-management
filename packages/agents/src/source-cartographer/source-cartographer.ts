@@ -227,6 +227,7 @@ export class SourceCartographer {
       source: { id: source.id, type: source.type },
       exported,
       partial: inventory.truncated === true,
+      force: this.options.force === true,
       folder: new SourceFolder(join(repositoryRoot, config.repository.indexDir, CARDS_FOLDER, source.id), secrets),
       runtime: this.options.runtime,
       limits: taskLimits(config),

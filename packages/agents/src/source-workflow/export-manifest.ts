@@ -38,7 +38,7 @@ export interface ManifestParts {
 export function exportManifest(parts: ManifestParts, producedAt: Date): SourceManifest {
   const { source, exported, grouping, files } = parts;
   const states = exported.elements.map((element) => grouping.state(element.name));
-  const domains = grouping.domains().map((domain) => ({ ...domain, ...files.get(domain.id) }));
+  const domains = grouping.populated().map((domain) => ({ ...domain, ...files.get(domain.id) }));
   const cut = parts.flawed || states.some((state) => state !== undefined && "unplaced" in state) || domains.some((domain) => domain.writtenBy === "harness");
   const pending = states.includes(undefined) || domains.some((domain) => domain.file === undefined);
   return {

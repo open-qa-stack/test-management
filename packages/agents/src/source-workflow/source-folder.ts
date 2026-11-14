@@ -85,7 +85,38 @@ export class SourceFolder {
     await this.write(join(this.root, DOMAINS_FOLDER, `${id}.md`), text);
     if (refused === undefined) await rm(kept, { force: true });
     else await this.write(kept, refused);
+    return this.domainFile(id);
+  }
+
+  /**
+   * @param id - Identifier of a domain.
+   * @returns The path of its file, from the folder of the source, with forward slashes.
+   */
+  public domainFile(id: string): string {
     return `${DOMAINS_FOLDER}/${id}.md`;
+  }
+
+  /**
+   * Removes the file of a domain, and the refused body kept beside it; nothing happens when it has none.
+   *
+   * @param id - Identifier of the domain.
+   */
+  public async removeDomain(id: string): Promise<void> {
+    await rm(join(this.root, DOMAINS_FOLDER, `${id}.md`), { force: true });
+    await rm(join(this.root, DOMAINS_FOLDER, `${id}.refused.md`), { force: true });
+  }
+
+  /**
+   * Reads the manifest an earlier run left.
+   *
+   * @returns The manifest, or `undefined` when there is none, or none that matches its schema.
+   */
+  public async readManifest(): Promise<SourceManifest | undefined> {
+    const content = await readFile(join(this.root, MANIFEST_FILE), "utf8")
+      .then((text) => JSON.parse(text) as unknown)
+      .catch(() => undefined);
+    const validation = validateSourceManifest(content);
+    return validation.ok ? validation.value : undefined;
   }
 
   /**

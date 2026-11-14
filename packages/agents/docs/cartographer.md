@@ -38,6 +38,8 @@ A base has too many elements for one answer. Its card is derived from a workflow
 
 A card that is kept writes neither export nor manifest.
 
+A source that changed is not mapped from nothing. Unless `--force-cartography` is given, the workflow goes on from the manifest the run before left, when it can be read: an element whose fingerprint did not change keeps its domain and its role, or stays set aside; an element that changed, is new or was left unplaced is placed again, in batches, each told the domain it was in (`It changed since it was placed in orders.`); one that left the source is forgotten. The domains of the manifest stay known, so that an element may go back to one. The file of a domain is kept when the model wrote it, it still names every element of the domain, and the domain neither gained, lost nor holds an element placed in this run; any other is written again, and a domain left without any element loses its file. The manifest is written after each batch and after each file, so that a run a limit stopped is resumed from there. One table that changed costs one request to place it and one to write the file of its domain again.
+
 ### What `place_elements` answers
 
 Every element a call places validly is kept at once, and the answer names only what is wrong and what is still to place. The harness reacts in three ways:

@@ -16,6 +16,10 @@ export interface GroupElementsOptions {
   readonly exported: SourceExport;
   /** The grouping the placements go to; its settled elements are not asked again. */
   readonly grouping: Grouping;
+  /** The domain an earlier run placed an element in, for those that changed since. */
+  readonly former: ReadonlyMap<string, string>;
+  /** Called once each batch is over, to record where the grouping stands. */
+  readonly afterBatch: () => Promise<void>;
   /** The runtime that opens the session of each batch. */
   readonly runtime: AgentRuntime;
   /** The limits of each session. */
@@ -86,7 +90,7 @@ export function sessionUse(events: readonly AgentEvent[]): SessionsUse {
  * of its own, with `place_elements` as its only tool, told where the grouping stands, the secrets of the
  * configuration masked. A session a limit
  * stopped leaves the rest of its batch unplaced and the next batch still runs: the limits are those of one
- * session. A session that fails ends the grouping, and the elements of the batches after it are left
+ * session. `afterBatch` is called once each batch is over. A session that fails ends the grouping, and the elements of the batches after it are left
  * unplaced.
  *
  * @param options - What the grouping needs.
@@ -105,7 +109,7 @@ export async function groupElements(options: GroupElementsOptions): Promise<Sess
     const task = {
       instructions: GROUPING_INSTRUCTIONS,
       tools: [placement.tool()],
-      request: redactText(batchRequest(sourceId, i + 1, batches.length, batch, grouping), forms),
+      request: redactText(batchRequest(sourceId, i + 1, batches.length, batch, grouping, options.former), forms),
       events,
       reminder: () => placement.reminder(),
       sent: options.sent,
@@ -117,6 +121,7 @@ export async function groupElements(options: GroupElementsOptions): Promise<Sess
     if (last.type === "stopped") journal.record("error", `The session of ${label} reached its ${last.reason.limit} limit.`, sourceId);
     if (last.type === "error") journal.record("error", `The session of ${label} failed: ${last.error.message}`, sourceId);
     placement.close("The session ended before they were placed.");
+    await options.afterBatch();
     if (last.type === "error") break;
   }
   for (const element of exported.elements) {

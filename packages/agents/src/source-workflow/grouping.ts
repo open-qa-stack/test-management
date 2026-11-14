@@ -20,12 +20,30 @@ export class Grouping {
   private readonly states = new Map<string, ElementState>();
 
   /**
-   * The domains created so far.
+   * The domains known so far: those created, and those remembered from an earlier run.
    *
-   * @returns Them, in the order they were created.
+   * @returns Them, in the order they were known.
    */
   public domains(): ManifestDomain[] {
     return [...this.known.values()];
+  }
+
+  /**
+   * The domains that hold an element.
+   *
+   * @returns Them, in the order they were known.
+   */
+  public populated(): ManifestDomain[] {
+    return this.domains().filter((domain) => this.members(domain.id).length > 0);
+  }
+
+  /**
+   * Makes a domain of an earlier run known, without any element yet.
+   *
+   * @param domain - The domain.
+   */
+  public remember(domain: ManifestDomain): void {
+    this.known.set(domain.id, domain);
   }
 
   /**

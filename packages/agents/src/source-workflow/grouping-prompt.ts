@@ -26,20 +26,35 @@ Rules:
  * @param total - Number of batches.
  * @param batch - The elements to place.
  * @param grouping - The grouping so far.
+ * @param former - The domain an earlier run placed an element in, for those that changed since.
  * @returns The message that starts the session of the batch.
  */
-export function batchRequest(sourceId: string, position: number, total: number, batch: readonly ExportedElement[], grouping: Grouping): string {
+export function batchRequest(
+  sourceId: string,
+  position: number,
+  total: number,
+  batch: readonly ExportedElement[],
+  grouping: Grouping,
+  former: ReadonlyMap<string, string>,
+): string {
   const domains = grouping.domains().map((domain) => {
     const members = grouping.members(domain.id);
     const count = `${members.length} placed${grouping.isFull(domain.id) ? ", full: place nothing more in it" : ""}`;
-    return `- ${domain.id} — ${domain.label}: ${domain.description} (${count}; such as ${members.slice(0, EXAMPLES).join(", ")})`;
+    const examples = members.length === 0 ? "" : `; such as ${members.slice(0, EXAMPLES).join(", ")}`;
+    return `- ${domain.id} — ${domain.label}: ${domain.description} (${count}${examples})`;
   });
   const elements = batch.map((element) => {
     const linked = element.links.flatMap((link) => {
       const state = grouping.state(link);
       return state !== undefined && "domain" in state ? [`${link} is in ${state.domain}`] : [];
     });
-    return [`### ${element.name}`, batchSummary(element), ...(linked.length === 0 ? [] : [`Linked: ${linked.join("; ")}.`])].join("\n");
+    const was = former.get(element.name);
+    return [
+      `### ${element.name}`,
+      batchSummary(element),
+      ...(linked.length === 0 ? [] : [`Linked: ${linked.join("; ")}.`]),
+      ...(was === undefined ? [] : [`It changed since it was placed in ${was}.`]),
+    ].join("\n");
   });
   return [
     `Batch ${position} of ${total} of the source ${sourceId}.`,

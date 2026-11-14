@@ -57,10 +57,15 @@ async function grouped(turns: readonly Turn[], exported: SourceExport, grouping 
     close: async () => undefined,
   };
   const received: AgentEvent[] = [];
+  let batchesOver = 0;
   const used = await groupElements({
     sourceId: "shop-db",
     exported,
     grouping,
+    former: new Map(),
+    afterBatch: async () => {
+      batchesOver += 1;
+    },
     runtime,
     limits: LIMITS,
     secrets: [SECRET],
@@ -68,13 +73,15 @@ async function grouped(turns: readonly Turn[], exported: SourceExport, grouping 
     sent: (message) => sent.push(message),
     received: (event) => received.push(event),
   });
-  return { used, grouping, sent, received, opened: () => opened, journal: journal.entries().map((entry) => entry.message) };
+  return { used, grouping, sent, received, opened: () => opened, batchesOver: () => batchesOver, journal: journal.entries().map((entry) => entry.message) };
 }
 
 describe("the grouping of the elements of a source", () => {
   it("opens one session per batch, tells the second where the first left the grouping, and adds up what they used", async () => {
-    const { used, grouping, sent, received, opened } = await grouped([placing, placing], exportOf(NAMES.map((name) => element(name))));
+    const { used, grouping, sent, received, opened, batchesOver } = await grouped([placing, placing], exportOf(NAMES.map((name) => element(name))));
     assert.equal(opened(), 2);
+    // Where the grouping stands is recorded once each batch is over.
+    assert.equal(batchesOver(), 2);
     assert.ok(sent[0]!.startsWith("Batch 1 of 2 of the source shop-db.\n\nNo domain exists yet"));
     assert.ok(
       sent[1]!.startsWith(
