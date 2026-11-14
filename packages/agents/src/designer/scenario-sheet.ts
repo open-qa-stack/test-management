@@ -1,6 +1,7 @@
 import type { PlannedScenario } from "@open-qa-stack/domain";
 import { assertionOf } from "./assertion-line.ts";
 import type { DesignCursor } from "./design-cursor.ts";
+import { oneLine } from "./one-line.ts";
 import type { ShownElement } from "./screen-watch.ts";
 
 /** The element the screens showed a text in, if one did; one it went from first, for a text expected gone. */
@@ -71,9 +72,4 @@ export function scenarioSheet(cursor: DesignCursor, screenshots: boolean, find: 
     skeleton(scenario, screenshots, find),
     cursor.next(),
   ].join("\n");
-}
-
-/** A text on one line, as a comment or a title holds it. */
-function oneLine(text: string): string {
-  return text.replace(/\s+/g, " ").trim().replace(/\.$/, "");
 }

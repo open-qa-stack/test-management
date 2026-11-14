@@ -90,7 +90,7 @@ The state of a run is written to `<stateDir>/runs/oqas-<date>.json`:
 }
 ```
 
-`brief` is the brief of the run, when one was given; `designState` the state the design wrote, when it wrote one; `stoppedBy`, such as `{ "step": "design", "limit": "iterations" }`, the step a limit stopped and the limit, when one stopped the run; `resumes` the run it resumes, when it resumes one. `steps` lists the steps that ran before the summary, which writes the state; a step that did not succeed is listed too, with the requests it sent to the model. `index`, `branch`, `run` and `report` are present once their step produced them, as paths relative to the test repository with forward slashes. The reason of each verdict has every declared secret masked.
+`brief` is the brief of the run, when one was given; `designState` the state the design wrote, when it wrote one, which names the file of its plan, `<design>.plan.md` beside it; `stoppedBy`, such as `{ "step": "design", "limit": "iterations" }`, the step a limit stopped and the limit, when one stopped the run; `resumes` the run it resumes, when it resumes one. `steps` lists the steps that ran before the summary, which writes the state; a step that did not succeed is listed too, with the requests it sent to the model. `index`, `branch`, `run` and `report` are present once their step produced them, as paths relative to the test repository with forward slashes. The reason of each verdict has every declared secret masked.
 
 ## What it never does
 

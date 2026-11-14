@@ -15,6 +15,7 @@ import { CARDS_FOLDER } from "../source-cartographer/source-cartographer.ts";
 import { designRequest, resumeRequest } from "./designer-prompt.ts";
 import { DESIGNS_FOLDER, type DesignedTest, type DesignState } from "./design-state.ts";
 import { IndexMap } from "./index-map.ts";
+import { PLAN_FILE_SUFFIX, planFileText, readPlanFile, type PlanRecord } from "./plan-file.ts";
 import { PlanProposal } from "./plan-proposal.ts";
 import { sessionTools } from "./session-tools.ts";
 import type { TestCheck, TestRunner } from "@open-qa-stack/domain";
@@ -71,6 +72,8 @@ export interface DesignOutcome {
   readonly branch?: string;
   /** Where the design state was written, when it was. */
   readonly statePath?: string;
+  /** Where the accepted plan was written, when the state was. */
+  readonly planPath?: string;
   /** The tests written, in the order they were accepted. */
   readonly tests: readonly DesignedTest[];
   /** What the run checked, refused and wrote. */
@@ -106,8 +109,9 @@ const ACCEPT_EVERY_PLAN: PlanReview = { review: async () => ({ accepted: true })
  * tests that passed or that fail because of the application; with fewer, those kept are still written and
  * the design fails.
  *
- * A design a limit stopped before every scenario of its plan was closed keeps its plan, even without a test,
- * and its tests in its state. Resumed from that state, it checks out its branch, gives the agent the plan
+ * The plan accepted is written with the state, to a file the state names: a page a person reads, then the
+ * record the harness reads again. A design a limit stopped before every scenario of its plan was closed
+ * keeps its plan, even without a test, and its tests in its state. Resumed from that state and that file, it checks out its branch, gives the agent the plan
  * and the tests kept, offers no `propose_plan`, opens the first scenario not closed, and commits the tests
  * it adds on the same branch, with the state updated.
  */
@@ -146,8 +150,10 @@ export class Designer {
     if (problems.length > 0) return failed(resume === undefined ? "No branch was created and no file was written." : "The design was not resumed.");
     // The state of a design that holds a test may be committed on its branch only.
     if (resume?.branch !== undefined && (await repository.hasBranch(resume.branch))) await repository.switchTo(resume.branch);
-    const previous = await this.previous();
-    if (typeof previous === "string") return failed(previous);
+    const resumed = await this.previous();
+    if (typeof resumed === "string") return failed(resumed);
+    const previous = resumed?.state;
+    const frozen = resumed === undefined ? undefined : { scenarios: resumed.plan.scenarios };
     const branch = previous?.branch ?? created;
     const brief = previous === undefined ? this.options.brief : previous.brief;
     const index = await this.index();
@@ -210,13 +216,13 @@ export class Designer {
             {
               environment: index.environment,
               ...(brief === undefined ? {} : { brief }),
-              plan: previous.plan,
+              plan: frozen!,
               tests: await Promise.all(previous.tests.map(async (test) => ({ ...test, content: await readFile(join(repositoryRoot, test.path), "utf8") }))),
               unwritten: previous.unwritten.map((scenario) => scenario.scenario),
             },
             applications,
             packages,
-            proposals.start(previous.plan, previous.tests.length + previous.unwritten.length),
+            proposals.start(frozen!, previous.tests.length + previous.unwritten.length),
           );
     // A design resumed carries out the plan it accepted: it is offered no other.
     const planning = previous === undefined ? [plan.tool()] : [];
@@ -247,7 +253,7 @@ export class Designer {
       if (last.type === "stopped") journal.record("error", `The task reached its ${last.reason.limit} limit; no test was written for the scenario under way.`);
 
       if (plan.refused !== undefined) return failed(`No test was written: the plan was refused: ${plan.refused}`);
-      const planned = previous?.plan ?? plan.accepted;
+      const planned = frozen ?? plan.accepted;
       // A limit cuts the design short while its plan is to come, or a scenario of it is open.
       const stoppedBy = last.type === "stopped" && (planned === undefined || proposals.pending) ? last.reason.limit : undefined;
       const tests = proposals.accepted;
@@ -261,12 +267,19 @@ export class Designer {
       if (planned === undefined || (kept.length === 0 && stoppedBy === undefined))
         return failed(`No test was written: ${obtained(0)}, ${MIN_TESTS} at least are expected.`, stoppedBy);
       const used = { iterations: counters.iterations, actions: counters.actions, durationMs: Math.round(counters.elapsedMs) };
+      const record: PlanRecord = resumed?.plan ?? {
+        formatVersion: 1,
+        design: id,
+        environment: index.environment,
+        ...(brief === undefined ? {} : { brief }),
+        scenarios: planned.scenarios,
+      };
       const state: DesignState = {
-        formatVersion: 2,
+        formatVersion: 3,
         producedAt: previous?.producedAt ?? start.toISOString(),
         environment: index.environment,
         ...(brief === undefined ? {} : { brief }),
-        plan: planned,
+        plan: previous?.plan ?? posix.join(config.repository.stateDir, DESIGNS_FOLDER, `${id}${PLAN_FILE_SUFFIX}`),
         branch,
         // A branch still to create starts from the revision checked out now.
         base: previous !== undefined && previous.tests.length > 0 ? previous.base : await repository.head(),
@@ -283,7 +296,7 @@ export class Designer {
         unwritten: [...(previous?.unwritten ?? []), ...proposals.unwritten],
       };
       const statePath = resume?.state ?? posix.join(config.repository.stateDir, DESIGNS_FOLDER, `${id}.json`);
-      await this.write(repository, state, statePath, tests, journal);
+      await this.write(repository, state, statePath, record, tests, journal);
       const counted = kept.filter((test) => test.verdict === "passed" || test.quarantine?.cause === "application").length;
       if (counted < MIN_TESTS) journal.record("error", `The design failed: ${obtained(counted)}, ${MIN_TESTS} at least are expected.`);
       const ok = counted >= MIN_TESTS;
@@ -292,6 +305,7 @@ export class Designer {
         ok,
         ...(kept.length === 0 ? {} : { branch }),
         statePath: join(repositoryRoot, statePath),
+        planPath: join(repositoryRoot, state.plan),
         tests: kept,
         journal: journal.entries(),
         tracePath: opened.path,
@@ -302,13 +316,21 @@ export class Designer {
     }
   }
 
-  /** Writes the state and the new tests and, with a test at least, commits them on the branch, created if need be. */
-  private async write(repository: TestRepository, state: DesignState, statePath: string, tests: readonly AcceptedTest[], journal: Journal): Promise<void> {
+  /** Writes the state, the file of its plan and the new tests and, with a test at least, commits them on the branch, created if need be. */
+  private async write(
+    repository: TestRepository,
+    state: DesignState,
+    statePath: string,
+    plan: PlanRecord,
+    tests: readonly AcceptedTest[],
+    journal: Journal,
+  ): Promise<void> {
     const { repositoryRoot } = this.options;
     if (tests.length > 0 && !(await repository.hasBranch(state.branch))) await repository.createBranch(state.branch);
     const files: (readonly [string, string | Uint8Array])[] = [
       ...tests.map((test) => [test.path, test.content.endsWith("\n") ? test.content : `${test.content}\n`] as const),
       ...tests.flatMap((test) => test.references.map((reference) => [reference.path, reference.content] as const)),
+      [state.plan, planFileText(plan)] as const,
       [statePath, `${JSON.stringify(state, null, 2)}\n`] as const,
     ];
     for (const [path, content] of files) {
@@ -316,10 +338,13 @@ export class Designer {
       await writeFile(join(repositoryRoot, path), content);
     }
     if (tests.length === 0) {
-      journal.record("info", `The design state was written to ${statePath}; no new test was written, and nothing was committed.`);
+      journal.record(
+        "info",
+        `The design state was written to ${statePath}, and its plan to ${state.plan}; no new test was written, and nothing was committed.`,
+      );
       return;
     }
-    const titles = new Map(state.plan.scenarios.map((scenario) => [scenario.id, scenario.title]));
+    const titles = new Map(plan.scenarios.map((scenario) => [scenario.id, scenario.title]));
     const line = (test: AcceptedTest) =>
       test.quarantine === undefined
         ? `- ${test.path}: ${titles.get(test.scenario)}`
@@ -332,19 +357,24 @@ export class Designer {
       ),
     );
     for (const test of tests) journal.record("info", `The test ${test.path} was written.`);
-    journal.record("info", `The design state was written to ${statePath}${committed.has(statePath) ? "" : ", which git ignores: it was not committed"}.`);
+    const ignored = (path: string) => (committed.has(path) ? "" : ", which git ignores: it was not committed");
+    journal.record("info", `The plan was written to ${state.plan}${ignored(state.plan)}.`);
+    journal.record("info", `The design state was written to ${statePath}${ignored(statePath)}.`);
     journal.record("info", `The tests were committed on ${state.branch}; the active branch of the test repository is ${await repository.branch()}.`);
   }
 
-  /** The state of the design to resume, none for a new design, or why it cannot be resumed. */
-  private async previous(): Promise<DesignState | undefined | string> {
+  /** The state of the design to resume and the plan its file records, none for a new design, or why it cannot be resumed. */
+  private async previous(): Promise<{ readonly state: DesignState; readonly plan: PlanRecord } | undefined | string> {
     const path = this.options.resume?.state;
     if (path === undefined) return undefined;
-    const state = (await readJson(join(this.options.repositoryRoot, path))) as DesignState | undefined;
-    if (state?.formatVersion !== 2) return `The design state ${path} cannot be read; the design was not resumed.`;
-    if (state.tests.length + state.unwritten.length >= state.plan.scenarios.length)
+    const { repositoryRoot } = this.options;
+    const state = (await readJson(join(repositoryRoot, path))) as DesignState | undefined;
+    if (state?.formatVersion !== 3) return `The design state ${path} cannot be read; the design was not resumed.`;
+    const plan = readPlanFile(await readFile(join(repositoryRoot, state.plan), "utf8").catch(() => ""));
+    if (plan === undefined) return `The plan ${state.plan} of the design state ${path} cannot be read; the design was not resumed.`;
+    if (state.tests.length + state.unwritten.length >= plan.scenarios.length)
       return `Every scenario of the plan of ${path} is closed; there is nothing to resume.`;
-    return state;
+    return { state, plan };
   }
 
   /** The domain index, or why it cannot be read. */

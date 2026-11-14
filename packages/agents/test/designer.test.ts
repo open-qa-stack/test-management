@@ -10,7 +10,7 @@ import { answer, scriptedServer, testSite, toolCalls, type ScriptedServer, type 
 import { moduleSyntax } from "@open-qa-stack/tools";
 import type { PlanReview, ProposedTest, TestCheck, TestRunner, TestTrial } from "@open-qa-stack/domain";
 import { testPackages } from "../src/designer/spec-rules.ts";
-import { Designer, type DesignOutcome, type DesignState } from "../src/index.ts";
+import { Designer, readPlanFile, type DesignOutcome, type DesignState, type PlanRecord } from "../src/index.ts";
 
 const MODEL = "test-model";
 const BRANCH = "oqas/design-test";
@@ -322,6 +322,12 @@ const told = (server: ScriptedServer, callId: string) => {
   return typeof result === "string" ? result : result.error;
 };
 const stateOf = (outcome: DesignOutcome) => JSON.parse(readFileSync(outcome.statePath!, "utf8")) as DesignState;
+/** The plan of a design, as its file records it. */
+const planOf = (outcome: DesignOutcome): PlanRecord => {
+  const plan = readPlanFile(readFileSync(outcome.planPath!, "utf8"));
+  assert.ok(plan !== undefined, "the file of the plan is read");
+  return plan;
+};
 const specsOf = (root: string, branch = BRANCH) => filesOf(root, branch).filter((path) => path.endsWith(".spec.ts"));
 
 describe("criterion 1 — three valid tests are written on a new branch, in the folder of their application, with a state", () => {
@@ -333,12 +339,19 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     assert.equal(readFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "utf8"), spec("list-orders"));
     const state = stateOf(outcome);
     assert.equal(outcome.statePath, join(root, ".oqas", "designs", "design-20261113T100000Z.json"));
-    assert.ok(filesOf(root).includes(".oqas/designs/design-20261113T100000Z.json"));
+    assert.equal(outcome.planPath, join(root, ".oqas", "designs", "design-20261113T100000Z.plan.md"));
+    for (const file of ["design-20261113T100000Z.json", "design-20261113T100000Z.plan.md"]) assert.ok(filesOf(root).includes(`.oqas/designs/${file}`), file);
     assert.deepEqual(
       state.tests,
       IDS.map((id) => ({ path: `apps/shop/${id}.spec.ts`, scenario: id, verdict: "passed", runs: [{ verdict: "passed" }] })),
     );
-    assert.deepEqual([state.formatVersion, state.plan, state.brief], [2, PLAN.arguments, undefined]);
+    assert.deepEqual([state.formatVersion, state.plan, state.brief], [3, ".oqas/designs/design-20261113T100000Z.plan.md", undefined]);
+    assert.deepEqual(planOf(outcome), {
+      formatVersion: 1,
+      design: "design-20261113T100000Z",
+      environment: "local",
+      scenarios: PLAN.arguments.scenarios,
+    });
     assert.deepEqual(outcome.tests, state.tests);
     assert.deepEqual(
       [state.branch, state.base, state.environment, state.producedAt, state.model.model],
@@ -352,7 +365,7 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     ]);
     assert.match(
       messages(outcome),
-      /The design state was written to \.oqas\/designs\/design-20261113T100000Z\.json\.\nThe tests were committed on oqas\/design-test; the active branch of the test repository is oqas\/design-test\./,
+      /The plan was written to \.oqas\/designs\/design-20261113T100000Z\.plan\.md\.\nThe design state was written to \.oqas\/designs\/design-20261113T100000Z\.json\.\nThe tests were committed on oqas\/design-test; the active branch of the test repository is oqas\/design-test\./,
     );
     assert.equal(git(root, "status", "--porcelain", "--untracked-files=no"), "");
     assert.equal(server.requests.length, 9);
@@ -402,7 +415,7 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     assert.ok(!request.includes("Lists and places the orders of a customer."));
   });
 
-  it("names the branch after the date by default, ends the file with a new line, and leaves out a state git ignores", async () => {
+  it("names the branch after the date by default, ends the file with a new line, and leaves out a state and a plan git ignores", async () => {
     const root = repository();
     writeFileSync(join(root, ".gitignore"), ".oqas/\n");
     git(root, "add", ".gitignore");
@@ -412,7 +425,11 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     assert.equal(readFileSync(join(root, "apps", "shop", "follow-order.spec.ts"), "utf8"), spec("follow-order"));
     assert.ok(!filesOf(root, outcome.branch).some((path) => path.startsWith(".oqas/")));
     assert.ok(existsSync(outcome.statePath!));
-    assert.match(messages(outcome), /which git ignores: it was not committed\./);
+    assert.ok(existsSync(outcome.planPath!));
+    assert.match(
+      messages(outcome),
+      /The plan was written to \.oqas\/designs\/design-\w+\.plan\.md, which git ignores: it was not committed\.\nThe design state was written to \.oqas\/designs\/design-\w+\.json, which git ignores: it was not committed\./,
+    );
   });
 });
 
@@ -1399,11 +1416,13 @@ describe("brief, criterion 2 — without an accepted plan, run_test and propose_
   });
 });
 
-describe("brief, criterion 3 — the plan is written to the design state, and each test kept names its scenario", () => {
-  it("keeps the plan, and the scenario of each test, in the order of the plan", async () => {
-    const { outcome } = await design(replies(valid(3)));
+describe("brief, criterion 3 — the plan is written to a file the design state names, and each test kept names its scenario", () => {
+  it("keeps the plan with its brief, and the scenario of each test, in the order of the plan", async () => {
+    const { outcome } = await design(replies(valid(3)), { brief: "Test the orders." });
     const state = stateOf(outcome);
-    assert.deepEqual(state.plan, PLAN.arguments);
+    const plan = planOf(outcome);
+    assert.deepEqual([plan.brief, plan.scenarios], ["Test the orders.", PLAN.arguments.scenarios]);
+    assert.match(readFileSync(outcome.planPath!, "utf8"), /^# Test plan design-20261113T100000Z\n\n- Environment: local\n- Brief: Test the orders\.\n/);
     assert.deepEqual(
       state.tests.map((test) => [test.path, test.scenario]),
       IDS.map((id) => [`apps/shop/${id}.spec.ts`, id]),
@@ -1499,7 +1518,7 @@ describe("plans submitted in one turn", () => {
 });
 
 describe("what a plan may hold", () => {
-  it("refuses the value of a declared variable, the plan being written to the state, and cites a source the index does not list", async () => {
+  it("refuses the value of a declared variable, the plan being written to a file, and cites a source the index does not list", async () => {
     const leaky = {
       id: "plan-leaky",
       name: "propose_plan",
@@ -1526,7 +1545,7 @@ describe("what a plan may hold", () => {
       /Refused \(PLAN-SECRET\): the plan holds the value of SHOP_USERNAME\. Leave it out; a test reads it with process\.env\.SHOP_USERNAME\./,
     );
     assert.ok(!messages(outcome).includes(USERNAME));
-    assert.deepEqual(stateOf(outcome).plan.scenarios[0]!.sources, [{ source: "shop-guide", item: "Guide" }]);
+    assert.deepEqual(planOf(outcome).scenarios[0]!.sources, [{ source: "shop-guide", item: "Guide" }]);
   });
 
   it("refuses a functional scenario none of whose texts an action of the agent made appear, and accepts it once the agent searched", async () => {
@@ -1637,7 +1656,7 @@ describe("resume — a design a limit stopped goes on from its plan and its test
     assert.deepEqual([outcome.ok, outcome.stoppedBy, outcome.branch], [false, "iterations", BRANCH]);
     assert.deepEqual(specsOf(root), ["apps/shop/list-orders.spec.ts"]);
     const state = stateOf(outcome);
-    assert.deepEqual([state.plan.scenarios.map((scenario) => scenario.id), state.tests.map((test) => test.scenario)], [IDS, ["list-orders"]]);
+    assert.deepEqual([planOf(outcome).scenarios.map((scenario) => scenario.id), state.tests.map((test) => test.scenario)], [IDS, ["list-orders"]]);
   });
 
   it("gives the plan and the kept test to the session, offers no plan tool, and ends on the same branch with every test", async () => {
@@ -1652,7 +1671,7 @@ describe("resume — a design a limit stopped goes on from its plan and its test
     assert.equal(outcome.ok, true, messages(outcome));
     assert.equal(outcome.stoppedBy, undefined);
     const request = requestText(server);
-    assert.ok(request.includes(JSON.stringify(JSON.stringify(stateOf(first.outcome).plan)).slice(1, -1)), "the plan");
+    assert.ok(request.includes(JSON.stringify(JSON.stringify({ scenarios: planOf(first.outcome).scenarios })).slice(1, -1)), "the plan");
     assert.ok(request.includes(JSON.stringify(spec("list-orders").trimEnd()).slice(1, -1)), "the text of the kept test");
     assert.match(request, /Scenario 2 of 3: place-order/);
     assert.ok(!toolsOffered(server).includes("propose_plan"));
@@ -1665,7 +1684,9 @@ describe("resume — a design a limit stopped goes on from its plan and its test
       state.tests.map((test) => test.scenario),
       IDS,
     );
-    assert.deepEqual(state.plan, stateOf(first.outcome).plan);
+    assert.deepEqual([state.plan, outcome.planPath], [stateOf(first.outcome).plan, first.outcome.planPath]);
+    assert.deepEqual(planOf(outcome), planOf(first.outcome));
+    assert.ok(filesOf(root).includes(state.plan));
     assert.equal(state.run.iterations, 5 + 6);
   });
 
@@ -1674,7 +1695,10 @@ describe("resume — a design a limit stopped goes on from its plan and its test
       limits: { maxIterations: 2, maxMinutes: 10, maxActions: 200 },
     });
     assert.deepEqual([first.outcome.stoppedBy, first.outcome.branch, first.outcome.tests], ["iterations", undefined, []]);
-    assert.match(messages(first.outcome), /no new test was written, and nothing was committed\./);
+    assert.match(
+      messages(first.outcome),
+      /The design state was written to \S+\.json, and its plan to \S+\.plan\.md; no new test was written, and nothing was committed\./,
+    );
     assert.equal(git(first.root, "branch", "--list", BRANCH), "");
     // The revision checked out moves before the design is resumed: the branch starts from where it is now.
     writeFileSync(join(first.root, "notes.md"), "Notes.\n");
@@ -1686,6 +1710,7 @@ describe("resume — a design a limit stopped goes on from its plan and its test
     assert.equal(again.outcome.ok, true, messages(again.outcome));
     assert.match(requestText(again.server), /No test is kept yet\./);
     assert.equal(specsOf(again.root).length, 3);
+    assert.ok(filesOf(again.root).includes(stateOf(again.outcome).plan), "the plan is committed with the first tests");
     assert.equal(stateOf(again.outcome).base, head);
     assert.equal(git(again.root, "rev-parse", `${BRANCH}~1`), head);
   });
@@ -1734,9 +1759,29 @@ describe("resume — a design a limit stopped goes on from its plan and its test
     assert.equal(stateOf(outcome).run.iterations, 5 + 1);
   });
 
-  it("refuses a state it cannot read, a plan with every scenario closed, and a changed working tree", async () => {
+  it("refuses a state it cannot read, or of an earlier format, and a plan missing, or that a hand changed", async () => {
     const missing = await design([], { plan: false, resume: { state: ".oqas/designs/none.json" } });
     assert.match(messages(missing.outcome), /The design state \.oqas\/designs\/none\.json cannot be read; the design was not resumed\./);
+    const first = await stopped();
+    const state = join(first.root, STATE);
+    const plan = first.outcome.planPath!;
+    const again = () => design([], { root: first.root, plan: false, resume: { state: STATE, branch: BRANCH } });
+    const accepted = readFileSync(plan, "utf8");
+    writeFileSync(plan, accepted.replace("Open the orders", "Open the list of the orders"));
+    const edited = await again();
+    assert.match(
+      messages(edited.outcome),
+      /The plan \.oqas\/designs\/design-20261113T100000Z\.plan\.md of the design state \.oqas\/designs\/design-20261113T100000Z\.json cannot be read; the design was not resumed\./,
+    );
+    rmSync(plan);
+    assert.match(messages((await again()).outcome), /The plan \S+ of the design state \S+ cannot be read; the design was not resumed\./);
+    writeFileSync(state, readFileSync(state, "utf8").replace('"formatVersion": 3', '"formatVersion": 2'));
+    const dated = await again();
+    assert.match(messages(dated.outcome), /The design state \.oqas\/designs\/design-20261113T100000Z\.json cannot be read; the design was not resumed\./);
+    assert.equal(edited.server.requests.length + dated.server.requests.length, 0);
+  });
+
+  it("refuses a plan with every scenario closed, and a changed working tree", async () => {
     const done = await design(replies(valid(3)));
     const closed = await design([], { root: done.root, plan: false, resume: { state: STATE, branch: BRANCH } });
     assert.match(messages(closed.outcome), /Every scenario of the plan of .* is closed; there is nothing to resume\./);

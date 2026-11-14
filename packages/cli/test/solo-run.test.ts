@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import type { AgentRuntime, CommandOutcome, CommandRunner, StepCommand, TaskLimits } from "@open-qa-stack/domain";
+import { readPlanFile } from "@open-qa-stack/agents";
 import { answer, closedPort, scriptedServer, toolCalls, type ScriptedServer } from "@open-qa-stack/testing";
 import { liveRuntime, soloCommand, SoloRun, type RunEntry, type SoloRunState } from "../src/index.ts";
 
@@ -872,8 +873,9 @@ describe("autonomy, criterion 4 — a design stopped by maxIterations after a pl
       const resumed = await solo([], { root: () => first.root, modelUrl: server.baseUrl, config: boundedTo(5), resume: FIRST_RUN, now: later(13) });
       assert.equal(resumed.code, 0, resumed.err);
       const session = server.requests[11]!.body;
-      const plan = stateOf(first.root).designState!;
-      const accepted = (JSON.parse(readFileSync(join(first.root, plan), "utf8")) as { plan: unknown }).plan;
+      const design = stateOf(first.root).designState!;
+      const { plan } = JSON.parse(readFileSync(join(first.root, design), "utf8")) as { plan: string };
+      const accepted = { scenarios: readPlanFile(readFileSync(join(first.root, plan), "utf8"))!.scenarios };
       assert.ok(JSON.stringify(session).includes(JSON.stringify(JSON.stringify(accepted)).slice(1, -1)), "the session is given the plan");
       assert.ok(JSON.stringify(session).includes(JSON.stringify(spec("test-1").trimEnd()).slice(1, -1)), "the session is given the kept test");
       assert.ok(!offered(session).includes("propose_plan"));

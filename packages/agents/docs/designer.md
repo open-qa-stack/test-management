@@ -23,7 +23,7 @@ const outcome = await new Designer({
 1. **Test repository.** The path must be the root of a git repository with a commit. No tracked file may be changed, no untracked file may lie outside the state folder (`repository.stateDir`) and the index folder (`repository.indexDir`), and the branch to create must not exist. Otherwise the journal names each problem, no session starts, and nothing is written. The untracked index the cartographer leaves does not stop the run.
 2. **Index.** `<indexDir>/domain-index.json` must match its schema. The request gives the agent the brief and what the index holds for it, as `index_find` would give it for the words of the brief; without a brief, or when nothing echoes it, one line per domain of the index. The index is never given whole: the agent looks it up (see [The index as a map](#the-index-as-a-map)). Then come the applications, each with how a test signs in — with its `fill` tool and the account named, whose result gives the line a test writes, or, without a user interface, the variables a test reads — the packages a test may import, and the next call. The rules of a test are not repeated in it: each is a gate of the harness, told when it refuses, or a line of the system instructions.
 3. **Session.** The agent gets the browser tools of the applications of the environment of the index, watched (see [The screens](#the-screens)); the tools of every knowledge source attached to that environment or to none — documents, contracts, bases, source code and logs — the bases read in a read-only transaction, the logs masking the value of every variable the configuration names; and the notes. It explores, then submits a test plan with `propose_plan` (see [The plan](#the-plan)). Once the plan is accepted, the harness opens its scenarios one at a time, in the order of the plan (see [Writing each test](#writing-each-test)): the agent runs the test of the scenario open with `run_test`, against the application, fixes it, and closes the scenario with `propose_test`, under the limits of the configured autonomy, every run counting against them. While no plan is accepted, or a scenario is open, an agent that stops is reminded up to three times, with where the design stands — `No plan is accepted yet.`, `The plan was last refused for: <codes>.`, or the scenario open, such as `Scenario 1 of 3, list-orders: its last run failed (1 of 3).`, its test having otherwise `not run` or `passed and is not closed` — and the next call. The search of each base says in its description that a value of the data of a plan comes from a result such as its own.
-4. **Branch.** Once the session is over, a branch is created from the revision checked out, and stays checked out. The kept tests and the design state are committed on it with the identity and the hooks of the repository. The message is `test: add <n> generated Playwright tests`, with one line per test: its path and the title of its scenario, or, for a test kept failing, `- <path>: failing (<cause>) at step <n>`, the number of the step its last run failed at. Nothing contacts a remote, and no existing branch nor the git configuration is changed.
+4. **Branch.** Once the session is over, a branch is created from the revision checked out, and stays checked out. The kept tests, the design state and the file of the plan are committed on it with the identity and the hooks of the repository. The message is `test: add <n> generated Playwright tests`, with one line per test: its path and the title of its scenario, or, for a test kept failing, `- <path>: failing (<cause>) at step <n>`, the number of the step its last run failed at. Nothing contacts a remote, and no existing branch nor the git configuration is changed.
 
 The branch is `oqas/design-<date>` by default, such as `oqas/design-20261113T100000Z`; `branch` gives another name.
 
@@ -79,7 +79,7 @@ A plan is refused, and the agent may submit another, when:
 | Code            | Cause                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `PLAN-ID`       | Two scenarios share a slug.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `PLAN-SECRET`   | The plan holds the value of a variable the configuration names: it is written to the design state.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `PLAN-SECRET`   | The plan holds the value of a variable the configuration names: it is written to a file of the test repository.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `PLAN-NEGATIVE` | The plan holds two functional scenarios or more, and none of them is negative.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `PLAN-EXPECT`   | A functional scenario has no expect, or an expect names no text.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `PLAN-RESULT`   | A functional scenario of an application with a user interface names no text that the agent saw appear on a screen after one of its actions, among those it `shows`, nor go, among those that are `absent`. The line of a field is no result, whether it appeared or went, empty or not: neither the name of the field nor the value typed counts, and the line changes when the field only gains or loses the focus.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
@@ -90,7 +90,7 @@ A plan is refused, and the agent may submit another, when:
 | `PLAN-INPUT` | For an application with a user interface, a functional scenario has no data, and the action of a step types a value — it says to type, enter, fill in or search for something, the key Enter aside — which its test could type none of: the refusal says to put the value in data, from the application for one its screens showed or `made-up` for one the test invents, such as `{ "value": "zqxw", "from": "made-up" }`, and that a step that types nothing, such as one that leaves a field empty, says what it clicks instead. A negative scenario that types nothing needs no data. A text a scenario `shows` that the screens showed only in fields is refused too, with or without data: in a value the agent typed, which the field echoes whatever the application answers — the refusal says to expect what the application answered beside the fields — or in the name of a field, which no text of the page holds — the refusal says to expect a text beside the fields, such as a heading, a row or a count. A value a field held that the agent did not type, such as one of a form the application filled, is what the application shows. |
 | `PLAN-NOMINAL`  | A nominal scenario of an application with a user interface expects `absent` a text that holds a value of its data the agent typed in a field, and that a screen showed beside the fields, while no step before expects the value in `shows`: what it searches for would find nothing. A step before that shows it makes the scenario remove what it made or found. The refusal says to put the text in `shows`, to make the scenario negative, or, when a step removes it, to show it in the step before, and, when the screens found nothing, to try a part of the value, such as a first or a last name. A nominal scenario whose steps type is refused too when a value it types is one the screens searched in vain, as the `note` of an action told it: a nominal scenario finds what it searches. A scenario types the values of its data that the actions of its typing steps name, or, when they name none, each value of its data a field held; a value it only clicks, such as the name of the row it opens, is not typed. The refusal says to replace the value, in data and in the step that types it, by a part of it, such as a first or a last name, that the `fill` tool of the application searched and found, and to expect what it found, or to make the scenario negative. |
 
-The sixth plan the gates refuse stops the design (see [Refusals](#refusals)). A plan that keeps these rules goes to `planReview`, one plan at a time. Accepted, it is frozen and kept in the design state, no other may be submitted, and the agent is told the sheet of the first scenario. Refused, the journal gives the reason, every later call of the agent, whatever its tool, is refused, the agent is not reminded, and the design fails without writing any test or creating any branch. The brief is written to the state as it was given.
+The sixth plan the gates refuse stops the design (see [Refusals](#refusals)). A plan that keeps these rules goes to `planReview`, one plan at a time. Accepted, it is frozen and kept in a file the design state names (see [The file of the plan](#the-file-of-the-plan)), no other may be submitted, and the agent is told the sheet of the first scenario. Refused, the journal gives the reason, every later call of the agent, whatever its tool, is refused, the agent is not reminded, and the design fails without writing any test or creating any branch. The brief is written to the state and to the file of the plan as it was given.
 
 ## Writing each test
 
@@ -174,35 +174,15 @@ Every value of the variables the configuration names is masked in the journal an
 
 ## Design state
 
-The state is written to `<stateDir>/designs/design-<date>.json`, and committed with the tests unless git ignores it. It holds the brief, when one was given, the plan accepted, each test kept, in the order of the plan, with the scenario it carries out and each of its runs, with its verdict and, for one that failed, its class and its step, a test whose scenario the harness closed after five refusals giving the code refused in `closedBy`, and in `unwritten` each scenario the harness closed without a test, with the code it was closed on: the one that refused it five times, or `TEST-STOP` when none of its runs gave a verdict. The application, the domain and the reason of a test are those of its scenario:
+The state is written to `<stateDir>/designs/design-<date>.json`, and committed with the tests unless git ignores it. It holds the brief, when one was given, the path of the file of the plan accepted, each test kept, in the order of the plan, with the scenario it carries out and each of its runs, with its verdict and, for one that failed, its class and its step, a test whose scenario the harness closed after five refusals giving the code refused in `closedBy`, and in `unwritten` each scenario the harness closed without a test, with the code it was closed on: the one that refused it five times, or `TEST-STOP` when none of its runs gave a verdict. The application, the domain and the reason of a test are those of its scenario:
 
 ```json
 {
-  "formatVersion": 2,
+  "formatVersion": 3,
   "producedAt": "2026-11-13T10:00:00.000Z",
   "environment": "local",
   "brief": "Test the search of an order by customer.",
-  "plan": {
-    "scenarios": [
-      {
-        "id": "search-order-by-customer",
-        "title": "Search an order by customer name",
-        "intent": "Verifies that a search by last name finds the orders of the customer.",
-        "kind": "functional",
-        "case": "nominal",
-        "application": "shop",
-        "domain": "orders",
-        "sources": [{ "source": "shop-db", "item": "public.orders" }],
-        "data": [{ "value": "Veldane", "from": "shop-db" }],
-        "steps": [
-          {
-            "action": "Search the orders of Veldane",
-            "expects": [{ "result": "The table lists the order of Mira Veldane only", "shows": ["ORD-1042"], "absent": ["ORD-1057"] }]
-          }
-        ]
-      }
-    ]
-  },
+  "plan": ".oqas/designs/design-20261113T100000Z.plan.md",
   "branch": "oqas/design-20261113T100000Z",
   "base": "<commit the branch was created from>",
   "model": { "provider": "openai", "baseUrl": "http://localhost:1234/v1", "model": "<model>" },
@@ -238,19 +218,78 @@ The state is written to `<stateDir>/designs/design-<date>.json`, and committed w
 }
 ```
 
+## The file of the plan
+
+The plan accepted is written with the state, to `<stateDir>/designs/design-<date>.plan.md`, and committed with it unless git ignores it. It is a Markdown page a person reads, then, under the heading `Record`, a `json` block the harness reads again: `formatVersion`, the identifier of the `design`, its `environment`, its `brief` when one was given, and the `scenarios` as the plan gave them. The page gives the same plan, each text on one line: the scenarios in their order, each with its intent, its sources and its data, then its steps, each with the results it expects and the texts the screen shows or no longer shows:
+
+````markdown
+# Test plan design-20261113T100000Z
+
+- Environment: local
+- Brief: Test the search of an order by customer.
+
+The harness wrote this file from the plan it accepted, and reads its last part again. Edit neither part by hand: a file whose two parts differ is not read.
+
+## 1. search-order-by-customer
+
+Search an order by customer name (functional, nominal). Application shop, domain orders.
+
+- Intent: Verifies that a search by last name finds the orders of the customer.
+- Sources: shop-db: public.orders
+- Data: "Veldane" (shop-db)
+
+### Step 1. Search the orders of Veldane
+
+Expect 1.1: The table lists the order of Mira Veldane only.
+- shows "ORD-1042"
+- no longer shows "ORD-1057"
+
+## Record
+
+```json
+{
+  "formatVersion": 1,
+  "design": "design-20261113T100000Z",
+  "environment": "local",
+  "brief": "Test the search of an order by customer.",
+  "scenarios": [
+    {
+      "id": "search-order-by-customer",
+      "title": "Search an order by customer name",
+      "intent": "Verifies that a search by last name finds the orders of the customer.",
+      "kind": "functional",
+      "case": "nominal",
+      "application": "shop",
+      "domain": "orders",
+      "sources": [{ "source": "shop-db", "item": "public.orders" }],
+      "data": [{ "value": "Veldane", "from": "shop-db" }],
+      "steps": [
+        {
+          "action": "Search the orders of Veldane",
+          "expects": [{ "result": "The table lists the order of Mira Veldane only", "shows": ["ORD-1042"], "absent": ["ORD-1057"] }]
+        }
+      ]
+    }
+  ]
+}
+```
+````
+
+The record is written with two spaces of indentation, one value per line; it is shortened here. `readPlanFile` reads a file only when it is, to the character, what `planFileText` writes for its record: a file without a record, with a record that is no JSON or of another format version, or whose page or record a hand changed, is not read, and the design it belongs to is not resumed.
+
 ## Outcome
 
 The session is traced in `<stateDir>/traces/design-<environment>-<date>.jsonl`, in the format of the [trace of a cartography](./cartographer.md), with one phase, `design`: the request and each reminder, every reasoning, text and tool call of the agent with its result, each entry of the journal, and how the design ended — `done`, `truncated` when a limit cut a design that gave its tests, `failed` otherwise. Each line is handed to `observe` as it is written. A design stopped before its session writes no trace.
 
-`run()` returns `ok`, true when at least three tests were written that passed or fail because of the application; the path of the trace, when a session started; the branch, when tests were written, and the path of the state, when it was written; the tests; `stoppedBy`, the limit that cut the design short, when one stopped it before every scenario of its plan was closed; and the journal, as `{ level, message }` entries.
+`run()` returns `ok`, true when at least three tests were written that passed or fail because of the application; the path of the trace, when a session started; the branch, when tests were written, and the paths of the state and of the file of the plan, when they were written; the tests; `stoppedBy`, the limit that cut the design short, when one stopped it before every scenario of its plan was closed; and the journal, as `{ level, message }` entries.
 
 - With fewer than three such tests, those kept are written and committed all the same, and the journal gives their number.
-- With none, nothing is written and no branch is created, unless a limit stopped the design after its plan was accepted: the state is then written, with the plan, and nothing is committed.
+- With none, nothing is written and no branch is created, unless a limit stopped the design after its plan was accepted: the state and the file of the plan are then written, and nothing is committed.
 - When the plan is refused, by the review or six times by the gates, nothing is written and no branch is created; the journal gives the reason.
 - When a limit of the autonomy stops the task, the journal names the limit. The tests of the scenarios closed before it are written; the scenario under way is not.
 
 ## Resuming a design
 
-`resume` names a design a limit stopped: the path of its state, relative to the test repository, and its branch once it holds a test. The working tree must be clean, as for a new design, and the branch, when it exists, is checked out. The state must be readable, with a scenario of its plan not closed; otherwise nothing starts. The session gets the plan, which stays as it is, the tests kept with their text, the scenarios closed without a test, and the sheet of the first scenario not closed; it is offered no `propose_plan`, and is not reminded to plan. Its limits are those of the configuration, counted afresh. Once the session is over, the new tests and the state, which then lists the tests of every session and adds up what they used, are committed on the same branch, created if the design held no test yet. A plan, a test kept or a scenario closed is never done again.
+`resume` names a design a limit stopped: the path of its state, relative to the test repository, and its branch once it holds a test. The working tree must be clean, as for a new design, and the branch, when it exists, is checked out. The state must be readable, of the current format, and so must the file of the plan it names, with a scenario of the plan not closed; otherwise nothing starts. The session gets the plan, which stays as it is, the tests kept with their text, the scenarios closed without a test, and the sheet of the first scenario not closed; it is offered no `propose_plan`, and is not reminded to plan. Its limits are those of the configuration, counted afresh. Once the session is over, the new tests, the file of the plan, unchanged, and the state, which then lists the tests of every session and adds up what they used, are committed on the same branch, created if the design held no test yet. A plan, a test kept or a scenario closed is never done again.
 
 The designer runs each test with `runner`, which gives the verdict; the review of the branch judges them.

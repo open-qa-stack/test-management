@@ -1,4 +1,4 @@
-import type { TestPlan, Verdict } from "@open-qa-stack/domain";
+import type { Verdict } from "@open-qa-stack/domain";
 import type { IndexModel, IndexRun } from "@open-qa-stack/shared";
 import type { ErrorClass } from "./run-failure.ts";
 
@@ -58,15 +58,15 @@ export interface UnwrittenScenario {
 
 /** The state of a design, written next to the tests on their branch. */
 export interface DesignState {
-  readonly formatVersion: 2;
+  readonly formatVersion: 3;
   /** Date and time of the design, ISO 8601 in UTC. */
   readonly producedAt: string;
   /** Name of the environment of the domain index. */
   readonly environment: string;
   /** The brief the design started from, in the developer's words, when one was given. */
   readonly brief?: string;
-  /** The test plan accepted before the tests were written. */
-  readonly plan: TestPlan;
+  /** Path of the file of the test plan accepted before the tests were written, relative to the root of the test repository, with forward slashes. */
+  readonly plan: string;
   /** The branch the tests are written on; it is created with the first of them. */
   readonly branch: string;
   /** The revision the branch was created from. */
