@@ -200,7 +200,7 @@ describe("live mode", () => {
         for await (const event of session.send("Say hello.")) first.push(event);
         const error = errorOf(first);
         assert.ok(error instanceof ModelResponseError);
-        assert.equal(error.message, "The model answered with status 503.");
+        assert.equal(error.message, "The model answered with status 503: busy");
         const second: AgentEvent[] = [];
         for await (const event of session.send("Again.")) second.push(event);
         assert.deepEqual(second, [{ type: "text", text: "Back." }, { type: "end" }]);

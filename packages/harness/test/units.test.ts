@@ -19,13 +19,39 @@ import {
   RecordingFormatError,
   TOOL_CALLING_CHECK,
 } from "../src/index.ts";
+import { MAX_REASON_LENGTH, upstreamReason } from "../src/model-gateway/upstream-reason.ts";
 import { MODEL } from "./support.ts";
+
+describe("the reason of an error answer of the upstream server", () => {
+  it("reads the message of the error, on one line", () => {
+    assert.equal(upstreamReason(JSON.stringify({ error: { message: "Unsupported\n  parameter: 'x'." } }), undefined), "Unsupported parameter: 'x'.");
+    assert.equal(upstreamReason(JSON.stringify({ error: "Model not loaded." }), ""), "Model not loaded.");
+  });
+
+  it("never gives the key sent to the server", () => {
+    assert.equal(upstreamReason(JSON.stringify({ error: { message: "Bad key sk-secret given." } }), "sk-secret"), "Bad key [masked] given.");
+  });
+
+  it("cuts a long reason", () => {
+    const reason = upstreamReason(JSON.stringify({ error: { message: "x".repeat(MAX_REASON_LENGTH + 10) } }), undefined);
+    assert.equal(reason, `${"x".repeat(MAX_REASON_LENGTH)}…`);
+  });
+
+  it("gives nothing when the body says nothing", () => {
+    for (const body of ["not json", "null", "{}", JSON.stringify({ error: { code: 1 } }), JSON.stringify({ error: { message: "  " } })])
+      assert.equal(upstreamReason(body, undefined), undefined, body);
+  });
+});
 
 describe("runtime errors from gateway failures", () => {
   it("maps each failure to its error", () => {
     assert.ok(runtimeError({ kind: "unreachable", url: "http://x/v1" }) instanceof ModelUnreachableError);
     assert.ok(runtimeError({ kind: "replay-miss", request: "r" }) instanceof ReplayMissError);
     assert.equal(runtimeError({ kind: "upstream-status", status: 500 }).message, "The model answered with status 500.");
+    assert.equal(
+      runtimeError({ kind: "upstream-status", status: 400, reason: "Unsupported parameter." }).message,
+      "The model answered with status 400: Unsupported parameter.",
+    );
     assert.equal(runtimeError({ kind: "invalid-response" }).message, "The model answered with a body that is not JSON.");
     assert.equal(runtimeError({ kind: "invalid-request" }).message, "The model runtime sent a request the gateway could not read.");
     assert.equal(runtimeError({ kind: "task-stopped" }).message, "The task was stopped by a limit before the model call.");

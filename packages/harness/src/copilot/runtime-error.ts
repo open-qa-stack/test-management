@@ -14,7 +14,11 @@ export function runtimeError(failure: GatewayFailure | undefined): AgentRuntimeE
     case "replay-miss":
       return new ReplayMissError(failure.request);
     case "upstream-status":
-      return new ModelResponseError(`The model answered with status ${failure.status}.`);
+      return new ModelResponseError(
+        failure.reason === undefined
+          ? `The model answered with status ${failure.status}.`
+          : `The model answered with status ${failure.status}: ${failure.reason}`,
+      );
     case "invalid-response":
       return new ModelResponseError("The model answered with a body that is not JSON.");
     case "invalid-request":

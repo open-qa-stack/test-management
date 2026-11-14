@@ -10,6 +10,7 @@ import type { ModelEndpoint } from "./model-endpoint.ts";
 import type { Exchange, Recording } from "./recording.ts";
 import type { RequestGate } from "./request-gate.ts";
 import type { Upstream } from "./upstream.ts";
+import { upstreamReason } from "./upstream-reason.ts";
 
 /** Longest wait for a model to answer one call, in milliseconds: a local model may take minutes on a long context. */
 export const UPSTREAM_TIMEOUT_MS = 30 * 60_000;
@@ -131,7 +132,10 @@ export class ModelGateway implements ModelEndpoint {
     } catch {
       return fail(res, channel, { kind: "unreachable", url: upstream.baseUrl });
     }
-    if (!answer.ok) return fail(res, channel, { kind: "upstream-status", status: answer.status });
+    if (!answer.ok) {
+      const reason = upstreamReason(text, upstream.apiKey);
+      return fail(res, channel, { kind: "upstream-status", status: answer.status, ...(reason === undefined ? {} : { reason }) });
+    }
     let response: unknown;
     try {
       response = JSON.parse(text);
