@@ -122,6 +122,8 @@ interface Seen {
 export class ScreenWatch {
   private readonly seen = new Map<string, Seen>();
   private readonly done: WatchedAction[] = [];
+  /** For each action, by its number: the lines the page showed between it and the next action on its application, and those it removed. */
+  private readonly after = new Map<number, { readonly shown: Set<string>; readonly removed: Set<string> }>();
   private readonly watched: ToolDefinition[];
   private readonly matches: TargetMatcher;
 
@@ -174,6 +176,7 @@ export class ScreenWatch {
         if (typeof state.code !== "string") return state;
         const number = this.done.length + 1;
         this.done.push({ number, application, tool: action, code: state.code, ...(typed === undefined ? {} : { typed }) });
+        this.after.set(number, { shown: new Set(), removed: new Set() });
         return { ...state, action: number };
       };
       wrap(
@@ -201,6 +204,8 @@ export class ScreenWatch {
             const told = appeared.length === 0 ? "Nothing new appeared on the page." : appeared.slice(0, MAX_APPEARED).join("\n");
             const gone = absent(previous, current);
             for (const line of gone) seen.removed.add(line);
+            const done = this.after.get((state as { action?: number }).action ?? 0);
+            for (const line of gone) done?.removed.add(line);
             const more = gone.length > MAX_GONE ? [`${gone.length - MAX_GONE} more lines went.`] : [];
             const unmatched = unmatchedValues(current, appeared, gone, before, seen.filled).filter((value) => !seen.found.has(value));
             for (const value of unmatched) seen.unmatched.add(value);
@@ -463,21 +468,32 @@ export class ScreenWatch {
    * @param text - The text.
    * @param gone - Whether the text is expected gone: the lines an action removed are looked at first, as the
    * lines an action produced are for a text expected shown.
+   * @param actions - The numbers of the actions that do the step the text is expected after, in order. When
+   * given, only the screen of the step is looked at: for a text expected shown, the lines the page showed
+   * between the last of them and the next action; for a text expected gone, the lines they removed, then
+   * every line seen. A text expected shown that only another screen showed in an element has no element here.
    * @returns The last such element seen; `undefined` when no line gives one, and for an application without
    * a user interface.
    */
-  public locatorOf(application: string, text: string, gone: boolean): ShownElement | undefined {
+  public locatorOf(application: string, text: string, gone: boolean, actions: readonly number[] = []): ShownElement | undefined {
     const seen = this.seen.get(application);
     if (seen === undefined) return undefined;
+    const states = actions.flatMap((number) => this.after.get(number) ?? []);
+    const last = states.at(-1);
+    const stepLines = last === undefined ? undefined : gone ? new Set(states.flatMap((state) => [...state.removed])) : last.shown;
+    // A text expected gone that the step removed no line of was shown by an earlier screen: its element is looked for there.
+    const pools = stepLines === undefined ? [gone ? seen.removed : seen.produced, seen.lines] : gone ? [stepLines, seen.lines] : [stepLines];
     const found: ShownElement[] = [];
-    for (const pool of [gone ? seen.removed : seen.produced, seen.lines]) {
+    for (const pool of pools) {
       const holding = besideFields(pool)
         .reverse()
         .filter((line) => observed(text, [line]));
       found.push(...holding.filter((line) => namedBy(line, text) !== undefined).flatMap((line) => namedElement(seen, line)));
       found.push(...holding.flatMap((line) => locatorIn(line) ?? []).map((locator) => ({ locator, field: false, count: 1 })));
     }
-    const typedIn = gone ? undefined : [...seen.lines].reverse().find((line) => sameText(fieldValue(line) ?? "", text) && locatorIn(line) !== undefined);
+    const typedIn = gone
+      ? undefined
+      : [...(last?.shown ?? seen.lines)].reverse().find((line) => sameText(fieldValue(line) ?? "", text) && locatorIn(line) !== undefined);
     const field = typedIn === undefined ? [] : [{ locator: locatorIn(typedIn)!, field: true, count: 1 }];
     return (
       found.find((element) => element.count === 1) ??
@@ -528,8 +544,11 @@ export class ScreenWatch {
     const lines = new Set(pageLines(snapshot.page));
     const moment = nextMoment();
     await this.check(application, seen, snapshot.page);
+    const latest = this.done.findLast((action) => action.application === application);
+    const shown = latest === undefined ? undefined : this.after.get(latest.number)!.shown;
     for (const line of lines) {
       seen.lines.add(line);
+      shown?.add(line);
       const value = fieldValue(line);
       if (value !== undefined && !seen.values.has(value)) seen.values.set(value, moment);
     }

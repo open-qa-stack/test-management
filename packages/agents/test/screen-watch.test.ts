@@ -376,6 +376,50 @@ describe("the screens the designer watches", () => {
     );
   });
 
+  it("gives, for the step some actions do, only an element of the screen the step ends on", async () => {
+    const list = '- link " Customers" → page.getByRole("link", { name: " Customers", exact: true })\n- cell "Mira Veldane"\n- cell "Lena Brook"';
+    const filtered = `${list.replace('\n- cell "Lena Brook"', "")}\n- textbox "Search": Mira → page.getByRole("textbox", { name: "Search", exact: true })`;
+    const profile = '- link "Customers" → page.getByRole("link", { name: "Customers", exact: true })\n- heading "Mira Veldane"';
+    // Each action shows the next page and returns its line of code, so that it is numbered.
+    const pages = [list, filtered, profile];
+    let at = -1;
+    const tool = (action: string, execute: () => unknown): ToolDefinition => ({
+      name: `shop_${action}`,
+      description: action,
+      parameters: { type: "object" },
+      execute: async () => execute(),
+    });
+    const acting = (action: string) =>
+      tool(action, () => {
+        at += 1;
+        return { code: `${action};` };
+      });
+    const tools = [tool("snapshot", () => ({ page: pages[at]!, truncated: false })), ...["goto", "fill", "click", "select_option", "check"].map(acting)];
+    const watch = new ScreenWatch(["shop"], tools);
+    const numberOf = async (action: string) => (await run(watch, action))["action"] as number;
+    const opened = await numberOf("goto");
+    const searched = await numberOf("fill");
+    const clicked = await numberOf("click");
+    const shown = (locator: string, field = false) => ({ locator, field, count: 1 });
+    const CELL = 'page.getByRole("cell", { name: "Mira Veldane", exact: true })';
+    // The same text is in a cell of the list and in the heading of the profile: each step is given the element of its own screen.
+    assert.deepEqual(
+      [watch.locatorOf("shop", "Mira Veldane", false, [opened]), watch.locatorOf("shop", "Mira Veldane", false, [searched, clicked])],
+      [shown(CELL), shown('page.getByRole("heading", { name: "Mira Veldane", exact: true })')], // the heading of the profile
+    );
+    // A link of the profile is no element of the list, though both hold the text; a text only another screen showed has no element.
+    assert.deepEqual(watch.locatorOf("shop", "Customers", false, [opened]), shown('page.getByRole("link", { name: " Customers", exact: true })'));
+    assert.equal(watch.locatorOf("shop", "Lena Brook", false, [clicked]), undefined);
+    // The field holds the value while its screen is the one of the step, and no longer once the step ends elsewhere.
+    assert.deepEqual(watch.locatorOf("shop", "Mira", false, [searched]), shown('page.getByRole("textbox", { name: "Search", exact: true })', true));
+    assert.equal(watch.locatorOf("shop", "Mira", false, [clicked]), undefined);
+    // A text expected gone is looked for in what the actions of the step removed, then in every screen; an unknown action counts for none.
+    assert.deepEqual(watch.locatorOf("shop", "Lena Brook", true, [searched]), shown('page.getByRole("cell", { name: "Lena Brook", exact: true })'));
+    const HEADING = 'page.getByRole("heading", { name: "Mira Veldane", exact: true })';
+    assert.deepEqual(watch.locatorOf("shop", "Mira Veldane", true, [opened]), shown(HEADING));
+    assert.deepEqual(watch.locatorOf("shop", "Mira Veldane", false, [99]), shown(HEADING));
+  });
+
   it("checks on the page, while it shows them, the locators it builds by role and name, once per line that came, and looks for one element alone in the parts that hold it", async () => {
     const asked: string[][] = [];
     /** A page whose cells "Active" are three, one alone in the row of Mira Veldane, whose cell "Hidden" is not shown, and that has no cell "Ghost". */

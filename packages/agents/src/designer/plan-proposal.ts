@@ -655,7 +655,8 @@ export class PlanProposal {
     return scenario.steps.flatMap((step, at) =>
       step.expects.flatMap((expect, k) =>
         [...expect.shows.map((text) => ({ text, gone: false })), ...expect.absent.map((text) => ({ text, gone: true }))].flatMap(({ text, gone }) => {
-          const element = this.rules.screens.locatorOf(application, text, gone);
+          const done = this.cited(scenario, step.actions).map((action) => action.number);
+          const element = this.rules.screens.locatorOf(application, text, gone, done);
           return element === undefined ? [] : [{ where: `scenario ${scenario.id}, expect ${at + 1}.${k + 1}`, application, text, element }];
         }),
       ),

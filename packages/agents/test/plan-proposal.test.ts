@@ -855,8 +855,9 @@ describe("the actions a plan cites", () => {
             result: "The order of Mira Veldane shows, the other goes",
             shows: ["ORD-1042", "Veldane"],
             absent: ["ORD-1057"],
-            // The rows end with no locator and are named by more than the text: their texts are found by themselves; the field holds the value typed.
-            elements: [{ text: "Veldane", locator: 'page.getByRole("textbox", { name: "Search orders", exact: true })', field: true }],
+            // The rows end with no locator and are named by more than the text: their texts are found by themselves. The field that held the
+            // value typed is no longer on the screen the step ends on: an element comes from that screen alone.
+            elements: [],
           },
         ],
       },
