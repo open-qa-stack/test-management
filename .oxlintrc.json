@@ -11,7 +11,8 @@
       {
         "allowForKnownSafeCalls": [{ "from": "package", "package": "node:test", "name": ["describe", "it", "suite", "test"] }]
       }
-    ]
+    ],
+    "open-qa-stack/confined-imports": ["error", { "modules": { "@github/copilot-sdk": "packages/harness/src/copilot" } }]
   },
   "overrides": [
     {
@@ -25,8 +26,44 @@
       "rules": { "node/no-process-env": "off" }
     },
     {
-      "files": ["packages/domain/**"],
+      "files": ["packages/*/src/**", "apps/*/src/**"],
+      "rules": {
+        "open-qa-stack/package-boundaries": [
+          "error",
+          {
+            "packages": {
+              "@open-qa-stack/domain": { "directory": "packages/domain", "dependsOn": [], "external": [] },
+              "@open-qa-stack/shared": { "directory": "packages/shared", "dependsOn": [] },
+              "@open-qa-stack/api": { "directory": "packages/api", "dependsOn": ["@open-qa-stack/domain", "@open-qa-stack/shared"] },
+              "@open-qa-stack/harness": { "directory": "packages/harness", "dependsOn": ["@open-qa-stack/domain", "@open-qa-stack/shared"] },
+              "@open-qa-stack/tools": { "directory": "packages/tools", "dependsOn": ["@open-qa-stack/domain", "@open-qa-stack/shared"] },
+              "@open-qa-stack/agents": {
+                "directory": "packages/agents",
+                "dependsOn": ["@open-qa-stack/domain", "@open-qa-stack/shared", "@open-qa-stack/tools"]
+              },
+              "@open-qa-stack/worker": {
+                "directory": "packages/worker",
+                "dependsOn": ["@open-qa-stack/harness", "@open-qa-stack/agents", "@open-qa-stack/tools", "@open-qa-stack/domain", "@open-qa-stack/shared"]
+              },
+              "@open-qa-stack/cli": {
+                "directory": "packages/cli",
+                "dependsOn": ["@open-qa-stack/shared", "@open-qa-stack/harness", "@open-qa-stack/agents", "@open-qa-stack/tools", "@open-qa-stack/domain"]
+              },
+              "@open-qa-stack/web": { "directory": "apps/web", "dependsOn": ["@open-qa-stack/shared"] }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/domain/src/**"],
       "rules": { "open-qa-stack/pure-domain": "error" }
+    },
+    {
+      "files": ["packages/cli/src/connected/**"],
+      "rules": {
+        "open-qa-stack/folder-boundaries": ["error", { "directory": "packages/cli/src/connected", "dependsOn": ["@open-qa-stack/shared"] }]
+      }
     }
   ]
 }

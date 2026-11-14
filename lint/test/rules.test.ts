@@ -1,96 +1,220 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
 import { after, describe, it } from "node:test";
-import { fileURLToPath } from "node:url";
 import { RuleTester } from "oxlint/plugins-dev";
+import { confinedImports } from "../confined-imports.ts";
+import { folderBoundaries } from "../folder-boundaries.ts";
+import { packageBoundaries } from "../package-boundaries.ts";
 import plugin from "../plugin.ts";
 import { pureDomain } from "../pure-domain.ts";
+import { DemoWorkspace } from "./demo-workspace.ts";
 
 RuleTester.describe = describe;
 RuleTester.it = it;
 
-const ROOT = fileURLToPath(new URL("../..", import.meta.url));
-const OXLINT = join(ROOT, "node_modules", ".bin", "oxlint");
+const CWD = "/workspace";
+const tester = new RuleTester({ languageOptions: { sourceType: "module" }, cwd: CWD });
+const at = (path: string): string => `${CWD}/${path}`;
 
 describe("the plugin of the workspace", () => {
   it("names its rules under open-qa-stack", () => {
-    assert.deepEqual(plugin, { meta: { name: "open-qa-stack" }, rules: { "pure-domain": pureDomain } });
+    assert.deepEqual(plugin, {
+      meta: { name: "open-qa-stack" },
+      rules: { "confined-imports": confinedImports, "folder-boundaries": folderBoundaries, "package-boundaries": packageBoundaries, "pure-domain": pureDomain },
+    });
   });
 });
 
-describe("the rule that keeps the domain pure", () => {
-  const framework = (source: string) => ({ messageId: "framework", data: { source } });
-  const storage = (source: string) => ({ messageId: "storage", data: { source } });
-  new RuleTester({ languageOptions: { sourceType: "module" } }).run("pure-domain", pureDomain, {
+describe("the rule that keeps each package within its table", () => {
+  const options = [
+    {
+      packages: {
+        "@open-qa-stack/domain": { directory: "packages/domain", dependsOn: [], external: ["zod"] },
+        "@open-qa-stack/api": { directory: "packages/api", dependsOn: ["@open-qa-stack/domain"] },
+      },
+    },
+  ];
+  const api = at("packages/api/src/rule.ts");
+  const domain = at("packages/domain/src/rule.ts");
+  const refused = (messageId: string, source: string, target: string, allowed: string) => ({ messageId, data: { source, target, allowed } });
+  tester.run("package-boundaries", packageBoundaries, {
     valid: [
-      { filename: "rule.ts", code: 'import { readFile } from "node:fs/promises";\nimport type { Verdict } from "./verdict.ts";' },
-      { filename: "rule.ts", code: 'export { verdict } from "./verdict.ts";\nexport * from "./limits.ts";\nexport const limit = 3;' },
-      { filename: "rule.ts", code: 'const module = await import("./verdict.ts");\nconst named = await import(name);' },
-      { filename: "rule.ts", code: 'import { fastifyLike } from "fastify-like";\nimport { nest } from "nestjs";' },
-      { filename: "rule.ts", code: 'export type Verdict = import("./verdict.ts").Verdict;' },
-      { filename: "rule.ts", code: 'import { page } from "pgs";\nimport { drizzle } from "drizzle-orm-like";\nimport { sql } from "postgresql";' },
+      { filename: at("packages/check/src/rule.ts"), options, code: 'import { api } from "@open-qa-stack/api";' },
+      { filename: api, options, code: 'import { rule } from "@open-qa-stack/domain/rules";\nimport pg from "pg";\nimport { local } from "./local.ts";' },
+      { filename: api, options, code: 'export const self = await import("@open-qa-stack/api");\nexport const named = await import(name);' },
+      { filename: api, options, code: 'export const limit = 3;\nexport { limit as max };\nexport type Rule = import("../test/rule.ts").Rule;' },
+      { filename: domain, options, code: 'import { z } from "zod";\nimport { object } from "zod/v4";\nimport { string } from "../node_modules/zod/index.js";' },
+      {
+        filename: api,
+        options,
+        code: [
+          "export const named = await import(`@open-qa-stack/${name}`);",
+          'export const loaded = require(name, "@open-qa-stack/testing");',
+          "export const none = require();",
+          'export const other = load("@open-qa-stack/testing");',
+          'export const settled = Promise.resolve("@open-qa-stack/testing");',
+          'export const member = module.require("@open-qa-stack/testing");',
+          'export const created = factory(import.meta.url)("@open-qa-stack/testing");',
+          'export const called = loaders()("@open-qa-stack/testing");',
+          "import Rules = Domain.Rules;",
+        ].join("\n"),
+      },
     ],
     invalid: [
-      { filename: "rule.ts", code: 'import { Injectable } from "@nestjs/common";', errors: [framework("@nestjs/common")] },
-      { filename: "rule.ts", code: 'import "reflect-metadata";', errors: [framework("reflect-metadata")] },
-      { filename: "rule.ts", code: 'import type { FastifyInstance } from "fastify";', errors: [framework("fastify")] },
-      { filename: "rule.ts", code: 'export { fastify } from "fastify";', errors: [framework("fastify")] },
-      { filename: "rule.ts", code: 'export * from "@nestjs/core";', errors: [framework("@nestjs/core")] },
-      { filename: "rule.ts", code: 'const core = await import("@nestjs/core");', errors: [framework("@nestjs/core")] },
-      { filename: "rule.ts", code: 'import { types } from "fastify/types";', errors: [framework("fastify/types")] },
-      { filename: "rule.ts", code: 'type App = import("@nestjs/common").INestApplication;', errors: [framework("@nestjs/common")] },
-      { filename: "rule.ts", code: 'export type Reply = import("fastify").FastifyReply;', errors: [framework("fastify")] },
-      { filename: "rule.ts", code: 'import { pgTable } from "drizzle-orm/pg-core";', errors: [storage("drizzle-orm/pg-core")] },
-      { filename: "rule.ts", code: 'import { eq } from "drizzle-orm";', errors: [storage("drizzle-orm")] },
-      { filename: "rule.ts", code: 'import { defineConfig } from "drizzle-kit";', errors: [storage("drizzle-kit")] },
-      { filename: "rule.ts", code: 'import pg from "pg";', errors: [storage("pg")] },
-      { filename: "rule.ts", code: 'import type { PoolClient } from "pg";', errors: [storage("pg")] },
-      { filename: "rule.ts", code: 'export { Pool } from "pg-pool";', errors: [storage("pg-pool")] },
-      { filename: "rule.ts", code: 'const sql = await import("postgres");', errors: [storage("postgres")] },
-      { filename: "rule.ts", code: 'export type C = import("pg").PoolClient;', errors: [storage("pg")] },
+      {
+        filename: api,
+        options,
+        code: 'import { answer } from "@open-qa-stack/testing";',
+        errors: [refused("forbidden", "@open-qa-stack/api", "@open-qa-stack/testing", "@open-qa-stack/domain")],
+      },
+      {
+        filename: api,
+        options,
+        code: 'import { rule } from "../../domain/src/rule.ts";',
+        errors: [refused("relative", "@open-qa-stack/api", "@open-qa-stack/domain", "@open-qa-stack/domain")],
+      },
+      {
+        filename: api,
+        options,
+        code: 'export * from "../../testing/src/index.ts";\nexport { other } from "/elsewhere/other.ts";',
+        errors: [
+          refused("relative", "@open-qa-stack/api", "packages/testing/src/index.ts", "@open-qa-stack/domain"),
+          refused("relative", "@open-qa-stack/api", "../elsewhere/other.ts", "@open-qa-stack/domain"),
+        ],
+      },
+      {
+        filename: domain,
+        options,
+        code: 'import type { Api } from "@open-qa-stack/api";\nconst rule = await import("../../api/src/rule.ts");',
+        errors: [
+          refused("forbidden", "@open-qa-stack/domain", "@open-qa-stack/api", "none"),
+          refused("forbidden", "@open-qa-stack/domain", "@open-qa-stack/api", "none"),
+        ],
+      },
+      {
+        filename: api,
+        options,
+        code: [
+          "export const template = await import(`@open-qa-stack/testing`);",
+          'export const required = require("@open-qa-stack/testing");',
+          "export const resolved = require.resolve(`@open-qa-stack/testing/package.json`);",
+          'export const created = createRequire(import.meta.url)("@open-qa-stack/testing");',
+          'export const located = createRequire(import.meta.url).resolve("@open-qa-stack/testing");',
+          'import testing = require("@open-qa-stack/testing");',
+          'import { answer } from "../node_modules/@open-qa-stack/testing/src/index.ts";',
+        ].join("\n"),
+        errors: Array.from({ length: 7 }, () => refused("forbidden", "@open-qa-stack/api", "@open-qa-stack/testing", "@open-qa-stack/domain")),
+      },
+      {
+        filename: domain,
+        options,
+        code: 'import leftPad from "left-pad";\nimport { parse } from "@scope/parser/strict";\nimport { pad } from "../../../node_modules/left-pad/index.js";',
+        errors: [
+          refused("external", "@open-qa-stack/domain", "left-pad", "zod"),
+          refused("external", "@open-qa-stack/domain", "@scope/parser", "zod"),
+          refused("external", "@open-qa-stack/domain", "left-pad", "zod"),
+        ],
+      },
+    ],
+  });
+});
+
+describe("the rule that keeps a folder to fewer packages than its package", () => {
+  const options = [{ directory: "packages/cli/src/connected", dependsOn: ["@open-qa-stack/shared"] }];
+  const connected = at("packages/cli/src/connected/rule.ts");
+  tester.run("folder-boundaries", folderBoundaries, {
+    valid: [
+      { filename: at("packages/cli/src/solo/rule.ts"), options, code: 'import { run } from "@open-qa-stack/harness";\nimport { a } from "../connected/a.ts";' },
+      {
+        filename: connected,
+        options,
+        code: 'import { config } from "@open-qa-stack/shared";\nimport { local } from "./local.ts";\nimport { fetch } from "undici";',
+      },
+    ],
+    invalid: [
+      {
+        filename: connected,
+        options,
+        code: 'import { run } from "@open-qa-stack/harness";\nimport { solo } from "../solo/solo.ts";\nimport { runner } from "../../node_modules/@open-qa-stack/harness/src/index.ts";',
+        errors: [
+          { messageId: "forbidden", data: { source: "packages/cli/src/connected", target: "@open-qa-stack/harness", allowed: "@open-qa-stack/shared" } },
+          { messageId: "relative", data: { source: "packages/cli/src/connected", target: "packages/cli/src/solo/solo.ts", allowed: "@open-qa-stack/shared" } },
+          { messageId: "forbidden", data: { source: "packages/cli/src/connected", target: "@open-qa-stack/harness", allowed: "@open-qa-stack/shared" } },
+        ],
+      },
+    ],
+  });
+});
+
+describe("the rule that confines a package to one folder", () => {
+  const options = [{ modules: { "@github/copilot-sdk": "packages/harness/src/copilot" } }];
+  const confined = (file: string, module: string) => ({ messageId: "confined", data: { file, module, directory: "packages/harness/src/copilot" } });
+  tester.run("confined-imports", confinedImports, {
+    valid: [
+      {
+        filename: at("packages/harness/src/copilot/runtime.ts"),
+        options,
+        code: 'import { CopilotClient } from "@github/copilot-sdk";\nimport type { Hooks } from "@github/copilot-sdk/hooks";',
+      },
+      {
+        filename: at("packages/api/src/store.ts"),
+        options,
+        code: 'import pg from "pg";\nimport { local } from "./copilot-sdk.ts";\nimport { pool } from "../node_modules/pg/lib/index.js";',
+      },
+    ],
+    invalid: [
+      {
+        filename: at("packages/api/src/agent.ts"),
+        options,
+        code: 'import { CopilotClient } from "@github/copilot-sdk";',
+        errors: [confined("packages/api/src/agent.ts", "@github/copilot-sdk")],
+      },
+      {
+        filename: at("packages/harness/test/hooks.test.ts"),
+        options,
+        code: 'export type Hooks = import("@github/copilot-sdk/hooks").Hooks;',
+        errors: [confined("packages/harness/test/hooks.test.ts", "@github/copilot-sdk/hooks")],
+      },
+      {
+        filename: at("packages/worker/src/agent.ts"),
+        options,
+        code: 'export const sdk = await import(`@github/copilot-sdk`);\nimport { CopilotClient } from "../node_modules/@github/copilot-sdk/dist/index.js";',
+        errors: [
+          confined("packages/worker/src/agent.ts", "@github/copilot-sdk"),
+          confined("packages/worker/src/agent.ts", "../node_modules/@github/copilot-sdk/dist/index.js"),
+        ],
+      },
+    ],
+  });
+});
+
+describe("the rule that keeps decorators out of the domain", () => {
+  tester.run("pure-domain", pureDomain, {
+    valid: [{ filename: "rule.ts", code: "export class Limits {\n  check(): void {}\n}" }],
+    invalid: [
       { filename: "rule.ts", code: "@sealed\nexport class Limits {}", errors: [{ messageId: "decorator" }] },
       { filename: "rule.ts", code: "export class Limits {\n  @logged\n  check(): void {}\n}", errors: [{ messageId: "decorator" }] },
+      { filename: "rule.ts", code: "export class Limits {\n  constructor(@inject() readonly budget: number) {}\n}", errors: [{ messageId: "decorator" }] },
     ],
   });
 });
 
 describe("the lint configuration of the workspace", () => {
-  const workspace = mkdtempSync(join(tmpdir(), "oqas-lint-"));
-  after(() => rmSync(workspace, { recursive: true, force: true }));
-  const configuration = JSON.parse(readFileSync(join(ROOT, ".oxlintrc.json"), "utf8")) as { $schema?: string; jsPlugins: string[] };
-  delete configuration.$schema;
-  configuration.jsPlugins = configuration.jsPlugins.map((path) => join(ROOT, path));
-  writeFileSync(join(workspace, ".oxlintrc.json"), JSON.stringify(configuration));
-  const files: Record<string, string> = {
+  const workspace = new DemoWorkspace({
     "packages/api/src/health/health.service.ts": 'export const mode = process.env["MODE"];\n',
     "packages/api/src/config/process-environment.ts": "export const environment = () => process.env;\n",
     "packages/api/test/startup.test.ts": 'export const coverage = process.env["NODE_V8_COVERAGE"];\n',
     "packages/api/test/support/environment.ts": "export const environment = process.env;\n",
-    "packages/domain/src/test/limits.ts": 'import { Injectable } from "@nestjs/common";\n@Injectable()\nexport class Limits {}\n',
-    "packages/domain/src/test/store.ts": 'import { pgTable } from "drizzle-orm/pg-core";\nimport pg from "pg";\nexport const tables = { pgTable, pg };\n',
-    "packages/api/src/database/store.ts": 'import { pgTable } from "drizzle-orm/pg-core";\nimport pg from "pg";\nexport const tables = { pgTable, pg };\n',
+    "packages/domain/src/test/limits.ts": "@Injectable()\nexport class Limits {}\n",
+    "packages/domain/test/limits.test.ts": "@Injectable()\nexport class Fixture {}\n",
     "packages/harness/src/runner.ts": 'import "reflect-metadata";\nexport const home = process.env["HOME"];\n',
-  };
-  for (const [path, content] of Object.entries(files)) {
-    mkdirSync(dirname(join(workspace, path)), { recursive: true });
-    writeFileSync(join(workspace, path), content);
-  }
+  });
+  after(() => workspace.remove());
 
-  it("refuses process.env in the API outside its configuration module and its test support, and the framework and storage in the domain only", async () => {
-    const output = await new Promise<string>((resolve) =>
-      execFile(OXLINT, ["--format", "json"], { cwd: workspace, encoding: "utf8" }, (_error, out) => resolve(out)),
-    );
-    const found = (JSON.parse(output) as { diagnostics: { code: string; filename: string }[] }).diagnostics.map(({ code, filename }) => `${filename} ${code}`);
-    assert.deepEqual(found.sort(), [
+  it("refuses process.env in the API outside its configuration module and its test support, and decorators in the sources of the domain only", async () => {
+    assert.deepEqual((await workspace.lint()).map((line) => `${line.split(":")[0]} ${line.slice(line.lastIndexOf("/") + 1, -1)}`).sort(), [
       "packages/api/src/health/health.service.ts node(no-process-env)",
       "packages/api/test/startup.test.ts node(no-process-env)",
       "packages/domain/src/test/limits.ts open-qa-stack(pure-domain)",
-      "packages/domain/src/test/limits.ts open-qa-stack(pure-domain)",
-      "packages/domain/src/test/store.ts open-qa-stack(pure-domain)",
-      "packages/domain/src/test/store.ts open-qa-stack(pure-domain)",
     ]);
   });
 });
