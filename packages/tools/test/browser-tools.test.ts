@@ -425,6 +425,14 @@ describe("criterion 2 — a snapshot lists the elements one can act on, with rol
       assert.match(await page(tool), /paragraph \[ref=\w+\]: Managing Lena$/m);
       const part = ((await tool("shop_snapshot").execute({ within: { text: "Close", within: { role: "dialog" } } })) as { page: string }).page;
       assert.match(part, /^- button "Close"/);
+      // The name of a row is the text of all its cells: a part of the page is named by a part of its name.
+      const row = ((await tool("shop_snapshot").execute({ within: { role: "row", name: "Tom Arvel" } })) as { page: string }).page;
+      assert.match(row, /^- row \[ref=\w+\]:\n *- cell "Tom Arvel"/);
+      assert.doesNotMatch(row, /Lena Veldane/);
+      await reject(
+        tool("shop_snapshot").execute({ within: { role: "row", name: "Ida Norr" } }),
+        /^page\.getByRole\("row", \{ name: "Ida Norr" \}\) matches no element\./,
+      );
     });
   });
 

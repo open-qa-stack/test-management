@@ -5,7 +5,7 @@
 | Tool | What it does | Browser action |
 |---|---|---|
 | `<id>_goto` | Opens an address of the application, absolute or relative to its user interface. | yes |
-| `<id>_snapshot` | Returns the accessibility tree of the page, each element one can act on followed by its recommended locator; with `within`, an element designated as for an action, only the tree of that element, such as a table or a dialog. | no |
+| `<id>_snapshot` | Returns the accessibility tree of the page, each element one can act on followed by its recommended locator; with `within`, an element designated as for an action, only the tree of that element, such as a table, a row or a dialog; found by role, it is named by a part of its name, as the part of the page that holds an element is. | no |
 | `<id>_click` | Clicks an element. | yes |
 | `<id>_fill` | Fills a field with a text, or with the credential of a declared test account. | yes |
 | `<id>_select_option` | Chooses an option of a list, by its label or value. | yes |

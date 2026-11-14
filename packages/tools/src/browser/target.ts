@@ -40,18 +40,25 @@ export const TARGET_SCHEMA = {
 type AriaRole = Parameters<Page["getByRole"]>[0];
 
 /**
+ * How the accessible name of a target found by role is matched: exactly, for an element to act on, or as a
+ * part of its name, for a part of the page, such as a row whose name is the text of all its cells.
+ */
+export type NameMatch = "exact" | "part";
+
+/**
  * Builds the Playwright locator of a target, matching names, labels and texts exactly, and the name of the
  * part that holds it as a part of its name.
  *
  * @param page - The page to search.
  * @param target - The element, by role and name, label, test id or text, inside a part of the page or not.
+ * @param match - How the name of a target found by role is matched; exactly by default.
  * @returns A locator for it.
  */
-export function locate(page: Page, target: Target): Locator {
+export function locate(page: Page, target: Target, match: NameMatch = "exact"): Locator {
   const scope = target.within;
   const base: Page | Locator = scope === undefined ? page : page.getByRole(scope.role as AriaRole, scope.name === undefined ? {} : { name: scope.name });
   if ("role" in target) {
-    return base.getByRole(target.role as AriaRole, target.name === undefined ? {} : { name: target.name, exact: true });
+    return base.getByRole(target.role as AriaRole, target.name === undefined ? {} : { name: target.name, ...(match === "exact" ? { exact: true } : {}) });
   }
   if ("label" in target) return base.getByLabel(target.label, { exact: true });
   if ("testId" in target) return base.getByTestId(target.testId);
@@ -62,9 +69,10 @@ export function locate(page: Page, target: Target): Locator {
  * Writes the Playwright code of a target, for the agent to reuse in a test.
  *
  * @param target - The element.
+ * @param match - How the name of a target found by role is matched; exactly by default.
  * @returns The code that locates it, as a test would write it.
  */
-export function targetCode(target: Target): string {
+export function targetCode(target: Target, match: NameMatch = "exact"): string {
   const quote = (value: string) => JSON.stringify(value);
   const scope = target.within;
   const base =
@@ -76,7 +84,7 @@ export function targetCode(target: Target): string {
   if ("role" in target) {
     return target.name === undefined
       ? `${base}.getByRole(${quote(target.role)})`
-      : `${base}.getByRole(${quote(target.role)}, { name: ${quote(target.name)}, exact: true })`;
+      : `${base}.getByRole(${quote(target.role)}, { name: ${quote(target.name)}${match === "exact" ? ", exact: true" : ""} })`;
   }
   if ("label" in target) return `${base}.getByLabel(${quote(target.label)}, { exact: true })`;
   if ("testId" in target) return `${base}.getByTestId(${quote(target.testId)})`;

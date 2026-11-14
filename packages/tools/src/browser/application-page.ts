@@ -4,7 +4,7 @@ import { PageLog, type ConsoleEntry, type NetworkEntry } from "./page-log.ts";
 import { pageSnapshot, type PageSnapshot } from "./page-snapshot.ts";
 import { renderedText } from "./rendered-text.ts";
 import { shortText } from "./short-text.ts";
-import { locate, targetCode, type Target } from "./target.ts";
+import { locate, targetCode, type NameMatch, type Target } from "./target.ts";
 
 /** Entries of each kind a page log keeps. */
 export const LOG_CAPACITY = 50;
@@ -141,20 +141,22 @@ export class ApplicationPage {
   /**
    * Reads what the page shows, or one part of it.
    *
-   * @param within - The one element whose subtree to read, such as a table or a dialog; the whole page otherwise.
+   * @param within - The one element whose subtree to read, such as a table or a dialog; the whole page
+   * otherwise. Found by role, it is named by a part of its name, as the part of the page that holds an
+   * element is: the name of a row is the text of all its cells.
    * @returns Its snapshot.
    * @throws Error when the page cannot be read, for instance while it navigates; or, with `within`, when no
    * element, or more than one, matches it in time.
    */
   public async snapshot(within?: Target): Promise<PageSnapshot> {
     if (within === undefined) return pageSnapshot(this.page);
-    const part = locate(this.page, within);
+    const part = locate(this.page, within, "part");
     try {
       // A snapshot does not wait for its element: the wait tells a missing element from several.
       await part.waitFor({ state: "attached" });
       return await pageSnapshot(this.page, part);
     } catch (failure) {
-      throw await this.failed(failure, `${targetCode(within)} did not appear within ${this.timeouts.actionMs} ms.`, within);
+      throw await this.failed(failure, `${targetCode(within, "part")} did not appear within ${this.timeouts.actionMs} ms.`, within, "part");
     }
   }
 
@@ -303,8 +305,8 @@ export class ApplicationPage {
   }
 
   /** The error an agent reads when an action or a wait fails: why, then the page as it is now. */
-  private async failed(failure: unknown, late: string, target?: Target): Promise<Error> {
-    const reason = await this.reason(failure, late, target);
+  private async failed(failure: unknown, late: string, target?: Target, match: NameMatch = "exact"): Promise<Error> {
+    const reason = await this.reason(failure, late, target, match);
     const page = await this.snapshot().then(
       (snapshot) => `The page is now at ${snapshot.url}:\n${snapshot.page}`,
       (unreadable: unknown) => `The page cannot be read now: ${firstLine(unreadable)}`,
@@ -312,10 +314,10 @@ export class ApplicationPage {
     return new Error(`${reason}\n\n${page}`);
   }
 
-  private async reason(failure: unknown, late: string, target: Target | undefined): Promise<string> {
+  private async reason(failure: unknown, late: string, target: Target | undefined, match: NameMatch): Promise<string> {
     if (target === undefined) return failure instanceof errors.TimeoutError ? late : firstLine(failure);
-    const code = targetCode(target);
-    if (failure instanceof errors.TimeoutError) return (await locate(this.page, target).count()) === 0 ? `${code} matches no element.` : late;
+    const code = targetCode(target, match);
+    if (failure instanceof errors.TimeoutError) return (await locate(this.page, target, match).count()) === 0 ? `${code} matches no element.` : late;
     if (firstLine(failure).includes("strict mode violation")) return `${code} matches more than one element; use a locator that matches one.`;
     return firstLine(failure);
   }
