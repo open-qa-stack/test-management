@@ -173,6 +173,15 @@ export class TestProposals {
   }
 
   /**
+   * How many runs of the scenario open failed so far.
+   *
+   * @returns Their number, zero before any run.
+   */
+  public get failedSoFar(): number {
+    return this.cursor.failedRuns;
+  }
+
+  /**
    * Whether a session is writing the scenario open.
    *
    * @returns `true` from `begin` until the scenario is closed.

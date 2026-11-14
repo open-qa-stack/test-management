@@ -947,7 +947,8 @@ describe("loop, criterion 1 — a test that fails, then is fixed, is run twice a
     assert.equal(runner.runs.length, 4, "a scenario is closed with the text of its last run, which is not run again");
     assert.match(
       messages(outcome),
-      /The test apps\/shop\/list-orders\.spec\.ts was run: failed\.\nThe test apps\/shop\/list-orders\.spec\.ts was run: passed\./,
+      // The look the repair needs is journaled as one beyond the sheet, after the failed run, and counted once the session is over.
+      /The test apps\/shop\/list-orders\.spec\.ts was run: failed\.\n\[SHEET-BEYOND\] Scenario list-orders, after failed run 1: shop_snapshot\.\nThe test apps\/shop\/list-orders\.spec\.ts was run: passed\.\n.*\nScenario list-orders: 1 calls beyond its sheet\.\n/,
     );
     assert.match(
       told(server, "r-list-orders"),

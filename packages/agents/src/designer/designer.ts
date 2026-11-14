@@ -24,6 +24,7 @@ import { declaredAddresses, declaredSecrets, testPackages } from "./spec-rules.t
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import { MIN_TESTS, SESSION_END, TestProposals, type AcceptedTest } from "./test-proposals.ts";
 import { TestRepository } from "./test-repository.ts";
+import { SheetWatch } from "./sheet-watch.ts";
 import { writeRequest } from "./writer-prompt.ts";
 
 /** Prefix of the branches the designer creates. */
@@ -274,7 +275,9 @@ export class Designer {
         // The journal of the scenario belongs to the phase of its session.
         phase = "write";
         proposals.begin(session);
-        const tools = [...session.screens.tools(), ...session.reads.tools(), ...recall, proposals.trialTool(), proposals.tool()];
+        const beyond = new SheetWatch(scenario, () => proposals.failedSoFar, journal);
+        const looking = beyond.watched([...session.screens.tools(), ...session.reads.tools()]);
+        const tools = [...looking, ...recall, proposals.trialTool(), proposals.tool()];
         const request = writeRequest(
           sheet,
           applications.find((application) => application.id === about)!,
@@ -283,6 +286,7 @@ export class Designer {
         );
         const task = { instructions: this.options.writerInstructions, tools, request, reminder: () => proposals.reminder() };
         const last = await sessionOf("write", session, task, () => !proposals.writing);
+        beyond.close();
         // A limit that cuts a scenario short stops the design, which may be resumed from that scenario; so does a session that failed.
         if (last.type === "stopped" && proposals.writing) stoppedBy = last.reason.limit;
         if (last.type === "error" || stoppedBy !== undefined) break;
