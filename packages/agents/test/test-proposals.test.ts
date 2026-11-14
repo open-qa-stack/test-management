@@ -301,6 +301,7 @@ describe("the page at the failure of a run", () => {
     ];
     for (const { runner, planned: closed } of kept) {
       const { proposals: missed } = await proposed(runner, closed);
+      await diagnosed(missed, "application");
       assert.match((await diagnosed(missed, "application")) as string, /^Scenario open-ledger closed: failing \(application\), kept for a person to decide\./);
     }
   });
@@ -475,7 +476,15 @@ describe("the session of a scenario", () => {
     const proposals = new TestProposals(rules(failing), new Journal(), { scenarios: [first] });
     proposals.begin(BLIND);
     await proposals.trialTool().execute({ content: written });
-    await proposals.tool().execute({ diagnosis: { cause: "application", evidence: "The ledger does not open." } });
+    const blamed = () => proposals.tool().execute({ diagnosis: { cause: "application", evidence: "The ledger does not open." } });
+    // With runs left, a failure held to be that of the application is confirmed once: the plan was accepted on what the application showed.
+    const asked = (await blamed()) as { error: string };
+    assert.match(
+      asked.error,
+      /^Refused \(PROPOSE-CONFIRM\): the run failed[^]*compare the test with the plan[^]*repair the test with run_test \(failed runs: 1 of \d\)[^]*call propose_test again with the same diagnosis: that confirms it\./,
+    );
+    assert.equal(proposals.accepted.length, 0);
+    await blamed();
     assert.deepEqual(
       proposals.accepted.map(({ verdict, classes }) => [verdict, classes]),
       [["failed", [{ at: NOW, class: "failing-application", origin: { by: "agent", role: "writer" }, reason: "The ledger does not open." }]]],

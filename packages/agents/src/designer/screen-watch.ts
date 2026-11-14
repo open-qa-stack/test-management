@@ -521,6 +521,21 @@ export class ScreenWatch {
   }
 
   /**
+   * The actions after which the screen of an application showed a text beside its fields: the screen of an
+   * action is what the page showed between it and the next action on its application.
+   *
+   * @param application - Identifier of the application.
+   * @param text - The text.
+   * @returns The numbers of those actions, in the order they were done; none for an application without a
+   * user interface.
+   */
+  public shownAfter(application: string, text: string): number[] {
+    return this.done
+      .filter((action) => action.application === application && observed(text, besideFields(this.after.get(action.number)!.shown)))
+      .map((action) => action.number);
+  }
+
+  /**
    * Whether an action of the agent made a text appear on a screen of the application, or made one go.
    *
    * @param application - Identifier of the application.

@@ -120,6 +120,7 @@ async function proposal(
     sourceTools(),
     [],
   );
+  watched = screens;
   if (opened) await act(screens, "goto");
   const rules: PlanRules = { ...RULES, screens, reads, ...changes };
   return { proposal: new PlanProposal(rules, journal), screens, reads, journal };
@@ -133,17 +134,24 @@ function slowReview(decision: (plan: TestPlan) => boolean): PlanReview {
   };
 }
 
-/** The plan as the agent submits it: each step cites the first action when the test names none. */
-const cited = (submitted: Plan): SubmittedPlan => ({
-  ...submitted,
-  scenarios: submitted.scenarios.map((planned) => ({ ...planned, steps: planned.steps.map((step) => ({ actions: [1], ...step })) })),
-});
+/** The screens of the proposal made last, whose actions a plan cites. */
+let watched: ScreenWatch | undefined;
+/** The plan as the agent submits it: each step cites the first action, then every click done since, when the test names none. */
+const cited = (submitted: Plan): SubmittedPlan => {
+  const clicks = (watched?.actions("shop") ?? []).filter((action) => action.tool === "click").map((action) => action.number);
+  return {
+    ...submitted,
+    scenarios: submitted.scenarios.map((planned) => ({ ...planned, steps: planned.steps.map((step) => ({ actions: [1, ...clicks], ...step })) })),
+  };
+};
 /** Submits scenarios, and gives what the harness answers, such as its question about what is left to cover. */
 const add = (proposal: PlanProposal, submitted: Plan) => proposal.tool().execute(cited(submitted)) as Promise<string | { error: string }>;
 /** Submits a plan, then says the brief is covered once the harness asks what is left: the answer is that of the plan closed. */
 const submit = async (proposal: PlanProposal, submitted: Plan) => {
-  const answer = await add(proposal, submitted);
-  return typeof answer === "string" && answer.startsWith(ASKED) ? add(proposal, { scenarios: [] }) : answer;
+  let answer = await add(proposal, submitted);
+  // The harness asks what is left, then once whether a plan of what works alone is all the brief asks.
+  for (let asks = 0; asks < 2 && typeof answer === "string" && answer.startsWith(ASKED); asks++) answer = await add(proposal, { scenarios: [] });
+  return answer;
 };
 const act = (screens: ScreenWatch, action: string, args: object = {}) =>
   screens
@@ -1314,5 +1322,51 @@ describe("the element of each expected text, as the harness checked its locator 
     const later = (await submit(made, submitted)) as string;
     assert.match(later, /asks you about 1 of them, once:\nWarning 2: "Paid"/);
     assert.equal(await submit(made, { ...submitted, accepts: [2] }), ACCEPTED);
+  });
+});
+
+describe("a step and what it expects, held to one screen", () => {
+  const search = (actions: number[]) =>
+    scenario("a", {
+      kind: "functional",
+      data: [{ value: "zzqx", from: "made-up" }],
+      steps: [
+        { action: "Open the orders", actions: [1], expects: [{ result: "The orders show", shows: ["Orders"], absent: [] }] },
+        { action: "Search the orders of Veldane", actions, expects: [{ result: "Her order shows", shows: ["ORD-1042"], absent: [] }] },
+      ],
+    });
+
+  it("refuses a text the screen showed after another action than those its step cites, and names that action", async () => {
+    const { proposal: made, screens } = await proposal();
+    await act(screens, "fill", { value: "zzqx" });
+    await act(screens, "click");
+    const refused = (await add(made, { scenarios: [search([2])] })) as { error: string };
+    assert.equal(
+      refused.error.split("\n")[0],
+      'Refused (PLAN-SHOWN): scenario a, expect 2.1, names "ORD-1042", which the screen did not show after the actions step 2 cites (2): it showed it after the action 3. A test written from these actions would not find it. Cite in actions the ones that led to the screen that showed "ORD-1042", or expect what the screen showed after the action 2.',
+    );
+    assert.match((await submit(made, { scenarios: [search([2, 3])] })) as string, /^The plan was accepted with 1 scenario/);
+  });
+});
+
+describe("a plan that verifies only what works", () => {
+  const nominal = () => scenario("a", { kind: "functional" });
+
+  it("is asked once what the application answers otherwise, and closed when the agent says again that the brief is covered", async () => {
+    const { proposal: made, journal } = await proposal();
+    await add(made, { scenarios: [nominal()] });
+    const warned = await add(made, { scenarios: [] });
+    assert.match(
+      warned as string,
+      /^The plan is not closed yet\. It verifies only what works: a\.\n[^]*call propose_plan with "scenarios": \[\] again: that confirms it, and closes the plan\.$/,
+    );
+    assert.equal(await add(made, { scenarios: [] }), `${accepted(1)}\nNext: answer with one sentence. Call no more tools.`);
+    assert.equal(journal.entries().filter((entry) => entry.message.startsWith("The agent closed a plan that verifies only what works")).length, 1);
+  });
+
+  it("is closed at once when a scenario is negative, or none is functional", async () => {
+    const { proposal: made } = await proposal();
+    await add(made, { scenarios: [scenario("a")] });
+    assert.match((await add(made, { scenarios: [] })) as string, /^The plan was accepted/);
   });
 });

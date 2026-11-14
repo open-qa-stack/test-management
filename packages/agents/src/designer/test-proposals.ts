@@ -140,6 +140,8 @@ export class TestProposals {
   private queue: Promise<unknown> = Promise.resolve();
   /** The scenario whose test the agent was warned runs what another runs. */
   private warned: string | undefined;
+  /** The scenario whose failure the agent was asked to confirm is not that of its test. */
+  private doubted: string | undefined;
 
   /**
    * @param rules - What the tests are checked against.
@@ -455,6 +457,20 @@ export class TestProposals {
         })),
       );
       if (refusals.length > 0) return this.refuse(what, refusals);
+      // The plan was accepted on what the application showed: a test that fails where the plan succeeded is asked about once.
+      if (diagnosis.cause !== "test" && left && this.doubted !== scenario.id) {
+        this.doubted = scenario.id;
+        this.journal.record(
+          "info",
+          `The harness asked the agent to confirm that the test of ${scenario.id} fails because of the ${diagnosis.cause}, with runs left.`,
+        );
+        return this.refuse(what, [
+          {
+            code: "PROPOSE-CONFIRM",
+            message: `the run failed, and the plan was accepted on what the application showed when its steps were done on the screens. Before the ${diagnosis.cause} is held to be the cause, compare the test with the plan: does each step do the actions the plan gives it, with the values of its data? If it does not, repair the test with ${RUN_TOOL} (failed runs: ${cursor.failedRuns} of ${MAX_FAILED_RUNS}). If it does and the application answers otherwise, call ${PROPOSE_TOOL} again with the same diagnosis: that confirms it.`,
+          },
+        ]);
+      }
       quarantine = quarantineOf(diagnosis.cause, diagnosis.evidence, ended);
     }
     // A test that passes and runs what the test of another scenario runs is asked about once: the agent may have taken out what told them apart.

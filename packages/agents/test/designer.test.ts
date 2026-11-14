@@ -224,6 +224,8 @@ const DONE: Call[] = [];
 /** The turns of the session of a scenario: its test is run, then closed, each call in a turn of its own, then the agent answers. */
 const write = (name: string, content = spec(name), diagnosis?: { cause: string; evidence: string }): Call[][] => [
   [run(content, `r-${name}`)],
+  // A failure held not to be that of the test is confirmed once, by the same call again.
+  ...(diagnosis === undefined || diagnosis.cause === "test" ? [] : [[close(`d-${name}`, diagnosis)]]),
   [close(`c-${name}`, diagnosis)],
   DONE,
 ];

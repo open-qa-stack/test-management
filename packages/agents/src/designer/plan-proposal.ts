@@ -179,6 +179,7 @@ export class PlanProposal {
   private uncovered: readonly UncoveredRequest[] = [];
   /** The numbers of the questions the agent accepted. */
   private readonly accepts = new Set<number>();
+  private warnedNominal = false;
   /** The calls are taken one at a time: each adds to what the one before kept. */
   private queue: Promise<unknown> = Promise.resolve();
 
@@ -423,6 +424,8 @@ export class PlanProposal {
     if (open.length > 0) return this.masked(this.ask(open));
     if (submitted.uncovered !== undefined) this.uncovered = submitted.uncovered;
     for (const number of submitted.accepts ?? []) this.accepts.add(number);
+    const alone = this.nominalAlone(submitted);
+    if (alone !== undefined) return this.masked(alone);
     const aside = await this.draft.keep(submitted.scenarios);
     const end = this.draft.ended(submitted.scenarios.length);
     return end === undefined ? this.masked(this.askMore(aside)) : this.settle(end, aside);
@@ -450,6 +453,24 @@ export class PlanProposal {
         message: `the plan would hold ${whole} scenarios, and it holds ${MAX_TESTS} at most${kept === 0 ? "" : `: ${kept} are kept, add ${MAX_TESTS - kept} at most`}. Keep those that verify what the others do not, and say in uncovered what the plan has no room for.`,
       },
     ];
+  }
+
+  /**
+   * The warning told once to an agent that closes a plan whose functional scenarios are all of what works: a
+   * brief is seldom covered without what the application answers to an input that matches nothing or is
+   * wrong. The same call again confirms that the brief has no such case, and closes the plan.
+   */
+  private nominalAlone(submitted: SubmittedPlan): string | undefined {
+    const functional = this.draft.scenarios.filter((scenario) => scenario.kind === "functional");
+    if (submitted.scenarios.length > 0 || functional.length === 0 || functional.some((scenario) => scenario.case === "negative") || this.warnedNominal)
+      return undefined;
+    this.warnedNominal = true;
+    this.journal.record("info", "The agent closed a plan that verifies only what works; it was asked once for what the application answers otherwise.");
+    return [
+      `The plan is not closed yet. It verifies only what works: ${functional.map((scenario) => scenario.id).join(", ")}.`,
+      "A brief is seldom covered by that alone. On the screens of these scenarios, what does the application answer to an input that matches nothing, is wrong or is forbidden? What else does a user do there that the brief is about, such as opening a row or going to the next page?",
+      `Next: do it on the screens, then call ${PLAN_TOOL} with only the scenarios to add. If the brief asks nothing of the kind, call ${PLAN_TOOL} with "scenarios": [] again: that confirms it, and closes the plan.`,
+    ].join("\n");
   }
 
   /**
@@ -642,7 +663,7 @@ export class PlanProposal {
             },
           ]
         : [];
-    return [
+    const refused = [
       ...repeated,
       ...secrets,
       ...addressed,
@@ -654,6 +675,8 @@ export class PlanProposal {
       ...plan.scenarios.flatMap((scenario) => this.actionErrors(scenario)),
       ...plan.scenarios.flatMap((scenario) => this.elementErrors(scenario)),
     ];
+    // A step and its expect of two screens are told once nothing else is wrong: the other refusals say more of what they refuse.
+    return refused.length > 0 ? refused : plan.scenarios.flatMap((scenario) => this.screenErrors(scenario));
   }
 
   /** What the gates refuse in what a scenario relies on: a source it cites and nothing was read of, a value its source never showed, a text no tool showed. */
@@ -1063,6 +1086,32 @@ export class PlanProposal {
         remedy: `Cite first, in actions of step 1 of scenario ${scenario.id}, an action of ${tool("goto")}${example}, then the actions done after it.`,
       },
     ];
+  }
+
+  /**
+   * What the gates refuse in the texts a step expects shown: one the screen did not show after any action the
+   * step cites, while it did after another action. The step and its expect are then of two screens, and the
+   * test written from the cited actions would look for the text where the application does not show it.
+   */
+  private screenErrors(scenario: SubmittedScenario): Refusal[] {
+    const { screens } = this.rules;
+    const { application } = scenario;
+    return scenario.steps.flatMap((step, at) => {
+      const cited = this.cited(scenario, step.actions).map((action) => action.number);
+      if (cited.length === 0) return [];
+      return step.expects.flatMap((expect, k) =>
+        expect.shows.filter(checkable).flatMap((text): Refusal[] => {
+          const after = screens.shownAfter(application, text);
+          if (after.length === 0 || cited.some((number) => after.includes(number))) return [];
+          return [
+            {
+              code: "PLAN-SHOWN",
+              message: `scenario ${scenario.id}, expect ${at + 1}.${k + 1}, names "${text}", which the screen did not show after the actions step ${at + 1} cites (${cited.join(", ")}): it showed it after the action ${after.at(-1)}. A test written from these actions would not find it. Cite in actions the ones that led to the screen that showed "${text}", or expect what the screen showed after the action ${cited.at(-1)}.`,
+            },
+          ];
+        }),
+      );
+    });
   }
 
   /** The refusal of a value its source never showed, with the last texts a knowledge source returned as what the gate would accept. */
