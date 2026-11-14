@@ -1,0 +1,29 @@
+import type { JudgedItem } from "../designer/duplicate-judge.ts";
+
+/** Name of the tool the reviewer of a plan reports the duplicates with. */
+export const REPORT_TOOL = "report_duplicates";
+
+/** System instructions of the agent that reviews the scenarios of a test plan for duplicates. */
+export const PLAN_REVIEWER_INSTRUCTIONS = `You review the scenarios of one test plan, written by another agent, for duplicates. You write no scenario and no test.
+
+Two scenarios are duplicates when the test of one would catch no defect the test of the other does not: they verify the same behaviour with the same outcome, even under other words, or with other values of the same kind.
+They are not duplicates when they verify different rules, different information, or different outcomes, such as a search that finds and a search that finds nothing.
+When in doubt, they are not duplicates: a scenario set aside is a test not written.
+
+Compare each candidate with the scenarios kept and with the candidates before it. Call ${REPORT_TOOL} once: each candidate that is a duplicate, with the scenario before it that already verifies it and why, in one sentence; an empty list when there is none. Then answer with one word.`;
+
+/**
+ * Writes the request of a review: the scenarios kept, then the candidates, each under its slug.
+ *
+ * @param kept - The scenarios already kept, in order.
+ * @param candidates - The scenarios to judge, in order.
+ * @returns The message that starts the session of the review.
+ */
+export function reviewRequest(kept: readonly JudgedItem[], candidates: readonly JudgedItem[]): string {
+  const listed = (items: readonly JudgedItem[]) => items.map((item) => `### ${item.id}\n${item.text}`).join("\n\n");
+  return [
+    ...(kept.length === 0 ? [] : [`Scenarios kept:\n\n${listed(kept)}`]),
+    `Candidates, in order:\n\n${listed(candidates)}`,
+    `Next: call ${REPORT_TOOL} with the candidates that are duplicates, or with an empty list.`,
+  ].join("\n\n");
+}

@@ -107,6 +107,55 @@ describe("the file of a plan", () => {
     assert.ok(!planFileText(RECORD).includes("## Not covered"));
   });
 
+  it("says why the plan holds no more scenarios, and under its own heading each scenario set aside with who decided, when and why", () => {
+    const at = "2026-01-05T10:00:00.000Z";
+    const setAside = [
+      {
+        id: "find-customer",
+        title: "Find a\ncustomer",
+        intent: "Verifies the search.",
+        duplicates: SEARCH.id,
+        origin: { by: "harness", check: "PLAN-DUPLICATE" },
+        reason: "It does the same\nsteps.",
+        at,
+      },
+      {
+        id: "look-up",
+        title: "Look up",
+        intent: "Verifies it.",
+        duplicates: SEARCH.id,
+        origin: { by: "agent", role: "plan-reviewer" },
+        reason: "Same search.",
+        at,
+      },
+    ] as const;
+    const record: PlanRecord = { ...RECORD, ended: "exhausted", setAside };
+    const text = planFileText(record);
+    assert.ok(
+      text.includes(`\n- Scenarios: ${RECORD.scenarios.length}; the scenarios last submitted were duplicates, and the agent has nothing new to verify.\n`),
+      text,
+    );
+    assert.ok(
+      text.includes(
+        [
+          "\n## Set aside\n\nThe agent submitted what follows, and another scenario already verifies it:\n",
+          `- find-customer, Find a customer: duplicate of ${SEARCH.id}, by the harness (PLAN-DUPLICATE) at ${at}. It does the same steps.`,
+          `- look-up, Look up: duplicate of ${SEARCH.id}, by the plan reviewer at ${at}. Same search.`,
+          "\n## Record\n",
+        ].join("\n"),
+      ),
+      text,
+    );
+    assert.deepEqual(readPlanFile(text), record);
+    for (const [end, said] of [
+      ["covered", "the agent said the brief is covered."],
+      ["maximum", "the plan holds 8 scenarios, the most a plan may."],
+      ["session-end", "the agent ended its session without another scenario."],
+    ] as const)
+      assert.ok(planFileText({ ...RECORD, ended: end }).includes(`; ${said}\n`));
+    assert.ok(!planFileText(RECORD).includes("## Set aside"));
+  });
+
   it("holds each text on one line of the page, and exactly in the record: new lines, grave accents, the marks of its own record", () => {
     const { brief: _brief, ...unbriefed } = RECORD;
     const odd: PlanRecord = {

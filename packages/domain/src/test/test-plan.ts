@@ -83,9 +83,39 @@ export interface UncoveredRequest {
   readonly reason: string;
 }
 
+/** Who set a scenario or a test aside as a duplicate: the harness, with the check that decided, or the agent that reviews the plan, in a session of its own. */
+export type DuplicateOrigin = { readonly by: "harness"; readonly check: string } | { readonly by: "agent"; readonly role: "plan-reviewer" };
+
+/** A scenario an agent submitted and the harness set aside from the plan: another scenario already verifies what it does. It is kept, not lost. */
+export interface SetAsideScenario {
+  /** The slug the agent gave it. */
+  readonly id: string;
+  readonly title: string;
+  /** What it was meant to verify. */
+  readonly intent: string;
+  /** Identifier of the scenario of the plan that already verifies it. */
+  readonly duplicates: string;
+  readonly origin: DuplicateOrigin;
+  /** Why it is a duplicate, in a sentence. */
+  readonly reason: string;
+  /** When it was set aside, ISO 8601 in UTC. */
+  readonly at: string;
+}
+
+/**
+ * Why the harness stopped asking the agent for scenarios: `covered` when the agent said the brief is covered,
+ * `exhausted` when the scenarios it last submitted were duplicates, time after time, `maximum` when the plan is full,
+ * `session-end` when the session of the agent ended without another scenario.
+ */
+export type PlanEnd = "covered" | "exhausted" | "maximum" | "session-end";
+
 /** The tests an agent means to write, before it writes any. */
 export interface TestPlan {
   readonly scenarios: readonly PlannedScenario[];
+  /** Why the plan holds no more scenarios; left out for a plan nothing was asked after. */
+  readonly ended?: PlanEnd;
+  /** The scenarios set aside as duplicates, in the order they were submitted; left out when there is none. */
+  readonly setAside?: readonly SetAsideScenario[];
   /** What the brief asks and no scenario covers, because the application does not allow it; left out when the plan covers the brief. */
   readonly uncovered?: readonly UncoveredRequest[];
 }

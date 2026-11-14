@@ -1,6 +1,6 @@
 # Designer
 
-`new Designer(options).run()` writes the Playwright tests a brief needs, four at most, from a brief and the [domain index](../../shared/docs/domain-index.md) of the test repository, on a new local branch, after a test plan. It needs the resolved configuration, the path of the test repository, the environment variables the configuration names, an `AgentRuntime`, a `TestRunner` that runs each test against the application (such as the `TrialRunner` of the harness), and the system instructions of the agent that writes the tests, which the caller composes from the test charter:
+`new Designer(options).run()` writes the Playwright tests a brief needs, eight at most, from a brief and the [domain index](../../shared/docs/domain-index.md) of the test repository, on a new local branch, after a test plan. It needs the resolved configuration, the path of the test repository, the environment variables the configuration names, an `AgentRuntime`, a `TestRunner` that runs each test against the application (such as the `TrialRunner` of the harness), and the system instructions of the agent that writes the tests, which the caller composes from the test charter:
 
 ```ts
 const charter = resolveCharter(config.charter);
@@ -16,7 +16,7 @@ const outcome = await new Designer({
 }).run();
 ```
 
-`brief` says what to test in the developer's words: a domain, a ticket, a rule, a journey. Without it, the designer works on the whole index. `planReview`, a `PlanReview` of `@open-qa-stack/domain`, decides whether the test plan may be carried out; by default every plan is accepted as it is.
+`brief` says what to test in the developer's words: a domain, a ticket, a rule, a journey. Without it, the designer works on the whole index. `reviewPlan`, `false` by default, has the agent that reviews plans asked about duplicates, in sessions of its own. `planReview`, a `PlanReview` of `@open-qa-stack/domain`, decides whether the test plan may be carried out; by default every plan is accepted as it is.
 
 Two agents share a design, each with its own system instructions, its own tools and its own sessions: one **plans**, with `PLANNER_INSTRUCTIONS`, which hold its method, each step with what ends it, and the rules that cause most refusals of a plan, and nothing of the charter; the other **writes** each test from the sheet of its scenario, with `writerInstructions`, which hold its method and the charter. They may be given different models once the runtime allows it: each session is opened on its own.
 
@@ -71,7 +71,7 @@ A text is observed in what the tools returned when, its spaces collapsed and its
 
 ## The plan
 
-No test is run before a plan is accepted: the session that plans has neither `run_test` nor `propose_test`. `propose_plan` takes as many scenarios as the brief needs, four at most, each verifying something the others do not — one per business rule, information or behaviour the brief is about; each test carries out one of them. A scenario has:
+No test is run before a plan is accepted: the session that plans has neither `run_test` nor `propose_test`. `propose_plan` takes as many scenarios as the brief needs, each verifying something the others do not — one per business rule, information or behaviour the brief is about; each test carries out one of them. The scenarios are submitted in several calls, and the harness sets aside the duplicates: see [the scenarios of a plan, asked until the brief is covered](#the-scenarios-of-a-plan-asked-until-the-brief-is-covered). A scenario has:
 
 - a slug of its own (`id`), which names the file of its test, a `title` and its `intent`;
 - its `kind` — `functional`, `visual`, `accessibility` or `other` — and its `case`: `negative` when the input matches nothing, is wrong or is forbidden, `nominal` otherwise;
@@ -201,6 +201,30 @@ The harness journals what the session of a scenario looks at beyond its sheet: e
 
 A plan covers its brief: each business rule, each information and each behaviour the brief is about has a scenario that verifies it, and the instructions of the agent that plans say so. What no scenario covers is said, never left out in silence. A brief may ask what the application does not let a test do, such as an action no screen offers. The agent that plans says so in `uncovered` of `propose_plan`, five entries at most, each with what the brief `asked` and the `reason` — what it saw of the application or read of its sources, or that the plan, of four scenarios at most, has no room for it — rather than plan a neighbouring test in its place without a word. The harness keeps it with the plan, writes it in the file of the plan under the heading `Not covered`, journals it as an error — `The plan does not cover what the brief asks: …` — and gives it in the outcome of the design, so that the command prints it. It holds no secret, as the rest of the plan.
 
+### The scenarios of a plan, asked until the brief is covered
+
+A plan is not closed by its first call. Once the scenarios of a call pass the gates, the harness keeps them and answers with a result that is no refusal: the scenarios kept, and the question of what the brief still needs. The agent then calls `propose_plan` with only the scenarios to add — one that bears the slug of a scenario kept replaces it — or with `"scenarios": []` once every case of the brief has its scenario, which closes the plan. Its instructions say so from the start.
+
+Each scenario submitted passes two guards against duplicates, in order:
+
+1. **By the code.** The harness compares what the test of the scenario would do with each scenario kept, whatever their titles and intents: the same application, the same values entered, the same steps — the lines of code of the actions each cites, or its sentence when it cites none — and no text expected that the other does not expect at the same step. Such a scenario is set aside with the check `PLAN-DUPLICATE`.
+2. **By the agent that reviews the plan**, when `design.reviewPlan` of the configuration is not `false`. It is an agent of its own, `PlanReviewer`: each review runs in a session of its own, with its own instructions and `report_duplicates` as its only tool, given the scenarios as the harness describes them and nothing of the session that plans. It is asked about the scenarios the code let through. The harness keeps of its report only what names a scenario submitted and a scenario before it, and goes on without it when its session fails. Its lines of the trace bear the phase `review`.
+
+A scenario set aside is never lost: the plan keeps it in `setAside`, with the scenario that covers it, who decided — `{ "by": "harness", "check": "PLAN-DUPLICATE" }` or `{ "by": "agent", "role": "plan-reviewer" }` — why and when; the journal says it, the agent is told it, and the file of the plan lists it under `Set aside`.
+
+The harness stops asking, and the plan records why in `ended`:
+
+| `ended` | When |
+| --- | --- |
+| `covered` | The agent called `propose_plan` with no scenario: it says the brief is covered. |
+| `exhausted` | Three scenarios submitted in a row were duplicates. The first is only told to the agent; at the second, the agent is reminded that it may say the brief is covered; the third closes the plan. A scenario kept in between starts the count again. |
+| `maximum` | The plan holds eight scenarios, which guards a design against scenarios without end. A call that would exceed them is refused with `PLAN-COUNT`, as is a first call without any scenario. |
+| `session-end` | The session of the agent ended once it was asked for more: the plan is closed with the scenarios kept. |
+
+The plan closed is then inscribed and goes to the review that accepts or refuses it.
+
+Whether a test does what its plan says is another matter, for another agent, which reviews code. The session that writes a test only gets a reminder: a test that passes and runs what the test of a scenario closed before runs — the same body once its titles, its comments and its layout are taken out — is asked about once, in a result that starts with `Warning (TEST-DUPLICATE)`; the agent checks it against its sheet. Closed again as it is, it is kept, classed `duplicate`, with the path of the test it duplicates in `duplicates`: it stays on the branch, is not run with the others, and its scenario is no longer one the design must give a test for.
+
 No test is lost. A session that ends while its scenario is open — the agent stopped, and was reminded three times in vain — makes the harness close the scenario (`SESSION-END`): its test is kept as passed when its last run passed, the agent having only left it open, and as unfinished otherwise. An unfinished test is a file like the others, at the path of its scenario: the last text the agent submitted to `run_test` that held nothing a test may not hold — it parsed, imported nothing forbidden, wrote no file, and held neither an address nor the value of a variable of the configuration — or the skeleton of the scenario when there was none. It does not count towards the three tests a design expects.
 
 A test whose last run passed is kept as passed, whatever the diagnosis says. One whose last run failed is kept unchanged, as failing, with the `cause` of the diagnosis — `application` when the application does not do what the plan expects, `plan` when an expected text of the plan is wrong, `test` when the test could not be made to work — its `evidence`: what the run showed and what the agent checked, and the step and the class its last run failed on. The verdict is always the harness's. A test kept failing counts towards the three a design expects only when the application is at fault.
@@ -217,6 +241,7 @@ Each test is classed, in `classes`, a list of dated entries whose last one is ho
 | ----------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `passed`                                              | Its last run passed.                                             | The harness, with the check that decided: `run_test`, the code that refused five times after it, or `SESSION-END`.                                                                                                                    |
 | `failing-application`, `failing-plan`, `failing-test` | Its last run failed, and it is kept failing, by who is at fault. | The agent that wrote it (`{ "by": "agent", "role": "writer" }`), the reason being its evidence; or the harness, for `failing-test`, with the code that refused five times.                                                            |
+| `duplicate`                                           | It passes, and runs what the test of another scenario runs.      | The harness, with the check `TEST-DUPLICATE`, once the agent that wrote it was warned and kept it as it is. |
 | `unfinished`                                          | Its scenario was closed before its test was made to end.         | The harness, with the check: the code that refused five times, `TEST-STOP` or `SESSION-END`. The reason says why, then what was tried: the runs, each with how it ended, and the codes that refused a call, each with how many times. |
 
 ```json
@@ -345,11 +370,11 @@ The record is written with two spaces of indentation, one value per line; it is 
 
 ## Outcome
 
-The sessions are traced in `<stateDir>/traces/design-<environment>-<date>.jsonl`, in the format of the [trace of a cartography](./cartographer.md), with one phase per session: `plan`, then `write` once for each scenario written. A phase holds the request and each reminder, every reasoning, text and tool call of the agent with its result, each entry of the journal written meanwhile, what the session asked of the model (`usage`), and how it ended — `done` when the session gave what it was for, a plan accepted or a scenario the agent closed, `truncated` when a limit cut it, `failed` otherwise. Each line is handed to `observe` as it is written. A design stopped before its first session writes no trace.
+The sessions are traced in `<stateDir>/traces/design-<environment>-<date>.jsonl`, in the format of the [trace of a cartography](./cartographer.md), with one phase per session: `plan`, then `write` once for each scenario written; the sessions of the agent that reviews the plan write their lines under `review`. A phase holds the request and each reminder, every reasoning, text and tool call of the agent with its result, each entry of the journal written meanwhile, what the session asked of the model (`usage`), and how it ended — `done` when the session gave what it was for, a plan accepted or a scenario the agent closed, `truncated` when a limit cut it, `failed` otherwise. Each line is handed to `observe` as it is written. A design stopped before its first session writes no trace.
 
-`run()` returns `ok`, true when each scenario of the plan has a test that passed or fails because of the application; the path of the trace, when a session started; the branch, when tests were written, and the paths of the state and of the file of the plan, when they were written; the tests; `stoppedBy`, the limit that cut the design short, when one stopped the session that plans before its plan, or the session of a scenario while it was open; and the journal, as `{ level, message }` entries.
+`run()` returns `ok`, true when each scenario of the plan has a test that passed or fails because of the application, those whose test is classed `duplicate` set apart; the path of the trace, when a session started; the branch, when tests were written, and the paths of the state and of the file of the plan, when they were written; the tests; `stoppedBy`, the limit that cut the design short, when one stopped the session that plans before its plan, or the session of a scenario while it was open; and the journal, as `{ level, message }` entries.
 
-- With fewer than three such tests, those kept are written and committed all the same, the unfinished ones included, and the journal gives their number.
+- With fewer such tests than scenarios, those kept are written and committed all the same, the unfinished ones included, and the journal gives their number.
 - With none, nothing is written and no branch is created, unless a limit stopped the design after its plan was accepted: the state and the file of the plan are then written, and nothing is committed.
 - When the plan is refused, by the review or six times by the gates, nothing is written and no branch is created; the journal gives the reason.
 - When a limit of the autonomy stops the session of a scenario while it is open, the journal names the limit, and the design stops there: the tests of the scenarios closed before it are written, the scenario under way is not, and the design may be resumed from it. A limit that stops a session once its scenario is closed, or the session that plans once its plan is accepted, stops nothing: the design goes on with the next session.

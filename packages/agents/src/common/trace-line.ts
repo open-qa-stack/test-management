@@ -4,9 +4,10 @@ import type { ModelUsage } from "./model-usage.ts";
 /**
  * A phase of a run. Those of a cartography, in the order they run: checking the sources, a card per source,
  * the search for the domains, the index. Those of a design: `plan`, the session that plans, then `write`,
- * once for the session of each scenario.
+ * once for the session of each scenario; the lines of `review` are those of the sessions of the agent that
+ * reviews the plan for duplicates, which run while the plan is submitted.
  */
-export type TracePhase = "survey" | "card" | "consolidation" | "index" | "plan" | "write";
+export type TracePhase = "survey" | "card" | "consolidation" | "index" | "plan" | "review" | "write";
 
 /** How a phase ended: `kept` for a card already up to date, `truncated` when a limit or a truncated source cut it short. */
 export type PhaseOutcome = "done" | "kept" | "truncated" | "failed";

@@ -23,9 +23,10 @@ export interface Quarantine {
 /**
  * How a test stands: `passed` when its last run passed; `failing-application`, `failing-plan` or
  * `failing-test` when it is kept failing, by who is at fault; `unfinished` when its scenario was closed
- * before its test was made to end, the file being the last one the harness could keep.
+ * before its test was made to end, the file being the last one the harness could keep; `duplicate` when
+ * another test of the design already verifies what it does.
  */
-export type TestClass = "passed" | `failing-${FailureCause}` | "unfinished";
+export type TestClass = "passed" | `failing-${FailureCause}` | "unfinished" | "duplicate";
 
 /** Who classed a test: the harness, with the check that decided, or an agent, with its role. */
 export type ClassOrigin = { readonly by: "harness"; readonly check: string } | { readonly by: "agent"; readonly role: "writer" };
@@ -64,6 +65,8 @@ export interface DesignedTest {
   readonly runs: readonly DesignedRun[];
   /** For a test kept failing, why. */
   readonly quarantine?: Quarantine;
+  /** For a test classed `duplicate`, the path of the test that already verifies what it does. */
+  readonly duplicates?: string;
   /** The references of its visual comparisons, written with it, relative to the root of the test repository. */
   readonly references?: readonly string[];
   /** The code of the check the harness closed its scenario on, when it did: the gate that refused it five times, `TEST-STOP` when none of its runs gave a verdict, `SESSION-END` when its session ended first. */

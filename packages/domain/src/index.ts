@@ -19,7 +19,9 @@ export type { AttemptStatus, ListedTest, ReportedAttempt, ReportedStatus, Report
 export { networkFailureAddresses, testVerdicts, type RunFacts, type TestVerdict } from "./test/test-verdicts.ts";
 export type { TestReference, TestRunner, TestTrial, TriedTest } from "./test/test-runner.ts";
 export type {
+  DuplicateOrigin,
   PlanDecision,
+  PlanEnd,
   ExpectedElement,
   PlannedExpect,
   PlannedScenario,
@@ -29,6 +31,7 @@ export type {
   ScenarioKind,
   ScenarioSource,
   ScenarioValue,
+  SetAsideScenario,
   TestPlan,
   UncoveredRequest,
 } from "./test/test-plan.ts";

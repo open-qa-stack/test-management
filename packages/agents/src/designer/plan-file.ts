@@ -1,5 +1,7 @@
-import type { PlannedExpect, PlannedScenario, PlannedStep, UncoveredRequest } from "@open-qa-stack/domain";
+import type { PlanEnd, PlannedExpect, PlannedScenario, PlannedStep, SetAsideScenario, UncoveredRequest } from "@open-qa-stack/domain";
 import { oneLine } from "./one-line.ts";
+import { planEndText } from "./plan-end.ts";
+import { MAX_TESTS } from "./test-proposals.ts";
 
 /** What the name of the file of a plan ends with, after the identifier of its design. */
 export const PLAN_FILE_SUFFIX = ".plan.md";
@@ -22,6 +24,10 @@ export interface PlanRecord {
   readonly scenarios: readonly PlannedScenario[];
   /** What the brief asks and no scenario covers, because the application does not allow it; left out when the plan covers the brief. */
   readonly uncovered?: readonly UncoveredRequest[];
+  /** Why the harness asked for no more scenarios; left out for a plan nothing was asked after. */
+  readonly ended?: PlanEnd;
+  /** The scenarios set aside as duplicates, with who decided and why; left out when there is none. */
+  readonly setAside?: readonly SetAsideScenario[];
 }
 
 /**
@@ -43,11 +49,13 @@ export function planFileText(record: PlanRecord): string {
     "",
     `- Environment: ${record.environment}`,
     ...(record.brief === undefined ? [] : [`- Brief: ${flat(record.brief)}`]),
+    ...(record.ended === undefined ? [] : [`- Scenarios: ${record.scenarios.length}; ${planEndText(record.ended, MAX_TESTS)}`]),
     "",
     "The harness wrote this file from the plan it accepted, and reads its last part again. Edit neither part by hand: a file whose two parts differ is not read.",
     "",
     ...record.scenarios.flatMap(scenarioLines),
     ...uncoveredLines(record.uncovered ?? []),
+    ...setAsideLines(record.setAside ?? []),
     `${RECORD_START.trim()}\n${JSON.stringify(record, null, 2)}${RECORD_END}`,
   ].join("\n");
 }
@@ -125,6 +133,23 @@ function ticks(code: string, least: number): string {
 /** A text with its spaces collapsed, on one line of the page. */
 function flat(text: string): string {
   return text.replace(/\s+/g, " ").trim();
+}
+
+/** The scenarios set aside as duplicates, under their own heading, each with the scenario that covers it, who decided, when and why; nothing without any. */
+function setAsideLines(setAside: readonly SetAsideScenario[]): string[] {
+  if (setAside.length === 0) return [];
+  const by = (scenario: SetAsideScenario) => (scenario.origin.by === "harness" ? `the harness (${scenario.origin.check})` : "the plan reviewer");
+  return [
+    "## Set aside",
+    "",
+    "The agent submitted what follows, and another scenario already verifies it:",
+    "",
+    ...setAside.map(
+      (scenario) =>
+        `- ${scenario.id}, ${oneLine(scenario.title)}: duplicate of ${scenario.duplicates}, by ${by(scenario)} at ${scenario.at}. ${flat(scenario.reason)}`,
+    ),
+    "",
+  ];
 }
 
 /** What the brief asks and the plan leaves out, under its own heading; nothing when the plan covers the brief. */

@@ -32,7 +32,7 @@ describe("the instructions of the agent that plans", () => {
     assert.deepEqual(
       sections.map((lines) => lines[0]),
       [
-        "You plan the tests of the applications of one test environment. You explore, do each journey once on the screens, then submit one test plan with propose_plan. Another agent writes each test from your plan alone: it sees nothing of this session.",
+        "You plan the tests of the applications of one test environment. You explore, do each journey once on the screens, then submit the scenarios of one test plan with propose_plan. Another agent writes each test from your plan alone: it sees nothing of this session.",
         "How this works",
         "Method. Each step says when it is done.",
         "Three rules cause most refusals",
@@ -48,6 +48,9 @@ describe("the instructions of the agent that plans", () => {
     for (const said of [
       'A result that starts with "Refused" says what is wrong',
       'A result that starts with "The plan is not accepted yet" asks you, once,',
+      'A result that starts with "The plan is not closed yet" kept your scenarios and asks what the brief still needs: call propose_plan with only the scenarios to add.',
+      'Once every case of the brief has its scenario, say so: call propose_plan with "scenarios": [], which closes the plan.',
+      "A scenario that verifies what another already does is set aside as a duplicate, and you are told which and why.",
       'returns "action", its number',
       "you never write a locator",
       "Call knowledge_domain on its domain, then with a source for what it says of it; knowledge_list finds an element by words, knowledge_read gives one.",
@@ -56,7 +59,7 @@ describe("the instructions of the agent that plans", () => {
     // It writes no test: nothing of the charter, of the runs nor of the files is its concern.
     assert.doesNotMatch(PLANNER_INSTRUCTIONS, /run_test|propose_test|Charter|\.spec\.ts/);
     assert.doesNotMatch(PLANNER_INSTRUCTIONS, /[ \t]$/m);
-    assert.ok(PLANNER_INSTRUCTIONS.length <= 2950, String(PLANNER_INSTRUCTIONS.length));
+    assert.ok(PLANNER_INSTRUCTIONS.length <= 3600, String(PLANNER_INSTRUCTIONS.length));
   });
 });
 

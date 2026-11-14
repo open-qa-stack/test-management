@@ -155,9 +155,9 @@ function snapshot(root: string): Record<string, string> {
   };
 }
 
-/** The test of a scenario whose one step opens the orders and asserts their heading, as the plan expects. */
+/** The test of a scenario whose one step opens the orders and asserts their heading, as the plan expects; it notes its scenario, which tells its body from the others. */
 const spec = (title: string) =>
-  `import { test, expect } from "@playwright/test";\n\ntest("${title}", async ({ page }) => {\n  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n    await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();\n  });\n});\n`;
+  `import { test, expect } from "@playwright/test";\n\ntest("${title}", async ({ page }) => {\n  test.info().annotations.push({ type: "scenario", description: "${title}" });\n  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n    await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();\n  });\n});\n`;
 
 /** A call of a tool by the model. */
 interface Call {
@@ -176,7 +176,7 @@ const scenario = (id: string, kind = "other", changes: Record<string, unknown> =
   application: "shop",
   domain: "orders",
   sources: [{ source: "shop", item: "/orders" }],
-  data: [],
+  data: [{ value: id, from: "made-up" }],
   steps: [{ action: "Open the orders", actions: [1], expects: [{ result: "The orders show", shows: ["Orders"], absent: [] }] }],
   ...changes,
 });
@@ -188,6 +188,9 @@ const OPEN = { id: "open", name: "shop_goto", arguments: { url: "/orders" } };
 const SEARCH = { id: "search", name: "shop_click", arguments: { target: { role: "button", name: "Search" } } };
 /** A call of `propose_plan` with three scenarios about the orders. */
 const PLAN = { id: "plan", name: "propose_plan", arguments: { scenarios: IDS.map((id) => scenario(id)) } };
+
+/** A call of `propose_plan` that adds nothing: the agent says the brief is covered, and the plan is closed. */
+const COVERED = { id: "covered", name: "propose_plan", arguments: { scenarios: [] } };
 
 /** The scenarios of the plan as a design keeps them: each step with the code of the action it cites, each text with its element. */
 const KEPT = IDS.map((id) => ({
@@ -275,6 +278,8 @@ interface Setup {
   readonly plan?: boolean;
   readonly brief?: string;
   readonly planReview?: PlanReview;
+  /** Whether the agent that reviews plans is asked about duplicates. */
+  readonly reviewPlan?: boolean;
   readonly observe?: (line: { event: { type: string } }) => void;
   readonly resume?: { readonly state: string; readonly branch?: string };
   /** Whether the configuration declares that the model reads images. */
@@ -313,6 +318,7 @@ async function design(script: readonly { status?: number; body: unknown }[], set
       runner: setup.runner ?? new FakeTestRunner(),
       ...(setup.brief === undefined ? {} : { brief: setup.brief }),
       ...(setup.planReview === undefined ? {} : { planReview: setup.planReview }),
+      ...(setup.reviewPlan === undefined ? {} : { reviewPlan: setup.reviewPlan }),
       ...(setup.observe === undefined ? {} : { observe: setup.observe }),
       ...(setup.resume === undefined ? {} : { resume: setup.resume }),
     });
@@ -392,6 +398,8 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
       design: "design-20261113T100000Z",
       environment: "local",
       scenarios: KEPT,
+      // The agent ended its session once the harness asked what was left to cover: the plan was closed with its scenarios.
+      ended: "session-end",
     });
     assert.deepEqual(outcome.tests, state.tests);
     assert.deepEqual(
@@ -868,7 +876,7 @@ describe("the sheet of a scenario", () => {
       { plan: false },
     );
     // The session that plans is told its plan is accepted, and that it is over; the sheet goes to the session of the scenario.
-    assert.equal(told(server, "plan"), `The plan was accepted.\n${OVER}`);
+    assert.match(told(server, "plan"), /^The plan is not closed yet\. It holds 3 of 8 scenarios at most: list-orders, place-order, follow-order\.\n/);
     const sheet = asked(server, 1);
     assert.ok(
       sheet.startsWith(
@@ -880,7 +888,10 @@ describe("the sheet of a scenario", () => {
       sheet.endsWith("Next: check the skeleton of list-orders against its steps, complete what a comment asks, then call run_test with the whole file."),
     );
     assert.equal(told(server, "c-list-orders"), `Scenario list-orders closed: passed.\n${OVER}`);
-    assert.match(asked(server, 2), /\n\nScenario 2 of 3: place-order — .*\nIntent: .*\nData: none\.\nCited: .*\nFile: apps\/shop\/place-order\.spec\.ts/);
+    assert.match(
+      asked(server, 2),
+      /\n\nScenario 2 of 3: place-order — .*\nIntent: .*\nData: "place-order" \(made-up\)\.\nCited: .*\nFile: apps\/shop\/place-order\.spec\.ts/,
+    );
   });
 
   it("runs as it is once the agent typed on the screen the invented value it expects: it holds the lines the browser tools returned, and the value in its field", async () => {
@@ -1699,6 +1710,7 @@ describe("brief, criterion 4 — a review that refuses the plan stops the task, 
       [
         { body: toolCalls(MODEL, [OPEN]) },
         { body: toolCalls(MODEL, [PLAN, run(spec("x"), "r1")]) },
+        { body: toolCalls(MODEL, [COVERED]) },
         { body: toolCalls(MODEL, [{ ...PLAN, id: "plan-2" }, look]) },
         { body: answer(MODEL, "Done.") },
       ],
@@ -1719,7 +1731,7 @@ describe("brief, criterion 4 — a review that refuses the plan stops the task, 
     assert.match(messages(outcome), /No test was written: the plan was refused: The scenarios check only screens\./);
     for (const id of ["plan-2", "look"])
       assert.match(toolResult(server, id), /The plan was refused: The scenarios check only screens\. The design is stopped; call no more tools\./);
-    assert.equal(server.requests.length, 4);
+    assert.equal(server.requests.length, 5);
   });
 });
 
@@ -1731,7 +1743,7 @@ describe("the plan of a design", () => {
       arguments: { scenarios: ["list-orders", "list-orders", "follow-order"].map((id) => scenario(id)) },
     };
     const again = { ...PLAN, id: "plan-again" };
-    const { outcome, server } = await design(replies([[OPEN], [twice], [PLAN], [again], DONE, ...valid(3)]), { plan: false });
+    const { outcome, server } = await design(replies([[OPEN], [twice], [PLAN], [COVERED], [again], DONE, ...valid(3)]), { plan: false });
     assert.equal(outcome.ok, true, messages(outcome));
     assert.equal(
       told(server, "plan-twice"),
@@ -1757,10 +1769,54 @@ describe("the plan of a design", () => {
   });
 });
 
+describe("the duplicates of a design", () => {
+  it("sets aside the scenarios another covers, by the code then by the agent that reviews the plan in a session of its own, keeps a test that runs what another runs as a duplicate, and succeeds with the tests left", async () => {
+    // The scenario seen-orders does and expects what list-orders does; the reviewer finds follow-order in place-order.
+    const same = scenario("seen-orders", "other", { data: scenario("list-orders").data });
+    const plan = { ...PLAN, arguments: { scenarios: [...IDS.map((id) => scenario(id)), same] } };
+    const report = {
+      id: "report",
+      name: "report_duplicates",
+      arguments: { duplicates: [{ id: "follow-order", of: "place-order", reason: "Both follow\nthe same order." }] },
+    };
+    // The test of place-order comes back as that of list-orders under another title: the agent is warned, and closes it as it is.
+    const copied = spec("list-orders").replace('test("list-orders"', 'test("place-order"');
+    const { outcome, root } = await design(
+      // The review runs in a session of its own while the plan is submitted: its turns come before the next of the agent that plans.
+      replies([[OPEN], [plan], [report], DONE, DONE, ...write("list-orders"), [run(copied, "r-copy")], [close("c-1")], [close("c-2")], DONE]),
+      { plan: false, reviewPlan: true },
+    );
+    assert.equal(outcome.ok, true, messages(outcome));
+    const recorded = planOf(outcome);
+    assert.deepEqual(
+      [recorded.scenarios.map((kept) => kept.id), recorded.ended, recorded.setAside!.map((aside) => [aside.id, aside.duplicates, aside.origin.by])],
+      [
+        ["list-orders", "place-order"],
+        "session-end",
+        [
+          ["follow-order", "place-order", "agent"],
+          ["seen-orders", "list-orders", "harness"],
+        ],
+      ],
+    );
+    assert.deepEqual(
+      outcome.tests.map((test) => [test.path, test.classes.at(-1)!.class, test.duplicates]),
+      [
+        ["apps/shop/list-orders.spec.ts", "passed", undefined],
+        ["apps/shop/place-order.spec.ts", "duplicate", "apps/shop/list-orders.spec.ts"],
+      ],
+    );
+    // The duplicate stays on the branch, and the commit says what it is.
+    assert.match(git(root, "log", "-1", "--format=%B", BRANCH), /- apps\/shop\/place-order\.spec\.ts: duplicate of apps\/shop\/list-orders\.spec\.ts/);
+    assert.match(readFileSync(outcome.planPath!, "utf8"), /\n## Set aside\n/);
+    assert.doesNotMatch(messages(outcome), /The design failed/);
+  });
+});
+
 describe("plans submitted in one turn", () => {
   it("accept one plan only", async () => {
     const other = { id: "plan-other", name: "propose_plan", arguments: { scenarios: ["a-one", "a-two", "a-three"].map((id) => scenario(id)) } };
-    const { outcome, server } = await design(replies([[OPEN], [PLAN, other], DONE, ...valid(3)]), { plan: false });
+    const { outcome, server } = await design(replies([[OPEN], [PLAN, COVERED, other], DONE, ...valid(3)]), { plan: false });
     assert.equal(outcome.ok, true, messages(outcome));
     assert.equal(outcome.journal.filter((entry) => entry.message.startsWith("The plan was accepted")).length, 1);
     assert.match(toolResult(server, "plan-other"), /The plan is accepted, and this session is over\./);
@@ -1769,7 +1825,7 @@ describe("plans submitted in one turn", () => {
   it("are refused once the review refused one of them", async () => {
     const review: PlanReview = { review: async () => ({ accepted: false, reason: "Not now." }) };
     const { outcome, server } = await design(
-      [{ body: toolCalls(MODEL, [OPEN]) }, { body: toolCalls(MODEL, [PLAN, { ...PLAN, id: "plan-2" }]) }, { body: answer(MODEL, "Done.") }],
+      [{ body: toolCalls(MODEL, [OPEN]) }, { body: toolCalls(MODEL, [PLAN, COVERED, { ...PLAN, id: "plan-2" }]) }, { body: answer(MODEL, "Done.") }],
       { plan: false, planReview: review },
     );
     assert.equal(outcome.ok, false);
@@ -1833,7 +1889,7 @@ describe("what a plan may hold", () => {
       /Refused \(PLAN-RESULT\): no text scenario list-orders expects appeared, or went, after an action of yours on shop\. Do its steps with shop_goto, shop_fill and shop_click/,
     );
     assert.match(toolResult(server, "search"), /Order 42 of Ada/);
-    assert.match(told(server, "done"), /^The plan was accepted\./);
+    assert.match(told(server, "done"), /^The plan is not closed yet\. It holds 3 of 8 scenarios at most: list-orders, place-order, follow-order\.\n/);
     // The plan kept holds the code of the action each step cites: the sheet of its first scenario gives it, and the text no element showed by itself.
     assert.ok(
       asked(server, 1).includes(

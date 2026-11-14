@@ -6,6 +6,7 @@ import type { Journal } from "../common/journal.ts";
 import { DesignCursor, MAX_FAILED_RUNS, type ScenarioRun } from "./design-cursor.ts";
 import { assertionAt, failurePageText, misplacedAtFailure, shownAtFailure } from "./failure-page.ts";
 import { errorClass, failureHint } from "./run-failure.ts";
+import { testBody } from "./test-body.ts";
 import type { DesignedRun, DesignedTest, FailureCause, Quarantine, TestClassing } from "./design-state.ts";
 import { journalRefusals, maskedRefusals, refusalText, repeatedText, type Refusal } from "./refusal.ts";
 import { GUIDED_REFUSALS, MAX_REFUSALS, RefusalStreak } from "./refusal-streak.ts";
@@ -22,14 +23,14 @@ export const PROPOSE_TOOL = "propose_test";
 export const RUN_TOOL = "run_test";
 /** The check that closes a scenario whose session ended before the agent closed it. */
 export const SESSION_END = "SESSION-END";
+/** The code of the check that asks about, then classes as a duplicate, a test that runs what the test of another scenario runs. */
+export const TEST_DUPLICATE = "TEST-DUPLICATE";
 /** How what the agent is told of a scenario that is closed ends: its session is over. */
 const SESSION_OVER = "Next: answer with one sentence. Call no more tools.";
 /** Longest error told to the agent for a test that did not pass. */
 const MAX_TOLD_ERROR = 1500;
-/** Fewest tests a design must give. */
-export const MIN_TESTS = 1;
 /** Most tests a design writes: the most scenarios a plan holds. */
-export const MAX_TESTS = 4;
+export const MAX_TESTS = 8;
 
 /** A test accepted, with its text. */
 export interface AcceptedTest extends Omit<DesignedTest, "references"> {
@@ -112,6 +113,12 @@ interface Diagnosis {
  * file classed `unfinished`: the last text submitted that held nothing a test may not hold, or the skeleton
  * when none was, with why it was closed and what was tried. Each test kept is classed, with the date, who
  * classed it and why.
+ *
+ * A test that passes and runs what the test of a scenario closed before runs — the same body by `testBody`,
+ * whatever their titles and comments — is asked about once, in a result that is no refusal: the agent
+ * checks it against its sheet. Closed again as it is, it is kept classed `duplicate`, with the test it
+ * duplicates. Whether a test still does what its sheet says is otherwise a matter for a review, not for
+ * this check.
  */
 export class TestProposals {
   private readonly rules: ProposalRules;
@@ -131,6 +138,8 @@ export class TestProposals {
   private readonly references = new Map<string, readonly TestReference[]>();
   /** The calls that run or close a test, one after the other. */
   private queue: Promise<unknown> = Promise.resolve();
+  /** The scenario whose test the agent was warned runs what another runs. */
+  private warned: string | undefined;
 
   /**
    * @param rules - What the tests are checked against.
@@ -448,17 +457,37 @@ export class TestProposals {
       if (refusals.length > 0) return this.refuse(what, refusals);
       quarantine = quarantineOf(diagnosis.cause, diagnosis.evidence, ended);
     }
+    // A test that passes and runs what the test of another scenario runs is asked about once: the agent may have taken out what told them apart.
+    const same = quarantine === undefined ? this.sameAs(ended.content) : undefined;
+    if (same !== undefined && this.warned !== scenario.id) {
+      this.warned = scenario.id;
+      this.journal.record("info", `The harness warned the agent that the test of ${scenario.id} runs the same actions and the same assertions as ${same}.`);
+      return `Warning (${TEST_DUPLICATE}): the test of scenario ${scenario.id} runs the same actions and the same assertions as ${same}, the test of another scenario. Is it still the test of its sheet? Check it against the steps and the expected texts of the sheet, put back what was taken out of it, and run it again with ${RUN_TOOL}. If the sheet gives this very test, call ${PROPOSE_TOOL} again as it is: it is then kept as a duplicate of ${same}.`;
+    }
     const classing: Classed =
-      quarantine === undefined
-        ? { class: "passed", origin: { by: "harness", check: RUN_TOOL }, reason: "Its last run passed." }
-        : { class: `failing-${quarantine.cause}`, origin: { by: "agent", role: "writer" }, reason: quarantine.evidence };
-    const outcome = this.keep(open, ended, quarantine, classing);
+      same !== undefined
+        ? {
+            class: "duplicate",
+            origin: { by: "harness", check: TEST_DUPLICATE },
+            reason: `It runs the same actions and the same assertions as ${same}; the agent that wrote it kept it so once warned.`,
+          }
+        : quarantine === undefined
+          ? { class: "passed", origin: { by: "harness", check: RUN_TOOL }, reason: "Its last run passed." }
+          : { class: `failing-${quarantine.cause}`, origin: { by: "agent", role: "writer" }, reason: quarantine.evidence };
+    const outcome = this.keep(open, ended, quarantine, classing, undefined, same);
     this.journal.record("info", `The scenario ${scenario.id} was closed: ${outcome}; its test is ${open.path}.`);
     return this.next(cursor, `Scenario ${scenario.id} closed: ${outcome}.`);
   }
 
+  /** The path of the test kept before, passed or failing because of the application, that runs what a text runs, whatever their titles and comments; none when it runs something of its own. */
+  private sameAs(content: string): string | undefined {
+    const body = testBody(content);
+    const stands = (test: AcceptedTest) => ["passed", "failing-application"].includes(test.classes.at(-1)!.class);
+    return this.kept.find((test) => stands(test) && testBody(test.content) === body)?.path;
+  }
+
   /** Keeps the test of the scenario open with the text of one of its runs, classed, and says how it ended. */
-  private keep(open: Open, run: ScenarioRun, quarantine: Quarantine | undefined, classing: Classed, closedBy?: string): string {
+  private keep(open: Open, run: ScenarioRun, quarantine: Quarantine | undefined, classing: Classed, closedBy?: string, duplicates?: string): string {
     this.kept.push({
       path: open.path,
       scenario: open.scenario.id,
@@ -467,9 +496,11 @@ export class TestProposals {
       runs: runsOf(open.cursor),
       ...(quarantine === undefined ? {} : { quarantine }),
       ...(closedBy === undefined ? {} : { closedBy }),
+      ...(duplicates === undefined ? {} : { duplicates }),
       content: run.content,
       references: this.references.get(run.content)!,
     });
+    if (duplicates !== undefined) return `kept as a duplicate of ${duplicates}, and left out of the tests run`;
     return quarantine === undefined ? "passed" : `failing (${quarantine.cause}), kept for a person to decide`;
   }
 

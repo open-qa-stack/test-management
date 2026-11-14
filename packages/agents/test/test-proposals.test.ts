@@ -405,6 +405,64 @@ describe("the session of a scenario", () => {
     );
   });
 
+  it("asks once about a test that runs what the test of another scenario runs, keeps it as a duplicate when the agent closes it as it is, and as passed once it runs something of its own", async () => {
+    const journal = new Journal();
+    const third = { ...first, id: "audit-ledger" };
+    const proposals = new TestProposals(rules(passing), journal, { scenarios: [first, second, third] });
+    const OVER = "Next: answer with one sentence. Call no more tools.";
+    const kept = "apps/ledger/open-ledger.spec.ts";
+    const warning = (id: string) =>
+      `Warning (TEST-DUPLICATE): the test of scenario ${id} runs the same actions and the same assertions as ${kept}, the test of another scenario. Is it still the test of its sheet? Check it against the steps and the expected texts of the sheet, put back what was taken out of it, and run it again with run_test. If the sheet gives this very test, call propose_test again as it is: it is then kept as a duplicate of ${kept}.`;
+    proposals.begin(BLIND);
+    await proposals.trialTool().execute({ content: written });
+    await proposals.tool().execute({});
+    // Another title, a comment and another layout change nothing of what a test runs.
+    proposals.begin(BLIND);
+    await proposals
+      .trialTool()
+      .execute({ content: `// The same, under another name.\n${written.replace('test("Open the ledger"', "test('Close the ledger'")}\n` });
+    assert.equal(await proposals.tool().execute({}), warning("close-ledger"));
+    assert.equal(proposals.writing, true);
+    assert.equal(await proposals.tool().execute({}), `Scenario close-ledger closed: kept as a duplicate of ${kept}, and left out of the tests run.\n${OVER}`);
+    const { verdict, classes, duplicates } = proposals.accepted[1]!;
+    assert.deepEqual(
+      [verdict, duplicates, classes],
+      [
+        "passed",
+        kept,
+        [
+          {
+            at: NOW,
+            class: "duplicate",
+            origin: { by: "harness", check: "TEST-DUPLICATE" },
+            reason: `It runs the same actions and the same assertions as ${kept}; the agent that wrote it kept it so once warned.`,
+          },
+        ],
+      ],
+    );
+    // Once warned, the agent puts back what its test alone does: it is a test of its own, compared with those that stand only.
+    proposals.begin(BLIND);
+    await proposals.trialTool().execute({ content: written });
+    assert.equal(await proposals.tool().execute({}), warning("audit-ledger"));
+    await proposals.trialTool().execute({ content: written.replace('await page.goto("/ledger");', 'await page.goto("/ledger");\n    await page.reload();') });
+    assert.equal(await proposals.tool().execute({}), `Scenario audit-ledger closed: passed.\n${OVER}`);
+    assert.deepEqual(
+      proposals.accepted.map((test) => [test.classes.at(-1)!.class, test.duplicates]),
+      [
+        ["passed", undefined],
+        ["duplicate", kept],
+        ["passed", undefined],
+      ],
+    );
+    assert.ok(
+      journal
+        .entries()
+        .some(
+          (entry) => entry.message === `The harness warned the agent that the test of close-ledger runs the same actions and the same assertions as ${kept}.`,
+        ),
+    );
+  });
+
   it("starts from the first scenario an earlier design did not close, and has no sheet once all are closed", () => {
     const proposals = new TestProposals(rules(passing), new Journal(), { scenarios: [first, second] }, 1);
     assert.match(proposals.sheet!, /^Scenario 2 of 2: close-ledger /);

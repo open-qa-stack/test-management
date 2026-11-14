@@ -24,6 +24,7 @@ import { CARDS_FOLDER } from "../source-cartographer/source-cartographer.ts";
 import { DESIGNS_FOLDER, type DesignedTest, type DesignState, type TestClass } from "./design-state.ts";
 import { MANIFEST_FILE } from "../source-workflow/source-folder.ts";
 import { IndexMap, type WrittenSource } from "./index-map.ts";
+import { PlanReviewer } from "../plan-reviewer/plan-reviewer.ts";
 import { PLAN_FILE_SUFFIX, planFileText, readPlanFile, type PlanRecord } from "./plan-file.ts";
 import { PlanProposal } from "./plan-proposal.ts";
 import { PLANNER_INSTRUCTIONS, planRequest } from "./planner-prompt.ts";
@@ -59,6 +60,8 @@ export interface DesignerOptions {
   readonly brief?: string;
   /** Decides whether the test plan may be carried out; every plan is accepted as it is by default. */
   readonly planReview?: PlanReview;
+  /** Whether the agent that reviews plans is asked which scenarios verify what another already does, in sessions of its own; the harness compares them by their code alone otherwise. `false` by default. */
+  readonly reviewPlan?: boolean;
   /** Whether each step of a test ends with a screenshot attached to the report, as the charter may ask; the skeleton of a test then holds it. `false` by default. */
   readonly screenshots?: boolean;
   /** Name of the branch to create; `oqas/design-<date>` by default. */
@@ -107,8 +110,8 @@ const COUNTED = new Set<TestClass>(["passed", "failing-application"]);
 const ACCEPT_EVERY_PLAN: PlanReview = { review: async () => ({ accepted: true }) };
 
 /**
- * The designer: from a brief and the domain index of the test repository, it plans then writes three or
- * four Playwright tests on a new local branch, with the state of the design.
+ * The designer: from a brief and the domain index of the test repository, it plans then writes the
+ * Playwright tests the brief needs on a new local branch, with the state of the design.
  *
  * @remarks
  * Before any session, the index must be readable, and the test repository must be the root of a git
@@ -119,7 +122,8 @@ const ACCEPT_EVERY_PLAN: PlanReview = { review: async () => ({ accepted: true })
  * autonomy. The first plans: the agent gets the brief and what the index holds for it, or the domains of
  * the index when nothing of it echoes the brief, not the index whole, which it explores by levels with
  * `knowledge_domain`, `knowledge_list` and `knowledge_read`; the browser tools of the applications, the tools of every knowledge source of the
- * environment — the bases read only — and the notes. It submits a test plan with `propose_plan`, each step
+ * environment — the bases read only — and the notes. It submits the scenarios of a test plan with
+ * `propose_plan`, in as many calls as the harness asks for what is left to cover, each step
  * citing the actions of its exploration that did it: the harness writes in the plan the lines of code of
  * those actions and the element the screens showed each expected text in. `planReview` accepts or refuses
  * the plan; refused, the design stops and no test is written; accepted, the session is over, and its tools
@@ -133,9 +137,9 @@ const ACCEPT_EVERY_PLAN: PlanReview = { review: async () => ({ accepted: true })
  * harness's. No test is lost: a scenario whose session ends before the agent closed it keeps its last file,
  * classed as unfinished. Once the sessions are over, the tests, in the folder of their application, the
  * design state, which classes each of them, and the file of the plan are committed on a new branch from the
- * revision checked out, which stays checked out. Nothing contacts a remote. A design succeeds with three
- * tests that passed or that fail because of the application; with fewer, those kept are still written and
- * the design fails.
+ * revision checked out, which stays checked out. Nothing contacts a remote. A design succeeds once each
+ * scenario of its plan has a test that passed or that fails because of the application, those classed as
+ * duplicates set apart; with fewer, those kept are still written and the design fails.
  *
  * The plan accepted is written with the state, to a file the state names: a page a person reads, then the
  * record the harness reads again. A limit that cuts the session of a scenario while it is open stops the
@@ -229,6 +233,18 @@ export class Designer {
       phases.end(last.type === "stopped" ? "truncated" : last.type === "end" && settled() ? "done" : "failed");
       return last;
     };
+    /** Runs one session of the agent that reviews the plan, under the limits of a task: its lines of the trace are those of `review`, and what it used is added to the design. */
+    const reviewed = async (task: Pick<AgentTask, "instructions" | "tools" | "request" | "reminder">): Promise<TerminalEvent> => {
+      const events: AgentEvent[] = [];
+      const sent = (text: string) => opened.harness("review", { type: "message", text });
+      await runAgentTask(this.options.runtime, { ...task, events, sent, received: (event) => opened.agent("review", event) }, taskLimits(config));
+      const { last, counters } = taskEnd(events);
+      used.iterations += counters.iterations;
+      used.actions += counters.actions;
+      used.durationMs += Math.round(counters.elapsedMs);
+      opened.harness("review", { type: "usage", ...usageOf(counters) });
+      return last;
+    };
     // A session that throws leaves its phase ended as failed.
     try {
       let planned: TestPlan | undefined = frozen;
@@ -244,6 +260,8 @@ export class Designer {
             screens: session.screens,
             reads: session.reads,
             review: this.options.planReview ?? ACCEPT_EVERY_PLAN,
+            ...(this.options.reviewPlan === true ? { judge: new PlanReviewer(reviewed) } : {}),
+            now,
           },
           journal,
         );
@@ -253,7 +271,9 @@ export class Designer {
         const notes = agentNotes(config, repositoryRoot, env, { role: "planner", task: id, now });
         const tools = [...map.toolset(), ...offered, ...notes, plan.tool()].map((tool) => endedWithPlan(tool, plan));
         const task = { instructions: PLANNER_INSTRUCTIONS, tools, request, reminder: () => plan.reminder() };
-        const last = await sessionOf("plan", session, task, () => plan.accepted !== undefined);
+        const last = await sessionOf("plan", session, task, () => plan.accepted !== undefined || plan.drafted);
+        // A session that ends once scenarios are kept closes the plan with them: none is lost.
+        await plan.close();
         if (plan.refused !== undefined) return failed(`No test was written: the plan was refused: ${plan.refused}`);
         planned = plan.accepted;
         if (planned === undefined)
@@ -321,8 +341,8 @@ export class Designer {
         design: id,
         environment: index.environment,
         ...(brief === undefined ? {} : { brief }),
-        scenarios: planned.scenarios,
-        ...(planned.uncovered === undefined ? {} : { uncovered: planned.uncovered }),
+        // The scenarios, why the harness asked for no more, those set aside, and what the plan leaves out.
+        ...planned,
       };
       const state: DesignState = {
         formatVersion: 4,
@@ -347,8 +367,8 @@ export class Designer {
       const statePath = resume?.state ?? posix.join(config.repository.stateDir, DESIGNS_FOLDER, `${id}.json`);
       await this.write(repository, state, statePath, record, tests, journal);
       const counted = kept.filter((test) => COUNTED.has(test.classes.at(-1)!.class)).length;
-      // A plan holds the scenarios its brief needs: the design succeeds once each of them has a test that counts.
-      const expected = record.scenarios.length;
+      // A plan holds the scenarios its brief needs: the design succeeds once each of them has a test that counts, or one another test already verifies.
+      const expected = record.scenarios.length - kept.filter((test) => test.classes.at(-1)!.class === "duplicate").length;
       if (counted < expected)
         journal.record(
           "error",
@@ -400,6 +420,7 @@ export class Designer {
     }
     const titles = new Map(plan.scenarios.map((scenario) => [scenario.id, scenario.title]));
     const line = (test: AcceptedTest) => {
+      if (test.duplicates !== undefined) return `- ${test.path}: duplicate of ${test.duplicates}`;
       if (test.quarantine !== undefined) return `- ${test.path}: failing (${test.quarantine.cause})${stepOf(test.quarantine.failedStep)}`;
       return test.classes.at(-1)!.class === "unfinished" ? `- ${test.path}: unfinished (${test.closedBy})` : `- ${test.path}: ${titles.get(test.scenario)}`;
     };

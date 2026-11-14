@@ -1,13 +1,27 @@
-import type { ExpectedElement, PlannedExpect, PlannedScenario, PlanReview, TestPlan, ToolDefinition, UncoveredRequest } from "@open-qa-stack/domain";
+import type {
+  ExpectedElement,
+  PlanEnd,
+  PlannedExpect,
+  PlannedScenario,
+  PlanReview,
+  SetAsideScenario,
+  TestPlan,
+  ToolDefinition,
+  UncoveredRequest,
+} from "@open-qa-stack/domain";
 import { redactText, scopedToolName, secretForms } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
+import type { DuplicateJudge } from "./duplicate-judge.ts";
 import { checkable, observed, sameText } from "./observed.ts";
+import { PlanDraft } from "./plan-draft.ts";
+import { planEndText } from "./plan-end.ts";
 import { journalRefusals, maskedRefusals, refusalText, repeatedText, type Refusal } from "./refusal.ts";
 import { GUIDED_REFUSALS, RefusalStreak } from "./refusal-streak.ts";
 import type { ScreenWatch, ShownElement, WatchedAction } from "./screen-watch.ts";
 import type { SourceWatch } from "./source-watch.ts";
 import { heldVariables, type DeclaredSecret } from "./spec-rules.ts";
-import { MAX_TESTS, MIN_TESTS } from "./test-proposals.ts";
+import { MAX_TESTS } from "./test-proposals.ts";
+import type { Verified } from "./verified.ts";
 
 /** Name of the tool the designer submits its test plan with. */
 export const PLAN_TOOL = "propose_plan";
@@ -100,13 +114,20 @@ export interface PlanRules {
   readonly reads: SourceWatch;
   /** Decides whether a plan that passes the rules may be carried out. */
   readonly review: PlanReview;
+  /** The model that judges the scenarios the code could not tell from one another; the comparison by the code alone without it. */
+  readonly judge?: DuplicateJudge;
+  /** The clock of the dates; the system clock by default. */
+  readonly now?: () => Date;
 }
 
 /**
  * The test plan of a design, submitted with `propose_plan` before any test is run.
  *
  * @remarks
- * A plan holds the scenarios its brief needs, between `MIN_TESTS` and `MAX_TESTS`. Each names its case, its application, its
+ * A plan holds the scenarios its brief needs, `MAX_TESTS` at most, submitted in several calls: the harness
+ * keeps those of a call in a `PlanDraft`, sets aside each one another already covers, and asks what the
+ * brief still needs, until the agent adds nothing, its last scenarios were duplicates, or the plan is full.
+ * A session that ends meanwhile closes the plan with the scenarios kept. Each names its case, its application, its
  * domain, its sources, the values its test enters and its steps; each step has one action and the results
  * it expects, with the exact texts the screen shows, or no longer shows, after it. The schema of the tool
  * checks the shape. The gates of the harness refuse, all at once and each with its code, the slugs that
@@ -151,6 +172,14 @@ export class PlanProposal {
   private refusedPlans = 0;
   /** The questions asked, by the application and the locator of their element. */
   private readonly asked = new Map<string, Question>();
+  /** The scenarios kept while the harness asks for more. */
+  private readonly draft: PlanDraft<SubmittedScenario>;
+  /** What the agent last said the brief asks and no scenario covers. */
+  private uncovered: readonly UncoveredRequest[] = [];
+  /** The numbers of the questions the agent accepted. */
+  private readonly accepts = new Set<number>();
+  /** The calls are taken one at a time: each adds to what the one before kept. */
+  private queue: Promise<unknown> = Promise.resolve();
 
   /**
    * @param rules - What the plan is checked against.
@@ -159,6 +188,33 @@ export class PlanProposal {
   public constructor(rules: PlanRules, journal: Journal) {
     this.rules = rules;
     this.journal = journal;
+    this.draft = new PlanDraft(
+      {
+        maximum: MAX_TESTS,
+        verified: (scenario) => this.verified(scenario),
+        described,
+        ...(rules.judge === undefined ? {} : { judge: rules.judge }),
+        now: rules.now ?? (() => new Date()),
+      },
+      journal,
+    );
+  }
+
+  /**
+   * Whether scenarios are kept for a plan the harness still asks about.
+   *
+   * @returns `true` between the first scenarios kept and the plan accepted or refused.
+   */
+  public get drafted(): boolean {
+    return this.plan === undefined && this.refusal === undefined && this.draft.scenarios.length > 0;
+  }
+
+  /**
+   * Closes the plan with the scenarios kept, once the session of the agent ended without another: the agent
+   * was asked what is left to cover, and added nothing.
+   */
+  public async close(): Promise<void> {
+    await this.serial(async () => (this.drafted ? this.settle("session-end") : undefined));
   }
 
   /**
@@ -203,7 +259,8 @@ export class PlanProposal {
    * @returns The reminder; `undefined` once a plan is accepted or refused by the review.
    */
   public reminder(): string | undefined {
-    if (this.plan !== undefined || this.refusal !== undefined) return undefined;
+    // An agent that stops once it was asked for more scenarios has none to add.
+    if (this.plan !== undefined || this.refusal !== undefined || this.drafted) return undefined;
     this.journal.record("info", "The agent stopped without an accepted plan; it was reminded to submit one.");
     const state = this.lastCodes.length === 0 ? "No plan is accepted yet." : `The plan was last refused for: ${this.lastCodes.join(", ")}.`;
     return `You stopped before the end. ${state}\n${PLAN_NEXT}`;
@@ -224,7 +281,6 @@ export class PlanProposal {
         properties: {
           scenarios: {
             type: "array",
-            minItems: MIN_TESTS,
             maxItems: MAX_TESTS,
             items: {
               type: "object",
@@ -346,25 +402,71 @@ export class PlanProposal {
         required: ["scenarios"],
         additionalProperties: false,
       },
-      execute: async (args) => this.submit(args as SubmittedPlan),
+      execute: async (args) => this.serial(() => this.submit(args as SubmittedPlan)),
     };
   }
 
   private async submit(submitted: SubmittedPlan): Promise<string | { error: string }> {
     // Once a plan is refused, the designer refuses every call before it reaches a tool.
     if (this.plan !== undefined) return { error: this.closed() };
-    const { plan: checked, emptied, echoes } = this.withoutEchoes(submitted);
-    const refusals = this.errors(checked, emptied);
+    if (this.refusal !== undefined) return { error: this.blocked() };
+    const whole = { ...submitted, scenarios: this.draft.with(submitted.scenarios) };
+    const count = this.countErrors(whole.scenarios.length);
+    if (count.length > 0) return this.refuse(count);
+    const { plan: checked, emptied } = this.withoutEchoes(whole);
+    const refusals = this.errors(checked, emptied, submitted.scenarios);
     if (refusals.length > 0) return this.refuse(refusals);
     const kept = withoutEmptied(checked, emptied);
     // Several elements share the locator of an expected text: the agent is asked about each, once.
     const open = kept.scenarios.flatMap((scenario) => this.located(scenario)).filter((located) => located.element.count > 1 && !this.asked.has(keyOf(located)));
     if (open.length > 0) return this.masked(this.ask(open));
-    const { plan, notes } = this.inscribed(kept, new Set(submitted.accepts ?? []));
+    if (submitted.uncovered !== undefined) this.uncovered = submitted.uncovered;
+    for (const number of submitted.accepts ?? []) this.accepts.add(number);
+    const aside = await this.draft.keep(submitted.scenarios);
+    const end = this.draft.ended(submitted.scenarios.length);
+    return end === undefined ? this.masked(this.askMore(aside)) : this.settle(end, aside);
+  }
+
+  /** What the gates refuse in how many scenarios a call gives: none for a plan that holds none, or more than a plan may hold. */
+  private countErrors(whole: number): Refusal[] {
+    if (whole === 0) return [{ code: "PLAN-COUNT", message: "the plan holds no scenario. Give one scenario at least, for what the brief is about." }];
+    if (whole <= MAX_TESTS) return [];
+    const kept = this.draft.scenarios.length;
+    return [
+      {
+        code: "PLAN-COUNT",
+        message: `the plan would hold ${whole} scenarios, and it holds ${MAX_TESTS} at most${kept === 0 ? "" : `: ${kept} are kept, add ${MAX_TESTS - kept} at most`}. Keep those that verify what the others do not, and say in uncovered what the plan has no room for.`,
+      },
+    ];
+  }
+
+  /**
+   * What the agent is told once its scenarios are kept and the harness asks for more: those kept, those set
+   * aside with why, then what is left to do. It is no refusal: the plan is not closed yet.
+   */
+  private askMore(aside: readonly SetAsideScenario[]): string {
+    const kept = this.draft.scenarios.map((scenario) => scenario.id);
+    return [
+      `The plan is not closed yet. It holds ${kept.length} of ${MAX_TESTS} scenarios at most: ${kept.join(", ")}.`,
+      ...aside.map(setAsideLine),
+      ...(this.draft.repeating
+        ? [
+            `Reminder: the scenarios you last submitted were duplicates. Once every case of the brief has its scenario, say so: call ${PLAN_TOOL} with "scenarios": [].`,
+          ]
+        : []),
+      "Does the brief ask a business rule, an information or a behaviour none of these scenarios verifies?",
+      `Next: if it does, call ${PLAN_TOOL} with only the scenarios to add, each verifying what none above does; if the brief is covered, call ${PLAN_TOOL} with "scenarios": []. A scenario that bears the id of one above replaces it.`,
+    ].join("\n");
+  }
+
+  /** Closes the plan with the scenarios kept: it is inscribed, then reviewed, and the session that plans is over. */
+  private async settle(end: PlanEnd, aside: readonly SetAsideScenario[] = []): Promise<string | { error: string }> {
+    const whole = { scenarios: this.draft.scenarios, ...(this.uncovered.length === 0 ? {} : { uncovered: this.uncovered }) };
+    const { plan: checked, emptied, echoes } = this.withoutEchoes(whole);
+    const { plan: inscribed, notes } = this.inscribed(withoutEmptied(checked, emptied), this.accepts);
+    const setAside = this.draft.setAside;
+    const plan: TestPlan = { ...inscribed, ended: end, ...(setAside.length === 0 ? {} : { setAside }) };
     const decision = await this.rules.review.review(plan);
-    // Plans submitted in one turn are reviewed at once: another may have been decided meanwhile.
-    if (this.refusal !== undefined) return { error: this.blocked() };
-    if (this.plan !== undefined) return { error: this.closed() };
     if (!decision.accepted) {
       this.refusal = decision.reason;
       this.journal.record("error", `The plan was refused: ${decision.reason} The design stops; no test is written.`);
@@ -375,9 +477,40 @@ export class PlanProposal {
     // What the brief asks and the plan leaves out is said where a person reads it, not left in an answer of the agent.
     for (const { asked, reason } of plan.uncovered ?? [])
       this.journal.record("error", this.masked(`The plan does not cover what the brief asks: ${asked} ${reason}`));
+    this.journal.record("info", `The harness asked for no more scenarios: ${planEndText(end, MAX_TESTS)}`);
     this.journal.record("info", `The plan was accepted: ${plan.scenarios.map((scenario) => scenario.id).join(", ")}.`);
     // What the harness took out of the plan is told to the agent, not done behind its back.
-    return ["The plan was accepted.", ...echoes.map((echo) => this.masked(echo)), SESSION_OVER].join("\n");
+    return [
+      `The plan was accepted with ${plan.scenarios.length} ${plan.scenarios.length === 1 ? "scenario" : "scenarios"}: ${planEndText(end, MAX_TESTS)}`,
+      ...aside.map(setAsideLine),
+      ...echoes,
+      SESSION_OVER,
+    ]
+      .map((line) => this.masked(line))
+      .join("\n");
+  }
+
+  /** Takes the calls one at a time, in the order they came. */
+  private serial<T>(call: () => Promise<T>): Promise<T> {
+    const taken = this.queue.then(call);
+    this.queue = taken.catch(() => undefined);
+    return taken;
+  }
+
+  /** What a scenario does and verifies, for the comparison by the code: each step by the code of the actions it cites, and what they typed, or by its sentence when it cites none. */
+  private verified(scenario: SubmittedScenario): Verified {
+    return {
+      application: scenario.application,
+      data: scenario.data.map((entry) => entry.value),
+      steps: scenario.steps.map((step) => {
+        const done = this.cited(scenario, step.actions).flatMap((action) => [action.code, action.typed ?? ""]);
+        return {
+          does: done.length === 0 ? [step.action] : done,
+          shows: step.expects.flatMap((expect) => expect.shows),
+          absent: step.expects.flatMap((expect) => expect.absent),
+        };
+      }),
+    };
   }
 
   /** Refuses a plan, and counts it: from the third refusal of one reason the agent is told only what the gate would accept, and the last plan stops the design. */
@@ -441,8 +574,9 @@ export class PlanProposal {
    * What the gates refuse in a plan its schema accepts: the count, the kinds, the sources and the shapes are
    * the schema's. The expects the harness emptied of echoes are passed over.
    */
-  private errors(plan: SubmittedPlan, emptied: ReadonlySet<SubmittedExpect>): Refusal[] {
-    const ids = plan.scenarios.map((scenario) => scenario.id);
+  private errors(plan: SubmittedPlan, emptied: ReadonlySet<SubmittedExpect>, submitted: readonly SubmittedScenario[]): Refusal[] {
+    // A scenario that bears the id of one kept replaces it: only the ids of one call may not repeat.
+    const ids = submitted.map((scenario) => scenario.id);
     const repeated = [...new Set(ids.filter((id, at) => ids.indexOf(id) !== at))].map((id) => ({
       code: "PLAN-ID",
       message: `the id ${id} is given to several scenarios. Give each scenario its own id.`,
@@ -936,6 +1070,24 @@ export class PlanProposal {
       },
     ];
   }
+}
+
+/** What the agent is told of a scenario set aside: which one covers it, who decided and why. */
+function setAsideLine({ id, duplicates, origin, reason }: SetAsideScenario): string {
+  return `Set aside (${origin.by === "harness" ? origin.check : "plan reviewer"}): scenario ${id} is a duplicate of ${duplicates}. ${reason}`;
+}
+
+/** What a scenario does and verifies, as the judge of duplicates reads it. */
+function described(scenario: SubmittedScenario): string {
+  const texts = (label: string, list: readonly string[]) => (list.length === 0 ? [] : [`${label} ${list.map((text) => JSON.stringify(text)).join(", ")}`]);
+  return [
+    `${scenario.title} (${scenario.case}, ${scenario.application}). ${scenario.intent}`,
+    ...(scenario.data.length === 0 ? [] : [`Enters: ${scenario.data.map((entry) => JSON.stringify(entry.value)).join(", ")}`]),
+    ...scenario.steps.map((step, at) => {
+      const expected = step.expects.flatMap((expect) => [expect.result, ...texts("shows", expect.shows), ...texts("no longer shows", expect.absent)]);
+      return `${at + 1}. ${step.action}${expected.length === 0 ? "" : ` -> ${expected.join("; ")}`}`;
+    }),
+  ].join("\n");
 }
 
 /** What tells an element of an application from another: its application and its locator. */

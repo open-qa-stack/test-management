@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { PlanReview, TestPlan, ToolDefinition } from "@open-qa-stack/domain";
 import { Journal } from "../src/common/journal.ts";
+import type { DuplicateJudge, JudgedDuplicate } from "../src/designer/duplicate-judge.ts";
 import { PlanProposal, type PlanRules, type SubmittedPlan, type SubmittedScenario, type SubmittedStep } from "../src/designer/plan-proposal.ts";
 import { ScreenWatch, type TargetMatcher } from "../src/designer/screen-watch.ts";
 import { SourceWatch } from "../src/designer/source-watch.ts";
@@ -32,7 +33,7 @@ const scenario = (id: string, changes: Partial<Scenario> = {}): Scenario => ({
   application: "shop",
   domain: "orders",
   sources: [{ source: "shop" }],
-  data: [],
+  data: [{ value: id, from: "made-up" }],
   steps: [{ action: "Open the orders", expects: [{ result: "The orders show", shows: ["Orders"], absent: [] }] }],
   ...changes,
 });
@@ -97,7 +98,11 @@ const RULES: Omit<PlanRules, "screens" | "reads"> = {
 const UNEXPLORED = (scenarios: string) =>
   `you did nothing on the screens of shop in this session, and ${scenarios} about it: the harness writes the code of each step from the actions that did it. Open the first address of each scenario with shop_goto, do its steps with the browser tools, then give in actions of each step the numbers their results return in "action", such as "actions": [1, 2] for a step done by the actions 1 and 2.`;
 /** What the agent is told of a plan accepted from which the harness took nothing out. */
-const ACCEPTED = "The plan was accepted.\nNext: answer with one sentence. Call no more tools.";
+/** How the result of a plan closed by the agent starts, by how many scenarios it holds. */
+const accepted = (count: number) => `The plan was accepted with ${count} ${count === 1 ? "scenario" : "scenarios"}: the agent said the brief is covered.`;
+const ACCEPTED = `${accepted(3)}\nNext: answer with one sentence. Call no more tools.`;
+/** How the harness asks for more scenarios once it kept some. */
+const ASKED = "The plan is not closed yet.";
 
 /** A plan proposal of the shop, whose orders page the agent opened unless told otherwise, and which accepts every plan by default. */
 async function proposal(
@@ -133,33 +138,248 @@ const cited = (submitted: Plan): SubmittedPlan => ({
   ...submitted,
   scenarios: submitted.scenarios.map((planned) => ({ ...planned, steps: planned.steps.map((step) => ({ actions: [1], ...step })) })),
 });
-const submit = (proposal: PlanProposal, submitted: Plan) => proposal.tool().execute(cited(submitted)) as Promise<string | { error: string }>;
+/** Submits scenarios, and gives what the harness answers, such as its question about what is left to cover. */
+const add = (proposal: PlanProposal, submitted: Plan) => proposal.tool().execute(cited(submitted)) as Promise<string | { error: string }>;
+/** Submits a plan, then says the brief is covered once the harness asks what is left: the answer is that of the plan closed. */
+const submit = async (proposal: PlanProposal, submitted: Plan) => {
+  const answer = await add(proposal, submitted);
+  return typeof answer === "string" && answer.startsWith(ASKED) ? add(proposal, { scenarios: [] }) : answer;
+};
 const act = (screens: ScreenWatch, action: string, args: object = {}) =>
   screens
     .tools()
     .find((tool) => tool.name === `shop_${action}`)!
     .execute(args);
 
-describe("plans reviewed at once", () => {
-  it("keep the first one accepted, and refuse the other", async () => {
+describe("the scenarios of a plan, asked until the brief is covered", () => {
+  /** What the harness asks once it kept scenarios. */
+  const asked = (kept: string[], aside: string[] = []) =>
+    [
+      `The plan is not closed yet. It holds ${kept.length} of 8 scenarios at most: ${kept.join(", ")}.`,
+      ...aside,
+      "Does the brief ask a business rule, an information or a behaviour none of these scenarios verifies?",
+      'Next: if it does, call propose_plan with only the scenarios to add, each verifying what none above does; if the brief is covered, call propose_plan with "scenarios": []. A scenario that bears the id of one above replaces it.',
+    ].join("\n");
+  /** A scenario that does and expects what scenario a does, under other words. */
+  const again = (id: string) => scenario(id, { data: scenario("a").data, title: "Another title", intent: "Another intent." });
+  const identical = (id: string, of = "a") =>
+    `Set aside (PLAN-DUPLICATE): scenario ${id} is a duplicate of ${of}. It does the same steps with the same values as ${of}, and expects nothing ${of} does not.`;
+  const NOW = "2026-01-05T10:00:00.000Z";
+  const now = () => new Date(NOW);
+  const step = { action: "Open the orders", code: [OPENED], expects: [{ result: "The orders show", shows: ["Orders"], absent: [], elements: [HEADING] }] };
+
+  it("keep the scenarios of each call, ask what is left, and close the plan once the agent adds nothing", async () => {
     const { proposal: made, journal } = await proposal({ review: slowReview(() => true) });
-    const [first, second] = await Promise.all([submit(made, plan("a", "b", "c")), submit(made, plan("x", "y", "z"))]);
-    assert.equal(first, ACCEPTED);
-    assert.deepEqual(second, { error: "The plan is accepted, and this session is over. Answer with one sentence; call no more tools." });
+    // The calls of one turn are taken one at a time: the second adds to what the first kept.
+    const [first, second] = await Promise.all([add(made, plan("a")), add(made, plan("b", "c"))]);
+    assert.deepEqual([first, second], [asked(["a"]), asked(["a", "b", "c"])]);
+    assert.deepEqual([made.accepted, made.drafted, made.reminder()], [undefined, true, undefined]);
+    assert.equal(await add(made, { scenarios: [] }), ACCEPTED);
     // The plan kept holds what the harness wrote: the code of the action each step cites, and the element of each text a screen showed in one.
-    const step = { action: "Open the orders", code: [OPENED], expects: [{ result: "The orders show", shows: ["Orders"], absent: [], elements: [HEADING] }] };
-    assert.deepEqual(made.accepted, { scenarios: ["a", "b", "c"].map((id) => ({ ...scenario(id), steps: [step] })) });
-    assert.equal(journal.entries().filter((entry) => entry.message.startsWith("The plan was accepted")).length, 1);
+    assert.deepEqual(made.accepted, { scenarios: ["a", "b", "c"].map((id) => ({ ...scenario(id), steps: [step] })), ended: "covered" });
+    assert.deepEqual(
+      journal.entries().map((entry) => entry.message),
+      ["The harness asked for no more scenarios: the agent said the brief is covered.", "The plan was accepted: a, b, c."],
+    );
     // Once a plan is accepted, the session that plans is over: another is refused before it is read.
     assert.deepEqual(await submit(made, plan("x", "y", "z")), { error: made.closed() });
+    assert.equal(made.drafted, false);
   });
 
-  it("stop at the first refusal, and never keep the other", async () => {
-    const { proposal: made } = await proposal({ review: slowReview((submitted) => submitted.scenarios[0]!.id === "x") });
-    const [first, second] = await Promise.all([submit(made, plan("a", "b", "c")), submit(made, plan("x", "y", "z"))]);
-    assert.deepEqual(first, { error: "The plan was refused: Not this one. The design is stopped; call no more tools." });
-    assert.deepEqual(second, first);
-    assert.deepEqual([made.accepted, made.refused, made.reminder()], [undefined, "Not this one.", undefined]);
+  it("stop the design when the review refuses the plan closed, and keep nothing after", async () => {
+    // A review that fails fails its call alone: the next one is taken.
+    let failing = true;
+    const review: PlanReview = {
+      review: async (submitted) => {
+        if (failing) throw new Error("The review failed.");
+        return slowReview(() => false).review(submitted);
+      },
+    };
+    const { proposal: made } = await proposal({ review });
+    await add(made, plan("a", "b", "c"));
+    await assert.rejects(add(made, { scenarios: [] }), /The review failed\./);
+    failing = false;
+    const refused = { error: "The plan was refused: Not this one. The design is stopped; call no more tools." };
+    assert.deepEqual(await submit(made, plan("a", "b", "c")), refused);
+    assert.deepEqual(await submit(made, plan("x")), refused);
+    assert.deepEqual([made.accepted, made.refused, made.reminder(), made.drafted], [undefined, "Not this one.", undefined, false]);
+  });
+
+  it("refuse a plan without a scenario and one that holds too many, and replace a scenario by the one that bears its id", async () => {
+    const { proposal: made } = await proposal();
+    assert.deepEqual(await add(made, { scenarios: [] }), {
+      error: "Refused (PLAN-COUNT): the plan holds no scenario. Give one scenario at least, for what the brief is about.\nNothing else was refused.",
+    });
+    const nine = ["a", "b", "c", "d", "e", "f", "g", "h", "i"];
+    assert.match(
+      ((await add(made, plan(...nine))) as { error: string }).error,
+      /^Refused \(PLAN-COUNT\): the plan would hold 9 scenarios, and it holds 8 at most\. Keep/,
+    );
+    assert.equal(await add(made, plan("a", "b")), asked(["a", "b"]));
+    assert.match(
+      ((await add(made, plan(...nine.slice(2)))) as { error: string }).error,
+      /the plan would hold 9 scenarios, and it holds 8 at most: 2 are kept, add 6 at most\./,
+    );
+    // The scenario b is submitted again, changed: it takes the place of the first.
+    assert.equal(await add(made, { scenarios: [scenario("b", { title: "Changed" })] }), asked(["a", "b"]));
+    assert.equal(await add(made, { scenarios: [] }), `${accepted(2)}\nNext: answer with one sentence. Call no more tools.`);
+    assert.deepEqual(
+      made.accepted!.scenarios.map((kept) => kept.title),
+      ["The a scenario", "Changed"],
+    );
+  });
+
+  it("close a plan of one scenario with it, once the session of the agent ended without another", async () => {
+    const { proposal: made, journal } = await proposal();
+    await made.close();
+    assert.equal(made.accepted, undefined);
+    assert.equal(await add(made, plan("a")), asked(["a"]));
+    await made.close();
+    assert.deepEqual([made.accepted!.scenarios.length, made.accepted!.ended], [1, "session-end"]);
+    assert.equal(journal.entries()[0]!.message, "The harness asked for no more scenarios: the agent ended its session without another scenario.");
+  });
+
+  it("set aside, by the code, a scenario that does what another does and expects no more, and tell the agent and the plan who decided and why", async () => {
+    const { proposal: made, journal } = await proposal({ now });
+    // Scenario b expects less than a at the same step, and c the same under other words: neither verifies anything a does not.
+    const less = scenario("b", { data: scenario("a").data, steps: [{ action: "Open the orders", expects: [] }] });
+    assert.equal(await add(made, { scenarios: [scenario("a"), less, scenario("d")] }), asked(["a", "d"], [identical("b")]));
+    // A scenario that expects more than one kept, or enters another value, is another test.
+    const more = scenario("e", {
+      data: scenario("a").data,
+      steps: [{ action: "Open the orders", expects: [{ result: "The orders show", shows: ["Orders", "ORD-1057 Lena Brook"], absent: [] }] }],
+    });
+    assert.equal(await add(made, { scenarios: [more, again("c")] }), asked(["a", "d", "e"], [identical("c")]));
+    assert.equal(await add(made, { scenarios: [] }), ACCEPTED);
+    const aside = (id: string, title: string, intent: string) => ({
+      id,
+      title,
+      intent,
+      duplicates: "a",
+      origin: { by: "harness", check: "PLAN-DUPLICATE" },
+      reason: "It does the same steps with the same values as a, and expects nothing a does not.",
+      at: NOW,
+    });
+    assert.deepEqual(made.accepted!.setAside, [aside("b", "The b scenario", "Verifies b."), aside("c", "Another title", "Another intent.")]);
+    assert.equal(
+      journal.entries()[0]!.message,
+      "The scenario b was set aside as a duplicate of a, by the harness (PLAN-DUPLICATE): It does the same steps with the same values as a, and expects nothing a does not.",
+    );
+  });
+
+  it("answer duplicates in a row by degrees: tell the first, say at the second that the brief may be covered, and ask for no more at the third", async () => {
+    const { proposal: made } = await proposal();
+    const hint =
+      'Reminder: the scenarios you last submitted were duplicates. Once every case of the brief has its scenario, say so: call propose_plan with "scenarios": [].';
+    assert.equal(await add(made, { scenarios: [scenario("a"), again("b")] }), asked(["a"], [identical("b")]));
+    assert.equal(await add(made, { scenarios: [again("c")] }), asked(["a"], [identical("c"), hint]));
+    // A scenario kept in between starts the count again.
+    assert.equal(await add(made, plan("d")), asked(["a", "d"]));
+    assert.equal(await add(made, { scenarios: [again("e"), again("f")] }), asked(["a", "d"], [identical("e"), identical("f"), hint]));
+    assert.equal(
+      await add(made, { scenarios: [again("g")] }),
+      [
+        "The plan was accepted with 2 scenarios: the scenarios last submitted were duplicates, and the agent has nothing new to verify.",
+        identical("g"),
+        "Next: answer with one sentence. Call no more tools.",
+      ].join("\n"),
+    );
+    assert.deepEqual([made.accepted!.ended, made.accepted!.setAside!.length], ["exhausted", 5]);
+    // A plan that is full is closed as well: it guards a design against scenarios without end.
+    const { proposal: full } = await proposal();
+    assert.match(
+      (await add(full, plan("a", "b", "c", "d", "e", "f", "g", "h"))) as string,
+      /^The plan was accepted with 8 scenarios: the plan holds 8 scenarios, the most a plan may\.\n/,
+    );
+    assert.equal(full.accepted!.ended, "maximum");
+  });
+
+  it("ask the judge about the scenarios the code let through, keep of its answer what names one of them and a scenario before it, and go on without it when it fails", async () => {
+    const calls: unknown[] = [];
+    const answers: (JudgedDuplicate[] | Error | string)[] = [
+      [
+        { id: "c", of: "a", reason: "Both open the orders and read their heading." },
+        { id: "c", of: "b", reason: "Said twice." },
+        { id: "a", of: "c", reason: "Names a scenario after it." },
+        { id: "zz", of: "a", reason: "Names no scenario." },
+      ],
+      new Error("no answer"),
+      [
+        { id: "e", of: "b", reason: "Same as b." },
+        { id: "f", of: "e", reason: "Same as e." },
+      ],
+      "down",
+    ];
+    const judge: DuplicateJudge = {
+      judge: async (kept, candidates) => {
+        calls.push([kept.map((item) => item.id), candidates.map((item) => item.id)]);
+        const answer = answers.shift()!;
+        if (!Array.isArray(answer)) throw answer;
+        return answer;
+      },
+    };
+    const { proposal: made, journal } = await proposal({ judge, now });
+    // One scenario alone has nothing to be compared with, and one the code set aside is not asked about.
+    assert.equal(await add(made, { scenarios: [scenario("a"), again("x")] }), asked(["a"], [identical("x")]));
+    const byJudge = "Set aside (plan reviewer): scenario c is a duplicate of a. Both open the orders and read their heading.";
+    assert.equal(await add(made, plan("b", "c")), asked(["a", "b"], [byJudge]));
+    assert.equal(await add(made, plan("d")), asked(["a", "b", "d"]));
+    // A scenario the judge finds the duplicate of one it sets aside is the duplicate of the one kept.
+    const chained = [
+      "Set aside (plan reviewer): scenario e is a duplicate of b. Same as b.",
+      "Set aside (plan reviewer): scenario f is a duplicate of b. Same as e.",
+    ];
+    assert.equal(await add(made, plan("e", "f", "g")), asked(["a", "b", "d", "g"], chained));
+    assert.equal(await add(made, plan("h")), asked(["a", "b", "d", "g", "h"]));
+    assert.deepEqual(calls, [
+      [["a"], ["b", "c"]],
+      [["a", "b"], ["d"]],
+      [
+        ["a", "b", "d"],
+        ["e", "f", "g"],
+      ],
+      [["a", "b", "d", "g"], ["h"]],
+    ]);
+    assert.equal(journal.entries().at(-1)!.message, "The review of the plan for duplicates failed, and the plan goes on without it: down");
+    await made.close();
+    assert.deepEqual(made.accepted!.setAside![1], {
+      id: "c",
+      title: "The c scenario",
+      intent: "Verifies c.",
+      duplicates: "a",
+      origin: { by: "agent", role: "plan-reviewer" },
+      reason: "Both open the orders and read their heading.",
+      at: NOW,
+    });
+    assert.deepEqual(
+      journal
+        .entries()
+        .map((entry) => `${entry.level}: ${entry.message}`)
+        .slice(1, 6),
+      [
+        "info: The harness left out an answer of the plan reviewer: c as a duplicate of b.",
+        "info: The harness left out an answer of the plan reviewer: a as a duplicate of c.",
+        "info: The harness left out an answer of the plan reviewer: zz as a duplicate of a.",
+        "info: The scenario c was set aside as a duplicate of a, by the plan reviewer: Both open the orders and read their heading.",
+        "error: The review of the plan for duplicates failed, and the plan goes on without it: no answer",
+      ],
+    );
+    // What the judge reads of a scenario: what it is, what it enters, and each step with what it expects.
+    const read: string[] = [];
+    const reader: DuplicateJudge = { judge: async (kept) => (read.push(...kept.map((item) => item.text)), []) };
+    const { proposal: other } = await proposal({ judge: reader });
+    const gone = scenario("a", {
+      steps: [
+        { action: "Open the orders", expects: [{ result: "The orders show", shows: ["Orders"], absent: ["ORD-1057 Lena Brook"] }] },
+        { action: "Wait", expects: [] },
+      ],
+    });
+    await add(other, { scenarios: [gone, scenario("b", { data: [] })] });
+    await add(other, plan("c"));
+    assert.deepEqual(read, [
+      'The a scenario (nominal, shop). Verifies a.\nEnters: "a"\n1. Open the orders -> The orders show; shows "Orders"; no longer shows "ORD-1057 Lena Brook"\n2. Wait',
+      'The b scenario (nominal, shop). Verifies b.\n1. Open the orders -> The orders show; shows "Orders"',
+    ]);
   });
 });
 
@@ -307,15 +527,6 @@ describe("the gates of a plan", () => {
     assert.equal(
       refused.error.split("\n")[0],
       `Refused (PLAN-ADDRESS): scenario a, expect 1.1, names "${footer}", which holds http://127.0.0.1:8090, an address of the configuration: no test may hold a host. Leave this text out, and expect another text the screen showed after the step, such as a heading, a row or a message.`,
-    );
-  });
-
-  it("accept a plan of one scenario: a brief has the scenarios it needs, and no more", async () => {
-    const { proposal: made } = await proposal();
-    assert.equal(await submit(made, plan("a")), ACCEPTED);
-    assert.deepEqual(
-      made.accepted!.scenarios.map((kept) => kept.id),
-      ["a"],
     );
   });
 
@@ -628,7 +839,7 @@ describe("the gates of a plan", () => {
     assert.equal(
       await submit(made, { scenarios: [negative, nominal, scenario("z")] }),
       [
-        "The plan was accepted.",
+        accepted(3),
         'The harness took "Quill Zed" out of expect 1.1 of scenario a: the field echoes what the step types.',
         'The harness took "quill  zed" out of expect 1.2 of scenario a: the field echoes what the step types.',
         "Next: answer with one sentence. Call no more tools.",
@@ -649,6 +860,7 @@ describe("the gates of a plan", () => {
       [
         'The harness took "Quill Zed" out of expect 1.1 of scenario a: the field echoes what the step types.',
         'The harness took "quill  zed" out of expect 1.2 of scenario a: the field echoes what the step types.',
+        "The harness asked for no more scenarios: the agent said the brief is covered.",
         "The plan was accepted: a, b, z.",
       ],
     );
@@ -711,7 +923,7 @@ describe("the gates of a plan", () => {
     assert.deepEqual(await submit(made, submitted), { error: [refused("a"), refused("e"), "Nothing else was refused."].join("\n") });
     await submit(made, submitted);
     assert.deepEqual(await submit(made, submitted), { error: ["Third refusal for the same reason. Do this:", remedy("a"), remedy("e")].join("\n") });
-    assert.equal(await submit(made, { scenarios: [searched("a", "negative"), searched("b", "negative"), opened] }), ACCEPTED);
+    assert.equal(await submit(made, { scenarios: [searched("a", "negative"), opened] }), `${accepted(2)}\nNext: answer with one sentence. Call no more tools.`);
   });
 
   it("take a made-up value a source returned once a field held it: the test made it", async () => {
