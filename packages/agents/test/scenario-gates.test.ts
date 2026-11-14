@@ -57,8 +57,8 @@ const STEP_TWO = [
   "Step 2 must hold all of these, with its actions:",
   // The element the plan gives for it, by a locator that names it: it is visible.
   'await expect(page.getByRole("row", { name: "ORD-1042 Mira Veldane" })).toBeVisible();',
-  // The plan gives no element for it: the text, anywhere on the page.
-  'await expect(page.getByText("OK")).toBeVisible();',
+  // The plan gives no element for it: the text, in one place of the page at least.
+  'await expect(page.getByText("OK")).not.toHaveCount(0);',
   'await expect(page.getByText("ORD-1057")).toBeHidden();',
 ].join("\n");
 

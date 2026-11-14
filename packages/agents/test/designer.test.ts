@@ -1766,7 +1766,7 @@ describe("what a plan may hold", () => {
           '  await test.step("2. Search the orders", async () => {',
           '    await page.getByRole("button", { name: "Search", exact: true }).click();',
           "    // Expect 2.1: The order shows.",
-          '    await expect(page.getByText("Order 42 of Ada")).toBeVisible();',
+          '    await expect(page.getByText("Order 42 of Ada")).not.toHaveCount(0);',
           "  });",
         ].join("\n"),
       ),

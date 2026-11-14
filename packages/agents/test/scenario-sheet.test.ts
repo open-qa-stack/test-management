@@ -106,11 +106,11 @@ test("Search an order by \\"customer\\" name", async ({ page }, testInfo) => {
   await test.step("2. Search the orders of Veldane", async () => {
     // Do: Search the orders of Veldane. Copy the code lines the browser tools returned.
     // Expect 2.1: The table lists the order of Mira Veldane only.
-    await expect(page.getByText("ORD-1042")).toBeVisible();
-    await expect(page.getByText("Mira Veldane")).toBeVisible();
+    await expect(page.getByText("ORD-1042")).not.toHaveCount(0);
+    await expect(page.getByText("Mira Veldane")).not.toHaveCount(0);
     await expect(page.getByText("ORD-1057")).toBeHidden();
     // Expect 2.2: The count says one.
-    await expect(page.getByText("1 order")).toBeVisible();
+    await expect(page.getByText("1 order")).not.toHaveCount(0);
     await testInfo.attach("2", { body: await page.screenshot(), contentType: "image/png" });
   });
 });
@@ -147,7 +147,7 @@ test("Search an order by \\"customer\\" name", async ({ page }) => {
     assert.deepEqual(
       skeleton(SHARED, false)
         .split("\n")
-        .filter((line) => line.includes("Count(")),
+        .filter((line) => line.includes("getByRole") && line.includes("Count(")),
       [
         '    await expect(page.getByRole("cell", { name: "Mira Veldane", exact: true })).not.toHaveCount(0);',
         '    await expect(page.getByRole("cell", { name: "ORD-1057", exact: true })).toHaveCount(0);',
