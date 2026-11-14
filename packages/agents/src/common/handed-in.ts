@@ -17,18 +17,6 @@ export interface SubmissionCheck<T> {
   readonly errors: readonly IndexError[];
   /** By source, the items it still has to place. */
   readonly unplaced: ReadonlyMap<string, readonly string[]>;
-  /** What the journal says of what the harness changed in it once accepted, when it changed something. */
-  readonly note?: string;
-}
-
-/** A second submission asked once a first one was accepted, limited to what the first left aside. */
-export interface FollowUp<T> {
-  /** What the agent is asked, once told that its first submission was accepted. */
-  readonly request: string;
-  /** What the journal says of the second submission asked. */
-  readonly asked: string;
-  /** Normalises a valid second submission, merges it into the accepted one, then checks it. */
-  check(value: T): SubmissionCheck<T>;
 }
 
 /** How a kind of result is handed in: its tool, its schema and its rules. */
@@ -49,8 +37,6 @@ export interface SubmissionRules<T> {
   validate(args: unknown): IndexValidation<T>;
   /** Normalises a valid submission, then checks it against what the harness read. */
   check(value: T): SubmissionCheck<T>;
-  /** The second submission to ask once one was accepted; none when there is nothing left to ask. */
-  followUp?(accepted: T): FollowUp<T> | undefined;
   /** A valid submission with the given items added to its `unassigned`, as written. */
   leaveAside(value: T, unplaced: ReadonlyMap<string, readonly string[]>): T;
 }
@@ -61,9 +47,7 @@ export interface SubmissionRules<T> {
  * @remarks
  * A refused submission is journaled and explained to the agent — the errors, then by source every item
  * still to place — so that it may submit again while its limits allow, every secret of the configuration
- * masked. Only the first accepted submission is kept, unless its rules ask a second one: the agent is then
- * told what it is, and a second submission accepted replaces the first by their merge. The agent may answer
- * instead; the first stays as it is.
+ * masked. Only the first accepted submission is kept.
  *
  * A small model may keep forgetting the same items. Once {@link PLACED_BY_HARNESS_AFTER} submissions in a row
  * leave items to place, the harness puts those of the latest in
@@ -73,7 +57,6 @@ export class HandedIn<T> {
   private readonly rules: SubmissionRules<T>;
   private readonly journal: Journal;
   private kept: T | undefined;
-  private pending: FollowUp<T> | undefined;
   private refusal: string | undefined;
   private unplacedInARow = 0;
 
@@ -93,15 +76,6 @@ export class HandedIn<T> {
    */
   public get accepted(): T | undefined {
     return this.kept;
-  }
-
-  /**
-   * Whether the submission accepted waits on the second one its rules asked.
-   *
-   * @returns `true` while that second submission is neither accepted nor given up.
-   */
-  public get followUpPending(): boolean {
-    return this.pending !== undefined;
   }
 
   /**
@@ -127,34 +101,28 @@ export class HandedIn<T> {
 
   private submit(args: unknown): string | { error: string } {
     const { what } = this.rules;
-    if (this.kept !== undefined && this.pending === undefined) return `The ${what} was already accepted; there is nothing more to do.`;
+    if (this.kept !== undefined) return `The ${what} was already accepted; there is nothing more to do.`;
     const validation = this.rules.validate(args);
     if (!validation.ok) return this.refuse(validation.errors, new Map());
-    const second = this.pending !== undefined;
-    const checking = this.pending ?? this.rules;
-    let checked = checking.check(validation.value);
+    let checked = this.rules.check(validation.value);
     if (checked.errors.length > 0) {
-      const aside = this.leftAside(validation.value, checked.unplaced, checking);
+      const aside = this.leftAside(validation.value, checked.unplaced);
       if (aside === undefined) return this.refuse(checked.errors, checked.unplaced);
       checked = aside;
     }
-    const { value, note } = checked;
+    const { value } = checked;
     this.unplacedInARow = 0;
     this.kept = value;
-    this.pending = second ? undefined : this.rules.followUp?.(value);
-    this.record("info", second ? `The second submission of the ${what} was accepted.` : `The ${what} was accepted.`);
-    if (note !== undefined) this.record("info", note);
-    if (this.pending === undefined) return `The ${what} was accepted. Answer with one sentence that sums it up; call no more tools.`;
-    this.record("info", this.pending.asked);
-    return `The ${what} was accepted. ${this.pending.request}`;
+    this.record("info", `The ${what} was accepted.`);
+    return `The ${what} was accepted. Answer with one sentence that sums it up; call no more tools.`;
   }
 
   /** The check of the submission with its unplaced items in `unassigned`, once that is due and leaves nothing wrong. */
-  private leftAside(valid: T, unplaced: ReadonlyMap<string, readonly string[]>, checking: Pick<SubmissionRules<T>, "check">): SubmissionCheck<T> | undefined {
+  private leftAside(valid: T, unplaced: ReadonlyMap<string, readonly string[]>): SubmissionCheck<T> | undefined {
     const { what } = this.rules;
     this.unplacedInARow = unplaced.size === 0 ? 0 : this.unplacedInARow + 1;
     if (this.unplacedInARow < PLACED_BY_HARNESS_AFTER) return undefined;
-    const again = checking.check(this.rules.leaveAside(valid, unplaced));
+    const again = this.rules.check(this.rules.leaveAside(valid, unplaced));
     if (again.errors.length > 0) return undefined;
     const count = [...unplaced.values()].flat().length;
     this.record(
@@ -168,17 +136,14 @@ export class HandedIn<T> {
     const { what } = this.rules;
     const forms = this.rules.secrets.filter((secret) => secret !== "").flatMap(secretForms);
     const masked = (text: string) => redactText(text, forms);
-    const refused = this.pending === undefined ? `The ${what} was refused` : `The second submission of the ${what} was refused`;
+    const refused = `The ${what} was refused`;
     for (const error of errors) this.record("error", masked(`${refused}: ${error.message}`));
     const others = errors.filter((error) => error.path !== "");
     const told = others.slice(0, MAX_TOLD_ERRORS).map((error) => `- ${error.message}`);
     const more = others.length > MAX_TOLD_ERRORS ? [`- and ${others.length - MAX_TOLD_ERRORS} more`] : [];
     const missing = [...unplaced].map(([source, items]) => `- ${source}: ${JSON.stringify(items)}`);
     const placing = missing.length === 0 ? [] : ["Still to place, in a domain or in unassigned, each exactly as written:", ...missing];
-    const header =
-      this.pending === undefined
-        ? `${refused}. Fix it and submit it again.`
-        : `${refused}; the ${what} accepted before is kept. Fix it and submit again only what was asked.`;
+    const header = `${refused}. Fix it and submit it again.`;
     this.refusal = masked([header, ...told, ...more, ...placing].join("\n"));
     return { error: this.refusal };
   }

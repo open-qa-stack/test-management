@@ -194,8 +194,7 @@ const mapped = {
   body: "`orders.md` says how an order is placed.",
 };
 const index = {
-  domains: [{ id: "orders", label: "Orders", description: "Placing and following an order.", references: [{ source: "order-specs", items: ["orders.md"] }] }],
-  unassigned: [],
+  domains: [{ id: "orders", label: "Orders", description: "Placing and following an order.", from: [{ source: "order-specs", domain: "orders" }] }],
 };
 const spec = (title: string) =>
   `import { test, expect } from "@playwright/test";\n\ntest("${title}", async ({ request }) => {\n  await test.step("1. Get the orders", async () => {\n    const response = await request.get("/orders");\n    expect(await response.text()).toContain("A customer places an order");\n    expect("${title}").toBe("${title}");\n  });\n});\n`;
@@ -968,7 +967,7 @@ describe("autonomy, criterion 4 — a design stopped by maxIterations after a pl
   });
 
   it("keeps the cards a cartography made, then the plan of a design stopped before its first test", async () => {
-    const bad = { body: toolCalls(MODEL, [submit("submit_index", { domains: [], unassigned: [] }, "x0")]) };
+    const bad = { body: toolCalls(MODEL, [submit("submit_index", { domains: [] }, "x0")]) };
     const server = await scriptedServer([
       // The session that maps the document is cut at its second call, once its domain is handed in: its last answer is never asked.
       ...chain().slice(0, 3),

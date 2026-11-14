@@ -1,24 +1,27 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type { AgentEvent, AgentRuntime, StopReason } from "@open-qa-stack/domain";
-import { validateDomainIndex, type DomainIndex, type IndexSource, type ResolvedConfig, type SourceCard } from "@open-qa-stack/shared";
-import type { BrowserAccess, KnowledgeAccess } from "@open-qa-stack/tools";
+import type { AgentEvent, AgentRuntime, StopReason, ToolDefinition } from "@open-qa-stack/domain";
+import { readsImages, validateDomainIndex, type DomainIndex, type IndexSource, type MappedKnowledge, type ResolvedConfig } from "@open-qa-stack/shared";
+import { browserTools, knowledgeTools, scopedToolName, type BrowserAccess, type KnowledgeAccess } from "@open-qa-stack/tools";
 import { agentNotes } from "../common/agent-notes.ts";
-import { configSecrets } from "../common/config-secrets.ts";
+import { ScreenTrail } from "../application-explorer/screen-trail.ts";
+import { configSecrets, imageSecrets } from "../common/config-secrets.ts";
 import { runAgentTask, taskEnd, taskLimits } from "../common/agent-task.ts";
-import { HandedIn } from "../common/handed-in.ts";
 import { Journal, type JournalEntry } from "../common/journal.ts";
 import { NO_USAGE, totalUsage, usageOf, type ModelUsage } from "../common/model-usage.ts";
 import { runTrace } from "../common/run-trace.ts";
 import type { Trace } from "../common/trace.ts";
 import type { HarnessEvent, PhaseOutcome, TraceLine } from "../common/trace-line.ts";
 import { TracedPhases } from "../common/traced-phases.ts";
+import { CARDS_FOLDER } from "../source-cartographer/source-cartographer.ts";
 import { mapSources } from "../source-cartographer/sources-cartography.ts";
+import { SourceFolder } from "../source-workflow/source-folder.ts";
 import { cardFingerprint } from "./card-fingerprint.ts";
 import { CARTOGRAPHER_INSTRUCTIONS, cartographyRequest } from "./cartographer-prompt.ts";
-import { domainIndexRules } from "./domain-index-rules.ts";
+import { DomainConsolidation } from "./domain-consolidation.ts";
 import { indexStaleness } from "./index-staleness.ts";
-import { runSources } from "./run-sources.ts";
+import { runSources, type RunSource } from "./run-sources.ts";
+import { sourceDomainTool } from "./source-domain-tool.ts";
 import { surveySource, type SurveyResult } from "./source-survey.ts";
 
 /** Name of the index file, in the index folder of the test repository. */
@@ -164,28 +167,23 @@ export class Cartographer {
     }
     phases.start("consolidation");
     journal.record("info", `The index is made: ${stale}.`);
-    const inventory = new Map([...cards].map(([id, card]) => [id, elementsOf(card)] as const));
-    if ([...inventory.values()].every((elements) => elements.length === 0)) {
-      journal.record("error", `No index was written: ${cards.size === 0 ? "no source has a card" : "the cards hold no element"}.`);
+    if ([...cards.values()].every((card) => card.domains.length === 0)) {
+      journal.record("error", `No index was written: ${cards.size === 0 ? "no source has a card" : "the sources were mapped into no domain"}.`);
       endPhase(trace, phases, "failed");
       return { journal: journal.entries(), ...firstLimit(limits) };
     }
-    const submission = new HandedIn(
-      domainIndexRules(
-        inventory,
-        new Map(sources.map((source) => [source.id, source.type] as const)),
-        (id) => cards.has(id),
-        configSecrets(config, env),
-        cards,
-      ),
-      journal,
-    );
+    const secrets = configSecrets(config, env);
+    const submission = new DomainConsolidation(cards, secrets, journal);
+    // The orchestrator reads what the agent of each source wrote of a domain, in the folder the source was mapped to.
+    const written = (source: string, domain: string) =>
+      new SourceFolder(join(repositoryRoot, config.repository.indexDir, CARDS_FOLDER, source), secrets).readDomain(domain);
     const notes = agentNotes(config, repositoryRoot, env, { role: "cartographer", task: `index-${environment}-${now().toISOString()}`, now });
+    const browser = this.browser(sources);
     const events: AgentEvent[] = [];
     const task = {
       instructions: CARTOGRAPHER_INSTRUCTIONS,
-      tools: [...notes, submission.tool()],
-      request: cartographyRequest(environment, sources, cards, inventory),
+      tools: [sourceDomainTool(cards, written), ...knowledgeTools(declared(sources), access), ...browser.tools, ...notes, submission.tool()],
+      request: cartographyRequest(environment, sources, cards),
       events,
       reminder: () => submission.reminder(),
       sent: (text: string) => trace.harness("consolidation", { type: "message", text }),
@@ -194,7 +192,7 @@ export class Cartographer {
         if (event.type === "tool-error") journal.record("error", `${event.tool}: ${event.message}`);
       },
     };
-    await runAgentTask(this.options.runtime, task, taskLimits(config));
+    await runAgentTask(this.options.runtime, task, taskLimits(config)).finally(() => browser.close());
     const { last, counters } = taskEnd(events);
     const usage = usageOf(counters);
     if (last.type === "error") journal.record("error", `The consolidation failed: ${last.error.message}`);
@@ -203,7 +201,7 @@ export class Cartographer {
       limits.push(last.reason.limit);
     }
     const accepted = submission.accepted;
-    const settled = last.type === "end" || (last.type === "stopped" && submission.followUpPending);
+    const settled = last.type === "end";
     if (accepted === undefined) {
       journal.record("error", "No index was written: no index was accepted before the session ended.");
       endPhase(trace, phases, "failed", usage);
@@ -235,6 +233,26 @@ export class Cartographer {
     const outcome = await this.write(indexPath, index, journal);
     endPhase(trace, phases, outcome.index === undefined ? "failed" : outcome.index.status === "complete" ? "done" : "truncated");
     return outcome;
+  }
+
+  /** The browser of the applications of the run that have a user interface, guarded as an exploration is: it removes no data, and changes none where the environment is explored read-only. */
+  private browser(sources: readonly RunSource[]): { readonly tools: ToolDefinition[]; close(): Promise<void> } {
+    const { config, environment, repositoryRoot, env } = this.options;
+    const explored = config.applications.filter((application) => sources.some((source) => source.type === "web" && source.id === application.id));
+    const browser = browserTools(explored, {
+      env,
+      environment,
+      screenshotsDir: join(repositoryRoot, config.repository.stateDir, "screenshots"),
+      vision: readsImages(config.model),
+      secrets: imageSecrets(config, env),
+      ...this.options.browser,
+    });
+    const tools = explored.flatMap((application) => {
+      const { uiUrl, exploration } = application.environments.find((candidate) => candidate.name === environment)!;
+      const own = browser.tools.filter((tool) => tool.name.startsWith(scopedToolName(application.id, "")));
+      return new ScreenTrail(application.id, uiUrl!, exploration ?? "read-only").watched(own);
+    });
+    return { tools, close: () => browser.close() };
   }
 
   /** Where the index is written, in the test repository. */
@@ -291,9 +309,9 @@ function cardsOutcome(cards: number, sources: number, complete: boolean): PhaseO
   return cards === sources && complete ? "done" : "truncated";
 }
 
-/** Every element of a card, placed in a domain or not. */
-function elementsOf(card: SourceCard): string[] {
-  return [...new Set([...card.domains.flatMap((domain) => domain.items.map((item) => item.name)), ...card.unassigned])];
+/** The knowledge sources of the run, whose tools let the orchestrator check in a source what its map leaves in doubt. */
+function declared(sources: readonly RunSource[]): MappedKnowledge[] {
+  return sources.flatMap((source) => (source.type === "web" ? [] : [source.knowledge]));
 }
 
 function sum(values: readonly number[]): number {

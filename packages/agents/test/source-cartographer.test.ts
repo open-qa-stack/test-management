@@ -1375,7 +1375,7 @@ describe("how mapSources runs the tasks", () => {
 });
 
 describe("what no index is made of", () => {
-  it("writes no index when the cards hold no element, without consolidating", async () => {
+  it("writes no index when the sources were mapped into no domain, without consolidating", async () => {
     const root = mkdtempSync(join(workspace, "repo-"));
     mkdirSync(join(root, "notes"));
     writeFileSync(join(root, "notes", "readme.txt"), "No document.\n");
@@ -1386,7 +1386,7 @@ describe("what no index is made of", () => {
     };
     const outcome = await new Cartographer({ config, environment: "local", repositoryRoot: root, env: {}, runtime: unused }).run();
     assert.equal(outcome.index, undefined);
-    assert.match(outcome.journal.map((entry) => entry.message).join("\n"), /No index was written: the cards hold no element\./);
+    assert.match(outcome.journal.map((entry) => entry.message).join("\n"), /No index was written: the sources were mapped into no domain\./);
   });
 
   it("truncates the card of source code too large to be read whole", async () => {

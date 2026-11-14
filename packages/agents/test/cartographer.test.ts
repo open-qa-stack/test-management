@@ -173,19 +173,25 @@ const ELEMENTS: Readonly<Record<string, readonly string[]>> = {
   shop: ["/", "/orders"],
 };
 
-/** A card that puts every element of a source in one domain. */
-function cardSubmission(id: string, elements: readonly string[] = ELEMENTS[id]!): SourceCardSubmission {
-  const technical = (name: string) => name.endsWith("schema_migrations");
+/** The domain the agent of each source put each of its elements in; an element in none was set aside. */
+const PLACED: Readonly<Record<string, Readonly<Record<string, readonly string[]>>>> = {
+  "shop-api": { orders: ["orders"], customers: ["customers"] },
+  "shop-db": { orders: ["public.orders", "public.order_lines"], customers: ["public.customers"] },
+  "order-specs": { orders: ["Orders", "Placing an order"] },
+  shop: { orders: ["/orders"] },
+};
+
+/** The card of a source, as its agent mapped it: its elements in the domains of its own, the others set aside. */
+function cardSubmission(id: string): SourceCardSubmission {
+  const placed = Object.values(PLACED[id]!).flat();
   return {
-    domains: [
-      {
-        id: "all",
-        label: "All",
-        description: `Everything ${id} holds.`,
-        items: elements.filter((name) => !technical(name)).map((name) => ({ name, summary: `About ${name}.` })),
-      },
-    ],
-    unassigned: elements.filter(technical),
+    domains: Object.entries(PLACED[id]!).map(([domain, items]) => ({
+      id: domain,
+      label: domain,
+      description: `What ${id} holds of the ${domain}.`,
+      items: items.map((name) => ({ name, summary: `About ${name}.` })),
+    })),
+    unassigned: ELEMENTS[id]!.filter((name) => !placed.includes(name)),
   };
 }
 
@@ -242,11 +248,30 @@ const SUBMISSION: DomainIndexSubmission = {
   ],
 };
 
-/** The index of a shop whose interface was explored in the run: its home and the orders its link leads to are left in unassigned. */
-function explored(): DomainIndexSubmission {
-  const domains = SUBMISSION.domains.map((domain) => ({ ...domain, references: domain.references.filter((r) => r.source !== "shop") }));
-  const unassigned = SUBMISSION.unassigned.map((r) => (r.source === "shop" ? { ...r, items: ["/", "/orders"] } : r));
-  return { domains, unassigned };
+/** A domain of a source, as the orchestrator names it in a domain of the application. */
+const from = (source: string, domain: string, items?: readonly string[]) => ({ source, domain, ...(items === undefined ? {} : { items }) });
+/** What the orchestrator hands in to get `SUBMISSION`: the domains of the sources each domain of the application gathers. */
+const MERGES = {
+  domains: [
+    {
+      id: "orders",
+      label: "Orders",
+      description: "Placing and following an order.",
+      from: [from("shop-api", "orders"), from("shop-db", "orders"), from("shop", "orders"), from("order-specs", "orders")],
+    },
+    { id: "customers", label: "Customers", description: "The customers of the shop.", from: [from("shop-api", "customers"), from("shop-db", "customers")] },
+  ],
+};
+
+/** What the orchestrator hands in without the sources named: the domains of the application gather those of the others. */
+function gathering(...left: string[]) {
+  return { domains: MERGES.domains.map((domain) => ({ ...domain, from: domain.from.filter((part) => !left.includes(part.source)) })) };
+}
+
+/** What the orchestrator hands in for a shop whose interface was explored in the run: its home, the one domain of that map, goes with the orders. */
+function explored() {
+  const [orders, customers] = gathering("shop").domains;
+  return { domains: [{ ...orders!, from: [...orders!.from, from("shop", "all")] }, customers!] };
 }
 
 /** The submission without any reference to the sources named. */
@@ -318,7 +343,7 @@ async function cartography(
   }
 }
 
-const happy = () => [{ body: toolCalls(MODEL, [submit(SUBMISSION)]) }, { body: answer(MODEL, "Two domains: orders and customers.") }];
+const happy = () => [{ body: toolCalls(MODEL, [submit(MERGES)]) }, { body: answer(MODEL, "Two domains: orders and customers.") }];
 const messages = (outcome: CartographyOutcome) => outcome.journal.map((entry) => entry.message).join("\n");
 const indexFile = (root: string) => join(root, ".oqas", "index", INDEX_FILE_NAME);
 /** The fingerprint of the card of a source, as written in the repository: a digest of its JSON content. */
@@ -328,7 +353,7 @@ const toolsOffered = (server: ScriptedServer, request: number) =>
   (server.requests[request]!.body as { tools: { function: { name: string } }[] }).tools.map((tool) => tool.function.name);
 
 describe("criterion 1 — the cartographer writes an index that passes the schema of the index format", () => {
-  it("consolidates the cards of a contract, a base, a document and an interface, with the notes but no tool of the sources", async () => {
+  it("consolidates the domains of a contract, a base, a document and an interface into those of the application", async () => {
     const { outcome, root, server } = await cartography(happy());
     assert.equal(outcome.indexPath, indexFile(root));
     const written = JSON.parse(readFileSync(indexFile(root), "utf8")) as unknown;
@@ -343,164 +368,115 @@ describe("criterion 1 — the cartographer writes an index that passes the schem
       [outcome.index!.status, outcome.index!.producedAt, outcome.index!.environment, outcome.index!.run.iterations],
       ["complete", "2026-11-13T10:00:00.000Z", "local", 2],
     );
-    assert.deepEqual(toolsOffered(server, 0).sort(), ["recall", "remember", "submit_index"]);
+    assert.ok(["read_source_domain", "recall", "remember", "submit_index"].every((tool) => toolsOffered(server, 0).includes(tool)));
     assert.match(
       messages(outcome),
-      /The card of shop is up to date; it was kept\.\nThe index is made: no index could be read\.\nThe index was accepted\.\nThe index leaves 3 of its 11 elements in unassigned; a second submission limited to them was asked\.\nThe index was written to .*domain-index\.json, complete\./,
+      /The card of shop is up to date; it was kept\.\nThe index is made: no index could be read\.\nThe index was accepted\.\nThe index was written to .*domain-index\.json, complete\./,
     );
   });
 });
 
-describe("criterion 2 — every element of every card is in a domain or unassigned", () => {
-  it("tells the agent the cards, element by element, and places them all", async () => {
+describe("criterion 2 — every domain of every source is in a domain of the application, and its elements follow", () => {
+  it("gives the orchestrator the domains of the sources, not their elements, with the tool that reads a map and the tools of the sources", async () => {
     const { outcome, server } = await cartography(happy());
-    const request = JSON.stringify(server.requests[0]!.body);
-    for (const fragment of [
-      "## shop-db (postgresql)",
-      "- All (all): Everything shop-db holds.",
-      "  - public.order_lines: About public.order_lines.",
-      "- Unassigned: public.schema_migrations",
-      "## shop (web)",
-      "  - /orders: About /orders.",
-    ]) {
-      assert.ok(request.includes(JSON.stringify(fragment).slice(1, -1)), fragment);
-    }
-    const placed = [...outcome.index!.domains.flatMap((d) => d.references), ...outcome.index!.unassigned].flatMap((r) => r.items);
-    for (const item of Object.values(ELEMENTS).flat()) assert.ok(placed.includes(item), item);
+    const request = (server.requests[0]!.body as { messages: { role: string; content: string }[] }).messages.find(
+      (message) => message.role === "user",
+    )!.content;
+    assert.ok(
+      request.includes("## shop-db (postgresql)\n- orders — orders: What shop-db holds of the orders. (2 elements, such as public.orders, public.order_lines)"),
+      request,
+    );
+    assert.ok(request.includes("- Set aside by its agent: 1 elements."));
+    assert.ok(!request.includes("About public.orders."), "the elements are read with a tool, not given");
+    const offered = toolsOffered(server, 0);
+    for (const tool of [
+      "read_source_domain",
+      "shop_api_list_operations",
+      "shop_db_list_tables",
+      "order_specs_read_section",
+      "shop_goto",
+      "remember",
+      "recall",
+      "submit_index",
+    ])
+      assert.ok(offered.includes(tool), tool);
+    assert.deepEqual([outcome.index!.domains, outcome.index!.unassigned], [SUBMISSION.domains, SUBMISSION.unassigned]);
+  });
+
+  it("lets the orchestrator read the map of a source, and the source itself, before it hands the index in", async () => {
+    const looks = [
+      { id: "m1", name: "read_source_domain", arguments: { source: "shop-db", domain: "orders" } },
+      { id: "t1", name: "shop_db_list_tables", arguments: {} },
+      // The browser of the application is guarded as an exploration is: nothing that removes data is clicked.
+      { id: "k1", name: "shop_click", arguments: { target: { role: "button", name: "Delete order" } } },
+    ];
+    const { outcome, server } = await cartography([{ body: toolCalls(MODEL, looks) }, ...happy()]);
+    assert.equal(outcome.index!.status, "complete", messages(outcome));
+    const told = JSON.stringify(server.requests[1]!.body);
+    assert.match(told, /orders \(`orders`\)[^"]*`public\.orders`: About public\.orders\./);
+    assert.match(told, /order_lines/);
+    assert.match(told, /may remove data of the application, and an exploration never removes any/);
+  });
+
+  it("journals the error of a tool the orchestrator called wrongly", async () => {
+    const wrong = [{ id: "m1", name: "read_source_domain", arguments: { source: "shop-db" } }];
+    const { outcome } = await cartography([{ body: toolCalls(MODEL, wrong) }, ...happy()]);
+    assert.match(messages(outcome), /read_source_domain: /);
   });
 });
 
-describe("criterion 3 — an index that omits a table is not written, and the journal names the table", () => {
-  it("refuses the submission, tells the agent why, and writes nothing", async () => {
-    const forgetful = { ...SUBMISSION, unassigned: SUBMISSION.unassigned.filter((r) => r.source !== "shop-db") };
-    const { outcome, root, server } = await cartography([{ body: toolCalls(MODEL, [submit(forgetful)]) }, { body: answer(MODEL, "Done.") }]);
+describe("criterion 3 — an index that leaves a domain of a source aside is not written, and the journal says so", () => {
+  /** A submission that gathers the orders alone: the customers of the contract and of the base are left aside. */
+  const partial = { domains: [MERGES.domains[0]!] };
+
+  it("refuses the submission, tells the agent what is left, and writes nothing", async () => {
+    const { outcome, root, server } = await cartography([{ body: toolCalls(MODEL, [submit(partial)]) }, { body: answer(MODEL, "Done.") }]);
     assert.equal(existsSync(indexFile(root)), false);
-    assert.match(messages(outcome), /The index was refused: public\.schema_migrations of shop-db is in no domain nor in unassigned\./);
-    assert.match(JSON.stringify(server.requests[1]!.body), /Fix it and submit it again/);
-    assert.match(messages(outcome), /No index was written: no index was accepted before the session ended\./);
-    assert.equal(outcome.stoppedBy, undefined);
+    assert.match(messages(outcome), /The index was refused: 2 domains of the sources are in no domain of the application\./);
+    const told = JSON.stringify(server.requests[1]!.body);
+    assert.match(told, /Still in no domain of the application/);
+    assert.ok(told.includes("- shop-api › customers") && told.includes("- shop-db › customers"));
   });
 
   it("names the limit that stopped the consolidation before an index was accepted", async () => {
-    const forgetful = { ...SUBMISSION, unassigned: SUBMISSION.unassigned.filter((r) => r.source !== "shop-db") };
-    const { outcome, root } = await cartography([{ body: toolCalls(MODEL, [submit(forgetful)]) }, { body: answer(MODEL, "Done.") }], {
+    const { outcome, root } = await cartography([{ body: toolCalls(MODEL, [submit(partial)]) }, { body: answer(MODEL, "Done.") }], {
       limits: { maxIterations: 1, maxMinutes: 10, maxActions: 200 },
     });
     assert.equal(existsSync(indexFile(root)), false);
     assert.equal(outcome.stoppedBy, "iterations");
   });
 
-  it("puts the items still to place in unassigned itself once two submissions in a row leave some, when nothing else is wrong", async () => {
-    const forgetful = { ...SUBMISSION, unassigned: SUBMISSION.unassigned.filter((r) => r.source !== "shop-db") };
-    const { outcome } = await cartography([
-      { body: toolCalls(MODEL, [submit(forgetful, "a")]) },
-      { body: toolCalls(MODEL, [submit(forgetful, "b")]) },
-      { body: answer(MODEL, "Done.") },
-      { body: answer(MODEL, "Done.") },
-    ]);
-    assert.match(
-      messages(outcome),
-      /2 submissions of the index in a row left items to place; the harness put the 1 of the latest in unassigned\.\nThe index was accepted\./,
-    );
-    assert.ok(
-      outcome.index!.unassigned.some((r) => r.source === "shop-db" && r.items.includes("public.schema_migrations")),
-      messages(outcome),
-    );
-  });
-
-  it("keeps refusing a submission that leaves items to place when something else is wrong with it", async () => {
-    const wrong = {
-      ...SUBMISSION,
-      unassigned: [...SUBMISSION.unassigned.filter((r) => r.source !== "shop-db"), { source: "shop-db", items: ["public.invented"] }],
-    };
-    const { outcome } = await cartography([
-      { body: toolCalls(MODEL, [submit(wrong, "a")]) },
-      { body: toolCalls(MODEL, [submit(wrong, "b")]) },
-      { body: answer(MODEL, "Done.") },
-    ]);
-    assert.doesNotMatch(messages(outcome), /the harness put/);
-    assert.match(messages(outcome), /No index was written/);
-  });
-
-  it("tells at most thirty errors at once, then every item still to place, by source", async () => {
-    const invented = {
-      ...SUBMISSION,
-      unassigned: [
-        ...SUBMISSION.unassigned.filter((r) => r.source !== "shop-db"),
-        { source: "shop-db", items: Array.from({ length: 31 }, (_, i) => `public.x${i}`) },
-      ],
-    };
-    const refused = await cartography([{ body: toolCalls(MODEL, [submit(invented)]) }, { body: answer(MODEL, "Done.") }]);
-    const told = JSON.stringify(refused.server.requests[1]!.body);
-    for (const fragment of [
-      "- and 1 more",
-      "Still to place, in a domain or in unassigned, each exactly as written:",
-      "- shop-db: ",
-      "public.schema_migrations",
-    ])
-      assert.ok(told.includes(fragment), fragment);
-    const placed = {
-      domains: [...SUBMISSION.domains, { id: "platform", label: "Platform", description: "What serves every area.", references: SUBMISSION.unassigned }],
-      unassigned: [],
-    };
-    const twice = await cartography([{ body: toolCalls(MODEL, [submit(placed, "a"), submit(placed, "b")]) }, { body: answer(MODEL, "Done.") }]);
-    assert.match(JSON.stringify(twice.server.requests[1]!.body), /The index was already accepted/);
-    assert.equal(twice.outcome.index!.status, "complete");
-  });
-});
-
-describe("guiding a model that stumbles", () => {
-  it("reads an item written after the name of its source, and reminds an agent that stops without an accepted index", async () => {
-    const prefixed = {
-      ...SUBMISSION,
-      unassigned: [
-        { source: "shop-api", items: ["shop-api//health"] },
-        { source: "shop-db", items: ["shop-db:public.schema_migrations"] },
-        { source: "shop", items: ["/"] },
-      ],
-    };
-    const { outcome, server } = await cartography([
-      { body: toolCalls(MODEL, [{ id: "g1", name: "shop_goto", arguments: { url: "/" } }]) },
-      { body: answer(MODEL, "I will now look at the cards.") },
-      { body: toolCalls(MODEL, [submit(prefixed)]) },
-      { body: answer(MODEL, "Two domains.") },
-    ]);
-    assert.match(messages(outcome), /shop_goto: /);
-    assert.match(JSON.stringify(server.requests[2]!.body), /You have not handed in an accepted index yet\. Call submit_index now\./);
-    assert.deepEqual(outcome.index!.unassigned, SUBMISSION.unassigned);
-    assert.match(messages(outcome), /The agent stopped without an accepted index; it was reminded to hand one in\.\nThe index was accepted\./);
-  });
-
   it("stops reminding after three times, with the latest refusal each time", async () => {
     const { outcome, server } = await cartography([
-      { body: toolCalls(MODEL, [submit({ ...SUBMISSION, unassigned: [] })]) },
+      { body: toolCalls(MODEL, [submit(partial)]) },
       ...Array.from({ length: 4 }, () => ({ body: answer(MODEL, "Done.") })),
     ]);
     assert.equal(server.requests.length, 5);
-    assert.match(JSON.stringify(server.requests[4]!.body), /Still to place/);
+    assert.match(JSON.stringify(server.requests[4]!.body), /Still in no domain of the application/);
     assert.equal(outcome.journal.filter((e) => e.message.startsWith("The agent stopped without an accepted index")).length, 3);
     assert.match(messages(outcome), /No index was written: no index was accepted before the session ended\./);
+  });
+
+  it("keeps as domains of the application of their own those left aside twice in a row, and writes the index", async () => {
+    const { outcome } = await cartography([
+      { body: toolCalls(MODEL, [submit(partial)]) },
+      { body: toolCalls(MODEL, [submit(partial, "x2")]) },
+      { body: answer(MODEL, "Done.") },
+    ]);
+    assert.deepEqual(
+      outcome.index!.domains.map((domain) => [domain.id, domain.references.map((reference) => reference.source)]),
+      [
+        ["orders", ["shop-api", "shop-db", "shop", "order-specs"]],
+        ["customers", ["shop-api", "shop-db"]],
+      ],
+    );
+    assert.match(messages(outcome), /the harness kept each as a domain of the application: shop-api › customers, shop-db › customers\./);
   });
 });
 
 describe("criterion 4 — an index that breaks the schema is not written, and the journal names the field", () => {
-  it("journals the field of a submission that breaks the schema, a missing, an empty or an extra one", async () => {
-    const { description: _, ...undescribed } = SUBMISSION.domains[1]!;
-    const wrong = { domains: [{ ...SUBMISSION.domains[0]!, label: "", confidence: 0.9 }, undescribed] };
-    const { outcome, root, server } = await cartography([{ body: toolCalls(MODEL, [submit(wrong)]) }, { body: answer(MODEL, "Done.") }]);
-    assert.equal(existsSync(indexFile(root)), false);
-    const text = messages(outcome);
-    assert.match(text, /The index was refused: \/domains\/1 must have required property 'description'\./);
-    assert.match(text, /The index was refused: \/domains\/0\/label must NOT have fewer than 1 characters\./);
-    assert.match(text, /The index was refused: \/domains\/0\/confidence is not allowed\./);
-    assert.match(JSON.stringify(server.requests[1]!.body), /confidence is not allowed/);
-  });
-
-  it("refuses a repeated domain, and journals the field of a whole index that breaks the schema", async () => {
-    const repeated = { ...SUBMISSION, domains: [...SUBMISSION.domains, SUBMISSION.domains[1]!] };
-    const twice = await cartography([{ body: toolCalls(MODEL, [submit(repeated)]) }, { body: answer(MODEL, "Done.") }]);
-    assert.match(messages(twice.outcome), /The index was refused: \/domains\/2\/id repeats the domain customers\./);
-    const { outcome, root } = await cartography([{ body: toolCalls(MODEL, [submit(without("shop", "order-specs"))]) }, { body: answer(MODEL, "Done.") }], {
+  it("journals the field of a whole index that breaks the schema", async () => {
+    const { outcome, root } = await cartography([{ body: toolCalls(MODEL, [submit(gathering("shop", "order-specs"))]) }, { body: answer(MODEL, "Done.") }], {
       environment: "",
     });
     assert.equal(existsSync(indexFile(root)), false);
@@ -582,8 +558,8 @@ const BASE_PLACEMENTS = [
     id: "c1",
     name: "place_elements",
     arguments: {
-      domains: [{ id: "all", label: "All", description: "Everything shop-db holds." }],
-      items: [...ELEMENTS["shop-db"]!.filter((name) => name !== BASE_ASIDE.name).map((name) => ({ name, domain: "all", role: `About ${name}.` })), BASE_ASIDE],
+      domains: Object.keys(PLACED["shop-db"]!).map((id) => ({ id, label: id, description: `What shop-db holds of the ${id}.` })),
+      items: [...Object.entries(PLACED["shop-db"]!).flatMap(([domain, names]) => names.map((name) => ({ name, domain, role: `About ${name}.` }))), BASE_ASIDE],
     },
   },
   { id: "c2", name: "place_elements", arguments: { items: [BASE_ASIDE] } },
@@ -593,7 +569,9 @@ const BASE_PLACEMENTS = [
 const mappingTheBase = () => [
   ...BASE_PLACEMENTS.map((call) => ({ body: toolCalls(MODEL, [call]) })),
   { body: answer(MODEL, "Done.") },
-  { body: answer(MODEL, "The tables `public.orders`, `public.order_lines` and `public.customers`.") },
+  // The file of each of its two domains, then the consolidation.
+  { body: answer(MODEL, "The tables `public.orders` and `public.order_lines`.") },
+  { body: answer(MODEL, "The table `public.customers`.") },
   ...happy(),
 ];
 
@@ -631,7 +609,7 @@ describe("criterion 9 — past 200 actions nothing more runs, and no complete in
     const actions = Array.from({ length: 201 }, (_, i) => ({ id: `g${i}`, name: "shop_goto", arguments: { url: "/" } }));
     const before = site.requested.length;
     const { outcome } = await cartography(
-      [{ body: toolCalls(MODEL, actions) }, { body: toolCalls(MODEL, [submit(without("shop"))]) }, { body: answer(MODEL, "Done.") }],
+      [{ body: toolCalls(MODEL, actions) }, { body: toolCalls(MODEL, [submit(gathering("shop"))]) }, { body: answer(MODEL, "Done.") }],
       { cards: ["shop-api", "shop-db", "order-specs"] },
     );
     assert.match(messages(outcome), /The session that explores shop reached its actions limit\.[^]*No card was written: no element of shop was placed\./);
@@ -642,11 +620,7 @@ describe("criterion 9 — past 200 actions nothing more runs, and no complete in
   });
 
   it("marks truncated an index accepted before a limit stopped the consolidation, or made from a truncated card", async () => {
-    const placed = {
-      domains: [...SUBMISSION.domains, { id: "operations", label: "Operations", description: "Keeping the shop running.", references: SUBMISSION.unassigned }],
-      unassigned: [],
-    };
-    const { outcome } = await cartography([{ body: toolCalls(MODEL, [submit(placed)]) }, { body: answer(MODEL, "Done.") }], {
+    const { outcome } = await cartography([{ body: toolCalls(MODEL, [submit(MERGES)]) }, { body: answer(MODEL, "Done.") }], {
       limits: { maxIterations: 1, maxMinutes: 10, maxActions: 200 },
     });
     assert.deepEqual([outcome.index!.status, outcome.index!.run.iterations], ["truncated", 1]);
@@ -670,12 +644,13 @@ describe("criterion 9 — past 200 actions nothing more runs, and no complete in
 describe("criterion 10 — a declared document is listed, read when it has a card", () => {
   it("marks a document without a card as not read, refuses an index that refers to it, and truncates the index", async () => {
     const noCard = Array.from({ length: 4 }, () => ({ body: answer(MODEL, "Nothing to say.") }));
-    const refersToIt = { ...SUBMISSION, unassigned: [...SUBMISSION.unassigned, { source: "specs-1", items: ["Returns"] }] };
+    const [orders, customers] = MERGES.domains;
+    const refersToIt = { domains: [{ ...orders!, from: [...orders!.from, from("specs-1", "returns")] }, customers!] };
     const { outcome, server } = await cartography(
-      [...noCard, { body: toolCalls(MODEL, [submit(refersToIt)]) }, { body: toolCalls(MODEL, [submit(SUBMISSION, "x2")]) }, { body: answer(MODEL, "Done.") }],
+      [...noCard, { body: toolCalls(MODEL, [submit(refersToIt)]) }, { body: toolCalls(MODEL, [submit(MERGES, "x2")]) }, { body: answer(MODEL, "Done.") }],
       { documents: ["specs/orders.md", "specs/returns.md"] },
     );
-    assert.match(JSON.stringify(server.requests[5]!.body), /refers to specs-1, which has no card; leave it out/);
+    assert.match(JSON.stringify(server.requests[5]!.body), /specs-1 is no source with a card\. The sources: shop-api, shop-db, order-specs, shop\./);
     assert.deepEqual(
       outcome.index!.sources.filter((s) => s.type === "document").map((s) => [s.id, s.state, s.cardFingerprint !== undefined]),
       [
@@ -684,7 +659,7 @@ describe("criterion 10 — a declared document is listed, read when it has a car
       ],
     );
     assert.equal(outcome.index!.status, "truncated");
-    assert.match(JSON.stringify(server.requests[4]!.body), /## specs-1 \(document\): no card; leave it out\./);
+    assert.match(JSON.stringify(server.requests[4]!.body), /## specs-1 \(document\): not mapped; leave it out\./);
   });
 });
 
@@ -700,12 +675,9 @@ describe("criterion 11 — the run commits and pushes nothing", () => {
 
 describe("a session that fails", () => {
   it("still writes, truncated, an index accepted before the consolidation failed", async () => {
-    const { outcome } = await cartography([{ body: toolCalls(MODEL, [submit(SUBMISSION)]) }, { status: 500, body: { error: { message: "overloaded" } } }]);
+    const { outcome } = await cartography([{ body: toolCalls(MODEL, [submit(MERGES)]) }, { status: 500, body: { error: { message: "overloaded" } } }]);
     assert.equal(outcome.index!.status, "truncated");
-    assert.match(
-      messages(outcome),
-      /The index was accepted\.\nThe index leaves 3 of its 11 elements in unassigned; [^\n]*\nThe consolidation failed: .*\nThe index was written to/,
-    );
+    assert.match(messages(outcome), /The index was accepted\.\nThe consolidation failed: .*\nThe index was written to/);
   });
 
   it("journals the failure of the model, and writes nothing when no source has a card", async () => {
@@ -745,7 +717,7 @@ describe("trace, criterion 1 — the trace holds the phases in order, and each t
       [...order].sort((a, b) => a - b),
     );
     assert.deepEqual([...new Set(lines.map((line) => line.phase))], PHASES);
-    for (const { id, name, arguments: args } of [...BASE_PLACEMENTS, submit(SUBMISSION)]) {
+    for (const { id, name, arguments: args } of [...BASE_PLACEMENTS, submit(MERGES)]) {
       const call = lines.find((line) => line.actor === "agent" && line.event.type === "tool-call" && line.event.callId === id);
       assert.deepEqual(call?.event, { type: "tool-call", callId: id, tool: name, arguments: args }, name);
       const result = lines.find((line) => line.actor === "agent" && line.event.type === "tool-result" && line.event.callId === id);
@@ -814,7 +786,7 @@ describe("trace, criterion 4 — no connection string is in the trace", () => {
     const replies = [
       { body: toolCalls(MODEL, echo) },
       ...mappingTheBase().slice(0, -2),
-      { body: toolCalls(MODEL, [submit(SUBMISSION)]) },
+      { body: toolCalls(MODEL, [submit(MERGES)]) },
       { body: answer(MODEL, `Done with ${DB_URL}. ${"z".repeat(MAX_TRACED_LENGTH + 1)}`) },
     ];
     const { outcome } = await cartography(replies, { cards: ["shop-api", "order-specs", "shop"] });
@@ -828,7 +800,7 @@ describe("trace, criterion 5 — a cartography stopped by a limit leaves a trace
   it("ends every phase it started, the task of the interface stopped at its limit", async () => {
     const actions = Array.from({ length: 201 }, (_, i) => ({ id: `g${i}`, name: "shop_goto", arguments: { url: "/" } }));
     const { outcome } = await cartography(
-      [{ body: toolCalls(MODEL, actions) }, { body: toolCalls(MODEL, [submit(without("shop"))]) }, { body: answer(MODEL, "Done.") }],
+      [{ body: toolCalls(MODEL, actions) }, { body: toolCalls(MODEL, [submit(gathering("shop"))]) }, { body: answer(MODEL, "Done.") }],
       { cards: ["shop-api", "shop-db", "order-specs"] },
     );
     const lines = traceOf(outcome);
@@ -967,23 +939,18 @@ describe("faster cartography", () => {
     it("consolidates again when a card was made again, and records its new fingerprint", async () => {
       let before = "";
       // The document changed: the agent that maps it reads it again and hands its domain in, then the index is consolidated.
-      const all = {
-        id: "all",
-        label: "All",
-        description: "Everything order-specs holds.",
+      const orders = {
+        id: "orders",
+        label: "orders",
+        description: "What order-specs holds of the orders.",
         elements: [{ file: "orders.md", role: "About the orders." }],
         body: "`orders.md` tells how an order is placed.",
       };
-      // The index names the element of the new card of the document.
-      const [orders, customers] = SUBMISSION.domains;
-      const references = orders!.references.map((reference) => (reference.source === "order-specs" ? { ...reference, items: ["orders.md"] } : reference));
-      const consolidated = { ...SUBMISSION, domains: [{ ...orders!, references }, customers!] };
       const remade = [
         { body: toolCalls(MODEL, [{ id: "r1", name: "order_specs_read_file", arguments: {} }]) },
-        { body: toolCalls(MODEL, [{ id: "w1", name: "write_domain", arguments: all }]) },
+        { body: toolCalls(MODEL, [{ id: "w1", name: "write_domain", arguments: orders }]) },
         { body: answer(MODEL, "Done.") },
-        { body: toolCalls(MODEL, [submit(consolidated)]) },
-        { body: answer(MODEL, "Two domains: orders and customers.") },
+        ...happy(),
       ];
       const prepare = (root: string) => {
         written(index)(root);
@@ -1021,14 +988,15 @@ describe("faster cartography", () => {
   describe("faster cartography, criterion 3 — the trace gives the requests to the model of each phase and of each source", () => {
     it("counts the requests and the tokens of each phase and of each card, on scripted answers", async () => {
       const { outcome, server } = await cartography(mappingTheBase(), { cards: ["shop-api", "order-specs", "shop"] });
-      assert.equal(server.requests.length, 6);
+      // The base has two domains: two batches of calls to place its tables, then the file of each domain, then the consolidation.
+      assert.equal(server.requests.length, 7);
       assert.deepEqual(usages(traceOf(outcome)), [
         ["survey", "", 0, undefined, undefined],
         ["card", "shop-api", 0, undefined, undefined],
-        ["card", "shop-db", 4, 4, 4],
+        ["card", "shop-db", 5, 5, 5],
         ["card", "order-specs", 0, undefined, undefined],
         ["card", "shop", 0, undefined, undefined],
-        ["card", "", 4, 4, 4],
+        ["card", "", 5, 5, 5],
         ["consolidation", "", 2, 2, 2],
         ["index", "", 0, undefined, undefined],
       ]);
@@ -1038,117 +1006,5 @@ describe("faster cartography", () => {
         "each phase gives its usage just before its end",
       );
     });
-  });
-});
-
-describe("domain filing, criterion 1 — with the cards written beforehand, the request names for a screen the domains of other cards that share its word", () => {
-  it("follows the screen of the orders with the domains of the contract, the base and the document that hold an order", async () => {
-    const { server } = await cartography(happy());
-    const { messages: sent } = server.requests[0]!.body as { messages: { role: string; content: string }[] };
-    const request = sent.find((message) => message.role === "user")!.content.split("\n");
-    assert.ok(request.includes("  - /orders: About /orders. — shares words with shop-api › all, shop-db › all, order-specs › all"), request.join("\n"));
-    assert.ok(request.includes("  - /: About /.") && request.includes("  - customers: About customers. — shares words with shop-db › all"));
-  });
-});
-
-describe("domain filing, criterion 3 — the elements an accepted index leaves in unassigned are asked again, limited to them", () => {
-  const orders = (shop: readonly string[]) =>
-    SUBMISSION.domains[0]!.references.map((references) => (references.source === "shop" ? { source: "shop", items: [...shop] } : references));
-  const second = (items: readonly string[]) => ({
-    domains: [
-      { id: "orders", label: "Orders", description: "Placing and following an order.", references: [{ source: "shop", items }] },
-      {
-        id: "operations",
-        label: "Operations",
-        description: "Keeping the shop running.",
-        references: [
-          { source: "shop-api", items: ["/health"] },
-          { source: "shop-db", items: ["public.schema_migrations"] },
-        ],
-      },
-    ],
-    unassigned: [],
-  });
-
-  it("asks a second submission of the elements left, and writes the index it places them in", async () => {
-    const { outcome, server } = await cartography([
-      { body: toolCalls(MODEL, [submit(SUBMISSION)]) },
-      { body: toolCalls(MODEL, [submit(second(["/"]), "x2")]) },
-      { body: answer(MODEL, "Done.") },
-    ]);
-    const asked = JSON.stringify(server.requests[1]!.body);
-    for (const fragment of [
-      "The index was accepted. It leaves in unassigned the elements below. Call submit_index once more with only them",
-      "- shop-api: /health",
-      "- shop-db: public.schema_migrations",
-      "- shop: /",
-    ])
-      assert.ok(asked.includes(fragment), fragment);
-    assert.deepEqual(
-      outcome.index!.domains.map((domain) => [domain.id, domain.references]),
-      [
-        ["orders", orders(["/orders", "/"])],
-        ["customers", SUBMISSION.domains[1]!.references],
-        ["operations", second([]).domains[1]!.references],
-      ],
-    );
-    assert.deepEqual([outcome.index!.unassigned, outcome.index!.status], [[], "complete"]);
-    assert.match(messages(outcome), /The second submission of the index was accepted\./);
-  });
-
-  it("takes a second submission that hands in the whole index again, leaving what the first placed as it was", async () => {
-    const whole = {
-      domains: [
-        ...SUBMISSION.domains.map((domain) => (domain.id === "orders" ? { ...domain, references: orders(["/orders", "/"]) } : domain)),
-        second([]).domains[1]!,
-      ],
-      unassigned: [{ source: "shop-api", items: ["orders"] }],
-    };
-    const { outcome } = await cartography([
-      { body: toolCalls(MODEL, [submit(SUBMISSION)]) },
-      { body: toolCalls(MODEL, [submit(whole, "x2")]) },
-      { body: answer(MODEL, "Done.") },
-    ]);
-    assert.match(messages(outcome), /The second submission of the index was accepted\./);
-    assert.deepEqual(
-      outcome.index!.domains.map((domain) => [domain.id, domain.references]),
-      [
-        ["orders", orders(["/orders", "/"])],
-        ["customers", SUBMISSION.domains[1]!.references],
-        ["operations", second([]).domains[1]!.references],
-      ],
-    );
-    assert.deepEqual([outcome.index!.unassigned, outcome.index!.status], [[], "complete"]);
-  });
-
-  it("keeps complete an index whose second submission a limit stopped, and a run after it keeps that index", async () => {
-    const replies = [
-      { body: toolCalls(MODEL, [submit(SUBMISSION)]) },
-      { body: toolCalls(MODEL, [submit(second(["/", "/nowhere"]), "x2")]) },
-      { body: answer(MODEL, "Done.") },
-    ];
-    const { outcome, root } = await cartography(replies, { limits: { maxIterations: 2, maxMinutes: 10, maxActions: 200 } });
-    assert.match(messages(outcome), /The consolidation reached its iterations limit\./);
-    assert.deepEqual([outcome.index!.status, outcome.index!.unassigned, outcome.index!.run.iterations], ["complete", SUBMISSION.unassigned, 2]);
-    const consolidation = traceOf(outcome).find((line) => line.phase === "consolidation" && line.event.type === "finished");
-    assert.deepEqual(consolidation?.event, { type: "finished", outcome: "done" });
-    const content = readFileSync(indexFile(root), "utf8");
-    const again = await cartography([], { prepare: (made) => writeFileSync(indexFile(made), content) });
-    assert.deepEqual([again.server.requests.length, again.outcome.index], [0, outcome.index]);
-    assert.match(messages(again.outcome), /it was kept\./);
-  });
-
-  it("keeps the elements in unassigned when the second submission is refused and the agent answers instead", async () => {
-    const { outcome, server } = await cartography([
-      { body: toolCalls(MODEL, [submit(SUBMISSION)]) },
-      { body: toolCalls(MODEL, [submit(second(["/", "/nowhere"]), "x2")]) },
-      { body: answer(MODEL, "They belong to no domain.") },
-    ]);
-    assert.match(
-      JSON.stringify(server.requests[2]!.body),
-      /The second submission of the index was refused; the index accepted before is kept\. Fix it and submit again only what was asked\./,
-    );
-    assert.match(messages(outcome), /The second submission of the index was refused: \/domains\/0\/references\/0\/items\/1: \/nowhere is not an item of shop/);
-    assert.deepEqual([outcome.index!.domains[0]!.references, outcome.index!.unassigned], [orders(["/orders"]), SUBMISSION.unassigned]);
   });
 });
