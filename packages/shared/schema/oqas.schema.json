@@ -559,6 +559,11 @@
                 ]
               },
               "description": "What the model can do besides reading and writing text: `vision`, it reads images."
+            },
+            "reasoningEffort": {
+              "type": "string",
+              "minLength": 1,
+              "description": "How much the model reasons before it answers, in a word of its server, such as `none`, `low` or `high`; sent with every request when set."
             }
           }
         }

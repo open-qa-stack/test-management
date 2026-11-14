@@ -171,7 +171,7 @@ describe("record mode", () => {
       const recording = await withRuntime(
         {
           kind: "record",
-          upstream: { baseUrl: server.baseUrl, apiKey: "sk-record-test" },
+          upstream: { baseUrl: server.baseUrl, apiKey: "sk-record-test", reasoningEffort: "none" },
           origin: { kind: "recorded", model: MODEL, server: "scripted", recordedOn: "2026-01-01" },
         },
         MODEL,
@@ -182,6 +182,7 @@ describe("record mode", () => {
         },
       );
       assert.equal(server.requests[0]!.headers.authorization, "Bearer sk-record-test");
+      assert.equal((server.requests[0]!.body as { reasoning_effort?: unknown }).reasoning_effort, "none");
       assert.equal(recording.exchanges.length, 1);
       assert.ok(!JSON.stringify(recording).includes("sk-record-test"));
     } finally {
@@ -206,6 +207,7 @@ describe("live mode", () => {
         assert.deepEqual(second, [{ type: "text", text: "Back." }, { type: "end" }]);
       });
       assert.equal(server.requests[0]!.headers.authorization, undefined);
+      assert.notEqual((server.requests[0]!.body as { reasoning_effort?: unknown }).reasoning_effort, "none");
     } finally {
       await server.close();
     }

@@ -125,7 +125,7 @@ export class ModelGateway implements ModelEndpoint {
       answer = await fetch(`${upstream.baseUrl}/chat/completions`, {
         method: "POST",
         headers: { "content-type": "application/json", ...bearer(upstream.apiKey) },
-        body,
+        body: upstream.reasoningEffort === undefined ? body : JSON.stringify({ ...(JSON.parse(body) as object), reasoning_effort: upstream.reasoningEffort }),
         dispatcher: UPSTREAM,
       });
       text = await answer.text();

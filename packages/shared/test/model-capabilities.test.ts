@@ -28,3 +28,21 @@ describe("the capabilities of the model", () => {
     );
   });
 });
+
+describe("the reasoning effort of the model", () => {
+  it("is kept as the configuration gives it, and left out otherwise", () => {
+    const set = validateVariant((c) => (at(c, "model")["reasoningEffort"] = "none"));
+    assert.equal(set.ok && set.config.model.reasoningEffort, "none");
+    const unset = validateVariant(() => undefined);
+    assert.equal(unset.ok && unset.config.model.reasoningEffort, undefined);
+  });
+
+  it("is a text that is not empty", () => {
+    for (const effort of ["", 3])
+      assert.deepEqual(
+        errorsOf(validateVariant((c) => (at(c, "model")["reasoningEffort"] = effort))).map((e) => e.path),
+        ["/model/reasoningEffort"],
+        JSON.stringify(effort),
+      );
+  });
+});

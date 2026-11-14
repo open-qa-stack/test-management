@@ -234,6 +234,11 @@ export const configSchema = {
               items: { enum: ["vision"] },
               description: "What the model can do besides reading and writing text: `vision`, it reads images.",
             },
+            reasoningEffort: {
+              ...label,
+              description:
+                "How much the model reasons before it answers, in a word of its server, such as `none`, `low` or `high`; sent with every request when set.",
+            },
           },
         },
       ],

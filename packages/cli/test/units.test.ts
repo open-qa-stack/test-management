@@ -176,7 +176,7 @@ describe("the runtime of the agents on the model of the configuration", () => {
         },
       ],
       knowledge: [],
-      model: { mode: "provider-key", provider: "openai", baseUrl: server.baseUrl, model: "m", apiKeyEnv: "MODEL_KEY" },
+      model: { mode: "provider-key", provider: "openai", baseUrl: server.baseUrl, model: "m", apiKeyEnv: "MODEL_KEY", reasoningEffort: "none" },
       autonomy: { level: "autonomous" },
     });
     const config = validateConfig(text, { MODEL_KEY: "sk-test" });
@@ -191,6 +191,7 @@ describe("the runtime of the agents on the model of the configuration", () => {
       await server.close();
     }
     assert.equal(server.requests[0]!.headers.authorization, "Bearer sk-test");
+    assert.equal((server.requests[0]!.body as { reasoning_effort?: unknown }).reasoning_effort, "none");
   });
 });
 
