@@ -4,6 +4,7 @@ import type { Knowledge } from "@open-qa-stack/shared";
 import { DatabaseCatalog } from "./postgresql/database-catalog.ts";
 import { DatabaseData } from "./postgresql/database-data.ts";
 import { databaseTools } from "./postgresql/database-tools.ts";
+import { DocumentSet } from "./document/document-set.ts";
 import { documentTools } from "./document/document-tools.ts";
 import { OpenApiContract } from "./openapi/openapi-contract.ts";
 import { openApiTools } from "./openapi/openapi-tools.ts";
@@ -57,7 +58,7 @@ export function knowledgeTools(knowledge: readonly Knowledge[], access: Knowledg
         return databaseTools(source.id, catalog, new DatabaseData(source.id, client, catalog));
       }
       case "document":
-        return documentTools(source.id, access.repositoryRoot, source.path);
+        return documentTools(source.id, new DocumentSet(access.repositoryRoot, source.path));
       case "source-code":
         return sourceCodeTools(source.id, new CodeFolder(resolve(access.repositoryRoot, source.path)), source.commands ?? "git");
       case "logs": {

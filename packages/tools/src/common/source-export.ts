@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
 import { fingerprintOf } from "./fingerprint.ts";
 
-/** An element of a source as its export holds it: a table, a view or a routine of a database, an operation or a schema of a contract, a section of a document. */
+/** An element of a source as its export holds it: a table, a view or a routine of a database, an operation or a schema of a contract, a document or one of its sections. */
 export interface ExportedElement {
   /** Its name, exactly as the source gives it; no other element of the export has it. */
   readonly name: string;
-  /** What it is, in one word of the source: `table`, `view`, `routine`, `operation`, `schema`, `section`. */
+  /** What it is, in one word of the source: `table`, `view`, `routine`, `operation`, `schema`, `document`, `section`. */
   readonly kind: string;
   /** What it holds in a few lines, enough to tell it from the others without reading its definition. */
   readonly summary: string;

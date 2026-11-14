@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -22,7 +22,10 @@ import {
   VIEWS_QUERY,
 } from "../src/postgresql/catalog-query.ts";
 import { DatabaseCatalog } from "../src/postgresql/database-catalog.ts";
+import { documentInventory } from "../src/document/document-inventory.ts";
 import { documentSections } from "../src/document/document-sections.ts";
+import { DocumentSet } from "../src/document/document-set.ts";
+import { documentTools } from "../src/document/document-tools.ts";
 import { PgSqlClient, type PgConnection } from "../src/postgresql/pg-sql-client.ts";
 import { readRepositoryFile } from "../src/common/repository-file.ts";
 import { closedPort } from "@open-qa-stack/testing";
@@ -87,7 +90,15 @@ describe("criterion 1 — each declared source brings its tools, and only its ow
     const tools = knowledgeTools([CONTRACT, DOCUMENT], { repositoryRoot: REPOSITORY, env: {} });
     assert.deepEqual(
       tools.map((t) => t.name),
-      ["policy_api_list_operations", "policy_api_read_operation", "quote_specs_list_sections", "quote_specs_read_section"],
+      [
+        "policy_api_list_operations",
+        "policy_api_read_operation",
+        "quote_specs_list_files",
+        "quote_specs_list_sections",
+        "quote_specs_read_section",
+        "quote_specs_read_file",
+        "quote_specs_search",
+      ],
     );
     assert.ok(tools.every((t) => t.browserAction !== true));
   });
@@ -288,16 +299,82 @@ describe("criterion 3 — the catalog tools read the catalog and nothing else", 
 describe("criterion 4 — a document tool never reads outside its declared file", () => {
   it("lists and reads sections of the declared document only, by number", async () => {
     const tools = knowledgeTools([DOCUMENT], { repositoryRoot: REPOSITORY, env: {} });
+    // The sections of a document are listed without their text: each with its length.
     assert.deepEqual(await tool(tools, "quote_specs_list_sections").execute({}), [
-      { number: 1, level: 1, title: "Quotes" },
-      { number: 2, level: 2, title: "Request a quote" },
-      { number: 3, level: 2, title: "Answer a quote" },
-      { number: 4, level: 1, title: "Policies" },
+      { number: 1, level: 1, title: "Quotes", chars: 171 },
+      { number: 2, level: 2, title: "Request a quote", chars: 78 },
+      { number: 3, level: 2, title: "Answer a quote", chars: 51 },
+      { number: 4, level: 1, title: "Policies", chars: 46 },
     ]);
     const read = tool(tools, "quote_specs_read_section");
     assert.equal(await read.execute({ number: 3 }), "## Answer a quote\n\nThe agent accepts or rejects it.");
     assert.deepEqual(await read.execute({ number: 9 }), { error: "The document has no section 9." });
-    assert.deepEqual(Object.keys((read.parameters as { properties: object }).properties), ["number"]);
+    assert.deepEqual(Object.keys((read.parameters as { properties: object }).properties), ["file", "number"]);
+    // The source is this one document: it is listed alone, named or not, and no other file is read.
+    assert.deepEqual(await tool(tools, "quote_specs_list_files").execute({}), {
+      folders: [],
+      documents: [{ path: "quotes.md", title: "Quotes", headings: 4, chars: 267 }],
+    });
+    assert.equal(await read.execute({ file: "quotes.md", number: 4 }), "# Policies\n\nA quote accepted becomes a policy.");
+    await assert.rejects(read.execute({ file: "other.md", number: 1 }), /other\.md is no document of the source, which is the file quotes\.md\./);
+  });
+
+  it("lets an agent go through a folder of documents by levels: its folders, the title of each document, its sections, then a text", async () => {
+    const root = mkdtempSync(join(tmpdir(), "oqas-docs-"));
+    try {
+      const write = (path: string, text: string) => {
+        mkdirSync(join(root, "docs", path, ".."), { recursive: true });
+        writeFileSync(join(root, "docs", path), text);
+      };
+      write("readme.md", "Just an introduction.\n");
+      write("orders/place.md", "# Place an order\n\nA customer places an order.\n\n## Limits\n\nTen LINES at most.\n");
+      write("orders/cancel.markdown", "# Cancel an order\n");
+      write("orders/returns/refund.md", "# Refund\n\n" + "word ".repeat(5000));
+      write("orders/diagram.png", "not a document");
+      const tools = knowledgeTools([{ ...DOCUMENT, path: "docs" }], { repositoryRoot: root, env: {} });
+      const list = tool(tools, "quote_specs_list_files");
+      assert.deepEqual(await list.execute({}), {
+        folders: [{ path: "orders", documents: 3 }],
+        documents: [{ path: "readme.md", headings: 0, chars: 22 }],
+      });
+      assert.deepEqual(await list.execute({ folder: "./orders/" }), {
+        folders: [{ path: "orders/returns", documents: 1 }],
+        documents: [
+          { path: "orders/cancel.markdown", title: "Cancel an order", headings: 1, chars: 18 },
+          { path: "orders/place.md", title: "Place an order", headings: 2, chars: 77 },
+        ],
+        unreadable: ["orders/diagram.png"],
+      });
+      const sections = tool(tools, "quote_specs_list_sections");
+      assert.deepEqual(await sections.execute({ file: "orders/place.md" }), [
+        { number: 1, level: 1, title: "Place an order", chars: 76 },
+        { number: 2, level: 2, title: "Limits", chars: 29 },
+      ]);
+      // A folder holds several documents: a call names the one it is about, and only one a reader reads.
+      await assert.rejects(sections.execute({}), /Give the file to read: the source holds several documents\./);
+      await assert.rejects(sections.execute({ file: "orders/diagram.png" }), /No reader reads orders\/diagram\.png: only Markdown documents are read\./);
+      await assert.rejects(sections.execute({ file: "../outside.md" }), /does not exist in the folder|leads outside the folder/);
+      // A long text is cut, with how to read the rest.
+      const whole = (await tool(tools, "quote_specs_read_file").execute({ file: "orders/returns/refund.md" })) as string;
+      assert.match(
+        whole,
+        /\n\n\[Cut at 20000 of 25010 characters\. Read the rest section by section, with quote_specs_list_sections then quote_specs_read_section\.\]$/,
+      );
+      assert.equal(await tool(tools, "quote_specs_read_file").execute({ file: "orders/cancel.markdown" }), "# Cancel an order\n");
+      // A search gives each line with its document and the deepest section that holds it.
+      assert.deepEqual(await tool(tools, "quote_specs_search").execute({ text: "lines" }), [
+        { file: "orders/place.md", section: 2, title: "Limits", line: "Ten LINES at most." },
+      ]);
+      assert.equal(((await tool(tools, "quote_specs_search").execute({ text: "word" })) as unknown[]).length, 1);
+      // A search stops at its most lines, and a listing says when the folder was too large to be looked at whole.
+      write("orders/log.md", "# Log\n\n" + "an entry\n".repeat(40));
+      assert.equal(((await tool(tools, "quote_specs_search").execute({ text: "entry" })) as unknown[]).length, 30);
+      const few = documentTools("quote-specs", new DocumentSet(root, "docs", 2));
+      assert.equal(((await tool(few, "quote_specs_list_files").execute({})) as { truncated?: boolean }).truncated, true);
+      assert.equal((await documentInventory(new DocumentSet(root, "docs", 2))).truncated, true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("refuses a declared file that leads outside the repository through a link", async () => {
@@ -310,6 +387,10 @@ describe("criterion 4 — a document tool never reads outside its declared file"
       await assert.rejects(list.execute({}), /leads outside the test repository/);
       const self = tool(knowledgeTools([{ ...DOCUMENT, path: "." }], { repositoryRoot: root, env: {} }), "quote_specs_list_sections");
       await assert.rejects(self.execute({}), /leads outside the test repository/);
+      // A contract stored in the repository is held to it the same way.
+      symlinkSync(join(outside, "secret.md"), join(root, "contract.json"));
+      const contract = knowledgeTools([{ ...CONTRACT, path: "contract.json" }], { repositoryRoot: root, env: {} });
+      await assert.rejects(tool(contract, "policy_api_list_operations").execute({}), /leads outside the test repository/);
     } finally {
       rmSync(root, { recursive: true, force: true });
       rmSync(outside, { recursive: true, force: true });

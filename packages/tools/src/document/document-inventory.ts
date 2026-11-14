@@ -1,27 +1,24 @@
 import type { SourceInventory } from "../common/source-inventory.ts";
-import { documentExport, namedSections } from "./document-export.ts";
-import { documentSections } from "./document-sections.ts";
+import type { DocumentSet } from "./document-set.ts";
 
 /**
- * Reads what a document holds, without the model.
+ * Reads what a source of documents holds, without the model.
  *
  * @remarks
- * The document is read as Markdown, the one format read so far: `documentSections` is its reader, and what
- * follows works on the sections any reader gives. The elements are the sections of its export, those of its
- * two highest levels, each under its name. The facts of each are its number, which the read tool asks for,
- * and its level. The fingerprint is that of the export.
+ * The elements are its documents, each by its path, with its title, its number of headings and its length
+ * as facts. What an agent makes of them — which document, which section is worth an element of its own — is
+ * for the agent that maps the source to say. The fingerprint is that of the paths and the texts.
  *
- * @param markdown - The document.
- * @returns The inventory of the document, with its export.
+ * @param documents - The documents of the source.
+ * @returns The inventory of the source.
+ * @throws Error when the source does not exist.
  */
-export function documentInventory(markdown: string): SourceInventory {
-  const sections = documentSections(markdown);
-  const exported = documentExport(sections);
-  const named = namedSections(sections);
+export async function documentInventory(documents: DocumentSet): Promise<SourceInventory> {
+  const listing = await documents.list();
   return {
-    items: named.map(({ name }) => name),
-    facts: new Map(named.map(({ name, section }) => [name, { number: section.number, level: section.level }])),
-    fingerprint: exported.fingerprint,
-    export: exported,
+    items: listing.files.map((file) => file.path),
+    facts: new Map(listing.files.map(({ path, ...facts }) => [path, facts])),
+    fingerprint: await documents.fingerprint(),
+    ...(listing.truncated ? { truncated: true } : {}),
   };
 }

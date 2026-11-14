@@ -94,7 +94,7 @@ Every knowledge source has an `id`, a `type`, `attachments`, and the keys its ty
 | `container` | container name, for `logs`; exactly one of `path` and `container` | see type | `"policy-management-backend"` |
 | `engine` | `podman` or `docker`, for `logs` with a `container` | with `container` | `"podman"` |
 
-The path of a contract or a document stays inside the test repository. The path of a `source-code` folder, or of a log file, may lead outside it, since the code of an application often lives in another repository: `"../policy-management"`. The agents' reading and git tools never leave that folder.
+The path of a contract or a document stays inside the test repository. A `document` path is one file, read as Markdown, or a folder, whose Markdown files are all read: `"specs"`. The path of a `source-code` folder, or of a log file, may lead outside it, since the code of an application often lives in another repository: `"../policy-management"`. The agents' reading and git tools never leave that folder.
 
 A `logs` source gives the agents the lines a service writes: those of a file, `{ "path": "../policy-management/logs/service.log" }`, or those of a container, `{ "container": "policy-management-backend", "engine": "podman" }`, read with `podman logs` or `docker logs`. Attach it to the environment the service runs in. The agents read it after an action, to see what the service did; the cartography does not map it. It is meant for the solo mode, where the service runs on the same machine as the agents: a worker that does not run the application cannot reach its file or its container.
 

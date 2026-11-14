@@ -6,7 +6,7 @@
 |---|---|---|
 | `openapi` | `<id>_list_operations`, `<id>_read_operation` | List the operations of the contract (method, path, identifier, summary); return one operation as the contract describes it. |
 | `postgresql` | `<id>_list_tables`, `<id>_describe_table`, `<id>_sample_rows`, `<id>_search`, `<id>_query` | List the tables by schema; list the columns of a table (name, type, nullable); return the first rows of a table; return the rows of a table where a text column contains a value; run one read query. |
-| `document` | `<id>_list_sections`, `<id>_read_section` | List the sections of the document (number, level, title); return the text of one section by its number. |
+| `document` | `<id>_list_files`, `<id>_list_sections`, `<id>_read_section`, `<id>_read_file`, `<id>_search` | Go through the documents by levels: list what one folder holds; list the sections of a document without its text; return the text of a section, or of a document; find the lines that hold a text. See [Documents](#documents). |
 | `logs` | `<id>_read_logs` | Return the lines the service logged from an instant, the start of the task by default, those that contain a text if one is given. |
 | `source-code` | `<id>_list_files`, `<id>_search`, `<id>_read_file`, `<id>_outline`; with `commands` at `git` (the default) or `shell`, `<id>_git_log`, `<id>_git_blame`, `<id>_git_show`; with `shell`, `<id>_run_command` | List the files of the folder, by glob; find a text or a regular expression, with the lines around each match; return numbered lines of a file; list the declarations and the web routes of a source file; read the latest commits, the blame of a few lines, one commit; run a shell command. |
 
@@ -66,13 +66,20 @@ For an `openapi` source, `knowledgeInventory` loads the contract once and return
 
 The definition of an element is what the contract writes of it, as JSON. An operation holds the parameters of its path, the ones it redefines once, and a parameter given by a local `$ref` is the one it points to; every other `$ref` is kept, since a schema is read in its own element. A schema named in both `components.schemas` and `definitions` is exported once, as the first writes it. The inventory holds the operations only, each with its kind, its identifier and its tags as facts; its fingerprint is that of the export, so that it changes when an operation or a schema does.
 
-## Export of a document
+## Documents
 
-For a `document` source, `knowledgeInventory` reads the file once and returns, with the inventory, its `export`: one element per section of its two highest levels, in the order of the document. A title that comes back is followed by its number, as `Overview (§7)`.
+A `document` source is one file, or a folder of them. A source declared as a file is that file, read as Markdown whatever its extension. A source declared as a folder is every Markdown file under it, `.md` or `.markdown`; the other files are listed apart and never read. A document is read as its sections whatever its format: another format needs its reader only. No path leaves the source, and the source stays inside the test repository.
 
-| Element | Definition | Summary | Names | Links | File |
-|---|---|---|---|---|---|
-| Chapter, a section of the highest level | Its own text, down to its first section | Its level, its number, the start of its text and the sections it holds | None | None | `sections/<name>.md` |
-| Section, of the level below | Its whole text, the deeper sections it holds included | Its level, its number, its chapter, the start of its text and the headings it holds | The headings it holds | Its chapter | `sections/<name>.md` |
+The tools let an agent go by levels instead of reading everything:
 
-The start of a text is given on one line, 300 characters at most. A document is read as Markdown, the one format read so far: `documentSections` is its reader, and `documentExport` works on the sections any reader gives. The inventory holds the same sections, each with its number and its level as facts; its fingerprint is that of the export.
+| Tool | Arguments | Returns |
+|---|---|---|
+| `<id>_list_files` | `folder`, the root when left out | The folders of that folder, each with how many documents are under it; its documents, each with its title, its number of headings and its length; the files no reader reads; `truncated` when the folder was too large to be looked at whole |
+| `<id>_list_sections` | `file` | The headings of the document, without its text: number, level, title and length of each section |
+| `<id>_read_section` | `file`, `number` | The text of the section, with the sections it holds |
+| `<id>_read_file` | `file` | The whole text of the document |
+| `<id>_search` | `text` | The lines that hold the text, whatever its case, 30 at most: each with its document, and the number and the title of the deepest section that holds it |
+
+`file` may be left out when the source is one document. A text longer than 20,000 characters is cut, with how to read the rest section by section.
+
+`knowledgeInventory` gives the documents of the source, each by its path with its title, its number of headings and its length as facts, and the fingerprint of their paths and texts. It exports nothing: which document, which section is worth an element is for the agent that maps the source to say.

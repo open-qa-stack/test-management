@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import type { MappedKnowledge } from "@open-qa-stack/shared";
-import { readRepositoryFile } from "./common/repository-file.ts";
+import { DocumentSet } from "./document/document-set.ts";
 import type { SourceInventory } from "./common/source-inventory.ts";
 import { documentInventory } from "./document/document-inventory.ts";
 import { defaultSqlClient, type KnowledgeAccess } from "./knowledge-tools.ts";
@@ -27,7 +27,7 @@ export async function knowledgeInventory(source: MappedKnowledge, access: Knowle
     case "postgresql":
       return databaseInventory(new DatabaseCatalog(lazySqlClient(source.connectionStringEnv, access.env, access.sqlClient ?? defaultSqlClient)));
     case "document":
-      return documentInventory(await readRepositoryFile(access.repositoryRoot, source.path));
+      return documentInventory(new DocumentSet(access.repositoryRoot, source.path));
     case "source-code":
       return codeInventory(new CodeFolder(resolve(access.repositoryRoot, source.path)));
   }
