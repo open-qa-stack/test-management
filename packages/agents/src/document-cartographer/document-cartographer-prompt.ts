@@ -1,10 +1,7 @@
 import { scopedToolName, type DocumentFile } from "@open-qa-stack/tools";
 import { MAX_DOMAIN_FILE_LENGTH } from "../source-workflow/domain-file-control.ts";
+import { SET_ASIDE_TOOL, WRITE_DOMAIN_TOOL } from "../source-workflow/handed-in-map.ts";
 
-/** Name of the tool the agent hands one domain in with. */
-export const WRITE_DOMAIN_TOOL = "write_domain";
-/** Name of the tool the agent sets documents aside with. */
-export const SET_ASIDE_TOOL = "set_aside";
 /** Most documents of the root the request lists. */
 const MAX_LISTED = 40;
 

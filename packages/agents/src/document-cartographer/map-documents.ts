@@ -3,11 +3,9 @@ import type { SourceManifest } from "@open-qa-stack/shared";
 import { documentTools, type DocumentSet } from "@open-qa-stack/tools";
 import { runAgentTask } from "../common/agent-task.ts";
 import type { Journal } from "../common/journal.ts";
-import { renderDomainFile } from "../source-workflow/domain-file.ts";
-import { coverageErrors } from "../source-workflow/domain-file-control.ts";
-import { exportManifest, type DomainFile } from "../source-workflow/export-manifest.ts";
 import { sessionUse, type SessionsUse } from "../source-workflow/group-elements.ts";
 import type { SourceFolder } from "../source-workflow/source-folder.ts";
+import { writeMap } from "../source-workflow/written-map.ts";
 import { documentCartographerInstructions, documentMapRequest } from "./document-cartographer-prompt.ts";
 import { DocumentMap } from "./document-map.ts";
 import { DocumentWatch } from "./document-watch.ts";
@@ -44,12 +42,8 @@ export interface MapDocumentsOptions {
  *
  * @remarks
  * The agent gets the tools of the documents of this source, watched, the notes, and the two tools of the
- * map. The harness cuts nothing beforehand: what the map holds once the session is over is written as the
- * export of the source — the text of each element the agent chose, and of each document in no domain — with
- * the file of each domain and the manifest, in the same shape as for a source the harness exports itself. A
- * domain an earlier run left and this one does not hold loses its file. The manifest is `complete` when
- * every document is in a domain whose file, written by the agent, names its elements, or set aside;
- * `truncated` otherwise.
+ * map. The harness cuts nothing beforehand: what the map holds once the session is over is written by
+ * `writeMap`, in the same shape as for a source the harness exports itself.
  *
  * @param options - What the cartography needs.
  * @returns The manifest as it was written, and what the session used.
@@ -76,28 +70,6 @@ export async function mapDocuments(options: MapDocumentsOptions): Promise<Sessio
   const last = events.at(-1)!;
   if (last.type === "stopped") journal.record("error", `The session that maps ${source.id} reached its ${last.reason.limit} limit.`, source.id);
   if (last.type === "error") journal.record("error", `The session that maps ${source.id} failed: ${last.error.message}`, source.id);
-  const { exported, grouping, files: written } = await map.result();
-  const previous = await folder.readManifest();
-  await folder.writeExport(exported);
-  for (const { id } of previous?.domains ?? []) if (!written.has(id)) await folder.removeDomain(id);
-  const files = new Map<string, DomainFile>();
-  const texts = new Map<string, string>();
-  for (const domain of grouping.populated()) {
-    const { body, writtenBy, refused, refusedBody } = written.get(domain.id)!;
-    const text = renderDomainFile(domain, body);
-    files.set(domain.id, { file: await folder.writeDomain(domain.id, text, refusedBody), writtenBy, ...(refused === undefined ? {} : { refused }) });
-    texts.set(domain.id, text);
-  }
-  const parts = { source, exported, grouping, files };
-  const lost = coverageErrors(exportManifest({ ...parts, flawed: listing.truncated }, now()), texts);
-  for (const error of lost) journal.record("error", `The last control of ${source.id} failed: ${error}`, source.id);
-  const manifest = exportManifest({ ...parts, flawed: listing.truncated || lost.length > 0 }, now());
-  await folder.writeManifest(manifest);
-  const count = (key: "domain" | "dismissed" | "unplaced") => manifest.elements.filter((element) => element[key] !== undefined).length;
-  journal.record(
-    manifest.status === "complete" ? "info" : "error",
-    `The mapping of ${source.id} is ${manifest.status}: ${manifest.domains.length} domains, ${count("domain")} elements placed, ${count("dismissed")} set aside, ${count("unplaced")} unplaced.`,
-    source.id,
-  );
+  const manifest = await writeMap({ source, folder, result: await map.result(), partial: listing.truncated, journal, now });
   return { ...used, manifest };
 }
