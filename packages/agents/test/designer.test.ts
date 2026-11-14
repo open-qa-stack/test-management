@@ -748,7 +748,7 @@ describe("the sheet of a scenario", () => {
     const sheet = told(server, "plan");
     assert.ok(
       sheet.startsWith(
-        'The plan was accepted.\n\nScenario 1 of 3: list-orders — The list-orders scenario (other, negative), application shop.\nData: "Ada" (shop); "zzqx" (made-up).\nFile: apps/shop/list-orders.spec.ts\n\nimport { expect, test } from "@playwright/test";\n\ntest("The list-orders scenario", async ({ page }) => {\n  await test.step("1. Open the orders", async () => {\n    // Do: Open the orders. Copy the code lines the browser tools returned.\n    // Expect 1.1: The orders show.\n    await expect(page.getByText("Orders")).toBeVisible();\n  });\n});\n',
+        'The plan was accepted.\n\nScenario 1 of 3: list-orders — The list-orders scenario (other, negative), application shop.\nData: "Ada" (shop); "zzqx" (made-up).\nFile: apps/shop/list-orders.spec.ts\n\nimport { expect, test } from "@playwright/test";\n\ntest("The list-orders scenario", async ({ page }) => {\n  await test.step("1. Open the orders", async () => {\n    // Do: Open the orders. Copy the code lines the browser tools returned.\n    // Expect 1.1: The orders show.\n    await expect(page.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();\n  });\n});\n',
       ),
       sheet,
     );
@@ -759,7 +759,7 @@ describe("the sheet of a scenario", () => {
     );
   });
 
-  it("runs as it is once the agent typed on the screen the invented value it expects", async () => {
+  it("runs as it is once the agent typed on the screen the invented value it expects, as the value of its field", async () => {
     const invented = scenario("list-orders", "other", {
       data: [{ value: "zzqx", from: "made-up" }],
       steps: [{ action: "Search zzqx", expects: [{ result: "The search is echoed", shows: ["Orders", "zzqx"], absent: [] }] }],
@@ -778,7 +778,7 @@ describe("the sheet of a scenario", () => {
       { plan: false },
     );
     const skeletonText = sheetOf(second.server);
-    assert.match(skeletonText, /await expect\(page\.getByText\("zzqx"\)\)\.toBeVisible\(\);/);
+    assert.match(skeletonText, /await expect\(page\.getByRole\("textbox", \{ name: "Search orders", exact: true \}\)\)\.toHaveValue\("zzqx"\);/);
     const { server } = await design(
       [{ body: toolCalls(MODEL, [OPEN]) }, { body: toolCalls(MODEL, [typed]) }, { body: toolCalls(MODEL, [plan]) }, ...replies([[run(skeletonText, "r1")]])],
       { plan: false },

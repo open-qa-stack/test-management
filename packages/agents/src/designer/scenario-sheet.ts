@@ -1,5 +1,10 @@
 import type { PlannedScenario } from "@open-qa-stack/domain";
+import { assertionOf } from "./assertion-line.ts";
 import type { DesignCursor } from "./design-cursor.ts";
+import type { ShownElement } from "./screen-watch.ts";
+
+/** The element the screens showed a text in, if one did; one it went from first, for a text expected gone. */
+export type ElementFinder = (text: string, gone: boolean) => ShownElement | undefined;
 
 /**
  * The skeleton of the test of a scenario: one test, one `test.step` per step of the plan, titled by its
@@ -7,20 +12,22 @@ import type { DesignCursor } from "./design-cursor.ts";
  * it names: that the page shows it, or no longer does.
  *
  * @remarks
- * It parses and keeps the charter as it is. Its assertions find each text anywhere on the page: the agent
- * keeps each text, and may find its element better, from what the browser tools return.
+ * It parses and keeps the charter as it is. Its assertions find each text on the element a screen showed
+ * it in — a field holds a value typed in it — or anywhere on the page when no screen gave its element: the
+ * agent keeps each text, and may find its element better, from what the browser tools return.
  *
  * @param scenario - The scenario.
  * @param screenshots - Whether each step ends with a screenshot attached to the report, as the charter may ask.
+ * @param find - The element the screens showed a text in.
  * @returns The text of the file.
  */
-export function skeleton(scenario: PlannedScenario, screenshots: boolean): string {
+export function skeleton(scenario: PlannedScenario, screenshots: boolean, find: ElementFinder): string {
   const steps = scenario.steps.map((step, at) => {
     const number = at + 1;
     const expects = step.expects.flatMap((expect, k) => [
       `    // Expect ${number}.${k + 1}: ${oneLine(expect.result)}.`,
-      ...expect.shows.map((text) => `    await expect(page.getByText(${JSON.stringify(text)})).toBeVisible();`),
-      ...expect.absent.map((text) => `    await expect(page.getByText(${JSON.stringify(text)})).toBeHidden();`),
+      ...expect.shows.map((text) => `    ${assertionOf(text, false, find(text, false))}`),
+      ...expect.absent.map((text) => `    ${assertionOf(text, true, find(text, true))}`),
     ]);
     const attach = screenshots
       ? [`    await testInfo.attach(${JSON.stringify(String(number))}, { body: await page.screenshot(), contentType: "image/png" });`]
@@ -50,9 +57,10 @@ export function skeleton(scenario: PlannedScenario, screenshots: boolean): strin
  *
  * @param cursor - Where the design stands, with a scenario open.
  * @param screenshots - Whether each step ends with a screenshot attached to the report.
+ * @param find - The element the screens showed a text in.
  * @returns The text the agent is told.
  */
-export function scenarioSheet(cursor: DesignCursor, screenshots: boolean): string {
+export function scenarioSheet(cursor: DesignCursor, screenshots: boolean, find: ElementFinder): string {
   const scenario = cursor.scenario!;
   const data = scenario.data.length === 0 ? "none" : scenario.data.map((entry) => `${JSON.stringify(entry.value)} (${entry.from})`).join("; ");
   return [
@@ -60,7 +68,7 @@ export function scenarioSheet(cursor: DesignCursor, screenshots: boolean): strin
     `Data: ${data}.`,
     `File: ${cursor.path}`,
     "",
-    skeleton(scenario, screenshots),
+    skeleton(scenario, screenshots, find),
     cursor.next(),
   ].join("\n");
 }

@@ -51,10 +51,13 @@ const SEARCH: PlannedScenario = {
   ],
 };
 
+/** Screens that gave the element of no text. */
+const NOWHERE = () => undefined;
+
 describe("the skeleton of a test", () => {
   it("holds one test.step per step, titled by its number, with what to do, an assertion of each text of its expects, and a screenshot when asked", () => {
     assert.equal(
-      skeleton(SEARCH, true),
+      skeleton(SEARCH, true, NOWHERE),
       `import { expect, test } from "@playwright/test";
 
 test("Search an order by \\"customer\\" name", async ({ page }, testInfo) => {
@@ -75,13 +78,31 @@ test("Search an order by \\"customer\\" name", async ({ page }, testInfo) => {
 });
 `,
     );
-    assert.doesNotMatch(skeleton(SEARCH, false), /testInfo/);
+    assert.doesNotMatch(skeleton(SEARCH, false, NOWHERE), /testInfo/);
+  });
+
+  it("asserts each text on the element a screen showed it in, and a value typed as the value of its field", () => {
+    const shown = new Map([
+      ["ORD-1042", { locator: 'page.getByRole("cell", { name: "ORD-1042", exact: true })', field: false }],
+      ["Mira Veldane", { locator: 'page.getByRole("row", { name: "ORD-1042 Mira Veldane" })', field: false }],
+      ["ORD-1057", { locator: 'page.getByRole("cell", { name: "ORD-1057", exact: true })', field: false }],
+      ["1 order", { locator: 'page.getByRole("textbox", { name: "Count", exact: true })', field: true }],
+    ]);
+    const assertions = skeleton(SEARCH, false, (text) => shown.get(text))
+      .split("\n")
+      .filter((line) => line.includes("await expect("));
+    assert.deepEqual(assertions, [
+      '    await expect(page.getByRole("cell", { name: "ORD-1042", exact: true })).toBeVisible();',
+      '    await expect(page.getByRole("row", { name: "ORD-1042 Mira Veldane" })).toBeVisible();',
+      '    await expect(page.getByRole("cell", { name: "ORD-1057", exact: true })).toBeHidden();',
+      '    await expect(page.getByRole("textbox", { name: "Count", exact: true })).toHaveValue("1 order");',
+    ]);
   });
 
   it("parses, and keeps the default charter as it is", async () => {
     const charter = resolveCharter({ disable: [], add: [] });
     assert.ok(charter.ok);
-    const content = skeleton(SEARCH, true);
+    const content = skeleton(SEARCH, true, NOWHERE);
     assert.ok((await moduleSyntax(content)).ok);
     assert.deepEqual(await new CharterCheck({ repository, rules: charter.rules }).check({ path: "apps/shop/search-order-by-customer.spec.ts", content }), []);
   });
@@ -90,7 +111,7 @@ test("Search an order by \\"customer\\" name", async ({ page }, testInfo) => {
 describe("the sheet of a scenario", () => {
   it("names the scenario, its data and its file before the skeleton, and ends with the next call", () => {
     const cursor = new DesignCursor({ scenarios: [SEARCH, { ...SEARCH, id: "other", data: [] }] }, (scenario) => `apps/shop/${scenario.id}.spec.ts`);
-    const sheet = scenarioSheet(cursor, false).split("\n");
+    const sheet = scenarioSheet(cursor, false, NOWHERE).split("\n");
     assert.deepEqual(sheet.slice(0, 4), [
       'Scenario 1 of 2: search-order-by-customer — Search an order by "customer" name (functional, nominal), application shop.',
       'Data: "Veldane" (orders-db).',

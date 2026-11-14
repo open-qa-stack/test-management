@@ -1,7 +1,9 @@
 import type { PlannedScenario } from "@open-qa-stack/domain";
 import type { SpecAssertion, SpecOutline } from "@open-qa-stack/tools";
+import { assertionOf } from "./assertion-line.ts";
 import { checkable, observed } from "./observed.ts";
 import type { Refusal } from "./refusal.ts";
+import type { ShownElement } from "./screen-watch.ts";
 import { PROPOSE_TOOL } from "./test-proposals.ts";
 
 /** The matchers whose first argument is a text the element must hold. */
@@ -11,8 +13,8 @@ const TEXT_MATCHERS = new Set(["toHaveText", "toContainText", "toHaveValue"]);
 export interface ScenarioHelp {
   /** The skeleton of the test of the scenario. */
   readonly skeleton: string;
-  /** The locator of an element the screens showed a text in, if one did. */
-  readonly locatorOf: (text: string) => string | undefined;
+  /** The element the screens showed a text in, if one did; one it went from first, for a text expected gone. */
+  readonly locatorOf: (text: string, gone: boolean) => ShownElement | undefined;
 }
 
 /**
@@ -50,7 +52,7 @@ export function scenarioErrors(outline: SpecOutline, scenario: PlannedScenario, 
       for (const { text, negative } of texts) {
         // An assertion on either of two elements may pass on the one that does not hold the text.
         const holding = asserted.filter((assertion) => !assertion.alternative && observed(text, [...assertion.subject, ...assertion.expected]));
-        const remedy = `In step ${number}: ${assertionOf(text, negative, help.locatorOf(text))}`;
+        const remedy = `In step ${number}: ${assertionOf(text, negative, help.locatorOf(text, negative))}`;
         if (holding.length === 0) {
           refusals.push({
             code: "TEST-VALUE",
@@ -80,19 +82,6 @@ function typedErrors(outline: SpecOutline, scenario: PlannedScenario): Refusal[]
       code: "TEST-TYPED",
       message: `line ${line} types "${text}", which is no value of the data of scenario ${scenario.id} (${listed}). Type a value of the data.`,
     }));
-}
-
-/**
- * The assertion of a text: that the element the screens showed it in holds it, or is visible when its
- * locator already names the text; that it is hidden for a text the screen no longer shows; the text
- * anywhere on the page when no screen gave its element.
- */
-function assertionOf(text: string, negative: boolean, locator: string | undefined): string {
-  const subject = locator ?? `page.getByText(${JSON.stringify(text)})`;
-  if (negative) return `await expect(${subject}).toBeHidden();`;
-  return locator === undefined || observed(text, [locator])
-    ? `await expect(${subject}).toBeVisible();`
-    : `await expect(${subject}).toContainText(${JSON.stringify(text)});`;
 }
 
 /** The reason an assertion can only pass, if it can: its matcher expects a text its own locator found the element by. */

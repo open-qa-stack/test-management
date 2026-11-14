@@ -232,17 +232,66 @@ describe("the screens the designer watches", () => {
     );
   });
 
-  it("gives the locator of the element a screen showed a text in, the last seen first", async () => {
+  it("gives the element a screen showed a text in: the element it names, else one whose line holds it, else the field whose value it is, the last seen first", async () => {
+    const before = `${LIST}\n- cell "Lena Brook"\n- row "ORD-1042 Orders" → page.getByRole("row", { name: "ORD-1042 Orders" })\n- button "Edit" → no unique locator: 2 elements match page.getByRole("button", { name: "Edit", exact: true })`;
+    const after = `${LIST}\n- textbox "Search" [active]: Lena → page.getByRole("textbox", { name: "Search", exact: true })\n- 'cell "Price:  10"'`;
+    const watch = new ScreenWatch(["shop", "ledger"], page([LIST, before, after]).tools);
+    await run(watch, "goto");
+    await run(watch, "fill");
+    const shown = (locator: string, field = false) => ({ locator, field });
+    assert.deepEqual(
+      [
+        watch.locatorOf("shop", "orders", false),
+        watch.locatorOf("shop", "ORD-1042", false),
+        watch.locatorOf("shop", "Lena", false),
+        watch.locatorOf("shop", "price: 10", false),
+      ],
+      [
+        shown('page.getByRole("heading", { name: "Orders", exact: true })'),
+        shown('page.getByRole("row", { name: "ORD-1042 Orders" })'),
+        shown('page.getByRole("textbox", { name: "Search", exact: true })', true),
+        shown('page.getByRole("cell", { name: "Price:  10", exact: true })'),
+      ],
+    );
+    // A text expected gone is found first in the lines an action removed.
+    assert.deepEqual(
+      [watch.locatorOf("shop", "Lena Brook", true), watch.locatorOf("shop", "Orders", true)],
+      [shown('page.getByRole("cell", { name: "Lena Brook", exact: true })'), shown('page.getByRole("row", { name: "ORD-1042 Orders" })')],
+    );
+    // An element without a locator of its own, and an application without a user interface, give none.
+    assert.deepEqual(
+      [watch.locatorOf("shop", "Edit", false), watch.locatorOf("shop", "Nowhere", true), watch.locatorOf("ledger", "Orders", false)],
+      [undefined, undefined, undefined],
+    );
+  });
+
+  it("gives, for a text a field holds and a line of the result shows, that line, and no field for a text expected gone", async () => {
+    const field = (value: string) => `- textbox "Search..." [active]: ${value} → page.getByRole("textbox", { name: "Search...", exact: true })`;
+    const row = '- row "Ado Kinnett 1990" → page.getByRole("row", { name: "Ado Kinnett 1990" })';
     const watch = new ScreenWatch(
-      ["shop", "ledger"],
-      page([LIST, LIST, `${LIST}\n- row "ORD-1042 Orders" → page.getByRole("row", { name: "ORD-1042 Orders" })`]).tools,
+      ["shop"],
+      page([LIST, LIST, `${LIST}\n${field("Ado Kinnett")}`, `${LIST}\n${field("Ado Kinnett")}\n${row}`, `${LIST}\n${field("zzqx")}`]).tools,
     );
     await run(watch, "goto");
-    assert.equal(watch.locatorOf("shop", "orders"), 'page.getByRole("heading", { name: "Orders", exact: true })');
+    await run(watch, "fill");
     await run(watch, "click");
+    await run(watch, "fill");
+    const shown = (locator: string, field = false) => ({ locator, field });
     assert.deepEqual(
-      [watch.locatorOf("shop", "orders"), watch.locatorOf("shop", "Ada"), watch.locatorOf("ledger", "Orders")],
-      ['page.getByRole("row", { name: "ORD-1042 Orders" })', undefined, undefined],
+      [
+        watch.locatorOf("shop", "Ado Kinnett", false),
+        watch.locatorOf("shop", "Ado Kinnett", true),
+        watch.locatorOf("shop", "zzqx", false),
+        watch.locatorOf("shop", "zzq", false),
+        watch.locatorOf("shop", "zzqx", true),
+      ],
+      [
+        shown('page.getByRole("row", { name: "Ado Kinnett 1990" })'),
+        shown('page.getByRole("row", { name: "Ado Kinnett 1990" })'),
+        shown('page.getByRole("textbox", { name: "Search...", exact: true })', true),
+        undefined,
+        undefined,
+      ],
     );
   });
 

@@ -37,7 +37,7 @@ const spec = (second: readonly string[], first = OPEN, extra = "") =>
 /** What a refusal gives as accepted: a skeleton, and the elements a screen showed the texts in. */
 const HELP = {
   skeleton: "The skeleton.",
-  locatorOf: (text: string) => new Map([["ORD-1042", 'page.getByRole("row", { name: "ORD-1042 Mira Veldane" })']]).get(text),
+  locatorOf: (text: string) => new Map([["ORD-1042", { locator: 'page.getByRole("row", { name: "ORD-1042 Mira Veldane" })', field: false }]]).get(text),
 };
 
 async function refusals(text: string, help = HELP): Promise<Refusal[]> {
@@ -155,7 +155,7 @@ describe("the gates of a test against its scenario", () => {
     );
     const reversed = spec([`    await expect(page.getByText("ORD-1042")).toBeHidden();`, ...FILLED.slice(2)]);
     // The element the screen showed it in, by a locator that does not name it: it holds the text.
-    const inCell = { ...HELP, locatorOf: () => 'page.getByRole("cell").first()' };
+    const inCell = { ...HELP, locatorOf: () => ({ locator: 'page.getByRole("cell").first()', field: false }) };
     assert.deepEqual(
       (await refusals(reversed, inCell)).map((refusal) => [refusal.code, refusal.remedy]),
       [["TEST-POLARITY", 'In step 2: await expect(page.getByRole("cell").first()).toContainText("ORD-1042");']],

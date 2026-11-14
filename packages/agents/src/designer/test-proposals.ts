@@ -10,7 +10,7 @@ import { PLAN_TOOL } from "./plan-proposal.ts";
 import { journalRefusals, maskedRefusals, refusalText, repeatedText, type Refusal } from "./refusal.ts";
 import { GUIDED_REFUSALS, MAX_REFUSALS, RefusalStreak } from "./refusal-streak.ts";
 import { scenarioErrors } from "./scenario-gates.ts";
-import { scenarioSheet, skeleton } from "./scenario-sheet.ts";
+import { scenarioSheet, skeleton, type ElementFinder } from "./scenario-sheet.ts";
 import type { ScreenWatch } from "./screen-watch.ts";
 import type { SourceWatch } from "./source-watch.ts";
 import type { TestCheck, TestFinding, TestReference, TestRunner, TestTrial, Verdict } from "@open-qa-stack/domain";
@@ -415,7 +415,12 @@ export class TestProposals {
   /** Journals the scenario the cursor opened, and gives its sheet. */
   private opened(cursor: DesignCursor): string {
     this.journal.record("info", `The scenario ${cursor.scenario!.id} was opened; its test is ${cursor.path}.`);
-    return scenarioSheet(cursor, this.rules.screenshots);
+    return scenarioSheet(cursor, this.rules.screenshots, this.finder(cursor.scenario!));
+  }
+
+  /** Finds the element the screens of the application of a scenario showed a text in. */
+  private finder(scenario: PlannedScenario): ElementFinder {
+    return (text, gone) => this.rules.screens.locatorOf(scenario.application, text, gone);
   }
 
   /** The file of the test of a scenario: named after it, in the folder of its application, with a number when that path is taken. */
@@ -443,7 +448,8 @@ export class TestProposals {
     const { outline } = syntax;
     const unseen = screens.unseen(scenario.application, outline.locators);
     const located = unseen.length === 0 ? [] : [this.unseenRefusal(scenario.application, unseen)];
-    const help = { skeleton: skeleton(scenario, this.rules.screenshots), locatorOf: (text: string) => screens.locatorOf(scenario.application, text) };
+    const locatorOf = this.finder(scenario);
+    const help = { skeleton: skeleton(scenario, this.rules.screenshots, locatorOf), locatorOf };
     const planned = [...scenarioErrors(outline, scenario, help), ...located];
     if (planned.length > 0) return planned;
     return check === undefined ? [] : coded("TEST-CHECK", (await check.check({ path, content })).map(findingText));

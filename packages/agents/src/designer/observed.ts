@@ -25,6 +25,17 @@ export function observed(text: string, texts: Iterable<string>): boolean {
   return false;
 }
 
+/**
+ * Whether two texts are the same, spaces collapsed and case aside.
+ *
+ * @param text - A text.
+ * @param other - Another.
+ * @returns `true` when they are.
+ */
+export function sameText(text: string, other: string): boolean {
+  return folded(text) === folded(other);
+}
+
 /** A text with its spaces collapsed, in lower case. */
 function folded(text: string): string {
   return text.replace(/\s+/g, " ").trim().toLowerCase();

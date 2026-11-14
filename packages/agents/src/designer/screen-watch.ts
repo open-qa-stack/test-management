@@ -2,7 +2,7 @@ import type { ToolDefinition } from "@open-qa-stack/domain";
 import { scopedToolName, type SpecLocator } from "@open-qa-stack/tools";
 import { toolsBySource } from "./index-map.ts";
 import { nextMoment } from "./moments.ts";
-import { checkable, observed } from "./observed.ts";
+import { checkable, observed, sameText } from "./observed.ts";
 
 /** The browser tools that change the page of an application. */
 const ACTIONS = ["click", "fill", "select_option", "check"];
@@ -14,8 +14,18 @@ const MAX_GONE = 20;
 const MAX_NEAREST = 5;
 /** The start of the line of a field a value is typed in, up to that value when it holds one: its role, its name and its states. */
 const FIELD = /^- '?(?:textbox|searchbox|combobox|spinbutton)(?: "(?:[^"\\]|\\.)*")?(?: \[[^\]]+\])*(?:: |:?(?= → )|:?'?$)/;
+/** The start of a line of an element with a name: its role, then the name quoted, the whole line quoted when YAML needs it. */
+const NAMED = /^- ('?)([a-z]+) "((?:[^"\\]|\\.)*)"/;
 /** What the browser tools say they return, which the watch adds to. */
 const PAGE_STATE = "Returns where the page is, and the line of code that does the same in a test.";
+
+/** The element a screen showed a text in. */
+export interface ShownElement {
+  /** The locator a test finds it with. */
+  readonly locator: string;
+  /** Whether it is a field, which holds the text as its value. */
+  readonly field: boolean;
+}
 
 /** What the designer saw of the screens of one application. */
 interface Seen {
@@ -258,17 +268,33 @@ export class ScreenWatch {
   }
 
   /**
-   * The locator of the element a screen of the application showed a text in, as its line gave it.
+   * The element a screen of the application showed a text in, for an assertion of the text: the element
+   * named by the text, else one whose line holds it and ends with its locator, else, for a text expected
+   * shown, the field whose value it is. A field holds what the agent typed whatever the application answers,
+   * so that any other element comes first, and none is given for a text expected gone.
    *
    * @param application - Identifier of the application.
    * @param text - The text.
-   * @returns The locator of the last line seen that holds the text and ends with one; `undefined` when none
-   * does, and for an application without a user interface.
+   * @param gone - Whether the text is expected gone: the lines an action removed are looked at first, as the
+   * lines an action produced are for a text expected shown.
+   * @returns The last such element seen, with the locator its line gave, or one by its role and its name for
+   * an element named by the text that has none; `undefined` when no line gives one, and for an application
+   * without a user interface.
    */
-  public locatorOf(application: string, text: string): string | undefined {
-    const lines = [...(this.seen.get(application)?.lines ?? [])].reverse();
-    const line = lines.find((candidate) => candidate.includes(" → page.") && observed(text, [candidate]));
-    return line?.slice(line.indexOf(" → page.") + " → ".length);
+  public locatorOf(application: string, text: string, gone: boolean): ShownElement | undefined {
+    const seen = this.seen.get(application);
+    if (seen === undefined) return undefined;
+    for (const pool of [gone ? seen.removed : seen.produced, seen.lines]) {
+      const holding = besideFields(pool)
+        .reverse()
+        .filter((line) => observed(text, [line]));
+      const named = holding.find((line) => namedBy(line, text) !== undefined && !line.includes(" → no "));
+      if (named !== undefined) return { locator: locatorIn(named) ?? namedBy(named, text)!, field: false };
+      const acted = holding.find((line) => locatorIn(line) !== undefined);
+      if (acted !== undefined) return { locator: locatorIn(acted)!, field: false };
+    }
+    const typedIn = gone ? undefined : [...seen.lines].reverse().find((line) => sameText(fieldValue(line) ?? "", text) && locatorIn(line) !== undefined);
+    return typedIn === undefined ? undefined : { locator: locatorIn(typedIn)!, field: true };
   }
 
   /**
@@ -307,6 +333,21 @@ export class ScreenWatch {
     if (whole) seen.last = lines;
     return { ...snapshot, lines };
   }
+}
+
+/** The locator a line ends with; `undefined` when it ends with none. */
+function locatorIn(line: string): string | undefined {
+  const at = line.indexOf(" → page.");
+  return at === -1 ? undefined : line.slice(at + " → ".length);
+}
+
+/** The locator by role and name of the element of a line whose name is a text; `undefined` when its name is another. */
+function namedBy(line: string, text: string): string | undefined {
+  const start = NAMED.exec(line);
+  if (start === null) return undefined;
+  const [, quoted, role, escaped] = start as unknown as [string, string, string, string];
+  const name = JSON.parse(`"${quoted === "" ? escaped : escaped.replaceAll("''", "'")}"`) as string;
+  return sameText(name, text) ? `page.getByRole(${JSON.stringify(role)}, { name: ${JSON.stringify(name)}, exact: true })` : undefined;
 }
 
 /** The lines that are no line of a field, in their order. */
