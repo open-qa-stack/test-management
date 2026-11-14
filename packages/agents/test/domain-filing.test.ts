@@ -23,7 +23,26 @@ const INVENTORY = new Map<string, readonly string[]>([
   ["empty", []],
 ]);
 
-const rules = () => domainIndexRules(INVENTORY, TYPES, () => true, []);
+/** The card of the storefront, which tells the second submission what its screens are. */
+const STOREFRONT: ReadonlyMap<string, SourceCard> = new Map([
+  [
+    "storefront",
+    card(
+      "storefront",
+      "web",
+      [
+        {
+          id: "order-pages",
+          label: "Order pages",
+          description: "The screens of the orders.",
+          items: [{ name: "/orders/:id", summary: "Shows one order and its lines." }],
+        },
+      ],
+      ["/", "/categories", "/address"],
+    ),
+  ],
+]);
+const rules = () => domainIndexRules(INVENTORY, TYPES, () => true, [], STOREFRONT);
 
 type Domain = DomainIndexSubmission["domains"][number];
 const domain = (id: string, references: Domain["references"]): Domain => ({ id, label: id, description: `The ${id}.`, references });
@@ -145,7 +164,7 @@ describe("domain filing, criterion 2 — a domain of one type of source is refus
       { source: "spec", items: ["Order returns"] },
     ]);
     const screens = domain("screens", [{ source: "web", items: ["/orders/new", "/orders/list"] }]);
-    const { errors } = domainIndexRules(inventory, types, () => true, []).check({
+    const { errors } = domainIndexRules(inventory, types, () => true, [], new Map()).check({
       domains: [orders, screens],
       unassigned: [{ source: "db", items: ["shop.customers"] }],
     });
@@ -203,12 +222,18 @@ describe("domain filing, criterion 4 — an element both in a domain and in unas
 });
 
 describe("domain filing — the second submission", () => {
-  it("is asked for the elements left in unassigned, each with the domains that share a word with it", () => {
+  it("is asked for the elements left in unassigned, after the domains of the index, each with its card and the domains that share a word with it", () => {
     const followUp = rules().followUp!({ domains: [ORDERS, CUSTOMERS], unassigned: REST })!;
     const lines = followUp.request.split("\n");
     assert.match(lines[0]!, /put each in the domain of the index it belongs to, repeating its id, label and description, or in a new domain/);
+    assert.deepEqual(lines.slice(1, 5), [
+      "The domains of the index:",
+      "- orders (orders): The orders.",
+      "- customers (customers): The customers.",
+      "The elements left, each with the domain of its card and what it holds:",
+    ]);
     assert.ok(
-      lines.includes("- storefront: /orders/:id — shares words with the domains orders") &&
+      lines.includes("- storefront: /orders/:id (card domain Order pages): Shows one order and its lines. — shares words with the domains orders") &&
         lines.includes("- storefront: /address — shares words with the domains customers") &&
         lines.includes("- orders-api: /health"),
       followUp.request,

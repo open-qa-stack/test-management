@@ -5,6 +5,7 @@ import {
   type DomainIndexSubmission,
   type IndexError,
   type IndexSourceType,
+  type SourceCard,
   type SourceInventory,
   type SourceReferences,
 } from "@open-qa-stack/shared";
@@ -67,7 +68,8 @@ const SUBMISSION_SHAPE = {
  * another domain holds an element of another source that shares a word with one of them, and one made of
  * sections of the structure of documents only is refused. An element is in a domain or in `unassigned`, never
  * in both. Once a submission is accepted, the elements it left in `unassigned` are asked again, in a second
- * submission limited to them, with the domains that share a word with each: it puts them in domains of the
+ * submission limited to them, after the domains of the index, each with the domain of its card that holds
+ * it, what the card says it holds, and the domains of the index that share a word with it: it puts them in domains of the
  * index, repeating their id, label and description, or in new ones, and is merged into the first. The
  * elements the first placed in a domain are left out of the second, which may hand them in again; each
  * error names the place of the element in the second as it was handed in.
@@ -76,6 +78,7 @@ const SUBMISSION_SHAPE = {
  * @param sources - The type of every source of the run, by its identifier.
  * @param isRead - Whether a source has a card.
  * @param secrets - The secrets of the configuration, which no index may hold.
+ * @param cards - The card of each source that has one, which tells the second submission what each element is.
  * @returns The rules.
  */
 export function domainIndexRules(
@@ -83,6 +86,7 @@ export function domainIndexRules(
   sources: ReadonlyMap<string, IndexSourceType>,
   isRead: (source: string) => boolean,
   secrets: readonly string[],
+  cards: ReadonlyMap<string, SourceCard>,
 ): SubmissionRules<DomainIndexSubmission> {
   const ids = new Set(sources.keys());
   const words = new ElementWords(inventory, sources);
@@ -119,11 +123,16 @@ export function domainIndexRules(
     }),
     followUp: (accepted) => {
       const left = new Map([...inventory].map(([source, items]) => [source, items.filter((item) => !placedIn(accepted.domains, source, item))] as const));
-      const lines = [...left].flatMap(([source, items]) => items.map((item) => `- ${source}: ${item}${echoes(accepted, { source, item }, words)}`));
+      const lines = [...left].flatMap(([source, items]) =>
+        items.map((item) => `- ${source}: ${item}${described(cards.get(source), item)}${echoes(accepted, { source, item }, words)}`),
+      );
       if (lines.length === 0) return undefined;
       return {
         request: [
           `It leaves in unassigned the elements below. Call ${SUBMIT_TOOL} once more with only them: put each in the domain of the index it belongs to, repeating its id, label and description, or in a new domain, and keep in unassigned only those that belong to none. If none belongs to a domain, answer with one sentence instead.`,
+          "The domains of the index:",
+          ...accepted.domains.map((domain) => `- ${domain.id} (${domain.label}): ${domain.description}`),
+          "The elements left, each with the domain of its card and what it holds:",
           ...lines,
         ].join("\n"),
         asked: `The index leaves ${lines.length} of its ${[...inventory.values()].flat().length} elements in unassigned; a second submission limited to them was asked.`,
@@ -161,6 +170,13 @@ function withoutPlaced(second: DomainIndexSubmission, accepted: DomainIndexSubmi
  */
 function withPlaced(second: DomainIndexSubmission, accepted: DomainIndexSubmission): DomainIndexSubmission {
   return { domains: second.domains, unassigned: [...second.unassigned, ...accepted.domains.flatMap((domain) => domain.references)] };
+}
+
+/** The domain of its card that holds an element and what the card says it holds, for the line that names it; nothing for an element the card left unassigned. */
+function described(card: SourceCard | undefined, item: string): string {
+  const domain = card?.domains.find((candidate) => candidate.items.some((element) => element.name === item));
+  if (domain === undefined) return "";
+  return ` (card domain ${domain.label}): ${domain.items.find((element) => element.name === item)!.summary}`;
 }
 
 /** The domains of an index that share a word with an element, for the line that names it. */

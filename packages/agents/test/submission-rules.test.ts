@@ -22,7 +22,7 @@ describe("the name of an element that starts with the name of its source", () =>
       unassigned: [],
     });
     assert.deepEqual([card.value.domains[0]!.items.map((item) => item.name), card.errors], [["app/models", "views"], []]);
-    const index = domainIndexRules(new Map([["app", ["app/models", "views"]]]), new Map([["app", "source-code"]]), () => true, []).check({
+    const index = domainIndexRules(new Map([["app", ["app/models", "views"]]]), new Map([["app", "source-code"]]), () => true, [], new Map()).check({
       domains: [{ id: "all", label: "All", description: "All.", references: [{ source: "app", items: ["app/models", "app:views"] }] }],
       unassigned: [],
     });
@@ -30,7 +30,7 @@ describe("the name of an element that starts with the name of its source", () =>
   });
 
   it("is refused in an index when it holds a secret", () => {
-    const index = domainIndexRules(new Map([["app", ["views"]]]), new Map([["app", "source-code"]]), () => true, ["hunter2"]).check({
+    const index = domainIndexRules(new Map([["app", ["views"]]]), new Map([["app", "source-code"]]), () => true, ["hunter2"], new Map()).check({
       domains: [{ id: "all", label: "All", description: "Signs in with hunter2.", references: [{ source: "app", items: ["views"] }] }],
       unassigned: [],
     });

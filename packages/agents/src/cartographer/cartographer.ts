@@ -171,7 +171,13 @@ export class Cartographer {
       return { journal: journal.entries(), ...firstLimit(limits) };
     }
     const submission = new HandedIn(
-      domainIndexRules(inventory, new Map(sources.map((source) => [source.id, source.type] as const)), (id) => cards.has(id), configSecrets(config, env)),
+      domainIndexRules(
+        inventory,
+        new Map(sources.map((source) => [source.id, source.type] as const)),
+        (id) => cards.has(id),
+        configSecrets(config, env),
+        cards,
+      ),
       journal,
     );
     const notes = agentNotes(config, repositoryRoot, env, { role: "cartographer", task: `index-${environment}-${now().toISOString()}`, now });
