@@ -12,8 +12,8 @@ const MAX_APPEARED = 60;
 const MAX_GONE = 20;
 /** Most lines told as the closest to a locator no screen showed. */
 const MAX_NEAREST = 5;
-/** The start of the line of a field a value is typed in, up to that value: its role, its name and its states. */
-const FIELD = /^- '?(?:textbox|searchbox|combobox|spinbutton)(?: "(?:[^"\\]|\\.)*")?(?: \[[^\]]+\])*: /;
+/** The start of the line of a field a value is typed in, up to that value when it holds one: its role, its name and its states. */
+const FIELD = /^- '?(?:textbox|searchbox|combobox|spinbutton)(?: "(?:[^"\\]|\\.)*")?(?: \[[^\]]+\])*(?:: |:?(?= → )|:?'?$)/;
 /** What the browser tools say they return, which the watch adds to. */
 const PAGE_STATE = "Returns where the page is, and the line of code that does the same in a test.";
 
@@ -278,14 +278,16 @@ export class ScreenWatch {
    * @param shows - Texts expected on the screen after an action.
    * @param absent - Texts expected gone from the screen after an action.
    * @returns `true` when one of `shows` was observed in a line an action produced, or one of `absent` in a
-   * line an action removed; `true` too when none of them is long enough to be checked.
+   * line an action removed; `true` too when none of them is long enough to be checked. The line of a field
+   * is no result, whether it appeared or went: it holds the name of the field and what the agent typed, and
+   * changes when the field only gains or loses the focus.
    */
   public changedByAction(application: string, shows: readonly string[], absent: readonly string[]): boolean {
     const seen = this.seen.get(application)!;
     const appeared = shows.filter(checkable);
     const went = absent.filter(checkable);
     if (appeared.length + went.length === 0) return true;
-    return appeared.some((text) => observed(text, seen.produced)) || went.some((text) => observed(text, seen.removed));
+    return appeared.some((text) => observed(text, besideFields(seen.produced))) || went.some((text) => observed(text, besideFields(seen.removed)));
   }
 
   /** Keeps what a snapshot showed; one of the whole page is the one the next action is compared with. */
@@ -312,7 +314,7 @@ function besideFields(lines: Iterable<string>): string[] {
   return [...lines].filter((line) => fieldValue(line) === undefined);
 }
 
-/** The value a field line holds, before the locator of the field; `undefined` for a line of anything else. */
+/** The value a field line holds, before the locator of the field, empty when it holds none; `undefined` for a line of anything else. */
 function fieldValue(line: string): string | undefined {
   const start = FIELD.exec(line);
   if (start === null) return undefined;

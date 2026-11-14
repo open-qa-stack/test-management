@@ -183,6 +183,27 @@ describe("the screens the designer watches", () => {
     assert.equal(watch.changedByAction("shop", ["OK"], []), true);
   });
 
+  it("takes no line of a field as the result of an action, whether it appeared or went, empty or not", async () => {
+    const field = (states: string) => `- textbox "Search orders"${states}: Mira → page.getByRole("textbox", { name: "Search orders", exact: true })`;
+    const typed = `${LIST}\n${field(" [active]")}\n- textbox "Filter" [active] → page.getByRole("textbox", { name: "Filter", exact: true })\n- 'combobox "Kind":'\n- paragraph: Searching`;
+    // The click only takes the focus from the field, whose line goes and comes back without its state.
+    const clicked = `${LIST}\n${field("")}\n- textbox "Filter"\n- paragraph: Searching`;
+    const watch = new ScreenWatch(["shop"], page([LIST, LIST, typed, clicked]).tools);
+    await run(watch, "goto");
+    await run(watch, "fill");
+    await run(watch, "click");
+    assert.deepEqual(
+      [
+        watch.changedByAction("shop", ["Search orders"], []),
+        watch.changedByAction("shop", ["Mira"], []),
+        watch.changedByAction("shop", ["Filter", "Kind"], []),
+        watch.changedByAction("shop", [], ["Mira"]),
+        watch.changedByAction("shop", ["Searching"], []),
+      ],
+      [false, false, false, false, true],
+    );
+  });
+
   it("tells a value the agent typed in a field from a text a screen showed before it was typed", async () => {
     const typed = `${LIST}\n- textbox "Search: orders" [active] [ref=e4]: Mira → page.getByRole("textbox", { name: "Search: orders", exact: true })\n- 'spinbutton "Count": 7 → page.getByRole("spinbutton")'\n- searchbox "Find": Quill`;
     const watch = new ScreenWatch(["shop", "ledger"], page([LIST, FOUND, typed]).tools);
