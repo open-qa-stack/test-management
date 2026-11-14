@@ -530,6 +530,24 @@ describe("the gates of a plan", () => {
     );
   });
 
+  it("refuse a step whose action left the screens of its application for an address of the configuration, once for the action", async () => {
+    const elsewhere = 'await page.goto("http://127.0.0.1:8090/swagger-ui/index.html");';
+    const tool = (action: string): ToolDefinition => ({
+      name: `shop_${action}`,
+      description: action,
+      parameters: { type: "object" },
+      execute: async () => (action === "snapshot" ? { page: '- heading "Orders"', truncated: false } : action === "goto" ? { code: elsewhere } : {}),
+    });
+    const screens = new ScreenWatch(["shop"], ["goto", "snapshot", "fill", "click", "select_option", "check"].map(tool));
+    const { proposal: made } = await proposal({ screens }, false);
+    await act(screens, "goto");
+    const refused = (await submit(made, plan("a"))) as { error: string };
+    assert.equal(
+      refused.error,
+      `Refused (PLAN-ADDRESS): scenario a, step 1, cites the action 1 (${elsewhere}), which holds http://127.0.0.1:8090, an address of the configuration: a test of shop acts on the screens of shop alone, reached by a path relative to its base URL. Do the step on those screens, opened with shop_goto and a path such as "/orders", and cite those actions; say in uncovered what only another address offers.\nNothing else was refused.`,
+    );
+  });
+
   it("keep what the agent says the brief asks and the application does not allow, and say it in the journal", async () => {
     const { proposal: made, journal } = await proposal();
     const uncovered = [{ asked: "Change the address of a customer.", reason: "No screen of shop offers to edit an address." }];

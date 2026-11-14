@@ -144,7 +144,8 @@ export interface PlanRules {
  * the agent typed or in the name of a field; a value of the data from an application is one it showed
  * beside what the agent typed; and, for an application with a user interface, a step that cites no action, an
  * action no browser tool returned or one done on another application, a scenario whose first action opens no
- * address, an action cited that typed a value that is none of the data, and an expected text whose only
+ * address, an action cited that typed a value that is none of the data, an action cited whose line of code
+ * holds an address of the configuration, having left the screens of its application, and an expected text whose only
  * element has a locator that designated nothing the page showed; the agent may then submit another. Before the gates, the harness takes out of
  * a functional scenario of an application with a user interface each text expected shown by a step that
  * only types, followed by another step, that is a value of its data no screen showed beside the fields: the
@@ -601,6 +602,20 @@ export class PlanProposal {
         ),
       ),
     );
+    // An action that went to an address of the configuration left the screens of its application: its line would hold a host, which no test may.
+    const elsewhere = plan.scenarios.flatMap((scenario) =>
+      scenario.steps.flatMap((step, at) =>
+        this.cited(scenario, step.actions).flatMap((done) =>
+          this.rules.addresses
+            .filter((address) => done.code.includes(address))
+            .slice(0, 1)
+            .map((address) => ({
+              code: "PLAN-ADDRESS",
+              message: `scenario ${scenario.id}, step ${at + 1}, cites the action ${done.number} (${done.code}), which holds ${address}, an address of the configuration: a test of ${scenario.application} acts on the screens of ${scenario.application} alone, reached by a path relative to its base URL. Do the step on those screens, opened with ${scopedToolName(scenario.application, "goto")} and a path such as "/orders", and cite those actions; say in uncovered what only another address offers.`,
+            })),
+        ),
+      ),
+    );
     const secrets = heldVariables(text, this.rules.secrets).map((variable) => ({
       code: "PLAN-SECRET",
       message: `the plan holds the value of ${variable}. Leave it out; a test reads it with process.env.${variable}.`,
@@ -620,6 +635,7 @@ export class PlanProposal {
       ...repeated,
       ...secrets,
       ...addressed,
+      ...elsewhere,
       ...negative,
       ...functional.flatMap((scenario) => [...this.expectErrors(scenario, emptied), ...this.inputErrors(scenario)]),
       ...plan.scenarios.flatMap((scenario) => this.readErrors(scenario)),
