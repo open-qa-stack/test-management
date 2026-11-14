@@ -5,6 +5,7 @@ import { Cartographer, Designer, type JournalEntry } from "@open-qa-stack/agents
 import { CharterCheck, writerInstructions, LocalRunner, PinnedRun, resolveCharter, RUNS_FOLDER, TrialRunner, type ActiveRule } from "@open-qa-stack/harness";
 import { CONFIG_FILE_NAME, declaredValues, validateConfig, type ResolvedConfig } from "@open-qa-stack/shared";
 import { ExitCode, exitCodeOf, type ExitCodeValue } from "./exit-code.ts";
+import { runnableTests } from "./runnable-tests.ts";
 import type { OpenRuntime } from "./live-runtime.ts";
 import { missingPrerequisites } from "./prerequisites.ts";
 import { CountedRuntime } from "./counted-runtime.ts";
@@ -252,13 +253,19 @@ export class SoloRun {
       // A design a limit cut short can be resumed, even once it gave its tests.
       if (stoppedBy !== undefined) found = { ...found, stoppedBy: { step: "design", limit: stoppedBy } };
       if (!designed.ok) return ExitCode.interrupted;
+      const { run, leftOut } = runnableTests(designed.value.tests);
       const executed = await timed("execution", async () => {
+        journal.record(
+          "execution",
+          "info",
+          `${run.length} of the ${tests.length} tests designed are run; left out as unfinished: ${leftOut.join(", ") || "none"}.`,
+        );
         // The dependencies the design installed serve the execution as well.
         const outcome = await new PinnedRun({
           config,
           environment,
           repositoryRoot: this.options.repositoryRoot,
-          tests,
+          tests: run,
           runner,
           env: this.options.env,
           preparation: trials.prepare(),

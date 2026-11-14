@@ -8,6 +8,8 @@ import { fileURLToPath } from "node:url";
 import { validateConfig } from "@open-qa-stack/shared";
 import { answer, scriptedServer, toolCalls } from "@open-qa-stack/testing";
 import { AgentRuntimeError, ImageToolResult, type AgentEvent, type AgentRuntime, type SessionOptions } from "@open-qa-stack/domain";
+import type { DesignedTest } from "@open-qa-stack/agents";
+import { runnableTests } from "../src/solo/runnable-tests.ts";
 import { CountedRuntime, exitCodeOf, GuardedRuntime, liveRuntime, missingPrerequisites, parseArguments, RunJournal, USAGE } from "../src/index.ts";
 
 const workspace = mkdtempSync(join(tmpdir(), "oqas-cli-units-"));
@@ -313,5 +315,24 @@ describe("the guardrail of a run", () => {
     );
     await runtime.close();
     assert.equal(closed, true);
+  });
+});
+
+describe("the designed tests the execution runs", () => {
+  /** A designed test that stands as its classes say. */
+  function designed(path: string, ...classes: readonly ("passed" | "unfinished" | "failing-application")[]): DesignedTest {
+    const classing = classes.map((name) => ({
+      at: "2026-01-01T00:00:00.000Z",
+      class: name,
+      origin: { by: "harness" as const, check: "run_test" },
+      reason: "r",
+    }));
+    return { path, scenario: path, verdict: "passed", classes: classing, runs: [] };
+  }
+
+  it("leaves out a test whose last class is unfinished, and runs the others in order", () => {
+    const tests = [designed("a.spec.ts", "passed"), designed("b.spec.ts", "unfinished"), designed("c.spec.ts", "unfinished", "failing-application")];
+    assert.deepEqual(runnableTests(tests), { run: ["a.spec.ts", "c.spec.ts"], leftOut: ["b.spec.ts"] });
+    assert.deepEqual(runnableTests([]), { run: [], leftOut: [] });
   });
 });
