@@ -89,6 +89,8 @@ interface Seen {
   readonly unmatched: Set<string>;
   /** The values the agent typed in a field. */
   readonly filled: Set<string>;
+  /** The addresses an action of the agent, other than opening one itself, led the application to. */
+  readonly reached: Set<string>;
   /** What the locator by role and name of each line of a named element without a locator of its own designated on the page, the last time the line came. */
   readonly checked: Map<string, Checked>;
   /** The lines of the last snapshot of the whole page. */
@@ -149,6 +151,7 @@ export class ScreenWatch {
         found: new Set(),
         unmatched: new Set(),
         filled: new Set(),
+        reached: new Set(),
         checked: new Map(),
         last: undefined,
         looks: 0,
@@ -197,7 +200,9 @@ export class ScreenWatch {
             const { value, option } = args as { value?: unknown; option?: unknown };
             if (action === "fill" && typeof value === "string") seen.filled.add(value);
             const typed = [value, option].find((given): given is string => typeof given === "string");
-            const state = numbered(action, (await tool.execute(args)) as { code?: unknown }, typed);
+            const state = numbered(action, (await tool.execute(args)) as { code?: unknown; url?: unknown }, typed);
+            // Where a click led is what the application answered, such as the address of the record it opened.
+            if (typeof state.url === "string") seen.reached.add(state.url);
             const current = (await read()).lines;
             const appeared = absent(current, previous);
             for (const line of appeared) seen.produced.add(line);
@@ -349,6 +354,19 @@ export class ScreenWatch {
    */
   public shows(application: string, text: string): boolean {
     return observed(text, this.seen.get(application)?.lines ?? []);
+  }
+
+  /**
+   * Whether an address the application went to after an action of the agent holds a text, such as the
+   * identifier of the record a click opened, which no line of a screen shows. An address the agent opened
+   * itself is no answer of the application, and does not count.
+   *
+   * @param application - Identifier of the application.
+   * @param text - The text.
+   * @returns `true` when such an address holds it; `false` for an application without a user interface.
+   */
+  public reached(application: string, text: string): boolean {
+    return observed(text, [...(this.seen.get(application)?.reached ?? [])]);
   }
 
   /**

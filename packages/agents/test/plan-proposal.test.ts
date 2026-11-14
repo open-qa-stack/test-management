@@ -208,7 +208,8 @@ describe("the scenarios of a plan, asked until the brief is covered", () => {
   it("refuse a plan without a scenario and one that holds too many, and replace a scenario by the one that bears its id", async () => {
     const { proposal: made } = await proposal();
     assert.deepEqual(await add(made, { scenarios: [] }), {
-      error: "Refused (PLAN-COUNT): the plan holds no scenario. Give one scenario at least, for what the brief is about.\nNothing else was refused.",
+      error:
+        "Refused (PLAN-COUNT): the plan holds no scenario. Give one scenario at least, for what the brief is about; or, when no test can do what the brief asks, say so: give in uncovered what it asks and why, with no scenario.\nNothing else was refused.",
     });
     const nine = ["a", "b", "c", "d", "e", "f", "g", "h", "i"];
     assert.match(
@@ -226,6 +227,24 @@ describe("the scenarios of a plan, asked until the brief is covered", () => {
     assert.deepEqual(
       made.accepted!.scenarios.map((kept) => kept.title),
       ["The a scenario", "Changed"],
+    );
+  });
+
+  it("accept a plan without a scenario that says why no test can do what the brief asks, and close it at once", async () => {
+    const { proposal: made, journal } = await proposal();
+    const uncovered = [{ asked: "Change the address of a customer.", reason: "No screen of shop offers to edit an address." }];
+    assert.equal(
+      await add(made, { scenarios: [], uncovered }),
+      "The plan was accepted with 0 scenarios: the agent said no test can do what the brief asks.\nNext: answer with one sentence. Call no more tools.",
+    );
+    assert.deepEqual(made.accepted, { scenarios: [], uncovered, ended: "none" });
+    assert.deepEqual(
+      journal.entries().map((entry) => `${entry.level}: ${entry.message}`),
+      [
+        "error: The plan does not cover what the brief asks: Change the address of a customer. No screen of shop offers to edit an address.",
+        "info: The harness asked for no more scenarios: the agent said no test can do what the brief asks.",
+        "info: The plan was accepted: no scenario.",
+      ],
     );
   });
 
@@ -528,6 +547,34 @@ describe("the gates of a plan", () => {
       refused.error.split("\n")[0],
       `Refused (PLAN-ADDRESS): scenario a, expect 1.1, names "${footer}", which holds http://127.0.0.1:8090, an address of the configuration: no test may hold a host. Leave this text out, and expect another text the screen showed after the step, such as a heading, a row or a message.`,
     );
+  });
+
+  it("take as a value the application gave one the address a click led to holds, and not one of an address the agent opened itself", async () => {
+    const tool = (action: string): ToolDefinition => ({
+      name: `shop_${action}`,
+      description: action,
+      parameters: { type: "object" },
+      execute: async () => {
+        if (action === "snapshot") return { page: '- heading "Orders"', truncated: false };
+        return action === "goto" ? { url: "http://shop.test/orders/typed-41", code: OPENED } : { url: "http://shop.test/orders/k9z7q", code: CLICKED };
+      },
+    });
+    const screens = new ScreenWatch(["shop"], ["goto", "snapshot", "fill", "click", "select_option", "check"].map(tool));
+    const { proposal: made } = await proposal({ screens }, false);
+    await act(screens, "goto");
+    const opening = (value: string) => plan("a").scenarios.map((planned) => ({ ...planned, data: [{ value, from: "shop" }] }));
+    // The identifier of the order is in no line of a screen: before the click, nothing gave it.
+    assert.match(
+      ((await submit(made, { scenarios: opening("k9z7q") })) as { error: string }).error,
+      /^Refused \(PLAN-DATA\): no result of shop showed "k9z7q" in this session\./,
+    );
+    await act(screens, "click");
+    assert.match(
+      ((await submit(made, { scenarios: opening("typed-41") })) as { error: string }).error,
+      /^Refused \(PLAN-DATA\): no result of shop showed "typed-41" in this session\./,
+    );
+    assert.match((await submit(made, { scenarios: opening("k9z7q") })) as string, /^The plan was accepted with 1 scenario/);
+    assert.equal(new ScreenWatch([], []).reached("shop", "k9z7q"), false);
   });
 
   it("refuse a step whose action left the screens of its application for an address of the configuration, once for the action", async () => {

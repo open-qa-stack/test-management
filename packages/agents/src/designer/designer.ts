@@ -118,6 +118,9 @@ const ACCEPT_EVERY_PLAN: PlanReview = { review: async () => ({ accepted: true })
  * repository with no tracked file changed, no untracked file outside the folders of the state and the index,
  * and no branch of the name to create; otherwise nothing is written.
  *
+ * A plan may hold no scenario, when the agent says why no test can do what the brief asks: the design then
+ * writes its plan and its state, no test, and succeeds.
+ *
  * A design runs in several sessions, each with its own tools, watches, browser and limits of the configured
  * autonomy. The first plans: the agent gets the brief and what the index holds for it, or the domains of
  * the index when nothing of it echoes the brief, not the index whole, which it explores by levels with
@@ -335,7 +338,10 @@ export class Designer {
           ...(references.length === 0 ? {} : { references: references.map((reference) => reference.path) }),
         })),
       ];
-      if (kept.length === 0 && stoppedBy === undefined) return failed(`No test was written: ${obtained(0)}, one per scenario of the plan is expected.`);
+      // A plan without a scenario says why no test can do what the brief asks: it is kept, and there is nothing to write.
+      if (planned.scenarios.length === 0)
+        journal.record("info", "No test was written: the plan holds no scenario, and says what the brief asks that no test can do.");
+      else if (kept.length === 0 && stoppedBy === undefined) return failed(`No test was written: ${obtained(0)}, one per scenario of the plan is expected.`);
       const record: PlanRecord = resumed?.plan ?? {
         formatVersion: 2,
         design: id,

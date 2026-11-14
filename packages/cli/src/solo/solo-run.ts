@@ -263,6 +263,11 @@ export class SoloRun {
       if (stoppedBy !== undefined) found = { ...found, stoppedBy: { step: "design", limit: stoppedBy } };
       if (!designed.ok) return ExitCode.interrupted;
       const { run, leftOut } = runnableTests(designed.value.tests);
+      // A design whose plan holds no scenario gave no test: nothing is run, and nothing is verified.
+      if (run.length === 0) {
+        journal.record("design", "info", "No test is run: the design gave none.");
+        return exitCodeOf([]);
+      }
       const executed = await timed("execution", async () => {
         journal.record(
           "execution",

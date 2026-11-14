@@ -151,6 +151,7 @@ describe("the file of a plan", () => {
       ["covered", "the agent said the brief is covered."],
       ["maximum", "the plan holds 8 scenarios, the most a plan may."],
       ["session-end", "the agent ended its session without another scenario."],
+      ["none", "the agent said no test can do what the brief asks."],
     ] as const)
       assert.ok(planFileText({ ...RECORD, ended: end }).includes(`; ${said}\n`));
     assert.ok(!planFileText(RECORD).includes("## Set aside"));

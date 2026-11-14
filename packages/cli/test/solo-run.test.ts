@@ -634,6 +634,20 @@ describe("what the brief asks and the plan leaves out", () => {
   });
 });
 
+describe("a brief no test can do", () => {
+  it("runs nothing, says what is not covered, and exits with 2: nothing was verified", async () => {
+    const uncovered = [{ asked: "Cancel an order.", reason: "No operation of the shop cancels one." }];
+    const none = submit("propose_plan", { scenarios: [], uncovered }, "plan");
+    const replies = chain().map((reply) => (reply.body === planned.body ? { body: toolCalls(MODEL, [none]) } : reply));
+    const run = await solo(replies, { environment: "local", command: true });
+    assert.equal(run.code, 2, run.err);
+    assert.match(run.err, /\[design\] No test is run: the design gave none\./);
+    assert.doesNotMatch(run.err, /\[execution\]/);
+    assert.match(run.out, /\nNot covered: Cancel an order\. No operation of the shop cancels one\.\nState: /);
+    assert.equal(run.runner.finalRuns, 0);
+  });
+});
+
 describe("the brief of a run", () => {
   it("goes from the option to the designer, and to the state of the design", async () => {
     const run = await solo(chain(), { environment: "local", command: true, brief: "tester la recherche d'un client" });

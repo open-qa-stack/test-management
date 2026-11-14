@@ -35,7 +35,8 @@ export interface DraftRules<S> {
  * keeps of its answer only what names a scenario submitted and one kept before it, and goes on without it
  * when it fails. A duplicate is set aside with who decided, why and when: it is never lost.
  *
- * The harness stops asking once the agent submits nothing more: it says the brief is covered. Duplicates in
+ * The harness stops asking once the agent submits nothing more: it says the brief is covered, or, with no
+ * scenario kept at all, that no test can do what the brief asks. Duplicates in
  * a row are answered by degrees: the first is told to the agent; from `HINTED_DUPLICATES_IN_A_ROW`, the
  * agent is told it may say the brief is covered; at `MAX_DUPLICATES_IN_A_ROW`, the harness asks for no
  * more. A plan that is full is closed as well, which guards a design against scenarios without end.
@@ -142,7 +143,8 @@ export class PlanDraft<S extends { readonly id: string; readonly title: string; 
    * @returns The reason; `undefined` while the agent may be asked for more.
    */
   public ended(submitted: number): PlanEnd | undefined {
-    if (submitted === 0) return "covered";
+    // An agent that submits nothing says it is done: with scenarios kept, the brief is covered; with none, no test can do what it asks.
+    if (submitted === 0) return this.kept.length === 0 ? "none" : "covered";
     if (this.streak >= MAX_DUPLICATES_IN_A_ROW) return "exhausted";
     return this.kept.length >= this.rules.maximum ? "maximum" : undefined;
   }

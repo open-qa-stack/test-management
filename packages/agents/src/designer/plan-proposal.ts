@@ -377,7 +377,7 @@ export class PlanProposal {
             type: "array",
             maxItems: 5,
             description:
-              "What the brief asks that no scenario covers — a business rule, an information, a behaviour — because the application does not let a test do it, such as an action no screen offers, or because the plan has no room for it: say it here rather than plan another test in its place without a word. Leave it out when the plan covers the brief.",
+              "What the brief asks that no scenario covers — a business rule, an information, a behaviour — because the application does not let a test do it, such as an action no screen offers, or because the plan has no room for it: say it here rather than plan another test in its place without a word. Leave it out when the plan covers the brief. A plan may hold no scenario at all when it says here why no test can do what the brief asks.",
             items: {
               type: "object",
               properties: {
@@ -412,7 +412,7 @@ export class PlanProposal {
     if (this.plan !== undefined) return { error: this.closed() };
     if (this.refusal !== undefined) return { error: this.blocked() };
     const whole = { ...submitted, scenarios: this.draft.with(submitted.scenarios) };
-    const count = this.countErrors(whole.scenarios.length);
+    const count = this.countErrors(whole.scenarios.length, (submitted.uncovered ?? []).length > 0);
     if (count.length > 0) return this.refuse(count);
     const { plan: checked, emptied } = this.withoutEchoes(whole);
     const refusals = this.errors(checked, emptied, submitted.scenarios);
@@ -428,9 +428,20 @@ export class PlanProposal {
     return end === undefined ? this.masked(this.askMore(aside)) : this.settle(end, aside);
   }
 
-  /** What the gates refuse in how many scenarios a call gives: none for a plan that holds none, or more than a plan may hold. */
-  private countErrors(whole: number): Refusal[] {
-    if (whole === 0) return [{ code: "PLAN-COUNT", message: "the plan holds no scenario. Give one scenario at least, for what the brief is about." }];
+  /**
+   * What the gates refuse in how many scenarios a call gives: more than a plan may hold, or none for a plan
+   * that holds none, unless the call says in `uncovered` why no test can do what the brief asks.
+   */
+  private countErrors(whole: number, explained: boolean): Refusal[] {
+    if (whole === 0 && explained) return [];
+    if (whole === 0)
+      return [
+        {
+          code: "PLAN-COUNT",
+          message:
+            "the plan holds no scenario. Give one scenario at least, for what the brief is about; or, when no test can do what the brief asks, say so: give in uncovered what it asks and why, with no scenario.",
+        },
+      ];
     if (whole <= MAX_TESTS) return [];
     const kept = this.draft.scenarios.length;
     return [
@@ -479,7 +490,7 @@ export class PlanProposal {
     for (const { asked, reason } of plan.uncovered ?? [])
       this.journal.record("error", this.masked(`The plan does not cover what the brief asks: ${asked} ${reason}`));
     this.journal.record("info", `The harness asked for no more scenarios: ${planEndText(end, MAX_TESTS)}`);
-    this.journal.record("info", `The plan was accepted: ${plan.scenarios.map((scenario) => scenario.id).join(", ")}.`);
+    this.journal.record("info", `The plan was accepted: ${plan.scenarios.map((scenario) => scenario.id).join(", ") || "no scenario"}.`);
     // What the harness took out of the plan is told to the agent, not done behind its back.
     return [
       `The plan was accepted with ${plan.scenarios.length} ${plan.scenarios.length === 1 ? "scenario" : "scenarios"}: ${planEndText(end, MAX_TESTS)}`,
@@ -651,9 +662,9 @@ export class PlanProposal {
     // A source without any tool is held to nothing: nothing could be read of it.
     const tool = (source: string) => (screens.watches(source) ? scopedToolName(source, "goto") : reads.firstTool(source));
     const read = (source: string) => (screens.watches(source) ? screens.looks(source) > 0 : tool(source) === undefined || reads.read(source));
-    // What the agent typed in a field is no value the application gave.
+    // What the agent typed in a field is no value the application gave; the address a click led to is one, such as an identifier no line shows.
     const showed = (source: string, text: string) =>
-      screens.watches(source) ? screens.showsUntyped(source, text) : tool(source) === undefined || reads.shows(source, text);
+      screens.watches(source) ? screens.showsUntyped(source, text) || screens.reached(source, text) : tool(source) === undefined || reads.shows(source, text);
     const anywhere = (text: string) => applications.some((application) => screens.shows(application, text)) || reads.shows(undefined, text);
     const unread = [...new Set(scenario.sources.map((cited) => cited.source))]
       .filter((source) => !read(source))

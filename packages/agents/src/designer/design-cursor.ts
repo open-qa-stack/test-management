@@ -50,7 +50,9 @@ export class DesignCursor {
     this.plan = plan;
     this.#place = place;
     this.#at = closed;
-    this.#path = place(plan.scenarios[closed]!);
+    // A plan may hold no scenario, when no test can do what its brief asks: nothing is open then.
+    const open = plan.scenarios[closed];
+    this.#path = open === undefined ? undefined : place(open);
   }
 
   /**

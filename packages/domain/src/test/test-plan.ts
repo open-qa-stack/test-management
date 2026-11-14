@@ -105,9 +105,10 @@ export interface SetAsideScenario {
 /**
  * Why the harness stopped asking the agent for scenarios: `covered` when the agent said the brief is covered,
  * `exhausted` when the scenarios it last submitted were duplicates, time after time, `maximum` when the plan is full,
- * `session-end` when the session of the agent ended without another scenario.
+ * `session-end` when the session of the agent ended without another scenario, `none` when the agent submitted
+ * no scenario at all and said why no test can do what the brief asks.
  */
-export type PlanEnd = "covered" | "exhausted" | "maximum" | "session-end";
+export type PlanEnd = "covered" | "exhausted" | "maximum" | "session-end" | "none";
 
 /** The tests an agent means to write, before it writes any. */
 export interface TestPlan {
