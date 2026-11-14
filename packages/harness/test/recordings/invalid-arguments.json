@@ -80,7 +80,7 @@
           },
           {
             "role": "tool",
-            "content": "{\"error\":\"The arguments do not match the schema of convert_price: arguments/amount must be number, arguments/currency must be equal to one of the allowed values.\"}",
+            "content": "{\"error\":\"The arguments do not match the schema of convert_price: arguments/amount must be number; arguments/currency must be equal to one of the allowed values.\"}",
             "toolCallId": "call-1"
           }
         ],

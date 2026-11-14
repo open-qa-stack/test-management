@@ -31,7 +31,7 @@ A session may carry `limits`: model calls (iterations), duration and browser act
 
 ## Tools
 
-A tool has a `name`, a `description` for the model, a JSON Schema of its `parameters` and an `execute` function. Arguments are checked against the schema before `execute` runs; arguments that do not match never reach it.
+A tool has a `name`, a `description` for the model, a JSON Schema of its `parameters` and an `execute` function. Arguments are checked against the schema before `execute` runs; arguments that do not match never reach it. The model is told what is wrong in sentences it can act on — `arguments/items holds more than 40 items: give 40 at most`, `arguments/domains/0 needs the property label` — six problems at most, and, for a field that accepts several shapes, against the shape its value is closest to.
 
 A tool gives the model an image by returning an `ImageToolResult`: what the model reads, and a PNG image. A runtime created with `vision: true` declares that the model reads images and shows it the images of a session, three at most (`MAX_SESSION_IMAGES`), since an image stays in the conversation and goes again with each later call, and none larger than 2000 pixels a side (`MAX_IMAGE_SIDE`) or 3 MiB (`MAX_IMAGE_BYTES`), which the SDK would reduce before sending it. For any other image, or without `vision`, the model reads the result alone, with the reason under `imageNotShown`. The Copilot SDK sends the result in the tool message, then the image in a user message of its own, as a data URL; without the declaration, it would leave the image out.
 
