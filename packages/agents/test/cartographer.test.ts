@@ -503,7 +503,7 @@ describe("criterion 5 — a declared source that does not answer stops the run b
       ["shop-db", "order-specs", "shop"],
     );
     assert.match(errors[0]![1]!, /^The source shop-db does not answer: refused$/);
-    assert.match(errors[1]![1]!, /^The source order-specs does not answer: ENOENT/);
+    assert.match(errors[1]![1]!, /^The source order-specs does not answer: The document specs\/missing\.md does not exist\./);
     assert.match(errors[2]![1]!, /^The source shop does not answer: fetch failed: .*ECONNREFUSED/);
     assert.match(messages(outcome), /No index was written: every declared source must answer before the exploration\./);
   });
@@ -581,7 +581,7 @@ describe("criterion 7 — the database tool only queries the catalog", () => {
     assert.equal(outcome.index!.status, "complete");
     assert.ok(database.queries.length >= 3);
     for (const query of database.queries) assert.match(query, /information_schema|pg_catalog/);
-    assert.deepEqual(toolsOffered(server, 0), ["place_elements"]);
+    assert.deepEqual(toolsOffered(server, 0), ["place_elements", "remember"]);
   });
 });
 
@@ -943,14 +943,24 @@ describe("faster cartography", () => {
   describe("faster cartography, criterion 2 — a card made again, added or removed makes the consolidation again, with the new fingerprints", () => {
     it("consolidates again when a card was made again, and records its new fingerprint", async () => {
       let before = "";
-      // The document changed: its sections are placed again, the file of their domain is written, then the index is consolidated.
-      const sections = ELEMENTS["order-specs"]!.map((name) => ({ name, domain: "all", role: `About ${name}.` }));
-      const placement = { domains: [{ id: "all", label: "All", description: "Everything order-specs holds." }], items: sections };
+      // The document changed: the agent that maps it reads it again and hands its domain in, then the index is consolidated.
+      const all = {
+        id: "all",
+        label: "All",
+        description: "Everything order-specs holds.",
+        elements: [{ file: "orders.md", role: "About the orders." }],
+        body: "`orders.md` tells how an order is placed.",
+      };
+      // The index names the element of the new card of the document.
+      const [orders, customers] = SUBMISSION.domains;
+      const references = orders!.references.map((reference) => (reference.source === "order-specs" ? { ...reference, items: ["orders.md"] } : reference));
+      const consolidated = { ...SUBMISSION, domains: [{ ...orders!, references }, customers!] };
       const remade = [
-        { body: toolCalls(MODEL, [{ id: "p1", name: "place_elements", arguments: placement }]) },
+        { body: toolCalls(MODEL, [{ id: "r1", name: "order_specs_read_file", arguments: {} }]) },
+        { body: toolCalls(MODEL, [{ id: "w1", name: "write_domain", arguments: all }]) },
         { body: answer(MODEL, "Done.") },
-        { body: answer(MODEL, "`Orders` holds `Placing an order`.") },
-        ...happy(),
+        { body: toolCalls(MODEL, [submit(consolidated)]) },
+        { body: answer(MODEL, "Two domains: orders and customers.") },
       ];
       const prepare = (root: string) => {
         written(index)(root);

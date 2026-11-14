@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentRuntime, TaskLimits } from "@open-qa-stack/domain";
+import type { AgentEvent, AgentRuntime, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
 import type { IndexSourceType, ManifestDomain } from "@open-qa-stack/shared";
 import { redactText, secretForms, type ExportedElement } from "@open-qa-stack/tools";
 import { runAgentTask } from "../common/agent-task.ts";
@@ -23,6 +23,8 @@ export interface WriteDomainOptions {
   readonly others: readonly ManifestDomain[];
   /** What the export of the source names, against which the names the file cites are checked. */
   readonly vocabulary: ExportVocabulary;
+  /** The tool the session keeps a fact with for the agents after it. */
+  readonly notes: readonly ToolDefinition[];
   /** The runtime that opens the session. */
   readonly runtime: AgentRuntime;
   /** The limits of the session. */
@@ -98,7 +100,7 @@ export async function writeDomain(options: WriteDomainOptions): Promise<WrittenD
   };
   const task = {
     instructions: writingInstructions(options.sourceType),
-    tools: [],
+    tools: [...options.notes],
     request: redactText(domainRequest(sourceId, domain, options.members, options.others), options.secrets.flatMap(secretForms)),
     events,
     reminder: check,

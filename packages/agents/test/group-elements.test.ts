@@ -61,6 +61,7 @@ async function grouped(turns: readonly Turn[], exported: SourceExport, grouping 
   const used = await groupElements({
     sourceId: "shop-db",
     sourceType: "postgresql",
+    notes: [],
     exported,
     grouping,
     former: new Map(),

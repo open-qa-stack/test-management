@@ -25,7 +25,8 @@ Rules:
 - Give each element you place its role: one line on what it holds or does.
 - Set an element aside, with a reason and no domain, only when it serves no functional area: ${words.aside}.
 - Use each name exactly as the request writes it. Place every element of the batch, none twice.
-- Call ${PLACE_TOOL} once with every element of the batch. When it answers with problems, fix what it names and call it again with the elements still to place only. Then answer with one word.`;
+- Call ${PLACE_TOOL} once with every element of the batch. When it answers with problems, fix what it names and call it again with the elements still to place only. Then answer with one word.
+- Keep with remember what the agents after you should know and no element says by itself, such as a rule several elements share or a name the team uses its own way. Not everything: a few facts that matter.`;
 }
 
 /**

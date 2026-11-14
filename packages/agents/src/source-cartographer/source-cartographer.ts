@@ -1,8 +1,8 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type { AgentEvent, AgentRuntime, StopReason } from "@open-qa-stack/domain";
-import { validateSourceCard, type ResolvedConfig, type SourceCard, type SourceCardSubmission } from "@open-qa-stack/shared";
-import type { BrowserAccess, KnowledgeAccess, SourceExport, SourceInventory } from "@open-qa-stack/tools";
+import type { AgentEvent, AgentRuntime, StopReason, ToolDefinition } from "@open-qa-stack/domain";
+import { validateSourceCard, type ResolvedConfig, type SourceCard, type SourceCardSubmission, type SourceManifest } from "@open-qa-stack/shared";
+import { DocumentSet, type BrowserAccess, type KnowledgeAccess, type SourceExport, type SourceInventory } from "@open-qa-stack/tools";
 import { agentNotes } from "../common/agent-notes.ts";
 import { configSecrets } from "../common/config-secrets.ts";
 import { runAgentTask, taskEnd, taskLimits } from "../common/agent-task.ts";
@@ -13,11 +13,16 @@ import { runTrace } from "../common/run-trace.ts";
 import type { Trace } from "../common/trace.ts";
 import type { PhaseOutcome, TraceLine } from "../common/trace-line.ts";
 import { manifestCard } from "../source-workflow/manifest-card.ts";
-import { mapExportedSource } from "../source-workflow/map-exported-source.ts";
+import { mapDocuments } from "../document-cartographer/map-documents.ts";
+import type { SessionsUse } from "../source-workflow/group-elements.ts";
+import { mapExportedSource, type ExportedSourceOptions } from "../source-workflow/map-exported-source.ts";
 import { SourceFolder } from "../source-workflow/source-folder.ts";
 import { cardRules } from "./card-rules.ts";
 import { interfaceSubject, knowledgeSubject, type CardSource, type CardSubject } from "./card-subject.ts";
 import { SOURCE_CARTOGRAPHER_INSTRUCTIONS } from "./source-cartographer-prompt.ts";
+
+/** What every workflow that leaves a manifest of a source is given. */
+type ManifestWorkflow = Omit<ExportedSourceOptions, "exported" | "partial" | "force">;
 
 /** Folder of the cards, in the index folder of the test repository. */
 export const CARDS_FOLDER = "sources";
@@ -79,7 +84,8 @@ export interface SourceCartographyOutcome {
  * card is made again on demand only. A complete card whose fingerprint is the source's is kept as it is,
  * unless `force` is set.
  *
- * A source that has an export — a database, a contract, a document — goes through `mapExportedSource`: its export and its manifest
+ * The documents of a source are mapped by the agent that reads them, through `mapDocuments`: it chooses its
+ * elements and hands each domain in with its file. A source that has an export — a database, a contract — goes through `mapExportedSource`: its export and its manifest
  * are written in the folder of the source beside its card, its elements are grouped into domains batch by
  * batch, and its card is derived from the manifest, unless no element at all was placed. For any other source, the agent gets the tools of this
  * source only and hands its card in with `submit_card`, which must place every element and invent none.
@@ -156,11 +162,12 @@ export class SourceCartographer {
         usage: NO_USAGE,
       };
     }
+    if (source.type === "document") return this.mapDocumented(source, subject.inventory(), cardPath, journal, trace, now);
     const submission = new HandedIn(
       cardRules(source.id, () => subject.inventory(), configSecrets(config, env)),
       journal,
     );
-    const notes = agentNotes(config, repositoryRoot, env, { role: "cartographer", task: `card-${source.id}-${now().toISOString()}`, now });
+    const notes = this.notes(now);
     const task = {
       instructions: SOURCE_CARTOGRAPHER_INSTRUCTIONS,
       tools: [...subject.tools, ...notes, submission.tool()],
@@ -213,7 +220,7 @@ export class SourceCartographer {
   }
 
   /** Maps a source from its export, in its folder beside its card, then derives its card from its manifest. */
-  private async mapExported(
+  private mapExported(
     inventory: SourceInventory,
     exported: SourceExport,
     cardPath: string,
@@ -221,17 +228,58 @@ export class SourceCartographer {
     trace: Trace,
     now: () => Date,
   ): Promise<Omit<SourceCartographyOutcome, "tracePath">> {
+    const partial = inventory.truncated === true;
+    return this.fromManifest(inventory, cardPath, journal, trace, now, (shared) =>
+      // A session that places or documents a batch keeps a note, and reads none: its request holds what it needs.
+      mapExportedSource({ ...shared, notes: shared.notes.filter((tool) => tool.name === "remember"), exported, partial, force: this.options.force === true }),
+    );
+  }
+
+  /** Has the documents of a source mapped by the agent that reads them, in its folder beside its card, then derives its card from its manifest. */
+  private mapDocumented(
+    source: Extract<CardSource, { type: "document" }>,
+    inventory: SourceInventory,
+    cardPath: string,
+    journal: Journal,
+    trace: Trace,
+    now: () => Date,
+  ): Promise<Omit<SourceCartographyOutcome, "tracePath">> {
+    const { repositoryRoot } = this.options;
+    return this.fromManifest(
+      inventory,
+      cardPath,
+      journal,
+      trace,
+      now,
+      (shared) => mapDocuments({ ...shared, documents: new DocumentSet(repositoryRoot, source.path) }),
+      // The elements of the documents are the agent's to choose: the card holds those of the manifest, each with its kind.
+      (manifest) => ({
+        items: manifest.elements.map((element) => element.name),
+        facts: new Map(manifest.elements.map((element) => [element.name, { kind: element.kind }])),
+        fingerprint: inventory.fingerprint,
+      }),
+    );
+  }
+
+  /** Runs the workflow that leaves a manifest of the source, then derives its card from it, under the fingerprint of the source. */
+  private async fromManifest(
+    inventory: SourceInventory,
+    cardPath: string,
+    journal: Journal,
+    trace: Trace,
+    now: () => Date,
+    workflow: (shared: ManifestWorkflow) => Promise<SessionsUse & { readonly manifest: SourceManifest }>,
+    carded: (manifest: SourceManifest) => SourceInventory = () => inventory,
+  ): Promise<Omit<SourceCartographyOutcome, "tracePath">> {
     const { config, source, repositoryRoot, env } = this.options;
     const secrets = configSecrets(config, env);
-    const { manifest, usage, run, stoppedBy } = await mapExportedSource({
+    const { manifest, usage, run, stoppedBy } = await workflow({
       source: { id: source.id, type: source.type },
-      exported,
-      partial: inventory.truncated === true,
-      force: this.options.force === true,
       folder: new SourceFolder(join(repositoryRoot, config.repository.indexDir, CARDS_FOLDER, source.id), secrets),
       runtime: this.options.runtime,
       limits: taskLimits(config),
       secrets,
+      notes: this.notes(now),
       journal,
       sent: (text) => trace.harness("card", { type: "message", text }, source.id),
       received: (event) => {
@@ -246,7 +294,14 @@ export class SourceCartographer {
       return { kept: false, usage, journal: journal.entries(), ...stopped };
     }
     const model = { provider: config.model.provider, baseUrl: config.model.baseUrl, model: config.model.model };
-    return { ...(await this.write(cardPath, manifestCard(manifest, inventory, run, model, now()), journal)), usage, ...stopped };
+    const card = { ...manifestCard(manifest, carded(manifest), run, model, now()), fingerprint: inventory.fingerprint };
+    return { ...(await this.write(cardPath, card, journal)), usage, ...stopped };
+  }
+
+  /** The notes an agent that maps the source takes and reads. */
+  private notes(now: () => Date): ToolDefinition[] {
+    const { config, source, repositoryRoot, env } = this.options;
+    return agentNotes(config, repositoryRoot, env, { role: "cartographer", task: `card-${source.id}-${now().toISOString()}`, now });
   }
 
   /** Writes a card that passes its schema. */

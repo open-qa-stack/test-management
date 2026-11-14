@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentRuntime, StopReason, TaskLimits } from "@open-qa-stack/domain";
+import type { AgentEvent, AgentRuntime, StopReason, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
 import type { IndexSourceType } from "@open-qa-stack/shared";
 import { redactText, secretForms, type SourceExport } from "@open-qa-stack/tools";
 import { runAgentTask, taskEnd } from "../common/agent-task.ts";
@@ -23,6 +23,8 @@ export interface GroupElementsOptions {
   readonly former: ReadonlyMap<string, string>;
   /** Called once each batch is over, to record where the grouping stands. */
   readonly afterBatch: () => Promise<void>;
+  /** The tool the session keeps a fact with for the agents after it. */
+  readonly notes: readonly ToolDefinition[];
   /** The runtime that opens the session of each batch. */
   readonly runtime: AgentRuntime;
   /** The limits of each session. */
@@ -90,7 +92,7 @@ export function sessionUse(events: readonly AgentEvent[]): SessionsUse {
  *
  * @remarks
  * The elements no earlier batch settled are cut into batches by `elementBatches`. Each batch gets a session
- * of its own, with `place_elements` as its only tool, told where the grouping stands, the secrets of the
+ * of its own, with `place_elements` and the tool that keeps a note as its only tools, told where the grouping stands, the secrets of the
  * configuration masked. A session a limit
  * stopped leaves the rest of its batch unplaced and the next batch still runs: the limits are those of one
  * session. `afterBatch` is called once each batch is over. A session that fails ends the grouping, and the elements of the batches after it are left
@@ -111,7 +113,7 @@ export async function groupElements(options: GroupElementsOptions): Promise<Sess
     const events: AgentEvent[] = [];
     const task = {
       instructions: groupingInstructions(options.sourceType),
-      tools: [placement.tool()],
+      tools: [placement.tool(), ...options.notes],
       request: redactText(batchRequest(sourceId, i + 1, batches.length, batch, grouping, options.former), forms),
       events,
       reminder: () => placement.reminder(),

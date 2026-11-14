@@ -59,6 +59,7 @@ async function mapped(folder: SourceFolder, elements: readonly ExportedElement[]
     source: { id: "shop-db", type: "postgresql" },
     exported: { elements, fingerprint: "sha256:1" },
     partial: false,
+    notes: [],
     force,
     folder,
     runtime: model,

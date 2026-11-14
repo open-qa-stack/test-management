@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentRuntime, TaskLimits } from "@open-qa-stack/domain";
+import type { AgentEvent, AgentRuntime, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
 import type { ManifestDomain, SourceManifest } from "@open-qa-stack/shared";
 import type { ExportedElement, SourceExport } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
@@ -23,6 +23,8 @@ export interface ExportedSourceOptions {
   readonly force: boolean;
   /** The folder of the source, in the test repository. */
   readonly folder: SourceFolder;
+  /** The tool each session keeps a fact with for the agents after it. */
+  readonly notes: readonly ToolDefinition[];
   /** The runtime that opens the sessions. */
   readonly runtime: AgentRuntime;
   /** The limits of each session. */

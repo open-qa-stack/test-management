@@ -239,7 +239,7 @@ describe("the grouping of a base, batch by batch", () => {
     const body = server.requests[0]!.body as { messages: { role: string; content: string }[]; tools: { function: { name: string } }[] };
     assert.deepEqual(
       body.tools.map((tool) => tool.function.name),
-      ["place_elements"],
+      ["place_elements", "remember"],
     );
     assert.ok(
       body.messages
@@ -425,10 +425,17 @@ describe("the grouping of a base, batch by batch", () => {
 });
 
 describe("the files of the domains of a base", () => {
-  it("asks the model for the body of each domain in a session without tools, and writes the file with its header", async () => {
+  it("asks the model for the body of each domain in a session that may keep a note and has no other tool, and writes the file with its header", async () => {
     const { outcome, server } = await cartography(happy());
-    const asked = server.requests[3]!.body as { messages: { role: string; content: string }[]; tools?: unknown[] };
-    assert.deepEqual(asked.tools ?? [], []);
+    const asked = server.requests[3]!.body as { messages: { role: string; content: string }[]; tools: { function: { name: string } }[] };
+    assert.deepEqual(
+      asked.tools.map((tool) => tool.function.name),
+      ["remember"],
+    );
+    assert.match(
+      asked.messages.find((message) => message.role === "system")!.content,
+      /\n- Keep with remember what the agents after you should know and no element says by itself/,
+    );
     assert.ok(
       asked.messages
         .find((message) => message.role === "user")!
@@ -830,83 +837,159 @@ describe("the workflow of an API contract", () => {
   });
 });
 
-describe("the workflow of a document", () => {
-  it("exports its sections, has them grouped and documented in the words of a document, and derives the card of its sections", async () => {
+describe("the cartography of the documents of a source, by the agent that reads them", () => {
+  it("gives the agent the tools of the documents, the notes and the two tools of its map, writes what it hands in, and keeps the card while the documents do not change", async () => {
     const root = mkdtempSync(join(workspace, "repo-"));
-    const text = [
-      "# Orders",
-      "",
-      "What an order is.",
-      "",
-      "## Place an order",
-      "",
-      "A customer places an order.",
-      "",
-      "### Limits",
-      "",
-      "Ten lines.",
-      "",
-      "# Glossary",
-      "",
+    const files = {
+      "docs/orders/place.md": "# Place an order\n\nA customer places an order.\n\n## Limits\n\nTen lines at most.\n",
+      "docs/orders/cancel.md": "# Cancel an order\n\nBefore it ships.\n",
+      "docs/changelog.md": "# Changes\n",
+    };
+    for (const [path, text] of Object.entries(files)) {
+      mkdirSync(dirname(join(root, path)), { recursive: true });
+      writeFileSync(join(root, path), text);
+    }
+    const source: CardSource = { id: "shop-specs", type: "document", path: "docs", attachments: [{ application: "shop" }] };
+    const call = (id: string, name: string, args: object = {}) => ({ id, name, arguments: args });
+    const ordering = { id: "ordering", label: "Ordering", description: "Placing and cancelling orders." };
+    const elements = [
+      { file: "orders/place.md", section: 2, role: "How many lines an order holds." },
+      { file: "orders/cancel.md", role: "When an order may be cancelled." },
     ];
-    writeFileSync(join(root, "shop.md"), text.join("\n"));
-    const source: CardSource = { id: "shop-specs", type: "document", path: "shop.md", attachments: [{ application: "shop" }] };
-    const ordering = { id: "ordering", label: "Ordering", description: "Placing orders." };
-    const placed = [
-      { name: "Orders", domain: "ordering", role: "What an order is." },
-      { name: "Place an order", domain: "ordering", role: "How an order is placed, and its limits." },
+    const body = "`orders/place.md § Limits` caps an order at ten lines; `orders/cancel.md` allows a cancellation before shipping.";
+    const script = () => [
+      {
+        body: toolCalls(MODEL, [
+          call("l1", "shop_specs_list_files"),
+          call("s1", "shop_specs_list_sections", { file: "orders/place.md" }),
+          call("r1", "shop_specs_read_file", { file: "orders/cancel.md" }),
+        ]),
+      },
+      {
+        body: toolCalls(MODEL, [
+          call("w1", "write_domain", { ...ordering, elements, body }),
+          call("a1", "set_aside", { files: ["changelog.md"], reason: "A change log." }),
+        ]),
+      },
+      { body: answer(MODEL, "One domain.") },
     ];
-    const aside = { name: "Glossary", reason: "An empty glossary." };
-    const { outcome, server } = await cartography(
-      [
-        { body: toolCalls(MODEL, [place([...placed, aside], [ordering])]) },
-        { body: toolCalls(MODEL, [place([aside], undefined, "p2")]) },
-        { body: answer(MODEL, "Done.") },
-        { body: answer(MODEL, "`Orders` says what an order is; `Place an order` gives the rule of ten lines.") },
-      ],
-      { source, root },
-    );
+    const { outcome, server } = await cartography(script(), { source, root });
     assert.ok(outcome.card, messages(outcome));
+    assert.ok(validateSourceCard(JSON.parse(readFileSync(outcome.cardPath!, "utf8"))).ok);
+    // The elements are the agent's: a section of one document, another document whole.
     assert.deepEqual(outcome.card.domains, [
       {
         ...ordering,
         items: [
-          { name: "Orders", summary: "What an order is.", facts: { number: 1, level: 1 } },
-          { name: "Place an order", summary: "How an order is placed, and its limits.", facts: { number: 2, level: 2 } },
+          { name: "orders/place.md § Limits", summary: "How many lines an order holds.", facts: { kind: "section" } },
+          { name: "orders/cancel.md", summary: "When an order may be cancelled.", facts: { kind: "document" } },
         ],
       },
     ]);
-    assert.deepEqual([outcome.card.unassigned, outcome.card.status], [["Glossary"], "complete"]);
+    assert.deepEqual([outcome.card.unassigned, outcome.card.status], [["changelog.md"], "complete"]);
+    const manifest = manifestOf(outcome);
     assert.deepEqual(
-      manifestOf(outcome).elements.map((element) => [element.name, element.kind, element.file]),
+      manifest.elements.map((element) => [element.name, element.kind, element.domain ?? element.dismissed]),
       [
-        ["Orders", "section", "export/sections/Orders-" + manifestOf(outcome).elements[0]!.file.slice(-11)],
-        ["Place an order", "section", "export/sections/Place_an_order-" + manifestOf(outcome).elements[1]!.file.slice(-11)],
-        ["Glossary", "section", "export/sections/Glossary-" + manifestOf(outcome).elements[2]!.file.slice(-11)],
+        ["orders/place.md § Limits", "section", "ordering"],
+        ["orders/cancel.md", "document", "ordering"],
+        ["changelog.md", "document", "A change log."],
       ],
     );
-    const sent = (at: number) => (server.requests[at]!.body as { messages: { role: string; content: string }[] }).messages;
-    const instructions = (at: number) => sent(at).find((message) => message.role === "system")!.content;
-    assert.match(instructions(0), /You group the elements of one source of an application — the sections of a document — into functional domains/);
+    const folder = outcome.cardPath!.replace(/\.json$/, "");
+    assert.equal(readFileSync(join(folder, manifest.domains[0]!.file!), "utf8"), `# Ordering (\`ordering\`)\n\nPlacing and cancelling orders.\n\n${body}\n`);
+    assert.equal(readFileSync(join(folder, manifest.elements[0]!.file), "utf8"), "## Limits\n\nTen lines at most.\n");
+    const first = server.requests[0]!.body as { messages: { role: string; content: string }[]; tools: { function: { name: string } }[] };
+    assert.deepEqual(
+      first.tools.map((tool) => tool.function.name),
+      [
+        "shop_specs_list_files",
+        "shop_specs_list_sections",
+        "shop_specs_read_section",
+        "shop_specs_read_file",
+        "shop_specs_search",
+        "remember",
+        "recall",
+        "write_domain",
+        "set_aside",
+      ],
+    );
     assert.ok(
-      sent(0)
+      first.messages
         .find((message) => message.role === "user")!
-        .content.includes(
+        .content.endsWith(
           [
-            "### Orders",
-            "section Orders (level 1, §1)",
-            "  starts: What an order is.",
-            "  sections: Place an order",
-            "",
-            "### Place an order",
-            "section Place an order (level 2, §2, in Orders)",
-            "  starts: A customer places an order. ### Limits Ten lines.",
-            "  headings: Limits",
-          ].join("\n"),
+            "Map the 3 documents of the source shop-specs.",
+            "Folders of its root:\n- orders/ (2 documents)",
+            "Documents of its root:\n- changelog.md — Changes (1 headings, 10 characters)",
+            "Next: walk the tree, get an idea of each document, then hand each domain in with write_domain.",
+          ].join("\n\n"),
         ),
     );
-    assert.match(instructions(3), /You document one functional domain of one source of an application — the sections of a document — for the agents/);
-    assert.match(instructions(3), /- In code, write a section under its title, as the request does\.\n/);
+    const instructions = first.messages.find((message) => message.role === "system")!.content;
+    for (const said of [
+      "You map the documents of one source of an application",
+      "Every team writes its documents its own way",
+      "shop_specs_list_sections gives its headings without its text",
+      "An element is something a test can aim at",
+      "Keep with remember what the agents after you should know and no single document says",
+    ])
+      assert.ok(instructions.includes(said), said);
+    assert.match(messages(outcome), /The mapping of shop-specs is complete: 1 domains, 2 elements placed, 1 set aside, 0 unplaced\./);
+    // The card bears the fingerprint of the documents: it is kept while none changes, and made again when one does.
+    const kept = await cartography([], { source, root });
+    assert.deepEqual([kept.outcome.kept, kept.server.requests.length], [true, 0]);
+    writeFileSync(join(root, "docs/changelog.md"), "# Changes\n\nOne more.\n");
+    // The domain an earlier run left and this one does not hold loses its file; a session that fails leaves every document unplaced, and no card.
+    const down = await closedPort();
+    const failed = await cartography([], { source, root, modelUrl: `http://127.0.0.1:${down}/v1` });
+    assert.match(messages(failed.outcome), /The session that maps shop-specs failed: /);
+    assert.match(messages(failed.outcome), /3 documents were left in no domain: changelog\.md, orders\/cancel\.md, orders\/place\.md\./);
+    assert.match(messages(failed.outcome), /No card was written: no element of shop-specs was placed\./);
+    assert.equal(existsSync(join(folder, "domains", "ordering.md")), false);
+  });
+
+  it("keeps the file of a domain mapped again, and writes it itself once the agent had three bodies refused", async () => {
+    const root = mkdtempSync(join(workspace, "repo-"));
+    mkdirSync(join(root, "docs"));
+    writeFileSync(join(root, "docs", "orders.md"), "# Orders\n");
+    const source: CardSource = { id: "shop-specs", type: "document", path: "docs", attachments: [{ application: "shop" }] };
+    const domain = { id: "orders", label: "Orders", description: "Orders.", elements: [{ file: "orders.md", role: "The orders." }] };
+    const write = (id: string, body: string) => ({ body: toolCalls(MODEL, [{ id, name: "write_domain", arguments: { ...domain, body } }]) });
+    const read = { body: toolCalls(MODEL, [{ id: "r1", name: "shop_specs_read_file", arguments: { file: "orders.md" } }]) };
+    await cartography([read, write("w1", "`orders.md`"), { body: answer(MODEL, "Done.") }], { source, root });
+    writeFileSync(join(root, "docs", "orders.md"), "# Orders\n\nChanged.\n");
+    const again = await cartography([read, write("w1", "No name."), write("w2", "No name."), write("w3", "No name."), { body: answer(MODEL, "Done.") }], {
+      source,
+      root,
+    });
+    const [orders] = manifestOf(again.outcome).domains;
+    assert.deepEqual(
+      [orders!.id, orders!.writtenBy, orders!.refused],
+      ["orders", "harness", "These elements of the domain are not named: orders.md. Name each exactly as written, between backticks, such as `orders.md`."],
+    );
+    const folder = again.outcome.cardPath!.replace(/\.json$/, "");
+    assert.match(readFileSync(join(folder, orders!.file!), "utf8"), /\| `orders\.md` \| document \| The orders\. \|/);
+    assert.equal(again.outcome.card?.status, "truncated");
+  });
+
+  it("says when a limit cut the session, and leaves the documents not placed in the card as unassigned, truncated", async () => {
+    const root = mkdtempSync(join(workspace, "repo-"));
+    mkdirSync(join(root, "docs"));
+    writeFileSync(join(root, "docs", "orders.md"), "# Orders\n");
+    writeFileSync(join(root, "docs", "returns.md"), "# Returns\n");
+    const source: CardSource = { id: "shop-specs", type: "document", path: "docs", attachments: [{ application: "shop" }] };
+    const domain = { id: "orders", label: "Orders", description: "Orders.", elements: [{ file: "orders.md", role: "The orders." }], body: "`orders.md`" };
+    const { outcome } = await cartography(
+      [
+        { body: toolCalls(MODEL, [{ id: "r1", name: "shop_specs_read_file", arguments: { file: "orders.md" } }]) },
+        { body: toolCalls(MODEL, [{ id: "w1", name: "write_domain", arguments: domain }]) },
+        { body: answer(MODEL, "Done.") },
+      ],
+      { source, root, limits: { maxIterations: 2, maxMinutes: 10, maxActions: 200 } },
+    );
+    assert.match(messages(outcome), /The session that maps shop-specs reached its iterations limit\./);
+    assert.deepEqual([outcome.card?.status, outcome.card?.unassigned, outcome.stoppedBy], ["truncated", ["returns.md"], "iterations"]);
   });
 });
 
@@ -1011,16 +1094,12 @@ describe("freshness, criterion 2 — the sources without an up-to-date card are 
   it("opens one session per source, with the tools of that source only, then keeps every card", async () => {
     const root = mkdtempSync(join(workspace, "repo-"));
     writeFileSync(join(root, "specs.md"), "# Orders\n\n## Place an order\n");
-    // The document goes through the workflow of its export, as the base does: its sections placed, then the file of their domain.
-    const ordering = { id: "ordering", label: "Ordering", description: "Placing orders." };
-    const sections = [
-      { name: "Orders", domain: "ordering", role: "The orders." },
-      { name: "Place an order", domain: "ordering", role: "How an order is placed." },
-    ];
+    // The document is mapped by the agent that reads it, in a session of its own: it reads it, then hands its domain in.
+    const ordering = { id: "ordering", label: "Ordering", description: "Placing orders.", elements: [{ file: "specs.md", role: "How an order is placed." }] };
     const specs = [
-      { body: toolCalls(MODEL, [place(sections, [ordering])]) },
-      { body: answer(MODEL, "Done.") },
-      { body: answer(MODEL, "`Orders` holds `Place an order`.") },
+      { body: toolCalls(MODEL, [{ id: "r1", name: "specs_read_file", arguments: {} }]) },
+      { body: toolCalls(MODEL, [{ id: "w1", name: "write_domain", arguments: { ...ordering, body: "`specs.md` says how an order is placed." } }]) },
+      { body: answer(MODEL, "One domain.") },
     ];
     const map = async (replies: readonly { body: unknown }[], concurrency?: number) => {
       const server = await scriptedServer(replies);
@@ -1053,8 +1132,9 @@ describe("freshness, criterion 2 — the sources without an up-to-date card are 
     );
     const toolsOf = (request: number) =>
       ((first.server.requests[request]!.body as { tools?: { function: { name: string } }[] }).tools ?? []).map((tool) => tool.function.name);
-    assert.deepEqual([toolsOf(0), toolsOf(3)], [["place_elements"], []]);
-    assert.deepEqual(toolsOf(5), ["place_elements"]);
+    // The sessions that place a batch and that write the file of a domain keep a note, and get no tool of the base.
+    assert.deepEqual([toolsOf(0), toolsOf(3)], [["place_elements", "remember"], ["remember"]]);
+    assert.ok(toolsOf(5).includes("specs_read_section") && toolsOf(5).includes("write_domain") && !toolsOf(5).some((name) => name.startsWith("shop_db_")));
     assert.equal((first.server.requests[5]!.body as { messages: unknown[] }).messages.length, 2, "the second source starts a session of its own");
     const again = await map([], 2);
     assert.deepEqual([again.results.map(({ outcome }) => outcome.kept), again.server.requests.length], [[true, true], 0]);
@@ -1174,9 +1254,13 @@ describe("sources a card must still be made of", () => {
 describe("how mapSources runs the tasks", () => {
   it("runs one task at a time when the number asked is not a whole number above zero, in the order of the configuration", async () => {
     const root = mkdtempSync(join(workspace, "repo-"));
-    for (const name of ["a.md", "b.md"]) writeFileSync(join(root, name), "No heading.\n");
+    // Two folders of documents that hold none a reader reads: sources without any element, mapped without the model.
+    for (const name of ["a", "b"]) {
+      mkdirSync(join(root, name));
+      writeFileSync(join(root, name, "notes.txt"), "No document.\n");
+    }
     const unused: AgentRuntime = { openSession: () => Promise.reject(new Error("no session expected")), close: async () => undefined };
-    const documents = ["a", "b"].map((id): Knowledge => ({ id, type: "document", path: `${id}.md`, attachments: [{ application: "shop" }] }));
+    const documents = ["a", "b"].map((id): Knowledge => ({ id, type: "document", path: id, attachments: [{ application: "shop" }] }));
     const config = { ...configFor("http://127.0.0.1:1"), knowledge: documents };
     const run = (concurrency?: number) =>
       mapSources({ config, environment: "local", repositoryRoot: root, env: {}, runtime: unused, ...(concurrency === undefined ? {} : { concurrency }) });
@@ -1189,10 +1273,14 @@ describe("how mapSources runs the tasks", () => {
 
   it("maps every other source before it throws the failure of one", async () => {
     const root = mkdtempSync(join(workspace, "repo-"));
-    for (const name of ["a.md", "b.md"]) writeFileSync(join(root, name), "No heading.\n");
+    // Two folders of documents that hold none a reader reads: sources without any element, mapped without the model.
+    for (const name of ["a", "b"]) {
+      mkdirSync(join(root, name));
+      writeFileSync(join(root, name, "notes.txt"), "No document.\n");
+    }
     mkdirSync(join(root, ".oqas", "index", "sources", "a.json"), { recursive: true });
     const unused: AgentRuntime = { openSession: () => Promise.reject(new Error("no session expected")), close: async () => undefined };
-    const documents = ["a", "b"].map((id): Knowledge => ({ id, type: "document", path: `${id}.md`, attachments: [{ application: "shop" }] }));
+    const documents = ["a", "b"].map((id): Knowledge => ({ id, type: "document", path: id, attachments: [{ application: "shop" }] }));
     await assert.rejects(
       mapSources({
         config: { ...configFor("http://127.0.0.1:1"), knowledge: documents },
@@ -1210,11 +1298,12 @@ describe("how mapSources runs the tasks", () => {
 describe("what no index is made of", () => {
   it("writes no index when the cards hold no element, without consolidating", async () => {
     const root = mkdtempSync(join(workspace, "repo-"));
-    writeFileSync(join(root, "notes.md"), "No heading.\n");
+    mkdirSync(join(root, "notes"));
+    writeFileSync(join(root, "notes", "readme.txt"), "No document.\n");
     const unused: AgentRuntime = { openSession: () => Promise.reject(new Error("no session expected")), close: async () => undefined };
     const config = {
       ...configFor("http://127.0.0.1:1"),
-      knowledge: [{ id: "notes", type: "document", path: "notes.md", attachments: [{ application: "shop" }] } as Knowledge],
+      knowledge: [{ id: "notes", type: "document", path: "notes", attachments: [{ application: "shop" }] } as Knowledge],
     };
     const outcome = await new Cartographer({ config, environment: "local", repositoryRoot: root, env: {}, runtime: unused }).run();
     assert.equal(outcome.index, undefined);

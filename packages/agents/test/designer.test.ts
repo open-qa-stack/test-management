@@ -1558,7 +1558,10 @@ describe("brief, criterion 1 — from the brief, the knowledge tools lead to the
     assert.equal(outcome.ok, true, messages(outcome));
     assert.ok(requestText(server).includes("<brief>\\ntester la recherche d'un client\\n</brief>"));
     assert.match(toolResult(server, "f1"), /shop-guide: Customer search/);
-    assert.match(toolResult(server, "e1"), /Source shop-guide \(document\): read it with shop_guide_list_sections, shop_guide_read_section\./);
+    assert.match(
+      toolResult(server, "e1"),
+      /Source shop-guide \(document\): read it with shop_guide_list_files, shop_guide_list_sections, shop_guide_read_section, shop_guide_read_file, shop_guide_search\./,
+    );
     assert.match(toolResult(server, "e1"), /Domains: customers\./);
     assert.match(toolResult(server, "s1"), /finds a customer by the start of their last name/);
     assert.equal(stateOf(outcome).brief, "tester la recherche d'un client");

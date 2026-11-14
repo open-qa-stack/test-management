@@ -186,12 +186,15 @@ const isFinalRun = (command: StepCommand) =>
   command.command[1] === "test" && !command.command.includes("--list") && !command.command.includes("--update-snapshots=missing");
 
 const submit = (name: string, args: unknown, id: string) => ({ id, name, arguments: args });
-const placement = {
-  domains: [{ id: "orders", label: "Orders", description: "Placing an order." }],
-  items: [{ name: "Orders", domain: "orders", role: "How an order is placed." }],
+const mapped = {
+  id: "orders",
+  label: "Orders",
+  description: "Placing an order.",
+  elements: [{ file: "orders.md", role: "How an order is placed." }],
+  body: "`orders.md` says how an order is placed.",
 };
 const index = {
-  domains: [{ id: "orders", label: "Orders", description: "Placing and following an order.", references: [{ source: "order-specs", items: ["Orders"] }] }],
+  domains: [{ id: "orders", label: "Orders", description: "Placing and following an order.", references: [{ source: "order-specs", items: ["orders.md"] }] }],
   unassigned: [],
 };
 const spec = (title: string) =>
@@ -231,10 +234,10 @@ const written = (id: string) => [
 const planned = { body: toolCalls(MODEL, [plan]) };
 const chain = () => [
   { body: { data: [] } },
-  // The document goes through the workflow of its export: its one section is placed, then the file of its domain is written.
-  { body: toolCalls(MODEL, [submit("place_elements", placement, "c1")]) },
-  { body: answer(MODEL, "Done.") },
-  { body: answer(MODEL, "`Orders` says how an order is placed.") },
+  // The document is mapped by the agent that reads it: it reads it, hands its domain in with its file, then ends.
+  { body: toolCalls(MODEL, [submit("order_specs_read_file", {}, "c0")]) },
+  { body: toolCalls(MODEL, [submit("write_domain", mapped, "c1")]) },
+  { body: answer(MODEL, "One domain.") },
   { body: toolCalls(MODEL, [submit("submit_index", index, "x1")]) },
   { body: answer(MODEL, "One domain.") },
   read(),
@@ -879,7 +882,7 @@ describe("the guardrail of a run", () => {
   it("stops a task opened once the guardrail is reached, by its duration limit", async () => {
     const run = await guarded({ level: "autonomous", guardrailMinutes: 1 }, "2026-11-13T12:01:00.000Z");
     assert.equal(run.code, 5, run.err);
-    assert.match(run.err, /The session of batch 1 of 1 reached its duration limit\./);
+    assert.match(run.err, /The session that maps order-specs reached its duration limit\./);
     assert.equal(run.limits[0]?.maxDurationMs, 0);
     assert.deepEqual(stateOf(run.root).stoppedBy, { step: "cartography", limit: "duration" });
   });
@@ -953,7 +956,8 @@ describe("autonomy, criterion 4 — a design stopped by maxIterations after a pl
   it("keeps the cards a cartography made, then the plan of a design stopped before its first test", async () => {
     const bad = { body: toolCalls(MODEL, [submit("submit_index", { domains: [], unassigned: [] }, "x0")]) };
     const server = await scriptedServer([
-      ...chain().slice(0, 4),
+      // The session that maps the document is cut at its second call, once its domain is handed in: its last answer is never asked.
+      ...chain().slice(0, 3),
       bad,
       bad,
       { body: { data: [] } },

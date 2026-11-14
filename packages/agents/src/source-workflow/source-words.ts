@@ -32,22 +32,12 @@ const CONTRACT: SourceWords = {
     "a table of the operations with their role, the parameters worth filtering on, what each sends and returns with the properties a test reads, the statuses it answers with, how the operations and schemas link to each other and to the other domains, and a few hints on how to call them",
 };
 
-const DOCUMENT: SourceWords = {
-  elements: "the sections of a document",
-  aside: "a table of contents, a change log",
-  cited: "`Place an order`",
-  inCode: "In code, write a section under its title, as the request does.",
-  useful:
-    "a table of the sections with their role, the business rules and the values each states that a test can verify, how the sections link to each other and to the other domains, and a few hints on which to read first",
-};
-
 /**
  * The words of the instructions for a source.
  *
  * @param type - What the source is.
- * @returns Those of an API contract or of a document for one, those of a database otherwise.
+ * @returns Those of an API contract for one, those of a database otherwise.
  */
 export function sourceWords(type: IndexSourceType): SourceWords {
-  if (type === "openapi") return CONTRACT;
-  return type === "document" ? DOCUMENT : DATABASE;
+  return type === "openapi" ? CONTRACT : DATABASE;
 }

@@ -170,6 +170,7 @@ async function written(answers: readonly (string | AgentEvent)[]) {
   const outcome = await writeDomain({
     sourceId: "shop-db",
     sourceType: "postgresql",
+    notes: [],
     domain: ORDERS,
     members: ELEMENTS,
     others: [CUSTOMERS],

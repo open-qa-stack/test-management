@@ -20,7 +20,8 @@ Rules:
 - Say only what the request shows. Never invent an element, a name or a value: a name written in code that the source does not have is refused.
 - ${words.inCode}
 - A useful file has ${words.useful}. Leave out a part you have nothing to say about.
-- Write in English, under ${MAX_DOMAIN_FILE_LENGTH} characters.`;
+- Write in English, under ${MAX_DOMAIN_FILE_LENGTH} characters.
+- Keep with remember what the agents after you should know and no element says by itself, such as a rule several elements share or a name the team uses its own way. Not everything: a few facts that matter.`;
 }
 
 /**
