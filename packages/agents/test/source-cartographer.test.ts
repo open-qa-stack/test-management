@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, before, describe, it } from "node:test";
@@ -21,12 +21,13 @@ import { CARDS_FOLDER, Cartographer, mapSources, SourceCartographer, type CardSo
 const MODEL = "test-model";
 const DB: MappedKnowledge = { id: "shop-db", type: "postgresql", connectionStringEnv: "SHOP_DB_URL", attachments: [{ application: "shop" }] };
 
-/** A catalog of three tables, and a view on demand, whose structure can change, which remembers every query. */
+/** A catalog of three tables, and a view, a function and a trigger on demand, whose structure can change, which remembers every query. */
 class CatalogDouble implements SqlClient {
   public readonly queries: string[] = [];
   public extraColumn = false;
   public statusType = "text";
   public view = false;
+  public routineBody: string | undefined;
 
   /** {@inheritDoc SqlClient.query} */
   public async query(text: string): Promise<SqlResult> {
@@ -43,6 +44,20 @@ class CatalogDouble implements SqlClient {
     if (text.includes("pg_get_viewdef")) {
       const view = [["public", "open_orders", false, " SELECT id\n   FROM orders\n  WHERE status = 'open'::text;", ["id"], ["public.orders"]]];
       return rows(["schema", "view", "materialized", "definition", "columns", "reads"], this.view ? view : []);
+    }
+    if (text.includes("pg_get_functiondef")) {
+      const definition = `CREATE OR REPLACE FUNCTION public.touch()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$ ${this.routineBody} $function$\n`;
+      return rows(
+        ["schema", "name", "arguments", "result", "definition", "parameters"],
+        this.routineBody === undefined ? [] : [["public", "touch", "", "trigger", definition, []]],
+      );
+    }
+    if (text.includes("pg_get_triggerdef")) {
+      const definition = "CREATE TRIGGER orders_touch BEFORE UPDATE ON public.orders FOR EACH ROW EXECUTE FUNCTION touch()";
+      return rows(
+        ["schema", "table", "name", "definition", "routine_schema", "routine_name", "routine_arguments"],
+        this.routineBody === undefined ? [] : [["public", "orders", "orders_touch", definition, "public", "touch", ""]],
+      );
     }
     if (text.includes("pg_constraint")) {
       return {
@@ -264,6 +279,35 @@ describe("the views of a base, placed like its tables", () => {
       "CREATE VIEW public.open_orders AS\n SELECT id\n   FROM orders\n  WHERE status = 'open'::text;\n",
     );
     assert.ok(readFileSync(join(folder, "export", "summary.txt"), "utf8").endsWith("\n\nview public.open_orders\n  columns: id\n  reads: public.orders\n"));
+  });
+});
+
+describe("the routines and the triggers of a base, exported but not placed", () => {
+  it("writes a routine in the export without asking the card to place it, gives a table its triggers, and makes the card again when a routine changes", async () => {
+    const root = mkdtempSync(join(workspace, "repo-"));
+    const database = new CatalogDouble();
+    database.routineBody = "BEGIN NEW.status := 'touched'; RETURN NEW; END";
+    const { outcome, server } = await cartography(happy(), { root, database });
+    const request = JSON.stringify(server.requests[0]!.body);
+    assert.ok(request.includes(JSON.stringify(`exactly these names: ["public.orders","public.customers","public.schema_migrations"].`).slice(1, -1)));
+    assert.ok(request.includes(JSON.stringify(`"referencedColumns":["id"]}]; triggers: ["orders_touch"])`).slice(1, -1)));
+    assert.deepEqual([outcome.card!.status, outcome.card!.domains[0]!.items[0]!.facts!["triggers"]], ["complete", ["orders_touch"]]);
+    const folder = outcome.cardPath!.replace(/\.json$/, "");
+    const [file] = readdirSync(join(folder, "export", "routines"));
+    assert.match(file!, /^public\.touch_-[0-9a-f]{8}\.sql$/);
+    assert.equal(
+      readFileSync(join(folder, "export", "routines", file!), "utf8"),
+      "CREATE OR REPLACE FUNCTION public.touch()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$ BEGIN NEW.status := 'touched'; RETURN NEW; END $function$\n",
+    );
+    assert.ok(readFileSync(join(folder, "export", "summary.txt"), "utf8").endsWith("\n\nfunction public.touch() returns trigger\n"));
+    assert.ok(
+      readFileSync(join(folder, "export", "tables", "public.orders.sql"), "utf8").endsWith(
+        ");\n\nCREATE TRIGGER orders_touch BEFORE UPDATE ON public.orders FOR EACH ROW EXECUTE FUNCTION touch();\n",
+      ),
+    );
+    assert.equal((await cartography([], { root, database })).outcome.kept, true);
+    database.routineBody = "BEGIN RETURN NEW; END";
+    assert.equal((await cartography(happy(), { root, database })).outcome.kept, false);
   });
 });
 

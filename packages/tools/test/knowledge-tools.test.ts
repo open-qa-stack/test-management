@@ -13,8 +13,10 @@ import {
   assertCatalogQuery,
   COLUMNS_QUERY,
   KEYS_QUERY,
+  ROUTINES_QUERY,
   SERVER_ACCESS_QUERY,
   TABLES_QUERY,
+  TRIGGERS_QUERY,
   VIEWS_QUERY,
 } from "../src/postgresql/catalog-query.ts";
 import { DatabaseCatalog } from "../src/postgresql/database-catalog.ts";
@@ -214,7 +216,7 @@ describe("criterion 3 — the catalog tools read the catalog and nothing else", 
     ]) {
       assert.throws(() => assertCatalogQuery(query), /Only the catalog queries/, query);
     }
-    for (const query of [TABLES_QUERY, COLUMNS_QUERY, ALL_COLUMNS_QUERY, KEYS_QUERY, VIEWS_QUERY, SERVER_ACCESS_QUERY])
+    for (const query of [TABLES_QUERY, COLUMNS_QUERY, ALL_COLUMNS_QUERY, KEYS_QUERY, VIEWS_QUERY, ROUTINES_QUERY, TRIGGERS_QUERY, SERVER_ACCESS_QUERY])
       assert.doesNotThrow(() => assertCatalogQuery(query));
   });
 

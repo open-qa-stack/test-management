@@ -1,4 +1,14 @@
-import { ALL_COLUMNS_QUERY, assertCatalogQuery, COLUMNS_QUERY, KEYS_QUERY, SERVER_ACCESS_QUERY, TABLES_QUERY, VIEWS_QUERY } from "./catalog-query.ts";
+import {
+  ALL_COLUMNS_QUERY,
+  assertCatalogQuery,
+  COLUMNS_QUERY,
+  KEYS_QUERY,
+  ROUTINES_QUERY,
+  SERVER_ACCESS_QUERY,
+  TABLES_QUERY,
+  TRIGGERS_QUERY,
+  VIEWS_QUERY,
+} from "./catalog-query.ts";
 import type { SqlClient } from "./sql-client.ts";
 
 /** A table of the database, as the list tool shows it. */
@@ -53,6 +63,31 @@ export interface ViewSummary {
   readonly reads: readonly string[];
 }
 
+/** A function or a procedure of the database. */
+export interface RoutineSummary {
+  /**
+   * The routine, as `schema.name(arguments)`: its arguments, each with its name when it has one and its
+   * type, tell it from the others of its name.
+   */
+  readonly routine: string;
+  /** What a function returns; absent for a procedure. */
+  readonly returns?: string;
+  /** Its definition, as the database writes it. */
+  readonly definition: string;
+  /** Names of its parameters, in order. */
+  readonly parameters: readonly string[];
+}
+
+/** A trigger of a table or of a view. */
+export interface TriggerSummary {
+  /** Name of the trigger. */
+  readonly name: string;
+  /** Its definition, as the database writes it. */
+  readonly definition: string;
+  /** The routine it runs, named as a `RoutineSummary` names it. */
+  readonly routine: string;
+}
+
 /** The structure of a database, read at once. */
 export interface DatabaseStructure {
   /** Its tables, in the order of the catalog. */
@@ -63,6 +98,10 @@ export interface DatabaseStructure {
   readonly keys: ReadonlyMap<string, TableKeys>;
   /** Its views, in the order of the catalog. */
   readonly views: readonly ViewSummary[];
+  /** Its functions and procedures, in the order of the catalog. */
+  readonly routines: readonly RoutineSummary[];
+  /** The triggers of each table or view that has some, by `schema.name`. */
+  readonly triggers: ReadonlyMap<string, readonly TriggerSummary[]>;
 }
 
 /** Reads the structure of a database, never its rows. */
@@ -150,14 +189,58 @@ export class DatabaseCatalog {
   }
 
   /**
+   * @returns The functions and procedures of the database, without the catalog's own nor those an extension
+   * installed.
+   * @throws Error when the database cannot be reached.
+   */
+  public async routines(): Promise<RoutineSummary[]> {
+    const rows = await this.read(ROUTINES_QUERY, []);
+    return rows.map((row) => ({
+      routine: routineName(row["schema"], row["name"], row["arguments"]),
+      ...(typeof row["result"] === "string" ? { returns: row["result"] } : {}),
+      definition: String(row["definition"]),
+      parameters: (row["parameters"] as string[]).map(String),
+    }));
+  }
+
+  /**
+   * Reads the triggers of every table and view, without those the database makes for its own constraints.
+   *
+   * @returns The triggers of each table or view that has some, in the order of their names, by `schema.name`.
+   * @throws Error when the database cannot be reached.
+   */
+  public async triggers(): Promise<Map<string, TriggerSummary[]>> {
+    const triggers = new Map<string, TriggerSummary[]>();
+    for (const row of await this.read(TRIGGERS_QUERY, [])) {
+      const table = `${String(row["schema"])}.${String(row["table"])}`;
+      triggers.set(table, [
+        ...(triggers.get(table) ?? []),
+        {
+          name: String(row["name"]),
+          definition: String(row["definition"]),
+          routine: routineName(row["routine_schema"], row["routine_name"], row["routine_arguments"]),
+        },
+      ]);
+    }
+    return triggers;
+  }
+
+  /**
    * Reads the whole structure, each catalog query once.
    *
-   * @returns The tables of the database, their columns and their keys, and its views.
+   * @returns The tables of the database, their columns, keys and triggers, its views and its routines.
    * @throws Error when the database cannot be reached.
    */
   public async structure(): Promise<DatabaseStructure> {
-    const [tables, columns, keys, views] = await Promise.all([this.tables(), this.allColumns(), this.keys(), this.views()]);
-    return { tables, columns, keys, views };
+    const [tables, columns, keys, views, routines, triggers] = await Promise.all([
+      this.tables(),
+      this.allColumns(),
+      this.keys(),
+      this.views(),
+      this.routines(),
+      this.triggers(),
+    ]);
+    return { tables, columns, keys, views, routines, triggers };
   }
 
   /**
@@ -174,4 +257,9 @@ export class DatabaseCatalog {
     assertCatalogQuery(text);
     return (await this.client.query(text, values)).rows;
   }
+}
+
+/** A routine as `schema.name(arguments)`, from the columns of a catalog row. */
+function routineName(schema: unknown, name: unknown, identityArguments: unknown): string {
+  return `${String(schema)}.${String(name)}(${String(identityArguments)})`;
 }

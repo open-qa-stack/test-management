@@ -45,7 +45,7 @@ class CatalogDouble implements SqlClient {
   /** {@inheritDoc SqlClient.query} */
   public async query(text: string): Promise<{ columns: string[]; rows: Record<string, unknown>[] }> {
     this.queries.push(text);
-    if (text.includes("pg_constraint") || text.includes("pg_get_viewdef")) return { columns: [], rows: [] };
+    if (["pg_constraint", "pg_get_viewdef", "pg_get_functiondef", "pg_get_triggerdef"].some((part) => text.includes(part))) return { columns: [], rows: [] };
     if (text.includes("information_schema.tables")) return { columns: ["schema", "table"], rows: this.tables.map((table) => ({ schema: "public", table })) };
     return { columns: ["name", "type", "nullable"], rows: [{ name: "id", type: "bigint", nullable: false }] };
   }

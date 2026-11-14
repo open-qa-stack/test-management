@@ -62,6 +62,42 @@ export const VIEWS_QUERY = `SELECT n.nspname AS schema, c.relname AS view, c.rel
   ORDER BY n.nspname, c.relname`;
 
 /**
+ * Every function and procedure of the database, without the catalog's own nor those an extension installed:
+ * its arguments as they tell it from the others of its name, what it returns — nothing for a procedure —
+ * its definition as the database writes it, and the names of its parameters, in order.
+ */
+export const ROUTINES_QUERY = `SELECT n.nspname AS schema, p.proname AS name,
+    pg_catalog.pg_get_function_identity_arguments(p.oid) AS arguments,
+    pg_catalog.pg_get_function_result(p.oid) AS result,
+    pg_catalog.pg_get_functiondef(p.oid) AS definition,
+    ARRAY(SELECT a.name FROM unnest(p.proargnames) WITH ORDINALITY AS a(name, position)
+      WHERE a.name <> '' ORDER BY a.position)::text[] AS parameters
+  FROM pg_catalog.pg_proc p
+  JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+  WHERE p.prokind IN ('f', 'p') AND n.nspname <> 'information_schema' AND n.nspname !~ '^pg_'
+    AND NOT EXISTS (
+      SELECT 1 FROM pg_catalog.pg_depend e
+      WHERE e.classid = 'pg_catalog.pg_proc'::regclass AND e.objid = p.oid AND e.deptype = 'e'
+    )
+  ORDER BY n.nspname, p.proname, 3`;
+
+/**
+ * Every trigger of a table or a view, without those the database makes for its own constraints: its
+ * definition as the database writes it, and the routine it runs, with the arguments that identify it.
+ */
+export const TRIGGERS_QUERY = `SELECT n.nspname AS schema, c.relname AS table, t.tgname AS name,
+    pg_catalog.pg_get_triggerdef(t.oid) AS definition,
+    pn.nspname AS routine_schema, p.proname AS routine_name,
+    pg_catalog.pg_get_function_identity_arguments(p.oid) AS routine_arguments
+  FROM pg_catalog.pg_trigger t
+  JOIN pg_catalog.pg_class c ON c.oid = t.tgrelid
+  JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+  JOIN pg_catalog.pg_proc p ON p.oid = t.tgfoid
+  JOIN pg_catalog.pg_namespace pn ON pn.oid = p.pronamespace
+  WHERE NOT t.tgisinternal AND n.nspname <> 'information_schema' AND n.nspname !~ '^pg_'
+  ORDER BY n.nspname, c.relname, t.tgname`;
+
+/**
  * Whether the role of the connection can reach the database server itself: a superuser, or a member of
  * a predefined role that reads or writes its files or runs its programs.
  */
@@ -72,7 +108,7 @@ export const SERVER_ACCESS_QUERY = `SELECT r.rolsuper OR EXISTS (
   ) AS server_access
   FROM pg_catalog.pg_roles r WHERE r.rolname = current_user`;
 
-const ALLOWED = new Set([TABLES_QUERY, COLUMNS_QUERY, ALL_COLUMNS_QUERY, KEYS_QUERY, VIEWS_QUERY, SERVER_ACCESS_QUERY]);
+const ALLOWED = new Set([TABLES_QUERY, COLUMNS_QUERY, ALL_COLUMNS_QUERY, KEYS_QUERY, VIEWS_QUERY, ROUTINES_QUERY, TRIGGERS_QUERY, SERVER_ACCESS_QUERY]);
 
 /**
  * Refuses any query but the fixed catalog queries.

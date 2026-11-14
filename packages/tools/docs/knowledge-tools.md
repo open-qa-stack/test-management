@@ -38,16 +38,19 @@ A source that cannot be reached, or a database whose connection string is not se
 
 ## Export of a database
 
-`knowledgeInventory(source, access)` reads what a source holds without the model. For a `postgresql` source it reads the catalog once and returns, with the inventory, the `export` of the database: its elements, tables first, then views, each with a `name`, a `kind`, a `summary` of a few lines, its whole `definition`, the `names` it declares, the `links` to the other elements it refers to, the `file` of its definition in the export and a `fingerprint`.
+`knowledgeInventory(source, access)` reads what a source holds without the model. For a `postgresql` source it reads the catalog once and returns, with the inventory, the `export` of the database: its elements, tables first, then views, then functions and procedures, each with a `name`, a `kind`, a `summary` of a few lines, its whole `definition`, the `names` it declares, the `links` to the other elements it refers to, the `file` of its definition in the export and a `fingerprint`.
 
 | Kind | Name | Definition | Summary | Names | Links | File |
 |---|---|---|---|---|---|---|
 | `table` | `schema.table` | A `CREATE TABLE` written again from the catalog: columns with their type and `NOT NULL`, primary key, foreign keys | Columns, primary key, foreign keys | Its columns | The other tables its foreign keys reference | `tables/<name>.sql` |
 | `view` | `schema.view` | `CREATE VIEW` or `CREATE MATERIALIZED VIEW`, then its query as `pg_get_viewdef` writes it | Whether it is materialized, columns, the tables and views it reads | Its columns | The tables and views it reads, as PostgreSQL records them | `views/<name>.sql` |
+| `routine` | `schema.name(arguments)`, with the arguments that tell it from the others of its name, as `pg_get_function_identity_arguments` writes them | The definition `pg_get_functiondef` writes | `function` and what it returns, or `procedure` | Its parameters that have a name | None | `routines/<name>.sql` |
 
 - PostgreSQL keeps no text of a table. Its definition is there to be read, not run: names are written as the catalog gives them, unquoted, and types as `information_schema` names them. Defaults, checks, unique constraints and indexes are not in it.
-- The tables and views of the catalog itself and those an extension installed are left out.
+- The triggers of a table or of a view are no elements. The definition of each, as `pg_get_triggerdef` writes it, follows that of its table; the summary of the table names each with the routine it runs, and that routine is among its links. The triggers PostgreSQL makes for its own constraints are left out.
+- The tables, views and routines of the catalog itself and those an extension installed are left out; aggregates and window functions are no routines here. A link may still name what the export leaves out, such as the routine of an extension a trigger runs.
+- A definition is exported as the database gives it. The caller masks the secrets it knows when it writes the export; a password or a key written in the body of a routine or in the query of a view is not one of them.
 - PostgreSQL writes the query of a view with the names the connection sees without their schema, so the text depends on the `search_path` of the role; it records no dependency on a table of its own catalog, so a view that reads only `pg_catalog` reads nothing here.
-- The inventory lists the tables and the views: both are elements of the card of the database.
+- The inventory lists the tables and the views, the elements of the card of the database, and not the routines, which are in the export only. The fingerprint of the inventory is that of the export: a routine or a trigger that changes changes it.
 - The fingerprint of an element is `sha256:` and a digest of its definition; that of the database covers the fingerprints of its elements, in the order of the export. A change to one element changes its fingerprint and that of the database, and no other.
 - A name of lower-case letters, digits, dots, hyphens and underscores, 120 characters at most, names its file as it is. Any other has its other characters replaced by underscores, is cut to 120 characters and is followed by a digest of the whole name, so that no file leaves its folder and two elements never share one, even on a file system that ignores case.

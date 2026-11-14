@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
 import type { Knowledge } from "@open-qa-stack/shared";
-import { ALL_COLUMNS_QUERY, KEYS_QUERY, TABLES_QUERY, VIEWS_QUERY } from "../src/postgresql/catalog-query.ts";
+import { ALL_COLUMNS_QUERY, KEYS_QUERY, ROUTINES_QUERY, TABLES_QUERY, TRIGGERS_QUERY, VIEWS_QUERY } from "../src/postgresql/catalog-query.ts";
 import { knowledgeInventory, type SqlClient, type SqlResult } from "../src/index.ts";
 import { closedPort } from "@open-qa-stack/testing";
 import { sqlResult } from "./sql-result.ts";
@@ -16,9 +16,10 @@ import { codeInventory } from "../src/source-code/code-inventory.ts";
 const REPOSITORY = fileURLToPath(new URL("./fixtures/repository/", import.meta.url));
 const attachments = [{ application: "policy-management" }];
 
-/** A catalog with two tables, a view and a materialized view, whose columns can be changed between reads. */
+/** A catalog with two tables, two views, two routines and two triggers, whose columns and routines can be changed between reads. */
 class CatalogDouble implements SqlClient {
   public premiumType = "numeric";
+  public rate = "0.2";
   public readonly queries: string[] = [];
 
   /** {@inheritDoc SqlClient.query} */
@@ -64,6 +65,45 @@ class CatalogDouble implements SqlClient {
         },
       ]);
     }
+    if (text === ROUTINES_QUERY) {
+      return sqlResult([
+        {
+          schema: "public",
+          name: "close_policy",
+          arguments: "policy_id bigint",
+          result: null,
+          definition: "CREATE OR REPLACE PROCEDURE public.close_policy(IN policy_id bigint)\n LANGUAGE sql\nAS $procedure$ SELECT 1 $procedure$\n",
+          parameters: ["policy_id"],
+        },
+        {
+          schema: "public",
+          name: "stamp",
+          arguments: "",
+          result: "trigger",
+          definition: `CREATE OR REPLACE FUNCTION public.stamp()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$ BEGIN NEW.rate := ${this.rate}; RETURN NEW; END $function$\n`,
+          parameters: [],
+        },
+      ]);
+    }
+    if (text === TRIGGERS_QUERY) {
+      const stamp = { routine_schema: "public", routine_name: "stamp", routine_arguments: "" };
+      return sqlResult([
+        {
+          schema: "public",
+          table: "policies",
+          name: "policies_stamp",
+          definition: "CREATE TRIGGER policies_stamp BEFORE INSERT ON public.policies FOR EACH ROW EXECUTE FUNCTION stamp()",
+          ...stamp,
+        },
+        {
+          schema: "public",
+          table: "open_policies",
+          name: "open_policies_insert",
+          definition: "CREATE TRIGGER open_policies_insert INSTEAD OF INSERT ON public.open_policies FOR EACH ROW EXECUTE FUNCTION stamp()",
+          ...stamp,
+        },
+      ]);
+    }
     throw new Error(`unexpected query ${text}`);
   }
 }
@@ -81,7 +121,7 @@ describe("the inventory of a knowledge source, read without the model", () => {
     assert.equal((await knowledgeInventory(contract, { repositoryRoot: REPOSITORY, env: {} }))!.fingerprint, inventory.fingerprint);
   });
 
-  it("gives the tables and the views of a base with their facts, from the catalog alone, and a fingerprint of its structure", async () => {
+  it("gives the tables and the views of a base with their facts, keeps its routines for the export, and fingerprints its structure, from the catalog alone", async () => {
     const catalog = new CatalogDouble();
     const base: Knowledge = { id: "policy-db", type: "postgresql", connectionStringEnv: "DB", attachments };
     const access = { repositoryRoot: REPOSITORY, env: { DB: "postgresql://x" }, sqlClient: () => catalog };
@@ -93,9 +133,10 @@ describe("the inventory of a knowledge source, read without the model", () => {
         columns: 3,
         primaryKey: ["id"],
         foreignKeys: [{ columns: ["customer_id"], references: "public.customers", referencedColumns: ["id"] }],
+        triggers: ["policies_stamp"],
       },
       "public.audit": { kind: "table", columns: 0, primaryKey: [], foreignKeys: [] },
-      "public.open_policies": { kind: "view", columns: 1, reads: ["public.policies"] },
+      "public.open_policies": { kind: "view", columns: 1, reads: ["public.policies"], triggers: ["open_policies_insert"] },
       "reporting.premiums": { kind: "view", columns: 1, reads: [] },
     });
     assert.deepEqual(Object.fromEntries(inventory.excerpts!), {
@@ -109,12 +150,36 @@ describe("the inventory of a knowledge source, read without the model", () => {
         ["public.audit", "table"],
         ["public.open_policies", "view"],
         ["reporting.premiums", "view"],
+        ["public.close_policy(policy_id bigint)", "routine"],
+        ["public.stamp()", "routine"],
       ],
     );
-    assert.equal(inventory.export!.elements[2]!.definition, "CREATE VIEW public.open_policies AS\n SELECT id\n   FROM policies\n  WHERE premium IS NOT NULL;");
+    assert.deepEqual(
+      inventory.export!.elements.slice(4).map((element) => [element.summary, element.names]),
+      [
+        ["procedure public.close_policy(policy_id bigint)", ["policy_id"]],
+        ["function public.stamp() returns trigger", []],
+      ],
+    );
+    assert.deepEqual(inventory.export!.elements[0]!.links, ["public.customers", "public.stamp()"]);
+    assert.equal(
+      inventory.export!.elements[2]!.definition,
+      [
+        "CREATE VIEW public.open_policies AS",
+        " SELECT id",
+        "   FROM policies",
+        "  WHERE premium IS NOT NULL;",
+        "",
+        "CREATE TRIGGER open_policies_insert INSTEAD OF INSERT ON public.open_policies FOR EACH ROW EXECUTE FUNCTION stamp();",
+      ].join("\n"),
+    );
     assert.equal(inventory.fingerprint, inventory.export!.fingerprint);
-    assert.deepEqual(catalog.queries.toSorted(), [ALL_COLUMNS_QUERY, KEYS_QUERY, TABLES_QUERY, VIEWS_QUERY].toSorted());
+    assert.deepEqual(catalog.queries.toSorted(), [ALL_COLUMNS_QUERY, KEYS_QUERY, ROUTINES_QUERY, TABLES_QUERY, TRIGGERS_QUERY, VIEWS_QUERY].toSorted());
     catalog.premiumType = "integer";
+    assert.notEqual((await knowledgeInventory(base, access))!.fingerprint, inventory.fingerprint);
+    catalog.premiumType = "numeric";
+    assert.equal((await knowledgeInventory(base, access))!.fingerprint, inventory.fingerprint);
+    catalog.rate = "0.3";
     assert.notEqual((await knowledgeInventory(base, access))!.fingerprint, inventory.fingerprint);
     assert.ok(catalog.queries.every((query) => /information_schema|pg_catalog/.test(query)));
   });

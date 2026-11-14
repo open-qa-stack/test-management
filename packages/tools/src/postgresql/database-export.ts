@@ -1,16 +1,20 @@
 import { exportFile, sourceExport, type ElementDraft, type SourceExport } from "../common/source-export.ts";
-import type { ColumnSummary, DatabaseStructure, TableKeys, ViewSummary } from "./database-catalog.ts";
+import type { ColumnSummary, DatabaseStructure, RoutineSummary, TableKeys, TriggerSummary, ViewSummary } from "./database-catalog.ts";
 
 /**
  * Exports the structure of a database, element by element.
  *
  * @remarks
- * The elements are its tables, then its views, each as `schema.name` and in the order of the catalog.
+ * The elements are its tables, then its views, each as `schema.name`, then its functions and procedures,
+ * each as `schema.name(arguments)` so that two routines of one name stay apart, all in the order of the catalog.
  * PostgreSQL keeps no text of a table: its definition is written again from the catalog — its columns, each
  * with its type and whether it may be null, its primary key and its foreign keys — with the names as the
  * catalog gives them, unquoted. It is there to be read, not run. The names of a table are its columns and
  * its links the other tables its foreign keys reference. The definition of a view is its query as the
- * database writes it, its names are its columns and its links the tables and views it reads.
+ * database writes it, its names are its columns and its links the tables and views it reads. The triggers
+ * of a table or of a view are no elements: the definition of each follows that of its table, whose summary
+ * names it and whose links gain the routine it runs. The definition of a routine is the one the database
+ * writes, and its names are its parameters.
  *
  * @param structure - What the catalog gives of the database.
  * @returns The export of the database.
@@ -19,9 +23,10 @@ export function databaseExport(structure: DatabaseStructure): SourceExport {
   return sourceExport([
     ...structure.tables.map(({ schema, table }) => {
       const name = `${schema}.${table}`;
-      return tableElement(name, structure.columns.get(name) ?? [], structure.keys.get(name));
+      return withTriggers(tableElement(name, structure.columns.get(name) ?? [], structure.keys.get(name)), structure.triggers.get(name));
     }),
-    ...structure.views.map(viewElement),
+    ...structure.views.map((view) => withTriggers(viewElement(view), structure.triggers.get(view.view))),
+    ...structure.routines.map(routineElement),
   ]);
 }
 
@@ -79,5 +84,29 @@ function viewElement(view: ViewSummary): ElementDraft {
     names: view.columns,
     links: view.reads,
     file: exportFile("views", view.view, "sql"),
+  };
+}
+
+/** A table or a view with its triggers: their definitions after its own, their names in its summary, their routines among its links. */
+function withTriggers(element: ElementDraft, triggers: readonly TriggerSummary[] = []): ElementDraft {
+  if (triggers.length === 0) return element;
+  return {
+    ...element,
+    summary: `${element.summary}\n  triggers: ${triggers.map((trigger) => `${trigger.name} -> ${trigger.routine}`).join("; ")}`,
+    definition: `${element.definition}${triggers.map((trigger) => `\n\n${trigger.definition};`).join("")}`,
+    links: [...new Set([...element.links, ...triggers.map((trigger) => trigger.routine)])],
+  };
+}
+
+/** A function or a procedure, as an element of the export. */
+function routineElement(routine: RoutineSummary): ElementDraft {
+  return {
+    name: routine.routine,
+    kind: "routine",
+    summary: routine.returns === undefined ? `procedure ${routine.routine}` : `function ${routine.routine} returns ${routine.returns}`,
+    definition: routine.definition.trimEnd(),
+    names: routine.parameters,
+    links: [],
+    file: exportFile("routines", routine.routine, "sql"),
   };
 }
