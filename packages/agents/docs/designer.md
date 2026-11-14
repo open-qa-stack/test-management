@@ -204,11 +204,15 @@ The state is written to `<stateDir>/designs/design-<date>.json`, and committed w
 
 The session is traced in `<stateDir>/traces/design-<environment>-<date>.jsonl`, in the format of the [trace of a cartography](./cartographer.md), with one phase, `design`: the request and each reminder, every reasoning, text and tool call of the agent with its result, each entry of the journal, and how the design ended — `done`, `truncated` when a limit cut a design that gave its tests, `failed` otherwise. Each line is handed to `observe` as it is written. A design stopped before its session writes no trace.
 
-`run()` returns `ok`, true when at least three tests were written that passed or fail because of the application; the path of the trace, when a session started; the branch and the path of the state, when tests were written; the tests; and the journal, as `{ level, message }` entries.
+`run()` returns `ok`, true when at least three tests were written that passed or fail because of the application; the path of the trace, when a session started; the branch, when tests were written, and the path of the state, when it was written; the tests; `stoppedBy`, the limit that cut the design short, when one stopped it before every scenario of its plan was closed; and the journal, as `{ level, message }` entries.
 
 - With fewer than three such tests, those kept are written and committed all the same, and the journal gives their number.
-- With none, nothing is written and no branch is created.
+- With none, nothing is written and no branch is created, unless a limit stopped the design after its plan was accepted: the state is then written, with the plan, and nothing is committed.
 - When the plan is refused, by the review or six times by the gates, nothing is written and no branch is created; the journal gives the reason.
 - When a limit of the autonomy stops the task, the journal names the limit. The tests of the scenarios closed before it are written; the scenario under way is not.
+
+## Resuming a design
+
+`resume` names a design a limit stopped: the path of its state, relative to the test repository, and its branch once it holds a test. The working tree must be clean, as for a new design, and the branch, when it exists, is checked out. The state must be readable, with a scenario of its plan not closed; otherwise nothing starts. The session gets the plan, which stays as it is, the tests kept with their text, the scenarios closed without a test, and the sheet of the first scenario not closed; it is offered no `propose_plan`, and is not reminded to plan. Its limits are those of the configuration, counted afresh. Once the session is over, the new tests and the state, which then lists the tests of every session and adds up what they used, are committed on the same branch, created if the design held no test yet. A plan, a test kept or a scenario closed is never done again.
 
 The designer runs each test with `runner`, which gives the verdict; the review of the branch judges them.

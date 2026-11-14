@@ -356,6 +356,16 @@ describe("criterion 3 — an index that omits a table is not written, and the jo
     assert.match(messages(outcome), /The index was refused: public\.schema_migrations of shop-db is in no domain nor in unassigned\./);
     assert.match(JSON.stringify(server.requests[1]!.body), /Fix it and submit it again/);
     assert.match(messages(outcome), /No index was written: no index was accepted before the session ended\./);
+    assert.equal(outcome.stoppedBy, undefined);
+  });
+
+  it("names the limit that stopped the consolidation before an index was accepted", async () => {
+    const forgetful = { ...SUBMISSION, unassigned: SUBMISSION.unassigned.filter((r) => r.source !== "shop-db") };
+    const { outcome, root } = await cartography([{ body: toolCalls(MODEL, [submit(forgetful)]) }, { body: answer(MODEL, "Done.") }], {
+      limits: { maxIterations: 1, maxMinutes: 10, maxActions: 200 },
+    });
+    assert.equal(existsSync(indexFile(root)), false);
+    assert.equal(outcome.stoppedBy, "iterations");
   });
 
   it("tells at most thirty errors at once, then every item still to place, by source", async () => {
@@ -581,6 +591,8 @@ describe("criterion 9 — past 200 actions nothing more runs, and no complete in
       limits: { maxIterations: 1, maxMinutes: 10, maxActions: 200 },
     });
     assert.deepEqual([outcome.index!.status, outcome.index!.run.iterations], ["truncated", 1]);
+    // An index was written: the cartography is not to be resumed.
+    assert.equal(outcome.stoppedBy, undefined);
     const late = [
       { body: toolCalls(MODEL, [{ id: "g1", name: "shop_goto", arguments: { url: "/" } }]) },
       { body: toolCalls(MODEL, [submitCard(cardSubmission("shop", ["/"]))]) },

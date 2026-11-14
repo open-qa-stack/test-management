@@ -67,7 +67,7 @@ export interface DesignState {
   readonly brief?: string;
   /** The test plan accepted before the tests were written. */
   readonly plan: TestPlan;
-  /** The branch the tests were written on. */
+  /** The branch the tests are written on; it is created with the first of them. */
   readonly branch: string;
   /** The revision the branch was created from. */
   readonly base: string;

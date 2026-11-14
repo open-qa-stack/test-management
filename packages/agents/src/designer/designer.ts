@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, posix } from "node:path";
-import type { AgentEvent, AgentRuntime, PlanReview } from "@open-qa-stack/domain";
+import type { AgentEvent, AgentRuntime, PlanReview, StopReason } from "@open-qa-stack/domain";
 import {
   declaredValues,
   validateDomainIndex,
@@ -20,7 +20,7 @@ import type { TraceLine } from "../common/trace-line.ts";
 import { TracedPhases } from "../common/traced-phases.ts";
 import { INDEX_FILE_NAME } from "../cartographer/cartographer.ts";
 import { CARDS_FOLDER } from "../source-cartographer/source-cartographer.ts";
-import { designRequest } from "./designer-prompt.ts";
+import { designRequest, resumeRequest } from "./designer-prompt.ts";
 import { DESIGNS_FOLDER, type DesignedTest, type DesignState } from "./design-state.ts";
 import { IndexMap } from "./index-map.ts";
 import { PlanProposal } from "./plan-proposal.ts";
@@ -59,6 +59,11 @@ export interface DesignerOptions {
   readonly screenshots?: boolean;
   /** Name of the branch to create; `oqas/design-<date>` by default. */
   readonly branch?: string;
+  /**
+   * A design a limit stopped: its state, relative to the test repository, and its branch once it holds a
+   * test. The design goes on from its plan, without another, and its tests, on its branch, and updates its state.
+   */
+  readonly resume?: { readonly state: string; readonly branch?: string };
   /** How the browser starts and waits; a headless Chromium with the default waits otherwise. */
   readonly browser?: Pick<BrowserAccess, "launch" | "actionTimeoutMs" | "navigationTimeoutMs">;
   /** Receives each line of the trace as it is written, to follow the design while it runs. */
@@ -81,6 +86,8 @@ export interface DesignOutcome {
   readonly journal: readonly JournalEntry[];
   /** Where the trace of the session is written, when a session started. */
   readonly tracePath?: string;
+  /** The limit that cut the design short, when one stopped it before every scenario of its plan was closed. */
+  readonly stoppedBy?: StopReason["limit"];
 }
 
 /** Accepts every plan as it is: the designer works on its own. */
@@ -107,6 +114,11 @@ const ACCEPT_EVERY_PLAN: PlanReview = { review: async () => ({ accepted: true })
  * the revision checked out, which stays checked out. Nothing contacts a remote. A design succeeds with three
  * tests that passed or that fail because of the application; with fewer, those kept are still written and
  * the design fails.
+ *
+ * A design a limit stopped before every scenario of its plan was closed keeps its plan, even without a test,
+ * and its tests in its state. Resumed from that state, it checks out its branch, gives the agent the plan
+ * and the tests kept, offers no `propose_plan`, opens the first scenario not closed, and commits the tests
+ * it adds on the same branch, with the state updated.
  */
 export class Designer {
   private readonly options: DesignerOptions;
@@ -120,7 +132,7 @@ export class Designer {
    * Runs a design.
    *
    * @returns The branch and the tests written, if any, and the journal.
-   * @throws Error when a file cannot be written, or git refuses the branch or the commit.
+   * @throws Error when a file cannot be written, a test of the design resumed cannot be read, or git refuses the branch or the commit.
    */
   public async run(): Promise<DesignOutcome> {
     const { config, repositoryRoot, env } = this.options;
@@ -128,18 +140,25 @@ export class Designer {
     let trace: Trace | undefined;
     const traced = () => (trace === undefined ? {} : { tracePath: trace.path });
     const journal = new Journal((entry) => trace?.harness("design", { type: "journal", level: entry.level, message: entry.message }));
-    const failed = (message: string): DesignOutcome => {
+    const failed = (message: string, stoppedBy?: StopReason["limit"]): DesignOutcome => {
       journal.record("error", message);
-      return { ok: false, tests: [], journal: journal.entries(), ...traced() };
+      return { ok: false, tests: [], journal: journal.entries(), ...traced(), ...(stoppedBy === undefined ? {} : { stoppedBy }) };
     };
     const now = this.options.now ?? (() => new Date());
     const start = now();
     const id = `design-${start.toISOString().replace(/[-:]|\.\d+/g, "")}`;
-    const branch = this.options.branch ?? `${BRANCH_PREFIX}${id}`;
+    const { resume } = this.options;
     const repository = new TestRepository(repositoryRoot);
-    const problems = await repository.problems(branch, [config.repository.stateDir, config.repository.indexDir]);
+    const created = this.options.branch ?? `${BRANCH_PREFIX}${id}`;
+    const problems = await repository.problems(resume === undefined ? created : undefined, [config.repository.stateDir, config.repository.indexDir]);
     for (const problem of problems) journal.record("error", problem);
-    if (problems.length > 0) return failed("No branch was created and no file was written.");
+    if (problems.length > 0) return failed(resume === undefined ? "No branch was created and no file was written." : "The design was not resumed.");
+    // The state of a design that holds a test may be committed on its branch only.
+    if (resume?.branch !== undefined && (await repository.hasBranch(resume.branch))) await repository.switchTo(resume.branch);
+    const previous = await this.previous();
+    if (typeof previous === "string") return failed(previous);
+    const branch = previous?.branch ?? created;
+    const brief = previous === undefined ? this.options.brief : previous.brief;
     const index = await this.index();
     if (typeof index === "string") return failed(`No test was designed: ${index}`);
 
@@ -194,15 +213,24 @@ export class Designer {
     const notes = agentNotes(config, repositoryRoot, env, { role: "designer", task: id, now });
     const map = new IndexMap(index, await this.cards(index), [...screens.tools(), ...knowledge], owners);
     const events: AgentEvent[] = [];
-    const request = designRequest(
-      this.options.brief,
-      index.environment,
-      this.options.brief === undefined ? [] : map.found(this.options.brief),
-      map.domains(),
-      applications,
-      packages,
-    );
-    const tools = [...map.toolset(), ...screens.tools(), ...knowledge, ...notes, plan.tool(), proposals.trialTool(), proposals.tool()].map((tool) =>
+    const request =
+      previous === undefined
+        ? designRequest(brief, index.environment, brief === undefined ? [] : map.found(brief), map.domains(), applications, packages)
+        : resumeRequest(
+            {
+              environment: index.environment,
+              ...(brief === undefined ? {} : { brief }),
+              plan: previous.plan,
+              tests: await Promise.all(previous.tests.map(async (test) => ({ ...test, content: await readFile(join(repositoryRoot, test.path), "utf8") }))),
+              unwritten: previous.unwritten.map((scenario) => scenario.scenario),
+            },
+            applications,
+            packages,
+            proposals.start(previous.plan, previous.tests.length + previous.unwritten.length),
+          );
+    // A design resumed carries out the plan it accepted: it is offered no other.
+    const planning = previous === undefined ? [plan.tool()] : [];
+    const tools = [...map.toolset(), ...screens.tools(), ...knowledge, ...notes, ...planning, proposals.trialTool(), proposals.tool()].map((tool) =>
       stoppedOnRefusal(tool, plan),
     );
     const opened = runTrace(this.options, `design-${index.environment}`, now);
@@ -214,7 +242,7 @@ export class Designer {
       tools,
       request,
       events,
-      reminder: () => plan.reminder() ?? proposals.reminder(),
+      reminder: () => (previous === undefined ? plan.reminder() : undefined) ?? proposals.reminder(),
       sent: (text: string) => opened.harness("design", { type: "message", text }),
       received: (event: AgentEvent) => {
         opened.agent("design", event);
@@ -229,41 +257,65 @@ export class Designer {
       if (last.type === "stopped") journal.record("error", `The task reached its ${last.reason.limit} limit; no test was written for the scenario under way.`);
 
       if (plan.refused !== undefined) return failed(`No test was written: the plan was refused: ${plan.refused}`);
+      const planned = previous?.plan ?? plan.accepted;
+      // A limit cuts the design short while its plan is to come, or a scenario of it is open.
+      const stoppedBy = last.type === "stopped" && (planned === undefined || proposals.pending) ? last.reason.limit : undefined;
       const tests = proposals.accepted;
-      if (tests.length === 0) return failed(`No test was written: ${obtained(0)}, ${MIN_TESTS} at least are expected.`);
-      const state: DesignState = {
-        formatVersion: 2,
-        producedAt: start.toISOString(),
-        environment: index.environment,
-        ...(this.options.brief === undefined ? {} : { brief: this.options.brief }),
-        // Tests are accepted only under an accepted plan.
-        plan: plan.accepted!,
-        branch,
-        base: await repository.head(),
-        model: { provider: config.model.provider, baseUrl: config.model.baseUrl, model: config.model.model },
-        run: { iterations: counters.iterations, actions: counters.actions, durationMs: Math.round(counters.elapsedMs) },
-        tests: tests.map(({ content: _content, references, ...test }) => ({
+      const kept = [
+        ...(previous?.tests ?? []),
+        ...tests.map(({ content: _content, references, ...test }) => ({
           ...test,
           ...(references.length === 0 ? {} : { references: references.map((reference) => reference.path) }),
         })),
-        unwritten: proposals.unwritten,
+      ];
+      if (planned === undefined || (kept.length === 0 && stoppedBy === undefined))
+        return failed(`No test was written: ${obtained(0)}, ${MIN_TESTS} at least are expected.`, stoppedBy);
+      const used = { iterations: counters.iterations, actions: counters.actions, durationMs: Math.round(counters.elapsedMs) };
+      const state: DesignState = {
+        formatVersion: 2,
+        producedAt: previous?.producedAt ?? start.toISOString(),
+        environment: index.environment,
+        ...(brief === undefined ? {} : { brief }),
+        plan: planned,
+        branch,
+        // A branch still to create starts from the revision checked out now.
+        base: previous !== undefined && previous.tests.length > 0 ? previous.base : await repository.head(),
+        model: { provider: config.model.provider, baseUrl: config.model.baseUrl, model: config.model.model },
+        run:
+          previous === undefined
+            ? used
+            : {
+                iterations: previous.run.iterations + used.iterations,
+                actions: previous.run.actions + used.actions,
+                durationMs: previous.run.durationMs + used.durationMs,
+              },
+        tests: kept,
+        unwritten: [...(previous?.unwritten ?? []), ...proposals.unwritten],
       };
-      const statePath = posix.join(config.repository.stateDir, DESIGNS_FOLDER, `${id}.json`);
+      const statePath = resume?.state ?? posix.join(config.repository.stateDir, DESIGNS_FOLDER, `${id}.json`);
       await this.write(repository, state, statePath, tests, journal);
-      const counted = tests.filter((test) => test.verdict === "passed" || test.quarantine?.cause === "application").length;
+      const counted = kept.filter((test) => test.verdict === "passed" || test.quarantine?.cause === "application").length;
       if (counted < MIN_TESTS) journal.record("error", `The design failed: ${obtained(counted)}, ${MIN_TESTS} at least are expected.`);
       const ok = counted >= MIN_TESTS;
       if (ok) phases.end(last.type === "end" ? "done" : "truncated");
-      return { ok, branch, statePath: join(repositoryRoot, statePath), tests: state.tests, journal: journal.entries(), tracePath: opened.path };
+      return {
+        ok,
+        ...(kept.length === 0 ? {} : { branch }),
+        statePath: join(repositoryRoot, statePath),
+        tests: kept,
+        journal: journal.entries(),
+        tracePath: opened.path,
+        ...(stoppedBy === undefined ? {} : { stoppedBy }),
+      };
     } finally {
       phases.close();
     }
   }
 
-  /** Creates the branch, writes the tests and the state, and commits them. */
+  /** Writes the state and the new tests and, with a test at least, commits them on the branch, created if need be. */
   private async write(repository: TestRepository, state: DesignState, statePath: string, tests: readonly AcceptedTest[], journal: Journal): Promise<void> {
     const { repositoryRoot } = this.options;
-    await repository.createBranch(state.branch);
+    if (tests.length > 0 && !(await repository.hasBranch(state.branch))) await repository.createBranch(state.branch);
     const files: (readonly [string, string | Uint8Array])[] = [
       ...tests.map((test) => [test.path, test.content.endsWith("\n") ? test.content : `${test.content}\n`] as const),
       ...tests.flatMap((test) => test.references.map((reference) => [reference.path, reference.content] as const)),
@@ -272,6 +324,10 @@ export class Designer {
     for (const [path, content] of files) {
       await mkdir(dirname(join(repositoryRoot, path)), { recursive: true });
       await writeFile(join(repositoryRoot, path), content);
+    }
+    if (tests.length === 0) {
+      journal.record("info", `The design state was written to ${statePath}; no new test was written, and nothing was committed.`);
+      return;
     }
     const titles = new Map(state.plan.scenarios.map((scenario) => [scenario.id, scenario.title]));
     const line = (test: AcceptedTest) =>
@@ -288,6 +344,17 @@ export class Designer {
     for (const test of tests) journal.record("info", `The test ${test.path} was written.`);
     journal.record("info", `The design state was written to ${statePath}${committed.has(statePath) ? "" : ", which git ignores: it was not committed"}.`);
     journal.record("info", `The tests were committed on ${state.branch}; the active branch of the test repository is ${await repository.branch()}.`);
+  }
+
+  /** The state of the design to resume, none for a new design, or why it cannot be resumed. */
+  private async previous(): Promise<DesignState | undefined | string> {
+    const path = this.options.resume?.state;
+    if (path === undefined) return undefined;
+    const state = (await readJson(join(this.options.repositoryRoot, path))) as DesignState | undefined;
+    if (state?.formatVersion !== 2) return `The design state ${path} cannot be read; the design was not resumed.`;
+    if (state.tests.length + state.unwritten.length >= state.plan.scenarios.length)
+      return `Every scenario of the plan of ${path} is closed; there is nothing to resume.`;
+    return state;
   }
 
   /** The domain index, or why it cannot be read. */

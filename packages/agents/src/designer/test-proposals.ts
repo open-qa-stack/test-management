@@ -135,13 +135,23 @@ export class TestProposals {
   }
 
   /**
-   * Starts carrying out an accepted plan: opens its first scenario.
+   * Whether a scenario of the accepted plan is still open.
+   *
+   * @returns `false` before a plan is accepted, and once every scenario is closed.
+   */
+  public get pending(): boolean {
+    return this.cursor?.scenario !== undefined;
+  }
+
+  /**
+   * Starts carrying out an accepted plan: opens its first scenario still open.
    *
    * @param plan - The plan.
-   * @returns The sheet of the first scenario.
+   * @param closed - How many scenarios, from the first, an earlier session closed; none by default, and fewer than the plan holds.
+   * @returns The sheet of the scenario opened.
    */
-  public start(plan: TestPlan): string {
-    this.cursor = new DesignCursor(plan, (scenario) => this.place(scenario));
+  public start(plan: TestPlan, closed = 0): string {
+    this.cursor = new DesignCursor(plan, (scenario) => this.place(scenario), closed);
     return this.opened(this.cursor);
   }
 

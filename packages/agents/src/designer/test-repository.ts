@@ -10,8 +10,8 @@ const run = promisify(execFile);
  * commits on it.
  *
  * @remarks
- * No command contacts a remote, changes the git configuration or changes an existing branch. Commits use
- * the identity the repository configures, and its hooks.
+ * No command contacts a remote, changes the git configuration or changes an existing branch but by a commit
+ * on it. Commits use the identity the repository configures, and its hooks.
  */
 export class TestRepository {
   private readonly root: string;
@@ -26,19 +26,19 @@ export class TestRepository {
    * repository with a commit, a branch name that is not valid or already taken, a tracked file changed, or
    * an untracked file outside the reserved folders.
    *
-   * @param branch - Name of the branch to create.
+   * @param branch - Name of the branch to create; none when the tests go on a branch of an earlier design.
    * @param reserved - Folders, relative to the root, that the harness writes: the files it changes or adds there are expected.
    * @returns A sentence for each problem; none when the branch can be created.
    */
-  public async problems(branch: string, reserved: readonly string[]): Promise<string[]> {
+  public async problems(branch: string | undefined, reserved: readonly string[]): Promise<string[]> {
     const top = await this.git("rev-parse", "--show-toplevel", "--verify", "HEAD").then(
       (out) => out.split("\n")[0]!,
       () => undefined,
     );
     if (top === undefined || (await realpath(top)) !== (await realpath(this.root))) return [`${this.root} is not the root of a git repository with a commit.`];
     const problems: string[] = [];
-    if (!(await this.succeeds("check-ref-format", "--branch", branch))) problems.push(`${branch} is not a valid branch name.`);
-    else if (await this.succeeds("show-ref", "--verify", "--quiet", `refs/heads/${branch}`)) problems.push(`The branch ${branch} already exists.`);
+    if (branch !== undefined && !(await this.succeeds("check-ref-format", "--branch", branch))) problems.push(`${branch} is not a valid branch name.`);
+    else if (branch !== undefined && (await this.hasBranch(branch))) problems.push(`The branch ${branch} already exists.`);
     const folders = reserved.map((folder) => `${posix.normalize(folder).replace(/\/+$/, "")}/`);
     // The harness writes the state and the index itself: a change there is its own, not the developer's.
     const changed = (await this.git("status", "--porcelain", "--untracked-files=no"))
@@ -61,6 +61,26 @@ export class TestRepository {
    */
   public async head(): Promise<string> {
     return (await this.git("rev-parse", "HEAD")).trim();
+  }
+
+  /**
+   * Whether a branch exists.
+   *
+   * @param branch - Its name.
+   * @returns `true` when it does.
+   */
+  public hasBranch(branch: string): Promise<boolean> {
+    return this.succeeds("show-ref", "--verify", "--quiet", `refs/heads/${branch}`);
+  }
+
+  /**
+   * Checks an existing branch out.
+   *
+   * @param branch - Its name.
+   * @throws Error when git refuses it.
+   */
+  public async switchTo(branch: string): Promise<void> {
+    await this.git("switch", "--quiet", branch);
   }
 
   /**

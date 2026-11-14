@@ -333,6 +333,11 @@ describe("what writes no card", () => {
     });
     assert.equal(outcome.card!.status, "truncated");
     assert.match(messages(outcome), /The task reached its iterations limit\./);
+    assert.equal(outcome.stoppedBy, "iterations");
+    const none = await cartography([{ body: toolCalls(MODEL, [submit({ domains: [] })]) }, { body: answer(MODEL, "Done.") }], {
+      limits: { maxIterations: 1, maxMinutes: 10, maxActions: 200 },
+    });
+    assert.deepEqual([none.outcome.card, none.outcome.stoppedBy], [undefined, "iterations"]);
   });
 });
 

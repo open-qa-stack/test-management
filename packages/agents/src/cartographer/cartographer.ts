@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type { AgentEvent, AgentRuntime } from "@open-qa-stack/domain";
+import type { AgentEvent, AgentRuntime, StopReason } from "@open-qa-stack/domain";
 import { validateDomainIndex, type DomainIndex, type IndexSource, type ResolvedConfig, type SourceCard } from "@open-qa-stack/shared";
 import type { BrowserAccess, KnowledgeAccess } from "@open-qa-stack/tools";
 import { agentNotes } from "../common/agent-notes.ts";
@@ -60,6 +60,8 @@ export interface CartographyOutcome {
   readonly journal: readonly JournalEntry[];
   /** Where the trace of the cartography is written. */
   readonly tracePath: string;
+  /** The first limit that stopped one of its tasks, when no index was written. */
+  readonly stoppedBy?: StopReason["limit"];
 }
 
 /**
@@ -79,7 +81,8 @@ export interface CartographyOutcome {
  * submission was accepted and the whole index passes its schema; it is `truncated` when a limit stopped the
  * consolidation, a card is truncated or a source was not read. A limit reached while the elements left
  * unassigned are asked once more only ends that second submission: the first stays as it was accepted, and
- * the index is not truncated for it. Nothing is committed nor pushed.
+ * the index is not truncated for it. When no index is written, the outcome names the first limit that
+ * stopped a task, if one did: a cartography run again keeps the complete cards. Nothing is committed nor pushed.
  *
  * The run is traced in `<stateDir>/traces/`, line by line, and each line is handed to `observe` as it is
  * written: the phases `survey`, `card`, `consolidation` and `index`, each from its `started` line to its
@@ -138,6 +141,7 @@ export class Cartographer {
     );
     const results = await mapSources({ ...this.options, now, inventories, trace });
     for (const { outcome } of results) journal.adopt(outcome.journal);
+    const limits = results.flatMap(({ outcome }) => outcome.stoppedBy ?? []);
     const cards = new Map(results.flatMap(({ source, outcome }) => (outcome.card === undefined ? [] : [[source.id, outcome.card] as const])));
     endPhase(
       trace,
@@ -164,7 +168,7 @@ export class Cartographer {
     if ([...inventory.values()].every((elements) => elements.length === 0)) {
       journal.record("error", `No index was written: ${cards.size === 0 ? "no source has a card" : "the cards hold no element"}.`);
       endPhase(trace, phases, "failed");
-      return { journal: journal.entries() };
+      return { journal: journal.entries(), ...firstLimit(limits) };
     }
     const submission = new HandedIn(
       domainIndexRules(inventory, new Map(sources.map((source) => [source.id, source.type] as const)), (id) => cards.has(id), configSecrets(config, env)),
@@ -188,13 +192,16 @@ export class Cartographer {
     const { last, counters } = taskEnd(events);
     const usage = usageOf(counters);
     if (last.type === "error") journal.record("error", `The consolidation failed: ${last.error.message}`);
-    if (last.type === "stopped") journal.record("error", `The consolidation reached its ${last.reason.limit} limit.`);
+    if (last.type === "stopped") {
+      journal.record("error", `The consolidation reached its ${last.reason.limit} limit.`);
+      limits.push(last.reason.limit);
+    }
     const accepted = submission.accepted;
     const settled = last.type === "end" || (last.type === "stopped" && submission.followUpPending);
     if (accepted === undefined) {
       journal.record("error", "No index was written: no index was accepted before the session ended.");
       endPhase(trace, phases, "failed", usage);
-      return { journal: journal.entries() };
+      return { journal: journal.entries(), ...firstLimit(limits) };
     }
     endPhase(trace, phases, settled ? "done" : "truncated", usage);
     phases.start("index");
@@ -241,6 +248,11 @@ export class Cartographer {
     journal.record("info", `The index was written to ${indexPath}, ${index.status}.`);
     return { indexPath, index, journal: journal.entries() };
   }
+}
+
+/** The first of the limits that stopped the tasks of a cartography, as its outcome gives it. */
+function firstLimit(limits: readonly StopReason["limit"][]): Pick<CartographyOutcome, "stoppedBy"> {
+  return limits.length === 0 ? {} : { stoppedBy: limits[0]! };
 }
 
 /** The index at `path`, when it is readable and passes its schema. */

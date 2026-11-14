@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type { AgentEvent, AgentRuntime } from "@open-qa-stack/domain";
+import type { AgentEvent, AgentRuntime, StopReason } from "@open-qa-stack/domain";
 import { validateSourceCard, type ResolvedConfig, type SourceCard, type SourceCardSubmission } from "@open-qa-stack/shared";
 import type { BrowserAccess, KnowledgeAccess, SourceInventory } from "@open-qa-stack/tools";
 import { agentNotes } from "../common/agent-notes.ts";
@@ -61,6 +61,8 @@ export interface SourceCartographyOutcome {
   readonly journal: readonly JournalEntry[];
   /** Where the trace of the cartography is written. */
   readonly tracePath: string;
+  /** The limit that stopped its task, when one did. */
+  readonly stoppedBy?: StopReason["limit"];
 }
 
 /**
@@ -168,13 +170,18 @@ export class SourceCartographer {
     const usage = usageOf(counters);
     if (last.type === "error") journal.record("error", `The session failed: ${last.error.message}`, source.id);
     if (last.type === "stopped") journal.record("error", `The task reached its ${last.reason.limit} limit.`, source.id);
+    const stopped = last.type === "stopped" ? { stoppedBy: last.reason.limit } : {};
     const accepted = submission.accepted;
     if (accepted === undefined) {
       journal.record("error", "No card was written: no card was accepted before the session ended.", source.id);
-      return { kept: false, usage, journal: journal.entries() };
+      return { kept: false, usage, journal: journal.entries(), ...stopped };
     }
     const run = { iterations: counters.iterations, actions: counters.actions, durationMs: Math.round(counters.elapsedMs) };
-    return { ...(await this.write(cardPath, this.card(subject, run, last.type === "end" ? "complete" : "truncated", accepted, now), journal)), usage };
+    return {
+      ...(await this.write(cardPath, this.card(subject, run, last.type === "end" ? "complete" : "truncated", accepted, now), journal)),
+      usage,
+      ...stopped,
+    };
   }
 
   /** The card of a submission, with the facts the harness read joined to each element. */
