@@ -1,8 +1,8 @@
-export { parseArguments, USAGE, type Arguments } from "./arguments.ts";
-export { ExitCode, exitCodeOf, type ExitCodeValue } from "./exit-code.ts";
-export { liveRuntime, type OpenRuntime } from "./live-runtime.ts";
-export { MODEL_TIMEOUT_MS, missingPrerequisites } from "./prerequisites.ts";
-export { RunJournal, type JournalOutput, type RunEntry, type Step } from "./run-journal.ts";
-export { soloCommand, type CommandIo } from "./solo-command.ts";
-export { SoloRun, type SoloRunOptions, type SoloRunState } from "./solo-run.ts";
-export { CountedRuntime } from "./counted-runtime.ts";
+export { parseArguments, USAGE, type Arguments } from "./solo/arguments.ts";
+export { ExitCode, exitCodeOf, type ExitCodeValue } from "./solo/exit-code.ts";
+export { liveRuntime, type OpenRuntime } from "./solo/live-runtime.ts";
+export { MODEL_TIMEOUT_MS, missingPrerequisites } from "./solo/prerequisites.ts";
+export { RunJournal, type JournalOutput, type RunEntry, type Step } from "./solo/run-journal.ts";
+export { soloCommand, type CommandIo } from "./solo/solo-command.ts";
+export { SoloRun, type SoloRunOptions, type SoloRunState } from "./solo/solo-run.ts";
+export { CountedRuntime } from "./solo/counted-runtime.ts";
