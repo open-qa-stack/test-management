@@ -15,7 +15,7 @@ const check = new Check(
     new ScriptStep("build", root, "build"),
     new CoverageDirectiveStep(root, packages),
     new SecretsStep(root),
-    new TestStep(root, packages),
+    new TestStep(root, packages, (output) => process.stdout.write(output)),
     new ScriptStep("lint rules", root, "test:lint-rules"),
   ],
   (line) => process.stdout.write(`${line}\n`),
