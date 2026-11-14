@@ -78,7 +78,7 @@ interface Diagnosis {
  * 2. the text: it does not parse as TypeScript, imports anything but the packages of the test repository or
  *    a relative path inside it, imports another test, writes a file, holds an address of the configuration
  *    or the value of a declared variable;
- * 3. the scenario: not one test, not the steps of the plan, a planned text not asserted or asserted the
+ * 3. the scenario: not one test, not the steps of the plan, a step that does nothing on the application, a planned text not asserted or asserted the
  *    other way round, an assertion that can only pass, a value typed that is none of the data, a locator no
  *    screen showed;
  * 4. the check given, when it finds something.
@@ -449,7 +449,7 @@ export class TestProposals {
     const unseen = screens.unseen(scenario.application, outline.locators);
     const located = unseen.length === 0 ? [] : [this.unseenRefusal(scenario.application, unseen)];
     const locatorOf = this.finder(scenario);
-    const help = { skeleton: skeleton(scenario, this.rules.screenshots, locatorOf), locatorOf };
+    const help = { skeleton: skeleton(scenario, this.rules.screenshots, locatorOf), locatorOf, codes: screens.codes(scenario.application) };
     const planned = [...scenarioErrors(outline, scenario, help), ...located];
     if (planned.length > 0) return planned;
     return check === undefined ? [] : coded("TEST-CHECK", (await check.check({ path, content })).map(findingText));

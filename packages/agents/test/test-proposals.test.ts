@@ -40,6 +40,9 @@ const shopTools = () => [
   ...["click", "fill", "select_option", "check"].map((action) => tool(`shop_${action}`)),
 ];
 
+/** The text of a skeleton whose steps open the ledger, as the agent fills it with the line the browser tools return. */
+const acted = (content: string) => content.replace(/(\/\/ Do: [^\n]*\n)/g, '$1    await page.goto("/ledger");\n');
+
 /** A runner whose every test fails on an assertion at the first step. */
 const failing: TestRunner = {
   run: async (test) => ({
@@ -66,7 +69,7 @@ async function secondRun(
   );
   const planned = scenario(application, cited);
   proposals.start({ scenarios: [planned] });
-  const content = skeleton(planned, false, () => undefined);
+  const content = acted(skeleton(planned, false, () => undefined));
   await screens
     .tools()
     .find((tool) => tool.name === "shop_snapshot")!
@@ -141,7 +144,7 @@ describe("the calls that run a test", () => {
     );
     const planned = scenario("ledger", []);
     proposals.start({ scenarios: [planned] });
-    const content = skeleton(planned, false, () => undefined);
+    const content = acted(skeleton(planned, false, () => undefined));
     const [first, second] = await Promise.allSettled([proposals.trialTool().execute({ content }), proposals.trialTool().execute({ content })]);
     assert.deepEqual([first.status, second.status], ["rejected", "fulfilled"]);
     assert.match(String((second as PromiseFulfilledResult<unknown>).value), /^Run of the file: failed\./);
@@ -169,7 +172,7 @@ describe("the fifth refusal of one reason", () => {
     );
     const planned = scenario("ledger", []);
     proposals.start({ scenarios: [planned] });
-    const content = skeleton(planned, false, () => undefined);
+    const content = acted(skeleton(planned, false, () => undefined));
     await proposals.trialTool().execute({ content });
     const told = [];
     for (let at = 0; at < 5; at += 1)

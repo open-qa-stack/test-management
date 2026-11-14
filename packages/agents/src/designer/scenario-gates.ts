@@ -15,11 +15,16 @@ export interface ScenarioHelp {
   readonly skeleton: string;
   /** The element the screens showed a text in, if one did; one it went from first, for a text expected gone. */
   readonly locatorOf: (text: string, gone: boolean) => ShownElement | undefined;
+  /** The lines of code the browser tools returned last, the last first. */
+  readonly codes: readonly string[];
 }
+
+/** The line a refusal of a step without an action gives as an example when the browser tools returned none. */
+const ACTION_EXAMPLE = 'await page.getByRole("button", { name: "Search", exact: true }).click();';
 
 /**
  * What the gates refuse in a test against the scenario it carries out: not exactly one test, steps that are
- * not those of the plan, in its order, a text of an expect asserted in no `expect` of its step — its
+ * not those of the plan, in its order, a step that does nothing on the application, a text of an expect asserted in no `expect` of its step — its
  * message aside, and an `expect` on `.or(…)` holding none — or asserted the other way round, an assertion that can only pass, and a value typed that is none of the data.
  *
  * @param outline - The outline of the test.
@@ -45,6 +50,8 @@ export function scenarioErrors(outline: SpecOutline, scenario: PlannedScenario, 
     const number = at + 1;
     const range = outline.steps.find((candidate) => candidate.title?.startsWith(`${number}. `));
     const asserted = range === undefined ? [] : outline.assertions.filter((assertion) => range.start <= assertion.start && assertion.start < range.end);
+    if (range !== undefined && !outline.actions.some((start) => range.start <= start && start < range.end))
+      refusals.push(actionRefusal(number, step.action, help.codes));
     const planned = step.expects.flatMap((expect) => [
       ...expect.shows.map((text) => ({ text, negative: false })),
       ...expect.absent.map((text) => ({ text, negative: true })),
@@ -78,6 +85,18 @@ export function scenarioErrors(outline: SpecOutline, scenario: PlannedScenario, 
     });
   });
   return [...refusals, ...outline.assertions.flatMap(tautology), ...typedErrors(outline, scenario)];
+}
+
+/** The refusal of a step that does nothing on the application, with the lines of code the browser tools returned last as what it would accept. */
+function actionRefusal(number: number, action: string, codes: readonly string[]): Refusal {
+  const told = action.replace(/\s+/g, " ").trim();
+  const message = `step ${number} does nothing: do "${told}" with the browser tools and copy the line of code they return into it, such as ${codes[0] ?? ACTION_EXAMPLE}`;
+  if (codes.length === 0) return { code: "TEST-ACTION", message };
+  return {
+    code: "TEST-ACTION",
+    message,
+    remedy: [`Step ${number} must do "${told}" before its assertions. The last lines of code the browser tools returned, the last first:`, ...codes].join("\n"),
+  };
 }
 
 /** The reasons values a test types are none of the data of its scenario: neither one of them, nor a part of one long enough to be checked; an empty value clears a field. */

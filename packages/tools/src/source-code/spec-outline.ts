@@ -2,6 +2,29 @@ import type { Node } from "@vscode/tree-sitter-wasm";
 
 /** The methods of a page or a locator that locate an element by what the user perceives. */
 const LOCATOR_METHODS = new Set(["getByRole", "getByText", "getByLabel", "getByPlaceholder", "getByTestId", "getByTitle", "getByAltText"]);
+/** The methods of a page, of its keyboard or mouse, or of a locator that act on the page. */
+const ACTION_METHODS = new Set([
+  "goto",
+  "reload",
+  "goBack",
+  "goForward",
+  "click",
+  "dblclick",
+  "tap",
+  "hover",
+  "focus",
+  "dragTo",
+  "fill",
+  "clear",
+  "type",
+  "pressSequentially",
+  "press",
+  "check",
+  "uncheck",
+  "setChecked",
+  "selectOption",
+  "setInputFiles",
+]);
 /** The methods of a locator that type or choose a value. */
 const TYPING_METHODS = new Set(["fill", "type", "pressSequentially", "selectOption"]);
 
@@ -57,7 +80,7 @@ export interface SpecAssertion {
 
 /**
  * What a Playwright test holds, read once from its syntax tree: its tests, its steps, its locators, its
- * assertions and the values it types.
+ * assertions, its actions and the values it types.
  *
  * @remarks
  * Only what is written as a string literal is read: a name, a text or a role given as a regular
@@ -75,6 +98,12 @@ export class SpecOutline {
   public readonly assertions: readonly SpecAssertion[];
   /** The values given as a string to `fill`, `type`, `pressSequentially` or `selectOption`, in the order of the text. */
   public readonly typed: readonly SpecTyped[];
+  /**
+   * Where each call that acts on the application starts in the text, in its order: a method that navigates,
+   * clicks, types, presses, checks, chooses, hovers, drags or gives files, a call of the client of the API
+   * (`request`), or a function other than `expect` given the page or that client, such as a block that signs in.
+   */
+  public readonly actions: readonly number[];
 
   /** @param root - The root of the syntax tree of the test, which the outline reads whole and does not keep. */
   public constructor(root: Node) {
@@ -90,6 +119,7 @@ export class SpecOutline {
     this.locators = calls.flatMap((call) => locatorOf(call));
     this.assertions = root.descendantsOfType("expression_statement").flatMap((statement) => assertionOf(statement!));
     this.typed = calls.flatMap((call) => typedBy(call));
+    this.actions = calls.filter(acts).map((call) => call.startIndex);
   }
 }
 
@@ -126,6 +156,27 @@ function locatorOf(call: Node): SpecLocator[] {
     options?.type === "object" ? options.namedChildren.find((pair) => pair!.type === "pair" && pair!.childForFieldName("key")!.text === "name") : undefined;
   const text = stringValue(name?.childForFieldName("value"));
   return [{ code, role: value, ...(text === undefined ? {} : { text }) }];
+}
+
+/** The fixtures of a test that act on the application: its page, and its client of the API. */
+const ACTING_FIXTURES = ["page", "request"];
+
+/** Whether a call acts on the application: one of the action methods, a call of the client of the API, or a function a fixture that acts is given to, neither a step nor an assertion. */
+function acts(call: Node): boolean {
+  const method = methodOf(call);
+  if (method !== undefined && ACTION_METHODS.has(method.text)) return true;
+  const callee = call.childForFieldName("function")!;
+  if (callee.type === "member_expression" && isIdentifier(callee.childForFieldName("object")!, "request")) return true;
+  return (
+    !isStep(call) &&
+    !isExpect(callee) &&
+    call.childForFieldName("arguments")!.namedChildren.some((argument) => ACTING_FIXTURES.some((fixture) => isIdentifier(argument!, fixture)))
+  );
+}
+
+/** Whether the function a call calls is `expect`, or one of its members such as `expect.soft`. */
+function isExpect(callee: Node): boolean {
+  return isIdentifier(callee, "expect") || (callee.type === "member_expression" && isIdentifier(callee.childForFieldName("object")!, "expect"));
 }
 
 /** The value a call types, if it is one of the typing methods and its first argument is a string. */

@@ -295,6 +295,19 @@ describe("the screens the designer watches", () => {
     );
   });
 
+  it("keeps the last five lines of code the tools that open or act on a page returned, the last first", async () => {
+    let count = 0;
+    const coded = (action: string): ToolDefinition => ({
+      name: `shop_${action}`,
+      description: action,
+      parameters: { type: "object" },
+      execute: async () => (action === "snapshot" ? { page: LIST, truncated: false } : { code: `line ${(count += 1)}` }),
+    });
+    const watch = new ScreenWatch(["shop", "ledger"], ["goto", "snapshot", "click", "fill", "select_option", "check"].map(coded));
+    for (const action of ["goto", "click", "snapshot", "fill", "check", "click", "select_option"]) await run(watch, action);
+    assert.deepEqual([watch.codes("shop"), watch.codes("ledger")], [["line 6", "line 5", "line 4", "line 3", "line 2"], []]);
+  });
+
   it("says in the description of each tool what it adds to its result", () => {
     const state = "Returns where the page is, and the line of code that does the same in a test.";
     const tools = page([LIST]).tools.map((tool) => ({ ...tool, description: `Acts on the page. ${state}` }));

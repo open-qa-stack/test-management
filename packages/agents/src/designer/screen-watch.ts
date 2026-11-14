@@ -10,6 +10,8 @@ const ACTIONS = ["click", "fill", "select_option", "check"];
 const MAX_APPEARED = 60;
 /** Most lines an action tells the agent went. */
 const MAX_GONE = 20;
+/** Most lines of code of the browser tools kept, the last ones. */
+const MAX_CODES = 5;
 /** Most lines told as the closest to a locator no screen showed. */
 const MAX_NEAREST = 5;
 /** The start of the line of a field a value is typed in, up to that value when it holds one: its role, its name and its states. */
@@ -41,6 +43,8 @@ interface Seen {
   last: Set<string> | undefined;
   /** How many times the agent called one of the browser tools of the application. */
   looks: number;
+  /** The lines of code the tools that open or act on a page returned, the last ones, the oldest first. */
+  readonly codes: string[];
 }
 
 /**
@@ -71,7 +75,7 @@ export class ScreenWatch {
     for (const application of applications) {
       const snapshot = byName.get(scopedToolName(application, "snapshot"));
       if (snapshot === undefined) continue;
-      const seen: Seen = { lines: new Set(), produced: new Set(), removed: new Set(), values: new Map(), last: undefined, looks: 0 };
+      const seen: Seen = { lines: new Set(), produced: new Set(), removed: new Set(), values: new Map(), last: undefined, looks: 0, codes: [] };
       this.seen.set(application, seen);
       const read = async () => this.record(seen, compact((await snapshot.execute({})) as { page: string; truncated: boolean }), true);
       const wrap = (action: string, execute: (tool: ToolDefinition, args: unknown) => Promise<unknown>, returns?: string) => {
@@ -90,10 +94,15 @@ export class ScreenWatch {
         this.record(seen, result, (args as { within?: unknown }).within === undefined);
         return result;
       });
+      const keep = (state: { code?: unknown }) => {
+        if (typeof state.code === "string") seen.codes.push(state.code);
+        seen.codes.splice(0, seen.codes.length - MAX_CODES);
+      };
       wrap(
         "goto",
         async (tool, args) => {
           const state = (await tool.execute(args)) as object;
+          keep(state);
           const shown = await read();
           return { ...state, page: shown.page, truncated: shown.truncated };
         },
@@ -105,6 +114,7 @@ export class ScreenWatch {
           async (tool, args) => {
             const previous = seen.last ?? (await read()).lines;
             const state = (await tool.execute(args)) as object;
+            keep(state);
             const current = (await read()).lines;
             const appeared = absent(current, previous);
             for (const line of appeared) seen.produced.add(line);
@@ -135,6 +145,17 @@ export class ScreenWatch {
    */
   public tools(): ToolDefinition[] {
     return [...this.watched];
+  }
+
+  /**
+   * The lines of code a test writes to do what the agent last did on the pages of an application: what the
+   * tools that open or act on a page returned.
+   *
+   * @param application - Identifier of the application.
+   * @returns Five lines at most, the last first; none for an application without a user interface.
+   */
+  public codes(application: string): string[] {
+    return [...(this.seen.get(application)?.codes ?? [])].reverse();
   }
 
   /**

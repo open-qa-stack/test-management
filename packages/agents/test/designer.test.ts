@@ -759,7 +759,7 @@ describe("the sheet of a scenario", () => {
     );
   });
 
-  it("runs as it is once the agent typed on the screen the invented value it expects, as the value of its field", async () => {
+  it("runs once the agent typed on the screen the invented value it expects, as the value of its field, with the line the browser tools returned", async () => {
     const invented = scenario("list-orders", "other", {
       data: [{ value: "zzqx", from: "made-up" }],
       steps: [{ action: "Search zzqx", expects: [{ result: "The search is echoed", shows: ["Orders", "zzqx"], absent: [] }] }],
@@ -779,8 +779,20 @@ describe("the sheet of a scenario", () => {
     );
     const skeletonText = sheetOf(second.server);
     assert.match(skeletonText, /await expect\(page\.getByRole\("textbox", \{ name: "Search orders", exact: true \}\)\)\.toHaveValue\("zzqx"\);/);
-    const { server } = await design(
+    const idle = await design(
       [{ body: toolCalls(MODEL, [OPEN]) }, { body: toolCalls(MODEL, [typed]) }, { body: toolCalls(MODEL, [plan]) }, ...replies([[run(skeletonText, "r1")]])],
+      { plan: false },
+    );
+    const line = 'await page.getByRole("textbox", { name: "Search orders", exact: true }).fill("zzqx");';
+    assert.match(
+      told(idle.server, "r1"),
+      new RegExp(
+        `^Refused \\(TEST-ACTION\\): step 1 does nothing: do "Search zzqx" with the browser tools and copy the line of code they return into it, such as ${line.replace(/[()[\]{}.*+?^$|\\]/g, "\\$&")}\n`,
+      ),
+    );
+    const filled = skeletonText.replace("returned.\n", `returned.\n    ${line}\n`);
+    const { server } = await design(
+      [{ body: toolCalls(MODEL, [OPEN]) }, { body: toolCalls(MODEL, [typed]) }, { body: toolCalls(MODEL, [plan]) }, ...replies([[run(filled, "r1")]])],
       { plan: false },
     );
     assert.match(told(server, "r1"), /^Run of the file: passed\./);

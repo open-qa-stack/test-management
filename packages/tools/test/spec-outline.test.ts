@@ -121,4 +121,28 @@ describe("the outline of a test", () => {
       { line: 5, text: "" },
     ]);
   });
+
+  it("reads where each call that acts on the application starts: its methods that act, the client of the API, and a function given either", async () => {
+    const lines = [
+      `await page.goto("/orders");`,
+      `await page.getByRole("row", { name: "ORD-1" }).getByRole("button").click();`,
+      `await page.keyboard.press("Enter");`,
+      `await signIn(page, "demo");`,
+      `await expect(page.getByText("Orders")).toBeVisible();`,
+      `await test.step("1. Open", async () => {});`,
+      `log(page.url());`,
+      `await search.fill("Veldane");`,
+      `const response = await request.get("/orders");`,
+      `await seed(request);`,
+      `orders.get("x");`,
+      `await expect(page).toHaveURL(/orders/);`,
+      `await expect.soft(page).toHaveTitle("Orders");`,
+    ];
+    const text = lines.join("\n");
+    const outline = await outlineOf(text);
+    assert.deepEqual(
+      outline.actions.map((start) => text.slice(start).split("(")[0]),
+      ["page.goto", "page.getByRole", "page.keyboard.press", "signIn", "search.fill", "request.get", "seed"],
+    );
+  });
 });

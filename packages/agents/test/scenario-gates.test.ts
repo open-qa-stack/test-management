@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import type { PlannedScenario } from "@open-qa-stack/domain";
 import { moduleSyntax } from "@open-qa-stack/tools";
 import type { Refusal } from "../src/designer/refusal.ts";
-import { scenarioErrors } from "../src/designer/scenario-gates.ts";
+import { scenarioErrors, type ScenarioHelp } from "../src/designer/scenario-gates.ts";
 
 const SEARCH: PlannedScenario = {
   id: "search-order",
@@ -35,9 +35,10 @@ const spec = (second: readonly string[], first = OPEN, extra = "") =>
   `import { expect, test } from "@playwright/test";\n\ntest("search", async ({ page }) => {\n${first}\n  await test.step("2. Search the orders of Veldane", async () => {\n${second.join("\n")}\n  });\n});\n${extra}`;
 
 /** What a refusal gives as accepted: a skeleton, and the elements a screen showed the texts in. */
-const HELP = {
+const HELP: ScenarioHelp = {
   skeleton: "The skeleton.",
   locatorOf: (text: string) => new Map([["ORD-1042", { locator: 'page.getByRole("row", { name: "ORD-1042 Mira Veldane" })', field: false }]]).get(text),
+  codes: [],
 };
 
 /** What a refusal of a text of the second step gives: every assertion of that step. */
@@ -66,7 +67,11 @@ describe("the gates of a test against its scenario", () => {
     // Any matcher, quotes and case: the planned text is held by a string of the statement.
     assert.deepEqual(
       await errors(
-        spec([`    await expect(page.getByText('ord-1042')).toBeVisible();`, `    await expect(page.getByRole("table")).not.toContainText(\`ORD-1057\`);`]),
+        spec([
+          FILLED[0]!,
+          `    await expect(page.getByText('ord-1042')).toBeVisible();`,
+          `    await expect(page.getByRole("table")).not.toContainText(\`ORD-1057\`);`,
+        ]),
       ),
       [],
     );
@@ -93,7 +98,7 @@ describe("the gates of a test against its scenario", () => {
   it("refuse a planned text asserted in no expect of its step, even in another step or outside an expect", async () => {
     const elsewhere = spec(
       [FILLED[0]!, `    await page.getByText("ORD-1042").click();`, FILLED[2]!],
-      `  await test.step("1. Open the orders", async () => {\n    await expect(page.getByText("ORD-1042")).toBeVisible();\n  });`,
+      `  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n    await expect(page.getByText("ORD-1042")).toBeVisible();\n  });`,
     );
     assert.deepEqual(await errors(elsewhere), [
       'TEST-VALUE: step 2 must assert "ORD-1042": expect 2.1 of the plan names it (The order of Mira Veldane is listed alone). No await expect of that step holds it. An expected text is never changed or dropped; when the application shows something else, keep the assertion and call propose_test with diagnosis.',
@@ -126,6 +131,7 @@ describe("the gates of a test against its scenario", () => {
 
   it("refuse a text asserted only the other way round", async () => {
     const reversed = spec([
+      FILLED[0]!,
       `    await expect(page.getByText("ORD-1042")).toBeHidden();`,
       `    await expect(page.getByText("ORD-1042")).not.toBeVisible();`,
       `    await expect(page.getByRole("row", { name: "ORD-1057" })).toBeVisible();`,
@@ -162,12 +168,31 @@ describe("the gates of a test against its scenario", () => {
         ["TEST-VALUE", STEP_TWO],
       ],
     );
-    const reversed = spec([`    await expect(page.getByText("ORD-1042")).toBeHidden();`, ...FILLED.slice(2)]);
+    const reversed = spec([FILLED[0]!, `    await expect(page.getByText("ORD-1042")).toBeHidden();`, ...FILLED.slice(2)]);
     // The element the screen showed it in, by a locator that does not name it: it holds the text.
     const inCell = { ...HELP, locatorOf: () => ({ locator: 'page.getByRole("cell").first()', field: false }) };
     assert.deepEqual(
       (await refusals(reversed, inCell)).map((refusal) => [refusal.code, refusal.remedy?.split("\n")[1]]),
       [["TEST-POLARITY", 'await expect(page.getByRole("cell").first()).toContainText("ORD-1042");']],
+    );
+  });
+
+  it("refuse a step that does nothing on the page, with the lines of code the browser tools returned last", async () => {
+    const idle = spec(FILLED.slice(1));
+    const message =
+      'TEST-ACTION: step 2 does nothing: do "Search the orders of Veldane" with the browser tools and copy the line of code they return into it, such as';
+    assert.deepEqual(await errors(idle), [`${message} await page.getByRole("button", { name: "Search", exact: true }).click();`]);
+    const codes = ['await page.getByRole("button", { name: "Go", exact: true }).click();', 'await page.goto("/orders");'];
+    const [refused] = await refusals(idle, { ...HELP, codes });
+    assert.deepEqual(
+      [refused!.message, refused!.remedy],
+      [
+        `${message.slice("TEST-ACTION: ".length)} ${codes[0]}`,
+        [
+          'Step 2 must do "Search the orders of Veldane" before its assertions. The last lines of code the browser tools returned, the last first:',
+          ...codes,
+        ].join("\n"),
+      ],
     );
   });
 
