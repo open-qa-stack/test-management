@@ -549,6 +549,8 @@ export class ScreenWatch {
     for (const line of lines) {
       seen.lines.add(line);
       shown?.add(line);
+      // What the page shows once an action was done is a result of the actions: what an address opened shows, as what a click made appear.
+      if (shown !== undefined) seen.produced.add(line);
       const value = fieldValue(line);
       if (value !== undefined && !seen.values.has(value)) seen.values.set(value, moment);
     }

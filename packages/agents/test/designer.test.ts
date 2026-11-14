@@ -1795,7 +1795,7 @@ describe("what a plan may hold", () => {
     const { outcome, server } = await design(replies([[OPEN], [plan("seen", 1)], [SEARCH], [plan("done", 2)]]), { plan: false });
     assert.match(
       toolResult(server, "seen"),
-      /Refused \(PLAN-RESULT\): no text scenario list-orders expects appeared, or went, after an action of yours on shop\. Do its steps with shop_fill and shop_click/,
+      /Refused \(PLAN-RESULT\): no text scenario list-orders expects appeared, or went, after an action of yours on shop\. Do its steps with shop_goto, shop_fill and shop_click/,
     );
     assert.match(toolResult(server, "search"), /Order 42 of Ada/);
     assert.match(told(server, "done"), /^The plan was accepted\./);

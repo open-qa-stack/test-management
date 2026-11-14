@@ -887,7 +887,7 @@ export class PlanProposal {
     return [
       {
         code: "PLAN-RESULT",
-        message: `no text scenario ${scenario.id} expects appeared, or went, after an action of yours on ${scenario.application}. Do its steps with ${tool("fill")} and ${tool("click")}, read what the result says appeared and went, and expect that.`,
+        message: `no text scenario ${scenario.id} expects appeared, or went, after an action of yours on ${scenario.application}. Do its steps with ${tool("goto")}, ${tool("fill")} and ${tool("click")}, read what the page shows once opened and what each result says appeared and went, and expect that.`,
       },
     ];
   }

@@ -206,6 +206,16 @@ describe("the gates of a plan", () => {
     );
   });
 
+  it("take what the page shows once an address is opened as the result of that action", async () => {
+    const { proposal: made } = await proposal();
+    // The only action is the address opened: a scenario that expects what the page then shows expects a result.
+    const opened = functional("a", {
+      data: [],
+      steps: [{ action: "Open the orders", actions: [1], expects: [{ result: "The orders show", shows: ["Orders"], absent: [] }] }],
+    });
+    assert.equal(await submit(made, { scenarios: [opened, scenario("b"), scenario("c")] }), ACCEPTED);
+  });
+
   it("refuse a functional scenario whose texts no action of the agent made appear or go, until one did", async () => {
     const { proposal: made, screens } = await proposal();
     const submitted = {
@@ -236,7 +246,7 @@ describe("the gates of a plan", () => {
     );
     assert.match(
       refused.error,
-      /after an action of yours on shop\. Do its steps with shop_fill and shop_click, read what the result says appeared and went, and expect that\./,
+      /after an action of yours on shop\. Do its steps with shop_goto, shop_fill and shop_click, read what the page shows once opened and what each result says appeared and went, and expect that\./,
     );
     await act(screens, "click");
     assert.equal(await submit(made, submitted), ACCEPTED);
@@ -557,7 +567,7 @@ describe("the gates of a plan", () => {
     });
     assert.deepEqual(await submit(made, { scenarios: [unseen, sent] }), {
       error: [
-        "Refused (PLAN-RESULT): no text scenario c expects appeared, or went, after an action of yours on shop. Do its steps with shop_fill and shop_click, read what the result says appeared and went, and expect that.",
+        "Refused (PLAN-RESULT): no text scenario c expects appeared, or went, after an action of yours on shop. Do its steps with shop_goto, shop_fill and shop_click, read what the page shows once opened and what each result says appeared and went, and expect that.",
         'Refused (PLAN-SHOWN): scenario d, expect 1.2, names "Unseen text", which no screen of shop showed in this session. Do step 1, "Enter \'Quill Zed\' in the search field", with shop_fill, then copy a text that appeared after it, as the screen gives it.',
         'Refused (PLAN-SHOWN): scenario c, expect 1.1, names "Quill Zed", a value of its data that no field of shop held in this session. Type it with shop_fill and do the step, then expect what the screen answered: the field only echoes the value.',
         'Refused (PLAN-SHOWN): scenario c, expect 2.1, names "Quill Zed", a value of its data that no field of shop held in this session. Type it with shop_fill and do the step, then expect what the screen answered: the field only echoes the value.',
