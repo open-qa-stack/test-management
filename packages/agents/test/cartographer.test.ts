@@ -242,6 +242,13 @@ const SUBMISSION: DomainIndexSubmission = {
   ],
 };
 
+/** The index of a shop whose interface was explored in the run: its home and the orders its link leads to are left in unassigned. */
+function explored(): DomainIndexSubmission {
+  const domains = SUBMISSION.domains.map((domain) => ({ ...domain, references: domain.references.filter((r) => r.source !== "shop") }));
+  const unassigned = SUBMISSION.unassigned.map((r) => (r.source === "shop" ? { ...r, items: ["/", "/orders"] } : r));
+  return { domains, unassigned };
+}
+
 /** The submission without any reference to the sources named. */
 function without(...sources: string[]): DomainIndexSubmission {
   const kept = (references: DomainIndexSubmission["unassigned"]) => references.filter((r) => !sources.includes(r.source));
@@ -249,7 +256,15 @@ function without(...sources: string[]): DomainIndexSubmission {
 }
 
 const submit = (submission: unknown, id = "x1") => ({ id, name: "submit_index", arguments: submission });
-const submitCard = (card: unknown, id = "k1") => ({ id, name: "submit_card", arguments: card });
+/** The calls of the agent that explores the shop once it opened its home: the home in a domain, and the orders its link leads to set aside. */
+const HOME_MAPPED = [
+  {
+    id: "w1",
+    name: "write_domain",
+    arguments: { id: "all", label: "All", description: "Everything shop holds.", elements: [{ screen: "/", role: "About /." }], body: "`/`" },
+  },
+  { id: "a1", name: "set_aside", arguments: { elements: [{ screen: "/orders" }], reason: "Not opened in this run." } },
+];
 
 interface Run {
   readonly before: ReturnType<typeof references>;
@@ -535,12 +550,12 @@ describe("criterion 6 — a navigation outside the declared origins is refused, 
   it("answers the agent of the interface with an error, reaches no other host, and counts the action in the index", async () => {
     const away = [{ id: "g1", name: "shop_goto", arguments: { url: `${elsewhere.origin}/` } }];
     const home = [{ id: "g2", name: "shop_goto", arguments: { url: "/" } }];
-    const screens = { ...SUBMISSION, domains: SUBMISSION.domains.map((d) => ({ ...d, references: d.references.filter((r) => r.source !== "shop") })) };
+    const screens = explored();
     const { outcome } = await cartography(
       [
         { body: toolCalls(MODEL, away) },
         { body: toolCalls(MODEL, home) },
-        { body: toolCalls(MODEL, [submitCard(cardSubmission("shop", ["/"]))]) },
+        { body: toolCalls(MODEL, HOME_MAPPED) },
         { body: answer(MODEL, "Done.") },
         { body: toolCalls(MODEL, [submit(screens)]) },
         { body: answer(MODEL, "Done.") },
@@ -612,7 +627,7 @@ describe("criterion 9 — past 200 actions nothing more runs, and no complete in
       [{ body: toolCalls(MODEL, actions) }, { body: toolCalls(MODEL, [submit(without("shop"))]) }, { body: answer(MODEL, "Done.") }],
       { cards: ["shop-api", "shop-db", "order-specs"] },
     );
-    assert.match(messages(outcome), /The task reached its actions limit\.\nNo card was written/);
+    assert.match(messages(outcome), /The session that explores shop reached its actions limit\.[^]*No card was written: no element of shop was placed\./);
     // The run checks the interface, its cartographer checks it again, opens its page, then one request per action that ran.
     assert.equal(site.requested.slice(before).filter((r) => r === "GET /").length, 3 + 200);
     assert.equal(outcome.journal.filter((entry) => entry.message === "shop_goto: The task reached its actions limit; the call did not run.").length, 1);
@@ -632,9 +647,10 @@ describe("criterion 9 — past 200 actions nothing more runs, and no complete in
     assert.equal(outcome.stoppedBy, undefined);
     const late = [
       { body: toolCalls(MODEL, [{ id: "g1", name: "shop_goto", arguments: { url: "/" } }]) },
-      { body: toolCalls(MODEL, [submitCard(cardSubmission("shop", ["/"]))]) },
+      // The session is cut once the home is placed: the screen its link leads to is left unplaced, and the card truncated.
+      { body: toolCalls(MODEL, [HOME_MAPPED[0]!]) },
     ];
-    const screens = { ...SUBMISSION, domains: SUBMISSION.domains.map((d) => ({ ...d, references: d.references.filter((r) => r.source !== "shop") })) };
+    const screens = explored();
     const cut = await cartography([...late, { body: toolCalls(MODEL, [submit(screens)]) }, { body: answer(MODEL, "Done.") }], {
       cards: ["shop-api", "shop-db", "order-specs"],
       limits: { maxIterations: 2, maxMinutes: 10, maxActions: 200 },
@@ -693,7 +709,7 @@ describe("a session that fails", () => {
     const cards = await cartography([], { cards: [] }, new CatalogDouble(), `http://127.0.0.1:${down}/v1`);
     assert.match(
       messages(cards.outcome),
-      /No card was written: no element of shop-api was placed\.[^]*No card was written: no element of shop-db was placed\.[^]*The session failed: [^]*No index was written: no source has a card\./,
+      /No card was written: no element of shop-api was placed\.[^]*No card was written: no element of shop-db was placed\.[^]*The session that explores shop failed: [^]*No index was written: no source has a card\./,
     );
   });
 });

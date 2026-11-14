@@ -22,9 +22,9 @@ It works in two steps: each source is first mapped on its own into a [source car
 | Base | Its tables, then its views, materialized or not, each as `schema.name`, read from the catalog only | Its kind, `table` or `view`, and its number of columns; for a table, primary key and foreign keys; for a view, the tables and views it reads; for either, the names of its triggers when it has some | |
 | Document | What the agent that reads the documents chooses: a whole document, by its path, or one of its sections, as `path § Title` | Its kind, `document` or `section` | |
 | Source code | The folders that hold files a grammar reads; past forty, the deepest are merged into their parent | Number of files, routes their outlines declare | |
-| User interface | The screens the agent visited, by path, with the route after `#/` and without the query | Latest title, links to other screens its snapshots showed | |
+| User interface | What the agent that explores it chooses: a screen, by its route, or one thing a user does on it, as `/customers § Search a customer` | Its kind, `screen` or `feature` | |
 
-A base and a contract are not mapped with `submit_card`: see [The workflow of a base](#the-workflow-of-a-base), which a contract follows too. Nor are documents: see [The cartography of documents](#the-cartography-of-documents). For any other source, the request gives the agent each element with its facts and, on an indented line, what else the harness read of it, so that it calls a tool only for what the request does not show; those are not kept in the card. The agent gets the tools of this source only, and the notes. It hands the card in with `submit_card`, which must place every element and invent none; the facts are joined to the card afterwards. The fingerprint of a contract or a document covers its text, that of a base the definition of each of its exported elements, routines and triggers included, that of source code the content of the files counted, and that of a user interface its address, so that its card is made again on demand only.
+A base and a contract are not mapped with `submit_card`: see [The workflow of a base](#the-workflow-of-a-base), which a contract follows too. Nor are documents, see [The cartography of documents](#the-cartography-of-documents), nor a user interface, see [The exploration of an application](#the-exploration-of-an-application). For source code, the request gives the agent each element with its facts, so that it calls a tool only for what the request does not show. The agent gets the tools of this source only, and the notes. It hands the card in with `submit_card`, which must place every element and invent none; the facts are joined to the card afterwards. The fingerprint of a contract or a document covers its text, that of a base the definition of each of its exported elements, routines and triggers included, that of source code the content of the files counted, and that of a user interface its address, so that its card is made again on demand only.
 
 ## The workflow of a base
 
@@ -109,6 +109,22 @@ The map is over once the whole source is covered, and not before. A document is 
 Every refusal has an exit. The third body refused for one domain is replaced by a table the harness writes, and the domain is kept. After ten calls refused the map is closed: what is placed stays. An agent that stops while documents are in no domain is reminded of them, three times at most.
 
 Once the session is over, the harness writes the folder of the source in the same shape as for a base: `export/`, with the text of each element — a document in `export/documents/`, a section in `export/sections/` — the file of each domain, and the manifest. A document or a section in no domain and not set aside is never lost: it is an element of the manifest, left unplaced with why, and the manifest is then `truncated`. The card is derived from the manifest and bears the fingerprint of the documents: it is kept while none changes, and the documents are mapped again, all of them, when one does.
+
+## The exploration of an application
+
+Nothing of a user interface can be read without opening it. An agent of its own explores it with the browser, in one session, under the limits of the configured autonomy: given the address of the interface in the environment, it opens the home, follows the menus and the links, tries what a user does on each screen, and maps what the application does into domains.
+
+It gets the browser tools of this application, the notes, and the two tools of its map. Each tool that acts on the page gives back what the page then shows, so that the agent sees where each step leads. A screen is named by its route: its path, with the route after `#/` of an application that routes in the fragment, without its query, and with `:id` in place of a segment that names one record — a number, a UUID, six characters or more with a digit. The screens of every record are one screen: `/customers/:id`.
+
+**What it may do.** An exploration never removes data: a click on an element whose name says it removes some is refused. The key `exploration` of the environment says the rest: with `read-only`, the default, a click on an element whose name says it creates or changes data is refused too, and the agent reads the form instead; with `read-write`, it may submit such forms to see what the application answers. Both are guesses from the words of a name.
+
+**What it hands in.** `write_domain` takes a domain, its `elements` — each a `screen`, with a `feature` for one thing a user does on it — its `observations` and the `body` of its file. `set_aside` takes the screens that serve no functional area. The harness holds the map to what the agent opened: an element of a screen never opened is refused, while a screen a link led to may be set aside without being opened, such as a way out of the application.
+
+**What it observed.** An observation is something the agent saw that a test can verify: a rule, a control, a message, a state. It names the screen it was made on, says it in one sentence and may quote in `shows` the exact texts the screen displayed. It is what was seen, not what is specified. The harness refuses one made on a screen never opened and a text its screen never showed, and writes those it keeps at the end of the file of the domain, under the heading `Observed on the screens`.
+
+**When it is over.** The map is over once every screen opened is in a domain or set aside, by itself or by one thing done on it, and every screen a link led to was opened or set aside. Each result names the screens left, those never opened marked so. Before anything is opened, the home is still to explore.
+
+The refusals, their exits and what is written once the session is over are those of the cartography of documents: both maps share them. The card bears the fingerprint of the address of the interface: it is made again on demand only.
 
 ## Shared words
 

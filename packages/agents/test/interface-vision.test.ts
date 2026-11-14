@@ -50,10 +50,14 @@ describe("the card of a user interface, with a model that reads images", () => {
         [["vision"], true],
         [[], false],
       ] as const) {
-        const subject = await interfaceSubject(configFor(site.origin, capabilities), { id: "shop", type: "web", environment: "local" }, [], {
-          env: {},
-          screenshotsDir: "screenshots",
-        });
+        const subject = await interfaceSubject(
+          configFor(site.origin, capabilities),
+          { id: "shop", type: "web", environment: "local" },
+          {
+            env: {},
+            screenshotsDir: "screenshots",
+          },
+        );
         const screenshot = subject.tools.find((tool) => tool.name === "shop_screenshot")!;
         assert.equal("within" in (screenshot.parameters["properties"] as object), vision);
         await subject.close();
@@ -67,10 +71,14 @@ describe("the card of a user interface, with a model that reads images", () => {
     const site = await testSite({ "/": `<p>Connected to ${DATABASE}</p>` });
     const folder = mkdtempSync(join(tmpdir(), "oqas-shots-"));
     try {
-      const subject = await interfaceSubject(configFor(site.origin, ["vision"]), { id: "shop", type: "web", environment: "local" }, [], {
-        env: { SHOP_DB_URL: DATABASE },
-        screenshotsDir: folder,
-      });
+      const subject = await interfaceSubject(
+        configFor(site.origin, ["vision"]),
+        { id: "shop", type: "web", environment: "local" },
+        {
+          env: { SHOP_DB_URL: DATABASE },
+          screenshotsDir: folder,
+        },
+      );
       try {
         const result = await subject.tools.find((tool) => tool.name === "shop_screenshot")!.execute({});
         assert.equal((result as { imageNotShown?: string }).imageNotShown, "The page shows a secret of the configuration: its image is not shown.");

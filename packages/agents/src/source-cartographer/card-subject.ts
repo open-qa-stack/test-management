@@ -1,10 +1,16 @@
-import type { AgentEvent, ToolDefinition } from "@open-qa-stack/domain";
+import type { ToolDefinition } from "@open-qa-stack/domain";
 import { readsImages, type MappedKnowledge, type ResolvedConfig } from "@open-qa-stack/shared";
-import { browserTools, knowledgeInventory, knowledgeTools, type BrowserAccess, type KnowledgeAccess, type SourceInventory } from "@open-qa-stack/tools";
+import {
+  browserTools,
+  fingerprintOf,
+  knowledgeInventory,
+  knowledgeTools,
+  type BrowserAccess,
+  type KnowledgeAccess,
+  type SourceInventory,
+} from "@open-qa-stack/tools";
 import { surveySource } from "../cartographer/source-survey.ts";
 import { imageSecrets } from "../common/config-secrets.ts";
-import { interfaceCardRequest, sourceCardRequest } from "./source-cartographer-prompt.ts";
-import { interfaceFingerprint, visitedScreens } from "./visited-screens.ts";
 
 /** The user interface of an application in one environment, named by the application. */
 export interface InterfaceSource {
@@ -22,9 +28,7 @@ export interface CardSubject {
   readonly fingerprint: string;
   /** The tools of this source only. */
   readonly tools: readonly ToolDefinition[];
-  /** The message that starts the cartography. */
-  readonly request: string;
-  /** The elements the card must place, as far as they are known now. */
+  /** The elements the harness read of the source before any exploration; none for a user interface, which an agent explores. */
   inventory(): SourceInventory;
   /** Releases what the tools hold; to call once the session is over. */
   close(): Promise<void>;
@@ -44,18 +48,18 @@ export async function knowledgeSubject(source: MappedKnowledge, access: Knowledg
   return {
     fingerprint: inventory.fingerprint,
     tools: knowledgeTools([source], access),
-    request: sourceCardRequest(source.id, source.type, inventory),
     inventory: () => inventory,
     close: async () => undefined,
   };
 }
 
 /**
- * The subject of the card of a user interface, whose elements are the screens the agent visits.
+ * The subject of the card of a user interface: its browser tools, and nothing read beforehand, since what an
+ * interface shows cannot be read without exploring it. Its fingerprint is that of its address, so that its
+ * card is made again on demand only.
  *
  * @param config - The resolved configuration.
  * @param source - The interface.
- * @param events - The events of the session, from which the screens visited are read.
  * @param access - The credentials, the folder of the screenshots and how the browser starts.
  * @returns The browser tools of the application, and the screens visited so far.
  * @throws Error when the application has no user interface in the environment, or it does not answer.
@@ -63,7 +67,6 @@ export async function knowledgeSubject(source: MappedKnowledge, access: Knowledg
 export async function interfaceSubject(
   config: ResolvedConfig,
   source: InterfaceSource,
-  events: readonly AgentEvent[],
   access: Pick<BrowserAccess, "env" | "screenshotsDir" | "launch" | "actionTimeoutMs" | "navigationTimeoutMs" | "settleTimeoutMs">,
 ): Promise<CardSubject> {
   const application = config.applications.find((candidate) => candidate.id === source.id);
@@ -72,6 +75,7 @@ export async function interfaceSubject(
     throw new Error(`The application ${source.id} has no user interface in the environment ${source.environment}.`);
   const survey = await surveySource({ id: source.id, type: "web", uiUrl }, { repositoryRoot: "", env: access.env });
   if (!survey.ok) throw new Error(survey.error);
+  const fingerprint = fingerprintOf(uiUrl);
   const browser = browserTools([application], {
     ...access,
     environment: source.environment,
@@ -79,10 +83,9 @@ export async function interfaceSubject(
     secrets: imageSecrets(config, access.env),
   });
   return {
-    fingerprint: interfaceFingerprint(uiUrl),
+    fingerprint,
     tools: browser.tools,
-    request: interfaceCardRequest(source.id, source.environment, uiUrl),
-    inventory: () => visitedScreens(events, source.id, uiUrl),
+    inventory: () => ({ items: [], facts: new Map(), fingerprint }),
     close: () => browser.close(),
   };
 }

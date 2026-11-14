@@ -32,15 +32,3 @@ function describe(facts: Readonly<Record<string, unknown>> = {}): string {
   const parts = Object.entries(facts).map(([key, value]) => `${key}: ${JSON.stringify(value)}`);
   return parts.length === 0 ? "" : ` (${parts.join("; ")})`;
 }
-
-/**
- * Writes the request that starts the cartography of a user interface, whose screens the agent finds itself.
- *
- * @param applicationId - Identifier of the application.
- * @param environment - Name of the environment.
- * @param uiUrl - Address of its user interface.
- * @returns The message to send to the cartographer.
- */
-export function interfaceCardRequest(applicationId: string, environment: string, uiUrl: string): string {
-  return `Write the card of the user interface of ${applicationId} (${environment}), at ${uiUrl}. Open it, take snapshots and follow its menus and links to visit its screens without changing any data: do not submit a form that creates, changes or deletes anything. Every screen you visit is an element of the card, named by its path, without the site nor the query: \`/customers\`, or \`/#/policies\` when the application routes after a #. Then hand the card in with ${SUBMIT_CARD_TOOL}.`;
-}

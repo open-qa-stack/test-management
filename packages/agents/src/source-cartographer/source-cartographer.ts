@@ -13,13 +13,14 @@ import { runTrace } from "../common/run-trace.ts";
 import type { Trace } from "../common/trace.ts";
 import type { PhaseOutcome, TraceLine } from "../common/trace-line.ts";
 import { manifestCard } from "../source-workflow/manifest-card.ts";
+import { mapApplication } from "../application-explorer/map-application.ts";
 import { mapDocuments } from "../document-cartographer/map-documents.ts";
 import type { SessionsUse } from "../source-workflow/group-elements.ts";
 import { mapExportedSource, type ExportedSourceOptions } from "../source-workflow/map-exported-source.ts";
 import { SourceFolder } from "../source-workflow/source-folder.ts";
 import { cardRules } from "./card-rules.ts";
-import { interfaceSubject, knowledgeSubject, type CardSource, type CardSubject } from "./card-subject.ts";
-import { SOURCE_CARTOGRAPHER_INSTRUCTIONS } from "./source-cartographer-prompt.ts";
+import { interfaceSubject, knowledgeSubject, type CardSource, type CardSubject, type InterfaceSource } from "./card-subject.ts";
+import { SOURCE_CARTOGRAPHER_INSTRUCTIONS, sourceCardRequest } from "./source-cartographer-prompt.ts";
 
 /** What every workflow that leaves a manifest of a source is given. */
 type ManifestWorkflow = Omit<ExportedSourceOptions, "exported" | "partial" | "force">;
@@ -132,7 +133,7 @@ export class SourceCartographer {
     const events: AgentEvent[] = [];
     let subject: CardSubject;
     try {
-      subject = await this.subject(events);
+      subject = await this.subject();
     } catch (failure) {
       journal.record("error", `The source ${source.id} does not answer: ${failure instanceof Error ? failure.message : String(failure)}`, source.id);
       return { kept: false, usage: NO_USAGE, journal: journal.entries() };
@@ -147,11 +148,12 @@ export class SourceCartographer {
       journal.record("info", `The card of ${source.id} is up to date; it was kept.`, source.id);
       return { cardPath, card: existing, kept: true, usage: NO_USAGE, journal: journal.entries() };
     }
+    if (source.type === "web") return this.mapExplored(source, subject, cardPath, journal, trace, now).finally(() => subject.close());
     const exported = subject.inventory().export;
     if (exported !== undefined) return this.mapExported(subject.inventory(), exported, cardPath, journal, trace, now);
     if (subject.inventory().truncated === true)
       journal.record("error", `The source ${source.id} is too large to be read whole; its card is truncated.`, source.id);
-    if (source.type !== "web" && subject.inventory().items.length === 0) {
+    if (subject.inventory().items.length === 0) {
       journal.record("info", `The source ${source.id} has no element; its card is empty.`, source.id);
       return {
         ...(await this.write(
@@ -171,7 +173,7 @@ export class SourceCartographer {
     const task = {
       instructions: SOURCE_CARTOGRAPHER_INSTRUCTIONS,
       tools: [...subject.tools, ...notes, submission.tool()],
-      request: subject.request,
+      request: sourceCardRequest(source.id, source.type, subject.inventory()),
       events,
       reminder: () => submission.reminder(),
       sent: (text: string) => trace.harness("card", { type: "message", text }, source.id),
@@ -252,12 +254,37 @@ export class SourceCartographer {
       trace,
       now,
       (shared) => mapDocuments({ ...shared, documents: new DocumentSet(repositoryRoot, source.path) }),
-      // The elements of the documents are the agent's to choose: the card holds those of the manifest, each with its kind.
-      (manifest) => ({
-        items: manifest.elements.map((element) => element.name),
-        facts: new Map(manifest.elements.map((element) => [element.name, { kind: element.kind }])),
-        fingerprint: inventory.fingerprint,
-      }),
+      elementsOf,
+    );
+  }
+
+  /** Has the user interface of an application explored and mapped by an agent, in its folder beside its card, then derives its card from its manifest. */
+  private mapExplored(
+    source: InterfaceSource,
+    subject: CardSubject,
+    cardPath: string,
+    journal: Journal,
+    trace: Trace,
+    now: () => Date,
+  ): Promise<Omit<SourceCartographyOutcome, "tracePath">> {
+    const environment = this.options.config.applications
+      .find((application) => application.id === source.id)!
+      .environments.find((candidate) => candidate.name === source.environment)!;
+    return this.fromManifest(
+      subject.inventory(),
+      cardPath,
+      journal,
+      trace,
+      now,
+      (shared) =>
+        mapApplication({
+          ...shared,
+          environment: source.environment,
+          uiUrl: environment.uiUrl!,
+          mode: environment.exploration ?? "read-only",
+          browser: subject.tools,
+        }),
+      elementsOf,
     );
   }
 
@@ -320,10 +347,10 @@ export class SourceCartographer {
   }
 
   /** What the cartography works on, by kind of source. */
-  private subject(events: readonly AgentEvent[]): Promise<CardSubject> {
+  private subject(): Promise<CardSubject> {
     const { config, source, repositoryRoot, env } = this.options;
     if (source.type === "web") {
-      return interfaceSubject(config, source, events, {
+      return interfaceSubject(config, source, {
         env,
         screenshotsDir: join(repositoryRoot, config.repository.stateDir, "screenshots"),
         ...this.options.browser,
@@ -335,6 +362,15 @@ export class SourceCartographer {
       this.options.inventory,
     );
   }
+}
+
+/** The elements of a source an agent mapped are the agent's to choose: its card holds those of its manifest, each with its kind. */
+function elementsOf(manifest: SourceManifest): SourceInventory {
+  return {
+    items: manifest.elements.map((element) => element.name),
+    facts: new Map(manifest.elements.map((element) => [element.name, { kind: element.kind }])),
+    fingerprint: manifest.fingerprint,
+  };
 }
 
 /** The card at `path`, when it is readable, complete, and its fingerprint is `fingerprint`. */

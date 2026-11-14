@@ -1029,49 +1029,116 @@ describe("the card of a user interface", () => {
         environments: application.environments.map((environment) => ({ ...environment, uiUrl })),
       })),
     });
-  const SCREENS: SourceCardSubmission = {
-    domains: [
-      {
-        id: "ordering",
-        label: "Ordering",
-        description: "Browsing orders.",
-        items: [
-          { name: "/", summary: "The home page." },
-          { name: "/orders", summary: "The list of orders." },
-        ],
-      },
-    ],
-    unassigned: [],
-  };
-
-  it("criteria 1 and 2 — places every screen visited, refuses a card that forgets one, and carries the titles and links the snapshots showed", async () => {
-    const site = await testSite({ "/": '<h1>Shop</h1><a href="/orders">Orders</a><a href="https://elsewhere.example/">Out</a>', "/orders": "<h1>Orders</h1>" });
+  it("has an agent explore the interface with the browser, hand in its domains with what it observed, and writes the card of the screens it opened", async () => {
+    const site = await testSite({
+      "/": '<h1>Shop</h1><a href="/orders">Orders</a><a href="/logout">Log out</a><a href="https://elsewhere.example/">Out</a>',
+      "/orders": '<h1>Orders</h1><p>2 orders</p><a href="/orders/1042">ORD-1042</a><button>Delete order</button><button>Create order</button>',
+      "/orders/1042": "<h1>Order ORD-1042</h1><p>Paid</p>",
+    });
     try {
+      const call = (id: string, name: string, args: object = {}) => ({ id, name, arguments: args });
+      const ordering = { id: "ordering", label: "Ordering", description: "Browsing and reading orders." };
+      const elements = [
+        { screen: "/orders", role: "The list of the orders." },
+        { screen: "/orders/1042", role: "One order and its state." },
+      ];
+      const observations = [{ screen: "/orders", statement: "The list says how many orders it holds.", shows: ["2 orders"] }];
+      const body = "`/orders` lists the orders; `/orders/:id` shows one.";
       const { outcome, server } = await cartography(
         [
-          { body: toolCalls(MODEL, [{ id: "g1", name: "shop_goto", arguments: { url: "/" } }]) },
-          { body: toolCalls(MODEL, [{ id: "s1", name: "shop_snapshot", arguments: {} }]) },
-          { body: toolCalls(MODEL, [{ id: "g2", name: "shop_goto", arguments: { url: "/orders?page=2" } }]) },
-          { body: toolCalls(MODEL, [submit({ domains: [{ ...SCREENS.domains[0]!, items: [SCREENS.domains[0]!.items[0]!] }], unassigned: [] })]) },
-          { body: toolCalls(MODEL, [submit(SCREENS, "c2")]) },
-          { body: answer(MODEL, "Done.") },
+          { body: toolCalls(MODEL, [call("g1", "shop_goto", { url: "/" })]) },
+          { body: toolCalls(MODEL, [call("g2", "shop_goto", { url: "/orders?page=2" })]) },
+          // The exploration changes no data here: neither button is clicked.
+          {
+            body: toolCalls(MODEL, [
+              call("k1", "shop_click", { target: { role: "button", name: "Delete order" }, confirm: true }),
+              call("k2", "shop_click", { target: { role: "button", name: "Create order" } }),
+              call("k3", "shop_click", { target: { role: "link", name: "ORD-1042" } }),
+            ]),
+          },
+          { body: toolCalls(MODEL, [call("w1", "write_domain", { ...ordering, elements, observations, body })]) },
+          { body: toolCalls(MODEL, [call("a1", "set_aside", { elements: [{ screen: "/" }, { screen: "/logout" }], reason: "The home and the way out." })]) },
+          { body: answer(MODEL, "One domain.") },
         ],
         { source: { id: "shop", type: "web", environment: "local" }, config: withInterface(site.origin) },
       );
       assert.ok(outcome.card, messages(outcome));
-      assert.match(JSON.stringify(server.requests[4]!.body), /Still to place[^}]*\/orders/);
-      const items = outcome.card.domains[0]!.items;
-      assert.deepEqual(
-        items.map((item) => item.facts),
-        [
-          { title: "/", links: ["/orders"] },
-          { title: "/orders", links: [] },
-        ],
+      assert.ok(validateSourceCard(JSON.parse(readFileSync(outcome.cardPath!, "utf8"))).ok);
+      assert.deepEqual(outcome.card.domains, [
+        {
+          ...ordering,
+          items: [
+            { name: "/orders", summary: "The list of the orders.", facts: { kind: "screen" } },
+            { name: "/orders/:id", summary: "One order and its state.", facts: { kind: "screen" } },
+          ],
+        },
+      ]);
+      assert.deepEqual([outcome.card.unassigned, outcome.card.status, outcome.card.source.type], [["/", "/logout"], "complete", "web"]);
+      const told = (id: string) =>
+        JSON.stringify(
+          server.requests
+            .flatMap((request) => (request.body as { messages: { tool_call_id?: string; content?: string }[] }).messages)
+            .find((message) => message.tool_call_id === id)?.content,
+        );
+      // Each action gives back what the page then shows; a click that removes or changes data is refused.
+      assert.match(told("g1"), /heading \\+"Shop\\+"/);
+      assert.match(told("k1"), /may remove data of the application, and an exploration never removes any/);
+      assert.match(told("k2"), /may create or change data, and this environment is explored without changing any/);
+      assert.match(told("k3"), /Order ORD-1042/);
+      assert.match(told("w1"), /The domain ordering is kept with 2 elements\. 2 screens are in no domain and not set aside: \/, \/logout \(not opened\)\./);
+      const manifest = manifestOf(outcome);
+      const folder = outcome.cardPath!.replace(/\.json$/, "");
+      assert.equal(
+        readFileSync(join(folder, manifest.domains[0]!.file!), "utf8"),
+        `# Ordering (\`ordering\`)\n\nBrowsing and reading orders.\n\n${body}\n\n## Observed on the screens\n\nWhat follows was seen while exploring the application, not read in a specification.\n\n- \`/orders\`: The list says how many orders it holds. Seen: "2 orders".\n`,
       );
-      assert.equal(outcome.card.source.type, "web");
-      assert.ok(outcome.card.run.actions >= 2);
-      assert.match(outcome.cardPath!, /sources\/shop\.json$/);
-      assert.match(JSON.stringify(server.requests[0]!.body), /Write the card of the user interface of shop \(local\)/);
+      assert.match(readFileSync(join(folder, manifest.elements.find((element) => element.name === "/orders/:id")!.file), "utf8"), /Order ORD-1042/);
+      const first = server.requests[0]!.body as { messages: { role: string; content: string }[]; tools: { function: { name: string } }[] };
+      assert.ok(
+        ["shop_goto", "shop_snapshot", "shop_click", "remember", "write_domain", "set_aside"].every((name) =>
+          first.tools.some((tool) => tool.function.name === name),
+        ),
+      );
+      assert.ok(first.messages.find((message) => message.role === "user")!.content.includes("Explore the user interface of shop (local), at "));
+      assert.match(first.messages.find((message) => message.role === "system")!.content, /You change no data here\./);
+      assert.match(messages(outcome), /The mapping of shop is complete: 1 domains, 2 elements placed, 2 set aside, 0 unplaced\./);
+    } finally {
+      await site.close();
+    }
+  });
+
+  it("lets the agent submit a form where the environment may be changed, and says when its session failed or was cut", async () => {
+    const site = await testSite({ "/": "<h1>Shop</h1><button>Create order</button>" });
+    try {
+      const writable = (config: ResolvedConfig): ResolvedConfig => {
+        const changed = withInterface(site.origin)(config);
+        return {
+          ...changed,
+          applications: changed.applications.map((a) => ({ ...a, environments: a.environments.map((e) => ({ ...e, exploration: "read-write" as const })) })),
+        };
+      };
+      const source = { id: "shop", type: "web", environment: "local" } as const;
+      const home = { id: "home", label: "Home", description: "The home.", elements: [{ screen: "/", role: "The home." }], body: "`/`" };
+      const script = [
+        { body: toolCalls(MODEL, [{ id: "g1", name: "shop_goto", arguments: { url: "/" } }]) },
+        { body: toolCalls(MODEL, [{ id: "k1", name: "shop_click", arguments: { target: { role: "button", name: "Create order" } } }]) },
+        { body: toolCalls(MODEL, [{ id: "w1", name: "write_domain", arguments: home }]) },
+        { body: answer(MODEL, "Done.") },
+      ];
+      const { outcome, server } = await cartography(script, { source, config: writable });
+      assert.equal(outcome.card?.status, "complete", messages(outcome));
+      assert.match(
+        (server.requests[0]!.body as { messages: { role: string; content: string }[] }).messages[0]!.content,
+        /You may submit the forms that create or change data here/,
+      );
+      assert.doesNotMatch(JSON.stringify(server.requests[2]!.body), /Nothing was clicked/);
+      // A session a limit cut leaves what was opened and not placed unplaced; one that failed opened nothing, and no card is written.
+      const cut = await cartography(script, { source, config: writable, force: true, limits: { maxIterations: 1, maxMinutes: 10, maxActions: 200 } });
+      assert.match(messages(cut.outcome), /The session that explores shop reached its iterations limit\./);
+      assert.match(messages(cut.outcome), /No card was written: no element of shop was placed\./);
+      const down = await closedPort();
+      const failed = await cartography([], { source, config: writable, force: true, modelUrl: `http://127.0.0.1:${down}/v1` });
+      assert.match(messages(failed.outcome), /The session that explores shop failed: /);
     } finally {
       await site.close();
     }
@@ -1152,13 +1219,10 @@ describe("freshness, criterion 2 — the sources without an up-to-date card are 
           applications: config.applications.map((a) => ({ ...a, type: "web", environments: a.environments.map((e) => ({ ...e, uiUrl: site.origin })) })),
         }),
       };
-      const card = {
-        domains: [{ id: "home", label: "Home", description: "The home page.", items: [{ name: "/", summary: "The home page." }] }],
-        unassigned: [],
-      };
+      const home = { id: "home", label: "Home", description: "The home page.", elements: [{ screen: "/", role: "The home page." }], body: "`/`" };
       const script = () => [
         { body: toolCalls(MODEL, [{ id: "g1", name: "shop_goto", arguments: { url: "/" } }]) },
-        { body: toolCalls(MODEL, [submit(card)]) },
+        { body: toolCalls(MODEL, [{ id: "w1", name: "write_domain", arguments: home }]) },
         { body: answer(MODEL, "Done.") },
       ];
       assert.equal((await cartography(script(), setup)).outcome.kept, false);
