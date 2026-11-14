@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { join } from "node:path";
+import { ManifestCheck } from "../manifest-check.ts";
 import { DemoWorkspace, lint, ROOT, type LintConfiguration } from "./demo-workspace.ts";
 
 /** The nine packages of the product, by short name, and their folders. */
@@ -72,11 +73,12 @@ function linted(files: Readonly<Record<string, string>>, configure?: (configurat
 }
 
 describe("criterion 1 — the delivered code keeps to its boundaries", () => {
-  it("lets the rules of the workspace find nothing in its sources", async () => {
+  it("lets the rules of the workspace find nothing in its sources, and the check of the manifests pass", async () => {
     assert.deepEqual(
       (await lint(ROOT)).filter((line) => line.includes("/open-qa-stack(")),
       [],
     );
+    assert.deepEqual(await (await ManifestCheck.of(ROOT)).violations(), []);
   });
   it("fails, rather than finds nothing, when the rules cannot run", async () => {
     const workspace = new DemoWorkspace({ "packages/domain/src/demo.ts": "export const demo = 1;\n" }, (configuration) => {
@@ -259,6 +261,27 @@ describe("criterion 8 — the connected mode of the command line imports only sh
       assert.deepEqual(of(solo(`${target}.ts`)), []);
     });
   }
+});
+
+describe("criterion 9 — a manifest that declares a dependency of the workspace out of the table fails the check", () => {
+  const manifest = (dependencies: Record<string, string>, devDependencies: Record<string, string> = {}): string =>
+    `${JSON.stringify({ name: "@open-qa-stack/agents", private: true, dependencies, devDependencies }, null, 2)}\n`;
+  const workspace = new DemoWorkspace({});
+  after(() => workspace.remove());
+  it("fails, naming the manifest, the line, the source, the target, the field and the rule", async () => {
+    workspace.write({ "packages/agents/package.json": manifest({ "@open-qa-stack/domain": "workspace:*", "@open-qa-stack/harness": "workspace:*" }) });
+    assert.deepEqual(await workspace.checkManifests(), {
+      code: 1,
+      output:
+        "packages/agents/package.json:6: @open-qa-stack/agents may not import @open-qa-stack/harness; among the packages of the workspace, it may import @open-qa-stack/domain, @open-qa-stack/shared, @open-qa-stack/tools. (dependencies) [open-qa-stack/package-boundaries]\n",
+    });
+  });
+  it("passes when the manifest keeps to the table, the dependencies of its tests apart", async () => {
+    workspace.write({
+      "packages/agents/package.json": manifest({ "@open-qa-stack/tools": "workspace:*", ajv: "8.20.0" }, { "@open-qa-stack/harness": "workspace:*" }),
+    });
+    assert.deepEqual(await workspace.checkManifests(), { code: 0, output: "" });
+  });
 });
 
 describe("criterion 10 — the tests of the criteria run on demonstration files outside the packages of the product", () => {

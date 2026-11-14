@@ -3,6 +3,7 @@ import { after, describe, it } from "node:test";
 import { RuleTester } from "oxlint/plugins-dev";
 import { confinedImports } from "../confined-imports.ts";
 import { folderBoundaries } from "../folder-boundaries.ts";
+import { ManifestCheck } from "../manifest-check.ts";
 import { packageBoundaries } from "../package-boundaries.ts";
 import plugin from "../plugin.ts";
 import { pureDomain } from "../pure-domain.ts";
@@ -195,6 +196,29 @@ describe("the rule that keeps decorators out of the domain", () => {
       { filename: "rule.ts", code: "export class Limits {\n  @logged\n  check(): void {}\n}", errors: [{ messageId: "decorator" }] },
       { filename: "rule.ts", code: "export class Limits {\n  constructor(@inject() readonly budget: number) {}\n}", errors: [{ messageId: "decorator" }] },
     ],
+  });
+});
+
+describe("the check of the manifests", () => {
+  const workspace = new DemoWorkspace({
+    "packages/domain/package.json": JSON.stringify({ name: "@open-qa-stack/domain", peerDependencies: { "@open-qa-stack/shared": "workspace:*" } }),
+    "packages/shared/package.json": JSON.stringify({ name: "@open-qa-stack/shared" }),
+  });
+  const unset = new DemoWorkspace({}, (configuration) => {
+    delete configuration["overrides"];
+  });
+  after(() => {
+    workspace.remove();
+    unset.remove();
+  });
+
+  it("names each refused dependency of the workspace a manifest declares", async () => {
+    assert.deepEqual(await (await ManifestCheck.of(workspace.root)).violations(), [
+      "packages/domain/package.json:1: @open-qa-stack/domain may not import @open-qa-stack/shared; among the packages of the workspace, it may import none. (peerDependencies) [open-qa-stack/package-boundaries]",
+    ]);
+  });
+  it("refuses a lint configuration that does not set the rule with its table", async () => {
+    await assert.rejects(ManifestCheck.of(unset.root), new Error(".oxlintrc.json does not set open-qa-stack/package-boundaries with its table of packages."));
   });
 });
 

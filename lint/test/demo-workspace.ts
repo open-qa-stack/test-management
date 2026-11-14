@@ -10,6 +10,9 @@ export const ROOT = fileURLToPath(new URL("../..", import.meta.url));
 /** The linter of the workspace. */
 const OXLINT = join(ROOT, "node_modules", ".bin", "oxlint");
 
+/** The script that checks the manifests against the table of the packages. */
+const CHECK_MANIFESTS = join(ROOT, "lint", "check-manifests.ts");
+
 /** The lint configuration of the workspace, as JSON reads it. */
 export type LintConfiguration = Record<string, unknown> & { jsPlugins: string[] };
 
@@ -60,6 +63,11 @@ export class DemoWorkspace {
    */
   lint(): Promise<string[]> {
     return lint(this.root);
+  }
+
+  /** Checks the manifests of the workspace against the table of its packages. */
+  checkManifests(): Promise<CommandRun> {
+    return run(process.execPath, ["--disable-warning=ExperimentalWarning", CHECK_MANIFESTS], this.root);
   }
 
   /** Removes the workspace. */

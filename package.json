@@ -10,7 +10,7 @@
   "scripts": {
     "typecheck": "pnpm -r typecheck && tsc -p lint/tsconfig.json",
     "build": "pnpm -r --if-present build",
-    "lint": "oxlint --type-aware --deny-warnings",
+    "lint": "oxlint --type-aware --deny-warnings && node --disable-warning=ExperimentalWarning lint/check-manifests.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "pnpm -r test && pnpm -s test:lint-rules",
