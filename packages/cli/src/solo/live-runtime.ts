@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { AgentRuntime } from "@open-qa-stack/domain";
 import { CopilotAgentRuntime, ModelGateway } from "@open-qa-stack/harness";
-import type { ResolvedConfig } from "@open-qa-stack/shared";
+import { readsImages, type ResolvedConfig } from "@open-qa-stack/shared";
 
 /** A runtime of the agents, and how to release it. */
 export interface OpenRuntime {
@@ -14,7 +14,8 @@ export interface OpenRuntime {
 
 /**
  * Opens the runtime of the agents on the model the configuration names, through a gateway that forwards
- * to it, with a folder of its own for the sessions.
+ * to it, with a folder of its own for the sessions; the model reads images when the configuration declares
+ * that it does.
  *
  * @param config - The resolved configuration.
  * @param env - The environment the key of the model is read from.
@@ -24,7 +25,7 @@ export async function liveRuntime(config: ResolvedConfig, env: Readonly<Record<s
   const apiKey = config.model.apiKeyEnv === undefined ? undefined : env[config.model.apiKeyEnv];
   const gateway = await ModelGateway.start({ kind: "live", upstream: { baseUrl: config.model.baseUrl, ...(apiKey === undefined ? {} : { apiKey }) } });
   const home = await mkdtemp(join(tmpdir(), "oqas-sessions-"));
-  const runtime = new CopilotAgentRuntime({ endpoint: gateway, model: config.model.model, homeDirectory: home });
+  const runtime = new CopilotAgentRuntime({ endpoint: gateway, model: config.model.model, homeDirectory: home, vision: readsImages(config.model) });
   return {
     runtime,
     close: async () => {

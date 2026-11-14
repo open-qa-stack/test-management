@@ -6,8 +6,8 @@ import { join } from "node:path";
 import { after, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { validateConfig } from "@open-qa-stack/shared";
-import { answer, scriptedServer } from "@open-qa-stack/testing";
-import { AgentRuntimeError, type AgentEvent, type AgentRuntime, type SessionOptions } from "@open-qa-stack/domain";
+import { answer, scriptedServer, toolCalls } from "@open-qa-stack/testing";
+import { AgentRuntimeError, ImageToolResult, type AgentEvent, type AgentRuntime, type SessionOptions } from "@open-qa-stack/domain";
 import { CountedRuntime, exitCodeOf, GuardedRuntime, liveRuntime, missingPrerequisites, parseArguments, RunJournal, USAGE } from "../src/index.ts";
 
 const workspace = mkdtempSync(join(tmpdir(), "oqas-cli-units-"));
@@ -191,6 +191,55 @@ describe("the runtime of the agents on the model of the configuration", () => {
       await server.close();
     }
     assert.equal(server.requests[0]!.headers.authorization, "Bearer sk-test");
+  });
+});
+
+describe("a model that reads images", () => {
+  /** A PNG image of one pixel. */
+  const PIXEL = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
+
+  /** The parts of the messages the model server received in its second request, after the tool ran. */
+  async function partsSent(capabilities: readonly string[]): Promise<unknown[]> {
+    const server = await scriptedServer([{ body: toolCalls("m", [{ id: "s1", name: "look", arguments: {} }]) }, { body: answer("m", "A pixel.") }]);
+    const text = JSON.stringify({
+      formatVersion: 1,
+      applications: [
+        {
+          id: "shop",
+          name: "Shop",
+          type: "api",
+          authentication: { method: "none" },
+          environments: [{ name: "local", apis: [{ name: "b", baseUrl: "http://127.0.0.1:1" }] }],
+        },
+      ],
+      knowledge: [],
+      model: { mode: "provider-key", provider: "openai", baseUrl: server.baseUrl, model: "m", capabilities },
+    });
+    try {
+      const config = validateConfig(text, {});
+      assert.ok(config.ok, JSON.stringify(config));
+      const open = await liveRuntime(config.config, {});
+      const look = { name: "look", description: "Looks.", parameters: { type: "object" }, execute: async () => new ImageToolResult({ path: "a.png" }, PIXEL) };
+      try {
+        const session = await open.runtime.openSession({ instructions: "Look.", tools: [look] });
+        for await (const event of session.send("Look.")) void event;
+        await session.close();
+      } finally {
+        await open.close();
+      }
+    } finally {
+      await server.close();
+    }
+    const messages = (server.requests[1]!.body as { messages: { content: unknown }[] }).messages;
+    return messages.flatMap((message) => (Array.isArray(message.content) ? (message.content as unknown[]) : []));
+  }
+
+  it("is shown the images of the tools when the configuration declares it, and none otherwise", async () => {
+    assert.equal(
+      (await partsSent(["vision"])).some((part) => (part as { type: string }).type === "image_url"),
+      true,
+    );
+    assert.deepEqual(await partsSent([]), []);
   });
 });
 

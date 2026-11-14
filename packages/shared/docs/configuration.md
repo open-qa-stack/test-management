@@ -160,7 +160,7 @@ A rule identifier is made of upper case words and digits separated by hyphens, s
 
 Only a provider key is supported in solo mode for now.
 
-`vision` says that the model reads images. Any other value is refused with the rule `unknown-variant`, at its JSON path, such as `/model/capabilities/0`.
+`vision` says that the model reads images. The screenshot tool of each application then gives the model the image it takes, besides its path, within the bounds the [browser tools](../../tools/docs/browser-tools.md#screenshots-the-model-reads) describe. Declare it only for a model that reads images: without it, the model is given the path alone, as for any model. Any other value is refused with the rule `unknown-variant`, at its JSON path, such as `/model/capabilities/0`.
 
 ### Autonomy
 
