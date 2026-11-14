@@ -65,7 +65,8 @@ export interface PlanRules {
  * source showed before the agent typed it, an expected text no tool showed — for an application with a user
  * interface, even a value the test types or expects gone, told to type it when it is a value it invents —
  * a text expected gone the screens showed only in a field, a nominal scenario that expects gone a value it
- * typed without a step before that expects it shown, and, for an application with a user interface, a step
+ * typed without a step before that expects it shown, or whose steps type a value the screens searched in
+ * vain — one their actions name, or any a field held when they name none — and, for an application with a user interface, a step
  * that types in a scenario without data, and a text expected shown that the screens showed only in a value
  * the agent typed or in the name of a field; a value of the data from an application is one it showed
  * beside what the agent typed; the agent may then submit another. Before the gates, the harness takes out of
@@ -442,17 +443,31 @@ export class PlanProposal {
    * What the gates refuse in a nominal scenario of an application with a user interface: a text it expects
    * gone that holds a value it typed and that a screen showed beside the fields, which says that what it
    * searched found nothing, unless a step before expects the value shown: the scenario then removes what it
-   * made or found.
+   * made or found; and, in one whose steps type, a value of its data the agent searched in vain on the screens.
    */
   private nominalErrors(scenario: PlannedScenario): Refusal[] {
     const { screens } = this.rules;
-    if (scenario.case !== "nominal" || !screens.watches(scenario.application)) return [];
-    const typed = scenario.data.map((entry) => entry.value).filter((value) => checkable(value) && screens.typed(scenario.application, value));
-    return scenario.steps.flatMap((step, at) => {
+    const { application } = scenario;
+    if (scenario.case !== "nominal" || !screens.watches(application)) return [];
+    const values = scenario.data.map((entry) => entry.value).filter(checkable);
+    const typed = values.filter((value) => screens.typed(application, value));
+    // What the steps type: the values their actions name, or, when they name none, every value a field held.
+    const typing = scenario.steps.filter((step) => TYPING.test(step.action)).map((step) => step.action);
+    const named = values.filter((value) => observed(value, typing));
+    const entered = typing.length === 0 ? [] : named.length > 0 ? named : typed;
+    const fill = scopedToolName(application, "fill");
+    const missed = entered
+      .filter((value) => screens.unmatched(application, value))
+      .map((value) => ({
+        code: "PLAN-NOMINAL",
+        message: `scenario ${scenario.id} is nominal, and the screens of ${application} found nothing with "${value}": a nominal scenario finds what it searches. Replace "${value}" in data, and in the step that types it, by a part of it, such as a first or a last name, that you searched with ${fill} and found, and expect what it found; or make the scenario negative.`,
+        remedy: `Replace "${value}" in data of scenario ${scenario.id}, and in the step that types it, by a part of it that ${fill} found, such as a first or a last name; or make scenario ${scenario.id} negative.`,
+      }));
+    const expected = scenario.steps.flatMap((step, at) => {
       const shownBefore = scenario.steps.slice(0, at).flatMap((earlier) => earlier.expects.flatMap((expect) => expect.shows));
       return step.expects.flatMap((expect, k) =>
         expect.absent
-          .filter((text) => screens.showsBesideFields(scenario.application, text))
+          .filter((text) => screens.showsBesideFields(application, text))
           .flatMap((text) => {
             const value = typed.find((candidate) => observed(candidate, [text]) && !observed(candidate, shownBefore));
             return value === undefined
@@ -466,6 +481,7 @@ export class PlanProposal {
           }),
       );
     });
+    return [...missed, ...expected];
   }
 
   /**

@@ -43,6 +43,8 @@ interface Seen {
   readonly values: Map<string, number>;
   /** The values a field held that a line beside the fields showed after an action that changed them: what was searched found them. */
   readonly found: Set<string>;
+  /** The values a field held that an action left shown only in the fields, though a screen showed them beside: what was searched matched nothing. */
+  readonly unmatched: Set<string>;
   /** The values the agent typed in a field. */
   readonly filled: Set<string>;
   /** The lines of the last snapshot of the whole page. */
@@ -61,9 +63,10 @@ interface Seen {
  * to their descriptions:
  * opening an address returns the snapshot of the page, and an action returns the lines of the snapshot that
  * appeared after it and those that went. When a value a field holds is no longer shown beside the fields
- * after an action, though a line that went showed it, and no action before found it — changed what the
- * page shows beside the fields, the focus aside, while a line there showed it — the action adds a note: what
- * was typed matched nothing, and a part of it may. A row the search found then removed is no such value. A snapshot is given without what a test has no use for — the reference of each
+ * after an action, though a line that went showed it, or, for a value the agent typed, a screen before showed
+ * it beside the fields and the action removed a line beside them, the focus aside, and no action before found it — changed
+ * what the page shows beside the fields while a line there showed it — the action adds a note: what was
+ * typed matched nothing, and a part of it may; the watch keeps the value as searched in vain. A row the search found then removed is no such value. A snapshot is given without what a test has no use for — the reference of each
  * element, the address of each link — so that a long session holds more screens. It remembers, for
  * each application, every line the snapshots showed, those an action produced and those an action
  * removed. An application without a user interface has no such tools, and is
@@ -90,6 +93,7 @@ export class ScreenWatch {
         removed: new Set(),
         values: new Map(),
         found: new Set(),
+        unmatched: new Set(),
         filled: new Set(),
         last: undefined,
         looks: 0,
@@ -132,6 +136,7 @@ export class ScreenWatch {
           action,
           async (tool, args) => {
             const previous = seen.last ?? (await read()).lines;
+            const before = besideFields(seen.lines);
             const { value } = args as { value?: unknown };
             if (action === "fill" && typeof value === "string") seen.filled.add(value);
             const state = (await tool.execute(args)) as object;
@@ -143,7 +148,8 @@ export class ScreenWatch {
             const gone = absent(previous, current);
             for (const line of gone) seen.removed.add(line);
             const more = gone.length > MAX_GONE ? [`${gone.length - MAX_GONE} more lines went.`] : [];
-            const unmatched = unmatchedValues(current, gone).filter((value) => !seen.found.has(value));
+            const unmatched = unmatchedValues(current, appeared, gone, before, seen.filled).filter((value) => !seen.found.has(value));
+            for (const value of unmatched) seen.unmatched.add(value);
             for (const value of foundValues(current, appeared, gone)) seen.found.add(value);
             return {
               ...state,
@@ -327,6 +333,19 @@ export class ScreenWatch {
   }
 
   /**
+   * Whether the agent searched a value in vain: an action left it only in the fields, though a screen showed
+   * it beside them, and no action found it. A search may tell the case of what it is given.
+   *
+   * @param application - Identifier of the application.
+   * @param value - The value, exactly as a field held it.
+   * @returns `true` when the note of such an action named it; `false` for an application without a user interface.
+   */
+  public unmatched(application: string, value: string): boolean {
+    const seen = this.seen.get(application);
+    return seen !== undefined && seen.unmatched.has(value) && !seen.found.has(value);
+  }
+
+  /**
    * Whether a field of a screen of the application held a text as its value: the agent typed it.
    *
    * @param application - Identifier of the application.
@@ -432,13 +451,26 @@ function typedIn(seen: Seen, line: string): boolean {
 }
 
 /**
- * The values the fields of a page hold that no line beside the fields shows any more, though a line beside
- * the fields that went showed them: what was searched matched nothing.
+ * The values the fields of a page hold that no line beside the fields shows after an action, though a line
+ * beside the fields that went showed them, or, for a value the agent typed, when the action removed a line
+ * beside the fields otherwise than by the focus, as a search filters a list, a line beside the fields of a
+ * screen before: what was searched matched nothing. An action that only adds lines, such as one that tells
+ * a field is missing, filtered nothing.
  */
-function unmatchedValues(current: ReadonlySet<string>, gone: readonly string[]): string[] {
+function unmatchedValues(
+  current: ReadonlySet<string>,
+  appeared: readonly string[],
+  gone: readonly string[],
+  before: readonly string[],
+  typed: ReadonlySet<string>,
+): string[] {
   const shown = besideFields(current);
   const went = besideFields(gone);
-  return fieldValues(current).filter((value) => observed(value, went) && !observed(value, shown));
+  const came = unfocused(appeared);
+  const filtered = unfocused(gone).some((line) => !came.includes(line));
+  return fieldValues(current).filter(
+    (value) => !observed(value, shown) && (observed(value, went) || (filtered && typed.has(value) && observed(value, before))),
+  );
 }
 
 /**
@@ -446,12 +478,21 @@ function unmatchedValues(current: ReadonlySet<string>, gone: readonly string[]):
  * line beside the fields otherwise than by the focus: what was searched found them.
  */
 function foundValues(current: ReadonlySet<string>, appeared: readonly string[], gone: readonly string[]): string[] {
-  const unfocused = (lines: readonly string[]) => besideFields(lines).map((line) => line.replace(FOCUS, ""));
-  const went = unfocused(gone);
-  const came = unfocused(appeared);
-  if (came.every((line) => went.includes(line)) && went.every((line) => came.includes(line))) return [];
+  if (!changedBesideFields(appeared, gone)) return [];
   const shown = besideFields(current);
   return fieldValues(current).filter((value) => observed(value, shown));
+}
+
+/** The lines beside the fields, without the mark of the focus. */
+function unfocused(lines: readonly string[]): string[] {
+  return besideFields(lines).map((line) => line.replace(FOCUS, ""));
+}
+
+/** Whether an action changed a line beside the fields otherwise than by the focus. */
+function changedBesideFields(appeared: readonly string[], gone: readonly string[]): boolean {
+  const went = unfocused(gone);
+  const came = unfocused(appeared);
+  return !(came.every((line) => went.includes(line)) && went.every((line) => came.includes(line)));
 }
 
 /** The values the fields of a page hold, long enough to be checked, once each. */
@@ -461,7 +502,7 @@ function fieldValues(lines: ReadonlySet<string>): string[] {
 
 /** What the agent is told of a value it typed that the page no longer shows beside the fields. */
 function unmatchedNote(value: string): string {
-  return `Nothing beside the fields shows "${value}" any more: if you searched it, it matched nothing. Try a part of it, such as a first or a last name.`;
+  return `Nothing beside the fields shows "${value}" now, though a screen showed it: if you searched it, it matched nothing. Try a part of it, such as a first or a last name.`;
 }
 
 /** The locator a line ends with; `undefined` when it ends with none. */

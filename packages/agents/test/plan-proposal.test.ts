@@ -552,6 +552,64 @@ describe("the gates of a plan", () => {
     );
   });
 
+  it("refuse a nominal scenario that types a value the screens searched in vain", async () => {
+    let shown = '- heading "Orders"\n- row "ORD-1057 Lena Brook"';
+    const tool = (action: string, execute: (args: { value?: string }) => void): ToolDefinition => ({
+      name: `shop_${action}`,
+      description: action,
+      parameters: { type: "object" },
+      execute: async (args) => (action === "snapshot" ? { page: shown, truncated: false } : (execute(args as { value?: string }), {})),
+    });
+    const field = (value: string) => `- textbox "Search orders": ${value}`;
+    const screens = new ScreenWatch(
+      ["shop"],
+      [
+        tool("goto", () => undefined),
+        tool("snapshot", () => undefined),
+        tool("fill", ({ value = "" }) => (shown = `${shown}\n${field(value)}`)),
+        tool("click", () => (shown = `- heading "Orders"\n${field("Lena Brook")}\n- columnheader "0 of 0"`)),
+        tool("select_option", () => undefined),
+        tool("check", () => undefined),
+      ],
+    );
+    const { proposal: made } = await proposal({ screens });
+    await act(screens, "fill", { value: "Lena Brook" });
+    await act(screens, "click");
+    const searched = (id: string, kind: PlannedScenario["case"]) =>
+      functional(id, {
+        case: kind,
+        data: [{ value: "Lena Brook", from: "shop" }],
+        steps: [{ action: "Search for Lena Brook", expects: [{ result: "Nothing is found", shows: ["0 of 0"], absent: [] }] }],
+      });
+    // A scenario that types nothing has nothing to search, whatever its data.
+    const opened = scenario("c", { data: [{ value: "Lena Brook", from: "shop" }] });
+    // A scenario types the values its steps name: the part it searched, not the name of the row it opens.
+    const part = functional("d", {
+      data: [
+        { value: "Brook", from: "shop" },
+        { value: "Lena Brook", from: "shop" },
+      ],
+      steps: [
+        { action: "Search for Brook", expects: [{ result: "The orders show", shows: ["0 of 0"], absent: [] }] },
+        { action: "Open the order of Lena Brook", expects: [{ result: "The order shows", shows: ["Orders"], absent: [] }] },
+      ],
+    });
+    // A step that names no value types any value a field held.
+    const unnamed = functional("e", {
+      data: [{ value: "Lena Brook", from: "shop" }],
+      steps: [{ action: "Type the name in the search field", expects: [{ result: "Nothing is found", shows: ["0 of 0"], absent: [] }] }],
+    });
+    const refused = (id: string) =>
+      `Refused (PLAN-NOMINAL): scenario ${id} is nominal, and the screens of shop found nothing with "Lena Brook": a nominal scenario finds what it searches. Replace "Lena Brook" in data, and in the step that types it, by a part of it, such as a first or a last name, that you searched with shop_fill and found, and expect what it found; or make the scenario negative.`;
+    const remedy = (id: string) =>
+      `Replace "Lena Brook" in data of scenario ${id}, and in the step that types it, by a part of it that shop_fill found, such as a first or a last name; or make scenario ${id} negative.`;
+    const submitted = { scenarios: [searched("a", "nominal"), searched("b", "negative"), opened, part, unnamed] };
+    assert.deepEqual(await submit(made, submitted), { error: [refused("a"), refused("e"), "Nothing else was refused."].join("\n") });
+    await submit(made, submitted);
+    assert.deepEqual(await submit(made, submitted), { error: ["Third refusal for the same reason. Do this:", remedy("a"), remedy("e")].join("\n") });
+    assert.equal(await submit(made, { scenarios: [searched("a", "negative"), searched("b", "negative"), opened] }), "The plan was accepted.\n\nScenario 1.");
+  });
+
   it("take a made-up value a source returned once a field held it: the test made it", async () => {
     const { proposal: made, screens, reads } = await proposal();
     await act(screens, "fill", { value: "Long Long" });

@@ -59,11 +59,11 @@ const SHOWN = [
   '- heading "Orders" [level=1] → page.getByRole("heading", { name: "Orders", exact: true })',
   '- button "Search" → page.getByRole("button", { name: "Search", exact: true })',
 ].join("\n");
-const run = (watch: ScreenWatch, action: string) =>
+const run = (watch: ScreenWatch, action: string, args: object = {}) =>
   watch
     .tools()
     .find((tool) => tool.name === `shop_${action}`)!
-    .execute({}) as Promise<Record<string, unknown>>;
+    .execute(args) as Promise<Record<string, unknown>>;
 
 describe("the screens the designer watches", () => {
   it("returns the page when it is opened, and what appeared after an action, the references of the elements aside", async () => {
@@ -104,13 +104,76 @@ describe("the screens the designer watches", () => {
     const searched = new ScreenWatch(["shop"], page([`${typed("Ada Brennick")}\n${rows}`, `${typed("Ada Brennick")}\n${none}`]).tools);
     assert.equal(
       (await run(searched, "click"))["note"],
-      'Nothing beside the fields shows "Ada Brennick" any more: if you searched it, it matched nothing. Try a part of it, such as a first or a last name.',
+      'Nothing beside the fields shows "Ada Brennick" now, though a screen showed it: if you searched it, it matched nothing. Try a part of it, such as a first or a last name.',
     );
+    // A search may tell the case: the value is the one the field held, exactly.
+    assert.deepEqual(
+      ["Ada Brennick", "ada brennick", "Ada"].map((value) => searched.unmatched("shop", value)),
+      [true, false, false],
+    );
+    assert.equal(searched.unmatched("ledger", "Ada Brennick"), false);
     // A row that still shows the value, a value no line that went showed, and a value too short to be checked are no note.
     const found = new ScreenWatch(["shop"], page([`${typed("Ada")}\n${rows}\n- paragraph: Ada`, `${typed("Ada")}\n- paragraph: Ada`]).tools);
     const fresh = new ScreenWatch(["shop"], page([`${typed("Zed Quill")}\n${rows}`, `${typed("Zed Quill")}\n${none}`]).tools);
     const short = new ScreenWatch(["shop"], page([`${typed("Ad")}\n${rows}`, `${typed("Ad")}\n${none}`]).tools);
     for (const watch of [found, fresh, short]) assert.equal("note" in (await run(watch, "click")), false);
+  });
+
+  it("notes a value another screen showed beside the fields, once a search changed the page without it", async () => {
+    const typed = (value: string) => `- textbox "Search" [ref=e4]: ${value} → page.getByRole("textbox", { name: "Search", exact: true })`;
+    const home = '- heading "Home" [ref=e1]\n- cell "Ada Brennick" [ref=e2]';
+    const rows = '- row "Bel Ross 2 orders" [ref=e5]:\n  - cell "Bel Ross" [ref=e6]';
+    const none = '- columnheader "0 of 0" [ref=e7]';
+    const { tools } = page([
+      home,
+      home,
+      `${typed("")}\n${rows}`,
+      `${typed("Ada Brennick")}\n${rows}`,
+      `${typed("Ada Brennick")}\n${none}`,
+      `${typed("Ada Brennick")}\n- cell "Ada Brennick"`,
+    ]);
+    const watch = new ScreenWatch(["shop"], tools);
+    await run(watch, "goto");
+    await run(watch, "click");
+    // Typing changes only the field: nothing was searched yet.
+    assert.equal("note" in (await run(watch, "fill", { value: "Ada Brennick" })), false);
+    assert.match(String((await run(watch, "click"))["note"]), /^Nothing beside the fields shows "Ada Brennick" now, though a screen showed it/);
+    assert.equal(watch.unmatched("shop", "Ada Brennick"), true);
+    // Once a search found it, it is no longer searched in vain.
+    assert.equal("note" in (await run(watch, "click")), false);
+    assert.equal(watch.unmatched("shop", "Ada Brennick"), false);
+  });
+
+  it("notes no value another screen showed after an action that removed no line, nor one the agent did not type", async () => {
+    const field = (value: string) => `- textbox "City" [ref=e4]: ${value} → page.getByRole("textbox", { name: "City", exact: true })`;
+    const home = '- heading "Customers" [ref=e1]\n- cell "Springfield" [ref=e2]';
+    // A form the agent filled, whose save only tells what is missing.
+    const saved = page([
+      home,
+      home,
+      `${field("")}\n- button "Save" [ref=e5]`,
+      `${field("Springfield")}\n- button "Save" [ref=e5]`,
+      `${field("Springfield")}\n- button "Save" [ref=e5]\n- paragraph: Phone is required`,
+    ]);
+    const form = new ScreenWatch(["shop"], saved.tools);
+    await run(form, "goto");
+    await run(form, "click");
+    await run(form, "fill", { value: "Springfield" });
+    assert.equal("note" in (await run(form, "click")), false);
+    // A form the application filled, whose tabs change what it shows.
+    const tabs = page([
+      home,
+      home,
+      '- heading "Profile" [ref=e8]',
+      `${field("Springfield")}\n- tab "General" [ref=e6]`,
+      `${field("Springfield")}\n- tab "Contact" [ref=e7]`,
+    ]);
+    const filled = new ScreenWatch(["shop"], tabs.tools);
+    await run(filled, "goto");
+    await run(filled, "click");
+    await run(filled, "click");
+    assert.equal("note" in (await run(filled, "click")), false);
+    assert.equal(filled.unmatched("shop", "Springfield"), false);
   });
 
   it("notes no value a search found before an action removed the row that showed it", async () => {
@@ -131,7 +194,7 @@ describe("the screens the designer watches", () => {
       page([`${link(" [active]")}\n${typed("")}\n${row}`, `${link("")}\n${typed("Zed Quill")}\n${row}`, `${link("")}\n${typed("Zed Quill")}\n${none}`]).tools,
     );
     await run(emptied, "fill");
-    assert.match(String((await run(emptied, "click"))["note"]), /^Nothing beside the fields shows "Zed Quill" any more/);
+    assert.match(String((await run(emptied, "click"))["note"]), /^Nothing beside the fields shows "Zed Quill" now/);
   });
 
   it("keeps the lines of a page the runner showed as lines the screens showed, and none for an application without a user interface", () => {
