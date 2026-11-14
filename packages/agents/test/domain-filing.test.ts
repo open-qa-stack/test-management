@@ -3,6 +3,8 @@ import { describe, it } from "node:test";
 import type { DomainIndexSubmission, IndexSourceType, SourceCard } from "@open-qa-stack/shared";
 import { cartographyRequest } from "../src/cartographer/cartographer-prompt.ts";
 import { domainIndexRules } from "../src/cartographer/domain-index-rules.ts";
+import { HandedIn } from "../src/common/handed-in.ts";
+import { Journal } from "../src/common/journal.ts";
 import type { RunSource } from "../src/cartographer/run-sources.ts";
 
 const TYPES: ReadonlyMap<string, IndexSourceType> = new Map<string, IndexSourceType>([
@@ -258,6 +260,106 @@ describe("domain filing — the second submission", () => {
       [
         "/domains/1/references/0/items/1: public.nowhere is not an item of orders-db; use one of the items listed for it.",
         "The domain screens holds only screens, although the domain orders shares words with them (order); put each in the domain of its functional area.",
+      ],
+    );
+  });
+});
+
+describe("domain filing — the domains of the cards", () => {
+  /** Cards whose domains the index names: the storefront files its screens of orders as orders, its others as places; the specs file their sections as orders. */
+  const cards = new Map([
+    [
+      "storefront",
+      card("storefront", "web", [
+        { id: "shop-orders", label: "Orders", description: "Order screens.", items: [{ name: "/orders/:id", summary: "One order." }] },
+        {
+          id: "places",
+          label: "Places",
+          description: "Where to go.",
+          items: [
+            { name: "/categories", summary: "The categories." },
+            { name: "/address", summary: "The address." },
+          ],
+        },
+      ]),
+    ],
+    [
+      "order-specs",
+      card("order-specs", "document", [
+        {
+          id: "orders",
+          label: "Ordering",
+          description: "Placing orders.",
+          items: [
+            { name: "Placing an order", summary: "How to order." },
+            { name: "Purpose", summary: "Why." },
+          ],
+        },
+      ]),
+    ],
+  ]);
+  const filing = () => domainIndexRules(INVENTORY, TYPES, () => true, [], cards);
+  const without = (gone: readonly string[]) => REST.map((r) => ({ ...r, items: r.items.filter((item) => !gone.includes(item)) }));
+
+  it("reads the id or the label of a domain of the card as the elements of that domain named nowhere else", () => {
+    // The places of the storefront are named by their label in a domain, and its orders by their id in unassigned.
+    const customers = domain("customers", [...CUSTOMERS.references, { source: "storefront", items: ["Places"] }]);
+    const checked = filing().check({
+      domains: [ORDERS, customers],
+      unassigned: [...without(["/categories", "/address", "/orders/:id"]), { source: "storefront", items: ["shop-orders"] }],
+    });
+    assert.deepEqual(checked.errors, []);
+    assert.deepEqual(checked.value.domains[1]!.references.at(-1), { source: "storefront", items: ["/categories", "/address"] });
+    assert.match(checked.note!, /storefront: \/orders\/:id in orders\.$/);
+    // A domain of the card whose elements are all named elsewhere stays as written: it is no element.
+    const listed = domain("customers", [...CUSTOMERS.references, { source: "storefront", items: ["/categories", "/address"] }]);
+    const named = filing().check({
+      domains: [ORDERS, listed],
+      unassigned: [...without(["/categories", "/address"]), { source: "storefront", items: ["Places"] }],
+    });
+    assert.deepEqual(
+      named.errors.map((error) => error.message),
+      ["/unassigned/3/items/2: Places is not an item of storefront; use one of the items listed for it."],
+    );
+  });
+
+  it("places an element left in unassigned in the domain of the index named as a domain of its card that holds it, but a section of the structure", () => {
+    const checked = filing().check({ domains: [ORDERS, CUSTOMERS], unassigned: REST });
+    assert.deepEqual(checked.errors, []);
+    assert.equal(
+      checked.note,
+      "The harness put in the domain of the index named as a domain of their card these elements left in unassigned: storefront: /orders/:id in orders.",
+    );
+    assert.deepEqual(checked.value.domains[0]!.references.at(-1), { source: "storefront", items: ["/orders/:id"] });
+    assert.deepEqual(
+      checked.value.unassigned.find((r) => r.source === "storefront"),
+      { source: "storefront", items: ["/", "/categories", "/address"] },
+    );
+    // Purpose is a section of the structure, which the specs file as orders: it stays where it was.
+    assert.ok(checked.value.unassigned.find((r) => r.source === "order-specs")!.items.includes("Purpose"));
+  });
+
+  it("places nothing when the domain it would go to breaks a rule, nor in a submission refused", () => {
+    // Places holds only screens, and the address it would gain shares a word with the customers.
+    const places = domain("places", [{ source: "storefront", items: ["/categories"] }]);
+    const kept = filing().check({ domains: [CUSTOMERS, places], unassigned: [...without(["/categories"]), ...ORDERS.references] });
+    assert.deepEqual([kept.errors, kept.note], [[], undefined]);
+    assert.ok(kept.value.unassigned.find((r) => r.source === "storefront")!.items.includes("/address"));
+    const refused = filing().check({ domains: [ORDERS, CUSTOMERS], unassigned: without(["/health"]) });
+    assert.deepEqual([refused.errors.length, refused.note], [1, undefined]);
+  });
+
+  it("journals what the harness placed once the index is accepted", async () => {
+    const journal = new Journal();
+    await new HandedIn(filing(), journal).tool().execute({ domains: [ORDERS, CUSTOMERS], unassigned: REST });
+    assert.deepEqual(
+      journal
+        .entries()
+        .map((entry) => entry.message)
+        .slice(0, 2),
+      [
+        "The index was accepted.",
+        "The harness put in the domain of the index named as a domain of their card these elements left in unassigned: storefront: /orders/:id in orders.",
       ],
     );
   });

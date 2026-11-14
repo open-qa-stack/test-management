@@ -17,6 +17,8 @@ export interface SubmissionCheck<T> {
   readonly errors: readonly IndexError[];
   /** By source, the items it still has to place. */
   readonly unplaced: ReadonlyMap<string, readonly string[]>;
+  /** What the journal says of what the harness changed in it once accepted, when it changed something. */
+  readonly note?: string;
 }
 
 /** A second submission asked once a first one was accepted, limited to what the first left aside. */
@@ -130,24 +132,25 @@ export class HandedIn<T> {
     if (!validation.ok) return this.refuse(validation.errors, new Map());
     const second = this.pending !== undefined;
     const checking = this.pending ?? this.rules;
-    const checked = checking.check(validation.value);
-    let { value } = checked;
+    let checked = checking.check(validation.value);
     if (checked.errors.length > 0) {
       const aside = this.leftAside(validation.value, checked.unplaced, checking);
       if (aside === undefined) return this.refuse(checked.errors, checked.unplaced);
-      value = aside;
+      checked = aside;
     }
+    const { value, note } = checked;
     this.unplacedInARow = 0;
     this.kept = value;
     this.pending = second ? undefined : this.rules.followUp?.(value);
     this.record("info", second ? `The second submission of the ${what} was accepted.` : `The ${what} was accepted.`);
+    if (note !== undefined) this.record("info", note);
     if (this.pending === undefined) return `The ${what} was accepted. Answer with one sentence that sums it up; call no more tools.`;
     this.record("info", this.pending.asked);
     return `The ${what} was accepted. ${this.pending.request}`;
   }
 
-  /** The submission with its unplaced items in `unassigned`, once that is due and leaves nothing wrong. */
-  private leftAside(valid: T, unplaced: ReadonlyMap<string, readonly string[]>, checking: Pick<SubmissionRules<T>, "check">): T | undefined {
+  /** The check of the submission with its unplaced items in `unassigned`, once that is due and leaves nothing wrong. */
+  private leftAside(valid: T, unplaced: ReadonlyMap<string, readonly string[]>, checking: Pick<SubmissionRules<T>, "check">): SubmissionCheck<T> | undefined {
     const { what } = this.rules;
     this.unplacedInARow = unplaced.size === 0 ? 0 : this.unplacedInARow + 1;
     if (this.unplacedInARow < PLACED_BY_HARNESS_AFTER) return undefined;
@@ -158,7 +161,7 @@ export class HandedIn<T> {
       "info",
       `${this.unplacedInARow} submissions of the ${what} in a row left items to place; the harness put the ${count} of the latest in unassigned.`,
     );
-    return again.value;
+    return again;
   }
 
   private refuse(errors: readonly IndexError[], unplaced: ReadonlyMap<string, readonly string[]>): { error: string } {

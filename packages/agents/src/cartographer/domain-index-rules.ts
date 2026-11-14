@@ -61,13 +61,18 @@ const SUBMISSION_SHAPE = {
  * @remarks
  * A submission without `unassigned` puts nothing there. It is checked against its schema, then it must place every element of the cards and invent
  * none, refer to no source without a card and hold no secret. An item that is no element of its source but
- * becomes one without the name of the source and a slash or a colon in front is read without them, and the
- * references of a domain to one source are merged.
+ * becomes one without the name of the source and a slash or a colon in front is read without them; one that
+ * is still none but is the id or the label of a domain of the card of its source is read as the elements of
+ * that domain the submission names nowhere else for that source, when there are any; and the references of a domain to one
+ * source are merged.
  *
  * Each domain must be a functional area: one whose elements are all of one type of source is refused when
  * another domain holds an element of another source that shares a word with one of them, and one made of
  * sections of the structure of documents only is refused. An element is in a domain or in `unassigned`, never
- * in both. Once a submission is accepted, the elements it left in `unassigned` are asked again, in a second
+ * in both. Once a submission is accepted, each element it left in `unassigned` that a domain of its card
+ * holds whose id or label is that of a domain of the index goes to that domain, unless it is a section of
+ * the structure of a document or the index would then break these rules, and the journal names it. The
+ * elements still in `unassigned` are asked again, in a second
  * submission limited to them, after the domains of the index, each with the domain of its card that holds
  * it, what the card says it holds, and the domains of the index that share a word with it: it puts them in domains of the
  * index, repeating their id, label and description, or in new ones, and is merged into the first. The
@@ -114,8 +119,17 @@ export function domainIndexRules(
     shape: SUBMISSION_SHAPE,
     validate: (args) => validateDomainSubmission(withUnassigned(args)),
     check: (valid) => {
-      const value = normalised(valid, inventory);
-      return checked(value, value, value);
+      const value = normalised(valid, inventory, cards);
+      const result = checked(value, value, value);
+      if (result.errors.length > 0) return result;
+      const { filed, moved } = filedByCard(value, sources, cards);
+      if (moved.length === 0) return result;
+      const again = checked(filed, filed, filed);
+      if (again.errors.length > 0) return result;
+      return {
+        ...again,
+        note: `The harness put in the domain of the index named as a domain of their card these elements left in unassigned: ${moved.join(", ")}.`,
+      };
     },
     leaveAside: (value, unplaced) => ({
       ...value,
@@ -137,12 +151,43 @@ export function domainIndexRules(
         ].join("\n"),
         asked: `The index leaves ${lines.length} of its ${[...inventory.values()].flat().length} elements in unassigned; a second submission limited to them was asked.`,
         check: (valid) => {
-          const value = normalised(valid, inventory);
+          const value = normalised(valid, inventory, cards);
           const filed = withoutPlaced(value, accepted);
           return checked(value, withPlaced(value, accepted), merged(accepted, filed), new Set(filed.domains.map((domain) => domain.id)));
         },
       } satisfies FollowUp<DomainIndexSubmission>;
     },
+  };
+}
+
+/**
+ * An accepted submission with each element it left in `unassigned` placed in every domain of the index that
+ * has the id or the label of a domain of its card holding it, but a section of the structure of a document,
+ * and what the journal says of each such element.
+ */
+function filedByCard(
+  submission: DomainIndexSubmission,
+  sources: ReadonlyMap<string, IndexSourceType>,
+  cards: ReadonlyMap<string, SourceCard>,
+): { filed: DomainIndexSubmission; moved: string[] } {
+  const named = (one: string, other: string) => one.trim().toLowerCase() === other.trim().toLowerCase();
+  const homes = ({ source, item }: SourceElement) => {
+    if (sources.get(source) === "document" && isStructureSection(item)) return [];
+    const own = cards.get(source)?.domains.filter((domain) => domain.items.some((element) => element.name === item)) ?? [];
+    return submission.domains.filter((domain) => own.some((card) => named(card.id, domain.id) || named(card.label, domain.label)));
+  };
+  const placed = submission.unassigned.flatMap(({ source, items }) => items.map((item) => ({ source, item, homes: homes({ source, item }) })));
+  const moving = placed.filter((element) => element.homes.length > 0);
+  const domains = submission.domains.map((domain) => {
+    const added = moving.filter((element) => element.homes.includes(domain)).map(({ source, item }) => ({ source, items: [item] }));
+    return added.length === 0 ? domain : { ...domain, references: grouped([...domain.references, ...added]) };
+  });
+  const unassigned = submission.unassigned
+    .map(({ source, items }) => ({ source, items: items.filter((item) => !moving.some((element) => element.source === source && element.item === item)) }))
+    .filter(({ items }) => items.length > 0);
+  return {
+    filed: { domains, unassigned },
+    moved: moving.map(({ source, item, homes }) => `${source}: ${item} in ${homes.map((domain) => domain.id).join(" and ")}`),
   };
 }
 
@@ -256,28 +301,37 @@ function unread(submission: DomainIndexSubmission, sources: ReadonlySet<string>,
 
 /**
  * Drops from each item that is no element of its source the name of the source, which a model sometimes
- * writes in front of it (`orders-db/public.orders`), and merges the references of a list to one source,
- * each item once.
+ * writes in front of it (`orders-db/public.orders`), reads an item that is still none but is the id or the
+ * label of a domain of the card of its source as the elements of that domain the submission names nowhere
+ * for that source, when there are any, which a model writes when it takes the domain of a card for an
+ * element, and merges the
+ * references of a list to one source, each item once.
  */
-function normalised(submission: DomainIndexSubmission, inventory: SourceInventory): DomainIndexSubmission {
+function normalised(submission: DomainIndexSubmission, inventory: SourceInventory, cards: ReadonlyMap<string, SourceCard>): DomainIndexSubmission {
+  const written = (source: string) =>
+    new Set(
+      [...submission.domains.flatMap((domain) => domain.references), ...submission.unassigned].flatMap((references) =>
+        references.source === source ? references.items : [],
+      ),
+    );
+  const asItems = (references: readonly SourceReferences[]) =>
+    grouped(
+      references.map(({ source, items }) => {
+        const known = new Set(inventory.get(source));
+        const element = (item: string) =>
+          !known.has(item) && (item.startsWith(`${source}/`) || item.startsWith(`${source}:`)) ? item.slice(source.length + 1) : item;
+        const elements = (item: string) => {
+          const domain = known.has(item) ? undefined : cards.get(source)?.domains.find((candidate) => candidate.id === item || candidate.label === item);
+          const left = domain?.items.map((named) => named.name).filter((name) => !written(source).has(name)) ?? [];
+          return left.length === 0 ? [item] : left;
+        };
+        return { source, items: items.map(element).flatMap(elements) };
+      }),
+    );
   return {
-    domains: submission.domains.map((domain) => ({ ...domain, references: unprefixed(domain.references, inventory) })),
-    unassigned: unprefixed(submission.unassigned, inventory),
+    domains: submission.domains.map((domain) => ({ ...domain, references: asItems(domain.references) })),
+    unassigned: asItems(submission.unassigned),
   };
-}
-
-function unprefixed(references: readonly SourceReferences[], inventory: SourceInventory): SourceReferences[] {
-  return grouped(
-    references.map(({ source, items }) => {
-      const known = new Set(inventory.get(source));
-      return {
-        source,
-        items: items.map((item) =>
-          !known.has(item) && (item.startsWith(`${source}/`) || item.startsWith(`${source}:`)) ? item.slice(source.length + 1) : item,
-        ),
-      };
-    }),
-  );
 }
 
 /** The references of a list merged by source, each item once. */
