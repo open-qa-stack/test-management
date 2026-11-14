@@ -24,6 +24,25 @@ describe("the scripted model server", () => {
     }
   });
 
+  it("sends a delayed reply only once its delay is over, and drops a request still waiting when it closes", async () => {
+    const server = await scriptedServer([
+      { body: answer("m", "late"), delayMs: 80 },
+      { body: answer("m", "never"), delayMs: 60_000 },
+    ]);
+    const started = Date.now();
+    const first = await fetch(`${server.baseUrl}/chat/completions`, { method: "POST", body: JSON.stringify({ model: "m" }) });
+    assert.equal(first.status, 200);
+    assert.ok(Date.now() - started >= 70, String(Date.now() - started));
+    const waiting = fetch(`${server.baseUrl}/chat/completions`, { method: "POST", body: JSON.stringify({ model: "m" }) });
+    const failed = waiting.then(
+      () => false,
+      () => true,
+    );
+    while (server.requests.length < 2) await new Promise((resolve) => setTimeout(resolve, 5));
+    await server.close();
+    assert.equal(await failed, true);
+  });
+
   it("writes completions that call tools, with or without text", () => {
     const call = { id: "c1", name: "look", arguments: { at: "home" } };
     assert.deepEqual((toolCalls("m", [call]) as { choices: { message: unknown; finish_reason: string }[] }).choices[0], {

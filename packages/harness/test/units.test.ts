@@ -52,6 +52,7 @@ describe("runtime errors from gateway failures", () => {
       runtimeError({ kind: "upstream-status", status: 400, reason: "Unsupported parameter." }).message,
       "The model answered with status 400: Unsupported parameter.",
     );
+    assert.equal(runtimeError({ kind: "timed-out", seconds: 300, attempts: 2 }).message, "The model gave no answer within 300 seconds, 2 times in a row.");
     assert.equal(runtimeError({ kind: "invalid-response" }).message, "The model answered with a body that is not JSON.");
     assert.equal(runtimeError({ kind: "invalid-request" }).message, "The model runtime sent a request the gateway could not read.");
     assert.equal(runtimeError({ kind: "task-stopped" }).message, "The task was stopped by a limit before the model call.");

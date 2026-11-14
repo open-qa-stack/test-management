@@ -198,6 +198,42 @@ describe("the runtime of the agents on the model of the configuration", () => {
   });
 });
 
+describe("the wait the configuration gives for an answer of the model", () => {
+  it("bounds each request: a model that never answers in time is reported after two requests", async () => {
+    const late = { body: answer("m", "Late."), delayMs: 1500 };
+    const server = await scriptedServer([late, late]);
+    const text = JSON.stringify({
+      formatVersion: 1,
+      applications: [
+        {
+          id: "shop",
+          name: "Shop",
+          type: "api",
+          authentication: { method: "none" },
+          environments: [{ name: "local", apis: [{ name: "b", baseUrl: "http://127.0.0.1:1" }] }],
+        },
+      ],
+      knowledge: [],
+      model: { mode: "provider-key", provider: "openai", baseUrl: server.baseUrl, model: "m", requestTimeoutSeconds: 1 },
+    });
+    const config = validateConfig(text, {});
+    assert.ok(config.ok, JSON.stringify(config));
+    const open = await liveRuntime(config.config, {});
+    const events: AgentEvent[] = [];
+    try {
+      const session = await open.runtime.openSession({ instructions: "Answer.", tools: [] });
+      for await (const event of session.send("Hello?")) events.push(event);
+      await session.close();
+    } finally {
+      await open.close();
+      await server.close();
+    }
+    const last = events.at(-1);
+    assert.equal(last?.type === "error" && last.error.message, "The model gave no answer within 1 seconds, 2 times in a row.");
+    assert.equal(server.requests.length, 2);
+  });
+});
+
 describe("a model that reads images", () => {
   /** A PNG image of one pixel. */
   const PIXEL = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");

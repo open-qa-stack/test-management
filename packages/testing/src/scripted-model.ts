@@ -14,10 +14,11 @@ export interface ScriptedServer {
 /**
  * Starts a model server that answers each request with the next scripted reply.
  *
- * @param replies - Status (200 by default) and body of each reply, in order; a `raw` body is sent as is.
+ * @param replies - Status (200 by default) and body of each reply, in order; a `raw` body is sent as is, and a
+ * reply with `delayMs` is sent only after that many milliseconds, as a server slow to answer does.
  * @returns The running server.
  */
-export async function scriptedServer(replies: readonly { status?: number; body: unknown; raw?: boolean }[]): Promise<ScriptedServer> {
+export async function scriptedServer(replies: readonly { status?: number; body: unknown; raw?: boolean; delayMs?: number }[]): Promise<ScriptedServer> {
   const requests: { body: unknown; headers: IncomingHttpHeaders }[] = [];
   const server = createServer((req, res) => {
     const chunks: Buffer[] = [];
@@ -27,15 +28,25 @@ export async function scriptedServer(replies: readonly { status?: number; body: 
       // A request without a body, such as the list of the models, has none.
       requests.push({ body: text === "" ? undefined : (JSON.parse(text) as unknown), headers: req.headers });
       const reply = replies[requests.length - 1] ?? { status: 500, body: { error: { message: "script exhausted" } } };
-      res.writeHead(reply.status ?? 200, { "content-type": "application/json" });
-      res.end("raw" in reply && reply.raw === true ? String(reply.body) : JSON.stringify(reply.body));
+      const send = () => {
+        res.writeHead(reply.status ?? 200, { "content-type": "application/json" });
+        res.end("raw" in reply && reply.raw === true ? String(reply.body) : JSON.stringify(reply.body));
+      };
+      const delay = "delayMs" in reply ? reply.delayMs : undefined;
+      if (delay === undefined) send();
+      else setTimeout(send, delay).unref();
     });
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   return {
     baseUrl: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`,
     requests,
-    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+    close: () =>
+      new Promise<void>((resolve) => {
+        // A request still waiting for a delayed reply is dropped with its connection.
+        server.closeAllConnections();
+        server.close(() => resolve());
+      }),
   };
 }
 

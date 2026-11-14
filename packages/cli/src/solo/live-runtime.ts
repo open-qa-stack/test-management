@@ -23,8 +23,13 @@ export interface OpenRuntime {
  */
 export async function liveRuntime(config: ResolvedConfig, env: Readonly<Record<string, string | undefined>>): Promise<OpenRuntime> {
   const apiKey = config.model.apiKeyEnv === undefined ? undefined : env[config.model.apiKeyEnv];
-  const { baseUrl, reasoningEffort } = config.model;
-  const upstream = { baseUrl, ...(apiKey === undefined ? {} : { apiKey }), ...(reasoningEffort === undefined ? {} : { reasoningEffort }) };
+  const { baseUrl, reasoningEffort, requestTimeoutSeconds } = config.model;
+  const upstream = {
+    baseUrl,
+    ...(apiKey === undefined ? {} : { apiKey }),
+    ...(reasoningEffort === undefined ? {} : { reasoningEffort }),
+    ...(requestTimeoutSeconds === undefined ? {} : { timeoutMs: requestTimeoutSeconds * 1000 }),
+  };
   const gateway = await ModelGateway.start({ kind: "live", upstream });
   const home = await mkdtemp(join(tmpdir(), "oqas-sessions-"));
   const runtime = new CopilotAgentRuntime({ endpoint: gateway, model: config.model.model, homeDirectory: home, vision: readsImages(config.model) });

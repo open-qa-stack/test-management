@@ -158,10 +158,13 @@ A rule identifier is made of upper case words and digits separated by hyphens, s
 | `apiKeyEnv` | variable, when the server requires a key | no | `"OQAS_MODEL_API_KEY"` |
 | `capabilities` | list of `vision`: what the model can do besides reading and writing text | no | `["vision"]` |
 | `reasoningEffort` | non-empty string, as the server names it: how much the model reasons before it answers | no | `"none"` |
+| `requestTimeoutSeconds` | whole number of seconds, one at least: the longest wait for the answer to one request | no | `120` |
 
 Only a provider key is supported in solo mode for now.
 
 `vision` says that the model reads images. The screenshot tool of each application then gives the model the image it takes, besides its path, within the bounds the [browser tools](../../tools/docs/browser-tools.md#screenshots-the-model-reads) describe. Declare it only for a model that reads images: without it, the model is given the path alone, as for any model. Any other value is refused with the rule `unknown-variant`, at its JSON path, such as `/model/capabilities/0`.
+
+`requestTimeoutSeconds` bounds the wait for the answer to one request: 300 seconds by default. A request left without answer is sent once more, and the task fails when the second one gets none either, with `The model gave no answer within 300 seconds, 2 times in a row.`. Raise it for a local model that takes minutes on a long conversation.
 
 `reasoningEffort` is sent with every request to the model, in place of the effort the agent runtime would ask for. Leave it out for a server that ignores it. Set it when a server refuses the default: some models accept tools on the chat completions API only with `none`, and say so in the reason of their refusal.
 

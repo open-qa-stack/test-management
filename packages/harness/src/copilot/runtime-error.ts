@@ -19,6 +19,8 @@ export function runtimeError(failure: GatewayFailure | undefined): AgentRuntimeE
           ? `The model answered with status ${failure.status}.`
           : `The model answered with status ${failure.status}: ${failure.reason}`,
       );
+    case "timed-out":
+      return new ModelResponseError(`The model gave no answer within ${failure.seconds} seconds, ${failure.attempts} times in a row.`);
     case "invalid-response":
       return new ModelResponseError("The model answered with a body that is not JSON.");
     case "invalid-request":

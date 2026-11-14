@@ -234,6 +234,12 @@ export const configSchema = {
               items: { enum: ["vision"] },
               description: "What the model can do besides reading and writing text: `vision`, it reads images.",
             },
+            requestTimeoutSeconds: {
+              type: "integer",
+              minimum: 1,
+              description:
+                "Longest wait for the answer of the model to one request, in seconds; 300 by default. A request left without answer is sent once more.",
+            },
             reasoningEffort: {
               ...label,
               description:

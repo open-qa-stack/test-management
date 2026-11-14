@@ -191,6 +191,41 @@ describe("record mode", () => {
   });
 });
 
+describe("a model that does not answer in time", () => {
+  it("is asked once more, and its answer is given when it comes then", async () => {
+    const server = await scriptedServer([{ body: answer(MODEL, "Late."), delayMs: 400 }, { body: answer(MODEL, "Here.") }]);
+    try {
+      await withRuntime({ kind: "live", upstream: { baseUrl: server.baseUrl, timeoutMs: 100 } }, MODEL, async (runtime) => {
+        const session = await runtime.openSession(TOOL_CALLING_CHECK.session());
+        const events: AgentEvent[] = [];
+        for await (const event of session.send("Say hello.")) events.push(event);
+        assert.deepEqual(events, [{ type: "text", text: "Here." }, { type: "end" }]);
+      });
+      assert.equal(server.requests.length, 2);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("is reported with the wait and the number of requests when it never answers in time", async () => {
+    const late = { body: answer(MODEL, "Late."), delayMs: 400 };
+    const server = await scriptedServer([late, late]);
+    try {
+      await withRuntime({ kind: "live", upstream: { baseUrl: server.baseUrl, timeoutMs: 100 } }, MODEL, async (runtime) => {
+        const session = await runtime.openSession(TOOL_CALLING_CHECK.session());
+        const events: AgentEvent[] = [];
+        for await (const event of session.send("Say hello.")) events.push(event);
+        const error = errorOf(events);
+        assert.ok(error instanceof ModelResponseError);
+        assert.equal(error.message, "The model gave no answer within 0.1 seconds, 2 times in a row.");
+      });
+      assert.equal(server.requests.length, 2);
+    } finally {
+      await server.close();
+    }
+  });
+});
+
 describe("live mode", () => {
   it("reports an error status, then answers the next message of the same session", async () => {
     const server = await scriptedServer([{ status: 503, body: { error: { message: "busy" } } }, { body: answer(MODEL, "Back.") }]);

@@ -6,4 +6,6 @@ export interface Upstream {
   readonly apiKey?: string;
   /** Sent as `reasoning_effort` with every request when set, in place of what the model runtime asks for. */
   readonly reasoningEffort?: string;
+  /** Longest wait for the answer to one request, in milliseconds; `DEFAULT_UPSTREAM_TIMEOUT_MS` by default. */
+  readonly timeoutMs?: number;
 }

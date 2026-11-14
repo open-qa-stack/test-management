@@ -142,6 +142,7 @@ export interface ProviderKeyModel {
   apiKeyEnv?: string;
   capabilities?: ModelCapability[];
   reasoningEffort?: string;
+  requestTimeoutSeconds?: number;
 }
 
 /** Connection to the model. */

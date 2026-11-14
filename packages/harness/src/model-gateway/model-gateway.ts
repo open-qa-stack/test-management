@@ -12,11 +12,14 @@ import type { RequestGate } from "./request-gate.ts";
 import type { Upstream } from "./upstream.ts";
 import { upstreamReason } from "./upstream-reason.ts";
 
-/** Longest wait for a model to answer one call, in milliseconds: a local model may take minutes on a long context. */
-export const UPSTREAM_TIMEOUT_MS = 30 * 60_000;
+/** Longest wait for a model to answer one request, in milliseconds, unless the upstream gives its own. */
+export const DEFAULT_UPSTREAM_TIMEOUT_MS = 5 * 60_000;
 
-/** The connections to the model, which wait for its answer longer than the five minutes of the built-in `fetch`. */
-const UPSTREAM = new Agent({ headersTimeout: UPSTREAM_TIMEOUT_MS, bodyTimeout: UPSTREAM_TIMEOUT_MS });
+/** How many times a request is sent when the model gives no answer in time: once more after the first. */
+export const UPSTREAM_ATTEMPTS = 2;
+
+/** The connections to the model: the wait for an answer is bounded for each request, not by the connection. */
+const UPSTREAM = new Agent({ headersTimeout: 0, bodyTimeout: 0 });
 
 /** `/c/<channel>/v1/<operation>`: every request names the channel of its session. */
 const CHANNEL_PATH = /^\/c\/(\d+)\/v1(\/.*)$/;
@@ -119,18 +122,27 @@ export class ModelGateway implements ModelEndpoint {
   }
 
   private async forward(res: ServerResponse, channel: GatewayChannel, upstream: Upstream, body: string, request: CanonicalRequest): Promise<void> {
-    let answer: Response;
-    let text: string;
-    try {
-      answer = await fetch(`${upstream.baseUrl}/chat/completions`, {
-        method: "POST",
-        headers: { "content-type": "application/json", ...bearer(upstream.apiKey) },
-        body: upstream.reasoningEffort === undefined ? body : JSON.stringify({ ...(JSON.parse(body) as object), reasoning_effort: upstream.reasoningEffort }),
-        dispatcher: UPSTREAM,
-      });
-      text = await answer.text();
-    } catch {
-      return fail(res, channel, { kind: "unreachable", url: upstream.baseUrl });
+    const timeoutMs = upstream.timeoutMs ?? DEFAULT_UPSTREAM_TIMEOUT_MS;
+    const sent =
+      upstream.reasoningEffort === undefined ? body : JSON.stringify({ ...(JSON.parse(body) as object), reasoning_effort: upstream.reasoningEffort });
+    let answer: Response | undefined;
+    let text = "";
+    // A request the model does not answer in time is sent once more: a hosted model sometimes leaves one hanging.
+    for (let attempt = 1; answer === undefined; attempt++) {
+      try {
+        const got = await fetch(`${upstream.baseUrl}/chat/completions`, {
+          method: "POST",
+          headers: { "content-type": "application/json", ...bearer(upstream.apiKey) },
+          body: sent,
+          dispatcher: UPSTREAM,
+          signal: AbortSignal.timeout(timeoutMs),
+        });
+        text = await got.text();
+        answer = got;
+      } catch (error) {
+        if (!(error instanceof Error && error.name === "TimeoutError")) return fail(res, channel, { kind: "unreachable", url: upstream.baseUrl });
+        if (attempt === UPSTREAM_ATTEMPTS) return fail(res, channel, { kind: "timed-out", seconds: timeoutMs / 1000, attempts: UPSTREAM_ATTEMPTS });
+      }
     }
     if (!answer.ok) {
       const reason = upstreamReason(text, upstream.apiKey);

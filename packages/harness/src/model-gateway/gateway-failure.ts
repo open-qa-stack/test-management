@@ -4,6 +4,8 @@ export type GatewayFailure =
   | { readonly kind: "unreachable"; readonly url: string }
   /** The upstream server answered with an error status, and `reason` when its answer said why. */
   | { readonly kind: "upstream-status"; readonly status: number; readonly reason?: string }
+  /** The upstream server gave no answer within `seconds`, each of the `attempts` times it was asked. */
+  | { readonly kind: "timed-out"; readonly seconds: number; readonly attempts: number }
   /** The upstream server answered with a body that is not JSON. */
   | { readonly kind: "invalid-response" }
   /** The recording has no exchange for the request `request` describes. */

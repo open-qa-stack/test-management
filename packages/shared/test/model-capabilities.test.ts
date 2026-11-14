@@ -46,3 +46,21 @@ describe("the reasoning effort of the model", () => {
       );
   });
 });
+
+describe("the wait for an answer of the model", () => {
+  it("is kept in seconds as the configuration gives it, and left out otherwise", () => {
+    const set = validateVariant((c) => (at(c, "model")["requestTimeoutSeconds"] = 120));
+    assert.equal(set.ok && set.config.model.requestTimeoutSeconds, 120);
+    const unset = validateVariant(() => undefined);
+    assert.equal(unset.ok && unset.config.model.requestTimeoutSeconds, undefined);
+  });
+
+  it("is a whole number of seconds, one at least", () => {
+    for (const seconds of [0, 1.5, "60"])
+      assert.deepEqual(
+        errorsOf(validateVariant((c) => (at(c, "model")["requestTimeoutSeconds"] = seconds))).map((e) => e.path),
+        ["/model/requestTimeoutSeconds"],
+        JSON.stringify(seconds),
+      );
+  });
+});
