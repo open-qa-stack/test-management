@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import net from "node:net";
 import { describe, it } from "node:test";
 import { ModelResponseError, ModelUnreachableError, ReplayMissError, type AgentEvent } from "@open-qa-stack/domain";
@@ -30,7 +30,12 @@ function importsOf(source: string): string[] {
 describe("criterion 2 — only the Copilot implementation imports the SDK", () => {
   it("finds the SDK in harness/src/copilot/ only, in every package, tests included", () => {
     const packages = new URL("../../", import.meta.url);
-    const files = readdirSync(packages, { recursive: true, encoding: "utf8" }).filter((f) => f.endsWith(".ts") && !f.includes("node_modules"));
+    // Only the folders a package writes by hand: a build output may be rebuilt while this test reads.
+    const folders = readdirSync(packages).flatMap((name) => ["src", "scripts", "test"].map((folder) => `${name}/${folder}`));
+    const files = folders
+      .filter((folder) => existsSync(new URL(folder, packages)))
+      .flatMap((folder) => readdirSync(new URL(`${folder}/`, packages), { recursive: true, encoding: "utf8" }).map((f) => `${folder}/${f}`))
+      .filter((f) => f.endsWith(".ts"));
     const importers = files.filter((f) => importsOf(readFileSync(new URL(f, packages), "utf8")).includes("@github/copilot-sdk"));
     assert.ok(importers.length > 0);
     assert.deepEqual(
