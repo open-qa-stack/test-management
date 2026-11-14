@@ -1,40 +1,61 @@
 import type { Locator, Page } from "playwright-core";
 
+/** The part of the page an element is looked for in, such as the row of a table that holds it: by role, and a part of its accessible name. */
+export interface TargetScope {
+  readonly role: string;
+  readonly name?: string;
+}
+
 /**
  * How a browser tool designates an element: by the locators the test charter recommends, and nothing
- * else, so that what the agent explores is what a test can write.
+ * else, so that what the agent explores is what a test can write; inside a part of the page when the
+ * element repeats, such as a button on each row.
  */
-export type Target = { readonly role: string; readonly name?: string } | { readonly label: string } | { readonly testId: string } | { readonly text: string };
+export type Target = (
+  { readonly role: string; readonly name?: string } | { readonly label: string } | { readonly testId: string } | { readonly text: string }
+) & { readonly within?: TargetScope };
 
 const text = { type: "string", minLength: 1 } as const;
+const within = {
+  type: "object",
+  description:
+    'The part of the page that holds the element, when the locator of the snapshot starts with one, such as page.getByRole("row", { name: "Lena Veldane" }).',
+  properties: { role: text, name: { type: "string" } },
+  required: ["role"],
+  additionalProperties: false,
+} as const;
 
 /** JSON Schema of a `Target`, for the parameters of the tools. */
 export const TARGET_SCHEMA = {
-  description: "The element, as the page snapshot recommends: by role and accessible name, by label, by test id, or by text.",
+  description:
+    "The element, as the page snapshot recommends: by role and accessible name, by label, by test id, or by text; with within for the part of the page that holds it, when the snapshot names one.",
   oneOf: [
-    { type: "object", properties: { role: text, name: { type: "string" } }, required: ["role"], additionalProperties: false },
-    { type: "object", properties: { label: text }, required: ["label"], additionalProperties: false },
-    { type: "object", properties: { testId: text }, required: ["testId"], additionalProperties: false },
-    { type: "object", properties: { text }, required: ["text"], additionalProperties: false },
+    { type: "object", properties: { role: text, name: { type: "string" }, within }, required: ["role"], additionalProperties: false },
+    { type: "object", properties: { label: text, within }, required: ["label"], additionalProperties: false },
+    { type: "object", properties: { testId: text, within }, required: ["testId"], additionalProperties: false },
+    { type: "object", properties: { text, within }, required: ["text"], additionalProperties: false },
   ],
 } as const;
 
 type AriaRole = Parameters<Page["getByRole"]>[0];
 
 /**
- * Builds the Playwright locator of a target, matching names, labels and texts exactly.
+ * Builds the Playwright locator of a target, matching names, labels and texts exactly, and the name of the
+ * part that holds it as a part of its name.
  *
  * @param page - The page to search.
- * @param target - The element, by role and name, label, test id or text.
+ * @param target - The element, by role and name, label, test id or text, inside a part of the page or not.
  * @returns A locator for it.
  */
 export function locate(page: Page, target: Target): Locator {
+  const scope = target.within;
+  const base: Page | Locator = scope === undefined ? page : page.getByRole(scope.role as AriaRole, scope.name === undefined ? {} : { name: scope.name });
   if ("role" in target) {
-    return page.getByRole(target.role as AriaRole, target.name === undefined ? {} : { name: target.name, exact: true });
+    return base.getByRole(target.role as AriaRole, target.name === undefined ? {} : { name: target.name, exact: true });
   }
-  if ("label" in target) return page.getByLabel(target.label, { exact: true });
-  if ("testId" in target) return page.getByTestId(target.testId);
-  return page.getByText(target.text, { exact: true });
+  if ("label" in target) return base.getByLabel(target.label, { exact: true });
+  if ("testId" in target) return base.getByTestId(target.testId);
+  return base.getByText(target.text, { exact: true });
 }
 
 /**
@@ -45,12 +66,19 @@ export function locate(page: Page, target: Target): Locator {
  */
 export function targetCode(target: Target): string {
   const quote = (value: string) => JSON.stringify(value);
+  const scope = target.within;
+  const base =
+    scope === undefined
+      ? "page"
+      : scope.name === undefined
+        ? `page.getByRole(${quote(scope.role)})`
+        : `page.getByRole(${quote(scope.role)}, { name: ${quote(scope.name)} })`;
   if ("role" in target) {
     return target.name === undefined
-      ? `page.getByRole(${quote(target.role)})`
-      : `page.getByRole(${quote(target.role)}, { name: ${quote(target.name)}, exact: true })`;
+      ? `${base}.getByRole(${quote(target.role)})`
+      : `${base}.getByRole(${quote(target.role)}, { name: ${quote(target.name)}, exact: true })`;
   }
-  if ("label" in target) return `page.getByLabel(${quote(target.label)}, { exact: true })`;
-  if ("testId" in target) return `page.getByTestId(${quote(target.testId)})`;
-  return `page.getByText(${quote(target.text)}, { exact: true })`;
+  if ("label" in target) return `${base}.getByLabel(${quote(target.label)}, { exact: true })`;
+  if ("testId" in target) return `${base}.getByTestId(${quote(target.testId)})`;
+  return `${base}.getByText(${quote(target.text)}, { exact: true })`;
 }

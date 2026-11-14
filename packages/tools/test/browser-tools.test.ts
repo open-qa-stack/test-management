@@ -11,6 +11,7 @@ import type { Application } from "@open-qa-stack/shared";
 import { BrowserSession } from "../src/browser/browser-session.ts";
 import { LOG_CAPACITY } from "../src/browser/application-page.ts";
 import { readFacts, sameElement } from "../src/browser/element-facts.ts";
+import { readScope, type ScopeElement } from "../src/browser/element-scope.ts";
 import { PageLog, REFUSED } from "../src/browser/page-log.ts";
 import { MAX_ANNOTATED_ELEMENTS, MAX_SNAPSHOT_LENGTH, pageSnapshot } from "../src/browser/page-snapshot.ts";
 import { recommendTarget } from "../src/browser/recommended-target.ts";
@@ -64,6 +65,11 @@ before(async () => {
     {
       "/": HOME.replace('href="#"', `href="${elsewhere.origin}/x"`),
       "/second": "<h2>Second page</h2>",
+      // Elements repeated from one row or dialog to the next, from one list item to the next, which no locator names, and on rows of the same name.
+      "/rows": `<table><tr><td></td><td>Lena Veldane</td><td><button onclick="out.textContent = 'Managing Lena'">Manage</button></td></tr><tr><td>Tom Arvel</td><td><button>Manage</button></td></tr></table>
+<ul><li><span>Lena Veldane</span><button>Open</button></li><li><span>Tom Arvel</span><button>Open</button></li></ul>
+<table><tr><td>Same</td><td><button>Edit</button></td></tr><tr><td>Same</td><td><button>Edit</button></td></tr></table>
+<dialog open><button>Close</button></dialog><button>Close</button><p id="out"></p>`,
       // A page that loads its data from another local service, at once and on demand, as an interface does from its API.
       "/loads": `<p id="data">loading</p><button onclick="fetch('/api/ping').then(() => { document.getElementById('more').hidden = false; })">More</button><p id="more" hidden>More data</p><script>fetch("${elsewhere.origin}/api/ping").then((r) => r.json()).then((body) => { document.getElementById("data").textContent = "pong " + body.pong; }, () => { document.getElementById("data").textContent = "refused"; });</script>`,
       "/hangs": '<p id="data">waiting</p><script>fetch("/api/slow").then(() => { document.getElementById("data").textContent = "slow data"; });</script>',
@@ -386,6 +392,68 @@ describe("criterion 2 — a snapshot lists the elements one can act on, with rol
       assert.match(line(text, 'button "Locked"'), / → page\.getByRole/);
       assert.doesNotMatch(line(text, 'heading "My Policies"'), /→/);
     });
+  });
+
+  it("recommends, for an element repeated on each row, its locator inside the row named by its first cell, and acts on it", async () => {
+    await withTools(async (tool) => {
+      await tool("shop_goto").execute({ url: "/rows" });
+      const text = await page(tool);
+      const manage = text
+        .split("\n")
+        .filter((l) => l.includes('button "Manage"'))
+        .map((l) => l.split(" → ")[1]);
+      assert.deepEqual(manage, [
+        'page.getByRole("row", { name: "Lena Veldane" }).getByRole("button", { name: "Manage", exact: true })',
+        'page.getByRole("row", { name: "Tom Arvel" }).getByRole("button", { name: "Manage", exact: true })',
+      ]);
+      assert.deepEqual(
+        text
+          .split("\n")
+          .filter((l) => l.includes('button "Close"'))
+          .map((l) => l.split(" → ")[1]),
+        [
+          'page.getByRole("dialog").getByRole("button", { name: "Close", exact: true })',
+          'no unique locator: 2 elements match page.getByRole("button", { name: "Close", exact: true })',
+        ],
+      );
+      assert.match(line(text, 'button "Open"'), / → no unique locator: 2 elements match page\.getByRole\("button", \{ name: "Open", exact: true \}\)$/);
+      assert.match(line(text, 'button "Edit"'), / → no unique locator: 2 elements match page\.getByRole\("button", \{ name: "Edit", exact: true \}\)$/);
+      const clicked = (await tool("shop_click").execute({ target: { role: "button", name: "Manage", within: { role: "row", name: "Lena Veldane" } } })) as {
+        code: string;
+      };
+      assert.equal(clicked.code, `await ${manage[0]}.click();`);
+      assert.match(await page(tool), /paragraph \[ref=\w+\]: Managing Lena$/m);
+      const part = ((await tool("shop_snapshot").execute({ within: { text: "Close", within: { role: "dialog" } } })) as { page: string }).page;
+      assert.match(part, /^- button "Close"/);
+    });
+  });
+
+  it("reads the row or dialog that holds an element in the page, named by its first child with a text", () => {
+    const element = (
+      tagName: string,
+      parentElement: ScopeElement | null,
+      more: { role?: string; children?: ScopeElement[]; textContent?: string | null } = {},
+    ): ScopeElement => ({
+      tagName,
+      parentElement,
+      getAttribute: (name: string) => (name === "role" ? (more.role ?? null) : null),
+      children: more.children ?? [],
+      textContent: more.textContent ?? null,
+    });
+    const cell = (textContent: string | null) => element("TD", null, { textContent });
+    const button = (parent: ScopeElement) => element("BUTTON", parent);
+    const table = element("TABLE", element("BODY", null));
+    assert.deepEqual(readScope(button(element("TR", table, { children: [cell(null), cell(" "), cell(" Lena\n Veldane ")] }))), {
+      role: "row",
+      name: "Lena Veldane",
+    });
+    assert.deepEqual(readScope(button(element("TD", element("DIV", table, { role: "row", children: [cell("Tom")] })))), { role: "row", name: "Tom" });
+    assert.deepEqual(readScope(button(element("TR", null, { children: [cell("")] }))), { role: "row" });
+    // A list item takes no name from what it holds, so a locator could not name it.
+    assert.equal(readScope(button(element("LI", null, { children: [cell("Lena")] }))), null);
+    assert.deepEqual(readScope(button(element("DIV", element("DIALOG", null)))), { role: "dialog" });
+    assert.deepEqual(readScope(button(element("TR", null, { role: "presentation" }))), null);
+    assert.equal(readScope(element("HTML", null)), null);
   });
 
   it("recommends a locator for a bounded number of elements, and cuts a long page at a line", async () => {

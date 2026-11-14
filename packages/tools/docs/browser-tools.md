@@ -26,14 +26,15 @@
 | `shop_fill` on `{ "label": "Email" }` with `{ "account": "demo", "field": "username" }`, the account reading its user name from `SHOP_USER` | `await page.getByLabel("Email", { exact: true }).fill(process.env.SHOP_USER!);` |
 | `shop_select_option` on `{ "role": "combobox", "name": "Kind" }` with `Car` | `await page.getByRole("combobox", { name: "Kind", exact: true }).selectOption("Car");` |
 | `shop_check` on `{ "role": "checkbox" }` with `checked: false` | `await page.getByRole("checkbox").uncheck();` |
+| `shop_click` on `{ "role": "button", "name": "Edit", "within": { "role": "row", "name": "Lena Veldane" } }` | `await page.getByRole("row", { name: "Lena Veldane" }).getByRole("button", { name: "Edit", exact: true }).click();` |
 
 An address of the user interface becomes its path, query and fragment, which the base URL of the test completes; an address of an API of the application is given whole. A credential is read from the variable its account declares, never written.
 
 ## Elements and locators
 
-Tools designate an element the way a test should: by role and accessible name, by label, by test id (`data-testid`) or by text, always matched exactly. CSS and XPath selectors are not accepted.
+Tools designate an element the way a test should: by role and accessible name, by label, by test id (`data-testid`) or by text, always matched exactly. CSS and XPath selectors are not accepted. `within` looks for the element inside a part of the page given by its role and a part of its accessible name, such as the row of a table.
 
-In a snapshot, each element one can act on — a control, or any element the page shows as clickable — ends with `→` and the Playwright locator to use for it. The candidates follow the order the Playwright documentation recommends: role and name, then label, then test id, then text; the first that finds this very element, and no other, is given. When none does, the snapshot says how many elements the first candidate matches, or that no candidate applies: the page lacks a robust locator for that element. An element inside a frame is marked as out of reach, and one the page replaced while the snapshot was taken is marked as changed. A snapshot gives a locator to 150 elements at most and is cut at a line beyond 12,000 characters; it says when it was.
+In a snapshot, each element one can act on — a control, or any element the page shows as clickable — ends with `→` and the Playwright locator to use for it. The candidates follow the order the Playwright documentation recommends: role and name, then label, then test id, then text; the first that finds this very element, and no other, is given. When none does, they are tried again inside the closest row or dialog that holds the element: a row is named by the text of its first child that has one, such as its first cell, so that a button repeated on each row gets `page.getByRole("row", { name: "Lena Veldane" }).getByRole("button", { name: "Edit", exact: true })`. When none does there either, the snapshot says how many elements the first candidate matches, or that no candidate applies: the page lacks a robust locator for that element. An element inside a frame is marked as out of reach, and one the page replaced while the snapshot was taken is marked as changed. A snapshot gives a locator to 150 elements at most and is cut at a line beyond 12,000 characters; it says when it was.
 
 ## Bounds
 
