@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import type { Locator } from "playwright-core";
-import type { ToolDefinition } from "@open-qa-stack/domain";
+import { ImageToolResult, type ToolDefinition } from "@open-qa-stack/domain";
 import type { Account, Application, Environment } from "@open-qa-stack/shared";
 import { scopedToolName } from "../common/tool-name.ts";
 import { LOG_CAPACITY, type ApplicationPage, type PageScope, type PageState, type Until } from "./application-page.ts";
@@ -14,6 +14,8 @@ export const MAX_WAIT_MS = 15_000;
 export const DEFAULT_WAIT_MS = 5000;
 /** Entries a log tool returns when the agent does not say. */
 const DEFAULT_LOG_ENTRIES = 20;
+/** Why the model is not shown the screenshot of a page that shows a secret. */
+const SECRET_SHOWN = "The page shows a secret of the configuration: its image is not shown.";
 
 /** The credential of a declared test account, which the model never sees. */
 type Credential = { readonly account: string; readonly field: "username" | "password" };
@@ -31,6 +33,10 @@ export interface ApplicationToolAccess {
   readonly env: Readonly<Record<string, string | undefined>>;
   /** Folder the screenshots are written to. */
   readonly screenshotsDir: string;
+  /** Whether the model reads images: the screenshot tool then gives it the image too. */
+  readonly vision: boolean;
+  /** The secrets no image the model is shown may show: the passwords of every test account, and those the session adds. */
+  readonly imageSecrets: readonly string[];
 }
 
 const limit = (description: string) => ({ type: "integer", minimum: 1, maximum: LOG_CAPACITY, description }) as const;
@@ -56,6 +62,9 @@ const limit = (description: string) => ({ type: "integer", minimum: 1, maximum: 
 export function applicationTools(application: Application, environment: Environment & { uiUrl: string }, access: ApplicationToolAccess): ToolDefinition[] {
   const scope = pageScope(application.id, environment);
   const secrets = (application.authentication.accounts ?? []).flatMap((account) => nonEmpty(access.env[account.passwordEnv]).flatMap(secretForms));
+  // A page may show a secret in another case than its own, by a style; an image is refused whatever the case.
+  const unseen = access.imageSecrets.flatMap(secretForms).map((form) => form.toLowerCase());
+  const showsSecret = (text: string) => unseen.some((form) => text.toLowerCase().includes(form));
   const name = (action: string) => scopedToolName(application.id, action);
   // The model may call several tools at once; on one page, they run one after the other, in order.
   let queue: Promise<unknown> = Promise.resolve();
@@ -64,7 +73,9 @@ export function applicationTools(application: Application, environment: Environm
     (args: unknown) => {
       const run = queue.then(async () => {
         try {
-          return redact(await use(await access.session.page(scope), args as T), secrets);
+          const result = await use(await access.session.page(scope), args as T);
+          // A screenshot shows its image only once its page holds no secret.
+          return result instanceof ImageToolResult ? result : redact(result, secrets);
         } catch (failure) {
           throw new Error(redactText(failure instanceof Error ? failure.message : String(failure), secrets));
         }
@@ -74,6 +85,7 @@ export function applicationTools(application: Application, environment: Environm
     };
   const where = `of ${application.name} (${environment.name})`;
   let screenshots = 0;
+  const screenshotPath = () => join(access.screenshotsDir, `${application.id}-${++screenshots}.png`);
   return [
     {
       name: name("goto"),
@@ -180,20 +192,42 @@ export function applicationTools(application: Application, environment: Environm
         return page.state();
       }),
     },
-    {
-      name: name("screenshot"),
-      description: `Saves a screenshot of the page ${where} and returns where it is.`,
-      parameters: {
-        type: "object",
-        properties: { fullPage: { type: "boolean", description: "The whole page rather than the viewport." } },
-        additionalProperties: false,
-      },
-      execute: on(async (page, { fullPage }: { fullPage?: boolean }) => {
-        const path = join(access.screenshotsDir, `${application.id}-${++screenshots}.png`);
-        await page.screenshot(path, fullPage ?? false);
-        return { path };
-      }),
-    },
+    access.vision
+      ? {
+          name: name("screenshot"),
+          description: `Saves a screenshot of the page ${where}, or of one of its elements, and returns where it is, with the image for you to look at, its type and its size in pixels. The image is never reduced, and one larger than the model is shown whole is not given: to look closer at a part of the page, or at a long page, capture its element. Password fields are covered. Use the image to find what a snapshot renders poorly, such as a button without a name or an icon alone, and base no assertion on the image alone. A task is shown a few images at most; past them, or when the page shows a secret of the configuration, you get the path alone and the reason.`,
+          parameters: {
+            type: "object",
+            properties: {
+              fullPage: { type: "boolean", description: "The whole page rather than the viewport." },
+              within: { ...TARGET_SCHEMA, description: "The one element to capture, such as a toolbar or a dialog." },
+            },
+            not: { required: ["fullPage", "within"] },
+            additionalProperties: false,
+          },
+          execute: on(async (page, { fullPage, within }: { fullPage?: boolean; within?: Target }) => {
+            const path = screenshotPath();
+            // Read before and after, so that a page that changes during the capture is held to both of its states.
+            const before = await page.shownText();
+            const png = await page.capture(path, within === undefined ? { fullPage: fullPage ?? false } : { within });
+            if ([before, await page.shownText()].some(showsSecret)) return ImageToolResult.withheld({ path }, SECRET_SHOWN);
+            return new ImageToolResult({ path }, png);
+          }),
+        }
+      : {
+          name: name("screenshot"),
+          description: `Saves a screenshot of the page ${where} and returns where it is.`,
+          parameters: {
+            type: "object",
+            properties: { fullPage: { type: "boolean", description: "The whole page rather than the viewport." } },
+            additionalProperties: false,
+          },
+          execute: on(async (page, { fullPage }: { fullPage?: boolean }) => {
+            const path = screenshotPath();
+            await page.screenshot(path, fullPage ?? false);
+            return { path };
+          }),
+        },
     {
       name: name("network"),
       description: `Returns the latest requests of the page ${where}, with their status: the document and its API calls, and the assets when asked.`,

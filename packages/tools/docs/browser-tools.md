@@ -11,7 +11,7 @@
 | `<id>_select_option` | Chooses an option of a list, by its label or value. | yes |
 | `<id>_check` | Checks or unchecks a checkbox or a radio button. | yes |
 | `<id>_wait_for` | Waits until an element is visible or hidden, or until the address contains a text. | no |
-| `<id>_screenshot` | Writes a PNG image of the viewport, or of the whole page, and returns its path. | no |
+| `<id>_screenshot` | Writes a PNG image of the viewport, or of the whole page, and returns its path; to a model that reads images, it also gives the image, or that of one element, as [below](#screenshots-the-model-reads). | no |
 | `<id>_network` | Returns the latest requests of the page: the documents and the API calls, the assets when asked, and every failed request. | no |
 | `<id>_console` | Returns the latest console messages and uncaught errors of the page. | no |
 
@@ -48,6 +48,28 @@ In a snapshot, each element one can act on — a control, or any element the pag
 ## Test accounts
 
 The agent types a credential by naming the account and the field, `{ "account": "demo", "field": "password" }`: the harness reads the value from the environment variable the account declares. The passwords of the application's accounts are replaced by `[secret]` in everything the tools return, error messages included, whether they show as typed, escaped, with their spaces collapsed or encoded in an address. User names are not masked.
+
+## Screenshots the model reads
+
+With `vision: true`, which the solo command sets when the configuration declares the `vision` capability of the model, the screenshot tool gives the model the image it writes, besides its path. Without it, the tool returns the path alone and the model is never sent an image.
+
+- **What the model gets.** The result says where the image is and gives its type and size, `{ "path": "…/shop-1.png", "image": { "mimeType": "image/png", "width": 1280, "height": 720 } }`, and the model is shown the PNG image itself, in a message of its own that follows the result.
+- **Never reduced.** The browser has a viewport of 1280 × 720 pixels, at a scale of one, and the image is taken at that scale: 1280 pixels wide for the viewport and for the whole page (`fullPage`). Instead of a smaller image, the agent asks for one element with `within`, designated as for an action: the image is then the box of that element, at the same scale. `within` and `fullPage` do not go together. The model runtime shows no image larger than it sends whole, 2000 pixels a side and 3 MiB with the Copilot SDK: the image of a longer page is written, and the result holds its path and, under `imageNotShown`, the reason.
+- **What it is for.** The description of the tool tells the agent to use the image to find what a snapshot renders poorly, such as a button without a name or an icon alone, and to base no assertion on the image alone.
+- **Password fields are covered.** Before the capture, each `input` of type `password`, of the page or of one of its frames, is covered by a box of one colour, on the image written and on the image sent alike, whatever the field holds.
+- **A page that shows a secret is not sent.** The secrets are the passwords of the test accounts of every application, and the values the session adds with `secrets`, such as the connection strings of the databases and the key of the model. When the text of the page, just before the capture or just after it, holds one of them in any of the forms the masking of the tools knows, whatever its case, the image is written but not given: the result holds the path and, under `imageNotShown`, the reason. The text read is that of the page and of each of its frames: the rendered text, that of the open shadow roots, and the value of each field other than a password field.
+- **Three images per task.** An image stays in the conversation and goes again with each later call to the model, so the harness shows a task three images at most. Past them, the result holds the path and, under `imageNotShown`, a warning that the image is not shown.
+- **Counted by the harness.** Models leave images out of the tokens they report. The harness counts each image at its width times its height over 1024, about one token per block of 32 × 32 pixels, in each model call that carries it, and gives the total in `imageTokens` among the counters of the task. A recording keeps the fingerprint and the size of an image, never the image, and neither does the trace of a run.
+
+A local model that reads images answers slowly once one is in the conversation: the first token may take several seconds.
+
+To try it, declare the capability on a model that reads images, served by a local server such as LM Studio:
+
+```json
+"model": { "mode": "provider-key", "provider": "openai", "baseUrl": "http://localhost:1234/v1", "model": "local-vision-model", "capabilities": ["vision"] }
+```
+
+then run `oqas --environment local --brief "<what to test>"` at the root of the test repository. The screenshots are written under `<stateDir>/screenshots`, and the trace of the run, under `<stateDir>/traces`, gives each `tool-result` of a screenshot with the size of its image or the reason it was not shown, and `imageTokens` in the counters of each task.
 
 ## Failures
 

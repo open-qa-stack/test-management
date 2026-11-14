@@ -27,6 +27,13 @@ export interface BrowserAccess {
   readonly settleTimeoutMs?: number;
   /** Starts the browser; a headless Chromium by default. */
   readonly launch?: () => Promise<Browser>;
+  /** Whether the model reads images: the screenshot tools then give it the image too; `false` by default. */
+  readonly vision?: boolean;
+  /**
+   * The secrets besides the passwords of the test accounts that no image the model is shown may show, such as
+   * the connection strings of the databases and the key of the model; none by default.
+   */
+  readonly secrets?: readonly string[];
 }
 
 /** The browser tools of a session, and how to release the browser behind them. */
@@ -54,9 +61,19 @@ export function browserTools(applications: readonly Application[], access: Brows
     navigationMs: access.navigationTimeoutMs ?? NAVIGATION_TIMEOUT_MS,
     settleMs: access.settleTimeoutMs ?? SETTLE_TIMEOUT_MS,
   });
+  const passwords = applications.flatMap((application) => (application.authentication.accounts ?? []).map((account) => access.env[account.passwordEnv] ?? ""));
+  const imageSecrets = [...passwords, ...(access.secrets ?? [])].filter((secret) => secret !== "");
   const tools = applications.flatMap((application) => {
     const environment = application.environments.find((e) => e.name === access.environment);
-    return hasUserInterface(environment) ? applicationTools(application, environment, { session, env: access.env, screenshotsDir: access.screenshotsDir }) : [];
+    return hasUserInterface(environment)
+      ? applicationTools(application, environment, {
+          session,
+          env: access.env,
+          screenshotsDir: access.screenshotsDir,
+          vision: access.vision ?? false,
+          imageSecrets,
+        })
+      : [];
   });
   return { tools, close: () => session.close() };
 }

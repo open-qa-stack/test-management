@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, it } from "node:test";
-import { ImageToolResult, type AgentEvent, type TaskLimits, type ToolDefinition } from "@open-qa-stack/domain";
-import { answer, scriptedServer, toolCalls } from "@open-qa-stack/testing";
+import { ImageToolResult, pngSize, type AgentEvent, type TaskLimits, type ToolDefinition } from "@open-qa-stack/domain";
+import { answer, scriptedServer, testSite, toolCalls } from "@open-qa-stack/testing";
+import { browserTools } from "@open-qa-stack/tools";
 import { visionCapability } from "../src/copilot/copilot-agent-runtime.ts";
 import { TaskBudget } from "../src/guardrails/task-budget.ts";
 import { canonicalRequest, describeRequest, imageTokensOf } from "../src/model-gateway/canonical-request.ts";
@@ -74,6 +77,41 @@ describe("criterion 2 — with vision, a screenshot reaches the model with its t
         { type: "image", sha256, ...SHOWN },
       ],
     });
+  });
+
+  it("sends the screenshot of an example page whole, at the 1280 pixels of the width of the browser", async () => {
+    const site = await testSite({ "/": "<h1>Policies</h1><button><svg width='16' height='16'><circle cx='8' cy='8' r='6'/></svg></button>" });
+    const server = await scriptedServer([
+      { body: toolCalls(MODEL, [{ id: "s1", name: "shop_screenshot", arguments: {} }]) },
+      { body: answer(MODEL, "An icon.") },
+    ]);
+    const folder = mkdtempSync(join(tmpdir(), "oqas-shots-"));
+    const application = {
+      id: "shop",
+      name: "Shop",
+      type: "web" as const,
+      authentication: { method: "none" as const },
+      environments: [{ name: "local", uiUrl: site.origin }],
+    };
+    const toolset = browserTools([application], { environment: "local", env: {}, screenshotsDir: folder, vision: true });
+    try {
+      const events = await withRuntime(
+        { kind: "live", upstream: { baseUrl: server.baseUrl } },
+        MODEL,
+        (runtime) => exchange(runtime, { instructions: "Explore.", tools: toolset.tools }, "Look at the page."),
+        undefined,
+        true,
+      );
+      const [image] = imagesOf(server.requests[1]!.body);
+      assert.deepEqual(image, readFileSync(join(folder, "shop-1.png")));
+      assert.deepEqual(pngSize(image!), { width: 1280, height: 720 });
+      assert.deepEqual(results(events), [{ path: join(folder, "shop-1.png"), image: { mimeType: "image/png", width: 1280, height: 720 } }]);
+    } finally {
+      await toolset.close();
+      await server.close();
+      await site.close();
+      rmSync(folder, { recursive: true, force: true });
+    }
   });
 });
 

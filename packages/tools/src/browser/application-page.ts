@@ -1,7 +1,8 @@
 import { setTimeout as wait } from "node:timers/promises";
-import { errors, type Browser, type Locator, type Page, type Route } from "playwright-core";
+import { errors, type Browser, type Frame, type Locator, type Page, type Route } from "playwright-core";
 import { PageLog, type ConsoleEntry, type NetworkEntry } from "./page-log.ts";
 import { pageSnapshot, type PageSnapshot } from "./page-snapshot.ts";
+import { renderedText } from "./rendered-text.ts";
 import { shortText } from "./short-text.ts";
 import { locate, targetCode, type Target } from "./target.ts";
 
@@ -13,6 +14,10 @@ export const MAX_REDIRECTS = 10;
 export const QUIET_MS = 300;
 /** How often the requests of a page are looked at while it settles, in milliseconds. */
 const POLL_MS = 50;
+/** The fields whose value a capture covers. */
+const PASSWORD_FIELDS = 'input[type="password"]';
+/** The fields whose value shows as text. */
+const SHOWN_FIELDS = 'input:not([type="password"]):not([type="hidden"]), textarea';
 
 /** Where an application's page may go. */
 export interface PageScope {
@@ -218,6 +223,40 @@ export class ApplicationPage {
   }
 
   /**
+   * Writes an image of the page, or of one element, each password field covered, and gives it.
+   *
+   * @remarks
+   * The image is taken at the scale of the page, never reduced: the viewport, the whole page, or the box of
+   * the element, which shows a part of the page at the same scale. A password field, of the page or of one
+   * of its frames, is covered by a box of one colour, whatever it holds or shows.
+   *
+   * @param path - File to write the PNG image to.
+   * @param area - The element to capture, or whether to capture the whole page rather than the viewport.
+   * @returns The PNG image.
+   * @throws Error when the page cannot be captured or the file written; or, for an element, when no element,
+   * or more than one, matches it in time, with a snapshot of the page.
+   */
+  public async capture(path: string, area: { readonly within: Target } | { readonly fullPage: boolean }): Promise<Buffer> {
+    const mask = this.page.frames().map((frame) => frame.locator(PASSWORD_FIELDS));
+    if ("fullPage" in area) return this.page.screenshot({ path, fullPage: area.fullPage, mask });
+    try {
+      return await locate(this.page, area.within).screenshot({ path, mask });
+    } catch (failure) {
+      throw await this.failed(failure, `${targetCode(area.within)} did not appear within ${this.timeouts.actionMs} ms.`, area.within);
+    }
+  }
+
+  /**
+   * Reads the text the page shows, in its document and in each of its frames: the rendered text, that of the
+   * open shadow roots, and the values of the fields but the password fields, which a capture covers.
+   *
+   * @returns The text, frame after frame, a line per field after that of the document.
+   */
+  public async shownText(): Promise<string> {
+    return (await Promise.all(this.page.frames().map(frameText))).join("\n");
+  }
+
+  /**
    * Lists the latest requests of the page.
    *
    * @param limit - Most entries to return.
@@ -284,4 +323,11 @@ export class ApplicationPage {
 
 function firstLine(failure: unknown): string {
   return (failure instanceof Error ? failure.message : String(failure)).split("\n")[0]!;
+}
+
+/** The text a frame shows: that of its document and its shadow roots, then the value of each field but the password fields. */
+async function frameText(frame: Frame): Promise<string> {
+  const fields = await frame.locator(SHOWN_FIELDS).all();
+  const values = await Promise.all(fields.map((field) => field.inputValue()));
+  return [await frame.locator(":root").evaluate(renderedText), ...values].join("\n");
 }
