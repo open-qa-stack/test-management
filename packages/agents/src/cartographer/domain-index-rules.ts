@@ -301,7 +301,9 @@ function unread(submission: DomainIndexSubmission, sources: ReadonlySet<string>,
 
 /**
  * Drops from each item that is no element of its source the name of the source, which a model sometimes
- * writes in front of it (`orders-db/public.orders`), reads an item that is still none but is the id or the
+ * writes in front of it (`orders-db/public.orders`), reads an item that is still none but is the beginning
+ * of exactly one element of its source as that element, which a model writes when it cuts a long name
+ * short, reads an item that is still none but is the id or the
  * label of a domain of the card of its source as the elements of that domain the submission names nowhere
  * for that source, when there are any, which a model writes when it takes the domain of a card for an
  * element, and merges the
@@ -325,7 +327,12 @@ function normalised(submission: DomainIndexSubmission, inventory: SourceInventor
           const left = domain?.items.map((named) => named.name).filter((name) => !written(source).has(name)) ?? [];
           return left.length === 0 ? [item] : left;
         };
-        return { source, items: items.map(element).flatMap(elements) };
+        // A long name cut short still names one element when no other starts the same way.
+        const whole = (item: string) => {
+          const started = known.has(item) || item === "" ? [] : [...known].filter((name) => name.startsWith(item));
+          return started.length === 1 ? started[0]! : item;
+        };
+        return { source, items: items.map(element).map(whole).flatMap(elements) };
       }),
     );
   return {

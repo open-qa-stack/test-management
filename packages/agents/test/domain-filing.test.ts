@@ -323,6 +323,26 @@ describe("domain filing — the domains of the cards", () => {
     );
   });
 
+  it("reads a name cut short as the one element of its source that starts so, and leaves one that several start with", () => {
+    const inventory = new Map([["specs", ["guide.md § Orders — list", "guide.md § Orders — detail", "guide.md § Customers — search"]]]);
+    const short = domainIndexRules(inventory, new Map([["specs", "document" as const]]), () => true, [], new Map());
+    const orders = {
+      id: "orders",
+      label: "Orders",
+      description: "Orders.",
+      references: [{ source: "specs", items: ["guide.md § Orders — l", "guide.md § Orders — detail"] }],
+    };
+    const read = short.check({ domains: [orders], unassigned: [{ source: "specs", items: ["guide.md § Cust", ""] }] });
+    assert.deepEqual(read.value.domains[0]!.references, [{ source: "specs", items: ["guide.md § Orders — list", "guide.md § Orders — detail"] }]);
+    assert.deepEqual(read.value.unassigned, [{ source: "specs", items: ["guide.md § Customers — search", ""] }]);
+    const several = short.check({ domains: [{ ...orders, references: [{ source: "specs", items: ["guide.md § Orders"] }] }], unassigned: [] });
+    assert.ok(
+      several.errors.some(
+        (error) => error.message === "/domains/0/references/0/items/0: guide.md § Orders is not an item of specs; use one of the items listed for it.",
+      ),
+    );
+  });
+
   it("places an element left in unassigned in the domain of the index named as a domain of its card that holds it, but a section of the structure", () => {
     const checked = filing().check({ domains: [ORDERS, CUSTOMERS], unassigned: REST });
     assert.deepEqual(checked.errors, []);
