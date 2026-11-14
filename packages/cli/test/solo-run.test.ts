@@ -245,6 +245,7 @@ async function solo(
     command?: boolean;
     now?: () => Date;
     brief?: string;
+    resume?: string;
   } = {},
 ): Promise<Run> {
   const server = await scriptedServer(replies);
@@ -258,18 +259,21 @@ async function solo(
     const code =
       setup.command === true
         ? await soloCommand(
-            [
-              "--repository",
-              root,
-              ...(setup.environment === undefined ? [] : ["--environment", setup.environment]),
-              ...(setup.brief === undefined ? [] : ["--brief", setup.brief]),
-              "--force-cartography",
-            ],
+            setup.resume === undefined
+              ? [
+                  "--repository",
+                  root,
+                  ...(setup.environment === undefined ? [] : ["--environment", setup.environment]),
+                  ...(setup.brief === undefined ? [] : ["--brief", setup.brief]),
+                  "--force-cartography",
+                ]
+              : ["--repository", root, "--resume", setup.resume],
             { env: { SHOP_DB_URL: WITNESS }, cwd: workspace, stdout: { write: (text) => (out += text) }, stderr: { write: (text) => (err += text) }, runner },
           )
         : await new SoloRun({
             repositoryRoot: root,
             ...(setup.environment === undefined ? {} : { environment: setup.environment }),
+            ...(setup.resume === undefined ? {} : { resume: setup.resume }),
             env: { SHOP_DB_URL: WITNESS },
             write: (line) => (err += line),
             print: (line) => (out += line),
@@ -283,7 +287,8 @@ async function solo(
   }
 }
 
-const stateOf = (root: string) => JSON.parse(readFileSync(join(root, ".oqas", "runs", "oqas-2026-11-13T12-00-00-000Z.json"), "utf8")) as SoloRunState;
+const stateOf = (root: string, runId = "oqas-2026-11-13T12-00-00-000Z") =>
+  JSON.parse(readFileSync(join(root, ".oqas", "runs", `${runId}.json`), "utf8")) as SoloRunState;
 const journalOf = (root: string) =>
   readFileSync(join(root, ".oqas", "runs", "oqas-2026-11-13T12-00-00-000Z.jsonl"), "utf8")
     .trim()
@@ -806,7 +811,7 @@ describe("the guardrail of a run", () => {
           return at;
         },
       }).run();
-      return { code, err, limits };
+      return { code, err, limits, root };
     } finally {
       await server.close();
     }
@@ -824,11 +829,189 @@ describe("the guardrail of a run", () => {
     assert.equal(run.code, 5, run.err);
     assert.match(run.err, /The task reached its duration limit\./);
     assert.equal(run.limits[0]?.maxDurationMs, 0);
+    assert.deepEqual(stateOf(run.root).stoppedBy, { step: "cartography", limit: "duration" });
   });
 
   it("bounds no session by the clock when the level sets no guardrail", async () => {
     const run = await guarded({ level: "bounded", task: { maxIterations: 100 } }, "2026-11-13T14:00:00.000Z");
     assert.equal(run.code, 0, run.err);
     assert.ok(run.limits.every((limits) => limits?.maxDurationMs === null));
+  });
+});
+
+/** The identifier of the first run of each test, and the clock of the run that resumes it. */
+const FIRST_RUN = "oqas-2026-11-13T12-00-00-000Z";
+const later = (hour: number) => () => new Date(`2026-11-13T${hour}:00:00.000Z`);
+/** A configuration whose tasks stop at their nth model call. */
+const boundedTo = (maxIterations: number) => (url: string) => configText(url, { autonomy: { level: "bounded", task: { maxIterations } } });
+/** The names of the tools the model was offered in a request. */
+const offered = (body: unknown) => (body as { tools: { function: { name: string } }[] }).tools.map((tool) => tool.function.name);
+/** The files of the tests a run tried while it designed them. */
+const tried = (runner: FakeRunner) =>
+  runner.commands
+    .filter((command) => command.command.includes("--update-snapshots=missing"))
+    .flatMap((command) => command.command.filter((arg) => arg.endsWith(".spec.ts")));
+
+describe("autonomy, criterion 4 — a design stopped by maxIterations after a plan and a kept test is resumed with --resume", () => {
+  it("gives the plan and the kept test to the resumed session, which plans nothing, and ends the branch with the tests of both", async () => {
+    const replies = chain();
+    // The first run: the check of the server, the cartography, then a design cut at its sixth call, once test-1 is kept and test-2 run.
+    const server = await scriptedServer([...replies.slice(0, 10), { body: { data: [] } }, ...replies.slice(9)]);
+    try {
+      const first = await solo([], { environment: "local", modelUrl: server.baseUrl, config: boundedTo(5) });
+      assert.equal(first.code, 5, first.err);
+      assert.equal(server.requests.length, 10);
+      assert.match(first.err, /The task reached its iterations limit; no test was written for the scenario under way\./);
+      assert.match(first.out, new RegExp(`The design was stopped by its iterations limit; resume the run with: oqas --resume ${FIRST_RUN}\n`));
+      const stopped = stateOf(first.root);
+      assert.deepEqual(stopped.stoppedBy, { step: "design", limit: "iterations" });
+      assert.deepEqual(stopped.designed, ["apps/shop/test-1.spec.ts"]);
+      const branch = stopped.branch!;
+      const base = git(first.root, "rev-parse", `${branch}~1`);
+
+      const resumed = await solo([], { root: () => first.root, modelUrl: server.baseUrl, config: boundedTo(5), resume: FIRST_RUN, now: later(13) });
+      assert.equal(resumed.code, 0, resumed.err);
+      const session = server.requests[11]!.body;
+      const plan = stateOf(first.root).designState!;
+      const accepted = (JSON.parse(readFileSync(join(first.root, plan), "utf8")) as { plan: unknown }).plan;
+      assert.ok(JSON.stringify(session).includes(JSON.stringify(JSON.stringify(accepted)).slice(1, -1)), "the session is given the plan");
+      assert.ok(JSON.stringify(session).includes(JSON.stringify(spec("test-1").trimEnd()).slice(1, -1)), "the session is given the kept test");
+      assert.ok(!offered(session).includes("propose_plan"));
+      assert.ok(!server.requests.slice(11).some((request) => JSON.stringify(request.body).includes('"name":"propose_plan"')));
+      // The resumed design tries the tests of the scenarios left, never the kept one.
+      assert.deepEqual(tried(resumed.runner), ["apps/shop/test-2.spec.ts", "apps/shop/test-3.spec.ts"]);
+      const state = stateOf(first.root, "oqas-2026-11-13T13-00-00-000Z");
+      assert.deepEqual([state.resumes, state.branch, state.stoppedBy], [FIRST_RUN, branch, undefined]);
+      assert.deepEqual(state.designed, ["apps/shop/test-1.spec.ts", "apps/shop/test-2.spec.ts", "apps/shop/test-3.spec.ts"]);
+      assert.deepEqual(
+        state.steps.map((step) => step.step),
+        ["configuration", "prerequisites", "design", "execution"],
+      );
+      assert.deepEqual(git(first.root, "ls-tree", "-r", "--name-only", branch, "apps").split("\n"), [
+        "apps/shop/test-1.spec.ts",
+        "apps/shop/test-2.spec.ts",
+        "apps/shop/test-3.spec.ts",
+      ]);
+      assert.equal(git(first.root, "rev-parse", `${branch}~2`), base, "one commit for each session, on the same branch");
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("keeps the cards a cartography made, then the plan of a design stopped before its first test", async () => {
+    const bad = { body: toolCalls(MODEL, [submit("submit_index", { domains: [], unassigned: [] }, "x0")]) };
+    const server = await scriptedServer([
+      ...chain().slice(0, 3),
+      bad,
+      bad,
+      { body: { data: [] } },
+      ...chain().slice(3, 7),
+      { body: { data: [] } },
+      ...chain().slice(7, 9),
+    ]);
+    try {
+      const first = await solo([], { environment: "local", modelUrl: server.baseUrl, config: boundedTo(2) });
+      assert.equal(first.code, 5, first.err);
+      assert.deepEqual(stateOf(first.root).stoppedBy, { step: "cartography", limit: "iterations" });
+      const again = await solo([], { root: () => first.root, modelUrl: server.baseUrl, config: boundedTo(2), resume: FIRST_RUN, now: later(13) });
+      assert.equal(again.code, 5, again.err);
+      assert.match(again.err, /The card of order-specs is up to date; it was kept\./);
+      assert.equal(server.requests.length, 6 + 4);
+      const second = stateOf(first.root, "oqas-2026-11-13T13-00-00-000Z");
+      assert.deepEqual([second.stoppedBy, second.branch, second.designed], [{ step: "design", limit: "iterations" }, undefined, []]);
+      assert.ok(second.designState !== undefined);
+      const third = await solo([], {
+        root: () => first.root,
+        modelUrl: server.baseUrl,
+        config: boundedTo(2),
+        resume: "oqas-2026-11-13T13-00-00-000Z",
+        now: later(14),
+      });
+      assert.equal(third.code, 5, third.err);
+      const last = stateOf(first.root, "oqas-2026-11-13T14-00-00-000Z");
+      assert.deepEqual([last.designed, last.designState], [["apps/shop/test-1.spec.ts"], second.designState]);
+      assert.equal(git(first.root, "ls-tree", "-r", "--name-only", last.branch!, "apps"), "apps/shop/test-1.spec.ts");
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("offers to resume a design a limit cut short once it gave its tests, which still run", async () => {
+    const four = [...IDS, "test-4"];
+    const design = (id: string) => [
+      { body: toolCalls(MODEL, [submit("run_test", { content: spec(id) }, `r-${id}`)]) },
+      { body: toolCalls(MODEL, [submit("propose_test", {}, `p-${id}`)]) },
+    ];
+    // The first run: the check of the server, the cartography, then a design of four scenarios cut at its ninth call, once three tests are kept.
+    const server = await scriptedServer([
+      ...chain().slice(0, 6),
+      { body: toolCalls(MODEL, [submit("propose_plan", { scenarios: four.map(scenario) }, "plan")]) },
+      ...IDS.flatMap(design),
+      { body: { data: [] } },
+      ...design("test-4"),
+      ...Array.from({ length: 4 }, () => ({ body: answer(MODEL, "Done.") })),
+    ]);
+    try {
+      const first = await solo([], { environment: "local", modelUrl: server.baseUrl, config: boundedTo(8) });
+      assert.equal(first.code, 0, first.err);
+      const stopped = stateOf(first.root);
+      assert.deepEqual([stopped.stoppedBy, stopped.tests.length], [{ step: "design", limit: "iterations" }, 3]);
+      assert.match(first.out, new RegExp(`The design was stopped by its iterations limit; resume the run with: oqas --resume ${FIRST_RUN}\n`));
+      const resumed = await solo([], { root: () => first.root, modelUrl: server.baseUrl, config: boundedTo(8), resume: FIRST_RUN, now: later(13) });
+      assert.equal(resumed.code, 0, resumed.err);
+      assert.deepEqual(tried(resumed.runner), ["apps/shop/test-4.spec.ts"]);
+      const state = stateOf(first.root, "oqas-2026-11-13T13-00-00-000Z");
+      assert.deepEqual([state.stoppedBy, state.designed.length, state.tests.length], [undefined, 4, 4]);
+    } finally {
+      await server.close();
+    }
+  });
+});
+
+describe("autonomy, criterion 5 — --resume of a run no limit stopped stops with 3, and says so", () => {
+  it("names the run that was not stopped by a limit, and the one whose state cannot be read", async () => {
+    const done = await solo(chain(), { environment: "local" });
+    assert.equal(done.code, 0, done.err);
+    const again = await solo([], { root: () => done.root, command: true, resume: FIRST_RUN });
+    assert.equal(again.code, 3);
+    assert.match(again.err, new RegExp(`The run ${FIRST_RUN} was not stopped by a limit; only a run a limit stopped can be resumed\\.`));
+    assert.equal(again.server.requests.length, 0);
+    const unknown = await solo([], { root: () => done.root, command: true, resume: "oqas-2020-01-01T00-00-00-000Z" });
+    assert.equal(unknown.code, 3);
+    assert.match(unknown.err, /The run oqas-2020-01-01T00-00-00-000Z cannot be resumed: its state .* cannot be read\./);
+  });
+
+  it("refuses a state whose content is not that of a run, and a run stopped in its design without an index", async () => {
+    const done = await solo(chain(), { environment: "local" });
+    const runs = join(done.root, ".oqas", "runs");
+    const { index: _index, ...complete } = stateOf(done.root);
+    for (const [runId, content] of [
+      ["oqas-2026-11-13T15-00-00-000Z", "null"],
+      ["oqas-2026-11-13T16-00-00-000Z", "{"],
+      [
+        "oqas-2026-11-13T17-00-00-000Z",
+        JSON.stringify({ ...complete, runId: "oqas-2026-11-13T17-00-00-000Z", stoppedBy: { step: "design", limit: "iterations" } }),
+      ],
+      ["oqas-2026-11-13T18-00-00-000Z", JSON.stringify({ ...complete, stoppedBy: { step: "design", limit: "iterations" } })],
+    ] as const) {
+      writeFileSync(join(runs, `${runId}.json`), content);
+      const again = await solo([], { root: () => done.root, command: true, resume: runId });
+      assert.equal(again.code, 3, runId);
+      assert.match(again.err, new RegExp(`The run ${runId} cannot be resumed: its state .* cannot be read\\.`));
+      assert.equal(again.server.requests.length, 0);
+    }
+  });
+
+  it("resumes a run once, and names the run that resumed it", async () => {
+    const done = await solo(chain(), { environment: "local" });
+    const runs = join(done.root, ".oqas", "runs");
+    const stopped = { ...stateOf(done.root), stoppedBy: { step: "design", limit: "iterations" } };
+    const resumer = "oqas-2026-11-13T13-00-00-000Z";
+    writeFileSync(join(runs, `${FIRST_RUN}.json`), JSON.stringify(stopped));
+    writeFileSync(join(runs, `${resumer}.json`), JSON.stringify({ ...stopped, runId: resumer, resumes: FIRST_RUN, stoppedBy: undefined }));
+    const twice = await solo([], { root: () => done.root, command: true, resume: FIRST_RUN });
+    assert.equal(twice.code, 3);
+    assert.match(twice.err, new RegExp(`The run ${FIRST_RUN} was resumed already, by the run ${resumer}; resume that one instead, if a limit stopped it\\.`));
+    assert.equal(twice.server.requests.length, 0);
   });
 });

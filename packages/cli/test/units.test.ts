@@ -42,6 +42,20 @@ describe("the options of the command", () => {
     assert.deepEqual(parseArguments(["--brief", "  "]), { ok: false, error: "--brief needs a value." });
   });
 
+  it("reads the run to resume, and refuses another identifier, or an option the run resumed keeps", () => {
+    assert.deepEqual(parseArguments(["--resume", "oqas-2026-11-13T12-00-00-000Z"]), {
+      ok: true,
+      arguments: { resume: "oqas-2026-11-13T12-00-00-000Z", force: false, help: false },
+    });
+    assert.deepEqual(parseArguments(["--resume", "../oqas"]), {
+      ok: false,
+      error: "--resume needs the identifier of a run, such as oqas-2026-11-13T12-00-00-000Z.",
+    });
+    const kept = "--resume keeps the environment and the brief of the run, and the cards it made: it takes no --environment, --brief nor --force-cartography.";
+    for (const option of [["--environment", "local"], ["--brief", "Orders."], ["--force-cartography"]])
+      assert.deepEqual(parseArguments(["--resume", "oqas-1", ...option]), { ok: false, error: kept });
+  });
+
   it("are the program's: --help prints the usage, a wrong option and a missing configuration exit with 3", async () => {
     assert.deepEqual(await oqas("--help"), { code: 0, out: USAGE, err: "" });
     const wrong = await oqas("--push");

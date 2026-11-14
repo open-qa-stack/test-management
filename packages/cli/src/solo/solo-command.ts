@@ -32,7 +32,7 @@ export async function soloCommand(argv: readonly string[], io: CommandIo): Promi
     io.stderr.write(`${parsed.error}\n`);
     return ExitCode.configuration;
   }
-  const { repository, environment, brief, force, help } = parsed.arguments;
+  const { repository, environment, brief, force, help, resume } = parsed.arguments;
   if (help) {
     io.stdout.write(USAGE);
     return ExitCode.passed;
@@ -42,6 +42,7 @@ export async function soloCommand(argv: readonly string[], io: CommandIo): Promi
     repositoryRoot: resolve(io.cwd, repository ?? "."),
     ...(environment === undefined ? {} : { environment }),
     ...(brief === undefined ? {} : { brief }),
+    ...(resume === undefined ? {} : { resume }),
     force,
     env: io.env,
     write: (line) => io.stderr.write(line),

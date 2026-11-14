@@ -1,6 +1,6 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join, posix, relative, sep } from "node:path";
-import type { CommandRunner, TestVerdict } from "@open-qa-stack/domain";
+import type { CommandRunner, StopReason, TestVerdict } from "@open-qa-stack/domain";
 import { Cartographer, Designer, type JournalEntry } from "@open-qa-stack/agents";
 import { CharterCheck, designerInstructions, LocalRunner, PinnedRun, resolveCharter, RUNS_FOLDER, TrialRunner, type ActiveRule } from "@open-qa-stack/harness";
 import { CONFIG_FILE_NAME, declaredValues, validateConfig, type ResolvedConfig } from "@open-qa-stack/shared";
@@ -24,6 +24,8 @@ export interface SoloRunOptions {
   readonly force?: boolean;
   /** What to test, in the developer's words; the designer works on the whole domain index without it. */
   readonly brief?: string;
+  /** The identifier of a run a limit stopped: the run resumes it, in its environment, with its brief, from the step it stopped at. */
+  readonly resume?: string;
   /** The environment of the process: the secrets and the accounts the configuration names. */
   readonly env: Readonly<Record<string, string | undefined>>;
   /** Receives the journal, a line at a time: the error output. */
@@ -44,8 +46,12 @@ export interface SoloRunState {
   readonly formatVersion: 1;
   /** Identifier of the run: `oqas-` and its date. */
   readonly runId: string;
+  /** The run this one resumes, when it resumes one. */
+  readonly resumes?: string;
   /** The environment the run targeted. */
   readonly environment: string;
+  /** What to test, in the developer's words, when it was given. */
+  readonly brief?: string;
   /** When the run started, as an ISO 8601 date. */
   readonly startedAt: string;
   /** How long the run took, in milliseconds, up to the start of the summary. */
@@ -60,6 +66,10 @@ export interface SoloRunState {
   readonly branch?: string;
   /** The test files designed, relative to the test repository. */
   readonly designed: readonly string[];
+  /** The design state, relative to the test repository, when the design wrote it. */
+  readonly designState?: string;
+  /** The step a limit of the autonomy stopped, and the limit, when one stopped the run: it can then be resumed. */
+  readonly stoppedBy?: { readonly step: "cartography" | "design"; readonly limit: StopReason["limit"] };
   /** The result of the run of the tests, relative to the test repository, when they ran. */
   readonly run?: string;
   /** The raw report of the runner, relative to the test repository, when the tests ran. */
@@ -81,6 +91,12 @@ export interface SoloRunState {
  * configuration of the repository is left as it is. The journal goes to the error output and to a JSON
  * Lines file of the run; the summary goes to the standard output; every declared secret is masked. The
  * guardrail of the autonomy, counted from the start of the run, stops every task of the agents.
+ *
+ * A run a limit stopped in its cartography or its design says how to resume it; a design cut short that gave
+ * its tests still leads to their execution. Resumed, a run takes the environment and the brief of the one it
+ * resumes, and starts again from the step that was stopped: the cartography keeps the cards it made, and the
+ * design goes on from its plan and its tests, on its branch. A run is resumed once: then the run that resumed
+ * it is to be resumed, if a limit stopped it.
  */
 export class SoloRun {
   private readonly options: SoloRunOptions;
@@ -102,7 +118,8 @@ export class SoloRun {
     const early = new RunJournal({ write: this.options.write, now }, []);
     const loaded = await this.configuration(early, now);
     if (typeof loaded === "number") return loaded;
-    const { config, environment, rules } = loaded;
+    const { config, environment, rules, resumed } = loaded;
+    const brief = resumed === undefined ? this.options.brief : resumed.brief;
     const journal = new RunJournal({ write: this.options.write, now }, declaredValues(config, this.options.env));
     journal.adopt(early.entries);
     const runId = `oqas-${started.toISOString().replace(/[:.]/g, "-")}`;
@@ -142,7 +159,9 @@ export class SoloRun {
     const state = {
       formatVersion: 1 as const,
       runId,
+      ...(resumed === undefined ? {} : { resumes: resumed.runId }),
       environment,
+      ...(brief === undefined ? {} : { brief }),
       startedAt: started.toISOString(),
       designed: [] as string[],
       tests: [] as TestVerdict[],
@@ -153,6 +172,7 @@ export class SoloRun {
     const finish = async (exitCode: ExitCodeValue): Promise<ExitCodeValue> => {
       const written: SoloRunState = { ...state, ...found, exitCode, steps, durationMs: now().getTime() - started.getTime() };
       await timed("summary", async () => {
+        if (written.stoppedBy !== undefined) journal.record("summary", "info", resumeHint(written));
         // A runtime that cannot be closed is told, and the state is written all the same.
         await open?.close().catch((error: unknown) => journal.record("summary", "error", `The runtime of the agents could not be closed: ${messageOf(error)}`));
         await writeFile(join(this.options.repositoryRoot, runsDir, `${runId}.json`), `${JSON.stringify(written, null, 2)}\n`);
@@ -161,28 +181,41 @@ export class SoloRun {
       });
       return exitCode;
     };
-    const chain = async (): Promise<ExitCodeValue> => {
-      const mapped = await timed("cartography", async () => {
-        // The runtime of the agents is opened by the first step that calls the model.
+    // The runtime of the agents is opened by the first step that calls the model.
+    const agents = async (): Promise<CountedRuntime> => {
+      if (counted === undefined) {
         open = await this.options.openRuntime(config);
         const { guardrailMinutes } = config.autonomy.limits;
         counted = new CountedRuntime(
           guardrailMinutes === null ? open.runtime : new GuardedRuntime(open.runtime, started.getTime() + guardrailMinutes * 60_000, () => now().getTime()),
         );
-        const outcome = await new Cartographer({
-          config,
-          environment,
-          repositoryRoot: this.options.repositoryRoot,
-          env: this.options.env,
-          runtime: counted,
-          concurrency: config.cartography.concurrency,
-          ...(this.options.force === true ? { force: true } : {}),
-        }).run();
-        this.relay(journal, "cartography", outcome.journal);
-        return { value: outcome, ok: outcome.index !== undefined };
-      });
-      if (!mapped.ok) return ExitCode.interrupted;
-      found = { index: this.inRepository(mapped.value.indexPath!) };
+      }
+      return counted;
+    };
+    const chain = async (): Promise<ExitCodeValue> => {
+      // A run resumed in its design has its index already.
+      const mapped =
+        resumed?.stoppedBy!.step === "design"
+          ? undefined
+          : await timed("cartography", async () => {
+              const outcome = await new Cartographer({
+                config,
+                environment,
+                repositoryRoot: this.options.repositoryRoot,
+                env: this.options.env,
+                runtime: await agents(),
+                concurrency: config.cartography.concurrency,
+                ...(this.options.force === true ? { force: true } : {}),
+              }).run();
+              this.relay(journal, "cartography", outcome.journal);
+              return { value: outcome, ok: outcome.index !== undefined };
+            });
+      if (mapped?.ok === false) {
+        const limit = mapped.value.stoppedBy;
+        if (limit !== undefined) found = { stoppedBy: { step: "cartography", limit } };
+        return ExitCode.interrupted;
+      }
+      found = { index: mapped === undefined ? resumed!.index! : this.inRepository(mapped.value.indexPath!) };
       const trials = new TrialRunner({ config, environment, repositoryRoot: this.options.repositoryRoot, runner, env: this.options.env });
       const designed = await timed("design", async () => {
         // The tests are checked against the dependencies of the test repository: they are installed first.
@@ -195,18 +228,29 @@ export class SoloRun {
           config,
           repositoryRoot: this.options.repositoryRoot,
           env: this.options.env,
-          runtime: counted!,
+          runtime: await agents(),
           instructions: designerInstructions(rules, config.repository),
           check: new CharterCheck({ repository: this.options.repositoryRoot, rules }),
           screenshots: rules.some((rule) => rule.id === SCREENSHOT_RULE),
           runner: trials,
-          ...(this.options.brief === undefined ? {} : { brief: this.options.brief }),
+          ...(brief === undefined ? {} : { brief }),
+          ...(resumed?.designState === undefined
+            ? {}
+            : { resume: { state: resumed.designState, ...(resumed.branch === undefined ? {} : { branch: resumed.branch }) } }),
         }).run();
         this.relay(journal, "design", outcome.journal);
         return { value: outcome, ok: outcome.ok };
       });
       const tests = designed.value.tests.map((test) => test.path);
-      found = { ...found, ...(designed.value.branch === undefined ? {} : { branch: designed.value.branch }), designed: tests };
+      const { branch, statePath, stoppedBy } = designed.value;
+      found = {
+        ...found,
+        ...(branch === undefined ? {} : { branch }),
+        designed: tests,
+        ...(statePath === undefined ? {} : { designState: this.inRepository(statePath) }),
+      };
+      // A design a limit cut short can be resumed, even once it gave its tests.
+      if (stoppedBy !== undefined) found = { ...found, stoppedBy: { step: "design", limit: stoppedBy } };
       if (!designed.ok) return ExitCode.interrupted;
       const executed = await timed("execution", async () => {
         // The dependencies the design installed serve the execution as well.
@@ -251,11 +295,11 @@ export class SoloRun {
     return relative(this.options.repositoryRoot, path).split(sep).join(posix.sep);
   }
 
-  /** The configuration, the environment and the rules of the charter, or the exit code when they cannot be had. */
+  /** The configuration, the environment, the rules of the charter and the run to resume, or the exit code when they cannot be had. */
   private async configuration(
     journal: RunJournal,
     now: () => Date,
-  ): Promise<{ config: ResolvedConfig; environment: string; rules: ActiveRule[]; durationMs: number } | ExitCodeValue> {
+  ): Promise<{ config: ResolvedConfig; environment: string; rules: ActiveRule[]; durationMs: number; resumed?: SoloRunState } | ExitCodeValue> {
     const at = now().getTime();
     journal.record("configuration", "started", "The configuration starts.");
     const path = join(this.options.repositoryRoot, CONFIG_FILE_NAME);
@@ -269,8 +313,10 @@ export class SoloRun {
       for (const error of result.errors) journal.record("configuration", "error", `${error.path || "/"}: ${error.message}`);
       return ExitCode.configuration;
     }
+    const resumed = this.options.resume === undefined ? undefined : await this.resumable(result.config, journal, this.options.resume);
+    if (typeof resumed === "number") return resumed;
     const declared = [...new Set(result.config.applications.flatMap((application) => application.environments.map((environment) => environment.name)))];
-    const environment = this.options.environment ?? (declared.length === 1 ? declared[0] : undefined);
+    const environment = resumed?.environment ?? this.options.environment ?? (declared.length === 1 ? declared[0] : undefined);
     if (environment === undefined) {
       journal.record("configuration", "error", `Several environments are declared (${declared.join(", ")}); name one with --environment.`);
       return ExitCode.configuration;
@@ -289,7 +335,37 @@ export class SoloRun {
       durationMs,
       modelRequests: 0,
     });
-    return { config: result.config, environment, rules: charter.rules, durationMs };
+    return { config: result.config, environment, rules: charter.rules, durationMs, ...(resumed === undefined ? {} : { resumed }) };
+  }
+
+  /**
+   * The state of the run to resume, or the exit code when it cannot be resumed: its state cannot be read,
+   * no limit stopped it, or another run resumed it already.
+   */
+  private async resumable(config: ResolvedConfig, journal: RunJournal, runId: string): Promise<SoloRunState | ExitCodeValue> {
+    const folder = join(this.options.repositoryRoot, config.repository.stateDir, RUNS_FOLDER);
+    const path = join(folder, `${runId}.json`);
+    const state = await readJson(path);
+    if (!isRunState(state, runId)) {
+      journal.record("configuration", "error", `The run ${runId} cannot be resumed: its state ${path} cannot be read.`);
+      return ExitCode.configuration;
+    }
+    if (state.stoppedBy === undefined) {
+      journal.record("configuration", "error", `The run ${runId} was not stopped by a limit; only a run a limit stopped can be resumed.`);
+      return ExitCode.configuration;
+    }
+    const states = await Promise.all((await readdir(folder)).filter((name) => name.endsWith(".json")).map((name) => readJson(join(folder, name))));
+    const resuming = states.find((other): other is SoloRunState => isRecord(other) && other["resumes"] === runId && typeof other["runId"] === "string");
+    if (resuming !== undefined) {
+      journal.record(
+        "configuration",
+        "error",
+        `The run ${runId} was resumed already, by the run ${resuming.runId}; resume that one instead, if a limit stopped it.`,
+      );
+      return ExitCode.configuration;
+    }
+    journal.record("configuration", "info", `The run resumes ${runId}, which its ${state.stoppedBy.limit} limit stopped in its ${state.stoppedBy.step}.`);
+    return state;
   }
 
   /** Writes the entries of the journal of a role to the journal of the run. */
@@ -303,10 +379,50 @@ export class SoloRun {
       `Run ${state.runId}: exit code ${state.exitCode}.`,
       ...(state.branch === undefined ? [] : [`Tests written on the branch ${state.branch}.`]),
       ...state.tests.map((test) => `${test.verdict.padEnd(13)} ${test.id}`),
+      ...(state.stoppedBy === undefined ? [] : [resumeHint(state)]),
       `State: ${posix.join(posix.dirname(state.journal), `${state.runId}.json`)}`,
     ];
     for (const line of lines) this.options.print(`${line}\n`);
   }
+}
+
+/** The JSON of a file, or `undefined` when it cannot be read or parsed. */
+function readJson(path: string): Promise<unknown> {
+  return readFile(path, "utf8")
+    .then((text) => JSON.parse(text) as unknown)
+    .catch(() => undefined);
+}
+
+/** Whether a value is an object, which the keys of a state can be read from. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+/** Whether a value is absent or a string. */
+function isOptionalString(value: unknown): boolean {
+  return value === undefined || typeof value === "string";
+}
+
+/**
+ * Whether a value is the state of the run `runId`, with what a resume reads of it: its environment, its brief,
+ * its design, and the step and the limit that stopped it, with its index when the step is the design.
+ */
+function isRunState(value: unknown, runId: string): value is SoloRunState {
+  if (!isRecord(value) || value["formatVersion"] !== 1 || value["runId"] !== runId || typeof value["environment"] !== "string") return false;
+  const stop = value["stoppedBy"];
+  return (
+    [value["brief"], value["branch"], value["designState"]].every(isOptionalString) &&
+    (stop === undefined ||
+      (isRecord(stop) &&
+        typeof stop["limit"] === "string" &&
+        (stop["step"] === "cartography" || (stop["step"] === "design" && typeof value["index"] === "string"))))
+  );
+}
+
+/** How to resume a run a limit stopped. */
+function resumeHint(state: SoloRunState): string {
+  const { step, limit } = state.stoppedBy!;
+  return `The ${step} was stopped by its ${limit} limit; resume the run with: oqas --resume ${state.runId}`;
 }
 
 /** The message of an error, or the value thrown. */

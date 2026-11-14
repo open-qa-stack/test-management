@@ -8,12 +8,18 @@ export interface Arguments {
   readonly brief?: string;
   /** Whether to map every source again, even those whose card is up to date. */
   readonly force: boolean;
+  /** The identifier of a run a limit stopped, to resume. */
+  readonly resume?: string;
   /** Whether to print the usage and stop. */
   readonly help: boolean;
 }
 
+/** The shape of the identifier of a run. */
+const RUN_ID = /^oqas-[0-9A-Za-z-]+$/;
+
 /** How to run the command, as `oqas --help` prints it. */
 export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>] [--brief <text>] [--force-cartography]
+       oqas [--repository <folder>] --resume <run>
 
 Maps the target application, designs Playwright tests on a new local branch, runs them and gives a verdict per test.
 
@@ -22,6 +28,7 @@ Options:
   --environment <name>   The environment to run against; the only one declared by default.
   --brief <text>         What to test, in your words: a domain, a ticket, a rule, a journey.
   --force-cartography    Map every source again, even those whose card is up to date.
+  --resume <run>         Resume a run a limit stopped, such as oqas-2026-11-13T12-00-00-000Z, from what it kept.
   --help                 Print this help.
 
 Exit codes: 0 every test passed, 1 a test failed, 2 a test was blocked, indeterminate, skipped or not run,
@@ -35,19 +42,27 @@ Exit codes: 0 every test passed, 1 a test failed, 2 a test was blocked, indeterm
  * @returns The options, or why they are refused.
  */
 export function parseArguments(argv: readonly string[]): { readonly ok: true; readonly arguments: Arguments } | { readonly ok: false; readonly error: string } {
-  const values: { repository?: string; environment?: string; brief?: string } = {};
+  const values: { repository?: string; environment?: string; brief?: string; resume?: string } = {};
   let force = false;
   let help = false;
   for (let i = 0; i < argv.length; i++) {
     const argument = argv[i]!;
     if (argument === "--help") help = true;
     else if (argument === "--force-cartography") force = true;
-    else if (argument === "--repository" || argument === "--environment" || argument === "--brief") {
+    else if (argument === "--repository" || argument === "--environment" || argument === "--brief" || argument === "--resume") {
       const value = argv[i + 1];
       if (value === undefined || value.trim() === "" || value.startsWith("--")) return { ok: false, error: `${argument} needs a value.` };
       values[argument.slice(2) as keyof typeof values] = value;
       i++;
     } else return { ok: false, error: `Unknown option ${argument}; see oqas --help.` };
   }
+  if (values.resume !== undefined && !RUN_ID.test(values.resume))
+    return { ok: false, error: "--resume needs the identifier of a run, such as oqas-2026-11-13T12-00-00-000Z." };
+  // A run resumed keeps its environment, its brief and the cards it made.
+  if (values.resume !== undefined && (values.environment !== undefined || values.brief !== undefined || force))
+    return {
+      ok: false,
+      error: "--resume keeps the environment and the brief of the run, and the cards it made: it takes no --environment, --brief nor --force-cartography.",
+    };
   return { ok: true, arguments: { ...values, force, help } };
 }
