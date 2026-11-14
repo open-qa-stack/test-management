@@ -11,7 +11,7 @@ const RECORD_END = "\n```\n";
 
 /** The accepted plan of a design, as its file records it. */
 export interface PlanRecord {
-  readonly formatVersion: 1;
+  readonly formatVersion: 2;
   /** Identifier of the design, which names the file. */
   readonly design: string;
   /** Name of the environment the tests run against. */
@@ -27,7 +27,9 @@ export interface PlanRecord {
  *
  * @remarks
  * The page is Markdown: the design, then each scenario with its intent, its sources, its data and its steps,
- * each text on one line, an action and a result without the full stop they may end with. It is rendered from the record and never read. The record is the last part, a
+ * each with the lines of code that do it and, for each text it expects, the element a test finds it in, or
+ * `by its text` when the plan gives none. Each text is on one line, an action and a result without the full
+ * stop they may end with. It is rendered from the record and never read. The record is the last part, a
  * `json` block under the heading `Record`.
  *
  * @param record - The plan.
@@ -59,7 +61,7 @@ export function readPlanFile(text: string): PlanRecord | undefined {
   if (start === -1 || !text.endsWith(RECORD_END)) return undefined;
   try {
     const record = JSON.parse(text.slice(start + RECORD_START.length, -RECORD_END.length)) as PlanRecord;
-    return record.formatVersion === 1 && planFileText(record) === text ? record : undefined;
+    return record.formatVersion === 2 && planFileText(record) === text ? record : undefined;
   } catch {
     return undefined;
   }
@@ -82,19 +84,38 @@ function scenarioLines(scenario: PlannedScenario, at: number): string[] {
   ];
 }
 
-/** The lines of a step of the page: its action, then each result it expects with its texts. */
+/** The lines of a step of the page: its action, the code that does it, then each result it expects with its texts. */
 function stepLines(step: PlannedStep, at: number): string[] {
-  return [`### Step ${at + 1}. ${oneLine(step.action)}`, "", ...step.expects.flatMap((expect, k) => expectLines(expect, `${at + 1}.${k + 1}`))];
+  const code = step.code.join("\n");
+  const fence = ticks(code, 3);
+  return [
+    `### Step ${at + 1}. ${oneLine(step.action)}`,
+    "",
+    ...(step.code.length === 0 ? [] : [`${fence}ts`, code, fence, ""]),
+    ...step.expects.flatMap((expect, k) => expectLines(expect, `${at + 1}.${k + 1}`)),
+  ];
 }
 
-/** The lines of an expect of the page: its result, then each text the screen shows or no longer shows. */
+/** The lines of an expect of the page: its result, then each text the screen shows or no longer shows, with where a test finds it. */
 function expectLines(expect: PlannedExpect, number: string): string[] {
+  const found = (text: string) => {
+    const element = expect.elements.find((candidate) => candidate.text === text);
+    if (element === undefined) return "by its text";
+    const mark = ticks(element.locator, 1);
+    return `${element.field ? "as the value of" : "in"} ${mark}${element.locator}${mark}`;
+  };
   return [
     `Expect ${number}: ${oneLine(expect.result)}.`,
-    ...expect.shows.map((text) => `- shows ${JSON.stringify(text)}`),
-    ...expect.absent.map((text) => `- no longer shows ${JSON.stringify(text)}`),
+    ...expect.shows.map((text) => `- shows ${JSON.stringify(text)} ${found(text)}`),
+    ...expect.absent.map((text) => `- no longer shows ${JSON.stringify(text)} ${found(text)}`),
     "",
   ];
+}
+
+/** The grave accents that fence a code on the page: one more than its longest run of them, and `least` at least. */
+function ticks(code: string, least: number): string {
+  const longest = Math.max(0, ...(code.match(/`+/g) ?? []).map((run) => run.length));
+  return "`".repeat(Math.max(least, longest + 1));
 }
 
 /** A text with its spaces collapsed, on one line of the page. */

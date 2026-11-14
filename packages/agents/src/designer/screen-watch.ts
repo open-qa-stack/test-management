@@ -10,7 +10,7 @@ const ACTIONS = ["click", "fill", "select_option", "check"];
 const MAX_APPEARED = 60;
 /** Most lines an action tells the agent went. */
 const MAX_GONE = 20;
-/** Most lines of code of the browser tools kept, the last ones. */
+/** Most lines of code of the browser tools given as the last ones. */
 const MAX_CODES = 5;
 /** Most lines told as the closest to a locator no screen showed. */
 const MAX_NEAREST = 5;
@@ -22,6 +22,8 @@ const NAMED = /^- ('?)([a-z]+) "((?:[^"\\]|\\.)*)"/;
 const FOCUS = / \[active\]/g;
 /** What the browser tools say they return, which the watch adds to. */
 const PAGE_STATE = "Returns where the page is, and the line of code that does the same in a test.";
+/** How the description of a tool that opens or acts on a page ends: what the number of its action is for. */
+const ACTION_NUMBER = '"action", its number: a plan cites it in the steps the action does.';
 
 /** The element a screen showed a text in. */
 export interface ShownElement {
@@ -29,6 +31,20 @@ export interface ShownElement {
   readonly locator: string;
   /** Whether it is a field, which holds the text as its value. */
   readonly field: boolean;
+}
+
+/** An action the agent did on a page with a browser tool: it opened an address, clicked, typed, chose or checked. */
+export interface WatchedAction {
+  /** Its number, from 1, in the order the actions were done, whatever their application. */
+  readonly number: number;
+  /** Identifier of the application it was done on. */
+  readonly application: string;
+  /** What its tool does: `goto`, `click`, `fill`, `select_option` or `check`. */
+  readonly tool: string;
+  /** The line of code that does the same in a test, as the tool returned it. */
+  readonly code: string;
+  /** The value it typed or chose, when it was given as a text: the credential of an account is not. */
+  readonly typed?: string;
 }
 
 /** What the designer saw of the screens of one application. */
@@ -51,8 +67,6 @@ interface Seen {
   last: Set<string> | undefined;
   /** How many times the agent called one of the browser tools of the application. */
   looks: number;
-  /** The lines of code the tools that open or act on a page returned, the last ones, the oldest first. */
-  readonly codes: string[];
 }
 
 /**
@@ -62,7 +76,9 @@ interface Seen {
  * The tools it gives are those it was given, with what the agent needs to see added to their results, and
  * to their descriptions:
  * opening an address returns the snapshot of the page, and an action returns the lines of the snapshot that
- * appeared after it and those that went. When a value a field holds is no longer shown beside the fields
+ * appeared after it and those that went. Each of them that returned its line of code is numbered, from 1, and
+ * returns its number in `action`: the watch keeps every action with its number, its tool, its line of code and
+ * the value it typed, so that a plan cites the actions that do its steps. When a value a field holds is no longer shown beside the fields
  * after an action, though a line that went showed it, or, for a value the agent typed, a screen before showed
  * it beside the fields and the action removed a line beside them, the focus aside, and no action before found it — changed
  * what the page shows beside the fields while a line there showed it — the action adds a note: what was
@@ -74,6 +90,7 @@ interface Seen {
  */
 export class ScreenWatch {
   private readonly seen = new Map<string, Seen>();
+  private readonly done: WatchedAction[] = [];
   private readonly watched: ToolDefinition[];
 
   /**
@@ -97,7 +114,6 @@ export class ScreenWatch {
         filled: new Set(),
         last: undefined,
         looks: 0,
-        codes: [],
       };
       this.seen.set(application, seen);
       const read = async () => this.record(seen, compact((await snapshot.execute({})) as { page: string; truncated: boolean }), true);
@@ -117,19 +133,21 @@ export class ScreenWatch {
         this.record(seen, result, (args as { within?: unknown }).within === undefined);
         return result;
       });
-      const keep = (state: { code?: unknown }) => {
-        if (typeof state.code === "string") seen.codes.push(state.code);
-        seen.codes.splice(0, seen.codes.length - MAX_CODES);
+      // An action is one whose tool returned its line of code: it is numbered, and its result gives the number.
+      const numbered = <T extends { code?: unknown }>(action: string, state: T, typed?: string): T => {
+        if (typeof state.code !== "string") return state;
+        const number = this.done.length + 1;
+        this.done.push({ number, application, tool: action, code: state.code, ...(typed === undefined ? {} : { typed }) });
+        return { ...state, action: number };
       };
       wrap(
         "goto",
         async (tool, args) => {
-          const state = (await tool.execute(args)) as object;
-          keep(state);
+          const state = numbered("goto", (await tool.execute(args)) as { code?: unknown });
           const shown = await read();
           return { ...state, page: shown.page, truncated: shown.truncated };
         },
-        "Returns what the page shows, and the line of code that does the same in a test.",
+        `Returns what the page shows, the line of code that does the same in a test, and ${ACTION_NUMBER}`,
       );
       for (const action of ACTIONS) {
         wrap(
@@ -137,10 +155,10 @@ export class ScreenWatch {
           async (tool, args) => {
             const previous = seen.last ?? (await read()).lines;
             const before = besideFields(seen.lines);
-            const { value } = args as { value?: unknown };
+            const { value, option } = args as { value?: unknown; option?: unknown };
             if (action === "fill" && typeof value === "string") seen.filled.add(value);
-            const state = (await tool.execute(args)) as object;
-            keep(state);
+            const typed = [value, option].find((given): given is string => typeof given === "string");
+            const state = numbered(action, (await tool.execute(args)) as { code?: unknown }, typed);
             const current = (await read()).lines;
             const appeared = absent(current, previous);
             for (const line of appeared) seen.produced.add(line);
@@ -159,7 +177,7 @@ export class ScreenWatch {
               ...(unmatched.length === 0 ? {} : { note: unmatched.map(unmatchedNote).join("\n") }),
             };
           },
-          "Returns what appeared, what went, and the line of code that does the same in a test.",
+          `Returns what appeared, what went, the line of code that does the same in a test, and ${ACTION_NUMBER}`,
         );
       }
       for (const name of byApplication.get(application)!.filter((name) => !owned.has(name)))
@@ -185,7 +203,30 @@ export class ScreenWatch {
    * @returns Five lines at most, the last first; none for an application without a user interface.
    */
   public codes(application: string): string[] {
-    return [...(this.seen.get(application)?.codes ?? [])].reverse();
+    return this.actions(application)
+      .slice(-MAX_CODES)
+      .reverse()
+      .map((action) => action.code);
+  }
+
+  /**
+   * An action the agent did, by the number its result gave.
+   *
+   * @param number - The number.
+   * @returns The action; `undefined` when no action has that number.
+   */
+  public action(number: number): WatchedAction | undefined {
+    return this.done[number - 1];
+  }
+
+  /**
+   * The actions the agent did on the pages of an application.
+   *
+   * @param application - Identifier of the application.
+   * @returns They, in the order they were done; none for an application without a user interface.
+   */
+  public actions(application: string): WatchedAction[] {
+    return this.done.filter((action) => action.application === application);
   }
 
   /**

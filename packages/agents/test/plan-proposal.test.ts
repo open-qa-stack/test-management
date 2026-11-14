@@ -1,12 +1,27 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { PlannedScenario, PlanReview, TestPlan, ToolDefinition } from "@open-qa-stack/domain";
+import type { PlanReview, TestPlan, ToolDefinition } from "@open-qa-stack/domain";
 import { Journal } from "../src/common/journal.ts";
-import { PlanProposal, type PlanRules } from "../src/designer/plan-proposal.ts";
+import { PlanProposal, type PlanRules, type SubmittedPlan, type SubmittedScenario, type SubmittedStep } from "../src/designer/plan-proposal.ts";
 import { ScreenWatch } from "../src/designer/screen-watch.ts";
 import { SourceWatch } from "../src/designer/source-watch.ts";
 
-const scenario = (id: string, changes: Partial<PlannedScenario> = {}): PlannedScenario => ({
+/** A step as these tests write it: it cites the first action, which opened the orders, unless it cites others. */
+type Step = Omit<SubmittedStep, "actions"> & { readonly actions?: readonly number[] };
+/** A scenario as these tests write it. */
+type Scenario = Omit<SubmittedScenario, "steps"> & { readonly steps: readonly Step[] };
+/** A plan as these tests write it. */
+interface Plan {
+  readonly scenarios: readonly Scenario[];
+}
+/** The line of code the tool that opens the orders returns. */
+const OPENED = 'await page.goto("/orders");';
+/** The element the orders page shows its heading in. */
+const HEADING = { text: "Orders", locator: 'page.getByRole("heading", { name: "Orders", exact: true })', field: false };
+/** The line of code the tool that clicks returns. */
+const CLICKED = 'await page.getByRole("button", { name: "Search", exact: true }).click();';
+
+const scenario = (id: string, changes: Partial<Scenario> = {}): Scenario => ({
   id,
   title: `The ${id} scenario`,
   intent: `Verifies ${id}.`,
@@ -19,7 +34,7 @@ const scenario = (id: string, changes: Partial<PlannedScenario> = {}): PlannedSc
   steps: [{ action: "Open the orders", expects: [{ result: "The orders show", shows: ["Orders"], absent: [] }] }],
   ...changes,
 });
-const plan = (...ids: string[]): TestPlan => ({ scenarios: ids.map((id) => scenario(id)) });
+const plan = (...ids: string[]): Plan => ({ scenarios: ids.map((id) => scenario(id)) });
 
 /** The browser tools of a shop whose search makes an order appear and another go, and whose search field takes the value typed, zzqx when none is given. */
 function shopTools(): ToolDefinition[] {
@@ -31,18 +46,18 @@ function shopTools(): ToolDefinition[] {
     execute: async (args) => execute(args as { value?: string }),
   });
   return [
-    tool("goto", () => ({ url: "/orders" })),
+    tool("goto", () => ({ url: "/orders", code: OPENED })),
     tool("snapshot", () => ({ page, truncated: false })),
     tool("click", () => {
       page = '- heading "Orders"\n- row "ORD-1042 Mira Veldane"';
-      return {};
+      return { code: CLICKED };
     }),
     tool("fill", ({ value = "zzqx" }) => {
       page = `${page}\n- textbox "Search orders": ${value} → page.getByRole("textbox", { name: "Search orders", exact: true })`;
-      return {};
+      return { code: `await page.getByRole("textbox", { name: "Search orders", exact: true }).fill(${JSON.stringify(value)});` };
     }),
-    tool("select_option", () => ({})),
-    tool("check", () => ({})),
+    tool("select_option", () => ({ code: 'await page.getByRole("combobox", { name: "Status", exact: true }).selectOption("Paid");' })),
+    tool("check", () => ({ code: 'await page.getByRole("checkbox", { name: "Paid", exact: true }).check();' })),
   ];
 }
 
@@ -66,6 +81,16 @@ function sourceTools(): ToolDefinition[] {
   ];
 }
 
+/** What a plan of the shop is checked against, but what the agent saw and read. */
+const RULES: Omit<PlanRules, "screens" | "reads"> = {
+  sources: ["shop", "orders-db", "guide", "specs"],
+  applications: ["shop", "ledger"],
+  domains: ["orders"],
+  secrets: [],
+  review: { review: async () => ({ accepted: true }) },
+  carry: () => "Scenario 1.",
+};
+
 /** A plan proposal of the shop, whose orders page the agent opened unless told otherwise, and which accepts every plan by default. */
 async function proposal(
   changes: Partial<PlanRules> = {},
@@ -83,17 +108,7 @@ async function proposal(
     [],
   );
   if (opened) await act(screens, "goto");
-  const rules: PlanRules = {
-    sources: ["shop", "orders-db", "guide", "specs"],
-    applications: ["shop", "ledger"],
-    domains: ["orders"],
-    secrets: [],
-    screens,
-    reads,
-    review: { review: async () => ({ accepted: true }) },
-    carry: () => "Scenario 1.",
-    ...changes,
-  };
+  const rules: PlanRules = { ...RULES, screens, reads, ...changes };
   return { proposal: new PlanProposal(rules, journal), screens, reads, journal };
 }
 
@@ -105,7 +120,11 @@ function slowReview(decision: (plan: TestPlan) => boolean): PlanReview {
   };
 }
 
-const submit = (proposal: PlanProposal, submitted: TestPlan) => proposal.tool().execute(submitted) as Promise<string | { error: string }>;
+/** The plan as the agent submits it: each step cites the first action when the test names none. */
+const cited = (submitted: Plan): SubmittedPlan => ({
+  scenarios: submitted.scenarios.map((planned) => ({ ...planned, steps: planned.steps.map((step) => ({ actions: [1], ...step })) })),
+});
+const submit = (proposal: PlanProposal, submitted: Plan) => proposal.tool().execute(cited(submitted)) as Promise<string | { error: string }>;
 const act = (screens: ScreenWatch, action: string, args: object = {}) =>
   screens
     .tools()
@@ -118,7 +137,9 @@ describe("plans reviewed at once", () => {
     const [first, second] = await Promise.all([submit(made, plan("a", "b", "c")), submit(made, plan("x", "y", "z"))]);
     assert.equal(first, "The plan was accepted.\n\nScenario 1.");
     assert.deepEqual(second, { error: "A plan was already accepted; carry it out." });
-    assert.deepEqual(made.accepted, plan("a", "b", "c"));
+    // The plan kept holds what the harness wrote: the code of the action each step cites, and the element of each text a screen showed in one.
+    const step = { action: "Open the orders", code: [OPENED], expects: [{ result: "The orders show", shows: ["Orders"], absent: [], elements: [HEADING] }] };
+    assert.deepEqual(made.accepted, { scenarios: ["a", "b", "c"].map((id) => ({ ...scenario(id), steps: [step] })) });
     assert.equal(journal.entries().filter((entry) => entry.message.startsWith("The plan was accepted")).length, 1);
   });
 
@@ -133,7 +154,7 @@ describe("plans reviewed at once", () => {
 
 describe("the gates of a plan", () => {
   const found = { result: "The order of Mira Veldane shows", shows: ["ORD-1042"], absent: [] };
-  const functional = (id: string, changes: Partial<PlannedScenario> = {}) =>
+  const functional = (id: string, changes: Partial<Scenario> = {}) =>
     scenario(id, {
       kind: "functional",
       steps: [
@@ -321,6 +342,10 @@ describe("the gates of a plan", () => {
       'Refused (PLAN-SHOWN): scenario b, expect 1.1, names "Orders", which no screen of shop showed in this session. Do step 1, "Open the orders", with shop_click, then copy a text that appeared after it, as the screen gives it.',
       "Refused (PLAN-READ): scenario c cites shop, and you have read nothing of it. Call shop_goto first.",
       'Refused (PLAN-SHOWN): scenario c, expect 1.1, names "Orders", which no screen of shop showed in this session. Do step 1, "Go to the orders page", with shop_goto, then copy a text that appeared after it, as the screen gives it.',
+      ...['a, step 1, "Search for zzqx"', 'b, step 1, "Open the orders"', 'c, step 1, "Go to the orders page"'].map(
+        (where) =>
+          `Refused (PLAN-LOCATOR): scenario ${where}, cites the action 1, which no browser tool returned in this session. Give in actions the numbers the results of the browser tools of shop return in "action"; do the step again if you no longer have them.`,
+      ),
       "Nothing else was refused.",
     ]);
     await search!.execute({});
@@ -353,7 +378,7 @@ describe("the gates of a plan", () => {
     await act(screens, "fill");
     await act(screens, "fill", { value: "Lena Brook" });
     await act(screens, "click");
-    const searched = (changes: Partial<PlannedScenario>) =>
+    const searched = (changes: Partial<Scenario>) =>
       scenario("a", {
         kind: "functional",
         steps: [{ action: "Search zzqx", expects: [{ result: "The order of Mira Veldane shows", shows: ["ORD-1042"], absent: ["zzqx"] }] }],
@@ -365,7 +390,7 @@ describe("the gates of a plan", () => {
       { value: "Long Long", from: "made-up" },
       { value: "zzqx", from: "made-up" },
     ];
-    const lena = (steps: PlannedScenario["steps"]) => scenario("b", { kind: "functional", data: [{ value: "Lena Brook", from: "shop" }], steps });
+    const lena = (steps: Scenario["steps"]) => scenario("b", { kind: "functional", data: [{ value: "Lena Brook", from: "shop" }], steps });
     const cancelled = { action: "Cancel the order of Lena Brook", expects: [{ result: "Its order goes", shows: [], absent: ["Lena Brook"] }] };
     const negative = scenario("c", {
       kind: "functional",
@@ -406,7 +431,7 @@ describe("the gates of a plan", () => {
     await act(screens, "fill", { value: "Lena" });
     await act(screens, "click");
     const search = (action: string, shows: string[]) => [{ action, expects: [{ result: "The search answers", shows, absent: [] }] }];
-    const submitted = (data: PlannedScenario["data"], shows: string[]) => ({
+    const submitted = (data: Scenario["data"], shows: string[]) => ({
       scenarios: [
         functional("a", { data, steps: search("Enter Lena in the search field", shows) }),
         // A negative scenario that types nothing, such as one that submits an empty search, needs no data.
@@ -487,7 +512,8 @@ describe("the gates of a plan", () => {
       'Type "Quill Zed" with shop_fill and do the step, then put in shows what the screen answered after it, such as a message or a count of results.';
     assert.equal(third, `Third refusal for the same reason. Do this:\n${remedy}\nThe last line of code that filled a field, with another value: ${filled}`);
     // Without a line of code that filled a field, the remedy gives none.
-    const plain = new ScreenWatch(["shop"], shopTools());
+    const silent = shopTools().map((tool) => (tool.name === "shop_fill" ? { ...tool, execute: async () => ({}) } : tool));
+    const plain = new ScreenWatch(["shop"], silent);
     for (const action of ["goto", "fill", "click"]) await act(plain, action);
     assert.equal((await told(plain))[2], `Third refusal for the same reason. Do this:\n${remedy}`);
   });
@@ -558,7 +584,8 @@ describe("the gates of a plan", () => {
       name: `shop_${action}`,
       description: action,
       parameters: { type: "object" },
-      execute: async (args) => (action === "snapshot" ? { page: shown, truncated: false } : (execute(args as { value?: string }), {})),
+      execute: async (args) =>
+        action === "snapshot" ? { page: shown, truncated: false } : (execute(args as { value?: string }), action === "goto" ? { code: OPENED } : {}),
     });
     const field = (value: string) => `- textbox "Search orders": ${value}`;
     const screens = new ScreenWatch(
@@ -573,9 +600,10 @@ describe("the gates of a plan", () => {
       ],
     );
     const { proposal: made } = await proposal({ screens });
+    await act(screens, "goto");
     await act(screens, "fill", { value: "Lena Brook" });
     await act(screens, "click");
-    const searched = (id: string, kind: PlannedScenario["case"]) =>
+    const searched = (id: string, kind: Scenario["case"]) =>
       functional(id, {
         case: kind,
         data: [{ value: "Lena Brook", from: "shop" }],
@@ -629,5 +657,192 @@ describe("the gates of a plan", () => {
       ((await submit(made, wrong)) as { error: string }).error,
       `Third refusal for the same reason. Do this:\nRead "Veldano" with orders_db_search, or take a value orders-db showed you last:\n- ORD-1042\n- Mira Veldane\n- 7\n- ${"Long ".repeat(40)}…`,
     );
+  });
+});
+
+describe("the actions a plan cites", () => {
+  const FILLED = (value: string) => `await page.getByRole("textbox", { name: "Search orders", exact: true }).fill(${JSON.stringify(value)});`;
+  const shown = (text: string) => ({ result: "The orders show", shows: [text], absent: [] });
+  /** The screens of the shop and of a desk, another application with a user interface. */
+  const twoApplications = () =>
+    new ScreenWatch(["shop", "desk"], [...shopTools(), ...shopTools().map((tool) => ({ ...tool, name: tool.name.replace("shop_", "desk_") }))]);
+
+  it("are told to the agent by the tool: the numbers the browser tools returned, in order", () => {
+    const { parameters, description } = new PlanProposal(
+      { ...RULES, screens: new ScreenWatch([], []), reads: new SourceWatch([], [], []) },
+      new Journal(),
+    ).tool();
+    const step = (
+      parameters as { properties: { scenarios: { items: { properties: { steps: { items: { required: string[]; properties: Record<string, unknown> } } } } } } }
+    ).properties.scenarios.items.properties.steps.items;
+    assert.deepEqual(step.required, ["action", "actions", "expects"]);
+    assert.deepEqual(step.properties["actions"], {
+      type: "array",
+      maxItems: 12,
+      items: { type: "integer", minimum: 1 },
+      description:
+        'The numbers of the actions that did this step when you explored, in the order a test does them, as the results of the browser tools gave them in "action", such as [3, 4] for a step done by the actions 3 and 4. The first action of a scenario opens an address; scenarios may cite the same actions, such as those that sign in. Empty for an application without screens.',
+    });
+    assert.match(description, /A step has one action, in actions the numbers of the browser actions that did it when you explored, and 0 to 4 expects;/);
+    assert.match(
+      description,
+      /the harness writes their code and their locators from the actions you cite and the screens you saw; you never write a locator\./,
+    );
+  });
+
+  it("are refused when a step cites none, one no tool returned, or one done on another application, with the last actions as what they would accept", async () => {
+    const screens = twoApplications();
+    const { proposal: made } = await proposal({ screens, applications: ["shop", "desk"] }, false);
+    const act = (name: string, args: object = {}) =>
+      screens
+        .tools()
+        .find((tool) => tool.name === name)!
+        .execute(args);
+    const submitted = {
+      scenarios: [
+        scenario("a", { steps: [{ action: "Open the orders", actions: [], expects: [shown("Orders")] }] }),
+        scenario("b", { steps: [{ action: "Open the orders", actions: [1, 7], expects: [shown("Orders")] }] }),
+        scenario("c", { steps: [{ action: "Open the orders", actions: [2], expects: [shown("Orders")] }] }),
+      ],
+    };
+    // Before any action on the shop, the remedy says to open it first.
+    await act("desk_goto");
+    await act("shop_snapshot");
+    for (let at = 0; at < 2; at += 1) await submit(made, submitted);
+    assert.equal(
+      ((await submit(made, submitted)) as { error: string }).error,
+      'Third refusal for the same reason. Do this:\nNo action was done on shop yet. Open the first address of the scenario with shop_goto, do its steps, then give in actions of each step the numbers the results return in "action".',
+    );
+    const { proposal: again } = await proposal({ screens, applications: ["shop", "desk"] }, false);
+    assert.deepEqual(await act("shop_goto"), {
+      url: "/orders",
+      code: OPENED,
+      action: 2,
+      page: '- heading "Orders"\n- row "ORD-1057 Lena Brook"',
+      truncated: false,
+    });
+    const refused = (await submit(again, { scenarios: [submitted.scenarios[0]!, submitted.scenarios[1]!, scenario("c")] })) as { error: string };
+    assert.deepEqual(refused.error.split("\n"), [
+      'Refused (PLAN-LOCATOR): scenario a, step 1, "Open the orders", cites no action: the harness writes the code of a step from the actions that did it. Do the step with the browser tools of shop, such as shop_click, then give in actions the numbers their results return in "action", such as "actions": [3, 4] for a step done by the actions 3 and 4.',
+      'Refused (PLAN-LOCATOR): scenario b, step 1, "Open the orders", cites the action 1, done on desk: a test of shop acts on shop alone. Do the step with the browser tools of shop, such as shop_click, and cite the numbers their results return in "action".',
+      'Refused (PLAN-LOCATOR): scenario b, step 1, "Open the orders", cites the action 7, which no browser tool returned in this session. Give in actions the numbers the results of the browser tools of shop return in "action"; do the step again if you no longer have them.',
+      'Refused (PLAN-LOCATOR): scenario c, step 1, "Open the orders", cites the action 1, done on desk: a test of shop acts on shop alone. Do the step with the browser tools of shop, such as shop_click, and cite the numbers their results return in "action".',
+      "Nothing else was refused.",
+    ]);
+    await submit(again, submitted);
+    assert.equal(
+      ((await submit(again, submitted)) as { error: string }).error,
+      `Third refusal for the same reason. Do this:\nGive in actions of each step the numbers of the actions that did it. The last actions on shop, each after its number:\n2: ${OPENED}`,
+    );
+    const fixed = {
+      scenarios: ["a", "b", "c"].map((id) => scenario(id, { steps: [{ action: "Open the orders", actions: [2], expects: [shown("Orders")] }] })),
+    };
+    assert.equal(await submit(again, fixed), "The plan was accepted.\n\nScenario 1.");
+  });
+
+  it("start, for each scenario, with one that opens an address: its test starts on an empty page", async () => {
+    const { proposal: made, screens } = await proposal({}, false);
+    await act(screens, "click");
+    const clicked = {
+      scenarios: ["a", "b", "c"].map((id) => scenario(id, { steps: [{ action: "Open the orders", actions: [1], expects: [shown("Orders")] }] })),
+    };
+    const start = (id: string, example: string) =>
+      `Refused (PLAN-START): scenario ${id} starts with the action 1 (${CLICKED}), which opens no address, and its test starts on an empty page. Open the first address of the scenario with shop_goto, do its steps from there, and cite that action first in step 1${example}.`;
+    assert.deepEqual(await submit(made, clicked), { error: [start("a", ""), start("b", ""), start("c", ""), "Nothing else was refused."].join("\n") });
+    await act(screens, "goto");
+    const example = `, such as the action 2 (${OPENED})`;
+    assert.deepEqual(await submit(made, clicked), {
+      error: [start("a", example), start("b", example), start("c", example), "Nothing else was refused."].join("\n"),
+    });
+    assert.equal(
+      ((await submit(made, clicked)) as { error: string }).error,
+      [
+        "Third refusal for the same reason. Do this:",
+        ...["a", "b", "c"].map((id) => `Cite first, in actions of step 1 of scenario ${id}, an action of shop_goto${example}, then the actions done after it.`),
+      ].join("\n"),
+    );
+    const opened = {
+      scenarios: ["a", "b", "c"].map((id) => scenario(id, { steps: [{ action: "Open the orders", actions: [2, 1], expects: [shown("Orders")] }] })),
+    };
+    assert.equal(await submit(made, opened), "The plan was accepted.\n\nScenario 1.");
+    assert.deepEqual(made.accepted!.scenarios[0]!.steps[0]!.code, [OPENED, CLICKED]);
+  });
+
+  it("typed only values of the data of their scenario, a part of one, nothing, or the credential of an account", async () => {
+    const { proposal: made, screens } = await proposal();
+    await act(screens, "fill", { value: "Quill Zed" });
+    await act(screens, "fill", { value: "Lena" });
+    await act(screens, "fill", { value: "" });
+    await act(screens, "fill", { value: { account: "demo", field: "username" } });
+    await act(screens, "select_option", { option: "Paid" });
+    await act(screens, "check", { checked: true });
+    const typing = (id: string, data: Scenario["data"]) =>
+      scenario(id, { data, steps: [{ action: "Open the orders, then look for an order", actions: [1, 2, 3, 4, 5, 6, 7], expects: [shown("Orders")] }] });
+    const refused = (id: string, typed: string) =>
+      `Refused (PLAN-INPUT): scenario ${id}, step 1, "Open the orders, then look for an order", cites the action ${typed === '"Quill Zed"' ? 2 : 6}, which typed ${typed}, and ${typed} is no value of the data of the scenario: its test may type only values of its data. Put it in data, with from "shop" for a value a screen of shop showed before you typed it, or from "made-up" for one the test invents, such as { "value": ${typed}, "from": "made-up" }; or do the step again with a value of the data, and cite that action.`;
+    const data = [
+      { value: "Quill Zed", from: "made-up" },
+      { value: "Lena Brook", from: "shop" },
+    ];
+    assert.deepEqual(await submit(made, { scenarios: [typing("a", data), typing("b", [...data, { value: "Paid", from: "made-up" }]), scenario("c")] }), {
+      error: [refused("a", '"Paid"'), "Nothing else was refused."].join("\n"),
+    });
+    assert.deepEqual(await submit(made, { scenarios: [typing("a", [{ value: "Lena Brook", from: "shop" }]), scenario("b"), scenario("c")] }), {
+      error: [refused("a", '"Quill Zed"'), refused("a", '"Paid"'), "Nothing else was refused."].join("\n"),
+    });
+  });
+
+  it("are written to the plan, whose code may hold the value of no declared variable", async () => {
+    const { proposal: made, screens } = await proposal({ secrets: [{ variable: "SHOP_PASSWORD", value: "s3cret-pass" }] });
+    await act(screens, "fill", { value: "s3cret-pass" });
+    const typed = scenario("a", { data: [], steps: [{ action: "Sign in", actions: [1, 2], expects: [shown("Orders")] }] });
+    const refused = (await submit(made, { scenarios: [typed, scenario("b"), scenario("c")] })) as { error: string };
+    assert.equal(
+      refused.error.split("\n")[0],
+      "Refused (PLAN-SECRET): the plan holds the value of SHOP_PASSWORD. Leave it out; a test reads it with process.env.SHOP_PASSWORD.",
+    );
+    assert.ok(!refused.error.includes("s3cret-pass"));
+  });
+
+  it("give each step its lines of code, in the order cited, and each expected text the element a screen showed it in, when one did", async () => {
+    const { proposal: made, screens, reads } = await proposal();
+    await reads.tools()[0]!.execute({});
+    await act(screens, "fill", { value: "Veldane" });
+    await act(screens, "click");
+    const searched = scenario("a", {
+      kind: "functional",
+      data: [{ value: "Veldane", from: "orders-db" }],
+      sources: [{ source: "orders-db" }],
+      steps: [
+        { action: "Open the orders", actions: [1], expects: [] },
+        {
+          action: "Search the orders of Veldane, then send",
+          actions: [2, 3],
+          expects: [{ result: "The order of Mira Veldane shows, the other goes", shows: ["ORD-1042", "Veldane"], absent: ["ORD-1057"] }],
+        },
+      ],
+    });
+    // An application without a user interface has no action: those cited are left out, and no element is given.
+    const ledger = scenario("b", { application: "ledger", steps: [{ action: "Get the orders", actions: [1, 3], expects: [shown("ORD-1042")] }] });
+    assert.equal(await submit(made, { scenarios: [searched, ledger, scenario("c")] }), "The plan was accepted.\n\nScenario 1.");
+    const [first, second] = made.accepted!.scenarios;
+    assert.deepEqual(first!.steps, [
+      { action: "Open the orders", code: [OPENED], expects: [] },
+      {
+        action: "Search the orders of Veldane, then send",
+        code: [FILLED("Veldane"), CLICKED],
+        expects: [
+          {
+            result: "The order of Mira Veldane shows, the other goes",
+            shows: ["ORD-1042", "Veldane"],
+            absent: ["ORD-1057"],
+            // The rows end with no locator and are named by more than the text: their texts are found by themselves; the field holds the value typed.
+            elements: [{ text: "Veldane", locator: 'page.getByRole("textbox", { name: "Search orders", exact: true })', field: true }],
+          },
+        ],
+      },
+    ]);
+    assert.deepEqual(second!.steps, [{ action: "Get the orders", code: [], expects: [{ ...shown("ORD-1042"), elements: [] }] }]);
+    assert.ok(!("actions" in first!.steps[0]!));
   });
 });

@@ -20,6 +20,7 @@ export { networkFailureAddresses, testVerdicts, type RunFacts, type TestVerdict 
 export type { TestReference, TestRunner, TestTrial, TriedTest } from "./test/test-runner.ts";
 export type {
   PlanDecision,
+  ExpectedElement,
   PlannedExpect,
   PlannedScenario,
   PlannedStep,

@@ -98,7 +98,9 @@ const ACCEPT_EVERY_PLAN: PlanReview = { review: async () => ({ accepted: true })
  * index holds for it, or the domains of the index when nothing of it echoes the brief, not the index whole:
  * it looks up the rest with `index_find` and `index_entry`, which name the tools of each source. It gets the browser tools of the applications, the
  * tools of every knowledge source of the environment — the bases read only — and the notes. It submits a
- * test plan with `propose_plan`, which `planReview` accepts or refuses; refused, the design stops and no
+ * test plan with `propose_plan`, each step citing the actions of its exploration that did it: the harness
+ * writes in the plan the lines of code of those actions and the element the screens showed each expected
+ * text in. `planReview` accepts or refuses the plan; refused, the design stops and no
  * test is written. Once the plan is accepted, the harness opens its scenarios one at a time, in order, and
  * names the file of each test; the agent runs the test with `run_test`, through `runner`, against the
  * application, then closes the scenario with `propose_test`, under the limits of the configured autonomy,
@@ -268,7 +270,7 @@ export class Designer {
         return failed(`No test was written: ${obtained(0)}, ${MIN_TESTS} at least are expected.`, stoppedBy);
       const used = { iterations: counters.iterations, actions: counters.actions, durationMs: Math.round(counters.elapsedMs) };
       const record: PlanRecord = resumed?.plan ?? {
-        formatVersion: 1,
+        formatVersion: 2,
         design: id,
         environment: index.environment,
         ...(brief === undefined ? {} : { brief }),

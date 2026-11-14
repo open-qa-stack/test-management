@@ -14,8 +14,8 @@ const SCENARIO: PlannedScenario = {
   sources: [{ source: "shop" }],
   data: [],
   steps: [
-    { action: "Open the customers", expects: [{ result: "The list shows", shows: ["Customers", "Ok"], absent: ["Gone"] }] },
-    { action: "Open the profile", expects: [] },
+    { action: "Open the customers", code: [], expects: [{ result: "The list shows", shows: ["Customers", "Ok"], absent: ["Gone"], elements: [] }] },
+    { action: "Open the profile", code: [], expects: [] },
   ],
 };
 const PAGE = ['- heading "Customers"', '- textbox "Search": Customers'];

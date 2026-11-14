@@ -1,5 +1,18 @@
+import type { PlannedExpect } from "@open-qa-stack/domain";
 import { observed } from "./observed.ts";
 import type { ShownElement } from "./screen-watch.ts";
+
+/**
+ * The assertions of the texts of an expect of a plan, as a test writes them: those it shows, then those it
+ * no longer shows, each on the element the plan gives for it, if it gives one.
+ *
+ * @param expect - The expect.
+ * @returns The lines of the assertions, one per text.
+ */
+export function assertionsOf(expect: PlannedExpect): string[] {
+  const element = (text: string) => expect.elements.find((candidate) => candidate.text === text);
+  return [...expect.shows.map((text) => assertionOf(text, false, element(text))), ...expect.absent.map((text) => assertionOf(text, true, element(text)))];
+}
 
 /**
  * The assertion of a planned text, as a test writes it: that the field a screen showed it in holds it as its

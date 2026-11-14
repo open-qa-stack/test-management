@@ -1,9 +1,8 @@
-import type { PlannedScenario } from "@open-qa-stack/domain";
+import type { PlannedScenario, PlannedStep } from "@open-qa-stack/domain";
 import type { SpecAssertion, SpecOutline } from "@open-qa-stack/tools";
-import { assertionOf } from "./assertion-line.ts";
+import { assertionsOf } from "./assertion-line.ts";
 import { checkable, observed } from "./observed.ts";
 import type { Refusal } from "./refusal.ts";
-import type { ShownElement } from "./screen-watch.ts";
 import { PROPOSE_TOOL } from "./test-proposals.ts";
 
 /** The matchers whose first argument is a text the element must hold. */
@@ -13,8 +12,6 @@ const TEXT_MATCHERS = new Set(["toHaveText", "toContainText", "toHaveValue"]);
 export interface ScenarioHelp {
   /** The skeleton of the test of the scenario. */
   readonly skeleton: string;
-  /** The element the screens showed a text in, if one did; one it went from first, for a text expected gone. */
-  readonly locatorOf: (text: string, gone: boolean) => ShownElement | undefined;
   /** The lines of code the browser tools returned last, the last first. */
   readonly codes: readonly string[];
 }
@@ -31,8 +28,8 @@ const CLICK_EXAMPLE = 'await page.getByRole("textbox", { name: "Search", exact: 
  *
  * @param outline - The outline of the test.
  * @param scenario - The scenario of the plan.
- * @param help - What a refusal gives as accepted: the skeleton for the form of the test, an assertion of
- * each text for its texts.
+ * @param help - What a refusal gives as accepted: the skeleton for the form of the test, the last lines of
+ * code of the browser tools for a step the plan gives no code for.
  * @returns Every reason, in that order; none when the test keeps the plan.
  */
 export function scenarioErrors(outline: SpecOutline, scenario: PlannedScenario, help: ScenarioHelp): Refusal[] {
@@ -53,16 +50,9 @@ export function scenarioErrors(outline: SpecOutline, scenario: PlannedScenario, 
     const range = outline.steps.find((candidate) => candidate.title?.startsWith(`${number}. `));
     const asserted = range === undefined ? [] : outline.assertions.filter((assertion) => range.start <= assertion.start && assertion.start < range.end);
     if (range !== undefined && !outline.actions.some((start) => range.start <= start && start < range.end))
-      refusals.push(actionRefusal(number, step.action, help.codes));
-    const planned = step.expects.flatMap((expect) => [
-      ...expect.shows.map((text) => ({ text, negative: false })),
-      ...expect.absent.map((text) => ({ text, negative: true })),
-    ]);
+      refusals.push(actionRefusal(number, step, help.codes));
     // The whole step, for a model that would keep only the lines it is given.
-    const remedy = [
-      `Step ${number} must hold all of these, with its actions:`,
-      ...planned.map(({ text, negative }) => assertionOf(text, negative, help.locatorOf(text, negative))),
-    ].join("\n");
+    const remedy = [`Step ${number} must hold all of these, with its actions:`, ...step.expects.flatMap(assertionsOf)].join("\n");
     step.expects.forEach((expect, k) => {
       const texts = [...expect.shows.map((text) => ({ text, negative: false })), ...expect.absent.map((text) => ({ text, negative: true }))].filter(
         ({ text }) => checkable(text),
@@ -89,9 +79,18 @@ export function scenarioErrors(outline: SpecOutline, scenario: PlannedScenario, 
   return [...refusals, ...outline.assertions.flatMap(tautology), ...typedErrors(outline, scenario)];
 }
 
-/** The refusal of a step that does nothing on the application, with the lines of code the browser tools returned last as what it would accept. */
-function actionRefusal(number: number, action: string, codes: readonly string[]): Refusal {
-  const told = action.replace(/\s+/g, " ").trim();
+/**
+ * The refusal of a step that does nothing on the application, with what it would accept: the lines of code the
+ * plan gives for the step, or, when it gives none, those the browser tools returned last.
+ */
+function actionRefusal(number: number, step: PlannedStep, codes: readonly string[]): Refusal {
+  const told = step.action.replace(/\s+/g, " ").trim();
+  if (step.code.length > 0)
+    return {
+      code: "TEST-ACTION",
+      message: `step ${number} does nothing: it must do "${told}" with the code lines of its skeleton, before its assertions, starting with ${step.code[0]}`,
+      remedy: [`Step ${number} must do "${told}" before its assertions, with the code lines of its skeleton:`, ...step.code].join("\n"),
+    };
   const message = `step ${number} does nothing: do "${told}" with the browser tools and copy the line of code they return into it, such as ${codes[0] ?? ACTION_EXAMPLE}`;
   if (codes.length === 0) return { code: "TEST-ACTION", message };
   return {

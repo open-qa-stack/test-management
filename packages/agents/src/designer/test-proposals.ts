@@ -11,11 +11,11 @@ import { PLAN_TOOL } from "./plan-proposal.ts";
 import { journalRefusals, maskedRefusals, refusalText, repeatedText, type Refusal } from "./refusal.ts";
 import { GUIDED_REFUSALS, MAX_REFUSALS, RefusalStreak } from "./refusal-streak.ts";
 import { scenarioErrors } from "./scenario-gates.ts";
-import { scenarioSheet, skeleton, type ElementFinder } from "./scenario-sheet.ts";
+import { scenarioSheet, skeleton } from "./scenario-sheet.ts";
 import { snapshotLines, type ScreenWatch } from "./screen-watch.ts";
 import type { SourceWatch } from "./source-watch.ts";
 import type { TestCheck, TestFinding, TestReference, TestRunner, TestTrial, Verdict } from "@open-qa-stack/domain";
-import { addressErrors, fileErrors, heldVariables, importErrors, secretValueErrors, type DeclaredSecret } from "./spec-rules.ts";
+import { addressErrors, fileErrors, heldVariables, importErrors, locatorsOf, secretValueErrors, type DeclaredSecret } from "./spec-rules.ts";
 
 /** Name of the tool the designer closes a scenario with. */
 export const PROPOSE_TOOL = "propose_test";
@@ -80,8 +80,8 @@ interface Diagnosis {
  *    a relative path inside it, imports another test, writes a file, holds an address of the configuration
  *    or the value of a declared variable;
  * 3. the scenario: not one test, not the steps of the plan, a step that does nothing on the application, a planned text not asserted or asserted the
- *    other way round, an assertion that can only pass, a value typed that is none of the data, a locator no
- *    screen showed;
+ *    other way round, an assertion that can only pass, a value typed that is none of the data, a locator that
+ *    is none of the skeleton of the scenario and that no screen showed;
  * 4. the check given, when it finds something.
  *
  * `propose_test` closes the scenario open with the text of its last run that gave a verdict: passed, it is
@@ -441,12 +441,7 @@ export class TestProposals {
   /** Journals the scenario the cursor opened, and gives its sheet. */
   private opened(cursor: DesignCursor): string {
     this.journal.record("info", `The scenario ${cursor.scenario!.id} was opened; its test is ${cursor.path}.`);
-    return scenarioSheet(cursor, this.rules.screenshots, this.finder(cursor.scenario!));
-  }
-
-  /** Finds the element the screens of the application of a scenario showed a text in. */
-  private finder(scenario: PlannedScenario): ElementFinder {
-    return (text, gone) => this.rules.screens.locatorOf(scenario.application, text, gone);
+    return scenarioSheet(cursor, this.rules.screenshots);
   }
 
   /** The file of the test of a scenario: named after it, in the folder of its application, with a number when that path is taken. */
@@ -472,10 +467,13 @@ export class TestProposals {
     ];
     if (written.length > 0) return written;
     const { outline } = syntax;
-    const unseen = screens.unseen(scenario.application, outline.locators);
+    const sheet = skeleton(scenario, this.rules.screenshots);
+    // A locator of the skeleton comes from the plan: the screens of its exploration showed it.
+    const given = await locatorsOf(sheet);
+    const own = outline.locators.filter((locator) => !given.some((planned) => planned.role === locator.role && planned.text === locator.text));
+    const unseen = screens.unseen(scenario.application, own);
     const located = unseen.length === 0 ? [] : [this.unseenRefusal(scenario.application, unseen)];
-    const locatorOf = this.finder(scenario);
-    const help = { skeleton: skeleton(scenario, this.rules.screenshots, locatorOf), locatorOf, codes: screens.codes(scenario.application) };
+    const help = { skeleton: sheet, codes: screens.codes(scenario.application) };
     const planned = [...scenarioErrors(outline, scenario, help), ...located];
     if (planned.length > 0) return planned;
     return check === undefined ? [] : coded("TEST-CHECK", (await check.check({ path, content })).map(findingText));

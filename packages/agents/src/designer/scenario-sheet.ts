@@ -1,43 +1,34 @@
 import type { PlannedScenario } from "@open-qa-stack/domain";
-import { assertionOf } from "./assertion-line.ts";
+import { assertionsOf } from "./assertion-line.ts";
 import type { DesignCursor } from "./design-cursor.ts";
 import { oneLine } from "./one-line.ts";
-import type { ShownElement } from "./screen-watch.ts";
-
-/** The element the screens showed a text in, if one did; one it went from first, for a text expected gone. */
-export type ElementFinder = (text: string, gone: boolean) => ShownElement | undefined;
 
 /**
  * The skeleton of the test of a scenario: one test, one `test.step` per step of the plan, titled by its
- * number then its action, with what to do as a comment, then, for each expect, an assertion of each text
- * it names: that the page shows it, or no longer does.
+ * number then its action, with the lines of code the plan gives for it, then, for each expect, an assertion
+ * of each text it names: that the page shows it, or no longer does.
  *
  * @remarks
- * It parses and keeps the charter as it is. Its assertions find each text on the element a screen showed
- * it in — a field holds a value typed in it — or anywhere on the page when no screen gave its element: the
- * agent keeps each text, and may find its element better, from what the browser tools return.
+ * It parses and keeps the charter as it is. A step the plan gives no code for, such as one of an application
+ * without a user interface, holds what to do as a comment instead. Its assertions find each text on the
+ * element the plan gives for it — a field holds a value typed in it — or anywhere on the page when the plan
+ * gives none.
  *
  * @param scenario - The scenario.
  * @param screenshots - Whether each step ends with a screenshot attached to the report, as the charter may ask.
- * @param find - The element the screens showed a text in.
  * @returns The text of the file.
  */
-export function skeleton(scenario: PlannedScenario, screenshots: boolean, find: ElementFinder): string {
+export function skeleton(scenario: PlannedScenario, screenshots: boolean): string {
   const steps = scenario.steps.map((step, at) => {
     const number = at + 1;
-    const expects = step.expects.flatMap((expect, k) => [
-      `    // Expect ${number}.${k + 1}: ${oneLine(expect.result)}.`,
-      ...expect.shows.map((text) => `    ${assertionOf(text, false, find(text, false))}`),
-      ...expect.absent.map((text) => `    ${assertionOf(text, true, find(text, true))}`),
-    ]);
+    const doing = step.code.length === 0 ? [`// Do: ${oneLine(step.action)}. Copy the code lines the browser tools returned.`] : step.code;
+    const expects = step.expects.flatMap((expect, k) => [`// Expect ${number}.${k + 1}: ${oneLine(expect.result)}.`, ...assertionsOf(expect)]);
     const attach = screenshots
-      ? [`    await testInfo.attach(${JSON.stringify(String(number))}, { body: await page.screenshot(), contentType: "image/png" });`]
+      ? [`await testInfo.attach(${JSON.stringify(String(number))}, { body: await page.screenshot(), contentType: "image/png" });`]
       : [];
     return [
       `  await test.step(${JSON.stringify(`${number}. ${oneLine(step.action)}`)}, async () => {`,
-      `    // Do: ${oneLine(step.action)}. Copy the code lines the browser tools returned.`,
-      ...expects,
-      ...attach,
+      ...[...doing, ...expects, ...attach].map((line) => `    ${line}`),
       "  });",
     ].join("\n");
   });
@@ -58,10 +49,9 @@ export function skeleton(scenario: PlannedScenario, screenshots: boolean, find: 
  *
  * @param cursor - Where the design stands, with a scenario open.
  * @param screenshots - Whether each step ends with a screenshot attached to the report.
- * @param find - The element the screens showed a text in.
  * @returns The text the agent is told.
  */
-export function scenarioSheet(cursor: DesignCursor, screenshots: boolean, find: ElementFinder): string {
+export function scenarioSheet(cursor: DesignCursor, screenshots: boolean): string {
   const scenario = cursor.scenario!;
   const data = scenario.data.length === 0 ? "none" : scenario.data.map((entry) => `${JSON.stringify(entry.value)} (${entry.from})`).join("; ");
   return [
@@ -69,7 +59,7 @@ export function scenarioSheet(cursor: DesignCursor, screenshots: boolean, find: 
     `Data: ${data}.`,
     `File: ${cursor.path}`,
     "",
-    skeleton(scenario, screenshots, find),
+    skeleton(scenario, screenshots),
     cursor.next(),
   ].join("\n");
 }

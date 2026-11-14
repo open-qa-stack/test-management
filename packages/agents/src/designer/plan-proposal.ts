@@ -1,10 +1,10 @@
-import type { PlannedExpect, PlannedScenario, PlanReview, TestPlan, ToolDefinition } from "@open-qa-stack/domain";
+import type { ExpectedElement, PlannedExpect, PlannedScenario, PlanReview, TestPlan, ToolDefinition } from "@open-qa-stack/domain";
 import { redactText, scopedToolName, secretForms } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
 import { checkable, observed, sameText } from "./observed.ts";
 import { journalRefusals, maskedRefusals, refusalText, repeatedText, type Refusal } from "./refusal.ts";
 import { GUIDED_REFUSALS, RefusalStreak } from "./refusal-streak.ts";
-import type { ScreenWatch } from "./screen-watch.ts";
+import type { ScreenWatch, WatchedAction } from "./screen-watch.ts";
 import type { SourceWatch } from "./source-watch.ts";
 import { heldVariables, type DeclaredSecret } from "./spec-rules.ts";
 import { MAX_TESTS, MIN_TESTS } from "./test-proposals.ts";
@@ -21,14 +21,43 @@ export const MAX_REFUSED_PLANS = 6;
 const LAST_TEXTS = 5;
 /** Longest part of a text of a source a refused value is told with. */
 const MAX_TOLD_TEXT = 200;
+/** What the agent is told of the actions of a step. */
+const ACTIONS_FIELD =
+  'The numbers of the actions that did this step when you explored, in the order a test does them, as the results of the browser tools gave them in "action", such as [3, 4] for a step done by the actions 3 and 4. The first action of a scenario opens an address; scenarios may cite the same actions, such as those that sign in. Empty for an application without screens.';
 /** The words of the action of a step that types a value in a field; the key Enter pressed types none. */
 const TYPING = /\b(?:types?|(?<!\bpress(?:es)?\s+(?:the\s+)?)enters?|fill(?:s|\s+in)?|inputs?|search(?:es)?\s+for)\b/i;
 /** The words of the action of a step that opens an address. */
 const NAVIGATING = /\b(?:navigates?\s+to|go(?:es)?\s+to|visits?)\b/i;
 /** The words of the action of a step that clicks an element. */
 const CLICKING = /\b(?:clicks?|press(?:es)?|opens?|taps?)\b/i;
+/** Most actions of an application a refusal lists with their numbers, the last ones. */
+const MAX_LISTED_ACTIONS = 10;
 /** The words that join another action to the one that types, such as the click that sends a form: the step does more than type. */
 const JOINED = /\b(?:and|then)\b/i;
+
+/** A result a step expects, as the agent submits it: the harness adds the elements. */
+type SubmittedExpect = Omit<PlannedExpect, "elements">;
+
+/** A step of a scenario, as the agent submits it: the harness writes its code from the actions it cites. */
+export interface SubmittedStep {
+  /** What the user does, in one sentence. */
+  readonly action: string;
+  /** The numbers of the actions of the exploration that did the step, in order, as the results of the browser tools gave them. */
+  readonly actions: readonly number[];
+  /** What the step expects after the action. */
+  readonly expects: readonly SubmittedExpect[];
+}
+
+/** A scenario of a plan, as the agent submits it. */
+export interface SubmittedScenario extends Omit<PlannedScenario, "steps"> {
+  /** The steps, in the order the user does them. */
+  readonly steps: readonly SubmittedStep[];
+}
+
+/** A test plan, as the agent submits it with `propose_plan`. */
+export interface SubmittedPlan {
+  readonly scenarios: readonly SubmittedScenario[];
+}
 
 /** What a plan is checked against. */
 export interface PlanRules {
@@ -69,14 +98,18 @@ export interface PlanRules {
  * vain — one their actions name, or any a field held when they name none — and, for an application with a user interface, a step
  * that types in a scenario without data, and a text expected shown that the screens showed only in a value
  * the agent typed or in the name of a field; a value of the data from an application is one it showed
- * beside what the agent typed; the agent may then submit another. Before the gates, the harness takes out of
+ * beside what the agent typed; and, for an application with a user interface, a step that cites no action, an
+ * action no browser tool returned or one done on another application, a scenario whose first action opens no
+ * address, and an action cited that typed a value that is none of the data; the agent may then submit another. Before the gates, the harness takes out of
  * a functional scenario of an application with a user interface each text expected shown by a step that
  * only types, followed by another step, that is a value of its data no screen showed beside the fields: the
  * field echoes it whatever the application answers. The gates number the expects as the agent wrote them,
  * and pass over one left without a text, which the plan kept goes without. From
  * the third refusal of one reason, the agent is told only what the gate would accept, and the sixth plan the
- * gates refuse stops the design. A plan that keeps these rules goes to the review, one
- * plan at a time: accepted, it is frozen, and no other may be submitted; refused, the design stops.
+ * gates refuse stops the design. A plan that keeps these rules is inscribed: the harness writes in each step
+ * the lines of code of the actions it cites, and in each expect the element the screens showed each of its
+ * texts in, when they showed it in one; the agent writes neither. It then goes to the review, one plan at a
+ * time: accepted, it is frozen, and no other may be submitted; refused, the design stops.
  */
 export class PlanProposal {
   private readonly rules: PlanRules;
@@ -144,7 +177,7 @@ export class PlanProposal {
     const texts = (description: string) => ({ type: "array", maxItems: 8, items: { type: "string", minLength: 1 }, description });
     return {
       name: PLAN_TOOL,
-      description: `Submits the test plan, once you have read the sources and done the brief once on the screens. ${MIN_TESTS} to ${MAX_TESTS} scenarios; with two functional scenarios or more, one is negative. Each scenario gives its data (every value the test enters, with the source that showed it, or "${MADE_UP}" for a value the test invents), then its steps as a user does them. A step has one action and 0 to 4 expects; an expect states one result seen after the action, with in shows the exact texts the screen then displays and in absent the exact texts it no longer displays. Each step becomes one test.step, and each text one assertion. The harness refuses a value or a text no tool showed you.`,
+      description: `Submits the test plan, once you have read the sources and done the brief once on the screens. ${MIN_TESTS} to ${MAX_TESTS} scenarios; with two functional scenarios or more, one is negative. Each scenario gives its data (every value the test enters, with the source that showed it, or "${MADE_UP}" for a value the test invents), then its steps as a user does them. A step has one action, in actions the numbers of the browser actions that did it when you explored, and 0 to 4 expects; an expect states one result seen after the action, with in shows the exact texts the screen then displays and in absent the exact texts it no longer displays. Each step becomes one test.step, and each text one assertion: the harness writes their code and their locators from the actions you cite and the screens you saw; you never write a locator. The harness refuses a value or a text no tool showed you.`,
       parameters: {
         type: "object",
         properties: {
@@ -212,6 +245,12 @@ export class PlanProposal {
                     type: "object",
                     properties: {
                       action: { type: "string", minLength: 1, description: "What the user does, in one sentence, such as: Filter the orders by their status." },
+                      actions: {
+                        type: "array",
+                        maxItems: 12,
+                        items: { type: "integer", minimum: 1 },
+                        description: ACTIONS_FIELD,
+                      },
                       expects: {
                         type: "array",
                         maxItems: 4,
@@ -227,7 +266,7 @@ export class PlanProposal {
                         },
                       },
                     },
-                    required: ["action", "expects"],
+                    required: ["action", "actions", "expects"],
                     additionalProperties: false,
                   },
                 },
@@ -240,17 +279,17 @@ export class PlanProposal {
         required: ["scenarios"],
         additionalProperties: false,
       },
-      execute: async (args) => this.submit(args as TestPlan),
+      execute: async (args) => this.submit(args as SubmittedPlan),
     };
   }
 
-  private async submit(submitted: TestPlan): Promise<string | { error: string }> {
+  private async submit(submitted: SubmittedPlan): Promise<string | { error: string }> {
     // Once a plan is refused, the designer refuses every call before it reaches a tool.
     if (this.plan !== undefined) return { error: "A plan was already accepted; carry it out." };
     const { plan: checked, emptied, echoes } = this.withoutEchoes(submitted);
     const refusals = this.errors(checked, emptied);
     if (refusals.length > 0) return this.refuse(refusals);
-    const plan = withoutEmptied(checked, emptied);
+    const plan = this.inscribed(withoutEmptied(checked, emptied));
     const decision = await this.rules.review.review(plan);
     // Plans submitted in one turn are reviewed at once: another may have been decided meanwhile.
     if (this.refusal !== undefined) return { error: this.blocked() };
@@ -299,11 +338,11 @@ export class PlanProposal {
    * as the cell of the row a search found, is what the application answered, and stays. Each expect keeps its
    * place, so that a refusal numbers it as the agent did; those left without a text are given apart.
    */
-  private withoutEchoes(plan: TestPlan): { plan: TestPlan; emptied: Set<PlannedExpect>; echoes: string[] } {
+  private withoutEchoes(plan: SubmittedPlan): { plan: SubmittedPlan; emptied: Set<SubmittedExpect>; echoes: string[] } {
     const { screens } = this.rules;
-    const emptied = new Set<PlannedExpect>();
+    const emptied = new Set<SubmittedExpect>();
     const echoes: string[] = [];
-    const unechoed = (scenario: PlannedScenario): PlannedScenario => {
+    const unechoed = (scenario: SubmittedScenario): SubmittedScenario => {
       if (scenario.kind !== "functional" || !screens.watches(scenario.application)) return scenario;
       const echoed = (text: string) => scenario.data.some((entry) => sameText(entry.value, text)) && !screens.showsBesideFields(scenario.application, text);
       const steps = scenario.steps.map((step, at) => {
@@ -327,13 +366,16 @@ export class PlanProposal {
    * What the gates refuse in a plan its schema accepts: the count, the kinds, the sources and the shapes are
    * the schema's. The expects the harness emptied of echoes are passed over.
    */
-  private errors(plan: TestPlan, emptied: ReadonlySet<PlannedExpect>): Refusal[] {
+  private errors(plan: SubmittedPlan, emptied: ReadonlySet<SubmittedExpect>): Refusal[] {
     const ids = plan.scenarios.map((scenario) => scenario.id);
     const repeated = [...new Set(ids.filter((id, at) => ids.indexOf(id) !== at))].map((id) => ({
       code: "PLAN-ID",
       message: `the id ${id} is given to several scenarios. Give each scenario its own id.`,
     }));
-    const text = plan.scenarios.flatMap(planText).join("\n");
+    // The lines of code of the actions a step cites are written to the plan, with what they typed.
+    const written = (scenario: SubmittedScenario) =>
+      scenario.steps.flatMap((step) => this.cited(scenario, step.actions).flatMap((done) => [done.code, done.typed ?? ""]));
+    const text = plan.scenarios.flatMap((scenario) => [...planText(scenario), ...written(scenario)]).join("\n");
     const secrets = heldVariables(text, this.rules.secrets).map((variable) => ({
       code: "PLAN-SECRET",
       message: `the plan holds the value of ${variable}. Leave it out; a test reads it with process.env.${variable}.`,
@@ -355,11 +397,12 @@ export class PlanProposal {
       ...negative,
       ...functional.flatMap((scenario) => [...this.expectErrors(scenario, emptied), ...this.inputErrors(scenario)]),
       ...plan.scenarios.flatMap((scenario) => this.readErrors(scenario)),
+      ...plan.scenarios.flatMap((scenario) => this.actionErrors(scenario)),
     ];
   }
 
   /** What the gates refuse in what a scenario relies on: a source it cites and nothing was read of, a value its source never showed, a text no tool showed. */
-  private readErrors(scenario: PlannedScenario): Refusal[] {
+  private readErrors(scenario: SubmittedScenario): Refusal[] {
     const { screens, reads, applications } = this.rules;
     // A source without any tool is held to nothing: nothing could be read of it.
     const tool = (source: string) => (screens.watches(source) ? scopedToolName(source, "goto") : reads.firstTool(source));
@@ -445,7 +488,7 @@ export class PlanProposal {
    * searched found nothing, unless a step before expects the value shown: the scenario then removes what it
    * made or found; and, in one whose steps type, a value of its data the agent searched in vain on the screens.
    */
-  private nominalErrors(scenario: PlannedScenario): Refusal[] {
+  private nominalErrors(scenario: SubmittedScenario): Refusal[] {
     const { screens } = this.rules;
     const { application } = scenario;
     if (scenario.case !== "nominal" || !screens.watches(application)) return [];
@@ -489,7 +532,7 @@ export class PlanProposal {
    * invents no screen showed, not even in a field: the agent never typed it. What the gate would accept is
    * the value typed, as the last line of code that filled a field did, and the answer of the screen expected.
    */
-  private untypedRefusal(scenario: PlannedScenario, number: string, text: string): Refusal {
+  private untypedRefusal(scenario: SubmittedScenario, number: string, text: string): Refusal {
     const fill = scopedToolName(scenario.application, "fill");
     const typed = this.rules.screens.codes(scenario.application).find((code) => code.includes(".fill("));
     return {
@@ -508,7 +551,7 @@ export class PlanProposal {
    * text expected shown that the screens showed only in fields, by a value the agent typed, which the field
    * echoes whatever the application answers, or by the name of a field, which no text of the page holds.
    */
-  private inputErrors(scenario: PlannedScenario): Refusal[] {
+  private inputErrors(scenario: SubmittedScenario): Refusal[] {
     const { screens } = this.rules;
     const { application } = scenario;
     if (!screens.watches(application)) return [];
@@ -548,6 +591,113 @@ export class PlanProposal {
     return [...typing, ...fielded];
   }
 
+  /** The actions a step of a scenario cites that the screens know and that were done on its application, in the order cited. */
+  private cited(scenario: SubmittedScenario, numbers: readonly number[]): WatchedAction[] {
+    return numbers.flatMap((number) => {
+      const done = this.rules.screens.action(number);
+      return done?.application === scenario.application ? [done] : [];
+    });
+  }
+
+  /**
+   * The plan as it is kept: each step with the lines of code of the actions it cites, in place of their
+   * numbers, and each expect with the element the screens showed each of its texts in, for those they showed
+   * in one.
+   */
+  private inscribed(plan: SubmittedPlan): TestPlan {
+    const { screens } = this.rules;
+    const scenarios = plan.scenarios.map((scenario) => {
+      const element = (text: string, gone: boolean): ExpectedElement[] => {
+        const shown = screens.locatorOf(scenario.application, text, gone);
+        return shown === undefined ? [] : [{ text, ...shown }];
+      };
+      const steps = scenario.steps.map(({ action, actions, expects }) => ({
+        action,
+        code: this.cited(scenario, actions).map((done) => done.code),
+        expects: expects.map((expect) => ({
+          ...expect,
+          elements: [...expect.shows.flatMap((text) => element(text, false)), ...expect.absent.flatMap((text) => element(text, true))],
+        })),
+      }));
+      return { ...scenario, steps };
+    });
+    return { scenarios };
+  }
+
+  /**
+   * What the gates refuse in the actions the steps of a scenario of an application with a user interface
+   * cite: a step that cites none, an action no browser tool returned or one done on another application,
+   * which the harness could write no code from; a first action that opens no address, the test starting on an
+   * empty page; and an action that typed a value that is none of the data of the scenario, whose line its
+   * test could not keep.
+   */
+  private actionErrors(scenario: SubmittedScenario): Refusal[] {
+    const { screens } = this.rules;
+    const { application } = scenario;
+    if (!screens.watches(application)) return [];
+    const tool = (action: string) => scopedToolName(application, action);
+    const done = screens.actions(application);
+    const listed = done.slice(-MAX_LISTED_ACTIONS).map((action) => `${action.number}: ${action.code}`);
+    const remedy =
+      listed.length === 0
+        ? `No action was done on ${application} yet. Open the first address of the scenario with ${tool("goto")}, do its steps, then give in actions of each step the numbers the results return in "action".`
+        : [`Give in actions of each step the numbers of the actions that did it. The last actions on ${application}, each after its number:`, ...listed].join(
+            "\n",
+          );
+    const values = scenario.data.map((entry) => entry.value);
+    const inData = (typed: string) => typed === "" || values.includes(typed) || (checkable(typed) && observed(typed, values));
+    const refusals = scenario.steps.flatMap((step, at): Refusal[] => {
+      const where = `scenario ${scenario.id}, step ${at + 1}, ${JSON.stringify(step.action)},`;
+      if (step.actions.length === 0)
+        return [
+          {
+            code: "PLAN-LOCATOR",
+            message: `${where} cites no action: the harness writes the code of a step from the actions that did it. Do the step with the browser tools of ${application}, such as ${tool("click")}, then give in actions the numbers their results return in "action", such as "actions": [3, 4] for a step done by the actions 3 and 4.`,
+            remedy,
+          },
+        ];
+      return step.actions.flatMap((number): Refusal[] => {
+        const cited = screens.action(number);
+        if (cited === undefined)
+          return [
+            {
+              code: "PLAN-LOCATOR",
+              message: `${where} cites the action ${number}, which no browser tool returned in this session. Give in actions the numbers the results of the browser tools of ${application} return in "action"; do the step again if you no longer have them.`,
+              remedy,
+            },
+          ];
+        if (cited.application !== application)
+          return [
+            {
+              code: "PLAN-LOCATOR",
+              message: `${where} cites the action ${number}, done on ${cited.application}: a test of ${application} acts on ${application} alone. Do the step with the browser tools of ${application}, such as ${tool("click")}, and cite the numbers their results return in "action".`,
+              remedy,
+            },
+          ];
+        if (cited.typed === undefined || inData(cited.typed)) return [];
+        const typed = JSON.stringify(cited.typed);
+        return [
+          {
+            code: "PLAN-INPUT",
+            message: `${where} cites the action ${number}, which typed ${typed}, and ${typed} is no value of the data of the scenario: its test may type only values of its data. Put it in data, with from "${application}" for a value a screen of ${application} showed before you typed it, or from "${MADE_UP}" for one the test invents, such as { "value": ${typed}, "from": "${MADE_UP}" }; or do the step again with a value of the data, and cite that action.`,
+          },
+        ];
+      });
+    });
+    const first = this.cited(scenario, scenario.steps[0]!.actions)[0];
+    if (first === undefined || first.tool === "goto") return refusals;
+    const opened = done.findLast((action) => action.tool === "goto");
+    const example = opened === undefined ? "" : `, such as the action ${opened.number} (${opened.code})`;
+    return [
+      ...refusals,
+      {
+        code: "PLAN-START",
+        message: `scenario ${scenario.id} starts with the action ${first.number} (${first.code}), which opens no address, and its test starts on an empty page. Open the first address of the scenario with ${tool("goto")}, do its steps from there, and cite that action first in step 1${example}.`,
+        remedy: `Cite first, in actions of step 1 of scenario ${scenario.id}, an action of ${tool("goto")}${example}, then the actions done after it.`,
+      },
+    ];
+  }
+
   /** The refusal of a value its source never showed, with the last texts a knowledge source returned as what the gate would accept. */
   private dataRefusal(value: string, source: string, tool: string): Refusal {
     const message = `no result of ${source} showed "${value}" in this session. Read it first with ${tool}, or correct the value. A value the test invents has from "${MADE_UP}".`;
@@ -558,7 +708,7 @@ export class PlanProposal {
   }
 
   /** What the gates refuse in the expects of a functional scenario, but those the harness emptied of echoes. */
-  private expectErrors(scenario: PlannedScenario, emptied: ReadonlySet<PlannedExpect>): Refusal[] {
+  private expectErrors(scenario: SubmittedScenario, emptied: ReadonlySet<SubmittedExpect>): Refusal[] {
     const told =
       "Give in shows the exact text the screen displays after the action, or in absent the text it no longer displays, as you read it: a name, a number, a message.";
     const expects = scenario.steps
@@ -583,7 +733,7 @@ export class PlanProposal {
 }
 
 /** A plan without the expects the harness emptied of echoes. */
-function withoutEmptied(plan: TestPlan, emptied: ReadonlySet<PlannedExpect>): TestPlan {
+function withoutEmptied(plan: SubmittedPlan, emptied: ReadonlySet<SubmittedExpect>): SubmittedPlan {
   const scenarios = plan.scenarios.map((scenario) => ({
     ...scenario,
     steps: scenario.steps.map((step) => ({ ...step, expects: step.expects.filter((expect) => !emptied.has(expect)) })),
@@ -592,7 +742,7 @@ function withoutEmptied(plan: TestPlan, emptied: ReadonlySet<PlannedExpect>): Te
 }
 
 /** Every text of a scenario the agent wrote, which the design state keeps. */
-function planText(scenario: PlannedScenario): string[] {
+function planText(scenario: SubmittedScenario): string[] {
   return [
     scenario.id,
     scenario.title,

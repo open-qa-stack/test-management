@@ -1,6 +1,6 @@
 import { dirname, relative, resolve, sep } from "node:path";
 import { declaredVariables, type ResolvedConfig } from "@open-qa-stack/shared";
-import { secretForms, type ModuleImport } from "@open-qa-stack/tools";
+import { moduleSyntax, secretForms, type ModuleImport, type SpecLocator } from "@open-qa-stack/tools";
 
 /** The only package a generated test may import. */
 export const TEST_MODULE = "@playwright/test";
@@ -149,4 +149,15 @@ export function secretValueErrors(text: string, secrets: readonly DeclaredSecret
  */
 export function heldVariables(text: string, secrets: readonly DeclaredSecret[]): string[] {
   return secrets.filter(({ value }) => secretForms(value).some((form) => text.includes(form))).map(({ variable }) => variable);
+}
+
+/**
+ * The locators of the text of a test, such as the skeleton the harness writes for a scenario.
+ *
+ * @param text - The text.
+ * @returns Its locators, as its outline reads them; none for a text that does not parse.
+ */
+export async function locatorsOf(text: string): Promise<readonly SpecLocator[]> {
+  const syntax = await moduleSyntax(text);
+  return syntax.ok ? syntax.outline.locators : [];
 }

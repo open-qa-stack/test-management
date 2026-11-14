@@ -16,12 +16,27 @@ const SEARCH: PlannedScenario = {
   sources: [{ source: "shop" }],
   data: [{ value: "Veldane", from: "shop" }],
   steps: [
-    { action: "Open the orders", expects: [] },
+    { action: "Open the orders", code: [], expects: [] },
     {
       action: "Search the orders of Veldane",
-      expects: [{ result: "The order of Mira Veldane is listed alone", shows: ["ORD-1042", "OK"], absent: ["ORD-1057"] }],
+      code: [],
+      expects: [
+        {
+          result: "The order of Mira Veldane is listed alone",
+          shows: ["ORD-1042", "OK"],
+          absent: ["ORD-1057"],
+          elements: [{ text: "ORD-1042", locator: 'page.getByRole("row", { name: "ORD-1042 Mira Veldane" })', field: false }],
+        },
+      ],
     },
   ],
+};
+
+/** The scenario with other lines of code and another element of its first text in its second step. */
+const second = (code: readonly string[], locator: string): PlannedScenario => {
+  const [first, step] = SEARCH.steps as [PlannedScenario["steps"][number], PlannedScenario["steps"][number]];
+  const expects = [{ ...step.expects[0]!, elements: [{ text: "ORD-1042", locator, field: false }] }];
+  return { ...SEARCH, steps: [first, { ...step, code, expects }] };
 };
 
 const OPEN = `  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n  });`;
@@ -34,27 +49,23 @@ const FILLED = [
 const spec = (second: readonly string[], first = OPEN, extra = "") =>
   `import { expect, test } from "@playwright/test";\n\ntest("search", async ({ page }) => {\n${first}\n  await test.step("2. Search the orders of Veldane", async () => {\n${second.join("\n")}\n  });\n});\n${extra}`;
 
-/** What a refusal gives as accepted: a skeleton, and the elements a screen showed the texts in. */
-const HELP: ScenarioHelp = {
-  skeleton: "The skeleton.",
-  locatorOf: (text: string) => new Map([["ORD-1042", { locator: 'page.getByRole("row", { name: "ORD-1042 Mira Veldane" })', field: false }]]).get(text),
-  codes: [],
-};
+/** What a refusal gives as accepted: a skeleton, and no line of code of the browser tools. */
+const HELP: ScenarioHelp = { skeleton: "The skeleton.", codes: [] };
 
 /** What a refusal of a text of the second step gives: every assertion of that step. */
 const STEP_TWO = [
   "Step 2 must hold all of these, with its actions:",
-  // The element the screen showed it in, by a locator that names it: it is visible.
+  // The element the plan gives for it, by a locator that names it: it is visible.
   'await expect(page.getByRole("row", { name: "ORD-1042 Mira Veldane" })).toBeVisible();',
-  // No screen gave its element: the text, anywhere on the page.
+  // The plan gives no element for it: the text, anywhere on the page.
   'await expect(page.getByText("OK")).toBeVisible();',
   'await expect(page.getByText("ORD-1057")).toBeHidden();',
 ].join("\n");
 
-async function refusals(text: string, help = HELP): Promise<Refusal[]> {
+async function refusals(text: string, help = HELP, scenario = SEARCH): Promise<Refusal[]> {
   const syntax = await moduleSyntax(text);
   assert.ok(syntax.ok, JSON.stringify(syntax));
-  return scenarioErrors(syntax.outline, SEARCH, help);
+  return scenarioErrors(syntax.outline, scenario, help);
 }
 
 async function errors(text: string): Promise<string[]> {
@@ -169,15 +180,15 @@ describe("the gates of a test against its scenario", () => {
       ],
     );
     const reversed = spec([FILLED[0]!, `    await expect(page.getByText("ORD-1042")).toBeHidden();`, ...FILLED.slice(2)]);
-    // The element the screen showed it in, by a locator that does not name it: it holds the text.
-    const inCell = { ...HELP, locatorOf: () => ({ locator: 'page.getByRole("cell").first()', field: false }) };
+    // The element the plan gives for it, by a locator that does not name it: it holds the text.
+    const inCell = second([], 'page.getByRole("cell").first()');
     assert.deepEqual(
-      (await refusals(reversed, inCell)).map((refusal) => [refusal.code, refusal.remedy?.split("\n")[1]]),
+      (await refusals(reversed, HELP, inCell)).map((refusal) => [refusal.code, refusal.remedy?.split("\n")[1]]),
       [["TEST-POLARITY", 'await expect(page.getByRole("cell").first()).toContainText("ORD-1042");']],
     );
   });
 
-  it("refuse a step that does nothing on the page, with the lines of code the browser tools returned last", async () => {
+  it("refuse a step that does nothing on the page, with the lines of code of the plan, or else those the browser tools returned last", async () => {
     const idle = spec(FILLED.slice(1));
     const message =
       'TEST-ACTION: step 2 does nothing: do "Search the orders of Veldane" with the browser tools and copy the line of code they return into it, such as';
@@ -192,6 +203,17 @@ describe("the gates of a test against its scenario", () => {
           'Step 2 must do "Search the orders of Veldane" before its assertions. The last lines of code the browser tools returned, the last first:',
           ...codes,
         ].join("\n"),
+      ],
+    );
+    // The plan gives the code of the step: it is what the step must do, whatever the tools returned since.
+    const planned = [FILLED[0]!.trim(), 'await page.getByRole("button", { name: "Search", exact: true }).click();'];
+    const [kept] = await refusals(idle, { ...HELP, codes }, second(planned, 'page.getByRole("row", { name: "ORD-1042 Mira Veldane" })'));
+    assert.deepEqual(
+      [kept!.code, kept!.message, kept!.remedy],
+      [
+        "TEST-ACTION",
+        `step 2 does nothing: it must do "Search the orders of Veldane" with the code lines of its skeleton, before its assertions, starting with ${planned[0]}`,
+        ['Step 2 must do "Search the orders of Veldane" before its assertions, with the code lines of its skeleton:', ...planned].join("\n"),
       ],
     );
   });

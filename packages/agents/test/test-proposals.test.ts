@@ -9,6 +9,7 @@ import { Journal } from "../src/common/journal.ts";
 import { ScreenWatch } from "../src/designer/screen-watch.ts";
 import { skeleton } from "../src/designer/scenario-sheet.ts";
 import { SourceWatch } from "../src/designer/source-watch.ts";
+import { locatorsOf } from "../src/designer/spec-rules.ts";
 import { TestProposals } from "../src/designer/test-proposals.ts";
 
 const root = mkdtempSync(join(tmpdir(), "oqas-proposals-"));
@@ -27,7 +28,7 @@ const scenario = (application: string, sources: readonly string[]): PlannedScena
   domain: "ledger",
   sources: sources.map((source) => ({ source })),
   data: [],
-  steps: [{ action: "Open the ledger", expects: [{ result: "The ledger shows", shows: ["Ledger"], absent: [] }] }],
+  steps: [{ action: "Open the ledger", code: [], expects: [{ result: "The ledger shows", shows: ["Ledger"], absent: [], elements: [] }] }],
 });
 
 /** A tool that returns nothing of note. */
@@ -69,7 +70,7 @@ async function secondRun(
   );
   const planned = scenario(application, cited);
   proposals.start({ scenarios: [planned] });
-  const content = acted(skeleton(planned, false, () => undefined));
+  const content = acted(skeleton(planned, false));
   await screens
     .tools()
     .find((tool) => tool.name === "shop_snapshot")!
@@ -144,7 +145,7 @@ describe("the calls that run a test", () => {
     );
     const planned = scenario("ledger", []);
     proposals.start({ scenarios: [planned] });
-    const content = acted(skeleton(planned, false, () => undefined));
+    const content = acted(skeleton(planned, false));
     const [first, second] = await Promise.allSettled([proposals.trialTool().execute({ content }), proposals.trialTool().execute({ content })]);
     assert.deepEqual([first.status, second.status], ["rejected", "fulfilled"]);
     assert.match(String((second as PromiseFulfilledResult<unknown>).value), /^Run of the file: failed\./);
@@ -172,7 +173,7 @@ describe("the fifth refusal of one reason", () => {
     );
     const planned = scenario("ledger", []);
     proposals.start({ scenarios: [planned] });
-    const content = acted(skeleton(planned, false, () => undefined));
+    const content = acted(skeleton(planned, false));
     await proposals.trialTool().execute({ content });
     const told = [];
     for (let at = 0; at < 5; at += 1)
@@ -204,7 +205,8 @@ describe("the page at the failure of a run", () => {
     steps: [
       {
         action: "Open the profile of Lena Veldane",
-        expects: [{ result: "The profile shows", shows: ["Lena Veldane", "Risk Factor", "Ida Norr"], absent: [] }],
+        code: [],
+        expects: [{ result: "The profile shows", shows: ["Lena Veldane", "Risk Factor", "Ida Norr"], absent: [], elements: [] }],
       },
     ],
   };
@@ -224,8 +226,8 @@ describe("the page at the failure of a run", () => {
       ],
     }),
   });
-  /** The proposals of a scenario whose list showed the customer in a cell, and the screens they rely on. */
-  const proposed = async (runner: TestRunner, planned = profile) => {
+  /** The proposals of a scenario whose list showed the customer in a cell, as its plan says, and the screens they rely on. */
+  const proposed = async (runner: TestRunner, submitted = profile) => {
     const screens = new ScreenWatch(
       ["shop"],
       [
@@ -248,12 +250,18 @@ describe("the page at the failure of a run", () => {
       },
       new Journal(),
     );
-    proposals.start({ scenarios: [planned] });
     await screens
       .tools()
       .find((tool) => tool.name === "shop_snapshot")!
       .execute({});
-    const content = acted(skeleton(planned, false, (text, gone) => screens.locatorOf("shop", text, gone)));
+    const element = (text: string) => {
+      const shown = screens.locatorOf("shop", text, false);
+      return shown === undefined ? [] : [{ text, ...shown }];
+    };
+    const steps = submitted.steps.map((step) => ({ ...step, expects: step.expects.map((expect) => ({ ...expect, elements: expect.shows.flatMap(element) })) }));
+    const planned = { ...submitted, steps };
+    proposals.start({ scenarios: [planned] });
+    const content = acted(skeleton(planned, false));
     const ran = String(await proposals.trialTool().execute({ content }));
     return { proposals, screens, ran };
   };
@@ -307,5 +315,66 @@ describe("the page at the failure of a run", () => {
       const { proposals: missed } = await proposed(runner, closed);
       assert.match((await diagnosed(missed, "application")) as string, /^Scenario open-ledger closed: failing \(application\), kept for a person to decide\./);
     }
+  });
+});
+
+describe("the locators of a test", () => {
+  const OPENED = 'await page.goto("/ledger");';
+  const HEADING = 'page.getByRole("heading", { name: "Ledger", exact: true })';
+  /** A scenario of the shop as a plan keeps it: with the code of its step and the element of its text. */
+  const planned: PlannedScenario = {
+    ...scenario("shop", []),
+    steps: [
+      {
+        action: "Open the ledger",
+        code: [OPENED],
+        expects: [{ result: "The ledger shows", shows: ["Ledger"], absent: [], elements: [{ text: "Ledger", locator: HEADING, field: false }] }],
+      },
+    ],
+  };
+  const passing: TestRunner = {
+    run: async (test) => ({ startedAt: STARTED, tests: [{ id: test.path, verdict: "passed", reason: "Every attempt passed." }] }),
+  };
+  /** The proposals of a session that looked at no screen, as one that resumes a design, and its screens. */
+  const resumed = () => {
+    const screens = new ScreenWatch(["shop"], shopTools());
+    const rules = { repositoryRoot: root, appsDir: "apps", addresses: [], secrets: [], runner: passing, packages: ["@playwright/test"], screenshots: false };
+    const proposals = new TestProposals({ ...rules, screens, reads: new SourceWatch([], [], []) }, new Journal());
+    return { proposals, screens, sheet: proposals.start({ scenarios: [planned] }) };
+  };
+
+  it("are those of the skeleton of its scenario, which the plan gives: a test made of its lines alone runs in a session that saw no screen", async () => {
+    const { proposals, sheet } = resumed();
+    const content = skeleton(planned, false);
+    assert.ok(sheet.includes(content));
+    assert.ok(content.includes(`    ${OPENED}\n    // Expect 1.1: The ledger shows.\n    await expect(${HEADING}).toBeVisible();`), content);
+    assert.match(String(await proposals.trialTool().execute({ content })), /^Run of the file: passed\./);
+    // The same element, written another way, is the one of the plan still.
+    const { proposals: again } = resumed();
+    const reworded = content.replace(HEADING, 'page.getByRole("heading", { name: "Ledger" })');
+    assert.notEqual(reworded, content);
+    assert.match(String(await again.trialTool().execute({ content: reworded })), /^Run of the file: passed\./);
+  });
+
+  it("are else ones a screen of the session showed: another is refused until the agent looked", async () => {
+    const { proposals, screens } = resumed();
+    const other = skeleton(planned, false).replace(HEADING, 'page.getByRole("banner").getByText("Ledger")');
+    assert.deepEqual(await proposals.trialTool().execute({ content: other }), {
+      error:
+        'Refused (TEST-LOCATOR): no screen you looked at showed getByText("Ledger"), getByRole("banner").\nCopy a locator as given, or take shop_snapshot at that step.\nNothing else was refused.',
+    });
+    await screens
+      .tools()
+      .find((tool) => tool.name === "shop_snapshot")!
+      .execute({});
+    const heading = skeleton(planned, false).replace(HEADING, 'page.getByRole("heading").getByText("Ledger")');
+    assert.match(String(await proposals.trialTool().execute({ content: heading })), /^Run of the file: passed\./);
+  });
+
+  it("are read from a text that parses, and none from one that does not", async () => {
+    assert.deepEqual(await locatorsOf(skeleton(planned, false)), [
+      { code: 'getByRole("heading", { name: "Ledger", exact: true })', role: "heading", text: "Ledger" },
+    ]);
+    assert.deepEqual(await locatorsOf('test("open", async ({ page }) => { await page.getByRole("heading"'), []);
   });
 });

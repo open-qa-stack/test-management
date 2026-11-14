@@ -206,7 +206,7 @@ const scenario = (id: string) => ({
   domain: "orders",
   sources: [{ source: "order-specs", item: "Orders" }],
   data: [],
-  steps: [{ action: "Get the orders", expects: [{ result: "The orders answer", shows: ["A customer places an order"], absent: [] }] }],
+  steps: [{ action: "Get the orders", actions: [], expects: [{ result: "The orders answer", shows: ["A customer places an order"], absent: [] }] }],
 });
 const plan = submit("propose_plan", { scenarios: IDS.map(scenario) }, "plan");
 

@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, describe, it } from "node:test";
-import type { PlannedScenario } from "@open-qa-stack/domain";
+import type { ExpectedElement, PlannedScenario } from "@open-qa-stack/domain";
 import { CharterCheck, resolveCharter } from "@open-qa-stack/harness";
 import { moduleSyntax } from "@open-qa-stack/tools";
 import { DesignCursor } from "../src/designer/design-cursor.ts";
@@ -11,12 +11,17 @@ import { scenarioSheet, skeleton } from "../src/designer/scenario-sheet.ts";
 
 /** Types of `@playwright/test` that a skeleton uses. */
 const PLAYWRIGHT_TYPES = `
-export interface Locator { click(): Promise<void>; }
-export interface Page { screenshot(): Promise<Uint8Array>; getByText(text: string): Locator; }
+export interface Locator { click(): Promise<void>; fill(value: string): Promise<void>; }
+export interface Page {
+  goto(url: string): Promise<void>;
+  screenshot(): Promise<Uint8Array>;
+  getByText(text: string): Locator;
+  getByRole(role: string, options?: { name?: string; exact?: boolean }): Locator;
+}
 export interface TestInfo { attach(name: string, options: { body: Uint8Array; contentType: string }): Promise<void>; }
 type Body = (fixtures: { page: Page }, testInfo: TestInfo) => Promise<void>;
 export declare const test: ((title: string, body: Body) => void) & { step<T>(title: string, body: () => Promise<T>): Promise<T> };
-export declare const expect: (actual: unknown) => { toBeVisible(): Promise<void>; toBeHidden(): Promise<void> };
+export declare const expect: (actual: unknown) => { toBeVisible(): Promise<void>; toBeHidden(): Promise<void>; toHaveValue(value: string): Promise<void> };
 `;
 
 const repository = mkdtempSync(join(tmpdir(), "skeleton-"));
@@ -40,24 +45,49 @@ const SEARCH: PlannedScenario = {
   sources: [{ source: "orders-db", item: "public.orders" }],
   data: [{ value: "Veldane", from: "orders-db" }],
   steps: [
-    { action: "Open the orders", expects: [] },
+    { action: "Open the orders", code: [], expects: [] },
     {
       action: "Search the orders\nof Veldane.",
+      code: [],
       expects: [
-        { result: "The table lists the order of Mira Veldane only", shows: ["ORD-1042", "Mira Veldane"], absent: ["ORD-1057"] },
-        { result: "The count says one", shows: ["1 order"], absent: [] },
+        { result: "The table lists the order of Mira Veldane only", shows: ["ORD-1042", "Mira Veldane"], absent: ["ORD-1057"], elements: [] },
+        { result: "The count says one", shows: ["1 order"], absent: [], elements: [] },
       ],
     },
   ],
 };
 
-/** Screens that gave the element of no text. */
-const NOWHERE = () => undefined;
+/** The scenario as a plan keeps it once its steps were done on the screens: with the code of each step, and the elements given. */
+const explored = (first: readonly ExpectedElement[], second: readonly ExpectedElement[]): PlannedScenario => ({
+  ...SEARCH,
+  steps: [
+    { ...SEARCH.steps[0]!, code: ['await page.goto("/orders");'] },
+    {
+      ...SEARCH.steps[1]!,
+      code: [
+        'await page.getByRole("searchbox", { name: "Search orders", exact: true }).fill("Veldane");',
+        'await page.getByRole("button", { name: "Search", exact: true }).click();',
+      ],
+      expects: [
+        { ...SEARCH.steps[1]!.expects[0]!, elements: first },
+        { ...SEARCH.steps[1]!.expects[1]!, elements: second },
+      ],
+    },
+  ],
+});
+const SHOWN = explored(
+  [
+    { text: "ORD-1042", locator: 'page.getByRole("cell", { name: "ORD-1042", exact: true })', field: false },
+    { text: "Mira Veldane", locator: 'page.getByRole("row", { name: "ORD-1042 Mira Veldane" })', field: false },
+    { text: "ORD-1057", locator: 'page.getByRole("cell", { name: "ORD-1057", exact: true })', field: false },
+  ],
+  [{ text: "1 order", locator: 'page.getByRole("textbox", { name: "Count", exact: true })', field: true }],
+);
 
 describe("the skeleton of a test", () => {
-  it("holds one test.step per step, titled by its number, with what to do, an assertion of each text of its expects, and a screenshot when asked", () => {
+  it("holds one test.step per step, titled by its number, with what to do when the plan gives no code, an assertion of each text of its expects, and a screenshot when asked", () => {
     assert.equal(
-      skeleton(SEARCH, true, NOWHERE),
+      skeleton(SEARCH, true),
       `import { expect, test } from "@playwright/test";
 
 test("Search an order by \\"customer\\" name", async ({ page }, testInfo) => {
@@ -78,40 +108,48 @@ test("Search an order by \\"customer\\" name", async ({ page }, testInfo) => {
 });
 `,
     );
-    assert.doesNotMatch(skeleton(SEARCH, false, NOWHERE), /testInfo/);
+    assert.doesNotMatch(skeleton(SEARCH, false), /testInfo/);
   });
 
-  it("asserts each text on the element a screen showed it in, and a value typed as the value of its field", () => {
-    const shown = new Map([
-      ["ORD-1042", { locator: 'page.getByRole("cell", { name: "ORD-1042", exact: true })', field: false }],
-      ["Mira Veldane", { locator: 'page.getByRole("row", { name: "ORD-1042 Mira Veldane" })', field: false }],
-      ["ORD-1057", { locator: 'page.getByRole("cell", { name: "ORD-1057", exact: true })', field: false }],
-      ["1 order", { locator: 'page.getByRole("textbox", { name: "Count", exact: true })', field: true }],
-    ]);
-    const assertions = skeleton(SEARCH, false, (text) => shown.get(text))
-      .split("\n")
-      .filter((line) => line.includes("await expect("));
-    assert.deepEqual(assertions, [
-      '    await expect(page.getByRole("cell", { name: "ORD-1042", exact: true })).toBeVisible();',
-      '    await expect(page.getByRole("row", { name: "ORD-1042 Mira Veldane" })).toBeVisible();',
-      '    await expect(page.getByRole("cell", { name: "ORD-1057", exact: true })).toBeHidden();',
-      '    await expect(page.getByRole("textbox", { name: "Count", exact: true })).toHaveValue("1 order");',
-    ]);
+  it("holds the lines of code the plan gives for each step, in place of what to do, and asserts each text on the element the plan gives for it", () => {
+    assert.equal(
+      skeleton(SHOWN, false),
+      `import { expect, test } from "@playwright/test";
+
+test("Search an order by \\"customer\\" name", async ({ page }) => {
+  await test.step("1. Open the orders", async () => {
+    await page.goto("/orders");
+  });
+  await test.step("2. Search the orders of Veldane", async () => {
+    await page.getByRole("searchbox", { name: "Search orders", exact: true }).fill("Veldane");
+    await page.getByRole("button", { name: "Search", exact: true }).click();
+    // Expect 2.1: The table lists the order of Mira Veldane only.
+    await expect(page.getByRole("cell", { name: "ORD-1042", exact: true })).toBeVisible();
+    await expect(page.getByRole("row", { name: "ORD-1042 Mira Veldane" })).toBeVisible();
+    await expect(page.getByRole("cell", { name: "ORD-1057", exact: true })).toBeHidden();
+    // Expect 2.2: The count says one.
+    await expect(page.getByRole("textbox", { name: "Count", exact: true })).toHaveValue("1 order");
+  });
+});
+`,
+    );
   });
 
-  it("parses, and keeps the default charter as it is", async () => {
+  it("parses, and keeps the default charter as it is, with or without the code and the elements of the plan", async () => {
     const charter = resolveCharter({ disable: [], add: [] });
     assert.ok(charter.ok);
-    const content = skeleton(SEARCH, true, NOWHERE);
-    assert.ok((await moduleSyntax(content)).ok);
-    assert.deepEqual(await new CharterCheck({ repository, rules: charter.rules }).check({ path: "apps/shop/search-order-by-customer.spec.ts", content }), []);
+    for (const scenario of [SEARCH, SHOWN]) {
+      const content = skeleton(scenario, true);
+      assert.ok((await moduleSyntax(content)).ok);
+      assert.deepEqual(await new CharterCheck({ repository, rules: charter.rules }).check({ path: "apps/shop/search-order-by-customer.spec.ts", content }), []);
+    }
   });
 });
 
 describe("the sheet of a scenario", () => {
   it("names the scenario, its data and its file before the skeleton, and ends with the next call", () => {
     const cursor = new DesignCursor({ scenarios: [SEARCH, { ...SEARCH, id: "other", data: [] }] }, (scenario) => `apps/shop/${scenario.id}.spec.ts`);
-    const sheet = scenarioSheet(cursor, false, NOWHERE).split("\n");
+    const sheet = scenarioSheet(cursor, false).split("\n");
     assert.deepEqual(sheet.slice(0, 4), [
       'Scenario 1 of 2: search-order-by-customer — Search an order by "customer" name (functional, nominal), application shop.',
       'Data: "Veldane" (orders-db).',

@@ -406,17 +406,50 @@ describe("the screens the designer watches", () => {
     );
   });
 
-  it("keeps the last five lines of code the tools that open or act on a page returned, the last first", async () => {
+  it("numbers each action whose tool returned its line of code, whatever its application, and keeps it with what it typed", async () => {
     let count = 0;
-    const coded = (action: string): ToolDefinition => ({
-      name: `shop_${action}`,
-      description: action,
+    const coded = (name: string): ToolDefinition => ({
+      name,
+      description: name,
       parameters: { type: "object" },
-      execute: async () => (action === "snapshot" ? { page: LIST, truncated: false } : { code: `line ${(count += 1)}` }),
+      execute: async () => (name.endsWith("_snapshot") ? { page: LIST, truncated: false } : { url: "/orders", code: `line ${(count += 1)}` }),
     });
-    const watch = new ScreenWatch(["shop", "ledger"], ["goto", "snapshot", "click", "fill", "select_option", "check"].map(coded));
-    for (const action of ["goto", "click", "snapshot", "fill", "check", "click", "select_option"]) await run(watch, action);
-    assert.deepEqual([watch.codes("shop"), watch.codes("ledger")], [["line 6", "line 5", "line 4", "line 3", "line 2"], []]);
+    const actions = ["goto", "snapshot", "click", "fill", "select_option", "check"];
+    const watch = new ScreenWatch(
+      ["shop", "desk", "ledger"],
+      [...actions.map((action) => coded(`shop_${action}`)), ...actions.map((action) => coded(`desk_${action}`))],
+    );
+    const call = (name: string, args: object = {}) =>
+      watch
+        .tools()
+        .find((tool) => tool.name === name)!
+        .execute(args);
+    assert.deepEqual(await call("shop_goto", { url: "/orders" }), { url: "/orders", code: "line 1", action: 1, page: SHOWN, truncated: false });
+    assert.deepEqual(await call("shop_fill", { value: "Veldane" }), {
+      url: "/orders",
+      code: "line 2",
+      action: 2,
+      appeared: "Nothing new appeared on the page.",
+      gone: "Nothing went from the page.",
+    });
+    await call("shop_snapshot");
+    await call("desk_goto", { url: "/" });
+    await call("shop_fill", { value: { account: "demo", field: "password" } });
+    await call("shop_select_option", { option: "Paid" });
+    await call("shop_check", { checked: true });
+    await call("shop_click");
+    assert.deepEqual(watch.action(2), { number: 2, application: "shop", tool: "fill", code: "line 2", typed: "Veldane" });
+    assert.deepEqual(watch.action(3), { number: 3, application: "desk", tool: "goto", code: "line 3" });
+    // The credential of an account is no text the agent typed; an option chosen is one.
+    assert.deepEqual(watch.action(4), { number: 4, application: "shop", tool: "fill", code: "line 4" });
+    assert.deepEqual(watch.action(5), { number: 5, application: "shop", tool: "select_option", code: "line 5", typed: "Paid" });
+    assert.deepEqual([watch.action(0), watch.action(8)], [undefined, undefined]);
+    assert.deepEqual(
+      [watch.actions("shop").map((action) => action.number), watch.actions("desk").map((action) => action.number), watch.actions("ledger")],
+      [[1, 2, 4, 5, 6, 7], [3], []],
+    );
+    // The last five lines of code of an application, the last first.
+    assert.deepEqual([watch.codes("shop"), watch.codes("ledger")], [["line 7", "line 6", "line 5", "line 4", "line 2"], []]);
   });
 
   it("says in the description of each tool what it adds to its result", () => {
@@ -426,8 +459,8 @@ describe("the screens the designer watches", () => {
     assert.deepEqual(
       [described.get("shop_goto"), described.get("shop_click"), described.get("shop_snapshot")],
       [
-        "Acts on the page. Returns what the page shows, and the line of code that does the same in a test.",
-        "Acts on the page. Returns what appeared, what went, and the line of code that does the same in a test.",
+        'Acts on the page. Returns what the page shows, the line of code that does the same in a test, and "action", its number: a plan cites it in the steps the action does.',
+        'Acts on the page. Returns what appeared, what went, the line of code that does the same in a test, and "action", its number: a plan cites it in the steps the action does.',
         `Acts on the page. ${state}`,
       ],
     );

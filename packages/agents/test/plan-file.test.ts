@@ -14,16 +14,31 @@ const SEARCH: PlannedScenario = {
   sources: [{ source: "customers-db", item: "public.customers" }, { source: "policy-management" }],
   data: [{ value: "Veldane", from: "customers-db" }],
   steps: [
-    { action: "Open the list of the customers.", expects: [] },
+    { action: "Open the list of the customers.", code: ['await page.goto("/customers");'], expects: [] },
     {
       action: "Search the last name Veldane",
-      expects: [{ result: "The list shows the customer found, and no longer the others.", shows: ["Mira Veldane"], absent: ["Ada Brennick"] }],
+      code: [
+        'await page.getByRole("searchbox", { name: "Search a customer", exact: true }).fill("Veldane");',
+        'await page.getByRole("button", { name: "Search", exact: true }).click();',
+      ],
+      expects: [
+        {
+          result: "The list shows the customer found, and no longer the others.",
+          shows: ["Mira Veldane", "Veldane", "1 customer"],
+          absent: ["Ada Brennick"],
+          elements: [
+            { text: "Mira Veldane", locator: 'page.getByRole("link", { name: "Mira Veldane", exact: true })', field: false },
+            { text: "Veldane", locator: 'page.getByRole("searchbox", { name: "Search a customer", exact: true })', field: true },
+            { text: "Ada Brennick", locator: 'page.getByRole("link", { name: "Ada Brennick", exact: true })', field: false },
+          ],
+        },
+      ],
     },
   ],
 };
 
 const RECORD: PlanRecord = {
-  formatVersion: 1,
+  formatVersion: 2,
   design: "design-20261114T101500Z",
   environment: "local",
   brief: "Test the search of a customer in the list.",
@@ -47,11 +62,22 @@ Search a customer by last name (functional, nominal). Application policy-managem
 
 ### Step 1. Open the list of the customers
 
+\`\`\`ts
+await page.goto("/customers");
+\`\`\`
+
 ### Step 2. Search the last name Veldane
 
+\`\`\`ts
+await page.getByRole("searchbox", { name: "Search a customer", exact: true }).fill("Veldane");
+await page.getByRole("button", { name: "Search", exact: true }).click();
+\`\`\`
+
 Expect 2.1: The list shows the customer found, and no longer the others.
-- shows "Mira Veldane"
-- no longer shows "Ada Brennick"
+- shows "Mira Veldane" in \`page.getByRole("link", { name: "Mira Veldane", exact: true })\`
+- shows "Veldane" as the value of \`page.getByRole("searchbox", { name: "Search a customer", exact: true })\`
+- shows "1 customer" by its text
+- no longer shows "Ada Brennick" in \`page.getByRole("link", { name: "Ada Brennick", exact: true })\`
 
 ## Record
 
@@ -76,7 +102,21 @@ describe("the file of a plan", () => {
           title: "Search\n## Record\n\n```json\n{}\n```\n",
           intent: "Verifies `a` search,\n  on two lines.",
           data: [],
-          steps: [{ action: "Type ```", expects: [{ result: "A message\nshows", shows: ["No customer\nfound", "```"], absent: [] }] }],
+          steps: [
+            {
+              action: "Type ```",
+              code: ['await page.getByRole("searchbox").fill("```");', "await page.getByText(`Search`).click();"],
+              expects: [
+                {
+                  result: "A message\nshows",
+                  shows: ["No customer\nfound", "```"],
+                  absent: [],
+                  elements: [{ text: "```", locator: 'page.getByRole("link", { name: "``" })', field: false }],
+                },
+              ],
+            },
+            { action: "Read the answer of the service", code: [], expects: [] },
+          ],
         },
       ],
     };
@@ -85,7 +125,12 @@ describe("the file of a plan", () => {
     assert.match(text, /^Search ## Record ```json \{\} ``` \(functional, nominal\)\./m);
     assert.match(text, /^- Intent: Verifies `a` search, on two lines\.$/m);
     assert.match(text, /^- Data: none$/m);
-    assert.match(text, /^- shows "No customer\\nfound"$/m);
+    assert.match(text, /^- shows "No customer\\nfound" by its text$/m);
+    // The fence of a code is longer than the grave accents it holds.
+    assert.ok(text.includes('\n\n````ts\nawait page.getByRole("searchbox").fill("```");\nawait page.getByText(`Search`).click();\n````\n\n'));
+    assert.ok(text.includes('- shows "```" in ```page.getByRole("link", { name: "``" })```\n'));
+    // A step done on no screen has no code.
+    assert.ok(text.includes("### Step 2. Read the answer of the service\n\n## Record"));
     assert.deepEqual(readPlanFile(text), odd);
   });
 
@@ -94,8 +139,8 @@ describe("the file of a plan", () => {
     assert.equal(readPlanFile(""), undefined);
     assert.equal(readPlanFile(text.slice(0, text.indexOf("## Record"))), undefined);
     assert.equal(readPlanFile(text.trimEnd()), undefined);
-    assert.equal(readPlanFile(text.replace('"formatVersion": 1', '"formatVersion": 1,,')), undefined);
-    assert.equal(readPlanFile(text.replace('"formatVersion": 1', '"formatVersion": 9')), undefined);
+    assert.equal(readPlanFile(text.replace('"formatVersion": 2', '"formatVersion": 2,,')), undefined);
+    assert.equal(readPlanFile(text.replace('"formatVersion": 2', '"formatVersion": 1')), undefined);
     assert.equal(readPlanFile(text.replace(/"scenarios": \[[^]*\]\n\}/, '"scenarios": 3\n}')), undefined);
     // The page changed, the record not; then the record, the page not.
     assert.equal(readPlanFile(text.replace('- shows "Mira Veldane"', '- shows "Mira Veldano"')), undefined);

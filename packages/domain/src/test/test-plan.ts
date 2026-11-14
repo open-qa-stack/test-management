@@ -20,6 +20,16 @@ export interface ScenarioValue {
   readonly from: string;
 }
 
+/** The element a screen showed an expected text in, as the harness read it from the exploration of the agent. */
+export interface ExpectedElement {
+  /** The text, one of those its expect names. */
+  readonly text: string;
+  /** The locator a test finds the element with. */
+  readonly locator: string;
+  /** Whether it is a field, which holds the text as its value. */
+  readonly field: boolean;
+}
+
 /** A result a step expects to see after its action. */
 export interface PlannedExpect {
   /** The result, in one sentence. */
@@ -28,12 +38,16 @@ export interface PlannedExpect {
   readonly shows: readonly string[];
   /** The exact texts the screen no longer displays. */
   readonly absent: readonly string[];
+  /** The element of each text the exploration showed in one; a text without one is found anywhere on the page. The harness writes them, never the agent. */
+  readonly elements: readonly ExpectedElement[];
 }
 
 /** A step of a scenario: one action of the user and what it should produce. Its test writes it as one `test.step`. */
 export interface PlannedStep {
   /** What the user does, in one sentence. */
   readonly action: string;
+  /** The lines of code that do it in a test, as the browser tools returned them during the exploration; none for a step done on no screen. The harness writes them, never the agent. */
+  readonly code: readonly string[];
   /** What the step expects after the action; none for a step that only leads to the next. */
   readonly expects: readonly PlannedExpect[];
 }

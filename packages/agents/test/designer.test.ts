@@ -175,7 +175,7 @@ const scenario = (id: string, kind = "other", changes: Record<string, unknown> =
   domain: "orders",
   sources: [{ source: "shop", item: "/orders" }],
   data: [],
-  steps: [{ action: "Open the orders", expects: [{ result: "The orders show", shows: ["Orders"], absent: [] }] }],
+  steps: [{ action: "Open the orders", actions: [1], expects: [{ result: "The orders show", shows: ["Orders"], absent: [] }] }],
   ...changes,
 });
 /** The scenarios of the plan, in its order. */
@@ -186,6 +186,25 @@ const OPEN = { id: "open", name: "shop_goto", arguments: { url: "/orders" } };
 const SEARCH = { id: "search", name: "shop_click", arguments: { target: { role: "button", name: "Search" } } };
 /** A call of `propose_plan` with three scenarios about the orders. */
 const PLAN = { id: "plan", name: "propose_plan", arguments: { scenarios: IDS.map((id) => scenario(id)) } };
+
+/** The scenarios of the plan as a design keeps them: each step with the code of the action it cites, each text with its element. */
+const KEPT = IDS.map((id) => ({
+  ...scenario(id),
+  steps: [
+    {
+      action: "Open the orders",
+      code: ['await page.goto("/orders");'],
+      expects: [
+        {
+          result: "The orders show",
+          shows: ["Orders"],
+          absent: [],
+          elements: [{ text: "Orders", locator: 'page.getByRole("heading", { name: "Orders", exact: true })', field: false }],
+        },
+      ],
+    },
+  ],
+}));
 
 /** A call of `run_test`. */
 const run = (content: string, id: string): Call => ({ id, name: "run_test", arguments: { content } });
@@ -347,10 +366,10 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     );
     assert.deepEqual([state.formatVersion, state.plan, state.brief], [3, ".oqas/designs/design-20261113T100000Z.plan.md", undefined]);
     assert.deepEqual(planOf(outcome), {
-      formatVersion: 1,
+      formatVersion: 2,
       design: "design-20261113T100000Z",
       environment: "local",
-      scenarios: PLAN.arguments.scenarios,
+      scenarios: KEPT,
     });
     assert.deepEqual(outcome.tests, state.tests);
     assert.deepEqual(
@@ -394,7 +413,11 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     );
     assert.match(described.get("shop_db_search")!, /Read-only\. A value of the data of a plan comes from a result such as this one\.$/);
     assert.doesNotMatch(described.get("shop_db_query")!, /data of a plan/);
-    assert.match(described.get("shop_goto")!, /Returns what the page shows, and the line of code that does the same in a test\.$/);
+    assert.match(
+      described.get("shop_goto")!,
+      /Returns what the page shows, the line of code that does the same in a test, and "action", its number: a plan cites it in the steps the action does\.$/,
+    );
+    assert.match(described.get("propose_plan")!, /in actions the numbers of the browser actions that did it when you explored/);
     assert.match(described.get("run_test")!, /^Checks the test of the open scenario against the plan, then runs it/);
     assert.match(described.get("propose_plan")!, /The harness refuses a value or a text no tool showed you\.$/);
     const request = requestText(server);
@@ -768,7 +791,7 @@ describe("the sheet of a scenario", () => {
     const sheet = told(server, "plan");
     assert.ok(
       sheet.startsWith(
-        'The plan was accepted.\n\nScenario 1 of 3: list-orders — The list-orders scenario (other, negative), application shop.\nData: "Ada" (shop); "zzqx" (made-up).\nFile: apps/shop/list-orders.spec.ts\n\nimport { expect, test } from "@playwright/test";\n\ntest("The list-orders scenario", async ({ page }) => {\n  await test.step("1. Open the orders", async () => {\n    // Do: Open the orders. Copy the code lines the browser tools returned.\n    // Expect 1.1: The orders show.\n    await expect(page.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();\n  });\n});\n',
+        'The plan was accepted.\n\nScenario 1 of 3: list-orders — The list-orders scenario (other, negative), application shop.\nData: "Ada" (shop); "zzqx" (made-up).\nFile: apps/shop/list-orders.spec.ts\n\nimport { expect, test } from "@playwright/test";\n\ntest("The list-orders scenario", async ({ page }) => {\n  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n    // Expect 1.1: The orders show.\n    await expect(page.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();\n  });\n});\n',
       ),
       sheet,
     );
@@ -779,10 +802,10 @@ describe("the sheet of a scenario", () => {
     );
   });
 
-  it("runs once the agent typed on the screen the invented value it expects, as the value of its field, with the line the browser tools returned", async () => {
+  it("runs as it is once the agent typed on the screen the invented value it expects: it holds the lines the browser tools returned, and the value in its field", async () => {
     const invented = scenario("list-orders", "other", {
       data: [{ value: "zzqx", from: "made-up" }],
-      steps: [{ action: "Search zzqx", expects: [{ result: "The search is echoed", shows: ["Orders", "zzqx"], absent: [] }] }],
+      steps: [{ action: "Search zzqx", actions: [1, 2], expects: [{ result: "The search is echoed", shows: ["Orders", "zzqx"], absent: [] }] }],
     });
     const plan = { ...PLAN, arguments: { scenarios: [invented, scenario("place-order"), scenario("follow-order")] } };
     const sheetOf = (server: ScriptedServer) =>
@@ -798,24 +821,39 @@ describe("the sheet of a scenario", () => {
       { plan: false },
     );
     const skeletonText = sheetOf(second.server);
-    assert.match(skeletonText, /await expect\(page\.getByRole\("textbox", \{ name: "Search orders", exact: true \}\)\)\.toHaveValue\("zzqx"\);/);
-    const idle = await design(
-      [{ body: toolCalls(MODEL, [OPEN]) }, { body: toolCalls(MODEL, [typed]) }, { body: toolCalls(MODEL, [plan]) }, ...replies([[run(skeletonText, "r1")]])],
-      { plan: false },
-    );
     const line = 'await page.getByRole("textbox", { name: "Search orders", exact: true }).fill("zzqx");';
-    assert.match(
-      told(idle.server, "r1"),
-      new RegExp(
-        `^Refused \\(TEST-ACTION\\): step 1 does nothing: do "Search zzqx" with the browser tools and copy the line of code they return into it, such as ${line.replace(/[()[\]{}.*+?^$|\\]/g, "\\$&")}\n`,
+    assert.ok(
+      skeletonText.includes(
+        [
+          '  await test.step("1. Search zzqx", async () => {',
+          '    await page.goto("/orders");',
+          `    ${line}`,
+          "    // Expect 1.1: The search is echoed.",
+          '    await expect(page.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();',
+          '    await expect(page.getByRole("textbox", { name: "Search orders", exact: true })).toHaveValue("zzqx");',
+          "  });",
+        ].join("\n"),
       ),
+      skeletonText,
     );
-    const filled = skeletonText.replace("returned.\n", `returned.\n    ${line}\n`);
+    // A step emptied of its lines is told them again; the skeleton as it is runs.
+    const idle = skeletonText.replace('    await page.goto("/orders");\n', "").replace(`    ${line}\n`, "");
     const { server } = await design(
-      [{ body: toolCalls(MODEL, [OPEN]) }, { body: toolCalls(MODEL, [typed]) }, { body: toolCalls(MODEL, [plan]) }, ...replies([[run(filled, "r1")]])],
+      [
+        { body: toolCalls(MODEL, [OPEN]) },
+        { body: toolCalls(MODEL, [typed]) },
+        { body: toolCalls(MODEL, [plan]) },
+        ...replies([[run(idle, "idle")], [run(skeletonText, "whole")]]),
+      ],
       { plan: false },
     );
-    assert.match(told(server, "r1"), /^Run of the file: passed\./);
+    assert.ok(
+      told(server, "idle").startsWith(
+        'Refused (TEST-ACTION): step 1 does nothing: it must do "Search zzqx" with the code lines of its skeleton, before its assertions, starting with await page.goto("/orders");\n',
+      ),
+      told(server, "idle"),
+    );
+    assert.match(told(server, "whole"), /^Run of the file: passed\./);
   });
 });
 
@@ -1421,7 +1459,7 @@ describe("brief, criterion 3 — the plan is written to a file the design state 
     const { outcome } = await design(replies(valid(3)), { brief: "Test the orders." });
     const state = stateOf(outcome);
     const plan = planOf(outcome);
-    assert.deepEqual([plan.brief, plan.scenarios], ["Test the orders.", PLAN.arguments.scenarios]);
+    assert.deepEqual([plan.brief, plan.scenarios], ["Test the orders.", KEPT]);
     assert.match(readFileSync(outcome.planPath!, "utf8"), /^# Test plan design-20261113T100000Z\n\n- Environment: local\n- Brief: Test the orders\.\n/);
     assert.deepEqual(
       state.tests.map((test) => [test.path, test.scenario]),
@@ -1550,28 +1588,74 @@ describe("what a plan may hold", () => {
 
   it("refuses a functional scenario none of whose texts an action of the agent made appear, and accepts it once the agent searched", async () => {
     const found = { result: "The order shows", shows: ["Order 42 of Ada"], absent: [] };
-    const functional = (id: string, kase: string) =>
+    const functional = (id: string, kase: string, search: number) =>
       scenario(id, "functional", {
         case: kase,
         // A negative scenario holds the input that matches nothing.
         data: kase === "negative" ? [{ value: "zzqx", from: "made-up" }] : [],
         steps: [
-          { action: "Open the orders", expects: [] },
-          { action: "Search the orders", expects: [found] },
+          { action: "Open the orders", actions: [1], expects: [] },
+          { action: "Search the orders", actions: [search], expects: [found] },
         ],
       });
-    const plan = (id: string) => ({
+    /** The plan, whose second steps cite the action that searched. */
+    const plan = (id: string, search: number) => ({
       id,
       name: "propose_plan",
-      arguments: { scenarios: [functional("list-orders", "nominal"), functional("place-order", "negative"), scenario("follow-order")] },
+      arguments: { scenarios: [functional("list-orders", "nominal", search), functional("place-order", "negative", search), scenario("follow-order")] },
     });
-    const { server } = await design(replies([[OPEN], [plan("seen")], [SEARCH], [plan("done")]]), { plan: false });
+    // The limit stops the design once its plan is accepted: the plan is written, with no test.
+    const { outcome, server } = await design(replies([[OPEN], [plan("seen", 1)], [SEARCH], [plan("done", 2)]]), {
+      plan: false,
+      limits: { maxIterations: 5, maxMinutes: 10, maxActions: 200 },
+    });
     assert.match(
       toolResult(server, "seen"),
       /Refused \(PLAN-RESULT\): no text scenario list-orders expects appeared, or went, after an action of yours on shop\. Do its steps with shop_fill and shop_click/,
     );
     assert.match(toolResult(server, "search"), /Order 42 of Ada/);
     assert.match(told(server, "done"), /^The plan was accepted\./);
+    // The plan kept holds the code of the action each step cites: the sheet of its first scenario gives it, and the text no element showed by itself.
+    assert.ok(
+      told(server, "done").includes(
+        [
+          '  await test.step("1. Open the orders", async () => {',
+          '    await page.goto("/orders");',
+          "  });",
+          '  await test.step("2. Search the orders", async () => {',
+          '    await page.getByRole("button", { name: "Search", exact: true }).click();',
+          "    // Expect 2.1: The order shows.",
+          '    await expect(page.getByText("Order 42 of Ada")).toBeVisible();',
+          "  });",
+        ].join("\n"),
+      ),
+      told(server, "done"),
+    );
+    assert.deepEqual(planOf(outcome).scenarios[0]!.steps, [
+      { action: "Open the orders", code: ['await page.goto("/orders");'], expects: [] },
+      {
+        action: "Search the orders",
+        code: ['await page.getByRole("button", { name: "Search", exact: true }).click();'],
+        expects: [{ ...found, elements: [] }],
+      },
+    ]);
+    assert.ok(
+      readFileSync(outcome.planPath!, "utf8").includes(
+        [
+          "### Step 2. Search the orders",
+          "",
+          "```ts",
+          'await page.getByRole("button", { name: "Search", exact: true }).click();',
+          "```",
+          "",
+          "Expect 2.1: The order shows.",
+          '- shows "Order 42 of Ada" by its text',
+          "",
+        ].join("\n"),
+      ),
+    );
+    // The result of an action gives its number, which the plan cites.
+    assert.match(toolResult(server, "search"), /\\"action\\":2/);
   });
 });
 
@@ -1659,11 +1743,12 @@ describe("resume — a design a limit stopped goes on from its plan and its test
     assert.deepEqual([planOf(outcome).scenarios.map((scenario) => scenario.id), state.tests.map((test) => test.scenario)], [IDS, ["list-orders"]]);
   });
 
-  it("gives the plan and the kept test to the session, offers no plan tool, and ends on the same branch with every test", async () => {
+  it("gives the plan and the kept test to the session, offers no plan tool, and ends on the same branch with every test, written from the sheets without a look at a screen", async () => {
     const first = await stopped();
     const before = git(first.root, "rev-parse", BRANCH);
     git(first.root, "switch", "--quiet", "main");
-    const { outcome, root, server } = await design(replies([[OPEN], ...valid(3).slice(2)]), {
+    // The session resumed opens no page: the code and the locators of its tests are those its sheets give, from the plan.
+    const { outcome, root, server } = await design(replies(valid(3).slice(2)), {
       root: first.root,
       plan: false,
       resume: { state: STATE, branch: BRANCH },
@@ -1674,6 +1759,13 @@ describe("resume — a design a limit stopped goes on from its plan and its test
     assert.ok(request.includes(JSON.stringify(JSON.stringify({ scenarios: planOf(first.outcome).scenarios })).slice(1, -1)), "the plan");
     assert.ok(request.includes(JSON.stringify(spec("list-orders").trimEnd()).slice(1, -1)), "the text of the kept test");
     assert.match(request, /Scenario 2 of 3: place-order/);
+    assert.ok(
+      request.includes(
+        JSON.stringify(
+          '    await page.goto("/orders");\n    // Expect 1.1: The orders show.\n    await expect(page.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();',
+        ).slice(1, -1),
+      ),
+    );
     assert.ok(!toolsOffered(server).includes("propose_plan"));
     assert.equal(git(root, "branch", "--show-current"), BRANCH);
     assert.deepEqual(specsOf(root), ["apps/shop/follow-order.spec.ts", "apps/shop/list-orders.spec.ts", "apps/shop/place-order.spec.ts"]);
@@ -1687,7 +1779,7 @@ describe("resume — a design a limit stopped goes on from its plan and its test
     assert.deepEqual([state.plan, outcome.planPath], [stateOf(first.outcome).plan, first.outcome.planPath]);
     assert.deepEqual(planOf(outcome), planOf(first.outcome));
     assert.ok(filesOf(root).includes(state.plan));
-    assert.equal(state.run.iterations, 5 + 6);
+    assert.equal(state.run.iterations, 5 + 5);
   });
 
   it("keeps a plan accepted without a test, with no branch, and creates the branch once the design resumed writes one", async () => {
