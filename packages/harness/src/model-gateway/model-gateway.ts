@@ -13,7 +13,7 @@ import type { Upstream } from "./upstream.ts";
 import { upstreamReason } from "./upstream-reason.ts";
 
 /** Longest wait for a model to answer one request, in milliseconds, unless the upstream gives its own. */
-export const DEFAULT_UPSTREAM_TIMEOUT_MS = 5 * 60_000;
+export const DEFAULT_UPSTREAM_TIMEOUT_MS = 2 * 60_000;
 
 /** How many times a request is sent when the model gives no answer in time: once more after the first. */
 export const UPSTREAM_ATTEMPTS = 2;

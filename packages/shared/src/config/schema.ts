@@ -238,7 +238,7 @@ export const configSchema = {
               type: "integer",
               minimum: 1,
               description:
-                "Longest wait for the answer of the model to one request, in seconds; 300 by default. A request left without answer is sent once more.",
+                "Longest wait for the answer of the model to one request, in seconds; 120 by default. A request left without answer is sent once more.",
             },
             reasoningEffort: {
               ...label,
