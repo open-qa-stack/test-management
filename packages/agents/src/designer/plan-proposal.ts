@@ -23,6 +23,10 @@ const LAST_TEXTS = 5;
 const MAX_TOLD_TEXT = 200;
 /** The words of the action of a step that types a value in a field; the key Enter pressed types none. */
 const TYPING = /\b(?:types?|(?<!\bpress(?:es)?\s+(?:the\s+)?)enters?|fill(?:s|\s+in)?|inputs?|search(?:es)?\s+for)\b/i;
+/** The words of the action of a step that opens an address. */
+const NAVIGATING = /\b(?:navigates?\s+to|go(?:es)?\s+to|visits?)\b/i;
+/** The words of the action of a step that clicks an element. */
+const CLICKING = /\b(?:clicks?|press(?:es)?|opens?|taps?)\b/i;
 /** The words that join another action to the one that types, such as the click that sends a form: the step does more than type. */
 const JOINED = /\b(?:and|then)\b/i;
 
@@ -402,15 +406,20 @@ export class PlanProposal {
           ...expect.absent.filter((text) => !seen(text) && (watched || !observed(text, values))).map((text) => ({ text, shown: false })),
         ]
           .filter(({ text }) => checkable(text))
-          .map((expected) => ({ number: `${at + 1}.${k + 1}`, ...expected })),
+          .map((expected) => ({ number: `${at + 1}.${k + 1}`, step: at + 1, action: step.action, ...expected })),
       ),
     );
-    const unseen = texts.map(({ number, text, shown }) =>
+    // The tool that does the step, as its action reads: the one that types, opens an address or clicks; the browser tools otherwise, such as for a step that selects.
+    const doing = (action: string) => {
+      const tool = TYPING.test(action) ? "fill" : NAVIGATING.test(action) ? "goto" : CLICKING.test(action) ? "click" : undefined;
+      return tool === undefined ? "the browser tools" : scopedToolName(scenario.application, tool);
+    };
+    const unseen = texts.map(({ number, step, action, text, shown }) =>
       watched && shown && observed(text, madeUp)
         ? this.untypedRefusal(scenario, number, text)
         : {
             code: "PLAN-SHOWN",
-            message: `scenario ${scenario.id}, expect ${number}, names "${text}", which ${watched ? `no screen of ${scenario.application} showed in this session. Do the step with the browser tools and copy the text as the screen gives it.` : "nothing you read in this session showed. Copy the text as a tool of a source gives it."}`,
+            message: `scenario ${scenario.id}, expect ${number}, names "${text}", which ${watched ? `no screen of ${scenario.application} showed in this session. Do step ${step}, ${JSON.stringify(action)}, with ${doing(action)}, then copy a text that ${shown ? "appeared" : "went"} after it, as the screen gives it.` : "nothing you read in this session showed. Copy the text as a tool of a source gives it."}`,
           },
     );
     // A field keeps what was typed in it: the line it is on goes only when the field loses the focus.

@@ -291,7 +291,7 @@ describe("the gates of a plan", () => {
     ];
     const steps = [
       {
-        action: "Search zzqx",
+        action: "Search for zzqx",
         expects: [{ result: "Nothing matches", shows: ["No order matches zzqx", "zzqx", "Orders"], absent: ["ORD-1057", "Lena", "Gone"] }],
       },
     ];
@@ -299,7 +299,7 @@ describe("the gates of a plan", () => {
       scenarios: [
         scenario("a", { sources: [{ source: "orders-db" }, { source: "guide" }, { source: "shop" }, { source: "shop" }, { source: "specs" }], data, steps }),
         scenario("b"),
-        scenario("c"),
+        scenario("c", { steps: [{ action: "Go to the orders page", expects: [{ result: "The orders show", shows: ["Orders"], absent: [] }] }] }),
       ],
     };
     // A call that failed read nothing.
@@ -311,16 +311,16 @@ describe("the gates of a plan", () => {
       "Refused (PLAN-READ): scenario a cites shop, and you have read nothing of it. Call shop_goto first.",
       'Refused (PLAN-DATA): no result of orders-db showed "Veldane" in this session. Read it first with orders_db_search, or correct the value. A value the test invents has from "made-up".',
       'Refused (PLAN-DATA): no result of shop showed "Lena Brook" in this session. Read it first with shop_goto, or correct the value. A value the test invents has from "made-up".',
-      'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "No order matches zzqx", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
+      'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "No order matches zzqx", which no screen of shop showed in this session. Do step 1, "Search for zzqx", with shop_fill, then copy a text that appeared after it, as the screen gives it.',
       'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "zzqx", a value of its data that no field of shop held in this session. Type it with shop_fill and do the step, then expect what the screen answered: the field only echoes the value.',
-      'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "Orders", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
-      'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "ORD-1057", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
-      'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "Lena", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
-      'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "Gone", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
+      'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "Orders", which no screen of shop showed in this session. Do step 1, "Search for zzqx", with shop_fill, then copy a text that appeared after it, as the screen gives it.',
+      'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "ORD-1057", which no screen of shop showed in this session. Do step 1, "Search for zzqx", with shop_fill, then copy a text that went after it, as the screen gives it.',
+      'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "Lena", which no screen of shop showed in this session. Do step 1, "Search for zzqx", with shop_fill, then copy a text that went after it, as the screen gives it.',
+      'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "Gone", which no screen of shop showed in this session. Do step 1, "Search for zzqx", with shop_fill, then copy a text that went after it, as the screen gives it.',
       "Refused (PLAN-READ): scenario b cites shop, and you have read nothing of it. Call shop_goto first.",
-      'Refused (PLAN-SHOWN): scenario b, expect 1.1, names "Orders", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
+      'Refused (PLAN-SHOWN): scenario b, expect 1.1, names "Orders", which no screen of shop showed in this session. Do step 1, "Open the orders", with shop_click, then copy a text that appeared after it, as the screen gives it.',
       "Refused (PLAN-READ): scenario c cites shop, and you have read nothing of it. Call shop_goto first.",
-      'Refused (PLAN-SHOWN): scenario c, expect 1.1, names "Orders", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
+      'Refused (PLAN-SHOWN): scenario c, expect 1.1, names "Orders", which no screen of shop showed in this session. Do step 1, "Go to the orders page", with shop_goto, then copy a text that appeared after it, as the screen gives it.',
       "Nothing else was refused.",
     ]);
     await search!.execute({});
@@ -341,7 +341,7 @@ describe("the gates of a plan", () => {
     // A text the base gave, and no screen of the application: a test could not find it as the screen gives it.
     assert.deepEqual(await submit(made, fixed(["Mira Veldane", "zzqx", "Orders"])), {
       error:
-        'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "Mira Veldane", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.\nNothing else was refused.',
+        'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "Mira Veldane", which no screen of shop showed in this session. Do step 1, "Search zzqx", with the browser tools, then copy a text that appeared after it, as the screen gives it.\nNothing else was refused.',
     });
     // The values of the data of a source, spaces and case aside; a source without any tool is held to nothing.
     assert.equal(await submit(made, fixed(["orders", "zzqx", "Orders"])), "The plan was accepted.\n\nScenario 1.");
@@ -525,7 +525,7 @@ describe("the gates of a plan", () => {
     assert.deepEqual(await submit(made, { scenarios: [unseen, sent] }), {
       error: [
         "Refused (PLAN-RESULT): no text scenario c expects appeared, or went, after an action of yours on shop. Do its steps with shop_fill and shop_click, read what the result says appeared and went, and expect that.",
-        'Refused (PLAN-SHOWN): scenario d, expect 1.2, names "Unseen text", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
+        'Refused (PLAN-SHOWN): scenario d, expect 1.2, names "Unseen text", which no screen of shop showed in this session. Do step 1, "Enter \'Quill Zed\' in the search field", with shop_fill, then copy a text that appeared after it, as the screen gives it.',
         'Refused (PLAN-SHOWN): scenario c, expect 1.1, names "Quill Zed", a value of its data that no field of shop held in this session. Type it with shop_fill and do the step, then expect what the screen answered: the field only echoes the value.',
         'Refused (PLAN-SHOWN): scenario c, expect 2.1, names "Quill Zed", a value of its data that no field of shop held in this session. Type it with shop_fill and do the step, then expect what the screen answered: the field only echoes the value.',
         "Nothing else was refused.",
