@@ -9,11 +9,12 @@ export interface TargetScope {
 /**
  * How a browser tool designates an element: by the locators the test charter recommends, and nothing
  * else, so that what the agent explores is what a test can write; inside a part of the page when the
- * element repeats, such as a button on each row.
+ * element repeats, such as a button on each row. `exact` is what the locators of a snapshot end with: a
+ * model that copies it changes nothing, names being matched exactly either way.
  */
 export type Target = (
   { readonly role: string; readonly name?: string } | { readonly label: string } | { readonly testId: string } | { readonly text: string }
-) & { readonly within?: TargetScope };
+) & { readonly within?: TargetScope; readonly exact?: true };
 
 const text = { type: "string", minLength: 1 } as const;
 const within = {
@@ -25,15 +26,18 @@ const within = {
   additionalProperties: false,
 } as const;
 
+/** What a model copies from the locators of a snapshot, which all end with it: names, labels and texts are always matched exactly, so it changes nothing. */
+const exact = { const: true, description: "Names, labels and texts are always matched exactly: may be left out." } as const;
+
 /** JSON Schema of a `Target`, for the parameters of the tools. */
 export const TARGET_SCHEMA = {
   description:
     "The element, as the page snapshot recommends: by role and accessible name, by label, by test id, or by text; with within for the part of the page that holds it, when the snapshot names one.",
   oneOf: [
-    { type: "object", properties: { role: text, name: { type: "string" }, within }, required: ["role"], additionalProperties: false },
-    { type: "object", properties: { label: text, within }, required: ["label"], additionalProperties: false },
+    { type: "object", properties: { role: text, name: { type: "string" }, exact, within }, required: ["role"], additionalProperties: false },
+    { type: "object", properties: { label: text, exact, within }, required: ["label"], additionalProperties: false },
     { type: "object", properties: { testId: text, within }, required: ["testId"], additionalProperties: false },
-    { type: "object", properties: { text, within }, required: ["text"], additionalProperties: false },
+    { type: "object", properties: { text, exact, within }, required: ["text"], additionalProperties: false },
   ],
 } as const;
 
