@@ -39,6 +39,16 @@ export interface TableKeys {
   readonly foreignKeys: readonly ForeignKey[];
 }
 
+/** The structure of a database, read at once. */
+export interface DatabaseStructure {
+  /** Its tables, in the order of the catalog. */
+  readonly tables: readonly TableSummary[];
+  /** The columns of each table, in order, by `schema.table`. */
+  readonly columns: ReadonlyMap<string, readonly ColumnSummary[]>;
+  /** The keys of each table that has some, by `schema.table`. */
+  readonly keys: ReadonlyMap<string, TableKeys>;
+}
+
 /** Reads the structure of a database, never its rows. */
 export class DatabaseCatalog {
   private readonly client: SqlClient;
@@ -49,7 +59,7 @@ export class DatabaseCatalog {
   }
 
   /**
-   * @returns The tables of the database, without the catalog's own.
+   * @returns The tables of the database, without the catalog's own nor those an extension installed.
    * @throws Error when the database cannot be reached.
    */
   public async tables(): Promise<TableSummary[]> {
@@ -105,6 +115,17 @@ export class DatabaseCatalog {
         });
     }
     return keys;
+  }
+
+  /**
+   * Reads the whole structure, each catalog query once.
+   *
+   * @returns The tables of the database, their columns and their keys.
+   * @throws Error when the database cannot be reached.
+   */
+  public async structure(): Promise<DatabaseStructure> {
+    const [tables, columns, keys] = await Promise.all([this.tables(), this.allColumns(), this.keys()]);
+    return { tables, columns, keys };
   }
 
   /**

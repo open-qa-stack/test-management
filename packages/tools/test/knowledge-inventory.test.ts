@@ -82,6 +82,12 @@ describe("the inventory of a knowledge source, read without the model", () => {
       "public.audit": { columns: 0, primaryKey: [], foreignKeys: [] },
     });
     assert.deepEqual(Object.fromEntries(inventory.excerpts!), { "public.policies": "id bigint not null, premium numeric, customer_id bigint not null" });
+    assert.deepEqual(
+      inventory.export!.elements.map((element) => element.name),
+      inventory.items,
+    );
+    assert.equal(inventory.fingerprint, inventory.export!.fingerprint);
+    assert.deepEqual(catalog.queries.toSorted(), [ALL_COLUMNS_QUERY, KEYS_QUERY, TABLES_QUERY].toSorted());
     catalog.premiumType = "integer";
     assert.notEqual((await knowledgeInventory(base, access))!.fingerprint, inventory.fingerprint);
     assert.ok(catalog.queries.every((query) => /information_schema|pg_catalog/.test(query)));

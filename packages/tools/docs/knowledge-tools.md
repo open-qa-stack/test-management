@@ -15,7 +15,7 @@
 ## Bounds
 
 - A contract tool reads the contract the source declares: fetched at its URL, within ten seconds and without following redirects, or read from the test repository. It is loaded on first use and kept; a failed load is tried again on the next call. An operation is returned with the parameters of its path and its local `$ref` resolved.
-- The catalog tools run fixed queries on `information_schema` only, and a guard refuses any other text; table and schema names reach the database as parameters.
+- The catalog tools run fixed queries on the catalog only, `information_schema` and `pg_catalog`, and a guard refuses any other text; table and schema names reach the database as parameters. The tables an extension installed are not listed.
 - The data tools read rows. A sample or a search only touches a table the catalog knows, with quoted identifiers, and the searched value reaches the database as a parameter; its rows give the columns of the primary key first, then the others in the order of the table. A free query must be a single `SELECT` or `WITH`, with no semicolon but a trailing one, even inside a string: it becomes a subquery that the harness bounds. It is refused when the role of the connection can reach the database server — a superuser, or a member of `pg_read_server_files`, `pg_write_server_files` or `pg_execute_server_program` — and when two of its columns share a name. Declare a connection with a role that has none of these rights to use it. A free query the database refuses because it names a column or a table it does not have fails with an error that ends with `Call <id>_describe_table for the exact names.`
 - Rows are bounded (20 by default, 100 at most). Every value is read as text and cut by the database itself to 300 characters, so that a large value never leaves the server; the answer says when rows or values were cut.
 - Every query opens a connection, runs in a read-only transaction with a five-second statement timeout, is rolled back and closes the connection: no tool can write. The connection string is read from the environment variable the source names, when a query runs, and never appears in an error.
@@ -35,3 +35,16 @@
 ## Failures
 
 A source that cannot be reached, or a database whose connection string is not set, fails the call and not the session: the agent receives the error and may go on. An operation, a section or a table that does not exist is answered with an error the agent can read. A missing folder fails the call, and is looked for again at the next one. A missing log file, an engine that is not installed, does not answer in time or cannot read the container, fails the call with its reason. A stopped container still has its logs, and the tool reads them. `knowledgeTools` gives tools to every source it receives: choosing the sources of a session from their attachments is up to the caller.
+
+## Export of a database
+
+`knowledgeInventory(source, access)` reads what a source holds without the model. For a `postgresql` source it reads the catalog once and returns, with the inventory, the `export` of the database: its elements, each with a `name`, a `kind`, a `summary` of a few lines, its whole `definition`, the `names` it declares, the `links` to the other elements it refers to, the `file` of its definition in the export and a `fingerprint`.
+
+| Kind | Name | Definition | Summary | Names | Links | File |
+|---|---|---|---|---|---|---|
+| `table` | `schema.table` | A `CREATE TABLE` written again from the catalog: columns with their type and `NOT NULL`, primary key, foreign keys | Columns, primary key, foreign keys | Its columns | The other tables its foreign keys reference | `tables/<name>.sql` |
+
+- PostgreSQL keeps no text of a table. Its definition is there to be read, not run: names are written as the catalog gives them, unquoted, and types as `information_schema` names them. Defaults, checks, unique constraints and indexes are not in it.
+- The tables of the catalog itself and those an extension installed are left out.
+- The fingerprint of an element is `sha256:` and a digest of its definition; that of the database covers the fingerprints of its elements, in the order of the export. A change to one element changes its fingerprint and that of the database, and no other.
+- A name of lower-case letters, digits, dots, hyphens and underscores, 120 characters at most, names its file as it is. Any other has its other characters replaced by underscores, is cut to 120 characters and is followed by a digest of the whole name, so that no file leaves its folder and two elements never share one, even on a file system that ignores case.

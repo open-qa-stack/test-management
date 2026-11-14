@@ -1,6 +1,12 @@
-/** Every table of the database, by schema, without the catalog's own. */
+/** Every table of the database, by schema, without the catalog's own nor those an extension installed. */
 export const TABLES_QUERY = `SELECT table_schema AS schema, table_name AS table FROM information_schema.tables
   WHERE table_type = 'BASE TABLE' AND table_schema NOT IN ('pg_catalog', 'information_schema')
+    AND NOT EXISTS (
+      SELECT 1 FROM pg_catalog.pg_depend d
+      JOIN pg_catalog.pg_class c ON c.oid = d.objid
+      JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+      WHERE d.classid = 'pg_catalog.pg_class'::regclass AND d.deptype = 'e' AND n.nspname = table_schema AND c.relname = table_name
+    )
   ORDER BY table_schema, table_name`;
 
 /** The columns of every table, without the catalog's own, table by table and in order. */

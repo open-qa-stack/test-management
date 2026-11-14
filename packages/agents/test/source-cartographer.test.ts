@@ -25,6 +25,7 @@ const DB: MappedKnowledge = { id: "shop-db", type: "postgresql", connectionStrin
 class CatalogDouble implements SqlClient {
   public readonly queries: string[] = [];
   public extraColumn = false;
+  public statusType = "text";
 
   /** {@inheritDoc SqlClient.query} */
   public async query(text: string): Promise<SqlResult> {
@@ -60,7 +61,7 @@ class CatalogDouble implements SqlClient {
       const columns: unknown[][] = [
         ["public", "orders", "id", "bigint", false],
         ["public", "orders", "customer_id", "bigint", false],
-        ["public", "orders", "status", "text", false],
+        ["public", "orders", "status", this.statusType, false],
         ["public", "customers", "id", "bigint", false],
         ["public", "customers", "email", "text", false],
       ];
@@ -321,6 +322,64 @@ describe("freshness, criterion 1 — an unchanged source is not mapped again; a 
     assert.deepEqual([changed.outcome.kept, changed.outcome.card!.fingerprint === forced.outcome.card!.fingerprint], [false, false]);
     writeFileSync(changed.outcome.cardPath!, "{");
     assert.equal((await cartography(happy(), { root, database })).outcome.kept, false);
+  });
+});
+
+describe("the export of a base, written beside its card", () => {
+  it("writes the summary of its tables and the definition of each in the folder of the source, the secrets of the configuration masked", async () => {
+    const database = new CatalogDouble();
+    database.statusType = "text DEFAULT 'postgresql://shop:s3cr3t-pw@127.0.0.1:5999/shop'";
+    const { outcome } = await cartography(happy(), { database });
+    const folder = outcome.cardPath!.replace(/\.json$/, "");
+    assert.equal(
+      readFileSync(join(folder, "export", "summary.txt"), "utf8"),
+      [
+        "table public.orders",
+        "  columns: id bigint not null, customer_id bigint not null, status text DEFAULT '[secret]' not null",
+        "  primary key: id",
+        "  foreign keys: customer_id -> public.customers (id)",
+        "",
+        "table public.customers",
+        "  columns: id bigint not null, email text not null",
+        "  primary key: id",
+        "",
+        "table public.schema_migrations",
+        "",
+      ].join("\n"),
+    );
+    assert.equal(
+      readFileSync(join(folder, "export", "tables", "public.orders.sql"), "utf8"),
+      [
+        "CREATE TABLE public.orders (",
+        "  id bigint NOT NULL,",
+        "  customer_id bigint NOT NULL,",
+        "  status text DEFAULT '[secret]' NOT NULL,",
+        "  PRIMARY KEY (id),",
+        "  FOREIGN KEY (customer_id) REFERENCES public.customers (id)",
+        ");",
+        "",
+      ].join("\n"),
+    );
+    assert.ok(messages(outcome).includes(`The export of shop-db was written to ${folder}.`));
+  });
+
+  it("writes no export when the card is kept, and none for a source that has none", async () => {
+    const root = mkdtempSync(join(workspace, "repo-"));
+    const database = new CatalogDouble();
+    const made = await cartography(happy(), { root, database });
+    const folder = made.outcome.cardPath!.replace(/\.json$/, "");
+    rmSync(folder, { recursive: true });
+    const kept = await cartography([], { root, database });
+    assert.deepEqual([kept.outcome.kept, existsSync(folder)], [true, false]);
+    assert.doesNotMatch(messages(kept.outcome), /The export of/);
+    writeFileSync(join(root, "specs.md"), "# Orders\n");
+    const specs: MappedKnowledge = { id: "specs", type: "document", path: "specs.md", attachments: [{ application: "shop" }] };
+    const card = {
+      domains: [{ id: "orders", label: "Orders", description: "The orders.", items: [{ name: "Orders", summary: "The orders." }] }],
+      unassigned: [],
+    };
+    const document = await cartography([{ body: toolCalls(MODEL, [submit(card)]) }, { body: answer(MODEL, "Done.") }], { root, source: specs });
+    assert.deepEqual([document.outcome.card?.status, existsSync(document.outcome.cardPath!.replace(/\.json$/, ""))], ["complete", false]);
   });
 });
 
