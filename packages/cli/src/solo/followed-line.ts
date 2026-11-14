@@ -45,7 +45,7 @@ function saidBy(line: TraceLine): string | undefined {
     case "usage":
       return event.inputTokens === undefined || event.outputTokens === undefined
         ? `${event.requests} model requests`
-        : `${event.requests} model requests, ${event.inputTokens} tokens read, ${event.outputTokens} written`;
+        : `${event.requests} model requests, ${event.inputTokens} tokens read, ${event.cachedTokens ?? 0} of them from the cache, ${event.outputTokens} written`;
     default:
       return undefined;
   }

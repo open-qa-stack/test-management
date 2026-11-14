@@ -18,6 +18,7 @@ export class TaskBudget implements RequestGate {
   private actions = 0;
   private tokens: { input: number; output: number } | undefined;
   private imageTokens: number | undefined;
+  private cachedTokens: number | undefined;
   private reason: StopReason | undefined;
 
   /**
@@ -43,13 +44,14 @@ export class TaskBudget implements RequestGate {
   /**
    * What the task has used so far.
    *
-   * @returns Its iterations, browser actions and elapsed time, its tokens once the model reported some, and
-   * those of its images once it sent one.
+   * @returns Its iterations, browser actions and elapsed time, its tokens once the model reported some, those
+   * its server read from its cache once it reported some, and those of its images once it sent one.
    */
   public get counters(): TaskCounters {
     const tokens = this.tokens === undefined ? {} : { inputTokens: this.tokens.input, outputTokens: this.tokens.output };
     const images = this.imageTokens === undefined ? {} : { imageTokens: this.imageTokens };
-    return { iterations: this.iterations, actions: this.actions, elapsedMs: this.elapsedMs, ...tokens, ...images };
+    const cached = this.cachedTokens === undefined ? {} : { cachedTokens: this.cachedTokens };
+    return { iterations: this.iterations, actions: this.actions, elapsedMs: this.elapsedMs, ...tokens, ...cached, ...images };
   }
 
   private get elapsedMs(): number {
@@ -67,6 +69,11 @@ export class TaskBudget implements RequestGate {
   /** {@inheritDoc RequestGate.countTokens} */
   public countTokens(input: number, output: number): void {
     this.tokens = { input: (this.tokens?.input ?? 0) + input, output: (this.tokens?.output ?? 0) + output };
+  }
+
+  /** {@inheritDoc RequestGate.countCachedTokens} */
+  public countCachedTokens(tokens: number): void {
+    if (tokens > 0) this.cachedTokens = (this.cachedTokens ?? 0) + tokens;
   }
 
   /** {@inheritDoc RequestGate.countImageTokens} */

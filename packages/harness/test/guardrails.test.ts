@@ -158,14 +158,19 @@ describe("a task that ends within its limits says what it used", () => {
 
 describe("the tokens of a task", () => {
   it("adds up the tokens each answer reports, and gives none when the model reports none", async () => {
-    const withUsage = (body: unknown, prompt: number, completion: number) => ({
+    const withUsage = (body: unknown, prompt: number, completion: number, cached?: number) => ({
       ...(body as object),
-      usage: { prompt_tokens: prompt, completion_tokens: completion, total_tokens: prompt + completion },
+      usage: {
+        prompt_tokens: prompt,
+        completion_tokens: completion,
+        total_tokens: prompt + completion,
+        ...(cached === undefined ? {} : { prompt_tokens_details: { cached_tokens: cached } }),
+      },
     });
     const { usage: _, ...silent } = answer(MODEL, "Done.") as { usage: unknown };
     const server = await scriptedServer([
       { body: withUsage(toolCalls(MODEL, [{ id: "n1", name: "noop", arguments: {} }]), 120, 8) },
-      { body: withUsage(answer(MODEL, "Done."), 140, 5) },
+      { body: withUsage(answer(MODEL, "Done."), 140, 5, 100) },
       { body: silent },
     ]);
     const noop: ToolDefinition = { name: "noop", description: "Does nothing.", parameters: { type: "object" }, execute: async () => "ok" };
@@ -177,6 +182,8 @@ describe("the tokens of a task", () => {
       ]);
       const counters = (events: readonly AgentEvent[]) => (events.at(-1) as Extract<AgentEvent, { type: "end" }>).counters;
       assert.deepEqual([counters(reported!)?.iterations, counters(reported!)?.inputTokens, counters(reported!)?.outputTokens], [2, 260, 13]);
+      // Of the tokens sent, those the server read from its cache: the first answer reports none, the second 100.
+      assert.equal(counters(reported!)?.cachedTokens, 100);
       assert.deepEqual(Object.keys(counters(unreported!)!).sort(), ["actions", "elapsedMs", "iterations"]);
     } finally {
       await server.close();
@@ -189,6 +196,12 @@ describe("the tokens of a task", () => {
     budget.countTokens(10, 2);
     budget.countTokens(4, 1);
     assert.deepEqual(budget.counters, { iterations: 0, actions: 0, elapsedMs: 0, inputTokens: 14, outputTokens: 3 });
+    // The tokens read from the cache of the server are counted once a call read some.
+    budget.countCachedTokens(0);
+    assert.equal("cachedTokens" in budget.counters, false);
+    budget.countCachedTokens(8);
+    budget.countCachedTokens(2);
+    assert.deepEqual(budget.counters, { iterations: 0, actions: 0, elapsedMs: 0, inputTokens: 14, outputTokens: 3, cachedTokens: 10 });
   });
 });
 

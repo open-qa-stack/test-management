@@ -378,7 +378,11 @@ describe("a line of the trace, as a person follows it", () => {
     assert.equal(followedLine(harness({ type: "usage", requests: 3, inputTokens: 1200 })), "12:34:56 write 3 model requests");
     assert.equal(
       followedLine(harness({ type: "usage", requests: 3, inputTokens: 1200, outputTokens: 40 })),
-      "12:34:56 write 3 model requests, 1200 tokens read, 40 written",
+      "12:34:56 write 3 model requests, 1200 tokens read, 0 of them from the cache, 40 written",
+    );
+    assert.equal(
+      followedLine(harness({ type: "usage", requests: 3, inputTokens: 1200, outputTokens: 40, cachedTokens: 1000 })),
+      "12:34:56 write 3 model requests, 1200 tokens read, 1000 of them from the cache, 40 written",
     );
   });
 

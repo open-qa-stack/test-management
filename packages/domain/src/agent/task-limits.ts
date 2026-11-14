@@ -20,6 +20,8 @@ export interface TaskCounters {
   readonly inputTokens?: number;
   /** Tokens the model produced, when it reported them. */
   readonly outputTokens?: number;
+  /** Those of `inputTokens` the model server read from its cache, once it reported some: a server bills them less. */
+  readonly cachedTokens?: number;
   /**
    * Tokens of the images sent to the model, once one was: the harness counts each image in each call that
    * carries it, at `imageTokens`, since models leave them out of the tokens they report.

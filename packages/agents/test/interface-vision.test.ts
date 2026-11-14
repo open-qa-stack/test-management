@@ -101,4 +101,12 @@ describe("the usage of tasks", () => {
     assert.deepEqual(totalUsage([shown, unseen, shown]), { requests: 5, inputTokens: 60, outputTokens: 10, imageTokens: 4000 });
     assert.deepEqual(totalUsage([unseen]), { requests: 1 });
   });
+
+  it("keeps the tokens the server of the model read from its cache, and adds them up", () => {
+    const cached = usageOf({ iterations: 2, actions: 0, elapsedMs: 0, inputTokens: 30, outputTokens: 5, cachedTokens: 20 });
+    const plain = usageOf({ iterations: 1, actions: 0, elapsedMs: 0, inputTokens: 10, outputTokens: 1 });
+    assert.deepEqual(cached, { requests: 2, inputTokens: 30, outputTokens: 5, cachedTokens: 20 });
+    assert.deepEqual(totalUsage([cached, plain, cached]), { requests: 5, inputTokens: 70, outputTokens: 11, cachedTokens: 40 });
+    assert.deepEqual(totalUsage([plain]), { requests: 1, inputTokens: 10, outputTokens: 1 });
+  });
 });

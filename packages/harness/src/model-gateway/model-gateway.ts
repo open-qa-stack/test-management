@@ -162,11 +162,15 @@ function fail(res: ServerResponse, channel: GatewayChannel, failure: GatewayFail
   send(res, 400, { error: { message: `Model gateway: ${failure.kind}.`, type: "gateway_error" } });
 }
 
-/** Answers with a completion, once the gate of its channel has counted the tokens the completion reports. */
+/** Answers with a completion, once the gate of its channel has counted the tokens the completion reports, and those its server read from its cache. */
 function serve(res: ServerResponse, channel: GatewayChannel, response: unknown): void {
-  const usage = (response as { usage?: { prompt_tokens?: unknown; completion_tokens?: unknown } } | null)?.usage;
+  const usage = (
+    response as { usage?: { prompt_tokens?: unknown; completion_tokens?: unknown; prompt_tokens_details?: { cached_tokens?: unknown } | null } } | null
+  )?.usage;
   if (typeof usage?.prompt_tokens === "number" && typeof usage.completion_tokens === "number")
     channel.gate?.countTokens?.(usage.prompt_tokens, usage.completion_tokens);
+  const cached = usage?.prompt_tokens_details?.cached_tokens;
+  if (typeof cached === "number") channel.gate?.countCachedTokens?.(cached);
   send(res, 200, response);
 }
 

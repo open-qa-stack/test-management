@@ -12,6 +12,12 @@ export interface RequestGate {
    */
   countTokens?(input: number, output: number): void;
   /**
+   * Records the tokens of a model call the model server read from its cache, which it counts among those sent.
+   *
+   * @param tokens - Tokens read from the cache; `0` for a call that read none.
+   */
+  countCachedTokens?(tokens: number): void;
+  /**
    * Records the tokens of the images a model call carries, which models leave out of what they report.
    *
    * @param tokens - Tokens of the images, as `imageTokens` counts them; `0` for a call without one.
