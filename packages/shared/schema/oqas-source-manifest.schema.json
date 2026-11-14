@@ -9,6 +9,7 @@
     "fingerprint",
     "producedAt",
     "status",
+    "domains",
     "elements"
   ],
   "properties": {
@@ -53,9 +54,16 @@
     },
     "status": {
       "enum": [
-        "complete",
-        "truncated"
+        "in_progress",
+        "truncated",
+        "complete"
       ]
+    },
+    "domains": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/domain"
+      }
     },
     "elements": {
       "type": "array",
@@ -65,6 +73,29 @@
     }
   },
   "$defs": {
+    "domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "description"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
     "element": {
       "type": "object",
       "additionalProperties": false,
@@ -88,6 +119,22 @@
           "minLength": 1
         },
         "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "domain": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dismissed": {
+          "type": "string",
+          "minLength": 1
+        },
+        "unplaced": {
           "type": "string",
           "minLength": 1
         }

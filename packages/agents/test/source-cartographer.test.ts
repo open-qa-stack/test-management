@@ -130,23 +130,32 @@ function configFor(modelUrl: string, limits = { maxIterations: 20, maxMinutes: 1
   return result.config;
 }
 
+/** A document of three sections, mapped with a card the agent hands in. */
+const DOC: MappedKnowledge = { id: "specs", type: "document", path: "specs.md", attachments: [{ application: "shop" }] };
+const DOC_TEXT = "# Orders\n\nA customer places an order.\n\n# Customers\n\nWho buys.\n\n# Migrations\n";
+const DOMAINS = [
+  { id: "orders", label: "Orders", description: "Orders placed by customers." },
+  { id: "customers", label: "Customers", description: "The customers of the shop." },
+];
 const CARD: SourceCardSubmission = {
   domains: [
-    {
-      id: "orders",
-      label: "Orders",
-      description: "Orders placed by customers.",
-      items: [{ name: "public.orders", summary: "One order and its status.", keyFields: ["status"] }],
-    },
-    {
-      id: "customers",
-      label: "Customers",
-      description: "The customers of the shop.",
-      items: [{ name: "public.customers", summary: "A customer and their email.", keyFields: ["email"] }],
-    },
+    { ...DOMAINS[0]!, items: [{ name: "Orders", summary: "How an order is placed.", keyFields: ["status"] }] },
+    { ...DOMAINS[1]!, items: [{ name: "Customers", summary: "Who the customers are." }] },
   ],
-  unassigned: ["public.schema_migrations"],
+  unassigned: ["Migrations"],
 };
+
+/** Where the tables of the base go: two in a domain, one set aside. */
+const PLACED = [
+  { name: "public.orders", domain: "orders", role: "One order and its status." },
+  { name: "public.customers", domain: "customers", role: "A customer and their email." },
+];
+const ASIDE = { name: "public.schema_migrations", reason: "The log of the migrations." };
+const place = (items: readonly unknown[], domains?: readonly unknown[], id = "p1") => ({
+  id,
+  name: "place_elements",
+  arguments: domains === undefined ? { items } : { domains, items },
+});
 
 const submit = (card: unknown, id = "c1") => ({ id, name: "submit_card", arguments: card });
 
@@ -178,10 +187,12 @@ async function cartography(replies: readonly { status?: number; body: unknown }[
   const runtime = new CopilotAgentRuntime({ endpoint: gateway, model: MODEL, homeDirectory: mkdtempSync(join(workspace, "home-")) });
   try {
     const config = configFor(server.baseUrl, setup.limits);
+    const root = setup.root ?? mkdtempSync(join(workspace, "repo-"));
+    if (setup.source === DOC) writeFileSync(join(root, "specs.md"), DOC_TEXT);
     const cartographer = new SourceCartographer({
       config: setup.config === undefined ? config : setup.config(config),
       source: setup.source ?? DB,
-      repositoryRoot: setup.root ?? mkdtempSync(join(workspace, "repo-")),
+      repositoryRoot: root,
       env: { SHOP_DB_URL: "postgresql://shop:s3cr3t-pw@127.0.0.1:5999/shop" },
       runtime,
       ...(setup.realDatabase === true ? {} : { sqlClient: () => setup.database ?? new CatalogDouble() }),
@@ -198,111 +209,191 @@ async function cartography(replies: readonly { status?: number; body: unknown }[
 }
 
 const messages = (outcome: SourceCartographyOutcome) => outcome.journal.map((entry) => entry.message).join("\n");
-const happy = () => [
-  { body: toolCalls(MODEL, [{ id: "d1", name: "shop_db_describe_table", arguments: { schema: "public", table: "orders" } }]) },
-  { body: toolCalls(MODEL, [submit(CARD)]) },
-  { body: answer(MODEL, "Two domains.") },
-];
+const manifestOf = (outcome: SourceCartographyOutcome) =>
+  JSON.parse(readFileSync(join(outcome.cardPath!.replace(/\.json$/, ""), "manifest.json"), "utf8")) as SourceManifest;
 
-describe("criterion 1 — the keys of a base are read from the catalog alone", () => {
-  it("gives the agent each table with its columns, primary key and foreign keys, and sends only catalog queries", async () => {
+/** The base placed in one batch: a first call, then the same element set aside again to confirm it. */
+const happy = () => [
+  { body: toolCalls(MODEL, [place([...PLACED, ASIDE], DOMAINS)]) },
+  { body: toolCalls(MODEL, [place([ASIDE], undefined, "p2")]) },
+  { body: answer(MODEL, "Done.") },
+];
+/** The document mapped with one card. */
+const documented = () => [{ body: toolCalls(MODEL, [submit(CARD)]) }, { body: answer(MODEL, "Two domains.") }];
+
+describe("the grouping of a base, batch by batch", () => {
+  it("asks the model to place the elements of the batch with place_elements alone, and reads the catalog only", async () => {
     const database = new CatalogDouble();
     const { server } = await cartography(happy(), { database });
-    const request = JSON.stringify(server.requests[0]!.body);
-    assert.ok(
-      request.includes(
-        JSON.stringify(
-          `- public.orders (kind: "table"; columns: 3; primaryKey: ["id"]; foreignKeys: [{"columns":["customer_id"],"references":"public.customers","referencedColumns":["id"]}])`,
-        ).slice(1, -1),
-      ),
+    const body = server.requests[0]!.body as { messages: { role: string; content: string }[]; tools: { function: { name: string } }[] };
+    assert.deepEqual(
+      body.tools.map((tool) => tool.function.name),
+      ["place_elements"],
     );
-    assert.ok(request.includes(JSON.stringify(`Its 3 elements, with what is already known of each:`).slice(1, -1)));
     assert.ok(
-      request.includes(
-        JSON.stringify(
-          `The elements to place are exactly these names: ["public.orders","public.customers","public.schema_migrations"]. What follows each name in parentheses is known facts, not elements.`,
-        ).slice(1, -1),
-      ),
+      body.messages
+        .find((message) => message.role === "user")!
+        .content.endsWith(
+          [
+            "Batch 1 of 1 of the source shop-db.",
+            "",
+            "No domain exists yet: declare the ones this batch needs.",
+            "",
+            "The 3 elements to place, each named by its ### line:",
+            "",
+            "### public.orders",
+            "table public.orders",
+            "  columns: id bigint not null, customer_id bigint not null, status text not null",
+            "  primary key: id",
+            "  foreign keys: customer_id -> public.customers (id)",
+            "",
+            "### public.customers",
+            "table public.customers",
+            "  columns: id bigint not null, email text not null",
+            "  primary key: id",
+            "",
+            "### public.schema_migrations",
+            "table public.schema_migrations",
+            "",
+            "Call place_elements with these 3 elements.",
+          ].join("\n"),
+        ),
     );
     for (const query of database.queries) assert.match(query, /information_schema|pg_catalog/);
   });
-});
 
-describe("criterion 2 — the card of a base passes its schema, places every table, and gives each its keys", () => {
-  it("writes the card in the index folder, with the facts the harness read joined to each table", async () => {
+  it("derives the card from the manifest: the role of each table as its summary, its facts, and the tables set aside in unassigned", async () => {
     const { outcome } = await cartography(happy());
     assert.match(outcome.cardPath!, new RegExp(`\\.oqas/index/${CARDS_FOLDER}/shop-db\\.json$`));
-    const written = JSON.parse(readFileSync(outcome.cardPath!, "utf8")) as unknown;
-    assert.deepEqual(validateSourceCard(written), { ok: true, value: outcome.card });
-    assert.deepEqual(outcome.card!.domains[0]!.items[0], {
-      name: "public.orders",
-      summary: "One order and its status.",
-      keyFields: ["status"],
-      facts: {
-        kind: "table",
-        columns: 3,
-        primaryKey: ["id"],
-        foreignKeys: [{ columns: ["customer_id"], references: "public.customers", referencedColumns: ["id"] }],
-      },
+    assert.deepEqual(validateSourceCard(JSON.parse(readFileSync(outcome.cardPath!, "utf8")) as unknown), { ok: true, value: outcome.card });
+    assert.deepEqual(outcome.card!.domains[0], {
+      ...DOMAINS[0]!,
+      items: [
+        {
+          name: "public.orders",
+          summary: "One order and its status.",
+          facts: {
+            kind: "table",
+            columns: 3,
+            primaryKey: ["id"],
+            foreignKeys: [{ columns: ["customer_id"], references: "public.customers", referencedColumns: ["id"] }],
+          },
+        },
+      ],
     });
     assert.deepEqual(
-      [outcome.card!.status, outcome.card!.source, outcome.card!.unassigned, outcome.card!.run.iterations],
-      ["complete", { id: "shop-db", type: "postgresql" }, ["public.schema_migrations"], 3],
+      [outcome.card!.status, outcome.card!.source, outcome.card!.unassigned, outcome.card!.run.iterations, outcome.usage.requests],
+      ["complete", { id: "shop-db", type: "postgresql" }, ["public.schema_migrations"], 3, 3],
     );
-    assert.match(outcome.card!.fingerprint, /^sha256:/);
+    const manifest = manifestOf(outcome);
+    assert.deepEqual([manifest.status, manifest.domains, manifest.fingerprint], ["complete", DOMAINS, outcome.card!.fingerprint]);
+    assert.deepEqual(
+      manifest.elements.map(({ name, domain, role, dismissed }) => ({ name, domain, role, dismissed })),
+      [
+        { name: "public.orders", domain: "orders", role: "One order and its status.", dismissed: undefined },
+        { name: "public.customers", domain: "customers", role: "A customer and their email.", dismissed: undefined },
+        { name: "public.schema_migrations", domain: undefined, role: undefined, dismissed: "The log of the migrations." },
+      ],
+    );
+    assert.match(messages(outcome), /The grouping of shop-db is complete: 2 domains, 2 elements placed, 1 set aside, 0 unplaced\./);
   });
-});
 
-describe("the views of a base, placed like its tables", () => {
-  it("lists a view in the request with what it reads, refuses a card that forgets it, joins its facts to the card and writes its query in the export", async () => {
+  it("keeps what a call places validly, tells only what is wrong, and closes the batch after three calls, the rest left unplaced", async () => {
+    const wrong = { name: "public.customers", domain: "people", role: "A customer." };
+    const { outcome, server } = await cartography([
+      { body: toolCalls(MODEL, [place([PLACED[0], wrong, { name: "public.invoices", domain: "orders", role: "Invented." }], [DOMAINS[0]])]) },
+      { body: toolCalls(MODEL, [place([wrong], undefined, "p2")]) },
+      { body: toolCalls(MODEL, [place([wrong], undefined, "p3")]) },
+      { body: answer(MODEL, "Done.") },
+    ]);
+    const told = JSON.stringify(server.requests[1]!.body);
+    assert.ok(told.includes("1 of 3 elements are settled."));
+    assert.ok(told.includes("public.invoices is not an element of this batch."));
+    assert.match(told, /Still to place: \[[^\]]*public\.customers[^\]]*public\.schema_migrations[^\]]*\]/);
+    assert.ok(JSON.stringify(server.requests[3]!.body).includes("This batch is closed: 2 elements stay unplaced and will be asked again later."));
+    assert.deepEqual(
+      [outcome.card!.status, outcome.card!.domains.map((domain) => domain.id), outcome.card!.unassigned],
+      ["truncated", ["orders"], ["public.customers", "public.schema_migrations"]],
+    );
+    const manifest = manifestOf(outcome);
+    assert.equal(manifest.status, "truncated");
+    assert.match(manifest.elements[1]!.unplaced!, /^public\.customers: the domain "people" does not exist\. Declare it in domains/);
+    assert.equal(manifest.elements[2]!.unplaced, "The model had 3 calls.");
+    assert.match(messages(outcome), /batch 1 of 1 was closed with 2 elements unplaced: public\.customers, public\.schema_migrations\. The model had 3 calls\./);
+    assert.match(messages(outcome), /The grouping of shop-db is truncated: 1 domains, 1 elements placed, 0 set aside, 2 unplaced\./);
+  });
+
+  it("reminds a model that stops before the batch is over, and leaves unplaced what a session that fails or reaches a limit did not place", async () => {
+    const reminded = await cartography([
+      { body: answer(MODEL, "Done.") },
+      { body: toolCalls(MODEL, [place([...PLACED, ASIDE], DOMAINS)]) },
+      { body: toolCalls(MODEL, [place([ASIDE], undefined, "p2")]) },
+      { body: answer(MODEL, "Done.") },
+    ]);
+    assert.ok(JSON.stringify(reminded.server.requests[1]!.body).includes("3 elements of this batch are not placed yet:"));
+    assert.equal(reminded.outcome.card!.status, "complete");
+    const down = await closedPort();
+    const root = mkdtempSync(join(workspace, "repo-"));
+    const failed = await cartography([], { root, modelUrl: `http://127.0.0.1:${down}/v1` });
+    assert.match(messages(failed.outcome), /The session of batch 1 of 1 failed: [^\n]*\nbatch 1 of 1 was closed with 3 elements unplaced/);
+    assert.match(messages(failed.outcome), /No card was written: no element of shop-db was placed\.$/);
+    assert.deepEqual([failed.outcome.card, failed.outcome.cardPath], [undefined, undefined]);
+    const left = JSON.parse(readFileSync(join(root, ".oqas", "index", CARDS_FOLDER, "shop-db", "manifest.json"), "utf8")) as SourceManifest;
+    assert.deepEqual([left.status, left.elements[0]!.unplaced], ["truncated", "The session ended before they were placed."]);
+    const limited = await cartography(happy(), { limits: { maxIterations: 1, maxMinutes: 10, maxActions: 200 } });
+    assert.match(messages(limited.outcome), /The session of batch 1 of 1 reached its iterations limit\./);
+    assert.deepEqual(
+      [limited.outcome.stoppedBy, limited.outcome.card!.status, limited.outcome.card!.unassigned],
+      ["iterations", "truncated", ["public.schema_migrations"]],
+    );
+    assert.equal(manifestOf(limited.outcome).elements[2]!.unplaced, "The model set it aside and did not confirm.");
+  });
+
+  it("places the views with the tables, and the routines in the manifest only", async () => {
+    const root = mkdtempSync(join(workspace, "repo-"));
     const database = new CatalogDouble();
     database.view = true;
-    const placed = {
-      ...CARD,
-      domains: [
-        { ...CARD.domains[0]!, items: [...CARD.domains[0]!.items, { name: "public.open_orders", summary: "The orders still open." }] },
-        CARD.domains[1]!,
-      ],
-    };
-    const { outcome, server } = await cartography(
-      [{ body: toolCalls(MODEL, [submit(CARD)]) }, { body: toolCalls(MODEL, [submit(placed, "c2")]) }, { body: answer(MODEL, "Done.") }],
-      { database },
+    database.routineBody = "BEGIN NEW.status := 'touched'; RETURN NEW; END";
+    const more = [
+      { name: "public.open_orders", domain: "orders", role: "The orders still open." },
+      { name: "public.touch()", domain: "orders", role: "Marks an order as touched." },
+    ];
+    const script = () => [
+      { body: toolCalls(MODEL, [place([...PLACED, ASIDE, ...more], DOMAINS)]) },
+      { body: toolCalls(MODEL, [place([ASIDE], undefined, "p2")]) },
+      { body: answer(MODEL, "Done.") },
+    ];
+    const { outcome, server } = await cartography(script(), { root, database });
+    const request = (server.requests[0]!.body as { messages: { role: string; content: string }[] }).messages.find(
+      (message) => message.role === "user",
+    )!.content;
+    assert.ok(
+      request.includes(
+        "### public.open_orders\nview public.open_orders\n  columns: id\n  reads: public.orders\n\n### public.touch()\nfunction public.touch() returns trigger\n",
+      ),
     );
-    const request = JSON.stringify(server.requests[0]!.body);
-    assert.ok(request.includes(JSON.stringify(`- public.open_orders (kind: "view"; columns: 1; reads: ["public.orders"])`).slice(1, -1)));
-    assert.match(messages(outcome), /The card was refused: public\.open_orders is in no domain nor in unassigned\./);
-    assert.deepEqual(outcome.card!.domains[0]!.items[1], {
-      name: "public.open_orders",
-      summary: "The orders still open.",
-      facts: { kind: "view", columns: 1, reads: ["public.orders"] },
-    });
+    assert.ok(request.includes("  foreign keys: customer_id -> public.customers (id)\n  triggers: orders_touch -> public.touch()\n"));
+    assert.deepEqual(
+      outcome.card!.domains[0]!.items.map((item) => [item.name, item.summary, item.facts!["kind"], item.facts!["triggers"]]),
+      [
+        ["public.orders", "One order and its status.", "table", ["orders_touch"]],
+        ["public.open_orders", "The orders still open.", "view", undefined],
+      ],
+    );
+    assert.deepEqual(outcome.card!.domains[0]!.items[1]!.facts, { kind: "view", columns: 1, reads: ["public.orders"] });
+    const manifest = manifestOf(outcome);
+    assert.deepEqual([manifest.status, manifest.elements.at(-1)!.name, manifest.elements.at(-1)!.domain], ["complete", "public.touch()", "orders"]);
     const folder = outcome.cardPath!.replace(/\.json$/, "");
     assert.equal(
       readFileSync(join(folder, "export", "views", "public.open_orders.sql"), "utf8"),
       "CREATE VIEW public.open_orders AS\n SELECT id\n   FROM orders\n  WHERE status = 'open'::text;\n",
     );
-    assert.ok(readFileSync(join(folder, "export", "summary.txt"), "utf8").endsWith("\n\nview public.open_orders\n  columns: id\n  reads: public.orders\n"));
-  });
-});
-
-describe("the routines and the triggers of a base, exported but not placed", () => {
-  it("writes a routine in the export without asking the card to place it, gives a table its triggers, and makes the card again when a routine changes", async () => {
-    const root = mkdtempSync(join(workspace, "repo-"));
-    const database = new CatalogDouble();
-    database.routineBody = "BEGIN NEW.status := 'touched'; RETURN NEW; END";
-    const { outcome, server } = await cartography(happy(), { root, database });
-    const request = JSON.stringify(server.requests[0]!.body);
-    assert.ok(request.includes(JSON.stringify(`exactly these names: ["public.orders","public.customers","public.schema_migrations"].`).slice(1, -1)));
-    assert.ok(request.includes(JSON.stringify(`"referencedColumns":["id"]}]; triggers: ["orders_touch"])`).slice(1, -1)));
-    assert.deepEqual([outcome.card!.status, outcome.card!.domains[0]!.items[0]!.facts!["triggers"]], ["complete", ["orders_touch"]]);
-    const folder = outcome.cardPath!.replace(/\.json$/, "");
     const [file] = readdirSync(join(folder, "export", "routines"));
     assert.match(file!, /^public\.touch_-[0-9a-f]{8}\.sql$/);
     assert.equal(
       readFileSync(join(folder, "export", "routines", file!), "utf8"),
       "CREATE OR REPLACE FUNCTION public.touch()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$ BEGIN NEW.status := 'touched'; RETURN NEW; END $function$\n",
     );
-    assert.ok(readFileSync(join(folder, "export", "summary.txt"), "utf8").endsWith("\n\nfunction public.touch() returns trigger\n"));
     assert.ok(
       readFileSync(join(folder, "export", "tables", "public.orders.sql"), "utf8").endsWith(
         ");\n\nCREATE TRIGGER orders_touch BEFORE UPDATE ON public.orders FOR EACH ROW EXECUTE FUNCTION touch();\n",
@@ -310,34 +401,40 @@ describe("the routines and the triggers of a base, exported but not placed", () 
     );
     assert.equal((await cartography([], { root, database })).outcome.kept, true);
     database.routineBody = "BEGIN RETURN NEW; END";
-    assert.equal((await cartography(happy(), { root, database })).outcome.kept, false);
+    assert.equal((await cartography(script(), { root, database })).outcome.kept, false);
+  });
+
+  it("gives a base without any element an empty, complete card and manifest, without the model", async () => {
+    const empty: SqlClient = { query: async () => ({ columns: [], rows: [] }) };
+    const { outcome, server } = await cartography([], { database: empty });
+    assert.deepEqual([outcome.card!.status, outcome.card!.domains, outcome.card!.unassigned, server.requests.length], ["complete", [], [], 0]);
+    assert.deepEqual([manifestOf(outcome).status, manifestOf(outcome).elements], ["complete", []]);
   });
 });
 
-describe("criterion 3 — a card that forgets or invents a table is refused, with the tables to place", () => {
+describe("criterion 3 — a card that forgets or invents an element is refused, with the elements to place", () => {
   it("tells the agent what is wrong and what is still to place, and reads a name written after the source", async () => {
     const wrong = {
       domains: [
         {
           ...CARD.domains[0]!,
           items: [
-            { name: "shop-db/public.orders", summary: "An order." },
-            { name: "public.invoices", summary: "Invented." },
+            { name: "specs/Orders", summary: "An order." },
+            { name: "Invoices", summary: "Invented." },
           ],
         },
       ],
       unassigned: [],
     };
-    const { outcome, server } = await cartography([
-      { body: toolCalls(MODEL, [submit(wrong)]) },
-      { body: toolCalls(MODEL, [submit(CARD, "c2")]) },
-      { body: answer(MODEL, "Done.") },
-    ]);
+    const { outcome, server } = await cartography(
+      [{ body: toolCalls(MODEL, [submit(wrong)]) }, { body: toolCalls(MODEL, [submit(CARD, "c2")]) }, { body: answer(MODEL, "Done.") }],
+      { source: DOC },
+    );
     const told = JSON.stringify(server.requests[1]!.body);
-    assert.ok(told.includes("public.invoices is not an element of shop-db"));
+    assert.ok(told.includes("Invoices is not an element of specs"));
     assert.ok(told.includes("Still to place, in a domain or in unassigned, each exactly as written:"));
-    assert.ok(told.includes("public.customers") && !told.includes("public.orders is in no domain"));
-    assert.match(messages(outcome), /The card was refused: public\.customers is in no domain nor in unassigned\./);
+    assert.ok(told.includes("Customers") && !told.includes("Orders is in no domain"));
+    assert.match(messages(outcome), /The card was refused: Customers is in no domain nor in unassigned\./);
     assert.equal(outcome.card!.status, "complete");
   });
 
@@ -345,42 +442,34 @@ describe("criterion 3 — a card that forgets or invents a table is refused, wit
     const forgetful = { domains: [CARD.domains[0]!], unassigned: CARD.unassigned };
     const invented = {
       ...CARD,
-      domains: [{ ...CARD.domains[0]!, items: [...CARD.domains[0]!.items, { name: "public.invoices", summary: "Invented." }] }, CARD.domains[1]!],
+      domains: [{ ...CARD.domains[0]!, items: [...CARD.domains[0]!.items, { name: "Invoices", summary: "Invented." }] }, CARD.domains[1]!],
     };
-    const { outcome } = await cartography([
-      { body: toolCalls(MODEL, [submit(forgetful, "c1")]) },
-      { body: toolCalls(MODEL, [submit(invented, "c2")]) },
-      { body: toolCalls(MODEL, [submit(forgetful, "c3")]) },
-      { body: toolCalls(MODEL, [submit(forgetful, "c4")]) },
-      { body: answer(MODEL, "Done.") },
-    ]);
+    const { outcome } = await cartography(
+      [
+        { body: toolCalls(MODEL, [submit(forgetful, "c1")]) },
+        { body: toolCalls(MODEL, [submit(invented, "c2")]) },
+        { body: toolCalls(MODEL, [submit(forgetful, "c3")]) },
+        { body: toolCalls(MODEL, [submit(forgetful, "c4")]) },
+        { body: answer(MODEL, "Done.") },
+      ],
+      { source: DOC },
+    );
     assert.equal(messages(outcome).match(/the harness put/g)?.length, 1, messages(outcome));
     assert.match(messages(outcome), /2 submissions of the card in a row left items to place; the harness put the 1 of the latest in unassigned\./);
-    assert.ok(outcome.card!.unassigned.includes("public.customers"));
+    assert.ok(outcome.card!.unassigned.includes("Customers"));
   });
 
   it("reads a card without unassigned as one that puts no element there", async () => {
-    const { outcome } = await cartography([
-      {
-        body: toolCalls(MODEL, [
-          submit({
-            domains: [
-              { ...CARD.domains[0]!, items: [...CARD.domains[0]!.items, { name: "public.schema_migrations", summary: "Migrations." }] },
-              CARD.domains[1]!,
-            ],
-          }),
-        ]),
-      },
-      { body: answer(MODEL, "Done.") },
-    ]);
+    const whole = { domains: [{ ...CARD.domains[0]!, items: [...CARD.domains[0]!.items, { name: "Migrations", summary: "Migrations." }] }, CARD.domains[1]!] };
+    const { outcome } = await cartography([{ body: toolCalls(MODEL, [submit(whole)]) }, { body: answer(MODEL, "Done.") }], { source: DOC });
     assert.deepEqual(outcome.card?.unassigned, [], messages(outcome));
   });
 
   it("journals a submission that breaks the schema, and writes nothing without an accepted card", async () => {
-    const { outcome } = await cartography([
-      { body: toolCalls(MODEL, [submit({ domains: [] })]) },
-      ...Array.from({ length: 4 }, () => ({ body: answer(MODEL, "Done.") })),
-    ]);
+    const { outcome } = await cartography(
+      [{ body: toolCalls(MODEL, [submit({ domains: [] })]) }, ...Array.from({ length: 4 }, () => ({ body: answer(MODEL, "Done.") }))],
+      { source: DOC },
+    );
     assert.match(messages(outcome), /The card was refused: \/domains must NOT have fewer than 1 items\./);
     assert.match(messages(outcome), /The agent stopped without an accepted card; it was reminded to hand one in\./);
     assert.match(messages(outcome), /No card was written: no card was accepted before the session ended\./);
@@ -389,10 +478,10 @@ describe("criterion 3 — a card that forgets or invents a table is refused, wit
 });
 
 describe("criterion 4 — the cartographer of a source offers only the tools of that source", () => {
-  it("offers its catalog tools and submit_card, and no tool that reads rows", async () => {
-    const { server } = await cartography(happy());
+  it("offers the tools of a document, the notes and submit_card", async () => {
+    const { server } = await cartography(documented(), { source: DOC });
     const offered = (server.requests[0]!.body as { tools: { function: { name: string } }[] }).tools.map((t) => t.function.name).sort();
-    assert.deepEqual(offered, ["recall", "remember", "shop_db_describe_table", "shop_db_list_tables", "submit_card"]);
+    assert.deepEqual(offered, ["recall", "remember", "specs_list_sections", "specs_read_section", "submit_card"]);
   });
 });
 
@@ -418,7 +507,7 @@ describe("the export of a base, written beside its card", () => {
   it("writes the summary of its tables and the definition of each in the folder of the source, the secrets of the configuration masked", async () => {
     const database = new CatalogDouble();
     database.statusType = "text DEFAULT 'postgresql://shop:s3cr3t-pw@127.0.0.1:5999/shop'";
-    const { outcome } = await cartography(happy(), { database });
+    const { outcome, server } = await cartography(happy(), { database });
     const folder = outcome.cardPath!.replace(/\.json$/, "");
     assert.equal(
       readFileSync(join(folder, "export", "summary.txt"), "utf8"),
@@ -450,18 +539,15 @@ describe("the export of a base, written beside its card", () => {
       ].join("\n"),
     );
     assert.ok(messages(outcome).includes(`The export of shop-db and its manifest were written to ${folder}.`));
+    assert.ok(!JSON.stringify(server.requests[0]!.body).includes("s3cr3t-pw"), "the request of a batch holds no secret");
   });
 
-  it("writes the manifest of the export, which passes its schema and gives each element the fingerprint and the file of its definition", async () => {
-    const database = new CatalogDouble();
-    database.view = true;
-    database.routineBody = "BEGIN RETURN NEW; END";
-    const card = { ...CARD, unassigned: [...CARD.unassigned, "public.open_orders"] };
-    const { outcome } = await cartography([{ body: toolCalls(MODEL, [submit(card)]) }, { body: answer(MODEL, "Done.") }], { database });
+  it("writes the manifest, which passes its schema and gives each element the fingerprint and the file of its definition", async () => {
+    const { outcome } = await cartography(happy());
     const folder = outcome.cardPath!.replace(/\.json$/, "");
     const validation = validateSourceManifest(JSON.parse(readFileSync(join(folder, "manifest.json"), "utf8")));
     assert.ok(validation.ok, JSON.stringify(validation));
-    const { elements, ...head } = validation.value;
+    const { elements, domains: _domains, ...head } = validation.value;
     assert.deepEqual(head, {
       formatVersion: 1,
       source: { id: "shop-db", type: "postgresql" },
@@ -470,13 +556,11 @@ describe("the export of a base, written beside its card", () => {
       status: "complete",
     });
     assert.deepEqual(
-      elements.map((element) => [element.name, element.kind, element.file.replace(/-[0-9a-f]{8}\.sql$/, "-digest.sql")]),
+      elements.map((element) => [element.name, element.kind, element.file]),
       [
         ["public.orders", "table", "export/tables/public.orders.sql"],
         ["public.customers", "table", "export/tables/public.customers.sql"],
         ["public.schema_migrations", "table", "export/tables/public.schema_migrations.sql"],
-        ["public.open_orders", "view", "export/views/public.open_orders.sql"],
-        ["public.touch()", "routine", "export/routines/public.touch_-digest.sql"],
       ],
     );
     for (const element of elements)
@@ -484,12 +568,11 @@ describe("the export of a base, written beside its card", () => {
     assert.equal(fingerprintOf(elements.map((element) => element.fingerprint).join("\n")), head.fingerprint);
   });
 
-  it("writes a truncated manifest when the harness read only part of the source", async () => {
+  it("writes a truncated manifest and card when the harness read only part of the source", async () => {
     const access = { repositoryRoot: workspace, env: { SHOP_DB_URL: "postgresql://x" }, sqlClient: () => new CatalogDouble() };
     const inventory = { ...(await knowledgeInventory(DB, access)), truncated: true };
     const { outcome } = await cartography(happy(), { inventory });
-    const manifest = JSON.parse(readFileSync(join(outcome.cardPath!.replace(/\.json$/, ""), "manifest.json"), "utf8")) as SourceManifest;
-    assert.deepEqual([manifest.status, manifest.elements.length, outcome.card!.status], ["truncated", 3, "truncated"]);
+    assert.deepEqual([manifestOf(outcome).status, manifestOf(outcome).elements.length, outcome.card!.status], ["truncated", 3, "truncated"]);
   });
 
   it("writes no export when the card is kept, and none for a source that has none", async () => {
@@ -500,15 +583,8 @@ describe("the export of a base, written beside its card", () => {
     rmSync(folder, { recursive: true });
     const kept = await cartography([], { root, database });
     assert.deepEqual([kept.outcome.kept, existsSync(folder)], [true, false]);
-    assert.equal(existsSync(join(folder, "manifest.json")), false);
     assert.doesNotMatch(messages(kept.outcome), /The export of/);
-    writeFileSync(join(root, "specs.md"), "# Orders\n");
-    const specs: MappedKnowledge = { id: "specs", type: "document", path: "specs.md", attachments: [{ application: "shop" }] };
-    const card = {
-      domains: [{ id: "orders", label: "Orders", description: "The orders.", items: [{ name: "Orders", summary: "The orders." }] }],
-      unassigned: [],
-    };
-    const document = await cartography([{ body: toolCalls(MODEL, [submit(card)]) }, { body: answer(MODEL, "Done.") }], { root, source: specs });
+    const document = await cartography(documented(), { root, source: DOC });
     assert.deepEqual([document.outcome.card?.status, existsSync(document.outcome.cardPath!.replace(/\.json$/, ""))], ["complete", false]);
   });
 });
@@ -524,24 +600,29 @@ describe("what writes no card", () => {
   });
 
   it("a card that would not match its schema, or a session that failed before any card", async () => {
-    const invalid = await cartography(happy(), { config: (config) => ({ ...config, model: { ...config.model, model: "" } }) });
-    assert.match(
-      messages(invalid.outcome),
-      /The card does not match its schema: \/model\/model must NOT have fewer than 1 characters\.\nNo card was written\./,
-    );
+    for (const setup of [{}, { source: DOC }]) {
+      const invalid = await cartography(setup.source === undefined ? happy() : documented(), {
+        ...setup,
+        config: (config) => ({ ...config, model: { ...config.model, model: "" } }),
+      });
+      assert.match(
+        messages(invalid.outcome),
+        /The card does not match its schema: \/model\/model must NOT have fewer than 1 characters\.\nNo card was written\./,
+      );
+      assert.equal(invalid.outcome.card, undefined);
+    }
     const down = await closedPort();
-    const failed = await cartography([], { modelUrl: `http://127.0.0.1:${down}/v1` });
+    const failed = await cartography([], { source: DOC, modelUrl: `http://127.0.0.1:${down}/v1` });
     assert.match(messages(failed.outcome), /The session failed: /);
   });
 
   it("but a card accepted before a limit stopped the task is written, truncated", async () => {
-    const { outcome } = await cartography([{ body: toolCalls(MODEL, [submit(CARD)]) }, { body: answer(MODEL, "Done.") }], {
-      limits: { maxIterations: 1, maxMinutes: 10, maxActions: 200 },
-    });
+    const { outcome } = await cartography(documented(), { source: DOC, limits: { maxIterations: 1, maxMinutes: 10, maxActions: 200 } });
     assert.equal(outcome.card!.status, "truncated");
     assert.match(messages(outcome), /The task reached its iterations limit\./);
     assert.equal(outcome.stoppedBy, "iterations");
     const none = await cartography([{ body: toolCalls(MODEL, [submit({ domains: [] })]) }, { body: answer(MODEL, "Done.") }], {
+      source: DOC,
       limits: { maxIterations: 1, maxMinutes: 10, maxActions: 200 },
     });
     assert.deepEqual([none.outcome.card, none.outcome.stoppedBy], [undefined, "iterations"]);
@@ -555,14 +636,15 @@ describe("defaults and tool errors", () => {
     assert.match(messages(outcome), /does not answer: The database query failed: .*ECONNREFUSED/);
   });
 
-  it("journals a tool the agent called wrongly, and dates the card with the system clock", async () => {
+  it("journals a tool the agent called wrongly, for a card as for a batch, and dates the card with the system clock", async () => {
     const before = Date.now();
-    const wrong = [{ id: "w1", name: "shop_db_describe_table", arguments: { schema: "public" } }];
-    const { outcome } = await cartography([{ body: toolCalls(MODEL, wrong) }, { body: toolCalls(MODEL, [submit(CARD)]) }, { body: answer(MODEL, "Done.") }], {
-      systemClock: true,
-    });
-    assert.match(messages(outcome), /shop_db_describe_table: The arguments do not match the schema of shop_db_describe_table/);
+    const wrong = [{ id: "w1", name: "specs_read_section", arguments: {} }];
+    const { outcome } = await cartography([{ body: toolCalls(MODEL, wrong) }, ...documented()], { source: DOC, systemClock: true });
+    assert.match(messages(outcome), /specs_read_section: The arguments do not match the schema of specs_read_section/);
     assert.ok(Date.parse(outcome.card!.producedAt) >= before);
+    const unknown = await cartography([{ body: toolCalls(MODEL, [{ id: "w1", name: "shop_db_list_tables", arguments: {} }]) }, ...happy()]);
+    assert.match(messages(unknown.outcome), /shop_db_list_tables: /);
+    assert.equal(unknown.outcome.card!.status, "complete");
   });
 });
 
@@ -571,18 +653,6 @@ describe("the request of a cartography", () => {
     const request = sourceCardRequest("x", "postgresql", { items: ["a", "b"], facts: new Map([["b", {}]]), fingerprint: "f" });
     assert.equal(request.split("\n").slice(1, 3).join("|"), "- a|- b");
     assert.ok(!request.includes("indented line"));
-  });
-});
-
-describe("faster cartography — the request of a card gives the agent what the harness already read", () => {
-  it("gives the columns of each table under it, and still offers the tools of the base", async () => {
-    const { server } = await cartography(happy(), { database: new CatalogDouble() });
-    const request = (server.requests[0]!.body as { messages: { role: string; content: string }[] }).messages.find(
-      (message) => message.role === "user",
-    )!.content;
-    assert.match(request, /\n- public\.orders \([^\n]*\)\n  id bigint not null, customer_id bigint not null, status text not null\n- public\.customers /);
-    assert.match(request, /The indented line under a name is what the harness already read of it\. Call a tool only for what this request does not show/);
-    assert.ok((server.requests[0]!.body as { tools: { function: { name: string } }[] }).tools.some((tool) => tool.function.name === "shop_db_describe_table"));
   });
 
   it("gives the start of each section of a document under its name", () => {
@@ -593,6 +663,7 @@ describe("faster cartography — the request of a card gives the agent what the 
       fingerprint: "f",
     });
     assert.equal(request.split("\n").slice(1, 4).join("|"), "- Orders (number: 1; level: 1)|  A customer places an order.|- Returns");
+    assert.match(request, /The indented line under a name is what the harness already read of it\. Call a tool only for what this request does not show/);
   });
 });
 
@@ -794,7 +865,7 @@ describe("freshness, criterion 2 — the sources without an up-to-date card are 
     );
     const toolsOf = (request: number) =>
       (first.server.requests[request]!.body as { tools: { function: { name: string } }[] }).tools.map((tool) => tool.function.name);
-    assert.ok(toolsOf(0).includes("shop_db_describe_table") && !toolsOf(0).some((name) => name.startsWith("specs_")));
+    assert.deepEqual(toolsOf(0), ["place_elements"]);
     assert.ok(toolsOf(3).includes("specs_read_section") && !toolsOf(3).some((name) => name.startsWith("shop_db_")));
     assert.equal((first.server.requests[3]!.body as { messages: unknown[] }).messages.length, 2, "the second source starts a session of its own");
     const again = await map([], 2);
@@ -892,15 +963,14 @@ describe("sources a card must still be made of", () => {
       domains: [{ ...CARD.domains[0]!, items: [{ ...CARD.domains[0]!.items[0]!, summary: `Read with ${secret}.` }] }, CARD.domains[1]!],
       unassigned: [...CARD.unassigned, secret],
     };
-    const { outcome, server } = await cartography([
-      { body: toolCalls(MODEL, [submit(leaky)]) },
-      { body: toolCalls(MODEL, [submit(CARD, "c2")]) },
-      { body: answer(MODEL, "Done.") },
-    ]);
+    const { outcome, server } = await cartography(
+      [{ body: toolCalls(MODEL, [submit(leaky)]) }, { body: toolCalls(MODEL, [submit(CARD, "c2")]) }, { body: answer(MODEL, "Done.") }],
+      { source: DOC },
+    );
     assert.match(messages(outcome), /The card was refused: \/domains\/0\/items\/0\/summary holds a secret of the configuration; write it without the secret\./);
     assert.ok(outcome.card);
     for (const trace of [readFileSync(outcome.cardPath!, "utf8"), messages(outcome)]) assert.ok(!trace.includes("s3cr3t-pw"));
-    assert.match(messages(outcome), /\[secret\] is not an element of shop-db/);
+    assert.match(messages(outcome), /\[secret\] is not an element of specs/);
     assert.ok(
       !JSON.stringify(server.requests[1]!.body)
         .split("tool_call_id")
@@ -908,7 +978,7 @@ describe("sources a card must still be made of", () => {
         .some((part) => part.includes("s3cr3t-pw")),
       "the refusal does not repeat the secret",
     );
-    assert.ok(outcome.journal.filter((entry) => entry.message.startsWith("The card was")).every((entry) => entry.source === "shop-db"));
+    assert.ok(outcome.journal.filter((entry) => entry.message.startsWith("The card was")).every((entry) => entry.source === "specs"));
   });
 });
 

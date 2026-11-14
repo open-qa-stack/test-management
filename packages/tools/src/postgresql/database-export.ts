@@ -32,13 +32,8 @@ export function databaseExport(structure: DatabaseStructure): SourceExport {
   ]);
 }
 
-/**
- * Lists columns on one line.
- *
- * @param columns - The columns of a table, in order.
- * @returns Each with its type, and `not null` when it accepts no `NULL`.
- */
-export function columnList(columns: readonly ColumnSummary[]): string {
+/** Columns on one line: each with its type, and `not null` when it accepts no `NULL`. */
+function columnList(columns: readonly ColumnSummary[]): string {
   return columns.map((column) => `${column.name} ${column.type}${column.nullable ? "" : " not null"}`).join(", ");
 }
 

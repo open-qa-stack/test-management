@@ -6,6 +6,7 @@ import { after, before, describe, it } from "node:test";
 import type { SourceManifest } from "@open-qa-stack/shared";
 import type { ExportedElement, SourceExport } from "@open-qa-stack/tools";
 import { exportManifest } from "../src/source-workflow/export-manifest.ts";
+import { Grouping } from "../src/source-workflow/grouping.ts";
 import { SourceFolder } from "../src/source-workflow/source-folder.ts";
 
 const SECRET = "postgresql://shop:s3cr3t pw@127.0.0.1:5999/shop";
@@ -35,7 +36,7 @@ after(() => {
 
 const AT = new Date("2026-11-13T03:00:00.000Z");
 const manifestOf = (exported: SourceExport, truncated = false): SourceManifest =>
-  exportManifest({ id: "shop-db", type: "postgresql" }, exported, truncated, AT);
+  exportManifest({ id: "shop-db", type: "postgresql" }, exported, new Grouping(), truncated, AT);
 
 const filesOf = (root: string) => readdirSync(root, { recursive: true, withFileTypes: true }).flatMap((entry) => (entry.isFile() ? [entry.name] : []));
 
@@ -94,13 +95,14 @@ describe("the folder of a source", () => {
       source: { id: "shop-db", type: "postgresql" },
       fingerprint: "sha256:1",
       producedAt: "2026-11-13T03:00:00.000Z",
-      status: "complete",
+      status: "in_progress",
+      domains: [],
       elements: [
         { name: "public.orders", kind: "table", fingerprint: "sha256:0", file: "export/tables/public.orders.sql" },
         { name: "public.open_orders", kind: "view", fingerprint: "sha256:0", file: "export/views/public.open_orders.sql" },
       ],
     });
-    assert.ok(written.endsWith("}\n") && written.includes('\n  "status": "complete",\n'));
+    assert.ok(written.endsWith("}\n") && written.includes('\n  "status": "in_progress",\n'));
     for (const listed of manifestOf(exported).elements) assert.ok(readFileSync(join(folder.root, listed.file), "utf8").startsWith("CREATE "));
     await folder.writeManifest(manifestOf(exportOf(), true));
     assert.deepEqual(

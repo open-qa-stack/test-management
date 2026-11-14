@@ -1,4 +1,33 @@
+import { SLUG_PATTERN } from "../config/schema.ts";
+
 const text = { type: "string", minLength: 1 } as const;
+
+/**
+ * JSON Schema (draft 2020-12) of what the model hands in for a batch of elements. The identifier of a domain
+ * is any text here: the harness proposes a slug for one that is not.
+ */
+export const placementSubmissionSchema = {
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  type: "object",
+  additionalProperties: false,
+  required: ["items"],
+  properties: {
+    domains: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "label", "description"],
+        properties: { id: text, label: text, description: text },
+      },
+    },
+    items: {
+      type: "array",
+      minItems: 1,
+      items: { type: "object", additionalProperties: false, required: ["name"], properties: { name: text, domain: text, role: text, reason: text } },
+    },
+  },
+} as const;
 
 /** JSON Schema (draft 2020-12) of a source manifest file. */
 export const sourceManifestSchema = {
@@ -6,7 +35,7 @@ export const sourceManifestSchema = {
   title: "Open QA Stack source manifest",
   type: "object",
   additionalProperties: false,
-  required: ["formatVersion", "source", "fingerprint", "producedAt", "status", "elements"],
+  required: ["formatVersion", "source", "fingerprint", "producedAt", "status", "domains", "elements"],
   properties: {
     $schema: { type: "string" },
     formatVersion: { const: 1, description: "Version of the manifest format, independent of the product version." },
@@ -22,15 +51,22 @@ export const sourceManifestSchema = {
       pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$",
       description: "Date and time of production, ISO 8601 in UTC.",
     },
-    status: { enum: ["complete", "truncated"] },
+    status: { enum: ["in_progress", "truncated", "complete"] },
+    domains: { type: "array", items: { $ref: "#/$defs/domain" } },
     elements: { type: "array", items: { $ref: "#/$defs/element" } },
   },
   $defs: {
+    domain: {
+      type: "object",
+      additionalProperties: false,
+      required: ["id", "label", "description"],
+      properties: { id: { type: "string", pattern: SLUG_PATTERN }, label: text, description: text },
+    },
     element: {
       type: "object",
       additionalProperties: false,
       required: ["name", "kind", "fingerprint", "file"],
-      properties: { name: text, kind: text, fingerprint: text, file: text },
+      properties: { name: text, kind: text, fingerprint: text, file: text, domain: text, role: text, dismissed: text, unplaced: text },
     },
   },
 } as const;

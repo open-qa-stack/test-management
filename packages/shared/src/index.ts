@@ -12,6 +12,6 @@ export { validateDomainIndex, validateDomainSubmission } from "./domain-index/va
 export { sourceCardSchema, sourceCardSubmissionSchema } from "./source-card/schema.ts";
 export type * from "./source-card/types.ts";
 export { validateSourceCard, validateSourceCardSubmission } from "./source-card/validate.ts";
-export { sourceManifestSchema } from "./source-manifest/schema.ts";
+export { placementSubmissionSchema, sourceManifestSchema } from "./source-manifest/schema.ts";
 export type * from "./source-manifest/types.ts";
-export { validateSourceManifest } from "./source-manifest/validate.ts";
+export { validatePlacementSubmission, validateSourceManifest } from "./source-manifest/validate.ts";

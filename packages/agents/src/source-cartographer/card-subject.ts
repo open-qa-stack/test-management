@@ -1,21 +1,10 @@
 import type { AgentEvent, ToolDefinition } from "@open-qa-stack/domain";
 import { readsImages, type MappedKnowledge, type ResolvedConfig } from "@open-qa-stack/shared";
-import {
-  browserTools,
-  knowledgeInventory,
-  knowledgeTools,
-  scopedToolName,
-  type BrowserAccess,
-  type KnowledgeAccess,
-  type SourceInventory,
-} from "@open-qa-stack/tools";
+import { browserTools, knowledgeInventory, knowledgeTools, type BrowserAccess, type KnowledgeAccess, type SourceInventory } from "@open-qa-stack/tools";
 import { surveySource } from "../cartographer/source-survey.ts";
 import { imageSecrets } from "../common/config-secrets.ts";
 import { interfaceCardRequest, sourceCardRequest } from "./source-cartographer-prompt.ts";
 import { interfaceFingerprint, visitedScreens } from "./visited-screens.ts";
-
-/** Tools of a database that read rows: the cartographer of a source reads the catalog only. */
-const DATA_TOOLS = ["sample_rows", "search", "query"];
 
 /** The user interface of an application in one environment, named by the application. */
 export interface InterfaceSource {
@@ -47,17 +36,14 @@ export interface CardSubject {
  * @param source - The knowledge source.
  * @param access - How to reach it.
  * @param read - Its inventory, when it was read just before; read here otherwise.
- * @returns Its tools — the catalog of a base, never its rows — and its inventory.
+ * @returns Its tools and its inventory.
  * @throws Error when the source does not answer.
  */
 export async function knowledgeSubject(source: MappedKnowledge, access: KnowledgeAccess, read?: SourceInventory): Promise<CardSubject> {
   const inventory = read ?? (await knowledgeInventory(source, access));
-  const tools = knowledgeTools([source], access).filter(
-    (tool) => !(source.type === "postgresql" && DATA_TOOLS.some((action) => tool.name === scopedToolName(source.id, action))),
-  );
   return {
     fingerprint: inventory.fingerprint,
-    tools,
+    tools: knowledgeTools([source], access),
     request: sourceCardRequest(source.id, source.type, inventory),
     inventory: () => inventory,
     close: async () => undefined,

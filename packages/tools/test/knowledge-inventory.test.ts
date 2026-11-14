@@ -160,10 +160,7 @@ describe("the inventory of a knowledge source, read without the model", () => {
       "public.open_policies": { kind: "view", columns: 1, reads: ["public.policies"], triggers: ["open_policies_insert"] },
       "reporting.premiums": { kind: "view", columns: 1, reads: [] },
     });
-    assert.deepEqual(Object.fromEntries(inventory.excerpts!), {
-      "public.policies": "id bigint not null, premium numeric, customer_id bigint not null",
-      "public.open_policies": "id bigint",
-    });
+    assert.equal(inventory.excerpts, undefined);
     assert.deepEqual(
       inventory.export!.elements.map((element) => [element.name, element.kind]),
       [

@@ -553,34 +553,36 @@ describe("criterion 6 — a navigation outside the declared origins is refused, 
   });
 });
 
-/** Maps the base in a session of its own, which calls the tools named, then consolidates the cards. */
-const mappingTheBase = (calls: readonly { id: string; name: string; arguments: unknown }[]) => [
-  { body: toolCalls(MODEL, calls) },
-  { body: toolCalls(MODEL, [submitCard(cardSubmission("shop-db"))]) },
-  { body: answer(MODEL, "Done.") },
-  ...happy(),
+/** The placement of the tables of the base that gives the card `cardSubmission` describes, and the call that confirms the table set aside. */
+const BASE_ASIDE = { name: "public.schema_migrations", reason: "The log of the migrations." };
+const BASE_PLACEMENTS = [
+  {
+    id: "c1",
+    name: "place_elements",
+    arguments: {
+      domains: [{ id: "all", label: "All", description: "Everything shop-db holds." }],
+      items: [...ELEMENTS["shop-db"]!.filter((name) => name !== BASE_ASIDE.name).map((name) => ({ name, domain: "all", role: `About ${name}.` })), BASE_ASIDE],
+    },
+  },
+  { id: "c2", name: "place_elements", arguments: { items: [BASE_ASIDE] } },
 ];
 
+/** Maps the base in a session of its own, in one batch, then consolidates the cards. */
+const mappingTheBase = () => [...BASE_PLACEMENTS.map((call) => ({ body: toolCalls(MODEL, [call]) })), { body: answer(MODEL, "Done.") }, ...happy()];
+
 describe("criterion 7 — the database tool only queries the catalog", () => {
-  it("sends only catalog queries while the base is mapped, and offers no tool that reads rows", async () => {
-    const tables = [
-      { id: "c1", name: "shop_db_list_tables", arguments: {} },
-      { id: "c2", name: "shop_db_describe_table", arguments: { schema: "public", table: "orders" } },
-    ];
-    const { database, server, outcome } = await cartography(mappingTheBase(tables), { cards: ["shop-api", "order-specs", "shop"] });
+  it("sends only catalog queries while the base is mapped, and offers no tool of the base", async () => {
+    const { database, server, outcome } = await cartography(mappingTheBase(), { cards: ["shop-api", "order-specs", "shop"] });
     assert.equal(outcome.index!.status, "complete");
     assert.ok(database.queries.length >= 3);
     for (const query of database.queries) assert.match(query, /information_schema|pg_catalog/);
-    assert.ok(
-      toolsOffered(server, 0).includes("shop_db_describe_table") && !toolsOffered(server, 0).some((name) => /shop_db_(sample_rows|search|query)$/.test(name)),
-    );
+    assert.deepEqual(toolsOffered(server, 0), ["place_elements"]);
   });
 });
 
 describe("single read, criterion 1 — a full cartography sends each catalog query once", () => {
-  it("reads the catalog of the base at the check only, when its agent calls no tool", async () => {
-    const replies = [{ body: toolCalls(MODEL, [submitCard(cardSubmission("shop-db"))]) }, { body: answer(MODEL, "Done.") }, ...happy()];
-    const { database, outcome } = await cartography(replies, { cards: ["shop-api", "order-specs", "shop"] });
+  it("reads the catalog of the base at the check only", async () => {
+    const { database, outcome } = await cartography(mappingTheBase(), { cards: ["shop-api", "order-specs", "shop"] });
     assert.equal(outcome.index!.status, "complete");
     assert.ok(database.queries.length > 0);
     assert.equal(new Set(database.queries).size, database.queries.length);
@@ -589,9 +591,7 @@ describe("single read, criterion 1 — a full cartography sends each catalog que
 
 describe("criterion 8 — the connection string appears in neither the index, the journal, nor the model exchanges", () => {
   it("keeps the secret out of every trace, the base mapped in the run", async () => {
-    const { outcome, root, server } = await cartography(mappingTheBase([{ id: "c1", name: "shop_db_list_tables", arguments: {} }]), {
-      cards: ["shop-api", "order-specs", "shop"],
-    });
+    const { outcome, root, server } = await cartography(mappingTheBase(), { cards: ["shop-api", "order-specs", "shop"] });
     assert.ok(outcome.index);
     for (const trace of [readFileSync(indexFile(root), "utf8"), JSON.stringify(outcome.journal), JSON.stringify(server.requests)]) {
       assert.ok(!trace.includes("s3cret-db-pass") && !trace.includes(DB_URL));
@@ -686,7 +686,10 @@ describe("a session that fails", () => {
     assert.equal(existsSync(indexFile(consolidation.root)), false);
     assert.match(messages(consolidation.outcome), /The consolidation failed: /);
     const cards = await cartography([], { cards: [] }, new CatalogDouble(), `http://127.0.0.1:${down}/v1`);
-    assert.match(messages(cards.outcome), /The session failed: [^]*No index was written: no source has a card\./);
+    assert.match(
+      messages(cards.outcome),
+      /The session failed: [^]*No card was written: no element of shop-db was placed\.[^]*No index was written: no source has a card\./,
+    );
   });
 });
 
@@ -706,11 +709,7 @@ const everyStartEnds = (lines: readonly TraceLine[]) => {
 
 describe("trace, criterion 1 — the trace holds the phases in order, and each tool call with its arguments and result", () => {
   it("writes survey, then card, then consolidation, then index lines, and every call of the agents", async () => {
-    const tables = [
-      { id: "c1", name: "shop_db_list_tables", arguments: {} },
-      { id: "c2", name: "shop_db_describe_table", arguments: { schema: "public", table: "orders" } },
-    ];
-    const { outcome } = await cartography(mappingTheBase(tables), { cards: ["shop-api", "order-specs", "shop"] });
+    const { outcome } = await cartography(mappingTheBase(), { cards: ["shop-api", "order-specs", "shop"] });
     const lines = traceOf(outcome);
     const order = lines.map((line) => PHASES.indexOf(line.phase));
     assert.deepEqual(
@@ -718,14 +717,14 @@ describe("trace, criterion 1 — the trace holds the phases in order, and each t
       [...order].sort((a, b) => a - b),
     );
     assert.deepEqual([...new Set(lines.map((line) => line.phase))], PHASES);
-    for (const { id, name, arguments: args } of [...tables, submitCard(cardSubmission("shop-db")), submit(SUBMISSION)]) {
+    for (const { id, name, arguments: args } of [...BASE_PLACEMENTS, submit(SUBMISSION)]) {
       const call = lines.find((line) => line.actor === "agent" && line.event.type === "tool-call" && line.event.callId === id);
       assert.deepEqual(call?.event, { type: "tool-call", callId: id, tool: name, arguments: args }, name);
       const result = lines.find((line) => line.actor === "agent" && line.event.type === "tool-result" && line.event.callId === id);
       assert.ok(result?.event.type === "tool-result" && result.event.tool === name, name);
     }
-    const listed = lines.find((line) => line.event.type === "tool-result" && line.event.callId === "c1");
-    for (const table of TABLES) assert.match(JSON.stringify(listed?.event), new RegExp(table));
+    const asked = lines.find((line) => line.source === "shop-db" && line.event.type === "message");
+    for (const table of TABLES) assert.match(JSON.stringify(asked?.event), new RegExp(`### public\\.${table}`));
     assert.ok(lines.filter((line) => line.phase === "card" && line.actor === "agent").every((line) => line.source === "shop-db"));
     const inventory = lines.find((line) => line.source === "shop-db" && line.event.type === "inventory");
     assert.ok(
@@ -749,15 +748,15 @@ describe("trace, criterion 1 — the trace holds the phases in order, and each t
 
 describe("trace, criterion 2 — a reasoning of the model is in the trace, in its place among the tool calls", () => {
   it("writes the reasoning of the agent of a card before the call it led to", async () => {
-    const thinking = toolCalls(MODEL, [{ id: "c1", name: "shop_db_list_tables", arguments: {} }]) as { choices: { message: Record<string, unknown> }[] };
-    thinking.choices[0]!.message.reasoning_content = "I list the tables first.";
-    const { outcome } = await cartography([{ body: thinking }, ...mappingTheBase([]).slice(1)], { cards: ["shop-api", "order-specs", "shop"] });
+    const thinking = toolCalls(MODEL, [BASE_PLACEMENTS[0]!]) as { choices: { message: Record<string, unknown> }[] };
+    thinking.choices[0]!.message.reasoning_content = "One domain is enough.";
+    const { outcome } = await cartography([{ body: thinking }, ...mappingTheBase().slice(1)], { cards: ["shop-api", "order-specs", "shop"] });
     const agent = traceOf(outcome)
       .filter((line) => line.actor === "agent" && line.source === "shop-db")
       .map((line) => line.event);
     assert.deepEqual(agent.slice(0, 2), [
-      { type: "reasoning", text: "I list the tables first." },
-      { type: "tool-call", callId: "c1", tool: "shop_db_list_tables", arguments: {} },
+      { type: "reasoning", text: "One domain is enough." },
+      { type: "tool-call", callId: "c1", tool: "place_elements", arguments: BASE_PLACEMENTS[0]!.arguments },
     ]);
   });
 });
@@ -783,9 +782,10 @@ describe("trace, criterion 3 — a card kept because it is up to date leaves a h
 
 describe("trace, criterion 4 — no connection string is in the trace", () => {
   it("masks the connection string the agents write, and cuts a string too long, the base mapped in the run", async () => {
-    const echo = [{ id: "c1", name: "shop_db_list_tables", arguments: { note: `Read from ${DB_URL}` } }];
+    const echo = [{ id: "c0", name: "place_elements", arguments: { items: [{ name: "public.orders", domain: "all", role: `Read from ${DB_URL}` }] } }];
     const replies = [
-      ...mappingTheBase(echo).slice(0, -2),
+      { body: toolCalls(MODEL, echo) },
+      ...mappingTheBase().slice(0, -2),
       { body: toolCalls(MODEL, [submit(SUBMISSION)]) },
       { body: answer(MODEL, `Done with ${DB_URL}. ${"z".repeat(MAX_TRACED_LENGTH + 1)}`) },
     ];
@@ -819,7 +819,7 @@ describe("trace, criterion 6 — an observer gets each line as it is written, an
       seen.push(line);
       if (line.phase === "consolidation" && line.event.type === "started") indexBeforeConsolidation = existsSync(indexFile(root));
     };
-    const run = await cartography(mappingTheBase([{ id: "c1", name: "shop_db_list_tables", arguments: {} }]), {
+    const run = await cartography(mappingTheBase(), {
       cards: ["shop-api", "order-specs", "shop"],
       observe,
       prepare: (made) => (root = made),
@@ -839,7 +839,7 @@ describe("trace, criterion 6 — an observer gets each line as it is written, an
     assert.deepEqual(survey.at(-1)?.event, { type: "finished", outcome: "failed" });
     assert.ok(everyStartEnds(survey) && survey.every((line) => line.phase === "survey"));
     const observed: TraceLine[] = [];
-    const blocked = cartography(mappingTheBase([]).slice(1), {
+    const blocked = cartography(mappingTheBase(), {
       cards: ["shop-api", "order-specs", "shop"],
       observe: (line) => observed.push(line),
       prepare: (root) => mkdirSync(join(root, ".oqas", "index", "sources", "shop-db.json")),
@@ -974,9 +974,7 @@ describe("faster cartography", () => {
 
   describe("faster cartography, criterion 3 — the trace gives the requests to the model of each phase and of each source", () => {
     it("counts the requests and the tokens of each phase and of each card, on scripted answers", async () => {
-      const { outcome, server } = await cartography(mappingTheBase([{ id: "c1", name: "shop_db_list_tables", arguments: {} }]), {
-        cards: ["shop-api", "order-specs", "shop"],
-      });
+      const { outcome, server } = await cartography(mappingTheBase(), { cards: ["shop-api", "order-specs", "shop"] });
       assert.equal(server.requests.length, 5);
       assert.deepEqual(usages(traceOf(outcome)), [
         ["survey", "", 0, undefined, undefined],

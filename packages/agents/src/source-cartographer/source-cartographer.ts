@@ -12,7 +12,8 @@ import { NO_USAGE, usageOf, type ModelUsage } from "../common/model-usage.ts";
 import { runTrace } from "../common/run-trace.ts";
 import type { Trace } from "../common/trace.ts";
 import type { PhaseOutcome, TraceLine } from "../common/trace-line.ts";
-import { exportManifest } from "../source-workflow/export-manifest.ts";
+import { manifestCard } from "../source-workflow/manifest-card.ts";
+import { mapExportedSource } from "../source-workflow/map-exported-source.ts";
 import { SourceFolder } from "../source-workflow/source-folder.ts";
 import { cardRules } from "./card-rules.ts";
 import { interfaceSubject, knowledgeSubject, type CardSource, type CardSubject } from "./card-subject.ts";
@@ -76,11 +77,13 @@ export interface SourceCartographyOutcome {
  * structural facts and its fingerprint. For a user interface, the elements are the screens the agent
  * visits, read from what the browser tools answer, and the fingerprint is that of its address, so that its
  * card is made again on demand only. A complete card whose fingerprint is the source's is kept as it is,
- * unless `force` is set. Otherwise the export of a source that has one, a database, is written first, with
- * the manifest that lists it, in the folder of the source beside its card. The agent gets the tools of this
- * source only — the catalog of a base, never its rows — and hands its card in with `submit_card`, which must
- * place every element and invent none. The facts the harness read are joined to the card before it is
- * written. Nothing is committed nor pushed.
+ * unless `force` is set.
+ *
+ * A source that has an export, a database, goes through `mapExportedSource`: its export and its manifest
+ * are written in the folder of the source beside its card, its elements are grouped into domains batch by
+ * batch, and its card is derived from the manifest, unless no element at all was placed. For any other source, the agent gets the tools of this
+ * source only and hands its card in with `submit_card`, which must place every element and invent none.
+ * The facts the harness read are joined to the card before it is written. Nothing is committed nor pushed.
  *
  * Every step is traced in the `card` phase, from its `started` line to its `finished` line, even when the
  * cartography throws: the inventory, each message sent to the agent, each event of its session, each
@@ -138,8 +141,8 @@ export class SourceCartographer {
       journal.record("info", `The card of ${source.id} is up to date; it was kept.`, source.id);
       return { cardPath, card: existing, kept: true, usage: NO_USAGE, journal: journal.entries() };
     }
-    const { export: exported, truncated } = subject.inventory();
-    if (exported !== undefined) await this.writeExport(exported, truncated === true, journal, now);
+    const exported = subject.inventory().export;
+    if (exported !== undefined) return this.mapExported(subject.inventory(), exported, cardPath, journal, trace, now);
     if (subject.inventory().truncated === true)
       journal.record("error", `The source ${source.id} is too large to be read whole; its card is truncated.`, source.id);
     if (source.type !== "web" && subject.inventory().items.length === 0) {
@@ -209,13 +212,40 @@ export class SourceCartographer {
     };
   }
 
-  /** Writes the export of the source and the manifest that lists it in its folder, beside its card. */
-  private async writeExport(exported: SourceExport, truncated: boolean, journal: Journal, now: () => Date): Promise<void> {
+  /** Maps a source from its export, in its folder beside its card, then derives its card from its manifest. */
+  private async mapExported(
+    inventory: SourceInventory,
+    exported: SourceExport,
+    cardPath: string,
+    journal: Journal,
+    trace: Trace,
+    now: () => Date,
+  ): Promise<Omit<SourceCartographyOutcome, "tracePath">> {
     const { config, source, repositoryRoot, env } = this.options;
-    const folder = new SourceFolder(join(repositoryRoot, config.repository.indexDir, CARDS_FOLDER, source.id), configSecrets(config, env));
-    await folder.writeExport(exported);
-    await folder.writeManifest(exportManifest({ id: source.id, type: source.type }, exported, truncated, now()));
-    journal.record("info", `The export of ${source.id} and its manifest were written to ${folder.root}.`, source.id);
+    const secrets = configSecrets(config, env);
+    const { manifest, usage, run, stoppedBy } = await mapExportedSource({
+      source: { id: source.id, type: source.type },
+      exported,
+      partial: inventory.truncated === true,
+      folder: new SourceFolder(join(repositoryRoot, config.repository.indexDir, CARDS_FOLDER, source.id), secrets),
+      runtime: this.options.runtime,
+      limits: taskLimits(config),
+      secrets,
+      journal,
+      sent: (text) => trace.harness("card", { type: "message", text }, source.id),
+      received: (event) => {
+        trace.agent("card", event, source.id);
+        if (event.type === "tool-error") journal.record("error", `${event.tool}: ${event.message}`, source.id);
+      },
+      now,
+    });
+    const stopped = stoppedBy === undefined ? {} : { stoppedBy };
+    if (manifest.elements.length > 0 && manifest.elements.every((element) => element.unplaced !== undefined)) {
+      journal.record("error", `No card was written: no element of ${source.id} was placed.`, source.id);
+      return { kept: false, usage, journal: journal.entries(), ...stopped };
+    }
+    const model = { provider: config.model.provider, baseUrl: config.model.baseUrl, model: config.model.model };
+    return { ...(await this.write(cardPath, manifestCard(manifest, inventory, run, model, now()), journal)), usage, ...stopped };
   }
 
   /** Writes a card that passes its schema. */

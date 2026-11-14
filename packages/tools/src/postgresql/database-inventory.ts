@@ -1,6 +1,6 @@
 import type { SourceInventory } from "../common/source-inventory.ts";
 import type { DatabaseCatalog, DatabaseStructure } from "./database-catalog.ts";
-import { columnList, databaseExport } from "./database-export.ts";
+import { databaseExport } from "./database-export.ts";
 
 /**
  * Reads what a database holds from its catalog alone, never its rows.
@@ -10,8 +10,8 @@ import { columnList, databaseExport } from "./database-export.ts";
  * its tables, then its views, each as `schema.name`; its routines are in the export only. The facts of a
  * table are its kind, its number of columns, its primary key and its foreign keys; those of a view its
  * kind, its number of columns and the tables and views it reads; either has the names of its triggers when
- * it has some. The excerpt of an element lists its columns, each with its type. The fingerprint is that of
- * the export, routines included, so that any change of structure changes it.
+ * it has some. The fingerprint is that of the export, routines included, so that any change of structure
+ * changes it.
  *
  * @param catalog - The catalog of the database.
  * @returns The inventory of the database, with its export.
@@ -30,8 +30,7 @@ export async function databaseInventory(catalog: DatabaseCatalog): Promise<Sourc
     (view) => [view.view, { kind: "view", columns: view.columns.length, reads: view.reads, ...triggerFacts(structure, view.view) }] as const,
   );
   const facts = new Map<string, Readonly<Record<string, unknown>>>([...tables, ...views]);
-  const excerpts = new Map([...structure.columns].map(([relation, listed]) => [relation, columnList(listed)] as const));
-  return { items: [...facts.keys()], facts, excerpts, fingerprint: exported.fingerprint, export: exported };
+  return { items: [...facts.keys()], facts, fingerprint: exported.fingerprint, export: exported };
 }
 
 /** The names of the triggers of a table or a view, as a fact, when it has some. */
