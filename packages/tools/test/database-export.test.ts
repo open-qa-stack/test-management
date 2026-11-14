@@ -7,7 +7,7 @@ import { databaseExport } from "../src/postgresql/database-export.ts";
 
 const column = (name: string, type: string, nullable = false): ColumnSummary => ({ name, type, nullable });
 
-/** A base of three tables: one with keys, one that references itself, one the catalog gives no column of. */
+/** A base of three tables — one with keys that references itself, one the catalog gives no column of — a view and a materialized view. */
 function structure(premiumType = "numeric"): DatabaseStructure {
   const keys: TableKeys[] = [
     {
@@ -32,6 +32,16 @@ function structure(premiumType = "numeric"): DatabaseStructure {
       ["public.customers", [column("country", "text"), column("number", "integer")]],
     ]),
     keys: new Map(keys.map((key) => [key.table, key])),
+    views: [
+      {
+        view: "public.open_policies",
+        materialized: false,
+        definition: " SELECT p.id,\n    c.number\n   FROM policies p\n     JOIN customers c ON c.number = p.customer_id;",
+        columns: ["id", "number"],
+        reads: ["public.customers", "public.policies"],
+      },
+      { view: "reporting.premiums", materialized: true, definition: " SELECT 1;", columns: [], reads: [] },
+    ],
   };
 }
 
@@ -90,11 +100,31 @@ describe("the export of a database", () => {
     assert.equal(before.elements[0]!.fingerprint, fingerprintOf(before.elements[0]!.definition));
     assert.deepEqual(
       before.elements.map((element, i) => element.fingerprint === after.elements[i]!.fingerprint),
-      [false, true, true],
+      [false, true, true, true, true],
     );
     assert.notEqual(after.fingerprint, before.fingerprint);
     assert.equal(databaseExport(structure()).fingerprint, before.fingerprint);
     assert.equal(before.fingerprint, fingerprintOf(before.elements.map((element) => element.fingerprint).join("\n")));
+  });
+});
+
+describe("the views of a database, exported after its tables", () => {
+  it("gives the query of a view as the database writes it, its columns and the tables and views it reads", () => {
+    const [, , , open, premiums] = databaseExport(structure()).elements;
+    assert.deepEqual(open, {
+      name: "public.open_policies",
+      kind: "view",
+      summary: "view public.open_policies\n  columns: id, number\n  reads: public.customers, public.policies",
+      definition: "CREATE VIEW public.open_policies AS\n SELECT p.id,\n    c.number\n   FROM policies p\n     JOIN customers c ON c.number = p.customer_id;",
+      names: ["id", "number"],
+      links: ["public.customers", "public.policies"],
+      file: "views/public.open_policies.sql",
+      fingerprint: fingerprintOf(open!.definition),
+    });
+    assert.deepEqual(
+      [premiums!.kind, premiums!.summary, premiums!.definition, premiums!.file],
+      ["view", "materialized view reporting.premiums", "CREATE MATERIALIZED VIEW reporting.premiums AS\n SELECT 1;", "views/reporting.premiums.sql"],
+    );
   });
 });
 

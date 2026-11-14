@@ -14,6 +14,6 @@ The card of a source groups its elements by functional domain, so that agents fi
 | `domains` | Each domain: `id` (an English slug, unique), `label`, a one-sentence `description`, and `items`. |
 | `unassigned` | Names of the elements put in no domain. |
 
-An item has its `name`, exactly as the source gives it, a one-sentence `summary`, its `keyFields` when the agent chose some, and the `facts` the harness read without the model: the keys of a table, the operations of a tag, the number and level of a section, the files and routes of a folder, the title and links of a screen. An agent hands in no facts.
+An item has its `name`, exactly as the source gives it, a one-sentence `summary`, its `keyFields` when the agent chose some, and the `facts` the harness read without the model: the kind and the keys of a table, what a view reads, the operations of a tag, the number and level of a section, the files and routes of a folder, the title and links of a screen. An agent hands in no facts.
 
 [examples/source-card/orders-db.json](../examples/source-card/orders-db.json) is the card of a fictitious base.

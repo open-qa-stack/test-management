@@ -8,7 +8,15 @@ import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import type { Knowledge } from "@open-qa-stack/shared";
-import { assertCatalogQuery, COLUMNS_QUERY, KEYS_QUERY, SERVER_ACCESS_QUERY, TABLES_QUERY } from "../src/postgresql/catalog-query.ts";
+import {
+  ALL_COLUMNS_QUERY,
+  assertCatalogQuery,
+  COLUMNS_QUERY,
+  KEYS_QUERY,
+  SERVER_ACCESS_QUERY,
+  TABLES_QUERY,
+  VIEWS_QUERY,
+} from "../src/postgresql/catalog-query.ts";
 import { DatabaseCatalog } from "../src/postgresql/database-catalog.ts";
 import { documentSections } from "../src/document/document-sections.ts";
 import { PgSqlClient, type PgConnection } from "../src/postgresql/pg-sql-client.ts";
@@ -206,7 +214,8 @@ describe("criterion 3 — the catalog tools read the catalog and nothing else", 
     ]) {
       assert.throws(() => assertCatalogQuery(query), /Only the catalog queries/, query);
     }
-    for (const query of [TABLES_QUERY, COLUMNS_QUERY, KEYS_QUERY, SERVER_ACCESS_QUERY]) assert.doesNotThrow(() => assertCatalogQuery(query));
+    for (const query of [TABLES_QUERY, COLUMNS_QUERY, ALL_COLUMNS_QUERY, KEYS_QUERY, VIEWS_QUERY, SERVER_ACCESS_QUERY])
+      assert.doesNotThrow(() => assertCatalogQuery(query));
   });
 
   it("answers an error for a table the database does not have", async () => {

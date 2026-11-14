@@ -37,6 +37,31 @@ export const KEYS_QUERY = `SELECT n.nspname AS schema, c.relname AS table, con.c
   ORDER BY n.nspname, c.relname, con.contype DESC, con.conname`;
 
 /**
+ * Every view of the database, materialized or not, without the catalog's own nor those an extension
+ * installed: its query as the database writes it, its columns in order, and the tables and views it reads,
+ * each as `schema.name`.
+ */
+export const VIEWS_QUERY = `SELECT n.nspname AS schema, c.relname AS view, c.relkind = 'm' AS materialized,
+    pg_catalog.pg_get_viewdef(c.oid, true) AS definition,
+    ARRAY(SELECT a.attname FROM pg_catalog.pg_attribute a
+      WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum)::text[] AS columns,
+    ARRAY(SELECT DISTINCT rn.nspname || '.' || rc.relname
+      FROM pg_catalog.pg_rewrite r
+      JOIN pg_catalog.pg_depend d ON d.classid = 'pg_catalog.pg_rewrite'::regclass AND d.objid = r.oid
+        AND d.refclassid = 'pg_catalog.pg_class'::regclass
+      JOIN pg_catalog.pg_class rc ON rc.oid = d.refobjid
+      JOIN pg_catalog.pg_namespace rn ON rn.oid = rc.relnamespace
+      WHERE r.ev_class = c.oid AND rc.oid <> c.oid AND rc.relkind IN ('r', 'p', 'v', 'm', 'f') ORDER BY 1)::text[] AS reads
+  FROM pg_catalog.pg_class c
+  JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+  WHERE c.relkind IN ('v', 'm') AND n.nspname <> 'information_schema' AND n.nspname !~ '^pg_'
+    AND NOT EXISTS (
+      SELECT 1 FROM pg_catalog.pg_depend e
+      WHERE e.classid = 'pg_catalog.pg_class'::regclass AND e.objid = c.oid AND e.deptype = 'e'
+    )
+  ORDER BY n.nspname, c.relname`;
+
+/**
  * Whether the role of the connection can reach the database server itself: a superuser, or a member of
  * a predefined role that reads or writes its files or runs its programs.
  */
@@ -47,7 +72,7 @@ export const SERVER_ACCESS_QUERY = `SELECT r.rolsuper OR EXISTS (
   ) AS server_access
   FROM pg_catalog.pg_roles r WHERE r.rolname = current_user`;
 
-const ALLOWED = new Set([TABLES_QUERY, COLUMNS_QUERY, ALL_COLUMNS_QUERY, KEYS_QUERY, SERVER_ACCESS_QUERY]);
+const ALLOWED = new Set([TABLES_QUERY, COLUMNS_QUERY, ALL_COLUMNS_QUERY, KEYS_QUERY, VIEWS_QUERY, SERVER_ACCESS_QUERY]);
 
 /**
  * Refuses any query but the fixed catalog queries.

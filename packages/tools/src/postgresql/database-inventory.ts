@@ -7,9 +7,11 @@ import { columnList, databaseExport } from "./database-export.ts";
  *
  * @remarks
  * The catalog is read once, and gives both the export of the database and its inventory. The elements are
- * its tables, as `schema.table`. The facts of each are its number of columns, its primary key and its
- * foreign keys; its excerpt lists its columns, each with its type. The fingerprint is that of the export,
- * so that any change of structure changes it.
+ * its tables, then its views, each as `schema.name`. The facts of a table are its kind, its number of
+ * columns, its primary key and its foreign keys; those of a view its kind, its number of columns and the
+ * tables and views it reads. The excerpt of an element lists its columns, each with its type, when
+ * `information_schema` gives them. The fingerprint is that of the export, so that any change of structure
+ * changes it.
  *
  * @param catalog - The catalog of the database.
  * @returns The inventory of the database, with its export.
@@ -18,13 +20,19 @@ import { columnList, databaseExport } from "./database-export.ts";
 export async function databaseInventory(catalog: DatabaseCatalog): Promise<SourceInventory> {
   const structure = await catalog.structure();
   const exported = databaseExport(structure);
-  const items = structure.tables.map((t) => `${t.schema}.${t.table}`);
-  const facts = new Map(
-    items.map((table) => {
-      const key = structure.keys.get(table);
-      return [table, { columns: structure.columns.get(table)?.length ?? 0, primaryKey: key?.primaryKey ?? [], foreignKeys: key?.foreignKeys ?? [] }] as const;
-    }),
-  );
-  const excerpts = new Map([...structure.columns].map(([table, listed]) => [table, columnList(listed)] as const));
-  return { items, facts, excerpts, fingerprint: exported.fingerprint, export: exported };
+  const tables = structure.tables.map(({ schema, table }) => {
+    const name = `${schema}.${table}`;
+    const key = structure.keys.get(name);
+    const facts = { kind: "table", columns: structure.columns.get(name)?.length ?? 0, primaryKey: key?.primaryKey ?? [], foreignKeys: key?.foreignKeys ?? [] };
+    return [name, facts] as const;
+  });
+  const views = structure.views.map((view) => [view.view, { kind: "view", columns: view.columns.length, reads: view.reads }] as const);
+  const excerpts = new Map([...structure.columns].map(([relation, listed]) => [relation, columnList(listed)] as const));
+  return {
+    items: exported.elements.map((element) => element.name),
+    facts: new Map<string, Readonly<Record<string, unknown>>>([...tables, ...views]),
+    excerpts,
+    fingerprint: exported.fingerprint,
+    export: exported,
+  };
 }

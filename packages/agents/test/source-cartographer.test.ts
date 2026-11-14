@@ -21,11 +21,12 @@ import { CARDS_FOLDER, Cartographer, mapSources, SourceCartographer, type CardSo
 const MODEL = "test-model";
 const DB: MappedKnowledge = { id: "shop-db", type: "postgresql", connectionStringEnv: "SHOP_DB_URL", attachments: [{ application: "shop" }] };
 
-/** A catalog of three tables, whose structure can change, which remembers every query. */
+/** A catalog of three tables, and a view on demand, whose structure can change, which remembers every query. */
 class CatalogDouble implements SqlClient {
   public readonly queries: string[] = [];
   public extraColumn = false;
   public statusType = "text";
+  public view = false;
 
   /** {@inheritDoc SqlClient.query} */
   public async query(text: string): Promise<SqlResult> {
@@ -39,6 +40,10 @@ class CatalogDouble implements SqlClient {
           ["public", "schema_migrations"],
         ],
       );
+    if (text.includes("pg_get_viewdef")) {
+      const view = [["public", "open_orders", false, " SELECT id\n   FROM orders\n  WHERE status = 'open'::text;", ["id"], ["public.orders"]]];
+      return rows(["schema", "view", "materialized", "definition", "columns", "reads"], this.view ? view : []);
+    }
     if (text.includes("pg_constraint")) {
       return {
         columns: [],
@@ -189,7 +194,7 @@ describe("criterion 1 — the keys of a base are read from the catalog alone", (
     assert.ok(
       request.includes(
         JSON.stringify(
-          `- public.orders (columns: 3; primaryKey: ["id"]; foreignKeys: [{"columns":["customer_id"],"references":"public.customers","referencedColumns":["id"]}])`,
+          `- public.orders (kind: "table"; columns: 3; primaryKey: ["id"]; foreignKeys: [{"columns":["customer_id"],"references":"public.customers","referencedColumns":["id"]}])`,
         ).slice(1, -1),
       ),
     );
@@ -215,13 +220,50 @@ describe("criterion 2 — the card of a base passes its schema, places every tab
       name: "public.orders",
       summary: "One order and its status.",
       keyFields: ["status"],
-      facts: { columns: 3, primaryKey: ["id"], foreignKeys: [{ columns: ["customer_id"], references: "public.customers", referencedColumns: ["id"] }] },
+      facts: {
+        kind: "table",
+        columns: 3,
+        primaryKey: ["id"],
+        foreignKeys: [{ columns: ["customer_id"], references: "public.customers", referencedColumns: ["id"] }],
+      },
     });
     assert.deepEqual(
       [outcome.card!.status, outcome.card!.source, outcome.card!.unassigned, outcome.card!.run.iterations],
       ["complete", { id: "shop-db", type: "postgresql" }, ["public.schema_migrations"], 3],
     );
     assert.match(outcome.card!.fingerprint, /^sha256:/);
+  });
+});
+
+describe("the views of a base, placed like its tables", () => {
+  it("lists a view in the request with what it reads, refuses a card that forgets it, joins its facts to the card and writes its query in the export", async () => {
+    const database = new CatalogDouble();
+    database.view = true;
+    const placed = {
+      ...CARD,
+      domains: [
+        { ...CARD.domains[0]!, items: [...CARD.domains[0]!.items, { name: "public.open_orders", summary: "The orders still open." }] },
+        CARD.domains[1]!,
+      ],
+    };
+    const { outcome, server } = await cartography(
+      [{ body: toolCalls(MODEL, [submit(CARD)]) }, { body: toolCalls(MODEL, [submit(placed, "c2")]) }, { body: answer(MODEL, "Done.") }],
+      { database },
+    );
+    const request = JSON.stringify(server.requests[0]!.body);
+    assert.ok(request.includes(JSON.stringify(`- public.open_orders (kind: "view"; columns: 1; reads: ["public.orders"])`).slice(1, -1)));
+    assert.match(messages(outcome), /The card was refused: public\.open_orders is in no domain nor in unassigned\./);
+    assert.deepEqual(outcome.card!.domains[0]!.items[1], {
+      name: "public.open_orders",
+      summary: "The orders still open.",
+      facts: { kind: "view", columns: 1, reads: ["public.orders"] },
+    });
+    const folder = outcome.cardPath!.replace(/\.json$/, "");
+    assert.equal(
+      readFileSync(join(folder, "export", "views", "public.open_orders.sql"), "utf8"),
+      "CREATE VIEW public.open_orders AS\n SELECT id\n   FROM orders\n  WHERE status = 'open'::text;\n",
+    );
+    assert.ok(readFileSync(join(folder, "export", "summary.txt"), "utf8").endsWith("\n\nview public.open_orders\n  columns: id\n  reads: public.orders\n"));
   });
 });
 

@@ -1,4 +1,4 @@
-import { ALL_COLUMNS_QUERY, assertCatalogQuery, COLUMNS_QUERY, KEYS_QUERY, SERVER_ACCESS_QUERY, TABLES_QUERY } from "./catalog-query.ts";
+import { ALL_COLUMNS_QUERY, assertCatalogQuery, COLUMNS_QUERY, KEYS_QUERY, SERVER_ACCESS_QUERY, TABLES_QUERY, VIEWS_QUERY } from "./catalog-query.ts";
 import type { SqlClient } from "./sql-client.ts";
 
 /** A table of the database, as the list tool shows it. */
@@ -39,6 +39,20 @@ export interface TableKeys {
   readonly foreignKeys: readonly ForeignKey[];
 }
 
+/** A view of the database, materialized or not. */
+export interface ViewSummary {
+  /** The view, as `schema.view`. */
+  readonly view: string;
+  /** Whether the database keeps its rows. */
+  readonly materialized: boolean;
+  /** Its query, as the database writes it. */
+  readonly definition: string;
+  /** Names of its columns, in order. */
+  readonly columns: readonly string[];
+  /** The tables and views it reads, each as `schema.name`. */
+  readonly reads: readonly string[];
+}
+
 /** The structure of a database, read at once. */
 export interface DatabaseStructure {
   /** Its tables, in the order of the catalog. */
@@ -47,6 +61,8 @@ export interface DatabaseStructure {
   readonly columns: ReadonlyMap<string, readonly ColumnSummary[]>;
   /** The keys of each table that has some, by `schema.table`. */
   readonly keys: ReadonlyMap<string, TableKeys>;
+  /** Its views, in the order of the catalog. */
+  readonly views: readonly ViewSummary[];
 }
 
 /** Reads the structure of a database, never its rows. */
@@ -118,14 +134,30 @@ export class DatabaseCatalog {
   }
 
   /**
+   * @returns The views of the database, materialized or not, without the catalog's own nor those an
+   * extension installed.
+   * @throws Error when the database cannot be reached.
+   */
+  public async views(): Promise<ViewSummary[]> {
+    const rows = await this.read(VIEWS_QUERY, []);
+    return rows.map((row) => ({
+      view: `${String(row["schema"])}.${String(row["view"])}`,
+      materialized: row["materialized"] === true,
+      definition: String(row["definition"]),
+      columns: (row["columns"] as string[]).map(String),
+      reads: (row["reads"] as string[]).map(String),
+    }));
+  }
+
+  /**
    * Reads the whole structure, each catalog query once.
    *
-   * @returns The tables of the database, their columns and their keys.
+   * @returns The tables of the database, their columns and their keys, and its views.
    * @throws Error when the database cannot be reached.
    */
   public async structure(): Promise<DatabaseStructure> {
-    const [tables, columns, keys] = await Promise.all([this.tables(), this.allColumns(), this.keys()]);
-    return { tables, columns, keys };
+    const [tables, columns, keys, views] = await Promise.all([this.tables(), this.allColumns(), this.keys(), this.views()]);
+    return { tables, columns, keys, views };
   }
 
   /**

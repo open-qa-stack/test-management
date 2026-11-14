@@ -38,13 +38,16 @@ A source that cannot be reached, or a database whose connection string is not se
 
 ## Export of a database
 
-`knowledgeInventory(source, access)` reads what a source holds without the model. For a `postgresql` source it reads the catalog once and returns, with the inventory, the `export` of the database: its elements, each with a `name`, a `kind`, a `summary` of a few lines, its whole `definition`, the `names` it declares, the `links` to the other elements it refers to, the `file` of its definition in the export and a `fingerprint`.
+`knowledgeInventory(source, access)` reads what a source holds without the model. For a `postgresql` source it reads the catalog once and returns, with the inventory, the `export` of the database: its elements, tables first, then views, each with a `name`, a `kind`, a `summary` of a few lines, its whole `definition`, the `names` it declares, the `links` to the other elements it refers to, the `file` of its definition in the export and a `fingerprint`.
 
 | Kind | Name | Definition | Summary | Names | Links | File |
 |---|---|---|---|---|---|---|
 | `table` | `schema.table` | A `CREATE TABLE` written again from the catalog: columns with their type and `NOT NULL`, primary key, foreign keys | Columns, primary key, foreign keys | Its columns | The other tables its foreign keys reference | `tables/<name>.sql` |
+| `view` | `schema.view` | `CREATE VIEW` or `CREATE MATERIALIZED VIEW`, then its query as `pg_get_viewdef` writes it | Whether it is materialized, columns, the tables and views it reads | Its columns | The tables and views it reads, as PostgreSQL records them | `views/<name>.sql` |
 
 - PostgreSQL keeps no text of a table. Its definition is there to be read, not run: names are written as the catalog gives them, unquoted, and types as `information_schema` names them. Defaults, checks, unique constraints and indexes are not in it.
-- The tables of the catalog itself and those an extension installed are left out.
+- The tables and views of the catalog itself and those an extension installed are left out.
+- PostgreSQL writes the query of a view with the names the connection sees without their schema, so the text depends on the `search_path` of the role; it records no dependency on a table of its own catalog, so a view that reads only `pg_catalog` reads nothing here.
+- The inventory lists the tables and the views: both are elements of the card of the database.
 - The fingerprint of an element is `sha256:` and a digest of its definition; that of the database covers the fingerprints of its elements, in the order of the export. A change to one element changes its fingerprint and that of the database, and no other.
 - A name of lower-case letters, digits, dots, hyphens and underscores, 120 characters at most, names its file as it is. Any other has its other characters replaced by underscores, is cut to 120 characters and is followed by a digest of the whole name, so that no file leaves its folder and two elements never share one, even on a file system that ignores case.

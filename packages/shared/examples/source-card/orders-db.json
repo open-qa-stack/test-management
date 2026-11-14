@@ -17,13 +17,13 @@
           "name": "public.orders",
           "summary": "One order of a customer, with its status and total.",
           "keyFields": ["status", "total", "placed_at"],
-          "facts": { "columns": 7, "primaryKey": ["id"], "foreignKeys": [{ "columns": ["customer_id"], "references": "public.customers", "referencedColumns": ["id"] }] }
+          "facts": { "kind": "table", "columns": 7, "primaryKey": ["id"], "foreignKeys": [{ "columns": ["customer_id"], "references": "public.customers", "referencedColumns": ["id"] }] }
         },
         {
           "name": "public.order_lines",
           "summary": "A product and its quantity within an order.",
           "keyFields": ["quantity", "unit_price"],
-          "facts": { "columns": 5, "primaryKey": ["id"], "foreignKeys": [{ "columns": ["order_id"], "references": "public.orders", "referencedColumns": ["id"] }] }
+          "facts": { "kind": "table", "columns": 5, "primaryKey": ["id"], "foreignKeys": [{ "columns": ["order_id"], "references": "public.orders", "referencedColumns": ["id"] }] }
         }
       ]
     },
@@ -32,7 +32,7 @@
       "label": "Customers",
       "description": "The customers of the shop.",
       "items": [
-        { "name": "public.customers", "summary": "A customer and how to reach them.", "keyFields": ["email"], "facts": { "columns": 4, "primaryKey": ["id"], "foreignKeys": [] } }
+        { "name": "public.customers", "summary": "A customer and how to reach them.", "keyFields": ["email"], "facts": { "kind": "table", "columns": 4, "primaryKey": ["id"], "foreignKeys": [] } }
       ]
     }
   ],

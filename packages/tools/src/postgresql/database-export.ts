@@ -1,26 +1,28 @@
 import { exportFile, sourceExport, type ElementDraft, type SourceExport } from "../common/source-export.ts";
-import type { ColumnSummary, DatabaseStructure, TableKeys } from "./database-catalog.ts";
+import type { ColumnSummary, DatabaseStructure, TableKeys, ViewSummary } from "./database-catalog.ts";
 
 /**
  * Exports the structure of a database, element by element.
  *
  * @remarks
- * The elements are its tables, as `schema.table`, in the order of the catalog. PostgreSQL keeps no text of
- * a table: its definition is written again from the catalog — its columns, each with its type and whether
- * it may be null, its primary key and its foreign keys — with the names as the catalog gives them, unquoted.
- * It is there to be read, not run. The names of a table are its columns and its links the other tables its
- * foreign keys reference.
+ * The elements are its tables, then its views, each as `schema.name` and in the order of the catalog.
+ * PostgreSQL keeps no text of a table: its definition is written again from the catalog — its columns, each
+ * with its type and whether it may be null, its primary key and its foreign keys — with the names as the
+ * catalog gives them, unquoted. It is there to be read, not run. The names of a table are its columns and
+ * its links the other tables its foreign keys reference. The definition of a view is its query as the
+ * database writes it, its names are its columns and its links the tables and views it reads.
  *
  * @param structure - What the catalog gives of the database.
  * @returns The export of the database.
  */
 export function databaseExport(structure: DatabaseStructure): SourceExport {
-  return sourceExport(
-    structure.tables.map(({ schema, table }) => {
+  return sourceExport([
+    ...structure.tables.map(({ schema, table }) => {
       const name = `${schema}.${table}`;
       return tableElement(name, structure.columns.get(name) ?? [], structure.keys.get(name));
     }),
-  );
+    ...structure.views.map(viewElement),
+  ]);
 }
 
 /**
@@ -58,5 +60,24 @@ function tableElement(name: string, columns: readonly ColumnSummary[], keys: Tab
     names: columns.map((column) => column.name),
     links: [...new Set(foreignKeys.map((key) => key.references))].filter((referenced) => referenced !== name),
     file: exportFile("tables", name, "sql"),
+  };
+}
+
+/** A view, as an element of the export. */
+function viewElement(view: ViewSummary): ElementDraft {
+  const kind = view.materialized ? "materialized view" : "view";
+  const summary = [
+    `${kind} ${view.view}`,
+    ...(view.columns.length === 0 ? [] : [`columns: ${view.columns.join(", ")}`]),
+    ...(view.reads.length === 0 ? [] : [`reads: ${view.reads.join(", ")}`]),
+  ];
+  return {
+    name: view.view,
+    kind: "view",
+    summary: summary.join("\n  "),
+    definition: `CREATE ${kind.toUpperCase()} ${view.view} AS\n${view.definition}`,
+    names: view.columns,
+    links: view.reads,
+    file: exportFile("views", view.view, "sql"),
   };
 }
