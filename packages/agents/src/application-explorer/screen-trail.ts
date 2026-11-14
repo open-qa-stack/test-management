@@ -126,13 +126,16 @@ export class ScreenTrail {
   }
 
   /**
-   * The route an agent means by what it wrote: a route of the trail as it is, or the route of an address.
+   * The route an agent means by what it wrote: a route of the trail as it is, whatever name it gives a
+   * record, or the route of an address.
    *
    * @param written - A route, a path or an address.
    * @returns The route of a screen visited or seen; `undefined` when the trail knows none such.
    */
   public route(written: string): string | undefined {
-    const route = this.known(written) ? written : screenRoute(written, this.base, this.base);
+    // A record is `:id` whatever the agent calls it: /customers/:customerId is /customers/:id.
+    const named = written.replace(/(?<=\/):[A-Za-z_][A-Za-z0-9_]*/g, ":id");
+    const route = this.known(named) ? named : screenRoute(named, this.base, this.base);
     return route !== undefined && this.known(route) ? route : undefined;
   }
 

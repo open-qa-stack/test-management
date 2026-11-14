@@ -39,7 +39,8 @@ export interface ApplicationMapOptions extends HandedInMapOptions {
  * in one sentence what the application does, and may quote the texts the screen showed. An observation is
  * what was seen, not what is specified: the harness refuses one made on a screen never opened, and a text
  * its screen never showed, and writes those it keeps at the end of the file of the domain, under their own
- * heading.
+ * heading. A domain handed in without any observation is asked about once: the same call again confirms
+ * that the agent saw nothing there a test can verify.
  *
  * The map is over once every screen opened is in a domain or set aside, by itself or by one thing done on
  * it, and every screen a link led to was opened or set aside. What every map does besides is that of
@@ -47,6 +48,8 @@ export interface ApplicationMapOptions extends HandedInMapOptions {
  */
 export class ApplicationMap extends HandedInMap<ScreenPart> {
   private readonly trail: ScreenTrail;
+  /** How many observations the call under way keeps. */
+  private observed = 0;
 
   /** @param options - What the map needs. */
   public constructor(options: ApplicationMapOptions) {
@@ -193,13 +196,16 @@ export class ApplicationMap extends HandedInMap<ScreenPart> {
         lines.push(`- \`${screen}\`: ${statement}${seen}`);
       }
     }
+    this.observed = lines.length;
     const heading = "## Observed on the screens\n\nWhat follows was seen while exploring the application, not read in a specification.\n";
     return { problems, added: lines.length === 0 ? "" : `\n\n${heading}\n${lines.join("\n")}` };
   }
 
-  /** Nothing is asked before a domain of screens is kept. */
-  protected question(): string | undefined {
-    return undefined;
+  /** The question asked once about a domain handed in without any observation; nothing when it has some. */
+  protected question(id: string): string | undefined {
+    if (this.observed > 0) return undefined;
+    this.record("info", `The harness warned the agent that the domain ${id} was handed in without any observation.`);
+    return `Warning: the domain ${id} is not kept yet. You handed it in without any observation. Say what the application answered to what you tried on its screens, such as a search that finds nothing or an address that does not exist, with the texts it showed; if you saw nothing there a test can verify, call write_domain again with the same domain to confirm.`;
   }
 
   private opened(screen: string): boolean {

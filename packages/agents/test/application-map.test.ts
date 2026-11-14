@@ -67,6 +67,11 @@ const refusal = (what: string, ...problems: string[]) => ({
 const left = (count: number, names: string) =>
   `${count} screens are in no domain and not set aside: ${names}. Next: place each with write_domain, or set it aside with set_aside; open with the browser tools a screen you have not opened yet.`;
 const CUSTOMERS = { id: "customers", label: "Customers", description: "Finding a customer." };
+/** Hands a domain in, and confirms it when the harness asks about a domain without any observation. */
+const confirmed = async (call: (name: string, args: object) => Promise<Told>, domain: object): Promise<Told> => {
+  const first = await call("write_domain", domain);
+  return typeof first === "string" && first.startsWith("Warning: the domain") ? call("write_domain", domain) : first;
+};
 
 describe("the route of a screen", () => {
   it("is its path on the user interface, the same for every record, with the route an application writes after a #", () => {
@@ -121,12 +126,13 @@ describe("what an agent saw of a user interface while it explored it", () => {
     assert.deepEqual(
       [
         trail.route("/customers/:id"),
+        trail.route("/customers/:customerId"),
         trail.route("/customers/99"),
         trail.route(`${BASE}/logout`),
         trail.route("/orders"),
         trail.route("https://elsewhere.test/"),
       ],
-      ["/customers/:id", "/customers/:id", "/logout", undefined, undefined],
+      ["/customers/:id", "/customers/:id", "/customers/:id", "/logout", undefined, undefined],
     );
   });
 
@@ -223,7 +229,7 @@ describe("the map of a user interface, handed in domain by domain", () => {
     ];
     const body = "`/customers § Search a customer` then `/customers § Open a customer`.";
     assert.equal(
-      await call("write_domain", { ...CUSTOMERS, elements, body }),
+      await confirmed(call, { ...CUSTOMERS, elements, body }),
       `The domain customers is kept with 2 elements. ${left(3, "/, /logout (not opened), /customers/:id (not opened)")}`,
     );
     // A whole screen is not set aside once something done on it is placed; a link never opened may be.
@@ -248,7 +254,7 @@ describe("the map of a user interface, handed in domain by domain", () => {
       body: "`/customers/:id`",
     };
     assert.equal(
-      await call("write_domain", profile),
+      await confirmed(call, profile),
       "The domain profiles is kept with 1 elements. The whole source is placed or set aside. Answer with one sentence; call no more tools.",
     );
     assert.equal(map.closed, true);
@@ -326,7 +332,11 @@ describe("the map of a user interface, handed in domain by domain", () => {
         "- `/customers`: A customer is found by a search field.",
       ].join("\n"),
     );
-    // A domain handed in without an observation has none added.
+    // A domain handed in without an observation is asked about once; confirmed, it has none added.
+    assert.equal(
+      await call("write_domain", domain),
+      "Warning: the domain customers is not kept yet. You handed it in without any observation. Say what the application answered to what you tried on its screens, such as a search that finds nothing or an address that does not exist, with the texts it showed; if you saw nothing there a test can verify, call write_domain again with the same domain to confirm.",
+    );
     await call("write_domain", domain);
     assert.equal((await map.result()).files.get("customers")!.body, "`/customers` lists the customers.");
   });

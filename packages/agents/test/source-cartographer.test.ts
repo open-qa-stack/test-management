@@ -1053,7 +1053,8 @@ describe("the card of a user interface", () => {
             body: toolCalls(MODEL, [
               call("k1", "shop_click", { target: { role: "button", name: "Delete order" }, confirm: true }),
               call("k2", "shop_click", { target: { role: "button", name: "Create order" } }),
-              call("k3", "shop_click", { target: { role: "link", name: "ORD-1042" } }),
+              // A target copied from the locator of a snapshot, with its exact, is taken as it is.
+              call("k3", "shop_click", { target: { role: "link", name: "ORD-1042", exact: true } }),
             ]),
           },
           { body: toolCalls(MODEL, [call("w1", "write_domain", { ...ordering, elements, observations, body })]) },
@@ -1118,7 +1119,14 @@ describe("the card of a user interface", () => {
         };
       };
       const source = { id: "shop", type: "web", environment: "local" } as const;
-      const home = { id: "home", label: "Home", description: "The home.", elements: [{ screen: "/", role: "The home." }], body: "`/`" };
+      const home = {
+        id: "home",
+        label: "Home",
+        description: "The home.",
+        elements: [{ screen: "/", role: "The home." }],
+        observations: [{ screen: "/", statement: "The home names the shop.", shows: ["Shop"] }],
+        body: "`/`",
+      };
       const script = [
         { body: toolCalls(MODEL, [{ id: "g1", name: "shop_goto", arguments: { url: "/" } }]) },
         { body: toolCalls(MODEL, [{ id: "k1", name: "shop_click", arguments: { target: { role: "button", name: "Create order" } } }]) },
@@ -1219,7 +1227,14 @@ describe("freshness, criterion 2 — the sources without an up-to-date card are 
           applications: config.applications.map((a) => ({ ...a, type: "web", environments: a.environments.map((e) => ({ ...e, uiUrl: site.origin })) })),
         }),
       };
-      const home = { id: "home", label: "Home", description: "The home page.", elements: [{ screen: "/", role: "The home page." }], body: "`/`" };
+      const home = {
+        id: "home",
+        label: "Home",
+        description: "The home page.",
+        elements: [{ screen: "/", role: "The home page." }],
+        observations: [{ screen: "/", statement: "The home names the shop.", shows: ["Shop"] }],
+        body: "`/`",
+      };
       const script = () => [
         { body: toolCalls(MODEL, [{ id: "g1", name: "shop_goto", arguments: { url: "/" } }]) },
         { body: toolCalls(MODEL, [{ id: "w1", name: "write_domain", arguments: home }]) },

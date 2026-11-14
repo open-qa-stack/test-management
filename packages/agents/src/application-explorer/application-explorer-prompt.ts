@@ -39,7 +39,8 @@ The grain of an element
 - A screen where a user does several things is cut: give one element per thing, with feature, such as Search a customer or Sort the list.
 
 What you observed
-- An observation is something you saw that a test can verify: a rule, a control, a message, a state, a limit. One sentence, the screen you saw it on and, in shows, the exact texts the screen displayed.
+- An observation says what the application does when a user does something, or what it enforces: a search that matches nothing and what the screen then shows, an address that does not exist and its message, a field that is required, a limit, a state. One sentence, the screen you saw it on and, in shows, the exact texts the screen displayed.
+- What a screen merely holds, such as its columns, its labels and its buttons, belongs to the file of the domain, not to an observation.
 - Only what you saw: never what the application should do, nor what you suppose. The harness refuses a text the screen never showed.
 
 The file of a domain

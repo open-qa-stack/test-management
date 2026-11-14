@@ -261,7 +261,14 @@ const HOME_MAPPED = [
   {
     id: "w1",
     name: "write_domain",
-    arguments: { id: "all", label: "All", description: "Everything shop holds.", elements: [{ screen: "/", role: "About /." }], body: "`/`" },
+    arguments: {
+      id: "all",
+      label: "All",
+      description: "Everything shop holds.",
+      elements: [{ screen: "/", role: "About /." }],
+      observations: [{ screen: "/", statement: "The home names the shop.", shows: ["Shop"] }],
+      body: "`/`",
+    },
   },
   { id: "a1", name: "set_aside", arguments: { elements: [{ screen: "/orders" }], reason: "Not opened in this run." } },
 ];
