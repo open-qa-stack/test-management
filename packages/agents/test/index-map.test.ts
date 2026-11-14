@@ -226,4 +226,10 @@ describe("the index as a map", () => {
     });
     assert.deepEqual(await call(entry, { source: "guide" }), { error: "Give a domain, or a source and an item." });
   });
+
+  it("gives the element a call names when its domain is no domain of the index, such as the identifier of the source", async () => {
+    const element = await call(entry, { source: "archive", item: "Old customer files" });
+    assert.equal(await call(entry, { domain: "archive", source: "archive", item: "Old customer files" }), element);
+    assert.equal(await call(entry, { domain: "orders", source: "archive", item: "Old customer files" }), await call(entry, { domain: "orders" }));
+  });
 });

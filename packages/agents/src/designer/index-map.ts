@@ -163,19 +163,20 @@ export class IndexMap {
     return [...found, `Call ${ENTRY_TOOL} with a domain, or with a source and an item, to know what is known of them and which tools read them.`].join("\n");
   }
 
-  /** A domain, or an element, with its sources and their tools. */
+  /** A domain, or else an element, with its sources and their tools: a call that names no domain of the index but an element is about the element. */
   private entry(args: { domain?: string; source?: string; item?: string }): string | { error: string } {
-    if (args.domain !== undefined) {
-      const domain = this.index.domains.find((candidate) => candidate.id === args.domain);
-      if (domain === undefined)
-        return { error: `No domain ${args.domain} in the index; the domains are ${this.index.domains.map((candidate) => candidate.id).join(", ")}.` };
+    const domain = this.index.domains.find((candidate) => candidate.id === args.domain);
+    if (domain !== undefined) {
       const sources = domain.references.map((references) => [
         this.source(references.source),
         ...[...new Set(references.items)].map((item) => line(this.elements.find((element) => element.source === references.source && element.item === item)!)),
       ]);
       return capped([`${domain.id} (${domain.label}): ${domain.description}`, ...sources.flat()]);
     }
-    if (args.source === undefined || args.item === undefined) return { error: "Give a domain, or a source and an item." };
+    if (args.source === undefined || args.item === undefined)
+      return args.domain === undefined
+        ? { error: "Give a domain, or a source and an item." }
+        : { error: `No domain ${args.domain} in the index; the domains are ${this.index.domains.map((candidate) => candidate.id).join(", ")}.` };
     const element = this.elements.find((candidate) => candidate.source === args.source && candidate.item === args.item);
     if (element === undefined) return { error: `The index places no ${args.item} in ${args.source}; ${FIND_TOOL} gives the elements it places.` };
     return capped([
