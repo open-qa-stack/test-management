@@ -773,7 +773,7 @@ describe("the sheet of a scenario", () => {
     const first = await design([{ body: toolCalls(MODEL, [OPEN]) }, { body: toolCalls(MODEL, [plan]) }, { body: answer(MODEL, "Done.") }], { plan: false });
     assert.match(
       told(first.server, "plan"),
-      /Refused \(PLAN-SHOWN\): scenario list-orders, expect 1\.1, names "zzqx", which no screen of shop showed in this session\./,
+      /Refused \(PLAN-SHOWN\): scenario list-orders, expect 1\.1, names "zzqx", a value of its data that no field of shop held in this session\. Type it with shop_fill/,
     );
     const typed = { id: "type", name: "shop_fill", arguments: { target: { role: "textbox", name: "Search orders" }, value: "zzqx" } };
     const second = await design(
@@ -1534,6 +1534,8 @@ describe("what a plan may hold", () => {
     const functional = (id: string, kase: string) =>
       scenario(id, "functional", {
         case: kase,
+        // A negative scenario holds the input that matches nothing.
+        data: kase === "negative" ? [{ value: "zzqx", from: "made-up" }] : [],
         steps: [
           { action: "Open the orders", expects: [] },
           { action: "Search the orders", expects: [found] },

@@ -183,6 +183,7 @@ describe("the gates of a plan", () => {
         functional("a"),
         functional("b", {
           case: "negative",
+          data: [{ value: "zzqx", from: "made-up" }],
           steps: [{ action: "Search the orders of Veldane", expects: [{ result: "The other order goes", shows: [], absent: ["ORD-1057"] }] }],
         }),
         scenario("c"),
@@ -311,7 +312,7 @@ describe("the gates of a plan", () => {
       'Refused (PLAN-DATA): no result of orders-db showed "Veldane" in this session. Read it first with orders_db_search, or correct the value. A value the test invents has from "made-up".',
       'Refused (PLAN-DATA): no result of shop showed "Lena Brook" in this session. Read it first with shop_goto, or correct the value. A value the test invents has from "made-up".',
       'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "No order matches zzqx", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
-      'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "zzqx", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
+      'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "zzqx", a value of its data that no field of shop held in this session. Type it with shop_fill and do the step, then expect what the screen answered: the field only echoes the value.',
       'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "Orders", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
       'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "ORD-1057", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
       'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "Lena", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
@@ -369,6 +370,7 @@ describe("the gates of a plan", () => {
     const negative = scenario("c", {
       kind: "functional",
       case: "negative",
+      data: [{ value: "zzqx", from: "made-up" }],
       steps: [{ action: "Search zzqx", expects: [{ result: "Another order shows", shows: ["ORD-1042"], absent: [] }] }],
     });
     assert.deepEqual(((await submit(made, { scenarios: [searched({ data }), lena([cancelled]), negative] })) as { error: string }).error.split("\n"), [
@@ -396,6 +398,98 @@ describe("the gates of a plan", () => {
       steps: [{ action: "Search zzqx", expects: [{ result: "Another order shows", shows: ["ORD-1042"], absent: ["ORD-1057"] }] }],
     });
     assert.equal(await submit(made, { scenarios: [fixed, lena([found, cancelled]), ledger] }), "The plan was accepted.\n\nScenario 1.");
+  });
+
+  it("refuse a step that types in a scenario without data, and a text only the name of a field or a value typed in it showed", async () => {
+    const { proposal: made, screens, reads } = await proposal();
+    await reads.tools()[0]!.execute({});
+    await act(screens, "fill", { value: "Lena" });
+    await act(screens, "click");
+    const search = (action: string, shows: string[]) => [{ action, expects: [{ result: "The search answers", shows, absent: [] }] }];
+    const submitted = (data: PlannedScenario["data"], shows: string[]) => ({
+      scenarios: [
+        functional("a", { data, steps: search("Enter Lena in the search field", shows) }),
+        // A negative scenario that types nothing, such as one that submits an empty search, needs no data.
+        functional("b", { case: "negative", steps: search("Press Enter in the empty search field", ["ORD-1042"]) }),
+        functional("c", { application: "ledger", case: "negative", steps: search("Search for Lena", ["ORD-1042"]) }),
+      ],
+    });
+    assert.deepEqual(((await submit(made, submitted([], ["Search orders", "Lena", "ORD-1042"]))) as { error: string }).error.split("\n"), [
+      'Refused (PLAN-INPUT): scenario a, step 1, "Enter Lena in the search field", types a value, and the scenario has no data: its test may type only values of its data. Put the value the step types in data, with from "shop" for one a screen of shop showed, or from "made-up" for one the test invents, such as { "value": "zqxw", "from": "made-up" }. A step that types nothing, such as one that leaves a field empty, says what it clicks instead.',
+      'Refused (PLAN-INPUT): scenario a, expect 1.1, names "Search orders", which the screens of shop showed only as the name of a field: no text of the page holds it, and a test finds the field by it. Put in shows a text the screens showed beside the fields, such as a heading, a row or a count of results.',
+      "Nothing else was refused.",
+    ]);
+    // A value of the data the agent typed and the screens showed nowhere else is an echo of the field.
+    assert.deepEqual((await submit(made, submitted([{ value: "Lena", from: "shop" }], ["ORD-1042"]))) as string, "The plan was accepted.\n\nScenario 1.");
+  });
+
+  it("refuse a value typed in a field as what a scenario expects, or as a value of the data the application gave, and keep one a field held untyped", async () => {
+    const { proposal: made, screens } = await proposal();
+    await act(screens, "fill", { value: "Quill Zed" });
+    await act(screens, "click");
+    // A field the application fills, such as one of a form to edit, holds what it gave.
+    await act(screens, "fill");
+    const echoed = (value: string) => ({
+      scenarios: [
+        functional("a", {
+          data: [{ value, from: "shop" }],
+          steps: [{ action: `Search ${value}`, expects: [{ result: "The search answers", shows: [value, "ORD-1042"], absent: [] }] }],
+        }),
+        scenario("b"),
+        scenario("c"),
+      ],
+    });
+    assert.deepEqual(((await submit(made, echoed("Quill Zed"))) as { error: string }).error.split("\n"), [
+      'Refused (PLAN-INPUT): scenario a, expect 1.1, names "Quill Zed", which the screens of shop showed only in a field you typed it in: the field echoes what the test types, whatever the application answers. Put in shows what the application answered beside the fields, such as a row, a message or a count of results.',
+      'Refused (PLAN-DATA): no result of shop showed "Quill Zed" in this session. Read it first with shop_goto, or correct the value. A value the test invents has from "made-up".',
+      "Nothing else was refused.",
+    ]);
+    assert.equal(screens.onlyInFields("shop", "zzqx"), "value");
+    assert.equal(screens.onlyInFields("ledger", "zzqx"), undefined);
+    assert.equal(screens.showsUntyped("ledger", "zzqx"), false);
+    assert.equal(await submit(made, echoed("zzqx")), "The plan was accepted.\n\nScenario 1.");
+  });
+
+  it("tell to type a value of the data that no field held, with the last line of code that filled a field, from the third refusal", async () => {
+    const filled = 'await page.getByRole("textbox", { name: "Search orders", exact: true }).fill("Lena");';
+    const coded = (tool: ToolDefinition, code: string): ToolDefinition => ({
+      ...tool,
+      execute: async (args) => ({ ...((await tool.execute(args)) as object), code }),
+    });
+    const tools = shopTools().map((tool) =>
+      tool.name === "shop_fill" ? coded(tool, filled) : tool.name === "shop_goto" ? coded(tool, 'await page.goto("/orders");') : tool,
+    );
+    const typed = new ScreenWatch(["shop"], tools);
+    for (const action of ["goto", "fill", "click"]) await act(typed, action, { value: "Lena" });
+    const echoed = {
+      scenarios: [
+        functional("a", {
+          case: "negative",
+          data: [{ value: "Quill Zed", from: "made-up" }],
+          steps: [{ action: "Search Quill Zed", expects: [{ result: "The search answers", shows: ["Quill Zed", "ORD-1042"], absent: [] }] }],
+        }),
+        scenario("b"),
+        scenario("c"),
+      ],
+    };
+    const told = async (screens: ScreenWatch) => {
+      const { proposal: made } = await proposal({ screens });
+      const errors = [];
+      for (let at = 0; at < 3; at += 1) errors.push(((await submit(made, echoed)) as { error: string }).error);
+      return errors;
+    };
+    const [first, , third] = await told(typed);
+    assert.equal(
+      first,
+      'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "Quill Zed", a value of its data that no field of shop held in this session. Type it with shop_fill and do the step, then expect what the screen answered: the field only echoes the value.\nNothing else was refused.',
+    );
+    const remedy =
+      'Type "Quill Zed" with shop_fill and do the step, then put in shows what the screen answered after it, such as a message or a count of results.';
+    assert.equal(third, `Third refusal for the same reason. Do this:\n${remedy}\nThe last line of code that filled a field, with another value: ${filled}`);
+    // Without a line of code that filled a field, the remedy gives none.
+    const plain = new ScreenWatch(["shop"], shopTools());
+    for (const action of ["goto", "fill", "click"]) await act(plain, action);
+    assert.equal((await told(plain))[2], `Third refusal for the same reason. Do this:\n${remedy}`);
   });
 
   it("take a made-up value a source returned once a field held it: the test made it", async () => {

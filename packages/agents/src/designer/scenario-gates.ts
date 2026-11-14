@@ -21,6 +21,8 @@ export interface ScenarioHelp {
 
 /** The line a refusal of a step without an action gives as an example when the browser tools returned none. */
 const ACTION_EXAMPLE = 'await page.getByRole("button", { name: "Search", exact: true }).click();';
+/** A click on a field, which keeps an action in a step without typing. */
+const CLICK_EXAMPLE = 'await page.getByRole("textbox", { name: "Search", exact: true }).click();';
 
 /**
  * What the gates refuse in a test against the scenario it carries out: not exactly one test, steps that are
@@ -99,15 +101,23 @@ function actionRefusal(number: number, action: string, codes: readonly string[])
   };
 }
 
-/** The reasons values a test types are none of the data of its scenario: neither one of them, nor a part of one long enough to be checked; an empty value clears a field. */
+/**
+ * The reasons values a test types are none of the data of its scenario: neither one of them, nor a part of
+ * one long enough to be checked; an empty value clears a field. A scenario without data types nothing: the
+ * plan is frozen, and the typing is out of it, a click on the field keeping an action in a step that had
+ * no other.
+ */
 function typedErrors(outline: SpecOutline, scenario: PlannedScenario): Refusal[] {
   const values = scenario.data.map((entry) => entry.value);
-  const listed = values.length === 0 ? "none" : values.map((value) => JSON.stringify(value)).join(", ");
+  const listed = values.map((value) => JSON.stringify(value)).join(", ");
   return outline.typed
     .filter(({ text }) => text !== "" && !values.includes(text) && !(checkable(text) && observed(text, values)))
     .map(({ line, text }) => ({
       code: "TEST-TYPED",
-      message: `line ${line} types "${text}", which is no value of the data of scenario ${scenario.id} (${listed}). Type a value of the data.`,
+      message:
+        values.length === 0
+          ? `line ${line} types "${text}", and the plan gives scenario ${scenario.id} no data: its test types nothing. Remove that line; when it is the only action of its step, click the same field in its place, such as ${CLICK_EXAMPLE}`
+          : `line ${line} types "${text}", which is no value of the data of scenario ${scenario.id} (${listed}). Type a value of the data.`,
     }));
 }
 

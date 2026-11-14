@@ -21,6 +21,8 @@ export const MAX_REFUSED_PLANS = 6;
 const LAST_TEXTS = 5;
 /** Longest part of a text of a source a refused value is told with. */
 const MAX_TOLD_TEXT = 200;
+/** The words of the action of a step that types a value in a field; the key Enter pressed types none. */
+const TYPING = /\b(?:types?|(?<!\bpress(?:es)?\s+(?:the\s+)?)enters?|fill(?:s|\s+in)?|inputs?|search(?:es)?\s+for)\b/i;
 
 /** What a plan is checked against. */
 export interface PlanRules {
@@ -55,9 +57,13 @@ export interface PlanRules {
  * functional scenario none of whose texts appeared, or went, after an action of the agent, a source cited
  * and never read, a value of the data its source never showed, a value said made up that a screen or a
  * source showed before the agent typed it, an expected text no tool showed — for an application with a user
- * interface, even a value the test types or expects gone — a text expected gone the screens showed only in
- * a field, and a nominal scenario that expects gone a value it typed without a step before that expects it
- * shown; the agent may
+ * interface, even a value the test types or expects gone, told to type it when it is a value it invents —
+ * a text expected gone the screens showed only in a field, a nominal scenario that expects gone a value it
+ * typed without a step before that expects it shown, and, for an application with a user interface, a step
+ * that types in a scenario without data, and a text expected shown that the screens showed only in a value
+ * the agent typed or in the name of a field; a value of the data from an application is one it showed
+ * beside what the agent typed;
+ * the agent may
  * then submit another; from the third refusal of one reason, it is told only what the gate would accept,
  * and the sixth plan the gates refuse stops the design. A plan that keeps these rules goes to the review, one
  * plan at a time: accepted, it is frozen, and no other may be submitted; refused, the design stops.
@@ -292,7 +298,7 @@ export class PlanProposal {
       ...repeated,
       ...secrets,
       ...negative,
-      ...functional.flatMap((scenario) => this.expectErrors(scenario)),
+      ...functional.flatMap((scenario) => [...this.expectErrors(scenario), ...this.inputErrors(scenario)]),
       ...plan.scenarios.flatMap((scenario) => this.readErrors(scenario)),
     ];
   }
@@ -303,8 +309,9 @@ export class PlanProposal {
     // A source without any tool is held to nothing: nothing could be read of it.
     const tool = (source: string) => (screens.watches(source) ? scopedToolName(source, "goto") : reads.firstTool(source));
     const read = (source: string) => (screens.watches(source) ? screens.looks(source) > 0 : tool(source) === undefined || reads.read(source));
+    // What the agent typed in a field is no value the application gave.
     const showed = (source: string, text: string) =>
-      screens.watches(source) ? screens.shows(source, text) : tool(source) === undefined || reads.shows(source, text);
+      screens.watches(source) ? screens.showsUntyped(source, text) : tool(source) === undefined || reads.shows(source, text);
     const anywhere = (text: string) => applications.some((application) => screens.shows(application, text)) || reads.shows(undefined, text);
     const unread = [...new Set(scenario.sources.map((cited) => cited.source))]
       .filter((source) => !read(source))
@@ -341,17 +348,21 @@ export class PlanProposal {
     const texts = scenario.steps.flatMap((step, at) =>
       step.expects.flatMap((expect, k) =>
         [
-          ...expect.shows.filter((text) => !seen(text) && (watched || !observed(text, madeUp))),
-          ...expect.absent.filter((text) => !seen(text) && (watched || !observed(text, values))),
+          ...expect.shows.filter((text) => !seen(text) && (watched || !observed(text, madeUp))).map((text) => ({ text, shown: true })),
+          ...expect.absent.filter((text) => !seen(text) && (watched || !observed(text, values))).map((text) => ({ text, shown: false })),
         ]
-          .filter(checkable)
-          .map((text) => ({ number: `${at + 1}.${k + 1}`, text })),
+          .filter(({ text }) => checkable(text))
+          .map((expected) => ({ number: `${at + 1}.${k + 1}`, ...expected })),
       ),
     );
-    const unseen = texts.map(({ number, text }) => ({
-      code: "PLAN-SHOWN",
-      message: `scenario ${scenario.id}, expect ${number}, names "${text}", which ${watched ? `no screen of ${scenario.application} showed in this session. Do the step with the browser tools and copy the text as the screen gives it.` : "nothing you read in this session showed. Copy the text as a tool of a source gives it."}`,
-    }));
+    const unseen = texts.map(({ number, text, shown }) =>
+      watched && shown && observed(text, madeUp)
+        ? this.untypedRefusal(scenario, number, text)
+        : {
+            code: "PLAN-SHOWN",
+            message: `scenario ${scenario.id}, expect ${number}, names "${text}", which ${watched ? `no screen of ${scenario.application} showed in this session. Do the step with the browser tools and copy the text as the screen gives it.` : "nothing you read in this session showed. Copy the text as a tool of a source gives it."}`,
+          },
+    );
     // A field keeps what was typed in it: the line it is on goes only when the field loses the focus.
     const typedOnly = watched
       ? scenario.steps.flatMap((step, at) =>
@@ -396,6 +407,70 @@ export class PlanProposal {
           }),
       );
     });
+  }
+
+  /**
+   * The refusal of an expected text of a scenario of an application with a user interface that is a value it
+   * invents no screen showed, not even in a field: the agent never typed it. What the gate would accept is
+   * the value typed, as the last line of code that filled a field did, and the answer of the screen expected.
+   */
+  private untypedRefusal(scenario: PlannedScenario, number: string, text: string): Refusal {
+    const fill = scopedToolName(scenario.application, "fill");
+    const typed = this.rules.screens.codes(scenario.application).find((code) => code.includes(".fill("));
+    return {
+      code: "PLAN-SHOWN",
+      message: `scenario ${scenario.id}, expect ${number}, names "${text}", a value of its data that no field of ${scenario.application} held in this session. Type it with ${fill} and do the step, then expect what the screen answered: the field only echoes the value.`,
+      remedy: [
+        `Type "${text}" with ${fill} and do the step, then put in shows what the screen answered after it, such as a message or a count of results.`,
+        ...(typed === undefined ? [] : [`The last line of code that filled a field, with another value: ${typed}`]),
+      ].join("\n"),
+    };
+  }
+
+  /**
+   * What the gates refuse in the input of a functional scenario of an application with a user interface: a
+   * step whose action types a value, when the scenario has no data, which its test could type none of; and a
+   * text expected shown that the screens showed only in fields, by a value the agent typed, which the field
+   * echoes whatever the application answers, or by the name of a field, which no text of the page holds.
+   */
+  private inputErrors(scenario: PlannedScenario): Refusal[] {
+    const { screens } = this.rules;
+    const { application } = scenario;
+    if (!screens.watches(application)) return [];
+    const typing =
+      scenario.data.length > 0
+        ? []
+        : scenario.steps
+            .map((step, at) => ({ action: step.action, number: at + 1 }))
+            .filter(({ action }) => TYPING.test(action))
+            .map(({ action, number }) => ({
+              code: "PLAN-INPUT",
+              message: `scenario ${scenario.id}, step ${number}, "${action}", types a value, and the scenario has no data: its test may type only values of its data. Put the value the step types in data, with from "${application}" for one a screen of ${application} showed, or from "${MADE_UP}" for one the test invents, such as { "value": "zqxw", "from": "${MADE_UP}" }. A step that types nothing, such as one that leaves a field empty, says what it clicks instead.`,
+            }));
+    const fielded = scenario.steps.flatMap((step, at) =>
+      step.expects.flatMap((expect, k) =>
+        expect.shows.filter(checkable).flatMap((text) => {
+          const held = screens.onlyInFields(application, text);
+          const named = `scenario ${scenario.id}, expect ${at + 1}.${k + 1}, names "${text}", which the screens of ${application} showed only`;
+          if (held === "typed")
+            return [
+              {
+                code: "PLAN-INPUT",
+                message: `${named} in a field you typed it in: the field echoes what the test types, whatever the application answers. Put in shows what the application answered beside the fields, such as a row, a message or a count of results.`,
+              },
+            ];
+          if (held === "name")
+            return [
+              {
+                code: "PLAN-INPUT",
+                message: `${named} as the name of a field: no text of the page holds it, and a test finds the field by it. Put in shows a text the screens showed beside the fields, such as a heading, a row or a count of results.`,
+              },
+            ];
+          return [];
+        }),
+      ),
+    );
+    return [...typing, ...fielded];
   }
 
   /** The refusal of a value its source never showed, with the last texts a knowledge source returned as what the gate would accept. */

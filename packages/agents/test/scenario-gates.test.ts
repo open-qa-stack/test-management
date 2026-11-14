@@ -211,6 +211,10 @@ describe("the gates of a test against its scenario", () => {
     ]);
     const syntax = await moduleSyntax(typed);
     assert.ok(syntax.ok);
-    assert.match(scenarioErrors(syntax.outline, { ...SEARCH, data: [] }, HELP)[0]!.message, /search-order \(none\)\. Type a value of the data\.$/);
+    // A scenario without data types nothing: no value of the data could be asked for.
+    assert.equal(
+      scenarioErrors(syntax.outline, { ...SEARCH, data: [] }, HELP)[0]!.message,
+      'line 8 types "Veldane", and the plan gives scenario search-order no data: its test types nothing. Remove that line; when it is the only action of its step, click the same field in its place, such as await page.getByRole("textbox", { name: "Search", exact: true }).click();',
+    );
   });
 });

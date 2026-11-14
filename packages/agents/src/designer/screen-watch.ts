@@ -43,6 +43,8 @@ interface Seen {
   readonly values: Map<string, number>;
   /** The values a field held that a line beside the fields showed after an action that changed them: what was searched found them. */
   readonly found: Set<string>;
+  /** The values the agent typed in a field. */
+  readonly filled: Set<string>;
   /** The lines of the last snapshot of the whole page. */
   last: Set<string> | undefined;
   /** How many times the agent called one of the browser tools of the application. */
@@ -88,6 +90,7 @@ export class ScreenWatch {
         removed: new Set(),
         values: new Map(),
         found: new Set(),
+        filled: new Set(),
         last: undefined,
         looks: 0,
         codes: [],
@@ -129,6 +132,8 @@ export class ScreenWatch {
           action,
           async (tool, args) => {
             const previous = seen.last ?? (await read()).lines;
+            const { value } = args as { value?: unknown };
+            if (action === "fill" && typeof value === "string") seen.filled.add(value);
             const state = (await tool.execute(args)) as object;
             keep(state);
             const current = (await read()).lines;
@@ -285,6 +290,43 @@ export class ScreenWatch {
   }
 
   /**
+   * Whether a screen of the application showed a text in a line other than a field that holds a value the
+   * agent typed: what the application gave, not what the agent typed.
+   *
+   * @param application - Identifier of the application.
+   * @param text - The text.
+   * @returns `true` when such a line holds it; `false` for an application without a user interface.
+   */
+  public showsUntyped(application: string, text: string): boolean {
+    const seen = this.seen.get(application);
+    return (
+      seen !== undefined &&
+      observed(
+        text,
+        [...seen.lines].filter((line) => !typedIn(seen, line)),
+      )
+    );
+  }
+
+  /**
+   * How the screens of the application showed a text that they showed only in fields: in the value the
+   * agent typed in one, in a value one held that the agent did not type, or in the name or the states of one.
+   *
+   * @param application - Identifier of the application.
+   * @param text - The text.
+   * @returns `value` when a field held it in a value the agent did not type, else `typed` when it is in one
+   * the agent typed, else `name`; `undefined` when a line beside the fields showed it, when no screen showed
+   * it, and for an application without a user interface.
+   */
+  public onlyInFields(application: string, text: string): "typed" | "value" | "name" | undefined {
+    const seen = this.seen.get(application);
+    if (seen === undefined || !observed(text, seen.lines) || observed(text, besideFields(seen.lines))) return undefined;
+    const holding = [...seen.lines].filter((line) => observed(text, [fieldValue(line) ?? ""]));
+    if (holding.some((line) => !typedIn(seen, line))) return "value";
+    return holding.length > 0 ? "typed" : "name";
+  }
+
+  /**
    * Whether a field of a screen of the application held a text as its value: the agent typed it.
    *
    * @param application - Identifier of the application.
@@ -373,6 +415,12 @@ export class ScreenWatch {
     if (whole) seen.last = lines;
     return { ...snapshot, lines };
   }
+}
+
+/** Whether a line is that of a field holding a value the agent typed. */
+function typedIn(seen: Seen, line: string): boolean {
+  const value = fieldValue(line);
+  return value !== undefined && [...seen.filled].some((filled) => sameText(filled, value));
 }
 
 /**
