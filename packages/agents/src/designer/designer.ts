@@ -67,7 +67,7 @@ export interface DesignerOptions {
    */
   readonly resume?: { readonly state: string; readonly branch?: string };
   /** How the browser starts and waits; a headless Chromium with the default waits otherwise. */
-  readonly browser?: Pick<BrowserAccess, "launch" | "actionTimeoutMs" | "navigationTimeoutMs">;
+  readonly browser?: Pick<BrowserAccess, "launch" | "actionTimeoutMs" | "navigationTimeoutMs" | "settleTimeoutMs">;
   /** Receives each line of the trace as it is written, to follow the design while it runs. */
   readonly observe?: (line: TraceLine) => void;
   /** The clock of the dates; the system clock by default. */

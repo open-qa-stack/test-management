@@ -282,7 +282,7 @@ async function cartography(
       repositoryRoot: root,
       env: { SHOP_DB_URL: DB_URL },
       runtime,
-      browser: { actionTimeoutMs: 1000, navigationTimeoutMs: 3000 },
+      browser: { actionTimeoutMs: 1000, navigationTimeoutMs: 3000, settleTimeoutMs: 0 },
       ...(setup.realDatabase === true ? {} : { sqlClient: () => database }),
       ...(setup.autonomous === true ? {} : { now: () => new Date("2026-11-13T10:00:00.000Z") }),
       ...(setup.observe === undefined ? {} : { observe: setup.observe }),

@@ -39,7 +39,7 @@ export interface CartographerOptions {
   /** Makes the SQL client of a database; PostgreSQL by default. */
   readonly sqlClient?: KnowledgeAccess["sqlClient"];
   /** How the browser starts and waits; a headless Chromium with the default waits otherwise. */
-  readonly browser?: Pick<BrowserAccess, "launch" | "actionTimeoutMs" | "navigationTimeoutMs">;
+  readonly browser?: Pick<BrowserAccess, "launch" | "actionTimeoutMs" | "navigationTimeoutMs" | "settleTimeoutMs">;
   /** Maps every source again, even those whose card is up to date. */
   readonly force?: boolean;
   /** Most sources mapped at once; one by default. */

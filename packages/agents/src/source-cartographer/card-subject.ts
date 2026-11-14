@@ -78,7 +78,7 @@ export async function interfaceSubject(
   config: ResolvedConfig,
   source: InterfaceSource,
   events: readonly AgentEvent[],
-  access: Pick<BrowserAccess, "env" | "screenshotsDir" | "launch" | "actionTimeoutMs" | "navigationTimeoutMs">,
+  access: Pick<BrowserAccess, "env" | "screenshotsDir" | "launch" | "actionTimeoutMs" | "navigationTimeoutMs" | "settleTimeoutMs">,
 ): Promise<CardSubject> {
   const application = config.applications.find((candidate) => candidate.id === source.id);
   const uiUrl = application?.environments.find((environment) => environment.name === source.environment)?.uiUrl;

@@ -13,7 +13,7 @@
     "migrate": "node --enable-source-maps dist/src/migrate.js",
     "migrations:generate": "drizzle-kit generate --dialect postgresql --schema src/database/schema.ts --out migrations",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "pnpm -s build && node dist/test/support/with-test-database.js node --test --test-concurrency=1 --enable-source-maps --import @open-qa-stack/testing/loopback-only --experimental-test-coverage --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 --test-coverage-include='**/src/**' --test-coverage-exclude='../**' 'dist/test/**/*.test.js'"
+    "test": "pnpm -s build && node dist/test/support/with-test-database.js node --test --enable-source-maps --import @open-qa-stack/testing/loopback-only --experimental-test-coverage --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 --test-coverage-include='**/src/**' --test-coverage-exclude='../**' 'dist/test/**/*.test.js'"
   },
   "dependencies": {
     "@nestjs/common": "12.4.2",

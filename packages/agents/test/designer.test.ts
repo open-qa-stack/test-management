@@ -282,7 +282,7 @@ async function design(script: readonly { status?: number; body: unknown }[], set
       env: setup.env ?? ENV,
       runtime,
       instructions: designerInstructions(charter.rules, config.repository),
-      browser: { actionTimeoutMs: 1000, navigationTimeoutMs: 3000 },
+      browser: { actionTimeoutMs: 1000, navigationTimeoutMs: 3000, settleTimeoutMs: 0 },
       ...(setup.branch === null ? {} : { branch: setup.branch ?? BRANCH, now: () => new Date("2026-11-13T10:00:00.000Z") }),
       ...(setup.check === undefined ? {} : { check: setup.check }),
       runner: setup.runner ?? new FakeTestRunner(),

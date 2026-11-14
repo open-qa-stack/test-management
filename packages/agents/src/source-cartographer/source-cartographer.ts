@@ -36,7 +36,7 @@ export interface SourceCartographerOptions {
   /** Makes the SQL client of a database; PostgreSQL by default. */
   readonly sqlClient?: KnowledgeAccess["sqlClient"];
   /** How the browser starts and waits; a headless Chromium with the default waits otherwise. */
-  readonly browser?: Pick<BrowserAccess, "launch" | "actionTimeoutMs" | "navigationTimeoutMs">;
+  readonly browser?: Pick<BrowserAccess, "launch" | "actionTimeoutMs" | "navigationTimeoutMs" | "settleTimeoutMs">;
   /** The inventory of a knowledge source read just before, so that it is not read again; read by the cartographer otherwise. */
   readonly inventory?: SourceInventory;
   /** Maps the source again even when its card is up to date. */

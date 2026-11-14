@@ -15,7 +15,7 @@
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "test": "node --test --test-concurrency=1 --import @open-qa-stack/testing/loopback-only --experimental-test-coverage --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 --test-coverage-include='src/**' 'test/**/*.test.ts'"
+    "test": "node --test --import @open-qa-stack/testing/loopback-only --experimental-test-coverage --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 --test-coverage-include='src/**' 'test/**/*.test.ts'"
   },
   "dependencies": {
     "@open-qa-stack/agents": "workspace:*",
