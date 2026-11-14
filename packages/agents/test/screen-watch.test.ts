@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import { moduleSyntax, type SpecOutline } from "@open-qa-stack/tools";
-import { ScreenWatch, snapshotLines } from "../src/designer/screen-watch.ts";
+import { ScreenWatch, snapshotLines, type TargetMatcher } from "../src/designer/screen-watch.ts";
 
 /** The outline of a text of a test. */
 async function outlineOf(text: string): Promise<SpecOutline> {
@@ -349,7 +349,7 @@ describe("the screens the designer watches", () => {
     const watch = new ScreenWatch(["shop", "ledger"], page([LIST, before, after]).tools);
     await run(watch, "goto");
     await run(watch, "fill");
-    const shown = (locator: string, field = false) => ({ locator, field });
+    const shown = (locator: string, field = false) => ({ locator, field, count: 1 });
     assert.deepEqual(
       [
         watch.locatorOf("shop", "orders", false),
@@ -369,10 +369,112 @@ describe("the screens the designer watches", () => {
       [watch.locatorOf("shop", "Lena Brook", true), watch.locatorOf("shop", "Orders", true)],
       [shown('page.getByRole("cell", { name: "Lena Brook", exact: true })'), shown('page.getByRole("row", { name: "ORD-1042 Orders" })')],
     );
-    // An element without a locator of its own, and an application without a user interface, give none.
+    // An element several share the locator of is given with their number; a text no line holds, and an application without a user interface, give none.
     assert.deepEqual(
       [watch.locatorOf("shop", "Edit", false), watch.locatorOf("shop", "Nowhere", true), watch.locatorOf("ledger", "Orders", false)],
-      [undefined, undefined, undefined],
+      [{ locator: 'page.getByRole("button", { name: "Edit", exact: true })', field: false, count: 2 }, undefined, undefined],
+    );
+  });
+
+  it("checks on the page, while it shows them, the locators it builds by role and name, once per line that came, and looks for one element alone in the parts that hold it", async () => {
+    const asked: string[][] = [];
+    /** A page whose cells "Active" are three, one alone in the row of Mira Veldane, whose cell "Hidden" is not shown, and that has no cell "Ghost". */
+    const matches: TargetMatcher = async (_application, targets) => {
+      const codes = targets.map(({ role, name, within }) => `${within === undefined ? "" : `${within.role} ${within.name} > `}${role} ${name}`);
+      asked.push(codes);
+      return codes.map((code) => {
+        const count = code === "cell Ghost" ? 0 : code === "cell Active" || code === "table Customers > cell Active" || code.endsWith("cell Paid") ? 3 : 1;
+        return { code: `<${code}>`, count, visible: count === 1 && code !== "cell Hidden" };
+      });
+    };
+    const table = [
+      '- table "Customers":',
+      '  - row "Mira Veldane Active":',
+      '    - cell "Mira Veldane"',
+      '    - cell "Active"',
+      "    - generic:",
+      '      - cell "Paid"',
+      '  - row "Ada Brennick Active":',
+      '    - cell "Active"',
+      '- cell "Hidden"',
+      '- cell "Ghost"',
+      '- button "Save" → page.getByRole("button", { name: "Save", exact: true })',
+    ].join("\n");
+    const watch = new ScreenWatch(["shop"], page([LIST, table, `${table}\n- cell "New"`]).tools, matches);
+    await run(watch, "goto");
+    // Each named element without a locator of its own, once; then, for those several share, the parts that hold the first, the closest first.
+    assert.deepEqual(asked, [
+      ["table Customers", "row Mira Veldane Active", "cell Mira Veldane", "cell Active", "cell Paid", "row Ada Brennick Active", "cell Hidden", "cell Ghost"],
+      ["row Mira Veldane Active > cell Active", "table Customers > cell Active"],
+      ["row Mira Veldane Active > cell Paid", "table Customers > cell Paid"],
+    ]);
+    assert.deepEqual(
+      ["Mira Veldane", "Active", "Paid", "Hidden", "Ghost", "Save"].map((text) => watch.locatorOf("shop", text, false)),
+      [
+        { locator: "<cell Mira Veldane>", field: false, count: 1 },
+        { locator: "<cell Active>", field: false, count: 3, narrower: "<row Mira Veldane Active > cell Active>" },
+        // No part that holds it tells one of them from the others.
+        { locator: "<cell Paid>", field: false, count: 3 },
+        // One element the page does not show, and none at all, are no element a test finds.
+        { locator: "<cell Hidden>", field: false, count: 0 },
+        { locator: "<cell Ghost>", field: false, count: 0 },
+        { locator: 'page.getByRole("button", { name: "Save", exact: true })', field: false, count: 1 },
+      ],
+    );
+    // Only a line the page did not show before is checked again.
+    await run(watch, "click");
+    assert.deepEqual(asked.slice(3), [["cell New"]]);
+  });
+
+  it("gives no element whose locator it could not check: past the most a snapshot is checked for, and on a page that cannot be looked at", async () => {
+    const cells = Array.from({ length: 201 }, (_, at) => `- cell "Cell ${at + 1}"`).join("\n");
+    const many = new ScreenWatch(["shop"], page([LIST, cells]).tools);
+    await run(many, "goto");
+    assert.deepEqual([many.locatorOf("shop", "Cell 200", false)?.count, many.locatorOf("shop", "Cell 201", false)], [1, undefined]);
+    const unread = new ScreenWatch(
+      ["shop"],
+      page([LIST, '- cell "Active"\n- cell "Paid"', '- cell "Active"\n- cell "Paid"\n- cell "Late"']).tools,
+      async (_application, targets) => {
+        if (targets.some((target) => target.name === "Late" || target.within !== undefined)) throw new Error("The page navigates.");
+        return targets.map((target) => ({ code: target.name, count: 2, visible: false }));
+      },
+    );
+    await run(unread, "goto");
+    await run(unread, "click");
+    // The parts could not be looked at: the element is given without one alone; the line that came with a page that could not be read is not given.
+    assert.deepEqual(
+      [unread.locatorOf("shop", "Active", false), unread.locatorOf("shop", "Late", false)],
+      [{ locator: "Active", field: false, count: 2 }, undefined],
+    );
+  });
+
+  it("gives an element whose locator designates it alone first, else one several share, else the field, else one the page did not show", async () => {
+    const field = '- textbox "Search": Ghost → page.getByRole("textbox", { name: "Search", exact: true })';
+    const matches: TargetMatcher = async (_application, targets) =>
+      targets.map(({ role, name }) => ({ code: `<${role} ${name}>`, count: name === "Ghost" ? 0 : role === "cell" ? 2 : 1, visible: true }));
+    const watch = new ScreenWatch(
+      ["shop"],
+      page([`- cell "Active"\n- heading "Active"\n- cell "Ghost"\n- cell "Lost"\n- cell "Framed" → inside a frame: these tools cannot reach it\n${field}`])
+        .tools,
+      matches,
+    );
+    await run(watch, "goto");
+    assert.deepEqual(
+      [
+        watch.locatorOf("shop", "Active", false),
+        watch.locatorOf("shop", "Lost", false),
+        watch.locatorOf("shop", "Ghost", false),
+        watch.locatorOf("shop", "Ghost", true),
+        // An element the tools cannot reach is none a test finds.
+        watch.locatorOf("shop", "Framed", false),
+      ],
+      [
+        { locator: "<heading Active>", field: false, count: 1 },
+        { locator: "<cell Lost>", field: false, count: 2 },
+        { locator: 'page.getByRole("textbox", { name: "Search", exact: true })', field: true, count: 1 },
+        { locator: "<cell Ghost>", field: false, count: 0 },
+        undefined,
+      ],
     );
   });
 
@@ -387,7 +489,7 @@ describe("the screens the designer watches", () => {
     await run(watch, "fill");
     await run(watch, "click");
     await run(watch, "fill");
-    const shown = (locator: string, field = false) => ({ locator, field });
+    const shown = (locator: string, field = false) => ({ locator, field, count: 1 });
     assert.deepEqual(
       [
         watch.locatorOf("shop", "Ado Kinnett", false),

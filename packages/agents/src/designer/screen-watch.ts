@@ -1,5 +1,5 @@
 import type { ToolDefinition } from "@open-qa-stack/domain";
-import { scopedToolName, type SpecLocator } from "@open-qa-stack/tools";
+import { scopedToolName, type SpecLocator, type Target, type TargetMatch, type TargetScope } from "@open-qa-stack/tools";
 import { toolsBySource } from "./index-map.ts";
 import { nextMoment } from "./moments.ts";
 import { checkable, observed, sameText } from "./observed.ts";
@@ -12,6 +12,12 @@ const MAX_APPEARED = 60;
 const MAX_GONE = 20;
 /** Most lines of code of the browser tools given as the last ones. */
 const MAX_CODES = 5;
+/** Most elements of one snapshot whose locator is checked on the page. */
+const MAX_CHECKED = 200;
+/** Most parts of the page, the closest first, a locator of one element among several is looked for in. */
+const MAX_SCOPES = 3;
+/** How a snapshot ends the line of an element several elements share the locator of: their number, then the locator. */
+const SHARED = / → no unique locator: (\d+) elements match (page\..+)$/;
 /** Most lines told as the closest to a locator no screen showed. */
 const MAX_NEAREST = 5;
 /** The start of the line of a field a value is typed in, up to that value when it holds one: its role, its name and its states. */
@@ -25,12 +31,32 @@ const PAGE_STATE = "Returns where the page is, and the line of code that does th
 /** How the description of a tool that opens or acts on a page ends: what the number of its action is for. */
 const ACTION_NUMBER = '"action", its number: a plan cites it in the steps the action does.';
 
-/** The element a screen showed a text in. */
+/** The element a screen showed a text in, as its locator was checked on the page while the screen showed it. */
 export interface ShownElement {
   /** The locator a test finds it with. */
   readonly locator: string;
   /** Whether it is a field, which holds the text as its value. */
   readonly field: boolean;
+  /** How many elements the locator designated on the page: one for an element a test asserts on as it is, none when the page showed no such element, more when several share it. */
+  readonly count: number;
+  /** The locator of one of several elements alone, inside the part of the page that holds it, when one was found. */
+  readonly narrower?: string;
+}
+
+/**
+ * Counts, on the page of an application as it is now, the elements each target designates, as the browser
+ * tools do.
+ */
+export type TargetMatcher = (application: string, targets: readonly NamedTarget[]) => Promise<readonly TargetMatch[]>;
+
+/** An element by its role and its exact name, inside a part of the page or not: a target of the browser tools. */
+export type NamedTarget = Extract<Target, { role: string }> & { readonly name: string };
+
+/** What the locator of the element of a line designated on the page while the screen showed the line. */
+interface Checked {
+  readonly locator: string;
+  readonly count: number;
+  readonly narrower?: string;
 }
 
 /** An action the agent did on a page with a browser tool: it opened an address, clicked, typed, chose or checked. */
@@ -63,6 +89,8 @@ interface Seen {
   readonly unmatched: Set<string>;
   /** The values the agent typed in a field. */
   readonly filled: Set<string>;
+  /** What the locator by role and name of each line of a named element without a locator of its own designated on the page, the last time the line came. */
+  readonly checked: Map<string, Checked>;
   /** The lines of the last snapshot of the whole page. */
   last: Set<string> | undefined;
   /** How many times the agent called one of the browser tools of the application. */
@@ -85,19 +113,26 @@ interface Seen {
  * typed matched nothing, and a part of it may; the watch keeps the value as searched in vain. A row the search found then removed is no such value. A snapshot is given without what a test has no use for — the reference of each
  * element, the address of each link — so that a long session holds more screens. It remembers, for
  * each application, every line the snapshots showed, those an action produced and those an action
- * removed. An application without a user interface has no such tools, and is
- * held to nothing.
+ * removed. Each time it reads a snapshot, it checks on the page, without the model, the locator by role and
+ * name of each named element the snapshot gives no locator of its own, for the lines the page did not show
+ * before: how many elements it designates, whether the page shows the one it designates, and, for several,
+ * the locator of one alone inside a named part of the page that holds it. An application without a user
+ * interface has no such tools, and is held to nothing.
  */
 export class ScreenWatch {
   private readonly seen = new Map<string, Seen>();
   private readonly done: WatchedAction[] = [];
   private readonly watched: ToolDefinition[];
+  private readonly matches: TargetMatcher;
 
   /**
    * @param applications - Identifiers of the applications the browser tools may be of.
    * @param tools - The browser tools, named after their application.
+   * @param matches - Counts what a locator designates on the page of an application; without one, as for
+   * tools behind which there is no page to look at, each locator is held to designate one element.
    */
-  public constructor(applications: readonly string[], tools: readonly ToolDefinition[]) {
+  public constructor(applications: readonly string[], tools: readonly ToolDefinition[], matches: TargetMatcher = oneEach) {
+    this.matches = matches;
     const byName = new Map(tools.map((tool) => [tool.name, tool]));
     const byApplication = toolsBySource([...byName.keys()], applications);
     const owned = new Map<string, ToolDefinition>();
@@ -112,11 +147,12 @@ export class ScreenWatch {
         found: new Set(),
         unmatched: new Set(),
         filled: new Set(),
+        checked: new Map(),
         last: undefined,
         looks: 0,
       };
       this.seen.set(application, seen);
-      const read = async () => this.record(seen, compact((await snapshot.execute({})) as { page: string; truncated: boolean }), true);
+      const read = async () => this.record(application, seen, compact((await snapshot.execute({})) as { page: string; truncated: boolean }), true);
       const wrap = (action: string, execute: (tool: ToolDefinition, args: unknown) => Promise<unknown>, returns?: string) => {
         const tool = byName.get(scopedToolName(application, action))!;
         owned.set(tool.name, {
@@ -130,7 +166,7 @@ export class ScreenWatch {
       };
       wrap("snapshot", async (tool, args) => {
         const result = compact((await tool.execute(args)) as { page: string; truncated: boolean });
-        this.record(seen, result, (args as { within?: unknown }).within === undefined);
+        await this.record(application, seen, result, (args as { within?: unknown }).within === undefined);
         return result;
       });
       // An action is one whose tool returned its line of code: it is numbered, and its result gives the number.
@@ -415,28 +451,39 @@ export class ScreenWatch {
    * shown, the field whose value it is. A field holds what the agent typed whatever the application answers,
    * so that any other element comes first, and none is given for a text expected gone.
    *
+   * @remarks
+   * Each locator was checked on the page while the screen showed its line: by the snapshot, for a locator a
+   * line ends with, or by the watch, for one by the role and the name of an element named by the text. An
+   * element whose locator was not checked is never given. One whose locator designated it alone comes first;
+   * failing one, an element several share the locator of, with their number and the locator of one of them
+   * alone when the watch found one; failing that, the field; failing that, an element whose locator
+   * designated nothing the page showed.
+   *
    * @param application - Identifier of the application.
    * @param text - The text.
    * @param gone - Whether the text is expected gone: the lines an action removed are looked at first, as the
    * lines an action produced are for a text expected shown.
-   * @returns The last such element seen, with the locator its line gave, or one by its role and its name for
-   * an element named by the text that has none; `undefined` when no line gives one, and for an application
-   * without a user interface.
+   * @returns The last such element seen; `undefined` when no line gives one, and for an application without
+   * a user interface.
    */
   public locatorOf(application: string, text: string, gone: boolean): ShownElement | undefined {
     const seen = this.seen.get(application);
     if (seen === undefined) return undefined;
+    const found: ShownElement[] = [];
     for (const pool of [gone ? seen.removed : seen.produced, seen.lines]) {
       const holding = besideFields(pool)
         .reverse()
         .filter((line) => observed(text, [line]));
-      const named = holding.find((line) => namedBy(line, text) !== undefined && !line.includes(" → no "));
-      if (named !== undefined) return { locator: locatorIn(named) ?? namedBy(named, text)!, field: false };
-      const acted = holding.find((line) => locatorIn(line) !== undefined);
-      if (acted !== undefined) return { locator: locatorIn(acted)!, field: false };
+      found.push(...holding.filter((line) => namedBy(line, text) !== undefined).flatMap((line) => namedElement(seen, line)));
+      found.push(...holding.flatMap((line) => locatorIn(line) ?? []).map((locator) => ({ locator, field: false, count: 1 })));
     }
     const typedIn = gone ? undefined : [...seen.lines].reverse().find((line) => sameText(fieldValue(line) ?? "", text) && locatorIn(line) !== undefined);
-    return typedIn === undefined ? undefined : { locator: locatorIn(typedIn)!, field: true };
+    const field = typedIn === undefined ? [] : [{ locator: locatorIn(typedIn)!, field: true, count: 1 }];
+    return (
+      found.find((element) => element.count === 1) ??
+      found.find((element) => element.count > 1) ??
+      [...field, ...found.filter((element) => element.count === 0)][0]
+    );
   }
 
   /**
@@ -471,10 +518,16 @@ export class ScreenWatch {
     for (const line of lines) seen.lines.add(line);
   }
 
-  /** Keeps what a snapshot showed; one of the whole page is the one the next action is compared with. */
-  private record(seen: Seen, snapshot: { page: string; truncated: boolean }, whole: boolean): { page: string; truncated: boolean; lines: Set<string> } {
+  /** Keeps what a snapshot showed, the locators of its new lines checked on the page; one of the whole page is the one the next action is compared with. */
+  private async record(
+    application: string,
+    seen: Seen,
+    snapshot: { page: string; truncated: boolean },
+    whole: boolean,
+  ): Promise<{ page: string; truncated: boolean; lines: Set<string> }> {
     const lines = new Set(pageLines(snapshot.page));
     const moment = nextMoment();
+    await this.check(application, seen, snapshot.page);
     for (const line of lines) {
       seen.lines.add(line);
       const value = fieldValue(line);
@@ -483,6 +536,68 @@ export class ScreenWatch {
     if (whole) seen.last = lines;
     return { ...snapshot, lines };
   }
+
+  /**
+   * Checks on the page, while it shows them, the locator by role and name of each named element a snapshot
+   * gave no locator of its own, for the lines the page did not show before: how many elements it designates
+   * and, for several, whether it designates one alone inside one of the named parts of the page that hold the
+   * first of them, the closest first.
+   */
+  private async check(application: string, seen: Seen, page: string): Promise<void> {
+    const tree = page.split("\n");
+    const fresh = new Map<string, { readonly target: NamedTarget; readonly scopes: readonly TargetScope[] }>();
+    tree.forEach((raw, at) => {
+      const line = normalized(raw);
+      const target = namedTarget(line);
+      if (target !== undefined && !line.includes(" → ") && seen.last?.has(line) !== true && !fresh.has(line) && fresh.size < MAX_CHECKED)
+        fresh.set(line, { target, scopes: scopesOf(tree, at) });
+    });
+    const elements = [...fresh];
+    // A page that cannot be looked at, such as one that navigates, leaves its locators unchecked: none of them is given.
+    const unread = (): readonly TargetMatch[] => [];
+    const targets = elements.map(([, { target }]) => target);
+    const counted = await this.matches(application, targets).catch(unread);
+    for (const [at, [line, { target, scopes }]] of elements.slice(0, counted.length).entries()) {
+      const { code, count, visible } = counted[at]!;
+      const within = scopes.map((scope) => ({ ...target, within: scope }));
+      const scoped = count > 1 ? await this.matches(application, within).catch(unread) : [];
+      const narrower = scoped.find((match) => match.visible)?.code;
+      seen.checked.set(line, { locator: code, count: count === 1 && !visible ? 0 : count, ...(narrower === undefined ? {} : { narrower }) });
+    }
+  }
+}
+
+/** What every target designates when there is no page to look at: one element, which the page shows. */
+async function oneEach(_application: string, targets: readonly NamedTarget[]): Promise<TargetMatch[]> {
+  return targets.map((target) => ({ code: namedLocator(target), count: 1, visible: true }));
+}
+
+/** The element of a line named by a text, as its locator was checked: none when it was not, or when its line says no locator reaches it. */
+function namedElement(seen: Seen, line: string): ShownElement[] {
+  const own = locatorIn(line);
+  if (own !== undefined) return [{ locator: own, field: false, count: 1 }];
+  const shared = SHARED.exec(line);
+  if (shared !== null) return [{ locator: shared[2]!, field: false, count: Number(shared[1]) }];
+  const checked = line.includes(" → ") ? undefined : seen.checked.get(line);
+  return checked === undefined ? [] : [{ ...checked, field: false }];
+}
+
+/** The named parts of the page that hold the element of a line of a snapshot, the closest first, `MAX_SCOPES` at most. */
+function scopesOf(tree: readonly string[], at: number): TargetScope[] {
+  const scopes: TargetScope[] = [];
+  let indent = indentOf(tree[at]!);
+  for (let above = at - 1; above >= 0 && scopes.length < MAX_SCOPES; above -= 1) {
+    if (indentOf(tree[above]!) >= indent) continue;
+    indent = indentOf(tree[above]!);
+    const scope = namedTarget(normalized(tree[above]!));
+    if (scope !== undefined) scopes.push(scope);
+  }
+  return scopes;
+}
+
+/** How far a line of a snapshot is indented. */
+function indentOf(line: string): number {
+  return line.length - line.trimStart().length;
 }
 
 /** Whether a line is that of a field holding a value the agent typed. */
@@ -552,13 +667,23 @@ function locatorIn(line: string): string | undefined {
   return at === -1 ? undefined : line.slice(at + " → ".length);
 }
 
-/** The locator by role and name of the element of a line whose name is a text; `undefined` when its name is another. */
-function namedBy(line: string, text: string): string | undefined {
+/** The element of a line by its role and its name; `undefined` for a line of an element without a name. */
+function namedTarget(line: string): { role: string; name: string } | undefined {
   const start = NAMED.exec(line);
   if (start === null) return undefined;
   const [, quoted, role, escaped] = start as unknown as [string, string, string, string];
-  const name = JSON.parse(`"${quoted === "" ? escaped : escaped.replaceAll("''", "'")}"`) as string;
-  return sameText(name, text) ? `page.getByRole(${JSON.stringify(role)}, { name: ${JSON.stringify(name)}, exact: true })` : undefined;
+  return { role, name: JSON.parse(`"${quoted === "" ? escaped : escaped.replaceAll("''", "'")}"`) as string };
+}
+
+/** The locator of an element by its role and its exact name, as a test writes it. */
+function namedLocator({ role, name }: { role: string; name: string }): string {
+  return `page.getByRole(${JSON.stringify(role)}, { name: ${JSON.stringify(name)}, exact: true })`;
+}
+
+/** The element of a line whose name is a text; `undefined` when its name is another. */
+function namedBy(line: string, text: string): { role: string; name: string } | undefined {
+  const target = namedTarget(line);
+  return target !== undefined && sameText(target.name, text) ? target : undefined;
 }
 
 /**

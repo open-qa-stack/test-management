@@ -24,7 +24,9 @@ let workspace: string;
 before(async () => {
   // The orders page shows an order once it is searched for.
   const orders = `<h1>Orders</h1><input aria-label="Search orders"><button onclick="document.getElementById('found').hidden = false">Search</button><p id="found" hidden>Order 42 of Ada</p>`;
-  site = await testSite({ "/": "<h1>Shop</h1>", "/orders": orders });
+  // The pairs page shows two headings nothing tells apart, and two that their regions do.
+  const pairs = `<h2>Open</h2><h2>Open</h2><section aria-label="Late orders"><h3>Due</h3></section><section aria-label="Lost orders"><h3>Due</h3></section>`;
+  site = await testSite({ "/": "<h1>Shop</h1>", "/orders": orders, "/pairs": pairs });
   workspace = mkdtempSync(join(tmpdir(), "oqas-designer-"));
 });
 
@@ -1656,6 +1658,51 @@ describe("what a plan may hold", () => {
     );
     // The result of an action gives its number, which the plan cites.
     assert.match(toolResult(server, "search"), /\\"action\\":2/);
+  });
+});
+
+describe("the element of an expected text", () => {
+  it("is checked on the page: several that share a locator are asked about once, and the test asserts on the one accepted, or on any of them by their number", async () => {
+    const paired = scenario("list-orders", "other", {
+      steps: [{ action: "Open the pairs", actions: [2], expects: [{ result: "The pairs show", shows: ["Open", "Due"], absent: [] }] }],
+    });
+    const plan = (id: string, accepts?: number[]) => ({
+      id,
+      name: "propose_plan",
+      arguments: { scenarios: [paired, scenario("place-order"), scenario("follow-order")], ...(accepts === undefined ? {} : { accepts }) },
+    });
+    const pairs = { id: "pairs", name: "shop_goto", arguments: { url: "/pairs" } };
+    const sheetOf = (text: string) => text.slice(text.indexOf("import "), text.lastIndexOf("\nNext:"));
+    const { server, outcome } = await design(replies([[OPEN], [pairs], [plan("asked")], [plan("answered", [2])]]), { plan: false });
+    const due = 'page.getByRole("region", { name: "Late orders" }).getByRole("heading", { name: "Due", exact: true })';
+    assert.equal(
+      told(server, "asked"),
+      [
+        "The plan is not accepted yet. The harness looked on the page for the element of each expected text, and asks you about 2 of them, once:",
+        'Warning 1: "Open" (scenario list-orders, expect 1.1) is shown by 2 elements of shop, and the harness found no locator of one of them alone. If any of them will do, put 1 in accepts: the test will then assert that one of them at least shows it, or that none is left. Otherwise expect a more precise text, such as the text of the whole row.',
+        `Proposal 2: "Due" (scenario list-orders, expect 1.1) is shown by 2 elements of shop. The harness proposes to assert it on one of them alone: ${due}. Check that it is the element you mean: if it is, put 2 in accepts. Otherwise expect a more precise text, such as the text of the whole row.`,
+        "Next: call propose_plan again with the plan, what you correct in it, and accepts. What you leave unanswered is asserted on any of its elements, and is not asked again.",
+      ].join("\n"),
+    );
+    const sheet = sheetOf(told(server, "answered"));
+    assert.ok(
+      sheet.includes(
+        [
+          '    await page.goto("/pairs");',
+          "    // Expect 1.1: The pairs show.",
+          '    await expect(page.getByRole("heading", { name: "Open", exact: true })).not.toHaveCount(0);',
+          `    await expect(${due}).toBeVisible();`,
+        ].join("\n"),
+      ),
+      sheet,
+    );
+    assert.match(
+      messages(outcome),
+      /The agent left warning 1 unanswered: "Open" is asserted on any of the 2 elements page\.getByRole\("heading", \{ name: "Open", exact: true \}\)\.\nThe agent accepted proposal 2: "Due" is asserted on /,
+    );
+    // The skeleton runs as it is: an assertion by the number of the elements keeps the text of the plan.
+    const ran = await design(replies([[OPEN], [pairs], [plan("asked")], [plan("answered", [2])], [run(sheet, "whole")]]), { plan: false });
+    assert.match(told(ran.server, "whole"), /^Run of the file: passed\./);
   });
 });
 

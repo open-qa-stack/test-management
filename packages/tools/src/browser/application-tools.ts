@@ -3,7 +3,7 @@ import type { Locator } from "playwright-core";
 import { ImageToolResult, type ToolDefinition } from "@open-qa-stack/domain";
 import type { Account, Application, Environment } from "@open-qa-stack/shared";
 import { scopedToolName } from "../common/tool-name.ts";
-import { LOG_CAPACITY, type ApplicationPage, type PageScope, type PageState, type Until } from "./application-page.ts";
+import { LOG_CAPACITY, type ApplicationPage, type PageScope, type PageState, type TargetMatch, type Until } from "./application-page.ts";
 import type { BrowserSession } from "./browser-session.ts";
 import { redact, redactText, secretForms } from "./redact.ts";
 import { TARGET_SCHEMA, targetCode, type Target } from "./target.ts";
@@ -245,6 +245,29 @@ export function applicationTools(application: Application, environment: Environm
       execute: on(async (page, { limit: count }: { limit?: number }) => page.console(count ?? DEFAULT_LOG_ENTRIES)),
     },
   ];
+}
+
+/**
+ * Counts, on the page of an application as it is now, the elements each of several targets designates: what
+ * a harness checks a locator against, without the model.
+ *
+ * @param application - The application.
+ * @param environment - Its environment, which has a user interface.
+ * @param session - The browser of the session.
+ * @param targets - The elements.
+ * @returns What each designates, in their order.
+ * @throws Error when the page cannot be opened or read.
+ */
+export async function applicationMatches(
+  application: Application,
+  environment: Environment & { uiUrl: string },
+  session: BrowserSession,
+  targets: readonly Target[],
+): Promise<TargetMatch[]> {
+  const page = await session.page(pageScope(application.id, environment));
+  const matches: TargetMatch[] = [];
+  for (const target of targets) matches.push(await page.matches(target));
+  return matches;
 }
 
 /** Acts on an element, then says where the page is, and how a test does the same: the call of `method` on the locator of the target. */

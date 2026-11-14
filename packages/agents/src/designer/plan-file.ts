@@ -27,8 +27,8 @@ export interface PlanRecord {
  *
  * @remarks
  * The page is Markdown: the design, then each scenario with its intent, its sources, its data and its steps,
- * each with the lines of code that do it and, for each text it expects, the element a test finds it in, or
- * `by its text` when the plan gives none. Each text is on one line, an action and a result without the full
+ * each with the lines of code that do it and, for each text it expects, the element a test finds it in, any
+ * of several when they share its locator, or `by its text` when the plan gives none. Each text is on one line, an action and a result without the full
  * stop they may end with. It is rendered from the record and never read. The record is the last part, a
  * `json` block under the heading `Record`.
  *
@@ -102,7 +102,8 @@ function expectLines(expect: PlannedExpect, number: string): string[] {
     const element = expect.elements.find((candidate) => candidate.text === text);
     if (element === undefined) return "by its text";
     const mark = ticks(element.locator, 1);
-    return `${element.field ? "as the value of" : "in"} ${mark}${element.locator}${mark}`;
+    const where = element.field ? "as the value of" : element.count === undefined ? "in" : `in any of the ${element.count}`;
+    return `${where} ${mark}${element.locator}${mark}`;
   };
   return [
     `Expect ${number}: ${oneLine(expect.result)}.`,

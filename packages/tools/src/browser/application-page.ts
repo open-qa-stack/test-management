@@ -47,6 +47,16 @@ export interface PageState {
   readonly title: string;
 }
 
+/** What a target designates on the page as it is now. */
+export interface TargetMatch {
+  /** The locator of the target, as a test writes it. */
+  readonly code: string;
+  /** How many elements it designates. */
+  readonly count: number;
+  /** Whether it designates one element, which the page shows. */
+  readonly visible: boolean;
+}
+
 /** What to wait for: an element in a state, or an address that contains a text. */
 export type Until = { readonly target: Target; readonly state: "visible" | "hidden" } | { readonly urlIncludes: string };
 
@@ -158,6 +168,18 @@ export class ApplicationPage {
     } catch (failure) {
       throw await this.failed(failure, `${targetCode(within, "part")} did not appear within ${this.timeouts.actionMs} ms.`, within, "part");
     }
+  }
+
+  /**
+   * Counts the elements a target designates on the page as it is now, without waiting for any.
+   *
+   * @param target - The element.
+   * @returns Its locator, how many elements it designates, and whether it is one element the page shows.
+   */
+  public async matches(target: Target): Promise<TargetMatch> {
+    const found = locate(this.page, target);
+    const count = await found.count();
+    return { code: targetCode(target), count, visible: count === 1 && (await found.isVisible()) };
   }
 
   /**

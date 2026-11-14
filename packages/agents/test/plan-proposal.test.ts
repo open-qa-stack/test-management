@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import type { PlanReview, TestPlan, ToolDefinition } from "@open-qa-stack/domain";
 import { Journal } from "../src/common/journal.ts";
 import { PlanProposal, type PlanRules, type SubmittedPlan, type SubmittedScenario, type SubmittedStep } from "../src/designer/plan-proposal.ts";
-import { ScreenWatch } from "../src/designer/screen-watch.ts";
+import { ScreenWatch, type TargetMatcher } from "../src/designer/screen-watch.ts";
 import { SourceWatch } from "../src/designer/source-watch.ts";
 
 /** A step as these tests write it: it cites the first action, which opened the orders, unless it cites others. */
@@ -13,6 +13,7 @@ type Scenario = Omit<SubmittedScenario, "steps"> & { readonly steps: readonly St
 /** A plan as these tests write it. */
 interface Plan {
   readonly scenarios: readonly Scenario[];
+  readonly accepts?: readonly number[];
 }
 /** The line of code the tool that opens the orders returns. */
 const OPENED = 'await page.goto("/orders");';
@@ -122,6 +123,7 @@ function slowReview(decision: (plan: TestPlan) => boolean): PlanReview {
 
 /** The plan as the agent submits it: each step cites the first action when the test names none. */
 const cited = (submitted: Plan): SubmittedPlan => ({
+  ...submitted,
   scenarios: submitted.scenarios.map((planned) => ({ ...planned, steps: planned.steps.map((step) => ({ actions: [1], ...step })) })),
 });
 const submit = (proposal: PlanProposal, submitted: Plan) => proposal.tool().execute(cited(submitted)) as Promise<string | { error: string }>;
@@ -844,5 +846,118 @@ describe("the actions a plan cites", () => {
     ]);
     assert.deepEqual(second!.steps, [{ action: "Get the orders", code: [], expects: [{ ...shown("ORD-1042"), elements: [] }] }]);
     assert.ok(!("actions" in first!.steps[0]!));
+  });
+});
+
+describe("the element of each expected text, as the harness checked its locator on the page", () => {
+  const PAGE = [
+    '- heading "Orders"',
+    '- table "Open orders":',
+    '  - row "ORD-1 Active":',
+    '    - cell "Active"',
+    '  - row "ORD-2 Active":',
+    '    - cell "Active"',
+    '- cell "Paid"',
+    '- cell "Ghost"',
+  ].join("\n");
+  /** A page with two cells "Active", one alone in the row of ORD-1, three cells "Paid" nothing tells apart, and no cell "Ghost" a test finds. */
+  const matches: TargetMatcher = async (_application, targets) =>
+    targets.map(({ role, name, within }) => {
+      const count = name === "Ghost" ? 0 : name === "Paid" ? 3 : name === "Active" && within === undefined ? 2 : 1;
+      const scope = within === undefined ? "page" : `page.getByRole("${within.role}", { name: "${within.name}" })`;
+      return { code: `${scope}.getByRole("${role}", { name: "${name}", exact: true })`, count, visible: count === 1 };
+    });
+  const tool = (action: string, result: unknown): ToolDefinition => ({
+    name: `shop_${action}`,
+    description: action,
+    parameters: { type: "object" },
+    execute: async () => result,
+  });
+  /** A proposal whose agent opened that page. */
+  const opened = async () => {
+    const actions = ["click", "fill", "select_option", "check"].map((action) => tool(action, {}));
+    const screens = new ScreenWatch(
+      ["shop"],
+      [tool("goto", { url: "/orders", code: OPENED }), tool("snapshot", { page: PAGE, truncated: false }), ...actions],
+      matches,
+    );
+    const made = await proposal({ screens }, false);
+    await act(screens, "goto");
+    return made;
+  };
+  const expecting = (id: string, shows: string[], absent: string[] = []) =>
+    scenario(id, { steps: [{ action: "Open the orders", expects: [{ result: "The orders show", shows, absent }] }] });
+  const ACTIVE = 'page.getByRole("cell", { name: "Active", exact: true })';
+  const IN_ROW = 'page.getByRole("row", { name: "ORD-1 Active" }).getByRole("cell", { name: "Active", exact: true })';
+  const PAID = 'page.getByRole("cell", { name: "Paid", exact: true })';
+  const submitted = { scenarios: [expecting("a", ["Active", "Orders"]), expecting("b", ["Active"], ["Paid"]), expecting("c", ["Orders"])] };
+  const ASKED = [
+    "The plan is not accepted yet. The harness looked on the page for the element of each expected text, and asks you about 2 of them, once:",
+    `Proposal 1: "Active" (scenario a, expect 1.1) is shown by 2 elements of shop. The harness proposes to assert it on one of them alone: ${IN_ROW}. Check that it is the element you mean: if it is, put 1 in accepts. Otherwise expect a more precise text, such as the text of the whole row.`,
+    'Warning 2: "Paid" (scenario b, expect 1.1) is shown by 3 elements of shop, and the harness found no locator of one of them alone. If any of them will do, put 2 in accepts: the test will then assert that one of them at least shows it, or that none is left. Otherwise expect a more precise text, such as the text of the whole row.',
+    "Next: call propose_plan again with the plan, what you correct in it, and accepts. What you leave unanswered is asserted on any of its elements, and is not asked again.",
+  ].join("\n");
+  const elementsOf = (made: PlanProposal) => made.accepted!.scenarios.map((kept) => kept.steps[0]!.expects[0]!.elements);
+  const notes = (journal: Journal) => journal.entries().map((entry) => entry.message);
+
+  it("refuses a text whose element designated nothing the page showed", async () => {
+    const { proposal: made } = await opened();
+    assert.deepEqual(await submit(made, { scenarios: [expecting("a", ["Ghost"]), expecting("b", ["Orders"]), expecting("c", ["Orders"])] }), {
+      error:
+        'Refused (PLAN-ELEMENT): scenario a, expect 1.1, names "Ghost", and its element, page.getByRole("cell", { name: "Ghost", exact: true }), designated nothing the page showed when the harness looked for it: a test would not find it. Take shop_snapshot of the screen that shows the text, then expect a text as a line of that snapshot gives it, such as the name of a heading or of a row, or the text of a message.\nNothing else was refused.',
+    });
+  });
+
+  it("asks once about each element several share the locator of, proposes the locator of one alone when it found one, and writes what the agent accepts", async () => {
+    const { proposal: made, journal } = await opened();
+    assert.equal(await submit(made, submitted), ASKED);
+    assert.equal(made.accepted, undefined);
+    assert.deepEqual(notes(journal), [
+      `The harness proposed to the agent (1) to assert "Active" on ${IN_ROW}: 2 elements share ${ACTIVE}.`,
+      `The harness warned the agent (2) that 3 elements share ${PAID}, which shows "Paid".`,
+    ]);
+    assert.equal(await submit(made, { ...submitted, accepts: [1, 2] }), "The plan was accepted.\n\nScenario 1.");
+    const heading = { text: "Orders", locator: 'page.getByRole("heading", { name: "Orders", exact: true })', field: false };
+    assert.deepEqual(elementsOf(made), [
+      [{ text: "Active", locator: IN_ROW, field: false }, heading],
+      [
+        { text: "Active", locator: IN_ROW, field: false },
+        { text: "Paid", locator: PAID, field: false, count: 3 },
+      ],
+      [heading],
+    ]);
+    assert.deepEqual(notes(journal).slice(2, 4), [
+      `The agent accepted proposal 1: "Active" is asserted on ${IN_ROW}.`,
+      `The agent accepted warning 2: "Paid" is asserted on any of the 3 elements ${PAID}.`,
+    ]);
+  });
+
+  it("asks nothing twice: what the agent leaves unanswered is asserted on any of the elements, by their number", async () => {
+    const { proposal: made, journal } = await opened();
+    assert.equal(await submit(made, submitted), ASKED);
+    assert.equal(await submit(made, submitted), "The plan was accepted.\n\nScenario 1.");
+    assert.deepEqual(elementsOf(made).slice(0, 2), [
+      [
+        { text: "Active", locator: ACTIVE, field: false, count: 2 },
+        { text: "Orders", locator: 'page.getByRole("heading", { name: "Orders", exact: true })', field: false },
+      ],
+      [
+        { text: "Active", locator: ACTIVE, field: false, count: 2 },
+        { text: "Paid", locator: PAID, field: false, count: 3 },
+      ],
+    ]);
+    assert.deepEqual(notes(journal).slice(2, 4), [
+      `The agent left proposal 1 unanswered: "Active" is asserted on any of the 2 elements ${ACTIVE}.`,
+      `The agent left warning 2 unanswered: "Paid" is asserted on any of the 3 elements ${PAID}.`,
+    ]);
+  });
+
+  it("asks about an element the plan comes to name later, and only about it", async () => {
+    const { proposal: made } = await opened();
+    const first = { scenarios: [expecting("a", ["Active"]), expecting("b", ["Orders"]), expecting("c", ["Orders"])] };
+    assert.match((await submit(made, first)) as string, /asks you about 1 of them, once:\nProposal 1: "Active"/);
+    const later = (await submit(made, submitted)) as string;
+    assert.match(later, /asks you about 1 of them, once:\nWarning 2: "Paid"/);
+    assert.equal(await submit(made, { ...submitted, accepts: [2] }), "The plan was accepted.\n\nScenario 1.");
   });
 });

@@ -4,7 +4,7 @@ import type { Journal } from "../common/journal.ts";
 import { checkable, observed, sameText } from "./observed.ts";
 import { journalRefusals, maskedRefusals, refusalText, repeatedText, type Refusal } from "./refusal.ts";
 import { GUIDED_REFUSALS, RefusalStreak } from "./refusal-streak.ts";
-import type { ScreenWatch, WatchedAction } from "./screen-watch.ts";
+import type { ScreenWatch, ShownElement, WatchedAction } from "./screen-watch.ts";
 import type { SourceWatch } from "./source-watch.ts";
 import { heldVariables, type DeclaredSecret } from "./spec-rules.ts";
 import { MAX_TESTS, MIN_TESTS } from "./test-proposals.ts";
@@ -57,6 +57,25 @@ export interface SubmittedScenario extends Omit<PlannedScenario, "steps"> {
 /** A test plan, as the agent submits it with `propose_plan`. */
 export interface SubmittedPlan {
   readonly scenarios: readonly SubmittedScenario[];
+  /** The numbers of the proposals and the warnings of the harness the agent accepts, when it was told some. */
+  readonly accepts?: readonly number[];
+}
+
+/** An expected text of a plan whose element the screens showed, with where the plan names it. */
+interface LocatedText {
+  /** Where the plan names the text, such as `scenario a, expect 2.1`. */
+  readonly where: string;
+  /** Identifier of the application of its scenario. */
+  readonly application: string;
+  readonly text: string;
+  /** The element, as its locator was checked on the page. */
+  readonly element: ShownElement;
+}
+
+/** What the harness asked the agent, once, about an element several elements share the locator of. */
+interface Question extends LocatedText {
+  /** Its number, which the agent accepts it by. */
+  readonly number: number;
 }
 
 /** What a plan is checked against. */
@@ -100,7 +119,8 @@ export interface PlanRules {
  * the agent typed or in the name of a field; a value of the data from an application is one it showed
  * beside what the agent typed; and, for an application with a user interface, a step that cites no action, an
  * action no browser tool returned or one done on another application, a scenario whose first action opens no
- * address, and an action cited that typed a value that is none of the data; the agent may then submit another. Before the gates, the harness takes out of
+ * address, an action cited that typed a value that is none of the data, and an expected text whose only
+ * element has a locator that designated nothing the page showed; the agent may then submit another. Before the gates, the harness takes out of
  * a functional scenario of an application with a user interface each text expected shown by a step that
  * only types, followed by another step, that is a value of its data no screen showed beside the fields: the
  * field echoes it whatever the application answers. The gates number the expects as the agent wrote them,
@@ -108,7 +128,10 @@ export interface PlanRules {
  * the third refusal of one reason, the agent is told only what the gate would accept, and the sixth plan the
  * gates refuse stops the design. A plan that keeps these rules is inscribed: the harness writes in each step
  * the lines of code of the actions it cites, and in each expect the element the screens showed each of its
- * texts in, when they showed it in one; the agent writes neither. It then goes to the review, one plan at a
+ * texts in, when they showed it in one; the agent writes neither. Before that, the agent is asked once, in a
+ * result that is no refusal, about each element several share the locator of: a proposal, when the harness
+ * found the locator of one of them alone, or a warning; what it accepts with `accepts` is inscribed so, and
+ * what it leaves unanswered is asserted on any of the elements, by their number. It then goes to the review, one plan at a
  * time: accepted, it is frozen, and no other may be submitted; refused, the design stops.
  */
 export class PlanProposal {
@@ -119,6 +142,8 @@ export class PlanProposal {
   private lastCodes: readonly string[] = [];
   private readonly streak = new RefusalStreak();
   private refusedPlans = 0;
+  /** The questions asked, by the application and the locator of their element. */
+  private readonly asked = new Map<string, Question>();
 
   /**
    * @param rules - What the plan is checked against.
@@ -275,6 +300,12 @@ export class PlanProposal {
               additionalProperties: false,
             },
           },
+          accepts: {
+            type: "array",
+            maxItems: 40,
+            items: { type: "integer", minimum: 1 },
+            description: "The numbers of the proposals and the warnings you accept, once a result of this tool listed some; leave it out before.",
+          },
         },
         required: ["scenarios"],
         additionalProperties: false,
@@ -289,7 +320,11 @@ export class PlanProposal {
     const { plan: checked, emptied, echoes } = this.withoutEchoes(submitted);
     const refusals = this.errors(checked, emptied);
     if (refusals.length > 0) return this.refuse(refusals);
-    const plan = this.inscribed(withoutEmptied(checked, emptied));
+    const kept = withoutEmptied(checked, emptied);
+    // Several elements share the locator of an expected text: the agent is asked about each, once.
+    const open = kept.scenarios.flatMap((scenario) => this.located(scenario)).filter((located) => located.element.count > 1 && !this.asked.has(keyOf(located)));
+    if (open.length > 0) return this.masked(this.ask(open));
+    const { plan, notes } = this.inscribed(kept, new Set(submitted.accepts ?? []));
     const decision = await this.rules.review.review(plan);
     // Plans submitted in one turn are reviewed at once: another may have been decided meanwhile.
     if (this.refusal !== undefined) return { error: this.blocked() };
@@ -300,7 +335,7 @@ export class PlanProposal {
       return { error: this.blocked() };
     }
     this.plan = plan;
-    for (const echo of echoes) this.journal.record("info", this.masked(echo));
+    for (const note of [...echoes, ...notes]) this.journal.record("info", this.masked(note));
     this.journal.record("info", `The plan was accepted: ${plan.scenarios.map((scenario) => scenario.id).join(", ")}.`);
     return `The plan was accepted.\n\n${this.rules.carry(plan)}`;
   }
@@ -398,6 +433,7 @@ export class PlanProposal {
       ...functional.flatMap((scenario) => [...this.expectErrors(scenario, emptied), ...this.inputErrors(scenario)]),
       ...plan.scenarios.flatMap((scenario) => this.readErrors(scenario)),
       ...plan.scenarios.flatMap((scenario) => this.actionErrors(scenario)),
+      ...plan.scenarios.flatMap((scenario) => this.elementErrors(scenario)),
     ];
   }
 
@@ -599,29 +635,112 @@ export class PlanProposal {
     });
   }
 
+  /** The expected texts of a scenario the screens showed in an element, in the order of the plan. */
+  private located(scenario: SubmittedScenario): LocatedText[] {
+    const { application } = scenario;
+    return scenario.steps.flatMap((step, at) =>
+      step.expects.flatMap((expect, k) =>
+        [...expect.shows.map((text) => ({ text, gone: false })), ...expect.absent.map((text) => ({ text, gone: true }))].flatMap(({ text, gone }) => {
+          const element = this.rules.screens.locatorOf(application, text, gone);
+          return element === undefined ? [] : [{ where: `scenario ${scenario.id}, expect ${at + 1}.${k + 1}`, application, text, element }];
+        }),
+      ),
+    );
+  }
+
   /**
-   * The plan as it is kept: each step with the lines of code of the actions it cites, in place of their
-   * numbers, and each expect with the element the screens showed each of its texts in, for those they showed
-   * in one.
+   * What the gates refuse in the elements of the expected texts of a scenario: a text whose only element has
+   * a locator that designated nothing the page showed while the screen showed the text, which a test could
+   * not find.
    */
-  private inscribed(plan: SubmittedPlan): TestPlan {
-    const { screens } = this.rules;
+  private elementErrors(scenario: SubmittedScenario): Refusal[] {
+    const snapshot = scopedToolName(scenario.application, "snapshot");
+    return this.located(scenario)
+      .filter(({ element }) => element.count === 0)
+      .map(({ where, text, element }) => ({
+        code: "PLAN-ELEMENT",
+        message: `${where}, names "${text}", and its element, ${element.locator}, designated nothing the page showed when the harness looked for it: a test would not find it. Take ${snapshot} of the screen that shows the text, then expect a text as a line of that snapshot gives it, such as the name of a heading or of a row, or the text of a message.`,
+      }));
+  }
+
+  /**
+   * Asks the agent, once, about each element several elements share the locator of: a proposal, when the
+   * harness found the locator of one of them alone, which the agent checks; a warning otherwise, which the
+   * agent confirms when any of the elements will do. The plan is not accepted yet.
+   */
+  private ask(open: readonly LocatedText[]): string {
+    const told: string[] = [];
+    for (const located of open) {
+      const key = keyOf(located);
+      if (this.asked.has(key)) continue;
+      const question = { ...located, number: this.asked.size + 1 };
+      this.asked.set(key, question);
+      const { number, where, application, text, element } = question;
+      const shown = `"${text}" (${where}) is shown by ${element.count} elements of ${application}`;
+      const precise = "expect a more precise text, such as the text of the whole row";
+      if (element.narrower === undefined) {
+        this.journal.record(
+          "info",
+          this.masked(`The harness warned the agent (${number}) that ${element.count} elements share ${element.locator}, which shows "${text}".`),
+        );
+        told.push(
+          `Warning ${number}: ${shown}, and the harness found no locator of one of them alone. If any of them will do, put ${number} in accepts: the test will then assert that one of them at least shows it, or that none is left. Otherwise ${precise}.`,
+        );
+      } else {
+        this.journal.record(
+          "info",
+          this.masked(
+            `The harness proposed to the agent (${number}) to assert "${text}" on ${element.narrower}: ${element.count} elements share ${element.locator}.`,
+          ),
+        );
+        told.push(
+          `Proposal ${number}: ${shown}. The harness proposes to assert it on one of them alone: ${element.narrower}. Check that it is the element you mean: if it is, put ${number} in accepts. Otherwise ${precise}.`,
+        );
+      }
+    }
+    return [
+      `The plan is not accepted yet. The harness looked on the page for the element of each expected text, and asks you about ${told.length} of them, once:`,
+      ...told,
+      `Next: call ${PLAN_TOOL} again with the plan, what you correct in it, and accepts. What you leave unanswered is asserted on any of its elements, and is not asked again.`,
+    ].join("\n");
+  }
+
+  /**
+   * The plan as it is kept, and what the journal says of the questions it settles: each step with the lines
+   * of code of the actions it cites, in place of their numbers, and each expect with the element the screens
+   * showed each of its texts in, for those they showed in one. An element several share the locator of is
+   * the one the harness proposed, when the agent accepted it, and any of them otherwise, by their number.
+   */
+  private inscribed(plan: SubmittedPlan, accepts: ReadonlySet<number>): { plan: TestPlan; notes: string[] } {
+    const notes = new Set<string>();
+    const elementOf = (located: LocatedText): ExpectedElement => {
+      const { text, element } = located;
+      if (element.count === 1) return { text, locator: element.locator, field: element.field };
+      // The gates refused an element whose locator designated nothing, and each one several share was asked about.
+      const question = this.asked.get(keyOf(located))!;
+      const { number, element: asked } = question;
+      const any = `"${question.text}" is asserted on any of the ${asked.count} elements ${asked.locator}`;
+      if (!accepts.has(number)) notes.add(`The agent left ${asked.narrower === undefined ? "warning" : "proposal"} ${number} unanswered: ${any}.`);
+      else if (asked.narrower === undefined) notes.add(`The agent accepted warning ${number}: ${any}.`);
+      else {
+        notes.add(`The agent accepted proposal ${number}: "${question.text}" is asserted on ${asked.narrower}.`);
+        return { text, locator: asked.narrower, field: false };
+      }
+      return { text, locator: asked.locator, field: false, count: asked.count };
+    };
     const scenarios = plan.scenarios.map((scenario) => {
-      const element = (text: string, gone: boolean): ExpectedElement[] => {
-        const shown = screens.locatorOf(scenario.application, text, gone);
-        return shown === undefined ? [] : [{ text, ...shown }];
-      };
-      const steps = scenario.steps.map(({ action, actions, expects }) => ({
+      const elements = this.located(scenario).map((located) => ({ where: located.where, element: elementOf(located) }));
+      const steps = scenario.steps.map(({ action, actions, expects }, at) => ({
         action,
         code: this.cited(scenario, actions).map((done) => done.code),
-        expects: expects.map((expect) => ({
+        expects: expects.map((expect, k) => ({
           ...expect,
-          elements: [...expect.shows.flatMap((text) => element(text, false)), ...expect.absent.flatMap((text) => element(text, true))],
+          elements: elements.filter(({ where }) => where === `scenario ${scenario.id}, expect ${at + 1}.${k + 1}`).map(({ element }) => element),
         })),
       }));
       return { ...scenario, steps };
     });
-    return { scenarios };
+    return { plan: { scenarios }, notes: [...notes] };
   }
 
   /**
@@ -730,6 +849,11 @@ export class PlanProposal {
       },
     ];
   }
+}
+
+/** What tells an element of an application from another: its application and its locator. */
+function keyOf({ application, element }: Pick<LocatedText, "application" | "element">): string {
+  return `${application}\n${element.locator}`;
 }
 
 /** A plan without the expects the harness emptied of echoes. */

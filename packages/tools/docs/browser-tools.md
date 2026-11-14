@@ -15,6 +15,8 @@
 | `<id>_network` | Returns the latest requests of the page: the documents and the API calls, the assets when asked, and every failed request. | no |
 | `<id>_console` | Returns the latest console messages and uncaught errors of the page. | no |
 
+The toolset also gives `matches(application, targets)`, which no model calls: it counts, on the page of the application as it is now and without waiting, the elements each target designates, and returns for each its locator as a test writes it (`code`), their number (`count`), and whether it is one element the page shows (`visible`). A harness checks with it a locator it means to rely on. It returns nothing for an application without a user interface in the environment.
+
 `<id>` is the identifier of the application, with hyphens turned into underscores: `customer-self-service` gives `customer_self_service_click`. Browser actions count against the action limit of the task; the other tools do not.
 
 `goto`, `click`, `fill`, `select_option` and `check` return the address and the title of the page afterwards, and in `code` the line a Playwright test writes to do the same:

@@ -21,7 +21,7 @@ export interface Page {
 export interface TestInfo { attach(name: string, options: { body: Uint8Array; contentType: string }): Promise<void>; }
 type Body = (fixtures: { page: Page }, testInfo: TestInfo) => Promise<void>;
 export declare const test: ((title: string, body: Body) => void) & { step<T>(title: string, body: () => Promise<T>): Promise<T> };
-export declare const expect: (actual: unknown) => { toBeVisible(): Promise<void>; toBeHidden(): Promise<void>; toHaveValue(value: string): Promise<void> };
+export declare const expect: (actual: unknown) => { toBeVisible(): Promise<void>; toBeHidden(): Promise<void>; toHaveValue(value: string): Promise<void>; toHaveCount(count: number): Promise<void>; not: { toHaveCount(count: number): Promise<void> } };
 `;
 
 const repository = mkdtempSync(join(tmpdir(), "skeleton-"));
@@ -83,6 +83,14 @@ const SHOWN = explored(
   ],
   [{ text: "1 order", locator: 'page.getByRole("textbox", { name: "Count", exact: true })', field: true }],
 );
+/** The scenario when several elements share the locator of two of its texts, one shown, one gone. */
+const SHARED = explored(
+  [
+    { text: "Mira Veldane", locator: 'page.getByRole("cell", { name: "Mira Veldane", exact: true })', field: false, count: 2 },
+    { text: "ORD-1057", locator: 'page.getByRole("cell", { name: "ORD-1057", exact: true })', field: false, count: 3 },
+  ],
+  [],
+);
 
 describe("the skeleton of a test", () => {
   it("holds one test.step per step, titled by its number, with what to do when the plan gives no code, an assertion of each text of its expects, and a screenshot when asked", () => {
@@ -135,10 +143,22 @@ test("Search an order by \\"customer\\" name", async ({ page }) => {
     );
   });
 
+  it("asserts a text several elements share the locator of by their number: one at least, or none left", () => {
+    assert.deepEqual(
+      skeleton(SHARED, false)
+        .split("\n")
+        .filter((line) => line.includes("Count(")),
+      [
+        '    await expect(page.getByRole("cell", { name: "Mira Veldane", exact: true })).not.toHaveCount(0);',
+        '    await expect(page.getByRole("cell", { name: "ORD-1057", exact: true })).toHaveCount(0);',
+      ],
+    );
+  });
+
   it("parses, and keeps the default charter as it is, with or without the code and the elements of the plan", async () => {
     const charter = resolveCharter({ disable: [], add: [] });
     assert.ok(charter.ok);
-    for (const scenario of [SEARCH, SHOWN]) {
+    for (const scenario of [SEARCH, SHOWN, SHARED]) {
       const content = skeleton(scenario, true);
       assert.ok((await moduleSyntax(content)).ok);
       assert.deepEqual(await new CharterCheck({ repository, rules: charter.rules }).check({ path: "apps/shop/search-order-by-customer.spec.ts", content }), []);

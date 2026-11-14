@@ -436,6 +436,32 @@ describe("criterion 2 — a snapshot lists the elements one can act on, with rol
     });
   });
 
+  it("counts, without the model, the elements a target designates on the page as it is, and tells one the page shows from one it hides", async () => {
+    await withTools(async (tool, toolset) => {
+      await tool("shop_goto").execute({ url: "/rows" });
+      const row = { role: "row", name: "Lena Veldane" };
+      assert.deepEqual(
+        await toolset.matches("shop", [
+          { role: "cell", name: "Lena Veldane" },
+          { role: "button", name: "Manage" },
+          { role: "button", name: "Manage", within: row },
+          { role: "heading", name: "Nowhere" },
+        ]),
+        [
+          { code: 'page.getByRole("cell", { name: "Lena Veldane", exact: true })', count: 1, visible: true },
+          { code: 'page.getByRole("button", { name: "Manage", exact: true })', count: 2, visible: false },
+          { code: 'page.getByRole("row", { name: "Lena Veldane" }).getByRole("button", { name: "Manage", exact: true })', count: 1, visible: true },
+          { code: 'page.getByRole("heading", { name: "Nowhere", exact: true })', count: 0, visible: false },
+        ],
+      );
+      await tool("shop_goto").execute({ url: "/" });
+      await tool("shop_click").execute({ target: { role: "button", name: "Dismiss" } });
+      assert.deepEqual(await toolset.matches("shop", [{ text: "Banner" }]), [{ code: 'page.getByText("Banner", { exact: true })', count: 1, visible: false }]);
+      // An application without a user interface, or that the session does not know, has no page to look at.
+      assert.deepEqual([await toolset.matches("ledger", [row]), await toolset.matches("unknown", [row])], [[], []]);
+    });
+  });
+
   it("reads the row or dialog that holds an element in the page, named by its first child with a text", () => {
     const element = (
       tagName: string,

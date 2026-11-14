@@ -28,6 +28,8 @@ export interface ExpectedElement {
   readonly locator: string;
   /** Whether it is a field, which holds the text as its value. */
   readonly field: boolean;
+  /** How many elements the locator designated while the screen showed the text, when they were several and any of them will do: its assertion counts them. */
+  readonly count?: number;
 }
 
 /** A result a step expects to see after its action. */

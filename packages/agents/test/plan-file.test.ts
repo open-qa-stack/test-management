@@ -24,11 +24,12 @@ const SEARCH: PlannedScenario = {
       expects: [
         {
           result: "The list shows the customer found, and no longer the others.",
-          shows: ["Mira Veldane", "Veldane", "1 customer"],
+          shows: ["Mira Veldane", "Veldane", "1 customer", "Active"],
           absent: ["Ada Brennick"],
           elements: [
             { text: "Mira Veldane", locator: 'page.getByRole("link", { name: "Mira Veldane", exact: true })', field: false },
             { text: "Veldane", locator: 'page.getByRole("searchbox", { name: "Search a customer", exact: true })', field: true },
+            { text: "Active", locator: 'page.getByRole("cell", { name: "Active", exact: true })', field: false, count: 3 },
             { text: "Ada Brennick", locator: 'page.getByRole("link", { name: "Ada Brennick", exact: true })', field: false },
           ],
         },
@@ -77,6 +78,7 @@ Expect 2.1: The list shows the customer found, and no longer the others.
 - shows "Mira Veldane" in \`page.getByRole("link", { name: "Mira Veldane", exact: true })\`
 - shows "Veldane" as the value of \`page.getByRole("searchbox", { name: "Search a customer", exact: true })\`
 - shows "1 customer" by its text
+- shows "Active" in any of the 3 \`page.getByRole("cell", { name: "Active", exact: true })\`
 - no longer shows "Ada Brennick" in \`page.getByRole("link", { name: "Ada Brennick", exact: true })\`
 
 ## Record

@@ -1,4 +1,6 @@
 export { browserTools, type BrowserAccess, type BrowserToolset } from "./browser/browser-tools.ts";
+export type { TargetMatch } from "./browser/application-page.ts";
+export type { Target, TargetScope } from "./browser/target.ts";
 export type { ExportedElement, SourceExport } from "./common/source-export.ts";
 export type { SourceInventory } from "./common/source-inventory.ts";
 export { scopedToolName } from "./common/tool-name.ts";

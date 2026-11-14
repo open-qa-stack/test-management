@@ -1,8 +1,10 @@
 import { chromium, type Browser } from "playwright-core";
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import type { Application, Environment } from "@open-qa-stack/shared";
-import { applicationTools } from "./application-tools.ts";
+import type { TargetMatch } from "./application-page.ts";
+import { applicationMatches, applicationTools } from "./application-tools.ts";
 import { BrowserSession } from "./browser-session.ts";
+import type { Target } from "./target.ts";
 
 /** Default wait for an element to be ready for an action, in milliseconds. */
 export const ACTION_TIMEOUT_MS = 5000;
@@ -40,6 +42,16 @@ export interface BrowserAccess {
 export interface BrowserToolset {
   /** The tools of every application that has a user interface in the environment. */
   readonly tools: readonly ToolDefinition[];
+  /**
+   * Counts, on the page of an application as it is now, the elements each target designates, without the
+   * model: what a harness checks the locator of an element against.
+   *
+   * @param application - Identifier of the application.
+   * @param targets - The elements, designated as for an action.
+   * @returns What each designates, in their order; nothing for an application without a user interface in the environment.
+   * @throws Error when the page cannot be opened or read.
+   */
+  matches(application: string, targets: readonly Target[]): Promise<TargetMatch[]>;
   /** Closes the browser; to call once the session is over. */
   close(): Promise<void>;
 }
@@ -75,7 +87,12 @@ export function browserTools(applications: readonly Application[], access: Brows
         })
       : [];
   });
-  return { tools, close: () => session.close() };
+  const matches = async (id: string, targets: readonly Target[]) => {
+    const application = applications.find((candidate) => candidate.id === id);
+    const environment = application?.environments.find((e) => e.name === access.environment);
+    return hasUserInterface(environment) ? applicationMatches(application!, environment, session, targets) : [];
+  };
+  return { tools, matches, close: () => session.close() };
 }
 
 function hasUserInterface(environment: Environment | undefined): environment is Environment & { uiUrl: string } {
