@@ -30,6 +30,8 @@ export interface NamedApi {
 export interface Environment {
   name: string;
   uiUrl?: string;
+  /** What the agent that explores the user interface may do: change no data, `read-only` when absent, or submit the forms that create or change some. */
+  exploration?: "read-only" | "read-write";
   apis?: NamedApi[];
 }
 

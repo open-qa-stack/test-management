@@ -1,6 +1,7 @@
 export { browserTools, type BrowserAccess, type BrowserToolset } from "./browser/browser-tools.ts";
 export type { TargetMatch } from "./browser/application-page.ts";
 export type { Target, TargetScope } from "./browser/target.ts";
+export { changingName, destructiveName } from "./browser/destructive-target.ts";
 export { exportFile, sourceExport, type ElementDraft, type ExportedElement, type SourceExport } from "./common/source-export.ts";
 export { DocumentSet, type DocumentFile, type DocumentListing } from "./document/document-set.ts";
 export type { DocumentSection } from "./document/document-sections.ts";

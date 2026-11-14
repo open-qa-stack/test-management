@@ -106,6 +106,11 @@ export const configSchema = {
       properties: {
         name: label,
         uiUrl: url,
+        exploration: {
+          enum: ["read-only", "read-write"],
+          description:
+            "What the agent that explores the user interface may do in this environment: `read-only`, the default, it changes no data; `read-write`, it may submit the forms that create or change data, never those that remove any.",
+        },
         apis: {
           type: "array",
           items: {
