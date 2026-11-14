@@ -30,4 +30,5 @@ export type {
   ScenarioSource,
   ScenarioValue,
   TestPlan,
+  UncoveredRequest,
 } from "./test/test-plan.ts";

@@ -75,9 +75,19 @@ export interface PlannedScenario {
   readonly steps: readonly PlannedStep[];
 }
 
+/** Something the brief asks that the application does not let a test do, as the agent that plans found it. */
+export interface UncoveredRequest {
+  /** What the brief asks, in one sentence. */
+  readonly asked: string;
+  /** Why no test of the plan does it: what the agent saw of the application or read of its sources. */
+  readonly reason: string;
+}
+
 /** The tests an agent means to write, before it writes any. */
 export interface TestPlan {
   readonly scenarios: readonly PlannedScenario[];
+  /** What the brief asks and no scenario covers, because the application does not allow it; left out when the plan covers the brief. */
+  readonly uncovered?: readonly UncoveredRequest[];
 }
 
 /** Whether a plan may be carried out. */

@@ -1598,6 +1598,22 @@ describe("what the workflow of a source wrote of it", () => {
   });
 });
 
+describe("what the brief asks and the application does not allow", () => {
+  it("goes from the plan to its file and to the outcome of the design, and is none for a plan that covers the brief", async () => {
+    const uncovered = [{ asked: "Cancel an order.", reason: "No screen of shop offers to cancel one." }];
+    const partial = { ...PLAN, arguments: { ...PLAN.arguments, uncovered } };
+    const { outcome } = await design(replies([[OPEN], [partial], DONE, ...valid(3)]), { plan: false });
+    assert.equal(outcome.ok, true, messages(outcome));
+    assert.deepEqual(outcome.uncovered, uncovered);
+    assert.match(
+      readFileSync(outcome.planPath!, "utf8"),
+      /\n## Not covered\n\nThe brief asks what follows, and no scenario does it:\n\n- Cancel an order\. No screen of shop offers to cancel one\.\n/,
+    );
+    assert.match(messages(outcome), /The plan does not cover what the brief asks: Cancel an order\. No screen of shop offers to cancel one\./);
+    assert.deepEqual((await design(replies(valid(3)))).outcome.uncovered, []);
+  });
+});
+
 describe("the request of a brief", () => {
   it("holds the brief and the domains of the knowledge with what the sources hold of each, whatever the brief, and nothing else of the knowledge", async () => {
     const { server } = await design(replies(valid(3)), { brief: "Follow the orders" });

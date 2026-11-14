@@ -1,4 +1,4 @@
-import type { ExpectedElement, PlannedExpect, PlannedScenario, PlanReview, TestPlan, ToolDefinition } from "@open-qa-stack/domain";
+import type { ExpectedElement, PlannedExpect, PlannedScenario, PlanReview, TestPlan, ToolDefinition, UncoveredRequest } from "@open-qa-stack/domain";
 import { redactText, scopedToolName, secretForms } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
 import { checkable, observed, sameText } from "./observed.ts";
@@ -59,6 +59,8 @@ export interface SubmittedScenario extends Omit<PlannedScenario, "steps"> {
 /** A test plan, as the agent submits it with `propose_plan`. */
 export interface SubmittedPlan {
   readonly scenarios: readonly SubmittedScenario[];
+  /** What the brief asks and the application does not let a test do, when the agent found some. */
+  readonly uncovered?: readonly UncoveredRequest[];
   /** The numbers of the proposals and the warnings of the harness the agent accepts, when it was told some. */
   readonly accepts?: readonly number[];
 }
@@ -90,6 +92,8 @@ export interface PlanRules {
   readonly domains: readonly string[];
   /** The values no plan may hold: the plan is written to the design state. */
   readonly secrets: readonly DeclaredSecret[];
+  /** The addresses no expected text may hold, as `declaredAddresses` gives them: no test may hold one. */
+  readonly addresses: readonly string[];
   /** What the agent saw of the screens, which the expected results of a functional scenario must come from. */
   readonly screens: ScreenWatch;
   /** What the agent read of the knowledge sources, which the data and the texts of a scenario must come from. */
@@ -312,6 +316,26 @@ export class PlanProposal {
               additionalProperties: false,
             },
           },
+          uncovered: {
+            type: "array",
+            maxItems: 5,
+            description:
+              "What the brief asks that the application does not let a test do, such as an action no screen offers: say it here rather than plan another test in its place without a word. Leave it out when the plan covers the brief.",
+            items: {
+              type: "object",
+              properties: {
+                asked: { type: "string", minLength: 1, maxLength: 200, description: "What the brief asks, in one sentence." },
+                reason: {
+                  type: "string",
+                  minLength: 1,
+                  maxLength: 400,
+                  description: "Why no test does it: what you saw of the application or read of its sources.",
+                },
+              },
+              required: ["asked", "reason"],
+              additionalProperties: false,
+            },
+          },
           accepts: {
             type: "array",
             maxItems: 40,
@@ -348,6 +372,9 @@ export class PlanProposal {
     }
     this.plan = plan;
     for (const note of [...echoes, ...notes]) this.journal.record("info", this.masked(note));
+    // What the brief asks and the plan leaves out is said where a person reads it, not left in an answer of the agent.
+    for (const { asked, reason } of plan.uncovered ?? [])
+      this.journal.record("error", this.masked(`The plan does not cover what the brief asks: ${asked} ${reason}`));
     this.journal.record("info", `The plan was accepted: ${plan.scenarios.map((scenario) => scenario.id).join(", ")}.`);
     // What the harness took out of the plan is told to the agent, not done behind its back.
     return ["The plan was accepted.", ...echoes.map((echo) => this.masked(echo)), SESSION_OVER].join("\n");
@@ -423,7 +450,23 @@ export class PlanProposal {
     // The lines of code of the actions a step cites are written to the plan, with what they typed.
     const written = (scenario: SubmittedScenario) =>
       scenario.steps.flatMap((step) => this.cited(scenario, step.actions).flatMap((done) => [done.code, done.typed ?? ""]));
-    const text = plan.scenarios.flatMap((scenario) => [...planText(scenario), ...written(scenario)]).join("\n");
+    const said = (plan.uncovered ?? []).flatMap(({ asked, reason }) => [asked, reason]);
+    const text = [...plan.scenarios.flatMap((scenario) => [...planText(scenario), ...written(scenario)]), ...said].join("\n");
+    // A text a test would assert may not hold an address of the configuration: no test holds a host, and no text of a plan is dropped later.
+    const addressed = plan.scenarios.flatMap((scenario) =>
+      scenario.steps.flatMap((step, at) =>
+        step.expects.flatMap((expect, k) =>
+          [...expect.shows, ...expect.absent].flatMap((expected) =>
+            this.rules.addresses
+              .filter((address) => expected.includes(address))
+              .map((address) => ({
+                code: "PLAN-ADDRESS",
+                message: `scenario ${scenario.id}, expect ${at + 1}.${k + 1}, names "${expected}", which holds ${address}, an address of the configuration: no test may hold a host. Leave this text out, and expect another text the screen showed after the step, such as a heading, a row or a message.`,
+              })),
+          ),
+        ),
+      ),
+    );
     const secrets = heldVariables(text, this.rules.secrets).map((variable) => ({
       code: "PLAN-SECRET",
       message: `the plan holds the value of ${variable}. Leave it out; a test reads it with process.env.${variable}.`,
@@ -442,6 +485,7 @@ export class PlanProposal {
     return [
       ...repeated,
       ...secrets,
+      ...addressed,
       ...negative,
       ...functional.flatMap((scenario) => [...this.expectErrors(scenario, emptied), ...this.inputErrors(scenario)]),
       ...plan.scenarios.flatMap((scenario) => this.readErrors(scenario)),
@@ -755,7 +799,8 @@ export class PlanProposal {
       }));
       return { ...scenario, steps };
     });
-    return { plan: { scenarios }, notes: [...notes] };
+    const uncovered = plan.uncovered ?? [];
+    return { plan: { scenarios, ...(uncovered.length === 0 ? {} : { uncovered }) }, notes: [...notes] };
   }
 
   /**

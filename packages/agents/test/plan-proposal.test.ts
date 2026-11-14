@@ -14,6 +14,7 @@ type Scenario = Omit<SubmittedScenario, "steps"> & { readonly steps: readonly St
 interface Plan {
   readonly scenarios: readonly Scenario[];
   readonly accepts?: readonly number[];
+  readonly uncovered?: readonly { readonly asked: string; readonly reason: string }[];
 }
 /** The line of code the tool that opens the orders returns. */
 const OPENED = 'await page.goto("/orders");';
@@ -88,6 +89,7 @@ const RULES: Omit<PlanRules, "screens" | "reads"> = {
   applications: ["shop", "ledger"],
   domains: ["orders"],
   secrets: [],
+  addresses: ["http://127.0.0.1:8090"],
   review: { review: async () => ({ accepted: true }) },
 };
 
@@ -295,6 +297,45 @@ describe("the gates of a plan", () => {
           "Refused (PLAN-SECRET): the plan holds the value of SHOP_PASSWORD. Leave it out; a test reads it with process.env.SHOP_PASSWORD.\nNothing else was refused.",
       },
     );
+  });
+
+  it("refuse an expected text that holds an address of the configuration, which no test may hold", async () => {
+    const { proposal: made } = await proposal();
+    const footer = "BACKEND: http://127.0.0.1:8090";
+    const steps = [{ action: "Open the orders", expects: [{ result: "The orders show", shows: ["Orders"], absent: [footer] }] }];
+    const refused = (await submit(made, { scenarios: [scenario("a", { steps }), scenario("b"), scenario("c")] })) as { error: string };
+    assert.equal(
+      refused.error.split("\n")[0],
+      `Refused (PLAN-ADDRESS): scenario a, expect 1.1, names "${footer}", which holds http://127.0.0.1:8090, an address of the configuration: no test may hold a host. Leave this text out, and expect another text the screen showed after the step, such as a heading, a row or a message.`,
+    );
+  });
+
+  it("keep what the agent says the brief asks and the application does not allow, and say it in the journal", async () => {
+    const { proposal: made, journal } = await proposal();
+    const uncovered = [{ asked: "Change the address of a customer.", reason: "No screen of shop offers to edit an address." }];
+    assert.equal(await submit(made, { ...plan("a", "b", "c"), uncovered }), ACCEPTED);
+    assert.deepEqual(made.accepted!.uncovered, uncovered);
+    assert.deepEqual(
+      journal.entries().filter((entry) => entry.level === "error"),
+      [
+        {
+          level: "error",
+          message: "The plan does not cover what the brief asks: Change the address of a customer. No screen of shop offers to edit an address.",
+        },
+      ],
+    );
+    // A plan that covers the brief says nothing of it, with or without an empty list.
+    for (const covered of [{}, { uncovered: [] }]) {
+      const { proposal: whole } = await proposal();
+      assert.equal(await submit(whole, { ...plan("a", "b", "c"), ...covered }), ACCEPTED);
+      assert.equal("uncovered" in whole.accepted!, false);
+    }
+    // What it says holds no secret either.
+    const { proposal: secret } = await proposal({ secrets: [{ variable: "SHOP_PASSWORD", value: "s3cret-pass" }] });
+    const told = (await submit(secret, { ...plan("a", "b", "c"), uncovered: [{ asked: "Sign in.", reason: "The password s3cret-pass is refused." }] })) as {
+      error: string;
+    };
+    assert.match(told.error, /^Refused \(PLAN-SECRET\): the plan holds the value of SHOP_PASSWORD\./);
   });
 
   it("tell only the first error of a reason refused three times, and stop the design at the sixth plan they refuse", async () => {

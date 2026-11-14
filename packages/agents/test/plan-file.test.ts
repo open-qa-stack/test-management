@@ -94,6 +94,19 @@ describe("the file of a plan", () => {
     assert.equal(PLAN_FILE_SUFFIX, ".plan.md");
   });
 
+  it("says under its own heading what the brief asks and no scenario does, and reads it back", () => {
+    const uncovered = [{ asked: "Change the address\nof a customer.", reason: "No screen offers to edit an address." }];
+    const text = planFileText({ ...RECORD, uncovered });
+    assert.ok(
+      text.includes(
+        "\n## Not covered\n\nThe brief asks what follows, and no scenario does it:\n\n- Change the address of a customer. No screen offers to edit an address.\n\n## Record\n",
+      ),
+      text,
+    );
+    assert.deepEqual(readPlanFile(text), { ...RECORD, uncovered });
+    assert.ok(!planFileText(RECORD).includes("## Not covered"));
+  });
+
   it("holds each text on one line of the page, and exactly in the record: new lines, grave accents, the marks of its own record", () => {
     const { brief: _brief, ...unbriefed } = RECORD;
     const odd: PlanRecord = {

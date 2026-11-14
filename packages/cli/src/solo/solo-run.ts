@@ -1,6 +1,6 @@
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join, posix, relative, sep } from "node:path";
-import type { CommandRunner, StopReason, TestVerdict } from "@open-qa-stack/domain";
+import type { CommandRunner, StopReason, TestVerdict, UncoveredRequest } from "@open-qa-stack/domain";
 import { Cartographer, Designer, type JournalEntry, type TraceLine } from "@open-qa-stack/agents";
 import { CharterCheck, writerInstructions, LocalRunner, PinnedRun, resolveCharter, RUNS_FOLDER, TrialRunner, type ActiveRule } from "@open-qa-stack/harness";
 import { CONFIG_FILE_NAME, declaredValues, validateConfig, type ResolvedConfig } from "@open-qa-stack/shared";
@@ -69,6 +69,8 @@ export interface SoloRunState {
   readonly branch?: string;
   /** The test files designed, relative to the test repository. */
   readonly designed: readonly string[];
+  /** What the brief asks and the plan leaves out, because the application does not allow it, each with why; left out when the plan covers the brief. */
+  readonly uncovered?: readonly UncoveredRequest[];
   /** The design state, relative to the test repository, when the design wrote it. */
   readonly designState?: string;
   /** The step a limit of the autonomy stopped, and the limit, when one stopped the run: it can then be resumed. */
@@ -248,9 +250,10 @@ export class SoloRun {
         return { value: outcome, ok: outcome.ok };
       });
       const tests = designed.value.tests.map((test) => test.path);
-      const { branch, statePath, stoppedBy } = designed.value;
+      const { branch, statePath, stoppedBy, uncovered = [] } = designed.value;
       found = {
         ...found,
+        ...(uncovered.length === 0 ? {} : { uncovered }),
         ...(branch === undefined ? {} : { branch }),
         designed: tests,
         ...(statePath === undefined ? {} : { designState: this.inRepository(statePath) }),
@@ -391,6 +394,7 @@ export class SoloRun {
       `Run ${state.runId}: exit code ${state.exitCode}.`,
       ...(state.branch === undefined ? [] : [`Tests written on the branch ${state.branch}.`]),
       ...state.tests.map((test) => `${test.verdict.padEnd(13)} ${test.id}`),
+      ...(state.uncovered ?? []).map(({ asked, reason }) => `Not covered: ${asked} ${reason}`),
       ...(state.stoppedBy === undefined ? [] : [resumeHint(state)]),
       `State: ${posix.join(posix.dirname(state.journal), `${state.runId}.json`)}`,
     ];

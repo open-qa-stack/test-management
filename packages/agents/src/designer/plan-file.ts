@@ -1,4 +1,4 @@
-import type { PlannedExpect, PlannedScenario, PlannedStep } from "@open-qa-stack/domain";
+import type { PlannedExpect, PlannedScenario, PlannedStep, UncoveredRequest } from "@open-qa-stack/domain";
 import { oneLine } from "./one-line.ts";
 
 /** What the name of the file of a plan ends with, after the identifier of its design. */
@@ -20,6 +20,8 @@ export interface PlanRecord {
   readonly brief?: string;
   /** The scenarios of the plan, in its order. */
   readonly scenarios: readonly PlannedScenario[];
+  /** What the brief asks and no scenario covers, because the application does not allow it; left out when the plan covers the brief. */
+  readonly uncovered?: readonly UncoveredRequest[];
 }
 
 /**
@@ -45,6 +47,7 @@ export function planFileText(record: PlanRecord): string {
     "The harness wrote this file from the plan it accepted, and reads its last part again. Edit neither part by hand: a file whose two parts differ is not read.",
     "",
     ...record.scenarios.flatMap(scenarioLines),
+    ...uncoveredLines(record.uncovered ?? []),
     `${RECORD_START.trim()}\n${JSON.stringify(record, null, 2)}${RECORD_END}`,
   ].join("\n");
 }
@@ -122,4 +125,17 @@ function ticks(code: string, least: number): string {
 /** A text with its spaces collapsed, on one line of the page. */
 function flat(text: string): string {
   return text.replace(/\s+/g, " ").trim();
+}
+
+/** What the brief asks and the plan leaves out, under its own heading; nothing when the plan covers the brief. */
+function uncoveredLines(uncovered: readonly UncoveredRequest[]): string[] {
+  if (uncovered.length === 0) return [];
+  return [
+    "## Not covered",
+    "",
+    "The brief asks what follows, and no scenario does it:",
+    "",
+    ...uncovered.map(({ asked, reason }) => `- ${flat(asked)} ${flat(reason)}`),
+    "",
+  ];
 }

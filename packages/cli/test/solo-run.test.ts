@@ -224,6 +224,8 @@ const written = (id: string) => [
  * session that plans — a read of the orders, the plan, an answer — and the session of each of three
  * scenarios.
  */
+/** The reply of the session that plans that submits the plan. */
+const planned = { body: toolCalls(MODEL, [plan]) };
 const chain = () => [
   { body: { data: [] } },
   { body: toolCalls(MODEL, [submit("submit_card", card, "c1")]) },
@@ -231,7 +233,7 @@ const chain = () => [
   { body: toolCalls(MODEL, [submit("submit_index", index, "x1")]) },
   { body: answer(MODEL, "One domain.") },
   read(),
-  { body: toolCalls(MODEL, [plan]) },
+  planned,
   ended,
   ...IDS.flatMap(written),
   ...Array.from({ length: 4 }, () => ended),
@@ -604,6 +606,23 @@ describe("the command oqas", () => {
     assert.match(run.err, /^\d\d:\d\d:\d\d plan \d+ model requests/m);
     // The journal is still printed, and an entry of the journal is printed once.
     assert.equal(run.err.split("\n").filter((line) => line.includes("The plan was accepted:")).length, 1);
+  });
+});
+
+describe("what the brief asks and the plan leaves out", () => {
+  it("is printed in the summary and kept in the state of the run, and neither for a plan that covers the brief", async () => {
+    const uncovered = [{ asked: "Cancel an order.", reason: "No operation of the shop cancels one." }];
+    const partial = submit("propose_plan", { scenarios: IDS.map(scenario), uncovered }, "plan");
+    const replies = chain().map((reply) => (reply.body === planned.body ? { body: toolCalls(MODEL, [partial]) } : reply));
+    const run = await solo(replies, { environment: "local", command: true });
+    assert.equal(run.code, 0, run.err);
+    assert.match(run.out, /\nNot covered: Cancel an order\. No operation of the shop cancels one\.\nState: /);
+    const [state] = readdirSync(join(run.root, ".oqas", "runs")).filter((file) => file.endsWith(".json"));
+    assert.deepEqual((JSON.parse(readFileSync(join(run.root, ".oqas", "runs", state!), "utf8")) as { uncovered?: unknown }).uncovered, uncovered);
+    const whole = await solo(chain(), { environment: "local", command: true });
+    assert.doesNotMatch(whole.out, /Not covered/);
+    const [covered] = readdirSync(join(whole.root, ".oqas", "runs")).filter((file) => file.endsWith(".json"));
+    assert.equal("uncovered" in (JSON.parse(readFileSync(join(whole.root, ".oqas", "runs", covered!), "utf8")) as object), false);
   });
 });
 

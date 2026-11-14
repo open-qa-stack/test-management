@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, posix } from "node:path";
-import type { AgentEvent, AgentRuntime, PlanReview, StopReason, TerminalEvent, TestPlan } from "@open-qa-stack/domain";
+import type { AgentEvent, AgentRuntime, PlanReview, StopReason, TerminalEvent, TestPlan, UncoveredRequest } from "@open-qa-stack/domain";
 import {
   validateDomainIndex,
   validateSourceCard,
@@ -86,6 +86,8 @@ export interface DesignOutcome {
   readonly statePath?: string;
   /** Where the accepted plan was written, when the state was. */
   readonly planPath?: string;
+  /** What the brief asks and the accepted plan leaves out, because the application does not allow it; none when the plan covers the brief, or without a plan. */
+  readonly uncovered?: readonly UncoveredRequest[];
   /** The test of each scenario closed, in the order of the plan, those of the design resumed first. */
   readonly tests: readonly DesignedTest[];
   /** What the run checked, refused and wrote. */
@@ -238,6 +240,7 @@ export class Designer {
             applications: applications.map((application) => application.id),
             domains: index.domains.map((domain) => domain.id),
             secrets: declaredSecrets(config, env),
+            addresses: declaredAddresses(config),
             screens: session.screens,
             reads: session.reads,
             review: this.options.planReview ?? ACCEPT_EVERY_PLAN,
@@ -316,6 +319,7 @@ export class Designer {
         environment: index.environment,
         ...(brief === undefined ? {} : { brief }),
         scenarios: planned.scenarios,
+        ...(planned.uncovered === undefined ? {} : { uncovered: planned.uncovered }),
       };
       const state: DesignState = {
         formatVersion: 4,
@@ -346,6 +350,7 @@ export class Designer {
         ...(kept.length === 0 ? {} : { branch }),
         statePath: join(repositoryRoot, statePath),
         planPath: join(repositoryRoot, state.plan),
+        uncovered: record.uncovered ?? [],
         tests: kept,
         journal: journal.entries(),
         tracePath: opened.path,
