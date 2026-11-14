@@ -6,8 +6,7 @@ import type { Journal } from "../common/journal.ts";
 import { DesignCursor, MAX_FAILED_RUNS, type ScenarioRun } from "./design-cursor.ts";
 import { assertionAt, failurePageText, misplacedAtFailure, shownAtFailure } from "./failure-page.ts";
 import { errorClass, failureHint } from "./run-failure.ts";
-import type { DesignedTest, FailureCause, Quarantine, UnwrittenScenario } from "./design-state.ts";
-import { PLAN_TOOL } from "./plan-proposal.ts";
+import type { DesignedRun, DesignedTest, FailureCause, Quarantine, TestClassing } from "./design-state.ts";
 import { journalRefusals, maskedRefusals, refusalText, repeatedText, type Refusal } from "./refusal.ts";
 import { GUIDED_REFUSALS, MAX_REFUSALS, RefusalStreak } from "./refusal-streak.ts";
 import { scenarioErrors } from "./scenario-gates.ts";
@@ -21,6 +20,10 @@ import { addressErrors, fileErrors, heldVariables, importErrors, locatorsOf, sec
 export const PROPOSE_TOOL = "propose_test";
 /** Name of the tool the designer runs the test of a scenario with. */
 export const RUN_TOOL = "run_test";
+/** The check that closes a scenario whose session ended before the agent closed it. */
+export const SESSION_END = "SESSION-END";
+/** How what the agent is told of a scenario that is closed ends: its session is over. */
+const SESSION_OVER = "Next: answer with one sentence. Call no more tools.";
 /** Longest error told to the agent for a test that did not pass. */
 const MAX_TOLD_ERROR = 1500;
 /** Fewest tests a design must give. */
@@ -52,11 +55,17 @@ export interface ProposalRules {
   readonly runner: TestRunner;
   /** The packages a test may import, as `testPackages` gives them. */
   readonly packages: readonly string[];
-  /** What the agent saw of the screens, which a test must rely on. */
-  readonly screens: ScreenWatch;
   /** Whether each step of a test ends with a screenshot attached to the report, as the charter may ask. */
   readonly screenshots: boolean;
-  /** What the agent read of the knowledge sources, which may be a look at what a failed run did. */
+  /** The clock of the dates a test is classed at. */
+  readonly now: () => Date;
+}
+
+/** What the agent sees and reads in the session that writes the test of one scenario. */
+export interface WritingSession {
+  /** What the agent saw of the screens in this session, which a locator of its own must rely on. */
+  readonly screens: ScreenWatch;
+  /** What the agent read of the knowledge sources in this session, which may be a look at what a failed run did. */
   readonly reads: SourceWatch;
 }
 
@@ -70,7 +79,9 @@ interface Diagnosis {
  * The tests of the scenarios of an accepted plan, written one scenario at a time, in the order of the plan.
  *
  * @remarks
- * Once the plan is accepted, a cursor opens its first scenario and names the file of its test. `run_test`
+ * A cursor opens the first scenario of the plan not closed, and names the file of its test. Each scenario is
+ * written in a session of its own, which `begin` binds to it: until then, and once the scenario is closed,
+ * `run_test` and `propose_test` are refused with `SCENARIO-CLOSED`. `run_test`
  * takes the whole text of that file, checks it, and runs it against the application. A text is refused,
  * with every reason of the first tier that refuses it and its code:
  *
@@ -94,16 +105,26 @@ interface Diagnosis {
  * previous recorded. Every refusal is journaled with its code and told to the agent, every declared value
  * masked. From the third refusal of one reason since the test last ran, the agent is told only what the
  * gate would accept; the fifth closes the scenario: with the text of its last run that gave a verdict,
- * kept as it ended, a failing one with the cause `test`, or without a test when none did.
+ * kept as it ended, a failing one with the cause `test`.
+ *
+ * No test is lost. A scenario closed before its test was made to end — by the fifth refusal with no run that
+ * gave a verdict, by three runs without a verdict, or by `giveUp` when its session ended first — keeps a
+ * file classed `unfinished`: the last text submitted that held nothing a test may not hold, or the skeleton
+ * when none was, with why it was closed and what was tried. Each test kept is classed, with the date, who
+ * classed it and why.
  */
 export class TestProposals {
   private readonly rules: ProposalRules;
   private readonly journal: Journal;
   private readonly kept: AcceptedTest[] = [];
   private readonly forms: readonly string[];
-  private cursor: DesignCursor | undefined;
-  /** The scenarios the harness closed without a test. */
-  private readonly closed: UnwrittenScenario[] = [];
+  private readonly cursor: DesignCursor;
+  /** The session that writes the scenario open; none before `begin`, and once the scenario is closed. */
+  private session: WritingSession | undefined;
+  /** The last text submitted for the scenario open that held nothing a test may not hold. */
+  private submitted: string | undefined;
+  /** The codes that refused a call about the scenario open, in order. */
+  private refusedCodes: string[] = [];
   /** The refusals of the calls about the scenario open since its test last ran. */
   private readonly streak = new RefusalStreak();
   /** The references a run made, by the text that ran. */
@@ -114,11 +135,14 @@ export class TestProposals {
   /**
    * @param rules - What the tests are checked against.
    * @param journal - Where refusals, runs and the scenarios closed are written.
+   * @param plan - The accepted plan.
+   * @param closed - How many scenarios, from the first, an earlier design closed; none by default, and fewer than the plan holds.
    */
-  public constructor(rules: ProposalRules, journal: Journal) {
+  public constructor(rules: ProposalRules, journal: Journal, plan: TestPlan, closed = 0) {
     this.rules = rules;
     this.journal = journal;
     this.forms = rules.secrets.flatMap((secret) => secretForms(secret.value));
+    this.cursor = new DesignCursor(plan, (scenario) => this.place(scenario), closed);
   }
 
   /**
@@ -131,33 +155,51 @@ export class TestProposals {
   }
 
   /**
-   * The scenarios the harness closed without a test.
+   * The sheet of the first scenario not closed, which the session that writes it starts from.
    *
-   * @returns A copy, in the order of the plan.
+   * @returns The sheet; `undefined` once every scenario is closed.
    */
-  public get unwritten(): UnwrittenScenario[] {
-    return [...this.closed];
+  public get sheet(): string | undefined {
+    return this.cursor.scenario === undefined ? undefined : scenarioSheet(this.cursor, this.rules.screenshots);
   }
 
   /**
-   * Whether a scenario of the accepted plan is still open.
+   * Whether a session is writing the scenario open.
    *
-   * @returns `false` before a plan is accepted, and once every scenario is closed.
+   * @returns `true` from `begin` until the scenario is closed.
    */
-  public get pending(): boolean {
-    return this.cursor?.scenario !== undefined;
+  public get writing(): boolean {
+    return this.session !== undefined;
   }
 
   /**
-   * Starts carrying out an accepted plan: opens its first scenario still open.
+   * Binds a session to the first scenario not closed: its test is written with what this session sees and reads.
    *
-   * @param plan - The plan.
-   * @param closed - How many scenarios, from the first, an earlier session closed; none by default, and fewer than the plan holds.
-   * @returns The sheet of the scenario opened.
+   * @param session - What the agent sees of the screens and reads of the sources in the session.
    */
-  public start(plan: TestPlan, closed = 0): string {
-    this.cursor = new DesignCursor(plan, (scenario) => this.place(scenario), closed);
-    return this.opened(this.cursor);
+  public begin(session: WritingSession): void {
+    this.session = session;
+    this.submitted = undefined;
+    this.refusedCodes = [];
+    this.streak.reset();
+    this.journal.record("info", `The scenario ${this.cursor.scenario!.id} was opened; its test is ${this.cursor.path}.`);
+  }
+
+  /**
+   * Closes the scenario a session was writing when the session ended before the agent closed it: its test is
+   * kept as passed when its last run passed, and as unfinished otherwise.
+   *
+   * @param check - The check that closes it, such as `SESSION_END`.
+   */
+  public giveUp(check: string): void {
+    const open = { cursor: this.cursor, scenario: this.cursor.scenario!, path: this.cursor.path! };
+    const last = open.cursor.runs.at(-1);
+    if (last?.verdict === "passed") {
+      const reason = "Its last run passed; its session ended before the agent closed the scenario.";
+      this.keep(open, last, undefined, { class: "passed", origin: { by: "harness", check }, reason }, check);
+      this.journal.record("info", `The scenario ${open.scenario.id} was closed by the harness (${check}): passed; its test is ${open.path}.`);
+    } else this.unfinished(open, check, "Its session ended before the scenario was closed.");
+    this.next(open.cursor, "");
   }
 
   /**
@@ -216,22 +258,22 @@ export class TestProposals {
   /**
    * The message that reminds an agent which stopped before every scenario was closed.
    *
-   * @returns The reminder; `undefined` before a plan is accepted, and once every scenario is closed.
+   * @returns The reminder; `undefined` when no session is writing a scenario.
    */
   public reminder(): string | undefined {
+    if (this.session === undefined) return undefined;
     const cursor = this.cursor;
-    const scenario = cursor?.scenario;
-    if (scenario === undefined) return undefined;
-    const last = cursor!.runs.at(-1);
-    const where = `Scenario ${cursor!.rank} of ${cursor!.plan.scenarios.length}, ${scenario.id}`;
+    const scenario = cursor.scenario!;
+    const last = cursor.runs.at(-1);
+    const where = `Scenario ${cursor.rank} of ${cursor.plan.scenarios.length}, ${scenario.id}`;
     const state =
       last === undefined
         ? "its test has not run"
         : last.verdict === "passed"
           ? "its test passed and is not closed"
-          : `its last run failed (${cursor!.failedRuns} of ${MAX_FAILED_RUNS})`;
+          : `its last run failed (${cursor.failedRuns} of ${MAX_FAILED_RUNS})`;
     this.journal.record("info", `The agent stopped before scenario ${scenario.id} was closed; it was reminded to go on.`);
-    return `You stopped before the end. ${where}: ${state}.\n${cursor!.next()}`;
+    return `You stopped before the end. ${where}: ${state}.\n${cursor.next()}`;
   }
 
   /** Runs a call once the calls before it are done, whatever they gave. */
@@ -243,7 +285,7 @@ export class TestProposals {
 
   /** How many times the agent looked at an application: its screens and the logs or the code, or any source when it has no screens. */
   private looks(application: string): number {
-    const { screens, reads } = this.rules;
+    const { screens, reads } = this.session!;
     return screens.watches(application) ? screens.looks(application) + reads.looks() : reads.calls();
   }
 
@@ -269,7 +311,7 @@ export class TestProposals {
     const failed = trial.tests.find((test) => test.verdict !== "passed");
     // The page at the failure is one the screens showed: a test may find an element of it.
     const page = failed?.page === undefined ? undefined : snapshotLines(failed.page);
-    if (page !== undefined) this.rules.screens.recordPage(scenario.application, page);
+    if (page !== undefined) this.session!.screens.recordPage(scenario.application, page);
     const failure =
       failed === undefined
         ? {}
@@ -315,7 +357,7 @@ export class TestProposals {
 
   /** How to look at what a failed run did, with the tools the agent has; none when it has no tool to look with. */
   private lookAdvice(scenario: PlannedScenario, last: ScenarioRun): string | undefined {
-    const { screens, reads } = this.rules;
+    const { screens, reads } = this.session!;
     const step = last.failedStep === undefined ? "" : ` (${JSON.stringify(last.failedStep)})`;
     const logs = reads.firstTools("logs").map((tool) => `read the logs since ${last.startedAt} with ${tool}`);
     if (screens.watches(scenario.application))
@@ -346,9 +388,8 @@ export class TestProposals {
       return this.refuse(what, [{ code: "PROPOSE-RUN", message: `scenario ${scenario.id} has not run to a verdict. Call ${RUN_TOOL} first.` }]);
     const ended = cursor.runs.findLast(judged);
     if (ended === undefined) {
-      this.closed.push({ scenario: scenario.id, code: "TEST-STOP" });
-      this.journal.record("error", `The scenario ${scenario.id} was closed without a test: none of its ${MAX_FAILED_RUNS} runs gave a verdict.`);
-      return this.next(cursor, `Scenario ${scenario.id} closed without a test: none of its runs gave a verdict.`);
+      this.unfinished(open, "TEST-STOP", `None of its ${MAX_FAILED_RUNS} runs gave a verdict.`);
+      return this.next(cursor, `Scenario ${scenario.id} closed, its test kept as unfinished: none of its runs gave a verdict.`);
     }
     let quarantine: Quarantine | undefined;
     if (ended.verdict === "failed") {
@@ -389,28 +430,23 @@ export class TestProposals {
       if (refusals.length > 0) return this.refuse(what, refusals);
       quarantine = quarantineOf(diagnosis.cause, diagnosis.evidence, ended);
     }
-    const outcome = this.keep(open, ended, quarantine);
+    const classing: Classed =
+      quarantine === undefined
+        ? { class: "passed", origin: { by: "harness", check: RUN_TOOL }, reason: "Its last run passed." }
+        : { class: `failing-${quarantine.cause}`, origin: { by: "agent", role: "writer" }, reason: quarantine.evidence };
+    const outcome = this.keep(open, ended, quarantine, classing);
     this.journal.record("info", `The scenario ${scenario.id} was closed: ${outcome}; its test is ${open.path}.`);
     return this.next(cursor, `Scenario ${scenario.id} closed: ${outcome}.`);
   }
 
-  /** Keeps the test of the scenario open with the text of one of its runs, and says how it ended. */
-  private keep(
-    open: { readonly cursor: DesignCursor; readonly scenario: PlannedScenario; readonly path: string },
-    run: ScenarioRun,
-    quarantine: Quarantine | undefined,
-    closedBy?: string,
-  ): string {
-    const runs = open.cursor.runs.map(({ verdict, errorClass: stopped, failedStep }) => ({
-      ...(verdict === undefined ? {} : { verdict }),
-      ...(stopped === undefined ? {} : { errorClass: stopped }),
-      ...(failedStep === undefined ? {} : { failedStep }),
-    }));
+  /** Keeps the test of the scenario open with the text of one of its runs, classed, and says how it ended. */
+  private keep(open: Open, run: ScenarioRun, quarantine: Quarantine | undefined, classing: Classed, closedBy?: string): string {
     this.kept.push({
       path: open.path,
       scenario: open.scenario.id,
       verdict: run.verdict!,
-      runs,
+      classes: [{ at: this.rules.now().toISOString(), ...classing }],
+      runs: runsOf(open.cursor),
       ...(quarantine === undefined ? {} : { quarantine }),
       ...(closedBy === undefined ? {} : { closedBy }),
       content: run.content,
@@ -419,29 +455,46 @@ export class TestProposals {
     return quarantine === undefined ? "passed" : `failing (${quarantine.cause}), kept for a person to decide`;
   }
 
-  /** Closes the scenario open, and tells the agent so, then the sheet of the next one or how the scenarios ended. */
+  /**
+   * Keeps the test of the scenario open as unfinished: the last text submitted that held nothing a test may
+   * not hold, or the skeleton when none was, with why the scenario is closed and what was tried.
+   */
+  private unfinished(open: Open, check: string, why: string): void {
+    const content = this.submitted ?? skeleton(open.scenario, this.rules.screenshots);
+    const ran = open.cursor.runs.findLast((run) => run.content === content && judged(run));
+    const runs = runsOf(open.cursor);
+    const refused = [...new Set(this.refusedCodes)].map((code) => `${code} ×${this.refusedCodes.filter((other) => other === code).length}`);
+    const tried = [
+      runs.length === 0 ? "no run" : `${runs.length} ${runs.length === 1 ? "run" : "runs"} (${runs.map(runText).join(", ")})`,
+      refused.length === 0 ? "no refusal" : `refusals: ${refused.join(", ")}`,
+    ].join("; ");
+    this.kept.push({
+      path: open.path,
+      scenario: open.scenario.id,
+      verdict: ran?.verdict ?? "not_run",
+      classes: [{ at: this.rules.now().toISOString(), class: "unfinished", origin: { by: "harness", check }, reason: `${why} Tried: ${tried}.` }],
+      runs,
+      closedBy: check,
+      content,
+      references: this.references.get(content) ?? [],
+    });
+    this.journal.record("error", `The scenario ${open.scenario.id} was closed by the harness (${check}): its test is kept as unfinished: ${open.path}.`);
+  }
+
+  /** Closes the scenario open, whose session is over, and tells the agent so. */
   private next(cursor: DesignCursor, closed: string): string {
     cursor.close();
-    this.streak.reset();
-    if (cursor.scenario !== undefined) return `${closed}\n\n${this.opened(cursor)}`;
-    const failing = this.kept.filter((test) => test.verdict !== "passed").length;
-    return `${closed}\nAll ${cursor.plan.scenarios.length} scenarios are closed: ${this.kept.length - failing} passed, ${failing} failing, ${this.closed.length} closed without a test.\n${cursor.next()}`;
+    this.session = undefined;
+    return `${closed}\n${SESSION_OVER}`;
   }
 
-  /** The scenario open and the file of its test, or why there is none. */
-  private open(): { readonly cursor: DesignCursor; readonly scenario: PlannedScenario; readonly path: string } | { error: string } {
-    const cursor = this.cursor;
-    if (cursor === undefined) return { error: refusalText([{ code: "PLAN-NONE", message: `no plan is accepted yet. Call ${PLAN_TOOL} first.` }]) };
-    const scenario = cursor.scenario;
-    if (scenario === undefined)
-      return { error: refusalText([{ code: "PLAN-DONE", message: "every scenario of the plan is closed. Answer with one sentence; call no more tools." }]) };
-    return { cursor, scenario, path: cursor.path! };
-  }
-
-  /** Journals the scenario the cursor opened, and gives its sheet. */
-  private opened(cursor: DesignCursor): string {
-    this.journal.record("info", `The scenario ${cursor.scenario!.id} was opened; its test is ${cursor.path}.`);
-    return scenarioSheet(cursor, this.rules.screenshots);
+  /** The scenario a session is writing and the file of its test, or why there is none. */
+  private open(): Open | { error: string } {
+    if (this.session === undefined)
+      return {
+        error: refusalText([{ code: "SCENARIO-CLOSED", message: "the scenario of this session is closed. Answer with one sentence; call no more tools." }]),
+      };
+    return { cursor: this.cursor, scenario: this.cursor.scenario!, path: this.cursor.path! };
   }
 
   /** The file of the test of a scenario: named after it, in the folder of its application, with a number when that path is taken. */
@@ -455,7 +508,8 @@ export class TestProposals {
 
   /** What the gates refuse in the text of a test, by tier: the first tier that refuses gives all its reasons. */
   private async checked(scenario: PlannedScenario, path: string, content: string): Promise<Refusal[]> {
-    const { repositoryRoot, addresses, secrets, check, screens } = this.rules;
+    const { repositoryRoot, addresses, secrets, check } = this.rules;
+    const { screens } = this.session!;
     const syntax = await moduleSyntax(content);
     if (!syntax.ok) return [{ code: "TEST-SYNTAX", message: `The test does not parse as TypeScript: ${syntax.error}.` }];
     const coded = (code: string, messages: readonly string[]) => messages.map((message) => ({ code, message }));
@@ -466,6 +520,7 @@ export class TestProposals {
       ...coded("TEST-SECRET", secretValueErrors(content, secrets)),
     ];
     if (written.length > 0) return written;
+    this.submitted = content;
     const { outline } = syntax;
     const sheet = skeleton(scenario, this.rules.screenshots);
     // A locator of the skeleton comes from the plan: the screens of its exploration showed it.
@@ -481,7 +536,7 @@ export class TestProposals {
 
   /** The refusal of locators no screen showed: them, and the closest elements the agent saw, which are what the gate would accept. */
   private unseenRefusal(application: string, unseen: readonly SpecLocator[]): Refusal {
-    const nearest = this.rules.screens.nearest(application, unseen);
+    const nearest = this.session!.screens.nearest(application, unseen);
     const closest = nearest.length === 0 ? [] : ["Closest elements you saw:", ...nearest];
     const message = [
       `no screen you looked at showed ${unseen.map((locator) => locator.code).join(", ")}.`,
@@ -503,25 +558,28 @@ export class TestProposals {
   private refuse(what: string, refusals: readonly Refusal[]): string | { error: string } {
     const masked = maskedRefusals(refusals, (text) => this.mask(text));
     journalRefusals(this.journal, what, masked);
+    this.refusedCodes.push(...new Set(masked.map((refusal) => refusal.code)));
     this.streak.record(masked);
     const { code, times } = this.streak.repeated(masked);
     if (times < GUIDED_REFUSALS) return { error: refusalText(masked) };
     if (times < MAX_REFUSALS) return { error: repeatedText(code, times, masked) };
-    const open = { cursor: this.cursor!, scenario: this.cursor!.scenario!, path: this.cursor!.path! };
+    const open = { cursor: this.cursor, scenario: this.cursor.scenario!, path: this.cursor.path! };
     const closing = `closed by the harness after ${MAX_REFUSALS} refusals for ${code}`;
     const ended = open.cursor.runs.findLast(judged);
     if (ended === undefined) {
-      this.closed.push({ scenario: open.scenario.id, code });
-      this.journal.record("error", `The scenario ${open.scenario.id} was ${closing}; it has no test.`);
-      return this.next(open.cursor, `Scenario ${open.scenario.id} was ${closing}. Go on with the next scenario.`);
+      this.unfinished(open, code, `The harness closed the scenario after ${MAX_REFUSALS} refusals for ${code}.`);
+      return this.next(open.cursor, `Scenario ${open.scenario.id} was ${closing}; its test is kept as unfinished.`);
     }
     // A test that ran to a verdict is kept as it ended: the refusals came after it.
-    const outcome = this.keep(open, ended, ended.verdict === "passed" ? undefined : quarantineOf("test", closing, ended), code);
+    const quarantine = ended.verdict === "passed" ? undefined : quarantineOf("test", closing, ended);
+    const reason = `${ended.verdict === "passed" ? "Its last run passed; the scenario was" : "The scenario was"} ${closing}.`;
+    const classing: Classed = { class: quarantine === undefined ? "passed" : "failing-test", origin: { by: "harness", check: code }, reason };
+    const outcome = this.keep(open, ended, quarantine, classing, code);
     this.journal.record(
       "error",
       `The scenario ${open.scenario.id} was ${closing}; the test of its last run that gave a verdict is kept, ${outcome}: ${open.path}.`,
     );
-    return this.next(open.cursor, `Scenario ${open.scenario.id} was ${closing}, with the test of its last run: ${outcome}. Go on with the next scenario.`);
+    return this.next(open.cursor, `Scenario ${open.scenario.id} was ${closing}, with the test of its last run: ${outcome}.`);
   }
 
   /** What a trial gave, for the agent, every declared value masked before the error is cut. */
@@ -533,6 +591,32 @@ export class TestProposals {
   private mask(text: string): string {
     return redactText(text, this.forms);
   }
+}
+
+/** The scenario open, with the file of its test. */
+interface Open {
+  readonly cursor: DesignCursor;
+  readonly scenario: PlannedScenario;
+  readonly path: string;
+}
+
+/** How a test is classed, before the date. */
+type Classed = Omit<TestClassing, "at">;
+
+/** The runs of the scenario open, as a design state lists them. */
+function runsOf(cursor: DesignCursor): DesignedRun[] {
+  return cursor.runs.map(({ verdict, errorClass: stopped, failedStep }) => ({
+    ...(verdict === undefined ? {} : { verdict }),
+    ...(stopped === undefined ? {} : { errorClass: stopped }),
+    ...(failedStep === undefined ? {} : { failedStep }),
+  }));
+}
+
+/** A run in a few words, for what was tried on a test left unfinished. */
+function runText(run: DesignedRun): string {
+  if (run.verdict === undefined) return "no verdict";
+  if (run.verdict === "passed") return "passed";
+  return `${run.verdict} on ${run.errorClass}${run.failedStep === undefined ? "" : ` at ${JSON.stringify(run.failedStep)}`}`;
 }
 
 /** Whether a run gave a verdict: it passed or failed. */

@@ -215,6 +215,6 @@ describe("the cursor of a design", () => {
     cursor.close();
     assert.deepEqual([cursor.scenario?.id, cursor.rank, cursor.runs, placed], ["other", 2, [], ["search-order-by-customer", "other"]]);
     cursor.close();
-    assert.deepEqual([cursor.scenario, cursor.path, cursor.next()], [undefined, undefined, "Next: answer with one sentence. Call no more tools."]);
+    assert.deepEqual([cursor.scenario, cursor.path], [undefined, undefined]);
   });
 });

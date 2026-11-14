@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { Application } from "@open-qa-stack/shared";
-import type { TestPlan } from "@open-qa-stack/domain";
-import { designRequest, resumeRequest } from "../src/designer/designer-prompt.ts";
+import { designRequest, scenarioRequest } from "../src/designer/designer-prompt.ts";
 
 const SHOP: Application = {
   id: "shop",
@@ -70,33 +69,16 @@ describe("the request of a design", () => {
   });
 });
 
-describe("the request of a design resumed", () => {
-  const plan = { scenarios: [] } as unknown as TestPlan;
-  const test = { path: "apps/shop/list-orders.spec.ts", scenario: "list-orders", verdict: "passed", content: "test();\n" };
-
-  it("gives the brief, the plan to keep, the tests kept with their text, the scenarios closed without one, the applications and the sheet", () => {
+describe("the request of the session of a scenario", () => {
+  it("gives the applications, the packages and the sheet of the scenario, and nothing else of the plan", () => {
     assert.equal(
-      resumeRequest(
-        { environment: "local", brief: "Orders.", plan, tests: [test], unwritten: ["place-order"] },
-        [LEDGER],
-        ["@playwright/test"],
-        "Scenario 3 of 3.",
-      ),
+      scenarioRequest("Scenario 3 of 3.", [LEDGER], ["@playwright/test"], "local"),
       [
-        "Go on with the design of Playwright tests for the environment local: a limit stopped it before its end.",
-        "Brief of the developer, in their words:\n<brief>\nOrders.\n</brief>",
-        'The accepted plan, which stays as it is; do not submit another:\n{"scenarios":[]}',
-        "The tests kept, which stay as they are:\n- apps/shop/list-orders.spec.ts, for list-orders: passed.\n```ts\ntest();\n```",
-        "Closed without a test: place-order.",
+        "Write the Playwright test of one scenario of an accepted plan, for the environment local.",
         "Applications:\n- ledger (Ledger, api): sign in with the account clerk; a test reads process.env.LEDGER_USERNAME and process.env.LEDGER_PASSWORD.",
         "A test may import: @playwright/test.",
         "Scenario 3 of 3.",
       ].join("\n\n"),
     );
-  });
-
-  it("says when no test is kept yet, and leaves out the brief and the scenarios closed without a test when there are none", () => {
-    const request = resumeRequest({ environment: "local", plan, tests: [], unwritten: [] }, [LEDGER], ["@playwright/test"], "Scenario 1 of 3.");
-    assert.match(request, /before its end\.\n\nThe accepted plan[^]*\n\nNo test is kept yet\.\n\nApplications:/);
   });
 });

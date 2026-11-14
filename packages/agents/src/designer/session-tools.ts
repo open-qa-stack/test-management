@@ -23,7 +23,7 @@ export interface SessionScope {
   /** When the task started: the tools of the logs read from there. */
   readonly start: Date;
   /** How the browser starts and waits; a headless Chromium with the default waits when `undefined`. */
-  readonly browser: Pick<BrowserAccess, "launch" | "actionTimeoutMs" | "navigationTimeoutMs"> | undefined;
+  readonly browser: Pick<BrowserAccess, "launch" | "actionTimeoutMs" | "navigationTimeoutMs" | "settleTimeoutMs"> | undefined;
 }
 
 /** The tools of one session of a design, watched, and how to release the browser behind them. */

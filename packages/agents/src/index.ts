@@ -12,8 +12,10 @@ export {
   type DesignedTest,
   type DesignState,
   type FailureCause,
+  type ClassOrigin,
   type Quarantine,
-  type UnwrittenScenario,
+  type TestClass,
+  type TestClassing,
 } from "./designer/design-state.ts";
 export { PLAN_FILE_SUFFIX, planFileText, readPlanFile, type PlanRecord } from "./designer/plan-file.ts";
 export type { ErrorClass } from "./designer/run-failure.ts";

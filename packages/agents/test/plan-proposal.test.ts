@@ -89,8 +89,13 @@ const RULES: Omit<PlanRules, "screens" | "reads"> = {
   domains: ["orders"],
   secrets: [],
   review: { review: async () => ({ accepted: true }) },
-  carry: () => "Scenario 1.",
 };
+
+/** What the gates say of the scenarios of the shop when nothing was done on its screens. */
+const UNEXPLORED = (scenarios: string) =>
+  `you did nothing on the screens of shop in this session, and ${scenarios} about it: the harness writes the code of each step from the actions that did it. Open the first address of each scenario with shop_goto, do its steps with the browser tools, then give in actions of each step the numbers their results return in "action", such as "actions": [1, 2] for a step done by the actions 1 and 2.`;
+/** What the agent is told of a plan accepted from which the harness took nothing out. */
+const ACCEPTED = "The plan was accepted.\nNext: answer with one sentence. Call no more tools.";
 
 /** A plan proposal of the shop, whose orders page the agent opened unless told otherwise, and which accepts every plan by default. */
 async function proposal(
@@ -137,12 +142,14 @@ describe("plans reviewed at once", () => {
   it("keep the first one accepted, and refuse the other", async () => {
     const { proposal: made, journal } = await proposal({ review: slowReview(() => true) });
     const [first, second] = await Promise.all([submit(made, plan("a", "b", "c")), submit(made, plan("x", "y", "z"))]);
-    assert.equal(first, "The plan was accepted.\n\nScenario 1.");
-    assert.deepEqual(second, { error: "A plan was already accepted; carry it out." });
+    assert.equal(first, ACCEPTED);
+    assert.deepEqual(second, { error: "The plan is accepted, and this session is over. Answer with one sentence; call no more tools." });
     // The plan kept holds what the harness wrote: the code of the action each step cites, and the element of each text a screen showed in one.
     const step = { action: "Open the orders", code: [OPENED], expects: [{ result: "The orders show", shows: ["Orders"], absent: [], elements: [HEADING] }] };
     assert.deepEqual(made.accepted, { scenarios: ["a", "b", "c"].map((id) => ({ ...scenario(id), steps: [step] })) });
     assert.equal(journal.entries().filter((entry) => entry.message.startsWith("The plan was accepted")).length, 1);
+    // Once a plan is accepted, the session that plans is over: another is refused before it is read.
+    assert.deepEqual(await submit(made, plan("x", "y", "z")), { error: made.closed() });
   });
 
   it("stop at the first refusal, and never keep the other", async () => {
@@ -232,7 +239,7 @@ describe("the gates of a plan", () => {
       /after an action of yours on shop\. Do its steps with shop_fill and shop_click, read what the result says appeared and went, and expect that\./,
     );
     await act(screens, "click");
-    assert.equal(await submit(made, submitted), "The plan was accepted.\n\nScenario 1.");
+    assert.equal(await submit(made, submitted), ACCEPTED);
     assert.equal(made.reminder(), undefined);
   });
 
@@ -265,7 +272,7 @@ describe("the gates of a plan", () => {
       error:
         'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "ORD-2001", which nothing you read in this session showed. Copy the text as a tool of a source gives it.\nNothing else was refused.',
     });
-    assert.equal(await submit(made, submitted), "The plan was accepted.\n\nScenario 1.");
+    assert.equal(await submit(made, submitted), ACCEPTED);
   });
 
   it("refuse the value of a declared variable wherever the plan holds it", async () => {
@@ -344,10 +351,8 @@ describe("the gates of a plan", () => {
       'Refused (PLAN-SHOWN): scenario b, expect 1.1, names "Orders", which no screen of shop showed in this session. Do step 1, "Open the orders", with shop_click, then copy a text that appeared after it, as the screen gives it.',
       "Refused (PLAN-READ): scenario c cites shop, and you have read nothing of it. Call shop_goto first.",
       'Refused (PLAN-SHOWN): scenario c, expect 1.1, names "Orders", which no screen of shop showed in this session. Do step 1, "Go to the orders page", with shop_goto, then copy a text that appeared after it, as the screen gives it.',
-      ...['a, step 1, "Search for zzqx"', 'b, step 1, "Open the orders"', 'c, step 1, "Go to the orders page"'].map(
-        (where) =>
-          `Refused (PLAN-LOCATOR): scenario ${where}, cites the action 1, which no browser tool returned in this session. Give in actions the numbers the results of the browser tools of shop return in "action"; do the step again if you no longer have them.`,
-      ),
+      // Nothing was done on the shop: one message says so, whatever the number of the steps.
+      `Refused (PLAN-LOCATOR): ${UNEXPLORED("the scenarios a, b, c are")}`,
       "Nothing else was refused.",
     ]);
     await search!.execute({});
@@ -371,7 +376,7 @@ describe("the gates of a plan", () => {
         'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "Mira Veldane", which no screen of shop showed in this session. Do step 1, "Search zzqx", with the browser tools, then copy a text that appeared after it, as the screen gives it.\nNothing else was refused.',
     });
     // The values of the data of a source, spaces and case aside; a source without any tool is held to nothing.
-    assert.equal(await submit(made, fixed(["orders", "zzqx", "Orders"])), "The plan was accepted.\n\nScenario 1.");
+    assert.equal(await submit(made, fixed(["orders", "zzqx", "Orders"])), ACCEPTED);
   });
 
   it("refuse a made-up value a screen or a source showed before it was typed, a text expected gone only a field showed, and a nominal scenario that expects gone the value it typed", async () => {
@@ -424,7 +429,7 @@ describe("the gates of a plan", () => {
       ],
       steps: [{ action: "Search zzqx", expects: [{ result: "Another order shows", shows: ["ORD-1042"], absent: ["ORD-1057"] }] }],
     });
-    assert.equal(await submit(made, { scenarios: [fixed, lena([found, cancelled]), ledger] }), "The plan was accepted.\n\nScenario 1.");
+    assert.equal(await submit(made, { scenarios: [fixed, lena([found, cancelled]), ledger] }), ACCEPTED);
   });
 
   it("refuse a step that types in a scenario without data, and a text only the name of a field or a value typed in it showed", async () => {
@@ -447,7 +452,7 @@ describe("the gates of a plan", () => {
       "Nothing else was refused.",
     ]);
     // A value of the data the agent typed and the screens showed nowhere else is an echo of the field.
-    assert.deepEqual((await submit(made, submitted([{ value: "Lena", from: "shop" }], ["ORD-1042"]))) as string, "The plan was accepted.\n\nScenario 1.");
+    assert.deepEqual((await submit(made, submitted([{ value: "Lena", from: "shop" }], ["ORD-1042"]))) as string, ACCEPTED);
   });
 
   it("refuse a value typed in a field as what a scenario expects, or as a value of the data the application gave, and keep one a field held untyped", async () => {
@@ -474,7 +479,7 @@ describe("the gates of a plan", () => {
     assert.equal(screens.onlyInFields("shop", "zzqx"), "value");
     assert.equal(screens.onlyInFields("ledger", "zzqx"), undefined);
     assert.equal(screens.showsUntyped("ledger", "zzqx"), false);
-    assert.equal(await submit(made, echoed("zzqx")), "The plan was accepted.\n\nScenario 1.");
+    assert.equal(await submit(made, echoed("zzqx")), ACCEPTED);
   });
 
   it("tell to type a value of the data that no field held, with the last line of code that filled a field, from the third refusal", async () => {
@@ -559,7 +564,16 @@ describe("the gates of a plan", () => {
         "Nothing else was refused.",
       ].join("\n"),
     });
-    assert.equal(await submit(made, { scenarios: [negative, nominal] }), "The plan was accepted.\n\nScenario 1.");
+    // The agent is told what the harness took out of its plan.
+    assert.equal(
+      await submit(made, { scenarios: [negative, nominal] }),
+      [
+        "The plan was accepted.",
+        'The harness took "Quill Zed" out of expect 1.1 of scenario a: the field echoes what the step types.',
+        'The harness took "quill  zed" out of expect 1.2 of scenario a: the field echoes what the step types.',
+        "Next: answer with one sentence. Call no more tools.",
+      ].join("\n"),
+    );
     assert.deepEqual(
       made.accepted!.scenarios.map((kept) => kept.steps.map((step) => step.expects.map((expect) => [expect.shows, expect.absent]))),
       [
@@ -637,7 +651,7 @@ describe("the gates of a plan", () => {
     assert.deepEqual(await submit(made, submitted), { error: [refused("a"), refused("e"), "Nothing else was refused."].join("\n") });
     await submit(made, submitted);
     assert.deepEqual(await submit(made, submitted), { error: ["Third refusal for the same reason. Do this:", remedy("a"), remedy("e")].join("\n") });
-    assert.equal(await submit(made, { scenarios: [searched("a", "negative"), searched("b", "negative"), opened] }), "The plan was accepted.\n\nScenario 1.");
+    assert.equal(await submit(made, { scenarios: [searched("a", "negative"), searched("b", "negative"), opened] }), ACCEPTED);
   });
 
   it("take a made-up value a source returned once a field held it: the test made it", async () => {
@@ -645,7 +659,7 @@ describe("the gates of a plan", () => {
     await act(screens, "fill", { value: "Long Long" });
     await reads.tools()[0]!.execute({});
     const saved = scenario("a", { data: [{ value: "Long Long", from: "made-up" }] });
-    assert.equal(await submit(made, { scenarios: [saved, scenario("b"), scenario("c")] }), "The plan was accepted.\n\nScenario 1.");
+    assert.equal(await submit(made, { scenarios: [saved, scenario("b"), scenario("c")] }), ACCEPTED);
   });
 
   it("give the last texts of a source as what they would accept of a value it never showed", async () => {
@@ -707,14 +721,12 @@ describe("the actions a plan cites", () => {
         scenario("c", { steps: [{ action: "Open the orders", actions: [2], expects: [shown("Orders")] }] }),
       ],
     };
-    // Before any action on the shop, the remedy says to open it first.
+    // Before any action on the shop, one message says so, in place of one for each step.
     await act("desk_goto");
     await act("shop_snapshot");
-    for (let at = 0; at < 2; at += 1) await submit(made, submitted);
-    assert.equal(
-      ((await submit(made, submitted)) as { error: string }).error,
-      'Third refusal for the same reason. Do this:\nNo action was done on shop yet. Open the first address of the scenario with shop_goto, do its steps, then give in actions of each step the numbers the results return in "action".',
-    );
+    assert.deepEqual(await submit(made, submitted), { error: `Refused (PLAN-LOCATOR): ${UNEXPLORED("the scenarios a, b, c are")}\nNothing else was refused.` });
+    const one = { ...submitted, scenarios: [submitted.scenarios[0]!, scenario("b", { application: "ledger" }), scenario("c", { application: "ledger" })] };
+    assert.deepEqual(await submit(made, one), { error: `Refused (PLAN-LOCATOR): ${UNEXPLORED("scenario a is")}\nNothing else was refused.` });
     const { proposal: again } = await proposal({ screens, applications: ["shop", "desk"] }, false);
     assert.deepEqual(await act("shop_goto"), {
       url: "/orders",
@@ -739,7 +751,7 @@ describe("the actions a plan cites", () => {
     const fixed = {
       scenarios: ["a", "b", "c"].map((id) => scenario(id, { steps: [{ action: "Open the orders", actions: [2], expects: [shown("Orders")] }] })),
     };
-    assert.equal(await submit(again, fixed), "The plan was accepted.\n\nScenario 1.");
+    assert.equal(await submit(again, fixed), ACCEPTED);
   });
 
   it("start, for each scenario, with one that opens an address: its test starts on an empty page", async () => {
@@ -766,7 +778,7 @@ describe("the actions a plan cites", () => {
     const opened = {
       scenarios: ["a", "b", "c"].map((id) => scenario(id, { steps: [{ action: "Open the orders", actions: [2, 1], expects: [shown("Orders")] }] })),
     };
-    assert.equal(await submit(made, opened), "The plan was accepted.\n\nScenario 1.");
+    assert.equal(await submit(made, opened), ACCEPTED);
     assert.deepEqual(made.accepted!.scenarios[0]!.steps[0]!.code, [OPENED, CLICKED]);
   });
 
@@ -803,6 +815,11 @@ describe("the actions a plan cites", () => {
       refused.error.split("\n")[0],
       "Refused (PLAN-SECRET): the plan holds the value of SHOP_PASSWORD. Leave it out; a test reads it with process.env.SHOP_PASSWORD.",
     );
+    // The credential of an account is typed by its reference, never as a text.
+    assert.equal(
+      refused.error.split("\n")[1],
+      'Refused (PLAN-INPUT): scenario a, step 1, "Sign in", cites the action 2, which typed the value of SHOP_PASSWORD as a text: a test never holds it. Do the step again with shop_fill and the reference of the account in place of the text, such as "value": { "account": "<its name>", "field": "password" }, as the description of shop_fill gives it, then cite that action.',
+    );
     assert.ok(!refused.error.includes("s3cret-pass"));
   });
 
@@ -826,7 +843,7 @@ describe("the actions a plan cites", () => {
     });
     // An application without a user interface has no action: those cited are left out, and no element is given.
     const ledger = scenario("b", { application: "ledger", steps: [{ action: "Get the orders", actions: [1, 3], expects: [shown("ORD-1042")] }] });
-    assert.equal(await submit(made, { scenarios: [searched, ledger, scenario("c")] }), "The plan was accepted.\n\nScenario 1.");
+    assert.equal(await submit(made, { scenarios: [searched, ledger, scenario("c")] }), ACCEPTED);
     const [first, second] = made.accepted!.scenarios;
     assert.deepEqual(first!.steps, [
       { action: "Open the orders", code: [OPENED], expects: [] },
@@ -916,7 +933,7 @@ describe("the element of each expected text, as the harness checked its locator 
       `The harness proposed to the agent (1) to assert "Active" on ${IN_ROW}: 2 elements share ${ACTIVE}.`,
       `The harness warned the agent (2) that 3 elements share ${PAID}, which shows "Paid".`,
     ]);
-    assert.equal(await submit(made, { ...submitted, accepts: [1, 2] }), "The plan was accepted.\n\nScenario 1.");
+    assert.equal(await submit(made, { ...submitted, accepts: [1, 2] }), ACCEPTED);
     const heading = { text: "Orders", locator: 'page.getByRole("heading", { name: "Orders", exact: true })', field: false };
     assert.deepEqual(elementsOf(made), [
       [{ text: "Active", locator: IN_ROW, field: false }, heading],
@@ -935,7 +952,7 @@ describe("the element of each expected text, as the harness checked its locator 
   it("asks nothing twice: what the agent leaves unanswered is asserted on any of the elements, by their number", async () => {
     const { proposal: made, journal } = await opened();
     assert.equal(await submit(made, submitted), ASKED);
-    assert.equal(await submit(made, submitted), "The plan was accepted.\n\nScenario 1.");
+    assert.equal(await submit(made, submitted), ACCEPTED);
     assert.deepEqual(elementsOf(made).slice(0, 2), [
       [
         { text: "Active", locator: ACTIVE, field: false, count: 2 },
@@ -958,6 +975,6 @@ describe("the element of each expected text, as the harness checked its locator 
     assert.match((await submit(made, first)) as string, /asks you about 1 of them, once:\nProposal 1: "Active"/);
     const later = (await submit(made, submitted)) as string;
     assert.match(later, /asks you about 1 of them, once:\nWarning 2: "Paid"/);
-    assert.equal(await submit(made, { ...submitted, accepts: [2] }), "The plan was accepted.\n\nScenario 1.");
+    assert.equal(await submit(made, { ...submitted, accepts: [2] }), ACCEPTED);
   });
 });

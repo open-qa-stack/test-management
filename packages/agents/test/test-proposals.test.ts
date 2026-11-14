@@ -10,7 +10,7 @@ import { ScreenWatch } from "../src/designer/screen-watch.ts";
 import { skeleton } from "../src/designer/scenario-sheet.ts";
 import { SourceWatch } from "../src/designer/source-watch.ts";
 import { locatorsOf } from "../src/designer/spec-rules.ts";
-import { TestProposals } from "../src/designer/test-proposals.ts";
+import { TestProposals, type ProposalRules } from "../src/designer/test-proposals.ts";
 
 const root = mkdtempSync(join(tmpdir(), "oqas-proposals-"));
 after(() => rmSync(root, { recursive: true, force: true }));
@@ -30,6 +30,22 @@ const scenario = (application: string, sources: readonly string[]): PlannedScena
   data: [],
   steps: [{ action: "Open the ledger", code: [], expects: [{ result: "The ledger shows", shows: ["Ledger"], absent: [], elements: [] }] }],
 });
+
+/** When the tests of these scenarios are classed. */
+const NOW = "2026-11-13T11:00:00.000Z";
+/** What the tests are checked against, with the runner given. */
+const rules = (runner: TestRunner): ProposalRules => ({
+  repositoryRoot: root,
+  appsDir: "apps",
+  addresses: [],
+  secrets: [],
+  runner,
+  packages: ["@playwright/test"],
+  screenshots: false,
+  now: () => new Date(NOW),
+});
+/** A session that sees no screen and reads no source. */
+const BLIND = { screens: new ScreenWatch([], []), reads: new SourceWatch([], [], []) };
 
 /** A tool that returns nothing of note. */
 const tool = (name: string, result: unknown = {}): ToolDefinition => ({ name, description: name, parameters: { type: "object" }, execute: async () => result });
@@ -64,12 +80,9 @@ async function secondRun(
 ): Promise<unknown> {
   const screens = new ScreenWatch(["shop"], shopTools());
   const reads = new SourceWatch(sources, tools, []);
-  const proposals = new TestProposals(
-    { repositoryRoot: root, appsDir: "apps", addresses: [], secrets: [], runner: failing, packages: ["@playwright/test"], screens, screenshots: false, reads },
-    new Journal(),
-  );
   const planned = scenario(application, cited);
-  proposals.start({ scenarios: [planned] });
+  const proposals = new TestProposals(rules(failing), new Journal(), { scenarios: [planned] });
+  proposals.begin({ screens, reads });
   const content = acted(skeleton(planned, false));
   await screens
     .tools()
@@ -129,22 +142,9 @@ describe("the calls that run a test", () => {
         return failing.run(test);
       },
     };
-    const proposals = new TestProposals(
-      {
-        repositoryRoot: root,
-        appsDir: "apps",
-        addresses: [],
-        secrets: [],
-        runner,
-        packages: ["@playwright/test"],
-        screens: new ScreenWatch([], []),
-        screenshots: false,
-        reads: new SourceWatch([], [], []),
-      },
-      new Journal(),
-    );
     const planned = scenario("ledger", []);
-    proposals.start({ scenarios: [planned] });
+    const proposals = new TestProposals(rules(runner), new Journal(), { scenarios: [planned] });
+    proposals.begin(BLIND);
     const content = acted(skeleton(planned, false));
     const [first, second] = await Promise.allSettled([proposals.trialTool().execute({ content }), proposals.trialTool().execute({ content })]);
     assert.deepEqual([first.status, second.status], ["rejected", "fulfilled"]);
@@ -157,22 +157,9 @@ describe("the fifth refusal of one reason", () => {
     const passing: TestRunner = {
       run: async (test) => ({ startedAt: STARTED, tests: [{ id: test.path, verdict: "passed", reason: "Every attempt passed." }] }),
     };
-    const proposals = new TestProposals(
-      {
-        repositoryRoot: root,
-        appsDir: "apps",
-        addresses: [],
-        secrets: [],
-        runner: passing,
-        packages: ["@playwright/test"],
-        screens: new ScreenWatch([], []),
-        screenshots: false,
-        reads: new SourceWatch([], [], []),
-      },
-      new Journal(),
-    );
     const planned = scenario("ledger", []);
-    proposals.start({ scenarios: [planned] });
+    const proposals = new TestProposals(rules(passing), new Journal(), { scenarios: [planned] });
+    proposals.begin(BLIND);
     const content = acted(skeleton(planned, false));
     await proposals.trialTool().execute({ content });
     const told = [];
@@ -180,11 +167,25 @@ describe("the fifth refusal of one reason", () => {
       told.push(await proposals.trialTool().execute({ content: `import { test } from "@playwright/test";\n\ntest("open", async () => {});\n// ${at}\n` }));
     assert.match(
       String(told[4]),
-      /^Scenario open-ledger was closed by the harness after 5 refusals for TEST-STEPS, with the test of its last run: passed\. Go on with the next scenario\.\nAll 1 scenarios are closed: 1 passed, 0 failing, 0 closed without a test\./,
+      /^Scenario open-ledger was closed by the harness after 5 refusals for TEST-STEPS, with the test of its last run: passed\.\nNext: answer with one sentence\. Call no more tools\.$/,
     );
     assert.deepEqual(
-      proposals.accepted.map(({ verdict, closedBy, content: kept }) => [verdict, closedBy, kept === content]),
-      [["passed", "TEST-STEPS", true]],
+      proposals.accepted.map(({ verdict, closedBy, content: kept, classes }) => [verdict, closedBy, kept === content, classes]),
+      [
+        [
+          "passed",
+          "TEST-STEPS",
+          true,
+          [
+            {
+              at: NOW,
+              class: "passed",
+              origin: { by: "harness", check: "TEST-STEPS" },
+              reason: "Its last run passed; the scenario was closed by the harness after 5 refusals for TEST-STEPS.",
+            },
+          ],
+        ],
+      ],
     );
   });
 });
@@ -236,20 +237,6 @@ describe("the page at the failure of a run", () => {
         ...["click", "fill", "select_option", "check"].map((action) => tool(`shop_${action}`)),
       ],
     );
-    const proposals = new TestProposals(
-      {
-        repositoryRoot: root,
-        appsDir: "apps",
-        addresses: [],
-        secrets: [],
-        runner,
-        packages: ["@playwright/test"],
-        screens,
-        screenshots: false,
-        reads: new SourceWatch([], [], []),
-      },
-      new Journal(),
-    );
     await screens
       .tools()
       .find((tool) => tool.name === "shop_snapshot")!
@@ -260,7 +247,8 @@ describe("the page at the failure of a run", () => {
     };
     const steps = submitted.steps.map((step) => ({ ...step, expects: step.expects.map((expect) => ({ ...expect, elements: expect.shows.flatMap(element) })) }));
     const planned = { ...submitted, steps };
-    proposals.start({ scenarios: [planned] });
+    const proposals = new TestProposals(rules(runner), new Journal(), { scenarios: [planned] });
+    proposals.begin({ screens, reads: new SourceWatch([], [], []) });
     const content = acted(skeleton(planned, false));
     const ran = String(await proposals.trialTool().execute({ content }));
     return { proposals, screens, ran };
@@ -338,9 +326,10 @@ describe("the locators of a test", () => {
   /** The proposals of a session that looked at no screen, as one that resumes a design, and its screens. */
   const resumed = () => {
     const screens = new ScreenWatch(["shop"], shopTools());
-    const rules = { repositoryRoot: root, appsDir: "apps", addresses: [], secrets: [], runner: passing, packages: ["@playwright/test"], screenshots: false };
-    const proposals = new TestProposals({ ...rules, screens, reads: new SourceWatch([], [], []) }, new Journal());
-    return { proposals, screens, sheet: proposals.start({ scenarios: [planned] }) };
+    const proposals = new TestProposals(rules(passing), new Journal(), { scenarios: [planned] });
+    const sheet = proposals.sheet!;
+    proposals.begin({ screens, reads: new SourceWatch([], [], []) });
+    return { proposals, screens, sheet };
   };
 
   it("are those of the skeleton of its scenario, which the plan gives: a test made of its lines alone runs in a session that saw no screen", async () => {
@@ -376,5 +365,182 @@ describe("the locators of a test", () => {
       { code: 'getByRole("heading", { name: "Ledger", exact: true })', role: "heading", text: "Ledger" },
     ]);
     assert.deepEqual(await locatorsOf('test("open", async ({ page }) => { await page.getByRole("heading"'), []);
+  });
+});
+
+describe("the session of a scenario", () => {
+  const passing: TestRunner = {
+    run: async (test) => ({ startedAt: STARTED, tests: [{ id: test.path, verdict: "passed", reason: "Every attempt passed." }] }),
+  };
+  const first = scenario("ledger", []);
+  const second = { ...first, id: "close-ledger" };
+  const CLOSED = {
+    error: "Refused (SCENARIO-CLOSED): the scenario of this session is closed. Answer with one sentence; call no more tools.\nNothing else was refused.",
+  };
+  const written = acted(skeleton(first, false));
+
+  it("is the only one that may run and close its scenario: before it begins, and once the scenario is closed, every call is refused", async () => {
+    const journal = new Journal();
+    const proposals = new TestProposals(rules(passing), journal, { scenarios: [first, second] });
+    assert.deepEqual([proposals.writing, proposals.reminder()], [false, undefined]);
+    assert.deepEqual([await proposals.trialTool().execute({ content: written }), await proposals.tool().execute({})], [CLOSED, CLOSED]);
+    assert.match(proposals.sheet!, /^Scenario 1 of 2: open-ledger /);
+    proposals.begin(BLIND);
+    assert.equal(proposals.writing, true);
+    await proposals.trialTool().execute({ content: written });
+    // The agent is told its session is over, not the sheet of the next scenario.
+    assert.equal(await proposals.tool().execute({}), "Scenario open-ledger closed: passed.\nNext: answer with one sentence. Call no more tools.");
+    assert.deepEqual([proposals.writing, proposals.reminder(), await proposals.trialTool().execute({ content: written })], [false, undefined, CLOSED]);
+    assert.match(proposals.sheet!, /^Scenario 2 of 2: close-ledger /);
+    assert.deepEqual(proposals.accepted[0]!.classes, [
+      { at: NOW, class: "passed", origin: { by: "harness", check: "run_test" }, reason: "Its last run passed." },
+    ]);
+    assert.deepEqual(
+      journal.entries().map((entry) => entry.message),
+      [
+        "The scenario open-ledger was opened; its test is apps/ledger/open-ledger.spec.ts.",
+        "The test apps/ledger/open-ledger.spec.ts was run: passed.",
+        "The scenario open-ledger was closed: passed; its test is apps/ledger/open-ledger.spec.ts.",
+      ],
+    );
+  });
+
+  it("starts from the first scenario an earlier design did not close, and has no sheet once all are closed", () => {
+    const proposals = new TestProposals(rules(passing), new Journal(), { scenarios: [first, second] }, 1);
+    assert.match(proposals.sheet!, /^Scenario 2 of 2: close-ledger /);
+    proposals.begin(BLIND);
+    proposals.giveUp("SESSION-END");
+    assert.equal(proposals.sheet, undefined);
+  });
+
+  it("classes a test kept failing by who is at fault, as the agent diagnosed it", async () => {
+    const proposals = new TestProposals(rules(failing), new Journal(), { scenarios: [first] });
+    proposals.begin(BLIND);
+    await proposals.trialTool().execute({ content: written });
+    await proposals.tool().execute({ diagnosis: { cause: "application", evidence: "The ledger does not open." } });
+    assert.deepEqual(
+      proposals.accepted.map(({ verdict, classes }) => [verdict, classes]),
+      [["failed", [{ at: NOW, class: "failing-application", origin: { by: "agent", role: "writer" }, reason: "The ledger does not open." }]]],
+    );
+  });
+});
+
+describe("a scenario whose session ends before it is closed", () => {
+  const passing: TestRunner = {
+    run: async (test) => ({ startedAt: STARTED, tests: [{ id: test.path, verdict: "passed", reason: "Every attempt passed." }] }),
+  };
+  const planned = scenario("ledger", []);
+  const written = acted(skeleton(planned, false));
+  const given = (runner: TestRunner) => {
+    const journal = new Journal();
+    const proposals = new TestProposals(rules(runner), journal, { scenarios: [planned] });
+    proposals.begin(BLIND);
+    return { proposals, journal };
+  };
+
+  it("keeps the skeleton as an unfinished test when nothing was submitted", () => {
+    const { proposals, journal } = given(passing);
+    proposals.giveUp("SESSION-END");
+    assert.deepEqual(proposals.accepted, [
+      {
+        path: "apps/ledger/open-ledger.spec.ts",
+        scenario: "open-ledger",
+        verdict: "not_run",
+        classes: [
+          {
+            at: NOW,
+            class: "unfinished",
+            origin: { by: "harness", check: "SESSION-END" },
+            reason: "Its session ended before the scenario was closed. Tried: no run; no refusal.",
+          },
+        ],
+        runs: [],
+        closedBy: "SESSION-END",
+        content: skeleton(planned, false),
+        references: [],
+      },
+    ]);
+    assert.deepEqual([proposals.writing, proposals.sheet], [false, undefined]);
+    assert.equal(
+      journal.entries().at(-1)!.message,
+      "The scenario open-ledger was closed by the harness (SESSION-END): its test is kept as unfinished: apps/ledger/open-ledger.spec.ts.",
+    );
+  });
+
+  it("keeps the last text submitted that a test may hold, with its verdict when it ran, and what was tried", async () => {
+    const { proposals } = given(failing);
+    await proposals.trialTool().execute({ content: written });
+    // A text the gates of the scenario refuse is one a test may hold; one that does not parse is not.
+    const one = `import { test } from "@playwright/test";\n\ntest("open", async () => {});\n`;
+    await proposals.trialTool().execute({ content: one });
+    await proposals.trialTool().execute({ content: "test(" });
+    proposals.giveUp("SESSION-END");
+    const [kept] = proposals.accepted;
+    assert.deepEqual(
+      [kept!.content, kept!.verdict, kept!.classes[0]!.class, kept!.classes[0]!.reason],
+      [
+        one,
+        "not_run",
+        "unfinished",
+        'Its session ended before the scenario was closed. Tried: 1 run (failed on assertion at "1. Open the ledger"); refusals: TEST-STEPS ×1, TEST-VALUE ×1, TEST-SYNTAX ×1.',
+      ],
+    );
+    // The text that ran last, kept unfinished, has the verdict of its run.
+    const { proposals: ran } = given(failing);
+    await ran.trialTool().execute({ content: written });
+    ran.giveUp("SESSION-END");
+    assert.deepEqual(
+      [ran.accepted[0]!.content, ran.accepted[0]!.verdict, ran.accepted[0]!.runs],
+      [written, "failed", [{ verdict: "failed", errorClass: "assertion", failedStep: "1. Open the ledger" }]],
+    );
+  });
+
+  it("keeps a test whose last run passed as passed: the agent only left it open", async () => {
+    const { proposals, journal } = given(passing);
+    await proposals.trialTool().execute({ content: written });
+    proposals.giveUp("SESSION-END");
+    assert.deepEqual(
+      proposals.accepted.map(({ verdict, closedBy, classes }) => [verdict, closedBy, classes]),
+      [
+        [
+          "passed",
+          "SESSION-END",
+          [
+            {
+              at: NOW,
+              class: "passed",
+              origin: { by: "harness", check: "SESSION-END" },
+              reason: "Its last run passed; its session ended before the agent closed the scenario.",
+            },
+          ],
+        ],
+      ],
+    );
+    assert.equal(
+      journal.entries().at(-1)!.message,
+      "The scenario open-ledger was closed by the harness (SESSION-END): passed; its test is apps/ledger/open-ledger.spec.ts.",
+    );
+  });
+
+  it("keeps as unfinished the test of a scenario the fifth refusal closes before any run gave a verdict", async () => {
+    const { proposals } = given(passing);
+    const told = [];
+    for (let at = 0; at < 5; at += 1)
+      told.push(await proposals.trialTool().execute({ content: `import { test } from "@playwright/test";\n\ntest("open", async () => {});\n// ${at}\n` }));
+    assert.equal(
+      told[4],
+      "Scenario open-ledger was closed by the harness after 5 refusals for TEST-STEPS; its test is kept as unfinished.\nNext: answer with one sentence. Call no more tools.",
+    );
+    const [kept] = proposals.accepted;
+    assert.deepEqual(
+      [kept!.verdict, kept!.closedBy, kept!.classes[0]!.origin, kept!.classes[0]!.reason, kept!.content.endsWith("// 4\n")],
+      [
+        "not_run",
+        "TEST-STEPS",
+        { by: "harness", check: "TEST-STEPS" },
+        "The harness closed the scenario after 5 refusals for TEST-STEPS. Tried: no run; refusals: TEST-STEPS ×5, TEST-VALUE ×5.",
+        true,
+      ],
+    );
   });
 });

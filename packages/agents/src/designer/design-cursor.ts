@@ -117,13 +117,12 @@ export class DesignCursor {
   }
 
   /**
-   * The line that names the next call, which ends what the agent is told.
+   * The line that names the next call about the scenario open, which ends what the agent is told.
    *
    * @returns The line, starting with `Next:`.
    */
   public next(): string {
-    const scenario = this.scenario;
-    if (scenario === undefined) return "Next: answer with one sentence. Call no more tools.";
+    const scenario = this.scenario!;
     const last = this.#runs.at(-1);
     if (last === undefined)
       return `Next: do the steps of ${scenario.id} with the browser tools, fill its skeleton with the code they return, then call ${RUN_TOOL}.`;

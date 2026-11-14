@@ -15,6 +15,8 @@ export const PLAN_TOOL = "propose_plan";
 export const MADE_UP = "made-up";
 /** The last line of what the agent is told while no plan is accepted. */
 export const PLAN_NEXT = `Next: read what the brief is about and do it once on the screens, then call ${PLAN_TOOL}.`;
+/** How what the agent is told of the plan accepted ends: its session is over. */
+const SESSION_OVER = "Next: answer with one sentence. Call no more tools.";
 /** Plans the gates of the harness may refuse before the design stops. */
 export const MAX_REFUSED_PLANS = 6;
 /** How many of the last texts of a source a refused value is told with. */
@@ -94,8 +96,6 @@ export interface PlanRules {
   readonly reads: SourceWatch;
   /** Decides whether a plan that passes the rules may be carried out. */
   readonly review: PlanReview;
-  /** Starts carrying out the plan accepted, and gives what the agent is told of it: the sheet of its first scenario. */
-  readonly carry: (plan: TestPlan) => string;
 }
 
 /**
@@ -123,7 +123,8 @@ export interface PlanRules {
  * element has a locator that designated nothing the page showed; the agent may then submit another. Before the gates, the harness takes out of
  * a functional scenario of an application with a user interface each text expected shown by a step that
  * only types, followed by another step, that is a value of its data no screen showed beside the fields: the
- * field echoes it whatever the application answers. The gates number the expects as the agent wrote them,
+ * field echoes it whatever the application answers. The agent is told each text taken out, in the result of
+ * the plan accepted. The gates number the expects as the agent wrote them,
  * and pass over one left without a text, which the plan kept goes without. From
  * the third refusal of one reason, the agent is told only what the gate would accept, and the sixth plan the
  * gates refuse stops the design. A plan that keeps these rules is inscribed: the harness writes in each step
@@ -132,7 +133,9 @@ export interface PlanRules {
  * result that is no refusal, about each element several share the locator of: a proposal, when the harness
  * found the locator of one of them alone, or a warning; what it accepts with `accepts` is inscribed so, and
  * what it leaves unanswered is asserted on any of the elements, by their number. It then goes to the review, one plan at a
- * time: accepted, it is frozen, and no other may be submitted; refused, the design stops.
+ * time: accepted, it is frozen, the agent is told that its session is over, and no other may be submitted;
+ * refused, the design stops. An application with a user interface nothing was done on is told once, for
+ * all its scenarios.
  */
 export class PlanProposal {
   private readonly rules: PlanRules;
@@ -179,6 +182,15 @@ export class PlanProposal {
    */
   public blocked(): string {
     return `The plan was refused: ${this.refusal} The design is stopped; call no more tools.`;
+  }
+
+  /**
+   * What the agent is told of every call once a plan is accepted: the session that plans is over.
+   *
+   * @returns The message.
+   */
+  public closed(): string {
+    return "The plan is accepted, and this session is over. Answer with one sentence; call no more tools.";
   }
 
   /**
@@ -316,7 +328,7 @@ export class PlanProposal {
 
   private async submit(submitted: SubmittedPlan): Promise<string | { error: string }> {
     // Once a plan is refused, the designer refuses every call before it reaches a tool.
-    if (this.plan !== undefined) return { error: "A plan was already accepted; carry it out." };
+    if (this.plan !== undefined) return { error: this.closed() };
     const { plan: checked, emptied, echoes } = this.withoutEchoes(submitted);
     const refusals = this.errors(checked, emptied);
     if (refusals.length > 0) return this.refuse(refusals);
@@ -328,7 +340,7 @@ export class PlanProposal {
     const decision = await this.rules.review.review(plan);
     // Plans submitted in one turn are reviewed at once: another may have been decided meanwhile.
     if (this.refusal !== undefined) return { error: this.blocked() };
-    if (this.plan !== undefined) return { error: "A plan was already accepted; carry it out." };
+    if (this.plan !== undefined) return { error: this.closed() };
     if (!decision.accepted) {
       this.refusal = decision.reason;
       this.journal.record("error", `The plan was refused: ${decision.reason} The design stops; no test is written.`);
@@ -337,7 +349,8 @@ export class PlanProposal {
     this.plan = plan;
     for (const note of [...echoes, ...notes]) this.journal.record("info", this.masked(note));
     this.journal.record("info", `The plan was accepted: ${plan.scenarios.map((scenario) => scenario.id).join(", ")}.`);
-    return `The plan was accepted.\n\n${this.rules.carry(plan)}`;
+    // What the harness took out of the plan is told to the agent, not done behind its back.
+    return ["The plan was accepted.", ...echoes.map((echo) => this.masked(echo)), SESSION_OVER].join("\n");
   }
 
   /** Refuses a plan, and counts it: from the third refusal of one reason the agent is told only what the gate would accept, and the last plan stops the design. */
@@ -432,6 +445,7 @@ export class PlanProposal {
       ...negative,
       ...functional.flatMap((scenario) => [...this.expectErrors(scenario, emptied), ...this.inputErrors(scenario)]),
       ...plan.scenarios.flatMap((scenario) => this.readErrors(scenario)),
+      ...this.unexploredErrors(plan),
       ...plan.scenarios.flatMap((scenario) => this.actionErrors(scenario)),
       ...plan.scenarios.flatMap((scenario) => this.elementErrors(scenario)),
     ];
@@ -744,8 +758,27 @@ export class PlanProposal {
   }
 
   /**
+   * What the gates refuse, once for each application with a user interface nothing was done on, whatever the
+   * number of its scenarios and of their steps: the harness could write the code of none of them.
+   */
+  private unexploredErrors(plan: SubmittedPlan): Refusal[] {
+    const { screens } = this.rules;
+    const applications = [...new Set(plan.scenarios.map((scenario) => scenario.application))];
+    return applications
+      .filter((application) => screens.watches(application) && screens.actions(application).length === 0)
+      .map((application) => {
+        const ids = plan.scenarios.filter((scenario) => scenario.application === application).map((scenario) => scenario.id);
+        const goto = scopedToolName(application, "goto");
+        return {
+          code: "PLAN-LOCATOR",
+          message: `you did nothing on the screens of ${application} in this session, and ${ids.length === 1 ? "scenario" : "the scenarios"} ${ids.join(", ")} ${ids.length === 1 ? "is" : "are"} about it: the harness writes the code of each step from the actions that did it. Open the first address of each scenario with ${goto}, do its steps with the browser tools, then give in actions of each step the numbers their results return in "action", such as "actions": [1, 2] for a step done by the actions 1 and 2.`,
+        };
+      });
+  }
+
+  /**
    * What the gates refuse in the actions the steps of a scenario of an application with a user interface
-   * cite: a step that cites none, an action no browser tool returned or one done on another application,
+   * something was done on cite: a step that cites none, an action no browser tool returned or one done on another application,
    * which the harness could write no code from; a first action that opens no address, the test starting on an
    * empty page; and an action that typed a value that is none of the data of the scenario, whose line its
    * test could not keep.
@@ -753,16 +786,15 @@ export class PlanProposal {
   private actionErrors(scenario: SubmittedScenario): Refusal[] {
     const { screens } = this.rules;
     const { application } = scenario;
-    if (!screens.watches(application)) return [];
-    const tool = (action: string) => scopedToolName(application, action);
     const done = screens.actions(application);
+    // An application nothing was done on is told once, for all its scenarios.
+    if (done.length === 0) return [];
+    const tool = (action: string) => scopedToolName(application, action);
     const listed = done.slice(-MAX_LISTED_ACTIONS).map((action) => `${action.number}: ${action.code}`);
-    const remedy =
-      listed.length === 0
-        ? `No action was done on ${application} yet. Open the first address of the scenario with ${tool("goto")}, do its steps, then give in actions of each step the numbers the results return in "action".`
-        : [`Give in actions of each step the numbers of the actions that did it. The last actions on ${application}, each after its number:`, ...listed].join(
-            "\n",
-          );
+    const remedy = [
+      `Give in actions of each step the numbers of the actions that did it. The last actions on ${application}, each after its number:`,
+      ...listed,
+    ].join("\n");
     const values = scenario.data.map((entry) => entry.value);
     const inData = (typed: string) => typed === "" || values.includes(typed) || (checkable(typed) && observed(typed, values));
     const refusals = scenario.steps.flatMap((step, at): Refusal[] => {
@@ -793,7 +825,16 @@ export class PlanProposal {
               remedy,
             },
           ];
-        if (cited.typed === undefined || inData(cited.typed)) return [];
+        if (cited.typed === undefined) return [];
+        const [credential] = heldVariables(cited.typed, this.rules.secrets);
+        if (credential !== undefined)
+          return [
+            {
+              code: "PLAN-INPUT",
+              message: `${where} cites the action ${number}, which typed the value of ${credential} as a text: a test never holds it. Do the step again with ${tool("fill")} and the reference of the account in place of the text, such as "value": { "account": "<its name>", "field": "password" }, as the description of ${tool("fill")} gives it, then cite that action.`,
+            },
+          ];
+        if (inData(cited.typed)) return [];
         const typed = JSON.stringify(cited.typed);
         return [
           {

@@ -1,27 +1,28 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, posix } from "node:path";
-import type { AgentEvent, AgentRuntime, PlanReview, StopReason } from "@open-qa-stack/domain";
+import type { AgentEvent, AgentRuntime, PlanReview, StopReason, TerminalEvent, TestPlan } from "@open-qa-stack/domain";
 import { validateDomainIndex, validateSourceCard, type DomainIndex, type ResolvedConfig, type SourceCard } from "@open-qa-stack/shared";
 import type { BrowserAccess } from "@open-qa-stack/tools";
 import { agentNotes } from "../common/agent-notes.ts";
-import { runAgentTask, taskEnd, taskLimits } from "../common/agent-task.ts";
+import { runAgentTask, taskEnd, taskLimits, type AgentTask } from "../common/agent-task.ts";
+import { usageOf } from "../common/model-usage.ts";
 import { Journal, type JournalEntry } from "../common/journal.ts";
 import { runTrace } from "../common/run-trace.ts";
 import type { Trace } from "../common/trace.ts";
-import type { TraceLine } from "../common/trace-line.ts";
+import type { TraceLine, TracePhase } from "../common/trace-line.ts";
 import { TracedPhases } from "../common/traced-phases.ts";
 import { INDEX_FILE_NAME } from "../cartographer/cartographer.ts";
 import { CARDS_FOLDER } from "../source-cartographer/source-cartographer.ts";
-import { designRequest, resumeRequest } from "./designer-prompt.ts";
-import { DESIGNS_FOLDER, type DesignedTest, type DesignState } from "./design-state.ts";
+import { designRequest, scenarioRequest } from "./designer-prompt.ts";
+import { DESIGNS_FOLDER, type DesignedTest, type DesignState, type TestClass } from "./design-state.ts";
 import { IndexMap } from "./index-map.ts";
 import { PLAN_FILE_SUFFIX, planFileText, readPlanFile, type PlanRecord } from "./plan-file.ts";
 import { PlanProposal } from "./plan-proposal.ts";
-import { sessionTools } from "./session-tools.ts";
+import { sessionTools, type SessionTools } from "./session-tools.ts";
 import type { TestCheck, TestRunner } from "@open-qa-stack/domain";
 import { declaredAddresses, declaredSecrets, testPackages } from "./spec-rules.ts";
 import type { ToolDefinition } from "@open-qa-stack/domain";
-import { MIN_TESTS, TestProposals, type AcceptedTest } from "./test-proposals.ts";
+import { MIN_TESTS, SESSION_END, TestProposals, type AcceptedTest } from "./test-proposals.ts";
 import { TestRepository } from "./test-repository.ts";
 
 /** Prefix of the branches the designer creates. */
@@ -53,7 +54,7 @@ export interface DesignerOptions {
   readonly branch?: string;
   /**
    * A design a limit stopped: its state, relative to the test repository, and its branch once it holds a
-   * test. The design goes on from its plan, without another, and its tests, on its branch, and updates its state.
+   * test. The design writes the scenarios of its plan that are not closed, without another plan, on its branch, and updates its state.
    */
   readonly resume?: { readonly state: string; readonly branch?: string };
   /** How the browser starts and waits; a headless Chromium with the default waits otherwise. */
@@ -74,15 +75,18 @@ export interface DesignOutcome {
   readonly statePath?: string;
   /** Where the accepted plan was written, when the state was. */
   readonly planPath?: string;
-  /** The tests written, in the order they were accepted. */
+  /** The test of each scenario closed, in the order of the plan, those of the design resumed first. */
   readonly tests: readonly DesignedTest[];
   /** What the run checked, refused and wrote. */
   readonly journal: readonly JournalEntry[];
-  /** Where the trace of the session is written, when a session started. */
+  /** Where the trace of the sessions is written, when a session started. */
   readonly tracePath?: string;
-  /** The limit that cut the design short, when one stopped it before every scenario of its plan was closed. */
+  /** The limit that cut the design short, when one stopped the session that plans before its plan, or the session of a scenario while it was open. */
   readonly stoppedBy?: StopReason["limit"];
 }
+
+/** The classes of the tests a design counts towards those it must give. */
+const COUNTED = new Set<TestClass>(["passed", "failing-application"]);
 
 /** Accepts every plan as it is: the designer works on its own. */
 const ACCEPT_EVERY_PLAN: PlanReview = { review: async () => ({ accepted: true }) };
@@ -94,28 +98,35 @@ const ACCEPT_EVERY_PLAN: PlanReview = { review: async () => ({ accepted: true })
  * @remarks
  * Before any session, the index must be readable, and the test repository must be the root of a git
  * repository with no tracked file changed, no untracked file outside the folders of the state and the index,
- * and no branch of the name to create; otherwise nothing is written. The agent gets the brief and what the
- * index holds for it, or the domains of the index when nothing of it echoes the brief, not the index whole:
- * it looks up the rest with `index_find` and `index_entry`, which name the tools of each source. It gets the browser tools of the applications, the
- * tools of every knowledge source of the environment — the bases read only — and the notes. It submits a
- * test plan with `propose_plan`, each step citing the actions of its exploration that did it: the harness
- * writes in the plan the lines of code of those actions and the element the screens showed each expected
- * text in. `planReview` accepts or refuses the plan; refused, the design stops and no
- * test is written. Once the plan is accepted, the harness opens its scenarios one at a time, in order, and
- * names the file of each test; the agent runs the test with `run_test`, through `runner`, against the
- * application, then closes the scenario with `propose_test`, under the limits of the configured autonomy,
- * every run counting against them. The test of a scenario is kept with the text of its last run: as passed,
- * or as failing with the cause the agent gives; its verdict is the harness's. Once the session is over, the
- * kept tests, in the folder of their application, and the design state are committed on a new branch from
- * the revision checked out, which stays checked out. Nothing contacts a remote. A design succeeds with three
+ * and no branch of the name to create; otherwise nothing is written.
+ *
+ * A design runs in several sessions, each with its own tools, watches, browser and limits of the configured
+ * autonomy. The first plans: the agent gets the brief and what the index holds for it, or the domains of
+ * the index when nothing of it echoes the brief, not the index whole, which it looks up with `index_find`
+ * and `index_entry`; the browser tools of the applications, the tools of every knowledge source of the
+ * environment — the bases read only — and the notes. It submits a test plan with `propose_plan`, each step
+ * citing the actions of its exploration that did it: the harness writes in the plan the lines of code of
+ * those actions and the element the screens showed each expected text in. `planReview` accepts or refuses
+ * the plan; refused, the design stops and no test is written; accepted, the session is over, and its tools
+ * refuse every later call.
+ *
+ * Each scenario of the plan is then written in a session of its own, in order, which is given the sheet of
+ * the scenario and nothing else of the plan, nor anything the session that planned saw: the agent runs the
+ * test with `run_test`, through `runner`, against the application, then closes the scenario with
+ * `propose_test`, every run counting against the limits of the session. The test of a scenario is kept with
+ * the text of its last run: as passed, or as failing with the cause the agent gives; its verdict is the
+ * harness's. No test is lost: a scenario whose session ends before the agent closed it keeps its last file,
+ * classed as unfinished. Once the sessions are over, the tests, in the folder of their application, the
+ * design state, which classes each of them, and the file of the plan are committed on a new branch from the
+ * revision checked out, which stays checked out. Nothing contacts a remote. A design succeeds with three
  * tests that passed or that fail because of the application; with fewer, those kept are still written and
  * the design fails.
  *
  * The plan accepted is written with the state, to a file the state names: a page a person reads, then the
- * record the harness reads again. A design a limit stopped before every scenario of its plan was closed
- * keeps its plan, even without a test, and its tests in its state. Resumed from that state and that file, it checks out its branch, gives the agent the plan
- * and the tests kept, offers no `propose_plan`, opens the first scenario not closed, and commits the tests
- * it adds on the same branch, with the state updated.
+ * record the harness reads again. A limit that cuts the session of a scenario while it is open stops the
+ * design, which keeps its plan, even without a test, and its tests in its state. Resumed from that state
+ * and that file, it checks out its branch, plans nothing, writes each scenario not closed in a session of
+ * its own, from the first of them, and commits the tests it adds on the same branch, with the state updated.
  */
 export class Designer {
   private readonly options: DesignerOptions;
@@ -129,14 +140,15 @@ export class Designer {
    * Runs a design.
    *
    * @returns The branch and the tests written, if any, and the journal.
-   * @throws Error when a file cannot be written, a test of the design resumed cannot be read, or git refuses the branch or the commit.
+   * @throws Error when a session cannot be opened, a file cannot be written, or git refuses the branch or the commit.
    */
   public async run(): Promise<DesignOutcome> {
     const { config, repositoryRoot, env } = this.options;
     // The trace opens with the session: a design stopped before it writes nothing to the test repository.
     let trace: Trace | undefined;
     const traced = () => (trace === undefined ? {} : { tracePath: trace.path });
-    const journal = new Journal((entry) => trace?.harness("design", { type: "journal", level: entry.level, message: entry.message }));
+    let phase: TracePhase = "plan";
+    const journal = new Journal((entry) => trace?.harness(phase, { type: "journal", level: entry.level, message: entry.message }));
     const failed = (message: string, stoppedBy?: StopReason["limit"]): DesignOutcome => {
       journal.record("error", message);
       return { ok: false, tests: [], journal: journal.entries(), ...traced(), ...(stoppedBy === undefined ? {} : { stoppedBy }) };
@@ -168,96 +180,99 @@ export class Designer {
     const owners = [
       ...new Set([...index.sources.map((source) => source.id), ...readable.map((source) => source.id), ...applications.map((application) => application.id)]),
     ];
-    const session = sessionTools({
-      config,
-      repositoryRoot,
-      env,
-      environment: index.environment,
-      applications,
-      sources: readable,
-      start,
-      browser: this.options.browser,
-    });
-    const { screens, reads } = session;
-    const proposals = new TestProposals(
-      {
-        repositoryRoot,
-        appsDir: config.repository.appsDir,
-        addresses: declaredAddresses(config),
-        secrets: declaredSecrets(config, env),
-        ...(this.options.check === undefined ? {} : { check: this.options.check }),
-        runner: this.options.runner,
-        packages,
-        screens,
-        screenshots: this.options.screenshots ?? false,
-        reads,
-      },
-      journal,
-    );
-    const plan = new PlanProposal(
-      {
-        sources: owners,
-        applications: applications.map((application) => application.id),
-        domains: index.domains.map((domain) => domain.id),
-        secrets: declaredSecrets(config, env),
-        screens,
-        reads,
-        review: this.options.planReview ?? ACCEPT_EVERY_PLAN,
-        carry: (accepted) => proposals.start(accepted),
-      },
-      journal,
-    );
-    const knowledge = reads.tools();
+    const scope = { config, repositoryRoot, env, environment: index.environment, applications, sources: readable, start, browser: this.options.browser };
     const notes = agentNotes(config, repositoryRoot, env, { role: "designer", task: id, now });
-    const map = new IndexMap(index, await this.cards(index), [...screens.tools(), ...knowledge], owners);
-    const events: AgentEvent[] = [];
-    const request =
-      previous === undefined
-        ? designRequest(brief, index.environment, brief === undefined ? [] : map.found(brief), map.domains(), applications, packages)
-        : resumeRequest(
-            {
-              environment: index.environment,
-              ...(brief === undefined ? {} : { brief }),
-              plan: frozen!,
-              tests: await Promise.all(previous.tests.map(async (test) => ({ ...test, content: await readFile(join(repositoryRoot, test.path), "utf8") }))),
-              unwritten: previous.unwritten.map((scenario) => scenario.scenario),
-            },
-            applications,
-            packages,
-            proposals.start(frozen!, previous.tests.length + previous.unwritten.length),
-          );
-    // A design resumed carries out the plan it accepted: it is offered no other.
-    const planning = previous === undefined ? [plan.tool()] : [];
-    const tools = [...map.toolset(), ...screens.tools(), ...knowledge, ...notes, ...planning, proposals.trialTool(), proposals.tool()].map((tool) =>
-      stoppedOnRefusal(tool, plan),
-    );
     const opened = runTrace(this.options, `design-${index.environment}`, now);
     trace = opened;
-    const phases = new TracedPhases(opened, "design");
-    phases.start("design");
-    const task = {
-      instructions: this.options.instructions,
-      tools,
-      request,
-      events,
-      reminder: () => (previous === undefined ? plan.reminder() : undefined) ?? proposals.reminder(),
-      sent: (text: string) => opened.harness("design", { type: "message", text }),
-      received: (event: AgentEvent) => {
-        opened.agent("design", event);
+    const phases = new TracedPhases(opened, "plan");
+    const used = { iterations: 0, actions: 0, durationMs: 0 };
+    /**
+     * Runs one session of the design as a phase of its trace, under limits of its own, and gives how it ended.
+     * The phase ends as done when the session ended with what it was for, as `settled` tells.
+     */
+    const sessionOf = async (
+      name: "plan" | "write",
+      session: SessionTools,
+      task: Pick<AgentTask, "tools" | "request" | "reminder">,
+      settled: () => boolean,
+    ): Promise<TerminalEvent> => {
+      phases.start(name);
+      const events: AgentEvent[] = [];
+      const sent = (text: string) => opened.harness(name, { type: "message", text });
+      const received = (event: AgentEvent) => {
+        opened.agent(name, event);
         if (event.type === "tool-error") journal.record("error", `${event.tool}: ${event.message}`);
-      },
-    };
-    // A design that fails or throws leaves its phase ended as failed.
-    try {
-      await runAgentTask(this.options.runtime, task, taskLimits(config)).finally(() => session.close());
+      };
+      const whole = { instructions: this.options.instructions, ...task, events, sent, received };
+      await runAgentTask(this.options.runtime, whole, taskLimits(config)).finally(() => session.close());
       const { last, counters } = taskEnd(events);
+      used.iterations += counters.iterations;
+      used.actions += counters.actions;
+      used.durationMs += Math.round(counters.elapsedMs);
       if (last.type === "error") journal.record("error", `The session failed: ${last.error.message}`);
       if (last.type === "stopped") journal.record("error", `The task reached its ${last.reason.limit} limit; no test was written for the scenario under way.`);
-
-      if (plan.refused !== undefined) return failed(`No test was written: the plan was refused: ${plan.refused}`);
-      const planned = frozen ?? plan.accepted;
-      // A limit cuts the design short while its plan is to come, or a scenario of it is open.
-      const stoppedBy = last.type === "stopped" && (planned === undefined || proposals.pending) ? last.reason.limit : undefined;
+      opened.harness(name, { type: "usage", ...usageOf(counters) });
+      phases.end(last.type === "stopped" ? "truncated" : last.type === "end" && settled() ? "done" : "failed");
+      return last;
+    };
+    // A session that throws leaves its phase ended as failed.
+    try {
+      let planned: TestPlan | undefined = frozen;
+      if (planned === undefined) {
+        const session = sessionTools(scope);
+        const plan = new PlanProposal(
+          {
+            sources: owners,
+            applications: applications.map((application) => application.id),
+            domains: index.domains.map((domain) => domain.id),
+            secrets: declaredSecrets(config, env),
+            screens: session.screens,
+            reads: session.reads,
+            review: this.options.planReview ?? ACCEPT_EVERY_PLAN,
+          },
+          journal,
+        );
+        const offered = [...session.screens.tools(), ...session.reads.tools()];
+        const map = new IndexMap(index, await this.cards(index), offered, owners);
+        const request = designRequest(brief, index.environment, brief === undefined ? [] : map.found(brief), map.domains(), applications, packages);
+        const tools = [...map.toolset(), ...offered, ...notes, plan.tool()].map((tool) => endedWithPlan(tool, plan));
+        const last = await sessionOf("plan", session, { tools, request, reminder: () => plan.reminder() }, () => plan.accepted !== undefined);
+        if (plan.refused !== undefined) return failed(`No test was written: the plan was refused: ${plan.refused}`);
+        planned = plan.accepted;
+        if (planned === undefined)
+          return failed(`No test was written: ${obtained(0)}, ${MIN_TESTS} at least are expected.`, last.type === "stopped" ? last.reason.limit : undefined);
+      }
+      const proposals = new TestProposals(
+        {
+          repositoryRoot,
+          appsDir: config.repository.appsDir,
+          addresses: declaredAddresses(config),
+          secrets: declaredSecrets(config, env),
+          ...(this.options.check === undefined ? {} : { check: this.options.check }),
+          runner: this.options.runner,
+          packages,
+          screenshots: this.options.screenshots ?? false,
+          now,
+        },
+        journal,
+        planned,
+        previous?.tests.length,
+      );
+      // Each scenario not closed is written in a session of its own, which is given its sheet and nothing else of the plan.
+      let stoppedBy: StopReason["limit"] | undefined;
+      for (let sheet = proposals.sheet; sheet !== undefined; sheet = proposals.sheet) {
+        const session = sessionTools(scope);
+        // The journal of the scenario belongs to the phase of its session.
+        phase = "write";
+        proposals.begin(session);
+        const tools = [...session.screens.tools(), ...session.reads.tools(), ...notes, proposals.trialTool(), proposals.tool()];
+        const request = scenarioRequest(sheet, applications, packages, index.environment);
+        const last = await sessionOf("write", session, { tools, request, reminder: () => proposals.reminder() }, () => !proposals.writing);
+        // A limit that cuts a scenario short stops the design, which may be resumed from that scenario; so does a session that failed.
+        if (last.type === "stopped" && proposals.writing) stoppedBy = last.reason.limit;
+        if (last.type === "error" || stoppedBy !== undefined) break;
+        if (proposals.writing) proposals.giveUp(SESSION_END);
+      }
       const tests = proposals.accepted;
       const kept = [
         ...(previous?.tests ?? []),
@@ -266,9 +281,7 @@ export class Designer {
           ...(references.length === 0 ? {} : { references: references.map((reference) => reference.path) }),
         })),
       ];
-      if (planned === undefined || (kept.length === 0 && stoppedBy === undefined))
-        return failed(`No test was written: ${obtained(0)}, ${MIN_TESTS} at least are expected.`, stoppedBy);
-      const used = { iterations: counters.iterations, actions: counters.actions, durationMs: Math.round(counters.elapsedMs) };
+      if (kept.length === 0 && stoppedBy === undefined) return failed(`No test was written: ${obtained(0)}, ${MIN_TESTS} at least are expected.`);
       const record: PlanRecord = resumed?.plan ?? {
         formatVersion: 2,
         design: id,
@@ -277,7 +290,7 @@ export class Designer {
         scenarios: planned.scenarios,
       };
       const state: DesignState = {
-        formatVersion: 3,
+        formatVersion: 4,
         producedAt: previous?.producedAt ?? start.toISOString(),
         environment: index.environment,
         ...(brief === undefined ? {} : { brief }),
@@ -295,16 +308,13 @@ export class Designer {
                 durationMs: previous.run.durationMs + used.durationMs,
               },
         tests: kept,
-        unwritten: [...(previous?.unwritten ?? []), ...proposals.unwritten],
       };
       const statePath = resume?.state ?? posix.join(config.repository.stateDir, DESIGNS_FOLDER, `${id}.json`);
       await this.write(repository, state, statePath, record, tests, journal);
-      const counted = kept.filter((test) => test.verdict === "passed" || test.quarantine?.cause === "application").length;
+      const counted = kept.filter((test) => COUNTED.has(test.classes.at(-1)!.class)).length;
       if (counted < MIN_TESTS) journal.record("error", `The design failed: ${obtained(counted)}, ${MIN_TESTS} at least are expected.`);
-      const ok = counted >= MIN_TESTS;
-      if (ok) phases.end(last.type === "end" ? "done" : "truncated");
       return {
-        ok,
+        ok: counted >= MIN_TESTS,
         ...(kept.length === 0 ? {} : { branch }),
         statePath: join(repositoryRoot, statePath),
         planPath: join(repositoryRoot, state.plan),
@@ -347,10 +357,10 @@ export class Designer {
       return;
     }
     const titles = new Map(plan.scenarios.map((scenario) => [scenario.id, scenario.title]));
-    const line = (test: AcceptedTest) =>
-      test.quarantine === undefined
-        ? `- ${test.path}: ${titles.get(test.scenario)}`
-        : `- ${test.path}: failing (${test.quarantine.cause})${stepOf(test.quarantine.failedStep)}`;
+    const line = (test: AcceptedTest) => {
+      if (test.quarantine !== undefined) return `- ${test.path}: failing (${test.quarantine.cause})${stepOf(test.quarantine.failedStep)}`;
+      return test.classes.at(-1)!.class === "unfinished" ? `- ${test.path}: unfinished (${test.closedBy})` : `- ${test.path}: ${titles.get(test.scenario)}`;
+    };
     const message = [`test: add ${tests.length} generated Playwright tests`, "", ...tests.map(line)].join("\n");
     const committed = new Set(
       await repository.commit(
@@ -371,11 +381,10 @@ export class Designer {
     if (path === undefined) return undefined;
     const { repositoryRoot } = this.options;
     const state = (await readJson(join(repositoryRoot, path))) as DesignState | undefined;
-    if (state?.formatVersion !== 3) return `The design state ${path} cannot be read; the design was not resumed.`;
+    if (state?.formatVersion !== 4) return `The design state ${path} cannot be read; the design was not resumed.`;
     const plan = readPlanFile(await readFile(join(repositoryRoot, state.plan), "utf8").catch(() => ""));
     if (plan === undefined) return `The plan ${state.plan} of the design state ${path} cannot be read; the design was not resumed.`;
-    if (state.tests.length + state.unwritten.length >= plan.scenarios.length)
-      return `Every scenario of the plan of ${path} is closed; there is nothing to resume.`;
+    if (state.tests.length >= plan.scenarios.length) return `Every scenario of the plan of ${path} is closed; there is nothing to resume.`;
     return { state, plan };
   }
 
@@ -403,9 +412,16 @@ export class Designer {
   }
 }
 
-/** A tool that refuses every call once the plan is refused: the design is stopped. */
-function stoppedOnRefusal(tool: ToolDefinition, plan: PlanProposal): ToolDefinition {
-  return { ...tool, execute: async (args) => (plan.refused === undefined ? tool.execute(args) : { error: plan.blocked() }) };
+/** A tool that refuses every call once the plan is refused, the design being stopped, or accepted, the session that plans being over. */
+function endedWithPlan(tool: ToolDefinition, plan: PlanProposal): ToolDefinition {
+  const ended = () => (plan.refused !== undefined ? plan.blocked() : plan.accepted !== undefined ? plan.closed() : undefined);
+  return {
+    ...tool,
+    execute: async (args) => {
+      const told = ended();
+      return told === undefined ? tool.execute(args) : { error: told };
+    },
+  };
 }
 
 /** Where a test kept failing failed, in words: the number of its step, when the title of the step gives it. */

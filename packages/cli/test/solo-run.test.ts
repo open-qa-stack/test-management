@@ -7,7 +7,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import type { AgentRuntime, CommandOutcome, CommandRunner, StepCommand, TaskLimits } from "@open-qa-stack/domain";
-import { readPlanFile } from "@open-qa-stack/agents";
 import { answer, closedPort, scriptedServer, toolCalls, type ScriptedServer } from "@open-qa-stack/testing";
 import { liveRuntime, soloCommand, SoloRun, type RunEntry, type SoloRunState } from "../src/index.ts";
 
@@ -210,20 +209,32 @@ const scenario = (id: string) => ({
 });
 const plan = submit("propose_plan", { scenarios: IDS.map(scenario) }, "plan");
 
-/** The replies of the model for the whole chain: the check of the server, the card, the index, then a read of the orders, the plan and the design of three tests, each run then closed. */
+/** The answer that ends a session of a design. */
+const ended = { body: answer(MODEL, "Done.") };
+/** A read of the orders, which changes nothing. */
+const read = (id = "read") => ({ body: toolCalls(MODEL, [submit("order_specs_read_section", { number: 1 }, id)]) });
+/** The replies of the session of a scenario: its test is run, then closed, then the agent answers. */
+const written = (id: string) => [
+  { body: toolCalls(MODEL, [submit("run_test", { content: spec(id) }, `r-${id}`)]) },
+  { body: toolCalls(MODEL, [submit("propose_test", {}, `p-${id}`)]) },
+  ended,
+];
+/**
+ * The replies of the model for the whole chain: the check of the server, the card, the index, then the
+ * session that plans — a read of the orders, the plan, an answer — and the session of each of three
+ * scenarios.
+ */
 const chain = () => [
   { body: { data: [] } },
   { body: toolCalls(MODEL, [submit("submit_card", card, "c1")]) },
   { body: answer(MODEL, "One domain.") },
   { body: toolCalls(MODEL, [submit("submit_index", index, "x1")]) },
   { body: answer(MODEL, "One domain.") },
-  { body: toolCalls(MODEL, [submit("order_specs_read_section", { number: 1 }, "read")]) },
+  read(),
   { body: toolCalls(MODEL, [plan]) },
-  ...IDS.flatMap((id) => [
-    { body: toolCalls(MODEL, [submit("run_test", { content: spec(id) }, `r-${id}`)]) },
-    { body: toolCalls(MODEL, [submit("propose_test", {}, `p-${id}`)]) },
-  ]),
-  ...Array.from({ length: 4 }, () => ({ body: answer(MODEL, "Done.") })),
+  ended,
+  ...IDS.flatMap(written),
+  ...Array.from({ length: 4 }, () => ended),
 ];
 
 interface Run {
@@ -436,9 +447,9 @@ describe("solo command, criterion 9 — the state of a complete run", () => {
     // Each step counts the requests of its own sessions: with the list of the models the prerequisites ask for, they are all the server received.
     assert.deepEqual(
       state.steps.map((step) => step.modelRequests),
-      [0, 0, 4, 9, 0],
+      [0, 0, 4, 12, 0],
     );
-    assert.equal(run.server.requests.length, 1 + 4 + 9);
+    assert.equal(run.server.requests.length, 1 + 4 + 12);
     assert.ok(state.durationMs > state.steps.reduce((total, step) => total + step.durationMs, 0) - 1);
   });
 });
@@ -663,7 +674,7 @@ describe("the edges of a run", () => {
     });
     assert.equal(run.code, 5, run.err);
     assert.match(run.err, /\[design\] error: The design stopped on an unexpected error/);
-    assert.equal(stateOf(run.root).steps.find((step) => step.step === "design")!.modelRequests, 9);
+    assert.equal(stateOf(run.root).steps.find((step) => step.step === "design")!.modelRequests, 12);
   });
 
   it("stops with 5 when the runtime of the agents cannot be opened, and still writes the state", async () => {
@@ -854,14 +865,15 @@ const tried = (runner: FakeRunner) =>
     .flatMap((command) => command.command.filter((arg) => arg.endsWith(".spec.ts")));
 
 describe("autonomy, criterion 4 — a design stopped by maxIterations after a plan and a kept test is resumed with --resume", () => {
-  it("gives the plan and the kept test to the resumed session, which plans nothing, and ends the branch with the tests of both", async () => {
+  it("gives the resumed sessions the sheets of the scenarios left, plans nothing, and ends the branch with the tests of both", async () => {
     const replies = chain();
-    // The first run: the check of the server, the cartography, then a design cut at its sixth call, once test-1 is kept and test-2 run.
-    const server = await scriptedServer([...replies.slice(0, 10), { body: { data: [] } }, ...replies.slice(9)]);
+    // The first run: the check of the server, the cartography, the plan, test-1, then the session of test-2 cut at its fifth call, its test run but not closed.
+    const cut = [written("test-2")[0]!, read("l1"), read("l2"), read("l3"), read("l4")];
+    const server = await scriptedServer([...replies.slice(0, 11), ...cut, { body: { data: [] } }, ...written("test-2"), ...written("test-3")]);
     try {
       const first = await solo([], { environment: "local", modelUrl: server.baseUrl, config: boundedTo(5) });
       assert.equal(first.code, 5, first.err);
-      assert.equal(server.requests.length, 10);
+      assert.equal(server.requests.length, 1 + 4 + 3 + 3 + 5);
       assert.match(first.err, /The task reached its iterations limit; no test was written for the scenario under way\./);
       assert.match(first.out, new RegExp(`The design was stopped by its iterations limit; resume the run with: oqas --resume ${FIRST_RUN}\n`));
       const stopped = stateOf(first.root);
@@ -872,14 +884,12 @@ describe("autonomy, criterion 4 — a design stopped by maxIterations after a pl
 
       const resumed = await solo([], { root: () => first.root, modelUrl: server.baseUrl, config: boundedTo(5), resume: FIRST_RUN, now: later(13) });
       assert.equal(resumed.code, 0, resumed.err);
-      const session = server.requests[11]!.body;
-      const design = stateOf(first.root).designState!;
-      const { plan } = JSON.parse(readFileSync(join(first.root, design), "utf8")) as { plan: string };
-      const accepted = { scenarios: readPlanFile(readFileSync(join(first.root, plan), "utf8"))!.scenarios };
-      assert.ok(JSON.stringify(session).includes(JSON.stringify(JSON.stringify(accepted)).slice(1, -1)), "the session is given the plan");
-      assert.ok(JSON.stringify(session).includes(JSON.stringify(spec("test-1").trimEnd()).slice(1, -1)), "the session is given the kept test");
+      // The first session of the run resumed is that of the first scenario not closed: it is given its sheet, not the test kept.
+      const session = server.requests[17]!.body;
+      assert.ok(JSON.stringify(session).includes("Scenario 2 of 3: test-2"), "the session is given the sheet of the scenario left");
+      assert.ok(!JSON.stringify(session).includes("test-1"), "the session is not given the kept test");
       assert.ok(!offered(session).includes("propose_plan"));
-      assert.ok(!server.requests.slice(11).some((request) => JSON.stringify(request.body).includes('"name":"propose_plan"')));
+      assert.ok(!server.requests.slice(17).some((request) => JSON.stringify(request.body).includes('"name":"propose_plan"')));
       // The resumed design tries the tests of the scenarios left, never the kept one.
       assert.deepEqual(tried(resumed.runner), ["apps/shop/test-2.spec.ts", "apps/shop/test-3.spec.ts"]);
       const state = stateOf(first.root, "oqas-2026-11-13T13-00-00-000Z");
@@ -894,7 +904,7 @@ describe("autonomy, criterion 4 — a design stopped by maxIterations after a pl
         "apps/shop/test-2.spec.ts",
         "apps/shop/test-3.spec.ts",
       ]);
-      assert.equal(git(first.root, "rev-parse", `${branch}~2`), base, "one commit for each session, on the same branch");
+      assert.equal(git(first.root, "rev-parse", `${branch}~2`), base, "one commit for each run, on the same branch");
     } finally {
       await server.close();
     }
@@ -907,9 +917,15 @@ describe("autonomy, criterion 4 — a design stopped by maxIterations after a pl
       bad,
       bad,
       { body: { data: [] } },
+      // The index, the plan, at the second and last call of its session, then the session of test-1, cut before it ran anything.
       ...chain().slice(3, 7),
+      read("l1"),
+      read("l2"),
       { body: { data: [] } },
-      ...chain().slice(7, 9),
+      // The session of test-1, closed at its last call, then that of test-2, cut.
+      ...written("test-1").slice(0, 2),
+      read("l3"),
+      read("l4"),
     ]);
     try {
       const first = await solo([], { environment: "local", modelUrl: server.baseUrl, config: boundedTo(2) });
@@ -918,7 +934,6 @@ describe("autonomy, criterion 4 — a design stopped by maxIterations after a pl
       const again = await solo([], { root: () => first.root, modelUrl: server.baseUrl, config: boundedTo(2), resume: FIRST_RUN, now: later(13) });
       assert.equal(again.code, 5, again.err);
       assert.match(again.err, /The card of order-specs is up to date; it was kept\./);
-      assert.equal(server.requests.length, 6 + 4);
       const second = stateOf(first.root, "oqas-2026-11-13T13-00-00-000Z");
       assert.deepEqual([second.stoppedBy, second.branch, second.designed], [{ step: "design", limit: "iterations" }, undefined, []]);
       assert.ok(second.designState !== undefined);
@@ -940,26 +955,26 @@ describe("autonomy, criterion 4 — a design stopped by maxIterations after a pl
 
   it("offers to resume a design a limit cut short once it gave its tests, which still run", async () => {
     const four = [...IDS, "test-4"];
-    const design = (id: string) => [
-      { body: toolCalls(MODEL, [submit("run_test", { content: spec(id) }, `r-${id}`)]) },
-      { body: toolCalls(MODEL, [submit("propose_test", {}, `p-${id}`)]) },
-    ];
-    // The first run: the check of the server, the cartography, then a design of four scenarios cut at its ninth call, once three tests are kept.
+    // The first run: the check of the server, the cartography, a plan of four scenarios, three tests, then the session of the fourth cut at its fourth call.
     const server = await scriptedServer([
       ...chain().slice(0, 6),
       { body: toolCalls(MODEL, [submit("propose_plan", { scenarios: four.map(scenario) }, "plan")]) },
-      ...IDS.flatMap(design),
+      ended,
+      ...IDS.flatMap(written),
+      read("l1"),
+      read("l2"),
+      read("l3"),
+      read("l4"),
       { body: { data: [] } },
-      ...design("test-4"),
-      ...Array.from({ length: 4 }, () => ({ body: answer(MODEL, "Done.") })),
+      ...written("test-4"),
     ]);
     try {
-      const first = await solo([], { environment: "local", modelUrl: server.baseUrl, config: boundedTo(8) });
+      const first = await solo([], { environment: "local", modelUrl: server.baseUrl, config: boundedTo(4) });
       assert.equal(first.code, 0, first.err);
       const stopped = stateOf(first.root);
       assert.deepEqual([stopped.stoppedBy, stopped.tests.length], [{ step: "design", limit: "iterations" }, 3]);
       assert.match(first.out, new RegExp(`The design was stopped by its iterations limit; resume the run with: oqas --resume ${FIRST_RUN}\n`));
-      const resumed = await solo([], { root: () => first.root, modelUrl: server.baseUrl, config: boundedTo(8), resume: FIRST_RUN, now: later(13) });
+      const resumed = await solo([], { root: () => first.root, modelUrl: server.baseUrl, config: boundedTo(4), resume: FIRST_RUN, now: later(13) });
       assert.equal(resumed.code, 0, resumed.err);
       assert.deepEqual(tried(resumed.runner), ["apps/shop/test-4.spec.ts"]);
       const state = stateOf(first.root, "oqas-2026-11-13T13-00-00-000Z");
