@@ -50,7 +50,7 @@ const failing: TestRunner = {
 
 /**
  * What the agent is told of a second run of the test of a scenario, the first having failed and the agent
- * having looked at nothing since.
+ * having looked at nothing since: it saw the page of the shop before the first.
  */
 async function secondRun(
   application: string,
@@ -67,6 +67,10 @@ async function secondRun(
   const planned = scenario(application, cited);
   proposals.start({ scenarios: [planned] });
   const content = skeleton(planned, false);
+  await screens
+    .tools()
+    .find((tool) => tool.name === "shop_snapshot")!
+    .execute({});
   await proposals.trialTool().execute({ content });
   return proposals.trialTool().execute({ content: `${content}// again\n` });
 }

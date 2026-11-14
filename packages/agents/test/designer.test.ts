@@ -759,8 +759,7 @@ describe("the sheet of a scenario", () => {
     );
   });
 
-  it("runs as it is: its finding of a planned text anywhere on the page, which no screen may have shown, is not refused", async () => {
-    // The search for an invented value echoes it, which the agent did not see on a screen.
+  it("runs as it is once the agent typed on the screen the invented value it expects", async () => {
     const invented = scenario("list-orders", "other", {
       data: [{ value: "zzqx", from: "made-up" }],
       steps: [{ action: "Search zzqx", expects: [{ result: "The search is echoed", shows: ["Orders", "zzqx"], absent: [] }] }],
@@ -769,11 +768,21 @@ describe("the sheet of a scenario", () => {
     const sheetOf = (server: ScriptedServer) =>
       told(server, "plan").slice(told(server, "plan").indexOf("import "), told(server, "plan").lastIndexOf("\nNext:"));
     const first = await design([{ body: toolCalls(MODEL, [OPEN]) }, { body: toolCalls(MODEL, [plan]) }, { body: answer(MODEL, "Done.") }], { plan: false });
-    const skeletonText = sheetOf(first.server);
+    assert.match(
+      told(first.server, "plan"),
+      /Refused \(PLAN-SHOWN\): scenario list-orders, expect 1\.1, names "zzqx", which no screen of shop showed in this session\./,
+    );
+    const typed = { id: "type", name: "shop_fill", arguments: { target: { role: "textbox", name: "Search orders" }, value: "zzqx" } };
+    const second = await design(
+      [{ body: toolCalls(MODEL, [OPEN]) }, { body: toolCalls(MODEL, [typed]) }, { body: toolCalls(MODEL, [plan]) }, { body: answer(MODEL, "Done.") }],
+      { plan: false },
+    );
+    const skeletonText = sheetOf(second.server);
     assert.match(skeletonText, /await expect\(page\.getByText\("zzqx"\)\)\.toBeVisible\(\);/);
-    const { server } = await design([{ body: toolCalls(MODEL, [OPEN]) }, { body: toolCalls(MODEL, [plan]) }, ...replies([[run(skeletonText, "r1")]])], {
-      plan: false,
-    });
+    const { server } = await design(
+      [{ body: toolCalls(MODEL, [OPEN]) }, { body: toolCalls(MODEL, [typed]) }, { body: toolCalls(MODEL, [plan]) }, ...replies([[run(skeletonText, "r1")]])],
+      { plan: false },
+    );
     assert.match(told(server, "r1"), /^Run of the file: passed\./);
   });
 });

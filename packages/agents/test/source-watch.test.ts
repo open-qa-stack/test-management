@@ -58,6 +58,12 @@ describe("what the designer reads of the sources", () => {
     );
     assert.deepEqual([watch.read("shop-db"), watch.read("shop"), watch.read("empty"), watch.read("unknown")], [true, true, false, false]);
     assert.equal(watch.last("unknown", 5).length, 0);
+    // A text is dated by the result that first returned it, after the ones before.
+    const [byId, byName, bySection] = [watch.shownAt("shop-db", "42"), watch.shownAt("shop-db", "mira veldane"), watch.shownAt("shop", "places an order")];
+    assert.deepEqual(
+      [byId === byName, byId! < bySection!, watch.shownAt("shop-db", "places an order"), watch.shownAt("unknown", "42")],
+      [true, true, undefined, undefined],
+    );
   });
 
   it("reads a failed call as nothing read, and keeps the last texts of a source within its bound", async () => {
@@ -73,6 +79,7 @@ describe("what the designer reads of the sources", () => {
       [watch.read("shop-db"), watch.shows("shop-db", "row-0-"), watch.shows("shop-db", "row-24-"), watch.last("shop-db", 100).length],
       [true, false, true, 20],
     );
+    assert.deepEqual([watch.shownAt("shop-db", "row-0-"), watch.shownAt("shop-db", "row-5-")! < watch.shownAt("shop-db", "row-24-")!], [undefined, true]);
   });
 
   it("counts the calls of the tools of logs and of source code, as looks at what a run did, the calls of every tool, and names the first tool of each source", async () => {

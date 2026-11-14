@@ -21,14 +21,14 @@ const scenario = (id: string, changes: Partial<PlannedScenario> = {}): PlannedSc
 });
 const plan = (...ids: string[]): TestPlan => ({ scenarios: ids.map((id) => scenario(id)) });
 
-/** The browser tools of a shop whose search makes an order appear and another go. */
+/** The browser tools of a shop whose search makes an order appear and another go, and whose search field takes the value typed, zzqx when none is given. */
 function shopTools(): ToolDefinition[] {
   let page = '- heading "Orders"\n- row "ORD-1057 Lena Brook"';
-  const tool = (action: string, execute: () => unknown): ToolDefinition => ({
+  const tool = (action: string, execute: (args: { value?: string }) => unknown): ToolDefinition => ({
     name: `shop_${action}`,
     description: action,
     parameters: { type: "object" },
-    execute: async () => execute(),
+    execute: async (args) => execute(args as { value?: string }),
   });
   return [
     tool("goto", () => ({ url: "/orders" })),
@@ -37,7 +37,10 @@ function shopTools(): ToolDefinition[] {
       page = '- heading "Orders"\n- row "ORD-1042 Mira Veldane"';
       return {};
     }),
-    tool("fill", () => ({})),
+    tool("fill", ({ value = "zzqx" }) => {
+      page = `${page}\n- textbox "Search orders": ${value} → page.getByRole("textbox", { name: "Search orders", exact: true })`;
+      return {};
+    }),
     tool("select_option", () => ({})),
     tool("check", () => ({})),
   ];
@@ -103,11 +106,11 @@ function slowReview(decision: (plan: TestPlan) => boolean): PlanReview {
 }
 
 const submit = (proposal: PlanProposal, submitted: TestPlan) => proposal.tool().execute(submitted) as Promise<string | { error: string }>;
-const act = (screens: ScreenWatch, action: string) =>
+const act = (screens: ScreenWatch, action: string, args: object = {}) =>
   screens
     .tools()
     .find((tool) => tool.name === `shop_${action}`)!
-    .execute({});
+    .execute(args);
 
 describe("plans reviewed at once", () => {
   it("keep the first one accepted, and refuse the other", async () => {
@@ -308,8 +311,10 @@ describe("the gates of a plan", () => {
       'Refused (PLAN-DATA): no result of orders-db showed "Veldane" in this session. Read it first with orders_db_search, or correct the value. A value the test invents has from "made-up".',
       'Refused (PLAN-DATA): no result of shop showed "Lena Brook" in this session. Read it first with shop_goto, or correct the value. A value the test invents has from "made-up".',
       'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "No order matches zzqx", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
+      'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "zzqx", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
       'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "Orders", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
       'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "ORD-1057", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
+      'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "Lena", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
       'Refused (PLAN-SHOWN): scenario a, expect 1.1, names "Gone", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
       "Refused (PLAN-READ): scenario b cites shop, and you have read nothing of it. Call shop_goto first.",
       'Refused (PLAN-SHOWN): scenario b, expect 1.1, names "Orders", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
@@ -319,6 +324,7 @@ describe("the gates of a plan", () => {
     ]);
     await search!.execute({});
     await act(screens, "goto");
+    await act(screens, "fill");
     const fixed = (shows: string[]) => ({
       scenarios: [
         {
@@ -338,6 +344,66 @@ describe("the gates of a plan", () => {
     });
     // The values of the data of a source, spaces and case aside; a source without any tool is held to nothing.
     assert.equal(await submit(made, fixed(["orders", "zzqx", "Orders"])), "The plan was accepted.\n\nScenario 1.");
+  });
+
+  it("refuse a made-up value a screen or a source showed before it was typed, a text expected gone only a field showed, and a nominal scenario that expects gone the value it typed", async () => {
+    const { proposal: made, screens, reads } = await proposal();
+    await reads.tools()[0]!.execute({});
+    await act(screens, "fill");
+    await act(screens, "fill", { value: "Lena Brook" });
+    await act(screens, "click");
+    const searched = (changes: Partial<PlannedScenario>) =>
+      scenario("a", {
+        kind: "functional",
+        steps: [{ action: "Search zzqx", expects: [{ result: "The order of Mira Veldane shows", shows: ["ORD-1042"], absent: ["zzqx"] }] }],
+        ...changes,
+      });
+    const data = [
+      { value: "Lena Brook", from: "made-up" },
+      { value: "Mira Veldane", from: "made-up" },
+      { value: "Long Long", from: "made-up" },
+      { value: "zzqx", from: "made-up" },
+    ];
+    const lena = (steps: PlannedScenario["steps"]) => scenario("b", { kind: "functional", data: [{ value: "Lena Brook", from: "shop" }], steps });
+    const cancelled = { action: "Cancel the order of Lena Brook", expects: [{ result: "Its order goes", shows: [], absent: ["Lena Brook"] }] };
+    const negative = scenario("c", {
+      kind: "functional",
+      case: "negative",
+      steps: [{ action: "Search zzqx", expects: [{ result: "Another order shows", shows: ["ORD-1042"], absent: [] }] }],
+    });
+    assert.deepEqual(((await submit(made, { scenarios: [searched({ data }), lena([cancelled]), negative] })) as { error: string }).error.split("\n"), [
+      'Refused (PLAN-MADE-UP): scenario a gives "Lena Brook" as made-up, and shop showed it before you typed it: the test does not invent it. Give its source instead: { "value": "Lena Brook", "from": "shop" }.',
+      'Refused (PLAN-MADE-UP): scenario a gives "Mira Veldane" as made-up, and shop showed it before you typed it: the test does not invent it. Give its source instead: { "value": "Mira Veldane", "from": "shop" }.',
+      'Refused (PLAN-MADE-UP): scenario a gives "Long Long" as made-up, and orders-db showed it before you typed it: the test does not invent it. Give its source instead: { "value": "Long Long", "from": "orders-db" }.',
+      'Refused (PLAN-SHOWN): scenario a, expect 1.1, names in absent "zzqx", which the screens of shop showed only in a field: the field keeps what you typed whatever the application answers. Put in absent a text the action removed, such as a row the search filtered out.',
+      'Refused (PLAN-NOMINAL): scenario b is nominal: its data is what it finds, and "Lena Brook" in absent of expect 1.1 says it finds nothing. Put it in shows, or make the scenario negative; if a step removes it, put it in shows of the step before that makes or finds it. If the screens found nothing with "Lena Brook", try a part of it, such as a first or a last name, with the browser tools.',
+      "Nothing else was refused.",
+    ]);
+    // A value a step before shows is removed, not searched in vain; an application without a user interface is held to none of its screens.
+    const found = { action: "Find the order of Lena Brook", expects: [{ result: "Its order shows", shows: ["Lena Brook"], absent: [] }] };
+    const ledger = scenario("c", {
+      application: "ledger",
+      data: [{ value: "Quill", from: "made-up" }],
+      steps: [{ action: "Search Quill", expects: [{ result: "Quill is echoed", shows: ["Quill"], absent: ["Quill"] }] }],
+    });
+    const fixed = searched({
+      case: "negative",
+      data: [
+        { value: "Mira Veldane", from: "shop" },
+        { value: "Long Long", from: "orders-db" },
+        { value: "zzqx", from: "made-up" },
+      ],
+      steps: [{ action: "Search zzqx", expects: [{ result: "Another order shows", shows: ["ORD-1042"], absent: ["ORD-1057"] }] }],
+    });
+    assert.equal(await submit(made, { scenarios: [fixed, lena([found, cancelled]), ledger] }), "The plan was accepted.\n\nScenario 1.");
+  });
+
+  it("take a made-up value a source returned once a field held it: the test made it", async () => {
+    const { proposal: made, screens, reads } = await proposal();
+    await act(screens, "fill", { value: "Long Long" });
+    await reads.tools()[0]!.execute({});
+    const saved = scenario("a", { data: [{ value: "Long Long", from: "made-up" }] });
+    assert.equal(await submit(made, { scenarios: [saved, scenario("b"), scenario("c")] }), "The plan was accepted.\n\nScenario 1.");
   });
 
   it("give the last texts of a source as what they would accept of a value it never showed", async () => {

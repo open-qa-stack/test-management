@@ -53,7 +53,11 @@ export interface PlanRules {
  * repeat, the value of a declared variable, a plan of two functional scenarios or more without a negative
  * one, a functional scenario whose expects name no text, for an application with a user interface a
  * functional scenario none of whose texts appeared, or went, after an action of the agent, a source cited
- * and never read, a value of the data its source never showed, and an expected text no tool showed; the agent may
+ * and never read, a value of the data its source never showed, a value said made up that a screen or a
+ * source showed before the agent typed it, an expected text no tool showed — for an application with a user
+ * interface, even a value the test types or expects gone — a text expected gone the screens showed only in
+ * a field, and a nominal scenario that expects gone a value it typed without a step before that expects it
+ * shown; the agent may
  * then submit another; from the third refusal of one reason, it is told only what the gate would accept,
  * and the sixth plan the gates refuse stops the design. A plan that keeps these rules goes to the review, one
  * plan at a time: accepted, it is frozen, and no other may be submitted; refused, the design stops.
@@ -311,22 +315,87 @@ export class PlanProposal {
     const unshown = scenario.data
       .filter((entry) => entry.from !== MADE_UP && checkable(entry.value) && !showed(entry.from, entry.value))
       .map((entry) => this.dataRefusal(entry.value, entry.from, tool(entry.from)!));
+    // A source that returned a value once a field held it read what the test made, such as a row it saved.
+    const typedAt = (value: string) => Math.min(...applications.map((application) => screens.typedAt(application, value) ?? Infinity));
+    const readFirst = (source: string, value: string) => !screens.watches(source) && (reads.shownAt(source, value) ?? Infinity) < typedAt(value);
+    const shownFirst = (value: string) =>
+      applications.find((application) => screens.showsBeforeTyped(application, value)) ?? this.rules.sources.find((source) => readFirst(source, value));
+    const found = scenario.data
+      .filter((entry) => entry.from === MADE_UP && checkable(entry.value))
+      .flatMap(({ value }) => {
+        const source = shownFirst(value);
+        return source === undefined
+          ? []
+          : [
+              {
+                code: "PLAN-MADE-UP",
+                message: `scenario ${scenario.id} gives "${value}" as ${MADE_UP}, and ${source} showed it before you typed it: the test does not invent it. Give its source instead: { "value": ${JSON.stringify(value)}, "from": "${source}" }.`,
+              },
+            ];
+      });
     const values = scenario.data.map((entry) => entry.value);
     const madeUp = scenario.data.filter((entry) => entry.from === MADE_UP).map((entry) => entry.value);
-    // A test finds a text on the screens of its application, as they give it; a base may give it otherwise.
-    const seen = (text: string) => (screens.watches(scenario.application) ? screens.shows(scenario.application, text) : anywhere(text));
+    const watched = screens.watches(scenario.application);
+    // A test finds a text on the screens of its application, as they give it, even a value it types; a base may give it otherwise.
+    const seen = (text: string) => (watched ? screens.shows(scenario.application, text) : anywhere(text));
     const texts = scenario.steps.flatMap((step, at) =>
       step.expects.flatMap((expect, k) =>
-        [...expect.shows.filter((text) => !seen(text) && !observed(text, madeUp)), ...expect.absent.filter((text) => !seen(text) && !observed(text, values))]
+        [
+          ...expect.shows.filter((text) => !seen(text) && (watched || !observed(text, madeUp))),
+          ...expect.absent.filter((text) => !seen(text) && (watched || !observed(text, values))),
+        ]
           .filter(checkable)
           .map((text) => ({ number: `${at + 1}.${k + 1}`, text })),
       ),
     );
     const unseen = texts.map(({ number, text }) => ({
       code: "PLAN-SHOWN",
-      message: `scenario ${scenario.id}, expect ${number}, names "${text}", which ${screens.watches(scenario.application) ? `no screen of ${scenario.application} showed in this session. Do the step with the browser tools and copy the text as the screen gives it.` : "nothing you read in this session showed. Copy the text as a tool of a source gives it."}`,
+      message: `scenario ${scenario.id}, expect ${number}, names "${text}", which ${watched ? `no screen of ${scenario.application} showed in this session. Do the step with the browser tools and copy the text as the screen gives it.` : "nothing you read in this session showed. Copy the text as a tool of a source gives it."}`,
     }));
-    return [...unread, ...unshown, ...unseen];
+    // A field keeps what was typed in it: the line it is on goes only when the field loses the focus.
+    const typedOnly = watched
+      ? scenario.steps.flatMap((step, at) =>
+          step.expects.flatMap((expect, k) =>
+            expect.absent
+              .filter((text) => checkable(text) && seen(text) && !screens.showsBesideFields(scenario.application, text))
+              .map((text) => ({
+                code: "PLAN-SHOWN",
+                message: `scenario ${scenario.id}, expect ${at + 1}.${k + 1}, names in absent "${text}", which the screens of ${scenario.application} showed only in a field: the field keeps what you typed whatever the application answers. Put in absent a text the action removed, such as a row the search filtered out.`,
+              })),
+          ),
+        )
+      : [];
+    return [...unread, ...unshown, ...found, ...unseen, ...typedOnly, ...this.nominalErrors(scenario)];
+  }
+
+  /**
+   * What the gates refuse in a nominal scenario of an application with a user interface: a text it expects
+   * gone that holds a value it typed and that a screen showed beside the fields, which says that what it
+   * searched found nothing, unless a step before expects the value shown: the scenario then removes what it
+   * made or found.
+   */
+  private nominalErrors(scenario: PlannedScenario): Refusal[] {
+    const { screens } = this.rules;
+    if (scenario.case !== "nominal" || !screens.watches(scenario.application)) return [];
+    const typed = scenario.data.map((entry) => entry.value).filter((value) => checkable(value) && screens.typed(scenario.application, value));
+    return scenario.steps.flatMap((step, at) => {
+      const shownBefore = scenario.steps.slice(0, at).flatMap((earlier) => earlier.expects.flatMap((expect) => expect.shows));
+      return step.expects.flatMap((expect, k) =>
+        expect.absent
+          .filter((text) => screens.showsBesideFields(scenario.application, text))
+          .flatMap((text) => {
+            const value = typed.find((candidate) => observed(candidate, [text]) && !observed(candidate, shownBefore));
+            return value === undefined
+              ? []
+              : [
+                  {
+                    code: "PLAN-NOMINAL",
+                    message: `scenario ${scenario.id} is nominal: its data is what it finds, and "${text}" in absent of expect ${at + 1}.${k + 1} says it finds nothing. Put it in shows, or make the scenario negative; if a step removes it, put it in shows of the step before that makes or finds it. If the screens found nothing with "${value}", try a part of it, such as a first or a last name, with the browser tools.`,
+                  },
+                ];
+          }),
+      );
+    });
   }
 
   /** The refusal of a value its source never showed, with the last texts a knowledge source returned as what the gate would accept. */

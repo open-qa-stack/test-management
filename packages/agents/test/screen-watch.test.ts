@@ -183,6 +183,34 @@ describe("the screens the designer watches", () => {
     assert.equal(watch.changedByAction("shop", ["OK"], []), true);
   });
 
+  it("tells a value the agent typed in a field from a text a screen showed before it was typed", async () => {
+    const typed = `${LIST}\n- textbox "Search: orders" [active] [ref=e4]: Mira → page.getByRole("textbox", { name: "Search: orders", exact: true })\n- 'spinbutton "Count": 7 → page.getByRole("spinbutton")'\n- searchbox "Find": Quill`;
+    const watch = new ScreenWatch(["shop", "ledger"], page([LIST, FOUND, typed]).tools);
+    await run(watch, "goto");
+    await run(watch, "fill");
+    assert.deepEqual(
+      ["Ada Lovelace", "Mira", "Quill", "Nowhere"].map((text) => [watch.showsBeforeTyped("shop", text), watch.typed("shop", text)]),
+      [
+        [true, false],
+        [false, true],
+        [false, true],
+        [false, false],
+      ],
+    );
+    // A field's name, and the locator a line ends with, are no value typed.
+    assert.deepEqual([watch.typed("shop", "orders"), watch.typed("shop", "getByRole"), watch.typed("shop", "7")], [false, false, true]);
+    assert.deepEqual([watch.showsBeforeTyped("ledger", "Mira"), watch.typed("ledger", "Mira")], [false, false]);
+    // A value typed is dated by the snapshot that first showed it in its field, and is no text beside the fields.
+    assert.deepEqual(
+      [typeof watch.typedAt("shop", "mira"), watch.typedAt("shop", "Ada Lovelace"), watch.typedAt("ledger", "Mira")],
+      ["number", undefined, undefined],
+    );
+    assert.deepEqual(
+      [watch.showsBesideFields("shop", "Mira"), watch.showsBesideFields("shop", "Ada Lovelace"), watch.showsBesideFields("ledger", "Ada Lovelace")],
+      [false, true, false],
+    );
+  });
+
   it("gives the locator of the element a screen showed a text in, the last seen first", async () => {
     const watch = new ScreenWatch(
       ["shop", "ledger"],

@@ -1,6 +1,7 @@
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import { scopedToolName, type SpecLocator } from "@open-qa-stack/tools";
 import { toolsBySource } from "./index-map.ts";
+import { nextMoment } from "./moments.ts";
 import { checkable, observed } from "./observed.ts";
 
 /** The browser tools that change the page of an application. */
@@ -11,6 +12,8 @@ const MAX_APPEARED = 60;
 const MAX_GONE = 20;
 /** Most lines told as the closest to a locator no screen showed. */
 const MAX_NEAREST = 5;
+/** The start of the line of a field a value is typed in, up to that value: its role, its name and its states. */
+const FIELD = /^- '?(?:textbox|searchbox|combobox|spinbutton)(?: "(?:[^"\\]|\\.)*")?(?: \[[^\]]+\])*: /;
 /** What the browser tools say they return, which the watch adds to. */
 const PAGE_STATE = "Returns where the page is, and the line of code that does the same in a test.";
 
@@ -22,6 +25,8 @@ interface Seen {
   readonly produced: Set<string>;
   /** The lines that went after an action. */
   readonly removed: Set<string>;
+  /** The moment each value a field held was first seen at, the first seen first. */
+  readonly values: Map<string, number>;
   /** The lines of the last snapshot of the whole page. */
   last: Set<string> | undefined;
   /** How many times the agent called one of the browser tools of the application. */
@@ -56,7 +61,7 @@ export class ScreenWatch {
     for (const application of applications) {
       const snapshot = byName.get(scopedToolName(application, "snapshot"));
       if (snapshot === undefined) continue;
-      const seen: Seen = { lines: new Set(), produced: new Set(), removed: new Set(), last: undefined, looks: 0 };
+      const seen: Seen = { lines: new Set(), produced: new Set(), removed: new Set(), values: new Map(), last: undefined, looks: 0 };
       this.seen.set(application, seen);
       const read = async () => this.record(seen, compact((await snapshot.execute({})) as { page: string; truncated: boolean }), true);
       const wrap = (action: string, execute: (tool: ToolDefinition, args: unknown) => Promise<unknown>, returns?: string) => {
@@ -204,6 +209,55 @@ export class ScreenWatch {
   }
 
   /**
+   * Whether the first line of the screens of the application that held a text was no field: the agent read
+   * the text before it typed it, if it ever did. A field holds a text by its value, not by its name.
+   *
+   * @param application - Identifier of the application.
+   * @param text - The text.
+   * @returns `false` when no screen showed the text, when a field showed it first, and for an application
+   * without a user interface.
+   */
+  public showsBeforeTyped(application: string, text: string): boolean {
+    const first = [...(this.seen.get(application)?.lines ?? [])].find((line) => observed(text, [fieldValue(line) ?? line]));
+    return first !== undefined && fieldValue(first) === undefined;
+  }
+
+  /**
+   * Whether a screen of the application showed a text in a line of anything but a field: a field holds what
+   * the agent typed in it whatever the application answers.
+   *
+   * @param application - Identifier of the application.
+   * @param text - The text.
+   * @returns `true` when such a line holds it; `false` for an application without a user interface.
+   */
+  public showsBesideFields(application: string, text: string): boolean {
+    return observed(text, besideFields(this.seen.get(application)?.lines ?? []));
+  }
+
+  /**
+   * Whether a field of a screen of the application held a text as its value: the agent typed it.
+   *
+   * @param application - Identifier of the application.
+   * @param text - The text.
+   * @returns `true` when the value of a field line holds it; `false` for an application without a user interface.
+   */
+  public typed(application: string, text: string): boolean {
+    return this.typedAt(application, text) !== undefined;
+  }
+
+  /**
+   * When a field of a screen of the application first held a text as its value.
+   *
+   * @param application - Identifier of the application.
+   * @param text - The text.
+   * @returns The moment, which `nextMoment` orders; `undefined` when no field held it, and for an application
+   * without a user interface.
+   */
+  public typedAt(application: string, text: string): number | undefined {
+    return [...(this.seen.get(application)?.values ?? [])].find(([value]) => observed(text, [value]))?.[1];
+  }
+
+  /**
    * The locator of the element a screen of the application showed a text in, as its line gave it.
    *
    * @param application - Identifier of the application.
@@ -242,10 +296,29 @@ export class ScreenWatch {
         .map(normalized)
         .filter((line) => line !== ""),
     );
-    for (const line of lines) seen.lines.add(line);
+    const moment = nextMoment();
+    for (const line of lines) {
+      seen.lines.add(line);
+      const value = fieldValue(line);
+      if (value !== undefined && !seen.values.has(value)) seen.values.set(value, moment);
+    }
     if (whole) seen.last = lines;
     return { ...snapshot, lines };
   }
+}
+
+/** The lines that are no line of a field, in their order. */
+function besideFields(lines: Iterable<string>): string[] {
+  return [...lines].filter((line) => fieldValue(line) === undefined);
+}
+
+/** The value a field line holds, before the locator of the field; `undefined` for a line of anything else. */
+function fieldValue(line: string): string | undefined {
+  const start = FIELD.exec(line);
+  if (start === null) return undefined;
+  const value = line.slice(start[0].length);
+  const end = value.indexOf(" → ");
+  return end === -1 ? value : value.slice(0, end);
 }
 
 /** The words of a text that can tell an element, three letters or more, in lower case. */

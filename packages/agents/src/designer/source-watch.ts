@@ -2,6 +2,7 @@ import type { ToolDefinition } from "@open-qa-stack/domain";
 import type { Knowledge } from "@open-qa-stack/shared";
 import { redactText, secretForms } from "@open-qa-stack/tools";
 import { toolsBySource } from "./index-map.ts";
+import { nextMoment } from "./moments.ts";
 import { observed } from "./observed.ts";
 
 /** Most characters kept of what the tools of one source returned; the oldest texts go first. */
@@ -17,6 +18,8 @@ interface Read {
   readonly tools: readonly string[];
   /** The texts its tools returned, the oldest first. */
   readonly texts: string[];
+  /** The moment each of `texts` was returned at. */
+  readonly moments: number[];
   /** How many characters `texts` holds. */
   length: number;
   /** Whether a call of one of its tools succeeded. */
@@ -53,7 +56,7 @@ export class SourceWatch {
     const owner = new Map<string, { readonly read: Read; readonly inspected: boolean }>();
     for (const source of sources) {
       const named = bySource.get(source.id) ?? [];
-      const read: Read = { type: source.type, tools: named, texts: [], length: 0, read: false };
+      const read: Read = { type: source.type, tools: named, texts: [], moments: [], length: 0, read: false };
       this.reads.set(source.id, read);
       for (const tool of named) owner.set(tool, { read, inspected: INSPECTED.has(source.type) });
     }
@@ -129,6 +132,19 @@ export class SourceWatch {
   }
 
   /**
+   * When a tool of a source first returned a text, spaces and case aside, among the texts kept.
+   *
+   * @param source - Identifier of the source.
+   * @param text - The text.
+   * @returns The moment, which `nextMoment` orders; `undefined` when no text kept holds it.
+   */
+  public shownAt(source: string, text: string): number | undefined {
+    const read = this.reads.get(source);
+    const at = read?.texts.findIndex((kept) => observed(text, [kept])) ?? -1;
+    return at === -1 ? undefined : read!.moments[at];
+  }
+
+  /**
    * The last texts the tools of a source returned.
    *
    * @param source - Identifier of the source.
@@ -160,11 +176,16 @@ export class SourceWatch {
   /** Keeps the texts of a result of a source, the oldest going once it holds too many characters. */
   private keep(read: Read, kept: readonly string[]): void {
     read.read = true;
+    const moment = nextMoment();
     for (const text of kept) {
       read.texts.push(text);
+      read.moments.push(moment);
       read.length += text.length;
     }
-    while (read.length > MAX_KEPT) read.length -= read.texts.shift()!.length;
+    while (read.length > MAX_KEPT) {
+      read.moments.shift();
+      read.length -= read.texts.shift()!.length;
+    }
   }
 }
 

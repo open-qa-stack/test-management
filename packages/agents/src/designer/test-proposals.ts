@@ -441,12 +441,7 @@ export class TestProposals {
     ];
     if (written.length > 0) return written;
     const { outline } = syntax;
-    // The skeleton finds each planned text anywhere on the page, which the gates of the plan vouched for.
-    const texts = new Set(scenario.steps.flatMap((step) => step.expects.flatMap((expect) => [...expect.shows, ...expect.absent])));
-    const unseen = screens.unseen(
-      scenario.application,
-      outline.locators.filter((locator) => !(locator.code.startsWith("getByText(") && texts.has(locator.text!))),
-    );
+    const unseen = screens.unseen(scenario.application, outline.locators);
     const located = unseen.length === 0 ? [] : [this.unseenRefusal(scenario.application, unseen)];
     const help = { skeleton: skeleton(scenario, this.rules.screenshots), locatorOf: (text: string) => screens.locatorOf(scenario.application, text) };
     const planned = [...scenarioErrors(outline, scenario, help), ...located];
