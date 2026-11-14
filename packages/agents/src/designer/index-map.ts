@@ -10,6 +10,8 @@ export const ENTRY_TOOL = "index_entry";
 const MAX_FOUND = 12;
 /** Shortest word a search matches on its start. */
 const MIN_STEM = 4;
+/** The words every brief holds, such as `tests` or `tester`, which tell nothing of what it is about. */
+const TEST_WORD = /^test(?:s|ed|ers?|ing)?$/;
 /** Most lines `index_entry` gives. */
 const MAX_ENTRY_LINES = 60;
 
@@ -92,13 +94,19 @@ export class IndexMap {
 
   /**
    * The domains and the elements of the index that echo words, those that echo most first, at most
-   * `MAX_FOUND` of each: what an element is called, its summary and its key fields are searched.
+   * `MAX_FOUND` of each: what an element is called, its summary and its key fields are searched. A word of
+   * the brief such as `test`, `tests` or `tester` is not looked for: every brief asks for tests, and it would
+   * find their folders.
    *
-   * @param words - Words of what is looked for, such as the brief of a design.
+   * @param brief - The brief of a design.
    * @returns The lines that give them, under `Domains:` and `Elements:`; none when nothing echoes.
    */
-  public found(words: string): string[] {
-    const stems = wordsOf(words);
+  public found(brief: string): string[] {
+    return this.echoing(wordsOf(brief).filter((word) => !TEST_WORD.test(word)));
+  }
+
+  /** The domains and the elements of the index that echo words, those that echo most first, at most `MAX_FOUND` of each. */
+  private echoing(stems: readonly string[]): string[] {
     const score = (text: string) => {
       const own = wordsOf(text);
       return stems.filter((stem) => own.some((word) => echoes(word, stem))).length;
@@ -157,7 +165,7 @@ export class IndexMap {
   /** The domains and elements that echo words, with what to do next. */
   private find(words: string): string {
     if (wordsOf(words).length === 0) return "Give at least one word of two letters or more.";
-    const found = this.found(words);
+    const found = this.echoing(wordsOf(words));
     if (found.length === 0)
       return `Nothing of the index echoes "${words}". Try other words, or read the sources with their tools: the index is a map, not a limit.`;
     return [...found, `Call ${ENTRY_TOOL} with a domain, or with a source and an item, to know what is known of them and which tools read them.`].join("\n");

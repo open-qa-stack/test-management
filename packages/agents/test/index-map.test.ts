@@ -206,6 +206,24 @@ describe("the index as a map", () => {
     assert.deepEqual(map.found("zebra"), []);
   });
 
+  it("looks for no test word of a brief, which every brief holds, and for every word given to index_find", async () => {
+    const tested = new IndexMap(
+      {
+        ...INDEX,
+        sources: [...INDEX.sources, { id: "code", type: "source-code", state: "read" }],
+        unassigned: [{ source: "code", items: ["src/test/tests", "src/testimonials"] }],
+      },
+      new Map(),
+      [],
+      ["shop"],
+    );
+    assert.deepEqual(tested.found("tester testing tests"), []);
+    assert.deepEqual(tested.found("tester billing"), ["Domains:", "- billing (Billing): Invoices."]);
+    // A word of the brief that only starts with test is looked for.
+    assert.deepEqual(tested.found("tests testimonials"), ["Elements:", "- code: src/test/tests (folder)", "- code: src/testimonials (folder)"]);
+    assert.match(String(await tested.toolset()[0]!.execute({ words: "tests" })), /^Elements:\n- code: src\/test\/tests/);
+  });
+
   it("cuts an entry past sixty lines, and says how to read the rest", async () => {
     const items = Array.from({ length: 70 }, (_, i) => `/page-${i}`);
     const wide: DomainIndex = {
