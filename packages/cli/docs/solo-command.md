@@ -14,8 +14,24 @@ oqas --environment local --brief "Test the search of a customer and their profil
 | `--environment <name>` | the only environment declared | The environment to run against. With several declared, it must be given. |
 | `--brief <text>` | the whole domain index | What to test, in your words: a domain, a ticket, a rule, a journey. The designer looks up what echoes it in the index, explores, and plans its tests from it. |
 | `--force-cartography` | off | Maps every source again, even those whose card is up to date. |
+| `--follow` | off | Prints what the agents do while they do it, on the error output, besides the journal: see [Following a run](#following-a-run). |
 | `--resume <run>` | | Resumes a run a limit stopped, such as `oqas-2026-11-13T12-00-00-000Z`; see [Resuming a run](#resuming-a-run). It takes no `--environment`, `--brief` nor `--force-cartography`. |
 | `--help` | | Prints the usage. |
+
+## Following a run
+
+With `--follow`, each line of the trace of the agents is printed as it is written: the time, the phase and its source, then what happened.
+
+```text
+14:07:20 plan -> shop_fill({"target":{"role":"textbox","name":"Search"},"value":"Mira"})
+14:07:20 plan <- {"url":"http://localhost:3010/orders","code":"await page.getByRole(\"textbox\", …
+14:07:22 plan !! shop_click (invalid-arguments): The arguments do not match the schema of shop_click…
+14:07:58 plan <- The plan was accepted. Next: answer with one sentence. Call no more tools.
+14:07:59 plan 18 model requests, 266128 tokens read, 2221 written
+14:07:59 write harness: Write the test of this scenario for the environment local. …
+```
+
+`->` is a call of a tool with its arguments, `<-` its result, `!!` a call that gave none or an error of the session, `agent:` what the model wrote, `agent thinks:` what it thought when the model gives it, `harness:` a message the harness sent it. Each is on one line, cut to 160 characters; the trace in `<stateDir>/traces/` keeps them whole. The entries of the journal are printed by the journal, once. The secrets of the configuration are masked, as in the trace.
 
 ## Steps
 

@@ -1,7 +1,9 @@
 import { resolve } from "node:path";
 import type { CommandRunner } from "@open-qa-stack/domain";
 import type { ResolvedConfig } from "@open-qa-stack/shared";
+import type { TraceLine } from "@open-qa-stack/agents";
 import { parseArguments, USAGE } from "./arguments.ts";
+import { followedLine } from "./followed-line.ts";
 import { ExitCode, type ExitCodeValue } from "./exit-code.ts";
 import { liveRuntime, type OpenRuntime } from "./live-runtime.ts";
 import { SoloRun } from "./solo-run.ts";
@@ -32,7 +34,7 @@ export async function soloCommand(argv: readonly string[], io: CommandIo): Promi
     io.stderr.write(`${parsed.error}\n`);
     return ExitCode.configuration;
   }
-  const { repository, environment, brief, force, help, resume } = parsed.arguments;
+  const { repository, environment, brief, force, follow, help, resume } = parsed.arguments;
   if (help) {
     io.stdout.write(USAGE);
     return ExitCode.passed;
@@ -46,6 +48,7 @@ export async function soloCommand(argv: readonly string[], io: CommandIo): Promi
     force,
     env: io.env,
     write: (line) => io.stderr.write(line),
+    ...(follow ? { follow: (line: TraceLine) => followed(line, io.stderr) } : {}),
     print: (line) => io.stdout.write(line),
     openRuntime: (config) => connect(config, io.env),
     ...(io.runner === undefined ? {} : { runner: io.runner }),
@@ -56,4 +59,10 @@ export async function soloCommand(argv: readonly string[], io: CommandIo): Promi
     io.stderr.write(`oqas stopped on an unexpected error: ${error instanceof Error ? error.message : String(error)}\n`);
     return ExitCode.interrupted;
   }
+}
+
+/** Prints a line of the trace as a person follows it, when it says something to follow. */
+function followed(line: TraceLine, output: CommandIo["stderr"]): void {
+  const text = followedLine(line);
+  if (text !== undefined) output.write(`${text}\n`);
 }

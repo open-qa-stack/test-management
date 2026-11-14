@@ -10,6 +10,8 @@ export interface Arguments {
   readonly force: boolean;
   /** The identifier of a run a limit stopped, to resume. */
   readonly resume?: string;
+  /** Whether to print what the agents do while they do it. */
+  readonly follow: boolean;
   /** Whether to print the usage and stop. */
   readonly help: boolean;
 }
@@ -18,8 +20,8 @@ export interface Arguments {
 const RUN_ID = /^oqas-[0-9A-Za-z-]+$/;
 
 /** How to run the command, as `oqas --help` prints it. */
-export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>] [--brief <text>] [--force-cartography]
-       oqas [--repository <folder>] --resume <run>
+export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>] [--brief <text>] [--force-cartography] [--follow]
+       oqas [--repository <folder>] --resume <run> [--follow]
 
 Maps the target application, designs Playwright tests on a new local branch, runs them and gives a verdict per test.
 
@@ -28,6 +30,7 @@ Options:
   --environment <name>   The environment to run against; the only one declared by default.
   --brief <text>         What to test, in your words: a domain, a ticket, a rule, a journey.
   --force-cartography    Map every source again, even those whose card is up to date.
+  --follow               Print what the agents do while they do it: each tool call, its result, each message.
   --resume <run>         Resume a run a limit stopped, such as oqas-2026-11-13T12-00-00-000Z, from what it kept.
   --help                 Print this help.
 
@@ -45,10 +48,12 @@ export function parseArguments(argv: readonly string[]): { readonly ok: true; re
   const values: { repository?: string; environment?: string; brief?: string; resume?: string } = {};
   let force = false;
   let help = false;
+  let follow = false;
   for (let i = 0; i < argv.length; i++) {
     const argument = argv[i]!;
     if (argument === "--help") help = true;
     else if (argument === "--force-cartography") force = true;
+    else if (argument === "--follow") follow = true;
     else if (argument === "--repository" || argument === "--environment" || argument === "--brief" || argument === "--resume") {
       const value = argv[i + 1];
       if (value === undefined || value.trim() === "" || value.startsWith("--")) return { ok: false, error: `${argument} needs a value.` };
@@ -64,5 +69,5 @@ export function parseArguments(argv: readonly string[]): { readonly ok: true; re
       ok: false,
       error: "--resume keeps the environment and the brief of the run, and the cards it made: it takes no --environment, --brief nor --force-cartography.",
     };
-  return { ok: true, arguments: { ...values, force, help } };
+  return { ok: true, arguments: { ...values, force, follow, help } };
 }

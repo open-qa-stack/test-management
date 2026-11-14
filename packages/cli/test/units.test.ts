@@ -8,7 +8,8 @@ import { fileURLToPath } from "node:url";
 import { validateConfig } from "@open-qa-stack/shared";
 import { answer, scriptedServer, toolCalls } from "@open-qa-stack/testing";
 import { AgentRuntimeError, ImageToolResult, type AgentEvent, type AgentRuntime, type SessionOptions } from "@open-qa-stack/domain";
-import type { DesignedTest } from "@open-qa-stack/agents";
+import type { DesignedTest, TraceLine } from "@open-qa-stack/agents";
+import { followedLine, MAX_FOLLOWED_LENGTH } from "../src/solo/followed-line.ts";
 import { runnableTests } from "../src/solo/runnable-tests.ts";
 import { CountedRuntime, exitCodeOf, GuardedRuntime, liveRuntime, missingPrerequisites, parseArguments, RunJournal, USAGE } from "../src/index.ts";
 
@@ -26,10 +27,10 @@ const oqas = (...args: string[]) =>
 
 describe("the options of the command", () => {
   it("reads the repository, the environment, the forced cartography and the help", () => {
-    assert.deepEqual(parseArguments([]), { ok: true, arguments: { force: false, help: false } });
-    assert.deepEqual(parseArguments(["--repository", "tests", "--environment", "local", "--force-cartography", "--help"]), {
+    assert.deepEqual(parseArguments([]), { ok: true, arguments: { force: false, follow: false, help: false } });
+    assert.deepEqual(parseArguments(["--repository", "tests", "--environment", "local", "--force-cartography", "--follow", "--help"]), {
       ok: true,
-      arguments: { repository: "tests", environment: "local", force: true, help: true },
+      arguments: { repository: "tests", environment: "local", force: true, follow: true, help: true },
     });
   });
 
@@ -39,7 +40,7 @@ describe("the options of the command", () => {
     assert.deepEqual(parseArguments(["--push"]), { ok: false, error: "Unknown option --push; see oqas --help." });
     assert.deepEqual(parseArguments(["--brief", "tester la recherche d'un client"]), {
       ok: true,
-      arguments: { brief: "tester la recherche d'un client", force: false, help: false },
+      arguments: { brief: "tester la recherche d'un client", force: false, follow: false, help: false },
     });
     assert.deepEqual(parseArguments(["--brief", "  "]), { ok: false, error: "--brief needs a value." });
   });
@@ -47,7 +48,7 @@ describe("the options of the command", () => {
   it("reads the run to resume, and refuses another identifier, or an option the run resumed keeps", () => {
     assert.deepEqual(parseArguments(["--resume", "oqas-2026-11-13T12-00-00-000Z"]), {
       ok: true,
-      arguments: { resume: "oqas-2026-11-13T12-00-00-000Z", force: false, help: false },
+      arguments: { resume: "oqas-2026-11-13T12-00-00-000Z", force: false, follow: false, help: false },
     });
     assert.deepEqual(parseArguments(["--resume", "../oqas"]), {
       ok: false,
@@ -334,5 +335,57 @@ describe("the designed tests the execution runs", () => {
     const tests = [designed("a.spec.ts", "passed"), designed("b.spec.ts", "unfinished"), designed("c.spec.ts", "unfinished", "failing-application")];
     assert.deepEqual(runnableTests(tests), { run: ["a.spec.ts", "c.spec.ts"], leftOut: ["b.spec.ts"] });
     assert.deepEqual(runnableTests([]), { run: [], leftOut: [] });
+  });
+});
+
+describe("a line of the trace, as a person follows it", () => {
+  const at = "2026-11-13T12:34:56.000Z";
+  const agent = (event: Extract<TraceLine, { actor: "agent" }>["event"], source?: string): TraceLine => ({
+    at,
+    phase: "plan",
+    actor: "agent",
+    event,
+    ...(source === undefined ? {} : { source }),
+  });
+  const harness = (event: Extract<TraceLine, { actor: "harness" }>["event"]): TraceLine => ({ at, phase: "write", actor: "harness", event });
+
+  it("says when, in which phase and for which source, then what the agent did", () => {
+    assert.equal(
+      followedLine(agent({ type: "tool-call", callId: "1", tool: "shop_click", arguments: { target: { role: "button", name: "Search" } } }, "shop")),
+      '12:34:56 plan shop -> shop_click({"target":{"role":"button","name":"Search"}})',
+    );
+    assert.equal(followedLine(agent({ type: "tool-result", callId: "1", tool: "shop_click", result: "One\n  order." })), "12:34:56 plan <- One order.");
+    assert.equal(followedLine(agent({ type: "tool-result", callId: "1", tool: "shop_click", result: undefined })), "12:34:56 plan <- undefined");
+    assert.equal(
+      followedLine(agent({ type: "tool-error", callId: "1", tool: "shop_click", reason: "failed", message: "No such button." })),
+      "12:34:56 plan !! shop_click (failed): No such button.",
+    );
+    assert.equal(followedLine(agent({ type: "text", text: "Done." })), "12:34:56 plan agent: Done.");
+    assert.equal(followedLine(agent({ type: "reasoning", text: "I look first." })), "12:34:56 plan agent thinks: I look first.");
+    assert.equal(
+      followedLine(agent({ type: "error", error: { name: "ModelResponseError", message: "The model answered with status 500." } })),
+      "12:34:56 plan !! ModelResponseError: The model answered with status 500.",
+    );
+    assert.equal(
+      followedLine(agent({ type: "stopped", reason: { limit: "duration", counters: { iterations: 1, actions: 0, elapsedMs: 1 } } })),
+      "12:34:56 plan stopped by its duration limit",
+    );
+  });
+
+  it("says what the harness told the agent, and what a phase asked of the model", () => {
+    assert.equal(followedLine(harness({ type: "message", text: "Write the test." })), "12:34:56 write harness: Write the test.");
+    assert.equal(followedLine(harness({ type: "usage", requests: 3 })), "12:34:56 write 3 model requests");
+    assert.equal(followedLine(harness({ type: "usage", requests: 3, inputTokens: 1200 })), "12:34:56 write 3 model requests");
+    assert.equal(
+      followedLine(harness({ type: "usage", requests: 3, inputTokens: 1200, outputTokens: 40 })),
+      "12:34:56 write 3 model requests, 1200 tokens read, 40 written",
+    );
+  });
+
+  it("cuts a long text, and leaves out what the journal prints or what says nothing to follow", () => {
+    assert.equal(followedLine(agent({ type: "text", text: "x".repeat(MAX_FOLLOWED_LENGTH + 5) })), `12:34:56 plan agent: ${"x".repeat(MAX_FOLLOWED_LENGTH)}…`);
+    assert.equal(followedLine(harness({ type: "journal", level: "info", message: "The plan was accepted." })), undefined);
+    assert.equal(followedLine(harness({ type: "started" })), undefined);
+    assert.equal(followedLine(agent({ type: "end" })), undefined);
   });
 });

@@ -255,6 +255,7 @@ async function solo(
     script?: Script;
     modelUrl?: string;
     command?: boolean;
+    follow?: boolean;
     now?: () => Date;
     brief?: string;
     resume?: string;
@@ -278,6 +279,7 @@ async function solo(
                   ...(setup.environment === undefined ? [] : ["--environment", setup.environment]),
                   ...(setup.brief === undefined ? [] : ["--brief", setup.brief]),
                   "--force-cartography",
+                  ...(setup.follow === true ? ["--follow"] : []),
                 ]
               : ["--repository", root, "--resume", setup.resume],
             { env: { SHOP_DB_URL: WITNESS }, cwd: workspace, stdout: { write: (text) => (out += text) }, stderr: { write: (text) => (err += text) }, runner },
@@ -588,6 +590,20 @@ describe("the command oqas", () => {
     const run = await solo(chain(), { environment: "local", command: true });
     assert.equal(run.code, 0, run.err);
     assert.match(run.out, /^Run oqas-\d{4}-\d{2}-\d{2}T.*: exit code 0\./);
+    // Without --follow, the error output holds the journal alone.
+    assert.doesNotMatch(run.err, /^\d\d:\d\d:\d\d /m);
+  });
+
+  it("prints what the agents do while they do it, when asked to follow", async () => {
+    const run = await solo(chain(), { environment: "local", command: true, follow: true });
+    assert.equal(run.code, 0, run.err);
+    // Each call of a tool with its result, each message of the harness, and what each phase asked of the model.
+    assert.match(run.err, /^\d\d:\d\d:\d\d plan -> propose_plan\(/m);
+    assert.match(run.err, /^\d\d:\d\d:\d\d plan <- The plan was accepted\./m);
+    assert.match(run.err, /^\d\d:\d\d:\d\d write harness: Write the test of this scenario/m);
+    assert.match(run.err, /^\d\d:\d\d:\d\d plan \d+ model requests/m);
+    // The journal is still printed, and an entry of the journal is printed once.
+    assert.equal(run.err.split("\n").filter((line) => line.includes("The plan was accepted:")).length, 1);
   });
 });
 

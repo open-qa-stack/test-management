@@ -1,5 +1,6 @@
 export { parseArguments, USAGE, type Arguments } from "./solo/arguments.ts";
 export { ExitCode, exitCodeOf, type ExitCodeValue } from "./solo/exit-code.ts";
+export { followedLine, MAX_FOLLOWED_LENGTH } from "./solo/followed-line.ts";
 export { liveRuntime, type OpenRuntime } from "./solo/live-runtime.ts";
 export { MODEL_TIMEOUT_MS, missingPrerequisites } from "./solo/prerequisites.ts";
 export { RunJournal, type JournalOutput, type RunEntry, type Step } from "./solo/run-journal.ts";

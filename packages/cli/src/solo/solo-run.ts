@@ -1,7 +1,7 @@
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join, posix, relative, sep } from "node:path";
 import type { CommandRunner, StopReason, TestVerdict } from "@open-qa-stack/domain";
-import { Cartographer, Designer, type JournalEntry } from "@open-qa-stack/agents";
+import { Cartographer, Designer, type JournalEntry, type TraceLine } from "@open-qa-stack/agents";
 import { CharterCheck, writerInstructions, LocalRunner, PinnedRun, resolveCharter, RUNS_FOLDER, TrialRunner, type ActiveRule } from "@open-qa-stack/harness";
 import { CONFIG_FILE_NAME, declaredValues, validateConfig, type ResolvedConfig } from "@open-qa-stack/shared";
 import { ExitCode, exitCodeOf, type ExitCodeValue } from "./exit-code.ts";
@@ -31,6 +31,8 @@ export interface SoloRunOptions {
   readonly env: Readonly<Record<string, string | undefined>>;
   /** Receives the journal, a line at a time: the error output. */
   readonly write: (line: string) => void;
+  /** Receives each line of the trace of the agents as it is written, to follow the run; nothing follows it otherwise. */
+  readonly follow?: (line: TraceLine) => void;
   /** Receives the summary: the standard output. */
   readonly print: (line: string) => void;
   /** Opens the runtime of the agents on the model of the configuration. */
@@ -193,6 +195,7 @@ export class SoloRun {
       }
       return counted;
     };
+    const observed = this.options.follow === undefined ? {} : { observe: this.options.follow };
     const chain = async (): Promise<ExitCodeValue> => {
       // A run resumed in its design has its index already.
       const mapped =
@@ -206,6 +209,7 @@ export class SoloRun {
                 env: this.options.env,
                 runtime: await agents(),
                 concurrency: config.cartography.concurrency,
+                ...observed,
                 ...(this.options.force === true ? { force: true } : {}),
               }).run();
               this.relay(journal, "cartography", outcome.journal);
@@ -234,6 +238,7 @@ export class SoloRun {
           check: new CharterCheck({ repository: this.options.repositoryRoot, rules }),
           screenshots: rules.some((rule) => rule.id === SCREENSHOT_RULE),
           runner: trials,
+          ...observed,
           ...(brief === undefined ? {} : { brief }),
           ...(resumed?.designState === undefined
             ? {}
