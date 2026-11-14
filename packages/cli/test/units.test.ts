@@ -357,7 +357,7 @@ describe("the guardrail of a run", () => {
 
 describe("the designed tests the execution runs", () => {
   /** A designed test that stands as its classes say. */
-  function designed(path: string, ...classes: readonly ("passed" | "unfinished" | "failing-application")[]): DesignedTest {
+  function designed(path: string, ...classes: readonly ("passed" | "unfinished" | "failing-application" | "duplicate")[]): DesignedTest {
     const classing = classes.map((name) => ({
       at: "2026-01-01T00:00:00.000Z",
       class: name,
@@ -367,9 +367,14 @@ describe("the designed tests the execution runs", () => {
     return { path, scenario: path, verdict: "passed", classes: classing, runs: [] };
   }
 
-  it("leaves out a test whose last class is unfinished, and runs the others in order", () => {
-    const tests = [designed("a.spec.ts", "passed"), designed("b.spec.ts", "unfinished"), designed("c.spec.ts", "unfinished", "failing-application")];
-    assert.deepEqual(runnableTests(tests), { run: ["a.spec.ts", "c.spec.ts"], leftOut: ["b.spec.ts"] });
+  it("leaves out a test whose last class is unfinished or duplicate, and runs the others in order", () => {
+    const tests = [
+      designed("a.spec.ts", "passed"),
+      designed("b.spec.ts", "unfinished"),
+      designed("c.spec.ts", "unfinished", "failing-application"),
+      designed("d.spec.ts", "duplicate"),
+    ];
+    assert.deepEqual(runnableTests(tests), { run: ["a.spec.ts", "c.spec.ts"], leftOut: ["b.spec.ts", "d.spec.ts"] });
     assert.deepEqual(runnableTests([]), { run: [], leftOut: [] });
   });
 });

@@ -240,6 +240,7 @@ export class SoloRun {
           check: new CharterCheck({ repository: this.options.repositoryRoot, rules }),
           screenshots: rules.some((rule) => rule.id === SCREENSHOT_RULE),
           runner: trials,
+          reviewPlan: config.design.reviewPlan,
           ...observed,
           ...(brief === undefined ? {} : { brief }),
           ...(resumed?.designState === undefined
@@ -266,7 +267,7 @@ export class SoloRun {
         journal.record(
           "execution",
           "info",
-          `${run.length} of the ${tests.length} tests designed are run; left out as unfinished: ${leftOut.join(", ") || "none"}.`,
+          `${run.length} of the ${tests.length} tests designed are run; left out as unfinished or duplicate: ${leftOut.join(", ") || "none"}.`,
         );
         // The dependencies the design installed serve the execution as well.
         const outcome = await new PinnedRun({

@@ -8,15 +8,15 @@ oqas --environment local --brief "Test the search of a customer and their profil
 
 ## Options
 
-| Option | Default | What it does |
-|---|---|---|
-| `--repository <folder>` | the current folder | The test repository, which holds `oqas.json`. |
-| `--environment <name>` | the only environment declared | The environment to run against. With several declared, it must be given. |
-| `--brief <text>` | the whole domain index | What to test, in your words: a domain, a ticket, a rule, a journey. The designer looks up what echoes it in the index, explores, and plans its tests from it. |
-| `--force-cartography` | off | Maps every source again, even those whose card is up to date. |
-| `--follow` | off | Prints what the agents do while they do it, on the error output, besides the journal: see [Following a run](#following-a-run). |
-| `--resume <run>` | | Resumes a run a limit stopped, such as `oqas-2026-11-13T12-00-00-000Z`; see [Resuming a run](#resuming-a-run). It takes no `--environment`, `--brief` nor `--force-cartography`. |
-| `--help` | | Prints the usage. |
+| Option                  | Default                       | What it does                                                                                                                                                                     |
+| ----------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--repository <folder>` | the current folder            | The test repository, which holds `oqas.json`.                                                                                                                                    |
+| `--environment <name>`  | the only environment declared | The environment to run against. With several declared, it must be given.                                                                                                         |
+| `--brief <text>`        | the whole domain index        | What to test, in your words: a domain, a ticket, a rule, a journey. The designer looks up what echoes it in the index, explores, and plans its tests from it.                    |
+| `--force-cartography`   | off                           | Maps every source again, even those whose card is up to date.                                                                                                                    |
+| `--follow`              | off                           | Prints what the agents do while they do it, on the error output, besides the journal: see [Following a run](#following-a-run).                                                   |
+| `--resume <run>`        |                               | Resumes a run a limit stopped, such as `oqas-2026-11-13T12-00-00-000Z`; see [Resuming a run](#resuming-a-run). It takes no `--environment`, `--brief` nor `--force-cartography`. |
+| `--help`                |                               | Prints the usage.                                                                                                                                                                |
 
 ## Following a run
 
@@ -40,8 +40,8 @@ Each step starts only when the one before succeeded; once the prerequisites pass
 1. **Configuration.** `oqas.json` is read and validated, the environment is chosen, and the test charter is resolved. A missing or invalid configuration stops the command before anything else: no model is called and no file of the repository is written.
 2. **Prerequisites.** The folder is the root of a git repository with a commit, the model server of the configuration answers, and `npm` can be run.
 3. **Cartography.** The sources without an up-to-date card are mapped, `cartography.concurrency` of them at once, then the cards are consolidated into the domain index (see the cartographer of `@open-qa-stack/agents`).
-4. **Design.** The dependencies of the test repository and the browsers of its locked version of `@playwright/test` are installed, once for the design and the execution, then the designer, from the brief, plans then writes the tests the brief needs, four at most, on a new local branch `oqas/design-<date>`, each run against the application before it is kept. It plans in one session, then writes each test in a session of its own, each under the limits of a task. Its plan is accepted as it is. A scenario whose session ends before its test is made to end keeps its last file, classed as unfinished in the design state.
-5. **Execution.** The tests designed run together, on the machine, with the real runner, except those classed as unfinished, which the journal names and which stay in the test repository for a person to decide, and the harness pronounces a verdict per test from the JSON of the reporter (see `docs/pinned-run.md` of `@open-qa-stack/harness`).
+4. **Design.** The dependencies of the test repository and the browsers of its locked version of `@playwright/test` are installed, once for the design and the execution, then the designer, from the brief, plans then writes the tests the brief needs, eight at most, on a new local branch `oqas/design-<date>`, each run against the application before it is kept. It plans in one session, then writes each test in a session of its own, each under the limits of a task. Its plan is accepted as it is. A scenario whose session ends before its test is made to end keeps its last file, classed as unfinished in the design state.
+5. **Execution.** The tests designed run together, on the machine, with the real runner, except those classed as unfinished or as duplicates of another, which the journal names and which stay in the test repository for a person to decide, and the harness pronounces a verdict per test from the JSON of the reporter (see `docs/pinned-run.md` of `@open-qa-stack/harness`).
 6. **Summary.** The runtime of the agents is closed, the state of the run is written, and the verdicts are printed. When the plan says that the brief asks what the application does not allow, the summary says it after the verdicts, a line each — `Not covered: Change the address of a customer. No screen offers to edit an address.` — and the state of the run keeps it in `uncovered`: tests that pass do not mean the brief is covered.
 
 The limits of the autonomy level of the configuration apply to every task. Its guardrail, counted from the start of the run, stops every task of the agents still running when it is reached, at its next call to the model or to a tool, by its duration limit; it bounds neither the installation of the dependencies nor the execution of the tests. A task stopped by a limit is journaled with the limit reached, and none of its tests is `passed`.
@@ -58,25 +58,25 @@ The design was stopped by its iterations limit; resume the run with: oqas --resu
 
 ## Exit codes
 
-| Code | Meaning |
-|---|---|
-| `0` | The whole chain ran, and every test passed. |
-| `1` | The whole chain ran, and a test failed. |
-| `2` | The whole chain ran without a failure, but a test was `blocked`, `indeterminate`, `skipped` or `not_run`. |
-| `3` | The configuration is missing or invalid, the environment is not declared, an option is wrong, or the run to resume was not stopped by a limit, was resumed already, or cannot be read. |
-| `4` | A prerequisite of the machine is missing. |
-| `5` | The chain did not go to its end: no index was written, the dependencies could not be installed, the design did not give a test that counts for each scenario of its plan, a step stopped on an unexpected error, which the journal tells, or the state could not be written. |
+| Code | Meaning                                                                                                                                                                                                                                                                      |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`  | The whole chain ran, and every test passed.                                                                                                                                                                                                                                  |
+| `1`  | The whole chain ran, and a test failed.                                                                                                                                                                                                                                      |
+| `2`  | The whole chain ran without a failure, but a test was `blocked`, `indeterminate`, `skipped` or `not_run`.                                                                                                                                                                    |
+| `3`  | The configuration is missing or invalid, the environment is not declared, an option is wrong, or the run to resume was not stopped by a limit, was resumed already, or cannot be read.                                                                                       |
+| `4`  | A prerequisite of the machine is missing.                                                                                                                                                                                                                                    |
+| `5`  | The chain did not go to its end: no index was written, the dependencies could not be installed, the design did not give a test that counts for each scenario of its plan, a step stopped on an unexpected error, which the journal tells, or the state could not be written. |
 
 ## Journal
 
 The journal goes to the error output, a line per entry, such as `[cartography] finished: The cartography succeeded. (95.2 s, 81 model requests)`. Once the prerequisites pass, it is also written to `<stateDir>/runs/oqas-<date>.jsonl`, a JSON object per line, from the first entry of the configuration on; a run stopped by the configuration or the prerequisites writes no file:
 
-| Key | What it holds |
-|---|---|
-| `at` | When, as an ISO 8601 date. |
-| `step` | `configuration`, `prerequisites`, `cartography`, `design`, `execution` or `summary`. |
-| `event` | `started` and `finished` frame each step; `info` and `error` tell what happened in it. |
-| `message` | What happened, in a sentence. |
+| Key                           | What it holds                                                                                                                                                                |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `at`                          | When, as an ISO 8601 date.                                                                                                                                                   |
+| `step`                        | `configuration`, `prerequisites`, `cartography`, `design`, `execution` or `summary`.                                                                                         |
+| `event`                       | `started` and `finished` frame each step; `info` and `error` tell what happened in it.                                                                                       |
+| `message`                     | What happened, in a sentence.                                                                                                                                                |
 | `durationMs`, `modelRequests` | For `finished`: how long the step took, and how many requests it sent to the model, whether it succeeded or not; a turn of an agent cut short before its end is not counted. |
 
 The standard output holds only the summary. Every value of the variables the configuration names is masked, in the journal and on both outputs.
@@ -94,7 +94,10 @@ The state of a run is written to `<stateDir>/runs/oqas-<date>.json`:
   "startedAt": "2026-11-13T12:00:00.000Z",
   "durationMs": 512345,
   "exitCode": 0,
-  "steps": [{ "step": "configuration", "durationMs": 12, "modelRequests": 0 }, { "step": "cartography", "durationMs": 95234, "modelRequests": 81 }],
+  "steps": [
+    { "step": "configuration", "durationMs": 12, "modelRequests": 0 },
+    { "step": "cartography", "durationMs": 95234, "modelRequests": 81 }
+  ],
   "index": ".oqas/index/domain-index.json",
   "branch": "oqas/design-20261113T120130Z",
   "designed": ["apps/shop/list-orders.spec.ts"],

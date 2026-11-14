@@ -49,6 +49,8 @@ function configText(modelUrl: string, changes: Record<string, unknown> = {}): st
     ],
     model: { mode: "provider-key", provider: "openai", baseUrl: modelUrl, model: MODEL },
     autonomy: { level: "autonomous" },
+    // The review of a plan by an agent of its own has its sessions, which the design of the agents tests.
+    design: { reviewPlan: false },
     ...changes,
   });
 }
@@ -193,7 +195,7 @@ const index = {
   unassigned: [],
 };
 const spec = (title: string) =>
-  `import { test, expect } from "@playwright/test";\n\ntest("${title}", async ({ request }) => {\n  await test.step("1. Get the orders", async () => {\n    const response = await request.get("/orders");\n    expect(await response.text()).toContain("A customer places an order");\n  });\n});\n`;
+  `import { test, expect } from "@playwright/test";\n\ntest("${title}", async ({ request }) => {\n  await test.step("1. Get the orders", async () => {\n    const response = await request.get("/orders");\n    expect(await response.text()).toContain("A customer places an order");\n    expect("${title}").toBe("${title}");\n  });\n});\n`;
 const IDS = ["test-1", "test-2", "test-3"];
 const scenario = (id: string) => ({
   id,
@@ -204,7 +206,8 @@ const scenario = (id: string) => ({
   application: "shop",
   domain: "orders",
   sources: [{ source: "order-specs", item: "Orders" }],
-  data: [],
+  // The value a scenario enters tells it from the others, which get the same orders.
+  data: [{ value: id, from: "made-up" }],
   steps: [{ action: "Get the orders", actions: [], expects: [{ result: "The orders answer", shows: ["A customer places an order"], absent: [] }] }],
 });
 const plan = submit("propose_plan", { scenarios: IDS.map(scenario) }, "plan");
@@ -601,7 +604,7 @@ describe("the command oqas", () => {
     assert.equal(run.code, 0, run.err);
     // Each call of a tool with its result, each message of the harness, and what each phase asked of the model.
     assert.match(run.err, /^\d\d:\d\d:\d\d plan -> propose_plan\(/m);
-    assert.match(run.err, /^\d\d:\d\d:\d\d plan <- The plan was accepted\./m);
+    assert.match(run.err, /^\d\d:\d\d:\d\d plan <- The plan is not closed yet\. It holds 3 of 8 scenarios at most: test-1, test-2, test-3\./m);
     assert.match(run.err, /^\d\d:\d\d:\d\d write harness: Write the test of this scenario/m);
     assert.match(run.err, /^\d\d:\d\d:\d\d plan \d+ model requests/m);
     // The journal is still printed, and an entry of the journal is printed once.
