@@ -253,6 +253,8 @@ interface Setup {
   readonly planReview?: PlanReview;
   readonly observe?: (line: { event: { type: string } }) => void;
   readonly resume?: { readonly state: string; readonly branch?: string };
+  /** Whether the configuration declares that the model reads images. */
+  readonly vision?: boolean;
 }
 
 interface Run {
@@ -270,7 +272,8 @@ async function design(script: readonly { status?: number; body: unknown }[], set
   const root = setup.root ?? repository();
   const before = existsSync(join(root, ".git")) || existsSync(join(root, "..", ".git")) ? snapshot(root) : {};
   try {
-    const config = configFor(server.baseUrl, setup.limits);
+    const declared = configFor(server.baseUrl, setup.limits);
+    const config: ResolvedConfig = setup.vision === true ? { ...declared, model: { ...declared.model, capabilities: ["vision"] } } : declared;
     const charter = resolveCharter(config.charter);
     assert.ok(charter.ok);
     const designer = new Designer({
@@ -1223,6 +1226,20 @@ describe("a visual test", () => {
     const { outcome } = await design(replies([...write("list-orders", visual), ...valid(3).slice(2)]), { runner });
     assert.equal(outcome.tests.find((test) => test.path === "apps/shop/list-orders.spec.ts")?.verdict, "passed", messages(outcome));
     assert.ok(runner.runs.some((test) => test.content === visual));
+  });
+});
+
+describe("a model that reads images", () => {
+  const screenshotParameters = (server: ScriptedServer) =>
+    (server.requests[0]!.body as { tools: { function: { name: string; parameters: { properties: object } } }[] }).tools.find(
+      (tool) => tool.function.name === "shop_screenshot",
+    )!.function.parameters.properties;
+
+  it("is given the screenshots of the designer when the configuration declares it, and their path alone otherwise", async () => {
+    for (const vision of [true, false]) {
+      const { server } = await design([{ body: answer(MODEL, "Done.") }], { vision });
+      assert.equal("within" in screenshotParameters(server), vision);
+    }
   });
 });
 

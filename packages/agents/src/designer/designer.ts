@@ -3,6 +3,7 @@ import { dirname, join, posix } from "node:path";
 import type { AgentEvent, AgentRuntime, PlanReview, StopReason } from "@open-qa-stack/domain";
 import {
   declaredValues,
+  readsImages,
   validateDomainIndex,
   validateSourceCard,
   type DomainIndex,
@@ -12,6 +13,7 @@ import {
 } from "@open-qa-stack/shared";
 import { browserTools, knowledgeTools, scopedToolName, type BrowserAccess } from "@open-qa-stack/tools";
 import { agentNotes } from "../common/agent-notes.ts";
+import { imageSecrets } from "../common/config-secrets.ts";
 import { runAgentTask, taskEnd, taskLimits } from "../common/agent-task.ts";
 import { Journal, type JournalEntry } from "../common/journal.ts";
 import { runTrace } from "../common/run-trace.ts";
@@ -173,6 +175,8 @@ export class Designer {
       environment: index.environment,
       env,
       screenshotsDir: join(repositoryRoot, config.repository.stateDir, "screenshots"),
+      vision: readsImages(config.model),
+      secrets: imageSecrets(config, env),
       ...this.options.browser,
     });
     const screens = new ScreenWatch(

@@ -1,5 +1,5 @@
 import type { AgentEvent, ToolDefinition } from "@open-qa-stack/domain";
-import type { MappedKnowledge, ResolvedConfig } from "@open-qa-stack/shared";
+import { readsImages, type MappedKnowledge, type ResolvedConfig } from "@open-qa-stack/shared";
 import {
   browserTools,
   knowledgeInventory,
@@ -10,6 +10,7 @@ import {
   type SourceInventory,
 } from "@open-qa-stack/tools";
 import { surveySource } from "../cartographer/source-survey.ts";
+import { imageSecrets } from "../common/config-secrets.ts";
 import { interfaceCardRequest, sourceCardRequest } from "./source-cartographer-prompt.ts";
 import { interfaceFingerprint, visitedScreens } from "./visited-screens.ts";
 
@@ -85,7 +86,12 @@ export async function interfaceSubject(
     throw new Error(`The application ${source.id} has no user interface in the environment ${source.environment}.`);
   const survey = await surveySource({ id: source.id, type: "web", uiUrl }, { repositoryRoot: "", env: access.env });
   if (!survey.ok) throw new Error(survey.error);
-  const browser = browserTools([application], { ...access, environment: source.environment });
+  const browser = browserTools([application], {
+    ...access,
+    environment: source.environment,
+    vision: readsImages(config.model),
+    secrets: imageSecrets(config, access.env),
+  });
   return {
     fingerprint: interfaceFingerprint(uiUrl),
     tools: browser.tools,

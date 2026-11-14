@@ -23,6 +23,19 @@ export function configSecrets(config: ResolvedConfig, env: Readonly<Record<strin
 }
 
 /**
+ * The secrets of a configuration that no screenshot shown to a model may show: those of `configSecrets`, and
+ * the passwords of the test accounts of every application, as the environment gives them.
+ *
+ * @param config - The resolved configuration.
+ * @param env - The environment the configuration reads.
+ * @returns The values set and not empty.
+ */
+export function imageSecrets(config: ResolvedConfig, env: Readonly<Record<string, string | undefined>>): string[] {
+  const passwords = config.applications.flatMap((application) => (application.authentication.accounts ?? []).map((account) => env[account.passwordEnv] ?? ""));
+  return [...new Set([...configSecrets(config, env), ...passwords.filter((password) => password !== "")])];
+}
+
+/**
  * Refuses the strings of a submission that hold a secret, so that no card nor index written in the test
  * repository holds one.
  *
