@@ -130,15 +130,32 @@ class CatalogDouble implements SqlClient {
 }
 
 describe("the inventory of a knowledge source, read without the model", () => {
-  it("gives the tags of a contract, the first path segment of an untagged operation, their operations and a fingerprint", async () => {
+  it("gives the operations of a contract, each with its identifier and its tags, keeps its schemas for the export, and fingerprints the export", async () => {
     const contract: Knowledge = { id: "policy-api", type: "openapi", path: "contracts/policies.json", attachments };
     const inventory = (await knowledgeInventory(contract, { repositoryRoot: REPOSITORY, env: {} }))!;
-    assert.deepEqual(inventory.items, ["policies", "/policies"]);
+    assert.deepEqual(inventory.items, ["GET /policies", "POST /policies", "GET /policies/{id}"]);
     assert.deepEqual(Object.fromEntries(inventory.facts), {
-      policies: { operations: ["GET /policies", "POST /policies"] },
-      "/policies": { operations: ["GET /policies/{id}"] },
+      "GET /policies": { kind: "operation", operationId: "listPolicies", tags: ["policies"] },
+      "POST /policies": { kind: "operation", operationId: "createPolicy", tags: ["policies"] },
+      "GET /policies/{id}": { kind: "operation" },
     });
-    assert.match(inventory.fingerprint, /^sha256:[0-9a-f]{64}$/);
+    assert.deepEqual(
+      inventory.export!.elements.map((element) => [element.name, element.kind]),
+      [
+        ["GET /policies", "operation"],
+        ["POST /policies", "operation"],
+        ["GET /policies/{id}", "operation"],
+        ["Policy", "schema"],
+        ["Customer", "schema"],
+      ],
+    );
+    // An operation holds the parameters of its path, the one it redefines once.
+    assert.equal(
+      inventory.export!.elements[2]!.summary,
+      "operation GET /policies/{id} — Read a policy\n  parameters: id (path, required), fields (query)\n  responses: 200 Policy",
+    );
+    assert.deepEqual(inventory.export!.elements[2]!.links, ["Policy"]);
+    assert.equal(inventory.fingerprint, inventory.export!.fingerprint);
     assert.equal((await knowledgeInventory(contract, { repositoryRoot: REPOSITORY, env: {} }))!.fingerprint, inventory.fingerprint);
   });
 

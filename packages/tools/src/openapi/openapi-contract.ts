@@ -1,5 +1,4 @@
 import type { OpenApiKnowledge } from "@open-qa-stack/shared";
-import { fingerprintOf } from "../common/fingerprint.ts";
 import { readRepositoryFile } from "../common/repository-file.ts";
 
 /** An operation of an OpenAPI contract, as the list tool shows it. */
@@ -12,6 +11,14 @@ export interface OperationSummary {
   readonly summary?: string;
   /** Tags that group the operation, as the contract writes them. */
   readonly tags?: readonly string[];
+}
+
+/** What a contract defines, as it writes it: its operations and the schemas it names. */
+export interface ContractDefinitions {
+  /** Its operations, in the order of the document, each with the parameters of its path; a parameter given by a local `$ref` is the one it points to, and every other `$ref` is kept. */
+  readonly operations: readonly { readonly method: string; readonly path: string; readonly operation: Readonly<Record<string, unknown>> }[];
+  /** Its named schemas, those of `components.schemas` then those of `definitions`, in the order of the document; a name both give is given once. */
+  readonly schemas: readonly { readonly name: string; readonly schema: unknown }[];
 }
 
 /** The HTTP methods an OpenAPI path item may hold operations for. */
@@ -81,13 +88,26 @@ export class OpenApiContract {
   }
 
   /**
-   * Fingerprints the contract.
-   *
-   * @returns The fingerprint of its document as loaded.
+   * @returns What the contract defines, for its export.
    * @throws Error when the contract cannot be loaded.
    */
-  public async fingerprint(): Promise<string> {
-    return fingerprintOf(JSON.stringify(await this.document()));
+  public async definitions(): Promise<ContractDefinitions> {
+    const document = await this.document();
+    const paths = child(document, "paths");
+    const operations = Object.entries(isPlainObject(paths) ? paths : {}).flatMap(([path, item]) =>
+      HTTP_METHODS.flatMap((method) => {
+        const operation = child(item, method);
+        if (!isPlainObject(operation)) return [];
+        const parameters = mergeParameters(child(item, "parameters"), operation["parameters"]).map((parameter) => pointedTo(parameter, document));
+        return [{ method: method.toUpperCase(), path, operation: { ...operation, ...(parameters.length === 0 ? {} : { parameters }) } }];
+      }),
+    );
+    const named = [child(child(document, "components"), "schemas"), child(document, "definitions")].flatMap((holder) =>
+      Object.entries(isPlainObject(holder) ? holder : {}),
+    );
+    const first = (name: string, at: number) => named.findIndex(([other]) => other === name) === at;
+    const schemas = named.filter(([name], at) => first(name, at)).map(([name, schema]) => ({ name, schema }));
+    return { operations, schemas };
   }
 
   private document(): Promise<JsonObject> {
@@ -132,17 +152,27 @@ function mergeParameters(fromPath: unknown, fromOperation: unknown): unknown[] {
   return [...list(fromPath).filter((p) => !redefined.has(identity(p))), ...list(fromOperation)];
 }
 
+/** What a value that is a local `$ref` points to, one level deep; the value itself otherwise. */
+function pointedTo(value: unknown, document: JsonObject): unknown {
+  const ref = child(value, "$ref");
+  return typeof ref === "string" && ref.startsWith("#/") ? target(ref, document) : value;
+}
+
+/** What a local `$ref` points to in a document; `undefined` when nothing is there. */
+function target(ref: string, document: JsonObject): unknown {
+  return ref
+    .slice(2)
+    .split("/")
+    .reduce<unknown>((node, segment) => child(node, segment.replaceAll("~1", "/").replaceAll("~0", "~")), document);
+}
+
 /** Replaces local `$ref` (`#/…`) by what they point to, to a bounded depth, so that the model reads one self-contained operation. */
 function resolveRefs(value: unknown, document: JsonObject, depth: number): unknown {
   if (Array.isArray(value)) return value.map((v) => resolveRefs(v, document, depth));
   if (!isPlainObject(value)) return value;
   const ref = value["$ref"];
   if (typeof ref === "string" && ref.startsWith("#/") && depth < MAX_REF_DEPTH) {
-    const target = ref
-      .slice(2)
-      .split("/")
-      .reduce<unknown>((node, segment) => child(node, segment.replaceAll("~1", "/").replaceAll("~0", "~")), document);
-    return resolveRefs(target, document, depth + 1);
+    return resolveRefs(target(ref, document), document, depth + 1);
   }
   return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, resolveRefs(v, document, depth)]));
 }

@@ -18,6 +18,6 @@ export interface SourceInventory {
   readonly fingerprint: string;
   /** Whether the harness read only part of the source, which was too large; the elements are then partial. */
   readonly truncated?: boolean;
-  /** The export the inventory was read from, for a source that has one: a database. */
+  /** The export the inventory was read from, for a source that has one: a database, a contract. */
   readonly export?: SourceExport;
 }

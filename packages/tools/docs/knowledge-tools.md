@@ -54,3 +54,14 @@ A source that cannot be reached, or a database whose connection string is not se
 - The inventory lists the tables and the views, the elements of the card of the database, and not the routines, which are in the export only. The fingerprint of the inventory is that of the export: a routine or a trigger that changes changes it.
 - The fingerprint of an element is `sha256:` and a digest of its definition; that of the database covers the fingerprints of its elements, in the order of the export. A change to one element changes its fingerprint and that of the database, and no other.
 - A name of lower-case letters, digits, dots, hyphens and underscores, 120 characters at most, names its file as it is. Any other has its other characters replaced by underscores, is cut to 120 characters and is followed by a digest of the whole name, so that no file leaves its folder and two elements never share one, even on a file system that ignores case.
+
+## Export of a contract
+
+For an `openapi` source, `knowledgeInventory` loads the contract once and returns, with the inventory, its `export`: one element per operation, then one per named schema, in the order of the document.
+
+| Element | Name | Summary | Names | Links | File |
+|---|---|---|---|---|---|
+| Operation | `METHOD /path` | Its title, its identifier, its tags, its parameters with where each goes and whether it is required, the schemas of its body and, for each response, its status and its schemas | Its identifier and its parameters | The schemas of the contract it refers to | `operations/<name>.json` |
+| Schema | Its name in `components.schemas`, or in `definitions` | Its properties with their types, those required, and the values of an enumeration | Its properties | The other schemas it refers to | `schemas/<name>.json` |
+
+The definition of an element is what the contract writes of it, as JSON. An operation holds the parameters of its path, the ones it redefines once, and a parameter given by a local `$ref` is the one it points to; every other `$ref` is kept, since a schema is read in its own element. A schema named in both `components.schemas` and `definitions` is exported once, as the first writes it. The inventory holds the operations only, each with its kind, its identifier and its tags as facts; its fingerprint is that of the export, so that it changes when an operation or a schema does.

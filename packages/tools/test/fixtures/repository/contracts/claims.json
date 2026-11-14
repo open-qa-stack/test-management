@@ -1,0 +1,16 @@
+{
+  "swagger": "2.0",
+  "paths": {
+    "/claims": {
+      "parameters": [{ "$ref": "#/parameters/tenant" }, { "$ref": "#/parameters/missing" }],
+      "post": {
+        "parameters": [{ "name": "claim", "in": "body", "schema": { "$ref": "#/definitions/Claim" } }],
+        "responses": { "201": { "schema": { "$ref": "#/definitions/Claim" } } }
+      },
+      "delete": "not an operation"
+    }
+  },
+  "parameters": { "tenant": { "name": "tenant", "in": "header", "required": true } },
+  "components": { "schemas": { "Claim": { "type": "object" }, "Money": { "type": "number" } } },
+  "definitions": { "Claim": { "type": "object", "properties": { "amount": { "$ref": "#/definitions/Money" } } }, "Status": { "enum": ["open", "closed"] } }
+}
