@@ -1,16 +1,16 @@
 # Designer
 
-`new Designer(options).run()` writes three or four Playwright tests, from a brief and the [domain index](../../shared/docs/domain-index.md) of the test repository, on a new local branch, after a test plan. It needs the resolved configuration, the path of the test repository, the environment variables the configuration names, an `AgentRuntime`, a `TestRunner` that runs each test against the application (such as the `TrialRunner` of the harness), and the system instructions of the designer, which the caller composes from the test charter:
+`new Designer(options).run()` writes three or four Playwright tests, from a brief and the [domain index](../../shared/docs/domain-index.md) of the test repository, on a new local branch, after a test plan. It needs the resolved configuration, the path of the test repository, the environment variables the configuration names, an `AgentRuntime`, a `TestRunner` that runs each test against the application (such as the `TrialRunner` of the harness), and the system instructions of the agent that writes the tests, which the caller composes from the test charter:
 
 ```ts
 const charter = resolveCharter(config.charter);
-const instructions = designerInstructions(charter.rules, config.repository);
+const instructions = writerInstructions(charter.rules, config.repository);
 const outcome = await new Designer({
   config,
   repositoryRoot,
   env,
   runtime,
-  instructions,
+  writerInstructions: instructions,
   runner,
   brief: "Test the search of a customer and their profile.",
 }).run();
@@ -18,13 +18,15 @@ const outcome = await new Designer({
 
 `brief` says what to test in the developer's words: a domain, a ticket, a rule, a journey. Without it, the designer works on the whole index. `planReview`, a `PlanReview` of `@open-qa-stack/domain`, decides whether the test plan may be carried out; by default every plan is accepted as it is.
 
+Two agents share a design, each with its own system instructions, its own tools and its own sessions: one **plans**, with `PLANNER_INSTRUCTIONS`, which hold its method, each step with what ends it, and the rules that cause most refusals of a plan, and nothing of the charter; the other **writes** each test from the sheet of its scenario, with `writerInstructions`, which hold its method and the charter. They may be given different models once the runtime allows it: each session is opened on its own.
+
 ## A run
 
 1. **Test repository.** The path must be the root of a git repository with a commit. No tracked file may be changed, no untracked file may lie outside the state folder (`repository.stateDir`) and the index folder (`repository.indexDir`), and the branch to create must not exist. Otherwise the journal names each problem, no session starts, and nothing is written. The untracked index the cartographer leaves does not stop the run.
-2. **Index.** `<indexDir>/domain-index.json` must match its schema. The request gives the agent the brief and what the index holds for it, as `index_find` would give it for the words of the brief; without a brief, or when nothing echoes it, one line per domain of the index. The index is never given whole: the agent looks it up (see [The index as a map](#the-index-as-a-map)). Then come the applications, each with how a test signs in — with its `fill` tool and the account named, whose result gives the line a test writes, or, without a user interface, the variables a test reads — the packages a test may import, and the next call. The rules of a test are not repeated in it: each is a gate of the harness, told when it refuses, or a line of the system instructions.
+2. **Index.** `<indexDir>/domain-index.json` must match its schema. The request of the session that plans gives the agent the brief and what the index holds for it, as `index_find` would give it for the words of the brief; without a brief, or when nothing echoes it, one line per domain of the index. The index is never given whole: the agent looks it up (see [The index as a map](#the-index-as-a-map)). Then come the applications, each with how the agent signs in while it explores — with its `fill` tool and the account named, never a credential — and the next call. The rules of a plan are not repeated in it: each is a gate of the harness, told when it refuses, or a line of the system instructions.
 3. **Sessions.** A design runs in several sessions, each with tools, watches and limits of its own, and a browser that starts only if the session uses it:
-   - **the session that plans.** The agent gets the index tools, the browser tools of the applications of the environment of the index, watched (see [The screens](#the-screens)); the tools of every knowledge source attached to that environment or to none — documents, contracts, bases, source code and logs — the bases read in a read-only transaction, the logs masking the value of every variable the configuration names; the notes; and `propose_plan`. It explores, then submits a test plan (see [The plan](#the-plan)). Once the plan is accepted, the agent is told so, and that its session is over: every later call of a tool is refused with `The plan is accepted, and this session is over. Answer with one sentence; call no more tools.` The session has neither `run_test` nor `propose_test`: no test is run before a plan is accepted;
-   - **the session of each scenario**, in the order of the plan (see [Writing each test](#writing-each-test)). It is given the sheet of its scenario and nothing else of the plan, nor anything of the session that planned: its browser opens on the user interface, signed out, and its watches start empty. The agent gets the browser tools, the tools of the knowledge sources, the notes, `run_test` and `propose_test`; it runs the test of the scenario against the application, fixes it, and closes the scenario, every run counting against the limits of the session.
+   - **the session that plans.** The agent that plans gets the index tools, the browser tools of the applications of the environment of the index, watched (see [The screens](#the-screens)); the tools of every knowledge source attached to that environment or to none — documents, contracts, bases, source code and logs — the bases read in a read-only transaction, the logs masking the value of every variable the configuration names; the notes, to keep (`remember`) and to read (`recall`); and `propose_plan`. It explores, then submits a test plan (see [The plan](#the-plan)). Once the plan is accepted, the agent is told so, and that its session is over: every later call of a tool is refused with `The plan is accepted, and this session is over. Answer with one sentence; call no more tools.` The session has neither `run_test` nor `propose_test`: no test is run before a plan is accepted;
+   - **the session of each scenario**, in the order of the plan (see [Writing each test](#writing-each-test)). It is given the sheet of its scenario and nothing else of the plan, nor anything of the session that planned: its browser opens on the user interface, signed out, and its watches start empty. The agent that writes gets the browser tools of the application of its scenario alone, the tools of the knowledge sources its scenario cites and of those that tell why a run failed, logs and source code, `recall`, `run_test` and `propose_test`; it has neither the index tools, nor `remember`, nor `propose_plan`. Its request says how its test signs in — by the lines of its sheet, which read the account from `process.env`, or, without a user interface, by the variables named — and the packages a test may import, then gives the sheet; it runs the test of the scenario against the application, fixes it, and closes the scenario, every run counting against the limits of the session.
 
    The limits of the configured autonomy apply to each session, counted afresh. An agent that stops while no plan is accepted, or while its scenario is open, is reminded up to three times, with where it stands — `No plan is accepted yet.`, `The plan was last refused for: <codes>.`, or the scenario open, such as `Scenario 1 of 3, list-orders: its last run failed (1 of 3).`, its test having otherwise `not run` or `passed and is not closed` — and the next call. The search of each base says in its description that a value of the data of a plan comes from a result such as its own.
 
@@ -117,11 +119,13 @@ The scenarios are opened one at a time, in the order of the plan; the agent neve
 
 Each scenario is written in a session of its own. Until its session begins, and once the scenario is closed, `run_test` and `propose_test` are refused with `SCENARIO-CLOSED`: `the scenario of this session is closed. Answer with one sentence; call no more tools.`
 
-The sheet of a scenario, which is the request its session starts with, after the applications and the packages a test may import, gives its rank in the plan, its id, title, kind, case and application, its data, its file, then the skeleton of its test, then the next call:
+The sheet of a scenario, which the request of its session ends with, gives its rank in the plan, its id, title, kind, case and application, its intent, its data, the elements of the sources it cites, its file, then the skeleton of its test, then the next call:
 
 ```text
 Scenario 1 of 3: search-order-by-customer — Search an order by customer name (functional, nominal), application shop.
+Intent: Verifies that a search by last name finds the orders of the customer.
 Data: "Veldane" (shop-db).
+Cited: shop-db: public.orders.
 File: apps/shop/search-order-by-customer.spec.ts
 
 import { expect, test } from "@playwright/test";
@@ -139,7 +143,7 @@ test("Search an order by customer name", async ({ page }, testInfo) => {
   });
 });
 
-Next: do the steps of search-order-by-customer with the browser tools, fill its skeleton with the code they return, then call run_test.
+Next: check the skeleton of search-order-by-customer against its steps, complete what a comment asks, then call run_test with the whole file.
 ```
 
 The skeleton parses and keeps the default charter and the gates below as it is: one `test.step` per step of the plan, titled by its number then its action, with the lines of code the plan gives for it — or, for a step the plan gives no code for, such as one of an application without a user interface, the comment `// Do: <action>. Copy the code lines the browser tools returned.` — and an assertion of each text of its expects, on the element the plan gives for it. The harness found that element when it inscribed the plan, on the screens of the exploration, the last seen first, among the lines an action produced first: the element named by the text, by its locator in the snapshot or by its role and name (`toBeVisible`); else an element whose line holds the text and gives its locator (`toBeVisible` when the locator names the text, `toContainText` otherwise); else the field whose value is the text (`toHaveValue`), a field holding what the agent typed whatever the application answers; else the text anywhere on the page (`getByText`). A text expected gone is looked for first in the lines an action removed, never in a field, and asserted `toBeHidden()`. A text on an element several share the locator of is asserted by their number, without any position: `await expect(<locator>).not.toHaveCount(0);` for one the screen shows, `await expect(<locator>).toHaveCount(0);` for one it no longer shows. The agent may find its element better, never change the text. The screenshot of each step is there when the `screenshots` option says so, as the solo command does while the rule `PW-SHOT-01` of the charter is active.

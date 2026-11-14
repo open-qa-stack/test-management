@@ -164,6 +164,15 @@ export class TestProposals {
   }
 
   /**
+   * The first scenario not closed, which the next session writes.
+   *
+   * @returns The scenario; `undefined` once every scenario is closed.
+   */
+  public get scenario(): PlannedScenario | undefined {
+    return this.cursor.scenario;
+  }
+
+  /**
    * Whether a session is writing the scenario open.
    *
    * @returns `true` from `begin` until the scenario is closed.

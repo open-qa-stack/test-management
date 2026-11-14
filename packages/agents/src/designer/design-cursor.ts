@@ -125,7 +125,7 @@ export class DesignCursor {
     const scenario = this.scenario!;
     const last = this.#runs.at(-1);
     if (last === undefined)
-      return `Next: do the steps of ${scenario.id} with the browser tools, fill its skeleton with the code they return, then call ${RUN_TOOL}.`;
+      return `Next: check the skeleton of ${scenario.id} against its steps, complete what a comment asks, then call ${RUN_TOOL} with the whole file.`;
     if (last.verdict === "passed") return `Next: call ${PROPOSE_TOOL}.`;
     const failed = this.failedRuns;
     if (failed >= MAX_FAILED_RUNS) return `Next: call ${PROPOSE_TOOL} with diagnosis.`;

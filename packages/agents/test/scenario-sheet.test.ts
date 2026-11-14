@@ -167,18 +167,28 @@ test("Search an order by \\"customer\\" name", async ({ page }) => {
 });
 
 describe("the sheet of a scenario", () => {
-  it("names the scenario, its data and its file before the skeleton, and ends with the next call", () => {
+  it("names the scenario, its intent, its data, what it cites and its file before the skeleton, and ends with the next call", () => {
     const cursor = new DesignCursor({ scenarios: [SEARCH, { ...SEARCH, id: "other", data: [] }] }, (scenario) => `apps/shop/${scenario.id}.spec.ts`);
     const sheet = scenarioSheet(cursor, false).split("\n");
-    assert.deepEqual(sheet.slice(0, 4), [
+    assert.deepEqual(sheet.slice(0, 6), [
       'Scenario 1 of 2: search-order-by-customer — Search an order by "customer" name (functional, nominal), application shop.',
+      "Intent: Verifies that a search by last name finds the order of the customer.",
       'Data: "Veldane" (orders-db).',
+      "Cited: orders-db: public.orders.",
       "File: apps/shop/search-order-by-customer.spec.ts",
       "",
     ]);
     assert.equal(
       sheet.at(-1),
-      "Next: do the steps of search-order-by-customer with the browser tools, fill its skeleton with the code they return, then call run_test.",
+      "Next: check the skeleton of search-order-by-customer against its steps, complete what a comment asks, then call run_test with the whole file.",
+    );
+    // A scenario without data says so, and a source cited whole is named alone.
+    cursor.close();
+    assert.deepEqual(
+      scenarioSheet(new DesignCursor({ scenarios: [{ ...SEARCH, data: [], sources: [{ source: "shop" }] }] }, () => "x.spec.ts"), false)
+        .split("\n")
+        .slice(2, 4),
+      ["Data: none.", "Cited: shop."],
     );
   });
 });

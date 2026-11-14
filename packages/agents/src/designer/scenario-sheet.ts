@@ -44,8 +44,8 @@ export function skeleton(scenario: PlannedScenario, screenshots: boolean): strin
 }
 
 /**
- * The sheet of the scenario open: what it is, its data, its file and the skeleton of its test, then the
- * line that names the next call.
+ * The sheet of the scenario open: what it is and what it is meant to verify, its data, the elements of the
+ * sources it cites, its file and the skeleton of its test, then the line that names the next call.
  *
  * @param cursor - Where the design stands, with a scenario open.
  * @param screenshots - Whether each step ends with a screenshot attached to the report.
@@ -54,9 +54,12 @@ export function skeleton(scenario: PlannedScenario, screenshots: boolean): strin
 export function scenarioSheet(cursor: DesignCursor, screenshots: boolean): string {
   const scenario = cursor.scenario!;
   const data = scenario.data.length === 0 ? "none" : scenario.data.map((entry) => `${JSON.stringify(entry.value)} (${entry.from})`).join("; ");
+  const cited = scenario.sources.map(({ source, item }) => (item === undefined ? source : `${source}: ${oneLine(item)}`));
   return [
     `Scenario ${cursor.rank} of ${cursor.plan.scenarios.length}: ${scenario.id} — ${scenario.title} (${scenario.kind}, ${scenario.case}), application ${scenario.application}.`,
+    `Intent: ${oneLine(scenario.intent)}.`,
     `Data: ${data}.`,
+    `Cited: ${cited.join("; ")}.`,
     `File: ${cursor.path}`,
     "",
     skeleton(scenario, screenshots),

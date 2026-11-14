@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
-import { CopilotAgentRuntime, designerInstructions, ModelGateway, resolveCharter } from "@open-qa-stack/harness";
+import { CopilotAgentRuntime, ModelGateway, resolveCharter, writerInstructions } from "@open-qa-stack/harness";
 import { validateConfig, type DomainIndex, type ResolvedConfig, type SourceCard } from "@open-qa-stack/shared";
 import { answer, scriptedServer, testSite, toolCalls, type ScriptedServer, type TestSite } from "@open-qa-stack/testing";
 import { moduleSyntax } from "@open-qa-stack/tools";
@@ -306,7 +306,7 @@ async function design(script: readonly { status?: number; body: unknown }[], set
       repositoryRoot: root,
       env: setup.env ?? ENV,
       runtime,
-      instructions: designerInstructions(charter.rules, config.repository),
+      writerInstructions: writerInstructions(charter.rules, config.repository),
       browser: { actionTimeoutMs: 1000, navigationTimeoutMs: 3000, settleTimeoutMs: 0 },
       ...(setup.branch === null ? {} : { branch: setup.branch ?? BRANCH, now: () => new Date("2026-11-13T10:00:00.000Z") }),
       ...(setup.check === undefined ? {} : { check: setup.check }),
@@ -413,10 +413,7 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     assert.equal(server.requests.length, 12);
     assert.deepEqual(
       sessions(server).map((body) => firstMessage(body).split("\n")[0]),
-      [
-        "Design Playwright tests for the environment local.",
-        ...IDS.map(() => "Write the Playwright test of one scenario of an accepted plan, for the environment local."),
-      ],
+      ["Plan Playwright tests for the environment local.", ...IDS.map(() => "Write the test of this scenario for the environment local.")],
     );
   });
 
@@ -430,9 +427,10 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
       [],
     );
     const writing = sessions(server)[1]!.tools.map((tool) => tool.function.name);
-    assert.ok(["shop_goto", "shop_db_search", "run_test", "propose_test", "remember", "recall"].every((tool) => writing.includes(tool)));
+    // The session of a scenario has the screens of its application, the sources it cites, those that tell why a run failed, and the notes to read.
+    assert.ok(["shop_goto", "shop_code_list_files", "run_test", "propose_test", "recall"].every((tool) => writing.includes(tool)));
     assert.deepEqual(
-      writing.filter((tool) => tool === "propose_plan" || tool.startsWith("index_")),
+      writing.filter((tool) => tool === "propose_plan" || tool === "remember" || /^(index|shop_db|shop_api|order_specs|ledger_api)_/.test(tool)),
       [],
     );
     for (const source of ["order_specs_", "shop_guide_", "shop_api_", "ledger_api_", "shop_db_query"])
@@ -464,18 +462,30 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     assert.match(described.get("propose_plan")!, /The harness refuses a value or a text no tool showed you\.$/);
     const request = requestText(server);
     for (const fragment of [
-      "PW-WAIT-01",
+      "You plan the tests of the applications of one test environment.",
       "No brief was given",
       "- orders (Orders): Placing and following an order.",
       "- customers (Customers): The customers of the shop.",
-      "- shop (Shop, web-and-api): sign in with shop_fill and the account demo; the result gives the line a test writes.",
+      "- shop (Shop, web-and-api): sign in with shop_fill and the account demo.",
       "- ledger (Ledger, api): no sign-in.",
-      "A test may import: @playwright/test.",
       "Next: call index_entry on the domains above that matter most, read what they hold, do it once on the screens, then call propose_plan.",
     ]) {
       assert.ok(request.includes(JSON.stringify(fragment).slice(1, -1)), fragment);
     }
     assert.ok(!request.includes("Legacy"));
+    // The agent that plans is given nothing of the charter nor of what a test may import; the agent that writes is.
+    assert.ok(!request.includes("PW-WAIT-01") && !request.includes("A test may import"));
+    const written = JSON.stringify(sessions(server)[1]);
+    for (const fragment of [
+      "You write the Playwright test of one scenario of an accepted plan",
+      "PW-WAIT-01",
+      "Sign-in: with the account demo; the lines of the sheet that sign in read it from process.env: keep them as they are.",
+      "A test may import: @playwright/test.",
+      "Intent: Verifies list-orders.",
+      "Cited: shop: /orders.",
+    ])
+      assert.ok(written.includes(JSON.stringify(fragment).slice(1, -1)), fragment);
+    assert.ok(!written.includes("You plan the tests"));
     // The index is looked up, not given whole.
     assert.ok(!request.includes("Lists and places the orders of a customer."));
   });
@@ -553,7 +563,7 @@ describe("criterion 3 — with two valid tests the design fails, the journal say
       .at(-1)!.content;
     assert.match(
       reminder,
-      /\nYou stopped before the end\. Scenario 3 of 3, follow-order: its test has not run\.\nNext: do the steps of follow-order with the browser tools/,
+      /\nYou stopped before the end\. Scenario 3 of 3, follow-order: its test has not run\.\nNext: check the skeleton of follow-order against its steps, complete what a comment asks, then call run_test with the whole file\./,
     );
   });
 
@@ -860,13 +870,15 @@ describe("the sheet of a scenario", () => {
     const sheet = asked(server, 1);
     assert.ok(
       sheet.startsWith(
-        'Write the Playwright test of one scenario of an accepted plan, for the environment local.\n\nApplications:\n- shop (Shop, web-and-api): sign in with shop_fill and the account demo; the result gives the line a test writes.\n- ledger (Ledger, api): no sign-in.\n\nA test may import: @playwright/test.\n\nScenario 1 of 3: list-orders — The list-orders scenario (other, negative), application shop.\nData: "Ada" (shop); "zzqx" (made-up).\nFile: apps/shop/list-orders.spec.ts\n\nimport { expect, test } from "@playwright/test";\n\ntest("The list-orders scenario", async ({ page }) => {\n  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n    // Expect 1.1: The orders show.\n    await expect(page.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();\n  });\n});\n',
+        'Write the test of this scenario for the environment local.\n\nSign-in: with the account demo; the lines of the sheet that sign in read it from process.env: keep them as they are.\nA test may import: @playwright/test.\n\nScenario 1 of 3: list-orders — The list-orders scenario (other, negative), application shop.\nIntent: Verifies list-orders.\nData: "Ada" (shop); "zzqx" (made-up).\nCited: shop: /orders.\nFile: apps/shop/list-orders.spec.ts\n\nimport { expect, test } from "@playwright/test";\n\ntest("The list-orders scenario", async ({ page }) => {\n  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n    // Expect 1.1: The orders show.\n    await expect(page.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();\n  });\n});\n',
       ),
       sheet,
     );
-    assert.ok(sheet.endsWith("Next: do the steps of list-orders with the browser tools, fill its skeleton with the code they return, then call run_test."));
+    assert.ok(
+      sheet.endsWith("Next: check the skeleton of list-orders against its steps, complete what a comment asks, then call run_test with the whole file."),
+    );
     assert.equal(told(server, "c-list-orders"), `Scenario list-orders closed: passed.\n${OVER}`);
-    assert.match(asked(server, 2), /\n\nScenario 2 of 3: place-order — .*\nData: none\.\nFile: apps\/shop\/place-order\.spec\.ts/);
+    assert.match(asked(server, 2), /\n\nScenario 2 of 3: place-order — .*\nIntent: .*\nData: none\.\nCited: .*\nFile: apps\/shop\/place-order\.spec\.ts/);
   });
 
   it("runs as it is once the agent typed on the screen the invented value it expects: it holds the lines the browser tools returned, and the value in its field", async () => {
@@ -1193,10 +1205,11 @@ describe("the repair contract", () => {
   });
 
   it("tells a look at an application without a user interface by the tools of its sources, any of which counts", async () => {
-    const ledger = { ...PLAN, arguments: { scenarios: IDS.map((id) => scenario(id, "other", { application: "ledger" })) } };
-    const contract: Call = { id: "contract", name: "ledger_api_list_operations", arguments: {} };
+    const cited = { application: "ledger", sources: [{ source: "shop-guide" }] };
+    const ledger = { ...PLAN, arguments: { scenarios: IDS.map((id) => scenario(id, "other", cited)) } };
+    const contract: Call = { id: "contract", name: "shop_guide_list_sections", arguments: {} };
     const turns = [
-      [OPEN],
+      [OPEN, { ...contract, id: "read" }],
       [ledger],
       DONE,
       [run(broken("list-orders"), "f1")],
@@ -1456,7 +1469,7 @@ describe("the packages a test may import", () => {
       toolResult(server, "faker"),
       /Refused \(TEST-IMPORT\): Line 2 imports @faker-js\/faker; import only @playwright\/test, @axe-core\/playwright or a relative path/,
     );
-    assert.match(JSON.stringify(server.requests[0]!.body), /A test may import: @playwright\/test, @axe-core\/playwright\./);
+    assert.match(asked(server, 1), /\nA test may import: @playwright\/test, @axe-core\/playwright\.\n/);
   });
 });
 
@@ -1890,10 +1903,7 @@ describe("the trace of a design", () => {
     assert.equal(trace[0]!.event.type, "started");
     assert.deepEqual(
       of("message").map((line) => line.event.text!.split("\n")[0]),
-      [
-        "Design Playwright tests for the environment local.",
-        ...IDS.map(() => "Write the Playwright test of one scenario of an accepted plan, for the environment local."),
-      ],
+      ["Plan Playwright tests for the environment local.", ...IDS.map(() => "Write the test of this scenario for the environment local.")],
     );
     // The journal is traced in the phase it was written in.
     assert.deepEqual(

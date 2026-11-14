@@ -2,7 +2,7 @@ import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join, posix, relative, sep } from "node:path";
 import type { CommandRunner, StopReason, TestVerdict } from "@open-qa-stack/domain";
 import { Cartographer, Designer, type JournalEntry } from "@open-qa-stack/agents";
-import { CharterCheck, designerInstructions, LocalRunner, PinnedRun, resolveCharter, RUNS_FOLDER, TrialRunner, type ActiveRule } from "@open-qa-stack/harness";
+import { CharterCheck, writerInstructions, LocalRunner, PinnedRun, resolveCharter, RUNS_FOLDER, TrialRunner, type ActiveRule } from "@open-qa-stack/harness";
 import { CONFIG_FILE_NAME, declaredValues, validateConfig, type ResolvedConfig } from "@open-qa-stack/shared";
 import { ExitCode, exitCodeOf, type ExitCodeValue } from "./exit-code.ts";
 import type { OpenRuntime } from "./live-runtime.ts";
@@ -229,7 +229,7 @@ export class SoloRun {
           repositoryRoot: this.options.repositoryRoot,
           env: this.options.env,
           runtime: await agents(),
-          instructions: designerInstructions(rules, config.repository),
+          writerInstructions: writerInstructions(rules, config.repository),
           check: new CharterCheck({ repository: this.options.repositoryRoot, rules }),
           screenshots: rules.some((rule) => rule.id === SCREENSHOT_RULE),
           runner: trials,

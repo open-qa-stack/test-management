@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { validateConfig } from "@open-qa-stack/shared";
-import { agentNotes, NOTES_FILE } from "../src/common/agent-notes.ts";
+import { agentNotes, agentRecall, NOTES_FILE } from "../src/common/agent-notes.ts";
 import { configSecrets } from "../src/common/config-secrets.ts";
 
 describe("the notes of the agents", () => {
@@ -54,6 +54,11 @@ describe("the notes of the agents", () => {
     const result = validateConfig(text, {});
     assert.ok(result.ok, JSON.stringify(result));
     assert.equal(agentNotes(result.config, "/tmp", {}, { role: "r", task: "t" }).length, 2);
+    // A task that takes no note is given the tool that reads them alone.
+    assert.deepEqual(
+      agentRecall(result.config, "/tmp", {}, { role: "r", task: "t" }).map((tool) => tool.name),
+      ["recall"],
+    );
   });
 });
 

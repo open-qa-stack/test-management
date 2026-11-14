@@ -38,3 +38,21 @@ export function agentNotes(
 ): ToolDefinition[] {
   return notesTools(new Notebook(join(repositoryRoot, config.repository.stateDir, NOTES_FILE)), { ...taker, secrets: configSecrets(config, env) });
 }
+
+/**
+ * The tool that reads the notes of the test repository, for a task that takes none.
+ *
+ * @param config - The resolved configuration.
+ * @param repositoryRoot - Absolute path of the test repository.
+ * @param env - The environment the configuration reads.
+ * @param taker - Who reads the notes.
+ * @returns The tool `recall`.
+ */
+export function agentRecall(
+  config: ResolvedConfig,
+  repositoryRoot: string,
+  env: Readonly<Record<string, string | undefined>>,
+  taker: NoteTaker,
+): ToolDefinition[] {
+  return agentNotes(config, repositoryRoot, env, taker).filter((tool) => tool.name === "recall");
+}

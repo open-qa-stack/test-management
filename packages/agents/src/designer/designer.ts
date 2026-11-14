@@ -1,9 +1,9 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, posix } from "node:path";
 import type { AgentEvent, AgentRuntime, PlanReview, StopReason, TerminalEvent, TestPlan } from "@open-qa-stack/domain";
-import { validateDomainIndex, validateSourceCard, type DomainIndex, type ResolvedConfig, type SourceCard } from "@open-qa-stack/shared";
+import { validateDomainIndex, validateSourceCard, type DomainIndex, type Knowledge, type ResolvedConfig, type SourceCard } from "@open-qa-stack/shared";
 import type { BrowserAccess } from "@open-qa-stack/tools";
-import { agentNotes } from "../common/agent-notes.ts";
+import { agentNotes, agentRecall } from "../common/agent-notes.ts";
 import { runAgentTask, taskEnd, taskLimits, type AgentTask } from "../common/agent-task.ts";
 import { usageOf } from "../common/model-usage.ts";
 import { Journal, type JournalEntry } from "../common/journal.ts";
@@ -13,17 +13,18 @@ import type { TraceLine, TracePhase } from "../common/trace-line.ts";
 import { TracedPhases } from "../common/traced-phases.ts";
 import { INDEX_FILE_NAME } from "../cartographer/cartographer.ts";
 import { CARDS_FOLDER } from "../source-cartographer/source-cartographer.ts";
-import { designRequest, scenarioRequest } from "./designer-prompt.ts";
 import { DESIGNS_FOLDER, type DesignedTest, type DesignState, type TestClass } from "./design-state.ts";
 import { IndexMap } from "./index-map.ts";
 import { PLAN_FILE_SUFFIX, planFileText, readPlanFile, type PlanRecord } from "./plan-file.ts";
 import { PlanProposal } from "./plan-proposal.ts";
+import { PLANNER_INSTRUCTIONS, planRequest } from "./planner-prompt.ts";
 import { sessionTools, type SessionTools } from "./session-tools.ts";
 import type { TestCheck, TestRunner } from "@open-qa-stack/domain";
 import { declaredAddresses, declaredSecrets, testPackages } from "./spec-rules.ts";
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import { MIN_TESTS, SESSION_END, TestProposals, type AcceptedTest } from "./test-proposals.ts";
 import { TestRepository } from "./test-repository.ts";
+import { writeRequest } from "./writer-prompt.ts";
 
 /** Prefix of the branches the designer creates. */
 export const BRANCH_PREFIX = "oqas/";
@@ -38,8 +39,8 @@ export interface DesignerOptions {
   readonly env: Readonly<Record<string, string | undefined>>;
   /** The runtime that opens the agent's session. */
   readonly runtime: AgentRuntime;
-  /** System instructions of the designer, composed from the test charter by the caller. */
-  readonly instructions: string;
+  /** System instructions of the agent that writes each test, composed from the test charter by the caller, such as `writerInstructions` of the harness gives them. */
+  readonly writerInstructions: string;
   /** A check run on each test before it is accepted, such as one against the charter; none by default. */
   readonly check?: TestCheck;
   /** Runs each test against the application before it is kept, such as the `TrialRunner` of the harness. */
@@ -85,6 +86,8 @@ export interface DesignOutcome {
   readonly stoppedBy?: StopReason["limit"];
 }
 
+/** The types of the sources that tell why a run failed, which the session of every scenario may read. */
+const INSPECTED = new Set<Knowledge["type"]>(["logs", "source-code"]);
 /** The classes of the tests a design counts towards those it must give. */
 const COUNTED = new Set<TestClass>(["passed", "failing-application"]);
 
@@ -181,7 +184,6 @@ export class Designer {
       ...new Set([...index.sources.map((source) => source.id), ...readable.map((source) => source.id), ...applications.map((application) => application.id)]),
     ];
     const scope = { config, repositoryRoot, env, environment: index.environment, applications, sources: readable, start, browser: this.options.browser };
-    const notes = agentNotes(config, repositoryRoot, env, { role: "designer", task: id, now });
     const opened = runTrace(this.options, `design-${index.environment}`, now);
     trace = opened;
     const phases = new TracedPhases(opened, "plan");
@@ -193,7 +195,7 @@ export class Designer {
     const sessionOf = async (
       name: "plan" | "write",
       session: SessionTools,
-      task: Pick<AgentTask, "tools" | "request" | "reminder">,
+      task: Pick<AgentTask, "instructions" | "tools" | "request" | "reminder">,
       settled: () => boolean,
     ): Promise<TerminalEvent> => {
       phases.start(name);
@@ -203,7 +205,7 @@ export class Designer {
         opened.agent(name, event);
         if (event.type === "tool-error") journal.record("error", `${event.tool}: ${event.message}`);
       };
-      const whole = { instructions: this.options.instructions, ...task, events, sent, received };
+      const whole = { ...task, events, sent, received };
       await runAgentTask(this.options.runtime, whole, taskLimits(config)).finally(() => session.close());
       const { last, counters } = taskEnd(events);
       used.iterations += counters.iterations;
@@ -234,9 +236,11 @@ export class Designer {
         );
         const offered = [...session.screens.tools(), ...session.reads.tools()];
         const map = new IndexMap(index, await this.cards(index), offered, owners);
-        const request = designRequest(brief, index.environment, brief === undefined ? [] : map.found(brief), map.domains(), applications, packages);
+        const request = planRequest(brief, index.environment, brief === undefined ? [] : map.found(brief), map.domains(), applications);
+        const notes = agentNotes(config, repositoryRoot, env, { role: "planner", task: id, now });
         const tools = [...map.toolset(), ...offered, ...notes, plan.tool()].map((tool) => endedWithPlan(tool, plan));
-        const last = await sessionOf("plan", session, { tools, request, reminder: () => plan.reminder() }, () => plan.accepted !== undefined);
+        const task = { instructions: PLANNER_INSTRUCTIONS, tools, request, reminder: () => plan.reminder() };
+        const last = await sessionOf("plan", session, task, () => plan.accepted !== undefined);
         if (plan.refused !== undefined) return failed(`No test was written: the plan was refused: ${plan.refused}`);
         planned = plan.accepted;
         if (planned === undefined)
@@ -259,15 +263,26 @@ export class Designer {
         previous?.tests.length,
       );
       // Each scenario not closed is written in a session of its own, which is given its sheet and nothing else of the plan.
+      const recall = agentRecall(config, repositoryRoot, env, { role: "writer", task: id, now });
       let stoppedBy: StopReason["limit"] | undefined;
-      for (let sheet = proposals.sheet; sheet !== undefined; sheet = proposals.sheet) {
-        const session = sessionTools(scope);
+      for (let scenario = proposals.scenario; scenario !== undefined; scenario = proposals.scenario) {
+        // The session has the screens of the application of its scenario, the sources the scenario cites, and those that tell why a run failed.
+        const { application: about, sources: cites } = scenario;
+        const cited = readable.filter((source) => INSPECTED.has(source.type) || cites.some((reference) => reference.source === source.id));
+        const session = sessionTools({ ...scope, applications: applications.filter((application) => application.id === about), sources: cited });
+        const sheet = proposals.sheet!;
         // The journal of the scenario belongs to the phase of its session.
         phase = "write";
         proposals.begin(session);
-        const tools = [...session.screens.tools(), ...session.reads.tools(), ...notes, proposals.trialTool(), proposals.tool()];
-        const request = scenarioRequest(sheet, applications, packages, index.environment);
-        const last = await sessionOf("write", session, { tools, request, reminder: () => proposals.reminder() }, () => !proposals.writing);
+        const tools = [...session.screens.tools(), ...session.reads.tools(), ...recall, proposals.trialTool(), proposals.tool()];
+        const request = writeRequest(
+          sheet,
+          applications.find((application) => application.id === about)!,
+          packages,
+          index.environment,
+        );
+        const task = { instructions: this.options.writerInstructions, tools, request, reminder: () => proposals.reminder() };
+        const last = await sessionOf("write", session, task, () => !proposals.writing);
         // A limit that cuts a scenario short stops the design, which may be resumed from that scenario; so does a session that failed.
         if (last.type === "stopped" && proposals.writing) stoppedBy = last.reason.limit;
         if (last.type === "error" || stoppedBy !== undefined) break;

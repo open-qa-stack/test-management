@@ -5,10 +5,10 @@ import { DEFAULT_REPOSITORY, validateConfig, type CharterSettings } from "@open-
 import { moduleSyntax } from "@open-qa-stack/tools";
 import { CHARTER_DOC_FILE, documentedSection, renderRules } from "../scripts/emit-charter-doc.ts";
 import { DESIGNER_EXAMPLE } from "./designer-example.ts";
-import { DEFAULT_CHARTER, designerInstructions, resolveCharter, reviewerInstructions, type ActiveRule, type CharterResolution } from "../src/index.ts";
+import { DEFAULT_CHARTER, writerInstructions, resolveCharter, reviewerInstructions, type ActiveRule, type CharterResolution } from "../src/index.ts";
 
 const NO_CHANGE: Required<CharterSettings> = { disable: [], add: [] };
-const COMPOSERS = { designer: designerInstructions, reviewer: reviewerInstructions } as const;
+const COMPOSERS = { writer: writerInstructions, reviewer: reviewerInstructions } as const;
 
 function rulesOf(resolution: CharterResolution): ActiveRule[] {
   if (!resolution.ok) throw new Error(`expected the charter to resolve: ${JSON.stringify(resolution.errors)}`);
@@ -47,7 +47,7 @@ describe("criterion 1 — the charter lists its rules with identifier, statement
   });
 });
 
-describe("criterion 2 — without changes, the instructions of the designer and the reviewer hold every rule by its identifier", () => {
+describe("criterion 2 — without changes, the instructions of the writer and the reviewer hold every rule by its identifier", () => {
   const rules = rulesOf(resolveCharter(NO_CHANGE));
 
   it("keeps every rule of the charter, in order", () => {
@@ -69,28 +69,28 @@ describe("criterion 2 — without changes, the instructions of the designer and 
     }
   });
 
-  it("lists every rule in the designer instructions in one line, its identifier and its statement, without rationale or example", () => {
-    const instructions = designerInstructions(rules, DEFAULT_REPOSITORY);
+  it("lists every rule in the writer instructions in one line, its identifier and its statement, without rationale or example", () => {
+    const instructions = writerInstructions(rules, DEFAULT_REPOSITORY);
     const heading = "a finding names the rule and shows an example.\n";
     const charter = instructions.slice(instructions.indexOf(heading) + heading.length, instructions.indexOf("\n\nTests of an application go in"));
     assert.equal(charter, DEFAULT_CHARTER.map((rule) => `- ${rule.id}: ${rule.statement}`).join("\n"));
     assert.ok(!instructions.includes("Why: "));
   });
 
-  it("gives the reviewer the folders of the repository layout, and the designer the folder of its tests only", () => {
+  it("gives the reviewer the folders of the repository layout, and the writer the folder of its tests only", () => {
     const layout = { ...DEFAULT_REPOSITORY, appsDir: "tests", blocksDir: "blocks", journeysDir: "journeys" };
     const reviewer = reviewerInstructions(rules, layout);
     assert.ok(reviewer.includes("- Tests of an application: tests/<application id>/"));
     assert.ok(reviewer.includes("- Blocks of an application: tests/<application id>/blocks/"));
     assert.ok(reviewer.includes("- Journeys across applications: journeys/"));
-    const designer = designerInstructions(rules, layout);
-    assert.ok(designer.endsWith("\n\nTests of an application go in tests/<application id>/. The harness names the file."));
-    assert.doesNotMatch(designer, /Blocks of an application|Journeys across applications/);
+    const writer = writerInstructions(rules, layout);
+    assert.ok(writer.endsWith("\n\nTests of an application go in tests/<application id>/. The harness names the file."));
+    assert.doesNotMatch(writer, /Blocks of an application|Journeys across applications/);
   });
 
   it("asks the reviewer to cite the identifier of each rule a test breaks", () => {
     assert.match(reviewerInstructions(rules, DEFAULT_REPOSITORY), /For each rule a test breaks, cite the identifier of the rule/);
-    assert.doesNotMatch(designerInstructions(rules, DEFAULT_REPOSITORY), /cite the identifier/);
+    assert.doesNotMatch(writerInstructions(rules, DEFAULT_REPOSITORY), /cite the identifier/);
   });
 });
 
@@ -177,7 +177,7 @@ describe("criterion 5 — the charter and its composition are tested without mod
     const original = globalThis.fetch;
     globalThis.fetch = () => Promise.reject(new Error("network refused"));
     try {
-      const compose = () => designerInstructions(rulesOf(resolveCharter(NO_CHANGE)), DEFAULT_REPOSITORY);
+      const compose = () => writerInstructions(rulesOf(resolveCharter(NO_CHANGE)), DEFAULT_REPOSITORY);
       assert.equal(compose(), compose());
     } finally {
       globalThis.fetch = original;
@@ -185,29 +185,36 @@ describe("criterion 5 — the charter and its composition are tested without mod
   });
 });
 
-describe("the guide of the designer", () => {
+describe("the guide of the writer", () => {
   const rules = rulesOf(resolveCharter(NO_CHANGE));
 
-  it("says how the harness works, then three things to always do and three never to do, before the charter, and stays out of the reviewer's", () => {
-    const instructions = designerInstructions(rules, DEFAULT_REPOSITORY);
+  it("says how the harness works, a method whose every step says when it is done, three things to always do and three never to do, before the charter, and stays out of the reviewer's", () => {
+    const instructions = writerInstructions(rules, DEFAULT_REPOSITORY);
     const sections = instructions.split("\n\n").map((section) => section.split("\n")[0]);
     assert.deepEqual(sections.slice(0, 6), [
-      "You design Playwright tests, in TypeScript with @playwright/test, for the applications of one test environment. You work on one scenario at a time.",
+      "You write the Playwright test of one scenario of an accepted plan, in TypeScript with @playwright/test, from its sheet: its data, its steps with their code, the texts to assert with their locators, and its file.",
       "How this works",
+      "Method. Each step says when it is done.",
       "Always",
       "Never",
-      "When a run fails, you may fix a locator, wait for a result with an assertion on it, or change the form of an assertion. Nothing else.",
       "Charter. Every test is checked against these rules before it runs; a finding names the rule and shows an example.",
     ]);
-    for (const heading of ["Always", "Never"]) assert.equal(instructions.split(`\n\n${heading}\n`)[1]!.split("\n\n")[0]!.split("\n").length, 3);
+    const lines = (heading: string) => instructions.split(`\n\n${heading}\n`)[1]!.split("\n\n")[0]!.split("\n");
+    for (const heading of ["How this works", "Always", "Never"]) assert.equal(lines(heading).length, 3);
+    const steps = lines("Method. Each step says when it is done.");
+    assert.deepEqual(
+      steps.map((step) => /^\d\. .* Done when [^.]+[.:]/.test(step)),
+      [true, true, true, true],
+    );
     assert.match(instructions, /^- Never change an expected text, remove, reverse or weaken an assertion, or skip a test, to make it pass\./m);
+    assert.match(instructions, /^- The plan is fixed: do not explore again\./m);
     assert.ok(!reviewerInstructions(rules, DEFAULT_REPOSITORY).includes("How this works"));
     assert.doesNotMatch(instructions, /[ \t]$/m);
   });
 
-  it("stays with the designer whatever the rules in force, and is short enough for a small model", () => {
-    assert.ok(designerInstructions([], DEFAULT_REPOSITORY).startsWith("You design Playwright tests"));
-    assert.ok(designerInstructions(rules, DEFAULT_REPOSITORY).length <= 4000);
+  it("stays with the writer whatever the rules in force, and is short enough for a small model", () => {
+    assert.ok(writerInstructions([], DEFAULT_REPOSITORY).startsWith("You write the Playwright test of one scenario"));
+    assert.ok(writerInstructions(rules, DEFAULT_REPOSITORY).length <= 4000, String(writerInstructions(rules, DEFAULT_REPOSITORY).length));
   });
 });
 

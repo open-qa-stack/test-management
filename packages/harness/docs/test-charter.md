@@ -21,16 +21,16 @@ Added rules come after the default ones, in the order of the file; their reason 
 
 ## Instructions
 
-`resolveCharter(config.charter)` applies the changes and returns the rules to follow, or the errors. `designerInstructions(rules, config.repository)` and `reviewerInstructions(rules, config.repository)` write the system instructions of each agent. All three are pure: they read no file and call no model or network.
+`resolveCharter(config.charter)` applies the changes and returns the rules to follow, or the errors. `writerInstructions(rules, config.repository)` and `reviewerInstructions(rules, config.repository)` write the system instructions of each agent. All three are pure: they read no file and call no model or network.
 
 The reviewer gets its role, every rule by its identifier with its rationale and example, then the folders of the repository layout.
 
-The designer gets how it works with the harness — every plan and test is checked, a refusal says what to fix, each result of its plan, run and close tools names the next call, and it looks rather than guesses — then three things it always does: use only texts and values a tool showed it, do the steps of a scenario on the screens before planning it and before writing its test, copy locators and code lines as the tools return them; three it never does: change an expected text or weaken, reverse or skip an assertion to make a test pass, write a host or a credential, locate by CSS, XPath or position or wait for a fixed time; and what it may change after a failed run. Then come the rules, one line each, their identifier and their statement — the example of a rule comes back with each finding of the check that cites it — and the folder of the tests of an application. The procedure itself is the harness's: its gates and the `Next:` line of its results tell each step.
+The writer — the agent that writes the test of one scenario of an accepted plan, from its sheet — gets how it works with the harness: its test is checked against the plan and the charter, then run; a refusal says what to fix; each result of its run and close tools names the next call; the plan is fixed, and it looks at a screen or a source only when the sheet is not enough. Then its method, four steps that each say when they are done: write the file from the skeleton, run it, repair a locator, a wait or the form of an assertion after a failed run, close the scenario. Then three things it always does: copy the code lines and the locators of the sheet, assert with `await expect(locator)`, type only values of the data of the sheet; three it never does: change an expected text or weaken, reverse or skip an assertion to make a test pass, write a host or a credential, locate by CSS, XPath or position or wait for a fixed time. Then every rule in one line, its identifier and its statement, and the folder of the tests. The example of a rule comes with each finding that cites it. With the default charter, the whole stays under 4,000 characters. The agent that plans the tests has instructions of its own, which hold no rule of the charter: see the designer of `@open-qa-stack/agents`.
 
 ```ts
 const charter = resolveCharter(config.charter);
 if (!charter.ok) throw new Error(charter.errors.map((e) => `${e.path}: ${e.message}`).join("\n"));
-const instructions = designerInstructions(charter.rules, config.repository);
+const instructions = writerInstructions(charter.rules, config.repository);
 ```
 
 ## Checking a proposed test
