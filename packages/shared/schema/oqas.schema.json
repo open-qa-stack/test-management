@@ -550,6 +550,15 @@
               "type": "string",
               "pattern": "^[A-Z_][A-Z0-9_]*$",
               "description": "Name of an environment variable. The value itself is never written in the file."
+            },
+            "capabilities": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "vision"
+                ]
+              },
+              "description": "What the model can do besides reading and writing text: `vision`, it reads images."
             }
           }
         }

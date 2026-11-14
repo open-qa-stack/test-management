@@ -130,6 +130,9 @@ export interface CharterSettings {
   add?: AddedCharterRule[];
 }
 
+/** What a model can do besides reading and writing text: `vision`, it reads images. */
+export type ModelCapability = "vision";
+
 /** A model served by an OpenAI-compatible server, reached with a provider key. */
 export interface ProviderKeyModel {
   mode: "provider-key";
@@ -137,6 +140,7 @@ export interface ProviderKeyModel {
   baseUrl: string;
   model: string;
   apiKeyEnv?: string;
+  capabilities?: ModelCapability[];
 }
 
 /** Connection to the model. */

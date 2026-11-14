@@ -229,6 +229,11 @@ export const configSchema = {
             baseUrl: url,
             model: label,
             apiKeyEnv: envVar,
+            capabilities: {
+              type: "array",
+              items: { enum: ["vision"] },
+              description: "What the model can do besides reading and writing text: `vision`, it reads images.",
+            },
           },
         },
       ],

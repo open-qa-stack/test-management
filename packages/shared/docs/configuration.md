@@ -156,8 +156,11 @@ A rule identifier is made of upper case words and digits separated by hyphens, s
 | `baseUrl` | URL | yes | `"http://localhost:1234/v1"` |
 | `model` | non-empty string, as the server names the model | yes | `"local-model"` |
 | `apiKeyEnv` | variable, when the server requires a key | no | `"OQAS_MODEL_API_KEY"` |
+| `capabilities` | list of `vision`: what the model can do besides reading and writing text | no | `["vision"]` |
 
 Only a provider key is supported in solo mode for now.
+
+`vision` says that the model reads images. Any other value is refused with the rule `unknown-variant`, at its JSON path, such as `/model/capabilities/0`.
 
 ### Autonomy
 
