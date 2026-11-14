@@ -1,7 +1,7 @@
-import type { PlannedScenario, PlanReview, TestPlan, ToolDefinition } from "@open-qa-stack/domain";
+import type { PlannedExpect, PlannedScenario, PlanReview, TestPlan, ToolDefinition } from "@open-qa-stack/domain";
 import { redactText, scopedToolName, secretForms } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
-import { checkable, observed } from "./observed.ts";
+import { checkable, observed, sameText } from "./observed.ts";
 import { journalRefusals, maskedRefusals, refusalText, repeatedText, type Refusal } from "./refusal.ts";
 import { GUIDED_REFUSALS, RefusalStreak } from "./refusal-streak.ts";
 import type { ScreenWatch } from "./screen-watch.ts";
@@ -23,6 +23,8 @@ const LAST_TEXTS = 5;
 const MAX_TOLD_TEXT = 200;
 /** The words of the action of a step that types a value in a field; the key Enter pressed types none. */
 const TYPING = /\b(?:types?|(?<!\bpress(?:es)?\s+(?:the\s+)?)enters?|fill(?:s|\s+in)?|inputs?|search(?:es)?\s+for)\b/i;
+/** The words that join another action to the one that types, such as the click that sends a form: the step does more than type. */
+const JOINED = /\b(?:and|then)\b/i;
 
 /** What a plan is checked against. */
 export interface PlanRules {
@@ -62,10 +64,13 @@ export interface PlanRules {
  * typed without a step before that expects it shown, and, for an application with a user interface, a step
  * that types in a scenario without data, and a text expected shown that the screens showed only in a value
  * the agent typed or in the name of a field; a value of the data from an application is one it showed
- * beside what the agent typed;
- * the agent may
- * then submit another; from the third refusal of one reason, it is told only what the gate would accept,
- * and the sixth plan the gates refuse stops the design. A plan that keeps these rules goes to the review, one
+ * beside what the agent typed; the agent may then submit another. Before the gates, the harness takes out of
+ * a functional scenario of an application with a user interface each text expected shown by a step that
+ * only types, followed by another step, that is a value of its data no screen showed beside the fields: the
+ * field echoes it whatever the application answers. The gates number the expects as the agent wrote them,
+ * and pass over one left without a text, which the plan kept goes without. From
+ * the third refusal of one reason, the agent is told only what the gate would accept, and the sixth plan the
+ * gates refuse stops the design. A plan that keeps these rules goes to the review, one
  * plan at a time: accepted, it is frozen, and no other may be submitted; refused, the design stops.
  */
 export class PlanProposal {
@@ -234,11 +239,13 @@ export class PlanProposal {
     };
   }
 
-  private async submit(plan: TestPlan): Promise<string | { error: string }> {
+  private async submit(submitted: TestPlan): Promise<string | { error: string }> {
     // Once a plan is refused, the designer refuses every call before it reaches a tool.
     if (this.plan !== undefined) return { error: "A plan was already accepted; carry it out." };
-    const refusals = this.errors(plan);
+    const { plan: checked, emptied, echoes } = this.withoutEchoes(submitted);
+    const refusals = this.errors(checked, emptied);
     if (refusals.length > 0) return this.refuse(refusals);
+    const plan = withoutEmptied(checked, emptied);
     const decision = await this.rules.review.review(plan);
     // Plans submitted in one turn are reviewed at once: another may have been decided meanwhile.
     if (this.refusal !== undefined) return { error: this.blocked() };
@@ -249,6 +256,7 @@ export class PlanProposal {
       return { error: this.blocked() };
     }
     this.plan = plan;
+    for (const echo of echoes) this.journal.record("info", this.masked(echo));
     this.journal.record("info", `The plan was accepted: ${plan.scenarios.map((scenario) => scenario.id).join(", ")}.`);
     return `The plan was accepted.\n\n${this.rules.carry(plan)}`;
   }
@@ -256,8 +264,7 @@ export class PlanProposal {
   /** Refuses a plan, and counts it: from the third refusal of one reason the agent is told only what the gate would accept, and the last plan stops the design. */
   private refuse(found: readonly Refusal[]): { error: string } {
     // A refusal may name a value of the plan, which may be a declared one.
-    const forms = this.rules.secrets.flatMap((secret) => secretForms(secret.value));
-    const refusals = maskedRefusals(found, (text) => redactText(text, forms));
+    const refusals = maskedRefusals(found, (text) => this.masked(text));
     this.lastCodes = [...new Set(refusals.map((refusal) => refusal.code))];
     journalRefusals(this.journal, "The plan was refused by the harness", refusals);
     this.refusedPlans += 1;
@@ -271,8 +278,51 @@ export class PlanProposal {
     return { error: times < GUIDED_REFUSALS ? refusalText(refusals) : repeatedText(code, times, refusals) };
   }
 
-  /** What the gates refuse in a plan its schema accepts: the count, the kinds, the sources and the shapes are the schema's. */
-  private errors(plan: TestPlan): Refusal[] {
+  /** A text about the plan with the value of every declared variable masked. */
+  private masked(text: string): string {
+    return redactText(
+      text,
+      this.rules.secrets.flatMap((secret) => secretForms(secret.value)),
+    );
+  }
+
+  /**
+   * The plan without the echoes of what its steps type, with what the journal says of each: in a functional
+   * scenario of an application with a user interface, a text expected shown by a step that only types,
+   * followed by another step, that is a value of the data of the scenario no screen showed beside the fields
+   * is the field echoing it, whatever the application answers. A text a line beside the fields showed, such
+   * as the cell of the row a search found, is what the application answered, and stays. Each expect keeps its
+   * place, so that a refusal numbers it as the agent did; those left without a text are given apart.
+   */
+  private withoutEchoes(plan: TestPlan): { plan: TestPlan; emptied: Set<PlannedExpect>; echoes: string[] } {
+    const { screens } = this.rules;
+    const emptied = new Set<PlannedExpect>();
+    const echoes: string[] = [];
+    const unechoed = (scenario: PlannedScenario): PlannedScenario => {
+      if (scenario.kind !== "functional" || !screens.watches(scenario.application)) return scenario;
+      const echoed = (text: string) => scenario.data.some((entry) => sameText(entry.value, text)) && !screens.showsBesideFields(scenario.application, text);
+      const steps = scenario.steps.map((step, at) => {
+        if (at === scenario.steps.length - 1 || !TYPING.test(step.action) || JOINED.test(step.action)) return step;
+        const expects = step.expects.map((expect, k) => {
+          if (!expect.shows.some(echoed)) return expect;
+          for (const text of expect.shows.filter(echoed))
+            echoes.push(`The harness took "${text}" out of expect ${at + 1}.${k + 1} of scenario ${scenario.id}: the field echoes what the step types.`);
+          const kept = { ...expect, shows: expect.shows.filter((text) => !echoed(text)) };
+          if (kept.shows.length + kept.absent.length === 0) emptied.add(kept);
+          return kept;
+        });
+        return { ...step, expects };
+      });
+      return { ...scenario, steps };
+    };
+    return { plan: { ...plan, scenarios: plan.scenarios.map(unechoed) }, emptied, echoes };
+  }
+
+  /**
+   * What the gates refuse in a plan its schema accepts: the count, the kinds, the sources and the shapes are
+   * the schema's. The expects the harness emptied of echoes are passed over.
+   */
+  private errors(plan: TestPlan, emptied: ReadonlySet<PlannedExpect>): Refusal[] {
     const ids = plan.scenarios.map((scenario) => scenario.id);
     const repeated = [...new Set(ids.filter((id, at) => ids.indexOf(id) !== at))].map((id) => ({
       code: "PLAN-ID",
@@ -298,7 +348,7 @@ export class PlanProposal {
       ...repeated,
       ...secrets,
       ...negative,
-      ...functional.flatMap((scenario) => [...this.expectErrors(scenario), ...this.inputErrors(scenario)]),
+      ...functional.flatMap((scenario) => [...this.expectErrors(scenario, emptied), ...this.inputErrors(scenario)]),
       ...plan.scenarios.flatMap((scenario) => this.readErrors(scenario)),
     ];
   }
@@ -482,11 +532,13 @@ export class PlanProposal {
       : { code: "PLAN-DATA", message, remedy: [`Read "${value}" with ${tool}, or take a value ${source} showed you last:`, ...last].join("\n") };
   }
 
-  /** What the gates refuse in the expects of a functional scenario. */
-  private expectErrors(scenario: PlannedScenario): Refusal[] {
+  /** What the gates refuse in the expects of a functional scenario, but those the harness emptied of echoes. */
+  private expectErrors(scenario: PlannedScenario, emptied: ReadonlySet<PlannedExpect>): Refusal[] {
     const told =
       "Give in shows the exact text the screen displays after the action, or in absent the text it no longer displays, as you read it: a name, a number, a message.";
-    const expects = scenario.steps.flatMap((step, at) => step.expects.map((expect, k) => ({ number: `${at + 1}.${k + 1}`, expect })));
+    const expects = scenario.steps
+      .flatMap((step, at) => step.expects.map((expect, k) => ({ number: `${at + 1}.${k + 1}`, expect })))
+      .filter(({ expect }) => !emptied.has(expect));
     if (expects.length === 0) return [{ code: "PLAN-EXPECT", message: `no step of scenario ${scenario.id} has an expect. ${told}` }];
     const empty = expects
       .filter(({ expect }) => expect.shows.length + expect.absent.length === 0)
@@ -503,6 +555,15 @@ export class PlanProposal {
       },
     ];
   }
+}
+
+/** A plan without the expects the harness emptied of echoes. */
+function withoutEmptied(plan: TestPlan, emptied: ReadonlySet<PlannedExpect>): TestPlan {
+  const scenarios = plan.scenarios.map((scenario) => ({
+    ...scenario,
+    steps: scenario.steps.map((step) => ({ ...step, expects: step.expects.filter((expect) => !emptied.has(expect)) })),
+  }));
+  return { ...plan, scenarios };
 }
 
 /** Every text of a scenario the agent wrote, which the design state keeps. */

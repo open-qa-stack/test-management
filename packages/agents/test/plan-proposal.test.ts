@@ -492,6 +492,66 @@ describe("the gates of a plan", () => {
     assert.equal((await told(plain))[2], `Third refusal for the same reason. Do this:\n${remedy}`);
   });
 
+  it("take out the echo of a value a step only types before another step, and keep every other text", async () => {
+    const { proposal: made, screens, journal } = await proposal();
+    await act(screens, "click");
+    const typed = (text: string) => ({ result: "The field holds it", shows: [text], absent: [] });
+    const answered = { action: "Click Search", expects: [{ result: "The order shows", shows: ["ORD-1042"], absent: [] }] };
+    // The value invents a customer no field ever held: the echo is the only text no screen showed.
+    const negative = functional("a", {
+      case: "negative",
+      data: [{ value: "Quill Zed", from: "made-up" }],
+      steps: [{ action: "Enter 'Quill Zed' in the search field", expects: [typed("Quill Zed"), { ...typed("quill  zed"), absent: ["ORD-1057"] }] }, answered],
+    });
+    // A row showed the value beside the fields: the step expects what the application answered.
+    const nominal = functional("b", {
+      data: [{ value: "Lena Brook", from: "shop" }],
+      steps: [{ action: "Type Lena Brook in the search field", expects: [{ ...typed("Lena Brook"), shows: ["Lena Brook", "Orders"] }] }, answered],
+    });
+    // A step that also sends the form, and the last step, keep what they show: the application may answer with the value.
+    const sent = functional("c", {
+      data: [{ value: "Quill Zed", from: "made-up" }],
+      steps: [
+        { action: "Enter Quill Zed and click Search", expects: [typed("Quill Zed")] },
+        { action: "Search for Quill Zed", expects: [typed("Quill Zed")] },
+      ],
+    });
+    // The gates number the expects as the agent wrote them, the one emptied of its echo included, and pass it over.
+    const unseen = functional("d", {
+      case: "negative",
+      data: [{ value: "Quill Zed", from: "made-up" }],
+      steps: [{ action: "Enter 'Quill Zed' in the search field", expects: [typed("Quill Zed"), typed("Unseen text")] }, answered],
+    });
+    assert.deepEqual(await submit(made, { scenarios: [unseen, sent] }), {
+      error: [
+        "Refused (PLAN-RESULT): no text scenario c expects appeared, or went, after an action of yours on shop. Do its steps with shop_fill and shop_click, read what the result says appeared and went, and expect that.",
+        'Refused (PLAN-SHOWN): scenario d, expect 1.2, names "Unseen text", which no screen of shop showed in this session. Do the step with the browser tools and copy the text as the screen gives it.',
+        'Refused (PLAN-SHOWN): scenario c, expect 1.1, names "Quill Zed", a value of its data that no field of shop held in this session. Type it with shop_fill and do the step, then expect what the screen answered: the field only echoes the value.',
+        'Refused (PLAN-SHOWN): scenario c, expect 2.1, names "Quill Zed", a value of its data that no field of shop held in this session. Type it with shop_fill and do the step, then expect what the screen answered: the field only echoes the value.',
+        "Nothing else was refused.",
+      ].join("\n"),
+    });
+    assert.equal(await submit(made, { scenarios: [negative, nominal] }), "The plan was accepted.\n\nScenario 1.");
+    assert.deepEqual(
+      made.accepted!.scenarios.map((kept) => kept.steps.map((step) => step.expects.map((expect) => [expect.shows, expect.absent]))),
+      [
+        [[[[], ["ORD-1057"]]], [[["ORD-1042"], []]]],
+        [[[["Lena Brook", "Orders"], []]], [[["ORD-1042"], []]]],
+      ],
+    );
+    assert.deepEqual(
+      journal
+        .entries()
+        .filter((entry) => entry.level === "info")
+        .map((entry) => entry.message),
+      [
+        'The harness took "Quill Zed" out of expect 1.1 of scenario a: the field echoes what the step types.',
+        'The harness took "quill  zed" out of expect 1.2 of scenario a: the field echoes what the step types.',
+        "The plan was accepted: a, b.",
+      ],
+    );
+  });
+
   it("take a made-up value a source returned once a field held it: the test made it", async () => {
     const { proposal: made, screens, reads } = await proposal();
     await act(screens, "fill", { value: "Long Long" });
