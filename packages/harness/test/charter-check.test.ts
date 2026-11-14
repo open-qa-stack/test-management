@@ -155,15 +155,19 @@ test("renews a policy", async ({ page }, testInfo) => {
 
   it("writes nothing to the test repository and leaves no temporary folder behind", async () => {
     const before = snapshot(repository);
-    const folders = () =>
-      readdirSync(tmpdir())
-        .filter((name) => name.startsWith("test-check-"))
-        .sort();
-    const foldersBefore = folders();
-    await check.check({ path: PATH, content: conforming });
-    await check.check({ path: PATH, content: spec("  const broken: number = '';") });
+    const ownTemporary = mkdtempSync(join(tmpdir(), "charter-check-tmp-"));
+    const previous = process.env["TMPDIR"];
+    process.env["TMPDIR"] = ownTemporary;
+    try {
+      await check.check({ path: PATH, content: conforming });
+      await check.check({ path: PATH, content: spec("  const broken: number = '';") });
+    } finally {
+      if (previous === undefined) delete process.env["TMPDIR"];
+      else process.env["TMPDIR"] = previous;
+    }
     assert.deepEqual(snapshot(repository), before);
-    assert.deepEqual(folders(), foldersBefore);
+    assert.deepEqual(readdirSync(ownTemporary), []);
+    rmSync(ownTemporary, { recursive: true });
   });
 });
 
