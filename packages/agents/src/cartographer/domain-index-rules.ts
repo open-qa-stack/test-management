@@ -111,6 +111,10 @@ export function domainIndexRules(
       const value = normalised(valid, inventory);
       return checked(value, inventory, value);
     },
+    leaveAside: (value, unplaced) => ({
+      ...value,
+      unassigned: grouped([...value.unassigned, ...[...unplaced].map(([source, items]) => ({ source, items: [...items] }))]),
+    }),
     followUp: (accepted) => {
       const left = new Map([...inventory].map(([source, items]) => [source, items.filter((item) => !placedIn(accepted.domains, source, item))] as const));
       const lines = [...left].flatMap(([source, items]) => items.map((item) => `- ${source}: ${item}${echoes(accepted, { source, item }, words)}`));

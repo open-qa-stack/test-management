@@ -251,6 +251,24 @@ describe("criterion 3 — a card that forgets or invents a table is refused, wit
     assert.equal(outcome.card!.status, "complete");
   });
 
+  it("puts the elements still to place in unassigned itself after two such refusals in a row, a refusal for another reason in between counting again", async () => {
+    const forgetful = { domains: [CARD.domains[0]!], unassigned: CARD.unassigned };
+    const invented = {
+      ...CARD,
+      domains: [{ ...CARD.domains[0]!, items: [...CARD.domains[0]!.items, { name: "public.invoices", summary: "Invented." }] }, CARD.domains[1]!],
+    };
+    const { outcome } = await cartography([
+      { body: toolCalls(MODEL, [submit(forgetful, "c1")]) },
+      { body: toolCalls(MODEL, [submit(invented, "c2")]) },
+      { body: toolCalls(MODEL, [submit(forgetful, "c3")]) },
+      { body: toolCalls(MODEL, [submit(forgetful, "c4")]) },
+      { body: answer(MODEL, "Done.") },
+    ]);
+    assert.equal(messages(outcome).match(/the harness put/g)?.length, 1, messages(outcome));
+    assert.match(messages(outcome), /2 submissions of the card in a row left items to place; the harness put the 1 of the latest in unassigned\./);
+    assert.ok(outcome.card!.unassigned.includes("public.customers"));
+  });
+
   it("reads a card without unassigned as one that puts no element there", async () => {
     const { outcome } = await cartography([
       {

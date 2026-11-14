@@ -80,5 +80,6 @@ export function cardRules(sourceId: string, inventory: () => SourceInventory, se
       for (const item of missing) errors.push({ path: "", message: `${item} is in no domain nor in unassigned.` });
       return { value, errors, unplaced: missing.length === 0 ? new Map() : new Map([[sourceId, missing]]) };
     },
+    leaveAside: (value, unplaced) => ({ ...value, unassigned: [...value.unassigned, ...[...unplaced.values()].flat()] }),
   };
 }

@@ -368,6 +368,38 @@ describe("criterion 3 — an index that omits a table is not written, and the jo
     assert.equal(outcome.stoppedBy, "iterations");
   });
 
+  it("puts the items still to place in unassigned itself once two submissions in a row leave some, when nothing else is wrong", async () => {
+    const forgetful = { ...SUBMISSION, unassigned: SUBMISSION.unassigned.filter((r) => r.source !== "shop-db") };
+    const { outcome } = await cartography([
+      { body: toolCalls(MODEL, [submit(forgetful, "a")]) },
+      { body: toolCalls(MODEL, [submit(forgetful, "b")]) },
+      { body: answer(MODEL, "Done.") },
+      { body: answer(MODEL, "Done.") },
+    ]);
+    assert.match(
+      messages(outcome),
+      /2 submissions of the index in a row left items to place; the harness put the 1 of the latest in unassigned\.\nThe index was accepted\./,
+    );
+    assert.ok(
+      outcome.index!.unassigned.some((r) => r.source === "shop-db" && r.items.includes("public.schema_migrations")),
+      messages(outcome),
+    );
+  });
+
+  it("keeps refusing a submission that leaves items to place when something else is wrong with it", async () => {
+    const wrong = {
+      ...SUBMISSION,
+      unassigned: [...SUBMISSION.unassigned.filter((r) => r.source !== "shop-db"), { source: "shop-db", items: ["public.invented"] }],
+    };
+    const { outcome } = await cartography([
+      { body: toolCalls(MODEL, [submit(wrong, "a")]) },
+      { body: toolCalls(MODEL, [submit(wrong, "b")]) },
+      { body: answer(MODEL, "Done.") },
+    ]);
+    assert.doesNotMatch(messages(outcome), /the harness put/);
+    assert.match(messages(outcome), /No index was written/);
+  });
+
   it("tells at most thirty errors at once, then every item still to place, by source", async () => {
     const invented = {
       ...SUBMISSION,
