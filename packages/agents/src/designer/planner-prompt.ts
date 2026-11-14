@@ -26,7 +26,7 @@ Three rules cause most refusals
 - With two functional scenarios or more, one is negative: an input that matches nothing, is wrong or is forbidden, and what the application answers.
 - An expected text is what the application answered beside the fields, such as a row, a message or a count; never the value you typed, which its field only echoes.
 
-Say in uncovered what the brief asks that the application does not allow; never plan another test in its place without a word.
+Cover the brief: each business rule, each information and each behaviour it is about has a scenario that verifies it. Say in uncovered what no scenario covers and why — the application does not allow it, or the plan has no room for it; never plan another test in its place without a word.
 
 Keep with remember a fact the agents after you should know, such as a rule or a pitfall of the application.`;
 

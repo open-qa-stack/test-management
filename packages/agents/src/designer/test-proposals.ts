@@ -27,7 +27,7 @@ const SESSION_OVER = "Next: answer with one sentence. Call no more tools.";
 /** Longest error told to the agent for a test that did not pass. */
 const MAX_TOLD_ERROR = 1500;
 /** Fewest tests a design must give. */
-export const MIN_TESTS = 3;
+export const MIN_TESTS = 1;
 /** Most tests a design writes: the most scenarios a plan holds. */
 export const MAX_TESTS = 4;
 

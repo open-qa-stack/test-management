@@ -310,6 +310,15 @@ describe("the gates of a plan", () => {
     );
   });
 
+  it("accept a plan of one scenario: a brief has the scenarios it needs, and no more", async () => {
+    const { proposal: made } = await proposal();
+    assert.equal(await submit(made, plan("a")), ACCEPTED);
+    assert.deepEqual(
+      made.accepted!.scenarios.map((kept) => kept.id),
+      ["a"],
+    );
+  });
+
   it("keep what the agent says the brief asks and the application does not allow, and say it in the journal", async () => {
     const { proposal: made, journal } = await proposal();
     const uncovered = [{ asked: "Change the address of a customer.", reason: "No screen of shop offers to edit an address." }];
@@ -606,7 +615,7 @@ describe("the gates of a plan", () => {
       data: [{ value: "Quill Zed", from: "made-up" }],
       steps: [{ action: "Enter 'Quill Zed' in the search field", expects: [typed("Quill Zed"), typed("Unseen text")] }, answered],
     });
-    assert.deepEqual(await submit(made, { scenarios: [unseen, sent] }), {
+    assert.deepEqual(await submit(made, { scenarios: [unseen, sent, scenario("z")] }), {
       error: [
         "Refused (PLAN-RESULT): no text scenario c expects appeared, or went, after an action of yours on shop. Do its steps with shop_goto, shop_fill and shop_click, read what the page shows once opened and what each result says appeared and went, and expect that.",
         'Refused (PLAN-SHOWN): scenario d, expect 1.2, names "Unseen text", which no screen of shop showed in this session. Do step 1, "Enter \'Quill Zed\' in the search field", with shop_fill, then copy a text that appeared after it, as the screen gives it.',
@@ -617,7 +626,7 @@ describe("the gates of a plan", () => {
     });
     // The agent is told what the harness took out of its plan.
     assert.equal(
-      await submit(made, { scenarios: [negative, nominal] }),
+      await submit(made, { scenarios: [negative, nominal, scenario("z")] }),
       [
         "The plan was accepted.",
         'The harness took "Quill Zed" out of expect 1.1 of scenario a: the field echoes what the step types.',
@@ -626,7 +635,7 @@ describe("the gates of a plan", () => {
       ].join("\n"),
     );
     assert.deepEqual(
-      made.accepted!.scenarios.map((kept) => kept.steps.map((step) => step.expects.map((expect) => [expect.shows, expect.absent]))),
+      made.accepted!.scenarios.slice(0, 2).map((kept) => kept.steps.map((step) => step.expects.map((expect) => [expect.shows, expect.absent]))),
       [
         [[[[], ["ORD-1057"]]], [[["ORD-1042"], []]]],
         [[[["Lena Brook", "Orders"], []]], [[["ORD-1042"], []]]],
@@ -640,7 +649,7 @@ describe("the gates of a plan", () => {
       [
         'The harness took "Quill Zed" out of expect 1.1 of scenario a: the field echoes what the step types.',
         'The harness took "quill  zed" out of expect 1.2 of scenario a: the field echoes what the step types.',
-        "The plan was accepted: a, b.",
+        "The plan was accepted: a, b, z.",
       ],
     );
   });

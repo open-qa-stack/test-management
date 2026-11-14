@@ -106,7 +106,7 @@ export interface PlanRules {
  * The test plan of a design, submitted with `propose_plan` before any test is run.
  *
  * @remarks
- * A plan holds between `MIN_TESTS` and `MAX_TESTS` scenarios. Each names its case, its application, its
+ * A plan holds the scenarios its brief needs, between `MIN_TESTS` and `MAX_TESTS`. Each names its case, its application, its
  * domain, its sources, the values its test enters and its steps; each step has one action and the results
  * it expects, with the exact texts the screen shows, or no longer shows, after it. The schema of the tool
  * checks the shape. The gates of the harness refuse, all at once and each with its code, the slugs that
@@ -218,7 +218,7 @@ export class PlanProposal {
     const texts = (description: string) => ({ type: "array", maxItems: 8, items: { type: "string", minLength: 1 }, description });
     return {
       name: PLAN_TOOL,
-      description: `Submits the test plan, once you have read the sources and done the brief once on the screens. ${MIN_TESTS} to ${MAX_TESTS} scenarios; with two functional scenarios or more, one is negative. Each scenario gives its data (every value the test enters, with the source that showed it, or "${MADE_UP}" for a value the test invents), then its steps as a user does them. A step has one action, in actions the numbers of the browser actions that did it when you explored, and 0 to 4 expects; an expect states one result seen after the action, with in shows the exact texts the screen then displays and in absent the exact texts it no longer displays. Each step becomes one test.step, and each text one assertion: the harness writes their code and their locators from the actions you cite and the screens you saw; you never write a locator. The harness refuses a value or a text no tool showed you.`,
+      description: `Submits the test plan, once you have read the sources and done the brief once on the screens. As many scenarios as the brief needs, ${MAX_TESTS} at most, each verifying something the others do not: one per business rule, information or behaviour the brief is about; with two functional scenarios or more, one is negative. Each scenario gives its data (every value the test enters, with the source that showed it, or "${MADE_UP}" for a value the test invents), then its steps as a user does them. A step has one action, in actions the numbers of the browser actions that did it when you explored, and 0 to 4 expects; an expect states one result seen after the action, with in shows the exact texts the screen then displays and in absent the exact texts it no longer displays. Each step becomes one test.step, and each text one assertion: the harness writes their code and their locators from the actions you cite and the screens you saw; you never write a locator. The harness refuses a value or a text no tool showed you.`,
       parameters: {
         type: "object",
         properties: {
@@ -320,7 +320,7 @@ export class PlanProposal {
             type: "array",
             maxItems: 5,
             description:
-              "What the brief asks that the application does not let a test do, such as an action no screen offers: say it here rather than plan another test in its place without a word. Leave it out when the plan covers the brief.",
+              "What the brief asks that no scenario covers — a business rule, an information, a behaviour — because the application does not let a test do it, such as an action no screen offers, or because the plan has no room for it: say it here rather than plan another test in its place without a word. Leave it out when the plan covers the brief.",
             items: {
               type: "object",
               properties: {
@@ -329,7 +329,7 @@ export class PlanProposal {
                   type: "string",
                   minLength: 1,
                   maxLength: 400,
-                  description: "Why no test does it: what you saw of the application or read of its sources.",
+                  description: "Why no test does it: what you saw of the application or read of its sources, or that the plan has no room for it.",
                 },
               },
               required: ["asked", "reason"],

@@ -988,7 +988,7 @@ describe("autonomy, criterion 4 — a design stopped by maxIterations after a pl
     }
   });
 
-  it("offers to resume a design a limit cut short once it gave its tests, which still run", async () => {
+  it("offers to resume a design a limit cut short after some of its tests, which run once every scenario has its own", async () => {
     const four = [...IDS, "test-4"];
     // The first run: the check of the server, the cartography, a plan of four scenarios, three tests, then the session of the fourth cut at its fourth call.
     const server = await scriptedServer([
@@ -1005,9 +1005,10 @@ describe("autonomy, criterion 4 — a design stopped by maxIterations after a pl
     ]);
     try {
       const first = await solo([], { environment: "local", modelUrl: server.baseUrl, config: boundedTo(4) });
-      assert.equal(first.code, 0, first.err);
+      assert.equal(first.code, 5, first.err);
       const stopped = stateOf(first.root);
-      assert.deepEqual([stopped.stoppedBy, stopped.tests.length], [{ step: "design", limit: "iterations" }, 3]);
+      // Three tests are kept on the branch, and none runs yet: the plan has a fourth scenario.
+      assert.deepEqual([stopped.stoppedBy, stopped.designed.length, stopped.tests.length], [{ step: "design", limit: "iterations" }, 3, 0]);
       assert.match(first.out, new RegExp(`The design was stopped by its iterations limit; resume the run with: oqas --resume ${FIRST_RUN}\n`));
       const resumed = await solo([], { root: () => first.root, modelUrl: server.baseUrl, config: boundedTo(4), resume: FIRST_RUN, now: later(13) });
       assert.equal(resumed.code, 0, resumed.err);

@@ -36,7 +36,7 @@ describe("the instructions of the agent that plans", () => {
         "How this works",
         "Method. Each step says when it is done.",
         "Three rules cause most refusals",
-        "Say in uncovered what the brief asks that the application does not allow; never plan another test in its place without a word.",
+        "Cover the brief: each business rule, each information and each behaviour it is about has a scenario that verifies it. Say in uncovered what no scenario covers and why — the application does not allow it, or the plan has no room for it; never plan another test in its place without a word.",
         "Keep with remember a fact the agents after you should know, such as a rule or a pitfall of the application.",
       ],
     );
@@ -56,7 +56,7 @@ describe("the instructions of the agent that plans", () => {
     // It writes no test: nothing of the charter, of the runs nor of the files is its concern.
     assert.doesNotMatch(PLANNER_INSTRUCTIONS, /run_test|propose_test|Charter|\.spec\.ts/);
     assert.doesNotMatch(PLANNER_INSTRUCTIONS, /[ \t]$/m);
-    assert.ok(PLANNER_INSTRUCTIONS.length <= 2750, String(PLANNER_INSTRUCTIONS.length));
+    assert.ok(PLANNER_INSTRUCTIONS.length <= 2950, String(PLANNER_INSTRUCTIONS.length));
   });
 });
 

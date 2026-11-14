@@ -532,7 +532,7 @@ describe("criterion 3 — with two valid tests the design fails, the journal say
   it("reminds the agent, then keeps the two tests, and the skeleton of the third as an unfinished test, and fails", async () => {
     const { outcome, root, server } = await design(replies(valid(2)));
     assert.equal(outcome.ok, false);
-    assert.match(messages(outcome), /The design failed: 2 tests were obtained, 3 at least are expected\./);
+    assert.match(messages(outcome), /The design failed: 2 tests were obtained, 3 are expected, one per scenario of the plan\./);
     assert.match(messages(outcome), /The agent stopped before scenario follow-order was closed; it was reminded to go on\./);
     assert.match(
       messages(outcome),
@@ -745,7 +745,7 @@ describe("criterion 9 — past the action limit the task is cut, the journal say
     ]);
     assert.match(messages(outcome), /The task reached its actions limit; no test was written for the scenario under way\./);
     assert.deepEqual(specsOf(root), ["apps/shop/list-orders.spec.ts"]);
-    assert.match(messages(outcome), /The design failed: 1 test was obtained, 3 at least are expected\./);
+    assert.match(messages(outcome), /The design failed: 1 test was obtained, 3 are expected, one per scenario of the plan\./);
   });
 });
 
@@ -1595,6 +1595,25 @@ describe("what the workflow of a source wrote of it", () => {
     assert.equal(outcome.ok, true, messages(outcome));
     assert.match(toolResult(server, "d1"), /`Customer search` tells how a clerk finds a customer\./);
     assert.match(toolResult(server, "r1"), /Definition, from export\/sections\/customer-search\.md:.*## Customer search/);
+  });
+});
+
+describe("a plan of as many scenarios as its brief needs", () => {
+  const planOf = (...ids: string[]) => ({ ...PLAN, arguments: { scenarios: ids.map((id) => scenario(id)) } });
+
+  it("succeeds once each of its scenarios has its test: two, or one alone", async () => {
+    for (const ids of [["list-orders", "place-order"], ["list-orders"]]) {
+      const { outcome } = await design(replies([[OPEN], [planOf(...ids)], DONE, ...valid(ids.length)]), { plan: false });
+      assert.equal(outcome.ok, true, messages(outcome));
+      assert.equal(outcome.tests.length, ids.length);
+    }
+  });
+
+  it("fails, saying how many are expected, when one of them has none that counts", async () => {
+    // The agent that writes the only scenario gives up: its test is kept unfinished, and counts for none.
+    const { outcome } = await design(replies([[OPEN], [planOf("list-orders")], DONE, DONE, DONE, DONE, DONE]), { plan: false });
+    assert.equal(outcome.ok, false);
+    assert.match(messages(outcome), /The design failed: 0 tests were obtained, 1 is expected, one per scenario of the plan\./);
   });
 });
 

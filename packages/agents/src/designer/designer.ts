@@ -31,7 +31,7 @@ import { sessionTools, type SessionTools } from "./session-tools.ts";
 import type { TestCheck, TestRunner } from "@open-qa-stack/domain";
 import { declaredAddresses, declaredSecrets, testPackages } from "./spec-rules.ts";
 import type { ToolDefinition } from "@open-qa-stack/domain";
-import { MIN_TESTS, SESSION_END, TestProposals, type AcceptedTest } from "./test-proposals.ts";
+import { SESSION_END, TestProposals, type AcceptedTest } from "./test-proposals.ts";
 import { TestRepository } from "./test-repository.ts";
 import { SheetWatch } from "./sheet-watch.ts";
 import { writeRequest } from "./writer-prompt.ts";
@@ -78,7 +78,7 @@ export interface DesignerOptions {
 
 /** What a design produced. */
 export interface DesignOutcome {
-  /** Whether at least three tests were written that passed, or that fail because of the application. */
+  /** Whether each scenario of the plan has a test that passed, or that fails because of the application. */
   readonly ok: boolean;
   /** The branch created, when tests were written; it is the one checked out. */
   readonly branch?: string;
@@ -257,7 +257,10 @@ export class Designer {
         if (plan.refused !== undefined) return failed(`No test was written: the plan was refused: ${plan.refused}`);
         planned = plan.accepted;
         if (planned === undefined)
-          return failed(`No test was written: ${obtained(0)}, ${MIN_TESTS} at least are expected.`, last.type === "stopped" ? last.reason.limit : undefined);
+          return failed(
+            `No test was written: ${obtained(0)}, one per scenario of the plan is expected.`,
+            last.type === "stopped" ? last.reason.limit : undefined,
+          );
       }
       const proposals = new TestProposals(
         {
@@ -312,7 +315,7 @@ export class Designer {
           ...(references.length === 0 ? {} : { references: references.map((reference) => reference.path) }),
         })),
       ];
-      if (kept.length === 0 && stoppedBy === undefined) return failed(`No test was written: ${obtained(0)}, ${MIN_TESTS} at least are expected.`);
+      if (kept.length === 0 && stoppedBy === undefined) return failed(`No test was written: ${obtained(0)}, one per scenario of the plan is expected.`);
       const record: PlanRecord = resumed?.plan ?? {
         formatVersion: 2,
         design: id,
@@ -344,9 +347,15 @@ export class Designer {
       const statePath = resume?.state ?? posix.join(config.repository.stateDir, DESIGNS_FOLDER, `${id}.json`);
       await this.write(repository, state, statePath, record, tests, journal);
       const counted = kept.filter((test) => COUNTED.has(test.classes.at(-1)!.class)).length;
-      if (counted < MIN_TESTS) journal.record("error", `The design failed: ${obtained(counted)}, ${MIN_TESTS} at least are expected.`);
+      // A plan holds the scenarios its brief needs: the design succeeds once each of them has a test that counts.
+      const expected = record.scenarios.length;
+      if (counted < expected)
+        journal.record(
+          "error",
+          `The design failed: ${obtained(counted)}, ${expected} ${expected === 1 ? "is" : "are"} expected, one per scenario of the plan.`,
+        );
       return {
-        ok: counted >= MIN_TESTS,
+        ok: counted >= expected,
         ...(kept.length === 0 ? {} : { branch }),
         statePath: join(repositoryRoot, statePath),
         planPath: join(repositoryRoot, state.plan),
