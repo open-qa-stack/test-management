@@ -33,5 +33,9 @@ export function indexStaleness(
     const card = cards.get(source.id);
     return card === undefined || recorded.get(source.id) !== cardFingerprint(card);
   });
-  return changed === undefined ? undefined : `the card of ${changed.id} is not the one the index at hand was made of`;
+  if (changed === undefined) return undefined;
+  // An earlier version wrote no fingerprint: nothing tells which cards the index was made of.
+  return recorded.get(changed.id) === undefined
+    ? `the index at hand records no fingerprint of the card of ${changed.id}, as an earlier version made it`
+    : `the card of ${changed.id} is not the one the index at hand was made of`;
 }

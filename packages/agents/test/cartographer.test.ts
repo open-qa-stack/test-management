@@ -919,7 +919,7 @@ describe("faster cartography", () => {
         [() => "{ not json", "no index could be read"],
         [
           (root) => index(root, { sources: sources(ALL)(root).map(({ cardFingerprint: _, ...source }) => source) }),
-          "the card of shop-api is not the one the index at hand was made of",
+          "the index at hand records no fingerprint of the card of shop-api, as an earlier version made it",
         ],
       ];
       for (const [content, reason] of stale) {
