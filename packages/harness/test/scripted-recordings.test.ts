@@ -22,6 +22,7 @@ async function produce(scenario: Scenario): Promise<Recording> {
         return { ...gateway.recording, origin: { kind: "handwritten", purpose: scenario.purpose } };
       },
       clock,
+      scenario.vision,
     );
   } finally {
     await server.close();

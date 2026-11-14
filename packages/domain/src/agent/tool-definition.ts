@@ -15,7 +15,7 @@ export interface ToolDefinition {
    * Runs the tool.
    *
    * @param args - Arguments that match `parameters`.
-   * @returns What is sent back to the model.
+   * @returns What is sent back to the model; an `ImageToolResult` gives it an image besides.
    */
   execute(args: unknown): Promise<unknown>;
 }

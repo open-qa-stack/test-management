@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { Agent, fetch, type Response } from "undici";
-import { canonicalRequest, describeRequest, type CanonicalRequest } from "./canonical-request.ts";
+import { canonicalRequest, describeRequest, imageTokensOf, type CanonicalRequest } from "./canonical-request.ts";
 import { GatewayChannel } from "./gateway-channel.ts";
 import type { GatewayFailure } from "./gateway-failure.ts";
 import type { GatewayMode } from "./gateway-mode.ts";
@@ -28,7 +28,8 @@ const COMPLETIONS = "/chat/completions";
  * Because the gateway makes the call, it knows exactly why one fails, and an API key never leaves this
  * process except towards the model server. Each session talks to its own channel, which keeps its own
  * gate and its own latest failure, so that sessions never see each other's limits or errors. Failures
- * are answered with status 400, which the runtime reports at once instead of retrying.
+ * are answered with status 400, which the runtime reports at once instead of retrying. The gate of a
+ * channel counts the images of each call it lets through, which the model does not report.
  */
 export class ModelGateway implements ModelEndpoint {
   private readonly mode: GatewayMode;
@@ -102,6 +103,7 @@ export class ModelGateway implements ModelEndpoint {
     }
     channel.gate?.startIteration();
     if (channel.gate?.stopped === true) return fail(res, channel, { kind: "task-stopped" });
+    channel.gate?.countImageTokens?.(imageTokensOf(request));
     if (this.mode.kind === "replay") return this.replay(res, channel, this.mode.recording, request);
     return this.forward(res, channel, this.mode.upstream, body, request);
   }

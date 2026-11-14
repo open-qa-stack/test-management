@@ -1,4 +1,5 @@
 const text = { type: "string" } as const;
+const size = { type: "integer", minimum: 1 } as const;
 
 /** JSON Schema of a recording file, format version 1. */
 export const recordingSchema = {
@@ -45,7 +46,31 @@ export const recordingSchema = {
                   required: ["role", "content"],
                   properties: {
                     role: text,
-                    content: { type: ["string", "null"] },
+                    content: {
+                      anyOf: [
+                        { type: ["string", "null"] },
+                        {
+                          type: "array",
+                          items: {
+                            oneOf: [
+                              { type: "object", additionalProperties: false, required: ["type", "text"], properties: { type: { const: "text" }, text } },
+                              {
+                                type: "object",
+                                additionalProperties: false,
+                                required: ["type", "mimeType", "sha256", "width", "height"],
+                                properties: {
+                                  type: { const: "image" },
+                                  mimeType: { const: "image/png" },
+                                  sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+                                  width: size,
+                                  height: size,
+                                },
+                              },
+                            ],
+                          },
+                        },
+                      ],
+                    },
                     toolCallId: text,
                     toolCalls: {
                       type: "array",

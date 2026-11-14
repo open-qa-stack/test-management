@@ -19,19 +19,21 @@ await runtime.close();
 | `reasoning` | What the model thought before it answered or called a tool, when the model gives it. |
 | `text` | Text the model produced. |
 | `tool-call` | The model called a tool, with these arguments. |
-| `tool-result` | The tool ran and returned this result. |
+| `tool-result` | The tool ran and returned this result. A result with an image is reported as the model reads it: the image by its type and size only, or the reason it was not shown. |
 | `tool-error` | The call produced no result: `unknown-tool` (the session offers no such tool), `invalid-arguments` (the arguments did not match the tool's schema, so the tool did not run) or `failed` (the tool threw). The model is told and may try again. |
-| `end` | The agent has answered the message. A session with limits gives the counters it used: iterations, actions and elapsed time, and the tokens sent and received (`inputTokens`, `outputTokens`) once the model reported some. |
-| `stopped` | The harness stopped the task at a limit: the reason names the limit (`iterations`, `duration` or `actions`) and gives its counters: iterations, actions, elapsed time and, once the model reported some, `inputTokens` and `outputTokens`. |
+| `end` | The agent has answered the message. A session with limits gives the counters it used: iterations, actions and elapsed time, and the tokens sent and received (`inputTokens`, `outputTokens`) once the model reported some, and those of the images (`imageTokens`) once one was sent. |
+| `stopped` | The harness stopped the task at a limit: the reason names the limit (`iterations`, `duration` or `actions`) and gives its counters: iterations, actions, elapsed time and, once the model reported some, `inputTokens` and `outputTokens`, and `imageTokens` once an image was sent. |
 | `error` | The turn cannot go on: `ModelUnreachableError` (the model server did not answer; the error names the address tried), `ReplayMissError` (a replayed session sent a request its recording lacks), `ModelResponseError` (the server answered with an error, or with something that is not JSON) or `SessionClosedError` (the session was closed during the turn). The session can take another message after a model error. A session with limits gives its counters here too, as `stopped` does. |
 
 ## Limits
 
-A session may carry `limits`: model calls (iterations), duration and browser actions. Its gateway channel counts each model call and serves none once the task is stopped; the Copilot pre-tool hook counts each call of a tool declared with `browserAction: true` and refuses calls once the task is stopped. Duration is checked before each model call and each tool call. The channel also adds up the tokens each answer of the model reports in its `usage` (`prompt_tokens` and `completion_tokens`); a model that reports none leaves the counters without tokens. A call that reaches a limit exactly runs; the next one does not. A stopped turn ends with `stopped`, and its verdict is `indeterminate`, whatever the model says.
+A session may carry `limits`: model calls (iterations), duration and browser actions. Its gateway channel counts each model call and serves none once the task is stopped; the Copilot pre-tool hook counts each call of a tool declared with `browserAction: true` and refuses calls once the task is stopped. Duration is checked before each model call and each tool call. The channel also adds up the tokens each answer of the model reports in its `usage` (`prompt_tokens` and `completion_tokens`); a model that reports none leaves the counters without tokens. The channel counts the images itself, since models leave them out of `usage`: each image costs `imageTokens`, its width times its height over 1024, rounded up, in each call that carries it. A call that reaches a limit exactly runs; the next one does not. A stopped turn ends with `stopped`, and its verdict is `indeterminate`, whatever the model says.
 
 ## Tools
 
 A tool has a `name`, a `description` for the model, a JSON Schema of its `parameters` and an `execute` function. Arguments are checked against the schema before `execute` runs; arguments that do not match never reach it.
+
+A tool gives the model an image by returning an `ImageToolResult`: what the model reads, and a PNG image. A runtime created with `vision: true` declares that the model reads images and shows it the images of a session, three at most (`MAX_SESSION_IMAGES`), since an image stays in the conversation and goes again with each later call, and none larger than 2000 pixels a side (`MAX_IMAGE_SIDE`) or 3 MiB (`MAX_IMAGE_BYTES`), which the SDK would reduce before sending it. For any other image, or without `vision`, the model reads the result alone, with the reason under `imageNotShown`. The Copilot SDK sends the result in the tool message, then the image in a user message of its own, as a data URL; without the declaration, it would leave the image out.
 
 ## The Copilot implementation
 

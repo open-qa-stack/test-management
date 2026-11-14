@@ -20,6 +20,11 @@ export interface TaskCounters {
   readonly inputTokens?: number;
   /** Tokens the model produced, when it reported them. */
   readonly outputTokens?: number;
+  /**
+   * Tokens of the images sent to the model, once one was: the harness counts each image in each call that
+   * carries it, at `imageTokens`, since models leave them out of the tokens they report.
+   */
+  readonly imageTokens?: number;
 }
 
 /** Why a task was stopped: the limit it reached, and its counters at that moment. */

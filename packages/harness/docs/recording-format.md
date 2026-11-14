@@ -25,7 +25,9 @@ A recording holds the exchanges between the model runtime and a model server, so
 | `exchanges[].request` | What identifies the request: `model`, `messages` and the names of the `tools` offered. |
 | `exchanges[].response` | The body of the chat completion response, as the server sent it. |
 
-A message keeps its `role`, its `content` (`null` when it has none), and, when present, `toolCallId` (the call a tool result answers) and `toolCalls` (each with `id`, `name` and `arguments` as the JSON string the model wrote).
+A message keeps its `role`, its `content` (`null` when it has none, a list of parts when it has several), and, when present, `toolCallId` (the call a tool result answers) and `toolCalls` (each with `id`, `name` and `arguments` as the JSON string the model wrote).
+
+A part is a text, `{ "type": "text", "text": "Here is a screenshot:" }`, or an image, kept by the SHA-256 of its bytes and its size, never by its content: `{ "type": "image", "mimeType": "image/png", "sha256": "…", "width": 1280, "height": 800 }`. The gateway reads PNG images given in base64 only; a request with any other part is refused.
 
 ## Origin
 

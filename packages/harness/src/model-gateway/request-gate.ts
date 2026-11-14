@@ -11,4 +11,10 @@ export interface RequestGate {
    * @param output - Tokens the model produced.
    */
   countTokens?(input: number, output: number): void;
+  /**
+   * Records the tokens of the images a model call carries, which models leave out of what they report.
+   *
+   * @param tokens - Tokens of the images, as `imageTokens` counts them; `0` for a call without one.
+   */
+  countImageTokens?(tokens: number): void;
 }

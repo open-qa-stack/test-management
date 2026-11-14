@@ -1,0 +1,129 @@
+{
+  "formatVersion": 1,
+  "origin": {
+    "kind": "handwritten",
+    "purpose": "A model that reads images takes a screenshot of the page, sees it, and answers."
+  },
+  "exchanges": [
+    {
+      "request": {
+        "model": "test-model",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Explore the application."
+          },
+          {
+            "role": "user",
+            "content": "Take a screenshot of the page and say what it shows."
+          }
+        ],
+        "tools": [
+          "app_screenshot"
+        ]
+      },
+      "response": {
+        "id": "chatcmpl-scripted",
+        "object": "chat.completion",
+        "created": 0,
+        "model": "test-model",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "",
+              "tool_calls": [
+                {
+                  "type": "function",
+                  "id": "call-1",
+                  "function": {
+                    "name": "app_screenshot",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            },
+            "finish_reason": "tool_calls"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 1,
+          "completion_tokens": 1,
+          "total_tokens": 2
+        }
+      }
+    },
+    {
+      "request": {
+        "model": "test-model",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Explore the application."
+          },
+          {
+            "role": "user",
+            "content": "Take a screenshot of the page and say what it shows."
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "toolCalls": [
+              {
+                "id": "call-1",
+                "name": "app_screenshot",
+                "arguments": "{}"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"result\":{\"path\":\"app-1.png\",\"image\":{\"mimeType\":\"image/png\",\"width\":1280,\"height\":800}}}",
+            "toolCallId": "call-1"
+          },
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Here is a screenshot:"
+              },
+              {
+                "type": "image",
+                "mimeType": "image/png",
+                "sha256": "fa3f06e9001f2b6b44e1e470385f5478725bb60c2704dea3224f511bb9e539fe",
+                "width": 1280,
+                "height": 800
+              }
+            ]
+          }
+        ],
+        "tools": [
+          "app_screenshot"
+        ]
+      },
+      "response": {
+        "id": "chatcmpl-scripted",
+        "object": "chat.completion",
+        "created": 0,
+        "model": "test-model",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "The page shows a button without a name."
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 1,
+          "completion_tokens": 1,
+          "total_tokens": 2
+        }
+      }
+    }
+  ]
+}

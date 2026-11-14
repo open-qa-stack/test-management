@@ -1,7 +1,7 @@
-import type { SessionOptions, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
+import { ImageToolResult, type SessionOptions, type TaskLimits, type ToolDefinition } from "@open-qa-stack/domain";
 import { answer, toolCalls } from "@open-qa-stack/testing";
 import { TOOL_CALLING_CHECK, type Clock } from "../src/index.ts";
-import { MODEL } from "./support.ts";
+import { MODEL, png } from "./support.ts";
 
 /** A clock the tests move by hand. */
 export class ManualClock implements Clock {
@@ -23,6 +23,8 @@ export interface Scenario {
   readonly purpose: string;
   readonly replies: readonly unknown[];
   readonly message: string;
+  /** Whether the model reads images. */
+  readonly vision?: boolean;
   /** @returns The options of the session, with tools bound to `clock` and counting runs in `runs`. */
   session(clock: ManualClock, runs: Map<string, number>): SessionOptions;
 }
@@ -54,6 +56,19 @@ function readIndex(runs: Map<string, number>, clock: ManualClock, elapse = 0): T
     clock.advance(elapse);
     return "index";
   });
+}
+
+/** The screenshot of a page of 1280 × 800 pixels, the size a browser of the tools captures. */
+export const SCREENSHOT = png(1280, 800);
+
+/** A tool that takes a screenshot of the page and gives it to the model. */
+export function screenshot(runs: Map<string, number>): ToolDefinition {
+  const tool = {
+    name: "app_screenshot",
+    description: "Saves a screenshot of the page and returns where it is, with the image.",
+    parameters: { type: "object" },
+  };
+  return counted(runs, tool, () => new ImageToolResult({ path: `app-${runs.get(tool.name) ?? 0}.png` }, SCREENSHOT));
 }
 
 /** A model reply that calls the named tools and, like a careless model, claims the test passed. */
@@ -121,6 +136,13 @@ export const SCENARIOS: Readonly<Record<string, Scenario>> = {
     replies: iterations(2),
     message: "Read the index slowly.",
     session: session(BOUNDED, (clock, runs) => [readIndex(runs, clock, 11 * MINUTE)]),
+  },
+  "screenshot-vision.json": {
+    purpose: "A model that reads images takes a screenshot of the page, sees it, and answers.",
+    replies: [toolCalls(MODEL, [{ id: "call-1", name: "app_screenshot", arguments: {} }]), answer(MODEL, "The page shows a button without a name.")],
+    message: "Take a screenshot of the page and say what it shows.",
+    vision: true,
+    session: (_clock, runs) => ({ instructions: "Explore the application.", tools: [screenshot(runs)] }),
   },
   "limit-duration-small.json": {
     purpose: "With a limit of 1 minute, a tool call lets 61 seconds pass before the next model call.",

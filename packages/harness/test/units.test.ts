@@ -9,6 +9,7 @@ import { runtimeEnvironment } from "../src/copilot/runtime-environment.ts";
 import { runtimeError } from "../src/copilot/runtime-error.ts";
 import { canonicalRequest, describeRequest } from "../src/model-gateway/canonical-request.ts";
 import { SYSTEM_CLOCK } from "../src/guardrails/clock.ts";
+import { SessionImages } from "../src/tools/session-images.ts";
 import {
   CopilotAgentRuntime,
   guardTool,
@@ -121,7 +122,11 @@ describe("recordings", () => {
 describe("guarded tools", () => {
   it("reports a tool that throws something other than an error", async () => {
     const events: AgentEvent[] = [];
-    const run = guardTool({ name: "t", description: "d", parameters: { type: "object" }, execute: () => Promise.reject("plain text") }, (e) => events.push(e));
+    const run = guardTool(
+      { name: "t", description: "d", parameters: { type: "object" }, execute: () => Promise.reject("plain text") },
+      (e) => events.push(e),
+      new SessionImages(false),
+    );
     assert.deepEqual(await run({}, "c"), { error: "plain text" });
     assert.deepEqual(events, [{ type: "tool-error", callId: "c", tool: "t", reason: "failed", message: "plain text" }]);
   });
