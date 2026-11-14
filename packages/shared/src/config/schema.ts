@@ -65,6 +65,7 @@ export const configSchema = {
     repository: { $ref: "#/$defs/repository" },
     charter: { $ref: "#/$defs/charter" },
     cartography: { $ref: "#/$defs/cartography" },
+    design: { $ref: "#/$defs/design" },
     model: { $ref: "#/$defs/model" },
     autonomy: { $ref: "#/$defs/autonomy" },
   },
@@ -188,6 +189,18 @@ export const configSchema = {
       description: "How the sources are mapped.",
       properties: {
         concurrency: { ...positiveInteger, description: "Most sources mapped at once, each in its own task; one by default." },
+      },
+    },
+    design: {
+      type: "object",
+      additionalProperties: false,
+      description: "How the tests are designed.",
+      properties: {
+        reviewPlan: {
+          type: "boolean",
+          description:
+            "Whether an agent of its own reviews the scenarios of a plan for duplicates, in sessions of the model of their own; true by default. The harness compares the scenarios by their code either way.",
+        },
       },
     },
     charter: {

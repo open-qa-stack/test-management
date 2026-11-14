@@ -36,6 +36,7 @@ Types used below: a *slug* matches `^[a-z0-9]+(-[a-z0-9]+)*$`; a *variable* is t
 | `repository` | [repository layout](#repository) | no | `{ "journeysDir": "journeys" }` |
 | `charter` | [test charter changes](#charter) | no | see below |
 | `cartography` | [how the sources are mapped](#cartography) | no | `{ "concurrency": 2 }` |
+| `design` | [how the tests are designed](#design) | no | `{ "reviewPlan": false }` |
 | `model` | [model connection](#model) | yes | see below |
 | `autonomy` | [autonomy level](#autonomy) | no, `autonomous` by default | `{ "level": "autonomous" }` |
 
@@ -146,6 +147,14 @@ A rule identifier is made of upper case words and digits separated by hyphens, s
 | `concurrency` | integer, 1 or more | `1` | `2` |
 
 `concurrency` is the most sources mapped at once, each in a task of its own with its own session of the model. More than one needs a model server that answers several requests at once; a value that is not a whole number of 1 or more is refused with its JSON path, such as `/cartography/concurrency`.
+
+### Design
+
+| Key | Type | Default | Example |
+|---|---|---|---|
+| `reviewPlan` | boolean | `true` | `false` |
+
+The agent that plans submits its scenarios in several calls, and the harness sets aside each one another already covers. It first compares them by their code: the same steps, the same values, no text expected that the other does not expect. With `reviewPlan`, an agent of its own then reviews the scenarios the code let through, in sessions of the model of their own; `false` keeps the comparison by the code alone, and spares those sessions.
 
 ### Model
 

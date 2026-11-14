@@ -174,6 +174,7 @@ export interface OqasConfig {
   repository?: Repository;
   charter?: CharterSettings;
   cartography?: CartographySettings;
+  design?: DesignSettings;
   model: Model;
   /** `autonomous` when absent. */
   autonomy?: Autonomy;
@@ -183,6 +184,12 @@ export interface OqasConfig {
 export interface CartographySettings {
   /** Most sources mapped at once, each in its own task; one by default. */
   concurrency?: number;
+}
+
+/** How the tests are designed. */
+export interface DesignSettings {
+  /** Whether an agent of its own reviews the scenarios of a plan for duplicates; `true` by default. */
+  reviewPlan?: boolean;
 }
 
 /** A limit set to `null` is not bounded by the level. */
@@ -200,6 +207,7 @@ export interface ResolvedConfig {
   repository: Required<Repository>;
   charter: Required<CharterSettings>;
   cartography: Required<CartographySettings>;
+  design: Required<DesignSettings>;
   model: Model;
   autonomy: { level: Autonomy["level"]; limits: ResolvedLimits };
 }
