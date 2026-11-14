@@ -65,3 +65,14 @@ For an `openapi` source, `knowledgeInventory` loads the contract once and return
 | Schema | Its name in `components.schemas`, or in `definitions` | Its properties with their types, those required, and the values of an enumeration | Its properties | The other schemas it refers to | `schemas/<name>.json` |
 
 The definition of an element is what the contract writes of it, as JSON. An operation holds the parameters of its path, the ones it redefines once, and a parameter given by a local `$ref` is the one it points to; every other `$ref` is kept, since a schema is read in its own element. A schema named in both `components.schemas` and `definitions` is exported once, as the first writes it. The inventory holds the operations only, each with its kind, its identifier and its tags as facts; its fingerprint is that of the export, so that it changes when an operation or a schema does.
+
+## Export of a document
+
+For a `document` source, `knowledgeInventory` reads the file once and returns, with the inventory, its `export`: one element per section of its two highest levels, in the order of the document. A title that comes back is followed by its number, as `Overview (§7)`.
+
+| Element | Definition | Summary | Names | Links | File |
+|---|---|---|---|---|---|
+| Chapter, a section of the highest level | Its own text, down to its first section | Its level, its number, the start of its text and the sections it holds | None | None | `sections/<name>.md` |
+| Section, of the level below | Its whole text, the deeper sections it holds included | Its level, its number, its chapter, the start of its text and the headings it holds | The headings it holds | Its chapter | `sections/<name>.md` |
+
+The start of a text is given on one line, 300 characters at most. A document is read as Markdown, the one format read so far: `documentSections` is its reader, and `documentExport` works on the sections any reader gives. The inventory holds the same sections, each with its number and its level as facts; its fingerprint is that of the export.

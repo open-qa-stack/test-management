@@ -18,7 +18,8 @@ import {
 import { knowledgeInventory, type SqlClient, type SqlResult } from "../src/index.ts";
 import { closedPort } from "@open-qa-stack/testing";
 import { sqlResult } from "./sql-result.ts";
-import { documentInventory, SECTION_START_LENGTH } from "../src/document/document-inventory.ts";
+import { SECTION_START_LENGTH } from "../src/document/document-export.ts";
+import { documentInventory } from "../src/document/document-inventory.ts";
 import { CodeFolder } from "../src/source-code/code-folder.ts";
 import { codeInventory } from "../src/source-code/code-inventory.ts";
 
@@ -177,7 +178,6 @@ describe("the inventory of a knowledge source, read without the model", () => {
       "public.open_policies": { kind: "view", columns: 1, reads: ["public.policies"], triggers: ["open_policies_insert"] },
       "reporting.premiums": { kind: "view", columns: 1, reads: [] },
     });
-    assert.equal(inventory.excerpts, undefined);
     assert.deepEqual(
       inventory.export!.elements.map((element) => [element.name, element.kind]),
       [
@@ -252,16 +252,59 @@ describe("the inventory of a knowledge source, read without the model", () => {
     const inventory = await knowledgeInventory(document, { repositoryRoot: REPOSITORY, env: {} });
     assert.deepEqual(inventory.items, ["Quotes", "Request a quote", "Answer a quote", "Policies"]);
     assert.deepEqual(inventory.facts.get("Answer a quote"), { number: 3, level: 2 });
-    assert.equal(inventory.excerpts!.get("Answer a quote"), "The agent accepts or rejects it.");
+    assert.equal(inventory.fingerprint, inventory.export!.fingerprint);
     const twice = documentInventory("## Quotes\n### Rules\n#### Deep\n## Policies\n### Rules\n");
     assert.deepEqual(twice.items, ["Quotes", "Rules (§2)", "Policies", "Rules (§5)"]);
     assert.notEqual(twice.fingerprint, inventory.fingerprint);
   });
 
-  it("gives the start of each section of a document, on one line and cut past its length", () => {
+  it("exports a document section by section: a chapter by its own text and the sections it holds, a section by its whole text, each linked to its chapter", () => {
     const long = "word ".repeat(SECTION_START_LENGTH);
-    const inventory = documentInventory(`## Quotes\n\nA quote is\nasked  online.\n## Empty\n## Long\n\n${long}`);
-    assert.deepEqual(Object.fromEntries(inventory.excerpts!), { Quotes: "A quote is asked online.", Long: `${long.slice(0, SECTION_START_LENGTH)}…` });
+    const markdown = [
+      "# Quotes",
+      "",
+      "A quote is",
+      "asked  online.",
+      "",
+      "## Request a quote",
+      "",
+      "By a form.",
+      "",
+      "### Fields",
+      "",
+      "Name.",
+      "",
+      "## Empty",
+      "# Long",
+      "",
+      long,
+    ].join("\n");
+    const { elements } = documentInventory(markdown).export!;
+    assert.deepEqual(
+      elements.map((element) => [element.name, element.kind, element.links, element.names]),
+      [
+        ["Quotes", "section", [], []],
+        ["Request a quote", "section", ["Quotes"], ["Fields"]],
+        ["Empty", "section", ["Quotes"], []],
+        ["Long", "section", [], []],
+      ],
+    );
+    assert.deepEqual(
+      elements.map((element) => element.summary),
+      [
+        "section Quotes (level 1, §1)\n  starts: A quote is asked online.\n  sections: Request a quote; Empty",
+        "section Request a quote (level 2, §2, in Quotes)\n  starts: By a form. ### Fields Name.\n  headings: Fields",
+        "section Empty (level 2, §4, in Quotes)",
+        `section Long (level 1, §5)\n  starts: ${long.slice(0, SECTION_START_LENGTH)}…`,
+      ],
+    );
+    assert.deepEqual(
+      elements.slice(0, 3).map((element) => element.definition),
+      ["# Quotes\n\nA quote is\nasked  online.", "## Request a quote\n\nBy a form.\n\n### Fields\n\nName.", "## Empty"],
+    );
+    assert.match(elements[1]!.file, /^sections\/Request_a_quote-[0-9a-f]{8}\.md$/);
+    // A document without a heading has no element.
+    assert.deepEqual(documentInventory("Just text.\n").export!.elements, []);
   });
 
   it("gives the folders of source code with their files and routes, read by the grammars only", async () => {
