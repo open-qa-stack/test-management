@@ -4,6 +4,7 @@ import type { PlannedScenario, TestPlan, ToolDefinition } from "@open-qa-stack/d
 import { moduleSyntax, redactText, scopedToolName, secretForms, type SpecLocator } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
 import { DesignCursor, MAX_FAILED_RUNS, type ScenarioRun } from "./design-cursor.ts";
+import { assertionAt, failurePageText, misplacedAtFailure, shownAtFailure } from "./failure-page.ts";
 import { errorClass, failureHint } from "./run-failure.ts";
 import type { DesignedTest, FailureCause, Quarantine, UnwrittenScenario } from "./design-state.ts";
 import { PLAN_TOOL } from "./plan-proposal.ts";
@@ -11,7 +12,7 @@ import { journalRefusals, maskedRefusals, refusalText, repeatedText, type Refusa
 import { GUIDED_REFUSALS, MAX_REFUSALS, RefusalStreak } from "./refusal-streak.ts";
 import { scenarioErrors } from "./scenario-gates.ts";
 import { scenarioSheet, skeleton, type ElementFinder } from "./scenario-sheet.ts";
-import type { ScreenWatch } from "./screen-watch.ts";
+import { snapshotLines, type ScreenWatch } from "./screen-watch.ts";
 import type { SourceWatch } from "./source-watch.ts";
 import type { TestCheck, TestFinding, TestReference, TestRunner, TestTrial, Verdict } from "@open-qa-stack/domain";
 import { addressErrors, fileErrors, heldVariables, importErrors, secretValueErrors, type DeclaredSecret } from "./spec-rules.ts";
@@ -84,7 +85,11 @@ interface Diagnosis {
  * 4. the check given, when it finds something.
  *
  * `propose_test` closes the scenario open with the text of its last run that gave a verdict: passed, it is
- * kept as passed; failed, it is kept unchanged, as failing, with the cause and the evidence the agent gives.
+ * kept as passed; failed, it is kept unchanged, as failing, with the cause and the evidence the agent gives;
+ * a cause other than `test` is refused for a run that stopped before any assertion, or whose assertion found
+ * no element though the page at the failure showed, beside the fields, each text the step expects that it
+ * looked for, and none the step expects gone. The agent is told, after a
+ * failed run, what that page showed of those texts, and its lines count as lines the screens showed.
  * The verdict is the harness's, never the agent's. The calls run one at a time, each seeing the runs the
  * previous recorded. Every refusal is journaled with its code and told to the agent, every declared value
  * masked. From the third refusal of one reason since the test last ran, the agent is told only what the
@@ -262,12 +267,25 @@ export class TestProposals {
     }
     const verdict = verdictOf(trial);
     const failed = trial.tests.find((test) => test.verdict !== "passed");
+    // The page at the failure is one the screens showed: a test may find an element of it.
+    const page = failed?.page === undefined ? undefined : snapshotLines(failed.page);
+    if (page !== undefined) this.rules.screens.recordPage(scenario.application, page);
     const failure =
-      failed === undefined ? {} : { errorClass: errorClass(failed.reason), ...(failed.failedStep === undefined ? {} : { failedStep: failed.failedStep }) };
+      failed === undefined
+        ? {}
+        : {
+            errorClass: errorClass(failed.reason),
+            ...(failed.failedStep === undefined ? {} : { failedStep: failed.failedStep }),
+            ...(page === undefined ? {} : { page, reason: failed.reason }),
+          };
     cursor.record(scenario.id, { content, verdict, ...failure, startedAt: trial.startedAt, looks });
     this.references.set(content, trial.references ?? []);
     this.journal.record("info", `The test ${path} was run: ${verdict}.`);
-    const told = failed === undefined ? [] : [this.mask(failureHint(failed.reason, scenario.application)), this.failedRuns(cursor, scenario)];
+    const shown = page === undefined ? [] : failurePageText(shownAtFailure(scenario, failed!.failedStep, page));
+    const told =
+      failed === undefined
+        ? []
+        : [this.mask(failureHint(failed.reason, scenario.application)), ...shown.map((line) => this.mask(line)), this.failedRuns(cursor, scenario)];
     return [this.described(trial), ...told, cursor.next()].join("\n");
   }
 
@@ -352,6 +370,14 @@ export class TestProposals {
         refusals.push({
           code: "PROPOSE-CAUSE",
           message: `cause "${diagnosis.cause}" does not fit: the run failed on ${ended.errorClass}${step}, before any check of the application. Fix the locator, or give cause "test".`,
+        });
+      }
+      const misplaced = ended.page === undefined ? [] : misplacedAtFailure(scenario, ended.failedStep, ended.page, ended.reason!);
+      if (diagnosis.cause !== "test" && misplaced.length > 0) {
+        const where = misplaced.map(({ text, lines }) => `"${text}" in ${lines[0]}`).join(", ");
+        refusals.push({
+          code: "PROPOSE-CAUSE",
+          message: `cause "${diagnosis.cause}" does not fit: at the failure of step ${JSON.stringify(ended.failedStep)}, the assertion found no element, and the page showed what it looked for (${where}). The application shows it, and the assertion looks for it in another element: point it at that element with ${RUN_TOOL}, such as ${assertionAt(misplaced[0]!)} Once no run is left, give cause "test".`,
         });
       }
       refusals.push(

@@ -187,3 +187,125 @@ describe("the fifth refusal of one reason", () => {
     );
   });
 });
+
+describe("the page at the failure of a run", () => {
+  const PROFILE = [
+    '- heading "Customer Profile" [level=4]',
+    "- list:",
+    "  - listitem: Lena Veldane",
+    "  - listitem:",
+    '    - link "lena@example.com":',
+    "      - /url: mailto:lena@example.com",
+    '- textbox "Search": Ida Norr',
+    "- text: Risk Factor 45",
+  ].join("\n");
+  const profile: PlannedScenario = {
+    ...scenario("shop", []),
+    steps: [
+      {
+        action: "Open the profile of Lena Veldane",
+        expects: [{ result: "The profile shows", shows: ["Lena Veldane", "Risk Factor", "Ida Norr"], absent: [] }],
+      },
+    ],
+  };
+  /** A runner whose every test fails on an assertion of its first step, the runner giving the page at the failure. */
+  const notFound = (locator: string) => `Error: expect(locator).toBeVisible() failed\n\nLocator: ${locator}\nError: element(s) not found`;
+  const atPage = (page: string, reason = notFound("getByRole('cell', { name: 'Lena Veldane', exact: true })")): TestRunner => ({
+    run: async (test) => ({
+      startedAt: STARTED,
+      tests: [
+        {
+          id: test.path,
+          verdict: "failed",
+          reason,
+          failedStep: "1. Open the profile of Lena Veldane",
+          page,
+        },
+      ],
+    }),
+  });
+  /** The proposals of a scenario whose list showed the customer in a cell, and the screens they rely on. */
+  const proposed = async (runner: TestRunner, planned = profile) => {
+    const screens = new ScreenWatch(
+      ["shop"],
+      [
+        tool("shop_goto"),
+        tool("shop_snapshot", { page: '- heading "Ledger"\n- cell "Lena Veldane"\n- text: Risk Factor\n- textbox "Search": Ida Norr', truncated: false }),
+        ...["click", "fill", "select_option", "check"].map((action) => tool(`shop_${action}`)),
+      ],
+    );
+    const proposals = new TestProposals(
+      {
+        repositoryRoot: root,
+        appsDir: "apps",
+        addresses: [],
+        secrets: [],
+        runner,
+        packages: ["@playwright/test"],
+        screens,
+        screenshots: false,
+        reads: new SourceWatch([], [], []),
+      },
+      new Journal(),
+    );
+    proposals.start({ scenarios: [planned] });
+    await screens
+      .tools()
+      .find((tool) => tool.name === "shop_snapshot")!
+      .execute({});
+    const content = acted(skeleton(planned, false, (text, gone) => screens.locatorOf("shop", text, gone)));
+    const ran = String(await proposals.trialTool().execute({ content }));
+    return { proposals, screens, ran };
+  };
+  const diagnosed = (proposals: TestProposals, cause: string) =>
+    proposals.tool().execute({ diagnosis: { cause, evidence: "The profile does not show the customer." } }) as Promise<string | { error: string }>;
+
+  it("tells the elements that held each text the step expects, beside the fields, and those it showed nowhere", async () => {
+    const { ran, screens } = await proposed(atPage(PROFILE));
+    assert.ok(
+      ran.includes(
+        [
+          'At the failure, the page showed "Lena Veldane" in:',
+          "- listitem: Lena Veldane",
+          "Assert it on one of these elements.",
+          'At the failure, the page showed "Risk Factor" in:',
+          "- text: Risk Factor 45",
+          "Assert it on one of these elements.",
+          'At the failure, the page showed "Ida Norr" nowhere beside the fields.',
+          "Failed runs of open-ledger: 1 of 3.",
+        ].join("\n"),
+      ),
+      ran,
+    );
+    // The page at the failure is one the screens showed: a locator of one of its elements is no unseen one.
+    assert.deepEqual(screens.unseen("shop", [{ code: 'getByRole("listitem")', role: "listitem", text: "Lena Veldane" }]), []);
+  });
+
+  it("refuses the cause application or plan when the page showed what an assertion that found nothing looked for, and keeps one it did not show", async () => {
+    const planned = { ...profile, steps: [{ ...profile.steps[0]!, expects: [{ ...profile.steps[0]!.expects[0]!, shows: ["Lena Veldane", "Risk Factor"] }] }] };
+    const { proposals } = await proposed(atPage(PROFILE), planned);
+    const refused = (await diagnosed(proposals, "plan")) as { error: string };
+    assert.equal(
+      refused.error,
+      [
+        'Refused (PROPOSE-CAUSE): cause "plan" does not fit: at the failure of step "1. Open the profile of Lena Veldane", the assertion found no element, and the page showed what it looked for ("Lena Veldane" in - listitem: Lena Veldane). The application shows it, and the assertion looks for it in another element: point it at that element with run_test, such as await expect(page.getByRole("listitem").filter({ hasText: "Lena Veldane" })).toBeVisible(); Once no run is left, give cause "test".',
+        "Nothing else was refused.",
+      ].join("\n"),
+    );
+    const kept = [
+      // A text the assertion looked for that the page did not show beside the fields.
+      { runner: atPage(PROFILE, notFound("getByText('Ida Norr')")), planned: profile },
+      // A matcher of the page, which found no element of it.
+      { runner: atPage(PROFILE, "Error: expect(page).toHaveURL(expected) failed\n\nExpected pattern: /profiles/"), planned },
+      // A text the step expects gone that the page still showed.
+      {
+        runner: atPage(PROFILE),
+        planned: { ...planned, steps: [{ ...planned.steps[0]!, expects: [{ ...planned.steps[0]!.expects[0]!, absent: ["Risk Factor"] }] }] },
+      },
+    ];
+    for (const { runner, planned: closed } of kept) {
+      const { proposals: missed } = await proposed(runner, closed);
+      assert.match((await diagnosed(missed, "application")) as string, /^Scenario open-ledger closed: failing \(application\), kept for a person to decide\./);
+    }
+  });
+});

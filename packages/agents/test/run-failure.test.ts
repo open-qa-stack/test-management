@@ -44,9 +44,9 @@ describe("what a failed run stopped on", () => {
     );
     assert.match(
       failureHint(HIDDEN, "shop"),
-      /^The application shows no such element where the plan expects something else\. .*call propose_test with diagnosis\.$/,
+      /^The locator found no element where the plan expects something else\. The expected text stays: point the locator at the element of the page that shows it; if none does, call propose_test with diagnosis\.$/,
     );
-    assert.match(failureHint(MISSING, "shop"), /^The application shows no such element where the plan expects "Mira Veldane"\. The expected text stays\./);
+    assert.match(failureHint(MISSING, "shop"), /^The locator found no element where the plan expects "Mira Veldane"\. The expected text stays:/);
     assert.match(
       failureHint("Error: expect(locator).toBeHidden() failed\n\nExpected: hidden", "shop"),
       /^The application shows something else where the plan expects hidden\./,

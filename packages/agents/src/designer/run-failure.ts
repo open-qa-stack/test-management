@@ -39,9 +39,13 @@ export function failureHint(error: string, application: string): string {
     case "locator":
       return "The element is not on the screen at that step. Redo the steps before it with the browser tools and copy the code the tool returns.";
     case "assertion": {
-      const received = /^Received[^:\n]*: (.*)$/m.exec(error)?.[1] ?? (error.includes("element(s) not found") ? "no such element" : "something else");
+      const received = /^Received[^:\n]*: (.*)$/m.exec(error)?.[1];
       const expected = /^Expected[^:\n]*: (.*)$/m.exec(error)?.[1] ?? "something else";
-      const cut = received.length > MAX_RECEIVED ? `${received.slice(0, MAX_RECEIVED)}…` : received;
+      // A locator that found nothing says nothing of what the application shows.
+      if (received === undefined && error.includes("element(s) not found"))
+        return `The locator found no element where the plan expects ${expected}. The expected text stays: point the locator at the element of the page that shows it; if none does, call ${PROPOSE_TOOL} with diagnosis.`;
+      const shown = received ?? "something else";
+      const cut = shown.length > MAX_RECEIVED ? `${shown.slice(0, MAX_RECEIVED)}…` : shown;
       return `The application shows ${cut} where the plan expects ${expected}. The expected text stays. Check that the locator points at the right element and that the result had time to appear; if it did, call ${PROPOSE_TOOL} with diagnosis.`;
     }
     case "navigation":

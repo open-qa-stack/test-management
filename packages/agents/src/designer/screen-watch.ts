@@ -398,14 +398,22 @@ export class ScreenWatch {
     return appeared.some((text) => observed(text, besideFields(seen.produced))) || went.some((text) => observed(text, besideFields(seen.removed)));
   }
 
+  /**
+   * Keeps the lines of a page the runner showed rather than a tool, such as the page at the failure of a
+   * run: lines the screens of the application showed, which no action produced nor removed.
+   *
+   * @param application - Identifier of the application; nothing is kept for one without a user interface.
+   * @param lines - The lines of the page, as `snapshotLines` gives them.
+   */
+  public recordPage(application: string, lines: readonly string[]): void {
+    const seen = this.seen.get(application);
+    if (seen === undefined) return;
+    for (const line of lines) seen.lines.add(line);
+  }
+
   /** Keeps what a snapshot showed; one of the whole page is the one the next action is compared with. */
   private record(seen: Seen, snapshot: { page: string; truncated: boolean }, whole: boolean): { page: string; truncated: boolean; lines: Set<string> } {
-    const lines = new Set(
-      snapshot.page
-        .split("\n")
-        .map(normalized)
-        .filter((line) => line !== ""),
-    );
+    const lines = new Set(pageLines(snapshot.page));
     const moment = nextMoment();
     for (const line of lines) {
       seen.lines.add(line);
@@ -471,8 +479,25 @@ function namedBy(line: string, text: string): string | undefined {
   return sameText(name, text) ? `page.getByRole(${JSON.stringify(role)}, { name: ${JSON.stringify(name)}, exact: true })` : undefined;
 }
 
-/** The lines that are no line of a field, in their order. */
-function besideFields(lines: Iterable<string>): string[] {
+/**
+ * The lines of a snapshot of a page as the watch keeps them: without their indentation, the reference of each
+ * element, the mark of what can be clicked, nor the address of each link.
+ *
+ * @param page - The snapshot, as a tool or the runner wrote it.
+ * @returns Its lines, but the empty ones, in their order.
+ */
+export function snapshotLines(page: string): string[] {
+  return pageLines(compact({ page }).page);
+}
+
+/**
+ * The lines that are no line of a field, in their order: a field holds what the agent typed whatever the
+ * application answers.
+ *
+ * @param lines - Lines of snapshots.
+ * @returns Those of anything but a field.
+ */
+export function besideFields(lines: Iterable<string>): string[] {
   return [...lines].filter((line) => fieldValue(line) === undefined);
 }
 
@@ -496,6 +521,14 @@ function wordsOf(text: string): string[] {
 /** The lines of a snapshot that another does not show. */
 function absent(lines: ReadonlySet<string>, other: ReadonlySet<string>): string[] {
   return [...lines].filter((line) => !other.has(line));
+}
+
+/** The lines of a snapshot without their indentation, but the empty ones. */
+function pageLines(page: string): string[] {
+  return page
+    .split("\n")
+    .map(normalized)
+    .filter((line) => line !== "");
 }
 
 /** A line of a snapshot without its indentation. */

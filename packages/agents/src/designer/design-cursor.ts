@@ -15,6 +15,10 @@ export interface ScenarioRun {
   readonly errorClass?: ErrorClass;
   /** The title of the `test.step` that failed, when one did. */
   readonly failedStep?: string;
+  /** The lines of the page at its failure, when the runner gave them. */
+  readonly page?: readonly string[];
+  /** The error it failed on, given with the page at its failure. */
+  readonly reason?: string;
   /** When it started, from which the logs of the services tell what happened. */
   readonly startedAt: string;
   /** How many times the agent had looked at the application, its logs or its code when it ran. */

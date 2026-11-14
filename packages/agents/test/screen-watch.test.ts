@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import { moduleSyntax, type SpecOutline } from "@open-qa-stack/tools";
-import { ScreenWatch } from "../src/designer/screen-watch.ts";
+import { ScreenWatch, snapshotLines } from "../src/designer/screen-watch.ts";
 
 /** The outline of a text of a test. */
 async function outlineOf(text: string): Promise<SpecOutline> {
@@ -132,6 +132,17 @@ describe("the screens the designer watches", () => {
     );
     await run(emptied, "fill");
     assert.match(String((await run(emptied, "click"))["note"]), /^Nothing beside the fields shows "Zed Quill" any more/);
+  });
+
+  it("keeps the lines of a page the runner showed as lines the screens showed, and none for an application without a user interface", () => {
+    const lines = snapshotLines(
+      '- list:\n  - listitem [ref=e4]: Lena Veldane\n  - link "lena@example.com" [cursor=pointer]:\n    - /url: mailto:lena@example.com\n',
+    );
+    assert.deepEqual(lines, ["- list:", "- listitem: Lena Veldane", '- link "lena@example.com":']);
+    const watch = new ScreenWatch(["shop"], page([LIST]).tools);
+    watch.recordPage("shop", lines);
+    watch.recordPage("ledger", lines);
+    assert.deepEqual([watch.shows("shop", "Lena Veldane"), watch.shows("ledger", "Lena Veldane"), watch.looks("shop")], [true, false, 0]);
   });
 
   it("cuts a long list of what went", async () => {
