@@ -1,19 +1,9 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, posix } from "node:path";
 import type { AgentEvent, AgentRuntime, PlanReview, StopReason } from "@open-qa-stack/domain";
-import {
-  declaredValues,
-  readsImages,
-  validateDomainIndex,
-  validateSourceCard,
-  type DomainIndex,
-  type Knowledge,
-  type ResolvedConfig,
-  type SourceCard,
-} from "@open-qa-stack/shared";
-import { browserTools, knowledgeTools, scopedToolName, type BrowserAccess } from "@open-qa-stack/tools";
+import { validateDomainIndex, validateSourceCard, type DomainIndex, type ResolvedConfig, type SourceCard } from "@open-qa-stack/shared";
+import type { BrowserAccess } from "@open-qa-stack/tools";
 import { agentNotes } from "../common/agent-notes.ts";
-import { imageSecrets } from "../common/config-secrets.ts";
 import { runAgentTask, taskEnd, taskLimits } from "../common/agent-task.ts";
 import { Journal, type JournalEntry } from "../common/journal.ts";
 import { runTrace } from "../common/run-trace.ts";
@@ -26,8 +16,7 @@ import { designRequest, resumeRequest } from "./designer-prompt.ts";
 import { DESIGNS_FOLDER, type DesignedTest, type DesignState } from "./design-state.ts";
 import { IndexMap } from "./index-map.ts";
 import { PlanProposal } from "./plan-proposal.ts";
-import { ScreenWatch } from "./screen-watch.ts";
-import { SourceWatch } from "./source-watch.ts";
+import { sessionTools } from "./session-tools.ts";
 import type { TestCheck, TestRunner } from "@open-qa-stack/domain";
 import { declaredAddresses, declaredSecrets, testPackages } from "./spec-rules.ts";
 import type { ToolDefinition } from "@open-qa-stack/domain";
@@ -171,20 +160,17 @@ export class Designer {
     const owners = [
       ...new Set([...index.sources.map((source) => source.id), ...readable.map((source) => source.id), ...applications.map((application) => application.id)]),
     ];
-    const browser = browserTools(applications, {
-      environment: index.environment,
+    const session = sessionTools({
+      config,
+      repositoryRoot,
       env,
-      screenshotsDir: join(repositoryRoot, config.repository.stateDir, "screenshots"),
-      vision: readsImages(config.model),
-      secrets: imageSecrets(config, env),
-      ...this.options.browser,
+      environment: index.environment,
+      applications,
+      sources: readable,
+      start,
+      browser: this.options.browser,
     });
-    const screens = new ScreenWatch(
-      applications.map((application) => application.id),
-      browser.tools,
-    );
-    const access = { repositoryRoot, env, secrets: declaredValues(config, env), taskStart: start };
-    const reads = new SourceWatch(readable, withDataHint(knowledgeTools(readable, access), readable), access.secrets);
+    const { screens, reads } = session;
     const proposals = new TestProposals(
       {
         repositoryRoot,
@@ -255,7 +241,7 @@ export class Designer {
     };
     // A design that fails or throws leaves its phase ended as failed.
     try {
-      await runAgentTask(this.options.runtime, task, taskLimits(config)).finally(() => browser.close());
+      await runAgentTask(this.options.runtime, task, taskLimits(config)).finally(() => session.close());
       const { last, counters } = taskEnd(events);
       if (last.type === "error") journal.record("error", `The session failed: ${last.error.message}`);
       if (last.type === "stopped") journal.record("error", `The task reached its ${last.reason.limit} limit; no test was written for the scenario under way.`);
@@ -394,14 +380,6 @@ function stoppedOnRefusal(tool: ToolDefinition, plan: PlanProposal): ToolDefinit
 function stepOf(failedStep: string | undefined): string {
   const number = failedStep === undefined ? undefined : /^(\d+)\. /.exec(failedStep)?.[1];
   return number === undefined ? "" : ` at step ${number}`;
-}
-
-/** The tools of the sources, the search of each base saying that the data of a plan come from results such as its own. */
-function withDataHint(tools: readonly ToolDefinition[], sources: readonly Knowledge[]): ToolDefinition[] {
-  const searches = new Set(sources.filter((source) => source.type === "postgresql").map((source) => scopedToolName(source.id, "search")));
-  return tools.map((tool) =>
-    searches.has(tool.name) ? { ...tool, description: `${tool.description} A value of the data of a plan comes from a result such as this one.` } : tool,
-  );
 }
 
 /** How many tests a design obtained, in words. */
