@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
+import type { SourceManifest } from "@open-qa-stack/shared";
 import type { ExportedElement, SourceExport } from "@open-qa-stack/tools";
+import { exportManifest } from "../src/source-workflow/export-manifest.ts";
 import { SourceFolder } from "../src/source-workflow/source-folder.ts";
 
 const SECRET = "postgresql://shop:s3cr3t pw@127.0.0.1:5999/shop";
@@ -30,6 +32,10 @@ before(() => {
 after(() => {
   rmSync(workspace, { recursive: true, force: true });
 });
+
+const AT = new Date("2026-11-13T03:00:00.000Z");
+const manifestOf = (exported: SourceExport, truncated = false): SourceManifest =>
+  exportManifest({ id: "shop-db", type: "postgresql" }, exported, truncated, AT);
 
 const filesOf = (root: string) => readdirSync(root, { recursive: true, withFileTypes: true }).flatMap((entry) => (entry.isFile() ? [entry.name] : []));
 
@@ -71,5 +77,55 @@ describe("the folder of a source", () => {
       "CREATE TABLE public.links (\n  target text DEFAULT '[secret]'\n);\n",
     );
     assert.equal(readFileSync(join(folder.root, "export", "summary.txt"), "utf8"), "table public.links\n  [secret]\n");
+  });
+
+  it("writes the manifest that lists the export: each element with its fingerprint and its file from the folder", async () => {
+    const folder = new SourceFolder(join(workspace, "listed"), []);
+    const exported = exportOf(element("public.orders", "CREATE TABLE public.orders (\n);"), {
+      ...element("public.open_orders", "CREATE VIEW public.open_orders AS\n SELECT 1;"),
+      kind: "view",
+      file: "views/public.open_orders.sql",
+    });
+    await folder.writeExport(exported);
+    await folder.writeManifest(manifestOf(exported));
+    const written = readFileSync(join(folder.root, "manifest.json"), "utf8");
+    assert.deepEqual(JSON.parse(written), {
+      formatVersion: 1,
+      source: { id: "shop-db", type: "postgresql" },
+      fingerprint: "sha256:1",
+      producedAt: "2026-11-13T03:00:00.000Z",
+      status: "complete",
+      elements: [
+        { name: "public.orders", kind: "table", fingerprint: "sha256:0", file: "export/tables/public.orders.sql" },
+        { name: "public.open_orders", kind: "view", fingerprint: "sha256:0", file: "export/views/public.open_orders.sql" },
+      ],
+    });
+    assert.ok(written.endsWith("}\n") && written.includes('\n  "status": "complete",\n'));
+    for (const listed of manifestOf(exported).elements) assert.ok(readFileSync(join(folder.root, listed.file), "utf8").startsWith("CREATE "));
+    await folder.writeManifest(manifestOf(exportOf(), true));
+    assert.deepEqual(
+      [
+        JSON.parse(readFileSync(join(folder.root, "manifest.json"), "utf8")).status,
+        JSON.parse(readFileSync(join(folder.root, "manifest.json"), "utf8")).elements,
+      ],
+      ["truncated", []],
+    );
+  });
+
+  it("refuses a manifest that does not match its schema, and writes nothing", async () => {
+    const folder = new SourceFolder(join(workspace, "refused"), []);
+    const twice = manifestOf(
+      exportOf(element("public.orders", "CREATE TABLE public.orders (\n);"), element("public.orders", "CREATE TABLE public.orders (\n);")),
+    );
+    await assert.rejects(folder.writeManifest(twice), {
+      message: "The manifest of shop-db does not match its schema: /elements/1/name repeats the element public.orders.",
+    });
+    assert.equal(existsSync(folder.root), false);
+  });
+
+  it("masks the secrets of the configuration in the manifest", async () => {
+    const folder = new SourceFolder(join(workspace, "masked-manifest"), [SECRET]);
+    await folder.writeManifest(manifestOf(exportOf({ ...element("public.links", "CREATE TABLE public.links (\n);"), kind: SECRET })));
+    assert.equal((JSON.parse(readFileSync(join(folder.root, "manifest.json"), "utf8")) as SourceManifest).elements[0]!.kind, "[secret]");
   });
 });

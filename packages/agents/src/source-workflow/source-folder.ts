@@ -1,5 +1,6 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { validateSourceManifest, type SourceManifest } from "@open-qa-stack/shared";
 import { redactText, secretForms, type SourceExport } from "@open-qa-stack/tools";
 
 /** Folder of the export, in the folder of a source. */
@@ -8,9 +9,12 @@ export const EXPORT_FOLDER = "export";
 /** File of the export that sums up every element. */
 export const SUMMARY_FILE = "summary.txt";
 
+/** File of the manifest, in the folder of a source. */
+export const MANIFEST_FILE = "manifest.json";
+
 /**
  * The folder of one source in the test repository, where the harness writes what it read of the source
- * without the model.
+ * without the model: its export, and the manifest that lists it.
  *
  * @remarks
  * Every text is written with the secrets of the configuration masked, in every form `secretForms` gives.
@@ -44,6 +48,20 @@ export class SourceFolder {
     await rm(folder, { recursive: true, force: true });
     await this.write(join(folder, SUMMARY_FILE), exported.elements.map((element) => element.summary).join("\n\n"));
     for (const element of exported.elements) await this.write(join(folder, element.file), element.definition);
+  }
+
+  /**
+   * Writes the manifest of the source, `manifest.json`, in place of the one written before.
+   *
+   * @param manifest - The manifest.
+   * @throws Error when the manifest does not match its schema, and nothing is written; or when it cannot be
+   * written to the disk.
+   */
+  public async writeManifest(manifest: SourceManifest): Promise<void> {
+    const validation = validateSourceManifest(manifest);
+    if (!validation.ok)
+      throw new Error(`The manifest of ${manifest.source.id} does not match its schema: ${validation.errors.map((error) => error.message).join(" ")}`);
+    await this.write(join(this.root, MANIFEST_FILE), JSON.stringify(manifest, null, 2));
   }
 
   /** Writes a text, its secrets masked, and the folders above it. */

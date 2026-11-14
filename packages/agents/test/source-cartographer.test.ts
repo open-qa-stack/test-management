@@ -8,13 +8,15 @@ import { CopilotAgentRuntime, ModelGateway } from "@open-qa-stack/harness";
 import {
   validateConfig,
   validateSourceCard,
+  validateSourceManifest,
   type Knowledge,
   type MappedKnowledge,
   type ResolvedConfig,
   type SourceCardSubmission,
+  type SourceManifest,
 } from "@open-qa-stack/shared";
 import { answer, closedPort, scriptedServer, testSite, toolCalls, type ScriptedServer } from "@open-qa-stack/testing";
-import { knowledgeInventory, MAX_SCANNED_FILES, type SourceInventory, type SqlClient, type SqlResult } from "@open-qa-stack/tools";
+import { fingerprintOf, knowledgeInventory, MAX_SCANNED_FILES, type SourceInventory, type SqlClient, type SqlResult } from "@open-qa-stack/tools";
 import { sourceCardRequest } from "../src/source-cartographer/source-cartographer-prompt.ts";
 import { CARDS_FOLDER, Cartographer, mapSources, SourceCartographer, type CardSource, type SourceCartographyOutcome } from "../src/index.ts";
 
@@ -446,7 +448,47 @@ describe("the export of a base, written beside its card", () => {
         "",
       ].join("\n"),
     );
-    assert.ok(messages(outcome).includes(`The export of shop-db was written to ${folder}.`));
+    assert.ok(messages(outcome).includes(`The export of shop-db and its manifest were written to ${folder}.`));
+  });
+
+  it("writes the manifest of the export, which passes its schema and gives each element the fingerprint and the file of its definition", async () => {
+    const database = new CatalogDouble();
+    database.view = true;
+    database.routineBody = "BEGIN RETURN NEW; END";
+    const card = { ...CARD, unassigned: [...CARD.unassigned, "public.open_orders"] };
+    const { outcome } = await cartography([{ body: toolCalls(MODEL, [submit(card)]) }, { body: answer(MODEL, "Done.") }], { database });
+    const folder = outcome.cardPath!.replace(/\.json$/, "");
+    const validation = validateSourceManifest(JSON.parse(readFileSync(join(folder, "manifest.json"), "utf8")));
+    assert.ok(validation.ok, JSON.stringify(validation));
+    const { elements, ...head } = validation.value;
+    assert.deepEqual(head, {
+      formatVersion: 1,
+      source: { id: "shop-db", type: "postgresql" },
+      fingerprint: outcome.card!.fingerprint,
+      producedAt: "2026-11-13T03:00:00.000Z",
+      status: "complete",
+    });
+    assert.deepEqual(
+      elements.map((element) => [element.name, element.kind, element.file.replace(/-[0-9a-f]{8}\.sql$/, "-digest.sql")]),
+      [
+        ["public.orders", "table", "export/tables/public.orders.sql"],
+        ["public.customers", "table", "export/tables/public.customers.sql"],
+        ["public.schema_migrations", "table", "export/tables/public.schema_migrations.sql"],
+        ["public.open_orders", "view", "export/views/public.open_orders.sql"],
+        ["public.touch()", "routine", "export/routines/public.touch_-digest.sql"],
+      ],
+    );
+    for (const element of elements)
+      assert.equal(fingerprintOf(readFileSync(join(folder, element.file), "utf8").slice(0, -1)), element.fingerprint, element.name);
+    assert.equal(fingerprintOf(elements.map((element) => element.fingerprint).join("\n")), head.fingerprint);
+  });
+
+  it("writes a truncated manifest when the harness read only part of the source", async () => {
+    const access = { repositoryRoot: workspace, env: { SHOP_DB_URL: "postgresql://x" }, sqlClient: () => new CatalogDouble() };
+    const inventory = { ...(await knowledgeInventory(DB, access)), truncated: true };
+    const { outcome } = await cartography(happy(), { inventory });
+    const manifest = JSON.parse(readFileSync(join(outcome.cardPath!.replace(/\.json$/, ""), "manifest.json"), "utf8")) as SourceManifest;
+    assert.deepEqual([manifest.status, manifest.elements.length, outcome.card!.status], ["truncated", 3, "truncated"]);
   });
 
   it("writes no export when the card is kept, and none for a source that has none", async () => {
@@ -457,6 +499,7 @@ describe("the export of a base, written beside its card", () => {
     rmSync(folder, { recursive: true });
     const kept = await cartography([], { root, database });
     assert.deepEqual([kept.outcome.kept, existsSync(folder)], [true, false]);
+    assert.equal(existsSync(join(folder, "manifest.json")), false);
     assert.doesNotMatch(messages(kept.outcome), /The export of/);
     writeFileSync(join(root, "specs.md"), "# Orders\n");
     const specs: MappedKnowledge = { id: "specs", type: "document", path: "specs.md", attachments: [{ application: "shop" }] };

@@ -3,10 +3,12 @@ import { fileURLToPath } from "node:url";
 import { configSchema } from "../src/config/schema.ts";
 import { domainIndexSchema } from "../src/domain-index/schema.ts";
 import { sourceCardSchema } from "../src/source-card/schema.ts";
+import { sourceManifestSchema } from "../src/source-manifest/schema.ts";
 
 export const SCHEMA_FILE = fileURLToPath(new URL("../schema/oqas.schema.json", import.meta.url));
 export const INDEX_SCHEMA_FILE = fileURLToPath(new URL("../schema/oqas-domain-index.schema.json", import.meta.url));
 export const CARD_SCHEMA_FILE = fileURLToPath(new URL("../schema/oqas-source-card.schema.json", import.meta.url));
+export const MANIFEST_SCHEMA_FILE = fileURLToPath(new URL("../schema/oqas-source-manifest.schema.json", import.meta.url));
 
 export function renderSchema(schema: object = configSchema): string {
   return `${JSON.stringify(schema, null, 2)}\n`;
@@ -16,4 +18,5 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   writeFileSync(SCHEMA_FILE, renderSchema(configSchema));
   writeFileSync(INDEX_SCHEMA_FILE, renderSchema(domainIndexSchema));
   writeFileSync(CARD_SCHEMA_FILE, renderSchema(sourceCardSchema));
+  writeFileSync(MANIFEST_SCHEMA_FILE, renderSchema(sourceManifestSchema));
 }
