@@ -85,7 +85,7 @@ after(() => {
   rmSync(workspace, { recursive: true, force: true });
 });
 
-function configFor(modelUrl: string, limits = { maxIterations: 20, maxDurationMinutes: 10, maxActions: 200 }): ResolvedConfig {
+function configFor(modelUrl: string, limits = { maxIterations: 20, maxMinutes: 10, maxActions: 200 }): ResolvedConfig {
   const text = JSON.stringify({
     formatVersion: 1,
     applications: [
@@ -99,7 +99,7 @@ function configFor(modelUrl: string, limits = { maxIterations: 20, maxDurationMi
     ],
     knowledge: [DB, { id: "specs", type: "document", path: "specs.md", attachments: [{ application: "shop" }] }],
     model: { mode: "provider-key", provider: "openai", baseUrl: modelUrl, model: MODEL },
-    autonomy: { level: "custom", task: limits, batch: { maxTests: 1, maxIdleRounds: 1 }, guardrailMinutes: 1 },
+    autonomy: { level: "bounded", task: limits },
   });
   const result = validateConfig(text, { SHOP_DB_URL: "postgresql://shop:s3cr3t-pw@127.0.0.1:5999/shop" });
   assert.ok(result.ok, JSON.stringify(result));
@@ -138,7 +138,7 @@ interface Setup {
   readonly force?: boolean;
   /** The inventory read before, handed to the cartographer. */
   readonly inventory?: SourceInventory;
-  readonly limits?: { maxIterations: number; maxDurationMinutes: number; maxActions: number };
+  readonly limits?: { maxIterations: number; maxMinutes: number; maxActions: number };
   readonly config?: (config: ResolvedConfig) => ResolvedConfig;
   readonly modelUrl?: string;
   /** Reaches the base with PostgreSQL itself. */
@@ -329,7 +329,7 @@ describe("what writes no card", () => {
 
   it("but a card accepted before a limit stopped the task is written, truncated", async () => {
     const { outcome } = await cartography([{ body: toolCalls(MODEL, [submit(CARD)]) }, { body: answer(MODEL, "Done.") }], {
-      limits: { maxIterations: 1, maxDurationMinutes: 10, maxActions: 200 },
+      limits: { maxIterations: 1, maxMinutes: 10, maxActions: 200 },
     });
     assert.equal(outcome.card!.status, "truncated");
     assert.match(messages(outcome), /The task reached its iterations limit\./);

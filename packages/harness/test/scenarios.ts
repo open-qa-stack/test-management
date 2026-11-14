@@ -30,7 +30,7 @@ export interface Scenario {
 /** What a careless model says, served before the task stops. */
 export const CLAIM = "The test passed.";
 const MINUTE = 60_000;
-const SUPERVISED: TaskLimits = { maxIterations: 5, maxDurationMs: 10 * MINUTE, maxActions: 200 };
+const BOUNDED: TaskLimits = { maxIterations: 5, maxDurationMs: 10 * MINUTE, maxActions: 200 };
 const SMALL: TaskLimits = { maxIterations: 2, maxDurationMs: MINUTE, maxActions: 3 };
 
 function counted(runs: Map<string, number>, tool: Omit<ToolDefinition, "execute">, result: () => unknown): ToolDefinition {
@@ -93,10 +93,10 @@ export const SCENARIOS: Readonly<Record<string, Scenario>> = {
     session: () => TOOL_CALLING_CHECK.session(),
   },
   "limit-actions.json": {
-    purpose: "Under the supervised limits, the model asks for 201 browser actions at once and claims success.",
+    purpose: "Under limits of 5 iterations, 10 minutes and 200 actions, the model asks for 201 browser actions at once and claims success.",
     replies: [calls(repeat(201, "click")), answer(MODEL, "The test passed.")],
     message: "Click everything.",
-    session: session(SUPERVISED, (_clock, runs) => [click(runs)]),
+    session: session(BOUNDED, (_clock, runs) => [click(runs)]),
   },
   "limit-actions-mixed.json": {
     purpose: "With a limit of 3 actions, the model alternates browser actions and index reads.",
@@ -105,10 +105,10 @@ export const SCENARIOS: Readonly<Record<string, Scenario>> = {
     session: session(SMALL, (clock, runs) => [click(runs), readIndex(runs, clock)]),
   },
   "limit-iterations.json": {
-    purpose: "Under the supervised limits, the model asks for a sixth model call.",
+    purpose: "Under limits of 5 iterations, 10 minutes and 200 actions, the model asks for a sixth model call.",
     replies: iterations(6),
     message: "Read the index again and again.",
-    session: session(SUPERVISED, (clock, runs) => [readIndex(runs, clock)]),
+    session: session(BOUNDED, (clock, runs) => [readIndex(runs, clock)]),
   },
   "limit-iterations-small.json": {
     purpose: "With a limit of 2 iterations, the model asks for a third model call.",
@@ -117,10 +117,10 @@ export const SCENARIOS: Readonly<Record<string, Scenario>> = {
     session: session(SMALL, (clock, runs) => [readIndex(runs, clock)]),
   },
   "limit-duration.json": {
-    purpose: "Under the supervised limits, a tool call lets 11 minutes pass before the next model call.",
+    purpose: "Under limits of 5 iterations, 10 minutes and 200 actions, a tool call lets 11 minutes pass before the next model call.",
     replies: iterations(2),
     message: "Read the index slowly.",
-    session: session(SUPERVISED, (clock, runs) => [readIndex(runs, clock, 11 * MINUTE)]),
+    session: session(BOUNDED, (clock, runs) => [readIndex(runs, clock, 11 * MINUTE)]),
   },
   "limit-duration-small.json": {
     purpose: "With a limit of 1 minute, a tool call lets 61 seconds pass before the next model call.",

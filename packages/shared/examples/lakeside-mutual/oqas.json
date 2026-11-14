@@ -105,5 +105,5 @@
     "model": "local-model",
     "apiKeyEnv": "OQAS_MODEL_API_KEY"
   },
-  "autonomy": { "level": "supervised" }
+  "autonomy": { "level": "autonomous" }
 }

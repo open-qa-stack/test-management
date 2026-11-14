@@ -86,7 +86,7 @@ describe("criterion 4 — the example declares the four databases by environment
   });
 });
 
-describe("criterion 5 — the example connects to the local model and is supervised", () => {
+describe("criterion 5 — the example connects to the local model and is autonomous", () => {
   const config = example();
 
   it("uses a provider key on http://localhost:1234/v1, the key by variable name", () => {
@@ -95,8 +95,8 @@ describe("criterion 5 — the example connects to the local model and is supervi
     assert.match(String(at(config, "model")["apiKeyEnv"]), /^[A-Z_][A-Z0-9_]*$/);
   });
 
-  it("uses the supervised level", () => {
-    assert.deepEqual(at(config, "autonomy"), { level: "supervised" });
+  it("uses the autonomous level", () => {
+    assert.deepEqual(at(config, "autonomy"), { level: "autonomous" });
   });
 });
 
@@ -147,7 +147,7 @@ describe("criterion 7 — an unknown key is refused at any depth", () => {
 });
 
 describe("criterion 8 — a missing section is named", () => {
-  for (const section of ["applications", "knowledge", "model", "autonomy"]) {
+  for (const section of ["applications", "knowledge", "model"]) {
     it(`without ${section}`, () => {
       const e = only(errorsOf(validateVariant((c) => delete c[section])));
       assert.deepEqual([e.path, e.rule], [`/${section}`, "required"]);
@@ -294,62 +294,6 @@ describe("criterion 14 — a knowledge source refers only to declared elements",
   });
 });
 
-describe("criterion 15 — autonomy levels produce their limits", () => {
-  const limits = (autonomy: JsonObject) => {
-    const result = validateVariant((c) => (c["autonomy"] = autonomy));
-    assert.ok(result.ok, JSON.stringify(result));
-    return result.config.autonomy.limits;
-  };
-
-  it("supervised: 5 iterations, 10 minutes, 200 actions per task; 40 tests or 3 idle rounds per batch", () => {
-    assert.deepEqual(limits({ level: "supervised" }), {
-      task: { maxIterations: 5, maxDurationMinutes: 10, maxActions: 200 },
-      batch: { maxTests: 40, maxIdleRounds: 3, stopOnPlateau: false },
-      guardrailMinutes: null,
-    });
-  });
-
-  it("autonomous: no volume limit, a two-hour guardrail, a stop once new tests stop coming", () => {
-    assert.deepEqual(limits({ level: "autonomous" }), {
-      task: { maxIterations: null, maxDurationMinutes: null, maxActions: null },
-      batch: { maxTests: null, maxIdleRounds: null, stopOnPlateau: true },
-      guardrailMinutes: 120,
-    });
-  });
-
-  const custom = {
-    level: "custom",
-    task: { maxIterations: 8, maxDurationMinutes: 15, maxActions: 300 },
-    batch: { maxTests: 20, maxIdleRounds: 2 },
-    guardrailMinutes: 60,
-  };
-
-  it("custom: the limits as written", () => {
-    assert.deepEqual(limits(custom), {
-      task: custom.task,
-      batch: { ...custom.batch, stopOnPlateau: false },
-      guardrailMinutes: custom.guardrailMinutes,
-    });
-  });
-
-  it("custom: refuses a missing limit", () => {
-    const e = only(errorsOf(validateVariant((c) => (c["autonomy"] = { ...custom, guardrailMinutes: undefined }))));
-    assert.deepEqual([e.path, e.rule], ["/autonomy/guardrailMinutes", "required"]);
-  });
-
-  for (const value of [0, -1, 2.5, "10"]) {
-    it(`custom: refuses ${JSON.stringify(value)} as a limit`, () => {
-      const e = only(errorsOf(validateVariant((c) => (c["autonomy"] = { ...custom, batch: { maxTests: value, maxIdleRounds: 2 } }))));
-      assert.equal(e.path, "/autonomy/batch/maxTests");
-    });
-  }
-
-  it("refuses limits on a predefined level", () => {
-    const e = only(errorsOf(validateVariant((c) => (c["autonomy"] = { level: "supervised", guardrailMinutes: 30 }))));
-    assert.deepEqual([e.path, e.rule], ["/autonomy/guardrailMinutes", "unknown-key"]);
-  });
-});
-
 describe("criterion 16 — validation needs no network, database or model", () => {
   it("runs with every network entry point refusing to work", () => {
     assert.ok(Object.keys(BLOCKED).length >= 40);
@@ -384,10 +328,10 @@ describe("criterion 19 — the documentation examples are valid", () => {
     assert.equal(result.ok, true, JSON.stringify(result));
   });
 
-  it("has a custom autonomy example that validates", () => {
-    const custom = blocks.find((b) => b.includes('"custom"'));
-    assert.ok(custom);
-    const result = validateVariant((c) => (c["autonomy"] = JSON.parse(custom) as JsonObject));
+  it("has a bounded autonomy example that validates", () => {
+    const bounded = blocks.find((b) => b.includes('"bounded"'));
+    assert.ok(bounded);
+    const result = validateVariant((c) => (c["autonomy"] = JSON.parse(bounded) as JsonObject));
     assert.equal(result.ok, true, JSON.stringify(result));
   });
 
@@ -601,12 +545,7 @@ describe("hardening", () => {
     const errors = errorsOf(
       validateVariant((c) => {
         at(c, "applications/0")["name"] = "";
-        c["autonomy"] = {
-          level: "custom",
-          task: { maxIterations: 0, maxDurationMinutes: 1, maxActions: 1 },
-          batch: { maxTests: 1, maxIdleRounds: 1 },
-          guardrailMinutes: 1,
-        };
+        c["autonomy"] = { level: "bounded", task: { maxIterations: 0, maxMinutes: 1 } };
       }),
     );
     assert.deepEqual(

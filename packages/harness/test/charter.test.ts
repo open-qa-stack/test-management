@@ -255,6 +255,6 @@ function configWith(charter: CharterSettings): string {
     knowledge: [],
     charter,
     model: { mode: "provider-key", provider: "openai", baseUrl: "http://localhost:1234/v1", model: "local-model" },
-    autonomy: { level: "supervised" },
+    autonomy: { level: "bounded", task: { maxIterations: 5, maxMinutes: 10, maxActions: 200 } },
   });
 }

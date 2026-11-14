@@ -16,7 +16,7 @@ describe("the sources of a cartography", () => {
           { id: "specs", type: "document", path: "specs.md", attachments: [{ application: "shop" }] },
         ],
         model: { mode: "provider-key", provider: "openai", baseUrl: "http://127.0.0.1:1/v1", model: "m" },
-        autonomy: { level: "supervised" },
+        autonomy: { level: "bounded", task: { maxIterations: 5, maxMinutes: 10, maxActions: 200 } },
       }),
       {},
     );

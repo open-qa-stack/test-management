@@ -1,38 +1,35 @@
 import type { Autonomy, ResolvedLimits } from "./types.ts";
 
-const SUPERVISED: ResolvedLimits = {
-  task: { maxIterations: 5, maxDurationMinutes: 10, maxActions: 200 },
-  batch: { maxTests: 40, maxIdleRounds: 3, stopOnPlateau: false },
-  guardrailMinutes: null,
-};
+/** How long a run of the autonomous level may last when the file says nothing, in minutes. */
+export const DEFAULT_GUARDRAIL_MINUTES = 120;
 
-/**
- * Per-task limits, the scope of the guardrail and how a plateau is detected are not specified for the
- * autonomous level; the documentation lists the assumptions made here.
- */
-const AUTONOMOUS: ResolvedLimits = {
-  task: { maxIterations: null, maxDurationMinutes: null, maxActions: null },
-  batch: { maxTests: null, maxIdleRounds: null, stopOnPlateau: true },
-  guardrailMinutes: 120,
+/** The level an absent `autonomy` stands for. */
+export const DEFAULT_AUTONOMY: Autonomy = { level: "autonomous" };
+
+/** The levels of earlier format versions, with what to write instead. */
+export const RETIRED_LEVELS: Readonly<Record<string, string>> = {
+  supervised:
+    'The level "supervised" is no longer supported: write "bounded", with its limits in /autonomy/task, such as { "maxIterations": 5, "maxMinutes": 10, "maxActions": 200 }.',
+  custom:
+    'The level "custom" is no longer supported: write "bounded", with its limits in /autonomy/task, where maxDurationMinutes is now maxMinutes; batch is no longer supported.',
 };
 
 /**
  * Gives the limits of an autonomy level.
  *
- * @param autonomy - The level, with its limits when it is `custom`.
+ * @param autonomy - The level, with its limits when it is `bounded`.
  * @returns The limits; `null` means the level sets no bound.
  */
 export function resolveLimits(autonomy: Autonomy): ResolvedLimits {
-  switch (autonomy.level) {
-    case "supervised":
-      return structuredClone(SUPERVISED);
-    case "autonomous":
-      return structuredClone(AUTONOMOUS);
-    case "custom":
-      return {
-        task: { ...autonomy.task },
-        batch: { ...autonomy.batch, stopOnPlateau: false },
-        guardrailMinutes: autonomy.guardrailMinutes,
-      };
+  if (autonomy.level === "autonomous") {
+    return {
+      task: { maxIterations: null, maxMinutes: null, maxActions: null },
+      guardrailMinutes: autonomy.guardrailMinutes ?? DEFAULT_GUARDRAIL_MINUTES,
+    };
   }
+  const { task } = autonomy;
+  return {
+    task: { maxIterations: task.maxIterations ?? null, maxMinutes: task.maxMinutes ?? null, maxActions: task.maxActions ?? null },
+    guardrailMinutes: autonomy.guardrailMinutes ?? null,
+  };
 }

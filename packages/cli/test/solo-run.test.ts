@@ -388,12 +388,7 @@ describe("solo command, criteria 7 and 8 — a limit that stops a task is journa
     const replies = [...chain().slice(0, 5), ...Array.from({ length: 3 }, () => ({ body: answer(MODEL, "I see nothing to test.") }))];
     const config = (url: string) =>
       configText(url, {
-        autonomy: {
-          level: "custom",
-          task: { maxIterations: 2, maxDurationMinutes: 10, maxActions: 200 },
-          batch: { maxTests: 20, maxIdleRounds: 2 },
-          guardrailMinutes: 60,
-        },
+        autonomy: { level: "bounded", task: { maxIterations: 2 } },
       });
     const run = await solo(replies, { environment: "local", config });
     assert.equal(run.code, 5, run.err);

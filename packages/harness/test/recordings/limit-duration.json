@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "origin": {
     "kind": "handwritten",
-    "purpose": "Under the supervised limits, a tool call lets 11 minutes pass before the next model call."
+    "purpose": "Under limits of 5 iterations, 10 minutes and 200 actions, a tool call lets 11 minutes pass before the next model call."
   },
   "exchanges": [
     {

@@ -101,7 +101,7 @@ function references(root: string): { readonly head: string; readonly local: stri
 
 interface Setup {
   readonly uiUrl?: string;
-  readonly limits?: { maxIterations: number; maxDurationMinutes: number; maxActions: number };
+  readonly limits?: { maxIterations: number; maxMinutes: number; maxActions: number };
   readonly documents?: readonly string[];
   readonly contractUrl?: string;
   readonly environment?: string;
@@ -158,14 +158,7 @@ function configFor(modelUrl: string, setup: Setup = {}): ResolvedConfig {
     knowledge,
     model: { mode: "provider-key", provider: "openai", baseUrl: modelUrl, model: MODEL },
     autonomy:
-      setup.autonomous === true
-        ? { level: "autonomous" }
-        : {
-            level: "custom",
-            task: setup.limits ?? { maxIterations: 20, maxDurationMinutes: 10, maxActions: 200 },
-            batch: { maxTests: 1, maxIdleRounds: 1 },
-            guardrailMinutes: 1,
-          },
+      setup.autonomous === true ? { level: "autonomous" } : { level: "bounded", task: setup.limits ?? { maxIterations: 20, maxMinutes: 10, maxActions: 200 } },
   });
   const result = validateConfig(text, { SHOP_DB_URL: DB_URL });
   assert.ok(result.ok, JSON.stringify(result));
@@ -585,7 +578,7 @@ describe("criterion 9 — past 200 actions nothing more runs, and no complete in
       unassigned: [],
     };
     const { outcome } = await cartography([{ body: toolCalls(MODEL, [submit(placed)]) }, { body: answer(MODEL, "Done.") }], {
-      limits: { maxIterations: 1, maxDurationMinutes: 10, maxActions: 200 },
+      limits: { maxIterations: 1, maxMinutes: 10, maxActions: 200 },
     });
     assert.deepEqual([outcome.index!.status, outcome.index!.run.iterations], ["truncated", 1]);
     const late = [
@@ -595,7 +588,7 @@ describe("criterion 9 — past 200 actions nothing more runs, and no complete in
     const screens = { ...SUBMISSION, domains: SUBMISSION.domains.map((d) => ({ ...d, references: d.references.filter((r) => r.source !== "shop") })) };
     const cut = await cartography([...late, { body: toolCalls(MODEL, [submit(screens)]) }, { body: answer(MODEL, "Done.") }], {
       cards: ["shop-api", "shop-db", "order-specs"],
-      limits: { maxIterations: 2, maxDurationMinutes: 10, maxActions: 200 },
+      limits: { maxIterations: 2, maxMinutes: 10, maxActions: 200 },
     });
     assert.match(messages(cut.outcome), /The card was written to .*shop\.json, truncated\./);
     assert.deepEqual([cut.outcome.index!.status, cut.outcome.index!.sources.find((s) => s.id === "shop")!.state], ["truncated", "read"]);
@@ -1021,7 +1014,7 @@ describe("domain filing, criterion 3 — the elements an accepted index leaves i
       { body: toolCalls(MODEL, [submit(second(["/", "/orders"]), "x2")]) },
       { body: answer(MODEL, "Done.") },
     ];
-    const { outcome, root } = await cartography(replies, { limits: { maxIterations: 2, maxDurationMinutes: 10, maxActions: 200 } });
+    const { outcome, root } = await cartography(replies, { limits: { maxIterations: 2, maxMinutes: 10, maxActions: 200 } });
     assert.match(messages(outcome), /The consolidation reached its iterations limit\./);
     assert.deepEqual([outcome.index!.status, outcome.index!.unassigned, outcome.index!.run.iterations], ["complete", SUBMISSION.unassigned, 2]);
     const consolidation = traceOf(outcome).find((line) => line.phase === "consolidation" && line.event.type === "finished");

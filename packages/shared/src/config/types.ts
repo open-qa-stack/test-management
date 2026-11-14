@@ -142,15 +142,22 @@ export interface ProviderKeyModel {
 /** Connection to the model. */
 export type Model = ProviderKeyModel;
 
-/** Limits of a custom autonomy level, each a positive integer. */
-export interface CustomLimits {
-  task: { maxIterations: number; maxDurationMinutes: number; maxActions: number };
-  batch: { maxTests: number; maxIdleRounds: number };
-  guardrailMinutes: number;
+/** The criteria that bound each task of a bounded level, each a positive integer; one at least is given. */
+export interface TaskCriteria {
+  /** Minutes a task may run. */
+  maxMinutes?: number;
+  /** Model calls a task may make. */
+  maxIterations?: number;
+  /** Browser actions a task may take. */
+  maxActions?: number;
 }
 
-/** How far the agents may go on their own. */
-export type Autonomy = { level: "supervised" } | { level: "autonomous" } | ({ level: "custom" } & CustomLimits);
+/**
+ * How far the agents may go on their own: `autonomous`, with no limit per task, or `bounded` by the
+ * criteria of `task`. `guardrailMinutes` is how long, from the start of a run, the tasks of its agents may
+ * go on.
+ */
+export type Autonomy = { level: "autonomous"; guardrailMinutes?: number } | { level: "bounded"; task: TaskCriteria; guardrailMinutes?: number };
 
 /** The configuration file as written by the user, once it matches the schema. */
 export interface OqasConfig {
@@ -162,7 +169,8 @@ export interface OqasConfig {
   charter?: CharterSettings;
   cartography?: CartographySettings;
   model: Model;
-  autonomy: Autonomy;
+  /** `autonomous` when absent. */
+  autonomy?: Autonomy;
 }
 
 /** How the sources are mapped. */
@@ -173,9 +181,8 @@ export interface CartographySettings {
 
 /** A limit set to `null` is not bounded by the level. */
 export interface ResolvedLimits {
-  task: { maxIterations: number | null; maxDurationMinutes: number | null; maxActions: number | null };
-  /** `stopOnPlateau` asks to stop once new tests stop coming; how that is detected is not defined yet. */
-  batch: { maxTests: number | null; maxIdleRounds: number | null; stopOnPlateau: boolean };
+  task: { maxIterations: number | null; maxMinutes: number | null; maxActions: number | null };
+  /** How long, in minutes from the start of a run, the tasks of its agents may go on. */
   guardrailMinutes: number | null;
 }
 

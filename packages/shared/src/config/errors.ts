@@ -30,6 +30,7 @@ const BY_KEYWORD: Readonly<Record<string, readonly [rule: string, message: strin
   type: ["wrong-type", "Unexpected type."],
   enum: ["unknown-variant", "Unsupported value."],
   minItems: ["too-few-items", "Too few items."],
+  minProperties: ["too-few-keys", "Expected at least one key."],
   minLength: ["empty-value", "Expected a non-empty value."],
   minimum: ["below-minimum", "Value below the minimum."],
 };

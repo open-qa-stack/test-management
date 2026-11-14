@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "origin": {
     "kind": "handwritten",
-    "purpose": "Under the supervised limits, the model asks for a sixth model call."
+    "purpose": "Under limits of 5 iterations, 10 minutes and 200 actions, the model asks for a sixth model call."
   },
   "exchanges": [
     {

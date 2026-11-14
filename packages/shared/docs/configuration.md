@@ -17,7 +17,7 @@ Each error has a `kind`, a `path` (a JSON Pointer to the offending location, `""
 | Kind | Rules |
 |---|---|
 | `syntax` | `json` |
-| `structure` | `required`, `unknown-key`, `duplicate-key`, `wrong-type`, `empty-value`, `too-few-items`, `below-minimum`, `unknown-variant`, `format-version`, `slug`, `env-var-name`, `charter-rule-id`, `openapi-source`, `duplicate`, `ui-url-required`, `url-absolute`, `url-scheme`, `url-credentials`, `path-absolute`, `path-outside-root`, `path-invalid` |
+| `structure` | `required`, `unknown-key`, `duplicate-key`, `wrong-type`, `empty-value`, `too-few-items`, `too-few-keys`, `below-minimum`, `unknown-variant`, `retired-level`, `format-version`, `slug`, `env-var-name`, `charter-rule-id`, `openapi-source`, `duplicate`, `ui-url-required`, `url-absolute`, `url-scheme`, `url-credentials`, `path-absolute`, `path-outside-root`, `path-invalid` |
 | `reference` | `unknown-reference`, `api-without-environment` |
 | `environment` | `env-var-missing` |
 
@@ -37,7 +37,7 @@ Types used below: a *slug* matches `^[a-z0-9]+(-[a-z0-9]+)*$`; a *variable* is t
 | `charter` | [test charter changes](#charter) | no | see below |
 | `cartography` | [how the sources are mapped](#cartography) | no | `{ "concurrency": 2 }` |
 | `model` | [model connection](#model) | yes | see below |
-| `autonomy` | [autonomy level](#autonomy) | yes | `{ "level": "supervised" }` |
+| `autonomy` | [autonomy level](#autonomy) | no, `autonomous` by default | `{ "level": "autonomous" }` |
 
 `formatVersion` is the version of the file format, independent of the product version.
 
@@ -161,24 +161,32 @@ Only a provider key is supported in solo mode for now.
 
 ### Autonomy
 
+How far the agents may go on their own. Without `autonomy`, the level is `autonomous`.
+
 | `level` | Limits |
 |---|---|
-| `supervised` | Per task: 5 iterations, 10 minutes, 200 actions. Per batch: 40 tests, or stop after 3 rounds without a new test. |
-| `autonomous` | No volume limit; a two-hour guardrail; stops once new tests stop coming. |
-| `custom` | Every limit given explicitly, each a positive integer. |
+| `autonomous` | No limit per task: each task goes on until the agent decides it is done, or the guardrail is reached. |
+| `bounded` | Each task stops at the first criterion of `task` it reaches. |
 
-`supervised` and `autonomous` accept no other key. A `custom` level looks like this:
+| Key | Type | Required | Example |
+|---|---|---|---|
+| `level` | `autonomous` or `bounded` | yes | `"bounded"` |
+| `task.maxMinutes` | positive integer: the minutes a task may run | no | `30` |
+| `task.maxIterations` | positive integer: the calls a task may make to the model | no | `200` |
+| `task.maxActions` | positive integer: the browser actions a task may take | no | `1000` |
+| `guardrailMinutes` | positive integer: the minutes, from the start of a run, after which every task of its agents stops | no; `120` for `autonomous`, none for `bounded` | `240` |
+
+`task` is only for `bounded`, which requires it with one criterion at least; a criterion left out does not bound the task. A bounded level looks like this:
 
 ```json
 {
-  "level": "custom",
-  "task": { "maxIterations": 8, "maxDurationMinutes": 15, "maxActions": 300 },
-  "batch": { "maxTests": 20, "maxIdleRounds": 2 },
-  "guardrailMinutes": 60
+  "level": "bounded",
+  "task": { "maxMinutes": 30 },
+  "guardrailMinutes": 240
 }
 ```
 
-Assumptions of this format version, to be confirmed: the autonomous level applies no per-task limit; its guardrail bounds a batch; it stops once new tests stop coming, but how that is detected is not defined yet; the supervised level has no overall guardrail beyond its per-task and per-batch limits; a custom level cannot switch a limit off.
+The guardrail bounds the tasks of the agents, not the installation of the dependencies nor the execution of the tests: a task still running when it is reached stops at its next call to the model or to a tool, and is journaled as stopped by its duration limit. A level of an earlier version of the format is refused with the rule `retired-level`, whose message names the level to write instead.
 
 ## Example
 
@@ -224,7 +232,7 @@ Assumptions of this format version, to be confirmed: the autonomous level applie
     "model": "local-model",
     "apiKeyEnv": "OQAS_MODEL_API_KEY"
   },
-  "autonomy": { "level": "supervised" }
+  "autonomy": { "level": "autonomous" }
 }
 ```
 

@@ -7,8 +7,7 @@
     "formatVersion",
     "applications",
     "knowledge",
-    "model",
-    "autonomy"
+    "model"
   ],
   "properties": {
     "$schema": {
@@ -570,19 +569,11 @@
           ],
           "properties": {
             "level": {
-              "const": "supervised"
-            }
-          }
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "level"
-          ],
-          "properties": {
-            "level": {
               "const": "autonomous"
+            },
+            "guardrailMinutes": {
+              "type": "integer",
+              "minimum": 1
             }
           }
         },
@@ -591,50 +582,26 @@
           "additionalProperties": false,
           "required": [
             "level",
-            "task",
-            "batch",
-            "guardrailMinutes"
+            "task"
           ],
           "properties": {
             "level": {
-              "const": "custom"
+              "const": "bounded"
             },
             "task": {
               "type": "object",
               "additionalProperties": false,
-              "required": [
-                "maxIterations",
-                "maxDurationMinutes",
-                "maxActions"
-              ],
+              "minProperties": 1,
               "properties": {
+                "maxMinutes": {
+                  "type": "integer",
+                  "minimum": 1
+                },
                 "maxIterations": {
                   "type": "integer",
                   "minimum": 1
                 },
-                "maxDurationMinutes": {
-                  "type": "integer",
-                  "minimum": 1
-                },
                 "maxActions": {
-                  "type": "integer",
-                  "minimum": 1
-                }
-              }
-            },
-            "batch": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "maxTests",
-                "maxIdleRounds"
-              ],
-              "properties": {
-                "maxTests": {
-                  "type": "integer",
-                  "minimum": 1
-                },
-                "maxIdleRounds": {
                   "type": "integer",
                   "minimum": 1
                 }

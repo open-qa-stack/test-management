@@ -37,7 +37,7 @@ function git(cwd: string, ...args: string[]): string {
   return execFileSync("git", args, { cwd, encoding: "utf8", stdio: "pipe" }).trim();
 }
 
-function configFor(modelUrl: string, limits = { maxIterations: 20, maxDurationMinutes: 10, maxActions: 200 }): ResolvedConfig {
+function configFor(modelUrl: string, limits = { maxIterations: 20, maxMinutes: 10, maxActions: 200 }): ResolvedConfig {
   const text = JSON.stringify({
     formatVersion: 1,
     applications: [
@@ -70,7 +70,7 @@ function configFor(modelUrl: string, limits = { maxIterations: 20, maxDurationMi
       { id: "shop-code", type: "source-code", path: "specs", attachments: [{ application: "shop" }] },
     ],
     model: { mode: "provider-key", provider: "openai", baseUrl: modelUrl, model: MODEL },
-    autonomy: { level: "custom", task: limits, batch: { maxTests: 4, maxIdleRounds: 1 }, guardrailMinutes: 1 },
+    autonomy: { level: "bounded", task: limits },
   });
   const result = validateConfig(text, ENV);
   assert.ok(result.ok, JSON.stringify(result));
@@ -243,7 +243,7 @@ class FakeTestRunner implements TestRunner {
 interface Setup {
   readonly runner?: FakeTestRunner;
   readonly root?: string;
-  readonly limits?: { maxIterations: number; maxDurationMinutes: number; maxActions: number };
+  readonly limits?: { maxIterations: number; maxMinutes: number; maxActions: number };
   readonly check?: TestCheck;
   readonly branch?: string | null;
   readonly env?: Readonly<Record<string, string>>;
@@ -833,7 +833,7 @@ describe("loop, criterion 2 — the result told to the agent holds the assertion
 describe("loop, criterion 3 — the runs count against the limits, and a test not fixed is never kept as passed", () => {
   it("stops at the limit of iterations, and keeps no test that did not pass", async () => {
     const trials = Array.from({ length: 6 }, (_, i) => ({ body: toolCalls(MODEL, [run(`${broken("list-orders")}// ${i}\n`, `r${i}`)]) }));
-    const { outcome } = await design([...trials, { body: answer(MODEL, "Done.") }], { limits: { maxIterations: 3, maxDurationMinutes: 10, maxActions: 200 } });
+    const { outcome } = await design([...trials, { body: answer(MODEL, "Done.") }], { limits: { maxIterations: 3, maxMinutes: 10, maxActions: 200 } });
     assert.match(messages(outcome), /The task reached its iterations limit/);
     assert.deepEqual(outcome.tests, []);
     assert.equal(outcome.ok, false);
@@ -1563,7 +1563,7 @@ describe("the trace of a design", () => {
 
   it("ends as truncated when a limit cut a design that gave its tests, as failed otherwise, and is not opened without a session", async () => {
     const cut = await design([...valid(3).map((calls) => ({ body: toolCalls(MODEL, calls) })), { body: toolCalls(MODEL, [run(spec("late"), "late")]) }], {
-      limits: { maxIterations: 8, maxDurationMinutes: 10, maxActions: 200 },
+      limits: { maxIterations: 8, maxMinutes: 10, maxActions: 200 },
     });
     assert.equal(cut.outcome.ok, true, messages(cut.outcome));
     assert.equal(lines(cut.outcome.tracePath!).at(-1)!.event.outcome, "truncated");

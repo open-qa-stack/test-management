@@ -32,7 +32,7 @@ export function taskLimits(config: ResolvedConfig): TaskLimits {
   const { task } = config.autonomy.limits;
   return {
     maxIterations: task.maxIterations,
-    maxDurationMs: task.maxDurationMinutes === null ? null : task.maxDurationMinutes * 60_000,
+    maxDurationMs: task.maxMinutes === null ? null : task.maxMinutes * 60_000,
     maxActions: task.maxActions,
   };
 }

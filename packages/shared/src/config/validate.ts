@@ -1,6 +1,6 @@
 import { posix } from "node:path";
 import { Ajv2020, type ErrorObject } from "ajv/dist/2020.js";
-import { resolveLimits } from "./autonomy.ts";
+import { DEFAULT_AUTONOMY, resolveLimits, RETIRED_LEVELS } from "./autonomy.ts";
 import { declaredVariables } from "./declared-variables.ts";
 import { duplicateKeyPaths } from "./duplicate-keys.ts";
 import { configError as error, pointer, structureError } from "./errors.ts";
@@ -58,7 +58,9 @@ export function validateConfig(content: string, env: EnvironmentVariables): Vali
   if (!validateShape(data)) {
     // Ajv always sets `errors` when validation fails.
     const raw = validateShape.errors as ErrorObject[];
-    return { ok: false, errors: raw.filter((e) => !NESTED_ALTERNATIVE.test(e.schemaPath)).map(structureError) };
+    const retired = retiredLevel(data);
+    const errors = raw.filter((e) => !NESTED_ALTERNATIVE.test(e.schemaPath)).map(structureError);
+    return { ok: false, errors: errors.map((e) => (retired !== undefined && e.path === retired.path ? retired : e)) };
   }
 
   const errors = [...documentErrors(data), ...environmentErrors(data, env)];
@@ -76,9 +78,16 @@ export function validateConfig(content: string, env: EnvironmentVariables): Vali
       charter: { disable: data.charter?.disable ?? [], add: data.charter?.add ?? [] },
       cartography: { concurrency: data.cartography?.concurrency ?? 1 },
       model: data.model,
-      autonomy: { level: data.autonomy.level, limits: resolveLimits(data.autonomy) },
+      autonomy: { level: (data.autonomy ?? DEFAULT_AUTONOMY).level, limits: resolveLimits(data.autonomy ?? DEFAULT_AUTONOMY) },
     },
   };
+}
+
+/** The error of a level of an earlier format version, which names the one to write instead; none for any other. */
+function retiredLevel(data: unknown): ConfigError | undefined {
+  const level = (data as { autonomy?: { level?: unknown } } | null)?.autonomy?.level;
+  const message = typeof level === "string" && Object.hasOwn(RETIRED_LEVELS, level) ? RETIRED_LEVELS[level] : undefined;
+  return message === undefined ? undefined : error("structure", "/autonomy/level", "retired-level", message);
 }
 
 function documentErrors(config: OqasConfig): ConfigError[] {
