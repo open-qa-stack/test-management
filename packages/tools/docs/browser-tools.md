@@ -6,7 +6,7 @@
 |---|---|---|
 | `<id>_goto` | Opens an address of the application, absolute or relative to its user interface. | yes |
 | `<id>_snapshot` | Returns the accessibility tree of the page, each element one can act on followed by its recommended locator; with `within`, an element designated as for an action, only the tree of that element, such as a table, a row or a dialog; found by role, it is named by a part of its name, as the part of the page that holds an element is. | no |
-| `<id>_click` | Clicks an element. | yes |
+| `<id>_click` | Clicks an element; one whose name says it removes data only with `confirm`. | yes |
 | `<id>_fill` | Fills a field with a text, or with the credential of a declared test account. | yes |
 | `<id>_select_option` | Chooses an option of a list, by its label or value. | yes |
 | `<id>_check` | Checks or unchecks a checkbox or a radio button. | yes |
@@ -18,6 +18,8 @@
 The toolset also gives `matches(application, targets)`, which no model calls: it counts, on the page of the application as it is now and without waiting, the elements each target designates, and returns for each its locator as a test writes it (`code`), their number (`count`), and whether it is one element the page shows (`visible`). A harness checks with it a locator it means to rely on. It returns nothing for an application without a user interface in the environment.
 
 `<id>` is the identifier of the application, with hyphens turned into underscores: `customer-self-service` gives `customer_self_service_click`. Browser actions count against the action limit of the task; the other tools do not.
+
+What an agent removes while it explores is gone for every test and every user of the environment. `click` therefore refuses an element whose name says it removes data — a word such as Delete, Remove, Erase, Supprimer or Löschen in its accessible name, its label or its text — until the agent calls again with `"confirm": true`: `Nothing was clicked: "Delete order" may remove data of the application, …`. The refusal says the other ways: read the source, or plan a test that stops before the removal, such as one that cancels its confirmation. It is a guess from words: an element that removes data under another name is not seen, and one that only opens a confirmation is seen all the same.
 
 `goto`, `click`, `fill`, `select_option` and `check` return the address and the title of the page afterwards, and in `code` the line a Playwright test writes to do the same:
 

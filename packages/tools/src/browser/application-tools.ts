@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { destructiveName } from "./destructive-target.ts";
 import type { Locator } from "playwright-core";
 import { ImageToolResult, type ToolDefinition } from "@open-qa-stack/domain";
 import type { Account, Application, Environment } from "@open-qa-stack/shared";
@@ -105,10 +106,26 @@ export function applicationTools(application: Application, environment: Environm
     },
     {
       name: name("click"),
-      description: `Clicks an element of the page ${where}. Returns where the page is, and the line of code that does the same in a test.`,
-      parameters: { type: "object", properties: { target: TARGET_SCHEMA }, required: ["target"], additionalProperties: false },
+      description: `Clicks an element of the page ${where}. An element whose name says it removes data, such as Delete, is clicked only with confirm. Returns where the page is, and the line of code that does the same in a test.`,
+      parameters: {
+        type: "object",
+        properties: {
+          target: TARGET_SCHEMA,
+          confirm: { type: "boolean", description: "true to click an element that may remove data, once a result of this tool asked for it." },
+        },
+        required: ["target"],
+        additionalProperties: false,
+      },
       browserAction: true,
-      execute: on((page, { target }: { target: Target }) => acted(page, target, "click()", (element) => element.click())),
+      execute: on(async (page, { target, confirm }: { target: Target; confirm?: boolean }): Promise<Done | { error: string }> => {
+        const removing = destructiveName(target);
+        // What an exploration removes is gone for every test and every user of the environment: the agent says it means it.
+        if (removing !== undefined && confirm !== true)
+          return {
+            error: `Nothing was clicked: "${removing}" may remove data of the application, which every test and every user of the environment share. If the brief asks for this removal, call again with "confirm": true. If you only need to know what it does, read the source, or plan a test that stops before the removal, such as one that cancels its confirmation.`,
+          };
+        return acted(page, target, "click()", (element) => element.click());
+      }),
     },
     {
       name: name("fill"),

@@ -65,6 +65,8 @@ before(async () => {
     {
       "/": HOME.replace('href="#"', `href="${elsewhere.origin}/x"`),
       "/second": "<h2>Second page</h2>",
+      // A page with a button that removes an order.
+      "/removes": `<p id="order">Order 42</p><button onclick="order.remove()">Delete order</button><button onclick="order.textContent = 'Order 42, kept'">Keep</button>`,
       // Elements repeated from one row or dialog to the next, from one list item to the next, which no locator names, and on rows of the same name.
       "/rows": `<table><tr><td></td><td>Lena Veldane</td><td><button onclick="out.textContent = 'Managing Lena'">Manage</button></td></tr><tr><td>Tom Arvel</td><td><button>Manage</button></td></tr></table>
 <ul><li><span>Lena Veldane</span><button>Open</button></li><li><span>Tom Arvel</span><button>Open</button></li></ul>
@@ -433,6 +435,28 @@ describe("criterion 2 — a snapshot lists the elements one can act on, with rol
         tool("shop_snapshot").execute({ within: { role: "row", name: "Ida Norr" } }),
         /^page\.getByRole\("row", \{ name: "Ida Norr" \}\) matches no element\./,
       );
+    });
+  });
+
+  it("clicks an element whose name says it removes data only once the agent confirms it", async () => {
+    await withTools(async (tool) => {
+      await tool("shop_goto").execute({ url: "/removes" });
+      const remove = { role: "button", name: "Delete order" };
+      assert.deepEqual(await tool("shop_click").execute({ target: remove }), {
+        error:
+          'Nothing was clicked: "Delete order" may remove data of the application, which every test and every user of the environment share. If the brief asks for this removal, call again with "confirm": true. If you only need to know what it does, read the source, or plan a test that stops before the removal, such as one that cancels its confirmation.',
+      });
+      assert.deepEqual(
+        await tool("shop_click").execute({ target: { text: "Delete order" }, confirm: false }),
+        await tool("shop_click").execute({ target: remove }),
+      );
+      assert.match(await page(tool), /paragraph \[ref=\w+\]: Order 42$/m);
+      // Any other element is clicked as before, and the one that removes once confirmed.
+      await tool("shop_click").execute({ target: { role: "button", name: "Keep" } });
+      assert.match(await page(tool), /Order 42, kept/);
+      const clicked = (await tool("shop_click").execute({ target: remove, confirm: true })) as { code: string };
+      assert.equal(clicked.code, 'await page.getByRole("button", { name: "Delete order", exact: true }).click();');
+      assert.doesNotMatch(await page(tool), /Order 42/);
     });
   });
 
