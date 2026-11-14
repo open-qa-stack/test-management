@@ -8,6 +8,7 @@ import { ExitCode, exitCodeOf, type ExitCodeValue } from "./exit-code.ts";
 import type { OpenRuntime } from "./live-runtime.ts";
 import { missingPrerequisites } from "./prerequisites.ts";
 import { CountedRuntime } from "./counted-runtime.ts";
+import { GuardedRuntime } from "./guarded-runtime.ts";
 import { RunJournal, type Step } from "./run-journal.ts";
 
 /** The rule of the charter that ends each step of a test with a screenshot, which the skeleton of a test then holds. */
@@ -78,7 +79,8 @@ export interface SoloRunState {
  * runtime of the agents and writes the state whatever the end of the others. A missing or invalid configuration stops the run
  * before anything else, with nothing written to the test repository. Nothing is pushed, and the git
  * configuration of the repository is left as it is. The journal goes to the error output and to a JSON
- * Lines file of the run; the summary goes to the standard output; every declared secret is masked.
+ * Lines file of the run; the summary goes to the standard output; every declared secret is masked. The
+ * guardrail of the autonomy, counted from the start of the run, stops every task of the agents.
  */
 export class SoloRun {
   private readonly options: SoloRunOptions;
@@ -163,7 +165,10 @@ export class SoloRun {
       const mapped = await timed("cartography", async () => {
         // The runtime of the agents is opened by the first step that calls the model.
         open = await this.options.openRuntime(config);
-        counted = new CountedRuntime(open.runtime);
+        const { guardrailMinutes } = config.autonomy.limits;
+        counted = new CountedRuntime(
+          guardrailMinutes === null ? open.runtime : new GuardedRuntime(open.runtime, started.getTime() + guardrailMinutes * 60_000, () => now().getTime()),
+        );
         const outcome = await new Cartographer({
           config,
           environment,

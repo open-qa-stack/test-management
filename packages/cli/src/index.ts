@@ -6,3 +6,4 @@ export { RunJournal, type JournalOutput, type RunEntry, type Step } from "./solo
 export { soloCommand, type CommandIo } from "./solo/solo-command.ts";
 export { SoloRun, type SoloRunOptions, type SoloRunState } from "./solo/solo-run.ts";
 export { CountedRuntime } from "./solo/counted-runtime.ts";
+export { GuardedRuntime } from "./solo/guarded-runtime.ts";

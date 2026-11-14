@@ -27,7 +27,7 @@ Each step starts only when the one before succeeded; once the prerequisites pass
 5. **Execution.** The tests designed run together, on the machine, with the real runner, and the harness pronounces a verdict per test from the JSON of the reporter (see `docs/pinned-run.md` of `@open-qa-stack/harness`).
 6. **Summary.** The runtime of the agents is closed, the state of the run is written, and the verdicts are printed.
 
-The limits of the autonomy level of the configuration apply to every task. A task stopped by a limit is journaled with the limit reached, and none of its tests is `passed`.
+The limits of the autonomy level of the configuration apply to every task. Its guardrail, counted from the start of the run, stops every task of the agents still running when it is reached, at its next call to the model or to a tool, by its duration limit; it bounds neither the installation of the dependencies nor the execution of the tests. A task stopped by a limit is journaled with the limit reached, and none of its tests is `passed`.
 
 ## Exit codes
 

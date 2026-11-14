@@ -6,7 +6,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
-import type { CommandOutcome, CommandRunner, StepCommand } from "@open-qa-stack/domain";
+import type { AgentRuntime, CommandOutcome, CommandRunner, StepCommand, TaskLimits } from "@open-qa-stack/domain";
 import { answer, closedPort, scriptedServer, toolCalls, type ScriptedServer } from "@open-qa-stack/testing";
 import { liveRuntime, soloCommand, SoloRun, type RunEntry, type SoloRunState } from "../src/index.ts";
 
@@ -770,5 +770,65 @@ describe("the edges of a run", () => {
     assert.equal(stateOf(run.root).index, undefined);
     // The requests of a cartography that wrote no index are counted all the same.
     assert.ok(stateOf(run.root).steps.find((step) => step.step === "cartography")!.modelRequests > 0);
+  });
+});
+
+describe("the guardrail of a run", () => {
+  /** A run whose clock reads its start, then `after` every time once more; with the limits of each session its agents opened. */
+  async function guarded(autonomy: unknown, after: string) {
+    const server = await scriptedServer(chain());
+    const root = repository(configText(server.baseUrl, { autonomy }));
+    const limits: (TaskLimits | undefined)[] = [];
+    let err = "";
+    let read = false;
+    try {
+      const code = await new SoloRun({
+        repositoryRoot: root,
+        environment: "local",
+        env: { SHOP_DB_URL: WITNESS },
+        write: (line) => (err += line),
+        print: () => undefined,
+        openRuntime: async (config) => {
+          const open = await liveRuntime(config, {});
+          const runtime: AgentRuntime = {
+            openSession: (options) => {
+              limits.push(options.limits);
+              return open.runtime.openSession(options);
+            },
+            close: () => open.runtime.close(),
+          };
+          return { runtime, close: () => open.close() };
+        },
+        runner: new FakeRunner(root),
+        now: () => {
+          const at = new Date(read ? after : "2026-11-13T12:00:00.000Z");
+          read = true;
+          return at;
+        },
+      }).run();
+      return { code, err, limits };
+    } finally {
+      await server.close();
+    }
+  }
+
+  it("gives every session the time left until the guardrail, counted from the start of the run", async () => {
+    const run = await guarded({ level: "autonomous", guardrailMinutes: 1 }, "2026-11-13T12:00:20.000Z");
+    assert.equal(run.code, 0, run.err);
+    assert.ok(run.limits.length > 0);
+    assert.ok(run.limits.every((limits) => limits?.maxDurationMs === 40_000));
+  });
+
+  it("stops a task opened once the guardrail is reached, by its duration limit", async () => {
+    const run = await guarded({ level: "autonomous", guardrailMinutes: 1 }, "2026-11-13T12:01:00.000Z");
+    assert.equal(run.code, 5, run.err);
+    assert.match(run.err, /The task reached its duration limit\./);
+    assert.equal(run.limits[0]?.maxDurationMs, 0);
+  });
+
+  it("bounds no session by the clock when the level sets no guardrail", async () => {
+    const run = await guarded({ level: "bounded", task: { maxIterations: 100 } }, "2026-11-13T14:00:00.000Z");
+    assert.equal(run.code, 0, run.err);
+    assert.ok(run.limits.every((limits) => limits?.maxDurationMs === null));
   });
 });

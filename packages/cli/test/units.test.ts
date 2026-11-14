@@ -7,8 +7,8 @@ import { after, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { validateConfig } from "@open-qa-stack/shared";
 import { answer, scriptedServer } from "@open-qa-stack/testing";
-import { AgentRuntimeError, type AgentEvent, type AgentRuntime } from "@open-qa-stack/domain";
-import { CountedRuntime, exitCodeOf, liveRuntime, missingPrerequisites, parseArguments, RunJournal, USAGE } from "../src/index.ts";
+import { AgentRuntimeError, type AgentEvent, type AgentRuntime, type SessionOptions } from "@open-qa-stack/domain";
+import { CountedRuntime, exitCodeOf, GuardedRuntime, liveRuntime, missingPrerequisites, parseArguments, RunJournal, USAGE } from "../src/index.ts";
 
 const workspace = mkdtempSync(join(tmpdir(), "oqas-cli-units-"));
 after(() => rmSync(workspace, { recursive: true, force: true }));
@@ -216,5 +216,38 @@ describe("the count of the requests to the model", () => {
     await first.close();
     await runtime.close();
     assert.equal(closed, 14);
+  });
+});
+
+describe("the guardrail of a run", () => {
+  it("gives each session the shorter of its duration limit and the time left, and nothing below zero", async () => {
+    const opened: SessionOptions[] = [];
+    let closed = false;
+    const inner: AgentRuntime = {
+      openSession: async (options) => {
+        opened.push(options);
+        return { send: async function* () {}, close: async () => undefined };
+      },
+      close: async () => void (closed = true),
+    };
+    let clock = 1_000;
+    const runtime = new GuardedRuntime(inner, 61_000, () => clock);
+    await runtime.openSession({ instructions: "", tools: [] });
+    await runtime.openSession({ instructions: "", tools: [], limits: { maxIterations: 4, maxDurationMs: 30_000, maxActions: null } });
+    clock = 50_000;
+    await runtime.openSession({ instructions: "", tools: [], limits: { maxIterations: null, maxDurationMs: 30_000, maxActions: 9 } });
+    clock = 70_000;
+    await runtime.openSession({ instructions: "", tools: [], limits: { maxIterations: null, maxDurationMs: null, maxActions: null } });
+    assert.deepEqual(
+      opened.map((options) => options.limits),
+      [
+        { maxIterations: null, maxDurationMs: 60_000, maxActions: null },
+        { maxIterations: 4, maxDurationMs: 30_000, maxActions: null },
+        { maxIterations: null, maxDurationMs: 11_000, maxActions: 9 },
+        { maxIterations: null, maxDurationMs: 0, maxActions: null },
+      ],
+    );
+    await runtime.close();
+    assert.equal(closed, true);
   });
 });
