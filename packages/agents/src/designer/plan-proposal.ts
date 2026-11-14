@@ -201,7 +201,7 @@ export class PlanProposal {
                   items: {
                     type: "object",
                     properties: {
-                      action: { type: "string", minLength: 1, description: "What the user does, in one sentence, such as: Search the orders of Veldane." },
+                      action: { type: "string", minLength: 1, description: "What the user does, in one sentence, such as: Filter the orders by their status." },
                       expects: {
                         type: "array",
                         maxItems: 4,

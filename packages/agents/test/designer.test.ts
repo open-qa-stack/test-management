@@ -14,7 +14,7 @@ import { Designer, type DesignOutcome, type DesignState } from "../src/index.ts"
 
 const MODEL = "test-model";
 const BRANCH = "oqas/design-test";
-const USERNAME = "ada.lovelace@example.com";
+const USERNAME = "ada.brennick@example.com";
 const PASSWORD = "Tr0ub4dor&3";
 const ENV = { SHOP_USERNAME: USERNAME, SHOP_PASSWORD: PASSWORD, SHOP_DB_URL: "postgresql://shop:s3cret-db-pass@127.0.0.1:5999/shop" };
 

@@ -53,7 +53,7 @@ const LIST = [
   '- button "Search" [ref=e3] [cursor=pointer] → page.getByRole("button", { name: "Search", exact: true })',
   "  - /url: /orders",
 ].join("\n");
-const FOUND = `${LIST.replace("[ref=e3]", "[ref=e9]")}\n  - paragraph [ref=e10]: Order 42 of Ada\n- row [ref=e11]:\n  - cell "Ada Lovelace" [ref=e12]`;
+const FOUND = `${LIST.replace("[ref=e3]", "[ref=e9]")}\n  - paragraph [ref=e10]: Order 42 of Ada\n- row [ref=e11]:\n  - cell "Ada Brennick" [ref=e12]`;
 /** The list as the agent is given it: without the references, the marks of what can be clicked, nor the addresses of the links. */
 const SHOWN = [
   '- heading "Orders" [level=1] → page.getByRole("heading", { name: "Orders", exact: true })',
@@ -76,7 +76,7 @@ describe("the screens the designer watches", () => {
     assert.deepEqual(await run(watch, "click"), {
       url: "http://127.0.0.1/orders",
       title: "Orders",
-      appeared: '- paragraph: Order 42 of Ada\n- row:\n- cell "Ada Lovelace"',
+      appeared: '- paragraph: Order 42 of Ada\n- row:\n- cell "Ada Brennick"',
       gone: "Nothing went from the page.",
     });
     assert.equal(((await run(watch, "snapshot")) as { page: string }).page.split("\n")[0], SHOWN.split("\n")[0]);
@@ -94,17 +94,17 @@ describe("the screens the designer watches", () => {
     const still = new ScreenWatch(["shop"], page([LIST]).tools);
     assert.equal((await run(still, "check"))["appeared"], "Nothing new appeared on the page.");
     const filtered = new ScreenWatch(["shop"], page([FOUND, LIST]).tools);
-    assert.equal((await run(filtered, "click"))["gone"], '- paragraph: Order 42 of Ada\n- row:\n- cell "Ada Lovelace"');
+    assert.equal((await run(filtered, "click"))["gone"], '- paragraph: Order 42 of Ada\n- row:\n- cell "Ada Brennick"');
   });
 
   it("notes a value a field holds that the page shows beside the fields no longer, though a line that went showed it", async () => {
     const typed = (value: string) => `- textbox "Search" [ref=e4]: ${value} → page.getByRole("textbox", { name: "Search", exact: true })`;
-    const rows = '- row "Ada Lovelace 3 orders" [ref=e5]:\n  - cell "Ada Lovelace" [ref=e6]';
+    const rows = '- row "Ada Brennick 3 orders" [ref=e5]:\n  - cell "Ada Brennick" [ref=e6]';
     const none = '- columnheader "0 of 0" [ref=e7]';
-    const searched = new ScreenWatch(["shop"], page([`${typed("Ada Lovelace")}\n${rows}`, `${typed("Ada Lovelace")}\n${none}`]).tools);
+    const searched = new ScreenWatch(["shop"], page([`${typed("Ada Brennick")}\n${rows}`, `${typed("Ada Brennick")}\n${none}`]).tools);
     assert.equal(
       (await run(searched, "click"))["note"],
-      'Nothing beside the fields shows "Ada Lovelace" any more: if you searched it, it matched nothing. Try a part of it, such as a first or a last name.',
+      'Nothing beside the fields shows "Ada Brennick" any more: if you searched it, it matched nothing. Try a part of it, such as a first or a last name.',
     );
     // A row that still shows the value, a value no line that went showed, and a value too short to be checked are no note.
     const found = new ScreenWatch(["shop"], page([`${typed("Ada")}\n${rows}\n- paragraph: Ada`, `${typed("Ada")}\n- paragraph: Ada`]).tools);
@@ -161,7 +161,7 @@ describe("the screens the designer watches", () => {
       .find((tool) => tool.name === "shop_snapshot")!
       .execute({ within: { role: "heading" } });
     const result = await run(watch, "click");
-    assert.deepEqual([result["appeared"], result["gone"]], ['- paragraph: Order 42 of Ada\n- row:\n- cell "Ada Lovelace"', "Nothing went from the page."]);
+    assert.deepEqual([result["appeared"], result["gone"]], ['- paragraph: Order 42 of Ada\n- row:\n- cell "Ada Brennick"', "Nothing went from the page."]);
     assert.deepEqual(calls, ["goto", "snapshot", "snapshot", "click", "snapshot"]);
   });
 
@@ -187,14 +187,14 @@ describe("the screens the designer watches", () => {
     const watch2 = new ScreenWatch(["shop"], page([LIST, FOUND]).tools);
     await run(watch2, "click");
     // The name of a row is that of its cells, on other lines; a role no screen showed is refused whatever its name.
-    const test = `page.getByRole("heading", { name: 'orders' }); page.getByRole("button"); page.getByRole("row", { name: "Ada Lovelace" }); page.getByRole("link", { name: "Orders" }); page.getByText("Deliveries"); page.getByText("Deliveries"); page.getByLabel(\`Search\`); page.getByRole("dialog", { name: /Order/ });`;
+    const test = `page.getByRole("heading", { name: 'orders' }); page.getByRole("button"); page.getByRole("row", { name: "Ada Brennick" }); page.getByRole("link", { name: "Orders" }); page.getByText("Deliveries"); page.getByText("Deliveries"); page.getByLabel(\`Search\`); page.getByRole("dialog", { name: /Order/ });`;
     assert.deepEqual(
       watch2.unseen("shop", await locators(test)).map((locator) => locator.code),
       ['getByRole("link", { name: "Orders" })', 'getByText("Deliveries")', 'getByRole("dialog", { name: /Order/ })'],
     );
     assert.deepEqual(
-      watch.unseen("shop", await locators('page.getByRole("row", { name: "Ada Lovelace" })')).map((locator) => locator.code),
-      ['getByRole("row", { name: "Ada Lovelace" })'],
+      watch.unseen("shop", await locators('page.getByRole("row", { name: "Ada Brennick" })')).map((locator) => locator.code),
+      ['getByRole("row", { name: "Ada Brennick" })'],
     );
   });
 
@@ -224,7 +224,7 @@ describe("the screens the designer watches", () => {
     );
     await run(watch, "click");
     assert.deepEqual(
-      [watch.changedByAction("shop", ["Ada Lovelace"], []), watch.changedByAction("shop", ["Nowhere", "Order 42 of Ada"], ["Search"])],
+      [watch.changedByAction("shop", ["Ada Brennick"], []), watch.changedByAction("shop", ["Nowhere", "Order 42 of Ada"], ["Search"])],
       [true, true],
     );
     // A text too short to be checked is taken as made by an action.
@@ -258,7 +258,7 @@ describe("the screens the designer watches", () => {
     await run(watch, "goto");
     await run(watch, "fill");
     assert.deepEqual(
-      ["Ada Lovelace", "Mira", "Quill", "Nowhere"].map((text) => [watch.showsBeforeTyped("shop", text), watch.typed("shop", text)]),
+      ["Ada Brennick", "Mira", "Quill", "Nowhere"].map((text) => [watch.showsBeforeTyped("shop", text), watch.typed("shop", text)]),
       [
         [true, false],
         [false, true],
@@ -271,11 +271,11 @@ describe("the screens the designer watches", () => {
     assert.deepEqual([watch.showsBeforeTyped("ledger", "Mira"), watch.typed("ledger", "Mira")], [false, false]);
     // A value typed is dated by the snapshot that first showed it in its field, and is no text beside the fields.
     assert.deepEqual(
-      [typeof watch.typedAt("shop", "mira"), watch.typedAt("shop", "Ada Lovelace"), watch.typedAt("ledger", "Mira")],
+      [typeof watch.typedAt("shop", "mira"), watch.typedAt("shop", "Ada Brennick"), watch.typedAt("ledger", "Mira")],
       ["number", undefined, undefined],
     );
     assert.deepEqual(
-      [watch.showsBesideFields("shop", "Mira"), watch.showsBesideFields("shop", "Ada Lovelace"), watch.showsBesideFields("ledger", "Ada Lovelace")],
+      [watch.showsBesideFields("shop", "Mira"), watch.showsBesideFields("shop", "Ada Brennick"), watch.showsBesideFields("ledger", "Ada Brennick")],
       [false, true, false],
     );
   });
