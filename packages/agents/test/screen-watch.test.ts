@@ -97,6 +97,43 @@ describe("the screens the designer watches", () => {
     assert.equal((await run(filtered, "click"))["gone"], '- paragraph: Order 42 of Ada\n- row:\n- cell "Ada Lovelace"');
   });
 
+  it("notes a value a field holds that the page shows beside the fields no longer, though a line that went showed it", async () => {
+    const typed = (value: string) => `- textbox "Search" [ref=e4]: ${value} → page.getByRole("textbox", { name: "Search", exact: true })`;
+    const rows = '- row "Ada Lovelace 3 orders" [ref=e5]:\n  - cell "Ada Lovelace" [ref=e6]';
+    const none = '- columnheader "0 of 0" [ref=e7]';
+    const searched = new ScreenWatch(["shop"], page([`${typed("Ada Lovelace")}\n${rows}`, `${typed("Ada Lovelace")}\n${none}`]).tools);
+    assert.equal(
+      (await run(searched, "click"))["note"],
+      'Nothing beside the fields shows "Ada Lovelace" any more: if you searched it, it matched nothing. Try a part of it, such as a first or a last name.',
+    );
+    // A row that still shows the value, a value no line that went showed, and a value too short to be checked are no note.
+    const found = new ScreenWatch(["shop"], page([`${typed("Ada")}\n${rows}\n- paragraph: Ada`, `${typed("Ada")}\n- paragraph: Ada`]).tools);
+    const fresh = new ScreenWatch(["shop"], page([`${typed("Zed Quill")}\n${rows}`, `${typed("Zed Quill")}\n${none}`]).tools);
+    const short = new ScreenWatch(["shop"], page([`${typed("Ad")}\n${rows}`, `${typed("Ad")}\n${none}`]).tools);
+    for (const watch of [found, fresh, short]) assert.equal("note" in (await run(watch, "click")), false);
+  });
+
+  it("notes no value a search found before an action removed the row that showed it", async () => {
+    const typed = (value: string) => `- textbox "Search" [ref=e4]: ${value} → page.getByRole("textbox", { name: "Search", exact: true })`;
+    const link = (state: string) => `- link "Customers"${state} [ref=e2] → page.getByRole("link", { name: "Customers", exact: true })`;
+    const row = '- row "Zed Quill 2 orders" [ref=e5]:\n  - cell "Zed Quill" [ref=e6]';
+    const none = '- columnheader "0 of 0" [ref=e7]';
+    // The search showed the row, then the deletion removed it.
+    const deleted = new ScreenWatch(
+      ["shop"],
+      page([`${link("")}\n${typed("Zed")}`, `${link("")}\n${typed("Zed Quill")}\n${row}`, `${link("")}\n${typed("Zed Quill")}\n${none}`]).tools,
+    );
+    await run(deleted, "fill");
+    assert.equal("note" in (await run(deleted, "click")), false);
+    // A field filled while the list still showed the row, before the search emptied it, only moved the focus.
+    const emptied = new ScreenWatch(
+      ["shop"],
+      page([`${link(" [active]")}\n${typed("")}\n${row}`, `${link("")}\n${typed("Zed Quill")}\n${row}`, `${link("")}\n${typed("Zed Quill")}\n${none}`]).tools,
+    );
+    await run(emptied, "fill");
+    assert.match(String((await run(emptied, "click"))["note"]), /^Nothing beside the fields shows "Zed Quill" any more/);
+  });
+
   it("cuts a long list of what went", async () => {
     const rows = Array.from({ length: 25 }, (_, row) => `- row "Order ${row}"`).join("\n");
     const result = await run(new ScreenWatch(["shop"], page([`${LIST}\n${rows}`, LIST]).tools), "fill");

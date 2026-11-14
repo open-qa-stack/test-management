@@ -18,6 +18,8 @@ const MAX_NEAREST = 5;
 const FIELD = /^- '?(?:textbox|searchbox|combobox|spinbutton)(?: "(?:[^"\\]|\\.)*")?(?: \[[^\]]+\])*(?:: |:?(?= → )|:?'?$)/;
 /** The start of a line of an element with a name: its role, then the name quoted, the whole line quoted when YAML needs it. */
 const NAMED = /^- ('?)([a-z]+) "((?:[^"\\]|\\.)*)"/;
+/** The state of the element that has the focus, which an action moves without changing what the page shows. */
+const FOCUS = / \[active\]/g;
 /** What the browser tools say they return, which the watch adds to. */
 const PAGE_STATE = "Returns where the page is, and the line of code that does the same in a test.";
 
@@ -39,6 +41,8 @@ interface Seen {
   readonly removed: Set<string>;
   /** The moment each value a field held was first seen at, the first seen first. */
   readonly values: Map<string, number>;
+  /** The values a field held that a line beside the fields showed after an action that changed them: what was searched found them. */
+  readonly found: Set<string>;
   /** The lines of the last snapshot of the whole page. */
   last: Set<string> | undefined;
   /** How many times the agent called one of the browser tools of the application. */
@@ -54,7 +58,10 @@ interface Seen {
  * The tools it gives are those it was given, with what the agent needs to see added to their results, and
  * to their descriptions:
  * opening an address returns the snapshot of the page, and an action returns the lines of the snapshot that
- * appeared after it and those that went. A snapshot is given without what a test has no use for — the reference of each
+ * appeared after it and those that went. When a value a field holds is no longer shown beside the fields
+ * after an action, though a line that went showed it, and no action before found it — changed what the
+ * page shows beside the fields, the focus aside, while a line there showed it — the action adds a note: what
+ * was typed matched nothing, and a part of it may. A row the search found then removed is no such value. A snapshot is given without what a test has no use for — the reference of each
  * element, the address of each link — so that a long session holds more screens. It remembers, for
  * each application, every line the snapshots showed, those an action produced and those an action
  * removed. An application without a user interface has no such tools, and is
@@ -75,7 +82,16 @@ export class ScreenWatch {
     for (const application of applications) {
       const snapshot = byName.get(scopedToolName(application, "snapshot"));
       if (snapshot === undefined) continue;
-      const seen: Seen = { lines: new Set(), produced: new Set(), removed: new Set(), values: new Map(), last: undefined, looks: 0, codes: [] };
+      const seen: Seen = {
+        lines: new Set(),
+        produced: new Set(),
+        removed: new Set(),
+        values: new Map(),
+        found: new Set(),
+        last: undefined,
+        looks: 0,
+        codes: [],
+      };
       this.seen.set(application, seen);
       const read = async () => this.record(seen, compact((await snapshot.execute({})) as { page: string; truncated: boolean }), true);
       const wrap = (action: string, execute: (tool: ToolDefinition, args: unknown) => Promise<unknown>, returns?: string) => {
@@ -122,11 +138,14 @@ export class ScreenWatch {
             const gone = absent(previous, current);
             for (const line of gone) seen.removed.add(line);
             const more = gone.length > MAX_GONE ? [`${gone.length - MAX_GONE} more lines went.`] : [];
+            const unmatched = unmatchedValues(current, gone).filter((value) => !seen.found.has(value));
+            for (const value of foundValues(current, appeared, gone)) seen.found.add(value);
             return {
               ...state,
               appeared: told,
               ...(appeared.length > MAX_APPEARED ? { more: `${appeared.length - MAX_APPEARED} more lines appeared; take a snapshot to read them.` } : {}),
               gone: gone.length === 0 ? "Nothing went from the page." : [...gone.slice(0, MAX_GONE), ...more].join("\n"),
+              ...(unmatched.length === 0 ? {} : { note: unmatched.map(unmatchedNote).join("\n") }),
             };
           },
           "Returns what appeared, what went, and the line of code that does the same in a test.",
@@ -354,6 +373,39 @@ export class ScreenWatch {
     if (whole) seen.last = lines;
     return { ...snapshot, lines };
   }
+}
+
+/**
+ * The values the fields of a page hold that no line beside the fields shows any more, though a line beside
+ * the fields that went showed them: what was searched matched nothing.
+ */
+function unmatchedValues(current: ReadonlySet<string>, gone: readonly string[]): string[] {
+  const shown = besideFields(current);
+  const went = besideFields(gone);
+  return fieldValues(current).filter((value) => observed(value, went) && !observed(value, shown));
+}
+
+/**
+ * The values the fields of a page hold that a line beside the fields shows, after an action that changed a
+ * line beside the fields otherwise than by the focus: what was searched found them.
+ */
+function foundValues(current: ReadonlySet<string>, appeared: readonly string[], gone: readonly string[]): string[] {
+  const unfocused = (lines: readonly string[]) => besideFields(lines).map((line) => line.replace(FOCUS, ""));
+  const went = unfocused(gone);
+  const came = unfocused(appeared);
+  if (came.every((line) => went.includes(line)) && went.every((line) => came.includes(line))) return [];
+  const shown = besideFields(current);
+  return fieldValues(current).filter((value) => observed(value, shown));
+}
+
+/** The values the fields of a page hold, long enough to be checked, once each. */
+function fieldValues(lines: ReadonlySet<string>): string[] {
+  return [...new Set([...lines].flatMap((line) => fieldValue(line) ?? []))].filter(checkable);
+}
+
+/** What the agent is told of a value it typed that the page no longer shows beside the fields. */
+function unmatchedNote(value: string): string {
+  return `Nothing beside the fields shows "${value}" any more: if you searched it, it matched nothing. Try a part of it, such as a first or a last name.`;
 }
 
 /** The locator a line ends with; `undefined` when it ends with none. */
