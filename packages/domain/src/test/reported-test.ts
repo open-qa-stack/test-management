@@ -19,6 +19,8 @@ export interface ReportedAttempt {
   readonly failedStep?: string;
   /** Path of its trace, as the runner wrote it, when one was kept. */
   readonly trace?: string;
+  /** Path of the context the runner wrote of its error, with the snapshot of the page at the failure, when it wrote one. */
+  readonly errorContext?: string;
 }
 
 /** A test as the runner reports it after a run. */

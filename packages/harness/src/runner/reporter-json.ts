@@ -88,12 +88,20 @@ function walk(suite: JsonSuite, titles: readonly string[]): Found[] {
   return [...own, ...(suite.suites ?? []).flatMap((child) => walk(child, path))];
 }
 
-/** An attempt, with the step that failed and its trace when the report gives them. */
+/** An attempt, with the step that failed, its trace and the context of its error when the report gives them. */
 function attemptOf(result: JsonResult): ReportedAttempt {
   const errors = (result.errors ?? []).flatMap((error) => (error.message === undefined ? [] : [error.message]));
   const failedStep = failedStepOf(result.steps ?? []);
-  const trace = result.attachments?.find((attachment) => attachment.name === "trace")?.path;
-  return { status: result.status, errors, ...(failedStep === undefined ? {} : { failedStep }), ...(trace === undefined ? {} : { trace }) };
+  const attached = (name: string) => result.attachments?.find((attachment) => attachment.name === name)?.path;
+  const trace = attached("trace");
+  const errorContext = attached("error-context");
+  return {
+    status: result.status,
+    errors,
+    ...(failedStep === undefined ? {} : { failedStep }),
+    ...(trace === undefined ? {} : { trace }),
+    ...(errorContext === undefined ? {} : { errorContext }),
+  };
 }
 
 /** The titles, from the outer to the inner one, of the innermost failed step; a step that failed holds its failed steps. */

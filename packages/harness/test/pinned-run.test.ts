@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import type { CommandOutcome, CommandRunner, StepCommand } from "@open-qa-stack/domain";
 import { validateConfig, type ResolvedConfig } from "@open-qa-stack/shared";
@@ -706,6 +706,29 @@ describe("the trials, one at a time", () => {
     );
     const run = fake.commands.find((command) => command.command[1] === "test" && !command.command.includes("--list"))!;
     assert.ok(run.command.some((part) => /^--output=\.oqas\/trials\/trial-.*-1\/test-results$/.test(part)));
+  });
+
+  it("gives the page at the failure, as the context of the error the runner wrote shows it, and none when it cannot be read", async () => {
+    const root = repository();
+    const page = '- heading "Customer Profile" [level=4]\n- list:\n  - listitem: Lena Veldane';
+    const context = join(root, ".oqas", "error-context.md");
+    mkdirSync(dirname(context), { recursive: true });
+    writeFileSync(context, `# Error details\n\n\`\`\`\nError: expect(locator).toBeVisible() failed\n\`\`\`\n\n\`\`\`yaml\n${page}\n\`\`\`\n\n# Test source\n`);
+    const trialOf = async (path: string) => {
+      const report = JSON.parse(fixture("steps.json")) as { suites: { specs: { tests: { results: { attachments: unknown[] }[] }[] }[] }[] };
+      report.suites[0]!.specs[0]!.tests[0]!.results.at(-1)!.attachments = [{ name: "error-context", contentType: "text/markdown", path }];
+      const fake = new FakeRunner(root, { list: fixture("steps.json"), report: { text: JSON.stringify(report) } });
+      return (
+        await new TrialRunner({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, runner: fake, now: NOW }).run({
+          path: "apps/shop/steps.spec.ts",
+          content: "// t\n",
+        })
+      ).tests[0]!;
+    };
+    assert.equal((await trialOf(context)).page, page);
+    // A context without a snapshot, or that is gone, gives no page.
+    writeFileSync(join(root, ".oqas", "empty.md"), "# Error details\n");
+    for (const path of [join(root, ".oqas", "empty.md"), join(root, "gone.md")]) assert.equal("page" in (await trialOf(path)), false, path);
   });
 });
 

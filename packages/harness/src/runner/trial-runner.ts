@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { dirname, join, posix, relative } from "node:path";
+import { dirname, join, posix, relative, resolve } from "node:path";
 import type { ProposedTest, ReportedTest, TestReference, TestRunner, TestTrial, TriedTest } from "@open-qa-stack/domain";
 import { PinnedRun, type PinnedRunOptions, type Preparation } from "./pinned-run.ts";
 
@@ -9,6 +9,8 @@ export const TRIALS_FOLDER = "trials";
 
 /** The colours the runner writes in its messages. */
 const COLOURS = /\u001b\[[0-9;]*m/g;
+/** The snapshot of the page in the context the runner writes of an error: a block of YAML. */
+const PAGE_BLOCK = /^```yaml\n([\s\S]*?)\n```$/m;
 
 /**
  * Tries the test files a designer writes, one at a time, with the real runner on the machine.
@@ -19,7 +21,7 @@ const COLOURS = /\u001b\[[0-9;]*m/g;
  * tracked files; its report and its traces stay in its folder of `<stateDir>/trials/`. The trials run one at
  * a time. The references a visual comparison lacks are made at the first run, then the file runs again
  * against them; they are given with the trial, to be kept with the test, and removed from the folder. The verdicts are those of `PinnedRun`, with, for a test that did not pass, every error of its
- * last attempt, the step that failed and its trace.
+ * last attempt, the step that failed, its trace and the snapshot of the page at its failure, which the runner writes in the context of its error.
  */
 export class TrialRunner implements TestRunner {
   private readonly options: Omit<PinnedRunOptions, "tests">;
@@ -72,7 +74,7 @@ export class TrialRunner implements TestRunner {
       // A run that made references compared the page with itself: the file runs again, against them.
       const ran = references.length === 0 ? first : await this.pinned.runFiles([test.path], `${runDir}-against-references`);
       const byId = new Map((ran.reported ?? []).map((reported) => [reported.id, reported]));
-      const tests = ran.tests.map((verdict) => tried(verdict, byId.get(verdict.id), repositoryRoot));
+      const tests = await Promise.all(ran.tests.map((verdict) => tried(verdict, byId.get(verdict.id), repositoryRoot)));
       return { startedAt, tests, ...(references.length === 0 ? {} : { references }) };
     } finally {
       await rm(file, { force: true });
@@ -81,19 +83,30 @@ export class TrialRunner implements TestRunner {
   }
 }
 
-/** A verdict, with the whole error, the failed step and the trace of the last attempt of a test that did not pass. */
-function tried(verdict: Pick<TriedTest, "id" | "verdict" | "reason">, reported: ReportedTest | undefined, root: string): TriedTest {
+/**
+ * A verdict, with the whole error, the failed step, the trace and the page at the failure of the last attempt
+ * of a test that did not pass.
+ */
+async function tried(verdict: Pick<TriedTest, "id" | "verdict" | "reason">, reported: ReportedTest | undefined, root: string): Promise<TriedTest> {
   const attempt = reported?.attempts.at(-1);
   if (verdict.verdict === "passed" || attempt === undefined) return verdict;
   const error = attempt.errors.length === 0 ? undefined : attempt.errors.map((message) => message.replace(COLOURS, "")).join("\n\n");
   // The runner writes the trace with an absolute path.
   const trace = attempt.trace === undefined ? undefined : relative(root, attempt.trace);
+  const page = attempt.errorContext === undefined ? undefined : await pageAt(resolve(root, attempt.errorContext));
   return {
     ...verdict,
     ...(error === undefined ? {} : { reason: error }),
     ...(attempt.failedStep === undefined ? {} : { failedStep: attempt.failedStep }),
     ...(trace === undefined ? {} : { trace }),
+    ...(page === undefined ? {} : { page }),
   };
+}
+
+/** The snapshot of the page a context of an error holds, its first YAML block; none when the file cannot be read or holds none. */
+async function pageAt(path: string): Promise<string | undefined> {
+  const text = await readFile(path, "utf8").catch(() => "");
+  return PAGE_BLOCK.exec(text)?.[1];
 }
 
 /** The files of a folder of references, however deep, by their path relative to the test repository. */

@@ -13,6 +13,8 @@ export interface TriedTest {
   readonly failedStep?: string;
   /** Path of the trace of the failed attempt, relative to the test repository, when one was kept. */
   readonly trace?: string;
+  /** The snapshot of the page at the failure of the failed attempt, as the runner wrote it with its error, when it wrote one. */
+  readonly page?: string;
 }
 
 /** A reference a visual test compares with, made at its first run. */
