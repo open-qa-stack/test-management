@@ -36,7 +36,7 @@ after(() => {
 
 const AT = new Date("2026-11-13T03:00:00.000Z");
 const manifestOf = (exported: SourceExport, truncated = false): SourceManifest =>
-  exportManifest({ id: "shop-db", type: "postgresql" }, exported, new Grouping(), truncated, AT);
+  exportManifest({ source: { id: "shop-db", type: "postgresql" }, exported, grouping: new Grouping(), files: new Map(), flawed: truncated }, AT);
 
 const filesOf = (root: string) => readdirSync(root, { recursive: true, withFileTypes: true }).flatMap((entry) => (entry.isFile() ? [entry.name] : []));
 
@@ -129,5 +129,16 @@ describe("the folder of a source", () => {
     const folder = new SourceFolder(join(workspace, "masked-manifest"), [SECRET]);
     await folder.writeManifest(manifestOf(exportOf({ ...element("public.links", "CREATE TABLE public.links (\n);"), kind: SECRET })));
     assert.equal((JSON.parse(readFileSync(join(folder.root, "manifest.json"), "utf8")) as SourceManifest).elements[0]!.kind, "[secret]");
+  });
+
+  it("writes the file of a domain, keeps beside it the body of the model the control refused, and removes that one once a body is kept", async () => {
+    const folder = new SourceFolder(join(workspace, "domains"), [SECRET]);
+    assert.equal(await folder.readDomain("orders"), undefined);
+    assert.equal(await folder.writeDomain("orders", "# Orders\n\n| Element |", `Read with ${SECRET}.`), "domains/orders.md");
+    assert.equal(await folder.readDomain("orders"), "# Orders\n\n| Element |\n");
+    assert.equal(readFileSync(join(folder.root, "domains", "orders.refused.md"), "utf8"), "Read with [secret].\n");
+    await folder.writeDomain("orders", `# Orders\n\nConnect with ${SECRET}.`);
+    assert.equal(await folder.readDomain("orders"), "# Orders\n\nConnect with [secret].\n");
+    assert.deepEqual(filesOf(folder.root), ["orders.md"]);
   });
 });

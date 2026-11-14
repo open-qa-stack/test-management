@@ -25,11 +25,13 @@ export function manifestCard(
   producedAt: Date,
 ): SourceCard {
   const elements = new Map(manifest.elements.map((element) => [element.name, element]));
-  const domains = manifest.domains.map((domain) => ({
-    ...domain,
+  const domains = manifest.domains.map(({ id, label, description }) => ({
+    id,
+    label,
+    description,
     items: inventory.items.flatMap((name) => {
       const element = elements.get(name)!;
-      return element.domain === domain.id ? [{ name, summary: element.role!, facts: { ...inventory.facts.get(name) } }] : [];
+      return element.domain === id ? [{ name, summary: element.role!, facts: { ...inventory.facts.get(name) } }] : [];
     }),
   }));
   return {

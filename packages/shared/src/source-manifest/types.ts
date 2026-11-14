@@ -10,6 +10,12 @@ export interface ManifestDomain {
   label: string;
   /** One sentence. */
   description: string;
+  /** The markdown file that tells what the source holds of the domain, as a path relative to the folder of the manifest. */
+  file?: string;
+  /** Who wrote the body of the file: the `model`, or the `harness` when the model gave none that passed the control. */
+  writtenBy?: "model" | "harness";
+  /** Why the harness wrote the file itself; a later run asks the model again. */
+  refused?: string;
 }
 
 /** An element the harness exported from a source: a table, a view or a routine of a database. */
@@ -41,8 +47,10 @@ export interface SourceManifest {
   /** Date and time of production, ISO 8601 in UTC. */
   producedAt: string;
   /**
-   * `in_progress` while an element is not settled yet, `truncated` when the harness read only part of the
-   * source or left an element unplaced, `complete` when every element is in a domain or set aside.
+   * `in_progress` while an element is not settled or a domain has no file yet; `truncated` when the harness
+   * read only part of the source, left an element unplaced, wrote a domain file itself or found an element
+   * no file names; `complete` when every element is set aside or in a domain whose file, written by the
+   * model, names it.
    */
   status: "in_progress" | "truncated" | "complete";
   domains: ManifestDomain[];
@@ -64,6 +72,6 @@ export interface PlacementItem {
 /** What the model hands in for a batch of elements: the new domains, and where each element goes. */
 export interface PlacementSubmission {
   /** The domains that do not exist yet. */
-  domains?: ManifestDomain[];
+  domains?: Pick<ManifestDomain, "id" | "label" | "description">[];
   items: PlacementItem[];
 }

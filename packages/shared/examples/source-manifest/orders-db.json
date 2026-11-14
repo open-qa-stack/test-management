@@ -6,8 +6,8 @@
   "producedAt": "2026-11-13T02:15:00Z",
   "status": "complete",
   "domains": [
-    { "id": "customers", "label": "Customers", "description": "The customers of the shop." },
-    { "id": "orders", "label": "Orders", "description": "Orders placed by customers and their lines." }
+    { "id": "customers", "label": "Customers", "description": "The customers of the shop.", "file": "domains/customers.md", "writtenBy": "model" },
+    { "id": "orders", "label": "Orders", "description": "Orders placed by customers and their lines.", "file": "domains/orders.md", "writtenBy": "model" }
   ],
   "elements": [
     {

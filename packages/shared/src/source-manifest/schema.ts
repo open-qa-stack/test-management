@@ -60,7 +60,14 @@ export const sourceManifestSchema = {
       type: "object",
       additionalProperties: false,
       required: ["id", "label", "description"],
-      properties: { id: { type: "string", pattern: SLUG_PATTERN }, label: text, description: text },
+      properties: {
+        id: { type: "string", pattern: SLUG_PATTERN },
+        label: text,
+        description: text,
+        file: text,
+        writtenBy: { enum: ["model", "harness"] },
+        refused: text,
+      },
     },
     element: {
       type: "object",

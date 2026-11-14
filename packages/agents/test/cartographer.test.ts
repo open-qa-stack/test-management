@@ -568,7 +568,12 @@ const BASE_PLACEMENTS = [
 ];
 
 /** Maps the base in a session of its own, in one batch, then consolidates the cards. */
-const mappingTheBase = () => [...BASE_PLACEMENTS.map((call) => ({ body: toolCalls(MODEL, [call]) })), { body: answer(MODEL, "Done.") }, ...happy()];
+const mappingTheBase = () => [
+  ...BASE_PLACEMENTS.map((call) => ({ body: toolCalls(MODEL, [call]) })),
+  { body: answer(MODEL, "Done.") },
+  { body: answer(MODEL, "The tables `public.orders`, `public.order_lines` and `public.customers`.") },
+  ...happy(),
+];
 
 describe("criterion 7 — the database tool only queries the catalog", () => {
   it("sends only catalog queries while the base is mapped, and offers no tool of the base", async () => {
@@ -975,14 +980,14 @@ describe("faster cartography", () => {
   describe("faster cartography, criterion 3 — the trace gives the requests to the model of each phase and of each source", () => {
     it("counts the requests and the tokens of each phase and of each card, on scripted answers", async () => {
       const { outcome, server } = await cartography(mappingTheBase(), { cards: ["shop-api", "order-specs", "shop"] });
-      assert.equal(server.requests.length, 5);
+      assert.equal(server.requests.length, 6);
       assert.deepEqual(usages(traceOf(outcome)), [
         ["survey", "", 0, undefined, undefined],
         ["card", "shop-api", 0, undefined, undefined],
-        ["card", "shop-db", 3, 3, 3],
+        ["card", "shop-db", 4, 4, 4],
         ["card", "order-specs", 0, undefined, undefined],
         ["card", "shop", 0, undefined, undefined],
-        ["card", "", 3, 3, 3],
+        ["card", "", 4, 4, 4],
         ["consolidation", "", 2, 2, 2],
         ["index", "", 0, undefined, undefined],
       ]);

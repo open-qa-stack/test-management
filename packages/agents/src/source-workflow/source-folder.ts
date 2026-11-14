@@ -1,4 +1,4 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { validateSourceManifest, type SourceManifest } from "@open-qa-stack/shared";
 import { redactText, secretForms, type SourceExport } from "@open-qa-stack/tools";
@@ -9,12 +9,15 @@ export const EXPORT_FOLDER = "export";
 /** File of the export that sums up every element. */
 export const SUMMARY_FILE = "summary.txt";
 
+/** Folder of the domain files, in the folder of a source. */
+export const DOMAINS_FOLDER = "domains";
+
 /** File of the manifest, in the folder of a source. */
 export const MANIFEST_FILE = "manifest.json";
 
 /**
  * The folder of one source in the test repository, where the harness writes what it read of the source
- * without the model: its export, and the manifest that lists it.
+ * without the model — its export, and the manifest that lists it — and the file of each of its domains.
  *
  * @remarks
  * Every text is written with the secrets of the configuration masked, in every form `secretForms` gives.
@@ -62,6 +65,35 @@ export class SourceFolder {
     if (!validation.ok)
       throw new Error(`The manifest of ${manifest.source.id} does not match its schema: ${validation.errors.map((error) => error.message).join(" ")}`);
     await this.write(join(this.root, MANIFEST_FILE), JSON.stringify(manifest, null, 2));
+  }
+
+  /**
+   * Writes the file of a domain, `domains/<id>.md`, in place of the one written before.
+   *
+   * @remarks
+   * A body of the model the control refused is kept beside it, as `domains/<id>.refused.md`, so that it is
+   * not lost; without one, a refused body kept before is removed.
+   *
+   * @param id - Identifier of the domain.
+   * @param text - The text of the file.
+   * @param refused - The last body of the model the control refused, when the harness wrote the file itself.
+   * @returns The path of the file, from the folder of the source, with forward slashes.
+   * @throws Error when a file cannot be written to the disk.
+   */
+  public async writeDomain(id: string, text: string, refused?: string): Promise<string> {
+    const kept = join(this.root, DOMAINS_FOLDER, `${id}.refused.md`);
+    await this.write(join(this.root, DOMAINS_FOLDER, `${id}.md`), text);
+    if (refused === undefined) await rm(kept, { force: true });
+    else await this.write(kept, refused);
+    return `${DOMAINS_FOLDER}/${id}.md`;
+  }
+
+  /**
+   * @param id - Identifier of a domain.
+   * @returns The text of its file, or `undefined` when it has none that can be read.
+   */
+  public readDomain(id: string): Promise<string | undefined> {
+    return readFile(join(this.root, DOMAINS_FOLDER, `${id}.md`), "utf8").catch(() => undefined);
   }
 
   /** Writes a text, its secrets masked, and the folders above it. */

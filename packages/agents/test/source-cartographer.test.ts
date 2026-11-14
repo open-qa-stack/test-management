@@ -212,11 +212,16 @@ const messages = (outcome: SourceCartographyOutcome) => outcome.journal.map((ent
 const manifestOf = (outcome: SourceCartographyOutcome) =>
   JSON.parse(readFileSync(join(outcome.cardPath!.replace(/\.json$/, ""), "manifest.json"), "utf8")) as SourceManifest;
 
-/** The base placed in one batch: a first call, then the same element set aside again to confirm it. */
+/** The bodies of the files of the two domains of the base, as the model answers them. */
+const ORDERS_FILE = "| Element | Role |\n|---|---|\n| `public.orders` | One order and its status. |";
+const CUSTOMERS_FILE = "`public.customers` holds one row per customer, found by `email`.";
+/** The base placed in one batch — a first call, then the same element set aside again to confirm it — then the file of each domain. */
 const happy = () => [
   { body: toolCalls(MODEL, [place([...PLACED, ASIDE], DOMAINS)]) },
   { body: toolCalls(MODEL, [place([ASIDE], undefined, "p2")]) },
   { body: answer(MODEL, "Done.") },
+  { body: answer(MODEL, ORDERS_FILE) },
+  { body: answer(MODEL, CUSTOMERS_FILE) },
 ];
 /** The document mapped with one card. */
 const documented = () => [{ body: toolCalls(MODEL, [submit(CARD)]) }, { body: answer(MODEL, "Two domains.") }];
@@ -283,10 +288,13 @@ describe("the grouping of a base, batch by batch", () => {
     });
     assert.deepEqual(
       [outcome.card!.status, outcome.card!.source, outcome.card!.unassigned, outcome.card!.run.iterations, outcome.usage.requests],
-      ["complete", { id: "shop-db", type: "postgresql" }, ["public.schema_migrations"], 3, 3],
+      ["complete", { id: "shop-db", type: "postgresql" }, ["public.schema_migrations"], 5, 5],
     );
     const manifest = manifestOf(outcome);
-    assert.deepEqual([manifest.status, manifest.domains, manifest.fingerprint], ["complete", DOMAINS, outcome.card!.fingerprint]);
+    assert.deepEqual(
+      [manifest.status, manifest.domains, manifest.fingerprint],
+      ["complete", DOMAINS.map((domain) => ({ ...domain, file: `domains/${domain.id}.md`, writtenBy: "model" })), outcome.card!.fingerprint],
+    );
     assert.deepEqual(
       manifest.elements.map(({ name, domain, role, dismissed }) => ({ name, domain, role, dismissed })),
       [
@@ -295,7 +303,7 @@ describe("the grouping of a base, batch by batch", () => {
         { name: "public.schema_migrations", domain: undefined, role: undefined, dismissed: "The log of the migrations." },
       ],
     );
-    assert.match(messages(outcome), /The grouping of shop-db is complete: 2 domains, 2 elements placed, 1 set aside, 0 unplaced\./);
+    assert.match(messages(outcome), /The mapping of shop-db is complete: 2 domains, 2 elements placed, 1 set aside, 0 unplaced\./);
   });
 
   it("keeps what a call places validly, tells only what is wrong, and closes the batch after three calls, the rest left unplaced", async () => {
@@ -305,6 +313,7 @@ describe("the grouping of a base, batch by batch", () => {
       { body: toolCalls(MODEL, [place([wrong], undefined, "p2")]) },
       { body: toolCalls(MODEL, [place([wrong], undefined, "p3")]) },
       { body: answer(MODEL, "Done.") },
+      { body: answer(MODEL, ORDERS_FILE) },
     ]);
     const told = JSON.stringify(server.requests[1]!.body);
     assert.ok(told.includes("1 of 3 elements are settled."));
@@ -320,16 +329,11 @@ describe("the grouping of a base, batch by batch", () => {
     assert.match(manifest.elements[1]!.unplaced!, /^public\.customers: the domain "people" does not exist\. Declare it in domains/);
     assert.equal(manifest.elements[2]!.unplaced, "The model had 3 calls.");
     assert.match(messages(outcome), /batch 1 of 1 was closed with 2 elements unplaced: public\.customers, public\.schema_migrations\. The model had 3 calls\./);
-    assert.match(messages(outcome), /The grouping of shop-db is truncated: 1 domains, 1 elements placed, 0 set aside, 2 unplaced\./);
+    assert.match(messages(outcome), /The mapping of shop-db is truncated: 1 domains, 1 elements placed, 0 set aside, 2 unplaced\./);
   });
 
   it("reminds a model that stops before the batch is over, and leaves unplaced what a session that fails or reaches a limit did not place", async () => {
-    const reminded = await cartography([
-      { body: answer(MODEL, "Done.") },
-      { body: toolCalls(MODEL, [place([...PLACED, ASIDE], DOMAINS)]) },
-      { body: toolCalls(MODEL, [place([ASIDE], undefined, "p2")]) },
-      { body: answer(MODEL, "Done.") },
-    ]);
+    const reminded = await cartography([{ body: answer(MODEL, "Done.") }, ...happy()]);
     assert.ok(JSON.stringify(reminded.server.requests[1]!.body).includes("3 elements of this batch are not placed yet:"));
     assert.equal(reminded.outcome.card!.status, "complete");
     const down = await closedPort();
@@ -340,7 +344,7 @@ describe("the grouping of a base, batch by batch", () => {
     assert.deepEqual([failed.outcome.card, failed.outcome.cardPath], [undefined, undefined]);
     const left = JSON.parse(readFileSync(join(root, ".oqas", "index", CARDS_FOLDER, "shop-db", "manifest.json"), "utf8")) as SourceManifest;
     assert.deepEqual([left.status, left.elements[0]!.unplaced], ["truncated", "The session ended before they were placed."]);
-    const limited = await cartography(happy(), { limits: { maxIterations: 1, maxMinutes: 10, maxActions: 200 } });
+    const limited = await cartography([happy()[0]!, ...happy().slice(3)], { limits: { maxIterations: 1, maxMinutes: 10, maxActions: 200 } });
     assert.match(messages(limited.outcome), /The session of batch 1 of 1 reached its iterations limit\./);
     assert.deepEqual(
       [limited.outcome.stoppedBy, limited.outcome.card!.status, limited.outcome.card!.unassigned],
@@ -362,6 +366,8 @@ describe("the grouping of a base, batch by batch", () => {
       { body: toolCalls(MODEL, [place([...PLACED, ASIDE, ...more], DOMAINS)]) },
       { body: toolCalls(MODEL, [place([ASIDE], undefined, "p2")]) },
       { body: answer(MODEL, "Done.") },
+      { body: answer(MODEL, "`public.orders`, its view `public.open_orders` and the trigger function `public.touch()`.") },
+      { body: answer(MODEL, CUSTOMERS_FILE) },
     ];
     const { outcome, server } = await cartography(script(), { root, database });
     const request = (server.requests[0]!.body as { messages: { role: string; content: string }[] }).messages.find(
@@ -409,6 +415,62 @@ describe("the grouping of a base, batch by batch", () => {
     const { outcome, server } = await cartography([], { database: empty });
     assert.deepEqual([outcome.card!.status, outcome.card!.domains, outcome.card!.unassigned, server.requests.length], ["complete", [], [], 0]);
     assert.deepEqual([manifestOf(outcome).status, manifestOf(outcome).elements], ["complete", []]);
+  });
+});
+
+describe("the files of the domains of a base", () => {
+  it("asks the model for the body of each domain in a session without tools, and writes the file with its header", async () => {
+    const { outcome, server } = await cartography(happy());
+    const asked = server.requests[3]!.body as { messages: { role: string; content: string }[]; tools?: unknown[] };
+    assert.deepEqual(asked.tools ?? [], []);
+    assert.ok(
+      asked.messages
+        .find((message) => message.role === "user")!
+        .content.endsWith(
+          [
+            "Write the file of the domain orders of the source shop-db.",
+            "",
+            "Orders: Orders placed by customers.",
+            "",
+            "Its 1 elements, each named by its ### line, with its role:",
+            "",
+            "### public.orders — One order and its status.",
+            "table public.orders",
+            "  columns: id bigint not null, customer_id bigint not null, status text not null",
+            "  primary key: id",
+            "  foreign keys: customer_id -> public.customers (id)",
+            "",
+            "The other domains of the source:",
+            "- customers — Customers: The customers of the shop.",
+            "",
+            "Answer with the markdown body alone.",
+          ].join("\n"),
+        ),
+    );
+    const folder = outcome.cardPath!.replace(/\.json$/, "");
+    assert.equal(readFileSync(join(folder, "domains", "orders.md"), "utf8"), `# Orders (\`orders\`)\n\nOrders placed by customers.\n\n${ORDERS_FILE}\n`);
+    assert.deepEqual(readdirSync(join(folder, "domains")).sort(), ["customers.md", "orders.md"]);
+    assert.match(messages(outcome), /The file of the domain orders was written by the model\.\nThe file of the domain customers was written by the model\./);
+  });
+
+  it("writes a file itself when the model gives none that names its elements, keeps the refused body beside it, and ends truncated", async () => {
+    const vague = { body: answer(MODEL, "This domain holds what customers buy.") };
+    const { outcome, server } = await cartography([...happy().slice(0, 3), vague, vague, vague, vague, happy()[4]!]);
+    assert.ok(JSON.stringify(server.requests[4]!.body).includes("The file was not kept. Fix what follows and answer again with the whole body."));
+    const folder = outcome.cardPath!.replace(/\.json$/, "");
+    assert.equal(
+      readFileSync(join(folder, "domains", "orders.md"), "utf8"),
+      "# Orders (`orders`)\n\nOrders placed by customers.\n\n| Element | Kind | Role |\n|---|---|---|\n| `public.orders` | table | One order and its status. |\n",
+    );
+    assert.equal(readFileSync(join(folder, "domains", "orders.refused.md"), "utf8"), "This domain holds what customers buy.\n");
+    const manifest = manifestOf(outcome);
+    assert.deepEqual(
+      [manifest.status, outcome.card!.status, manifest.domains.map((domain) => domain.writtenBy)],
+      ["truncated", "truncated", ["harness", "model"]],
+    );
+    assert.match(manifest.domains[0]!.refused!, /^These elements of the domain are not named: public\.orders\./);
+    assert.match(messages(outcome), /The harness wrote the file of the domain orders itself: These elements of the domain are not named: public\.orders\./);
+    assert.equal(outcome.usage.requests, 8);
   });
 });
 
@@ -864,10 +926,10 @@ describe("freshness, criterion 2 — the sources without an up-to-date card are 
       ],
     );
     const toolsOf = (request: number) =>
-      (first.server.requests[request]!.body as { tools: { function: { name: string } }[] }).tools.map((tool) => tool.function.name);
-    assert.deepEqual(toolsOf(0), ["place_elements"]);
-    assert.ok(toolsOf(3).includes("specs_read_section") && !toolsOf(3).some((name) => name.startsWith("shop_db_")));
-    assert.equal((first.server.requests[3]!.body as { messages: unknown[] }).messages.length, 2, "the second source starts a session of its own");
+      ((first.server.requests[request]!.body as { tools?: { function: { name: string } }[] }).tools ?? []).map((tool) => tool.function.name);
+    assert.deepEqual([toolsOf(0), toolsOf(3)], [["place_elements"], []]);
+    assert.ok(toolsOf(5).includes("specs_read_section") && !toolsOf(5).some((name) => name.startsWith("shop_db_")));
+    assert.equal((first.server.requests[5]!.body as { messages: unknown[] }).messages.length, 2, "the second source starts a session of its own");
     const again = await map([], 2);
     assert.deepEqual([again.results.map(({ outcome }) => outcome.kept), again.server.requests.length], [[true, true], 0]);
   });
