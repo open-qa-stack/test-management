@@ -32,6 +32,18 @@ describe("the test site", () => {
     }
   });
 
+  it("never answers its hanging path: the request stays open until the site is closed", async () => {
+    const site = await testSite({});
+    const hanging = fetch(`${site.origin}/api/hang`).then(
+      () => "answered",
+      () => "dropped",
+    );
+    // The site has the request before it is closed, and closing it drops the connection.
+    while (!site.requested.includes("GET /api/hang")) await new Promise((resolve) => setImmediate(resolve));
+    await site.close();
+    assert.equal(await hanging, "dropped");
+  });
+
   it("answers its slow path once SLOW_MS have passed", async () => {
     const site = await testSite({});
     try {

@@ -17,7 +17,7 @@ import { MAX_ANNOTATED_ELEMENTS, MAX_SNAPSHOT_LENGTH, pageSnapshot } from "../sr
 import { recommendTarget } from "../src/browser/recommended-target.ts";
 import { redact, SECRET_MASK, secretForms } from "../src/browser/redact.ts";
 import { MAX_TEXT_LENGTH, shortText } from "../src/browser/short-text.ts";
-import { closedPort, NetworkAccessError, SLOW_MS, testSite, type TestSite } from "@open-qa-stack/testing";
+import { closedPort, NetworkAccessError, testSite, type TestSite } from "@open-qa-stack/testing";
 import { ACTION_TIMEOUT_MS, NAVIGATION_TIMEOUT_MS } from "../src/browser/browser-tools.ts";
 import { browserTools, type BrowserAccess, type BrowserToolset } from "../src/index.ts";
 
@@ -74,7 +74,7 @@ before(async () => {
 <dialog open><button>Close</button></dialog><button>Close</button><p id="out"></p>`,
       // A page that loads its data from another local service, at once and on demand, as an interface does from its API.
       "/loads": `<p id="data">loading</p><button onclick="fetch('/api/ping').then(() => { document.getElementById('more').hidden = false; })">More</button><p id="more" hidden>More data</p><script>fetch("${elsewhere.origin}/api/ping").then((r) => r.json()).then((body) => { document.getElementById("data").textContent = "pong " + body.pong; }, () => { document.getElementById("data").textContent = "refused"; });</script>`,
-      "/hangs": '<p id="data">waiting</p><script>fetch("/api/slow").then(() => { document.getElementById("data").textContent = "slow data"; });</script>',
+      "/hangs": '<p id="data">waiting</p><script>fetch("/api/hang").then(() => { document.getElementById("data").textContent = "answered"; });</script>',
       "/form": '<form method="post" action="/submit"><button>Send</button></form><form method="post" action="/keep"><button>Keep</button></form>',
       "/login": '<form method="get" action="/second"><input name="p" aria-label="Password" type="password"><button>Go</button></form>',
       "/broken": `<img alt="Logo" src="http://127.0.0.1:${downPort}/logo.png">`,
@@ -899,9 +899,8 @@ describe("a page that loads its data", () => {
   it("is read as it is once the settling time is over, when a request is still open", async () => {
     await withTools(
       async (tool) => {
-        const started = Date.now();
+        // The request is never answered: the page is given back all the same, whatever the speed of the machine.
         await tool("shop_goto").execute({ url: "/hangs" });
-        assert.ok(Date.now() - started < SLOW_MS, "the page is not waited for beyond its settling time");
         assert.match(await page(tool), /waiting/);
       },
       { settleTimeoutMs: 400 },

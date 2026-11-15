@@ -23,7 +23,7 @@ export interface Redirect {
 /**
  * Serves pages on the loopback interface.
  *
- * @param pages - HTML of each path, query excluded; `/api/ping` answers JSON, to any origin, `/api/slow` answers JSON after `SLOW_MS`, any other path 404.
+ * @param pages - HTML of each path, query excluded; `/api/ping` answers JSON, to any origin, `/api/slow` answers JSON after `SLOW_MS`, `/api/hang` never answers, any other path 404.
  * @param redirects - Paths answered with a redirect.
  * @returns The running site.
  */
@@ -39,6 +39,8 @@ export async function testSite(pages: Readonly<Record<string, string>>, redirect
       response.writeHead(redirect.status, { location: redirect.location }).end();
     } else if (path === "/api/ping") {
       response.writeHead(200, { "content-type": "application/json", "access-control-allow-origin": "*" }).end('{"pong":true}');
+    } else if (path === "/api/hang") {
+      // Never answered: the request stays open until the site is closed.
     } else if (path === "/api/slow") {
       setTimeout(() => response.writeHead(200, { "content-type": "application/json" }).end('{"slow":true}'), SLOW_MS);
     } else if (page === undefined) {
