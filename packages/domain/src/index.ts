@@ -28,6 +28,7 @@ export type {
   PlannedStep,
   PlanReview,
   ScenarioCase,
+  ScenarioEffect,
   ScenarioKind,
   ScenarioLevel,
   ScenarioSource,

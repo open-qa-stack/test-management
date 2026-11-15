@@ -1,4 +1,4 @@
-import { scenarioTags } from "./scenario-tags.ts";
+import { effectWords, scenarioTags } from "./scenario-tags.ts";
 import type { PlannedScenario } from "@open-qa-stack/domain";
 import { assertionsOf } from "./assertion-line.ts";
 import type { DesignCursor } from "./design-cursor.ts";
@@ -66,7 +66,7 @@ export function scenarioSheet(cursor: DesignCursor, screenshots: boolean): strin
     scenario.applications === undefined ? "" : `; it also acts on ${scenario.applications.join(", ")}, each in a tab of its own, as the skeleton opens them`;
   const cited = scenario.sources.map(({ source, item }) => (item === undefined ? source : `${source}: ${oneLine(item)}`));
   return [
-    `Scenario ${cursor.rank} of ${cursor.plan.scenarios.length}: ${scenario.id} — ${scenario.title} (${scenario.level} level, ${scenario.kind}, ${scenario.case}), application ${scenario.application}${others}.`,
+    `Scenario ${cursor.rank} of ${cursor.plan.scenarios.length}: ${scenario.id} — ${scenario.title} (${scenario.level} level, ${scenario.kind}, ${scenario.case}, ${effectWords(scenario.effect)}), application ${scenario.application}${others}.`,
     `Intent: ${oneLine(scenario.intent)}.`,
     `Data: ${data}.`,
     `Cited: ${cited.join("; ")}.`,

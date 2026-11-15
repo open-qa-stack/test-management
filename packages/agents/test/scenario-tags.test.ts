@@ -1,14 +1,25 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { scenarioTags, withTags } from "../src/designer/scenario-tags.ts";
+import { effectWords, scenarioTags, withTags } from "../src/designer/scenario-tags.ts";
 import { testBody } from "../src/designer/test-body.ts";
 
-const SCENARIO = { level: "business", domain: "customers", application: "policy-management", kind: "functional", case: "negative" } as const;
-const TAGS = '{ tag: ["@level-business","@domain-customers","@app-policy-management","@kind-functional","@case-negative"] }';
+const SCENARIO = { level: "business", domain: "customers", application: "policy-management", kind: "functional", case: "negative", effect: "write" } as const;
+const TAGS = '{ tag: ["@level-business","@domain-customers","@app-policy-management","@kind-functional","@case-negative","@data-write"] }';
 
 describe("the tags of a test", () => {
-  it("are the level, the domain, the application, the kind and the case of its scenario", () => {
-    assert.deepEqual(scenarioTags(SCENARIO), ["@level-business", "@domain-customers", "@app-policy-management", "@kind-functional", "@case-negative"]);
+  it("are the level, the domain, the application, the kind, the case and the effect on data of its scenario", () => {
+    assert.deepEqual(scenarioTags(SCENARIO), [
+      "@level-business",
+      "@domain-customers",
+      "@app-policy-management",
+      "@kind-functional",
+      "@case-negative",
+      "@data-write",
+    ]);
+  });
+
+  it("say in words, for a sheet and the file of a plan, what the scenario does to the data", () => {
+    assert.deepEqual([effectWords("read"), effectWords("write")], ["reads data", "writes data"]);
   });
 
   it("name each application a test of several acts on", () => {

@@ -36,6 +36,7 @@ describe("the instructions of the agent that plans", () => {
         "How this works",
         "Method. Each step says when it is done.",
         "The pyramid of tests. Each scenario has a level, and the request says which are asked.",
+        "Data. A scenario says whether it only reads the data of the environment or writes some. Every test and every user share that data, and a test that writes is run twice in a row: it must pass both times. So enter data of your own, such as a made-up name, or put back what you changed, as the last step of the scenario and on the screens too — what you change while you explore stays changed.",
         "Three rules cause most refusals",
         'Cover the brief: each business rule, each information and each behaviour it is about has a scenario that verifies it. Say in uncovered what no scenario covers and why — the application does not allow it, or the plan has no room for it; never plan another test in its place without a word. When no test can do anything the brief asks, plan none: call propose_plan with "scenarios": [] and uncovered, which says what the brief asks and why.',
         "Keep with remember a fact the agents after you should know, such as a rule or a pitfall of the application.",
@@ -50,7 +51,7 @@ describe("the instructions of the agent that plans", () => {
       [sections[3]!.length, sections[3]!.slice(1, 6).map((line) => line.split(":")[0])],
       [7, ["- smoke", "- functional", "- business", "- cross-application", "- end-to-end"]],
     );
-    assert.equal(sections[4]!.length, 4);
+    assert.equal(sections[5]!.length, 4);
     for (const said of [
       'A result that starts with "Refused" says what is wrong',
       'A result that starts with "The plan is not accepted yet" asks you, once,',
@@ -65,7 +66,7 @@ describe("the instructions of the agent that plans", () => {
     // It writes no test: nothing of the charter, of the runs nor of the files is its concern.
     assert.doesNotMatch(PLANNER_INSTRUCTIONS, /run_test|propose_test|Charter|\.spec\.ts/);
     assert.doesNotMatch(PLANNER_INSTRUCTIONS, /[ \t]$/m);
-    assert.ok(PLANNER_INSTRUCTIONS.length <= 4800, String(PLANNER_INSTRUCTIONS.length));
+    assert.ok(PLANNER_INSTRUCTIONS.length <= 5200, String(PLANNER_INSTRUCTIONS.length));
   });
 });
 

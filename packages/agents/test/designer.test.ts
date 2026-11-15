@@ -171,13 +171,14 @@ interface Call {
 /** A scenario of the plan, about the orders of the shop: its one step opens them and expects their heading. */
 /** A test as the harness keeps it: with the tags of its scenario, a functional scenario of the orders of the shop unless told otherwise. */
 const tagged = (content: string, kind: "other" | "visual" | "functional" = "other") =>
-  withTags(content, { level: "functional", domain: "orders", application: "shop", kind, case: "nominal" });
+  withTags(content, { level: "functional", domain: "orders", application: "shop", kind, case: "nominal", effect: "read" });
 const scenario = (id: string, kind = "other", changes: Record<string, unknown> = {}) => ({
   id,
   title: `The ${id} scenario`,
   intent: `Verifies ${id}.`,
   kind,
   level: "functional",
+  effect: "read",
   case: "nominal",
   application: "shop",
   domain: "orders",
@@ -893,7 +894,7 @@ describe("the sheet of a scenario", () => {
     const sheet = asked(server, 1);
     assert.ok(
       sheet.startsWith(
-        'Write the test of this scenario for the environment local.\n\nSign-in: with the account demo; the lines of the sheet that sign in read it from process.env: keep them as they are.\nA test may import: @playwright/test.\n\nScenario 1 of 3: list-orders — The list-orders scenario (functional level, other, negative), application shop.\nIntent: Verifies list-orders.\nData: "Ada" (shop); "zzqx" (made-up).\nCited: shop: /orders.\nFile: apps/shop/list-orders.spec.ts\n\nimport { expect, test } from "@playwright/test";\n\ntest("The list-orders scenario", { tag: ["@level-functional","@domain-orders","@app-shop","@kind-other","@case-negative"] }, async ({ page }) => {\n  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n    // Expect 1.1: The orders show.\n    await expect(page.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();\n  });\n});\n',
+        'Write the test of this scenario for the environment local.\n\nSign-in: with the account demo; the lines of the sheet that sign in read it from process.env: keep them as they are.\nA test may import: @playwright/test.\n\nScenario 1 of 3: list-orders — The list-orders scenario (functional level, other, negative, reads data), application shop.\nIntent: Verifies list-orders.\nData: "Ada" (shop); "zzqx" (made-up).\nCited: shop: /orders.\nFile: apps/shop/list-orders.spec.ts\n\nimport { expect, test } from "@playwright/test";\n\ntest("The list-orders scenario", { tag: ["@level-functional","@domain-orders","@app-shop","@kind-other","@case-negative","@data-read"] }, async ({ page }) => {\n  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n    // Expect 1.1: The orders show.\n    await expect(page.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();\n  });\n});\n',
       ),
       sheet,
     );

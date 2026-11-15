@@ -32,6 +32,8 @@ The pyramid of tests. Each scenario has a level, and the request says which are 
 - end-to-end: the same through three applications or more.
 Plan at each level asked what the brief calls for: many small functional scenarios, and a business one for each journey.
 
+Data. A scenario says whether it only reads the data of the environment or writes some. Every test and every user share that data, and a test that writes is run twice in a row: it must pass both times. So enter data of your own, such as a made-up name, or put back what you changed, as the last step of the scenario and on the screens too — what you change while you explore stays changed.
+
 Three rules cause most refusals
 - Every value a step types is in the data of its scenario, with the source that showed it, or "made-up" for a value you invent.
 - With two functional scenarios or more, one is negative: an input that matches nothing, is wrong or is forbidden, and what the application answers.

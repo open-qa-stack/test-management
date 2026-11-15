@@ -41,6 +41,7 @@ const SEARCH: PlannedScenario = {
   intent: "Verifies that a search by last name finds the order of the customer.",
   kind: "functional",
   level: "functional",
+  effect: "read",
   case: "nominal",
   application: "shop",
   domain: "orders",
@@ -100,7 +101,7 @@ describe("the skeleton of a test", () => {
       skeleton(SEARCH, true),
       `import { expect, test } from "@playwright/test";
 
-test("Search an order by \\"customer\\" name", { tag: ["@level-functional","@domain-orders","@app-shop","@kind-functional","@case-nominal"] }, async ({ page }, testInfo) => {
+test("Search an order by \\"customer\\" name", { tag: ["@level-functional","@domain-orders","@app-shop","@kind-functional","@case-nominal","@data-read"] }, async ({ page }, testInfo) => {
   await test.step("1. Open the orders", async () => {
     // Do: Open the orders. Copy the code lines the browser tools returned.
     await testInfo.attach("1", { body: await page.screenshot(), contentType: "image/png" });
@@ -126,7 +127,7 @@ test("Search an order by \\"customer\\" name", { tag: ["@level-functional","@dom
       skeleton(SHOWN, false),
       `import { expect, test } from "@playwright/test";
 
-test("Search an order by \\"customer\\" name", { tag: ["@level-functional","@domain-orders","@app-shop","@kind-functional","@case-nominal"] }, async ({ page }) => {
+test("Search an order by \\"customer\\" name", { tag: ["@level-functional","@domain-orders","@app-shop","@kind-functional","@case-nominal","@data-read"] }, async ({ page }) => {
   await test.step("1. Open the orders", async () => {
     await page.goto("/orders");
   });
@@ -216,7 +217,7 @@ describe("the sheet of a scenario", () => {
     const cursor = new DesignCursor({ scenarios: [SEARCH, { ...SEARCH, id: "other", data: [] }] }, (scenario) => `apps/shop/${scenario.id}.spec.ts`);
     const sheet = scenarioSheet(cursor, false).split("\n");
     assert.deepEqual(sheet.slice(0, 6), [
-      'Scenario 1 of 2: search-order-by-customer — Search an order by "customer" name (functional level, functional, nominal), application shop.',
+      'Scenario 1 of 2: search-order-by-customer — Search an order by "customer" name (functional level, functional, nominal, reads data), application shop.',
       "Intent: Verifies that a search by last name finds the order of the customer.",
       'Data: "Veldane" (orders-db).',
       "Cited: orders-db: public.orders.",

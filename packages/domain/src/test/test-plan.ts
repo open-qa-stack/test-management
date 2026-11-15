@@ -9,6 +9,9 @@ export type ScenarioKind = "functional" | "visual" | "accessibility" | "other";
  */
 export type ScenarioLevel = "smoke" | "functional" | "business" | "cross-application" | "end-to-end";
 
+/** Whether a test only reads the data of the environment, or creates, changes or removes some. */
+export type ScenarioEffect = "read" | "write";
+
 /** A source a scenario relies on: a source of the domain index, and an element of it when one is named. */
 export interface ScenarioSource {
   /** Identifier of the source in the domain index. */
@@ -75,6 +78,8 @@ export interface PlannedScenario {
   /** Its level in the pyramid of tests. */
   readonly level: ScenarioLevel;
   readonly case: ScenarioCase;
+  /** Whether its test only reads the data of the environment or writes some: a test that writes creates its own data or puts back what it changed, so that it passes again. */
+  readonly effect: ScenarioEffect;
   /** Identifier of the application the test is of: its file is in the folder of that application, whose base address is its own. */
   readonly application: string;
   /** Identifiers of the other applications the test acts on, for a test of several; the harness writes them, never the agent. */

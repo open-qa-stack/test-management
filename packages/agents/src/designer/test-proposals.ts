@@ -331,12 +331,23 @@ export class TestProposals {
     const refusals = await this.checked(scenario, path, content);
     if (refusals.length > 0) return this.refuse(what, refusals);
     const looks = this.looks(scenarioScope(scenario));
-    const trial = await this.rules.runner.run({ path, content });
+    const first = await this.rules.runner.run({ path, content });
+    // A test that writes is run again once it passed: it must not rely on the data its own run changed.
+    const again =
+      scenario.effect === "write" && first.error === undefined && verdictOf(first) === "passed" ? await this.rules.runner.run({ path, content }) : undefined;
+    const replayed = again !== undefined && (again.error !== undefined || verdictOf(again) !== "passed");
+    const trial = replayed ? again : first;
     this.streak.reset();
+    const twice = replayed
+      ? [
+          `The test passed, then failed when it was run again right after: it relies on data its own run changed. Enter data of its own, such as a made-up value no other run uses, or add a last step that puts back what the test changed, then call ${RUN_TOOL}.`,
+        ]
+      : [];
+    if (replayed) this.journal.record("info", `The test ${path} writes data, and failed when it was run again after it passed.`);
     if (trial.error !== undefined) {
       cursor.record(scenario.id, { content, startedAt: trial.startedAt, looks });
       this.journal.record("error", this.mask(`The test ${path} could not run: ${trial.error}`));
-      return this.mask([`Run of the file: it could not run: ${trial.error}`, this.failedRuns(cursor, scenario), cursor.next()].join("\n"));
+      return this.mask([...twice, `Run of the file: it could not run: ${trial.error}`, this.failedRuns(cursor, scenario), cursor.next()].join("\n"));
     }
     const verdict = verdictOf(trial);
     const failed = trial.tests.find((test) => test.verdict !== "passed");
@@ -359,7 +370,7 @@ export class TestProposals {
       failed === undefined
         ? []
         : [this.mask(failureHint(failed.reason, scenario.application)), ...shown.map((line) => this.mask(line)), this.failedRuns(cursor, scenario)];
-    return [this.described(trial), ...told, cursor.next()].join("\n");
+    return [...twice, this.described(trial), ...told, cursor.next()].join("\n");
   }
 
   /** What the repair contract refuses in a run: a scenario out of runs, a text that already failed, a run again without a look. */

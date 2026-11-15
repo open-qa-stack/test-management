@@ -13,6 +13,7 @@ const SCENARIO: PlannedScenario = {
   intent: "Verifies that the orders are listed.",
   kind: "functional",
   level: "functional",
+  effect: "read",
   case: "nominal",
   application: "shop",
   domain: "orders",

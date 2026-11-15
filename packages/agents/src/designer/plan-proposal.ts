@@ -319,6 +319,12 @@ export class PlanProposal {
                   enum: ["nominal", "negative"],
                   description: "negative when the input matches nothing, is wrong or is forbidden; nominal otherwise.",
                 },
+                effect: {
+                  type: "string",
+                  enum: ["read", "write"],
+                  description:
+                    "write when the scenario creates, changes or removes data of the environment, such as saving a form; read otherwise. A scenario that writes must pass again right after it passed: it enters data of its own, such as a made-up name no other run uses, or its last step puts back what it changed.",
+                },
                 application: { type: "string", enum: [...this.rules.applications], description: "Identifier of the one application the test is about." },
                 domain: { type: "string", enum: [...this.rules.domains], description: "Identifier of the domain of the index the scenario comes from." },
                 sources: {
@@ -389,7 +395,7 @@ export class PlanProposal {
                   },
                 },
               },
-              required: ["id", "title", "intent", "kind", "level", "case", "application", "domain", "sources", "data", "steps"],
+              required: ["id", "title", "intent", "kind", "level", "case", "effect", "application", "domain", "sources", "data", "steps"],
               additionalProperties: false,
             },
           },
@@ -709,6 +715,7 @@ export class PlanProposal {
       ...plan.scenarios.flatMap((scenario) => this.actionErrors(scenario)),
       ...plan.scenarios.flatMap((scenario) => this.elementErrors(scenario)),
       ...plan.scenarios.flatMap((scenario) => this.levelErrors(scenario)),
+      ...plan.scenarios.flatMap((scenario) => this.effectErrors(scenario)),
     ];
     // A step and its expect of two screens are told once nothing else is wrong: the other refusals say more of what they refuse.
     return refused.length > 0 ? refused : plan.scenarios.flatMap((scenario) => this.screenErrors(scenario));
@@ -1142,6 +1149,26 @@ export class PlanProposal {
         code: "PLAN-START",
         message: `scenario ${scenario.id} starts with the action ${first.number} (${first.code}), which opens no address, and its test starts on an empty page. Open the first address of the scenario with ${tool("goto")}, do its steps from there, and cite that action first in step 1${example}.`,
         remedy: `Cite first, in actions of step 1 of scenario ${scenario.id}, an action of ${tool("goto")}${example}, then the actions done after it.`,
+      },
+    ];
+  }
+
+  /**
+   * What the gates refuse in the effect of a scenario: one said to only read, while an action it cites
+   * clicked an element whose name says it creates, changes or removes data. It is a guess from the words of
+   * the name, as the one that guards an exploration.
+   */
+  private effectErrors(scenario: SubmittedScenario): Refusal[] {
+    if (scenario.effect === "write") return [];
+    const writing = this.cited(
+      scenario,
+      scenario.steps.flatMap((step) => step.actions),
+    ).find((action) => action.changes !== undefined);
+    if (writing === undefined) return [];
+    return [
+      {
+        code: "PLAN-EFFECT",
+        message: `scenario ${scenario.id} is said to only read the data of the environment, and it cites the action ${writing.number} (${writing.code}), a click on "${writing.changes}", which may create, change or remove some. Give it the effect write, and make it pass again once it passed: with data of its own, or a last step that puts back what it changed. If this click changes nothing, leave the action out or say so in the intent and give the effect write all the same.`,
       },
     ];
   }

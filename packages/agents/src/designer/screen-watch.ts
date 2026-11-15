@@ -1,5 +1,5 @@
 import type { PlannedScenario, ToolDefinition } from "@open-qa-stack/domain";
-import { scopedToolName, type SpecLocator, type Target, type TargetMatch, type TargetScope } from "@open-qa-stack/tools";
+import { changingName, destructiveName, scopedToolName, type SpecLocator, type Target, type TargetMatch, type TargetScope } from "@open-qa-stack/tools";
 import { screenRoute } from "../application-explorer/screen-trail.ts";
 import { toolsBySource } from "./index-map.ts";
 import { nextMoment } from "./moments.ts";
@@ -105,6 +105,8 @@ export interface WatchedAction {
   readonly typed?: string;
   /** The screen the page was on once it was done, by its route, when its tool said where the page was. */
   readonly screen?: string;
+  /** The name of the element it clicked, when that name says the click creates, changes or removes data of the application. */
+  readonly changes?: string;
 }
 
 /** What the designer saw of the screens of one application. */
@@ -209,7 +211,7 @@ export class ScreenWatch {
         return result;
       });
       // An action is one whose tool returned its line of code: it is numbered, and its result gives the number.
-      const numbered = <T extends { code?: unknown }>(action: string, state: T, typed?: string): T => {
+      const numbered = <T extends { code?: unknown }>(action: string, state: T, typed?: string, changes?: string): T => {
         if (typeof state.code !== "string") return state;
         const number = this.done.length + 1;
         const { url } = state as { url?: unknown };
@@ -223,6 +225,7 @@ export class ScreenWatch {
           code: state.code,
           ...(typed === undefined ? {} : { typed }),
           ...(screen === undefined ? {} : { screen }),
+          ...(changes === undefined ? {} : { changes }),
         });
         this.after.set(number, { shown: new Set(), removed: new Set() });
         return { ...state, action: number };
@@ -245,7 +248,10 @@ export class ScreenWatch {
             const { value, option } = args as { value?: unknown; option?: unknown };
             if (action === "fill" && typeof value === "string") seen.filled.add(value);
             const typed = [value, option].find((given): given is string => typeof given === "string");
-            const state = numbered(action, (await tool.execute(args)) as { code?: unknown; url?: unknown }, typed);
+            // A click on an element whose name says it creates, changes or removes data: the scenario that cites it writes.
+            const { target } = args as { target?: Target };
+            const changes = action !== "click" || target === undefined ? undefined : (changingName(target) ?? destructiveName(target));
+            const state = numbered(action, (await tool.execute(args)) as { code?: unknown; url?: unknown }, typed, changes);
             // Where a click led is what the application answered, such as the address of the record it opened.
             if (typeof state.url === "string") seen.reached.add(state.url);
             const current = (await read()).lines;

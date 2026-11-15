@@ -24,6 +24,7 @@ const scenario = (application: string, sources: readonly string[]): PlannedScena
   intent: "Verifies that the ledger opens.",
   kind: "other",
   level: "functional",
+  effect: "read",
   case: "nominal",
   application,
   domain: "ledger",
@@ -548,7 +549,7 @@ describe("a scenario whose session ends before it is closed", () => {
       [kept!.content, kept!.verdict, kept!.classes[0]!.class, kept!.classes[0]!.reason],
       [
         // The harness wrote on it the tags of its scenario.
-        one.replace('test("open", ', 'test("open", { tag: ["@level-functional","@domain-ledger","@app-ledger","@kind-other","@case-nominal"] }, '),
+        one.replace('test("open", ', 'test("open", { tag: ["@level-functional","@domain-ledger","@app-ledger","@kind-other","@case-nominal","@data-read"] }, '),
         "not_run",
         "unfinished",
         'Its session ended before the scenario was closed. Tried: 1 run (failed on assertion at "1. Open the ledger"); refusals: TEST-STEPS ×1, TEST-VALUE ×1, TEST-SYNTAX ×1.',
@@ -610,6 +611,56 @@ describe("a scenario whose session ends before it is closed", () => {
         "The harness closed the scenario after 5 refusals for TEST-STEPS. Tried: no run; refusals: TEST-STEPS ×5, TEST-VALUE ×5.",
         true,
       ],
+    );
+  });
+});
+
+describe("a test that writes data, run again once it passed", () => {
+  const writing = { ...scenario("ledger", []), effect: "write" as const };
+  const written = acted(skeleton(writing, false));
+  /** A runner whose runs end as given, in order, the last one for every run after. */
+  const runner = (...verdicts: ("passed" | "failed" | "error")[]) => {
+    const runs: string[] = [];
+    const run: TestRunner["run"] = async (test) => {
+      const verdict = verdicts[Math.min(runs.length, verdicts.length - 1)]!;
+      runs.push(verdict);
+      if (verdict === "error") return { startedAt: STARTED, tests: [], error: "The browser did not start." };
+      return {
+        startedAt: STARTED,
+        tests: [{ id: test.path, verdict, reason: verdict === "passed" ? "Every attempt passed." : "Error: expect(locator).toBeVisible() failed" }],
+      };
+    };
+    return { runs, runner: { run } };
+  };
+  const tried = async (planned: PlannedScenario, ...verdicts: ("passed" | "failed" | "error")[]) => {
+    const { runs, runner: given } = runner(...verdicts);
+    const journal = new Journal();
+    const proposals = new TestProposals(rules(given), journal, { scenarios: [planned] });
+    proposals.begin(BLIND);
+    const told = String(await proposals.trialTool().execute({ content: acted(skeleton(planned, false)) }));
+    return { runs, told, journal: journal.entries().map((entry) => entry.message) };
+  };
+
+  it("passes when both runs pass, and is run once when it only reads or did not pass", async () => {
+    const twice = await tried(writing, "passed");
+    assert.deepEqual([twice.runs, twice.told.startsWith("Run of the file: passed.")], [["passed", "passed"], true]);
+    assert.deepEqual((await tried(scenario("ledger", []), "passed")).runs, ["passed"]);
+    assert.deepEqual((await tried(writing, "failed")).runs, ["failed"]);
+    assert.ok(written.includes('"@data-write"'));
+  });
+
+  it("fails, and says why, when the run right after the one that passed fails or cannot run", async () => {
+    const replayed = await tried(writing, "passed", "failed");
+    assert.deepEqual(replayed.runs, ["passed", "failed"]);
+    assert.match(
+      replayed.told,
+      /^The test passed, then failed when it was run again right after: it relies on data its own run changed\. Enter data of its own, such as a made-up value no other run uses, or add a last step that puts back what the test changed, then call run_test\.\nRun of the file: failed\./,
+    );
+    assert.ok(replayed.journal.includes("The test apps/ledger/open-ledger.spec.ts writes data, and failed when it was run again after it passed."));
+    const broken = await tried(writing, "passed", "error");
+    assert.match(
+      broken.told,
+      /^The test passed, then failed when it was run again right after: [^]*\nRun of the file: it could not run: The browser did not start\./,
     );
   });
 });

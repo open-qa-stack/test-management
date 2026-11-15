@@ -1,3 +1,4 @@
+import { effectWords } from "./scenario-tags.ts";
 import type { PlanEnd, PlannedExpect, PlannedScenario, PlannedStep, SetAsideScenario, UncoveredRequest } from "@open-qa-stack/domain";
 import { oneLine } from "./one-line.ts";
 import { planEndText } from "./plan-end.ts";
@@ -84,7 +85,7 @@ function scenarioLines(scenario: PlannedScenario, at: number): string[] {
   return [
     `## ${at + 1}. ${scenario.id}`,
     "",
-    `${oneLine(scenario.title)} (${scenario.level} level, ${scenario.kind}, ${scenario.case}). Application ${scenario.application}, domain ${scenario.domain}.`,
+    `${oneLine(scenario.title)} (${scenario.level} level, ${scenario.kind}, ${scenario.case}, ${effectWords(scenario.effect)}). Application ${scenario.application}, domain ${scenario.domain}.`,
     "",
     `- Intent: ${flat(scenario.intent)}`,
     `- Sources: ${sources.join("; ")}`,

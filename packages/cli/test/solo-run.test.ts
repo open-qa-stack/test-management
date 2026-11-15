@@ -205,6 +205,7 @@ const scenario = (id: string) => ({
   intent: `Verifies ${id}.`,
   kind: "functional",
   level: "functional",
+  effect: "read",
   case: id === "test-3" ? "negative" : "nominal",
   application: "shop",
   domain: "orders",

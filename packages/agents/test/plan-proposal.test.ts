@@ -30,6 +30,7 @@ const scenario = (id: string, changes: Partial<Scenario> = {}): Scenario => ({
   intent: `Verifies ${id}.`,
   kind: "other",
   level: "functional",
+  effect: "read",
   case: "nominal",
   application: "shop",
   domain: "orders",
@@ -402,6 +403,7 @@ describe("the gates of a plan", () => {
     scenario(id, {
       kind: "functional",
       level: "functional",
+      effect: "read",
       steps: [
         { action: "Open the orders", expects: [] },
         { action: "Search the orders of Veldane", expects: [found] },
@@ -720,6 +722,7 @@ describe("the gates of a plan", () => {
       scenario("a", {
         kind: "functional",
         level: "functional",
+        effect: "read",
         steps: [{ action: "Search zzqx", expects: [{ result: "The order of Mira Veldane shows", shows: ["ORD-1042"], absent: ["zzqx"] }] }],
         ...changes,
       });
@@ -734,6 +737,7 @@ describe("the gates of a plan", () => {
     const negative = scenario("c", {
       kind: "functional",
       level: "functional",
+      effect: "read",
       case: "negative",
       data: [{ value: "zzqx", from: "made-up" }],
       steps: [{ action: "Search zzqx", expects: [{ result: "Another order shows", shows: ["ORD-1042"], absent: [] }] }],
@@ -1165,6 +1169,7 @@ describe("the actions a plan cites", () => {
     const searched = scenario("a", {
       kind: "functional",
       level: "functional",
+      effect: "read",
       data: [{ value: "Veldane", from: "orders-db" }],
       sources: [{ source: "orders-db" }],
       steps: [
@@ -1320,6 +1325,7 @@ describe("a step and what it expects, held to one screen", () => {
     scenario("a", {
       kind: "functional",
       level: "functional",
+      effect: "read",
       data: [{ value: "zzqx", from: "made-up" }],
       steps: [
         { action: "Open the orders", actions: [1], expects: [{ result: "The orders show", shows: ["Orders"], absent: [] }] },
@@ -1522,5 +1528,46 @@ describe("the level of a scenario, held to what its actions went through", () =>
     const one = await explored(["smoke", "functional"]);
     const again = (await one.tool().execute({ scenarios: [at("functional", [1, 2])] })) as string;
     assert.ok(again.includes("\nNo scenario is of the level smoke yet, among those asked (smoke, functional): add those the brief calls for.\n"), again);
+  });
+});
+
+describe("the effect of a scenario on the data of the environment", () => {
+  /** Browser tools of the shop whose click saves an order. */
+  const tools = (): ToolDefinition[] =>
+    ["goto", "snapshot", "click", "fill", "select_option", "check"].map((action) => ({
+      name: `shop_${action}`,
+      description: action,
+      parameters: { type: "object" },
+      execute: async () => (action === "snapshot" ? { page: '- heading "Orders"', truncated: false } : { url: "/orders", code: `await page.${action}();` }),
+    }));
+  const saved = async () => {
+    const screens = new ScreenWatch(["shop"], tools());
+    const call = (name: string, args: object = {}) =>
+      screens
+        .tools()
+        .find((tool) => tool.name === name)!
+        .execute(args);
+    await call("shop_goto");
+    await call("shop_click", { target: { role: "button", name: "Save the order" } });
+    await call("shop_click", { target: { role: "link", name: "Orders" } });
+    const { reads } = await proposal();
+    return new PlanProposal({ ...RULES, screens, reads }, new Journal());
+  };
+  const told = (effect: "read" | "write", actions: number[]) =>
+    scenario("a", {
+      effect,
+      data: [],
+      steps: [{ action: "Open the orders", actions, expects: [{ result: "The orders show", shows: ["Orders"], absent: [] }] }],
+    });
+
+  it("refuses a scenario said to only read that cites a click whose name says it writes, and keeps it once it says it writes", async () => {
+    const refused = (await (await saved()).tool().execute({ scenarios: [told("read", [1, 2])] })) as { error: string };
+    assert.match(
+      refused.error,
+      /^Refused \(PLAN-EFFECT\): scenario a is said to only read the data of the environment, and it cites the action 2 \(await page\.click\(\);\), a click on "Save the order", which may create, change or remove some\. Give it the effect write, /,
+    );
+    assert.equal(typeof (await (await saved()).tool().execute({ scenarios: [told("write", [1, 2])] })), "string");
+    // A click whose name says nothing of the kind is one of a scenario that reads.
+    assert.equal(typeof (await (await saved()).tool().execute({ scenarios: [told("read", [1, 3])] })), "string");
   });
 });
