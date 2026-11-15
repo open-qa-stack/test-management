@@ -4,6 +4,8 @@ on:
   pull_request:
   push:
     branches: [main]
+  # By hand, from the Actions tab or with `gh workflow run ci`, for a branch whose pushes do not start it.
+  workflow_dispatch:
 
 # The pipeline reads the repository and nothing else: it holds no secret and publishes nothing, so
 # that it runs the same way for a pull request that comes from a fork.

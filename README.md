@@ -61,7 +61,7 @@ git merge --no-ff -m "feat(check): scan the commits of a branch" <branch>
 
 ## Continuous integration
 
-The pipeline of the repository, in `.github/workflows/`, runs on every pull request and on every commit of `main`. The workflows that verify a change, `ci` and `release`, only read the repository, hold no secret and publish nothing, so they run the same way for a pull request that comes from a fork. The workflow `cla` is the one that writes: it comments on a pull request and records a signature, on the code of `main` and never on that of the pull request. Every action they use is pinned to a commit.
+The pipeline of the repository, in `.github/workflows/`, runs on every pull request and on every commit of `main`; `ci` can also be started by hand. The workflows that verify a change, `ci` and `release`, only read the repository, hold no secret and publish nothing, so they run the same way for a pull request that comes from a fork. The workflow `cla` is the one that writes: it comments on a pull request and records a signature, on the code of `main` and never on that of the pull request. Every action they use is pinned to a commit.
 
 | Workflow | Job | What it verifies |
 |---|---|---|
