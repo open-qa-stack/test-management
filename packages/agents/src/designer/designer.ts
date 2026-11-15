@@ -34,6 +34,7 @@ import { sessionTools, type SessionTools } from "./session-tools.ts";
 import type { TestCheck, TestRunner } from "@open-qa-stack/domain";
 import { declaredAddresses, declaredSecrets, TEST_MODULE, testPackages } from "./spec-rules.ts";
 import { PageObjects } from "./page-objects.ts";
+import { coveringTests, existingTestTools, existingTests } from "./existing-tests.ts";
 import { ensureFixtures } from "./test-fixtures.ts";
 import { WrittenFiles } from "./written-files.ts";
 import type { ToolDefinition } from "@open-qa-stack/domain";
@@ -272,6 +273,13 @@ export class Designer {
       if (planned === undefined) {
         const session = sessionTools(scope);
         const levels = this.options.levels ?? DEFAULT_LEVELS;
+        // What the repository already tests: the agent that plans reads it, and a scenario one of these tests covers is set aside.
+        const present = await existingTests(repositoryRoot, config.repository.appsDir);
+        const existing = await coveringTests(
+          repositoryRoot,
+          config.repository.stateDir,
+          present.map((test) => test.path),
+        );
         const plan = new PlanProposal(
           {
             sources: owners,
@@ -284,6 +292,7 @@ export class Designer {
             reads: session.reads,
             review: this.options.planReview ?? ACCEPT_EVERY_PLAN,
             ...(this.options.reviewPlan === true ? { judge: new PlanReviewer(reviewed) } : {}),
+            existing,
             now,
           },
           journal,
@@ -292,7 +301,7 @@ export class Designer {
         const map = new IndexMap(index, await this.cards(index), offered, owners, await this.written(index));
         const request = planRequest(brief, index.environment, map.domains(), applications, levels);
         const notes = agentNotes(config, repositoryRoot, env, { role: "planner", task: id, now });
-        const tools = [...map.toolset(), ...offered, ...notes, plan.tool()].map((tool) => endedWithPlan(tool, plan));
+        const tools = [...map.toolset(), ...existingTestTools(present), ...offered, ...notes, plan.tool()].map((tool) => endedWithPlan(tool, plan));
         const task = { instructions: PLANNER_INSTRUCTIONS, tools, request, reminder: () => plan.reminder() };
         const last = await sessionOf("plan", session, task, () => plan.accepted !== undefined || plan.drafted);
         // A session that ends once scenarios are kept closes the plan with them: none is lost.

@@ -20,6 +20,7 @@ import { journalRefusals, maskedRefusals, refusalText, repeatedText, type Refusa
 import { GUIDED_REFUSALS, RefusalStreak } from "./refusal-streak.ts";
 import { baseUrlVariable } from "@open-qa-stack/shared";
 import { onTab } from "./tab-variable.ts";
+import type { CoveringTest } from "./plan-draft.ts";
 import { screenScope, type ScreenWatch, type ShownElement, type WatchedAction } from "./screen-watch.ts";
 import type { SourceWatch } from "./source-watch.ts";
 import { heldVariables, type DeclaredSecret } from "./spec-rules.ts";
@@ -131,6 +132,8 @@ export interface PlanRules {
   readonly reads: SourceWatch;
   /** Decides whether a plan that passes the rules may be carried out. */
   readonly review: PlanReview;
+  /** The tests the repository already has, by what each does and verifies: a scenario one of them covers is set aside. */
+  readonly existing?: readonly CoveringTest[];
   /** The model that judges the scenarios the code could not tell from one another; the comparison by the code alone without it. */
   readonly judge?: DuplicateJudge;
   /** The clock of the dates; the system clock by default. */
@@ -212,6 +215,7 @@ export class PlanProposal {
         verified: (scenario) => this.verified(scenario),
         described,
         ...(rules.judge === undefined ? {} : { judge: rules.judge }),
+        ...(rules.existing === undefined ? {} : { existing: rules.existing }),
         now: rules.now ?? (() => new Date()),
       },
       journal,
@@ -1048,7 +1052,12 @@ export class PlanProposal {
         code: this.cited(scenario, actions).map((done) => (done.application === scenario.application ? done.code : elsewhere(done))),
         lines: this.cited(scenario, actions).map((done) => {
           const screen = this.rules.screens.actedOn(done.number);
-          return { application: done.application, ...(screen === undefined ? {} : { screen }), code: done.code };
+          return {
+            application: done.application,
+            ...(screen === undefined ? {} : { screen }),
+            code: done.code,
+            ...(done.typed === undefined ? {} : { typed: done.typed }),
+          };
         }),
         expects: expects.map((expect, k) => ({
           ...expect,

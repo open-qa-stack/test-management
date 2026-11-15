@@ -1,4 +1,5 @@
 import type { ScenarioLevel } from "@open-qa-stack/domain";
+import { TESTS_LIST_TOOL } from "./existing-tests.ts";
 import type { Application } from "@open-qa-stack/shared";
 import { scopedToolName } from "@open-qa-stack/tools";
 import { DOMAIN_TOOL, LIST_TOOL, READ_TOOL } from "./index-map.ts";
@@ -19,7 +20,7 @@ How this works
 - When you are not sure, look: read the source, or take a snapshot. Never guess.
 
 Method. Each step says when it is done.
-1. Understand the brief. Call ${DOMAIN_TOOL} on its domain, then with a source for what it says of it; ${LIST_TOOL} finds an element by words, ${READ_TOOL} gives one. Done when you can name the screens and the data the brief is about.
+1. Understand the brief. Call ${DOMAIN_TOOL} on its domain, then with a source for what it says of it; ${LIST_TOOL} finds an element by words, ${READ_TOOL} gives one. Then call ${TESTS_LIST_TOOL} for what the repository already tests about it: plan what no test verifies yet. Done when you can name the screens and the data the brief is about, and the tests that exist.
 2. Find real data. Read the source that holds it, such as a table or a contract, with the tool ${DOMAIN_TOOL} names for it. Done when each scenario you have in mind has its values, exactly as a tool returned them.
 3. Do each journey on the screens, as its test will: open its first address with the goto tool of the application, sign in when the application asks, then fill and click as a user does. Read "appeared" and "gone" after each action. Done when the screens showed you the result of each journey, and what the application answers to an input that matches nothing or is wrong.
 4. Call ${PLAN_TOOL}. For each step, give in actions the numbers of the actions that did it, in order; a scenario starts with the action that opened its first address. Explore again for a scenario to add when you need to. Done when the plan is accepted: answer in one sentence and call no more tools.

@@ -272,6 +272,32 @@ describe("the scenarios of a plan, asked until the brief is covered", () => {
     assert.equal(journal.entries()[0]!.message, "The harness asked for no more scenarios: the agent ended its session without another scenario.");
   });
 
+  it("set aside a scenario a test of the repository already covers, and name that test", async () => {
+    const path = "apps/shop/tests/orders/listing/list-orders.spec.ts";
+    const written = {
+      application: "shop",
+      data: scenario("a").data.map((entry) => entry.value),
+      steps: [{ does: [OPENED, ""], shows: ["Orders"], absent: [] }],
+    };
+    const { proposal: made, journal } = await proposal({ now, existing: [{ path, verified: written }] });
+    const told = (await add(made, { scenarios: [scenario("a"), scenario("d")] })) as string;
+    assert.ok(
+      told.includes(
+        `Set aside (PLAN-EXISTING): scenario a is a duplicate of ${path}. The test ${path} already does the same steps with the same values, and expects all it expects.`,
+      ),
+      told,
+    );
+    assert.equal(
+      journal.entries()[0]!.message,
+      `The scenario a was set aside as a duplicate of ${path}, by the harness (PLAN-EXISTING): The test ${path} already does the same steps with the same values, and expects all it expects.`,
+    );
+    await add(made, { scenarios: [] });
+    assert.deepEqual(
+      [made.accepted!.scenarios.map((kept) => kept.id), made.accepted!.setAside?.map((aside) => [aside.id, aside.duplicates])],
+      [["d"], [["a", path]]],
+    );
+  });
+
   it("set aside, by the code, a scenario that does what another does and expects no more, and tell the agent and the plan who decided and why", async () => {
     const { proposal: made, journal } = await proposal({ now });
     // Scenario b expects less than a at the same step, and c the same under other words: neither verifies anything a does not.
@@ -1229,7 +1255,7 @@ describe("the actions a plan cites", () => {
       {
         action: "Search the orders of Veldane, then send",
         code: [FILLED("Veldane"), CLICKED],
-        lines: [onOrders(FILLED("Veldane")), onOrders(CLICKED)],
+        lines: [{ ...onOrders(FILLED("Veldane")), typed: "Veldane" }, onOrders(CLICKED)],
         expects: [
           {
             result: "The order of Mira Veldane shows, the other goes",

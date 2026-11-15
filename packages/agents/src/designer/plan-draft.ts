@@ -10,6 +10,16 @@ export const MAX_DUPLICATES_IN_A_ROW = 3;
 /** The code of the check that sets aside a scenario another covers, by what their tests would do. */
 export const PLAN_DUPLICATE = "PLAN-DUPLICATE";
 
+/** The code of the check that sets aside a scenario a test of the repository already covers. */
+export const PLAN_EXISTING = "PLAN-EXISTING";
+
+/** A test the repository already has, by what it does and verifies. */
+export interface CoveringTest {
+  /** Its path, relative to the root of the test repository. */
+  readonly path: string;
+  readonly verified: Verified;
+}
+
 /** What a draft needs of the scenarios it holds. */
 export interface DraftRules<S> {
   /** What a scenario does and verifies, for the comparison by the code. */
@@ -18,6 +28,8 @@ export interface DraftRules<S> {
   readonly described: (scenario: S) => string;
   /** The model that judges what the code could not tell; the comparison by the code alone without it. */
   readonly judge?: DuplicateJudge;
+  /** The tests the repository already has: a scenario one of them covers is set aside, as one a scenario of the plan covers. */
+  readonly existing?: readonly CoveringTest[];
   /** The clock of the dates. */
   readonly now: () => Date;
 }
@@ -99,7 +111,15 @@ export class PlanDraft<S extends { readonly id: string; readonly title: string; 
     for (const scenario of submitted) {
       const verified = this.rules.verified(scenario);
       const other = [...settled, ...passed].find((candidate) => coveredBy(verified, this.rules.verified(candidate)));
-      if (other === undefined) passed.push(scenario);
+      // A test of an earlier design verifies it already: writing it again would add nothing to the repository.
+      const written = other === undefined ? (this.rules.existing ?? []).find((test) => coveredBy(verified, test.verified)) : undefined;
+      if (written !== undefined)
+        duplicates.set(scenario.id, {
+          duplicates: written.path,
+          origin: { by: "harness", check: PLAN_EXISTING },
+          reason: `The test ${written.path} already does the same steps with the same values, and expects all it expects.`,
+        });
+      else if (other === undefined) passed.push(scenario);
       else
         duplicates.set(scenario.id, {
           duplicates: other.id,

@@ -63,6 +63,8 @@ export interface PlannedLine {
   readonly screen?: string;
   /** The line of code that does it on `page`, as the browser tool returned it. */
   readonly code: string;
+  /** The value it typed or chose, when it was given as a text. */
+  readonly typed?: string;
 }
 
 /** A step of a scenario: one action of the user and what it should produce. Its test writes it as one `test.step`. */
@@ -131,7 +133,7 @@ export interface SetAsideScenario {
   readonly title: string;
   /** What it was meant to verify. */
   readonly intent: string;
-  /** Identifier of the scenario of the plan that already verifies it. */
+  /** What already verifies it: the identifier of a scenario of the plan, or the path of a test the repository already has. */
   readonly duplicates: string;
   readonly origin: DuplicateOrigin;
   /** Why it is a duplicate, in a sentence. */
