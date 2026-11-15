@@ -213,12 +213,14 @@ Each scenario has a `level`, its place in the pyramid of tests, and the request 
 | `smoke` | The application answers. | Its actions only open an address. |
 | `functional` | One behaviour of one screen, a scenario each. | Its actions stay on one screen. |
 | `business` | A whole journey ends as it must. | Its actions go through two screens or more. |
-| `cross-application` | An action in one application has its effect in another. | Not written yet. |
-| `end-to-end` | A journey goes through three applications or more. | Not written yet. |
+| `cross-application` | An action in one application has its effect in another. | Its actions were done on two applications. |
+| `end-to-end` | A journey goes through three applications or more. | Its actions were done on three applications or more. |
 
-A screen is told by its route, as the browser tools say where the page is after an action: `/customers/:id` for the page of any customer. A test acts on one application, so no test of the two upper levels is written yet: when they are asked, the journal says so and the plan is asked for the others. When the harness asks what the brief still needs, it names the levels asked that no scenario kept is of.
+A screen is told by its route, as the browser tools say where the page is after an action: `/customers/:id` for the page of any customer. When the harness asks what the brief still needs, it names the levels asked that no scenario kept is of.
 
-The harness writes on each test the tags of its scenario, after its title: `@level-functional`, `@domain-customers`, `@app-policy-management`, `@kind-functional`, `@case-negative`. They are in the skeleton, and the harness writes them again on every text the agent submits, in place of any it gave: a run selects tests by them, such as `--grep @level-smoke`. They say nothing of what a test does, and two tests that differ by them alone are one test.
+A test of one of the two upper levels acts on several applications. Its scenario still names one `application`, that of its folder and of its base address; the harness reads the others from the actions it cites and writes them in the plan as `applications`. A test has one page: the first action cited on another application opens one of its addresses (`PLAN-START` otherwise), and the harness writes that line on the base address the runner gives for the application, such as `await page.goto(new URL("/tickets", process.env.OQAS_BASE_URL_DESK).href);`. The screens of all its applications are then taken as one: an expected text may come from any of them, and the session that writes its test has the browser tools of each. A scenario of a lower level that cites an action of another application is refused as before.
+
+The harness writes on each test the tags of its scenario, after its title: `@level-functional`, `@domain-customers`, `@app-policy-management`, `@kind-functional`, `@case-negative`, with one `@app-…` for each application a test of several acts on. They are in the skeleton, and the harness writes them again on every text the agent submits, in place of any it gave: a run selects tests by them, such as `--grep @level-smoke`. They say nothing of what a test does, and two tests that differ by them alone are one test.
 
 ### The scenarios of a plan, asked until the brief is covered
 

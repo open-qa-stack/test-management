@@ -73,8 +73,10 @@ export interface PlannedScenario {
   /** Its level in the pyramid of tests. */
   readonly level: ScenarioLevel;
   readonly case: ScenarioCase;
-  /** Identifier of the one application the test is about. */
+  /** Identifier of the application the test is of: its file is in the folder of that application, whose base address is its own. */
   readonly application: string;
+  /** Identifiers of the other applications the test acts on, for a test of several; the harness writes them, never the agent. */
+  readonly applications?: readonly string[];
   /** Identifier of the domain of the index the scenario comes from. */
   readonly domain: string;
   /** The sources the scenario relies on. */

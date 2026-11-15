@@ -1,4 +1,5 @@
 import { withTags } from "./scenario-tags.ts";
+import { scenarioScope } from "./screen-watch.ts";
 import { existsSync } from "node:fs";
 import { join, posix } from "node:path";
 import type { PlannedScenario, TestPlan, ToolDefinition } from "@open-qa-stack/domain";
@@ -331,7 +332,7 @@ export class TestProposals {
     if (repair.length > 0) return this.refuse(what, repair);
     const refusals = await this.checked(scenario, path, content);
     if (refusals.length > 0) return this.refuse(what, refusals);
-    const looks = this.looks(scenario.application);
+    const looks = this.looks(scenarioScope(scenario));
     const trial = await this.rules.runner.run({ path, content });
     this.streak.reset();
     if (trial.error !== undefined) {
@@ -343,7 +344,7 @@ export class TestProposals {
     const failed = trial.tests.find((test) => test.verdict !== "passed");
     // The page at the failure is one the screens showed: a test may find an element of it.
     const page = failed?.page === undefined ? undefined : snapshotLines(failed.page);
-    if (page !== undefined) this.session!.screens.recordPage(scenario.application, page);
+    if (page !== undefined) this.session!.screens.recordPage(scenarioScope(scenario), page);
     const failure =
       failed === undefined
         ? {}
@@ -380,7 +381,7 @@ export class TestProposals {
       });
     }
     const last = cursor.runs.at(-1);
-    if (last !== undefined && last.verdict !== "passed" && this.looks(scenario.application) === last.looks) {
+    if (last !== undefined && last.verdict !== "passed" && this.looks(scenarioScope(scenario)) === last.looks) {
       const look = this.lookAdvice(scenario, last);
       if (look !== undefined) refusals.push({ code: "TEST-LOOK", message: `look before you run again. ${look}` });
     }
@@ -392,7 +393,7 @@ export class TestProposals {
     const { screens, reads } = this.session!;
     const step = last.failedStep === undefined ? "" : ` (${JSON.stringify(last.failedStep)})`;
     const logs = reads.firstTools("logs").map((tool) => `read the logs since ${last.startedAt} with ${tool}`);
-    if (screens.watches(scenario.application))
+    if (screens.watches(scenarioScope(scenario)))
       return [`Take ${scopedToolName(scenario.application, "snapshot")} at the step that failed${step}`, ...logs].join(", or ") + ".";
     const inspections = [...logs, ...reads.firstTools("source-code").map((tool) => `read the source code with ${tool}`)];
     if (inspections.length > 0) return `${capitalised(inspections.join(", or "))}, at the step that failed${step}.`;
@@ -594,9 +595,9 @@ export class TestProposals {
     // A locator of the skeleton comes from the plan: the screens of its exploration showed it.
     const given = await locatorsOf(sheet);
     const own = outline.locators.filter((locator) => !given.some((planned) => planned.role === locator.role && planned.text === locator.text));
-    const unseen = screens.unseen(scenario.application, own);
-    const located = unseen.length === 0 ? [] : [this.unseenRefusal(scenario.application, unseen)];
-    const help = { skeleton: sheet, codes: screens.codes(scenario.application) };
+    const unseen = screens.unseen(scenarioScope(scenario), own);
+    const located = unseen.length === 0 ? [] : [this.unseenRefusal(scenarioScope(scenario), unseen)];
+    const help = { skeleton: sheet, codes: screens.codes(scenarioScope(scenario)) };
     const planned = [...scenarioErrors(outline, scenario, help), ...located];
     if (planned.length > 0) return planned;
     return check === undefined ? [] : coded("TEST-CHECK", (await check.check({ path, content })).map(findingText));

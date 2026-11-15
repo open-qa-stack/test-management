@@ -2265,19 +2265,9 @@ describe("resume — a design a limit stopped goes on from its plan and its test
 });
 
 describe("the levels of the pyramid of tests a plan is asked for", () => {
-  it("asks for those a test can be written at, and says which of those asked are left out", async () => {
-    const { outcome, server } = await design(replies(valid(3)), { levels: ["functional", "cross-application", "end-to-end"] });
+  it("are those the caller names, told to the agent that plans", async () => {
+    const { outcome, server } = await design(replies(valid(3)), { levels: ["functional", "cross-application"] });
     assert.equal(outcome.ok, true, messages(outcome));
-    assert.match(
-      messages(outcome),
-      /The levels cross-application, end-to-end are asked, and no test of them is written yet: a test acts on one application\. The plan is asked for functional\./,
-    );
-    assert.match(JSON.stringify(server.requests[0]!.body), /Levels of the pyramid of tests asked: functional\./);
-  });
-
-  it("asks for smoke, functional and business when none of those asked can be written", async () => {
-    const { outcome, server } = await design(replies(valid(3)), { levels: ["end-to-end"] });
-    assert.equal(outcome.ok, true, messages(outcome));
-    assert.match(JSON.stringify(server.requests[0]!.body), /Levels of the pyramid of tests asked: smoke, functional, business\./);
+    assert.match(JSON.stringify(server.requests[0]!.body), /Levels of the pyramid of tests asked: functional, cross-application\./);
   });
 });

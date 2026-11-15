@@ -11,6 +11,13 @@ describe("the tags of a test", () => {
     assert.deepEqual(scenarioTags(SCENARIO), ["@level-business", "@domain-customers", "@app-policy-management", "@kind-functional", "@case-negative"]);
   });
 
+  it("name each application a test of several acts on", () => {
+    assert.deepEqual(scenarioTags({ ...SCENARIO, level: "cross-application", applications: ["customer-management"] }).slice(2, 4), [
+      "@app-policy-management",
+      "@app-customer-management",
+    ]);
+  });
+
   it("are written after the title of the test, in place of those it had, and leave its steps as they are", () => {
     const body = 'async ({ page }) => {\n  await test.step("1. Open", async () => {});\n});\n';
     const expected = `test("Open the \\"orders\\"", ${TAGS}, ${body}`;

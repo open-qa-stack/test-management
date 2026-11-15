@@ -1,3 +1,5 @@
+import { baseUrlVariable } from "@open-qa-stack/shared";
+
 /** A file of the base of a test repository. */
 export interface BaseFile {
   /** Path relative to the root of the test repository. */
@@ -8,15 +10,7 @@ export interface BaseFile {
 /** Variable that names the environment the tests run against. */
 export const ENVIRONMENT_VARIABLE = "OQAS_ENVIRONMENT";
 
-/**
- * Variable that gives the base address of an application to its project.
- *
- * @param application - Identifier of the application, such as `policy-management`.
- * @returns Its name, such as `OQAS_BASE_URL_POLICY_MANAGEMENT`.
- */
-export function baseUrlVariable(application: string): string {
-  return `OQAS_BASE_URL_${application.toUpperCase().replace(/[^A-Z0-9]/g, "_")}`;
-}
+export { baseUrlVariable };
 
 /** The Playwright configuration of a test repository: a project per application, its tests in its folder. */
 const PLAYWRIGHT_CONFIG = `import { readFileSync } from "node:fs";

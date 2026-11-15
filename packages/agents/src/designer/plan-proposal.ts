@@ -18,7 +18,8 @@ import { PlanDraft } from "./plan-draft.ts";
 import { planEndText } from "./plan-end.ts";
 import { journalRefusals, maskedRefusals, refusalText, repeatedText, type Refusal } from "./refusal.ts";
 import { GUIDED_REFUSALS, RefusalStreak } from "./refusal-streak.ts";
-import type { ScreenWatch, ShownElement, WatchedAction } from "./screen-watch.ts";
+import { baseUrlVariable } from "@open-qa-stack/shared";
+import { screenScope, type ScreenWatch, type ShownElement, type WatchedAction } from "./screen-watch.ts";
 import type { SourceWatch } from "./source-watch.ts";
 import { heldVariables, type DeclaredSecret } from "./spec-rules.ts";
 import { MAX_TESTS } from "./test-proposals.ts";
@@ -31,6 +32,8 @@ export const MADE_UP = "made-up";
 /** The last line of what the agent is told while no plan is accepted. */
 export const PLAN_NEXT = `Next: read what the brief is about and do it once on the screens, then call ${PLAN_TOOL}.`;
 /** How what the agent is told of the plan accepted ends: its session is over. */
+/** The levels of a test that acts on several applications. */
+const CROSSING: ReadonlySet<ScenarioLevel> = new Set(["cross-application", "end-to-end"]);
 const SESSION_OVER = "Next: answer with one sentence. Call no more tools.";
 /** Plans the gates of the harness may refuse before the design stops. */
 export const MAX_REFUSED_PLANS = 6;
@@ -605,8 +608,8 @@ export class PlanProposal {
     const emptied = new Set<SubmittedExpect>();
     const echoes: string[] = [];
     const unechoed = (scenario: SubmittedScenario): SubmittedScenario => {
-      if (scenario.kind !== "functional" || !screens.watches(scenario.application)) return scenario;
-      const echoed = (text: string) => scenario.data.some((entry) => sameText(entry.value, text)) && !screens.showsBesideFields(scenario.application, text);
+      if (scenario.kind !== "functional" || !screens.watches(this.scope(scenario))) return scenario;
+      const echoed = (text: string) => scenario.data.some((entry) => sameText(entry.value, text)) && !screens.showsBesideFields(this.scope(scenario), text);
       const steps = scenario.steps.map((step, at) => {
         if (at === scenario.steps.length - 1 || !TYPING.test(step.action) || JOINED.test(step.action)) return step;
         const expects = step.expects.map((expect, k) => {
@@ -740,9 +743,9 @@ export class PlanProposal {
       });
     const values = scenario.data.map((entry) => entry.value);
     const madeUp = scenario.data.filter((entry) => entry.from === MADE_UP).map((entry) => entry.value);
-    const watched = screens.watches(scenario.application);
+    const watched = screens.watches(this.scope(scenario));
     // A test finds a text on the screens of its application, as they give it, even a value it types; a base may give it otherwise.
-    const seen = (text: string) => (watched ? screens.shows(scenario.application, text) : anywhere(text));
+    const seen = (text: string) => (watched ? screens.shows(this.scope(scenario), text) : anywhere(text));
     const texts = scenario.steps.flatMap((step, at) =>
       step.expects.flatMap((expect, k) =>
         [
@@ -771,7 +774,7 @@ export class PlanProposal {
       ? scenario.steps.flatMap((step, at) =>
           step.expects.flatMap((expect, k) =>
             expect.absent
-              .filter((text) => checkable(text) && seen(text) && !screens.showsBesideFields(scenario.application, text))
+              .filter((text) => checkable(text) && seen(text) && !screens.showsBesideFields(this.scope(scenario), text))
               .map((text) => ({
                 code: "PLAN-SHOWN",
                 message: `scenario ${scenario.id}, expect ${at + 1}.${k + 1}, names in absent "${text}", which the screens of ${scenario.application} showed only in a field: the field keeps what you typed whatever the application answers. Put in absent a text the action removed, such as a row the search filtered out.`,
@@ -791,16 +794,16 @@ export class PlanProposal {
   private nominalErrors(scenario: SubmittedScenario): Refusal[] {
     const { screens } = this.rules;
     const { application } = scenario;
-    if (scenario.case !== "nominal" || !screens.watches(application)) return [];
+    if (scenario.case !== "nominal" || !screens.watches(this.scope(scenario))) return [];
     const values = scenario.data.map((entry) => entry.value).filter(checkable);
-    const typed = values.filter((value) => screens.typed(application, value));
+    const typed = values.filter((value) => screens.typed(this.scope(scenario), value));
     // What the steps type: the values their actions name, or, when they name none, every value a field held.
     const typing = scenario.steps.filter((step) => TYPING.test(step.action)).map((step) => step.action);
     const named = values.filter((value) => observed(value, typing));
     const entered = typing.length === 0 ? [] : named.length > 0 ? named : typed;
     const fill = scopedToolName(application, "fill");
     const missed = entered
-      .filter((value) => screens.unmatched(application, value))
+      .filter((value) => screens.unmatched(this.scope(scenario), value))
       .map((value) => ({
         code: "PLAN-NOMINAL",
         message: `scenario ${scenario.id} is nominal, and the screens of ${application} found nothing with "${value}": a nominal scenario finds what it searches. Replace "${value}" in data, and in the step that types it, by a part of it, such as a first or a last name, that you searched with ${fill} and found, and expect what it found; or make the scenario negative.`,
@@ -810,7 +813,7 @@ export class PlanProposal {
       const shownBefore = scenario.steps.slice(0, at).flatMap((earlier) => earlier.expects.flatMap((expect) => expect.shows));
       return step.expects.flatMap((expect, k) =>
         expect.absent
-          .filter((text) => screens.showsBesideFields(application, text))
+          .filter((text) => screens.showsBesideFields(this.scope(scenario), text))
           .flatMap((text) => {
             const value = typed.find((candidate) => observed(candidate, [text]) && !observed(candidate, shownBefore));
             return value === undefined
@@ -834,7 +837,7 @@ export class PlanProposal {
    */
   private untypedRefusal(scenario: SubmittedScenario, number: string, text: string): Refusal {
     const fill = scopedToolName(scenario.application, "fill");
-    const typed = this.rules.screens.codes(scenario.application).find((code) => code.includes(".fill("));
+    const typed = this.rules.screens.codes(this.scope(scenario)).find((code) => code.includes(".fill("));
     return {
       code: "PLAN-SHOWN",
       message: `scenario ${scenario.id}, expect ${number}, names "${text}", a value of its data that no field of ${scenario.application} held in this session. Type it with ${fill} and do the step, then expect what the screen answered: the field only echoes the value.`,
@@ -854,7 +857,7 @@ export class PlanProposal {
   private inputErrors(scenario: SubmittedScenario): Refusal[] {
     const { screens } = this.rules;
     const { application } = scenario;
-    if (!screens.watches(application)) return [];
+    if (!screens.watches(this.scope(scenario))) return [];
     const typing =
       scenario.data.length > 0
         ? []
@@ -868,7 +871,7 @@ export class PlanProposal {
     const fielded = scenario.steps.flatMap((step, at) =>
       step.expects.flatMap((expect, k) =>
         expect.shows.filter(checkable).flatMap((text) => {
-          const held = screens.onlyInFields(application, text);
+          const held = screens.onlyInFields(this.scope(scenario), text);
           const named = `scenario ${scenario.id}, expect ${at + 1}.${k + 1}, names "${text}", which the screens of ${application} showed only`;
           if (held === "typed")
             return [
@@ -895,7 +898,7 @@ export class PlanProposal {
   private cited(scenario: SubmittedScenario, numbers: readonly number[]): WatchedAction[] {
     return numbers.flatMap((number) => {
       const done = this.rules.screens.action(number);
-      return done?.application === scenario.application ? [done] : [];
+      return done !== undefined && (done.application === scenario.application || CROSSING.has(scenario.level)) ? [done] : [];
     });
   }
 
@@ -906,7 +909,7 @@ export class PlanProposal {
       step.expects.flatMap((expect, k) =>
         [...expect.shows.map((text) => ({ text, gone: false })), ...expect.absent.map((text) => ({ text, gone: true }))].flatMap(({ text, gone }) => {
           const done = this.cited(scenario, step.actions).map((action) => action.number);
-          const element = this.rules.screens.locatorOf(application, text, gone, done);
+          const element = this.rules.screens.locatorOf(this.scope(scenario), text, gone, done);
           return element === undefined ? [] : [{ where: `scenario ${scenario.id}, expect ${at + 1}.${k + 1}`, application, text, element }];
         }),
       ),
@@ -997,13 +1000,22 @@ export class PlanProposal {
       const elements = this.located(scenario).map((located) => ({ where: located.where, element: elementOf(located) }));
       const steps = scenario.steps.map(({ action, actions, expects }, at) => ({
         action,
-        code: this.cited(scenario, actions).map((done) => done.code),
+        code: this.cited(scenario, actions).map((done) => (done.application === scenario.application ? done.code : elsewhere(done))),
         expects: expects.map((expect, k) => ({
           ...expect,
           elements: elements.filter(({ where }) => where === `scenario ${scenario.id}, expect ${at + 1}.${k + 1}`).map(({ element }) => element),
         })),
       }));
-      return { ...scenario, steps };
+      const others = screenScope([
+        scenario.application,
+        ...this.cited(
+          scenario,
+          scenario.steps.flatMap((step) => step.actions),
+        ).map((done) => done.application),
+      ])
+        .split("+")
+        .slice(1);
+      return { ...scenario, ...(others.length === 0 ? {} : { applications: others }), steps };
     });
     const uncovered = plan.uncovered ?? [];
     return { plan: { scenarios, ...(uncovered.length === 0 ? {} : { uncovered }) }, notes: [...notes] };
@@ -1038,7 +1050,7 @@ export class PlanProposal {
   private actionErrors(scenario: SubmittedScenario): Refusal[] {
     const { screens } = this.rules;
     const { application } = scenario;
-    const done = screens.actions(application);
+    const done = screens.actions(this.scope(scenario));
     // An application nothing was done on is told once, for all its scenarios.
     if (done.length === 0) return [];
     const tool = (action: string) => scopedToolName(application, action);
@@ -1069,7 +1081,7 @@ export class PlanProposal {
               remedy,
             },
           ];
-        if (cited.application !== application)
+        if (cited.application !== application && !CROSSING.has(scenario.level))
           return [
             {
               code: "PLAN-LOCATOR",
@@ -1096,6 +1108,19 @@ export class PlanProposal {
         ];
       });
     });
+    // A test has one page: it reaches another application by opening one of its addresses.
+    const order = this.cited(
+      scenario,
+      scenario.steps.flatMap((step) => step.actions),
+    );
+    for (const [at, action] of order.entries()) {
+      const before = order[at - 1];
+      if (before !== undefined && before.application !== action.application && action.tool !== "goto")
+        refusals.push({
+          code: "PLAN-START",
+          message: `scenario ${scenario.id} cites the action ${action.number} (${action.code}), done on ${action.application}, right after the action ${before.number}, done on ${before.application}: its test has one page, which must open an address of ${action.application} first. Open it with ${scopedToolName(action.application, "goto")}, do the step from there, and cite that action before the action ${action.number}.`,
+        });
+    }
     const first = this.cited(scenario, scenario.steps[0]!.actions)[0];
     if (first === undefined || first.tool === "goto") return refusals;
     const opened = done.findLast((action) => action.tool === "goto");
@@ -1108,6 +1133,16 @@ export class PlanProposal {
         remedy: `Cite first, in actions of step 1 of scenario ${scenario.id}, an action of ${tool("goto")}${example}, then the actions done after it.`,
       },
     ];
+  }
+
+  /**
+   * The scope the screens are asked about for a scenario: its application, with those its cited actions
+   * were done on when its level is one of a test that acts on several.
+   */
+  private scope(scenario: SubmittedScenario): string {
+    if (!CROSSING.has(scenario.level)) return scenario.application;
+    const acted = scenario.steps.flatMap((step) => this.cited(scenario, step.actions).map((action) => action.application));
+    return screenScope([scenario.application, ...acted]);
   }
 
   /**
@@ -1128,6 +1163,20 @@ export class PlanProposal {
       scenario,
       scenario.steps.flatMap((step) => step.actions),
     );
+    const applications = [...new Set(cited.map((action) => action.application))];
+    const acted = `its actions were done on ${applications.length === 1 ? "one application" : `${applications.length} applications`} (${applications.join(", ")})`;
+    if (level === "cross-application")
+      return applications.length === 2
+        ? []
+        : refused(
+            `${where}, and ${acted}: such a test does an action in one application and checks its effect in another. Do it on both and cite the actions of each, or give it the level ${applications.length === 1 ? "business" : "end-to-end"}.`,
+          );
+    if (level === "end-to-end")
+      return applications.length >= 3
+        ? []
+        : refused(
+            `${where}, and ${acted}: such a test goes through three applications or more. Do the journey through the others too, or give it the level ${applications.length === 1 ? "business" : "cross-application"}.`,
+          );
     if (level === "smoke")
       return cited.every((action) => action.tool === "goto")
         ? []
@@ -1154,13 +1203,12 @@ export class PlanProposal {
    */
   private screenErrors(scenario: SubmittedScenario): Refusal[] {
     const { screens } = this.rules;
-    const { application } = scenario;
     return scenario.steps.flatMap((step, at) => {
       const cited = this.cited(scenario, step.actions).map((action) => action.number);
       if (cited.length === 0) return [];
       return step.expects.flatMap((expect, k) =>
         expect.shows.filter(checkable).flatMap((text): Refusal[] => {
-          const after = screens.shownAfter(application, text);
+          const after = screens.shownAfter(this.scope(scenario), text);
           if (after.length === 0 || cited.some((number) => after.includes(number))) return [];
           return [
             {
@@ -1193,10 +1241,10 @@ export class PlanProposal {
     const empty = expects
       .filter(({ expect }) => expect.shows.length + expect.absent.length === 0)
       .map(({ number }) => ({ code: "PLAN-EXPECT", message: `expect ${number} of scenario ${scenario.id} names no text. ${told}` }));
-    if (empty.length > 0 || !this.rules.screens.watches(scenario.application)) return empty;
+    if (empty.length > 0 || !this.rules.screens.watches(this.scope(scenario))) return empty;
     const shows = expects.flatMap(({ expect }) => expect.shows);
     const absent = expects.flatMap(({ expect }) => expect.absent);
-    if (this.rules.screens.changedByAction(scenario.application, shows, absent)) return [];
+    if (this.rules.screens.changedByAction(this.scope(scenario), shows, absent)) return [];
     const tool = (action: string) => scopedToolName(scenario.application, action);
     return [
       {
@@ -1205,6 +1253,15 @@ export class PlanProposal {
       },
     ];
   }
+}
+
+/**
+ * The line of code of an action done on another application than that of its test. The base address of a
+ * test is that of its application: an address of another one is opened on the base address the harness
+ * gives for it, which the test reads from the environment.
+ */
+function elsewhere(done: WatchedAction): string {
+  return done.code.replace(/^await page\.goto\((".*")\);$/, `await page.goto(new URL($1, process.env.${baseUrlVariable(done.application)}).href);`);
 }
 
 /** What the agent is told of a scenario set aside: which one covers it, who decided and why. */

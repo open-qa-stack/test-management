@@ -55,9 +55,13 @@ export function skeleton(scenario: PlannedScenario, screenshots: boolean): strin
 export function scenarioSheet(cursor: DesignCursor, screenshots: boolean): string {
   const scenario = cursor.scenario!;
   const data = scenario.data.length === 0 ? "none" : scenario.data.map((entry) => `${JSON.stringify(entry.value)} (${entry.from})`).join("; ");
+  const others =
+    scenario.applications === undefined
+      ? ""
+      : `; it also acts on ${scenario.applications.join(", ")}, whose addresses it opens on the base address the environment gives for each`;
   const cited = scenario.sources.map(({ source, item }) => (item === undefined ? source : `${source}: ${oneLine(item)}`));
   return [
-    `Scenario ${cursor.rank} of ${cursor.plan.scenarios.length}: ${scenario.id} — ${scenario.title} (${scenario.level} level, ${scenario.kind}, ${scenario.case}), application ${scenario.application}.`,
+    `Scenario ${cursor.rank} of ${cursor.plan.scenarios.length}: ${scenario.id} — ${scenario.title} (${scenario.level} level, ${scenario.kind}, ${scenario.case}), application ${scenario.application}${others}.`,
     `Intent: ${oneLine(scenario.intent)}.`,
     `Data: ${data}.`,
     `Cited: ${cited.join("; ")}.`,

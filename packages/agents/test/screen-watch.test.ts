@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import { moduleSyntax, type SpecOutline } from "@open-qa-stack/tools";
-import { ScreenWatch, snapshotLines, type TargetMatcher } from "../src/designer/screen-watch.ts";
+import { scenarioScope, screenScope, ScreenWatch, snapshotLines, type TargetMatcher } from "../src/designer/screen-watch.ts";
 
 /** The outline of a text of a test. */
 async function outlineOf(text: string): Promise<SpecOutline> {
@@ -610,5 +610,55 @@ describe("the screens the designer watches", () => {
         `Acts on the page. ${state}`,
       ],
     );
+  });
+});
+
+describe("the screens of several applications, taken as one for a test that acts on each", () => {
+  const tools = (): ToolDefinition[] =>
+    ["shop", "desk"].flatMap((application) =>
+      ["goto", "snapshot", "click", "fill", "select_option", "check"].map((action) => ({
+        name: `${application}_${action}`,
+        description: action,
+        parameters: { type: "object" },
+        execute: async () =>
+          action === "snapshot"
+            ? { page: `- heading "The ${application}"\n- textbox "Search": about ${application}`, truncated: false }
+            : { url: `/${application}`, code: `await page.goto("/${application}");` },
+      })),
+    );
+
+  it("answers about a scope what it answers about each of its applications, and about one application for a scope of one", async () => {
+    const watch = new ScreenWatch(["shop", "desk", "ledger"], tools());
+    const call = (name: string) =>
+      watch
+        .tools()
+        .find((tool) => tool.name === name)!
+        .execute({});
+    await call("shop_goto");
+    await call("desk_goto");
+    const both = scenarioScope({ application: "shop", applications: ["desk"] });
+    assert.deepEqual([both, scenarioScope({ application: "shop" }), screenScope(["shop", "shop"])], ["shop+desk", "shop", "shop"]);
+    assert.deepEqual(
+      [
+        watch.shows(both, "The shop"),
+        watch.shows(both, "The desk"),
+        watch.shows("shop", "The desk"),
+        watch.looks(both),
+        watch.watches(both),
+        watch.watches("ledger"),
+      ],
+      [true, true, false, 2, true, false],
+    );
+    assert.deepEqual(
+      watch.actions(both).map((action) => [action.number, action.application, action.screen]),
+      [
+        [1, "shop", "/shop"],
+        [2, "desk", "/desk"],
+      ],
+    );
+    // A value a field held is dated across the applications; a page the runner showed is kept by each.
+    assert.deepEqual([watch.typedAt(both, "about shop") !== undefined, watch.typedAt(both, "about desk") !== undefined], [true, true]);
+    watch.recordPage(both, ['- heading "Failed here"']);
+    assert.deepEqual([watch.shows("shop", "Failed here"), watch.shows("desk", "Failed here")], [true, true]);
   });
 });

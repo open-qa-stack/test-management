@@ -1,4 +1,4 @@
-import type { ToolDefinition } from "@open-qa-stack/domain";
+import type { PlannedScenario, ToolDefinition } from "@open-qa-stack/domain";
 import { scopedToolName, type SpecLocator, type Target, type TargetMatch, type TargetScope } from "@open-qa-stack/tools";
 import { screenRoute } from "../application-explorer/screen-trail.ts";
 import { toolsBySource } from "./index-map.ts";
@@ -17,6 +17,35 @@ const MAX_CODES = 5;
 const MAX_CHECKED = 200;
 /** Most parts of the page, the closest first, a locator of one element among several is looked for in. */
 const MAX_SCOPES = 3;
+/** What joins the identifiers of the applications of a scope: no identifier, a slug, holds it. */
+const JOINED = "+";
+
+/**
+ * The scope of a test: its application, or its applications taken as one when it acts on several. Every
+ * question a `ScreenWatch` answers about an application, it answers about a scope.
+ *
+ * @param applications - Identifiers of the applications, the one the test is of first.
+ * @returns The scope, such as `shop` or `shop+desk`.
+ */
+export function screenScope(applications: readonly string[]): string {
+  return [...new Set(applications)].join(JOINED);
+}
+
+/**
+ * The scope of the test of a scenario: its application, with the others it acts on when it is a test of several.
+ *
+ * @param scenario - The scenario.
+ * @returns The scope.
+ */
+export function scenarioScope(scenario: Pick<PlannedScenario, "application" | "applications">): string {
+  return screenScope([scenario.application, ...(scenario.applications ?? [])]);
+}
+
+/** Whether an application is of a scope. */
+function within(scope: string, application: string): boolean {
+  return scope.split(JOINED).includes(application);
+}
+
 /** The site an address without one is read on: only its route is kept. */
 const LOCAL = "http://screen.local";
 /** How a snapshot ends the line of an element several elements share the locator of: their number, then the locator. */
@@ -249,6 +278,29 @@ export class ScreenWatch {
   }
 
   /**
+   * What was seen of an application, or of several taken as one: the scope of a test that acts on several
+   * applications is their identifiers joined, as `screenScope` gives it.
+   */
+  private view(scope: string): Seen | undefined {
+    const seen = scope.split(JOINED).flatMap((application) => this.seen.get(application) ?? []);
+    if (seen.length <= 1) return seen[0];
+    const all = <T>(sets: (one: Seen) => Iterable<T>) => new Set(seen.flatMap((one) => [...sets(one)]));
+    return {
+      lines: all((one) => one.lines),
+      produced: all((one) => one.produced),
+      removed: all((one) => one.removed),
+      values: new Map(seen.flatMap((one) => [...one.values]).sort(([, first], [, second]) => first - second)),
+      found: all((one) => one.found),
+      unmatched: all((one) => one.unmatched),
+      filled: all((one) => one.filled),
+      reached: all((one) => one.reached),
+      checked: new Map(seen.flatMap((one) => [...one.checked])),
+      last: undefined,
+      looks: seen.reduce((total, one) => total + one.looks, 0),
+    };
+  }
+
+  /**
    * The browser tools, watched.
    *
    * @returns The tools given, in their order.
@@ -288,7 +340,7 @@ export class ScreenWatch {
    * @returns They, in the order they were done; none for an application without a user interface.
    */
   public actions(application: string): WatchedAction[] {
-    return this.done.filter((action) => action.application === application);
+    return this.done.filter((action) => within(application, action.application));
   }
 
   /**
@@ -298,7 +350,7 @@ export class ScreenWatch {
    * @returns `true` for an application with a user interface.
    */
   public watches(application: string): boolean {
-    return this.seen.has(application);
+    return application.split(JOINED).some((one) => this.seen.has(one));
   }
 
   /**
@@ -308,7 +360,7 @@ export class ScreenWatch {
    * @returns The count; none for an application without a user interface.
    */
   public looks(application: string): number {
-    return this.seen.get(application)?.looks ?? 0;
+    return this.view(application)?.looks ?? 0;
   }
 
   /**
@@ -324,7 +376,7 @@ export class ScreenWatch {
    * @returns Each such locator, once by the way the test writes it; none for an application without a user interface.
    */
   public unseen(application: string, locators: readonly SpecLocator[]): SpecLocator[] {
-    const seen = this.seen.get(application);
+    const seen = this.view(application);
     if (seen === undefined) return [];
     const lines = [...seen.lines];
     const shown = ({ role, text }: SpecLocator) =>
@@ -344,7 +396,7 @@ export class ScreenWatch {
    * @returns Five lines at most, as the snapshots gave them.
    */
   public nearest(application: string, locators: readonly SpecLocator[]): string[] {
-    const lines = [...this.seen.get(application)!.lines];
+    const lines = [...this.view(application)!.lines];
     const score = (line: string) => {
       const words = new Set(wordsOf(line));
       return locators.reduce(
@@ -369,7 +421,7 @@ export class ScreenWatch {
    * @returns `true` when a line of its snapshots holds it; `false` for an application without a user interface.
    */
   public shows(application: string, text: string): boolean {
-    return observed(text, this.seen.get(application)?.lines ?? []);
+    return observed(text, this.view(application)?.lines ?? []);
   }
 
   /**
@@ -382,7 +434,7 @@ export class ScreenWatch {
    * @returns `true` when such an address holds it; `false` for an application without a user interface.
    */
   public reached(application: string, text: string): boolean {
-    return observed(text, [...(this.seen.get(application)?.reached ?? [])]);
+    return observed(text, [...(this.view(application)?.reached ?? [])]);
   }
 
   /**
@@ -395,7 +447,7 @@ export class ScreenWatch {
    * without a user interface.
    */
   public showsBeforeTyped(application: string, text: string): boolean {
-    const first = [...(this.seen.get(application)?.lines ?? [])].find((line) => observed(text, [fieldValue(line) ?? line]));
+    const first = [...(this.view(application)?.lines ?? [])].find((line) => observed(text, [fieldValue(line) ?? line]));
     return first !== undefined && fieldValue(first) === undefined;
   }
 
@@ -408,7 +460,7 @@ export class ScreenWatch {
    * @returns `true` when such a line holds it; `false` for an application without a user interface.
    */
   public showsBesideFields(application: string, text: string): boolean {
-    return observed(text, besideFields(this.seen.get(application)?.lines ?? []));
+    return observed(text, besideFields(this.view(application)?.lines ?? []));
   }
 
   /**
@@ -420,7 +472,7 @@ export class ScreenWatch {
    * @returns `true` when such a line holds it; `false` for an application without a user interface.
    */
   public showsUntyped(application: string, text: string): boolean {
-    const seen = this.seen.get(application);
+    const seen = this.view(application);
     return (
       seen !== undefined &&
       observed(
@@ -441,7 +493,7 @@ export class ScreenWatch {
    * it, and for an application without a user interface.
    */
   public onlyInFields(application: string, text: string): "typed" | "value" | "name" | undefined {
-    const seen = this.seen.get(application);
+    const seen = this.view(application);
     if (seen === undefined || !observed(text, seen.lines) || observed(text, besideFields(seen.lines))) return undefined;
     const holding = [...seen.lines].filter((line) => observed(text, [fieldValue(line) ?? ""]));
     if (holding.some((line) => !typedIn(seen, line))) return "value";
@@ -457,7 +509,7 @@ export class ScreenWatch {
    * @returns `true` when the note of such an action named it; `false` for an application without a user interface.
    */
   public unmatched(application: string, value: string): boolean {
-    const seen = this.seen.get(application);
+    const seen = this.view(application);
     return seen !== undefined && seen.unmatched.has(value) && !seen.found.has(value);
   }
 
@@ -481,7 +533,7 @@ export class ScreenWatch {
    * without a user interface.
    */
   public typedAt(application: string, text: string): number | undefined {
-    return [...(this.seen.get(application)?.values ?? [])].find(([value]) => observed(text, [value]))?.[1];
+    return [...(this.view(application)?.values ?? [])].find(([value]) => observed(text, [value]))?.[1];
   }
 
   /**
@@ -510,7 +562,7 @@ export class ScreenWatch {
    * a user interface.
    */
   public locatorOf(application: string, text: string, gone: boolean, actions: readonly number[] = []): ShownElement | undefined {
-    const seen = this.seen.get(application);
+    const seen = this.view(application);
     if (seen === undefined) return undefined;
     const states = actions.flatMap((number) => this.after.get(number) ?? []);
     const last = states.at(-1);
@@ -547,7 +599,7 @@ export class ScreenWatch {
    */
   public shownAfter(application: string, text: string): number[] {
     return this.done
-      .filter((action) => action.application === application && observed(text, besideFields(this.after.get(action.number)!.shown)))
+      .filter((action) => within(application, action.application) && observed(text, besideFields(this.after.get(action.number)!.shown)))
       .map((action) => action.number);
   }
 
@@ -563,7 +615,7 @@ export class ScreenWatch {
    * changes when the field only gains or loses the focus.
    */
   public changedByAction(application: string, shows: readonly string[], absent: readonly string[]): boolean {
-    const seen = this.seen.get(application)!;
+    const seen = this.view(application)!;
     const appeared = shows.filter(checkable);
     const went = absent.filter(checkable);
     if (appeared.length + went.length === 0) return true;
@@ -578,9 +630,8 @@ export class ScreenWatch {
    * @param lines - The lines of the page, as `snapshotLines` gives them.
    */
   public recordPage(application: string, lines: readonly string[]): void {
-    const seen = this.seen.get(application);
-    if (seen === undefined) return;
-    for (const line of lines) seen.lines.add(line);
+    // The runner does not say which application of a scope its page was of: each keeps the lines.
+    for (const one of application.split(JOINED)) for (const line of lines) this.seen.get(one)?.lines.add(line);
   }
 
   /** Keeps what a snapshot showed, the locators of its new lines checked on the page; one of the whole page is the one the next action is compared with. */

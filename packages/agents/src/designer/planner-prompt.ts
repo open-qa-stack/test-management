@@ -28,8 +28,8 @@ The pyramid of tests. Each scenario has a level, and the request says which are 
 - smoke: the application answers. One step: open its first address, expect one text of the page.
 - functional: one behaviour of one screen, and a scenario for each: a search by first name, by last name, with a joker, that matches nothing are four scenarios.
 - business: a whole journey through several screens ends as it must, such as signing in, searching a customer and opening their profile.
-- cross-application: an action in one application has its effect in another.
-- end-to-end: a journey goes through three applications or more.
+- cross-application: an action in one application has its effect in another. Do the action with the tools of the first, open an address of the second with its goto tool, check the effect there, and cite the actions of both, in order.
+- end-to-end: the same through three applications or more.
 Plan at each level asked what the brief calls for: many small functional scenarios, and a business one for each journey.
 
 Three rules cause most refusals

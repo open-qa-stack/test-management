@@ -108,8 +108,6 @@ const INSPECTED = new Set<Knowledge["type"]>(["logs", "source-code"]);
 /** The classes of the tests a design counts towards those it must give. */
 /** The levels of the pyramid of tests a plan is asked for when the caller names none. */
 const DEFAULT_LEVELS: readonly ScenarioLevel[] = ["smoke", "functional", "business"];
-/** The levels a test can be written at: one of the others acts on several applications, which no test does yet. */
-const WRITTEN_LEVELS: readonly ScenarioLevel[] = DEFAULT_LEVELS;
 const COUNTED = new Set<TestClass>(["passed", "failing-application"]);
 
 /** Accepts every plan as it is: the designer works on its own. */
@@ -259,14 +257,7 @@ export class Designer {
       let planned: TestPlan | undefined = frozen;
       if (planned === undefined) {
         const session = sessionTools(scope);
-        const asked = this.options.levels ?? DEFAULT_LEVELS;
-        const written = asked.filter((level) => WRITTEN_LEVELS.includes(level));
-        const levels = written.length === 0 ? DEFAULT_LEVELS : written;
-        if (written.length < asked.length)
-          journal.record(
-            "info",
-            `The levels ${asked.filter((level) => !written.includes(level)).join(", ")} are asked, and no test of them is written yet: a test acts on one application. The plan is asked for ${levels.join(", ")}.`,
-          );
+        const levels = this.options.levels ?? DEFAULT_LEVELS;
         const plan = new PlanProposal(
           {
             sources: owners,
@@ -320,10 +311,14 @@ export class Designer {
       const recall = agentRecall(config, repositoryRoot, env, { role: "writer", task: id, now });
       let stoppedBy: StopReason["limit"] | undefined;
       for (let scenario = proposals.scenario; scenario !== undefined; scenario = proposals.scenario) {
-        // The session has the screens of the application of its scenario, the sources the scenario cites, and those that tell why a run failed.
+        // The session has the screens of the applications its scenario acts on, the sources the scenario cites, and those that tell why a run failed.
         const { application: about, sources: cites } = scenario;
         const cited = readable.filter((source) => INSPECTED.has(source.type) || cites.some((reference) => reference.source === source.id));
-        const session = sessionTools({ ...scope, applications: applications.filter((application) => application.id === about), sources: cited });
+        const session = sessionTools({
+          ...scope,
+          applications: applications.filter((application) => [about, ...(scenario.applications ?? [])].includes(application.id)),
+          sources: cited,
+        });
         const sheet = proposals.sheet!;
         // The journal of the scenario belongs to the phase of its session.
         phase = "write";

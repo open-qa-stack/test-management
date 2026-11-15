@@ -170,7 +170,6 @@ The agent that plans submits its scenarios in several calls, and the harness set
 | `cross-application` | An action in one application has its effect in another. |
 | `end-to-end` | A journey goes through three applications or more. |
 
-No test of the two upper levels is written yet, a test acting on one application: when they are asked, the journal says so and the plan is asked for the others.
 
 ### Model
 

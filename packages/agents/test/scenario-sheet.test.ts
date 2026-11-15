@@ -183,6 +183,11 @@ describe("the sheet of a scenario", () => {
       sheet.at(-1),
       "Next: check the skeleton of search-order-by-customer against its steps, complete what a comment asks, then call run_test with the whole file.",
     );
+    // A test of several applications is told the others it acts on, and bears a tag for each.
+    const crossing = new DesignCursor({ scenarios: [{ ...SEARCH, level: "cross-application", applications: ["desk"] }] }, () => "apps/shop/a.spec.ts");
+    const told = scenarioSheet(crossing, false);
+    assert.ok(told.includes("application shop; it also acts on desk, whose addresses it opens on the base address the environment gives for each."), told);
+    assert.ok(told.includes('"@app-shop","@app-desk"'), told);
     // A scenario without data says so, and a source cited whole is named alone.
     cursor.close();
     assert.deepEqual(

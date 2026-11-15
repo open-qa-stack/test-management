@@ -1,4 +1,5 @@
 export { resolveLimits } from "./config/autonomy.ts";
+export { baseUrlVariable } from "./config/base-url-variable.ts";
 export { declaredValues, declaredVariables, type DeclaredVariable, type VariableSections } from "./config/declared-variables.ts";
 export { CONFIG_FILE_NAME, STATE_DIR_NAME } from "./config/file-names.ts";
 export { readsImages } from "./config/model-capabilities.ts";

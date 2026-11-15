@@ -65,7 +65,7 @@ describe("the instructions of the agent that plans", () => {
     // It writes no test: nothing of the charter, of the runs nor of the files is its concern.
     assert.doesNotMatch(PLANNER_INSTRUCTIONS, /run_test|propose_test|Charter|\.spec\.ts/);
     assert.doesNotMatch(PLANNER_INSTRUCTIONS, /[ \t]$/m);
-    assert.ok(PLANNER_INSTRUCTIONS.length <= 4600, String(PLANNER_INSTRUCTIONS.length));
+    assert.ok(PLANNER_INSTRUCTIONS.length <= 4800, String(PLANNER_INSTRUCTIONS.length));
   });
 });
 

@@ -1379,9 +1379,9 @@ describe("a plan that verifies only what works", () => {
 });
 
 describe("the level of a scenario, held to what its actions went through", () => {
-  /** Browser tools of the shop: one opens the address asked, and a click opens the order. */
+  /** Browser tools of three applications: one opens the address asked, and a click opens the order. */
   const tools = (): ToolDefinition[] =>
-    ["shop"].flatMap((application) => {
+    ["shop", "desk", "ledger"].flatMap((application) => {
       let count = 0;
       const tool = (action: string, execute: (args: { url?: string }) => unknown): ToolDefinition => ({
         name: `${application}_${action}`,
@@ -1389,7 +1389,10 @@ describe("the level of a scenario, held to what its actions went through", () =>
         parameters: { type: "object" },
         execute: async (args) => execute(args as { url?: string }),
       });
-      const done = (url: string | undefined) => ({ ...(url === undefined ? {} : { url }), code: `await ${application}.act(${(count += 1)});` });
+      const done = (url: string | undefined) => ({
+        ...(url === undefined ? {} : { url }),
+        code: url === undefined || url.startsWith("http") ? `await ${application}.act(${(count += 1)});` : `await page.goto(${JSON.stringify(url)});`,
+      });
       return [
         tool("goto", ({ url = "/orders" }) => done(url)),
         tool("snapshot", () => ({ page: '- heading "Orders"', truncated: false })),
@@ -1400,9 +1403,9 @@ describe("the level of a scenario, held to what its actions went through", () =>
       ];
     });
   const levels = ["smoke", "functional", "business", "cross-application", "end-to-end"] as const;
-  /** A proposal whose agent opened the orders (1), searched (2), then opened an order (3). */
+  /** A proposal whose agent opened the orders (1), searched (2), opened an order (3), opened the desk (4), clicked there (5), then opened the ledger (6). */
   const explored = async (asked: readonly (typeof levels)[number][] = levels) => {
-    const screens = new ScreenWatch(["shop"], tools());
+    const screens = new ScreenWatch(["shop", "desk", "ledger"], tools());
     const call = (name: string, args: object = {}) =>
       screens
         .tools()
@@ -1411,8 +1414,11 @@ describe("the level of a scenario, held to what its actions went through", () =>
     await call("shop_goto");
     await call("shop_fill");
     await call("shop_click");
+    await call("desk_goto", { url: "/tickets" });
+    await call("desk_click");
+    await call("ledger_goto");
     const { reads } = await proposal();
-    return new PlanProposal({ ...RULES, levels: asked, screens, reads }, new Journal());
+    return new PlanProposal({ ...RULES, applications: ["shop", "desk", "ledger"], levels: asked, screens, reads }, new Journal());
   };
   const at = (level: (typeof levels)[number], actions: number[]) =>
     scenario("a", {
@@ -1451,6 +1457,59 @@ describe("the level of a scenario, held to what its actions went through", () =>
     assert.match(
       await answered(await explored(), at("business", [1, 2])),
       /^business, and its actions went through 1 screen \(\/orders\): a business test follows a journey through several screens to its result\. Give it the level functional, /,
+    );
+  });
+
+  it("holds a test of several applications to how many it acts on, and a test of one application to that one", async () => {
+    assert.match(
+      await answered(await explored(), at("cross-application", [1, 3])),
+      /^cross-application, and its actions were done on one application \(shop\): .* or give it the level business\.$/,
+    );
+    assert.match(
+      await answered(await explored(), at("cross-application", [1, 4, 6])),
+      /^cross-application, and its actions were done on 3 applications \(shop, desk, ledger\): .* or give it the level end-to-end\.$/,
+    );
+    assert.match(
+      await answered(await explored(), at("end-to-end", [1, 4])),
+      /^end-to-end, and its actions were done on 2 applications \(shop, desk\): .* or give it the level cross-application\.$/,
+    );
+    assert.match(
+      await answered(await explored(), at("end-to-end", [1])),
+      /^end-to-end, and its actions were done on one application \(shop\): .* or give it the level business\.$/,
+    );
+    const alone = (await (await explored()).tool().execute({ scenarios: [at("business", [1, 4])] })) as { error: string };
+    assert.match(
+      alone.error,
+      /^Refused \(PLAN-LOCATOR\): scenario a, step 1, "Open the orders", cites the action 4, done on desk: a test of shop acts on shop alone\./,
+    );
+  });
+
+  it("keeps a test of several applications, opens the addresses of the others on their base address, and names them in the plan", async () => {
+    const made = await explored();
+    assert.equal(await answered(made, at("cross-application", [1, 2, 4, 5])), "kept");
+    await made.tool().execute({ scenarios: [] });
+    const [kept] = made.accepted!.scenarios;
+    assert.deepEqual(
+      [kept!.application, kept!.applications, kept!.steps[0]!.code],
+      [
+        "shop",
+        ["desk"],
+        [
+          'await page.goto("/orders");',
+          "await shop.act(1);",
+          'await page.goto(new URL("/tickets", process.env.OQAS_BASE_URL_DESK).href);',
+          "await desk.act(1);",
+        ],
+      ],
+    );
+    assert.equal(await answered(await explored(), at("end-to-end", [1, 4, 6])), "kept");
+  });
+
+  it("refuses an action on another application that no address opened there comes before: a test has one page", async () => {
+    const refused = (await (await explored()).tool().execute({ scenarios: [at("cross-application", [1, 5])] })) as { error: string };
+    assert.match(
+      refused.error,
+      /^Refused \(PLAN-START\): scenario a cites the action 5 \(await desk\.act\(1\);\), done on desk, right after the action 1, done on shop: its test has one page, which must open an address of desk first\. Open it with desk_goto, do the step from there, and cite that action before the action 5\./,
     );
   });
 
