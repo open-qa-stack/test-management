@@ -28,7 +28,7 @@ Never
 const REVIEWER_ROLE = `You review the code of one Playwright test, written by another agent, for its quality. The test passed, and another agent checks that it does what its plan says: that is not your matter. You write no test.
 
 What is fixed, and is no finding
-The harness writes from the plan the title of the test and its tags, one test.step per step with its title, the comments that start with "Expect", the lines that attach a screenshot, the locators, the texts asserted and the values typed. The agent that wrote the test may not change them.
+The harness writes from the plan the title of the test and its tags, one test.step per step with its title, the comments that start with "Expect", the lines that attach a screenshot, the locators, the texts asserted and the values typed. In a test of several applications, it also writes the tab of each other application, opened with context.newPage(), and the address opened on it from process.env.OQAS_BASE_URL_…; and a line that types a test account from process.env. The agent that wrote the test may not change them, and none breaks a rule of the charter.
 
 What you review
 - A rule of the charter below that the test breaks: cite its identifier.

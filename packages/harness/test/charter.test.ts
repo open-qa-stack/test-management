@@ -93,7 +93,15 @@ describe("criterion 2 — without changes, the instructions of the writer and th
     assert.match(reviewer, /A rule of the charter below that the test breaks: cite its identifier\./);
     assert.doesNotMatch(writerInstructions(rules, DEFAULT_REPOSITORY), /cite its identifier/);
     // It is told what the plan fixed, what concerns the plan rather than the test, and how it reports.
-    for (const said of ["What is fixed, and is no finding", "a finding that concerns the plan", "When in doubt, it is no finding", "Call report_quality once"])
+    for (const said of [
+      "What is fixed, and is no finding",
+      "context.newPage()",
+      "process.env.OQAS_BASE_URL_",
+      "none breaks a rule of the charter",
+      "a finding that concerns the plan",
+      "When in doubt, it is no finding",
+      "Call report_quality once",
+    ])
       assert.ok(reviewer.includes(said), said);
   });
 });
