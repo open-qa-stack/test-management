@@ -1076,9 +1076,9 @@ describe("the actions a plan cites", () => {
     const refused = (await submit(again, { scenarios: [submitted.scenarios[0]!, submitted.scenarios[1]!, scenario("c")] })) as { error: string };
     assert.deepEqual(refused.error.split("\n"), [
       'Refused (PLAN-LOCATOR): scenario a, step 1, "Open the orders", cites no action: the harness writes the code of a step from the actions that did it. Do the step with the browser tools of shop, such as shop_click, then give in actions the numbers their results return in "action", such as "actions": [3, 4] for a step done by the actions 3 and 4.',
-      'Refused (PLAN-LOCATOR): scenario b, step 1, "Open the orders", cites the action 1, done on desk: a test of shop acts on shop alone. Do the step with the browser tools of shop, such as shop_click, and cite the numbers their results return in "action".',
+      'Refused (PLAN-LOCATOR): scenario b, step 1, "Open the orders", cites the action 1, done on desk: a test of the level functional acts on shop alone. If the scenario verifies in one application what it did in the other, give it the level cross-application, which a test of two applications has; otherwise do the step with the browser tools of shop, such as shop_click, and cite the numbers their results return in "action".',
       'Refused (PLAN-LOCATOR): scenario b, step 1, "Open the orders", cites the action 7, which no browser tool returned in this session. Give in actions the numbers the results of the browser tools of shop return in "action"; do the step again if you no longer have them.',
-      'Refused (PLAN-LOCATOR): scenario c, step 1, "Open the orders", cites the action 1, done on desk: a test of shop acts on shop alone. Do the step with the browser tools of shop, such as shop_click, and cite the numbers their results return in "action".',
+      'Refused (PLAN-LOCATOR): scenario c, step 1, "Open the orders", cites the action 1, done on desk: a test of the level functional acts on shop alone. If the scenario verifies in one application what it did in the other, give it the level cross-application, which a test of two applications has; otherwise do the step with the browser tools of shop, such as shop_click, and cite the numbers their results return in "action".',
       "Nothing else was refused.",
     ]);
     await submit(again, submitted);
@@ -1476,7 +1476,7 @@ describe("the level of a scenario, held to what its actions went through", () =>
     const alone = (await (await explored()).tool().execute({ scenarios: [at("business", [1, 4])] })) as { error: string };
     assert.match(
       alone.error,
-      /^Refused \(PLAN-LOCATOR\): scenario a, step 1, "Open the orders", cites the action 4, done on desk: a test of shop acts on shop alone\./,
+      /^Refused \(PLAN-LOCATOR\): scenario a, step 1, "Open the orders", cites the action 4, done on desk: a test of the level business acts on shop alone\. If the scenario verifies in one application what it did in the other, give it the level cross-application, /,
     );
   });
 

@@ -1103,7 +1103,7 @@ export class PlanProposal {
           return [
             {
               code: "PLAN-LOCATOR",
-              message: `${where} cites the action ${number}, done on ${cited.application}: a test of ${application} acts on ${application} alone. Do the step with the browser tools of ${application}, such as ${tool("click")}, and cite the numbers their results return in "action".`,
+              message: `${where} cites the action ${number}, done on ${cited.application}: a test of the level ${scenario.level} acts on ${application} alone. If the scenario verifies in one application what it did in the other, give it the level cross-application, which a test of two applications has; otherwise do the step with the browser tools of ${application}, such as ${tool("click")}, and cite the numbers their results return in "action".`,
               remedy,
             },
           ];
