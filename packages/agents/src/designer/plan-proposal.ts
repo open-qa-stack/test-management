@@ -443,6 +443,8 @@ export class PlanProposal {
     const { plan: checked, emptied } = this.withoutEchoes(whole);
     const refusals = this.errors(checked, emptied, submitted.scenarios);
     if (refusals.length > 0) return this.refuse(refusals);
+    const changed = await this.staleErrors(submitted.scenarios);
+    if (changed.length > 0) return this.refuse(changed);
     const kept = withoutEmptied(checked, emptied);
     // Several elements share the locator of an expected text: the agent is asked about each, once.
     const open = kept.scenarios.flatMap((scenario) => this.located(scenario)).filter((located) => located.element.count > 1 && !this.asked.has(keyOf(located)));
@@ -1199,6 +1201,36 @@ export class PlanProposal {
         }),
       ),
     );
+  }
+
+  /**
+   * What the harness finds by looking itself, for a scenario that writes: it opens again the address the
+   * scenario starts on and reads the page. A text its first step finds there that the page no longer shows
+   * means the exploration changed the environment and did not put it back: the test would fail from its first
+   * step. Only a first step that opens addresses and nothing else is looked at, and a page that cannot be
+   * read holds the plan to nothing.
+   */
+  private async staleErrors(scenarios: readonly SubmittedScenario[]): Promise<Refusal[]> {
+    const refusals: Refusal[] = [];
+    for (const scenario of scenarios.filter((candidate) => candidate.effect === "write")) {
+      const [first] = scenario.steps;
+      const opening = this.cited(scenario, first!.actions);
+      const address = opening.at(-1)?.opened;
+      const texts = first!.expects.flatMap((expect) => expect.shows).filter(checkable);
+      if (address === undefined || texts.length === 0 || opening.some((action) => action.tool !== "goto")) continue;
+      const { application } = opening.at(-1)!;
+      const missing = await this.rules.screens.missingAt(application, address, texts);
+      if (missing === undefined || missing.length === 0) continue;
+      this.journal.record(
+        "info",
+        this.masked(`The harness opened ${address} of ${application} again: it no longer shows ${missing.map((text) => JSON.stringify(text)).join(", ")}.`),
+      );
+      refusals.push({
+        code: "PLAN-EFFECT",
+        message: `scenario ${scenario.id} starts from ${missing.map((text) => JSON.stringify(text)).join(", ")} at step 1, and the harness, which opened ${address} again, no longer finds ${missing.length === 1 ? "it" : "them"} there: what you changed while you explored is still changed, and the test would fail at its first step. Put it back on the screens, as the last step of the scenario does, then submit the plan again. If it cannot be put back, start the scenario from what the page shows now.`,
+      });
+    }
+    return refusals;
   }
 
   /**

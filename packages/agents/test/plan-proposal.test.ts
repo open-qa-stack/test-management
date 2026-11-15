@@ -1600,3 +1600,93 @@ describe("the effect of a scenario on the data of the environment", () => {
     );
   });
 });
+
+describe("the start of a scenario that writes, looked at again by the harness", () => {
+  /** Browser tools of a shop whose list shows an order until a click on Save renames it. */
+  const shop = () => {
+    const state = { renamed: false, down: false };
+    const tool = (action: string, execute: (args: { url?: string; target?: { name?: string } }) => unknown): ToolDefinition => ({
+      name: `shop_${action}`,
+      description: action,
+      parameters: { type: "object" },
+      execute: async (args) => execute(args as { url?: string }),
+    });
+    return {
+      state,
+      tools: [
+        tool("goto", ({ url = "/orders" }) => {
+          if (state.down) throw new Error("The page did not answer.");
+          return { url, code: `await page.goto(${JSON.stringify(url)});` };
+        }),
+        tool("snapshot", () => ({ page: `- heading "Orders"\n- row "${state.renamed ? "ORD-2000" : "ORD-1042"} Mira Veldane"`, truncated: false })),
+        tool("click", ({ target }) => {
+          state.renamed = target?.name === "Save";
+          return { code: `await page.getByRole("button", { name: "${target?.name}" }).click();` };
+        }),
+        ...["fill", "select_option", "check"].map((action) => tool(action, () => ({ code: `await page.${action}();` }))),
+      ],
+    };
+  };
+  const explored = async () => {
+    const { state, tools } = shop();
+    const screens = new ScreenWatch(["shop"], tools);
+    const call = (name: string, args: object = {}) =>
+      screens
+        .tools()
+        .find((tool) => tool.name === name)!
+        .execute(args);
+    const journal = new Journal();
+    const { reads } = await proposal();
+    const made = new PlanProposal({ ...RULES, screens, reads }, journal);
+    return { state, call, journal, made };
+  };
+  const step = (action: string, actions: number[], shows: string[], absent: string[] = []) => ({
+    action,
+    actions,
+    expects: [{ result: action, shows, absent }],
+  });
+  /** Opens the orders (1), renames the order with Save (2), then puts its name back with Undo (3). */
+  const renaming = scenario("a", {
+    effect: "write",
+    data: [],
+    steps: [
+      step("Open the orders", [1], ["ORD-1042"]),
+      step("Rename the order", [2], ["ORD-2000"], ["ORD-1042"]),
+      step("Give it its name back", [3], ["ORD-1042"], ["ORD-2000"]),
+    ],
+  });
+
+  /** The agent opens the orders (1), renames the order (2), puts its name back (3), then renames it again (4), which no step cites. */
+  const changedAgain = async () => {
+    const given = await explored();
+    await given.call("shop_goto", { url: "/orders" });
+    await given.call("shop_click", { target: { role: "button", name: "Save" } });
+    await given.call("shop_click", { target: { role: "button", name: "Undo" } });
+    await given.call("shop_click", { target: { role: "button", name: "Save" } });
+    return given;
+  };
+
+  it("refuses the plan when the page the scenario starts on no longer shows what its first step finds, and says what the harness saw", async () => {
+    const { journal, made } = await changedAgain();
+    const refused = (await made.tool().execute({ scenarios: [renaming] })) as { error: string };
+    assert.match(
+      refused.error,
+      /^Refused \(PLAN-EFFECT\): scenario a starts from "ORD-1042" at step 1, and the harness, which opened \/orders again, no longer finds it there: what you changed while you explored is still changed, and the test would fail at its first step\. Put it back on the screens, [^]* If it cannot be put back, start the scenario from what the page shows now\./,
+    );
+    assert.ok(journal.entries().some((entry) => entry.message === 'The harness opened /orders of shop again: it no longer shows "ORD-1042".'));
+  });
+
+  it("keeps the plan once what was changed is put back, and holds it to nothing when the page cannot be read or its first step does more than open it", async () => {
+    const back = await explored();
+    await back.call("shop_goto", { url: "/orders" });
+    await back.call("shop_click", { target: { role: "button", name: "Save" } });
+    await back.call("shop_click", { target: { role: "button", name: "Undo" } });
+    assert.equal(typeof (await back.made.tool().execute({ scenarios: [renaming] })), "string");
+    const down = await changedAgain();
+    down.state.down = true;
+    assert.equal(typeof (await down.made.tool().execute({ scenarios: [renaming] })), "string");
+    const acting = await changedAgain();
+    const first = { ...renaming, steps: [{ ...renaming.steps[0]!, actions: [1, 3] }, renaming.steps[1]!, renaming.steps[2]!] };
+    assert.equal(typeof (await acting.made.tool().execute({ scenarios: [first] })), "string");
+  });
+});

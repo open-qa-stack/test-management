@@ -585,7 +585,7 @@ describe("the screens the designer watches", () => {
     await call("shop_check", { checked: true });
     await call("shop_click");
     assert.deepEqual(watch.action(2), { number: 2, application: "shop", tool: "fill", code: "line 2", typed: "Veldane", screen: "/orders" });
-    assert.deepEqual(watch.action(3), { number: 3, application: "desk", tool: "goto", code: "line 3", screen: "/orders" });
+    assert.deepEqual(watch.action(3), { number: 3, application: "desk", tool: "goto", code: "line 3", screen: "/orders", opened: "/" });
     // The credential of an account is no text the agent typed; an option chosen is one.
     assert.deepEqual(watch.action(4), { number: 4, application: "shop", tool: "fill", code: "line 4", screen: "/orders" });
     assert.deepEqual(watch.action(5), { number: 5, application: "shop", tool: "select_option", code: "line 5", typed: "Paid", screen: "/orders" });
@@ -660,5 +660,50 @@ describe("the screens of several applications, taken as one for a test that acts
     assert.deepEqual([watch.typedAt(both, "about shop") !== undefined, watch.typedAt(both, "about desk") !== undefined], [true, true]);
     watch.recordPage(both, ['- heading "Failed here"']);
     assert.deepEqual([watch.shows("shop", "Failed here"), watch.shows("desk", "Failed here")], [true, true]);
+  });
+});
+
+describe("a page the harness looks at by itself", () => {
+  /** Browser tools of a shop whose home shows its orders, until it is told they are gone. */
+  const shop = () => {
+    const state = { gone: false, down: false, opened: [] as string[] };
+    const tool = (action: string, execute: (args: { url?: string }) => unknown): ToolDefinition => ({
+      name: `shop_${action}`,
+      description: action,
+      parameters: { type: "object" },
+      execute: async (args) => execute(args as { url?: string }),
+    });
+    const tools = [
+      tool("goto", ({ url = "/" }) => {
+        if (state.down) throw new Error("The page did not answer.");
+        state.opened.push(url);
+        return { url, code: `await page.goto(${JSON.stringify(url)});` };
+      }),
+      tool("snapshot", () => ({
+        page: state.gone ? '- heading "Shop"' : '- heading "Shop"\n- row "ORD-1042 Mira Veldane"\n- textbox "Search": Veldane',
+        truncated: false,
+      })),
+      ...["click", "fill", "select_option", "check"].map((action) => tool(action, () => ({ code: `await page.${action}();` }))),
+    ];
+    return { state, watch: new ScreenWatch(["shop"], tools) };
+  };
+
+  it("says which texts the page no longer shows beside its fields, without the look counting as one of the agent", async () => {
+    const { state, watch } = shop();
+    assert.deepEqual(await watch.missingAt("shop", "/orders", ["ORD-1042", "Shop"]), []);
+    // What a field holds is no text the page shows.
+    assert.deepEqual(await watch.missingAt("shop", "/orders", ["Veldane", "ORD-1042"]), []);
+    state.gone = true;
+    assert.deepEqual(await watch.missingAt("shop", "/orders", ["ORD-1042", "Shop"]), ["ORD-1042"]);
+    assert.deepEqual(
+      [state.opened, watch.actions("shop"), watch.looks("shop"), watch.shows("shop", "Shop")],
+      [["/orders", "/orders", "/orders"], [], 0, false],
+    );
+  });
+
+  it("answers nothing of a page it could not open", async () => {
+    const { state, watch } = shop();
+    state.down = true;
+    assert.equal(await watch.missingAt("shop", "/orders", ["Shop"]), undefined);
   });
 });

@@ -107,6 +107,8 @@ export interface WatchedAction {
   readonly screen?: string;
   /** The name of the element it clicked, when that name says the click creates, changes or removes data of the application. */
   readonly changes?: string;
+  /** The address it opened, as the agent gave it, when it opened one. */
+  readonly opened?: string;
 }
 
 /** What the designer saw of the screens of one application. */
@@ -163,6 +165,8 @@ export class ScreenWatch {
   /** For each action, by its number: the lines the page showed between it and the next action on its application, and those it removed. */
   private readonly after = new Map<number, { readonly shown: Set<string>; readonly removed: Set<string> }>();
   private readonly watched: ToolDefinition[];
+  /** The browser tools as they were given, by name: the harness looks at a page with them without the look counting as one of the agent. */
+  private readonly given: ReadonlyMap<string, ToolDefinition>;
   private readonly matches: TargetMatcher;
 
   /**
@@ -211,7 +215,7 @@ export class ScreenWatch {
         return result;
       });
       // An action is one whose tool returned its line of code: it is numbered, and its result gives the number.
-      const numbered = <T extends { code?: unknown }>(action: string, state: T, typed?: string, changes?: string): T => {
+      const numbered = <T extends { code?: unknown }>(action: string, state: T, typed?: string, changes?: string, opened?: string): T => {
         if (typeof state.code !== "string") return state;
         const number = this.done.length + 1;
         const { url } = state as { url?: unknown };
@@ -226,6 +230,7 @@ export class ScreenWatch {
           ...(typed === undefined ? {} : { typed }),
           ...(screen === undefined ? {} : { screen }),
           ...(changes === undefined ? {} : { changes }),
+          ...(opened === undefined ? {} : { opened }),
         });
         this.after.set(number, { shown: new Set(), removed: new Set() });
         return { ...state, action: number };
@@ -233,7 +238,8 @@ export class ScreenWatch {
       wrap(
         "goto",
         async (tool, args) => {
-          const state = numbered("goto", (await tool.execute(args)) as { code?: unknown });
+          const { url } = args as { url?: unknown };
+          const state = numbered("goto", (await tool.execute(args)) as { code?: unknown }, undefined, undefined, typeof url === "string" ? url : undefined);
           const shown = await read();
           return { ...state, page: shown.page, truncated: shown.truncated };
         },
@@ -281,6 +287,7 @@ export class ScreenWatch {
         wrap(name.slice(scopedToolName(application, "").length), (tool, args) => tool.execute(args));
     }
     this.watched = tools.map((tool) => owned.get(tool.name) ?? tool);
+    this.given = new Map(tools.map((tool) => [tool.name, tool]));
   }
 
   /**
@@ -592,6 +599,30 @@ export class ScreenWatch {
       found.find((element) => element.count > 1) ??
       [...field, ...found.filter((element) => element.count === 0)][0]
     );
+  }
+
+  /**
+   * Whether the page of an application shows texts beside its fields, now, once an address is opened again:
+   * the harness looks by itself, and its look is none of the agent's — neither an action nor a screen it saw.
+   *
+   * @param application - Identifier of the application.
+   * @param address - The address to open, as the agent gave it to its tool.
+   * @param texts - The texts looked for.
+   * @returns Those the page does not show; none when it shows them all, and `undefined` when the page could
+   * not be opened or read, which holds a plan to nothing.
+   */
+  public async missingAt(application: string, address: string, texts: readonly string[]): Promise<string[] | undefined> {
+    try {
+      await this.given.get(scopedToolName(application, "goto"))!.execute({ url: address });
+      const shown = (await this.given.get(scopedToolName(application, "snapshot"))!.execute({})) as { page: string };
+      // The page of the agent moved: its next action is compared with what the page shows then.
+      const seen = this.seen.get(application);
+      if (seen !== undefined) seen.last = undefined;
+      const lines = besideFields(pageLines(shown.page));
+      return texts.filter((text) => !observed(text, lines));
+    } catch {
+      return undefined;
+    }
   }
 
   /**
