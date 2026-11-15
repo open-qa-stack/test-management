@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { changingName, destructiveName } from "../src/browser/destructive-target.ts";
 
 describe("an element whose name says it removes data", () => {

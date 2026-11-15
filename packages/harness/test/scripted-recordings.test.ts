@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { scriptedServer } from "@open-qa-stack/testing";
 import { serializeRecording, type Recording } from "../src/index.ts";
 import { ManualClock, SCENARIOS, type Scenario } from "./scenarios.ts";

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import type { PlannedScenario, TerminalEvent } from "@open-qa-stack/domain";
 import { CoherenceReviewer, type CoherenceSession } from "../src/coherence-reviewer/coherence-reviewer.ts";
 import { COHERENCE_REVIEWER_INSTRUCTIONS } from "../src/coherence-reviewer/coherence-reviewer-prompt.ts";

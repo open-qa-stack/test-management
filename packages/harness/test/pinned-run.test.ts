@@ -5,7 +5,7 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { after, before, describe, it } from "node:test";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import type { CommandOutcome, CommandRunner, StepCommand } from "@open-qa-stack/domain";
 import { validateConfig, type ResolvedConfig } from "@open-qa-stack/shared";
 import { closedPort } from "@open-qa-stack/testing";
@@ -21,7 +21,7 @@ let down = "";
 let downToo = "";
 let hung = "";
 let silentServer: Server;
-before(async () => {
+beforeAll(async () => {
   site = createServer((request, response) => {
     response.writeHead(request.url === "/broken" ? 500 : 200);
     response.end("ok");
@@ -34,7 +34,7 @@ before(async () => {
   await new Promise<void>((resolve) => silentServer.listen(0, "127.0.0.1", resolve));
   hung = `http://127.0.0.1:${(silentServer.address() as AddressInfo).port}`;
 });
-after(async () => {
+afterAll(async () => {
   await new Promise<void>((resolve) => site.close(() => resolve()));
   silentServer.closeAllConnections();
   await new Promise<void>((resolve) => silentServer.close(() => resolve()));

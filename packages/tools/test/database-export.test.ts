@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { exportFile } from "../src/common/source-export.ts";
 import { fingerprintOf } from "../src/index.ts";
 import type { ColumnSummary, DatabaseStructure, TableKeys, TriggerSummary } from "../src/postgresql/database-catalog.ts";

@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { ImageToolResult, pngSize, type AgentEvent, type TaskLimits, type ToolDefinition } from "@open-qa-stack/domain";
 import { answer, scriptedServer, testSite, toolCalls } from "@open-qa-stack/testing";
 import { browserTools } from "@open-qa-stack/tools";

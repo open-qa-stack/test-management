@@ -17,19 +17,24 @@ export interface WorkspacePackage {
    * whose coverage its own tests measure there.
    */
   readonly measuredInBrowser: ReadonlySet<string>;
+  /**
+   * The files its manifest lists under `coverage.runAsProgram`, absolute: the entry points its tests start as
+   * programs of their own, which a test runner that measures its own process alone cannot see.
+   */
+  readonly runAsProgram: ReadonlySet<string>;
 }
 
 /** What the check reads of the manifest of a package. */
 interface Manifest {
   readonly scripts?: Readonly<Record<string, string>>;
-  readonly coverage?: { readonly measuredInBrowser?: readonly string[] };
+  readonly coverage?: { readonly measuredInBrowser?: readonly string[]; readonly runAsProgram?: readonly string[] };
 }
 
 /**
  * Lists the packages of a workspace, its root included, as pnpm finds them.
  *
  * @param root - The root of the workspace.
- * @returns Each package with its test script, its source files and those its tests measure in a browser.
+ * @returns Each package with its test script, its source files, those its tests measure in a browser and those they run as programs.
  */
 export async function workspacePackages(root: string): Promise<WorkspacePackage[]> {
   const { stdout } = await promisify(execFile)("pnpm", ["ls", "--recursive", "--depth", "-1", "--json"], { cwd: root });
@@ -43,6 +48,7 @@ export async function workspacePackages(root: string): Promise<WorkspacePackage[
         testScript: manifest.scripts?.["test"],
         sources: await sourcesOf(path),
         measuredInBrowser: new Set((manifest.coverage?.measuredInBrowser ?? []).map((file) => join(path, file))),
+        runAsProgram: new Set((manifest.coverage?.runAsProgram ?? []).map((file) => join(path, file))),
       };
     }),
   );

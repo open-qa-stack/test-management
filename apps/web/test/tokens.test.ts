@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { after, before, describe, it } from "node:test";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import { pathToFileURL } from "node:url";
 import { chromium, type Browser } from "playwright-core";
 
@@ -128,11 +128,11 @@ function sources(root: URL = APP, folder = ""): string[] {
 
 let browser: Browser | undefined;
 
-before(async () => {
+beforeAll(async () => {
   browser = await chromium.launch();
 });
 
-after(async () => {
+afterAll(async () => {
   await browser?.close();
 });
 

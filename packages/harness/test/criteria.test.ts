@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import net from "node:net";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { ModelResponseError, ModelUnreachableError, ReplayMissError, type AgentEvent } from "@open-qa-stack/domain";
 import { parseRecording, TOOL_CALLING_CHECK, type Recording } from "../src/index.ts";
 import { answer, closedPort, MODEL_SERVER_PORT, NetworkAccessError, scriptedServer } from "@open-qa-stack/testing";
@@ -227,6 +227,20 @@ describe("a model that does not answer in time", () => {
 });
 
 describe("live mode", () => {
+  it("reports an error status whose body gives no reason", async () => {
+    const server = await scriptedServer([{ status: 500, body: {} }]);
+    try {
+      await withRuntime({ kind: "live", upstream: { baseUrl: server.baseUrl } }, MODEL, async (runtime) => {
+        const session = await runtime.openSession(TOOL_CALLING_CHECK.session());
+        const events: AgentEvent[] = [];
+        for await (const event of session.send("Say hello.")) events.push(event);
+        assert.equal(errorOf(events)?.message, "The model answered with status 500.");
+      });
+    } finally {
+      await server.close();
+    }
+  });
+
   it("reports an error status, then answers the next message of the same session", async () => {
     const server = await scriptedServer([{ status: 503, body: { error: { message: "busy" } } }, { body: answer(MODEL, "Back.") }]);
     try {

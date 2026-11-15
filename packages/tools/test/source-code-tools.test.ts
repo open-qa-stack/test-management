@@ -4,7 +4,7 @@ import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rm
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { after, before, describe, it } from "node:test";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import type { Knowledge, SourceCodeCommands } from "@open-qa-stack/shared";
 import { CodeFolder, MAX_FILE_BYTES } from "../src/source-code/code-folder.ts";
@@ -15,7 +15,7 @@ import { globMatcher, MAX_GLOB_ALTERNATIVES, MAX_GLOB_LENGTH } from "../src/sour
 import { MAX_OUTPUT_LENGTH, runProcess } from "../src/source-code/process-run.ts";
 import { MAX_READ_LINE_LENGTH, MAX_READ_LINES } from "../src/source-code/source-code-tools.ts";
 import { parsedExtensions } from "../src/source-code/syntax-parser.ts";
-import { fileLines, MAX_LINE_LENGTH } from "../src/source-code/text-search.ts";
+import { fileLines, MAX_LINE_LENGTH, searchText } from "../src/source-code/text-search.ts";
 import { knowledgeTools } from "../src/index.ts";
 
 const FIXTURE = fileURLToPath(new URL("./fixtures/source/", import.meta.url));
@@ -45,7 +45,7 @@ function trap(name: string): string {
 
 const ran = (name: string) => existsSync(join(workspace, `${name}.ran`));
 
-before(() => {
+beforeAll(() => {
   workspace = mkdtempSync(join(tmpdir(), "oqas-code-"));
   repository = join(workspace, "tests");
   code = join(workspace, "app", "service");
@@ -90,7 +90,7 @@ before(() => {
   writeFileSync(join(workspace, "app", ".gitattributes"), "*.md filter=evil\n");
 });
 
-after(() => {
+afterAll(() => {
   rmSync(workspace, { recursive: true, force: true });
 });
 
@@ -388,5 +388,30 @@ describe("criterion 4 — outlines of TypeScript and Java files, the git history
     const flood = await runProcess("/bin/sh", ["-c", "head -c 2000000 /dev/zero | tr '\\0' x"], code, 5000);
     assert.deepEqual([flood.exitCode, flood.stdout.length, flood.truncated], [null, MAX_OUTPUT_LENGTH, true]);
     await assert.rejects(runProcess("oqas-no-such-program", [], code, 1000), /^Error: oqas-no-such-program cannot be run: ENOENT\.$/);
+  });
+});
+
+describe("the search of a text", () => {
+  it("gives each matching line with the lines around it, up to the limit, and cuts the long ones", () => {
+    const text = `one\ntwo\nthree ${"x".repeat(MAX_LINE_LENGTH)}\nfour\n`;
+    assert.deepEqual(searchText("a.txt", text, /t/, 1, 1), [
+      {
+        path: "a.txt",
+        line: 2,
+        lines: [
+          { line: 1, text: "one" },
+          { line: 2, text: "two" },
+          { line: 3, text: `three ${"x".repeat(MAX_LINE_LENGTH - 6)}…` },
+        ],
+      },
+    ]);
+    assert.deepEqual(
+      searchText("a.txt", text, /^(one|four)$/, 0, 5).map(({ line, lines }) => [line, lines.length]),
+      [
+        [1, 1],
+        [4, 1],
+      ],
+    );
+    assert.deepEqual(searchText("a.txt", text, /absent/, 2, 5), []);
   });
 });

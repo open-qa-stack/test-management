@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import type { Knowledge } from "@open-qa-stack/shared";
 import { COLUMNS_QUERY, KEYS_QUERY, SERVER_ACCESS_QUERY, TABLES_QUERY } from "../src/postgresql/catalog-query.ts";

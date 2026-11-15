@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { after, before, describe, it } from "node:test";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import { ImageToolResult, type ToolDefinition } from "@open-qa-stack/domain";
 import type { Application } from "@open-qa-stack/shared";
 import { testSite, type TestSite } from "@open-qa-stack/testing";
@@ -18,7 +18,7 @@ const SECRET_SHOWN = "The page shows a secret of the configuration: its image is
 let site: TestSite;
 let folder: string;
 
-before(async () => {
+beforeAll(async () => {
   site = await testSite({
     "/": '<h1>Policies</h1><div data-testid="box" style="position: absolute; top: 120px; left: 40px; width: 200px; height: 100px; background: #36c"></div>',
     "/login": '<label for="pw">Password</label><input id="pw" type="password"><label for="code">Code</label><input id="code">',
@@ -37,7 +37,7 @@ before(async () => {
   folder = mkdtempSync(join(tmpdir(), "oqas-shots-"));
 });
 
-after(async () => {
+afterAll(async () => {
   await site.close();
   rmSync(folder, { recursive: true, force: true });
 });

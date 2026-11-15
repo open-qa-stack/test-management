@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import type { ExportedElement } from "@open-qa-stack/tools";
 import { Journal } from "../src/common/journal.ts";
 import { BatchPlacement, MAX_LINE_LENGTH, MAX_PLACEMENT_CALLS } from "../src/source-workflow/batch-placement.ts";

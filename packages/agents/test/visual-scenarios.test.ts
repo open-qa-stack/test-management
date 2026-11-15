@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import type { PlannedScenario } from "@open-qa-stack/domain";
 import { uncomparedScreens, withComparisons } from "../src/designer/visual-scenarios.ts";
 

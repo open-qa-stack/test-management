@@ -3,7 +3,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, wr
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { after, before, beforeEach, describe, it } from "node:test";
+import { afterAll, beforeAll, beforeEach, describe, it } from "vitest";
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import type { ContainerEngine, Knowledge } from "@open-qa-stack/shared";
 import { ContainerLogs } from "../src/logs/container-logs.ts";
@@ -50,7 +50,7 @@ function engine(name: ContainerEngine, body: string): void {
 
 const recordedArgs = () => readFileSync(join(workspace, "args"), "utf8").split("\n").slice(0, -1);
 
-before(() => {
+beforeAll(() => {
   workspace = mkdtempSync(join(tmpdir(), "oqas-logs-"));
   doubles = join(workspace, "bin");
   mkdirSync(doubles);
@@ -63,7 +63,7 @@ beforeEach(() => {
   rmSync(join(doubles, "docker"), { force: true });
 });
 
-after(() => {
+afterAll(() => {
   process.env["PATH"] = path;
   rmSync(workspace, { recursive: true, force: true });
 });

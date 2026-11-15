@@ -10,11 +10,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "typecheck": "tsc -p tsconfig.json && tsc -p test/tsconfig.json",
-    "test": "node --test --enable-source-maps --import ./test/jsx.ts --experimental-test-coverage --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 --test-coverage-include='src/**' 'test/**/*.test.ts'"
+    "typecheck": "tsc -p tsconfig.json && tsc -p test/tsconfig.json"
   },
   "coverage": {
-    "measuredInBrowser": ["src/main.tsx"]
+    "measuredInBrowser": [
+      "src/main.tsx"
+    ]
   },
   "dependencies": {
     "react": "19.3.1",
@@ -24,6 +25,7 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "playwright-core": "1.64.1",
-    "vite": "8.3.5"
+    "vite": "8.3.5",
+    "vitest": "5.1.0"
   }
 }

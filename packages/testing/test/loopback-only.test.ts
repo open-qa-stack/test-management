@@ -3,7 +3,7 @@ import dgram from "node:dgram";
 import dns from "node:dns";
 import { once } from "node:events";
 import net from "node:net";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 
 import "../src/loopback-only.ts";
 import { closedPort, MODEL_SERVER_PORT, NetworkAccessError } from "../src/index.ts";

@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { after, describe, it } from "node:test";
+import { afterAll, describe, it } from "vitest";
 import { WrittenFiles } from "../src/designer/written-files.ts";
 
 const root = mkdtempSync(join(tmpdir(), "written-files-"));
-after(() => rmSync(root, { recursive: true, force: true }));
+afterAll(() => rmSync(root, { recursive: true, force: true }));
 
 describe("the files a design writes beside its tests", () => {
   it("are written when their text differs, and put back as they were: gone, or with the text they held", async () => {

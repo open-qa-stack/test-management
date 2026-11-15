@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { repeatedText } from "../src/designer/refusal.ts";
 import { RefusalStreak } from "../src/designer/refusal-streak.ts";
 

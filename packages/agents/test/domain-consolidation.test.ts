@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import type { SourceCard } from "@open-qa-stack/shared";
 import { cartographyRequest, CARTOGRAPHER_INSTRUCTIONS } from "../src/cartographer/cartographer-prompt.ts";
 import { DomainConsolidation } from "../src/cartographer/domain-consolidation.ts";

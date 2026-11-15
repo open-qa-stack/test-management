@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { appendFile, cp, mkdtemp, readFile, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { fileURLToPath } from "node:url";
 
 const APP = fileURLToPath(new URL("..", import.meta.url));

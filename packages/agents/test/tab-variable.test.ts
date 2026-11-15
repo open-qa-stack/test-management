@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { onTab } from "../src/designer/tab-variable.ts";
 
 describe("the tab of another application in a test of several", () => {

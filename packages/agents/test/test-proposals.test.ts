@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { after, describe, it } from "node:test";
+import { afterAll, describe, it } from "vitest";
 import type { Knowledge } from "@open-qa-stack/shared";
 import type { PlannedScenario, TestRunner, ToolDefinition } from "@open-qa-stack/domain";
 import { Journal } from "../src/common/journal.ts";
@@ -16,7 +16,7 @@ import type { CoherenceFinding } from "../src/designer/design-state.ts";
 import { TestProposals, type ProposalRules } from "../src/designer/test-proposals.ts";
 
 const root = mkdtempSync(join(tmpdir(), "oqas-proposals-"));
-after(() => rmSync(root, { recursive: true, force: true }));
+afterAll(() => rmSync(root, { recursive: true, force: true }));
 
 const STARTED = "2026-11-13T10:00:00.000Z";
 

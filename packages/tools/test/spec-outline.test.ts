@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { moduleSyntax, type SpecOutline } from "../src/index.ts";
 
 async function outlineOf(text: string): Promise<SpecOutline> {

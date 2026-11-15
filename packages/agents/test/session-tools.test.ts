@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { validateConfig, type ResolvedConfig } from "@open-qa-stack/shared";
 import { sessionTools } from "../src/designer/session-tools.ts";
 

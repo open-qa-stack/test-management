@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import type { Application } from "@open-qa-stack/shared";
 import { PLANNER_INSTRUCTIONS, planRequest } from "../src/designer/planner-prompt.ts";
 

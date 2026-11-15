@@ -82,6 +82,68 @@ function checkWith(path: string, text: string): ReturnType<DemoWorkspace["check"
   });
 }
 
+/**
+ * Sets the `test` script of the root of a demonstration workspace, or removes it.
+ *
+ * @param workspace - The workspace.
+ * @param script - The script; none to leave the root without one.
+ */
+async function rootTestScript(workspace: DemoWorkspace, script?: string): Promise<void> {
+  const manifest = JSON.parse(await workspace.read("package.json")) as { scripts: Record<string, string> };
+  const scripts = Object.fromEntries(Object.entries(manifest.scripts).filter(([name]) => name !== "test"));
+  await workspace.write("package.json", JSON.stringify({ ...manifest, scripts: script === undefined ? scripts : { ...scripts, test: script } }));
+}
+
+/** A test script of the root that tests the package `together`, and writes its coverage report where the check asks. */
+const TOGETHER_SCRIPT = [
+  'mkdir -p "$OQAS_COVERAGE_DIRECTORY" &&',
+  "node --test --experimental-test-coverage --test-coverage-include='packages/together/src/**'",
+  '--test-reporter=lcov --test-reporter-destination="$OQAS_COVERAGE_DIRECTORY/lcov.info"',
+  "'packages/together/test/**/*.test.ts'",
+].join(" ");
+
+/**
+ * Adds to a demonstration workspace a package without a test script, which the script of the root tests: a
+ * module its test covers, and an entry point its manifest lists as run as a program.
+ *
+ * @param workspace - The workspace.
+ */
+async function testedTogether(workspace: DemoWorkspace): Promise<void> {
+  await rootTestScript(workspace, TOGETHER_SCRIPT);
+  await workspace.write(
+    "packages/together/package.json",
+    JSON.stringify({
+      name: "together",
+      private: true,
+      type: "module",
+      scripts: { typecheck: "tsc -p tsconfig.json" },
+      coverage: { runAsProgram: ["src/main.ts"] },
+    }),
+  );
+  await workspace.write("packages/together/tsconfig.json", JSON.stringify({ extends: "../../tsconfig.base.json", include: ["src", "test"] }));
+  await workspace.write(
+    "packages/together/src/double.ts",
+    ["/** @returns Twice a number. */", "export function double(value: number): number {", "  return value * 2;", "}", ""].join("\n"),
+  );
+  await workspace.write(
+    "packages/together/src/main.ts",
+    ['import { double } from "./double.ts";', "", "process.stdout.write(String(double(2)));", ""].join("\n"),
+  );
+  await workspace.write(
+    "packages/together/test/double.test.ts",
+    [
+      'import assert from "node:assert/strict";',
+      'import { test } from "node:test";',
+      'import { double } from "../src/double.ts";',
+      "",
+      'test("doubles a number", () => {',
+      "  assert.equal(double(2), 4);",
+      "});",
+      "",
+    ].join("\n"),
+  );
+}
+
 describe("the check", { concurrency: true }, () => {
   it("criteria 1 and 9 — ends with 0 on code that passes every step, and leaves every versioned file unchanged", async () => {
     await inDemo(async (workspace) => {
@@ -156,14 +218,45 @@ describe("the check", { concurrency: true }, () => {
     assert.match(run.output, /check: failed at the step "tests and coverage"/);
   });
 
-  it("fails on a package with source files and no test script, naming it", async () => {
+  it("fails on a package with source files and no test script, when the root has none either, naming it", async () => {
     const run = await inDemo(async (workspace) => {
       await workspace.write("packages/untested/package.json", JSON.stringify({ name: "untested", private: true, type: "module" }));
       await workspace.write("packages/untested/src/one.js", "export const one = 1;\n");
+      await rootTestScript(workspace);
       return workspace.check();
     });
     assert.notEqual(run.code, 0);
     assert.match(run.output, /^untested has source files and no test script$/m);
+    assert.match(run.output, /check: failed at the step "tests and coverage"/);
+  });
+
+  it("tests with the script of the root a package without one, and leaves out the entry points it runs as programs", async () => {
+    const run = await inDemo(async (workspace) => {
+      await testedTogether(workspace);
+      return workspace.check();
+    });
+    assert.equal(run.code, 0, run.output);
+  });
+
+  it("fails on a file the script of the root does not cover, naming its package", async () => {
+    const run = await inDemo(async (workspace) => {
+      await testedTogether(workspace);
+      await workspace.write("packages/together/src/half.ts", "export const half = (value: number): number => value / 2;\n");
+      return workspace.check();
+    });
+    assert.notEqual(run.code, 0);
+    assert.match(run.output, /^together: src\/half\.ts is missing from the coverage of the tests$/m);
+    assert.match(run.output, /check: failed at the step "tests and coverage"/);
+  });
+
+  it("fails on a script of the root that writes no coverage report, naming the sources it does not measure", async () => {
+    const run = await inDemo(async (workspace) => {
+      await testedTogether(workspace);
+      await rootTestScript(workspace, "echo no tests");
+      return workspace.check();
+    });
+    assert.notEqual(run.code, 0);
+    assert.match(run.output, /^together: src\/double\.ts is missing from the coverage of the tests$/m);
     assert.match(run.output, /check: failed at the step "tests and coverage"/);
   });
 

@@ -3,7 +3,7 @@ import { execFile, execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { after, describe, it } from "node:test";
+import { afterAll, describe, it } from "vitest";
 import { fileURLToPath } from "node:url";
 import { validateConfig } from "@open-qa-stack/shared";
 import { answer, scriptedServer, toolCalls } from "@open-qa-stack/testing";
@@ -11,10 +11,10 @@ import { AgentRuntimeError, ImageToolResult, type AgentEvent, type AgentRuntime,
 import type { DesignedTest, TraceLine } from "@open-qa-stack/agents";
 import { followedLine, MAX_FOLLOWED_LENGTH } from "../src/solo/followed-line.ts";
 import { runnableTests } from "../src/solo/runnable-tests.ts";
-import { CountedRuntime, exitCodeOf, GuardedRuntime, liveRuntime, missingPrerequisites, parseArguments, RunJournal, USAGE } from "../src/index.ts";
+import { CountedRuntime, exitCodeOf, GuardedRuntime, liveRuntime, missingPrerequisites, parseArguments, RunJournal, soloCommand, USAGE } from "../src/index.ts";
 
 const workspace = mkdtempSync(join(tmpdir(), "oqas-cli-units-"));
-after(() => rmSync(workspace, { recursive: true, force: true }));
+afterAll(() => rmSync(workspace, { recursive: true, force: true }));
 
 const MAIN = fileURLToPath(new URL("../src/main.ts", import.meta.url));
 /** Runs the command as a program, and gives its exit code and outputs. */
@@ -66,6 +66,46 @@ describe("the options of the command", () => {
     const missing = await oqas("--repository", workspace);
     assert.equal(missing.code, 3);
     assert.match(missing.err, /oqas\.json cannot be read/);
+  });
+});
+
+describe("the command, called in the process", () => {
+  /** Runs the command with outputs that are kept, and gives its exit code and what it wrote. */
+  const called = async (argv: string[], write?: (text: string) => void) => {
+    let out = "";
+    let err = "";
+    const code = await soloCommand(argv, {
+      env: {},
+      cwd: workspace,
+      stdout: { write: (text) => (out += text) },
+      stderr: {
+        write: (text) => {
+          write?.(text);
+          err += text;
+        },
+      },
+    });
+    return { code, out, err };
+  };
+
+  it("prints the usage, refuses a wrong option, and stops on a missing configuration with the runner of the machine", async () => {
+    assert.deepEqual(await called(["--help"]), { code: 0, out: USAGE, err: "" });
+    assert.deepEqual(await called(["--push"]), { code: 3, out: "", err: "Unknown option --push; see oqas --help.\n" });
+    const missing = await called([]);
+    assert.equal(missing.code, 3);
+    assert.match(missing.err, /oqas\.json cannot be read/);
+  });
+
+  it("exits with 5 on what is thrown, even when it is no error", async () => {
+    let thrown = false;
+    const stopped = await called([], () => {
+      if (thrown) return;
+      thrown = true;
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- what a foreign output may throw
+      throw "the output is closed";
+    });
+    assert.equal(stopped.code, 5);
+    assert.match(stopped.err, /oqas stopped on an unexpected error: the output is closed/);
   });
 });
 

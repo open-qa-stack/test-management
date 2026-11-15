@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { validateConfig } from "@open-qa-stack/shared";
 import { runSources } from "../src/cartographer/run-sources.ts";
 

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { declaredValues, validateConfig, type ConfigError } from "../src/index.ts";
 import { errorsOf, EXAMPLE_ENV, exampleText, listAt, validateVariant, type JsonObject } from "./helpers.ts";
 

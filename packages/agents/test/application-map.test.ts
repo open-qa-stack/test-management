@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import { ApplicationMap } from "../src/application-explorer/application-map.ts";
 import { applicationExplorerInstructions, explorationRequest } from "../src/application-explorer/application-explorer-prompt.ts";

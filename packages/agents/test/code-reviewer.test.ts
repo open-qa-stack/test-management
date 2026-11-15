@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import type { TerminalEvent } from "@open-qa-stack/domain";
 import { CodeReviewer } from "../src/code-reviewer/code-reviewer.ts";
 import type { ReviewSession } from "../src/common/reported-findings.ts";

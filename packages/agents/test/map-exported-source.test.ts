@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { after, before, describe, it } from "node:test";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import type { AgentEvent, AgentRuntime } from "@open-qa-stack/domain";
 import type { ExportedElement } from "@open-qa-stack/tools";
 import { Journal } from "../src/common/journal.ts";
@@ -44,11 +44,11 @@ const TWO = [element("public.orders"), element("public.order_lines")];
 
 let workspace: string;
 
-before(() => {
+beforeAll(() => {
   workspace = mkdtempSync(join(tmpdir(), "oqas-map-exported-"));
 });
 
-after(() => {
+afterAll(() => {
   rmSync(workspace, { recursive: true, force: true });
 });
 

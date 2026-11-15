@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { assertionsOf, writtenValues } from "../src/designer/assertion-line.ts";
 
 const ADDRESS = "742 Alpine Way, 3000 Bern";

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { AgentRuntimeError, ModelResponseError, ModelUnreachableError, ReplayMissError, SessionClosedError } from "../src/index.ts";
 
 describe("criterion 1 — the AgentRuntime contract depends on nothing", () => {

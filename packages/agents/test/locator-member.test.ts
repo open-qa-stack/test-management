@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { chainCalls, memberAction } from "../src/designer/locator-member.ts";
 
 describe("the calls of a chain", () => {

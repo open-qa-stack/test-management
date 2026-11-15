@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { after, describe, it } from "node:test";
+import { afterAll, describe, it } from "vitest";
 import { DocumentSet, documentTools } from "@open-qa-stack/tools";
 import { Journal } from "../src/common/journal.ts";
 import { documentCartographerInstructions, documentMapRequest } from "../src/document-cartographer/document-cartographer-prompt.ts";
@@ -10,7 +10,7 @@ import { DocumentMap } from "../src/document-cartographer/document-map.ts";
 import { DocumentWatch } from "../src/document-cartographer/document-watch.ts";
 
 const workspace = mkdtempSync(join(tmpdir(), "oqas-document-map-"));
-after(() => rmSync(workspace, { recursive: true, force: true }));
+afterAll(() => rmSync(workspace, { recursive: true, force: true }));
 
 const FILES: Readonly<Record<string, string>> = {
   "orders/place.md": "# Place an order\n\nA customer places an order.\n\n## Limits\n\nTen lines at most.\n\n## Limits\n\nOne address.\n",

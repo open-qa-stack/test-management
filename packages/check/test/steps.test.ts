@@ -49,14 +49,19 @@ describe("the coverage directive step", () => {
         IGNORE_NEXT,
         ["/* node:coverage", "disable */"].join(" "),
         ["/* node:coverage", "enable */"].join(" "),
+        ["/* v8", "ignore next */"].join(" "),
+        ["/* istanbul", "ignore if */"].join(" "),
+        `${["/* c8", "ignore start */"].join(" ")} // https://github.com/open-qa-stack/test-management/issues/5`,
       ];
       await writeFile(file, lines.join("\n"));
       const findings = await new CoverageDirectiveStep(root, [
-        { name: "demo", path: root, testScript: undefined, sources: [file], measuredInBrowser: new Set() },
+        { name: "demo", path: root, testScript: undefined, sources: [file], measuredInBrowser: new Set(), runAsProgram: new Set() },
       ]).run();
       assert.deepEqual(findings, [
         "directives.ts:5: coverage directive without the URL of an issue of open-qa-stack/test-management",
         "directives.ts:6: coverage directive without the URL of an issue of open-qa-stack/test-management",
+        "directives.ts:8: coverage directive without the URL of an issue of open-qa-stack/test-management",
+        "directives.ts:9: coverage directive without the URL of an issue of open-qa-stack/test-management",
       ]);
     } finally {
       await rm(root, { recursive: true, force: true });

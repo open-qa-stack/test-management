@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import type { ExportedElement, SourceExport } from "@open-qa-stack/tools";
 import { citedNameProblems, cites, exportVocabulary } from "../src/source-workflow/cited-names.ts";
 import { coverageErrors, domainFileErrors } from "../src/source-workflow/domain-file-control.ts";

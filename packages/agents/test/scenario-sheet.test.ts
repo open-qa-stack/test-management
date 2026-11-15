@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { after, describe, it } from "node:test";
+import { afterAll, describe, it } from "vitest";
 import type { ExpectedElement, PlannedScenario } from "@open-qa-stack/domain";
 import { CharterCheck, resolveCharter } from "@open-qa-stack/harness";
 import { moduleSyntax } from "@open-qa-stack/tools";
@@ -26,7 +26,7 @@ export declare const expect: (actual: unknown) => { toBeVisible(): Promise<void>
 `;
 
 const repository = mkdtempSync(join(tmpdir(), "skeleton-"));
-after(() => rmSync(repository, { recursive: true, force: true }));
+afterAll(() => rmSync(repository, { recursive: true, force: true }));
 for (const [path, content] of Object.entries({
   "node_modules/@playwright/test/package.json": JSON.stringify({ name: "@playwright/test", version: "0.0.0", types: "index.d.ts" }),
   "node_modules/@playwright/test/index.d.ts": PLAYWRIGHT_TYPES,

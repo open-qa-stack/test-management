@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { after, before, describe, it } from "node:test";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import { join } from "node:path";
 import { ManifestCheck } from "../manifest-check.ts";
 import { DemoWorkspace, lint, ROOT, type LintConfiguration } from "./demo-workspace.ts";
@@ -65,10 +65,10 @@ const confined = (file: string, module = "@github/copilot-sdk", column = 1): str
 function linted(files: Readonly<Record<string, string>>, configure?: (configuration: LintConfiguration) => void): (file: string) => string[] {
   const workspace = new DemoWorkspace(files, configure);
   let diagnostics: string[] = [];
-  before(async () => {
+  beforeAll(async () => {
     diagnostics = await workspace.lint();
   });
-  after(() => workspace.remove());
+  afterAll(() => workspace.remove());
   return (file) => diagnostics.filter((line) => line.startsWith(`${file}:`));
 }
 
@@ -84,7 +84,7 @@ describe("criterion 1 — the delivered code keeps to its boundaries", () => {
     const workspace = new DemoWorkspace({ "packages/domain/src/demo.ts": "export const demo = 1;\n" }, (configuration) => {
       configuration.jsPlugins = [join(ROOT, "lint", "missing-plugin.ts")];
     });
-    after(() => workspace.remove());
+    afterAll(() => workspace.remove());
     await assert.rejects(workspace.lint(), /^Error: oxlint failed without a diagnostic:/);
   });
 });
@@ -267,7 +267,7 @@ describe("criterion 9 — a manifest that declares a dependency of the workspace
   const manifest = (dependencies: Record<string, string>, devDependencies: Record<string, string> = {}): string =>
     `${JSON.stringify({ name: "@open-qa-stack/agents", private: true, dependencies, devDependencies }, null, 2)}\n`;
   const workspace = new DemoWorkspace({});
-  after(() => workspace.remove());
+  afterAll(() => workspace.remove());
   it("fails, naming the manifest, the line, the source, the target, the field and the rule", async () => {
     workspace.write({ "packages/agents/package.json": manifest({ "@open-qa-stack/domain": "workspace:*", "@open-qa-stack/harness": "workspace:*" }) });
     assert.deepEqual(await workspace.checkManifests(), {
@@ -287,7 +287,7 @@ describe("criterion 9 — a manifest that declares a dependency of the workspace
 describe("criterion 10 — the tests of the criteria run on demonstration files outside the packages of the product", () => {
   it("writes them in a temporary workspace, away from the repository", () => {
     const workspace = new DemoWorkspace({ "packages/domain/src/demo.ts": "export const demo = 1;\n" });
-    after(() => workspace.remove());
+    afterAll(() => workspace.remove());
     assert.ok(!workspace.root.startsWith(ROOT));
     assert.ok(!(workspace.root + "/").startsWith(join(ROOT, "packages")));
   });

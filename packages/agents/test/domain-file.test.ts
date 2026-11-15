@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { AgentRuntimeError, type AgentEvent, type AgentRuntime } from "@open-qa-stack/domain";
 import type { SourceManifest } from "@open-qa-stack/shared";
 import type { ExportedElement } from "@open-qa-stack/tools";

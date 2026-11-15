@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { after, describe, it } from "node:test";
+import { afterAll, describe, it } from "vitest";
 import { sharedFixtures } from "@open-qa-stack/shared";
 import { ensureFixtures, fixturesFor, PLAYWRIGHT_ALONE } from "../src/designer/test-fixtures.ts";
 import { WrittenFiles } from "../src/designer/written-files.ts";
 
 const roots: string[] = [];
-after(() => {
+afterAll(() => {
   for (const root of roots) rmSync(root, { recursive: true, force: true });
 });
 

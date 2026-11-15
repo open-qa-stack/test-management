@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { after, describe, it } from "node:test";
+import { afterAll, describe, it } from "vitest";
 import { RuleTester } from "oxlint/plugins-dev";
 import { confinedImports } from "../confined-imports.ts";
 import { folderBoundaries } from "../folder-boundaries.ts";
@@ -207,7 +207,7 @@ describe("the check of the manifests", () => {
   const unset = new DemoWorkspace({}, (configuration) => {
     delete configuration["overrides"];
   });
-  after(() => {
+  afterAll(() => {
     workspace.remove();
     unset.remove();
   });
@@ -232,7 +232,7 @@ describe("the lint configuration of the workspace", () => {
     "packages/domain/test/limits.test.ts": "@Injectable()\nexport class Fixture {}\n",
     "packages/harness/src/runner.ts": 'import "reflect-metadata";\nexport const home = process.env["HOME"];\n',
   });
-  after(() => workspace.remove());
+  afterAll(() => workspace.remove());
 
   it("refuses process.env in the API outside its configuration module and its test support, and decorators in the sources of the domain only", async () => {
     assert.deepEqual((await workspace.lint()).map((line) => `${line.split(":")[0]} ${line.slice(line.lastIndexOf("/") + 1, -1)}`).sort(), [

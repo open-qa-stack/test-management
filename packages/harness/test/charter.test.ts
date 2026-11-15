@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { DEFAULT_REPOSITORY, validateConfig, type CharterSettings } from "@open-qa-stack/shared";
 import { moduleSyntax } from "@open-qa-stack/tools";
 import { CHARTER_DOC_FILE, documentedSection, renderRules } from "../scripts/emit-charter-doc.ts";

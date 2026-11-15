@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { after, describe, it } from "node:test";
+import { afterAll, describe, it } from "vitest";
 import type { CharterSettings } from "@open-qa-stack/shared";
 import type { TestFinding } from "@open-qa-stack/domain";
 import { CHARTER_DOC_FILE, documentedSection, renderControls } from "../scripts/emit-charter-doc.ts";
@@ -83,7 +83,7 @@ ${body}
 }
 
 const repository = testRepository();
-after(() => rmSync(repository, { recursive: true, force: true }));
+afterAll(() => rmSync(repository, { recursive: true, force: true }));
 
 const DEFAULT_RULES = resolveCharter({ disable: [], add: [] });
 if (!DEFAULT_RULES.ok) throw new Error("the default charter does not resolve");

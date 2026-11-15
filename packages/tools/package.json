@@ -11,8 +11,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json",
-    "test": "node --test --import @open-qa-stack/testing/loopback-only --experimental-test-coverage --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 --test-coverage-include='src/**' 'test/**/*.test.ts'"
+    "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@open-qa-stack/domain": "workspace:*",
@@ -24,6 +23,12 @@
   "devDependencies": {
     "@open-qa-stack/testing": "workspace:*",
     "@types/pg": "8.23.1",
-    "ajv": "8.20.0"
+    "ajv": "8.20.0",
+    "vitest": "5.1.0"
+  },
+  "coverage": {
+    "runAsProgram": [
+      "src/source-code/search-worker.ts"
+    ]
   }
 }

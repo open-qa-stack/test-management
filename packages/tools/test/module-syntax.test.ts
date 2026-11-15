@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { moduleSyntax, type ModuleSyntax } from "../src/index.ts";
 
 /** What a syntax tells, without the outline of the test, which the tests of the outline check. */

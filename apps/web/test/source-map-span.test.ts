@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { spanWholeSource } from "./source-map-span.ts";
 
 describe("source map span", () => {

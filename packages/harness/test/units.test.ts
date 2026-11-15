@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { ModelResponseError, ModelUnreachableError, ReplayMissError, type AgentEvent } from "@open-qa-stack/domain";
 import { answer, scriptedServer, toolCalls } from "@open-qa-stack/testing";
 import { runtimeEnvironment } from "../src/copilot/runtime-environment.ts";

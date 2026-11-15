@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { lockedPlaywrightVersion, networkFailureAddresses, testVerdicts, type ReportedTest, type RunFacts } from "../src/index.ts";
 
 const APP = "http://localhost:3010";

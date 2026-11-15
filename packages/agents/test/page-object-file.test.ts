@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { PageObjectFile, screenFile } from "../src/designer/page-object-file.ts";
 
 const SEARCH = { name: "searchTextbox", parameters: [], expression: 'getByRole("textbox", { name: "Search...", exact: true })' };

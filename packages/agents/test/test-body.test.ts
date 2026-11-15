@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { testBody } from "../src/designer/test-body.ts";
 
 describe("the body of a test", () => {

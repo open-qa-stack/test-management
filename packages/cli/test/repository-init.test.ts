@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { after, describe, it } from "node:test";
+import { afterAll, describe, it } from "vitest";
 import { parseArguments, soloCommand } from "../src/index.ts";
 import { RepositoryInit } from "../src/solo/repository-init.ts";
 
 const workspace = mkdtempSync(join(tmpdir(), "repository-init-"));
-after(() => rmSync(workspace, { recursive: true, force: true }));
+afterAll(() => rmSync(workspace, { recursive: true, force: true }));
 
 /** A configuration of two applications, one of which signs in with an account whose variables are set nowhere. */
 const CONFIG = {

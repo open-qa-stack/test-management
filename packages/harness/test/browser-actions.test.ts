@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { answer, scriptedServer, testSite, toolCalls } from "@open-qa-stack/testing";
 import { browserTools } from "@open-qa-stack/tools";
 import { exchange, MODEL, withRuntime } from "./support.ts";

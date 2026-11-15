@@ -13,7 +13,7 @@ const MAIN = fileURLToPath(new URL("../src/main.ts", import.meta.url));
 /** The files of the root of the workspace that set how the check verifies a package. */
 const SETTINGS = ["package.json", "pnpm-workspace.yaml", "tsconfig.base.json", ".oxlintrc.json", ".prettierrc.json", ".prettierignore", ".gitignore"];
 
-/** The lint rules of the workspace, which its lint configuration loads and its root scripts check and test. */
+/** The lint rules of the workspace, which its lint configuration loads and its root scripts check. */
 const LINT_RULES = "lint";
 
 /** The files of a demonstration package that passes every step, a file that only declares types included. */

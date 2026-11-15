@@ -14,8 +14,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json",
-    "test": "node --test --import @open-qa-stack/testing/loopback-only --experimental-test-coverage --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 --test-coverage-include='src/**' 'test/**/*.test.ts'"
+    "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@open-qa-stack/agents": "workspace:*",
@@ -25,6 +24,12 @@
     "@open-qa-stack/tools": "workspace:*"
   },
   "devDependencies": {
-    "@open-qa-stack/testing": "workspace:*"
+    "@open-qa-stack/testing": "workspace:*",
+    "vitest": "5.1.0"
+  },
+  "coverage": {
+    "runAsProgram": [
+      "src/main.ts"
+    ]
   }
 }

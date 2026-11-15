@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { placementSubmissionSchema, sourceManifestSchema, validatePlacementSubmission, validateSourceManifest, type SourceManifest } from "../src/index.ts";
 import { MANIFEST_SCHEMA_FILE, renderSchema } from "../scripts/emit-schema.ts";

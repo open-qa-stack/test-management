@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import type { AgentEvent, StopReason, ToolDefinition } from "@open-qa-stack/domain";
 import { answer, scriptedServer, toolCalls } from "@open-qa-stack/testing";
 import { TaskBudget } from "../src/guardrails/task-budget.ts";

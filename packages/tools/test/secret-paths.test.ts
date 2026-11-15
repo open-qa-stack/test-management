@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { secretForms, secretPaths } from "../src/index.ts";
 
 describe("the strings of a value that hold a secret", () => {

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { validateConfig } from "@open-qa-stack/shared";
 import { agentNotes, agentRecall, NOTES_FILE } from "../src/common/agent-notes.ts";
 import { configSecrets } from "../src/common/config-secrets.ts";

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 
 const packages = new URL("../../", import.meta.url);
 

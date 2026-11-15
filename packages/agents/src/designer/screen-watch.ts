@@ -626,8 +626,7 @@ export class ScreenWatch {
       await this.given.get(scopedToolName(application, "goto"))!.execute({ url: address });
       const shown = (await this.given.get(scopedToolName(application, "snapshot"))!.execute({})) as { page: string };
       // The page of the agent moved: its next action is compared with what the page shows then.
-      const seen = this.seen.get(application);
-      if (seen !== undefined) seen.last = undefined;
+      this.seen.get(application)!.last = undefined;
       const lines = besideFields(pageLines(shown.page));
       return texts.filter((text) => !observed(text, lines));
     } catch {

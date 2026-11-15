@@ -2,14 +2,14 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { after, describe, it } from "node:test";
+import { afterAll, describe, it } from "vitest";
 import { ModelUnreachableError } from "@open-qa-stack/domain";
 import { Trace } from "../src/common/trace.ts";
 import { TracedPhases } from "../src/common/traced-phases.ts";
 import { MAX_TRACED_LENGTH, TRACES_FOLDER, type TraceLine } from "../src/index.ts";
 
 const workspace = mkdtempSync(join(tmpdir(), "oqas-trace-"));
-after(() => rmSync(workspace, { recursive: true, force: true }));
+afterAll(() => rmSync(workspace, { recursive: true, force: true }));
 
 const AT = new Date("2026-11-13T10:00:00.000Z");
 const read = (path: string) =>

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { schemaProblems } from "../src/tools/schema-problems.ts";
 

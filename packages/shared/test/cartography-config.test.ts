@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { errorsOf, validateVariant } from "./helpers.ts";
 
 describe("solo command, criterion 18 — the number of cartography tasks at once is read from the configuration", () => {

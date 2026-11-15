@@ -3,8 +3,8 @@ import { relative } from "node:path";
 import type { Step } from "./step.ts";
 import type { WorkspacePackage } from "./workspace-package.ts";
 
-/** A directive that leaves code out of the coverage of the test runner. */
-const DIRECTIVE = /node:coverage\s+(?:ignore|disable)\b/;
+/** A directive that leaves code out of the coverage of a test runner: that of Node.js, or the V8 and Istanbul ones Vitest reads. */
+const DIRECTIVE = /(?:node:coverage\s+(?:ignore|disable)|\b(?:v8|c8|istanbul)\s+ignore)\b/;
 
 /** The URL of an issue of the public repository, which a directive must give on its line or the line before. */
 const ISSUE = /https:\/\/github\.com\/open-qa-stack\/test-management\/issues\/\d+/;

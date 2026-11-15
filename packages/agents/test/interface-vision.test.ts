@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { validateConfig, type ResolvedConfig } from "@open-qa-stack/shared";
 import { testSite } from "@open-qa-stack/testing";
 import { totalUsage, usageOf } from "../src/common/model-usage.ts";

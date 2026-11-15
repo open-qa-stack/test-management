@@ -2,15 +2,15 @@ import assert from "node:assert/strict";
 import { appendFileSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { after, before, describe, it } from "node:test";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import { Notebook, notesTools } from "../src/index.ts";
 
 let folder: string;
-before(() => {
+beforeAll(() => {
   folder = mkdtempSync(join(tmpdir(), "oqas-notes-"));
 });
-after(() => {
+afterAll(() => {
   rmSync(folder, { recursive: true, force: true });
 });
 

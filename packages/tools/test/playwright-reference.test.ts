@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { after, describe, it } from "node:test";
+import { afterAll, describe, it } from "vitest";
 import { MAX_MEMBER_CHARS, PlaywrightReference, playwrightTools, playwrightVersion } from "../src/index.ts";
 
 const CORE = `// A type file as the package ships it.
@@ -107,7 +107,7 @@ const installed = repository({
   "playwright/types/test.d.ts": TEST,
 });
 const bare = repository({});
-after(() => {
+afterAll(() => {
   for (const root of [installed, bare]) rmSync(root, { recursive: true, force: true });
 });
 

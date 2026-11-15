@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { lineCoverage, type ScriptCoverage } from "./line-coverage.ts";
 
 // Line 0 maps `a();` to line 1 of source 0, then a position to no source; line 1 maps `if` to line 2 of

@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { after, describe, it } from "node:test";
+import { afterAll, describe, it } from "vitest";
 import type { AgentEvent, AgentRuntime, AgentSession, SessionOptions } from "@open-qa-stack/domain";
 import { validateConfig } from "@open-qa-stack/shared";
 import { mapSources } from "../src/index.ts";
 
 const workspace = mkdtempSync(join(tmpdir(), "oqas-concurrent-cards-"));
-after(() => rmSync(workspace, { recursive: true, force: true }));
+afterAll(() => rmSync(workspace, { recursive: true, force: true }));
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

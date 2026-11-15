@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { after, before, describe, it } from "node:test";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import type { AgentRuntime } from "@open-qa-stack/domain";
 import { CopilotAgentRuntime, ModelGateway } from "@open-qa-stack/harness";
 import {
@@ -101,11 +101,11 @@ function rows(columns: string[], values: unknown[][]): SqlResult {
 
 let workspace: string;
 
-before(() => {
+beforeAll(() => {
   workspace = mkdtempSync(join(tmpdir(), "oqas-source-cartographer-"));
 });
 
-after(() => {
+afterAll(() => {
   rmSync(workspace, { recursive: true, force: true });
 });
 

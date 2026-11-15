@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { imageTokens, ImageToolResult, pngSize } from "../src/index.ts";
 
 /** The first bytes of a PNG image of `width` × `height` pixels: its signature and its header. */

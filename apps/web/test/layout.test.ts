@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { after, before, describe, it } from "node:test";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import { BuiltConsole } from "./built-console.ts";
 
 let built: BuiltConsole | undefined;
 
-before(async () => {
+beforeAll(async () => {
   built = await BuiltConsole.start();
 });
 
-after(async () => {
+afterAll(async () => {
   await built?.stop();
 });
 

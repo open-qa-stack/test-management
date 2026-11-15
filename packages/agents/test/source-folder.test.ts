@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { after, before, describe, it } from "node:test";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import type { SourceManifest } from "@open-qa-stack/shared";
 import type { ExportedElement, SourceExport } from "@open-qa-stack/tools";
 import { exportManifest } from "../src/source-workflow/export-manifest.ts";
@@ -26,11 +26,11 @@ const exportOf = (...elements: ExportedElement[]): SourceExport => ({ elements, 
 
 let workspace: string;
 
-before(() => {
+beforeAll(() => {
   workspace = mkdtempSync(join(tmpdir(), "oqas-source-folder-"));
 });
 
-after(() => {
+afterAll(() => {
   rmSync(workspace, { recursive: true, force: true });
 });
 

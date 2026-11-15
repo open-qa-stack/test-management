@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import type { PlanReview, TestPlan, ToolDefinition } from "@open-qa-stack/domain";
 import { Journal } from "../src/common/journal.ts";
 import type { DuplicateJudge, JudgedDuplicate } from "../src/designer/duplicate-judge.ts";
@@ -1845,6 +1845,15 @@ describe("the start of a scenario that writes, looked at again by the harness", 
       /^Refused \(PLAN-EFFECT\): scenario a starts from "ORD-1042" at step 1, and the harness, which opened \/orders again, no longer finds it there: what you changed while you explored is still changed, and the test would fail at its first step\. Put it back on the screens, [^]* If it cannot be put back, start the scenario from what the page shows now\./,
     );
     assert.ok(journal.entries().some((entry) => entry.message === 'The harness opened /orders of shop again: it no longer shows "ORD-1042".'));
+  });
+
+  it("names every text the page no longer shows", async () => {
+    const { made } = await changedAgain();
+    const both = { ...renaming, steps: [step("Open the orders", [1], ["ORD-1042", "ORD-1042 Mira Veldane"]), ...renaming.steps.slice(1)] };
+    assert.match(
+      ((await made.tool().execute({ scenarios: [both] })) as { error: string }).error,
+      /^Refused \(PLAN-EFFECT\): scenario a starts from "ORD-1042", "ORD-1042 Mira Veldane" at step 1, and the harness, which opened \/orders again, no longer finds them there/,
+    );
   });
 
   it("keeps the plan once what was changed is put back, and holds it to nothing when the page cannot be read or its first step does more than open it", async () => {

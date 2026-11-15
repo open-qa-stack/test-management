@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { renderSchema, SCHEMA_FILE } from "../scripts/emit-schema.ts";
 import { CONFIG_FILE_NAME, configSchema, DEFAULT_REPOSITORY, validateConfig, type ConfigError } from "../src/index.ts";

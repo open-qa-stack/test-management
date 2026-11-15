@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 
 import "../src/loopback-only.ts";
 import { SLOW_MS, testSite } from "../src/index.ts";

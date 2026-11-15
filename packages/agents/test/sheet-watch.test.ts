@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import type { PlannedScenario, ToolDefinition } from "@open-qa-stack/domain";
 import { Journal } from "../src/common/journal.ts";
 import { BEYOND_SHEET, SheetWatch } from "../src/designer/sheet-watch.ts";
