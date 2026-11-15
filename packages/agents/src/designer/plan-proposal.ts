@@ -844,7 +844,8 @@ export class PlanProposal {
     const named = values.filter((value) => observed(value, typing));
     const entered = typing.length === 0 ? [] : named.length > 0 ? named : typed;
     const fill = scopedToolName(application, "fill");
-    const missed = entered
+    // A scenario that writes types what it saves, not what it searches: a value a form took and showed nowhere else is none searched in vain.
+    const missed = (scenario.effect === "write" ? [] : entered)
       .filter((value) => screens.unmatched(this.scope(scenario), value))
       .map((value) => ({
         code: "PLAN-NOMINAL",

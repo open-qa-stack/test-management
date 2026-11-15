@@ -1022,7 +1022,9 @@ describe("the gates of a plan", () => {
       `Refused (PLAN-NOMINAL): scenario ${id} is nominal, and the screens of shop found nothing with "Lena Brook": a nominal scenario finds what it searches. Replace "Lena Brook" in data, and in the step that types it, by a part of it, such as a first or a last name, that you searched with shop_fill and found, and expect what it found; or make the scenario negative.`;
     const remedy = (id: string) =>
       `Replace "Lena Brook" in data of scenario ${id}, and in the step that types it, by a part of it that shop_fill found, such as a first or a last name; or make scenario ${id} negative.`;
-    const submitted = { scenarios: [searched("a", "nominal"), searched("b", "negative"), opened, part, unnamed] };
+    // A scenario that writes types what it saves: a value a form took is none it searched.
+    const saving = { ...searched("f", "nominal"), effect: "write" as const };
+    const submitted = { scenarios: [searched("a", "nominal"), searched("b", "negative"), opened, part, unnamed, saving] };
     assert.deepEqual(await submit(made, submitted), { error: [refused("a"), refused("e"), "Nothing else was refused."].join("\n") });
     await submit(made, submitted);
     assert.deepEqual(await submit(made, submitted), { error: ["Third refusal for the same reason. Do this:", remedy("a"), remedy("e")].join("\n") });
