@@ -205,6 +205,21 @@ The harness journals what the session of a scenario looks at beyond its sheet: e
 
 A plan covers its brief: each business rule, each information and each behaviour the brief is about has a scenario that verifies it, and the instructions of the agent that plans say so. What no scenario covers is said, never left out in silence. A brief may ask what the application does not let a test do, such as an action no screen offers. The agent that plans says so in `uncovered` of `propose_plan`, five entries at most, each with what the brief `asked` and the `reason` — what it saw of the application or read of its sources, or that the plan, of four scenarios at most, has no room for it — rather than plan a neighbouring test in its place without a word. The harness keeps it with the plan, writes it in the file of the plan under the heading `Not covered`, journals it as an error — `The plan does not cover what the brief asks: …` — and gives it in the outcome of the design, so that the command prints it. It holds no secret, as the rest of the plan.
 
+### The review of a test for coherence
+
+A rule of the harness measures the steps of a test, their titles, the texts expected and the locators. Whether the test verifies what its scenario means is a matter of meaning, asked of an agent of its own: the coherence reviewer, in a session of its own, with the scenario, the test and `report_findings` as its only tool. It sees nothing of the session of the agent that wrote the test, reviews neither duplicates nor the quality of the code, and is told that a doubt is no finding.
+
+With the option `reviewTests` (the key `design.reviewTests` of the configuration, `true` by default), a test that passed is reviewed when its scenario is closed:
+
+| What the reviewer says | What the harness does |
+|---|---|
+| Nothing | The test is kept, with its review. |
+| Findings, five at most, each a place and a sentence | They are told once to the agent that wrote the test, as the warning `TEST-COHERENCE`. It repairs the test and runs it again, or proposes it again as it is. |
+| Findings again, on a text repaired or kept | The test is kept as passed, with the findings, for a person to decide: nothing is told twice. |
+| No answer: its session failed, reached a limit or ended without a report | The journal says so, and the test is kept without a review. |
+
+The reviewer refuses no test alone. Its last review is kept with the test in the design state, as `review`: its date and its findings, none when the test is coherent with its scenario. A text is reviewed once: proposed again unchanged, it is not read again.
+
 ### Every scenario accounted for
 
 The agent that writes a test may find that no test can do what its scenario asks: a step the application does not offer once tried, an environment that does not allow it. It says so with `propose_test` and `unfeasible`, with its reason, rather than force a test. The scenario is then classed `unfeasible`, by the agent, with the reason and the date, and its last text is kept in the state; it is not run.

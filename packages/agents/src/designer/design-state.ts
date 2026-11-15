@@ -52,6 +52,22 @@ export interface DesignedRun {
   readonly failedStep?: string;
 }
 
+/** What a test does not do or verify of its scenario, as the reviewer of its coherence found it. */
+export interface CoherenceFinding {
+  /** Where it is, such as `step 2`. */
+  readonly where: string;
+  /** What is wrong, in a sentence. */
+  readonly what: string;
+}
+
+/** The review of a test against its scenario, by the agent that reviews coherence: it refuses nothing, and is kept with the test for a person to read. */
+export interface TestReview {
+  /** When the test was reviewed, ISO 8601 in UTC. */
+  readonly at: string;
+  /** What the reviewer found; none when the test is coherent with its scenario. */
+  readonly findings: readonly CoherenceFinding[];
+}
+
 /** A test the designer wrote, as its design state lists it; its application, its domain and its reason are those of its scenario. */
 export interface DesignedTest {
   /** Path of the file, relative to the root of the test repository, with forward slashes. */
@@ -68,6 +84,8 @@ export interface DesignedTest {
   readonly quarantine?: Quarantine;
   /** For a test classed `duplicate`, the path of the test that already verifies what it does. */
   readonly duplicates?: string;
+  /** The review of its coherence with its scenario, when its text was reviewed: the last one, of the text kept. */
+  readonly review?: TestReview;
   /** The references of its visual comparisons, written with it, relative to the root of the test repository. */
   readonly references?: readonly string[];
   /** The code of the check the harness closed its scenario on, when it did: the gate that refused it five times, `TEST-STOP` when none of its runs gave a verdict, `SESSION-END` when its session ended first. */

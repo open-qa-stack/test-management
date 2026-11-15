@@ -289,6 +289,7 @@ interface Setup {
   readonly planReview?: PlanReview;
   /** Whether the agent that reviews plans is asked about duplicates. */
   readonly reviewPlan?: boolean;
+  readonly reviewTests?: boolean;
   /** The levels the plan is asked for; `default` for those of the designer itself. */
   readonly levels?: readonly ScenarioLevel[] | "default";
   readonly observe?: (line: { event: { type: string } }) => void;
@@ -330,6 +331,7 @@ async function design(script: readonly { status?: number; body: unknown }[], set
       ...(setup.brief === undefined ? {} : { brief: setup.brief }),
       ...(setup.planReview === undefined ? {} : { planReview: setup.planReview }),
       ...(setup.reviewPlan === undefined ? {} : { reviewPlan: setup.reviewPlan }),
+      ...(setup.reviewTests === undefined ? {} : { reviewTests: setup.reviewTests }),
       // The scenarios of these tests are functional: the plan is asked for that level alone unless a test says otherwise.
       ...(setup.levels === "default" ? {} : { levels: setup.levels ?? ["functional"] }),
       ...(setup.observe === undefined ? {} : { observe: setup.observe }),
@@ -2304,5 +2306,40 @@ describe("the count of the harness — each scenario of a plan is accounted for"
     const { outcome } = await design(replies([...valid(1), [run(broken("place-order"), "r-place-order")], [givenUp("g1")], [givenUp("g2")], DONE]));
     assert.equal(outcome.ok, false);
     assert.match(messages(outcome), /The design failed: 1 test was obtained, 2 are expected, one per scenario of the plan\./);
+  });
+});
+
+describe("the review of each test for coherence with its scenario", () => {
+  it("is done by an agent of its own, in a session of its own, once the test passed, and kept with the test", async () => {
+    const report = (id: string, findings: unknown[]): Call => ({ id, name: "report_findings", arguments: { findings } });
+    // The review of a test runs while its scenario is closed: its turns come before the next of the agent that writes.
+    const reviewed = (name: string, findings: unknown[] = []) => [
+      [run(spec(name), `r-${name}`)],
+      [close(`c-${name}`)],
+      [report(`f-${name}`, findings)],
+      DONE,
+      DONE,
+    ];
+    const fault = [{ where: "step 1", what: "No assertion verifies the orders." }];
+    const turns = [
+      ...reviewed("list-orders"),
+      // The second test is found at fault: the agent that wrote it is told once, and keeps it as it is.
+      ...reviewed("place-order", fault).slice(0, 4),
+      [close("c2-place-order")],
+      DONE,
+      ...reviewed("follow-order"),
+    ];
+    const { outcome, server } = await design(replies(turns), { reviewTests: true });
+    assert.equal(outcome.ok, true, messages(outcome));
+    assert.deepEqual(
+      outcome.tests.map((test) => [test.scenario, test.classes.at(-1)!.class, test.review?.findings]),
+      [
+        ["list-orders", "passed", []],
+        ["place-order", "passed", fault],
+        ["follow-order", "passed", []],
+      ],
+    );
+    assert.match(told(server, "c-place-order"), /^Warning \(TEST-COHERENCE\): another agent read the test of scenario place-order against its sheet/);
+    assert.deepEqual(stateOf(outcome).tests[1]!.review!.findings, fault);
   });
 });

@@ -1,3 +1,4 @@
+import type { CoherenceJudge } from "./coherence-judge.ts";
 import { withTags } from "./scenario-tags.ts";
 import { scenarioScope } from "./screen-watch.ts";
 import { existsSync } from "node:fs";
@@ -9,7 +10,7 @@ import { DesignCursor, MAX_FAILED_RUNS, type ScenarioRun } from "./design-cursor
 import { assertionAt, failurePageText, misplacedAtFailure, shownAtFailure } from "./failure-page.ts";
 import { errorClass, failureHint } from "./run-failure.ts";
 import { testBody } from "./test-body.ts";
-import type { DesignedRun, DesignedTest, FailureCause, Quarantine, TestClassing } from "./design-state.ts";
+import type { DesignedRun, DesignedTest, FailureCause, Quarantine, TestClassing, TestReview } from "./design-state.ts";
 import { journalRefusals, maskedRefusals, refusalText, repeatedText, type Refusal } from "./refusal.ts";
 import { GUIDED_REFUSALS, MAX_REFUSALS, RefusalStreak } from "./refusal-streak.ts";
 import { scenarioErrors } from "./scenario-gates.ts";
@@ -27,6 +28,8 @@ export const RUN_TOOL = "run_test";
 export const SESSION_END = "SESSION-END";
 /** The code of the check that asks about, then classes as a duplicate, a test that runs what the test of another scenario runs. */
 export const TEST_DUPLICATE = "TEST-DUPLICATE";
+/** The code of the warning that tells an agent what the coherence reviewer found in its test. */
+export const TEST_COHERENCE = "TEST-COHERENCE";
 /** How what the agent is told of a scenario that is closed ends: its session is over. */
 const SESSION_OVER = "Next: answer with one sentence. Call no more tools.";
 /** Longest error told to the agent for a test that did not pass. */
@@ -44,6 +47,8 @@ export interface AcceptedTest extends Omit<DesignedTest, "references"> {
 export interface ProposalRules {
   /** Absolute path of the test repository. */
   readonly repositoryRoot: string;
+  /** The agent that reviews a test that passed against its scenario; no such review without it. */
+  readonly coherence?: CoherenceJudge;
   /** Folder of the applications, relative to the root of the test repository. */
   readonly appsDir: string;
   /** The addresses no test may hold, as `declaredAddresses` gives them. */
@@ -142,6 +147,10 @@ export class TestProposals {
   private warned: string | undefined;
   /** The scenario whose failure the agent was asked to confirm is not that of its test. */
   private doubted: string | undefined;
+  /** The scenario whose test the agent was told the findings of the coherence reviewer about. */
+  private challenged: string | undefined;
+  /** The review of each text reviewed, so that a text proposed again is not reviewed again. */
+  private readonly reviews = new Map<string, TestReview>();
   /** The scenario the agent was asked to confirm it gives up. */
   private abandoning: string | undefined;
 
@@ -468,7 +477,7 @@ export class TestProposals {
   }
 
   /** Closes the scenario open with the text of its last run that gave a verdict. */
-  private propose(diagnosis: Diagnosis | undefined): string | { error: string } {
+  private async propose(diagnosis: Diagnosis | undefined): Promise<string | { error: string }> {
     const open = this.open();
     if ("error" in open) return open;
     const { cursor, scenario } = open;
@@ -543,6 +552,25 @@ export class TestProposals {
       this.journal.record("info", `The harness warned the agent that the test of ${scenario.id} runs the same actions and the same assertions as ${same}.`);
       return `Warning (${TEST_DUPLICATE}): the test of scenario ${scenario.id} runs the same actions and the same assertions as ${same}, the test of another scenario. Is it still the test of its sheet? Check it against the steps and the expected texts of the sheet, put back what was taken out of it, and run it again with ${RUN_TOOL}. If the sheet gives this very test, call ${PROPOSE_TOOL} again as it is: it is then kept as a duplicate of ${same}.`;
     }
+    // A test that passed is read against its scenario by an agent of its own: what it finds is told once, then kept with the test.
+    const review = quarantine === undefined && same === undefined ? await this.reviewed(scenario, ended.content) : undefined;
+    if (review !== undefined && review.findings.length > 0 && this.challenged !== scenario.id) {
+      this.challenged = scenario.id;
+      const found = review.findings.map((finding) => `- ${finding.where}: ${finding.what}`);
+      this.journal.record(
+        "info",
+        this.mask(
+          `The coherence reviewer found fault with the test of ${scenario.id}: ${review.findings.map((finding) => `${finding.where}: ${finding.what}`).join(" ")}`,
+        ),
+      );
+      return this.mask(
+        [
+          `Warning (${TEST_COHERENCE}): another agent read the test of scenario ${scenario.id} against its sheet, and says it does not do or verify all of it:`,
+          ...found,
+          `Check each against the sheet. Where it is right, fix the test and run it again with ${RUN_TOOL}. If the test is right as it is, call ${PROPOSE_TOOL} again: it is kept, with these findings, for a person to decide.`,
+        ].join("\n"),
+      );
+    }
     const classing: Classed =
       same !== undefined
         ? {
@@ -553,9 +581,31 @@ export class TestProposals {
         : quarantine === undefined
           ? { class: "passed", origin: { by: "harness", check: RUN_TOOL }, reason: "Its last run passed." }
           : { class: `failing-${quarantine.cause}`, origin: { by: "agent", role: "writer" }, reason: quarantine.evidence };
-    const outcome = this.keep(open, ended, quarantine, classing, undefined, same);
+    const outcome = this.keep(open, ended, quarantine, classing, undefined, same, review);
     this.journal.record("info", `The scenario ${scenario.id} was closed: ${outcome}; its test is ${open.path}.`);
     return this.next(cursor, `Scenario ${scenario.id} closed: ${outcome}.`);
+  }
+
+  /**
+   * The review of a text against its scenario, asked once for each text: none without a reviewer, and none
+   * when the review failed, which the journal says — the design goes on without it.
+   */
+  private async reviewed(scenario: PlannedScenario, content: string): Promise<TestReview | undefined> {
+    const { coherence } = this.rules;
+    if (coherence === undefined) return undefined;
+    const known = this.reviews.get(content);
+    if (known !== undefined) return known;
+    try {
+      const review = { at: this.rules.now().toISOString(), findings: await coherence.judge(scenario, content) };
+      this.reviews.set(content, review);
+      return review;
+    } catch (error) {
+      this.journal.record(
+        "error",
+        `The review of the test of ${scenario.id} for coherence failed, and the test goes on without it: ${(error as Error).message}`,
+      );
+      return undefined;
+    }
   }
 
   /** The path of the test kept before, passed or failing because of the application, that runs what a text runs, whatever their titles and comments; none when it runs something of its own. */
@@ -566,7 +616,15 @@ export class TestProposals {
   }
 
   /** Keeps the test of the scenario open with the text of one of its runs, classed, and says how it ended. */
-  private keep(open: Open, run: ScenarioRun, quarantine: Quarantine | undefined, classing: Classed, closedBy?: string, duplicates?: string): string {
+  private keep(
+    open: Open,
+    run: ScenarioRun,
+    quarantine: Quarantine | undefined,
+    classing: Classed,
+    closedBy?: string,
+    duplicates?: string,
+    review?: TestReview,
+  ): string {
     this.kept.push({
       path: open.path,
       scenario: open.scenario.id,
@@ -576,6 +634,7 @@ export class TestProposals {
       ...(quarantine === undefined ? {} : { quarantine }),
       ...(closedBy === undefined ? {} : { closedBy }),
       ...(duplicates === undefined ? {} : { duplicates }),
+      ...(review === undefined ? {} : { review }),
       content: run.content,
       references: this.references.get(run.content)!,
     });

@@ -77,7 +77,11 @@ export function validateConfig(content: string, env: EnvironmentVariables): Vali
       repository: { ...DEFAULT_REPOSITORY, ...data.repository },
       charter: { disable: data.charter?.disable ?? [], add: data.charter?.add ?? [] },
       cartography: { concurrency: data.cartography?.concurrency ?? 1 },
-      design: { reviewPlan: data.design?.reviewPlan ?? true, levels: data.design?.levels ?? ["smoke", "functional", "business"] },
+      design: {
+        reviewPlan: data.design?.reviewPlan ?? true,
+        reviewTests: data.design?.reviewTests ?? true,
+        levels: data.design?.levels ?? ["smoke", "functional", "business"],
+      },
       model: data.model,
       autonomy: { level: (data.autonomy ?? DEFAULT_AUTONOMY).level, limits: resolveLimits(data.autonomy ?? DEFAULT_AUTONOMY) },
     },

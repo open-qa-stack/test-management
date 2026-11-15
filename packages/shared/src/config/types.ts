@@ -192,6 +192,8 @@ export interface CartographySettings {
 export interface DesignSettings {
   /** Whether an agent of its own reviews the scenarios of a plan for duplicates; `true` by default. */
   reviewPlan?: boolean;
+  /** Whether an agent of its own reviews each test that passed against the scenario of its plan; `true` by default. */
+  reviewTests?: boolean;
   /** The levels of the pyramid of tests a plan is asked for; `smoke`, `functional` and `business` by default. */
   levels?: TestLevel[];
 }

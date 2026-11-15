@@ -24,6 +24,7 @@ import { CARDS_FOLDER } from "../source-cartographer/source-cartographer.ts";
 import { DESIGNS_FOLDER, type DesignedTest, type DesignState, type TestClass } from "./design-state.ts";
 import { MANIFEST_FILE } from "../source-workflow/source-folder.ts";
 import { IndexMap, type WrittenSource } from "./index-map.ts";
+import { CoherenceReviewer } from "../coherence-reviewer/coherence-reviewer.ts";
 import { PlanReviewer } from "../plan-reviewer/plan-reviewer.ts";
 import { PLAN_FILE_SUFFIX, planFileText, readPlanFile, type PlanRecord } from "./plan-file.ts";
 import { PlanProposal } from "./plan-proposal.ts";
@@ -62,6 +63,8 @@ export interface DesignerOptions {
   readonly planReview?: PlanReview;
   /** Whether the agent that reviews plans is asked which scenarios verify what another already does, in sessions of its own; the harness compares them by their code alone otherwise. `false` by default. */
   readonly reviewPlan?: boolean;
+  /** Whether the agent that reviews coherence reads each test that passed against its scenario, in a session of its own, before the test is kept: its findings are told once to the agent that wrote the test, and kept with it. `false` by default. */
+  readonly reviewTests?: boolean;
   /** The levels of the pyramid of tests the plan is asked for; `smoke`, `functional` and `business` by default. */
   readonly levels?: readonly ScenarioLevel[];
   /** Whether each step of a test ends with a screenshot attached to the report, as the charter may ask; the skeleton of a test then holds it. `false` by default. */
@@ -298,6 +301,7 @@ export class Designer {
           addresses: declaredAddresses(config),
           secrets: declaredSecrets(config, env),
           ...(this.options.check === undefined ? {} : { check: this.options.check }),
+          ...(this.options.reviewTests === true ? { coherence: new CoherenceReviewer(reviewed) } : {}),
           runner: this.options.runner,
           packages,
           screenshots: this.options.screenshots ?? false,

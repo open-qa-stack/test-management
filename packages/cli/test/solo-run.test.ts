@@ -50,7 +50,7 @@ function configText(modelUrl: string, changes: Record<string, unknown> = {}): st
     model: { mode: "provider-key", provider: "openai", baseUrl: modelUrl, model: MODEL },
     autonomy: { level: "autonomous" },
     // The review of a plan by an agent of its own has its sessions, which the design of the agents tests.
-    design: { reviewPlan: false, levels: ["functional"] },
+    design: { reviewPlan: false, reviewTests: false, levels: ["functional"] },
     ...changes,
   });
 }
