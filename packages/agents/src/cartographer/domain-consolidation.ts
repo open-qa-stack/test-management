@@ -187,6 +187,10 @@ export class DomainConsolidation {
           return [];
         }
         const items = Array.isArray(part.items) ? part.items.map(String) : undefined;
+        if (items?.length === 0) {
+          errors.push(`${where}: items of ${source} › ${name} is empty. Leave items out to take the whole domain, or name the elements this domain takes.`);
+          return [];
+        }
         const unknown = (items ?? []).filter((item) => !held.items.some((element) => element.name === item));
         for (const item of unknown) errors.push(`${where}: ${item} is no element of the domain ${name} of ${source}. Write it exactly as the source names it.`);
         const key = (item: string) => `${source}\u0000${name}\u0000${item}`;
@@ -241,14 +245,17 @@ export class DomainConsolidation {
     for (const { id, label, description, from } of domains) {
       const domain = joined.get(id) ?? { id, label, description, references: [] };
       for (const part of from) {
+        // A domain of a source taken whole once its elements were all named elsewhere brings none: it adds no reference.
+        const brought = elements(part);
+        if (brought.length === 0) continue;
         const reference = domain.references.find((known) => known.source === part.source);
-        if (reference === undefined) domain.references.push({ source: part.source, items: elements(part) });
-        else reference.items.push(...elements(part));
+        if (reference === undefined) domain.references.push({ source: part.source, items: brought });
+        else reference.items.push(...brought);
       }
       joined.set(id, domain);
     }
     const unassigned = [...this.cards].flatMap(([source, card]) => (card.unassigned.length === 0 ? [] : [{ source, items: [...card.unassigned] }]));
-    return { domains: [...joined.values()], unassigned };
+    return { domains: [...joined.values()].filter((domain) => domain.references.length > 0), unassigned };
   }
 
   /** Refuses a submission: what is wrong, then the domains of the sources still in no domain of the application. */

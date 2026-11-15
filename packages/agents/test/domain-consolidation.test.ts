@@ -95,6 +95,25 @@ describe("the domains of an application, consolidated from those of its sources"
       { ...CUSTOMERS, from: [from("shop-api", "customers"), from("shop-db", "sales", ["public.customers"])] },
     ];
     assert.equal(await cut.submit({ domains: whole }), ACCEPTED);
+    // A domain taken whole once every element of it was named elsewhere brings nothing: it adds no reference, and a domain left with none is not written.
+    const emptied = consolidation();
+    const rest = { id: "sales", label: "Sales", description: "What is left of the sales." };
+    assert.equal(await emptied.submit({ domains: [...whole, { ...rest, from: [from("shop-db", "sales")] }] }), ACCEPTED);
+    assert.deepEqual(
+      emptied.made.accepted!.domains.map((domain) => [domain.id, domain.references.map((reference) => reference.source)]),
+      [
+        ["orders", ["shop-api", "shop", "shop-db"]],
+        ["customers", ["shop-api", "shop-db"]],
+      ],
+    );
+    // Items that name nothing are refused: the whole domain is taken by leaving them out.
+    const empty = (await consolidation().submit({ domains: [{ ...ORDERS, from: [from("shop-db", "sales", [])] }] })) as { error: string };
+    assert.ok(
+      empty.error.includes(
+        "\n- domains/0: items of shop-db › sales is empty. Leave items out to take the whole domain, or name the elements this domain takes.",
+      ),
+      empty.error,
+    );
     // A source mapped into no domain has none to give.
     const bare = new DomainConsolidation(new Map([["notes", card("notes", "document", {}, ["Changes"])]]), [], new Journal());
     assert.deepEqual(
