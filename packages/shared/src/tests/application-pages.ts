@@ -1,5 +1,11 @@
 import { className } from "./application-variable.ts";
 
+/** Folder of the tests of an application, in its own folder: a folder per domain, then one per functionality. */
+export const TESTS_FOLDER = "tests";
+
+/** Folder of what the applications share, in the folder of the applications: the fixtures of the tests. */
+export const SHARED_FOLDER = "shared";
+
 /** Folder of the page objects of an application, in its own folder. */
 export const PAGES_FOLDER = "pages";
 

@@ -45,6 +45,7 @@ const SEARCH: PlannedScenario = {
   case: "nominal",
   application: "shop",
   domain: "orders",
+  feature: "listing",
   sources: [{ source: "orders-db", item: "public.orders" }],
   data: [{ value: "Veldane", from: "orders-db" }],
   steps: [
@@ -101,7 +102,7 @@ describe("the skeleton of a test", () => {
       skeleton(SEARCH, true),
       `import { expect, test } from "@playwright/test";
 
-test("Search an order by \\"customer\\" name", { tag: ["@level-functional","@domain-orders","@app-shop","@kind-functional","@case-nominal","@data-read"] }, async ({ page }, testInfo) => {
+test("Search an order by \\"customer\\" name", { tag: ["@level-functional","@domain-orders","@feature-listing","@app-shop","@kind-functional","@case-nominal","@data-read"] }, async ({ page }, testInfo) => {
   await test.step("1. Open the orders", async () => {
     // Do: Open the orders. Copy the code lines the browser tools returned.
     await testInfo.attach("1", { body: await page.screenshot(), contentType: "image/png" });
@@ -127,7 +128,7 @@ test("Search an order by \\"customer\\" name", { tag: ["@level-functional","@dom
       skeleton(SHOWN, false),
       `import { expect, test } from "@playwright/test";
 
-test("Search an order by \\"customer\\" name", { tag: ["@level-functional","@domain-orders","@app-shop","@kind-functional","@case-nominal","@data-read"] }, async ({ page }) => {
+test("Search an order by \\"customer\\" name", { tag: ["@level-functional","@domain-orders","@feature-listing","@app-shop","@kind-functional","@case-nominal","@data-read"] }, async ({ page }) => {
   await test.step("1. Open the orders", async () => {
     await page.goto("/orders");
   });
@@ -164,7 +165,13 @@ test("Search an order by \\"customer\\" name", { tag: ["@level-functional","@dom
     for (const scenario of [SEARCH, SHOWN, SHARED]) {
       const content = skeleton(scenario, true);
       assert.ok((await moduleSyntax(content)).ok);
-      assert.deepEqual(await new CharterCheck({ repository, rules: charter.rules }).check({ path: "apps/shop/search-order-by-customer.spec.ts", content }), []);
+      assert.deepEqual(
+        await new CharterCheck({ repository, rules: charter.rules }).check({
+          path: "apps/shop/search-order-by-customer.spec.ts",
+          content,
+        }),
+        [],
+      );
     }
   });
 });

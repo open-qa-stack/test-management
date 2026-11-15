@@ -13,6 +13,7 @@ const SEARCH: PlannedScenario = {
   case: "nominal",
   application: "policy-management",
   domain: "customers",
+  feature: "listing",
   sources: [{ source: "customers-db", item: "public.customers" }, { source: "policy-management" }],
   data: [{ value: "Veldane", from: "customers-db" }],
   steps: [
@@ -57,7 +58,7 @@ The harness wrote this file from the plan it accepted, and reads its last part a
 
 ## 1. search-customer-by-last-name
 
-Search a customer by last name (functional level, functional, nominal, reads data). Application policy-management, domain customers.
+Search a customer by last name (functional level, functional, nominal, reads data). Application policy-management, domain customers, functionality listing.
 
 - Intent: Verifies that a search by last name lists the customer found and no other.
 - Sources: customers-db: public.customers; policy-management

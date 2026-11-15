@@ -327,6 +327,12 @@ export class PlanProposal {
                 },
                 application: { type: "string", enum: [...this.rules.applications], description: "Identifier of the one application the test is about." },
                 domain: { type: "string", enum: [...this.rules.domains], description: "Identifier of the domain of the index the scenario comes from." },
+                feature: {
+                  type: "string",
+                  pattern: "^[a-z0-9]+(-[a-z0-9]+)*$",
+                  description:
+                    "A slug of the functionality of that domain the scenario verifies, such as customer-search or address-change: the tests of one functionality go in one folder. Give the same slug to every scenario of the same functionality.",
+                },
                 sources: {
                   type: "array",
                   minItems: 1,
@@ -395,7 +401,7 @@ export class PlanProposal {
                   },
                 },
               },
-              required: ["id", "title", "intent", "kind", "level", "case", "effect", "application", "domain", "sources", "data", "steps"],
+              required: ["id", "title", "intent", "kind", "level", "case", "effect", "application", "domain", "feature", "sources", "data", "steps"],
               additionalProperties: false,
             },
           },

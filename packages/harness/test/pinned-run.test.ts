@@ -420,7 +420,7 @@ const PROJECT = {
   ],
   appsDir: "tests",
   stateDir: ".oqas",
-  fixturesFile: "tests/fixtures.ts",
+  fixturesFile: "tests/shared/fixtures.ts",
 };
 
 describe("criterion 12 — the base of the test repository", () => {
@@ -437,7 +437,7 @@ describe("criterion 12 — the base of the test repository", () => {
         "tsconfig.json",
         ".gitignore",
         "README.md",
-        "tests/fixtures.ts",
+        "tests/shared/fixtures.ts",
         "tests/shop/pages/index.ts",
         ".github/workflows/tests.yml",
       ],
@@ -461,9 +461,9 @@ describe("criterion 12 — the base of the test repository", () => {
     ]);
     assert.equal(text(".gitignore"), "node_modules/\n.oqas/test-results/\n.oqas/report/\n.oqas/junit.xml\n.oqas/runs/\n.oqas/traces/\n");
     for (const said of [
-      "| `tests/shop/` | The tests of Shop. |",
-      "| `tests/back-office/` | The tests of Back Office. |",
-      "| `tests/fixtures.ts` | The fixtures every test shares",
+      "| `tests/shop/tests/` | The tests of Shop: a folder per domain, then one per functionality. |",
+      "| `tests/back-office/tests/` | The tests of Back Office: a folder per domain, then one per functionality. |",
+      "| `tests/shared/fixtures.ts` | The fixtures every test shares",
       "| `tests/<application id>/pages/` | The page objects of an application",
       "## Fixtures and page objects",
       "`@playwright/test` 1.64.1",
@@ -472,7 +472,7 @@ describe("criterion 12 — the base of the test repository", () => {
     ])
       assert.ok(text("README.md").includes(said), said);
     // The fixtures the tests import give each application that has a user interface, with the file that gathers its page objects.
-    assert.match(text("tests/fixtures.ts"), /\ninterface Applications \{\n {2}shop: Shop;\n\}\n/);
+    assert.match(text("tests/shared/fixtures.ts"), /\ninterface Applications \{\n {2}shop: Shop;\n\}\n/);
     assert.match(text("tests/shop/pages/index.ts"), /^export class Shop \{\n {2}constructor\(readonly page: Page\) \{\}\n\}$/m);
     // Tests that each stand alone share nothing: neither file is written, and the README says nothing of them.
     const { fixturesFile: _shared, ...standalone } = PROJECT;
@@ -518,8 +518,8 @@ describe("criterion 12 — the base of the test repository", () => {
       ).default;
       assert.equal(loaded.outputDir, join(".oqas", "test-results"));
       assert.deepEqual(loaded.projects, [
-        { name: "shop", testDir: "tests/shop", use: { baseURL: "http://shop.test" } },
-        { name: "back-office", testDir: "tests/back-office", use: { baseURL: "http://seen-from-the-container:3020" } },
+        { name: "shop", testDir: "tests/shop/tests", use: { baseURL: "http://shop.test" } },
+        { name: "back-office", testDir: "tests/back-office/tests", use: { baseURL: "http://seen-from-the-container:3020" } },
       ]);
     } finally {
       delete process.env["OQAS_ENVIRONMENT"];

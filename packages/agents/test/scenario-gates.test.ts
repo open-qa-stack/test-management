@@ -15,6 +15,7 @@ const SEARCH: PlannedScenario = {
   case: "nominal",
   application: "shop",
   domain: "orders",
+  feature: "listing",
   sources: [{ source: "shop" }],
   data: [{ value: "Veldane", from: "shop" }],
   steps: [

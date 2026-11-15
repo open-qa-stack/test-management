@@ -44,12 +44,16 @@ describe("the initialisation of a test repository as a Playwright project", () =
     assert.deepEqual([await init(), err], [0, []]);
     assert.deepEqual(out, [
       `The test repository ${root} is a Playwright project at @playwright/test 1.64.1.\n`,
-      "Created: package.json, playwright.config.ts, tsconfig.json, .gitignore, README.md, tests/fixtures.ts, tests/shop/pages/index.ts, tests/back-office/pages/index.ts, .github/workflows/tests.yml.\n",
+      "Created: package.json, playwright.config.ts, tsconfig.json, .gitignore, README.md, tests/shared/fixtures.ts, tests/shop/pages/index.ts, tests/back-office/pages/index.ts, .github/workflows/tests.yml.\n",
       "Next: read what was created, run npm install, then commit it with the lockfile.\n",
     ]);
     const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as { devDependencies: Record<string, string> };
     assert.equal(manifest.devDependencies["@playwright/test"], "1.64.1");
-    assert.ok(readFileSync(join(root, "README.md"), "utf8").includes("| `tests/back-office/` | The tests of Back Office. |"));
+    assert.ok(
+      readFileSync(join(root, "README.md"), "utf8").includes(
+        "| `tests/back-office/tests/` | The tests of Back Office: a folder per domain, then one per functionality. |",
+      ),
+    );
     assert.deepEqual(
       [existsSync(join(root, "tests", "shop")), existsSync(join(root, "tests", "back-office")), existsSync(join(root, ".github", "workflows", "tests.yml"))],
       [true, true, true],
@@ -60,7 +64,7 @@ describe("the initialisation of a test repository as a Playwright project", () =
     const { root, out, init } = repository({ "oqas.json": JSON.stringify({ ...CONFIG, design: { architecture: "standalone" } }) });
     await init();
     assert.equal(out[1], "Created: package.json, playwright.config.ts, tsconfig.json, .gitignore, README.md, .github/workflows/tests.yml.\n");
-    assert.equal(existsSync(join(root, "tests", "fixtures.ts")), false);
+    assert.equal(existsSync(join(root, "tests", "shared", "fixtures.ts")), false);
   });
 
   it("keeps every file the repository already has, and says so when nothing was missing", async () => {
@@ -72,7 +76,7 @@ describe("the initialisation of a test repository as a Playwright project", () =
         '{ "name": "ours" }\n',
         "# Ours\n",
         [
-          "Created: playwright.config.ts, tsconfig.json, .gitignore, tests/fixtures.ts, tests/shop/pages/index.ts, tests/back-office/pages/index.ts, .github/workflows/tests.yml.\n",
+          "Created: playwright.config.ts, tsconfig.json, .gitignore, tests/shared/fixtures.ts, tests/shop/pages/index.ts, tests/back-office/pages/index.ts, .github/workflows/tests.yml.\n",
           "Kept as they were, already there: package.json, README.md.\n",
           "Next: read what was created, run npm install, then commit it with the lockfile.\n",
         ],
@@ -81,7 +85,7 @@ describe("the initialisation of a test repository as a Playwright project", () =
     out.length = 0;
     await init();
     assert.deepEqual(out.slice(1), [
-      "Kept as they were, already there: package.json, playwright.config.ts, tsconfig.json, .gitignore, README.md, tests/fixtures.ts, tests/shop/pages/index.ts, tests/back-office/pages/index.ts, .github/workflows/tests.yml.\n",
+      "Kept as they were, already there: package.json, playwright.config.ts, tsconfig.json, .gitignore, README.md, tests/shared/fixtures.ts, tests/shop/pages/index.ts, tests/back-office/pages/index.ts, .github/workflows/tests.yml.\n",
       "Nothing was missing.\n",
     ]);
   });

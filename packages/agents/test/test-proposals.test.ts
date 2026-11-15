@@ -31,6 +31,7 @@ const scenario = (application: string, sources: readonly string[]): PlannedScena
   case: "nominal",
   application,
   domain: "ledger",
+  feature: "listing",
   sources: sources.map((source) => ({ source })),
   data: [],
   steps: [{ action: "Open the ledger", code: [], expects: [{ result: "The ledger shows", shows: ["Ledger"], absent: [], elements: [] }] }],
@@ -404,9 +405,9 @@ describe("the session of a scenario", () => {
     assert.deepEqual(
       journal.entries().map((entry) => entry.message),
       [
-        "The scenario open-ledger was opened; its test is apps/ledger/open-ledger.spec.ts.",
-        "The test apps/ledger/open-ledger.spec.ts was run: passed.",
-        "The scenario open-ledger was closed: passed; its test is apps/ledger/open-ledger.spec.ts.",
+        "The scenario open-ledger was opened; its test is apps/ledger/tests/ledger/listing/open-ledger.spec.ts.",
+        "The test apps/ledger/tests/ledger/listing/open-ledger.spec.ts was run: passed.",
+        "The scenario open-ledger was closed: passed; its test is apps/ledger/tests/ledger/listing/open-ledger.spec.ts.",
       ],
     );
   });
@@ -416,7 +417,7 @@ describe("the session of a scenario", () => {
     const third = { ...first, id: "audit-ledger" };
     const proposals = new TestProposals(rules(passing), journal, { scenarios: [first, second, third] });
     const OVER = "Next: answer with one sentence. Call no more tools.";
-    const kept = "apps/ledger/open-ledger.spec.ts";
+    const kept = "apps/ledger/tests/ledger/listing/open-ledger.spec.ts";
     const warning = (id: string) =>
       `Warning (TEST-DUPLICATE): the test of scenario ${id} runs the same actions and the same assertions as ${kept}, the test of another scenario. Is it still the test of its sheet? Check it against the steps and the expected texts of the sheet, put back what was taken out of it, and run it again with run_test. If the sheet gives this very test, call propose_test again as it is: it is then kept as a duplicate of ${kept}.`;
     proposals.begin(BLIND);
@@ -515,7 +516,7 @@ describe("a scenario whose session ends before it is closed", () => {
     proposals.giveUp("SESSION-END");
     assert.deepEqual(proposals.accepted, [
       {
-        path: "apps/ledger/open-ledger.spec.ts",
+        path: "apps/ledger/tests/ledger/listing/open-ledger.spec.ts",
         scenario: "open-ledger",
         verdict: "not_run",
         classes: [
@@ -535,7 +536,7 @@ describe("a scenario whose session ends before it is closed", () => {
     assert.deepEqual([proposals.writing, proposals.sheet], [false, undefined]);
     assert.equal(
       journal.entries().at(-1)!.message,
-      "The scenario open-ledger was closed by the harness (SESSION-END): its test is kept as unfinished: apps/ledger/open-ledger.spec.ts.",
+      "The scenario open-ledger was closed by the harness (SESSION-END): its test is kept as unfinished: apps/ledger/tests/ledger/listing/open-ledger.spec.ts.",
     );
   });
 
@@ -552,7 +553,10 @@ describe("a scenario whose session ends before it is closed", () => {
       [kept!.content, kept!.verdict, kept!.classes[0]!.class, kept!.classes[0]!.reason],
       [
         // The harness wrote on it the tags of its scenario.
-        one.replace('test("open", ', 'test("open", { tag: ["@level-functional","@domain-ledger","@app-ledger","@kind-other","@case-nominal","@data-read"] }, '),
+        one.replace(
+          'test("open", ',
+          'test("open", { tag: ["@level-functional","@domain-ledger","@feature-listing","@app-ledger","@kind-other","@case-nominal","@data-read"] }, ',
+        ),
         "not_run",
         "unfinished",
         'Its session ended before the scenario was closed. Tried: 1 run (failed on assertion at "1. Open the ledger"); refusals: TEST-STEPS ×1, TEST-VALUE ×1, TEST-SYNTAX ×1.',
@@ -591,7 +595,7 @@ describe("a scenario whose session ends before it is closed", () => {
     );
     assert.equal(
       journal.entries().at(-1)!.message,
-      "The scenario open-ledger was closed by the harness (SESSION-END): passed; its test is apps/ledger/open-ledger.spec.ts.",
+      "The scenario open-ledger was closed by the harness (SESSION-END): passed; its test is apps/ledger/tests/ledger/listing/open-ledger.spec.ts.",
     );
   });
 
@@ -659,7 +663,9 @@ describe("a test that writes data, run again once it passed", () => {
       replayed.told,
       /^The test passed, then failed when it was run again right after: it relies on data its own run changed\. Enter data of its own, such as a made-up value no other run uses, or add a last step that puts back what the test changed, then call run_test\.\nRun of the file: failed\./,
     );
-    assert.ok(replayed.journal.includes("The test apps/ledger/open-ledger.spec.ts writes data, and failed when it was run again after it passed."));
+    assert.ok(
+      replayed.journal.includes("The test apps/ledger/tests/ledger/listing/open-ledger.spec.ts writes data, and failed when it was run again after it passed."),
+    );
     const broken = await tried(writing, "passed", "error");
     assert.match(
       broken.told,

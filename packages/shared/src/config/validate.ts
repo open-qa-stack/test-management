@@ -4,6 +4,7 @@ import { DEFAULT_AUTONOMY, resolveLimits, RETIRED_LEVELS } from "./autonomy.ts";
 import { declaredVariables } from "./declared-variables.ts";
 import { duplicateKeyPaths } from "./duplicate-keys.ts";
 import { configError as error, pointer, structureError } from "./errors.ts";
+import { SHARED_FOLDER } from "../tests/application-pages.ts";
 import { STATE_DIR_NAME } from "./file-names.ts";
 import { configSchema } from "./schema.ts";
 import type { Attachment, ConfigError, OqasConfig, Repository, ValidationResult } from "./types.ts";
@@ -82,7 +83,7 @@ export function validateConfig(content: string, env: EnvironmentVariables): Vali
         reviewTests: data.design?.reviewTests ?? true,
         reviewCode: data.design?.reviewCode ?? true,
         architecture: data.design?.architecture ?? "page-objects",
-        fixturesFile: data.design?.fixturesFile ?? `${data.repository?.appsDir ?? DEFAULT_REPOSITORY.appsDir}/fixtures.ts`,
+        fixturesFile: data.design?.fixturesFile ?? `${data.repository?.appsDir ?? DEFAULT_REPOSITORY.appsDir}/${SHARED_FOLDER}/fixtures.ts`,
         levels: data.design?.levels ?? ["smoke", "functional", "business"],
       },
       model: data.model,

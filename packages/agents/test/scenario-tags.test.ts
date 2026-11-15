@@ -3,14 +3,23 @@ import { describe, it } from "node:test";
 import { effectWords, scenarioTags, withTags } from "../src/designer/scenario-tags.ts";
 import { testBody } from "../src/designer/test-body.ts";
 
-const SCENARIO = { level: "business", domain: "customers", application: "policy-management", kind: "functional", case: "negative", effect: "write" } as const;
-const TAGS = '{ tag: ["@level-business","@domain-customers","@app-policy-management","@kind-functional","@case-negative","@data-write"] }';
+const SCENARIO = {
+  level: "business",
+  domain: "customers",
+  feature: "listing",
+  application: "policy-management",
+  kind: "functional",
+  case: "negative",
+  effect: "write",
+} as const;
+const TAGS = '{ tag: ["@level-business","@domain-customers","@feature-listing","@app-policy-management","@kind-functional","@case-negative","@data-write"] }';
 
 describe("the tags of a test", () => {
-  it("are the level, the domain, the application, the kind, the case and the effect on data of its scenario", () => {
+  it("are the level, the domain, its functionality, the application, the kind, the case and the effect on data of its scenario", () => {
     assert.deepEqual(scenarioTags(SCENARIO), [
       "@level-business",
       "@domain-customers",
+      "@feature-listing",
       "@app-policy-management",
       "@kind-functional",
       "@case-negative",
@@ -23,7 +32,7 @@ describe("the tags of a test", () => {
   });
 
   it("name each application a test of several acts on", () => {
-    assert.deepEqual(scenarioTags({ ...SCENARIO, level: "cross-application", applications: ["customer-management"] }).slice(2, 4), [
+    assert.deepEqual(scenarioTags({ ...SCENARIO, level: "cross-application", applications: ["customer-management"] }).slice(3, 5), [
       "@app-policy-management",
       "@app-customer-management",
     ]);

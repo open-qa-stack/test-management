@@ -215,7 +215,7 @@ export const configSchema = {
         fixturesFile: {
           ...relativePath,
           description:
-            "Path of the file of the fixtures the tests share, relative to the root of the test repository; fixtures.ts in the folder of the applications by default. A file already there is kept as it is, and written when the repository has none.",
+            "Path of the file of the fixtures the tests share, relative to the root of the test repository; shared/fixtures.ts in the folder of the applications by default. A file already there is kept as it is, and written when the repository has none.",
         },
         reviewTests: {
           type: "boolean",

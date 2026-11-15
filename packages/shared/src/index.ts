@@ -10,7 +10,16 @@ export { placementErrors, unplacedItems, type SourceInventory } from "./domain-i
 export { domainIndexSchema, domainSubmissionSchema } from "./domain-index/schema.ts";
 export type * from "./domain-index/types.ts";
 export { validateDomainIndex, validateDomainSubmission } from "./domain-index/validate.ts";
-export { applicationClass, applicationPages, PAGES_FOLDER, PAGES_INDEX, screenMember, type ScreenClass } from "./tests/application-pages.ts";
+export {
+  applicationClass,
+  applicationPages,
+  PAGES_FOLDER,
+  PAGES_INDEX,
+  screenMember,
+  SHARED_FOLDER,
+  TESTS_FOLDER,
+  type ScreenClass,
+} from "./tests/application-pages.ts";
 export { applicationVariable, camelName, className } from "./tests/application-variable.ts";
 export { appsFrom, sharedFixtures } from "./tests/shared-fixtures.ts";
 export { tabVariable } from "./tests/tab-variable.ts";

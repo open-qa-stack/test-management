@@ -57,7 +57,7 @@ export default defineConfig({
   use: { trace: "retain-on-failure", screenshot: "only-on-failure" },
   projects: config.applications.map((application) => ({
     name: application.id,
-    testDir: join(appsDir, application.id),
+    testDir: join(appsDir, application.id, "tests"),
     use: { baseURL: process.env[variable(application.id)] ?? baseOf(application.environments.find((env) => env.name === environment)) },
   })),
 });

@@ -98,6 +98,8 @@ export interface PlannedScenario {
   readonly applications?: readonly string[];
   /** Identifier of the domain of the index the scenario comes from. */
   readonly domain: string;
+  /** A slug of the functionality of that domain the scenario verifies, such as `customer-search`: the tests of one functionality share a folder. */
+  readonly feature: string;
   /** The sources the scenario relies on. */
   readonly sources: readonly ScenarioSource[];
   /** The values the test enters. */

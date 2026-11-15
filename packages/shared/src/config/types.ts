@@ -199,7 +199,7 @@ export type TestArchitecture = "page-objects" | "fixtures" | "standalone";
 export interface DesignSettings {
   /** How the tests are built; `page-objects` by default. */
   architecture?: TestArchitecture;
-  /** Path of the file of the fixtures the tests share, relative to the root of the test repository; `fixtures.ts` in the folder of the applications by default. */
+  /** Path of the file of the fixtures the tests share, relative to the root of the test repository; `shared/fixtures.ts` in the folder of the applications by default. */
   fixturesFile?: string;
   /** Whether an agent of its own reviews the scenarios of a plan for duplicates; `true` by default. */
   reviewPlan?: boolean;

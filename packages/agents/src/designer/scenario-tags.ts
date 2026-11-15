@@ -4,7 +4,7 @@ import type { PlannedScenario } from "@open-qa-stack/domain";
 const TAGS = /(\btest\s*\(\s*(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)\s*,\s*)(?:\{\s*tag:\s*\[[^\]]*\]\s*,?\s*\}\s*,\s*)?/;
 
 /** What of a scenario its tags are made of. */
-export type TaggedScenario = Pick<PlannedScenario, "level" | "domain" | "application" | "applications" | "kind" | "case" | "effect">;
+export type TaggedScenario = Pick<PlannedScenario, "level" | "domain" | "feature" | "application" | "applications" | "kind" | "case" | "effect">;
 
 /**
  * The tags of the test of a scenario, by which a run selects tests: its level in the pyramid of tests, its
@@ -18,6 +18,7 @@ export function scenarioTags(scenario: TaggedScenario): string[] {
   return [
     `@level-${scenario.level}`,
     `@domain-${scenario.domain}`,
+    `@feature-${scenario.feature}`,
     ...applications,
     `@kind-${scenario.kind}`,
     `@case-${scenario.case}`,

@@ -19,6 +19,7 @@ import { scenarioSheet, skeleton } from "./scenario-sheet.ts";
 import { snapshotLines, type ScreenWatch } from "./screen-watch.ts";
 import type { SourceWatch } from "./source-watch.ts";
 import { fixturesFor, type FixturesFile } from "./test-fixtures.ts";
+import { TESTS_FOLDER } from "@open-qa-stack/shared";
 import type { TestCheck, TestFinding, TestReference, TestRunner, TestTrial, Verdict } from "@open-qa-stack/domain";
 import { addressErrors, fileErrors, heldVariables, importErrors, locatorsOf, secretValueErrors, type DeclaredSecret } from "./spec-rules.ts";
 
@@ -735,10 +736,21 @@ export class TestProposals {
     return { cursor: this.cursor, scenario: this.cursor.scenario!, path: this.cursor.path! };
   }
 
-  /** The file of the test of a scenario: named after it, in the folder of its application, with a number when that path is taken. */
+  /**
+   * The file of the test of a scenario: named after it, in the folder of the tests of its application, under its domain then its
+   * functionality, with a number when that path is taken.
+   */
   private place(scenario: PlannedScenario): string {
     const taken = (path: string) => this.kept.some((test) => test.path === path) || existsSync(join(this.rules.repositoryRoot, path));
-    const name = (rank: number) => posix.join(this.rules.appsDir, scenario.application, `${scenario.id}${rank === 1 ? "" : `-${rank}`}.spec.ts`);
+    const name = (rank: number) =>
+      posix.join(
+        this.rules.appsDir,
+        scenario.application,
+        TESTS_FOLDER,
+        scenario.domain,
+        scenario.feature,
+        `${scenario.id}${rank === 1 ? "" : `-${rank}`}.spec.ts`,
+      );
     let rank = 1;
     while (taken(name(rank))) rank += 1;
     return name(rank);

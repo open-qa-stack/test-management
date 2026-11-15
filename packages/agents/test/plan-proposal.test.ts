@@ -37,6 +37,7 @@ const scenario = (id: string, changes: Partial<Scenario> = {}): Scenario => ({
   case: "nominal",
   application: "shop",
   domain: "orders",
+  feature: "listing",
   sources: [{ source: "shop" }],
   data: [{ value: id, from: "made-up" }],
   steps: [{ action: "Open the orders", expects: [{ result: "The orders show", shows: ["Orders"], absent: [] }] }],

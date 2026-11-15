@@ -199,7 +199,7 @@ const index = {
   domains: [{ id: "orders", label: "Orders", description: "Placing and following an order.", from: [{ source: "order-specs", domain: "orders" }] }],
 };
 const spec = (title: string) =>
-  `import { test, expect } from "../fixtures.ts";\n\ntest("${title}", async ({ request }) => {\n  await test.step("1. Get the orders", async () => {\n    const response = await request.get("/orders");\n    expect(await response.text()).toContain("A customer places an order");\n    expect("${title}").toBe("${title}");\n  });\n});\n`;
+  `import { test, expect } from "../../../../shared/fixtures.ts";\n\ntest("${title}", async ({ request }) => {\n  await test.step("1. Get the orders", async () => {\n    const response = await request.get("/orders");\n    expect(await response.text()).toContain("A customer places an order");\n    expect("${title}").toBe("${title}");\n  });\n});\n`;
 const IDS = ["test-1", "test-2", "test-3"];
 const scenario = (id: string) => ({
   id,
@@ -211,6 +211,7 @@ const scenario = (id: string) => ({
   case: id === "test-3" ? "negative" : "nominal",
   application: "shop",
   domain: "orders",
+  feature: "listing",
   sources: [{ source: "order-specs", item: "Orders" }],
   // The value a scenario enters tells it from the others, which get the same orders.
   data: [{ value: id, from: "made-up" }],
@@ -439,7 +440,11 @@ describe("solo command, criterion 9 — the state of a complete run", () => {
     const state = stateOf(run.root);
     assert.equal(state.runId, "oqas-2026-11-13T12-00-00-000Z");
     assert.equal(state.index, ".oqas/index/domain-index.json");
-    assert.deepEqual([...state.designed].sort(), ["apps/shop/test-1.spec.ts", "apps/shop/test-2.spec.ts", "apps/shop/test-3.spec.ts"]);
+    assert.deepEqual([...state.designed].sort(), [
+      "apps/shop/tests/orders/listing/test-1.spec.ts",
+      "apps/shop/tests/orders/listing/test-2.spec.ts",
+      "apps/shop/tests/orders/listing/test-3.spec.ts",
+    ]);
     assert.match(state.branch!, /^oqas\/design-/);
     assert.match(state.report!, /^\.oqas\/runs\/run-.*\/report\.json$/);
     assert.ok(existsSync(join(run.root, state.run!)));
@@ -720,7 +725,10 @@ describe("the edges of a run", () => {
     assert.equal(run.code, 2, run.err);
     assert.match(run.err, /\[design\] error: The design failed: 2 tests were obtained, 3 are expected, one per scenario of the plan\./);
     assert.match(run.err, /\[design\] The design is incomplete: the tests it gave are run, and the run cannot end as passed\./);
-    assert.match(run.err, /\[execution\] 2 of the 3 tests designed are run; left out as unfinished, duplicate or unfeasible: apps\/shop\/test-3\.spec\.ts\./);
+    assert.match(
+      run.err,
+      /\[execution\] 2 of the 3 tests designed are run; left out as unfinished, duplicate or unfeasible: apps\/shop\/tests\/orders\/listing\/test-3\.spec\.ts\./,
+    );
     assert.deepEqual(
       stateOf(run.root).tests!.map((test) => test.verdict),
       ["passed", "passed"],
@@ -952,7 +960,7 @@ describe("autonomy, criterion 4 — a design stopped by maxIterations after a pl
       assert.match(first.out, new RegExp(`The design was stopped by its iterations limit; resume the run with: oqas --resume ${FIRST_RUN}\n`));
       const stopped = stateOf(first.root);
       assert.deepEqual(stopped.stoppedBy, { step: "design", limit: "iterations" });
-      assert.deepEqual(stopped.designed, ["apps/shop/test-1.spec.ts"]);
+      assert.deepEqual(stopped.designed, ["apps/shop/tests/orders/listing/test-1.spec.ts"]);
       const branch = stopped.branch!;
       const base = git(first.root, "rev-parse", `${branch}~1`);
 
@@ -965,19 +973,23 @@ describe("autonomy, criterion 4 — a design stopped by maxIterations after a pl
       assert.ok(!offered(session).includes("propose_plan"));
       assert.ok(!server.requests.slice(18).some((request) => JSON.stringify(request.body).includes('"name":"propose_plan"')));
       // The resumed design tries the tests of the scenarios left, never the kept one.
-      assert.deepEqual(tried(resumed.runner), ["apps/shop/test-2.spec.ts", "apps/shop/test-3.spec.ts"]);
+      assert.deepEqual(tried(resumed.runner), ["apps/shop/tests/orders/listing/test-2.spec.ts", "apps/shop/tests/orders/listing/test-3.spec.ts"]);
       const state = stateOf(first.root, "oqas-2026-11-13T13-00-00-000Z");
       assert.deepEqual([state.resumes, state.branch, state.stoppedBy], [FIRST_RUN, branch, undefined]);
-      assert.deepEqual(state.designed, ["apps/shop/test-1.spec.ts", "apps/shop/test-2.spec.ts", "apps/shop/test-3.spec.ts"]);
+      assert.deepEqual(state.designed, [
+        "apps/shop/tests/orders/listing/test-1.spec.ts",
+        "apps/shop/tests/orders/listing/test-2.spec.ts",
+        "apps/shop/tests/orders/listing/test-3.spec.ts",
+      ]);
       assert.deepEqual(
         state.steps.map((step) => step.step),
         ["configuration", "prerequisites", "design", "execution"],
       );
       assert.deepEqual(git(first.root, "ls-tree", "-r", "--name-only", branch, "apps").split("\n"), [
-        "apps/fixtures.ts",
-        "apps/shop/test-1.spec.ts",
-        "apps/shop/test-2.spec.ts",
-        "apps/shop/test-3.spec.ts",
+        "apps/shared/fixtures.ts",
+        "apps/shop/tests/orders/listing/test-1.spec.ts",
+        "apps/shop/tests/orders/listing/test-2.spec.ts",
+        "apps/shop/tests/orders/listing/test-3.spec.ts",
       ]);
       assert.equal(git(first.root, "rev-parse", `${branch}~2`), base, "one commit for each run, on the same branch");
     } finally {
@@ -1022,8 +1034,11 @@ describe("autonomy, criterion 4 — a design stopped by maxIterations after a pl
       });
       assert.equal(third.code, 5, third.err);
       const last = stateOf(first.root, "oqas-2026-11-13T14-00-00-000Z");
-      assert.deepEqual([last.designed, last.designState], [["apps/shop/test-1.spec.ts"], second.designState]);
-      assert.equal(git(first.root, "ls-tree", "-r", "--name-only", last.branch!, "apps"), "apps/fixtures.ts\napps/shop/test-1.spec.ts");
+      assert.deepEqual([last.designed, last.designState], [["apps/shop/tests/orders/listing/test-1.spec.ts"], second.designState]);
+      assert.equal(
+        git(first.root, "ls-tree", "-r", "--name-only", last.branch!, "apps"),
+        "apps/shared/fixtures.ts\napps/shop/tests/orders/listing/test-1.spec.ts",
+      );
     } finally {
       await server.close();
     }
@@ -1053,7 +1068,7 @@ describe("autonomy, criterion 4 — a design stopped by maxIterations after a pl
       assert.match(first.out, new RegExp(`The design was stopped by its iterations limit; resume the run with: oqas --resume ${FIRST_RUN}\n`));
       const resumed = await solo([], { root: () => first.root, modelUrl: server.baseUrl, config: boundedTo(4), resume: FIRST_RUN, now: later(13) });
       assert.equal(resumed.code, 0, resumed.err);
-      assert.deepEqual(tried(resumed.runner), ["apps/shop/test-4.spec.ts"]);
+      assert.deepEqual(tried(resumed.runner), ["apps/shop/tests/orders/listing/test-4.spec.ts"]);
       const state = stateOf(first.root, "oqas-2026-11-13T13-00-00-000Z");
       assert.deepEqual([state.stoppedBy, state.designed.length, state.tests.length], [undefined, 4, 4]);
     } finally {

@@ -85,7 +85,7 @@ export function writerInstructions(rules: readonly ActiveRule[], repository: Req
   return [
     writerGuide(architecture),
     `Charter. Every test is checked against these rules before it runs; a finding names the rule and shows an example.\n${charter.join("\n")}`,
-    `Tests of an application go in ${repository.appsDir}/<application id>/. The harness names the file.`,
+    `Tests of an application go in ${repository.appsDir}/<application id>/tests/<domain>/<functionality>/. The harness names the file.`,
   ].join("\n\n");
 }
 
@@ -105,7 +105,7 @@ export function reviewerInstructions(rules: readonly ActiveRule[], repository: R
     return lines.join("\n");
   });
   const layout = [
-    `- Tests of an application: ${repository.appsDir}/<application id>/`,
+    `- Tests of an application: ${repository.appsDir}/<application id>/tests/<domain>/<functionality>/`,
     `- Blocks of an application: ${repository.appsDir}/<application id>/${repository.blocksDir}/`,
     `- Journeys across applications: ${repository.journeysDir}/`,
   ];

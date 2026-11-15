@@ -13,6 +13,7 @@ const SCENARIO: PlannedScenario = {
   case: "nominal",
   application: "shop",
   domain: "customers",
+  feature: "listing",
   sources: [{ source: "shop" }],
   data: [],
   steps: [

@@ -80,11 +80,11 @@ describe("criterion 2 — without changes, the instructions of the writer and th
   it("gives the reviewer the folders of the repository layout, and the writer the folder of its tests only", () => {
     const layout = { ...DEFAULT_REPOSITORY, appsDir: "tests", blocksDir: "blocks", journeysDir: "journeys" };
     const reviewer = reviewerInstructions(rules, layout);
-    assert.ok(reviewer.includes("- Tests of an application: tests/<application id>/"));
+    assert.ok(reviewer.includes("- Tests of an application: tests/<application id>/tests/<domain>/<functionality>/"));
     assert.ok(reviewer.includes("- Blocks of an application: tests/<application id>/blocks/"));
     assert.ok(reviewer.includes("- Journeys across applications: journeys/"));
     const writer = writerInstructions(rules, layout);
-    assert.ok(writer.endsWith("\n\nTests of an application go in tests/<application id>/. The harness names the file."));
+    assert.ok(writer.endsWith("\n\nTests of an application go in tests/<application id>/tests/<domain>/<functionality>/. The harness names the file."));
     assert.doesNotMatch(writer, /Blocks of an application|Journeys across applications/);
   });
 

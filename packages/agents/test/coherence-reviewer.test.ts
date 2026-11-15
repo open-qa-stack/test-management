@@ -16,6 +16,7 @@ const SCENARIO: PlannedScenario = {
   effect: "read",
   application: "shop",
   domain: "orders",
+  feature: "listing",
   sources: [{ source: "shop" }],
   data: [{ value: "Veldane", from: "shop" }],
   steps: [

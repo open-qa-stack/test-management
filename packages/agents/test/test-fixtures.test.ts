@@ -54,7 +54,7 @@ describe("what a test is given by the fixtures", () => {
   });
 
   it("is Playwright alone in a repository without the file", () => {
-    assert.equal(fixturesFor("apps/shop/list.spec.ts", undefined), PLAYWRIGHT_ALONE);
+    assert.equal(fixturesFor("apps/shop/tests/orders/listing/list.spec.ts", undefined), PLAYWRIGHT_ALONE);
     assert.deepEqual(PLAYWRIGHT_ALONE, { module: "@playwright/test", applications: [] });
   });
 });

@@ -37,6 +37,7 @@ const scenario = (steps: readonly (readonly PlannedLine[])[], changes: Partial<P
   effect: "read",
   application: "shop",
   domain: "orders",
+  feature: "listing",
   sources: [],
   data: [],
   steps: steps.map((lines) => ({ action: "Do it", code: lines.map((line) => line.code), lines, expects: [] })),

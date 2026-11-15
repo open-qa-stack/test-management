@@ -17,6 +17,7 @@ const SCENARIO: PlannedScenario = {
   case: "nominal",
   application: "shop",
   domain: "orders",
+  feature: "listing",
   sources: [],
   data: [],
   steps: [{ action: "Open the orders", code: [OPENED], expects: [] }],

@@ -8,7 +8,9 @@ import type { TestProject } from "./test-repository-base.ts";
  * @returns The text of `README.md`.
  */
 export function testRepositoryReadme(project: TestProject): string {
-  const applications = project.applications.map(({ id, name }) => `| \`${project.appsDir}/${id}/\` | The tests of ${name}. |`);
+  const applications = project.applications.map(
+    ({ id, name }) => `| \`${project.appsDir}/${id}/tests/\` | The tests of ${name}: a folder per domain, then one per functionality. |`,
+  );
   const { fixturesFile } = project;
   // What the tests share, for a repository whose tests do not each stand alone.
   const shared =
@@ -65,7 +67,7 @@ OQAS_ENVIRONMENT=<environment> npm test
 
 ${built}## Tags
 
-Every test bears the tags of what it is, after its title: \`@level-…\` for its level in the pyramid of tests, \`@domain-…\` for its functional domain, \`@app-…\` for each application it acts on, \`@kind-…\` for what it checks, \`@case-nominal\` or \`@case-negative\`, and \`@data-read\` or \`@data-write\`. Any of them selects tests: \`npx playwright test --grep @domain-<domain>\`.
+Every test bears the tags of what it is, after its title: \`@level-…\` for its level in the pyramid of tests, \`@domain-…\` for its functional domain, \`@feature-…\` for the functionality of that domain, \`@app-…\` for each application it acts on, \`@kind-…\` for what it checks, \`@case-nominal\` or \`@case-negative\`, and \`@data-read\` or \`@data-write\`. Any of them selects tests: \`npx playwright test --grep @domain-<domain>\`.
 
 A test that writes data creates its own or puts back what it changed, so that it passes again when run twice.
 

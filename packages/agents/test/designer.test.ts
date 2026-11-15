@@ -159,7 +159,7 @@ function snapshot(root: string): Record<string, string> {
 
 /** The test of a scenario whose one step opens the orders and asserts their heading, as the plan expects; it notes its scenario, which tells its body from the others. */
 const spec = (title: string) =>
-  `import { test, expect } from "../fixtures.ts";\n\ntest("${title}", async ({ page }) => {\n  test.info().annotations.push({ type: "scenario", description: "${title}" });\n  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n    await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();\n  });\n});\n`;
+  `import { test, expect } from "../../../../shared/fixtures.ts";\n\ntest("${title}", async ({ page }) => {\n  test.info().annotations.push({ type: "scenario", description: "${title}" });\n  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n    await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();\n  });\n});\n`;
 
 /** A call of a tool by the model. */
 interface Call {
@@ -171,7 +171,7 @@ interface Call {
 /** A scenario of the plan, about the orders of the shop: its one step opens them and expects their heading. */
 /** A test as the harness keeps it: with the tags of its scenario, a functional scenario of the orders of the shop unless told otherwise. */
 const tagged = (content: string, kind: "other" | "visual" | "functional" = "other") =>
-  withTags(content, { level: "functional", domain: "orders", application: "shop", kind, case: "nominal", effect: "read" });
+  withTags(content, { level: "functional", domain: "orders", feature: "listing", application: "shop", kind, case: "nominal", effect: "read" });
 const scenario = (id: string, kind = "other", changes: Record<string, unknown> = {}) => ({
   id,
   title: `The ${id} scenario`,
@@ -182,6 +182,7 @@ const scenario = (id: string, kind = "other", changes: Record<string, unknown> =
   case: "nominal",
   application: "shop",
   domain: "orders",
+  feature: "listing",
   sources: [{ source: "shop", item: "/orders" }],
   data: [{ value: id, from: "made-up" }],
   steps: [{ action: "Open the orders", actions: [1], expects: [{ result: "The orders show", shows: ["Orders"], absent: [] }] }],
@@ -405,11 +406,15 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     const { outcome, root, server } = await design(replies(valid(3)));
     assert.equal(outcome.ok, true);
     assert.equal(git(root, "branch", "--show-current"), BRANCH);
-    assert.deepEqual(specsOf(root), ["apps/shop/follow-order.spec.ts", "apps/shop/list-orders.spec.ts", "apps/shop/place-order.spec.ts"]);
-    assert.equal(readFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "utf8"), tagged(spec("list-orders")));
+    assert.deepEqual(specsOf(root), [
+      "apps/shop/tests/orders/listing/follow-order.spec.ts",
+      "apps/shop/tests/orders/listing/list-orders.spec.ts",
+      "apps/shop/tests/orders/listing/place-order.spec.ts",
+    ]);
+    assert.equal(readFileSync(join(root, "apps", "shop", "tests", "orders", "listing", "list-orders.spec.ts"), "utf8"), tagged(spec("list-orders")));
     // The fixtures the tests import are written for a repository that has none, and committed with them.
-    assert.ok(filesOf(root).includes("apps/fixtures.ts"));
-    assert.match(readFileSync(join(root, "apps", "fixtures.ts"), "utf8"), /^export const test = base\.extend<Applications>\(\{\n {2}shop: /m);
+    assert.ok(filesOf(root).includes("apps/shared/fixtures.ts"));
+    assert.match(readFileSync(join(root, "apps", "shared", "fixtures.ts"), "utf8"), /^export const test = base\.extend<Applications>\(\{\n {2}shop: /m);
     // So is the file that gathers the page objects of each application the fixtures give.
     assert.ok(filesOf(root).includes("apps/shop/pages/index.ts"));
     const state = stateOf(outcome);
@@ -418,7 +423,13 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     for (const file of ["design-20261113T100000Z.json", "design-20261113T100000Z.plan.md"]) assert.ok(filesOf(root).includes(`.oqas/designs/${file}`), file);
     assert.deepEqual(
       state.tests,
-      IDS.map((id) => ({ path: `apps/shop/${id}.spec.ts`, scenario: id, verdict: "passed", classes: PASSED, runs: [{ verdict: "passed" }] })),
+      IDS.map((id) => ({
+        path: `apps/shop/tests/orders/listing/${id}.spec.ts`,
+        scenario: id,
+        verdict: "passed",
+        classes: PASSED,
+        runs: [{ verdict: "passed" }],
+      })),
     );
     assert.deepEqual([state.formatVersion, state.plan, state.brief], [4, ".oqas/designs/design-20261113T100000Z.plan.md", undefined]);
     assert.deepEqual(planOf(outcome), {
@@ -438,7 +449,7 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
       "Test Maintainer <maintainer@example.com>",
       "test: add 3 generated Playwright tests",
       "",
-      "- apps/shop/list-orders.spec.ts: The list-orders scenario",
+      "- apps/shop/tests/orders/listing/list-orders.spec.ts: The list-orders scenario",
     ]);
     assert.match(
       messages(outcome),
@@ -523,7 +534,7 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
       "You write the Playwright test of one scenario of an accepted plan",
       "PW-WAIT-01",
       "Sign-in: with the account demo; the lines of the sheet that sign in read it from process.env: keep them as they are.",
-      "A test may import: apps/fixtures.ts.",
+      "A test may import: apps/shared/fixtures.ts.",
       "Intent: Verifies list-orders.",
       "Cited: shop: /orders.",
     ])
@@ -540,7 +551,7 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     git(root, "commit", "-q", "-m", "chore: ignore the state");
     const { outcome } = await design(replies([...valid(2), ...write("follow-order", spec("follow-order").trimEnd())]), { root, branch: null });
     assert.match(outcome.branch!, /^oqas\/design-\d{8}T\d{6}Z$/);
-    assert.equal(readFileSync(join(root, "apps", "shop", "follow-order.spec.ts"), "utf8"), tagged(spec("follow-order")));
+    assert.equal(readFileSync(join(root, "apps", "shop", "tests", "orders", "listing", "follow-order.spec.ts"), "utf8"), tagged(spec("follow-order")));
     assert.ok(!filesOf(root, outcome.branch).some((path) => path.startsWith(".oqas/")));
     assert.ok(existsSync(outcome.statePath!));
     assert.ok(existsSync(outcome.planPath!));
@@ -568,7 +579,7 @@ describe("how the tests are built, as the configuration says", () => {
   const CLICK = 'await page.getByRole("button", { name: "Search", exact: true }).click();';
 
   it("writes each test on its own, importing Playwright itself, and nothing beside it, for a repository with an architecture of its own", async () => {
-    const alone = (id: string) => write(id, spec(id).replace('from "../fixtures.ts"', 'from "@playwright/test"'));
+    const alone = (id: string) => write(id, spec(id).replace('from "../../../../shared/fixtures.ts"', 'from "@playwright/test"'));
     const { outcome, root, server } = await design([...script, ...replies(IDS.flatMap(alone))], { plan: false, architecture: "standalone" });
     assert.equal(outcome.tests.length, 3, messages(outcome));
     assert.deepEqual(
@@ -582,8 +593,11 @@ describe("how the tests are built, as the configuration says", () => {
   it("gives the tests the fixtures they share and leaves each line on the page, when no page object is asked for", async () => {
     const { outcome, root, server } = await design([...script, ...replies(valid(3))], { plan: false, architecture: "fixtures" });
     assert.equal(outcome.tests.length, 3, messages(outcome));
-    assert.ok(filesOf(root).includes("apps/fixtures.ts") && filesOf(root).includes("apps/shop/pages/index.ts"));
-    assert.ok(asked(server, 1).includes(`import { expect, test } from "../fixtures.ts";`) && asked(server, 1).includes(`    ${CLICK}\n`), asked(server, 1));
+    assert.ok(filesOf(root).includes("apps/shared/fixtures.ts") && filesOf(root).includes("apps/shop/pages/index.ts"));
+    assert.ok(
+      asked(server, 1).includes(`import { expect, test } from "../../../../shared/fixtures.ts";`) && asked(server, 1).includes(`    ${CLICK}\n`),
+      asked(server, 1),
+    );
   });
 });
 
@@ -613,16 +627,20 @@ describe("criterion 3 — with two valid tests the design fails, the journal say
     assert.match(messages(outcome), /The agent stopped before scenario follow-order was closed; it was reminded to go on\./);
     assert.match(
       messages(outcome),
-      /The scenario follow-order was closed by the harness \(SESSION-END\): its test is kept as unfinished: apps\/shop\/follow-order\.spec\.ts\./,
+      /The scenario follow-order was closed by the harness \(SESSION-END\): its test is kept as unfinished: apps\/shop\/tests\/orders\/listing\/follow-order\.spec\.ts\./,
     );
     // No test is lost: the scenario the agent left keeps a file, classed as unfinished, which does not count.
-    assert.deepEqual(specsOf(root), ["apps/shop/follow-order.spec.ts", "apps/shop/list-orders.spec.ts", "apps/shop/place-order.spec.ts"]);
+    assert.deepEqual(specsOf(root), [
+      "apps/shop/tests/orders/listing/follow-order.spec.ts",
+      "apps/shop/tests/orders/listing/list-orders.spec.ts",
+      "apps/shop/tests/orders/listing/place-order.spec.ts",
+    ]);
     assert.match(
-      readFileSync(join(root, "apps", "shop", "follow-order.spec.ts"), "utf8"),
-      /^import \{ expect, test \} from "\.\.\/fixtures\.ts";\n\ntest\("The follow-order scenario"/,
+      readFileSync(join(root, "apps", "shop", "tests", "orders", "listing", "follow-order.spec.ts"), "utf8"),
+      /^import \{ expect, test \} from "\.\.\/\.\.\/\.\.\/\.\.\/shared\/fixtures\.ts";\n\ntest\("The follow-order scenario"/,
     );
     assert.deepEqual(stateOf(outcome).tests[2], {
-      path: "apps/shop/follow-order.spec.ts",
+      path: "apps/shop/tests/orders/listing/follow-order.spec.ts",
       scenario: "follow-order",
       verdict: "not_run",
       classes: [
@@ -636,7 +654,7 @@ describe("criterion 3 — with two valid tests the design fails, the journal say
       runs: [],
       closedBy: "SESSION-END",
     });
-    assert.match(git(root, "log", "-1", "--format=%B", BRANCH), /- apps\/shop\/follow-order\.spec\.ts: unfinished \(SESSION-END\)/);
+    assert.match(git(root, "log", "-1", "--format=%B", BRANCH), /- apps\/shop\/tests\/orders\/listing\/follow-order\.spec\.ts: unfinished \(SESSION-END\)/);
     const reminder = (server.requests.at(-1)!.body as { messages: { role: string; content: string }[] }).messages
       .filter((message) => message.role === "user")
       .at(-1)!.content;
@@ -677,7 +695,7 @@ describe("criterion 3 — with two valid tests the design fails, the journal say
     assert.match(messages(outcome), /The session failed: .*\n[^]*No test was written: 0 tests were obtained/);
     assert.deepEqual(snapshot(root).branches, before.branches);
     // The fixtures written for the tests of this design go with them: nothing is left that no commit holds.
-    assert.equal(existsSync(join(root, "apps", "fixtures.ts")), false);
+    assert.equal(existsSync(join(root, "apps", "shared", "fixtures.ts")), false);
     assert.doesNotMatch(git(root, "status", "--porcelain", "--untracked-files=all"), /fixtures/);
   });
 });
@@ -688,7 +706,7 @@ describe("criterion 4 — a test that imports anything but the fixtures, a decla
     const refused = [
       run(imports(`import { Designer } from "@open-qa-stack/agents";`), "platform"),
       run(imports(`const helper = await import(process.env.HELPER!);`), "computed"),
-      run(imports(`import { secret } from "../../../outside.ts";`), "outside"),
+      run(imports(`import { secret } from "../../../../../../outside.ts";`), "outside"),
       run(imports(`import "./test-1.spec.ts";`), "chained"),
     ];
     const helped = imports(`import { openOrders } from "./helpers/orders.ts";`);
@@ -697,23 +715,25 @@ describe("criterion 4 — a test that imports anything but the fixtures, a decla
     const journal = messages(outcome);
     assert.match(
       journal,
-      /\[TEST-IMPORT\] The test apps\/shop\/list-orders\.spec\.ts could not be run: Line 1 imports @open-qa-stack\/agents; import only a relative path inside the test repository\./,
+      /\[TEST-IMPORT\] The test apps\/shop\/tests\/orders\/listing\/list-orders\.spec\.ts could not be run: Line 1 imports @open-qa-stack\/agents; import only a relative path inside the test repository\./,
     );
     assert.match(journal, /\[TEST-IMPORT\] .*: Line 1 imports a module whose name is computed/);
-    assert.match(journal, /\[TEST-IMPORT\] .*: Line 1 imports \.\.\/\.\.\/\.\.\/outside\.ts, outside the test repository\./);
+    assert.match(journal, /\[TEST-IMPORT\] .*: Line 1 imports (\.\.\/){6}outside\.ts, outside the test repository\./);
     assert.match(journal, /\[TEST-IMPORT\] .*: Line 1 imports \.\/test-1\.spec\.ts, another test file/);
     assert.match(told(server, "platform"), /^Refused \(TEST-IMPORT\): Line 1 imports @open-qa-stack\/agents; .*\nNothing else was refused\.$/);
     assert.deepEqual([runner.runs.length, runner.runs[0]!.content], [3, tagged(helped)]);
-    assert.equal(readFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "utf8"), tagged(helped));
+    assert.equal(readFileSync(join(root, "apps", "shop", "tests", "orders", "listing", "list-orders.spec.ts"), "utf8"), tagged(helped));
   });
 });
 
 describe("criterion 5 — a test that does not parse as TypeScript is not run, and the journal holds the parse error", () => {
   it("refuses it with the line and column of the error", async () => {
-    const { outcome } = await design(replies([[run(`import { test } from "../fixtures.ts";\ntest("x", async () => {\n`, "parse")], ...valid(3)]));
+    const { outcome } = await design(
+      replies([[run(`import { test } from "../../../../shared/fixtures.ts";\ntest("x", async () => {\n`, "parse")], ...valid(3)]),
+    );
     assert.match(
       messages(outcome),
-      /\[TEST-SYNTAX\] The test apps\/shop\/list-orders\.spec\.ts could not be run: The test does not parse as TypeScript: line \d+, column \d+: (missing|unexpected) /,
+      /\[TEST-SYNTAX\] The test apps\/shop\/tests\/orders\/listing\/list-orders\.spec\.ts could not be run: The test does not parse as TypeScript: line \d+, column \d+: (missing|unexpected) /,
     );
     assert.equal(outcome.ok, true);
   });
@@ -825,7 +845,7 @@ describe("criterion 9 — past the action limit the task is cut, the journal say
       { body: answer(MODEL, "Done.") },
     ]);
     assert.match(messages(outcome), /The task reached its actions limit; no test was written for the scenario under way\./);
-    assert.deepEqual(specsOf(root), ["apps/shop/list-orders.spec.ts"]);
+    assert.deepEqual(specsOf(root), ["apps/shop/tests/orders/listing/list-orders.spec.ts"]);
     assert.match(messages(outcome), /The design failed: 1 test was obtained, 3 are expected, one per scenario of the plan\./);
   });
 });
@@ -844,7 +864,7 @@ describe("criterion 10 — no generated test imports another, and nothing is wri
         assert.ok(syntax.ok);
         assert.deepEqual(
           syntax.imports.map((imported) => imported.module),
-          ["../fixtures.ts"],
+          ["../../../../shared/fixtures.ts"],
         );
       }
     }
@@ -901,27 +921,31 @@ describe("guiding the designer", () => {
     );
     assert.match(
       messages(outcome),
-      /\[TEST-CHECK\] The test apps\/shop\/list-orders\.spec\.ts could not be run: Line 1, column 1 \(rule TEAM-TAG-01\): Tag the test\./,
+      /\[TEST-CHECK\] The test apps\/shop\/tests\/orders\/listing\/list-orders\.spec\.ts could not be run: Line 1, column 1 \(rule TEAM-TAG-01\): Tag the test\./,
     );
     assert.equal(outcome.tests.length, 3);
   });
 
   it("names the test of a scenario after it, with a number when a file of the repository already has that path", async () => {
     const root = repository();
-    mkdirSync(join(root, "apps", "shop"), { recursive: true });
-    writeFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "// kept\n");
-    writeFileSync(join(root, "apps", "shop", "list-orders-2.spec.ts"), "// kept\n");
+    mkdirSync(join(root, "apps", "shop", "tests", "orders", "listing"), { recursive: true });
+    writeFileSync(join(root, "apps", "shop", "tests", "orders", "listing", "list-orders.spec.ts"), "// kept\n");
+    writeFileSync(join(root, "apps", "shop", "tests", "orders", "listing", "list-orders-2.spec.ts"), "// kept\n");
     git(root, "add", "-A", "apps");
     git(root, "commit", "-q", "-m", "test: keep a test");
     const { outcome, server } = await design(replies(valid(3)), { root });
     assert.deepEqual(
       outcome.tests.map((test) => test.path),
-      ["apps/shop/list-orders-3.spec.ts", "apps/shop/place-order.spec.ts", "apps/shop/follow-order.spec.ts"],
+      [
+        "apps/shop/tests/orders/listing/list-orders-3.spec.ts",
+        "apps/shop/tests/orders/listing/place-order.spec.ts",
+        "apps/shop/tests/orders/listing/follow-order.spec.ts",
+      ],
     );
-    assert.equal(readFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "utf8"), "// kept\n");
-    assert.match(asked(server, 1), /\nFile: apps\/shop\/list-orders-3\.spec\.ts\n/);
+    assert.equal(readFileSync(join(root, "apps", "shop", "tests", "orders", "listing", "list-orders.spec.ts"), "utf8"), "// kept\n");
+    assert.match(asked(server, 1), /\nFile: apps\/shop\/tests\/orders\/listing\/list-orders-3\.spec\.ts\n/);
     // The repository had no fixtures of its own: those written are committed with the tests.
-    assert.ok(filesOf(root).includes("apps/fixtures.ts"));
+    assert.ok(filesOf(root).includes("apps/shared/fixtures.ts"));
   });
 
   it("designs nothing without a readable index that matches its schema", async () => {
@@ -955,7 +979,7 @@ describe("the sheet of a scenario", () => {
     const sheet = asked(server, 1);
     assert.ok(
       sheet.startsWith(
-        'Write the test of this scenario for the environment local.\n\nSign-in: with the account demo; the lines of the sheet that sign in read it from process.env: keep them as they are.\nA test may import: apps/fixtures.ts.\n\nScenario 1 of 3: list-orders — The list-orders scenario (functional level, other, negative, reads data), application shop.\nIntent: Verifies list-orders.\nData: "Ada" (shop); "zzqx" (made-up).\nCited: shop: /orders.\nFile: apps/shop/list-orders.spec.ts\n\nimport { expect, test } from "../fixtures.ts";\n\ntest("The list-orders scenario", { tag: ["@level-functional","@domain-orders","@app-shop","@kind-other","@case-negative","@data-read"] }, async ({ page }) => {\n  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n    // Expect 1.1: The orders show.\n    await expect(page.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();\n  });\n});\n',
+        'Write the test of this scenario for the environment local.\n\nSign-in: with the account demo; the lines of the sheet that sign in read it from process.env: keep them as they are.\nA test may import: apps/shared/fixtures.ts.\n\nScenario 1 of 3: list-orders — The list-orders scenario (functional level, other, negative, reads data), application shop.\nIntent: Verifies list-orders.\nData: "Ada" (shop); "zzqx" (made-up).\nCited: shop: /orders.\nFile: apps/shop/tests/orders/listing/list-orders.spec.ts\n\nimport { expect, test } from "../../../../shared/fixtures.ts";\n\ntest("The list-orders scenario", { tag: ["@level-functional","@domain-orders","@feature-listing","@app-shop","@kind-other","@case-negative","@data-read"] }, async ({ page }) => {\n  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n    // Expect 1.1: The orders show.\n    await expect(page.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();\n  });\n});\n',
       ),
       sheet,
     );
@@ -965,7 +989,7 @@ describe("the sheet of a scenario", () => {
     assert.equal(told(server, "c-list-orders"), `Scenario list-orders closed: passed.\n${OVER}`);
     assert.match(
       asked(server, 2),
-      /\n\nScenario 2 of 3: place-order — .*\nIntent: .*\nData: "place-order" \(made-up\)\.\nCited: .*\nFile: apps\/shop\/place-order\.spec\.ts/,
+      /\n\nScenario 2 of 3: place-order — .*\nIntent: .*\nData: "place-order" \(made-up\)\.\nCited: .*\nFile: apps\/shop\/tests\/orders\/listing\/place-order\.spec\.ts/,
     );
   });
 
@@ -1029,19 +1053,19 @@ describe("loop, criterion 1 — a test that fails, then is fixed, is run twice a
     const runner = new FakeTestRunner();
     const { outcome, server } = await design(replies([[run(broken("list-orders"), "r1")], [look("l1")], ...valid(3)]), { runner });
     assert.deepEqual(
-      runner.runs.filter((test) => test.path === "apps/shop/list-orders.spec.ts").map((test) => test.content.includes("BROKEN")),
+      runner.runs.filter((test) => test.path === "apps/shop/tests/orders/listing/list-orders.spec.ts").map((test) => test.content.includes("BROKEN")),
       [true, false],
     );
-    assert.equal(outcome.tests.find((test) => test.path === "apps/shop/list-orders.spec.ts")?.verdict, "passed");
+    assert.equal(outcome.tests.find((test) => test.path === "apps/shop/tests/orders/listing/list-orders.spec.ts")?.verdict, "passed");
     assert.equal(runner.runs.length, 4, "a scenario is closed with the text of its last run, which is not run again");
     assert.match(
       messages(outcome),
       // The look the repair needs is journaled as one beyond the sheet, after the failed run, and counted once the session is over.
-      /The test apps\/shop\/list-orders\.spec\.ts was run: failed\.\n\[SHEET-BEYOND\] Scenario list-orders, after failed run 1: shop_snapshot\.\nThe test apps\/shop\/list-orders\.spec\.ts was run: passed\.\n.*\nScenario list-orders: 1 calls beyond its sheet\.\n/,
+      /The test apps\/shop\/tests\/orders\/listing\/list-orders\.spec\.ts was run: failed\.\n\[SHEET-BEYOND\] Scenario list-orders, after failed run 1: shop_snapshot\.\nThe test apps\/shop\/tests\/orders\/listing\/list-orders\.spec\.ts was run: passed\.\n.*\nScenario list-orders: 1 calls beyond its sheet\.\n/,
     );
     assert.match(
       told(server, "r-list-orders"),
-      /^Run of the file: passed\.\n- shop › apps\/shop\/list-orders\.spec\.ts › the test: passed\.\nNext: call propose_test\.$/,
+      /^Run of the file: passed\.\n- shop › apps\/shop\/tests\/orders\/listing\/list-orders\.spec\.ts › the test: passed\.\nNext: call propose_test\.$/,
     );
   });
 });
@@ -1079,7 +1103,7 @@ describe("loop, criterion 2 — the result told to the agent holds the assertion
       [cannot.outcome.tests[0]!.verdict, cannot.outcome.tests[0]!.classes[0]!.class, cannot.outcome.tests[0]!.classes[0]!.reason],
       ["not_run", "unfinished", "Its session ended before the scenario was closed. Tried: 1 run (no verdict); refusals: PROPOSE-RUN ×1."],
     );
-    assert.match(messages(cannot.outcome), /The test apps\/shop\/list-orders\.spec\.ts could not run: The browsers/);
+    assert.match(messages(cannot.outcome), /The test apps\/shop\/tests\/orders\/listing\/list-orders\.spec\.ts could not run: The browsers/);
   });
 });
 
@@ -1111,7 +1135,7 @@ describe("loop, criterion 4 — a failing test is kept with its diagnosis and th
     assert.equal(outcome.ok, true, messages(outcome));
     const test = stateOf(outcome).tests.find((candidate) => candidate.scenario === "follow-order");
     assert.deepEqual(test, {
-      path: "apps/shop/follow-order.spec.ts",
+      path: "apps/shop/tests/orders/listing/follow-order.spec.ts",
       scenario: "follow-order",
       verdict: "failed",
       classes: [
@@ -1130,8 +1154,8 @@ describe("loop, criterion 4 — a failing test is kept with its diagnosis and th
         errorClass: "assertion",
       },
     });
-    assert.equal(readFileSync(join(root, "apps", "shop", "follow-order.spec.ts"), "utf8"), tagged(broken("follow-order")));
-    assert.match(git(root, "log", "-1", "--format=%B", BRANCH), /- apps\/shop\/follow-order\.spec\.ts: failing \(application\)/);
+    assert.equal(readFileSync(join(root, "apps", "shop", "tests", "orders", "listing", "follow-order.spec.ts"), "utf8"), tagged(broken("follow-order")));
+    assert.match(git(root, "log", "-1", "--format=%B", BRANCH), /- apps\/shop\/tests\/orders\/listing\/follow-order\.spec\.ts: failing \(application\)/);
     assert.equal(told(server, "c-follow-order"), `Scenario follow-order closed: failing (application), kept for a person to decide.\n${OVER}`);
     const own = await design(
       replies([...valid(2), ...write("follow-order", broken("follow-order"), { cause: "plan", evidence: "The heading of the plan is wrong." })]),
@@ -1195,7 +1219,7 @@ describe("the repair contract", () => {
     );
     assert.match(told(server, "stop"), /^Refused \(TEST-STOP\): scenario list-orders failed 3 runs\. Do not run it again\. Call propose_test with diagnosis/);
     assert.match(told(server, "kept"), /^Scenario list-orders closed: failing \(test\), kept for a person to decide\./);
-    assert.equal(runner.runs.filter((test) => test.path === "apps/shop/list-orders.spec.ts").length, 3);
+    assert.equal(runner.runs.filter((test) => test.path === "apps/shop/tests/orders/listing/list-orders.spec.ts").length, 3);
     const kept = stateOf(outcome).tests[0]!;
     assert.deepEqual(
       [kept.runs, kept.quarantine],
@@ -1208,8 +1232,11 @@ describe("the repair contract", () => {
         { cause: "test", evidence: "The search button cannot be reached.", failedStep: "1. Open the orders", errorClass: "locator" },
       ],
     );
-    assert.match(git(root, "log", "-1", "--format=%B", BRANCH), /- apps\/shop\/list-orders\.spec\.ts: failing \(test\) at step 1\n/);
-    assert.match(messages(outcome), /\[TEST-LOOK\] The test apps\/shop\/list-orders\.spec\.ts could not be run: look before you run again/);
+    assert.match(git(root, "log", "-1", "--format=%B", BRANCH), /- apps\/shop\/tests\/orders\/listing\/list-orders\.spec\.ts: failing \(test\) at step 1\n/);
+    assert.match(
+      messages(outcome),
+      /\[TEST-LOOK\] The test apps\/shop\/tests\/orders\/listing\/list-orders\.spec\.ts could not be run: look before you run again/,
+    );
   });
 
   it("keeps as unfinished the test of a scenario whose three runs gave no verdict, and counts a read of the code as a look", async () => {
@@ -1232,7 +1259,7 @@ describe("the repair contract", () => {
     assert.equal(told(server, "gone"), `Scenario list-orders closed, its test kept as unfinished: none of its runs gave a verdict.\n${OVER}`);
     assert.match(
       messages(outcome),
-      /The scenario list-orders was closed by the harness \(TEST-STOP\): its test is kept as unfinished: apps\/shop\/list-orders\.spec\.ts\./,
+      /The scenario list-orders was closed by the harness \(TEST-STOP\): its test is kept as unfinished: apps\/shop\/tests\/orders\/listing\/list-orders\.spec\.ts\./,
     );
     const [unfinished] = stateOf(outcome).tests;
     assert.deepEqual(
@@ -1253,7 +1280,7 @@ describe("the repair contract", () => {
       ],
     );
     // The file kept is the last one submitted.
-    assert.equal(readFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "utf8"), tagged(spec("c")));
+    assert.equal(readFileSync(join(root, "apps", "shop", "tests", "orders", "listing", "list-orders.spec.ts"), "utf8"), tagged(spec("c")));
   });
 
   it("keeps a test failing on another error than an assertion only as the test's fault, with every run, even one that gave no verdict", async () => {
@@ -1291,7 +1318,7 @@ describe("the repair contract", () => {
         { cause: "test", evidence: "The total cannot be read.", errorClass: "other" },
       ],
     );
-    assert.match(git(root, "log", "-1", "--format=%B", BRANCH), /- apps\/shop\/list-orders\.spec\.ts: failing \(test\)$/m);
+    assert.match(git(root, "log", "-1", "--format=%B", BRANCH), /- apps\/shop\/tests\/orders\/listing\/list-orders\.spec\.ts: failing \(test\)$/m);
   });
 
   it("tells a look at an application without a user interface by the tools of its sources, any of which counts", async () => {
@@ -1331,7 +1358,7 @@ describe("the repair contract", () => {
     assert.match(told(server, "t1"), /\nFailed runs of list-orders: 3 of 3\.\n/);
     assert.match(told(server, "t2"), /^Refused \(TEST-STOP\): .*\nRefused \(TEST-SAME\): .*\nRefused \(TEST-LOOK\): /);
     assert.equal(runner.runs.length, 3);
-    assert.match(messages(outcome), /\[TEST-SAME\] The test apps\/shop\/list-orders\.spec\.ts could not be run/);
+    assert.match(messages(outcome), /\[TEST-SAME\] The test apps\/shop\/tests\/orders\/listing\/list-orders\.spec\.ts could not be run/);
   });
 
   it("keeps the last run that gave a verdict when the last of all gave none", async () => {
@@ -1352,13 +1379,13 @@ describe("the repair contract", () => {
     assert.match(told(server, "kept"), /^Scenario list-orders closed: failing \(application\), kept for a person to decide\./);
     const kept = stateOf(outcome).tests[0]!;
     assert.deepEqual([kept.runs.length, kept.quarantine?.cause], [3, "application"]);
-    assert.equal(readFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "utf8"), tagged(failing("2")));
+    assert.equal(readFileSync(join(root, "apps", "shop", "tests", "orders", "listing", "list-orders.spec.ts"), "utf8"), tagged(failing("2")));
   });
 });
 
 describe("refusals for the same reason", () => {
   it("give what the gate would accept from the third, start again after a run, and close the scenario at the fifth", async () => {
-    const flat = (marker: string) => `import { test } from "../fixtures.ts";\n\ntest("list", async () => {});\n// ${marker}\n`;
+    const flat = (marker: string) => `import { test } from "../../../../shared/fixtures.ts";\n\ntest("list", async () => {});\n// ${marker}\n`;
     const turns = [
       ...["1", "2", "3"].map((marker) => [run(flat(marker), `s${marker}`)]),
       [run(broken("list-orders"), "ran")],
@@ -1384,7 +1411,7 @@ describe("refusals for the same reason", () => {
     );
     assert.match(
       messages(outcome),
-      /The scenario list-orders was closed by the harness after 5 refusals for TEST-STEPS; the test of its last run that gave a verdict is kept, failing \(test\), kept for a person to decide: apps\/shop\/list-orders\.spec\.ts\./,
+      /The scenario list-orders was closed by the harness after 5 refusals for TEST-STEPS; the test of its last run that gave a verdict is kept, failing \(test\), kept for a person to decide: apps\/shop\/tests\/orders\/listing\/list-orders\.spec\.ts\./,
     );
     // A scenario whose test never ran keeps the last text submitted, as unfinished.
     assert.equal(
@@ -1393,19 +1420,23 @@ describe("refusals for the same reason", () => {
     );
     assert.match(
       messages(outcome),
-      /The scenario place-order was closed by the harness \(TEST-STEPS\): its test is kept as unfinished: apps\/shop\/place-order\.spec\.ts\./,
+      /The scenario place-order was closed by the harness \(TEST-STEPS\): its test is kept as unfinished: apps\/shop\/tests\/orders\/listing\/place-order\.spec\.ts\./,
     );
     const state = stateOf(outcome);
     assert.deepEqual(
       [outcome.ok, specsOf(root), state.tests.map((test) => test.classes.at(-1)!.class), state.tests[1]!.closedBy],
       [
         false,
-        ["apps/shop/follow-order.spec.ts", "apps/shop/list-orders.spec.ts", "apps/shop/place-order.spec.ts"],
+        [
+          "apps/shop/tests/orders/listing/follow-order.spec.ts",
+          "apps/shop/tests/orders/listing/list-orders.spec.ts",
+          "apps/shop/tests/orders/listing/place-order.spec.ts",
+        ],
         ["failing-test", "unfinished", "passed"],
         "TEST-STEPS",
       ],
     );
-    assert.equal(readFileSync(join(root, "apps", "shop", "place-order.spec.ts"), "utf8"), tagged(flat("5")));
+    assert.equal(readFileSync(join(root, "apps", "shop", "tests", "orders", "listing", "place-order.spec.ts"), "utf8"), tagged(flat("5")));
     assert.deepEqual(state.tests[0]!.classes, [
       {
         at: "2026-11-13T10:00:00.000Z",
@@ -1421,7 +1452,7 @@ describe("refusals for the same reason", () => {
         { cause: "test", evidence: "closed by the harness after 5 refusals for TEST-STEPS", failedStep: "open the orders", errorClass: "assertion" },
       ],
     );
-    assert.equal(readFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "utf8"), tagged(broken("list-orders")));
+    assert.equal(readFileSync(join(root, "apps", "shop", "tests", "orders", "listing", "list-orders.spec.ts"), "utf8"), tagged(broken("list-orders")));
   });
 
   it("keep a failing test whose closing the agent kept asking for the wrong way, as failing, for the code refused", async () => {
@@ -1501,7 +1532,10 @@ describe("what the designer may keep", () => {
     const runner = new FakeTestRunner();
     const writes = spec("list-orders").replace("  });\n", '    await page.screenshot({ path: "/tmp/x.png" });\n  });\n');
     const { outcome } = await design(replies([[run(writes, "r1")], ...valid(3)]), { runner });
-    assert.match(messages(outcome), /\[TEST-FILE\] The test apps\/shop\/list-orders\.spec\.ts could not be run: The test writes a file/);
+    assert.match(
+      messages(outcome),
+      /\[TEST-FILE\] The test apps\/shop\/tests\/orders\/listing\/list-orders\.spec\.ts could not be run: The test writes a file/,
+    );
     assert.ok(runner.runs.every((test) => !test.content.includes("screenshot")));
   });
 });
@@ -1509,9 +1543,9 @@ describe("what the designer may keep", () => {
 describe("a visual test", () => {
   it("is run and kept: it opens a page and compares a full capture with its reference", async () => {
     const runner = new FakeTestRunner();
-    const visual = `import { test, expect } from "../fixtures.ts";\n\ntest("the list of orders looks as it should", async ({ page }) => {\n  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n    await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();\n    await expect(page).toHaveScreenshot({ fullPage: true });\n  });\n});\n`;
+    const visual = `import { test, expect } from "../../../../shared/fixtures.ts";\n\ntest("the list of orders looks as it should", async ({ page }) => {\n  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n    await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();\n    await expect(page).toHaveScreenshot({ fullPage: true });\n  });\n});\n`;
     const { outcome } = await design(replies([...write("list-orders", visual), ...valid(3).slice(2)]), { runner });
-    assert.equal(outcome.tests.find((test) => test.path === "apps/shop/list-orders.spec.ts")?.verdict, "passed", messages(outcome));
+    assert.equal(outcome.tests.find((test) => test.path === "apps/shop/tests/orders/listing/list-orders.spec.ts")?.verdict, "passed", messages(outcome));
     assert.ok(runner.runs.some((test) => test.content === tagged(visual)));
   });
 });
@@ -1548,28 +1582,34 @@ describe("the packages a test may import", () => {
   it("let an accessibility test import axe-core when the test repository declares it, and refuse a package it does not", async () => {
     const manifest = JSON.stringify({ devDependencies: { "@playwright/test": "1.64.1", "@axe-core/playwright": "4.11.0" } });
     const a11y = spec("list-orders")
-      .replace('from "../fixtures.ts";', 'from "../fixtures.ts";\nimport AxeBuilder from "@axe-core/playwright";')
+      .replace('from "../../../../shared/fixtures.ts";', 'from "../../../../shared/fixtures.ts";\nimport AxeBuilder from "@axe-core/playwright";')
       .replace("  });\n});", "    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);\n  });\n});");
-    const other = spec("x").replace('from "../fixtures.ts";', 'from "../fixtures.ts";\nimport { faker } from "@faker-js/faker";');
+    const other = spec("x").replace(
+      'from "../../../../shared/fixtures.ts";',
+      'from "../../../../shared/fixtures.ts";\nimport { faker } from "@faker-js/faker";',
+    );
     const bare = `import { test as bare } from "@playwright/test";\n${spec("x")}`;
     const { outcome, server } = await design(replies([[run(other, "faker")], [run(bare, "bare")], ...write("list-orders", a11y), ...valid(3).slice(2)]), {
       root: repository(INDEX, manifest),
     });
-    assert.equal(outcome.tests.find((test) => test.path === "apps/shop/list-orders.spec.ts")?.verdict, "passed", messages(outcome));
+    assert.equal(outcome.tests.find((test) => test.path === "apps/shop/tests/orders/listing/list-orders.spec.ts")?.verdict, "passed", messages(outcome));
     assert.match(toolResult(server, "faker"), /Refused \(TEST-IMPORT\): Line 2 imports @faker-js\/faker; import only @axe-core\/playwright or a relative path/);
     // Playwright itself is imported through the fixtures of the repository, which the refusal names.
     assert.match(
       String(toolResult(server, "bare")),
-      /Refused \(TEST-IMPORT\): Line 1 imports @playwright\/test; import test and expect from .*\.\.\/fixtures\.ts.*, the fixtures of the test repository\./,
+      /Refused \(TEST-IMPORT\): Line 1 imports @playwright\/test; import test and expect from .*shared\/fixtures\.ts.*, the fixtures of the test repository\./,
     );
 
-    assert.match(asked(server, 1), /\nA test may import: apps\/fixtures\.ts, @axe-core\/playwright\.\n/);
+    assert.match(asked(server, 1), /\nA test may import: apps\/shared\/fixtures\.ts, @axe-core\/playwright\.\n/);
   });
 });
 
 describe("the references of a visual test", () => {
   it("are written and committed with the test, and listed in the state", async () => {
-    const reference = { path: "apps/shop/list-orders.spec.ts-snapshots/list-orders-1-shop.png", content: new Uint8Array([137, 80, 78, 71]) };
+    const reference = {
+      path: "apps/shop/tests/orders/listing/list-orders.spec.ts-snapshots/list-orders-1-shop.png",
+      content: new Uint8Array([137, 80, 78, 71]),
+    };
     const runner: TestRunner = {
       run: async (test) => ({
         startedAt: "2026-11-13T10:00:00.000Z",
@@ -1580,8 +1620,8 @@ describe("the references of a visual test", () => {
     const { outcome, root } = await design(replies(valid(3)), { runner: runner as FakeTestRunner });
     assert.ok(filesOf(root).includes(reference.path));
     assert.deepEqual([...readFileSync(join(root, reference.path))], [137, 80, 78, 71]);
-    assert.deepEqual(outcome.tests.find((test) => test.path === "apps/shop/list-orders.spec.ts")?.references, [reference.path]);
-    assert.ok(outcome.tests.filter((test) => test.path !== "apps/shop/list-orders.spec.ts").every((test) => !("references" in test)));
+    assert.deepEqual(outcome.tests.find((test) => test.path === "apps/shop/tests/orders/listing/list-orders.spec.ts")?.references, [reference.path]);
+    assert.ok(outcome.tests.filter((test) => test.path !== "apps/shop/tests/orders/listing/list-orders.spec.ts").every((test) => !("references" in test)));
   });
 });
 
@@ -1779,7 +1819,7 @@ describe("brief, criterion 3 — the plan is written to a file the design state 
     assert.match(readFileSync(outcome.planPath!, "utf8"), /^# Test plan design-20261113T100000Z\n\n- Environment: local\n- Brief: Test the orders\.\n/);
     assert.deepEqual(
       state.tests.map((test) => [test.path, test.scenario]),
-      IDS.map((id) => [`apps/shop/${id}.spec.ts`, id]),
+      IDS.map((id) => [`apps/shop/tests/orders/listing/${id}.spec.ts`, id]),
     );
   });
 });
@@ -1903,12 +1943,15 @@ describe("the duplicates of a design", () => {
     assert.deepEqual(
       outcome.tests.map((test) => [test.path, test.classes.at(-1)!.class, test.duplicates]),
       [
-        ["apps/shop/list-orders.spec.ts", "passed", undefined],
-        ["apps/shop/place-order.spec.ts", "duplicate", "apps/shop/list-orders.spec.ts"],
+        ["apps/shop/tests/orders/listing/list-orders.spec.ts", "passed", undefined],
+        ["apps/shop/tests/orders/listing/place-order.spec.ts", "duplicate", "apps/shop/tests/orders/listing/list-orders.spec.ts"],
       ],
     );
     // The duplicate stays on the branch, and the commit says what it is.
-    assert.match(git(root, "log", "-1", "--format=%B", BRANCH), /- apps\/shop\/place-order\.spec\.ts: duplicate of apps\/shop\/list-orders\.spec\.ts/);
+    assert.match(
+      git(root, "log", "-1", "--format=%B", BRANCH),
+      /- apps\/shop\/tests\/orders\/listing\/place-order\.spec\.ts: duplicate of apps\/shop\/tests\/orders\/listing\/list-orders\.spec\.ts/,
+    );
     assert.match(readFileSync(outcome.planPath!, "utf8"), /\n## Set aside\n/);
     assert.doesNotMatch(messages(outcome), /The design failed/);
   });
@@ -2160,7 +2203,8 @@ describe("the trace of a design", () => {
     assert.ok(
       trace.some(
         (line) =>
-          line.event.type === "journal" && line.event.message === "The scenario list-orders was closed: passed; its test is apps/shop/list-orders.spec.ts.",
+          line.event.type === "journal" &&
+          line.event.message === "The scenario list-orders was closed: passed; its test is apps/shop/tests/orders/listing/list-orders.spec.ts.",
       ),
     );
     assert.equal(seen.length, trace.length);
@@ -2206,7 +2250,7 @@ describe("resume — a design a limit stopped goes on from its plan and its test
   it("keeps the plan and the test of a design a limit stopped, and names the limit", async () => {
     const { outcome, root } = await stopped();
     assert.deepEqual([outcome.ok, outcome.stoppedBy, outcome.branch], [false, "iterations", BRANCH]);
-    assert.deepEqual(specsOf(root), ["apps/shop/list-orders.spec.ts"]);
+    assert.deepEqual(specsOf(root), ["apps/shop/tests/orders/listing/list-orders.spec.ts"]);
     const state = stateOf(outcome);
     assert.deepEqual([planOf(outcome).scenarios.map((scenario) => scenario.id), state.tests.map((test) => test.scenario)], [IDS, ["list-orders"]]);
   });
@@ -2240,7 +2284,11 @@ describe("resume — a design a limit stopped goes on from its plan and its test
     );
     assert.ok(!toolsOffered(server).includes("propose_plan"));
     assert.equal(git(root, "branch", "--show-current"), BRANCH);
-    assert.deepEqual(specsOf(root), ["apps/shop/follow-order.spec.ts", "apps/shop/list-orders.spec.ts", "apps/shop/place-order.spec.ts"]);
+    assert.deepEqual(specsOf(root), [
+      "apps/shop/tests/orders/listing/follow-order.spec.ts",
+      "apps/shop/tests/orders/listing/list-orders.spec.ts",
+      "apps/shop/tests/orders/listing/place-order.spec.ts",
+    ]);
     assert.equal(git(root, "rev-parse", `${BRANCH}~1`), before);
     const state = stateOf(outcome);
     assert.equal(outcome.statePath, join(root, STATE));

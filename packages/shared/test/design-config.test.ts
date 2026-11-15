@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import { errorsOf, validateVariant } from "./helpers.ts";
 
 /** How the tests are built, when the configuration does not say. */
-const BUILT = { architecture: "page-objects", fixturesFile: "apps/fixtures.ts" };
+const BUILT = { architecture: "page-objects", fixturesFile: "apps/shared/fixtures.ts" };
 
 describe("the review of a plan for duplicates is read from the configuration", () => {
   it("is asked when absent, and as given otherwise", () => {
@@ -41,7 +41,7 @@ describe("how the tests are built is read from the configuration", () => {
       config["design"] = { architecture: "fixtures" };
     });
     assert.ok(moved.ok);
-    assert.deepEqual([moved.config.design.architecture, moved.config.design.fixturesFile], ["fixtures", "tests/fixtures.ts"]);
+    assert.deepEqual([moved.config.design.architecture, moved.config.design.fixturesFile], ["fixtures", "tests/shared/fixtures.ts"]);
     const named = validateVariant((config) => (config["design"] = { architecture: "standalone", fixturesFile: "support/test.ts" }));
     assert.ok(named.ok);
     assert.deepEqual([named.config.design.architecture, named.config.design.fixturesFile], ["standalone", "support/test.ts"]);
