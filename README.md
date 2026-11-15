@@ -8,9 +8,9 @@
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-16181B?style=flat-square"></a>
-  <img alt="Built on Playwright" src="https://img.shields.io/badge/built%20on-Playwright-16181B?style=flat-square">
-  <img alt="Runs on your machine" src="https://img.shields.io/badge/runs-on%20your%20machine-16181B?style=flat-square">
+  <a href="https://github.com/open-qa-stack/test-management/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/open-qa-stack/test-management/ci.yml?branch=main&label=ci&style=flat-square"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-2458d6?style=flat-square"></a>
+  <a href="https://playwright.dev"><img alt="Built on Playwright" src="https://img.shields.io/badge/built%20on-Playwright-2458d6?style=flat-square"></a>
 </p>
 
 <p align="center">

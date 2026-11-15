@@ -159,6 +159,11 @@ A rule identifier is made of upper case words and digits separated by hyphens, s
 | `reviewTests` | boolean | `true` | `false` |
 | `reviewCode` | boolean | `true` | `false` |
 | `levels` | array of levels, at least one, each once | `["smoke", "functional", "business"]` | `["functional"]` |
+| `passes` | `by-level` or `single` | `by-level` | `single` |
+| `architecture` | `page-objects`, `fixtures` or `standalone` | `page-objects` | `standalone` |
+| `fixturesFile` | path relative to the test repository | `fixtures.ts` in the folder `shared` of the applications | `support/test.ts` |
+| `visualTests` | boolean | `true` | `false` |
+| `visualTolerance` | number from 0 to 1 | `0.01` | `0.05` |
 
 The agent that plans submits its scenarios in several calls, and the harness sets aside each one another already covers. It first compares them by their code: the same steps, the same values, no text expected that the other does not expect. With `reviewPlan`, an agent of its own then reviews the scenarios the code let through, in sessions of the model of their own; `false` keeps the comparison by the code alone, and spares those sessions.
 
@@ -175,6 +180,20 @@ The agent that plans submits its scenarios in several calls, and the harness set
 | `business` | A whole journey ends as it must, through several screens and with real data. |
 | `cross-application` | An action in one application has its effect in another. |
 | `end-to-end` | A journey goes through three applications or more. |
+
+`passes` says how those levels are designed. With `by-level`, each level is a pass of its own, from the base of the pyramid to its top: an agent plans that level alone, another writes its tests, and the next level starts once that one is over, told the tests it gave. With `single`, every level is planned in one pass.
+
+`architecture` says how the tests of the repository are built:
+
+| Architecture | What a test looks like |
+|---|---|
+| `page-objects` | It acts on the page objects of the screens, one class per screen under `<application>/pages/`, written from the plans and added to, never written again. It is given each application by the fixtures the tests share. |
+| `fixtures` | Each line acts on the page. It imports the fixtures the tests share, which give each application. |
+| `standalone` | It imports Playwright itself, and nothing is written beside it: for a repository with an architecture of its own. |
+
+`fixturesFile` names the file of those fixtures. A file already there is kept as it is, and written when the repository has none.
+
+`visualTests` adds a last pass, of visual tests: an agent plans the states of the screens worth comparing — a screen as it opens, a dialog open, a page a click leads to — and each test compares the whole page with a reference made at its first run and committed with it. `visualTolerance` is the share of the pixels that may differ. A reference is that of one browser on one machine.
 
 
 ### Model
