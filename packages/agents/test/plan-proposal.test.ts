@@ -1637,6 +1637,23 @@ describe("the effect of a scenario on the data of the environment", () => {
       await error(back([3], true)),
       /^Refused \(PLAN-RESTORE\): step 3 of scenario a restores, and starts with the action 3 \(await page\.click\(\);\), which opens no address: its test runs that step even when an earlier step failed, wherever the page then is\. Open the address it starts from with shop_goto/,
     );
+    // A step that restores leaves what the scenario started from, not what it wrote itself.
+    const kept = (found: string[]) =>
+      scenario("a", {
+        effect: "write",
+        data: [],
+        steps: [
+          step("Open the orders", [1], found),
+          step("Rename the list", [2], ["Order saved"]),
+          { ...step("Put it back", [1, 3], ["Order saved"]), restores: true },
+        ],
+      });
+    const keeping = async (found: string[]) => ((await (await saved()).tool().execute({ scenarios: [kept(found)] })) as { error: string }).error;
+    assert.match(
+      await keeping(["Orders"]),
+      /Refused \(PLAN-RESTORE\): step 3 of scenario a restores, and expects "Order saved", which the scenario wrote itself after it started: it puts nothing back, and the next run would not find what step 1 expects\. Put back on the screens what the scenario starts from, and expect that in the step\. What it starts from: "Orders"\.\n/,
+    );
+    assert.match(await keeping([]), /and expect that in the step\.\n/);
     // A scenario that writes and leaves what it starts from as it is has nothing to put back.
     const adding = scenario("a", { effect: "write", data: [], steps: [step("Open the orders", [1], ["Orders"]), step("Save an order", [2], ["Orders"])] });
     assert.equal(typeof (await (await saved()).tool().execute({ scenarios: [adding] })), "string");

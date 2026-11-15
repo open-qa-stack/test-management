@@ -1217,11 +1217,38 @@ export class PlanProposal {
    * scenario writes itself, then removes, is none of it.
    */
   private replayErrors(scenario: SubmittedScenario): Refusal[] {
-    const shown = (from: number, text: string) =>
-      scenario.steps.slice(from).some((step) => step.expects.some((expect) => expect.shows.some((other) => sameText(other, text))));
     // The steps before the first one that clicks an element whose name says it writes; the first step alone when none says so.
     const writing = scenario.steps.findIndex((step) => this.cited(scenario, step.actions).some((action) => action.changes !== undefined));
     const starting = scenario.steps.slice(0, writing === -1 ? 1 : writing);
+    return [...this.putBackErrors(scenario, starting.length), ...this.removedErrors(scenario, starting)];
+  }
+
+  /**
+   * What the gates refuse in what a step that restores leaves: a text the scenario wrote itself, which a step
+   * between its start and that one expects shown and its start did not. Such a step puts back nothing: the
+   * next run would not find what the first step expects.
+   */
+  private putBackErrors(scenario: SubmittedScenario, started: number): Refusal[] {
+    const at = scenario.steps.findIndex((step) => step.restores === true);
+    if (at === -1) return [];
+    const shows = (steps: readonly SubmittedStep[]) => steps.flatMap((step) => step.expects.flatMap((expect) => expect.shows)).filter(checkable);
+    const found = shows(scenario.steps.slice(0, started));
+    const written = shows(scenario.steps.slice(started, at)).filter((text) => !found.some((other) => sameText(other, text)));
+    const kept = shows(scenario.steps.slice(at)).find((text) => written.some((other) => sameText(other, text)));
+    if (kept === undefined) return [];
+    const start = found.length === 0 ? "" : ` What it starts from: ${found.map((text) => JSON.stringify(text)).join(", ")}.`;
+    return [
+      {
+        code: "PLAN-RESTORE",
+        message: `step ${at + 1} of scenario ${scenario.id} restores, and expects "${kept}", which the scenario wrote itself after it started: it puts nothing back, and the next run would not find what step 1 expects. Put back on the screens what the scenario starts from, and expect that in the step.${start}`,
+      },
+    ];
+  }
+
+  /** The texts a scenario that writes starts from and makes go: brought back by a step that restores, or refused. */
+  private removedErrors(scenario: SubmittedScenario, starting: readonly SubmittedStep[]): Refusal[] {
+    const shown = (from: number, text: string) =>
+      scenario.steps.slice(from).some((step) => step.expects.some((expect) => expect.shows.some((other) => sameText(other, text))));
     return starting.flatMap((step, at) =>
       step.expects.flatMap((expect) =>
         expect.shows.filter(checkable).flatMap((text): Refusal[] => {
