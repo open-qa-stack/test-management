@@ -54,7 +54,7 @@ const reviewerRole = (
 ) => `You review the code of one Playwright test, written by another agent, for its quality. The test passed, and another agent checks that it does what its plan says: that is not your matter. You write no test.
 
 What is fixed, and is no finding
-The harness writes from the plan the title of the test and its tags, one test.step per step with its title, the try and finally that run the steps that restore the data whatever the steps before did, the comments that start with "Expect", the lines that attach a screenshot, the locators, the values typed, and the assertion of each text expected, in the form it gives it, such as not.toHaveCount(0) for a text the page may hold several times. ${BUILT[architecture]} and a line that types a test account from process.env. The agent that wrote the test may not change them, and none breaks a rule of the charter.
+The harness writes from the plan the title of the test and its tags, one test.step per step with its title, the try and finally that run the steps that restore the data whatever the steps before did, the comparison of a whole screen with its reference in a visual test, in a step of its own, the comments that start with "Expect", the lines that attach a screenshot, the locators, the values typed, and the assertion of each text expected, in the form it gives it, such as not.toHaveCount(0) for a text the page may hold several times. ${BUILT[architecture]} and a line that types a test account from process.env. The agent that wrote the test may not change them, and none breaks a rule of the charter.
 
 What you review
 - A rule of the charter below that the test breaks: cite its identifier.
