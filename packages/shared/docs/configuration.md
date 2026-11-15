@@ -156,8 +156,21 @@ A rule identifier is made of upper case words and digits separated by hyphens, s
 | Key | Type | Default | Example |
 |---|---|---|---|
 | `reviewPlan` | boolean | `true` | `false` |
+| `levels` | array of levels, at least one, each once | `["smoke", "functional", "business"]` | `["functional"]` |
 
 The agent that plans submits its scenarios in several calls, and the harness sets aside each one another already covers. It first compares them by their code: the same steps, the same values, no text expected that the other does not expect. With `reviewPlan`, an agent of its own then reviews the scenarios the code let through, in sessions of the model of their own; `false` keeps the comparison by the code alone, and spares those sessions.
+
+`levels` names the levels of the pyramid of tests a plan is asked for, from its base to its top:
+
+| Level | What a test of it verifies |
+|---|---|
+| `smoke` | The application answers: it opens its first address and finds one text. |
+| `functional` | One behaviour of one screen, a test each: a search by first name and a search that matches nothing are two tests. |
+| `business` | A whole journey ends as it must, through several screens and with real data. |
+| `cross-application` | An action in one application has its effect in another. |
+| `end-to-end` | A journey goes through three applications or more. |
+
+No test of the two upper levels is written yet, a test acting on one application: when they are asked, the journal says so and the plan is asked for the others.
 
 ### Model
 

@@ -23,6 +23,7 @@ const scenario = (application: string, sources: readonly string[]): PlannedScena
   title: "Open the ledger",
   intent: "Verifies that the ledger opens.",
   kind: "other",
+  level: "functional",
   case: "nominal",
   application,
   domain: "ledger",
@@ -546,7 +547,8 @@ describe("a scenario whose session ends before it is closed", () => {
     assert.deepEqual(
       [kept!.content, kept!.verdict, kept!.classes[0]!.class, kept!.classes[0]!.reason],
       [
-        one,
+        // The harness wrote on it the tags of its scenario.
+        one.replace('test("open", ', 'test("open", { tag: ["@level-functional","@domain-ledger","@app-ledger","@kind-other","@case-nominal"] }, '),
         "not_run",
         "unfinished",
         'Its session ended before the scenario was closed. Tried: 1 run (failed on assertion at "1. Open the ledger"); refusals: TEST-STEPS ×1, TEST-VALUE ×1, TEST-SYNTAX ×1.',

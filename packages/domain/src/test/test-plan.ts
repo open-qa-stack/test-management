@@ -1,6 +1,14 @@
 /** What a scenario of a test plan checks. */
 export type ScenarioKind = "functional" | "visual" | "accessibility" | "other";
 
+/**
+ * Where a scenario stands in the pyramid of tests, from its base to its top: `smoke`, the application answers;
+ * `functional`, one screen does and shows what it must, one behaviour a test; `business`, a whole journey
+ * through several screens ends as it must; `cross-application`, an action in an application has its effect
+ * in another; `end-to-end`, a journey goes through the whole information system.
+ */
+export type ScenarioLevel = "smoke" | "functional" | "business" | "cross-application" | "end-to-end";
+
 /** A source a scenario relies on: a source of the domain index, and an element of it when one is named. */
 export interface ScenarioSource {
   /** Identifier of the source in the domain index. */
@@ -62,6 +70,8 @@ export interface PlannedScenario {
   /** What the scenario is meant to verify, and why. */
   readonly intent: string;
   readonly kind: ScenarioKind;
+  /** Its level in the pyramid of tests. */
+  readonly level: ScenarioLevel;
   readonly case: ScenarioCase;
   /** Identifier of the one application the test is about. */
   readonly application: string;

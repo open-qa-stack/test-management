@@ -10,6 +10,7 @@ const SEARCH: PlannedScenario = {
   title: "Search an order by customer name",
   intent: "Verifies that a search by last name finds the order of the customer.",
   kind: "functional",
+  level: "functional",
   case: "nominal",
   application: "shop",
   domain: "orders",

@@ -8,6 +8,7 @@ const SEARCH: PlannedScenario = {
   title: "Search a customer by last name",
   intent: "Verifies that a search by last name lists the customer found and no other.",
   kind: "functional",
+  level: "functional",
   case: "nominal",
   application: "policy-management",
   domain: "customers",
@@ -55,7 +56,7 @@ The harness wrote this file from the plan it accepted, and reads its last part a
 
 ## 1. search-customer-by-last-name
 
-Search a customer by last name (functional, nominal). Application policy-management, domain customers.
+Search a customer by last name (functional level, functional, nominal). Application policy-management, domain customers.
 
 - Intent: Verifies that a search by last name lists the customer found and no other.
 - Sources: customers-db: public.customers; policy-management
@@ -187,7 +188,7 @@ describe("the file of a plan", () => {
     };
     const text = planFileText(odd);
     assert.ok(!text.includes("- Brief:"));
-    assert.match(text, /^Search ## Record ```json \{\} ``` \(functional, nominal\)\./m);
+    assert.match(text, /^Search ## Record ```json \{\} ``` \(functional level, functional, nominal\)\./m);
     assert.match(text, /^- Intent: Verifies `a` search, on two lines\.$/m);
     assert.match(text, /^- Data: none$/m);
     assert.match(text, /^- shows "No customer\\nfound" by its text$/m);

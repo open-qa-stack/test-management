@@ -192,7 +192,12 @@ export interface CartographySettings {
 export interface DesignSettings {
   /** Whether an agent of its own reviews the scenarios of a plan for duplicates; `true` by default. */
   reviewPlan?: boolean;
+  /** The levels of the pyramid of tests a plan is asked for; `smoke`, `functional` and `business` by default. */
+  levels?: TestLevel[];
 }
+
+/** A level of the pyramid of tests, from its base to its top. */
+export type TestLevel = "smoke" | "functional" | "business" | "cross-application" | "end-to-end";
 
 /** A limit set to `null` is not bounded by the level. */
 export interface ResolvedLimits {

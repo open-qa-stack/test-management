@@ -584,11 +584,11 @@ describe("the screens the designer watches", () => {
     await call("shop_select_option", { option: "Paid" });
     await call("shop_check", { checked: true });
     await call("shop_click");
-    assert.deepEqual(watch.action(2), { number: 2, application: "shop", tool: "fill", code: "line 2", typed: "Veldane" });
-    assert.deepEqual(watch.action(3), { number: 3, application: "desk", tool: "goto", code: "line 3" });
+    assert.deepEqual(watch.action(2), { number: 2, application: "shop", tool: "fill", code: "line 2", typed: "Veldane", screen: "/orders" });
+    assert.deepEqual(watch.action(3), { number: 3, application: "desk", tool: "goto", code: "line 3", screen: "/orders" });
     // The credential of an account is no text the agent typed; an option chosen is one.
-    assert.deepEqual(watch.action(4), { number: 4, application: "shop", tool: "fill", code: "line 4" });
-    assert.deepEqual(watch.action(5), { number: 5, application: "shop", tool: "select_option", code: "line 5", typed: "Paid" });
+    assert.deepEqual(watch.action(4), { number: 4, application: "shop", tool: "fill", code: "line 4", screen: "/orders" });
+    assert.deepEqual(watch.action(5), { number: 5, application: "shop", tool: "select_option", code: "line 5", typed: "Paid", screen: "/orders" });
     assert.deepEqual([watch.action(0), watch.action(8)], [undefined, undefined]);
     assert.deepEqual(
       [watch.actions("shop").map((action) => action.number), watch.actions("desk").map((action) => action.number), watch.actions("ledger")],

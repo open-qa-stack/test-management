@@ -241,6 +241,7 @@ export class SoloRun {
           screenshots: rules.some((rule) => rule.id === SCREENSHOT_RULE),
           runner: trials,
           reviewPlan: config.design.reviewPlan,
+          levels: config.design.levels,
           ...observed,
           ...(brief === undefined ? {} : { brief }),
           ...(resumed?.designState === undefined

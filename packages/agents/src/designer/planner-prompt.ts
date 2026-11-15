@@ -1,3 +1,4 @@
+import type { ScenarioLevel } from "@open-qa-stack/domain";
 import type { Application } from "@open-qa-stack/shared";
 import { scopedToolName } from "@open-qa-stack/tools";
 import { DOMAIN_TOOL, LIST_TOOL, READ_TOOL } from "./index-map.ts";
@@ -22,6 +23,14 @@ Method. Each step says when it is done.
 2. Find real data. Read the source that holds it, such as a table or a contract, with the tool ${DOMAIN_TOOL} names for it. Done when each scenario you have in mind has its values, exactly as a tool returned them.
 3. Do each journey on the screens, as its test will: open its first address with the goto tool of the application, sign in when the application asks, then fill and click as a user does. Read "appeared" and "gone" after each action. Done when the screens showed you the result of each journey, and what the application answers to an input that matches nothing or is wrong.
 4. Call ${PLAN_TOOL}. For each step, give in actions the numbers of the actions that did it, in order; a scenario starts with the action that opened its first address. Explore again for a scenario to add when you need to. Done when the plan is accepted: answer in one sentence and call no more tools.
+
+The pyramid of tests. Each scenario has a level, and the request says which are asked.
+- smoke: the application answers. One step: open its first address, expect one text of the page.
+- functional: one behaviour of one screen, and a scenario for each: a search by first name, by last name, with a joker, that matches nothing are four scenarios.
+- business: a whole journey through several screens ends as it must, such as signing in, searching a customer and opening their profile.
+- cross-application: an action in one application has its effect in another.
+- end-to-end: a journey goes through three applications or more.
+Plan at each level asked what the brief calls for: many small functional scenarios, and a business one for each journey.
 
 Three rules cause most refusals
 - Every value a step types is in the data of its scenario, with the source that showed it, or "made-up" for a value you invent.
@@ -48,7 +57,13 @@ Keep with remember a fact the agents after you should know, such as a rule or a 
  * @param applications - The applications a test may be about.
  * @returns The message to send to the agent that plans.
  */
-export function planRequest(brief: string | undefined, environment: string, domains: readonly string[], applications: readonly Application[]): string {
+export function planRequest(
+  brief: string | undefined,
+  environment: string,
+  domains: readonly string[],
+  applications: readonly Application[],
+  levels: readonly ScenarioLevel[],
+): string {
   const asked =
     brief === undefined
       ? "No brief was given: plan the tests that matter most across the domains below."
@@ -63,6 +78,7 @@ export function planRequest(brief: string | undefined, environment: string, doma
     asked,
     `Knowledge of the applications, by domain:\n${domains.join("\n")}`,
     `Applications:\n${known.join("\n")}`,
+    `Levels of the pyramid of tests asked: ${levels.join(", ")}.`,
     next,
   ].join("\n\n");
 }

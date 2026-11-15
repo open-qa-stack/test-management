@@ -35,6 +35,7 @@ describe("the instructions of the agent that plans", () => {
         "You plan the tests of the applications of one test environment. You explore, do each journey once on the screens, then submit the scenarios of one test plan with propose_plan. Another agent writes each test from your plan alone: it sees nothing of this session.",
         "How this works",
         "Method. Each step says when it is done.",
+        "The pyramid of tests. Each scenario has a level, and the request says which are asked.",
         "Three rules cause most refusals",
         'Cover the brief: each business rule, each information and each behaviour it is about has a scenario that verifies it. Say in uncovered what no scenario covers and why — the application does not allow it, or the plan has no room for it; never plan another test in its place without a word. When no test can do anything the brief asks, plan none: call propose_plan with "scenarios": [] and uncovered, which says what the brief asks and why.',
         "Keep with remember a fact the agents after you should know, such as a rule or a pitfall of the application.",
@@ -44,7 +45,12 @@ describe("the instructions of the agent that plans", () => {
       sections[2]!.slice(1).map((step) => /^\d\. .* Done when [^.]+[.:]/.test(step)),
       [true, true, true, true],
     );
-    assert.equal(sections[3]!.length, 4);
+    // The pyramid of tests: its title, then one line per level, then what to plan at each.
+    assert.deepEqual(
+      [sections[3]!.length, sections[3]!.slice(1, 6).map((line) => line.split(":")[0])],
+      [7, ["- smoke", "- functional", "- business", "- cross-application", "- end-to-end"]],
+    );
+    assert.equal(sections[4]!.length, 4);
     for (const said of [
       'A result that starts with "Refused" says what is wrong',
       'A result that starts with "The plan is not accepted yet" asks you, once,',
@@ -59,19 +65,20 @@ describe("the instructions of the agent that plans", () => {
     // It writes no test: nothing of the charter, of the runs nor of the files is its concern.
     assert.doesNotMatch(PLANNER_INSTRUCTIONS, /run_test|propose_test|Charter|\.spec\.ts/);
     assert.doesNotMatch(PLANNER_INSTRUCTIONS, /[ \t]$/m);
-    assert.ok(PLANNER_INSTRUCTIONS.length <= 3800, String(PLANNER_INSTRUCTIONS.length));
+    assert.ok(PLANNER_INSTRUCTIONS.length <= 4600, String(PLANNER_INSTRUCTIONS.length));
   });
 });
 
 describe("the request of the session that plans", () => {
   it("gives the brief, the domains of the knowledge, the applications with how to sign in to them, and the next call, and nothing of a test", () => {
     assert.equal(
-      planRequest("Test the search of an order.", "local", DOMAINS, [SHOP, LEDGER, OPEN]),
+      planRequest("Test the search of an order.", "local", DOMAINS, [SHOP, LEDGER, OPEN], ["smoke", "functional"]),
       [
         "Plan Playwright tests for the environment local.",
         "Brief of the developer, in their words:\n<brief>\nTest the search of an order.\n</brief>",
         `Knowledge of the applications, by domain:\n${DOMAINS.join("\n")}`,
         "Applications:\n- shop (Shop, web): sign in with shop_fill and the accounts demo, admin.\n- ledger (Ledger, api): no screens; its tests sign in with the account clerk.\n- desk (Desk, api): no sign-in.",
+        "Levels of the pyramid of tests asked: smoke, functional.",
         "Next: call knowledge_domain on the domain the brief is about, read what it needs, do the brief once on the screens, then call propose_plan.",
       ].join("\n\n"),
     );
@@ -80,7 +87,7 @@ describe("the request of the session that plans", () => {
   it("gives the same domains without a brief, and asks then for the tests that matter most", () => {
     // A user interface of another environment is none of this one's.
     const elsewhere = { ...SHOP, environments: [{ name: "staging", uiUrl: "http://shop.test" }] };
-    const request = planRequest(undefined, "local", DOMAINS, [elsewhere]);
+    const request = planRequest(undefined, "local", DOMAINS, [elsewhere], ["functional"]);
     assert.match(
       request,
       /^Plan .*\n\nNo brief was given: plan the tests that matter most across the domains below\.\n\nKnowledge of the applications, by domain:\n- orders/,

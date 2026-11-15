@@ -1,3 +1,4 @@
+import { scenarioTags } from "./scenario-tags.ts";
 import type { PlannedScenario } from "@open-qa-stack/domain";
 import { assertionsOf } from "./assertion-line.ts";
 import type { DesignCursor } from "./design-cursor.ts";
@@ -36,7 +37,7 @@ export function skeleton(scenario: PlannedScenario, screenshots: boolean): strin
   return [
     `import { expect, test } from "@playwright/test";`,
     "",
-    `test(${JSON.stringify(oneLine(scenario.title))}, async (${fixtures}) => {`,
+    `test(${JSON.stringify(oneLine(scenario.title))}, { tag: ${JSON.stringify(scenarioTags(scenario))} }, async (${fixtures}) => {`,
     ...steps,
     "});",
     "",
@@ -56,7 +57,7 @@ export function scenarioSheet(cursor: DesignCursor, screenshots: boolean): strin
   const data = scenario.data.length === 0 ? "none" : scenario.data.map((entry) => `${JSON.stringify(entry.value)} (${entry.from})`).join("; ");
   const cited = scenario.sources.map(({ source, item }) => (item === undefined ? source : `${source}: ${oneLine(item)}`));
   return [
-    `Scenario ${cursor.rank} of ${cursor.plan.scenarios.length}: ${scenario.id} — ${scenario.title} (${scenario.kind}, ${scenario.case}), application ${scenario.application}.`,
+    `Scenario ${cursor.rank} of ${cursor.plan.scenarios.length}: ${scenario.id} — ${scenario.title} (${scenario.level} level, ${scenario.kind}, ${scenario.case}), application ${scenario.application}.`,
     `Intent: ${oneLine(scenario.intent)}.`,
     `Data: ${data}.`,
     `Cited: ${cited.join("; ")}.`,

@@ -29,6 +29,7 @@ const scenario = (id: string, changes: Partial<Scenario> = {}): Scenario => ({
   title: `The ${id} scenario`,
   intent: `Verifies ${id}.`,
   kind: "other",
+  level: "functional",
   case: "nominal",
   application: "shop",
   domain: "orders",
@@ -89,6 +90,7 @@ const RULES: Omit<PlanRules, "screens" | "reads"> = {
   sources: ["shop", "orders-db", "guide", "specs"],
   applications: ["shop", "ledger"],
   domains: ["orders"],
+  levels: ["functional"],
   secrets: [],
   addresses: ["http://127.0.0.1:8090"],
   review: { review: async () => ({ accepted: true }) },
@@ -415,6 +417,7 @@ describe("the gates of a plan", () => {
   const functional = (id: string, changes: Partial<Scenario> = {}) =>
     scenario(id, {
       kind: "functional",
+      level: "functional",
       steps: [
         { action: "Open the orders", expects: [] },
         { action: "Search the orders of Veldane", expects: [found] },
@@ -732,6 +735,7 @@ describe("the gates of a plan", () => {
     const searched = (changes: Partial<Scenario>) =>
       scenario("a", {
         kind: "functional",
+        level: "functional",
         steps: [{ action: "Search zzqx", expects: [{ result: "The order of Mira Veldane shows", shows: ["ORD-1042"], absent: ["zzqx"] }] }],
         ...changes,
       });
@@ -745,6 +749,7 @@ describe("the gates of a plan", () => {
     const cancelled = { action: "Cancel the order of Lena Brook", expects: [{ result: "Its order goes", shows: [], absent: ["Lena Brook"] }] };
     const negative = scenario("c", {
       kind: "functional",
+      level: "functional",
       case: "negative",
       data: [{ value: "zzqx", from: "made-up" }],
       steps: [{ action: "Search zzqx", expects: [{ result: "Another order shows", shows: ["ORD-1042"], absent: [] }] }],
@@ -1175,6 +1180,7 @@ describe("the actions a plan cites", () => {
     await act(screens, "click");
     const searched = scenario("a", {
       kind: "functional",
+      level: "functional",
       data: [{ value: "Veldane", from: "orders-db" }],
       sources: [{ source: "orders-db" }],
       steps: [
@@ -1329,6 +1335,7 @@ describe("a step and what it expects, held to one screen", () => {
   const search = (actions: number[]) =>
     scenario("a", {
       kind: "functional",
+      level: "functional",
       data: [{ value: "zzqx", from: "made-up" }],
       steps: [
         { action: "Open the orders", actions: [1], expects: [{ result: "The orders show", shows: ["Orders"], absent: [] }] },
@@ -1368,5 +1375,94 @@ describe("a plan that verifies only what works", () => {
     const { proposal: made } = await proposal();
     await add(made, { scenarios: [scenario("a")] });
     assert.match((await add(made, { scenarios: [] })) as string, /^The plan was accepted/);
+  });
+});
+
+describe("the level of a scenario, held to what its actions went through", () => {
+  /** Browser tools of the shop: one opens the address asked, and a click opens the order. */
+  const tools = (): ToolDefinition[] =>
+    ["shop"].flatMap((application) => {
+      let count = 0;
+      const tool = (action: string, execute: (args: { url?: string }) => unknown): ToolDefinition => ({
+        name: `${application}_${action}`,
+        description: action,
+        parameters: { type: "object" },
+        execute: async (args) => execute(args as { url?: string }),
+      });
+      const done = (url: string | undefined) => ({ ...(url === undefined ? {} : { url }), code: `await ${application}.act(${(count += 1)});` });
+      return [
+        tool("goto", ({ url = "/orders" }) => done(url)),
+        tool("snapshot", () => ({ page: '- heading "Orders"', truncated: false })),
+        tool("click", () => done("http://127.0.0.1:3000/orders/1042")),
+        tool("fill", () => done(undefined)),
+        tool("select_option", () => done(undefined)),
+        tool("check", () => done(undefined)),
+      ];
+    });
+  const levels = ["smoke", "functional", "business", "cross-application", "end-to-end"] as const;
+  /** A proposal whose agent opened the orders (1), searched (2), then opened an order (3). */
+  const explored = async (asked: readonly (typeof levels)[number][] = levels) => {
+    const screens = new ScreenWatch(["shop"], tools());
+    const call = (name: string, args: object = {}) =>
+      screens
+        .tools()
+        .find((tool) => tool.name === name)!
+        .execute(args);
+    await call("shop_goto");
+    await call("shop_fill");
+    await call("shop_click");
+    const { reads } = await proposal();
+    return new PlanProposal({ ...RULES, levels: asked, screens, reads }, new Journal());
+  };
+  const at = (level: (typeof levels)[number], actions: number[]) =>
+    scenario("a", {
+      level,
+      data: [],
+      steps: [{ action: "Open the orders", actions, expects: [{ result: "The orders show", shows: ["Orders"], absent: [] }] }],
+    });
+  const answered = async (made: PlanProposal, planned: Scenario) => {
+    const answer = await made.tool().execute({ scenarios: [planned] });
+    return typeof answer === "string"
+      ? "kept"
+      : (answer as { error: string }).error.split("\n")[0]!.replace(/^Refused \(PLAN-LEVEL\): scenario a is of the level /, "");
+  };
+
+  it("keeps a scenario whose actions are those of its level", async () => {
+    const kept = [at("smoke", [1]), at("functional", [1, 2]), at("business", [1, 2, 3])];
+    for (const planned of kept) assert.equal(await answered(await explored(), planned), "kept", planned.level);
+  });
+
+  it("refuses a level the plan is not asked for, and names those asked", async () => {
+    assert.equal(
+      await answered(await explored(["smoke", "functional"]), at("business", [1, 2, 3])),
+      "business, which this plan is not asked for. The levels asked: smoke, functional. Give it one of them, or leave the scenario out and say so in uncovered.",
+    );
+  });
+
+  it("refuses a smoke test that does more than open an address, and a test of one application whose screens are not those of its level", async () => {
+    assert.match(
+      await answered(await explored(), at("smoke", [1, 2])),
+      /^smoke, and one of its actions does more than open an address: .* or give it the level functional\.$/,
+    );
+    assert.match(
+      await answered(await explored(), at("functional", [1, 3])),
+      /^functional, and its actions went through 2 screens \(\/orders, \/orders\/:id\): a functional test verifies one behaviour of one screen\. Give it the level business /,
+    );
+    assert.match(
+      await answered(await explored(), at("business", [1, 2])),
+      /^business, and its actions went through 1 screen \(\/orders\): a business test follows a journey through several screens to its result\. Give it the level functional, /,
+    );
+  });
+
+  it("names, when it asks for more, the levels asked that no scenario is of yet", async () => {
+    const made = await explored(["smoke", "functional", "business"]);
+    const asked = (await made.tool().execute({ scenarios: [at("functional", [1, 2])] })) as string;
+    assert.ok(
+      asked.includes("\nNo scenario is of the levels smoke, business yet, among those asked (smoke, functional, business): add those the brief calls for.\n"),
+      asked,
+    );
+    const one = await explored(["smoke", "functional"]);
+    const again = (await one.tool().execute({ scenarios: [at("functional", [1, 2])] })) as string;
+    assert.ok(again.includes("\nNo scenario is of the level smoke yet, among those asked (smoke, functional): add those the brief calls for.\n"), again);
   });
 });

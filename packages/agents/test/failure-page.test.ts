@@ -8,6 +8,7 @@ const SCENARIO: PlannedScenario = {
   title: "View a profile",
   intent: "Verifies that a profile opens.",
   kind: "functional",
+  level: "functional",
   case: "nominal",
   application: "shop",
   domain: "customers",

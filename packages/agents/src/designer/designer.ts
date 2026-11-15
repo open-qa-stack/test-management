@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, posix } from "node:path";
-import type { AgentEvent, AgentRuntime, PlanReview, StopReason, TerminalEvent, TestPlan, UncoveredRequest } from "@open-qa-stack/domain";
+import type { AgentEvent, AgentRuntime, PlanReview, ScenarioLevel, StopReason, TerminalEvent, TestPlan, UncoveredRequest } from "@open-qa-stack/domain";
 import {
   validateDomainIndex,
   validateSourceCard,
@@ -62,6 +62,8 @@ export interface DesignerOptions {
   readonly planReview?: PlanReview;
   /** Whether the agent that reviews plans is asked which scenarios verify what another already does, in sessions of its own; the harness compares them by their code alone otherwise. `false` by default. */
   readonly reviewPlan?: boolean;
+  /** The levels of the pyramid of tests the plan is asked for; `smoke`, `functional` and `business` by default. */
+  readonly levels?: readonly ScenarioLevel[];
   /** Whether each step of a test ends with a screenshot attached to the report, as the charter may ask; the skeleton of a test then holds it. `false` by default. */
   readonly screenshots?: boolean;
   /** Name of the branch to create; `oqas/design-<date>` by default. */
@@ -104,6 +106,10 @@ export interface DesignOutcome {
 /** The types of the sources that tell why a run failed, which the session of every scenario may read. */
 const INSPECTED = new Set<Knowledge["type"]>(["logs", "source-code"]);
 /** The classes of the tests a design counts towards those it must give. */
+/** The levels of the pyramid of tests a plan is asked for when the caller names none. */
+const DEFAULT_LEVELS: readonly ScenarioLevel[] = ["smoke", "functional", "business"];
+/** The levels a test can be written at: one of the others acts on several applications, which no test does yet. */
+const WRITTEN_LEVELS: readonly ScenarioLevel[] = DEFAULT_LEVELS;
 const COUNTED = new Set<TestClass>(["passed", "failing-application"]);
 
 /** Accepts every plan as it is: the designer works on its own. */
@@ -253,11 +259,20 @@ export class Designer {
       let planned: TestPlan | undefined = frozen;
       if (planned === undefined) {
         const session = sessionTools(scope);
+        const asked = this.options.levels ?? DEFAULT_LEVELS;
+        const written = asked.filter((level) => WRITTEN_LEVELS.includes(level));
+        const levels = written.length === 0 ? DEFAULT_LEVELS : written;
+        if (written.length < asked.length)
+          journal.record(
+            "info",
+            `The levels ${asked.filter((level) => !written.includes(level)).join(", ")} are asked, and no test of them is written yet: a test acts on one application. The plan is asked for ${levels.join(", ")}.`,
+          );
         const plan = new PlanProposal(
           {
             sources: owners,
             applications: applications.map((application) => application.id),
             domains: index.domains.map((domain) => domain.id),
+            levels,
             secrets: declaredSecrets(config, env),
             addresses: declaredAddresses(config),
             screens: session.screens,
@@ -270,7 +285,7 @@ export class Designer {
         );
         const offered = [...session.screens.tools(), ...session.reads.tools()];
         const map = new IndexMap(index, await this.cards(index), offered, owners, await this.written(index));
-        const request = planRequest(brief, index.environment, map.domains(), applications);
+        const request = planRequest(brief, index.environment, map.domains(), applications, levels);
         const notes = agentNotes(config, repositoryRoot, env, { role: "planner", task: id, now });
         const tools = [...map.toolset(), ...offered, ...notes, plan.tool()].map((tool) => endedWithPlan(tool, plan));
         const task = { instructions: PLANNER_INSTRUCTIONS, tools, request, reminder: () => plan.reminder() };

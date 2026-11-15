@@ -1,3 +1,4 @@
+import { withTags } from "../src/designer/scenario-tags.ts";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -8,7 +9,7 @@ import { CopilotAgentRuntime, ModelGateway, resolveCharter, writerInstructions }
 import { validateConfig, type DomainIndex, type ResolvedConfig, type SourceCard } from "@open-qa-stack/shared";
 import { answer, scriptedServer, testSite, toolCalls, type ScriptedServer, type TestSite } from "@open-qa-stack/testing";
 import { moduleSyntax } from "@open-qa-stack/tools";
-import type { PlanReview, ProposedTest, TestCheck, TestRunner, TestTrial } from "@open-qa-stack/domain";
+import type { PlanReview, ProposedTest, ScenarioLevel, TestCheck, TestRunner, TestTrial } from "@open-qa-stack/domain";
 import { testPackages } from "../src/designer/spec-rules.ts";
 import { Designer, readPlanFile, type DesignOutcome, type DesignState, type PlanRecord } from "../src/index.ts";
 
@@ -167,11 +168,15 @@ interface Call {
 }
 
 /** A scenario of the plan, about the orders of the shop: its one step opens them and expects their heading. */
+/** A test as the harness keeps it: with the tags of its scenario, a functional scenario of the orders of the shop unless told otherwise. */
+const tagged = (content: string, kind: "other" | "visual" | "functional" = "other") =>
+  withTags(content, { level: "functional", domain: "orders", application: "shop", kind, case: "nominal" });
 const scenario = (id: string, kind = "other", changes: Record<string, unknown> = {}) => ({
   id,
   title: `The ${id} scenario`,
   intent: `Verifies ${id}.`,
   kind,
+  level: "functional",
   case: "nominal",
   application: "shop",
   domain: "orders",
@@ -282,6 +287,7 @@ interface Setup {
   readonly planReview?: PlanReview;
   /** Whether the agent that reviews plans is asked about duplicates. */
   readonly reviewPlan?: boolean;
+  readonly levels?: readonly ScenarioLevel[];
   readonly observe?: (line: { event: { type: string } }) => void;
   readonly resume?: { readonly state: string; readonly branch?: string };
   /** Whether the configuration declares that the model reads images. */
@@ -321,6 +327,7 @@ async function design(script: readonly { status?: number; body: unknown }[], set
       ...(setup.brief === undefined ? {} : { brief: setup.brief }),
       ...(setup.planReview === undefined ? {} : { planReview: setup.planReview }),
       ...(setup.reviewPlan === undefined ? {} : { reviewPlan: setup.reviewPlan }),
+      ...(setup.levels === undefined ? {} : { levels: setup.levels }),
       ...(setup.observe === undefined ? {} : { observe: setup.observe }),
       ...(setup.resume === undefined ? {} : { resume: setup.resume }),
     });
@@ -385,7 +392,7 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     assert.equal(outcome.ok, true);
     assert.equal(git(root, "branch", "--show-current"), BRANCH);
     assert.deepEqual(specsOf(root), ["apps/shop/follow-order.spec.ts", "apps/shop/list-orders.spec.ts", "apps/shop/place-order.spec.ts"]);
-    assert.equal(readFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "utf8"), spec("list-orders"));
+    assert.equal(readFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "utf8"), tagged(spec("list-orders")));
     const state = stateOf(outcome);
     assert.equal(outcome.statePath, join(root, ".oqas", "designs", "design-20261113T100000Z.json"));
     assert.equal(outcome.planPath, join(root, ".oqas", "designs", "design-20261113T100000Z.plan.md"));
@@ -509,7 +516,7 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     git(root, "commit", "-q", "-m", "chore: ignore the state");
     const { outcome } = await design(replies([...valid(2), ...write("follow-order", spec("follow-order").trimEnd())]), { root, branch: null });
     assert.match(outcome.branch!, /^oqas\/design-\d{8}T\d{6}Z$/);
-    assert.equal(readFileSync(join(root, "apps", "shop", "follow-order.spec.ts"), "utf8"), spec("follow-order"));
+    assert.equal(readFileSync(join(root, "apps", "shop", "follow-order.spec.ts"), "utf8"), tagged(spec("follow-order")));
     assert.ok(!filesOf(root, outcome.branch).some((path) => path.startsWith(".oqas/")));
     assert.ok(existsSync(outcome.statePath!));
     assert.ok(existsSync(outcome.planPath!));
@@ -633,8 +640,8 @@ describe("criterion 4 — a test that imports anything but @playwright/test or a
     assert.match(journal, /\[TEST-IMPORT\] .*: Line 1 imports \.\.\/\.\.\/\.\.\/outside\.ts, outside the test repository\./);
     assert.match(journal, /\[TEST-IMPORT\] .*: Line 1 imports \.\/test-1\.spec\.ts, another test file/);
     assert.match(told(server, "platform"), /^Refused \(TEST-IMPORT\): Line 1 imports @open-qa-stack\/agents; .*\nNothing else was refused\.$/);
-    assert.deepEqual([runner.runs.length, runner.runs[0]!.content], [3, helped]);
-    assert.equal(readFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "utf8"), helped);
+    assert.deepEqual([runner.runs.length, runner.runs[0]!.content], [3, tagged(helped)]);
+    assert.equal(readFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "utf8"), tagged(helped));
   });
 });
 
@@ -882,7 +889,7 @@ describe("the sheet of a scenario", () => {
     const sheet = asked(server, 1);
     assert.ok(
       sheet.startsWith(
-        'Write the test of this scenario for the environment local.\n\nSign-in: with the account demo; the lines of the sheet that sign in read it from process.env: keep them as they are.\nA test may import: @playwright/test.\n\nScenario 1 of 3: list-orders — The list-orders scenario (other, negative), application shop.\nIntent: Verifies list-orders.\nData: "Ada" (shop); "zzqx" (made-up).\nCited: shop: /orders.\nFile: apps/shop/list-orders.spec.ts\n\nimport { expect, test } from "@playwright/test";\n\ntest("The list-orders scenario", async ({ page }) => {\n  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n    // Expect 1.1: The orders show.\n    await expect(page.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();\n  });\n});\n',
+        'Write the test of this scenario for the environment local.\n\nSign-in: with the account demo; the lines of the sheet that sign in read it from process.env: keep them as they are.\nA test may import: @playwright/test.\n\nScenario 1 of 3: list-orders — The list-orders scenario (functional level, other, negative), application shop.\nIntent: Verifies list-orders.\nData: "Ada" (shop); "zzqx" (made-up).\nCited: shop: /orders.\nFile: apps/shop/list-orders.spec.ts\n\nimport { expect, test } from "@playwright/test";\n\ntest("The list-orders scenario", { tag: ["@level-functional","@domain-orders","@app-shop","@kind-other","@case-negative"] }, async ({ page }) => {\n  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n    // Expect 1.1: The orders show.\n    await expect(page.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();\n  });\n});\n',
       ),
       sheet,
     );
@@ -1056,7 +1063,7 @@ describe("loop, criterion 4 — a failing test is kept with its diagnosis and th
         errorClass: "assertion",
       },
     });
-    assert.equal(readFileSync(join(root, "apps", "shop", "follow-order.spec.ts"), "utf8"), broken("follow-order"));
+    assert.equal(readFileSync(join(root, "apps", "shop", "follow-order.spec.ts"), "utf8"), tagged(broken("follow-order")));
     assert.match(git(root, "log", "-1", "--format=%B", BRANCH), /- apps\/shop\/follow-order\.spec\.ts: failing \(application\)/);
     assert.equal(told(server, "c-follow-order"), `Scenario follow-order closed: failing (application), kept for a person to decide.\n${OVER}`);
     const own = await design(
@@ -1179,7 +1186,7 @@ describe("the repair contract", () => {
       ],
     );
     // The file kept is the last one submitted.
-    assert.equal(readFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "utf8"), spec("c"));
+    assert.equal(readFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "utf8"), tagged(spec("c")));
   });
 
   it("keeps a test failing on another error than an assertion only as the test's fault, with every run, even one that gave no verdict", async () => {
@@ -1278,7 +1285,7 @@ describe("the repair contract", () => {
     assert.match(told(server, "kept"), /^Scenario list-orders closed: failing \(application\), kept for a person to decide\./);
     const kept = stateOf(outcome).tests[0]!;
     assert.deepEqual([kept.runs.length, kept.quarantine?.cause], [3, "application"]);
-    assert.equal(readFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "utf8"), failing("2"));
+    assert.equal(readFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "utf8"), tagged(failing("2")));
   });
 });
 
@@ -1331,7 +1338,7 @@ describe("refusals for the same reason", () => {
         "TEST-STEPS",
       ],
     );
-    assert.equal(readFileSync(join(root, "apps", "shop", "place-order.spec.ts"), "utf8"), flat("5"));
+    assert.equal(readFileSync(join(root, "apps", "shop", "place-order.spec.ts"), "utf8"), tagged(flat("5")));
     assert.deepEqual(state.tests[0]!.classes, [
       {
         at: "2026-11-13T10:00:00.000Z",
@@ -1347,7 +1354,7 @@ describe("refusals for the same reason", () => {
         { cause: "test", evidence: "closed by the harness after 5 refusals for TEST-STEPS", failedStep: "open the orders", errorClass: "assertion" },
       ],
     );
-    assert.equal(readFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "utf8"), broken("list-orders"));
+    assert.equal(readFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "utf8"), tagged(broken("list-orders")));
   });
 
   it("keep a failing test whose closing the agent kept asking for the wrong way, as failing, for the code refused", async () => {
@@ -1438,7 +1445,7 @@ describe("a visual test", () => {
     const visual = `import { test, expect } from "@playwright/test";\n\ntest("the list of orders looks as it should", async ({ page }) => {\n  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n    await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();\n    await expect(page).toHaveScreenshot({ fullPage: true });\n  });\n});\n`;
     const { outcome } = await design(replies([...write("list-orders", visual), ...valid(3).slice(2)]), { runner });
     assert.equal(outcome.tests.find((test) => test.path === "apps/shop/list-orders.spec.ts")?.verdict, "passed", messages(outcome));
-    assert.ok(runner.runs.some((test) => test.content === visual));
+    assert.ok(runner.runs.some((test) => test.content === tagged(visual)));
   });
 });
 
@@ -2254,5 +2261,23 @@ describe("resume — a design a limit stopped goes on from its plan and its test
     const dirty = await design([], { root: first.root, plan: false, resume: { state: STATE, branch: BRANCH } });
     assert.match(messages(dirty.outcome), /Tracked files are changed: specs\/orders\.md\.\nThe design was not resumed\./);
     assert.equal(dirty.server.requests.length, 0);
+  });
+});
+
+describe("the levels of the pyramid of tests a plan is asked for", () => {
+  it("asks for those a test can be written at, and says which of those asked are left out", async () => {
+    const { outcome, server } = await design(replies(valid(3)), { levels: ["functional", "cross-application", "end-to-end"] });
+    assert.equal(outcome.ok, true, messages(outcome));
+    assert.match(
+      messages(outcome),
+      /The levels cross-application, end-to-end are asked, and no test of them is written yet: a test acts on one application\. The plan is asked for functional\./,
+    );
+    assert.match(JSON.stringify(server.requests[0]!.body), /Levels of the pyramid of tests asked: functional\./);
+  });
+
+  it("asks for smoke, functional and business when none of those asked can be written", async () => {
+    const { outcome, server } = await design(replies(valid(3)), { levels: ["end-to-end"] });
+    assert.equal(outcome.ok, true, messages(outcome));
+    assert.match(JSON.stringify(server.requests[0]!.body), /Levels of the pyramid of tests asked: smoke, functional, business\./);
   });
 });

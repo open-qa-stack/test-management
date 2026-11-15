@@ -1,3 +1,4 @@
+import { withTags } from "./scenario-tags.ts";
 import { existsSync } from "node:fs";
 import { join, posix } from "node:path";
 import type { PlannedScenario, TestPlan, ToolDefinition } from "@open-qa-stack/domain";
@@ -319,10 +320,12 @@ export class TestProposals {
   }
 
   /** Checks the test of the scenario open, runs it, and tells the agent what the run gave. */
-  private async tryTest(content: string): Promise<string | { error: string }> {
+  private async tryTest(submitted: string): Promise<string | { error: string }> {
     const open = this.open();
     if ("error" in open) return open;
     const { cursor, scenario, path } = open;
+    // The tags of a test are those of its scenario, whatever the agent wrote of them.
+    const content = withTags(submitted, scenario);
     const what = `The test ${path} could not be run`;
     const repair = this.repairErrors(cursor, scenario, content);
     if (repair.length > 0) return this.refuse(what, repair);

@@ -206,6 +206,14 @@ export const configSchema = {
           description:
             "Whether an agent of its own reviews the scenarios of a plan for duplicates, in sessions of the model of their own; true by default. The harness compares the scenarios by their code either way.",
         },
+        levels: {
+          type: "array",
+          minItems: 1,
+          uniqueItems: true,
+          items: { type: "string", enum: ["smoke", "functional", "business", "cross-application", "end-to-end"] },
+          description:
+            "The levels of the pyramid of tests a plan is asked for, from its base to its top: smoke, the application answers; functional, one behaviour of one screen; business, a journey through several screens; cross-application, an action in an application and its effect in another; end-to-end, a journey through three applications or more. smoke, functional and business by default.",
+        },
       },
     },
     charter: {

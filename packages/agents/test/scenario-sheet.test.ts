@@ -20,7 +20,7 @@ export interface Page {
 }
 export interface TestInfo { attach(name: string, options: { body: Uint8Array; contentType: string }): Promise<void>; }
 type Body = (fixtures: { page: Page }, testInfo: TestInfo) => Promise<void>;
-export declare const test: ((title: string, body: Body) => void) & { step<T>(title: string, body: () => Promise<T>): Promise<T> };
+export declare const test: ((title: string, body: Body) => void) & ((title: string, details: { tag: string[] }, body: Body) => void) & { step<T>(title: string, body: () => Promise<T>): Promise<T> };
 export declare const expect: (actual: unknown) => { toBeVisible(): Promise<void>; toBeHidden(): Promise<void>; toHaveValue(value: string): Promise<void>; toHaveCount(count: number): Promise<void>; not: { toHaveCount(count: number): Promise<void> } };
 `;
 
@@ -39,6 +39,7 @@ const SEARCH: PlannedScenario = {
   title: 'Search an order by "customer" name',
   intent: "Verifies that a search by last name finds the order of the customer.",
   kind: "functional",
+  level: "functional",
   case: "nominal",
   application: "shop",
   domain: "orders",
@@ -98,7 +99,7 @@ describe("the skeleton of a test", () => {
       skeleton(SEARCH, true),
       `import { expect, test } from "@playwright/test";
 
-test("Search an order by \\"customer\\" name", async ({ page }, testInfo) => {
+test("Search an order by \\"customer\\" name", { tag: ["@level-functional","@domain-orders","@app-shop","@kind-functional","@case-nominal"] }, async ({ page }, testInfo) => {
   await test.step("1. Open the orders", async () => {
     // Do: Open the orders. Copy the code lines the browser tools returned.
     await testInfo.attach("1", { body: await page.screenshot(), contentType: "image/png" });
@@ -124,7 +125,7 @@ test("Search an order by \\"customer\\" name", async ({ page }, testInfo) => {
       skeleton(SHOWN, false),
       `import { expect, test } from "@playwright/test";
 
-test("Search an order by \\"customer\\" name", async ({ page }) => {
+test("Search an order by \\"customer\\" name", { tag: ["@level-functional","@domain-orders","@app-shop","@kind-functional","@case-nominal"] }, async ({ page }) => {
   await test.step("1. Open the orders", async () => {
     await page.goto("/orders");
   });
@@ -171,7 +172,7 @@ describe("the sheet of a scenario", () => {
     const cursor = new DesignCursor({ scenarios: [SEARCH, { ...SEARCH, id: "other", data: [] }] }, (scenario) => `apps/shop/${scenario.id}.spec.ts`);
     const sheet = scenarioSheet(cursor, false).split("\n");
     assert.deepEqual(sheet.slice(0, 6), [
-      'Scenario 1 of 2: search-order-by-customer — Search an order by "customer" name (functional, nominal), application shop.',
+      'Scenario 1 of 2: search-order-by-customer — Search an order by "customer" name (functional level, functional, nominal), application shop.',
       "Intent: Verifies that a search by last name finds the order of the customer.",
       'Data: "Veldane" (orders-db).',
       "Cited: orders-db: public.orders.",

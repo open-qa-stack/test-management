@@ -80,7 +80,7 @@ function repository(config: string | undefined): string {
   );
   writeFileSync(
     join(root, "node_modules", "@playwright", "test", "index.d.ts"),
-    "export interface APIResponse { ok(): boolean; text(): Promise<string>; }\nexport interface APIRequestContext { get(url: string): Promise<APIResponse>; }\nexport declare const test: ((title: string, body: (fixtures: { request: APIRequestContext }) => Promise<void>) => void) & { step<T>(title: string, body: () => Promise<T>): Promise<T> };\nexport declare function expect(value: unknown, message?: string): { toBe(expected: unknown): void; toContain(expected: string): void };\n",
+    "export interface APIResponse { ok(): boolean; text(): Promise<string>; }\nexport interface APIRequestContext { get(url: string): Promise<APIResponse>; }\nexport declare const test: ((title: string, body: (fixtures: { request: APIRequestContext }) => Promise<void>) => void) & ((title: string, details: { tag: string[] }, body: (fixtures: { request: APIRequestContext }) => Promise<void>) => void) & { step<T>(title: string, body: () => Promise<T>): Promise<T> };\nexport declare function expect(value: unknown, message?: string): { toBe(expected: unknown): void; toContain(expected: string): void };\n",
   );
   if (config !== undefined) writeFileSync(join(root, "oqas.json"), config);
   git(root, "add", "-A");
@@ -204,6 +204,7 @@ const scenario = (id: string) => ({
   title: `The ${id} scenario`,
   intent: `Verifies ${id}.`,
   kind: "functional",
+  level: "functional",
   case: id === "test-3" ? "negative" : "nominal",
   application: "shop",
   domain: "orders",

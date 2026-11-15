@@ -1,5 +1,6 @@
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import { scopedToolName, type SpecLocator, type Target, type TargetMatch, type TargetScope } from "@open-qa-stack/tools";
+import { screenRoute } from "../application-explorer/screen-trail.ts";
 import { toolsBySource } from "./index-map.ts";
 import { nextMoment } from "./moments.ts";
 import { checkable, observed, sameText } from "./observed.ts";
@@ -16,6 +17,8 @@ const MAX_CODES = 5;
 const MAX_CHECKED = 200;
 /** Most parts of the page, the closest first, a locator of one element among several is looked for in. */
 const MAX_SCOPES = 3;
+/** The site an address without one is read on: only its route is kept. */
+const LOCAL = "http://screen.local";
 /** How a snapshot ends the line of an element several elements share the locator of: their number, then the locator. */
 const SHARED = / → no unique locator: (\d+) elements match (page\..+)$/;
 /** Most lines told as the closest to a locator no screen showed. */
@@ -71,6 +74,8 @@ export interface WatchedAction {
   readonly code: string;
   /** The value it typed or chose, when it was given as a text: the credential of an account is not. */
   readonly typed?: string;
+  /** The screen the page was on once it was done, by its route, when its tool said where the page was. */
+  readonly screen?: string;
 }
 
 /** What the designer saw of the screens of one application. */
@@ -178,7 +183,18 @@ export class ScreenWatch {
       const numbered = <T extends { code?: unknown }>(action: string, state: T, typed?: string): T => {
         if (typeof state.code !== "string") return state;
         const number = this.done.length + 1;
-        this.done.push({ number, application, tool: action, code: state.code, ...(typed === undefined ? {} : { typed }) });
+        const { url } = state as { url?: unknown };
+        const at = typeof url === "string" && URL.canParse(url, LOCAL) ? new URL(url, LOCAL) : undefined;
+        // An action that does not say where the page is leaves it on the screen of the action before it.
+        const screen = at === undefined ? this.done.findLast((done) => done.application === application)?.screen : screenRoute(at.href, at, at);
+        this.done.push({
+          number,
+          application,
+          tool: action,
+          code: state.code,
+          ...(typed === undefined ? {} : { typed }),
+          ...(screen === undefined ? {} : { screen }),
+        });
         this.after.set(number, { shown: new Set(), removed: new Set() });
         return { ...state, action: number };
       };

@@ -29,6 +29,7 @@ export type {
   PlanReview,
   ScenarioCase,
   ScenarioKind,
+  ScenarioLevel,
   ScenarioSource,
   ScenarioValue,
   SetAsideScenario,

@@ -4,6 +4,7 @@ import type {
   PlannedExpect,
   PlannedScenario,
   PlanReview,
+  ScenarioLevel,
   SetAsideScenario,
   TestPlan,
   ToolDefinition,
@@ -104,6 +105,8 @@ export interface PlanRules {
   readonly applications: readonly string[];
   /** Identifiers of the domains of the index. */
   readonly domains: readonly string[];
+  /** The levels of the pyramid of tests the plan is asked for. */
+  readonly levels: readonly ScenarioLevel[];
   /** The values no plan may hold: the plan is written to the design state. */
   readonly secrets: readonly DeclaredSecret[];
   /** The addresses no expected text may hold, as `declaredAddresses` gives them: no test may hold one. */
@@ -295,6 +298,12 @@ export class PlanProposal {
                 title: { type: "string", minLength: 1 },
                 intent: { type: "string", minLength: 1, description: "What the scenario verifies, and why, in one sentence." },
                 kind: { type: "string", enum: ["functional", "visual", "accessibility", "other"] },
+                level: {
+                  type: "string",
+                  enum: [...this.rules.levels],
+                  description:
+                    "Its level in the pyramid of tests. smoke: the application answers — it opens its first address and checks one text, nothing more. functional: one screen does and shows what it must — one behaviour, such as a search by first name, on one screen. business: a whole journey through several screens ends as it must. cross-application: an action in one application has its effect in another. end-to-end: a journey goes through three applications or more.",
+                },
                 case: {
                   type: "string",
                   enum: ["nominal", "negative"],
@@ -370,7 +379,7 @@ export class PlanProposal {
                   },
                 },
               },
-              required: ["id", "title", "intent", "kind", "case", "application", "domain", "sources", "data", "steps"],
+              required: ["id", "title", "intent", "kind", "level", "case", "application", "domain", "sources", "data", "steps"],
               additionalProperties: false,
             },
           },
@@ -455,6 +464,17 @@ export class PlanProposal {
     ];
   }
 
+  /** The line that names the levels asked that no scenario kept is of, so that the agent says whether the brief holds some. */
+  private missingLevels(): string[] {
+    const held = new Set(this.draft.scenarios.map((scenario) => scenario.level));
+    const missing = this.rules.levels.filter((level) => !held.has(level));
+    return missing.length === 0
+      ? []
+      : [
+          `No scenario is of the ${missing.length === 1 ? "level" : "levels"} ${missing.join(", ")} yet, among those asked (${this.rules.levels.join(", ")}): add those the brief calls for.`,
+        ];
+  }
+
   /**
    * The warning told once to an agent that closes a plan whose functional scenarios are all of what works: a
    * brief is seldom covered without what the application answers to an input that matches nothing or is
@@ -487,6 +507,7 @@ export class PlanProposal {
             `Reminder: the scenarios you last submitted were duplicates. Once every case of the brief has its scenario, say so: call ${PLAN_TOOL} with "scenarios": [].`,
           ]
         : []),
+      ...this.missingLevels(),
       "Does the brief ask a business rule, an information or a behaviour none of these scenarios verifies?",
       `Next: if it does, call ${PLAN_TOOL} with only the scenarios to add, each verifying what none above does; if the brief is covered, call ${PLAN_TOOL} with "scenarios": []. A scenario that bears the id of one above replaces it.`,
     ].join("\n");
@@ -674,6 +695,7 @@ export class PlanProposal {
       ...this.unexploredErrors(plan),
       ...plan.scenarios.flatMap((scenario) => this.actionErrors(scenario)),
       ...plan.scenarios.flatMap((scenario) => this.elementErrors(scenario)),
+      ...plan.scenarios.flatMap((scenario) => this.levelErrors(scenario)),
     ];
     // A step and its expect of two screens are told once nothing else is wrong: the other refusals say more of what they refuse.
     return refused.length > 0 ? refused : plan.scenarios.flatMap((scenario) => this.screenErrors(scenario));
@@ -1086,6 +1108,43 @@ export class PlanProposal {
         remedy: `Cite first, in actions of step 1 of scenario ${scenario.id}, an action of ${tool("goto")}${example}, then the actions done after it.`,
       },
     ];
+  }
+
+  /**
+   * What the gates refuse in the level of a scenario, held to what its cited actions went through: a level the
+   * plan is not asked for; a smoke test that does more than open an address; a functional test that leaves its
+   * screen; a business test that stays on one. A scenario none of whose actions said where the page was is
+   * held to no number of screens.
+   */
+  private levelErrors(scenario: SubmittedScenario): Refusal[] {
+    const { level, id } = scenario;
+    const where = `scenario ${id} is of the level ${level}`;
+    const refused = (message: string): Refusal[] => [{ code: "PLAN-LEVEL", message }];
+    if (!this.rules.levels.includes(level))
+      return refused(
+        `${where}, which this plan is not asked for. The levels asked: ${this.rules.levels.join(", ")}. Give it one of them, or leave the scenario out and say so in uncovered.`,
+      );
+    const cited = this.cited(
+      scenario,
+      scenario.steps.flatMap((step) => step.actions),
+    );
+    if (level === "smoke")
+      return cited.every((action) => action.tool === "goto")
+        ? []
+        : refused(
+            `${where}, and one of its actions does more than open an address: a smoke test checks that the application answers, nothing more. Keep the action that opens its first address and one text the page then shows, or give it the level functional.`,
+          );
+    const screens = [...new Set(cited.flatMap((action) => action.screen ?? []))];
+    const went = `its actions went through ${screens.length} ${screens.length === 1 ? "screen" : "screens"} (${screens.join(", ")})`;
+    if (level === "functional" && screens.length > 1)
+      return refused(
+        `${where}, and ${went}: a functional test verifies one behaviour of one screen. Give it the level business when it verifies the journey through these screens; otherwise keep the steps of one screen, and open that screen by its address.`,
+      );
+    if (level === "business" && screens.length === 1)
+      return refused(
+        `${where}, and ${went}: a business test follows a journey through several screens to its result. Give it the level functional, or do the whole journey on the screens and cite its actions.`,
+      );
+    return [];
   }
 
   /**
