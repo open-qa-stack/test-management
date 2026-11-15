@@ -2,7 +2,18 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import { moduleSyntax, type SpecOutline } from "@open-qa-stack/tools";
-import { scenarioScope, screenScope, ScreenWatch, snapshotLines, type TargetMatcher } from "../src/designer/screen-watch.ts";
+import {
+  scenarioScope,
+  screenScope,
+  ScreenWatch,
+  snapshotLines,
+  type CheckedTarget,
+  type NamedTarget,
+  type TargetMatcher,
+} from "../src/designer/screen-watch.ts";
+
+/** The targets a page of these tests is asked about, which all have a name. */
+const named = (targets: readonly CheckedTarget[]) => targets as readonly NamedTarget[];
 
 /** The outline of a text of a test. */
 async function outlineOf(text: string): Promise<SpecOutline> {
@@ -424,7 +435,7 @@ describe("the screens the designer watches", () => {
     const asked: string[][] = [];
     /** A page whose cells "Active" are three, one alone in the row of Mira Veldane, whose cell "Hidden" is not shown, and that has no cell "Ghost". */
     const matches: TargetMatcher = async (_application, targets) => {
-      const codes = targets.map(({ role, name, within }) => `${within === undefined ? "" : `${within.role} ${within.name} > `}${role} ${name}`);
+      const codes = named(targets).map(({ role, name, within }) => `${within === undefined ? "" : `${within.role} ${within.name} > `}${role} ${name}`);
       asked.push(codes);
       return codes.map((code) => {
         const count = code === "cell Ghost" ? 0 : code === "cell Active" || code === "table Customers > cell Active" || code.endsWith("cell Paid") ? 3 : 1;
@@ -479,8 +490,8 @@ describe("the screens the designer watches", () => {
       ["shop"],
       page([LIST, '- cell "Active"\n- cell "Paid"', '- cell "Active"\n- cell "Paid"\n- cell "Late"']).tools,
       async (_application, targets) => {
-        if (targets.some((target) => target.name === "Late" || target.within !== undefined)) throw new Error("The page navigates.");
-        return targets.map((target) => ({ code: target.name, count: 2, visible: false }));
+        if (named(targets).some((target) => target.name === "Late" || target.within !== undefined)) throw new Error("The page navigates.");
+        return named(targets).map((target) => ({ code: target.name, count: 2, visible: false }));
       },
     );
     await run(unread, "goto");
@@ -492,10 +503,49 @@ describe("the screens the designer watches", () => {
     );
   });
 
+  it("counts a text an element without a name shows, and finds the part of the page that holds one alone when several show it", async () => {
+    const asked: CheckedTarget[] = [];
+    /** A page that shows "Customer Profile" once, and "Open" in three places, one alone in its table. */
+    const matches: TargetMatcher = async (_application, targets) =>
+      targets.map((target) => {
+        asked.push(target);
+        const text = "text" in target ? target.text : target.name;
+        const within = target.within === undefined ? "page" : `page.getByRole("${target.within.role}")`;
+        const count = text === "Open" && target.within?.role !== "table" ? 3 : 1;
+        return { code: `${within}.getByText(${JSON.stringify(text)}, { exact: true })`, count, visible: count === 1 };
+      });
+    const shown = [
+      "- main:",
+      "  - paragraph: Customer Profile",
+      '  - paragraph: "Phone: 055 222 41 11"',
+      "  - table:",
+      "    - generic: Open",
+      "  - generic: ok",
+      '  - textbox "Search": Open',
+    ].join("\n");
+    const watch = new ScreenWatch(["shop"], page([shown]).tools, matches);
+    await run(watch, "goto");
+    assert.deepEqual(
+      [watch.locatorOf("shop", "Customer Profile", false), watch.locatorOf("shop", "Phone: 055 222 41 11", false), watch.locatorOf("shop", "Open", false)],
+      [
+        { locator: 'page.getByText("Customer Profile", { exact: true })', field: false, count: 1 },
+        // A text YAML quotes is read without its quotes.
+        { locator: 'page.getByText("Phone: 055 222 41 11", { exact: true })', field: false, count: 1 },
+        // Several elements show it: the table, a part told by its role alone, holds one of them alone.
+        { locator: 'page.getByText("Open", { exact: true })', field: false, count: 3, narrower: 'page.getByRole("table").getByText("Open", { exact: true })' },
+      ],
+    );
+    // A field is counted by its name, never by what it holds, and a text too short tells nothing.
+    assert.deepEqual(
+      asked.filter((target) => target.within === undefined).map((target) => ("text" in target ? target.text : target.name)),
+      ["Customer Profile", "Phone: 055 222 41 11", "Open", "Search"],
+    );
+  });
+
   it("gives an element whose locator designates it alone first, else one several share, else the field, else one the page did not show", async () => {
     const field = '- textbox "Search": Ghost → page.getByRole("textbox", { name: "Search", exact: true })';
     const matches: TargetMatcher = async (_application, targets) =>
-      targets.map(({ role, name }) => ({ code: `<${role} ${name}>`, count: name === "Ghost" ? 0 : role === "cell" ? 2 : 1, visible: true }));
+      named(targets).map(({ role, name }) => ({ code: `<${role} ${name}>`, count: name === "Ghost" ? 0 : role === "cell" ? 2 : 1, visible: true }));
     const watch = new ScreenWatch(
       ["shop"],
       page([`- cell "Active"\n- heading "Active"\n- cell "Ghost"\n- cell "Lost"\n- cell "Framed" → inside a frame: these tools cannot reach it\n${field}`])

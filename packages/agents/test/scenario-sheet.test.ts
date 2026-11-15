@@ -11,7 +11,7 @@ import { scenarioSheet, skeleton } from "../src/designer/scenario-sheet.ts";
 
 /** Types of `@playwright/test` that a skeleton uses. */
 const PLAYWRIGHT_TYPES = `
-export interface Locator { click(): Promise<void>; fill(value: string): Promise<void>; }
+export interface Locator { click(): Promise<void>; fill(value: string): Promise<void>; filter(options: { visible?: boolean }): Locator; }
 export interface BrowserContext { newPage(): Promise<Page>; }
 export interface Page {
   goto(url: string): Promise<void>;
@@ -109,11 +109,11 @@ test("Search an order by \\"customer\\" name", { tag: ["@level-functional","@dom
   await test.step("2. Search the orders of Veldane", async () => {
     // Do: Search the orders of Veldane. Copy the code lines the browser tools returned.
     // Expect 2.1: The table lists the order of Mira Veldane only.
-    await expect(page.getByText("ORD-1042")).not.toHaveCount(0);
-    await expect(page.getByText("Mira Veldane")).not.toHaveCount(0);
+    await expect(page.getByText("ORD-1042").filter({ visible: true })).not.toHaveCount(0);
+    await expect(page.getByText("Mira Veldane").filter({ visible: true })).not.toHaveCount(0);
     await expect(page.getByText("ORD-1057")).toBeHidden();
     // Expect 2.2: The count says one.
-    await expect(page.getByText("1 order")).not.toHaveCount(0);
+    await expect(page.getByText("1 order").filter({ visible: true })).not.toHaveCount(0);
     await testInfo.attach("2", { body: await page.screenshot(), contentType: "image/png" });
   });
 });
@@ -152,7 +152,7 @@ test("Search an order by \\"customer\\" name", { tag: ["@level-functional","@dom
         .split("\n")
         .filter((line) => line.includes("getByRole") && line.includes("Count(")),
       [
-        '    await expect(page.getByRole("cell", { name: "Mira Veldane", exact: true })).not.toHaveCount(0);',
+        '    await expect(page.getByRole("cell", { name: "Mira Veldane", exact: true }).filter({ visible: true })).not.toHaveCount(0);',
         '    await expect(page.getByRole("cell", { name: "ORD-1057", exact: true })).toHaveCount(0);',
       ],
     );
@@ -200,7 +200,7 @@ describe("the skeleton of a test of several applications", () => {
     assert.ok(content.includes("async ({ page, context }, testInfo) => {"), content);
     for (const line of [
       'await expect(customerDeskPage.getByRole("link", { name: "Ticket 12", exact: true })).toBeVisible();',
-      'await expect(customerDeskPage.getByText("Open")).not.toHaveCount(0);',
+      'await expect(customerDeskPage.getByText("Open").filter({ visible: true })).not.toHaveCount(0);',
       'await testInfo.attach("2", { body: await customerDeskPage.screenshot(), contentType: "image/png" });',
       'await testInfo.attach("1", { body: await page.screenshot(), contentType: "image/png" });',
     ])

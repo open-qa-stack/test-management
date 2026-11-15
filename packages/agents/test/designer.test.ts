@@ -1931,7 +1931,7 @@ describe("what a plan may hold", () => {
     );
     assert.match(toolResult(server, "search"), /Order 42 of Ada/);
     assert.match(told(server, "done"), /^The plan is not closed yet\. It holds 3 scenarios: list-orders, place-order, follow-order\.\n/);
-    // The plan kept holds the code of the action each step cites: the sheet of its first scenario gives it, and the text no element showed by itself.
+    // The plan kept holds the code of the action each step cites: the sheet of its first scenario gives it, and the text asserted on the element that shows it, a paragraph without a name.
     assert.ok(
       asked(server, 1).includes(
         [
@@ -1941,7 +1941,7 @@ describe("what a plan may hold", () => {
           '  await test.step("2. Search the orders", async () => {',
           '    await page.getByRole("button", { name: "Search", exact: true }).click();',
           "    // Expect 2.1: The order shows.",
-          '    await expect(page.getByText("Order 42 of Ada")).not.toHaveCount(0);',
+          '    await expect(page.getByText("Order 42 of Ada", { exact: true })).toBeVisible();',
           "  });",
         ].join("\n"),
       ),
@@ -1952,7 +1952,7 @@ describe("what a plan may hold", () => {
       {
         action: "Search the orders",
         code: ['await page.getByRole("button", { name: "Search", exact: true }).click();'],
-        expects: [{ ...found, elements: [] }],
+        expects: [{ ...found, elements: [{ text: "Order 42 of Ada", locator: 'page.getByText("Order 42 of Ada", { exact: true })', field: false }] }],
       },
     ]);
     assert.ok(
@@ -1965,7 +1965,7 @@ describe("what a plan may hold", () => {
           "```",
           "",
           "Expect 2.1: The order shows.",
-          '- shows "Order 42 of Ada" by its text',
+          '- shows "Order 42 of Ada" in `page.getByText("Order 42 of Ada", { exact: true })`',
           "",
         ].join("\n"),
       ),
@@ -2004,7 +2004,7 @@ describe("the element of an expected text", () => {
         [
           '    await page.goto("/pairs");',
           "    // Expect 1.1: The pairs show.",
-          '    await expect(page.getByRole("heading", { name: "Open", exact: true })).not.toHaveCount(0);',
+          '    await expect(page.getByRole("heading", { name: "Open", exact: true }).filter({ visible: true })).not.toHaveCount(0);',
           `    await expect(${due}).toBeVisible();`,
         ].join("\n"),
       ),

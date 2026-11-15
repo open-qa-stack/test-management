@@ -4,8 +4,11 @@ import type { PlanReview, TestPlan, ToolDefinition } from "@open-qa-stack/domain
 import { Journal } from "../src/common/journal.ts";
 import type { DuplicateJudge, JudgedDuplicate } from "../src/designer/duplicate-judge.ts";
 import { PlanProposal, type PlanRules, type SubmittedPlan, type SubmittedScenario, type SubmittedStep } from "../src/designer/plan-proposal.ts";
-import { ScreenWatch, type TargetMatcher } from "../src/designer/screen-watch.ts";
+import { ScreenWatch, type CheckedTarget, type NamedTarget, type TargetMatcher } from "../src/designer/screen-watch.ts";
 import { SourceWatch } from "../src/designer/source-watch.ts";
+
+/** The targets a page of these tests is asked about, which all have a name. */
+const named = (targets: readonly CheckedTarget[]) => targets as readonly NamedTarget[];
 
 /** A step as these tests write it: it cites the first action, which opened the orders, unless it cites others. */
 type Step = Omit<SubmittedStep, "actions"> & { readonly actions?: readonly number[] };
@@ -1245,7 +1248,7 @@ describe("the element of each expected text, as the harness checked its locator 
   ].join("\n");
   /** A page with two cells "Active", one alone in the row of ORD-1, three cells "Paid" nothing tells apart, and no cell "Ghost" a test finds. */
   const matches: TargetMatcher = async (_application, targets) =>
-    targets.map(({ role, name, within }) => {
+    named(targets).map(({ role, name, within }) => {
       const count = name === "Ghost" ? 0 : name === "Paid" ? 3 : name === "Active" && within === undefined ? 2 : 1;
       const scope = within === undefined ? "page" : `page.getByRole("${within.role}", { name: "${within.name}" })`;
       return { code: `${scope}.getByRole("${role}", { name: "${name}", exact: true })`, count, visible: count === 1 };

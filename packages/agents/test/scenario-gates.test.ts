@@ -60,7 +60,7 @@ const STEP_TWO = [
   // The element the plan gives for it, by a locator that names it: it is visible.
   'await expect(page.getByRole("row", { name: "ORD-1042 Mira Veldane" })).toBeVisible();',
   // The plan gives no element for it: the text, in one place of the page at least.
-  'await expect(page.getByText("OK")).not.toHaveCount(0);',
+  'await expect(page.getByText("OK").filter({ visible: true })).not.toHaveCount(0);',
   'await expect(page.getByText("ORD-1057")).toBeHidden();',
 ].join("\n");
 
@@ -148,7 +148,7 @@ describe("the gates of a test against its scenario", () => {
       `    await expect(page.getByText("ORD-1042")).toBeHidden();`,
       `    await expect(page.getByText("ORD-1042")).not.toBeVisible();`,
       `    await expect(page.getByRole("row", { name: "ORD-1057" })).toBeVisible();`,
-      `    await expect(page.getByRole("row", { name: "ORD-1057" })).not.toHaveCount(0);`,
+      `    await expect(page.getByRole("row", { name: "ORD-1057" }).filter({ visible: true })).not.toHaveCount(0);`,
     ]);
     assert.deepEqual(await errors(reversed), [
       'TEST-POLARITY: expect 2.1 says the screen shows "ORD-1042", and step 2 asserts the opposite. An expect is never reversed to pass. If the application does the opposite of the plan, call propose_test with diagnosis.',

@@ -29,11 +29,17 @@ export function assertionsOf(expect: PlannedExpect): string[] {
 export function assertionOf(text: string, negative: boolean, element: ExpectedElement | undefined): string {
   const quoted = JSON.stringify(text);
   if (element?.field === true) return `await expect(${element.locator}).toHaveValue(${quoted});`;
-  // Several elements share the locator: one at least shows the text, or none is left.
-  if (element?.count !== undefined) return `await expect(${element.locator})${negative ? "" : ".not"}.toHaveCount(0);`;
+  // Several elements share the locator: one at least is shown, or none is left.
+  if (element?.count !== undefined)
+    return negative ? `await expect(${element.locator}).toHaveCount(0);` : `await expect(${shown(element.locator)}).not.toHaveCount(0);`;
   const subject = element?.locator ?? `page.getByText(${quoted})`;
   if (negative) return `await expect(${subject}).toBeHidden();`;
-  // No screen gave its element: the page may hold the text in several places, and one at least is enough.
-  if (element === undefined) return `await expect(${subject}).not.toHaveCount(0);`;
+  // No screen gave its element: the page may hold the text in several places, and one a user sees is enough.
+  if (element === undefined) return `await expect(${shown(subject)}).not.toHaveCount(0);`;
   return observed(text, [element.locator]) ? `await expect(${element.locator}).toBeVisible();` : `await expect(${element.locator}).toContainText(${quoted});`;
+}
+
+/** A locator held to the elements the page shows: one it holds hidden, off the screen or folded away is none a user sees. */
+function shown(locator: string): string {
+  return `${locator}.filter({ visible: true })`;
 }

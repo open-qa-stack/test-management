@@ -79,10 +79,16 @@ export interface ShownElement {
  * Counts, on the page of an application as it is now, the elements each target designates, as the browser
  * tools do.
  */
-export type TargetMatcher = (application: string, targets: readonly NamedTarget[]) => Promise<readonly TargetMatch[]>;
+export type TargetMatcher = (application: string, targets: readonly CheckedTarget[]) => Promise<readonly TargetMatch[]>;
 
 /** An element by its role and its exact name, inside a part of the page or not: a target of the browser tools. */
 export type NamedTarget = Extract<Target, { role: string }> & { readonly name: string };
+
+/** A text the page shows in an element without a name, such as a paragraph: a target of the browser tools by its exact text. */
+export type TextTarget = Extract<Target, { text: string }>;
+
+/** An element the watch counts on the page: one with a name, or a text. */
+export type CheckedTarget = NamedTarget | TextTarget;
 
 /** What the locator of the element of a line designated on the page while the screen showed the line. */
 interface Checked {
@@ -587,7 +593,11 @@ export class ScreenWatch {
       const holding = besideFields(pool)
         .reverse()
         .filter((line) => observed(text, [line]));
-      found.push(...holding.filter((line) => namedBy(line, text) !== undefined).flatMap((line) => namedElement(seen, line)));
+      found.push(
+        ...holding
+          .filter((line) => namedBy(line, text) !== undefined || sameText(textTarget(line)?.text ?? "", text))
+          .flatMap((line) => namedElement(seen, line)),
+      );
       found.push(...holding.flatMap((line) => locatorIn(line) ?? []).map((locator) => ({ locator, field: false, count: 1 })));
     }
     const typedIn = gone
@@ -703,10 +713,11 @@ export class ScreenWatch {
    */
   private async check(application: string, seen: Seen, page: string): Promise<void> {
     const tree = page.split("\n");
-    const fresh = new Map<string, { readonly target: NamedTarget; readonly scopes: readonly TargetScope[] }>();
+    const fresh = new Map<string, { readonly target: CheckedTarget; readonly scopes: readonly TargetScope[] }>();
     tree.forEach((raw, at) => {
       const line = normalized(raw);
-      const target = namedTarget(line);
+      // An element with a name, or a text an element without one shows: both are counted, so that an assertion knows what it finds.
+      const target = namedTarget(line) ?? textTarget(line);
       if (target !== undefined && !line.includes(" → ") && seen.last?.has(line) !== true && !fresh.has(line) && fresh.size < MAX_CHECKED)
         fresh.set(line, { target, scopes: scopesOf(tree, at) });
     });
@@ -726,8 +737,8 @@ export class ScreenWatch {
 }
 
 /** What every target designates when there is no page to look at: one element, which the page shows. */
-async function oneEach(_application: string, targets: readonly NamedTarget[]): Promise<TargetMatch[]> {
-  return targets.map((target) => ({ code: namedLocator(target), count: 1, visible: true }));
+async function oneEach(_application: string, targets: readonly CheckedTarget[]): Promise<TargetMatch[]> {
+  return targets.map((target) => ({ code: "text" in target ? textLocator(target.text) : namedLocator(target), count: 1, visible: true }));
 }
 
 /** The element of a line named by a text, as its locator was checked: none when it was not, or when its line says no locator reaches it. */
@@ -747,7 +758,8 @@ function scopesOf(tree: readonly string[], at: number): TargetScope[] {
   for (let above = at - 1; above >= 0 && scopes.length < MAX_SCOPES; above -= 1) {
     if (indentOf(tree[above]!) >= indent) continue;
     indent = indentOf(tree[above]!);
-    const scope = namedTarget(normalized(tree[above]!));
+    // A part with a name, such as a row, or one of the page told by its role alone, such as its table or a dialog.
+    const scope = namedTarget(normalized(tree[above]!)) ?? partOf(normalized(tree[above]!));
     if (scope !== undefined) scopes.push(scope);
   }
   return scopes;
@@ -831,6 +843,32 @@ function namedTarget(line: string): { role: string; name: string } | undefined {
   if (start === null) return undefined;
   const [, quoted, role, escaped] = start as unknown as [string, string, string, string];
   return { role, name: JSON.parse(`"${quoted === "" ? escaped : escaped.replaceAll("''", "'")}"`) as string };
+}
+
+/** The start of a line of a part of the page told by its role alone: one a page has few of, which holds what an assertion looks for. */
+const PART = /^- '?(table|dialog|alertdialog|form|navigation|main|list|region|banner|contentinfo|article|alert|status)(?: \[[^\]]+\])*:?'?$/;
+/** The line of an element without a name that shows a text: its role, then the text. */
+const TEXTED = /^- [a-z]+: (.+)$/;
+
+/** The part of the page a line starts, when it has no name: by its role alone. */
+function partOf(line: string): TargetScope | undefined {
+  const start = PART.exec(line);
+  return start === null ? undefined : { role: start[1]! };
+}
+
+/** The text an element without a name shows, as a target: none for a field, an element with a name, or a text too short to tell anything. */
+function textTarget(line: string): TextTarget | undefined {
+  if (FIELD.test(line) || NAMED.test(line)) return undefined;
+  const shown = TEXTED.exec(line.split(" → ")[0]!)?.[1];
+  if (shown === undefined) return undefined;
+  // YAML quotes a text that holds a colon or starts with a mark.
+  const text = /^".*"$/.test(shown) ? (JSON.parse(shown) as string) : shown;
+  return checkable(text) ? { text } : undefined;
+}
+
+/** The locator of an element by its exact text, as a test writes it. */
+function textLocator(text: string): string {
+  return `page.getByText(${JSON.stringify(text)}, { exact: true })`;
 }
 
 /** The locator of an element by its role and its exact name, as a test writes it. */
