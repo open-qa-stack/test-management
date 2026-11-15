@@ -711,6 +711,20 @@ describe("the edges of a run", () => {
     assert.ok(!err.includes("npm cannot be run"), err);
   });
 
+  it("runs the tests an incomplete design gave, and does not end as passed", async () => {
+    // The session of the third scenario ends without a call, whatever it is reminded of: its test is left unfinished.
+    const replies = [...chain().slice(0, 9), ...written("test-1"), ...written("test-2"), ...Array.from({ length: 8 }, () => ended)];
+    const run = await solo(replies, { environment: "local" });
+    assert.equal(run.code, 2, run.err);
+    assert.match(run.err, /\[design\] error: The design failed: 2 tests were obtained, 3 are expected, one per scenario of the plan\./);
+    assert.match(run.err, /\[design\] The design is incomplete: the tests it gave are run, and the run cannot end as passed\./);
+    assert.match(run.err, /\[execution\] 2 of the 3 tests designed are run; left out as unfinished, duplicate or unfeasible: apps\/shop\/test-3\.spec\.ts\./);
+    assert.deepEqual(
+      stateOf(run.root).tests!.map((test) => test.verdict),
+      ["passed", "passed"],
+    );
+  });
+
   it("stops with 5 on an unexpected error in a step, closes the step, and keeps what the steps before produced", async () => {
     const run = await solo(chain(), { environment: "local", script: { installCrash: true } });
     assert.equal(run.code, 5, run.err);

@@ -6,7 +6,7 @@ export const ExitCode = {
   passed: 0,
   /** The whole chain ran, and a test failed. */
   failed: 1,
-  /** The whole chain ran without a failure, but a test was blocked, indeterminate, skipped or not run. */
+  /** The whole chain ran without a failure, but a test was blocked, indeterminate, skipped or not run, or the design left a scenario of its plan without a test. */
   unsettled: 2,
   /** The configuration is missing or invalid, or the command was misused. */
   configuration: 3,

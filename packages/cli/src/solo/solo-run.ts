@@ -262,8 +262,12 @@ export class SoloRun {
       };
       // A design a limit cut short can be resumed, even once it gave its tests.
       if (stoppedBy !== undefined) found = { ...found, stoppedBy: { step: "design", limit: stoppedBy } };
-      if (!designed.ok) return ExitCode.interrupted;
       const { run, leftOut } = runnableTests(designed.value.tests);
+      // A design that left a scenario without a test still gave the others: they are run, and the run does not end as passed.
+      // One a limit cut short is resumed instead, and one that gave no test to run has nothing to go on with.
+      const partial = !designed.ok;
+      if (partial && (stoppedBy !== undefined || run.length === 0)) return ExitCode.interrupted;
+      if (partial) journal.record("design", "info", "The design is incomplete: the tests it gave are run, and the run cannot end as passed.");
       // A design whose plan holds no scenario gave no test: nothing is run, and nothing is verified.
       if (run.length === 0) {
         journal.record("design", "info", "No test is run: the design gave none.");
@@ -300,7 +304,8 @@ export class SoloRun {
         ...(result.report === undefined ? {} : { report: result.report }),
         tests: result.tests.map((test) => ({ ...test, reason: journal.mask(test.reason) })),
       };
-      return exitCodeOf(result.tests.map((test) => test.verdict));
+      const code = exitCodeOf(result.tests.map((test) => test.verdict));
+      return partial && code === ExitCode.passed ? ExitCode.unsettled : code;
     };
     let exitCode: ExitCodeValue;
     try {
