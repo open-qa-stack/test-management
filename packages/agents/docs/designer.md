@@ -220,6 +220,19 @@ With the option `reviewTests` (the key `design.reviewTests` of the configuration
 
 The reviewer refuses no test alone. Its last review is kept with the test in the design state, as `review`: its date and its findings, none when the test is coherent with its scenario. A text is reviewed once: proposed again unchanged, it is not read again.
 
+### The review of the code of a test
+
+A third agent reviews the quality of the code, whatever the plan: the code reviewer, in a session of its own, with the test and `report_quality` as its only tool. Its instructions are composed from the test charter by the caller, as those of the agent that writes are — `reviewerInstructions` of the harness —, and the review is done when the option `reviewCode` of the designer asks for it: the command asks unless the key `design.reviewCode` of the configuration is `false`.
+
+It is told what is fixed and is no finding — what the harness writes from the plan: the title and the tags, the steps and their titles, the comments of the expects, the screenshots, the locators, the texts asserted and the values typed — and what it reviews: a rule of the charter the test breaks, which it cites, code that hides a failure, code that does nothing or twice, code a person reads badly. Each finding says what it concerns:
+
+| A finding concerns | What the harness does with it |
+|---|---|
+| `test` | It is told once to the agent that wrote the test, as the warning `TEST-QUALITY`, with the rule it breaks when it names one. The agent repairs the test and runs it again, or proposes it again as it is. |
+| `plan` | It is not told to that agent, which cannot change what its plan fixed: a value asserted that changes with time or with the data of the environment, such as a date or a count of rows. It is kept for a person. |
+
+The two reviews of a test run one after the other when its scenario is closed, coherence first, and what both found is told in one warning. The last review of the code is kept with the test in the design state, as `quality`: its date and every finding, those of the plan included. As the review of coherence, it refuses no test alone, reviews a text once, and is left out, the journal saying so, when its session fails.
+
 ### Every scenario accounted for
 
 The agent that writes a test may find that no test can do what its scenario asks: a step the application does not offer once tried, an environment that does not allow it. It says so with `propose_test` and `unfeasible`, with its reason, rather than force a test. The scenario is then classed `unfeasible`, by the agent, with the reason and the date, and its last text is kept in the state; it is not run.

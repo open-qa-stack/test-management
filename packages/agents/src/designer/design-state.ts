@@ -60,6 +60,26 @@ export interface CoherenceFinding {
   readonly what: string;
 }
 
+/** What the code of a test lacks in quality, as the reviewer of its code found it. */
+export interface QualityFinding {
+  /** Where it is: a line, or a step by its number. */
+  readonly where: string;
+  /** What is wrong and what to write instead, in a sentence. */
+  readonly what: string;
+  /** The identifier of the rule of the charter it breaks, when it breaks one. */
+  readonly rule?: string;
+  /** Whether the agent that wrote the test can repair it, or its plan fixed it: a finding of the plan is kept for a person. */
+  readonly concerns: "test" | "plan";
+}
+
+/** The review of the code of a test, by the agent that reviews its quality: it refuses nothing, and is kept with the test for a person to read. */
+export interface QualityReview {
+  /** When the test was reviewed, ISO 8601 in UTC. */
+  readonly at: string;
+  /** What the reviewer found; none when the code needs nothing. */
+  readonly findings: readonly QualityFinding[];
+}
+
 /** The review of a test against its scenario, by the agent that reviews coherence: it refuses nothing, and is kept with the test for a person to read. */
 export interface TestReview {
   /** When the test was reviewed, ISO 8601 in UTC. */
@@ -86,6 +106,8 @@ export interface DesignedTest {
   readonly duplicates?: string;
   /** The review of its coherence with its scenario, when its text was reviewed: the last one, of the text kept. */
   readonly review?: TestReview;
+  /** The review of the quality of its code, when its text was reviewed: the last one, of the text kept. */
+  readonly quality?: QualityReview;
   /** The references of its visual comparisons, written with it, relative to the root of the test repository. */
   readonly references?: readonly string[];
   /** The code of the check the harness closed its scenario on, when it did: the gate that refused it five times, `TEST-STOP` when none of its runs gave a verdict, `SESSION-END` when its session ended first. */

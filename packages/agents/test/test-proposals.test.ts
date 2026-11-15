@@ -11,6 +11,7 @@ import { skeleton } from "../src/designer/scenario-sheet.ts";
 import { SourceWatch } from "../src/designer/source-watch.ts";
 import { locatorsOf } from "../src/designer/spec-rules.ts";
 import type { CoherenceJudge } from "../src/designer/coherence-judge.ts";
+import type { QualityJudge } from "../src/designer/quality-judge.ts";
 import type { CoherenceFinding } from "../src/designer/design-state.ts";
 import { TestProposals, type ProposalRules } from "../src/designer/test-proposals.ts";
 
@@ -794,6 +795,90 @@ describe("a test that passed, read against its scenario by the coherence reviewe
         .some(
           (entry) =>
             entry.message === "The review of the test of open-ledger for coherence failed, and the test goes on without it: the review ended without a report.",
+        ),
+    );
+  });
+});
+
+describe("a test that passed, its code read by the reviewer of its quality", () => {
+  const planned = scenario("ledger", []);
+  const passing: TestRunner = { run: async (test) => ({ startedAt: STARTED, tests: [{ id: test.path, verdict: "passed", reason: "Every attempt passed." }] }) };
+  const HIDDEN = { where: "line 7", what: "A try and catch hides the failure: remove it.", rule: "PW-KEEP-01", concerns: "test" } as const;
+  const DATED = { where: "step 1", what: "The date asserted changes every day.", concerns: "plan" } as const;
+  const UNUSED = { where: "line 2", what: "The import of expect is not used: remove it.", concerns: "test" } as const;
+  const given = (quality: QualityJudge, coherence?: CoherenceJudge) => {
+    const journal = new Journal();
+    const proposals = new TestProposals({ ...rules(passing), quality, ...(coherence === undefined ? {} : { coherence }) }, journal, { scenarios: [planned] });
+    proposals.begin(BLIND);
+    const run = () => proposals.trialTool().execute({ content: acted(skeleton(planned, false)) });
+    return { proposals, journal, run, propose: () => proposals.tool().execute({}) as Promise<string | { error: string }> };
+  };
+
+  it("is told once what it can repair, with the rule broken, and kept with every finding, those of its plan included", async () => {
+    let asked = 0;
+    const { proposals, journal, run, propose } = given({ judge: async () => ((asked += 1), [HIDDEN, DATED, UNUSED]) });
+    await run();
+    assert.equal(
+      await propose(),
+      [
+        "Warning (TEST-QUALITY): another agent read the code of the test of scenario open-ledger, and found:",
+        "- line 7 (PW-KEEP-01): A try and catch hides the failure: remove it.",
+        "- line 2: The import of expect is not used: remove it.",
+        "Where it is right, fix the test and run it again with run_test. If the test is right as it is, call propose_test again: it is kept, with these findings, for a person to decide.",
+      ].join("\n"),
+    );
+    assert.match((await propose()) as string, /^Scenario open-ledger closed: passed\./);
+    assert.deepEqual([asked, proposals.accepted[0]!.quality], [1, { at: NOW, findings: [HIDDEN, DATED, UNUSED] }]);
+    assert.ok(
+      journal
+        .entries()
+        .some(
+          (entry) =>
+            entry.message ===
+            "The code reviewer found fault with the test of open-ledger: line 7 (PW-KEEP-01): A try and catch hides the failure: remove it. line 2: The import of expect is not used: remove it.",
+        ),
+    );
+  });
+
+  it("is kept at once when all that was found concerns its plan, which a person will read", async () => {
+    const { proposals, run, propose } = given({ judge: async () => [DATED] });
+    await run();
+    assert.match((await propose()) as string, /^Scenario open-ledger closed: passed\./);
+    assert.deepEqual(proposals.accepted[0]!.quality!.findings, [DATED]);
+  });
+
+  it("is told in one warning what both reviewers found", async () => {
+    const coherence: CoherenceJudge = { judge: async () => [{ where: "step 1", what: "No assertion verifies that the ledger opens." }] };
+    const { run, propose } = given({ judge: async () => [UNUSED] }, coherence);
+    await run();
+    assert.equal(
+      await propose(),
+      [
+        "Warning (TEST-COHERENCE): another agent read the test of scenario open-ledger against its sheet, and says it does not do or verify all of it:",
+        "- step 1: No assertion verifies that the ledger opens.",
+        "Warning (TEST-QUALITY): another agent read the code of the test of scenario open-ledger, and found:",
+        "- line 2: The import of expect is not used: remove it.",
+        "Check each against the sheet. Where it is right, fix the test and run it again with run_test. If the test is right as it is, call propose_test again: it is kept, with these findings, for a person to decide.",
+      ].join("\n"),
+    );
+  });
+
+  it("is kept without a review of its code when the reviewer fails, and the journal says so", async () => {
+    const { proposals, journal, run, propose } = given({
+      judge: async () => {
+        throw new Error("the review reached its iterations limit.");
+      },
+    });
+    await run();
+    assert.match((await propose()) as string, /^Scenario open-ledger closed: passed\./);
+    assert.equal(proposals.accepted[0]!.quality, undefined);
+    assert.ok(
+      journal
+        .entries()
+        .some(
+          (entry) =>
+            entry.message ===
+            "The review of the code of the test of open-ledger failed, and the test goes on without it: the review reached its iterations limit.",
         ),
     );
   });

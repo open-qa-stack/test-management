@@ -290,6 +290,8 @@ interface Setup {
   /** Whether the agent that reviews plans is asked about duplicates. */
   readonly reviewPlan?: boolean;
   readonly reviewTests?: boolean;
+  readonly reviewerInstructions?: string;
+  readonly reviewCode?: boolean;
   /** The levels the plan is asked for; `default` for those of the designer itself. */
   readonly levels?: readonly ScenarioLevel[] | "default";
   readonly observe?: (line: { event: { type: string } }) => void;
@@ -332,6 +334,8 @@ async function design(script: readonly { status?: number; body: unknown }[], set
       ...(setup.planReview === undefined ? {} : { planReview: setup.planReview }),
       ...(setup.reviewPlan === undefined ? {} : { reviewPlan: setup.reviewPlan }),
       ...(setup.reviewTests === undefined ? {} : { reviewTests: setup.reviewTests }),
+      ...(setup.reviewerInstructions === undefined ? {} : { reviewerInstructions: setup.reviewerInstructions }),
+      ...(setup.reviewCode === undefined ? {} : { reviewCode: setup.reviewCode }),
       // The scenarios of these tests are functional: the plan is asked for that level alone unless a test says otherwise.
       ...(setup.levels === "default" ? {} : { levels: setup.levels ?? ["functional"] }),
       ...(setup.observe === undefined ? {} : { observe: setup.observe }),
@@ -2341,5 +2345,45 @@ describe("the review of each test for coherence with its scenario", () => {
     );
     assert.match(told(server, "c-place-order"), /^Warning \(TEST-COHERENCE\): another agent read the test of scenario place-order against its sheet/);
     assert.deepEqual(stateOf(outcome).tests[1]!.review!.findings, fault);
+  });
+});
+
+describe("the review of the code of each test for its quality", () => {
+  it("is done by an agent of its own, with the instructions of the caller, after the review of coherence, and kept with the test", async () => {
+    const report = (id: string, name: string, findings: unknown[]): Call => ({ id, name, arguments: { findings } });
+    const dated = [{ where: "step 1", what: "The count asserted changes with the data.", concerns: "plan" }];
+    // Each review runs in a session of its own while the scenario is closed: coherence first, then the code.
+    const reviewed = (name: string, findings: unknown[] = []) => [
+      [run(spec(name), `r-${name}`)],
+      [close(`c-${name}`)],
+      [report(`f-${name}`, "report_findings", [])],
+      DONE,
+      [report(`q-${name}`, "report_quality", findings)],
+      DONE,
+      DONE,
+    ];
+    const { outcome, server } = await design(replies([...reviewed("list-orders", dated), ...reviewed("place-order"), ...reviewed("follow-order")]), {
+      reviewTests: true,
+      reviewCode: true,
+      reviewerInstructions: "Review the code against the charter.",
+    });
+    assert.equal(outcome.ok, true, messages(outcome));
+    assert.deepEqual(
+      outcome.tests.map((test) => [test.scenario, test.review?.findings, test.quality?.findings]),
+      [
+        ["list-orders", [], dated],
+        ["place-order", [], []],
+        ["follow-order", [], []],
+      ],
+    );
+    assert.ok(JSON.stringify(server.requests.map((request) => request.body)).includes("Review the code against the charter."));
+    // Without the instructions of a reviewer, or when the review of the code is not asked, no code is reviewed.
+    for (const setup of [{ reviewCode: true }, { reviewerInstructions: "Review the code against the charter." }]) {
+      const plain = await design(replies(valid(3)), setup);
+      assert.deepEqual(
+        plain.outcome.tests.map((test) => test.quality),
+        [undefined, undefined, undefined],
+      );
+    }
   });
 });

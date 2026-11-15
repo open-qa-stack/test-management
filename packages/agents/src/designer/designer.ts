@@ -24,6 +24,7 @@ import { CARDS_FOLDER } from "../source-cartographer/source-cartographer.ts";
 import { DESIGNS_FOLDER, type DesignedTest, type DesignState, type TestClass } from "./design-state.ts";
 import { MANIFEST_FILE } from "../source-workflow/source-folder.ts";
 import { IndexMap, type WrittenSource } from "./index-map.ts";
+import { CodeReviewer } from "../code-reviewer/code-reviewer.ts";
 import { CoherenceReviewer } from "../coherence-reviewer/coherence-reviewer.ts";
 import { PlanReviewer } from "../plan-reviewer/plan-reviewer.ts";
 import { PLAN_FILE_SUFFIX, planFileText, readPlanFile, type PlanRecord } from "./plan-file.ts";
@@ -65,6 +66,10 @@ export interface DesignerOptions {
   readonly reviewPlan?: boolean;
   /** Whether the agent that reviews coherence reads each test that passed against its scenario, in a session of its own, before the test is kept: its findings are told once to the agent that wrote the test, and kept with it. `false` by default. */
   readonly reviewTests?: boolean;
+  /** System instructions of the agent that reviews the quality of the code of each test that passed, composed from the test charter by the caller, such as `reviewerInstructions` of the harness. Its findings are told once to the agent that wrote the test, and kept with it. */
+  readonly reviewerInstructions?: string;
+  /** Whether the agent that reviews the code of the tests does so, with `reviewerInstructions`; `false` by default, and without those instructions. */
+  readonly reviewCode?: boolean;
   /** The levels of the pyramid of tests the plan is asked for; `smoke`, `functional` and `business` by default. */
   readonly levels?: readonly ScenarioLevel[];
   /** Whether each step of a test ends with a screenshot attached to the report, as the charter may ask; the skeleton of a test then holds it. `false` by default. */
@@ -302,6 +307,9 @@ export class Designer {
           secrets: declaredSecrets(config, env),
           ...(this.options.check === undefined ? {} : { check: this.options.check }),
           ...(this.options.reviewTests === true ? { coherence: new CoherenceReviewer(reviewed) } : {}),
+          ...(this.options.reviewCode === true && this.options.reviewerInstructions !== undefined
+            ? { quality: new CodeReviewer(reviewed, this.options.reviewerInstructions) }
+            : {}),
           runner: this.options.runner,
           packages,
           screenshots: this.options.screenshots ?? false,

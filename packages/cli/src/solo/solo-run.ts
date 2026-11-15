@@ -2,7 +2,17 @@ import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join, posix, relative, sep } from "node:path";
 import type { CommandRunner, StopReason, TestVerdict, UncoveredRequest } from "@open-qa-stack/domain";
 import { Cartographer, Designer, type JournalEntry, type TraceLine } from "@open-qa-stack/agents";
-import { CharterCheck, writerInstructions, LocalRunner, PinnedRun, resolveCharter, RUNS_FOLDER, TrialRunner, type ActiveRule } from "@open-qa-stack/harness";
+import {
+  CharterCheck,
+  reviewerInstructions,
+  writerInstructions,
+  LocalRunner,
+  PinnedRun,
+  resolveCharter,
+  RUNS_FOLDER,
+  TrialRunner,
+  type ActiveRule,
+} from "@open-qa-stack/harness";
 import { CONFIG_FILE_NAME, declaredValues, validateConfig, type ResolvedConfig } from "@open-qa-stack/shared";
 import { ExitCode, exitCodeOf, type ExitCodeValue } from "./exit-code.ts";
 import { runnableTests } from "./runnable-tests.ts";
@@ -242,6 +252,8 @@ export class SoloRun {
           runner: trials,
           reviewPlan: config.design.reviewPlan,
           reviewTests: config.design.reviewTests,
+          reviewCode: config.design.reviewCode,
+          reviewerInstructions: reviewerInstructions(rules, config.repository),
           levels: config.design.levels,
           ...observed,
           ...(brief === undefined ? {} : { brief }),

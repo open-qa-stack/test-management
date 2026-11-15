@@ -157,11 +157,14 @@ A rule identifier is made of upper case words and digits separated by hyphens, s
 |---|---|---|---|
 | `reviewPlan` | boolean | `true` | `false` |
 | `reviewTests` | boolean | `true` | `false` |
+| `reviewCode` | boolean | `true` | `false` |
 | `levels` | array of levels, at least one, each once | `["smoke", "functional", "business"]` | `["functional"]` |
 
 The agent that plans submits its scenarios in several calls, and the harness sets aside each one another already covers. It first compares them by their code: the same steps, the same values, no text expected that the other does not expect. With `reviewPlan`, an agent of its own then reviews the scenarios the code let through, in sessions of the model of their own; `false` keeps the comparison by the code alone, and spares those sessions.
 
 `reviewTests` has an agent of its own read each test that passed against the scenario of its plan, in a session of the model of its own. What it finds is told once to the agent that wrote the test, and kept with the test: it refuses none.
+
+`reviewCode` has another agent of its own read the code of each test that passed for its quality, against the test charter. What the agent that wrote the test can repair is told to it once; what its plan fixed, such as a date asserted, is kept for a person. It refuses no test.
 
 `levels` names the levels of the pyramid of tests a plan is asked for, from its base to its top:
 

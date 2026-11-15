@@ -482,6 +482,10 @@
           "type": "boolean",
           "description": "Whether an agent of its own reads each test that passed against the scenario of its plan, in a session of the model of its own; true by default. Its findings are told once to the agent that wrote the test and kept with the test: it refuses none."
         },
+        "reviewCode": {
+          "type": "boolean",
+          "description": "Whether an agent of its own reads the code of each test that passed for its quality, against the test charter, in a session of the model of its own; true by default. Its findings are told once to the agent that wrote the test and kept with the test: it refuses none."
+        },
         "levels": {
           "type": "array",
           "minItems": 1,

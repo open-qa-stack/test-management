@@ -1,5 +1,5 @@
-import type { PlannedScenario, TerminalEvent, ToolDefinition } from "@open-qa-stack/domain";
-import type { AgentTask } from "../common/agent-task.ts";
+import type { PlannedScenario } from "@open-qa-stack/domain";
+import { findingLine, reportedFindings, type ReviewSession } from "../common/reported-findings.ts";
 import type { CoherenceJudge } from "../designer/coherence-judge.ts";
 import type { CoherenceFinding } from "../designer/design-state.ts";
 import { COHERENCE_REVIEWER_INSTRUCTIONS, FINDINGS_TOOL, coherenceRequest } from "./coherence-reviewer-prompt.ts";
@@ -9,8 +9,8 @@ export const MAX_FINDING_LENGTH = 300;
 /** Most findings kept of one review: past them, the test is to be written again rather than repaired. */
 export const MAX_FINDINGS = 5;
 
-/** Runs the session of one review, and gives how it ended. */
-export type CoherenceSession = (task: Pick<AgentTask, "instructions" | "tools" | "request" | "reminder">) => Promise<TerminalEvent>;
+/** Runs the session of one review of coherence. */
+export type CoherenceSession = ReviewSession;
 
 /**
  * The agent that reviews a test against the scenario of its plan.
@@ -35,49 +35,33 @@ export class CoherenceReviewer implements CoherenceJudge {
 
   /** {@inheritDoc CoherenceJudge.judge} */
   public async judge(scenario: PlannedScenario, test: string): Promise<readonly CoherenceFinding[]> {
-    let reported: CoherenceFinding[] | undefined;
-    const tool: ToolDefinition = {
-      name: FINDINGS_TOOL,
+    return reportedFindings(this.run, {
+      instructions: COHERENCE_REVIEWER_INSTRUCTIONS,
+      request: coherenceRequest(scenario, test),
+      tool: FINDINGS_TOOL,
       description: "Reports what the test does not do or verify of its scenario; an empty list when it is coherent with it.",
-      parameters: {
+      finding: {
         type: "object",
         properties: {
-          findings: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                where: { type: "string", description: "Where it is, such as step 2." },
-                what: { type: "string", description: "What is wrong, in one sentence." },
-              },
-              required: ["where", "what"],
-            },
-          },
+          where: { type: "string", description: "Where it is, such as step 2." },
+          what: { type: "string", description: "What is wrong, in one sentence." },
         },
-        required: ["findings"],
+        required: ["where", "what"],
       },
-      execute: async (args) => {
-        reported = findingsOf(args);
-        return "Recorded. Answer with one word; call no more tools.";
-      },
-    };
-    const reminder = () => (reported === undefined ? `Call ${FINDINGS_TOOL} now, with an empty list when the test is coherent with its scenario.` : undefined);
-    const last = await this.run({ instructions: COHERENCE_REVIEWER_INSTRUCTIONS, tools: [tool], request: coherenceRequest(scenario, test), reminder });
-    if (reported !== undefined) return reported;
-    if (last.type === "error") throw new Error(last.error.message);
-    throw new Error(last.type === "stopped" ? `the review reached its ${last.reason.limit} limit.` : "the review ended without a report.");
+      whenEmpty: "when the test is coherent with its scenario",
+      parse: findingsOf,
+    });
   }
 }
 
 /** The findings a call reports: its entries that give a place and a sentence, each on one line and cut, `MAX_FINDINGS` at most. */
-function findingsOf(args: unknown): CoherenceFinding[] {
-  const given = (args as { findings?: unknown } | null)?.findings;
-  const entries = Array.isArray(given) ? (given as readonly (Partial<Record<keyof CoherenceFinding, unknown>> | null)[]) : [];
-  const line = (text: string) => text.replace(/\s+/g, " ").trim().slice(0, MAX_FINDING_LENGTH);
-  return entries
+function findingsOf(entries: readonly unknown[]): CoherenceFinding[] {
+  return (entries as readonly (Partial<Record<keyof CoherenceFinding, unknown>> | null)[])
     .flatMap((entry) => {
       const { where, what } = entry ?? {};
-      return typeof where !== "string" || typeof what !== "string" ? [] : [{ where: line(where), what: line(what) }];
+      return typeof where !== "string" || typeof what !== "string"
+        ? []
+        : [{ where: findingLine(where, MAX_FINDING_LENGTH), what: findingLine(what, MAX_FINDING_LENGTH) }];
     })
     .slice(0, MAX_FINDINGS);
 }

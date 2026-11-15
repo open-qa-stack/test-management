@@ -194,6 +194,8 @@ export interface DesignSettings {
   reviewPlan?: boolean;
   /** Whether an agent of its own reviews each test that passed against the scenario of its plan; `true` by default. */
   reviewTests?: boolean;
+  /** Whether an agent of its own reviews the quality of the code of each test that passed; `true` by default. */
+  reviewCode?: boolean;
   /** The levels of the pyramid of tests a plan is asked for; `smoke`, `functional` and `business` by default. */
   levels?: TestLevel[];
 }

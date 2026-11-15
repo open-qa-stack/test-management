@@ -89,8 +89,12 @@ describe("criterion 2 — without changes, the instructions of the writer and th
   });
 
   it("asks the reviewer to cite the identifier of each rule a test breaks", () => {
-    assert.match(reviewerInstructions(rules, DEFAULT_REPOSITORY), /For each rule a test breaks, cite the identifier of the rule/);
-    assert.doesNotMatch(writerInstructions(rules, DEFAULT_REPOSITORY), /cite the identifier/);
+    const reviewer = reviewerInstructions(rules, DEFAULT_REPOSITORY);
+    assert.match(reviewer, /A rule of the charter below that the test breaks: cite its identifier\./);
+    assert.doesNotMatch(writerInstructions(rules, DEFAULT_REPOSITORY), /cite its identifier/);
+    // It is told what the plan fixed, what concerns the plan rather than the test, and how it reports.
+    for (const said of ["What is fixed, and is no finding", "a finding that concerns the plan", "When in doubt, it is no finding", "Call report_quality once"])
+      assert.ok(reviewer.includes(said), said);
   });
 });
 

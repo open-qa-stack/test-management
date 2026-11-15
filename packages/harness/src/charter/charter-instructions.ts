@@ -25,7 +25,21 @@ Never
 - Never write a host, a user name or a password in a test.
 - Never locate by CSS, XPath or position, and never wait for a fixed time.`;
 
-const REVIEWER_ROLE = `You are the test reviewer of a test platform. You review the Playwright tests the designer proposes against the charter below. For each rule a test breaks, cite the identifier of the rule, exactly as listed, and the line that breaks it. A test that breaks no rule is accepted.`;
+const REVIEWER_ROLE = `You review the code of one Playwright test, written by another agent, for its quality. The test passed, and another agent checks that it does what its plan says: that is not your matter. You write no test.
+
+What is fixed, and is no finding
+The harness writes from the plan the title of the test and its tags, one test.step per step with its title, the comments that start with "Expect", the lines that attach a screenshot, the locators, the texts asserted and the values typed. The agent that wrote the test may not change them.
+
+What you review
+- A rule of the charter below that the test breaks: cite its identifier.
+- Code that hides a failure: a try and catch, a condition or a loop around an assertion, a timeout raised without a reason, an option that forces an action.
+- Code that does nothing, or twice: a line repeated, an import or a variable no line uses, an assertion another already makes.
+- Code a person reads badly: a step that does what its title does not say, a name that says nothing.
+These concern the test: the agent that wrote it repairs them.
+
+Say apart what the plan itself makes fragile, as a finding that concerns the plan: a value asserted that changes with time or with the data of the environment, such as a date, a count of rows or an identifier. It is kept for a person: the agent that wrote the test cannot change it.
+
+When in doubt, it is no finding: a finding costs the other agent a repair. Call report_quality once: each finding with where it is, what is wrong and what to write instead, in one sentence, and what it concerns; an empty list when the code needs nothing. Then answer with one word.`;
 
 /**
  * Writes the system instructions of the agent that writes the test of one scenario of an accepted plan.
@@ -47,12 +61,12 @@ export function writerInstructions(rules: readonly ActiveRule[], repository: Req
 }
 
 /**
- * Writes the system instructions of the test reviewer.
+ * Writes the system instructions of the agent that reviews the quality of the code of a test.
  *
  * @param rules - The rules to apply, in order.
  * @param repository - The layout of the test repository.
- * @returns The instructions: the role, then every rule by its identifier, with its rationale and example,
- * then the layout.
+ * @returns The instructions: what the reviewer of the code of a test reviews and what is fixed by the plan, then
+ * every rule by its identifier, with its rationale and example, then the layout.
  */
 export function reviewerInstructions(rules: readonly ActiveRule[], repository: Required<Repository>): string {
   const charter = rules.map((rule) => {

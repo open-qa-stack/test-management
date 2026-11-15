@@ -6,10 +6,10 @@ describe("the review of a plan for duplicates is read from the configuration", (
   it("is asked when absent, and as given otherwise", () => {
     const absent = validateVariant(() => undefined);
     assert.ok(absent.ok);
-    assert.deepEqual(absent.config.design, { reviewPlan: true, reviewTests: true, levels: ["smoke", "functional", "business"] });
+    assert.deepEqual(absent.config.design, { reviewPlan: true, reviewTests: true, reviewCode: true, levels: ["smoke", "functional", "business"] });
     const given = validateVariant((config) => (config["design"] = { reviewPlan: false }));
     assert.ok(given.ok);
-    assert.deepEqual(given.config.design, { reviewPlan: false, reviewTests: true, levels: ["smoke", "functional", "business"] });
+    assert.deepEqual(given.config.design, { reviewPlan: false, reviewTests: true, reviewCode: true, levels: ["smoke", "functional", "business"] });
   });
 
   it("refuses a value that is no boolean, and a key it does not know, with their JSON paths", () => {

@@ -80,6 +80,7 @@ export function validateConfig(content: string, env: EnvironmentVariables): Vali
       design: {
         reviewPlan: data.design?.reviewPlan ?? true,
         reviewTests: data.design?.reviewTests ?? true,
+        reviewCode: data.design?.reviewCode ?? true,
         levels: data.design?.levels ?? ["smoke", "functional", "business"],
       },
       model: data.model,
