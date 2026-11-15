@@ -773,7 +773,7 @@ describe("the gates of a plan", () => {
       "Nothing else was refused.",
     ]);
     // A value a step before shows is removed, not searched in vain; an application without a user interface is held to none of its screens.
-    const found = { action: "Find the order of Lena Brook", expects: [{ result: "Its order shows", shows: ["Lena Brook"], absent: [] }] };
+    const found = { action: "Find the order of Lena Brook", actions: [1], expects: [{ result: "Its order shows", shows: ["Lena Brook"], absent: [] }] };
     const ledger = scenario("c", {
       application: "ledger",
       data: [{ value: "Quill", from: "made-up" }],
@@ -898,7 +898,10 @@ describe("the gates of a plan", () => {
     // A row showed the value beside the fields: the step expects what the application answered.
     const nominal = functional("b", {
       data: [{ value: "Lena Brook", from: "shop" }],
-      steps: [{ action: "Type Lena Brook in the search field", expects: [{ ...typed("Lena Brook"), shows: ["Lena Brook", "Orders"] }] }, answered],
+      steps: [
+        { action: "Type Lena Brook in the search field", actions: [1], expects: [{ ...typed("Lena Brook"), shows: ["Lena Brook", "Orders"] }] },
+        answered,
+      ],
     });
     // A step that also sends the form, and the last step, keep what they show: the application may answer with the value.
     const sent = functional("c", {
@@ -1362,7 +1365,7 @@ describe("a step and what it expects, held to one screen", () => {
     const refused = (await add(made, { scenarios: [search([2])] })) as { error: string };
     assert.equal(
       refused.error.split("\n")[0],
-      'Refused (PLAN-SHOWN): scenario a, expect 2.1, names "ORD-1042", which the screen did not show after the actions step 2 cites (2): it showed it after the action 3. A test written from these actions would not find it. Cite in actions the ones that led to the screen that showed "ORD-1042", or expect what the screen showed after the action 2.',
+      'Refused (PLAN-SHOWN): scenario a, expect 2.1, names "ORD-1042", which the screen did not show after the last action step 2 cites (2): it showed it after the action 3. A test asserts what a step expects once its last action is done, and would not find it. End the step on the action that leads to the screen that shows "ORD-1042" — make another step of what comes after —, or expect what the screen showed after the action 2.',
     );
     assert.match((await submit(made, { scenarios: [search([2, 3])] })) as string, /^The plan was accepted with 1 scenario/);
   });

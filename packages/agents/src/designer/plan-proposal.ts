@@ -1305,8 +1305,8 @@ export class PlanProposal {
   }
 
   /**
-   * What the gates refuse in the texts a step expects shown: one the screen did not show after any action the
-   * step cites, while it did after another action. The step and its expect are then of two screens, and the
+   * What the gates refuse in the texts a step expects shown: one the screen did not show after the last action
+   * the step cites, while it did after another action. The step and its expect are then of two screens, and the
    * test written from the cited actions would look for the text where the application does not show it.
    */
   private screenErrors(scenario: SubmittedScenario): Refusal[] {
@@ -1317,11 +1317,13 @@ export class PlanProposal {
       return step.expects.flatMap((expect, k) =>
         expect.shows.filter(checkable).flatMap((text): Refusal[] => {
           const after = screens.shownAfter(this.scope(scenario), text);
-          if (after.length === 0 || cited.some((number) => after.includes(number))) return [];
+          // A test asserts what a step expects once its last action is done: the screen of that action is the one that counts.
+          const last = cited.at(-1)!;
+          if (after.length === 0 || after.includes(last)) return [];
           return [
             {
               code: "PLAN-SHOWN",
-              message: `scenario ${scenario.id}, expect ${at + 1}.${k + 1}, names "${text}", which the screen did not show after the actions step ${at + 1} cites (${cited.join(", ")}): it showed it after the action ${after.at(-1)}. A test written from these actions would not find it. Cite in actions the ones that led to the screen that showed "${text}", or expect what the screen showed after the action ${cited.at(-1)}.`,
+              message: `scenario ${scenario.id}, expect ${at + 1}.${k + 1}, names "${text}", which the screen did not show after the last action step ${at + 1} cites (${last}): it showed it after the action ${after.at(-1)}. A test asserts what a step expects once its last action is done, and would not find it. End the step on the action that leads to the screen that shows "${text}" — make another step of what comes after —, or expect what the screen showed after the action ${last}.`,
             },
           ];
         }),
