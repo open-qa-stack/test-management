@@ -42,6 +42,10 @@ const ELEMENTS = [
 describe("the file of a domain", () => {
   it("has a header the harness writes — label, identifier, description — then the body", () => {
     assert.equal(renderDomainFile(ORDERS, GOOD), `# Orders (\`orders\`)\n\nOrders placed by customers.\n\n${GOOD}`);
+    // A model often repeats the title, and the description after it: the header already gives them.
+    const header = "# Orders (`orders`)\n\nOrders placed by customers.\n\n";
+    assert.equal(renderDomainFile(ORDERS, `# Orders\n\nOrders placed by customers.\n\n${GOOD}`), `${header}${GOOD}`);
+    assert.equal(renderDomainFile(ORDERS, `# The orders\n\n${GOOD}`), `${header}${GOOD}`);
   });
 
   it("is read without the code fence a model puts around its whole answer, and only that one", () => {
