@@ -62,6 +62,7 @@ OQAS_ENVIRONMENT=<environment> npm test
 | \`npm run test:cross-application\` | The tests that act in one application and verify in another. |
 | \`npm run test:end-to-end\` | The tests that go through three applications or more. |
 | \`npm run test:read-only\` | The tests that change no data of the environment. |
+| \`npm run test:visual\` | The visual tests: each compares a screen with its reference. |
 | \`npm run report\` | Opens the report of the last run. |
 | \`npm run typecheck\` | Checks the types of every test, without running any. |
 
@@ -70,6 +71,10 @@ ${built}## Tags
 Every test bears the tags of what it is, after its title: \`@level-…\` for its level in the pyramid of tests, \`@domain-…\` for its functional domain, \`@feature-…\` for the functionality of that domain, \`@app-…\` for each application it acts on, \`@kind-…\` for what it checks, \`@case-nominal\` or \`@case-negative\`, and \`@data-read\` or \`@data-write\`. Any of them selects tests: \`npx playwright test --grep @domain-<domain>\`.
 
 A test that writes data creates its own or puts back what it changed, so that it passes again when run twice.
+
+## Visual tests
+
+A visual test opens a screen and compares it with its reference, an image made at its first run and committed beside it. The zones whose content changes from one run to the next are masked, so that the test tells a change of layout or of look, not one of data. A reference is that of one browser on one machine: run the visual tests where their references were made, and make them again there with \`npx playwright test --grep @kind-visual --update-snapshots\` when a screen is meant to change.
 
 ## When a test fails
 

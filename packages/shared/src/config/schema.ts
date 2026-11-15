@@ -206,6 +206,17 @@ export const configSchema = {
           description:
             "Whether an agent of its own reviews the scenarios of a plan for duplicates, in sessions of the model of their own; true by default. The harness compares the scenarios by their code either way.",
         },
+        visualTests: {
+          type: "boolean",
+          description:
+            "Whether a visual test is written for each screen a plan opens by an address; true by default. It compares the screen with a reference made at its first run and committed with it, the zones whose content changes masked. A reference is that of one browser on one machine: run the tests where their references were made.",
+        },
+        visualTolerance: {
+          type: "number",
+          minimum: 0,
+          maximum: 1,
+          description: "The share of the pixels of a screen that may differ from its reference, from 0 to 1; 0.01 by default.",
+        },
         architecture: {
           type: "string",
           enum: ["page-objects", "fixtures", "standalone"],

@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import { errorsOf, validateVariant } from "./helpers.ts";
 
 /** How the tests are built, when the configuration does not say. */
-const BUILT = { architecture: "page-objects", fixturesFile: "apps/shared/fixtures.ts" };
+const BUILT = { architecture: "page-objects", fixturesFile: "apps/shared/fixtures.ts", visualTests: true, visualTolerance: 0.01 };
 
 describe("the review of a plan for duplicates is read from the configuration", () => {
   it("is asked when absent, and as given otherwise", () => {
@@ -50,5 +50,18 @@ describe("how the tests are built is read from the configuration", () => {
   it("refuses an architecture it does not know, and a path that is none", () => {
     assert.ok(errorsOf(validateVariant((config) => (config["design"] = { architecture: "pom" }))).some((error) => error.path === "/design/architecture"));
     assert.ok(errorsOf(validateVariant((config) => (config["design"] = { fixturesFile: "" }))).some((error) => error.path === "/design/fixturesFile"));
+  });
+});
+
+describe("the visual tests are read from the configuration", () => {
+  it("are as given, and refuses a tolerance that is no share", () => {
+    const given = validateVariant((config) => (config["design"] = { visualTests: false, visualTolerance: 0.05 }));
+    assert.ok(given.ok);
+    assert.deepEqual([given.config.design.visualTests, given.config.design.visualTolerance], [false, 0.05]);
+    for (const visualTolerance of [-0.1, 2, "low"])
+      assert.ok(
+        errorsOf(validateVariant((config) => (config["design"] = { visualTolerance }))).some((error) => error.path === "/design/visualTolerance"),
+        String(visualTolerance),
+      );
   });
 });

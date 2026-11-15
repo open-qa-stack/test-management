@@ -36,6 +36,7 @@ import { declaredAddresses, declaredSecrets, TEST_MODULE, testPackages } from ".
 import { PageObjects } from "./page-objects.ts";
 import { coveringTests, existingTestTools, existingTests } from "./existing-tests.ts";
 import { ensureFixtures } from "./test-fixtures.ts";
+import { visualScenarios } from "./visual-scenarios.ts";
 import { WrittenFiles } from "./written-files.ts";
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import { SESSION_END, TestProposals, type AcceptedTest } from "./test-proposals.ts";
@@ -275,11 +276,8 @@ export class Designer {
         const levels = this.options.levels ?? DEFAULT_LEVELS;
         // What the repository already tests: the agent that plans reads it, and a scenario one of these tests covers is set aside.
         const present = await existingTests(repositoryRoot, config.repository.appsDir);
-        const existing = await coveringTests(
-          repositoryRoot,
-          config.repository.stateDir,
-          present.map((test) => test.path),
-        );
+        const paths = present.map((test) => test.path);
+        const existing = await coveringTests(repositoryRoot, config.repository.stateDir, paths);
         const plan = new PlanProposal(
           {
             sources: owners,
@@ -313,6 +311,19 @@ export class Designer {
             `No test was written: ${obtained(0)}, one per scenario of the plan is expected.`,
             last.type === "stopped" ? last.reason.limit : undefined,
           );
+        // A visual test for each screen the plan opens by an address: the harness adds them last, as scenarios of their own.
+        // The harness looks at those screens itself, in a browser of its own: that of the agent closed with its session.
+        if (config.design.visualTests) {
+          const looking = sessionTools(scope);
+          const rules = {
+            applications: applications.filter((application) => application.type !== "api"),
+            screens: looking.screens,
+            tolerance: config.design.visualTolerance,
+            present: paths,
+          };
+          const visual = await visualScenarios(planned.scenarios, rules, journal).finally(() => looking.close());
+          planned = { ...planned, scenarios: [...planned.scenarios, ...visual] };
+        }
       }
       // The agents that write and review code read the API of Playwright at the version the test repository installs.
       const playwright = playwrightTools(await PlaywrightReference.load(repositoryRoot));

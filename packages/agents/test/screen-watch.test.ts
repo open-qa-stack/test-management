@@ -757,3 +757,39 @@ describe("a page the harness looks at by itself", () => {
     assert.equal(await watch.missingAt("shop", "/orders", ["Shop"]), undefined);
   });
 });
+
+describe("the elements of a screen whose content changes, as the harness sees them by looking twice", () => {
+  const at = (time: string, visits: string) =>
+    [
+      '- heading "Orders" [level=1] [ref=e2] → page.getByRole("heading", { name: "Orders", exact: true })',
+      `- status [ref=e3]: Updated at ${time}`,
+      `- generic [ref=e4]: ${visits} visits`,
+      // A line that names no role is none an element can be found by.
+      `- "${visits} visits so far"`,
+      "- row [ref=e5]:",
+      '  - cell "Mira Veldane" [ref=e6]',
+      '  - cell "71 Orchard Lane" [ref=e7]',
+    ].join("\n");
+
+  it("are named by their role: those whose line differs from one look to the next, and those that hold a value a test writes", async () => {
+    const watch = new ScreenWatch(["shop"], page(["", at("10:00", "3"), at("10:01", "4")]).tools);
+    assert.deepEqual(await watch.changingRoles("shop", "/orders", ["71 Orchard Lane"]), { roles: ["status", "cell"], left: ["generic"] });
+    // The harness may look at a screen of an application the agent never opened.
+    const unseen = new ScreenWatch(["ledger"], page(["", at("10:00", "3"), at("10:01", "3")]).tools);
+    assert.deepEqual(await unseen.changingRoles("shop", "/orders", []), { roles: ["status"], left: [] });
+    // A screen that shows the same twice, and nothing a test writes, has nothing to mask.
+    const still = new ScreenWatch(["shop"], page(["", at("10:00", "3"), at("10:00", "3")]).tools);
+    assert.deepEqual(await still.changingRoles("shop", "/orders", []), { roles: [], left: [] });
+  });
+
+  it("are unknown when the page cannot be opened, and for an application the watch does not follow", async () => {
+    const failing: ToolDefinition = {
+      name: "shop_goto",
+      description: "goto",
+      parameters: { type: "object" },
+      execute: async () => Promise.reject(new Error("down")),
+    };
+    assert.equal(await new ScreenWatch(["shop"], [failing]).changingRoles("shop", "/orders", []), undefined);
+    assert.equal(await new ScreenWatch(["shop"], page([""]).tools).changingRoles("ledger", "/orders", []), undefined);
+  });
+});

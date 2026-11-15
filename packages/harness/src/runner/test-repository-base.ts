@@ -127,6 +127,7 @@ export function testRepositoryBase(project: TestProject): BaseFile[] {
       test: "playwright test",
       ...Object.fromEntries(LEVELS.map((level) => [`test:${level}`, `playwright test --grep @level-${level}`])),
       "test:read-only": "playwright test --grep @data-read",
+      "test:visual": "playwright test --grep @kind-visual",
       report: `playwright show-report ${stateDir}/report`,
       typecheck: "tsc --noEmit",
     },

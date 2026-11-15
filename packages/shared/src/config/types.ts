@@ -197,6 +197,10 @@ export type TestArchitecture = "page-objects" | "fixtures" | "standalone";
 
 /** How the tests are designed. */
 export interface DesignSettings {
+  /** Whether a visual test is written for each screen a plan opens by an address; `true` by default. */
+  visualTests?: boolean;
+  /** The share of the pixels of a screen that may differ from its reference, from 0 to 1; `0.01` by default. */
+  visualTolerance?: number;
   /** How the tests are built; `page-objects` by default. */
   architecture?: TestArchitecture;
   /** Path of the file of the fixtures the tests share, relative to the root of the test repository; `shared/fixtures.ts` in the folder of the applications by default. */

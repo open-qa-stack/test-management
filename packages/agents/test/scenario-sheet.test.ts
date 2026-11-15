@@ -187,6 +187,32 @@ test("Search an order by \\"customer\\" name", { tag: ["@level-functional","@dom
     assert.deepEqual(await new CharterCheck({ repository, rules: charter.rules }).check({ path: "apps/shop/put-back.spec.ts", content }), []);
   });
 
+  it("ends a visual step with the comparison of the screen with its reference, what changes masked, and says what the agent may add", () => {
+    const visual = {
+      ...SEARCH,
+      kind: "visual" as const,
+      steps: [
+        {
+          action: "Open /orders and compare the screen with its reference",
+          code: ['await page.goto("/orders");'],
+          screenshot: { mask: ['page.getByRole("cell")', 'page.getByRole("status")'], tolerance: 0.01 },
+          expects: [],
+        },
+      ],
+    };
+    assert.ok(
+      skeleton(visual, false).includes(
+        [
+          '    await page.goto("/orders");',
+          "    // Mask a zone that changes from one run to the next, with a locator of a snapshot; never raise the tolerance.",
+          '    await expect(page).toHaveScreenshot({ animations: "disabled", mask: [page.getByRole("cell"), page.getByRole("status")], maxDiffPixelRatio: 0.01 });',
+          "  });",
+        ].join("\n"),
+      ),
+      skeleton(visual, false),
+    );
+  });
+
   it("asserts a text several elements share the locator of by their number: one at least, or none left", () => {
     assert.deepEqual(
       skeleton(SHARED, false)

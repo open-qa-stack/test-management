@@ -82,6 +82,8 @@ export function validateConfig(content: string, env: EnvironmentVariables): Vali
         reviewPlan: data.design?.reviewPlan ?? true,
         reviewTests: data.design?.reviewTests ?? true,
         reviewCode: data.design?.reviewCode ?? true,
+        visualTests: data.design?.visualTests ?? true,
+        visualTolerance: data.design?.visualTolerance ?? 0.01,
         architecture: data.design?.architecture ?? "page-objects",
         fixturesFile: data.design?.fixturesFile ?? `${data.repository?.appsDir ?? DEFAULT_REPOSITORY.appsDir}/${SHARED_FOLDER}/fixtures.ts`,
         levels: data.design?.levels ?? ["smoke", "functional", "business"],

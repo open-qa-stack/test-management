@@ -67,6 +67,14 @@ export interface PlannedLine {
   readonly typed?: string;
 }
 
+/** The comparison of a screen with its reference a step ends with, as the harness wrote it for a visual scenario. */
+export interface PlannedScreenshot {
+  /** The locators of the zones left out of the comparison: what the screen shows changes there from one run to the next. */
+  readonly mask: readonly string[];
+  /** The share of the pixels that may differ, from 0 to 1. */
+  readonly tolerance: number;
+}
+
 /** A step of a scenario: one action of the user and what it should produce. Its test writes it as one `test.step`. */
 export interface PlannedStep {
   /** What the user does, in one sentence. */
@@ -80,6 +88,8 @@ export interface PlannedStep {
    * earlier step failed, so that a test that fails leaves the data of the environment as it found it.
    */
   readonly restores?: boolean;
+  /** The comparison of the screen with its reference the step ends with, for a visual scenario. The harness writes it, never the agent. */
+  readonly screenshot?: PlannedScreenshot;
   /** Where each line of code comes from, one for each line, in their order. The harness writes them, never the agent. */
   readonly lines?: readonly PlannedLine[];
   /** What the step expects after the action; none for a step that only leads to the next. */

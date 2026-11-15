@@ -285,6 +285,8 @@ interface Setup {
   readonly check?: TestCheck;
   readonly branch?: string | null;
   readonly env?: Readonly<Record<string, string>>;
+  /** Whether a visual test is written for each screen the plan opens; none by default here, so that a design is its scenarios alone. */
+  readonly visual?: boolean;
   /** How the tests are built, when it is not as the configuration says by default. */
   readonly architecture?: "fixtures" | "standalone";
   /** Whether the plan is submitted before the script; it is by default. */
@@ -322,7 +324,8 @@ async function design(script: readonly { status?: number; body: unknown }[], set
   try {
     const declared = configFor(server.baseUrl, setup.limits);
     const seeing: ResolvedConfig = setup.vision === true ? { ...declared, model: { ...declared.model, capabilities: ["vision"] } } : declared;
-    const config: ResolvedConfig = setup.architecture === undefined ? seeing : { ...seeing, design: { ...seeing.design, architecture: setup.architecture } };
+    const built: ResolvedConfig = setup.architecture === undefined ? seeing : { ...seeing, design: { ...seeing.design, architecture: setup.architecture } };
+    const config: ResolvedConfig = { ...built, design: { ...built.design, visualTests: setup.visual === true } };
     const charter = resolveCharter(config.charter);
     assert.ok(charter.ok);
     const designer = new Designer({
@@ -598,6 +601,21 @@ describe("how the tests are built, as the configuration says", () => {
       asked(server, 1).includes(`import { expect, test } from "../../../../shared/fixtures.ts";`) && asked(server, 1).includes(`    ${CLICK}\n`),
       asked(server, 1),
     );
+  });
+});
+
+describe("the visual test of each screen a plan opens", () => {
+  it("is a scenario the harness adds after the plan, whose sheet ends with the comparison of the screen with its reference", async () => {
+    // The session of the visual scenario ends without a call: its skeleton is kept as an unfinished test.
+    const { outcome, server } = await design([...replies(valid(3)), ...replies([])], { visual: true });
+    const plan = planOf(outcome);
+    assert.deepEqual(
+      plan.scenarios.map((scenario) => [scenario.id, scenario.kind]),
+      [...IDS.map((id) => [id, "other"]), ["visual-shop-orders", "visual"]],
+    );
+    const sheet = asked(server, 4);
+    assert.match(sheet, /\nFile: apps\/shop\/tests\/orders\/visual\/visual-shop-orders\.spec\.ts\n/);
+    assert.ok(sheet.includes('await expect(page).toHaveScreenshot({ animations: "disabled", mask: [], maxDiffPixelRatio: 0.01 });'), sheet);
   });
 });
 

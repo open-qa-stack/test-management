@@ -26,6 +26,7 @@ export type {
   PlannedLine,
   PlannedExpect,
   PlannedScenario,
+  PlannedScreenshot,
   PlannedStep,
   PlanReview,
   ScenarioCase,
