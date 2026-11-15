@@ -21,6 +21,7 @@ import { GUIDED_REFUSALS, RefusalStreak } from "./refusal-streak.ts";
 import { baseUrlVariable } from "@open-qa-stack/shared";
 import { onTab } from "./tab-variable.ts";
 import type { CoveringTest } from "./plan-draft.ts";
+import { described } from "./scenario-description.ts";
 import { screenScope, type ScreenWatch, type ShownElement, type WatchedAction } from "./screen-watch.ts";
 import type { SourceWatch } from "./source-watch.ts";
 import { heldVariables, type DeclaredSecret } from "./spec-rules.ts";
@@ -210,10 +211,10 @@ export class PlanProposal {
   public constructor(rules: PlanRules, journal: Journal) {
     this.rules = rules;
     this.journal = journal;
-    this.draft = new PlanDraft(
+    this.draft = new PlanDraft<SubmittedScenario>(
       {
         verified: (scenario) => this.verified(scenario),
-        described,
+        described: (scenario) => described(scenario),
         ...(rules.judge === undefined ? {} : { judge: rules.judge }),
         ...(rules.existing === undefined ? {} : { existing: rules.existing }),
         now: rules.now ?? (() => new Date()),
@@ -1472,19 +1473,6 @@ function elsewhere(done: WatchedAction): string {
 /** What the agent is told of a scenario set aside: which one covers it, who decided and why. */
 function setAsideLine({ id, duplicates, origin, reason }: SetAsideScenario): string {
   return `Set aside (${origin.by === "harness" ? origin.check : "plan reviewer"}): scenario ${id} is a duplicate of ${duplicates}. ${reason}`;
-}
-
-/** What a scenario does and verifies, as the judge of duplicates reads it. */
-function described(scenario: SubmittedScenario): string {
-  const texts = (label: string, list: readonly string[]) => (list.length === 0 ? [] : [`${label} ${list.map((text) => JSON.stringify(text)).join(", ")}`]);
-  return [
-    `${scenario.title} (${scenario.case}, ${scenario.application}). ${scenario.intent}`,
-    ...(scenario.data.length === 0 ? [] : [`Enters: ${scenario.data.map((entry) => JSON.stringify(entry.value)).join(", ")}`]),
-    ...scenario.steps.map((step, at) => {
-      const expected = step.expects.flatMap((expect) => [expect.result, ...texts("shows", expect.shows), ...texts("no longer shows", expect.absent)]);
-      return `${at + 1}. ${step.action}${expected.length === 0 ? "" : ` -> ${expected.join("; ")}`}`;
-    }),
-  ].join("\n");
 }
 
 /** What tells an element of an application from another: its application and its locator. */

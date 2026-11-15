@@ -4,6 +4,7 @@ import type { PlannedScenario, ToolDefinition } from "@open-qa-stack/domain";
 import { DESIGNS_FOLDER, type DesignState } from "./design-state.ts";
 import type { CoveringTest } from "./plan-draft.ts";
 import { readPlanFile } from "./plan-file.ts";
+import { described } from "./scenario-description.ts";
 import type { Verified } from "./verified.ts";
 
 /** Name of the tool that lists the tests the repository already has. */
@@ -116,7 +117,7 @@ export async function coveringTests(repositoryRoot: string, stateDir: string, pr
     for (const test of state.tests ?? []) {
       const scenario = plan?.scenarios.find((candidate) => candidate.id === test.scenario);
       const verified = scenario === undefined || test.verdict !== "passed" || !present.includes(test.path) ? undefined : verifiedOf(scenario);
-      if (verified !== undefined) covering.push({ path: test.path, verified });
+      if (verified !== undefined) covering.push({ path: test.path, verified, described: described(scenario!) });
     }
   }
   return covering;

@@ -18,6 +18,8 @@ export interface CoveringTest {
   /** Its path, relative to the root of the test repository. */
   readonly path: string;
   readonly verified: Verified;
+  /** What it does and verifies, as the judge reads it. */
+  readonly described: string;
 }
 
 /** What a draft needs of the scenarios it holds. */
@@ -169,16 +171,18 @@ export class PlanDraft<S extends { readonly id: string; readonly title: string; 
   /** What the judge finds among the scenarios the code let through, kept only when it names one of them and a scenario before it. */
   private async judged(settled: readonly S[], passed: readonly S[]): Promise<JudgedDuplicate[]> {
     const { judge, described } = this.rules;
-    if (judge === undefined || passed.length === 0 || settled.length + passed.length < 2) return [];
+    // The tests the repository already has come before every scenario: the judge tells one that verifies what a test already does.
+    const written = (this.rules.existing ?? []).map((test) => ({ id: test.path, text: test.described }));
+    if (judge === undefined || passed.length === 0 || written.length + settled.length + passed.length < 2) return [];
     const item = (scenario: S) => ({ id: scenario.id, text: described(scenario) });
-    const answered = await judge.judge(settled.map(item), passed.map(item)).catch((error: unknown) => {
+    const answered = await judge.judge([...written, ...settled.map(item)], passed.map(item)).catch((error: unknown) => {
       this.journal.record(
         "error",
         `The review of the plan for duplicates failed, and the plan goes on without it: ${error instanceof Error ? error.message : String(error)}`,
       );
       return [];
     });
-    const order = [...settled, ...passed].map((scenario) => scenario.id);
+    const order = [...written.map((test) => test.id), ...[...settled, ...passed].map((scenario) => scenario.id)];
     const candidates = new Set(passed.map((scenario) => scenario.id));
     const kept: JudgedDuplicate[] = [];
     for (const verdict of answered) {

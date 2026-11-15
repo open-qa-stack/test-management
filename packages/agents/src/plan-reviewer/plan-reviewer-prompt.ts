@@ -10,6 +10,8 @@ Two scenarios are duplicates when the test of one would catch no defect the test
 They are not duplicates when they verify different rules, different information, or different outcomes, such as a search that finds and a search that finds nothing.
 When in doubt, they are not duplicates: a scenario set aside is a test not written.
 
+A scenario kept that is named by the path of a file is a test the repository already has: a candidate that verifies what it does is a duplicate of it.
+
 Compare each candidate with the scenarios kept and with the candidates before it. Call ${REPORT_TOOL} once: each candidate that is a duplicate, with the scenario before it that already verifies it and why, in one sentence; an empty list when there is none. Then answer with one word.`;
 
 /**

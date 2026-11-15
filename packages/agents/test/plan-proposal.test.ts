@@ -279,7 +279,7 @@ describe("the scenarios of a plan, asked until the brief is covered", () => {
       data: scenario("a").data.map((entry) => entry.value),
       steps: [{ does: [OPENED, ""], shows: ["Orders"], absent: [] }],
     };
-    const { proposal: made, journal } = await proposal({ now, existing: [{ path, verified: written }] });
+    const { proposal: made, journal } = await proposal({ now, existing: [{ path, verified: written, described: "Open the orders" }] });
     const told = (await add(made, { scenarios: [scenario("a"), scenario("d")] })) as string;
     assert.ok(
       told.includes(
@@ -295,6 +295,25 @@ describe("the scenarios of a plan, asked until the brief is covered", () => {
     assert.deepEqual(
       [made.accepted!.scenarios.map((kept) => kept.id), made.accepted!.setAside?.map((aside) => [aside.id, aside.duplicates])],
       [["d"], [["a", path]]],
+    );
+  });
+
+  it("ask the judge about a scenario alone when the repository has tests, and set it aside as a duplicate of the test the judge names", async () => {
+    const path = "apps/shop/tests/orders/listing/find-order.spec.ts";
+    const written = { application: "shop", data: ["Veldane"], steps: [{ does: ["Search"], shows: ["ORD-1042"], absent: [] }] };
+    const asked: (readonly string[])[] = [];
+    const judge: DuplicateJudge = {
+      judge: async (kept, candidates) => {
+        asked.push([...kept.map((item) => `${item.id}: ${item.text}`), ...candidates.map((item) => item.id)]);
+        return [{ id: "a", of: path, reason: "The test already opens the orders and reads their heading." }];
+      },
+    };
+    const { proposal: made } = await proposal({ now, judge, existing: [{ path, verified: written, described: "Find an order" }] });
+    const told = (await add(made, { scenarios: [scenario("a")] })) as string;
+    assert.deepEqual(asked, [[`${path}: Find an order`, "a"]]);
+    assert.ok(
+      told.includes(`Set aside (plan reviewer): scenario a is a duplicate of ${path}. The test already opens the orders and reads their heading.`),
+      told,
     );
   });
 
