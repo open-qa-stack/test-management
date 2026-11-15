@@ -34,8 +34,11 @@ function documentedVariables(): string[][] {
 /** Runs the API as a program with the given variables only, and gives its exit code and outputs. */
 function api(variables: Record<string, string>): Promise<{ code: number | null; out: string; err: string }> {
   return new Promise((resolve) =>
-    execFile(process.execPath, ["--enable-source-maps", MAIN], { env: childEnvironment(variables), encoding: "utf8", timeout: 10_000 }, (error, out, err) =>
-      resolve({ code: error === null ? 0 : (error.code as number), out, err }),
+    execFile(
+      process.execPath,
+      ["--enable-source-maps", MAIN],
+      { env: childEnvironment(variables), encoding: "utf8", timeout: START_TIMEOUT_MS },
+      (error, out, err) => resolve({ code: error === null ? 0 : (error.code as number), out, err }),
     ),
   );
 }
@@ -49,6 +52,9 @@ function violationsOf(action: () => unknown): readonly string[] {
   }
   return assert.fail("no configuration error was raised");
 }
+
+/** Longest an API that refuses its configuration takes to stop, on a machine that runs the other packages at once. */
+const START_TIMEOUT_MS = 60_000;
 
 describe("the configuration of the API", () => {
   it("is read from the environment, with the default address", () => {

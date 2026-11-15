@@ -106,6 +106,9 @@ export class DemoWorkspace {
     const env = { ...process.env };
     delete env["NODE_TEST_CONTEXT"];
     delete env["NODE_OPTIONS"];
+    // A runner of continuous integration asks the tools for colours; the tests read plain text.
+    delete env["FORCE_COLOR"];
+    env["NO_COLOR"] = "1";
     const child = spawn(process.execPath, ["--disable-warning=ExperimentalWarning", MAIN], { cwd: this.root, env, stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
