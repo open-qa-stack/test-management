@@ -2,14 +2,17 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { errorsOf, validateVariant } from "./helpers.ts";
 
+/** How the tests are built, when the configuration does not say. */
+const BUILT = { architecture: "page-objects", fixturesFile: "apps/fixtures.ts" };
+
 describe("the review of a plan for duplicates is read from the configuration", () => {
   it("is asked when absent, and as given otherwise", () => {
     const absent = validateVariant(() => undefined);
     assert.ok(absent.ok);
-    assert.deepEqual(absent.config.design, { reviewPlan: true, reviewTests: true, reviewCode: true, levels: ["smoke", "functional", "business"] });
+    assert.deepEqual(absent.config.design, { reviewPlan: true, reviewTests: true, reviewCode: true, levels: ["smoke", "functional", "business"], ...BUILT });
     const given = validateVariant((config) => (config["design"] = { reviewPlan: false }));
     assert.ok(given.ok);
-    assert.deepEqual(given.config.design, { reviewPlan: false, reviewTests: true, reviewCode: true, levels: ["smoke", "functional", "business"] });
+    assert.deepEqual(given.config.design, { reviewPlan: false, reviewTests: true, reviewCode: true, levels: ["smoke", "functional", "business"], ...BUILT });
   });
 
   it("refuses a value that is no boolean, and a key it does not know, with their JSON paths", () => {
@@ -28,5 +31,24 @@ describe("the levels of the pyramid of tests asked are read from the configurati
         errorsOf(validateVariant((config) => (config["design"] = { levels }))).some((error) => error.path.startsWith("/design/levels")),
         JSON.stringify(levels),
       );
+  });
+});
+
+describe("how the tests are built is read from the configuration", () => {
+  it("is as given, with the fixtures in the folder of the applications unless their file is named", () => {
+    const moved = validateVariant((config) => {
+      config["repository"] = { appsDir: "tests" };
+      config["design"] = { architecture: "fixtures" };
+    });
+    assert.ok(moved.ok);
+    assert.deepEqual([moved.config.design.architecture, moved.config.design.fixturesFile], ["fixtures", "tests/fixtures.ts"]);
+    const named = validateVariant((config) => (config["design"] = { architecture: "standalone", fixturesFile: "support/test.ts" }));
+    assert.ok(named.ok);
+    assert.deepEqual([named.config.design.architecture, named.config.design.fixturesFile], ["standalone", "support/test.ts"]);
+  });
+
+  it("refuses an architecture it does not know, and a path that is none", () => {
+    assert.ok(errorsOf(validateVariant((config) => (config["design"] = { architecture: "pom" }))).some((error) => error.path === "/design/architecture"));
+    assert.ok(errorsOf(validateVariant((config) => (config["design"] = { fixturesFile: "" }))).some((error) => error.path === "/design/fixturesFile"));
   });
 });

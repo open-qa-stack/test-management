@@ -55,6 +55,16 @@ export interface PlannedExpect {
   readonly elements: readonly ExpectedElement[];
 }
 
+/** A line of code of a step, as the exploration gave it: what a page object is written from. */
+export interface PlannedLine {
+  /** Identifier of the application it was done on. */
+  readonly application: string;
+  /** The screen it acts on, by its route, when the exploration told where the page was. */
+  readonly screen?: string;
+  /** The line of code that does it on `page`, as the browser tool returned it. */
+  readonly code: string;
+}
+
 /** A step of a scenario: one action of the user and what it should produce. Its test writes it as one `test.step`. */
 export interface PlannedStep {
   /** What the user does, in one sentence. */
@@ -63,6 +73,8 @@ export interface PlannedStep {
   readonly application?: string;
   /** The lines of code that do it in a test, as the browser tools returned them during the exploration; none for a step done on no screen. The harness writes them, never the agent. */
   readonly code: readonly string[];
+  /** Where each line of code comes from, one for each line, in their order. The harness writes them, never the agent. */
+  readonly lines?: readonly PlannedLine[];
   /** What the step expects after the action; none for a step that only leads to the next. */
   readonly expects: readonly PlannedExpect[];
 }

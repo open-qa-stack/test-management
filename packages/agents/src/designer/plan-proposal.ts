@@ -1031,6 +1031,10 @@ export class PlanProposal {
         action,
         ...stepApplication(scenario.application, this.cited(scenario, actions)),
         code: this.cited(scenario, actions).map((done) => (done.application === scenario.application ? done.code : elsewhere(done))),
+        lines: this.cited(scenario, actions).map((done) => {
+          const screen = this.rules.screens.actedOn(done.number);
+          return { application: done.application, ...(screen === undefined ? {} : { screen }), code: done.code };
+        }),
         expects: expects.map((expect, k) => ({
           ...expect,
           elements: elements.filter(({ where }) => where === `scenario ${scenario.id}, expect ${at + 1}.${k + 1}`).map(({ element }) => element),

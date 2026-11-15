@@ -152,6 +152,9 @@ const cited = (submitted: Plan): SubmittedPlan => {
 };
 /** Submits scenarios, and gives what the harness answers, such as its question about what is left to cover. */
 const add = (proposal: PlanProposal, submitted: Plan) => proposal.tool().execute(cited(submitted)) as Promise<string | { error: string }>;
+/** Where a line of code comes from, as the plan keeps it: the orders of the shop. */
+const onOrders = (code: string) => ({ application: "shop", screen: "/orders", code });
+
 /** Submits a plan, then says the brief is covered once the harness asks what is left: the answer is that of the plan closed. */
 const submit = async (proposal: PlanProposal, submitted: Plan) => {
   let answer = await add(proposal, submitted);
@@ -180,7 +183,12 @@ describe("the scenarios of a plan, asked until the brief is covered", () => {
     `Set aside (PLAN-DUPLICATE): scenario ${id} is a duplicate of ${of}. It does the same steps with the same values as ${of}, and expects nothing ${of} does not.`;
   const NOW = "2026-01-05T10:00:00.000Z";
   const now = () => new Date(NOW);
-  const step = { action: "Open the orders", code: [OPENED], expects: [{ result: "The orders show", shows: ["Orders"], absent: [], elements: [HEADING] }] };
+  const step = {
+    action: "Open the orders",
+    code: [OPENED],
+    lines: [onOrders(OPENED)],
+    expects: [{ result: "The orders show", shows: ["Orders"], absent: [], elements: [HEADING] }],
+  };
 
   it("keep the scenarios of each call, ask what is left, and close the plan once the agent adds nothing", async () => {
     const { proposal: made, journal } = await proposal({ review: slowReview(() => true) });
@@ -1214,10 +1222,11 @@ describe("the actions a plan cites", () => {
     assert.equal(await submit(made, { scenarios: [searched, ledger, scenario("c")] }), ACCEPTED);
     const [first, second] = made.accepted!.scenarios;
     assert.deepEqual(first!.steps, [
-      { action: "Open the orders", code: [OPENED], expects: [] },
+      { action: "Open the orders", code: [OPENED], lines: [onOrders(OPENED)], expects: [] },
       {
         action: "Search the orders of Veldane, then send",
         code: [FILLED("Veldane"), CLICKED],
+        lines: [onOrders(FILLED("Veldane")), onOrders(CLICKED)],
         expects: [
           {
             result: "The order of Mira Veldane shows, the other goes",
@@ -1230,7 +1239,7 @@ describe("the actions a plan cites", () => {
         ],
       },
     ]);
-    assert.deepEqual(second!.steps, [{ action: "Get the orders", code: [], expects: [{ ...shown("ORD-1042"), elements: [] }] }]);
+    assert.deepEqual(second!.steps, [{ action: "Get the orders", code: [], lines: [], expects: [{ ...shown("ORD-1042"), elements: [] }] }]);
     assert.ok(!("actions" in first!.steps[0]!));
   });
 });

@@ -4,7 +4,7 @@ import { assertionsOf } from "./assertion-line.ts";
 import type { DesignCursor } from "./design-cursor.ts";
 import { oneLine } from "./one-line.ts";
 import { onTab } from "./tab-variable.ts";
-import { tabVariable } from "@open-qa-stack/shared";
+import { applicationVariable, tabVariable } from "@open-qa-stack/shared";
 import { fixturesFor, PLAYWRIGHT_ALONE, type FixturesFile, type TestFixtures } from "./test-fixtures.ts";
 
 /**
@@ -20,10 +20,15 @@ import { fixturesFor, PLAYWRIGHT_ALONE, type FixturesFile, type TestFixtures } f
  *
  * @param scenario - The scenario.
  * @param screenshots - Whether each step ends with a screenshot attached to the report, as the charter may ask.
- * @param fixtures - What the test is given: the module of its `test`, and the tabs that module gives.
+ * @param fixtures - What the test is given: the module of its `test`, and the applications that module gives.
  * @returns The text of the file.
  */
 export function skeleton(scenario: PlannedScenario, screenshots: boolean, fixtures: TestFixtures = PLAYWRIGHT_ALONE): string {
+  // Another application the test acts on is a fixture where the repository gives it, with its tab; or else the test opens that tab.
+  const others = scenario.applications ?? [];
+  const given = others.filter((application) => fixtures.applications.includes(application));
+  const fromFixture = (line: string) =>
+    given.reduce((text, application) => text.replaceAll(tabVariable(application), `${applicationVariable(application)}.page`), line);
   const steps = scenario.steps.map((step, at) => {
     const number = at + 1;
     // The expects of a step done on another application are asserted on the tab of that application.
@@ -35,18 +40,25 @@ export function skeleton(scenario: PlannedScenario, screenshots: boolean, fixtur
       : [];
     return [
       `  await test.step(${JSON.stringify(`${number}. ${oneLine(step.action)}`)}, async () => {`,
-      ...[...doing, ...expects, ...attach].map((line) => `    ${line}`),
+      ...[...doing, ...expects, ...attach].map((line) => `    ${fromFixture(line)}`),
       "  });",
     ].join("\n");
   });
-  // The tab of each other application the test acts on: a fixture where the repository gives one, or else a page the test opens.
-  const tabs = (scenario.applications ?? []).map(tabVariable);
-  const opened = tabs.filter((tab) => !fixtures.tabs.includes(tab));
-  const given = `{ ${["page", ...tabs.filter((tab) => fixtures.tabs.includes(tab)), ...(opened.length === 0 ? [] : ["context"])].join(", ")} }`;
+  const opened = others.filter((application) => !given.includes(application)).map(tabVariable);
+  // The test asks for what its lines name: its page, or its own application for the page objects, and each other application.
+  const names = (name: string) => steps.some((step) => new RegExp(`(?<![\\w.$])${name}\\.`).test(step));
+  const own = applicationVariable(scenario.application);
+  const asked = [
+    ...(names("page") || !names(own) ? ["page"] : []),
+    ...(names(own) ? [own] : []),
+    ...given.map(applicationVariable),
+    ...(opened.length === 0 ? [] : ["context"]),
+  ];
+  const taken = `{ ${asked.join(", ")} }`;
   return [
     `import { expect, test } from ${JSON.stringify(fixtures.module)};`,
     "",
-    `test(${JSON.stringify(oneLine(scenario.title))}, { tag: ${JSON.stringify(scenarioTags(scenario))} }, async (${screenshots ? `${given}, testInfo` : given}) => {`,
+    `test(${JSON.stringify(oneLine(scenario.title))}, { tag: ${JSON.stringify(scenarioTags(scenario))} }, async (${screenshots ? `${taken}, testInfo` : taken}) => {`,
     ...opened.map((tab) => `  const ${tab} = await context.newPage();`),
     ...steps,
     "});",

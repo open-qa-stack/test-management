@@ -9,6 +9,25 @@ import type { TestProject } from "./test-repository-base.ts";
  */
 export function testRepositoryReadme(project: TestProject): string {
   const applications = project.applications.map(({ id, name }) => `| \`${project.appsDir}/${id}/\` | The tests of ${name}. |`);
+  const { fixturesFile } = project;
+  // What the tests share, for a repository whose tests do not each stand alone.
+  const shared =
+    fixturesFile === undefined
+      ? ""
+      : `| \`${project.appsDir}/<application id>/pages/\` | The page objects of an application: one class per screen, which holds where its elements are. |
+| \`${fixturesFile}\` | The fixtures every test shares: the \`test\` and the \`expect\` the tests import, with each application and its page objects. |\n`;
+  const built =
+    fixturesFile === undefined
+      ? ""
+      : `## Fixtures and page objects
+
+A test imports \`test\` and \`expect\` from \`${fixturesFile}\`, never from \`@playwright/test\` itself, so that what the repository adds to a test is added once. That file gives each application as a fixture, named after it, such as \`customerManagement\` for an application \`customer-management\`. The application of a test is on its \`page\`; another one has a tab of its own, so that what is under way on one stays as it is while the test acts on the other.
+
+An application holds a page object for each of its screens, such as \`customerManagement.customers\`. A page object says where the elements of its screen are, and a test acts on them: \`await customerManagement.customers.searchTextbox.fill("…")\`. What a test expects stays in the test. A locator that changes is changed once, in its page object.
+
+A fixture a team needs — an account signed in, data created then removed — goes in \`${fixturesFile}\`; \`pages/index.ts\` is written again from the page objects of its folder.
+
+`;
   return `# Playwright tests
 
 The automated tests of the applications below, written with [Playwright](https://playwright.dev) and run with \`@playwright/test\` ${project.playwrightVersion}. \`oqas.json\` declares the applications, their environments and where each is reached; \`playwright.config.ts\` reads it and makes one Playwright project per application.
@@ -18,8 +37,7 @@ The automated tests of the applications below, written with [Playwright](https:/
 | Path | What it holds |
 |---|---|
 ${applications.join("\n")}
-| \`${project.appsDir}/fixtures.ts\` | The fixtures every test shares: the \`test\` and the \`expect\` the tests import, with a tab for each application. |
-| \`playwright.config.ts\` | One project per application of \`oqas.json\`, the reports and what is kept of a failed test. |
+${shared}| \`playwright.config.ts\` | One project per application of \`oqas.json\`, the reports and what is kept of a failed test. |
 | \`${project.stateDir}/\` | What the runs leave: the report, the results, the traces of the failed tests. |
 
 ## Running the tests
@@ -45,11 +63,7 @@ OQAS_ENVIRONMENT=<environment> npm test
 | \`npm run report\` | Opens the report of the last run. |
 | \`npm run typecheck\` | Checks the types of every test, without running any. |
 
-## Fixtures
-
-A test imports \`test\` and \`expect\` from \`${project.appsDir}/fixtures.ts\`, never from \`@playwright/test\` itself, so that what the repository adds to a test is added once. A test acts on its application with \`page\`; one that acts on another application as well asks for its tab by name, such as \`customerManagementPage\` for an application \`customer-management\`, and what is under way on one stays as it is while the test acts on the other. A fixture a team needs — an account signed in, data created then removed — goes in that file.
-
-## Tags
+${built}## Tags
 
 Every test bears the tags of what it is, after its title: \`@level-…\` for its level in the pyramid of tests, \`@domain-…\` for its functional domain, \`@app-…\` for each application it acts on, \`@kind-…\` for what it checks, \`@case-nominal\` or \`@case-negative\`, and \`@data-read\` or \`@data-write\`. Any of them selects tests: \`npx playwright test --grep @domain-<domain>\`.
 

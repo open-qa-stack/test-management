@@ -415,11 +415,12 @@ describe("criterion 8 — the result is written to the test repository, and noth
 const PROJECT = {
   playwrightVersion: "1.64.1",
   applications: [
-    { id: "shop", name: "Shop" },
-    { id: "back-office", name: "Back Office" },
+    { id: "shop", name: "Shop", ui: true },
+    { id: "back-office", name: "Back Office", ui: false },
   ],
   appsDir: "tests",
   stateDir: ".oqas",
+  fixturesFile: "tests/fixtures.ts",
 };
 
 describe("criterion 12 — the base of the test repository", () => {
@@ -430,7 +431,16 @@ describe("criterion 12 — the base of the test repository", () => {
     // A Playwright project as a team would set it up: a script per level of the pyramid of tests, strict types, a README and a workflow.
     assert.deepEqual(
       files.map((file) => file.path),
-      ["package.json", "playwright.config.ts", "tsconfig.json", ".gitignore", "README.md", "tests/fixtures.ts", ".github/workflows/tests.yml"],
+      [
+        "package.json",
+        "playwright.config.ts",
+        "tsconfig.json",
+        ".gitignore",
+        "README.md",
+        "tests/fixtures.ts",
+        "tests/shop/pages/index.ts",
+        ".github/workflows/tests.yml",
+      ],
     );
     const scripts = (JSON.parse(files[0]!.content) as { scripts: Record<string, string> }).scripts;
     assert.deepEqual(
@@ -454,14 +464,24 @@ describe("criterion 12 — the base of the test repository", () => {
       "| `tests/shop/` | The tests of Shop. |",
       "| `tests/back-office/` | The tests of Back Office. |",
       "| `tests/fixtures.ts` | The fixtures every test shares",
-      "## Fixtures",
+      "| `tests/<application id>/pages/` | The page objects of an application",
+      "## Fixtures and page objects",
       "`@playwright/test` 1.64.1",
       "npm run test:business",
       "@data-write",
     ])
       assert.ok(text("README.md").includes(said), said);
-    // The fixtures the tests import give a tab for each application.
-    assert.match(text("tests/fixtures.ts"), /\n {2}shopPage: Page;\n {2}backOfficePage: Page;\n/);
+    // The fixtures the tests import give each application that has a user interface, with the file that gathers its page objects.
+    assert.match(text("tests/fixtures.ts"), /\ninterface Applications \{\n {2}shop: Shop;\n\}\n/);
+    assert.match(text("tests/shop/pages/index.ts"), /^export class Shop \{\n {2}constructor\(readonly page: Page\) \{\}\n\}$/m);
+    // Tests that each stand alone share nothing: neither file is written, and the README says nothing of them.
+    const { fixturesFile: _shared, ...standalone } = PROJECT;
+    const alone = testRepositoryBase(standalone);
+    assert.deepEqual(
+      alone.map((file) => file.path),
+      ["package.json", "playwright.config.ts", "tsconfig.json", ".gitignore", "README.md", ".github/workflows/tests.yml"],
+    );
+    assert.doesNotMatch(alone[4]!.content, /fixtures|page object/i);
     // The workflow reads the repository and nothing else, and pins every action to a commit.
     const workflow = text(".github/workflows/tests.yml");
     assert.ok(workflow.includes("permissions:\n  contents: read") && workflow.includes("npm run typecheck") && workflow.includes("npx playwright test --list"));

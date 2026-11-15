@@ -188,8 +188,19 @@ export interface CartographySettings {
   concurrency?: number;
 }
 
+/**
+ * How the tests of a repository are built: `page-objects`, against the page objects of the screens, given by
+ * the fixtures the tests share; `fixtures`, each line on the page, the applications given by those fixtures;
+ * `standalone`, each test on its own, importing Playwright itself, nothing written beside it.
+ */
+export type TestArchitecture = "page-objects" | "fixtures" | "standalone";
+
 /** How the tests are designed. */
 export interface DesignSettings {
+  /** How the tests are built; `page-objects` by default. */
+  architecture?: TestArchitecture;
+  /** Path of the file of the fixtures the tests share, relative to the root of the test repository; `fixtures.ts` in the folder of the applications by default. */
+  fixturesFile?: string;
   /** Whether an agent of its own reviews the scenarios of a plan for duplicates; `true` by default. */
   reviewPlan?: boolean;
   /** Whether an agent of its own reviews each test that passed against the scenario of its plan; `true` by default. */

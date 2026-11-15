@@ -211,15 +211,28 @@ describe("the skeleton of a test of several applications", () => {
     assert.deepEqual(await new CharterCheck({ repository, rules: charter.rules }).check({ path: "apps/shop/search-order-by-customer.spec.ts", content }), []);
   });
 
-  it("asks the fixtures of the repository for the tab they give, and opens itself the one they do not", async () => {
+  it("asks the fixtures of the repository for each application they give, whose page is its tab, and opens itself the tab of one they do not", async () => {
     const two = { ...CROSSING, applications: ["customer-desk", "billing"] };
-    const given = skeleton(two, false, { module: "../fixtures.ts", tabs: ["customerDeskPage", "billingPage"] });
+    const given = skeleton(two, true, { module: "../fixtures.ts", applications: ["shop", "customer-desk", "billing"] });
     assert.ok(given.startsWith('import { expect, test } from "../fixtures.ts";\n'), given);
-    assert.ok(given.includes("async ({ page, customerDeskPage, billingPage }) => {"), given);
-    assert.doesNotMatch(given, /newPage/);
-    const partly = skeleton(two, false, { module: "../fixtures.ts", tabs: ["customerDeskPage"] });
-    assert.ok(partly.includes("async ({ page, customerDeskPage, context }) => {\n  const billingPage = await context.newPage();\n"), partly);
+    assert.ok(given.includes("async ({ page, customerDesk, billing }, testInfo) => {"), given);
+    assert.doesNotMatch(given, /newPage|customerDeskPage/);
+    for (const line of [
+      'await expect(customerDesk.page.getByRole("link", { name: "Ticket 12", exact: true })).toBeVisible();',
+      'await testInfo.attach("2", { body: await customerDesk.page.screenshot(), contentType: "image/png" });',
+    ])
+      assert.ok(given.includes(line), `${line}\n${given}`);
+    const partly = skeleton(two, false, { module: "../fixtures.ts", applications: ["customer-desk"] });
+    assert.ok(partly.includes("async ({ page, customerDesk, context }) => {\n  const billingPage = await context.newPage();\n"), partly);
     assert.ok((await moduleSyntax(partly)).ok);
+  });
+
+  it("asks for the application of the test when a line acts on one of its page objects, and for its page only when a line acts on it", () => {
+    const step = { action: "Search Veldane", code: ['await shop.orders.searchTextbox.fill("Veldane");'], expects: [] };
+    const fixtures = { module: "../fixtures.ts", applications: ["shop"] };
+    assert.ok(skeleton({ ...SEARCH, steps: [step] }, false, fixtures).includes("async ({ shop }) => {"));
+    const both = skeleton({ ...SEARCH, steps: [{ ...step, code: ['await page.goto("/orders");', ...step.code] }] }, false, fixtures);
+    assert.ok(both.includes("async ({ page, shop }) => {"), both);
   });
 });
 
@@ -245,9 +258,9 @@ describe("the sheet of a scenario", () => {
     assert.ok(told.includes("application shop; it also acts on desk, each in a tab of its own, as the skeleton gives them."), told);
     assert.ok(told.includes('"@app-shop","@app-desk"'), told);
     // Its skeleton imports the fixtures the repository shares, from the folder of its file.
-    const shared = scenarioSheet(crossing, false, { path: "apps/fixtures.ts", tabs: ["deskPage"], created: false });
+    const shared = scenarioSheet(crossing, false, { path: "apps/fixtures.ts", applications: ["desk"] });
     assert.ok(shared.includes('import { expect, test } from "../fixtures.ts";'), shared);
-    assert.ok(shared.includes("async ({ page, deskPage }) => {"), shared);
+    assert.ok(shared.includes("async ({ page, desk }) => {"), shared);
     // A scenario without data says so, and a source cited whole is named alone.
     cursor.close();
     assert.deepEqual(

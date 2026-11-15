@@ -54,12 +54,14 @@ export class RepositoryInit {
       for (const error of result.errors) write(`${error.path || "/"}: ${error.message}\n`);
       return ExitCode.configuration;
     }
-    const { applications, repository } = result.config;
+    const { applications, repository, design } = result.config;
     const files = testRepositoryBase({
       playwrightVersion,
-      applications: applications.map(({ id, name }) => ({ id, name })),
+      applications: applications.map(({ id, name, type }) => ({ id, name, ui: type !== "api" })),
       appsDir: repository.appsDir,
       stateDir: repository.stateDir,
+      // Tests that each stand alone share no fixtures: nothing is written for them.
+      ...(design.architecture === "standalone" ? {} : { fixturesFile: design.fixturesFile }),
     });
     const created: string[] = [];
     const kept: string[] = [];

@@ -206,6 +206,17 @@ export const configSchema = {
           description:
             "Whether an agent of its own reviews the scenarios of a plan for duplicates, in sessions of the model of their own; true by default. The harness compares the scenarios by their code either way.",
         },
+        architecture: {
+          type: "string",
+          enum: ["page-objects", "fixtures", "standalone"],
+          description:
+            "How the tests are built; page-objects by default. page-objects: the tests act on the page objects of the screens, written from the plans, and are given each application by the fixtures they share. fixtures: each line of a test acts on the page, and the tests import the fixtures they share. standalone: each test imports Playwright itself, and nothing is written beside it, for a repository with an architecture of its own.",
+        },
+        fixturesFile: {
+          ...relativePath,
+          description:
+            "Path of the file of the fixtures the tests share, relative to the root of the test repository; fixtures.ts in the folder of the applications by default. A file already there is kept as it is, and written when the repository has none.",
+        },
         reviewTests: {
           type: "boolean",
           description:

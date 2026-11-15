@@ -23,6 +23,7 @@ export type {
   PlanDecision,
   PlanEnd,
   ExpectedElement,
+  PlannedLine,
   PlannedExpect,
   PlannedScenario,
   PlannedStep,

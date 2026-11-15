@@ -1,4 +1,4 @@
-import { baseUrlVariable, FIXTURES_FILE_NAME, sharedFixtures } from "@open-qa-stack/shared";
+import { applicationPages, appsFrom, baseUrlVariable, PAGES_FOLDER, PAGES_INDEX, sharedFixtures } from "@open-qa-stack/shared";
 import { testRepositoryReadme } from "./test-repository-readme.ts";
 import { testRepositoryWorkflow } from "./test-repository-workflow.ts";
 
@@ -68,11 +68,18 @@ export interface TestProject {
   /** The exact version of `@playwright/test`. */
   readonly playwrightVersion: string;
   /** The applications the repository tests, as its configuration declares them. */
-  readonly applications: readonly { readonly id: string; readonly name: string }[];
+  readonly applications: readonly {
+    readonly id: string;
+    readonly name: string;
+    /** Whether it has a user interface: its tests are then given its page objects. */
+    readonly ui: boolean;
+  }[];
   /** Folder of the applications, relative to the root of the repository. */
   readonly appsDir: string;
   /** Folder of what the runs leave, relative to the root of the repository. */
   readonly stateDir: string;
+  /** Path of the file of the fixtures the tests share, relative to the root of the repository; none for tests that each stand alone. */
+  readonly fixturesFile?: string;
 }
 
 /** The levels of the pyramid of tests, each with a script that runs its tests by their tag. */
@@ -93,7 +100,25 @@ const LEVELS = ["smoke", "functional", "business", "cross-application", "end-to-
  * @returns The files, each by its path relative to the root of the repository.
  */
 export function testRepositoryBase(project: TestProject): BaseFile[] {
-  const { playwrightVersion, applications, appsDir, stateDir } = project;
+  const { playwrightVersion, applications, appsDir, stateDir, fixturesFile } = project;
+  const screened = applications.filter((application) => application.ui);
+  // The fixtures the tests share, and the file that gathers the page objects of each application, there from the start.
+  const shared =
+    fixturesFile === undefined
+      ? []
+      : [
+          {
+            path: fixturesFile,
+            content: sharedFixtures(
+              screened.map((application) => application.id),
+              appsFrom(fixturesFile, appsDir),
+            ),
+          },
+          ...screened.map((application) => ({
+            path: `${appsDir}/${application.id}/${PAGES_FOLDER}/${PAGES_INDEX}`,
+            content: applicationPages(application, []),
+          })),
+        ];
   const manifest = {
     name: "playwright-tests",
     private: true,
@@ -128,7 +153,7 @@ export function testRepositoryBase(project: TestProject): BaseFile[] {
     { path: "tsconfig.json", content: `${JSON.stringify(compiler, null, 2)}\n` },
     { path: ".gitignore", content: `${ignored.join("\n")}\n` },
     { path: "README.md", content: testRepositoryReadme(project) },
-    { path: `${appsDir}/${FIXTURES_FILE_NAME}`, content: sharedFixtures(applications.map((application) => application.id)) },
+    ...shared,
     { path: ".github/workflows/tests.yml", content: testRepositoryWorkflow() },
   ];
 }

@@ -1,36 +1,55 @@
-import { tabVariable } from "./tab-variable.ts";
-
-/** Name of the file of the fixtures every test of a test repository shares, in the folder of its applications. */
-export const FIXTURES_FILE_NAME = "fixtures.ts";
+import { applicationClass, PAGES_FOLDER, PAGES_INDEX } from "./application-pages.ts";
+import { posix } from "node:path";
+import { applicationVariable } from "./application-variable.ts";
 
 /**
- * The fixtures every test of a test repository shares: the `test` and the `expect` its tests import, with a
- * tab for each application, opened in the browser context of the test when the test asks for it.
+ * The fixtures every test of a test repository shares: the `test` and the `expect` its tests import, with
+ * each application as a fixture that holds its page objects.
  *
  * @remarks
- * A test of one application acts on its `page`; a test of several asks for the tab of each other one by its
- * name, and Playwright opens only those asked for and closes them with the context. The file is the place
- * where a team adds fixtures of its own.
+ * The application of a test is on its `page`; another one has a tab of its own in the same browser context,
+ * so that what is under way on one stays as it is while the test acts on the other. Playwright makes only
+ * the fixtures a test asks for. The file is the place where a team adds fixtures of its own.
  *
- * @param applications - Identifiers of the applications the repository tests.
+ * @param applications - Identifiers of the applications that have a user interface.
+ * @param appsFrom - The folder of the applications, relative to that of the file; the same folder by default.
  * @returns The text of the file.
  */
-export function sharedFixtures(applications: readonly string[]): string {
-  const tabs = applications.map(tabVariable);
+export function sharedFixtures(applications: readonly string[], appsFrom = "."): string {
   return [
-    `import { test as base, expect, type Page } from "@playwright/test";`,
+    `import { test as base, expect } from "@playwright/test";`,
+    ...applications.map((id) => `import { ${applicationClass(id)} } from "${appsFrom}/${id}/${PAGES_FOLDER}/${PAGES_INDEX}";`),
     "",
-    "/** A tab for each application: a page of its own in the browser context of the test, opened when the test asks for it. */",
-    "interface ApplicationTabs {",
-    ...tabs.map((tab) => `  ${tab}: Page;`),
+    "/** Each application, with the page objects of its screens. */",
+    "interface Applications {",
+    ...applications.map((id) => `  ${applicationVariable(id)}: ${applicationClass(id)};`),
     "}",
     "",
-    "/** The test every test file imports: that of Playwright, with the fixtures of this repository. */",
-    "export const test = base.extend<ApplicationTabs>({",
-    ...tabs.flatMap((tab) => [`  ${tab}: async ({ context }, use) => {`, "    await use(await context.newPage());", "  },"]),
+    "/**",
+    " * The test every test file imports: that of Playwright, with the fixtures of this repository. The application",
+    " * of a test is on its page; another one has a tab of its own in the same browser context.",
+    " */",
+    "export const test = base.extend<Applications>({",
+    ...applications.flatMap((id) => [
+      `  ${applicationVariable(id)}: async ({ page, context }, use, testInfo) => {`,
+      `    await use(new ${applicationClass(id)}(testInfo.project.name === ${JSON.stringify(id)} ? page : await context.newPage()));`,
+      "  },",
+    ]),
     "});",
     "",
     "export { expect };",
     "",
   ].join("\n");
+}
+
+/**
+ * The folder of the applications as a file of fixtures imports from it: relative to the folder of the file.
+ *
+ * @param path - Path of the file of the fixtures, relative to the root of the test repository.
+ * @param appsDir - Folder of the applications, relative to the root.
+ * @returns The folder, such as `.` or `../apps`.
+ */
+export function appsFrom(path: string, appsDir: string): string {
+  const folder = posix.relative(posix.dirname(path), appsDir);
+  return folder === "" ? "." : folder.startsWith(".") ? folder : `./${folder}`;
 }

@@ -206,6 +206,7 @@ const KEPT = IDS.map((id) => ({
     {
       action: "Open the orders",
       code: ['await page.goto("/orders");'],
+      lines: [{ application: "shop", screen: "/orders", code: 'await page.goto("/orders");' }],
       expects: [
         {
           result: "The orders show",
@@ -283,6 +284,8 @@ interface Setup {
   readonly check?: TestCheck;
   readonly branch?: string | null;
   readonly env?: Readonly<Record<string, string>>;
+  /** How the tests are built, when it is not as the configuration says by default. */
+  readonly architecture?: "fixtures" | "standalone";
   /** Whether the plan is submitted before the script; it is by default. */
   readonly plan?: boolean;
   readonly brief?: string;
@@ -317,7 +320,8 @@ async function design(script: readonly { status?: number; body: unknown }[], set
   const before = existsSync(join(root, ".git")) || existsSync(join(root, "..", ".git")) ? snapshot(root) : {};
   try {
     const declared = configFor(server.baseUrl, setup.limits);
-    const config: ResolvedConfig = setup.vision === true ? { ...declared, model: { ...declared.model, capabilities: ["vision"] } } : declared;
+    const seeing: ResolvedConfig = setup.vision === true ? { ...declared, model: { ...declared.model, capabilities: ["vision"] } } : declared;
+    const config: ResolvedConfig = setup.architecture === undefined ? seeing : { ...seeing, design: { ...seeing.design, architecture: setup.architecture } };
     const charter = resolveCharter(config.charter);
     assert.ok(charter.ok);
     const designer = new Designer({
@@ -405,7 +409,9 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     assert.equal(readFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "utf8"), tagged(spec("list-orders")));
     // The fixtures the tests import are written for a repository that has none, and committed with them.
     assert.ok(filesOf(root).includes("apps/fixtures.ts"));
-    assert.match(readFileSync(join(root, "apps", "fixtures.ts"), "utf8"), /^export const test = base\.extend<ApplicationTabs>\(\{\n {2}shopPage: /m);
+    assert.match(readFileSync(join(root, "apps", "fixtures.ts"), "utf8"), /^export const test = base\.extend<Applications>\(\{\n {2}shop: /m);
+    // So is the file that gathers the page objects of each application the fixtures give.
+    assert.ok(filesOf(root).includes("apps/shop/pages/index.ts"));
     const state = stateOf(outcome);
     assert.equal(outcome.statePath, join(root, ".oqas", "designs", "design-20261113T100000Z.json"));
     assert.equal(outcome.planPath, join(root, ".oqas", "designs", "design-20261113T100000Z.plan.md"));
@@ -542,6 +548,42 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
       messages(outcome),
       /The plan was written to \.oqas\/designs\/design-\w+\.plan\.md, which git ignores: it was not committed\.\nThe design state was written to \.oqas\/designs\/design-\w+\.json, which git ignores: it was not committed\./,
     );
+  });
+});
+
+describe("how the tests are built, as the configuration says", () => {
+  /** A plan whose first scenario clicks an element of the orders. */
+  const clicking = {
+    ...PLAN,
+    arguments: {
+      scenarios: [scenario("list-orders", "other", { steps: [{ action: "Search", actions: [1, 2], expects: [] }] }), ...IDS.slice(1).map((id) => scenario(id))],
+    },
+  };
+  const script = [
+    { body: toolCalls(MODEL, [OPEN]) },
+    { body: toolCalls(MODEL, [SEARCH]) },
+    { body: toolCalls(MODEL, [clicking]) },
+    { body: answer(MODEL, "Done.") },
+  ];
+  const CLICK = 'await page.getByRole("button", { name: "Search", exact: true }).click();';
+
+  it("writes each test on its own, importing Playwright itself, and nothing beside it, for a repository with an architecture of its own", async () => {
+    const alone = (id: string) => write(id, spec(id).replace('from "../fixtures.ts"', 'from "@playwright/test"'));
+    const { outcome, root, server } = await design([...script, ...replies(IDS.flatMap(alone))], { plan: false, architecture: "standalone" });
+    assert.equal(outcome.tests.length, 3, messages(outcome));
+    assert.deepEqual(
+      filesOf(root).filter((path) => path.startsWith("apps/") && !path.endsWith(".spec.ts")),
+      [],
+    );
+    assert.match(asked(server, 1), /\nA test may import: @playwright\/test\.\n/);
+    assert.ok(asked(server, 1).includes(`import { expect, test } from "@playwright/test";`) && asked(server, 1).includes(`    ${CLICK}\n`), asked(server, 1));
+  });
+
+  it("gives the tests the fixtures they share and leaves each line on the page, when no page object is asked for", async () => {
+    const { outcome, root, server } = await design([...script, ...replies(valid(3))], { plan: false, architecture: "fixtures" });
+    assert.equal(outcome.tests.length, 3, messages(outcome));
+    assert.ok(filesOf(root).includes("apps/fixtures.ts") && filesOf(root).includes("apps/shop/pages/index.ts"));
+    assert.ok(asked(server, 1).includes(`import { expect, test } from "../fixtures.ts";`) && asked(server, 1).includes(`    ${CLICK}\n`), asked(server, 1));
   });
 });
 
@@ -945,7 +987,8 @@ describe("the sheet of a scenario", () => {
       { plan: false },
     );
     const skeletonText = sheetOf(second.server);
-    const line = 'await page.getByRole("textbox", { name: "Search orders", exact: true }).fill("zzqx");';
+    // The field is typed in through the page object of its screen, which the harness wrote from the plan.
+    const line = 'await shop.orders.searchOrdersTextbox.fill("zzqx");';
     assert.ok(
       skeletonText.includes(
         [
@@ -1956,7 +1999,7 @@ describe("what a plan may hold", () => {
           '    await page.goto("/orders");',
           "  });",
           '  await test.step("2. Search the orders", async () => {',
-          '    await page.getByRole("button", { name: "Search", exact: true }).click();',
+          "    await shop.orders.searchButton.click();",
           "    // Expect 2.1: The order shows.",
           '    await expect(page.getByText("Order 42 of Ada", { exact: true })).toBeVisible();',
           "  });",
@@ -1965,10 +2008,16 @@ describe("what a plan may hold", () => {
       asked(server, 1),
     );
     assert.deepEqual(planOf(outcome).scenarios[0]!.steps, [
-      { action: "Open the orders", code: ['await page.goto("/orders");'], expects: [] },
+      {
+        action: "Open the orders",
+        code: ['await page.goto("/orders");'],
+        lines: [{ application: "shop", screen: "/orders", code: 'await page.goto("/orders");' }],
+        expects: [],
+      },
       {
         action: "Search the orders",
-        code: ['await page.getByRole("button", { name: "Search", exact: true }).click();'],
+        code: ["await shop.orders.searchButton.click();"],
+        lines: [{ application: "shop", screen: "/orders", code: 'await page.getByRole("button", { name: "Search", exact: true }).click();' }],
         expects: [{ ...found, elements: [{ text: "Order 42 of Ada", locator: 'page.getByText("Order 42 of Ada", { exact: true })', field: false }] }],
       },
     ]);
@@ -1978,7 +2027,7 @@ describe("what a plan may hold", () => {
           "### Step 2. Search the orders",
           "",
           "```ts",
-          'await page.getByRole("button", { name: "Search", exact: true }).click();',
+          "await shop.orders.searchButton.click();",
           "```",
           "",
           "Expect 2.1: The order shows.",

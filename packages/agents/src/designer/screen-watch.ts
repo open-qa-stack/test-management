@@ -636,6 +636,19 @@ export class ScreenWatch {
   }
 
   /**
+   * The screen an action acts on: the one it opens, for an address, or else the one the action before it on
+   * its application left the page on.
+   *
+   * @param number - The number of the action.
+   * @returns The route of the screen; `undefined` for an action unknown, or when no tool told where the page was.
+   */
+  public actedOn(number: number): string | undefined {
+    const done = this.action(number);
+    if (done === undefined || done.tool === "goto") return done?.screen;
+    return this.done.findLast((before) => before.number < number && before.application === done.application)?.screen ?? done.screen;
+  }
+
+  /**
    * The actions after which the screen of an application showed a text beside its fields: the screen of an
    * action is what the page showed between it and the next action on its application.
    *
