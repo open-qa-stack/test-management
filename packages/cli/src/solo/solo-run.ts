@@ -1,7 +1,7 @@
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join, posix, relative, sep } from "node:path";
 import type { CommandRunner, StopReason, TestVerdict, UncoveredRequest } from "@open-qa-stack/domain";
-import { Cartographer, Designer, type JournalEntry, type TraceLine } from "@open-qa-stack/agents";
+import { Cartographer, Designer, DesignPasses, type JournalEntry, type TraceLine } from "@open-qa-stack/agents";
 import {
   CharterCheck,
   reviewerInstructions,
@@ -241,26 +241,31 @@ export class SoloRun {
           journal.record("design", "error", prepared.reason);
           return { value: { ok: false, tests: [], journal: [] } as Awaited<ReturnType<Designer["run"]>>, ok: false };
         }
-        const outcome = await new Designer({
-          config,
-          repositoryRoot: this.options.repositoryRoot,
-          env: this.options.env,
-          runtime: await agents(),
-          writerInstructions: writerInstructions(rules, config.repository, config.design.architecture),
-          check: new CharterCheck({ repository: this.options.repositoryRoot, rules }),
-          screenshots: rules.some((rule) => rule.id === SCREENSHOT_RULE),
-          runner: trials,
-          reviewPlan: config.design.reviewPlan,
-          reviewTests: config.design.reviewTests,
-          reviewCode: config.design.reviewCode,
-          reviewerInstructions: reviewerInstructions(rules, config.repository, config.design.architecture),
-          levels: config.design.levels,
-          ...observed,
-          ...(brief === undefined ? {} : { brief }),
-          ...(resumed?.designState === undefined
-            ? {}
-            : { resume: { state: resumed.designState, ...(resumed.branch === undefined ? {} : { branch: resumed.branch }) } }),
-        }).run();
+        // The levels asked are designed one after the other, each building on those below, unless the configuration asks for one plan.
+        const outcome = await new DesignPasses(
+          {
+            config,
+            repositoryRoot: this.options.repositoryRoot,
+            env: this.options.env,
+            runtime: await agents(),
+            writerInstructions: writerInstructions(rules, config.repository, config.design.architecture),
+            check: new CharterCheck({ repository: this.options.repositoryRoot, rules }),
+            screenshots: rules.some((rule) => rule.id === SCREENSHOT_RULE),
+            runner: trials,
+            reviewPlan: config.design.reviewPlan,
+            reviewTests: config.design.reviewTests,
+            reviewCode: config.design.reviewCode,
+            reviewerInstructions: reviewerInstructions(rules, config.repository, config.design.architecture),
+            levels: config.design.levels,
+            ...observed,
+            ...(brief === undefined ? {} : { brief }),
+            ...(resumed?.designState === undefined
+              ? {}
+              : { resume: { state: resumed.designState, ...(resumed.branch === undefined ? {} : { branch: resumed.branch }) } }),
+          },
+          config.design.passes,
+          (pass) => new Designer(pass).run(),
+        ).run();
         this.relay(journal, "design", outcome.journal);
         return { value: outcome, ok: outcome.ok };
       });

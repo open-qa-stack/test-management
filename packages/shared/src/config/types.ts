@@ -197,6 +197,11 @@ export type TestArchitecture = "page-objects" | "fixtures" | "standalone";
 
 /** How the tests are designed. */
 export interface DesignSettings {
+  /**
+   * How the levels asked are designed: `by-level`, one after the other from the base of the pyramid of tests, each with an agent that
+   * plans it alone then the agent that writes its tests, and told the tests of the levels below; `single`, all in one plan. `by-level` by default.
+   */
+  passes?: "by-level" | "single";
   /** Whether a visual test is written for each screen a plan opens by an address; `true` by default. */
   visualTests?: boolean;
   /** The share of the pixels of a screen that may differ from its reference, from 0 to 1; `0.01` by default. */

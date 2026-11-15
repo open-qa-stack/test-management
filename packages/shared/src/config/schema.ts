@@ -206,6 +206,12 @@ export const configSchema = {
           description:
             "Whether an agent of its own reviews the scenarios of a plan for duplicates, in sessions of the model of their own; true by default. The harness compares the scenarios by their code either way.",
         },
+        passes: {
+          type: "string",
+          enum: ["by-level", "single"],
+          description:
+            "How the levels asked are designed; by-level by default. by-level: one level after the other, from the base of the pyramid of tests to its top, each with an agent that plans that level alone, then the agent that writes its tests; a level starts once the one below is over, and is told the tests it gave, so that it builds on them. single: every level in one plan.",
+        },
         visualTests: {
           type: "boolean",
           description:

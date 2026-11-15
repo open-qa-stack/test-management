@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import { errorsOf, validateVariant } from "./helpers.ts";
 
 /** How the tests are built, when the configuration does not say. */
-const BUILT = { architecture: "page-objects", fixturesFile: "apps/shared/fixtures.ts", visualTests: true, visualTolerance: 0.01 };
+const BUILT = { architecture: "page-objects", fixturesFile: "apps/shared/fixtures.ts", visualTests: true, visualTolerance: 0.01, passes: "by-level" };
 
 describe("the review of a plan for duplicates is read from the configuration", () => {
   it("is asked when absent, and as given otherwise", () => {
@@ -63,5 +63,14 @@ describe("the visual tests are read from the configuration", () => {
         errorsOf(validateVariant((config) => (config["design"] = { visualTolerance }))).some((error) => error.path === "/design/visualTolerance"),
         String(visualTolerance),
       );
+  });
+});
+
+describe("how the levels asked are designed is read from the configuration", () => {
+  it("is as given, and refuses a way it does not know", () => {
+    const given = validateVariant((config) => (config["design"] = { passes: "single" }));
+    assert.ok(given.ok);
+    assert.equal(given.config.design.passes, "single");
+    assert.ok(errorsOf(validateVariant((config) => (config["design"] = { passes: "parallel" }))).some((error) => error.path === "/design/passes"));
   });
 });

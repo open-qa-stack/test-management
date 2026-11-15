@@ -478,6 +478,14 @@
           "type": "boolean",
           "description": "Whether an agent of its own reviews the scenarios of a plan for duplicates, in sessions of the model of their own; true by default. The harness compares the scenarios by their code either way."
         },
+        "passes": {
+          "type": "string",
+          "enum": [
+            "by-level",
+            "single"
+          ],
+          "description": "How the levels asked are designed; by-level by default. by-level: one level after the other, from the base of the pyramid of tests to its top, each with an agent that plans that level alone, then the agent that writes its tests; a level starts once the one below is over, and is told the tests it gave, so that it builds on them. single: every level in one plan."
+        },
         "visualTests": {
           "type": "boolean",
           "description": "Whether a visual test is written for each screen a plan opens by an address; true by default. It compares the screen with a reference made at its first run and committed with it, the zones whose content changes masked. A reference is that of one browser on one machine: run the tests where their references were made."
