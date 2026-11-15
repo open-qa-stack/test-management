@@ -33,4 +33,4 @@ export {
 export { LocalRunner } from "./runner/local-runner.ts";
 export { TRIALS_FOLDER, TrialRunner } from "./runner/trial-runner.ts";
 export { listedTests, reportedTests } from "./runner/reporter-json.ts";
-export { baseUrlVariable, ENVIRONMENT_VARIABLE, testRepositoryBase, type BaseFile } from "./runner/test-repository-base.ts";
+export { baseUrlVariable, ENVIRONMENT_VARIABLE, testRepositoryBase, type BaseFile, type TestProject } from "./runner/test-repository-base.ts";

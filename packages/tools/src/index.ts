@@ -21,3 +21,4 @@ export { moduleSyntax, type ModuleImport, type ModuleSyntax } from "./source-cod
 export type { SpecAssertion, SpecLocator, SpecOutline, SpecTyped } from "./source-code/spec-outline.ts";
 export { PlaywrightReference, type ReferenceMember } from "./playwright/playwright-reference.ts";
 export { MAX_FOUND_MEMBERS, MAX_MEMBER_CHARS, PLAYWRIGHT_READ_TOOL, PLAYWRIGHT_SEARCH_TOOL, playwrightTools } from "./playwright/playwright-tools.ts";
+export { playwrightVersion } from "./playwright/playwright-version.ts";

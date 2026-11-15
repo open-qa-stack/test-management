@@ -411,11 +411,60 @@ describe("criterion 8 — the result is written to the test repository, and noth
   });
 });
 
+/** A project of two applications, whose tests are in the folder `tests`. */
+const PROJECT = {
+  playwrightVersion: "1.64.1",
+  applications: [
+    { id: "shop", name: "Shop" },
+    { id: "back-office", name: "Back Office" },
+  ],
+  appsDir: "tests",
+  stateDir: ".oqas",
+};
+
 describe("criterion 12 — the base of the test repository", () => {
   it("declares a project per application, and imports only @playwright/test and modules of Node.js", async () => {
-    const files = testRepositoryBase("1.64.1");
+    const files = testRepositoryBase(PROJECT);
     const manifest = JSON.parse(files.find((file) => file.path === "package.json")!.content) as { devDependencies: Record<string, string> };
-    assert.deepEqual(manifest.devDependencies, { "@playwright/test": "1.64.1" });
+    assert.deepEqual(manifest.devDependencies, { "@playwright/test": "1.64.1", "@types/node": "22.20.5", typescript: "7.0.2" });
+    // A Playwright project as a team would set it up: a script per level of the pyramid of tests, strict types, a README and a workflow.
+    assert.deepEqual(
+      files.map((file) => file.path),
+      ["package.json", "playwright.config.ts", "tsconfig.json", ".gitignore", "README.md", ".github/workflows/tests.yml"],
+    );
+    const scripts = (JSON.parse(files[0]!.content) as { scripts: Record<string, string> }).scripts;
+    assert.deepEqual(
+      [scripts["test"], scripts["test:smoke"], scripts["test:end-to-end"], scripts["test:read-only"], scripts["report"], scripts["typecheck"]],
+      [
+        "playwright test",
+        "playwright test --grep @level-smoke",
+        "playwright test --grep @level-end-to-end",
+        "playwright test --grep @data-read",
+        "playwright show-report .oqas/report",
+        "tsc --noEmit",
+      ],
+    );
+    const text = (path: string) => files.find((file) => file.path === path)!.content;
+    assert.deepEqual((JSON.parse(text("tsconfig.json")) as { include: string[]; compilerOptions: { strict: boolean } }).include, [
+      "tests",
+      "playwright.config.ts",
+    ]);
+    assert.equal(text(".gitignore"), "node_modules/\n.oqas/test-results/\n.oqas/report/\n.oqas/junit.xml\n.oqas/runs/\n.oqas/traces/\n");
+    for (const said of [
+      "| `tests/shop/` | The tests of Shop. |",
+      "| `tests/back-office/` | The tests of Back Office. |",
+      "`@playwright/test` 1.64.1",
+      "npm run test:business",
+      "@data-write",
+    ])
+      assert.ok(text("README.md").includes(said), said);
+    // The workflow reads the repository and nothing else, and pins every action to a commit.
+    const workflow = text(".github/workflows/tests.yml");
+    assert.ok(workflow.includes("permissions:\n  contents: read") && workflow.includes("npm run typecheck") && workflow.includes("npx playwright test --list"));
+    assert.deepEqual(
+      [...workflow.matchAll(/uses: (\S+)/g)].filter(([, action]) => !/@[0-9a-f]{40}$/.test(action!)),
+      [],
+    );
     const source = files.find((file) => file.path === "playwright.config.ts")!.content;
     const imports = [...source.matchAll(/from\s+"([^"]+)"/g)].map((match) => match[1]);
     assert.deepEqual(
@@ -429,7 +478,7 @@ describe("criterion 12 — the base of the test repository", () => {
       JSON.stringify({ name: "@playwright/test", type: "module", exports: "./index.js" }),
     );
     writeFileSync(join(root, "node_modules", "@playwright", "test", "index.js"), "export const defineConfig = (config) => config;\n");
-    for (const file of files) writeFileSync(join(root, file.path), file.content);
+    for (const file of files.filter((candidate) => !candidate.path.includes("/"))) writeFileSync(join(root, file.path), file.content);
     const config = {
       applications: ["shop", "back-office"].map((id) => ({ id, environments: [{ name: "local", uiUrl: `http://${id}.test` }] })),
       repository: { appsDir: "tests" },

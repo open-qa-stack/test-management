@@ -6,6 +6,8 @@ import { parseArguments, USAGE } from "./arguments.ts";
 import { followedLine } from "./followed-line.ts";
 import { ExitCode, type ExitCodeValue } from "./exit-code.ts";
 import { liveRuntime, type OpenRuntime } from "./live-runtime.ts";
+import { playwrightVersion } from "@open-qa-stack/tools";
+import { RepositoryInit } from "./repository-init.ts";
 import { SoloRun } from "./solo-run.ts";
 
 /** What the command runs with: its environment, its folder and its outputs. */
@@ -22,7 +24,8 @@ export interface CommandIo {
 }
 
 /**
- * Runs `oqas` with its arguments: prints the usage, refuses a wrong option, or runs the solo command.
+ * Runs `oqas` with its arguments: prints the usage, refuses a wrong option, initialises the test repository, or
+ * runs the solo command.
  *
  * @param argv - The arguments, without the program.
  * @param io - The environment, the folder and the outputs.
@@ -34,11 +37,18 @@ export async function soloCommand(argv: readonly string[], io: CommandIo): Promi
     io.stderr.write(`${parsed.error}\n`);
     return ExitCode.configuration;
   }
-  const { repository, environment, brief, force, follow, help, resume } = parsed.arguments;
+  const { repository, environment, brief, force, follow, help, init, resume } = parsed.arguments;
   if (help) {
     io.stdout.write(USAGE);
     return ExitCode.passed;
   }
+  if (init)
+    return new RepositoryInit({
+      repositoryRoot: resolve(io.cwd, repository ?? "."),
+      playwrightVersion: playwrightVersion(),
+      write: (line) => io.stderr.write(line),
+      print: (line) => io.stdout.write(line),
+    }).run();
   const connect = io.connect ?? liveRuntime;
   const run = new SoloRun({
     repositoryRoot: resolve(io.cwd, repository ?? "."),

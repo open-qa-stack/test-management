@@ -27,10 +27,10 @@ const oqas = (...args: string[]) =>
 
 describe("the options of the command", () => {
   it("reads the repository, the environment, the forced cartography and the help", () => {
-    assert.deepEqual(parseArguments([]), { ok: true, arguments: { force: false, follow: false, help: false } });
+    assert.deepEqual(parseArguments([]), { ok: true, arguments: { force: false, follow: false, help: false, init: false } });
     assert.deepEqual(parseArguments(["--repository", "tests", "--environment", "local", "--force-cartography", "--follow", "--help"]), {
       ok: true,
-      arguments: { repository: "tests", environment: "local", force: true, follow: true, help: true },
+      arguments: { repository: "tests", environment: "local", force: true, follow: true, help: true, init: false },
     });
   });
 
@@ -40,7 +40,7 @@ describe("the options of the command", () => {
     assert.deepEqual(parseArguments(["--push"]), { ok: false, error: "Unknown option --push; see oqas --help." });
     assert.deepEqual(parseArguments(["--brief", "tester la recherche d'un client"]), {
       ok: true,
-      arguments: { brief: "tester la recherche d'un client", force: false, follow: false, help: false },
+      arguments: { brief: "tester la recherche d'un client", force: false, follow: false, help: false, init: false },
     });
     assert.deepEqual(parseArguments(["--brief", "  "]), { ok: false, error: "--brief needs a value." });
   });
@@ -48,7 +48,7 @@ describe("the options of the command", () => {
   it("reads the run to resume, and refuses another identifier, or an option the run resumed keeps", () => {
     assert.deepEqual(parseArguments(["--resume", "oqas-2026-11-13T12-00-00-000Z"]), {
       ok: true,
-      arguments: { resume: "oqas-2026-11-13T12-00-00-000Z", force: false, follow: false, help: false },
+      arguments: { resume: "oqas-2026-11-13T12-00-00-000Z", force: false, follow: false, help: false, init: false },
     });
     assert.deepEqual(parseArguments(["--resume", "../oqas"]), {
       ok: false,

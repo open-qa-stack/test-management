@@ -72,6 +72,8 @@ function repository(config: string | undefined): string {
     JSON.stringify({ lockfileVersion: 3, packages: { "": {}, "node_modules/@playwright/test": { version: "1.64.1" } } }),
   );
   writeFileSync(join(root, ".gitignore"), ".oqas/\nnode_modules/\n");
+  // The repository is a Playwright project already: the command runs in one that was initialised.
+  writeFileSync(join(root, "playwright.config.ts"), "export default {};\n");
   // The types of @playwright/test the proposed tests are checked against: npm, a double here, installs nothing.
   mkdirSync(join(root, "node_modules", "@playwright", "test"), { recursive: true });
   writeFileSync(

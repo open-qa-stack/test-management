@@ -1,4 +1,6 @@
 import { baseUrlVariable } from "@open-qa-stack/shared";
+import { testRepositoryReadme } from "./test-repository-readme.ts";
+import { testRepositoryWorkflow } from "./test-repository-workflow.ts";
 
 /** A file of the base of a test repository. */
 export interface BaseFile {
@@ -6,6 +8,10 @@ export interface BaseFile {
   readonly path: string;
   readonly content: string;
 }
+
+/** The versions of the tools of a test repository that are not those of Playwright: its compiler and the types of Node.js. */
+const TYPESCRIPT_VERSION = "7.0.2";
+const NODE_TYPES_VERSION = "22.20.5";
 
 /** Variable that names the environment the tests run against. */
 export const ENVIRONMENT_VARIABLE = "OQAS_ENVIRONMENT";
@@ -18,19 +24,36 @@ import { join } from "node:path";
 import { defineConfig } from "@playwright/test";
 
 // One project per application of oqas.json; the harness gives each its base address when it runs the tests.
-const config = JSON.parse(readFileSync(join(import.meta.dirname, "oqas.json"), "utf8"));
+interface Environment {
+  name: string;
+  uiUrl?: string;
+  apis?: { baseUrl: string }[];
+}
+interface Application {
+  id: string;
+  environments: Environment[];
+}
+interface Configuration {
+  applications: Application[];
+  repository?: { appsDir?: string; stateDir?: string };
+}
+
+const config = JSON.parse(readFileSync(join(import.meta.dirname, "oqas.json"), "utf8")) as Configuration;
 const appsDir = config.repository?.appsDir ?? "apps";
 const stateDir = config.repository?.stateDir ?? ".oqas";
 const environment = process.env.${ENVIRONMENT_VARIABLE};
-const variable = (id) => \`OQAS_BASE_URL_\${id.toUpperCase().replace(/[^A-Z0-9]/g, "_")}\`;
+const variable = (id: string) => \`OQAS_BASE_URL_\${id.toUpperCase().replace(/[^A-Z0-9]/g, "_")}\`;
 // The base address of an application: its interface, or else its first API.
-const baseOf = (env) => env?.uiUrl ?? env?.apis?.[0]?.baseUrl;
+const baseOf = (env: Environment | undefined) => env?.uiUrl ?? env?.apis?.[0]?.baseUrl;
 
 export default defineConfig({
   testDir: appsDir,
   outputDir: join(stateDir, "test-results"),
+  // A test left focused never passes for the others, and none is retried: a test that fails once has failed.
   forbidOnly: true,
   retries: 0,
+  reporter: [["list"], ["html", { outputFolder: join(stateDir, "report"), open: "never" }], ["junit", { outputFile: join(stateDir, "junit.xml") }]],
+  // What is kept of a failed test, for the report: its trace and a screenshot.
   use: { trace: "retain-on-failure", screenshot: "only-on-failure" },
   projects: config.applications.map((application) => ({
     name: application.id,
@@ -40,21 +63,71 @@ export default defineConfig({
 });
 `;
 
+/** The project a test repository is initialised for. */
+export interface TestProject {
+  /** The exact version of `@playwright/test`. */
+  readonly playwrightVersion: string;
+  /** The applications the repository tests, as its configuration declares them. */
+  readonly applications: readonly { readonly id: string; readonly name: string }[];
+  /** Folder of the applications, relative to the root of the repository. */
+  readonly appsDir: string;
+  /** Folder of what the runs leave, relative to the root of the repository. */
+  readonly stateDir: string;
+}
+
+/** The levels of the pyramid of tests, each with a script that runs its tests by their tag. */
+const LEVELS = ["smoke", "functional", "business", "cross-application", "end-to-end"];
+
 /**
- * The files a test repository needs for its tests to run: its `package.json`, with
- * `@playwright/test` at an exact version, and its `playwright.config.ts`.
+ * The files of a test repository initialised as a Playwright project: its `package.json`, with
+ * `@playwright/test` at an exact version and a script for each level of the pyramid of tests, its
+ * `playwright.config.ts`, its `tsconfig.json`, its `.gitignore`, its `README.md` and the workflow that
+ * verifies its tests on a pull request.
  *
  * @remarks
  * The lockfile is made by `npm install` from this `package.json`. The configuration imports only
- * `@playwright/test` and modules of Node.js: it reads the applications from `oqas.json`.
+ * `@playwright/test` and modules of Node.js: it reads the applications from `oqas.json`, so that the same
+ * file serves a repository of one application or of several.
  *
- * @param playwrightVersion - The exact version of `@playwright/test`.
- * @returns The files.
+ * @param project - The project: the version of Playwright, the applications and the folders.
+ * @returns The files, each by its path relative to the root of the repository.
  */
-export function testRepositoryBase(playwrightVersion: string): BaseFile[] {
-  const manifest = { name: "playwright-tests", private: true, type: "module", devDependencies: { "@playwright/test": playwrightVersion } };
+export function testRepositoryBase(project: TestProject): BaseFile[] {
+  const { playwrightVersion, appsDir, stateDir } = project;
+  const manifest = {
+    name: "playwright-tests",
+    private: true,
+    type: "module",
+    scripts: {
+      test: "playwright test",
+      ...Object.fromEntries(LEVELS.map((level) => [`test:${level}`, `playwright test --grep @level-${level}`])),
+      "test:read-only": "playwright test --grep @data-read",
+      report: `playwright show-report ${stateDir}/report`,
+      typecheck: "tsc --noEmit",
+    },
+    devDependencies: { "@playwright/test": playwrightVersion, "@types/node": NODE_TYPES_VERSION, typescript: TYPESCRIPT_VERSION },
+  };
+  const compiler = {
+    compilerOptions: {
+      target: "es2023",
+      lib: ["es2023", "dom"],
+      module: "preserve",
+      moduleResolution: "bundler",
+      strict: true,
+      noEmit: true,
+      allowImportingTsExtensions: true,
+      skipLibCheck: true,
+      types: ["node"],
+    },
+    include: [appsDir, "playwright.config.ts"],
+  };
+  const ignored = ["node_modules/", `${stateDir}/test-results/`, `${stateDir}/report/`, `${stateDir}/junit.xml`, `${stateDir}/runs/`, `${stateDir}/traces/`];
   return [
     { path: "package.json", content: `${JSON.stringify(manifest, null, 2)}\n` },
     { path: "playwright.config.ts", content: PLAYWRIGHT_CONFIG },
+    { path: "tsconfig.json", content: `${JSON.stringify(compiler, null, 2)}\n` },
+    { path: ".gitignore", content: `${ignored.join("\n")}\n` },
+    { path: "README.md", content: testRepositoryReadme(project) },
+    { path: ".github/workflows/tests.yml", content: testRepositoryWorkflow() },
   ];
 }

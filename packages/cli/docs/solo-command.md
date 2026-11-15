@@ -16,7 +16,30 @@ oqas --environment local --brief "Test the search of a customer and their profil
 | `--force-cartography`   | off                           | Maps every source again, even those whose card is up to date.                                                                                                                    |
 | `--follow`              | off                           | Prints what the agents do while they do it, on the error output, besides the journal: see [Following a run](#following-a-run).                                                   |
 | `--resume <run>`        |                               | Resumes a run a limit stopped, such as `oqas-2026-11-13T12-00-00-000Z`; see [Resuming a run](#resuming-a-run). It takes no `--environment`, `--brief` nor `--force-cartography`. |
+| `--init`                |                               | Makes a Playwright project of the test repository and runs nothing: see [Initialising a test repository](#initialising-a-test-repository). |
 | `--help`                |                               | Prints the usage.                                                                                                                                                                |
+
+## Initialising a test repository
+
+`oqas --init` makes a Playwright project of a test repository, from its `oqas.json`. It is a program, not an agent: it calls no model, installs nothing, commits nothing and needs none of the secrets a run reads.
+
+| File | What it holds |
+|---|---|
+| `package.json` | `@playwright/test` at the exact version the browser tools of the agents run with, TypeScript and the types of Node.js, and the scripts: `test`, one per level of the pyramid of tests (`test:smoke`, `test:functional`, `test:business`, `test:cross-application`, `test:end-to-end`), `test:read-only`, `report` and `typecheck`. |
+| `playwright.config.ts` | One Playwright project per application of `oqas.json`, read when the tests run; the list, HTML and JUnit reports; the trace and a screenshot kept for a failed test; no retry. |
+| `tsconfig.json` | Strict types, for the tests and the configuration. |
+| `.gitignore` | The dependencies and what a run leaves in the state folder. |
+| `README.md` | The layout, how to run the tests, by application, by level or by tag, and what to read when one fails. |
+| `.github/workflows/tests.yml` | What is verified of the tests on a pull request without an environment: their types, and that Playwright lists them all. |
+
+The folder of each application is created too. **A file the repository already has is kept as it is, never overwritten**: the command says which it created and which it kept, is safe on a repository a team set up, and may be run again. It ends with `0`, or with `3` when `oqas.json` is missing or invalid. `--init` takes `--repository` and nothing else.
+
+Then install and commit, lockfile included:
+
+```sh
+npm install
+git add -A && git commit -m "chore: initialise the Playwright project"
+```
 
 ## Following a run
 
@@ -38,7 +61,7 @@ With `--follow`, each line of the trace of the agents is printed as it is writte
 Each step starts only when the one before succeeded; once the prerequisites passed, the summary runs whatever the end of the others.
 
 1. **Configuration.** `oqas.json` is read and validated, the environment is chosen, and the test charter is resolved. A missing or invalid configuration stops the command before anything else: no model is called and no file of the repository is written.
-2. **Prerequisites.** The folder is the root of a git repository with a commit, the model server of the configuration answers, and `npm` can be run.
+2. **Prerequisites.** The folder is the root of a git repository with a commit, the model server of the configuration answers, `npm` can be run, and the repository is a Playwright project: it has a `playwright.config.ts`. One that has none is [initialised](#initialising-a-test-repository) first.
 3. **Cartography.** The sources without an up-to-date card are mapped, `cartography.concurrency` of them at once, then the cards are consolidated into the domain index (see the cartographer of `@open-qa-stack/agents`).
 4. **Design.** The dependencies of the test repository and the browsers of its locked version of `@playwright/test` are installed, once for the design and the execution, then the designer, from the brief, plans then writes the tests the brief needs, eight at most, on a new local branch `oqas/design-<date>`, each run against the application before it is kept. It plans in one session, then writes each test in a session of its own, each under the limits of a task. Its plan is accepted as it is. A scenario whose session ends before its test is made to end keeps its last file, classed as unfinished in the design state.
 5. **Execution.** The tests designed run together, on the machine, with the real runner, except those classed as unfinished or as duplicates of another, which the journal names and which stay in the test repository for a person to decide, and the harness pronounces a verdict per test from the JSON of the reporter (see `docs/pinned-run.md` of `@open-qa-stack/harness`).

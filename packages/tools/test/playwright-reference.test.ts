@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, describe, it } from "node:test";
-import { MAX_MEMBER_CHARS, PlaywrightReference, playwrightTools } from "../src/index.ts";
+import { MAX_MEMBER_CHARS, PlaywrightReference, playwrightTools, playwrightVersion } from "../src/index.ts";
 
 const CORE = `// A type file as the package ships it.
 export interface Page {
@@ -208,5 +208,11 @@ describe("the tools that read the reference of Playwright", () => {
   it("say so when no version could be read", async () => {
     const { described } = await tools(bare);
     assert.ok(described.every((description) => description.includes("(the version installed)")));
+  });
+});
+
+describe("the version of Playwright the browser tools run with", () => {
+  it("is that of the package installed, exact", () => {
+    assert.match(playwrightVersion(), /^\d+\.\d+\.\d+$/);
   });
 });
