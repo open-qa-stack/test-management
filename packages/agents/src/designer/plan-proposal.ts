@@ -1174,14 +1174,18 @@ export class PlanProposal {
   }
 
   /**
-   * What the gates refuse in a scenario that writes: a text an early step expects shown, that a later step
-   * expects gone, and that no step after brings back. The scenario removes what it starts from: its test would
-   * pass once and fail when run again.
+   * What the gates refuse in a scenario that writes: a text it finds when it starts — one a step expects shown
+   * before the scenario writes anything — that a later step expects gone, and that no step after brings back.
+   * The scenario removes what it starts from: its test would pass once and fail when run again. What the
+   * scenario writes itself, then removes, is none of it.
    */
   private replayErrors(scenario: SubmittedScenario): Refusal[] {
     const shown = (from: number, text: string) =>
       scenario.steps.slice(from).some((step) => step.expects.some((expect) => expect.shows.some((other) => sameText(other, text))));
-    return scenario.steps.flatMap((step, at) =>
+    // The steps before the first one that clicks an element whose name says it writes; the first step alone when none says so.
+    const writing = scenario.steps.findIndex((step) => this.cited(scenario, step.actions).some((action) => action.changes !== undefined));
+    const starting = scenario.steps.slice(0, writing === -1 ? 1 : writing);
+    return starting.flatMap((step, at) =>
       step.expects.flatMap((expect) =>
         expect.shows.filter(checkable).flatMap((text): Refusal[] => {
           const gone = scenario.steps.findIndex((later, j) => j > at && later.expects.some((other) => other.absent.some((absent) => sameText(absent, text))));
@@ -1189,7 +1193,7 @@ export class PlanProposal {
           return [
             {
               code: "PLAN-EFFECT",
-              message: `scenario ${scenario.id} expects "${text}" at step ${at + 1}, makes it go at step ${gone + 1}, and no step after brings it back: its test would pass once, then fail when run again, since what it starts from is gone. Add a last step that puts it back — do it on the screens, cite its actions and expect "${text}" shown again — or start from data of its own, such as a record the scenario creates under a made-up name.`,
+              message: `scenario ${scenario.id} finds "${text}" at step ${at + 1}, makes it go at step ${gone + 1}, and no step after brings it back: its test would pass once, then fail when run again, since what it starts from is gone. Add a last step that puts it back — do it on the screens, cite its actions and expect "${text}" shown again — or start from data of its own, such as a record the scenario creates under a made-up name.`,
             },
           ];
         }),

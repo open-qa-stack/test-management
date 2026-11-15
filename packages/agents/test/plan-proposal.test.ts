@@ -1572,14 +1572,31 @@ describe("the effect of a scenario on the data of the environment", () => {
   });
 
   it("refuses a scenario that writes, makes go a text it starts from and never brings it back, and keeps one that puts it back", async () => {
-    const step = (action: string, shows: string[], absent: string[] = []) => ({ action, actions: [1], expects: [{ result: action, shows, absent }] });
+    const step = (action: string, actions: number[], shows: string[], absent: string[] = []) => ({
+      action,
+      actions,
+      expects: [{ result: action, shows, absent }],
+    });
     const changing = (...last: ReturnType<typeof step>[]) =>
-      scenario("a", { effect: "write", data: [], steps: [step("Open the orders", ["Orders"]), step("Rename the list", [], ["Orders"]), ...last] });
+      scenario("a", { effect: "write", data: [], steps: [step("Open the orders", [1], ["Orders"]), step("Rename the list", [2], [], ["Orders"]), ...last] });
     const refused = (await (await saved()).tool().execute({ scenarios: [changing()] })) as { error: string };
     assert.match(
       refused.error,
-      /^Refused \(PLAN-EFFECT\): scenario a expects "Orders" at step 1, makes it go at step 2, and no step after brings it back: its test would pass once, then fail when run again, since what it starts from is gone\. Add a last step that puts it back /,
+      /^Refused \(PLAN-EFFECT\): scenario a finds "Orders" at step 1, makes it go at step 2, and no step after brings it back: its test would pass once, then fail when run again, since what it starts from is gone\. Add a last step that puts it back /,
     );
-    assert.equal(typeof (await (await saved()).tool().execute({ scenarios: [changing(step("Give the list its name back", ["Orders"]))] })), "string");
+    assert.equal(typeof (await (await saved()).tool().execute({ scenarios: [changing(step("Give the list its name back", [3], ["Orders"]))] })), "string");
+    // What a step shows once the scenario wrote is its own: taking it away again is none of what it starts from.
+    const own = scenario("a", {
+      effect: "write",
+      data: [],
+      steps: [step("Save an order", [1, 2], []), step("See it", [3], ["Orders"]), step("Remove it", [3], [], ["Orders"])],
+    });
+    assert.equal(typeof (await (await saved()).tool().execute({ scenarios: [own] })), "string");
+    // Without a click whose name says it writes, what the scenario starts from is what its first step finds.
+    const quiet = scenario("a", { effect: "write", data: [], steps: [step("Open the orders", [1], ["Orders"]), step("Leave", [3], [], ["Orders"])] });
+    assert.match(
+      ((await (await saved()).tool().execute({ scenarios: [quiet] })) as { error: string }).error,
+      /^Refused \(PLAN-EFFECT\): scenario a finds "Orders" at step 1, makes it go at step 2/,
+    );
   });
 });
