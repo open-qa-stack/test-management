@@ -24,9 +24,10 @@ export interface Quarantine {
  * How a test stands: `passed` when its last run passed; `failing-application`, `failing-plan` or
  * `failing-test` when it is kept failing, by who is at fault; `unfinished` when its scenario was closed
  * before its test was made to end, the file being the last one the harness could keep; `duplicate` when
- * another test of the design already verifies what it does.
+ * another test of the design already verifies what it does; `unfeasible` when the agent that writes it said,
+ * with its reason, that no test can do what the scenario asks.
  */
-export type TestClass = "passed" | `failing-${FailureCause}` | "unfinished" | "duplicate";
+export type TestClass = "passed" | `failing-${FailureCause}` | "unfinished" | "duplicate" | "unfeasible";
 
 /** Who classed a test: the harness, with the check that decided, or an agent, with its role. */
 export type ClassOrigin = { readonly by: "harness"; readonly check: string } | { readonly by: "agent"; readonly role: "writer" };

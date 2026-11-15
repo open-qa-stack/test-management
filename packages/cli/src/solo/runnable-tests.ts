@@ -4,7 +4,7 @@ import type { DesignedTest } from "@open-qa-stack/agents";
 export interface RunnableTests {
   /** Paths of the tests to run, in the order of the design. */
   readonly run: readonly string[];
-  /** Paths of the tests left out: those classed `unfinished` or `duplicate`. */
+  /** Paths of the tests left out: those classed `unfinished`, `duplicate` or `unfeasible`. */
   readonly leftOut: readonly string[];
 }
 
@@ -20,7 +20,7 @@ export interface RunnableTests {
  * @returns The paths to run, and those left out.
  */
 export function runnableTests(tests: readonly DesignedTest[]): RunnableTests {
-  const leftOut = (test: DesignedTest): boolean => ["unfinished", "duplicate"].includes(test.classes.at(-1)!.class);
+  const leftOut = (test: DesignedTest): boolean => ["unfinished", "duplicate", "unfeasible"].includes(test.classes.at(-1)!.class);
   return {
     run: tests.filter((test) => !leftOut(test)).map((test) => test.path),
     leftOut: tests.filter(leftOut).map((test) => test.path),

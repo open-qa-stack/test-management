@@ -273,7 +273,7 @@ export class SoloRun {
         journal.record(
           "execution",
           "info",
-          `${run.length} of the ${tests.length} tests designed are run; left out as unfinished or duplicate: ${leftOut.join(", ") || "none"}.`,
+          `${run.length} of the ${tests.length} tests designed are run; left out as unfinished, duplicate or unfeasible: ${leftOut.join(", ") || "none"}.`,
         );
         // The dependencies the design installed serve the execution as well.
         const outcome = await new PinnedRun({

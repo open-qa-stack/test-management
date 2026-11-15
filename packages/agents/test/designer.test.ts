@@ -2278,3 +2278,31 @@ describe("the levels of the pyramid of tests a plan is asked for", () => {
     assert.match(JSON.stringify(usual.server.requests[0]!.body), /Levels of the pyramid of tests asked: smoke, functional, business\./);
   });
 });
+
+describe("the count of the harness — each scenario of a plan is accounted for", () => {
+  const givenUp = (id: string): Call => ({ id, name: "propose_test", arguments: { unfeasible: { reason: "The shop offers no way to follow an order." } } });
+
+  it("succeeds with a scenario the agent that writes gave up with its reason, says so, and counts no test for it", async () => {
+    const turns = [...valid(2), [run(broken("follow-order"), "r-follow-order")], [givenUp("g1")], [givenUp("g2")], DONE];
+    const { outcome } = await design(replies(turns));
+    assert.equal(outcome.ok, true, messages(outcome));
+    assert.deepEqual(
+      outcome.tests.map((test) => [test.scenario, test.classes.at(-1)!.class]),
+      [
+        ["list-orders", "passed"],
+        ["place-order", "passed"],
+        ["follow-order", "unfeasible"],
+      ],
+    );
+    assert.match(
+      messages(outcome),
+      /Scenarios of the plan without a test, the agent that writes having said why \(1 of 3\): follow-order \(The shop offers no way to follow an order\.\)/,
+    );
+  });
+
+  it("fails when a scenario has neither a test that counts nor a reason, and says how many are expected", async () => {
+    const { outcome } = await design(replies([...valid(1), [run(broken("place-order"), "r-place-order")], [givenUp("g1")], [givenUp("g2")], DONE]));
+    assert.equal(outcome.ok, false);
+    assert.match(messages(outcome), /The design failed: 1 test was obtained, 2 are expected, one per scenario of the plan\./);
+  });
+});

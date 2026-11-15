@@ -142,6 +142,8 @@ export class TestProposals {
   private warned: string | undefined;
   /** The scenario whose failure the agent was asked to confirm is not that of its test. */
   private doubted: string | undefined;
+  /** The scenario the agent was asked to confirm it gives up. */
+  private abandoning: string | undefined;
 
   /**
    * @param rules - What the tests are checked against.
@@ -277,10 +279,28 @@ export class TestProposals {
             required: ["cause", "evidence"],
             additionalProperties: false,
           },
+          unfeasible: {
+            type: "object",
+            properties: {
+              reason: {
+                type: "string",
+                minLength: 1,
+                description: "Why no test can do what the scenario asks: what you tried, and what the application or the environment does not allow.",
+              },
+            },
+            required: ["reason"],
+            additionalProperties: false,
+            description:
+              "Gives the scenario up: no test can do what it asks, such as a step the application does not offer once you tried it. The scenario is kept without a test, with your reason, and the design goes on. Never for a test that passed, nor in place of a repair.",
+          },
         },
         additionalProperties: false,
       },
-      execute: async (args) => this.serial(async () => this.propose((args as { diagnosis?: Diagnosis }).diagnosis)),
+      execute: async (args) =>
+        this.serial(async () => {
+          const { diagnosis, unfeasible } = args as { diagnosis?: Diagnosis; unfeasible?: { reason: string } };
+          return unfeasible === undefined ? this.propose(diagnosis) : this.giveUpScenario(unfeasible.reason);
+        }),
     };
   }
 
@@ -417,6 +437,36 @@ export class TestProposals {
     return `Failed runs of ${scenario.id}: ${cursor.failedRuns} of ${MAX_FAILED_RUNS}.`;
   }
 
+  /**
+   * Closes the scenario open without a test: the agent that writes it says no test can do what it asks. It is
+   * asked once to confirm, since the scenario then has no test, and never heard for a test that passed. The
+   * scenario is kept in the state with the reason, and counts as one the plan accounts for.
+   */
+  private giveUpScenario(reason: string): string | { error: string } {
+    const open = this.open();
+    if ("error" in open) return open;
+    const { cursor, scenario } = open;
+    const what = `The scenario ${scenario.id} could not be given up`;
+    if (cursor.runs.findLast(judged)?.verdict === "passed")
+      return this.refuse(what, [
+        { code: "PROPOSE-UNFEASIBLE", message: `the test of scenario ${scenario.id} passed. Close it with ${PROPOSE_TOOL}, without unfeasible.` },
+      ]);
+    const held = heldVariables(reason, this.rules.secrets);
+    if (held.length > 0)
+      return this.refuse(
+        what,
+        held.map((variable) => ({ code: "PROPOSE-SECRET", message: `the reason holds the value of ${variable}. Leave it out.` })),
+      );
+    if (this.abandoning !== scenario.id) {
+      this.abandoning = scenario.id;
+      this.journal.record("info", `The harness asked the agent to confirm that no test can do what the scenario ${scenario.id} asks.`);
+      return `Warning (PROPOSE-UNFEASIBLE): giving up leaves scenario ${scenario.id} without a test. If a repair is possible — another locator, a wait, a value of its data — do it with ${RUN_TOOL}. If the application or the environment does not let a test do what the scenario asks, call ${PROPOSE_TOOL} again the same way: that confirms it.`;
+    }
+    this.setAside(open, { class: "unfeasible", origin: { by: "agent", role: "writer" }, reason }, "PROPOSE-UNFEASIBLE");
+    this.journal.record("info", this.mask(`The scenario ${scenario.id} was given up by the agent that writes it: ${reason}`));
+    return this.next(cursor, `Scenario ${scenario.id} closed without a test: no test can do what it asks, as you said.`);
+  }
+
   /** Closes the scenario open with the text of its last run that gave a verdict. */
   private propose(diagnosis: Diagnosis | undefined): string | { error: string } {
     const open = this.open();
@@ -538,25 +588,30 @@ export class TestProposals {
    * not hold, or the skeleton when none was, with why the scenario is closed and what was tried.
    */
   private unfinished(open: Open, check: string, why: string): void {
-    const content = this.submitted ?? skeleton(open.scenario, this.rules.screenshots);
-    const ran = open.cursor.runs.findLast((run) => run.content === content && judged(run));
     const runs = runsOf(open.cursor);
     const refused = [...new Set(this.refusedCodes)].map((code) => `${code} ×${this.refusedCodes.filter((other) => other === code).length}`);
     const tried = [
       runs.length === 0 ? "no run" : `${runs.length} ${runs.length === 1 ? "run" : "runs"} (${runs.map(runText).join(", ")})`,
       refused.length === 0 ? "no refusal" : `refusals: ${refused.join(", ")}`,
     ].join("; ");
+    this.setAside(open, { class: "unfinished", origin: { by: "harness", check }, reason: `${why} Tried: ${tried}.` }, check);
+    this.journal.record("error", `The scenario ${open.scenario.id} was closed by the harness (${check}): its test is kept as unfinished: ${open.path}.`);
+  }
+
+  /** Keeps the last text of a scenario closed without a test that counts, classed as given, with its runs. */
+  private setAside(open: Open, classing: Omit<Classed, "at">, closedBy: string): void {
+    const content = this.submitted ?? skeleton(open.scenario, this.rules.screenshots);
+    const ran = open.cursor.runs.findLast((run) => run.content === content && judged(run));
     this.kept.push({
       path: open.path,
       scenario: open.scenario.id,
       verdict: ran?.verdict ?? "not_run",
-      classes: [{ at: this.rules.now().toISOString(), class: "unfinished", origin: { by: "harness", check }, reason: `${why} Tried: ${tried}.` }],
-      runs,
-      closedBy: check,
+      classes: [{ at: this.rules.now().toISOString(), ...classing }],
+      runs: runsOf(open.cursor),
+      closedBy,
       content,
       references: this.references.get(content) ?? [],
     });
-    this.journal.record("error", `The scenario ${open.scenario.id} was closed by the harness (${check}): its test is kept as unfinished: ${open.path}.`);
   }
 
   /** Closes the scenario open, whose session is over, and tells the agent so. */

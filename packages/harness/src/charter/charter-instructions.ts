@@ -6,6 +6,7 @@ const WRITER_GUIDE = `You write the Playwright test of one scenario of an accept
 How this works
 - The harness checks the test against the plan and the charter, then runs it. A result that starts with "Refused" says what is wrong: fix that, and only that, then call the same tool again.
 - The results of run_test and propose_test end with a line "Next:" that names the next call. Make that call.
+- If no test can do what the scenario asks, do not force one: call propose_test with unfeasible and your reason.
 - The plan is fixed: do not explore again. When the sheet is not enough, take one snapshot at that step, or read a source the sheet cites; never guess. The harness records each such look.
 
 Method. Each step says when it is done.

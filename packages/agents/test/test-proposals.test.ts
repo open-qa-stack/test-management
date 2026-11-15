@@ -664,3 +664,56 @@ describe("a test that writes data, run again once it passed", () => {
     );
   });
 });
+
+describe("a scenario the agent that writes it gives up", () => {
+  const planned = scenario("ledger", []);
+  const given = (runner: TestRunner, secrets: ProposalRules["secrets"] = []) => {
+    const journal = new Journal();
+    const proposals = new TestProposals({ ...rules(runner), secrets }, journal, { scenarios: [planned] });
+    proposals.begin(BLIND);
+    const giveUp = (reason: string) => proposals.tool().execute({ unfeasible: { reason } }) as Promise<string | { error: string }>;
+    return { proposals, journal, giveUp, run: () => proposals.trialTool().execute({ content: acted(skeleton(planned, false)) }) };
+  };
+  const passing: TestRunner = { run: async (test) => ({ startedAt: STARTED, tests: [{ id: test.path, verdict: "passed", reason: "Every attempt passed." }] }) };
+  const REASON = "The ledger offers no way to open an entry.";
+
+  it("is asked once to confirm, then kept without a test, with the reason the agent gave", async () => {
+    const { proposals, journal, giveUp, run } = given(failing);
+    await run();
+    assert.match(
+      (await giveUp(REASON)) as string,
+      /^Warning \(PROPOSE-UNFEASIBLE\): giving up leaves scenario open-ledger without a test\. If a repair is possible [^]* call propose_test again the same way: that confirms it\.$/,
+    );
+    assert.equal(proposals.accepted.length, 0);
+    assert.match((await giveUp(REASON)) as string, /^Scenario open-ledger closed without a test: no test can do what it asks, as you said\./);
+    assert.deepEqual(
+      proposals.accepted.map(({ verdict, classes, closedBy }) => [verdict, classes, closedBy]),
+      [["failed", [{ at: NOW, class: "unfeasible", origin: { by: "agent", role: "writer" }, reason: REASON }], "PROPOSE-UNFEASIBLE"]],
+    );
+    assert.ok(journal.entries().some((entry) => entry.message === `The scenario open-ledger was given up by the agent that writes it: ${REASON}`));
+    // Once its scenario is closed, the session has nothing left to give up.
+    assert.ok("error" in ((await giveUp(REASON)) as object));
+  });
+
+  it("is given up before any run as well, its skeleton kept as the text it had", async () => {
+    const { proposals, giveUp } = given(failing);
+    await giveUp(REASON);
+    await giveUp(REASON);
+    assert.deepEqual(
+      proposals.accepted.map(({ verdict, content }) => [verdict, content]),
+      [["not_run", skeleton(planned, false)]],
+    );
+  });
+
+  it("is not given up once its test passed, nor with a reason that holds a secret", async () => {
+    const done = given(passing);
+    await done.run();
+    assert.deepEqual(await done.giveUp(REASON), {
+      error:
+        "Refused (PROPOSE-UNFEASIBLE): the test of scenario open-ledger passed. Close it with propose_test, without unfeasible.\nNothing else was refused.",
+    });
+    const leaky = given(failing, [{ variable: "LEDGER_DB_URL", value: "postgresql://u:p@h/ledger" }]);
+    const refused = (await leaky.giveUp("It reads postgresql://u:p@h/ledger.")) as { error: string };
+    assert.match(refused.error, /^Refused \(PROPOSE-SECRET\): the reason holds the value of LEDGER_DB_URL\. Leave it out\./);
+  });
+});

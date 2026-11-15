@@ -383,8 +383,16 @@ export class Designer {
       const statePath = resume?.state ?? posix.join(config.repository.stateDir, DESIGNS_FOLDER, `${id}.json`);
       await this.write(repository, state, statePath, record, tests, journal);
       const counted = kept.filter((test) => COUNTED.has(test.classes.at(-1)!.class)).length;
-      // A plan holds the scenarios its brief needs: the design succeeds once each of them has a test that counts, or one another test already verifies.
-      const expected = record.scenarios.length - kept.filter((test) => test.classes.at(-1)!.class === "duplicate").length;
+      // The count of the harness: each scenario of the plan is accounted for — by a test that counts, by another test that already
+      // verifies it, or by the reason the agent that writes gave for which no test can do it. Nothing else closes a design.
+      const classed = (name: TestClass) => kept.filter((test) => test.classes.at(-1)!.class === name);
+      const unfeasible = classed("unfeasible");
+      if (unfeasible.length > 0)
+        journal.record(
+          "info",
+          `Scenarios of the plan without a test, the agent that writes having said why (${unfeasible.length} of ${record.scenarios.length}): ${unfeasible.map((test) => `${test.scenario} (${test.classes.at(-1)!.reason})`).join("; ")}`,
+        );
+      const expected = record.scenarios.length - classed("duplicate").length - unfeasible.length;
       if (counted < expected)
         journal.record(
           "error",
