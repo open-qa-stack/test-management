@@ -54,11 +54,12 @@ Nothing an agent produces is taken on trust, and nothing is thrown away. A scena
 ## Try it
 
 ```sh
-oqas --init                                             # make your test repository a Playwright project
+vim oqas.json                                            # declare your applications, what you know of them, your model
+oqas --init                                              # make your test repository a Playwright project
 oqas --brief "search a customer and open their profile"  # ask for tests, in your words
 ```
 
-Open QA Stack is run from a clone of this repository, against a test environment, with a model you bring. [Get started](docs/getting-started.md) takes you from an empty folder to tests on a branch.
+Three steps, and the first one is yours: `oqas.json` is where you say what to test and what is known of it. Open QA Stack is run from a clone of this repository, against a test environment, with a model you bring. [Get started](docs/getting-started.md) takes you from an empty folder to tests on a branch, and [the configuration](packages/shared/docs/configuration.md) says what goes in the file.
 
 ## Contributing
 
