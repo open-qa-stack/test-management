@@ -32,23 +32,9 @@ An AI agent writes tests in minutes — tests that pass. Locators it guessed, as
 
 ## How it works
 
-```mermaid
-flowchart LR
-  K["What you know<br/>specifications · APIs · databases · code"] --> M["Map<br/>your business domains"]
-  B["Your request<br/>in plain words"] --> P
-  M --> P["Plan<br/>the scenarios"]
-  subgraph LOOP["One loop per level of the test pyramid"]
-    direction LR
-    P --> W["Write<br/>the tests"]
-    W --> R["Run<br/>them for real"]
-    R --> V["Review<br/>plan · coherence · code"]
-    V -. "fix" .-> W
-  end
-  H{{"Harness<br/>evidence · no duplicates · your rules"}} -. "accepts or refuses" .-> P
-  H -. "accepts or refuses" .-> W
-  V --> T["A Playwright project you own<br/>tests · page objects · a verdict per test"]
-  T -. "the next level builds on it" .-> P
-```
+<p align="center">
+  <img src="docs/assets/how-it-works.svg" width="100%" alt="How Open QA Stack works: what you know of your applications and your request feed a loop of agents — plan, write, run, review — that turns once for each level of the test pyramid: smoke, functional, business, cross-application, visual. A harness at the centre of the loop accepts on evidence and refuses the rest. The loop gives a Playwright project you own: tests, page objects and a verdict per test.">
+</p>
 
 Specialised agents work in turn, level by level: smoke, functional, business, cross-application, then visual. Each level builds on the tests of the one before. At every step a harness checks what the agents submit against what was really seen in your application — and refuses the rest.
 
