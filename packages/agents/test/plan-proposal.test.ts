@@ -281,7 +281,7 @@ describe("the scenarios of a plan, asked until the brief is covered", () => {
     };
     const { proposal: made, journal } = await proposal({
       now,
-      existing: [{ path, verified: written, described: "Open the orders", writes: [], domain: "orders", opens: [] }],
+      existing: [{ path, verified: written, described: "Open the orders", writes: [], visual: false, opens: [] }],
     });
     const told = (await add(made, { scenarios: [scenario("a"), scenario("d")] })) as string;
     assert.ok(
@@ -314,7 +314,7 @@ describe("the scenarios of a plan, asked until the brief is covered", () => {
     const { proposal: made } = await proposal({
       now,
       judge,
-      existing: [{ path, verified: written, described: "Find an order", writes: [], domain: "orders", opens: [] }],
+      existing: [{ path, verified: written, described: "Find an order", writes: [], visual: false, opens: [] }],
     });
     const told = (await add(made, { scenarios: [scenario("a")] })) as string;
     assert.deepEqual(asked, [[`${path}: Find an order`, "a"]]);
@@ -1533,6 +1533,15 @@ describe("the level of a scenario, held to what its actions went through", () =>
     );
   });
 
+  it("asks a plan of visual tests about the screens the tests of the repository open and none compares, until a scenario goes through them", async () => {
+    const { proposal: made } = await proposal({ visual: true, uncompared: ["shop /basket", "shop /orders"] });
+    const told = (await add(made, { scenarios: [scenario("a", { kind: "visual" })] })) as string;
+    assert.match(
+      told,
+      /\nThe tests the repository has open these screens, which no visual test compares: shop \/basket\. Open each and plan its visual scenario, or leave a screen that is not worth comparing\.\n/,
+    );
+  });
+
   it("holds a plan of visual tests alone to scenarios of the kind visual", async () => {
     const { proposal: made } = await proposal({ visual: true });
     const refused = (await add(made, { scenarios: [scenario("a"), scenario("b", { kind: "visual" })] })) as { error: string };
@@ -1559,6 +1568,16 @@ describe("the level of a scenario, held to what its actions went through", () =>
       await answered(await explored(), at("business", [1, 2])),
       /^business, and its actions went through 1 screen \(\/orders\): a business test follows a journey through several screens to its result\. Give it the level functional, /,
     );
+  });
+
+  it("asks the agent about the screens it opened that no scenario goes through, and plans nothing in their place", async () => {
+    const told = (await (await explored()).tool().execute({ scenarios: [at("functional", [1])] })) as string;
+    assert.match(
+      told,
+      /\nYou opened these screens, and no scenario goes through them: shop \/orders\/:id[^\n]*\. Is there something of the brief to verify there\? Plan it, or leave a screen the brief is not about\.\n/,
+    );
+    // Once a scenario goes through a screen, it is asked about no more.
+    assert.doesNotMatch((await (await explored()).tool().execute({ scenarios: [at("business", [1, 3])] })) as string, /shop \/orders\/:id/);
   });
 
   it("holds a test of several applications to how many it acts on, and a test of one application to that one", async () => {

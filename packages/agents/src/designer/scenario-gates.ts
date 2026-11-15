@@ -54,15 +54,18 @@ export function scenarioErrors(outline: SpecOutline, scenario: PlannedScenario, 
     const asserted = range === undefined ? [] : outline.assertions.filter((assertion) => range.start <= assertion.start && assertion.start < range.end);
     if (range !== undefined && !outline.actions.some((start) => range.start <= start && start < range.end))
       refusals.push(actionRefusal(number, step, help.codes));
-    // A visual step compares the whole screen, at the tolerance of the plan: one that compares a part of it, or lets more differ, verifies less.
+    // A visual step compares the whole page, at the tolerance of the plan: one that compares a part of it, or lets more differ, verifies less.
     if (range !== undefined && step.screenshot !== undefined) {
       const kept = asserted.some(
-        (assertion) => WHOLE_SCREEN.test(assertion.code) && assertion.code.includes(`maxDiffPixelRatio: ${step.screenshot!.tolerance} `),
+        (assertion) =>
+          WHOLE_SCREEN.test(assertion.code) &&
+          assertion.code.includes("fullPage: true") &&
+          assertion.code.includes(`maxDiffPixelRatio: ${step.screenshot!.tolerance} `),
       );
       if (!kept)
         refusals.push({
           code: "TEST-VISUAL",
-          message: `step ${number} must compare the whole screen with its reference, at the tolerance of the plan: await expect(page).toHaveScreenshot({ …, maxDiffPixelRatio: ${step.screenshot.tolerance} }). A zone that changes is added to mask; the comparison is never held to one element, and the tolerance never raised.`,
+          message: `step ${number} must compare the whole screen with its reference, at the tolerance of the plan: await expect(page).toHaveScreenshot({ fullPage: true, …, maxDiffPixelRatio: ${step.screenshot.tolerance} }). A zone that changes is added to mask; the comparison is never held to one element nor to what the window shows, and the tolerance never raised.`,
           remedy: help.skeleton,
         });
     }

@@ -124,7 +124,7 @@ export async function coveringTests(repositoryRoot: string, stateDir: string, pr
           verified,
           described: described(scenario!),
           writes: writtenValues(scenario!),
-          domain: scenario!.domain,
+          visual: scenario!.kind === "visual",
           opens: scenario!.steps.flatMap((step) => step.lines!).filter((line) => line.code.startsWith("await page.goto(")),
         });
     }

@@ -67,10 +67,8 @@ export interface PlannedLine {
   readonly typed?: string;
 }
 
-/** The comparison of a screen with its reference a step ends with, as the harness wrote it for a visual scenario. */
+/** The comparison of a whole screen with its reference a step ends with, as the harness wrote it for a visual scenario. */
 export interface PlannedScreenshot {
-  /** The locators of the zones left out of the comparison: what the screen shows changes there from one run to the next. */
-  readonly mask: readonly string[];
   /** The share of the pixels that may differ, from 0 to 1. */
   readonly tolerance: number;
 }

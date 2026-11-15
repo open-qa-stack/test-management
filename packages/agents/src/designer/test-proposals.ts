@@ -372,18 +372,27 @@ export class TestProposals {
     if (refusals.length > 0) return this.refuse(what, refusals);
     const looks = this.looks(scenarioScope(scenario));
     const first = await this.rules.runner.run({ path, content });
-    // A test that writes is run again once it passed: it must not rely on the data its own run changed.
-    const again =
-      scenario.effect === "write" && first.error === undefined && verdictOf(first) === "passed" ? await this.rules.runner.run({ path, content }) : undefined;
+    // A test that writes is run again once it passed: it must not rely on the data its own run changed. So is a visual test: its
+    // screen must look the same from one run to the next, what changes on it masked.
+    const repeated = scenario.effect === "write" || scenario.kind === "visual";
+    const again = repeated && first.error === undefined && verdictOf(first) === "passed" ? await this.rules.runner.run({ path, content }) : undefined;
     const replayed = again !== undefined && (again.error !== undefined || verdictOf(again) !== "passed");
     const trial = replayed ? again : first;
     this.streak.reset();
-    const twice = replayed
-      ? [
-          `The test passed, then failed when it was run again right after: it relies on data its own run changed. Enter data of its own, such as a made-up value no other run uses, or add a last step that puts back what the test changed, then call ${RUN_TOOL}.`,
-        ]
-      : [];
-    if (replayed) this.journal.record("info", `The test ${path} writes data, and failed when it was run again after it passed.`);
+    const twice = !replayed
+      ? []
+      : scenario.kind === "visual"
+        ? [
+            `The screen matched its reference, then differed when the test was run again right after: something on it changes from one run to the next. Look at the page at that step, find the zone that changes, and add it to mask with a locator of a snapshot, as precise as can be — the element, not the whole table or page — then call ${RUN_TOOL}. Never raise the tolerance.`,
+          ]
+        : [
+            `The test passed, then failed when it was run again right after: it relies on data its own run changed. Enter data of its own, such as a made-up value no other run uses, or add a last step that puts back what the test changed, then call ${RUN_TOOL}.`,
+          ];
+    if (replayed)
+      this.journal.record(
+        "info",
+        `The test ${path} ${scenario.kind === "visual" ? "compares a screen" : "writes data"}, and failed when it was run again after it passed.`,
+      );
     if (trial.error !== undefined) {
       cursor.record(scenario.id, { content, startedAt: trial.startedAt, looks });
       this.journal.record("error", this.mask(`The test ${path} could not run: ${trial.error}`));

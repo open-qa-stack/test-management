@@ -672,6 +672,23 @@ describe("a test that writes data, run again once it passed", () => {
       /^The test passed, then failed when it was run again right after: [^]*\nRun of the file: it could not run: The browser did not start\./,
     );
   });
+
+  it("runs a visual test again once it passed, and tells the agent to find and mask what changed when the screen then differs", async () => {
+    const ledger = scenario("ledger", []);
+    const visual = { ...ledger, kind: "visual" as const, steps: [{ ...ledger.steps[0]!, screenshot: { tolerance: 0.01 } }] };
+    assert.deepEqual((await tried(visual, "passed")).runs, ["passed", "passed"]);
+    const differing = await tried(visual, "passed", "failed");
+    assert.match(
+      differing.told,
+      /^The screen matched its reference, then differed when the test was run again right after: something on it changes from one run to the next\. Look at the page at that step, find the zone that changes, and add it to mask with a locator of a snapshot, as precise as can be — the element, not the whole table or page — then call run_test\. Never raise the tolerance\.\n/,
+    );
+    assert.ok(
+      differing.journal.includes(
+        "The test apps/ledger/tests/ledger/listing/open-ledger.spec.ts compares a screen, and failed when it was run again after it passed.",
+      ),
+      differing.journal.join("\n"),
+    );
+  });
 });
 
 describe("a scenario the agent that writes it gives up", () => {

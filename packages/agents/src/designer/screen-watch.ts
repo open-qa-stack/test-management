@@ -117,24 +117,6 @@ export interface WatchedAction {
   readonly opened?: string;
 }
 
-/** The roles of the elements a visual comparison may mask: those that hold content, not those that lay a page out. */
-const MASKED_ROLES = new Set([
-  "cell",
-  "gridcell",
-  "row",
-  "listitem",
-  "paragraph",
-  "heading",
-  "link",
-  "status",
-  "alert",
-  "timer",
-  "time",
-  "img",
-  "option",
-  "textbox",
-]);
-
 /** What the designer saw of the screens of one application. */
 interface Seen {
   /** Every line a snapshot showed. */
@@ -654,48 +636,12 @@ export class ScreenWatch {
   }
 
   /**
-   * The kinds of elements of a screen whose content changes: the harness opens its address twice and reads
-   * the page each time, by itself. An element is one whose line differs from one look to the next, or holds a
-   * value a test writes; its kind is its role, since what it shows — and so its name — is what changes.
+   * The screens the actions of the agent left the page on, each once.
    *
-   * @param application - Identifier of the application.
-   * @param address - The address of the screen, as the agent gave it to its tool.
-   * @param written - The values the tests of the plan write in the environment.
-   * @returns The roles, in the order the page shows them, and those left out for being none a comparison can
-   * mask; `undefined` when the page could not be opened or read.
+   * @returns Each by its application then its route, such as `shop /orders`, in the order the agent reached them.
    */
-  public async changingRoles(application: string, address: string, written: readonly string[]): Promise<{ roles: string[]; left: string[] } | undefined> {
-    const look = async () => {
-      await this.given.get(scopedToolName(application, "goto"))!.execute({ url: address });
-      const shown = (await this.given.get(scopedToolName(application, "snapshot"))!.execute({})) as { page: string };
-      return snapshotLines(shown.page).map((line) => line.replace(/ → .*$/, ""));
-    };
-    try {
-      const first = await look();
-      const second = await look();
-      // The page of the agent moved: its next action is compared with what the page shows then.
-      const seen = this.seen.get(application);
-      if (seen !== undefined) seen.last = undefined;
-      const changed = [...absent(new Set(first), new Set(second)), ...absent(new Set(second), new Set(first))];
-      const holding = second.filter((line) => written.some((value) => observed(value, [line])));
-      const roles = [...new Set([...changed, ...holding].flatMap((line) => /^- ([a-z]+)\b/.exec(line)?.[1] ?? []))];
-      return { roles: roles.filter((role) => MASKED_ROLES.has(role)), left: roles.filter((role) => !MASKED_ROLES.has(role)) };
-    } catch {
-      return undefined;
-    }
-  }
-
-  /**
-   * The kinds of elements the screens of an application showed a value a test writes in, by their role: what
-   * a comparison masks of a state the harness cannot open again by itself.
-   *
-   * @param application - Identifier of the application.
-   * @param written - The values the tests write in the environment.
-   * @returns The roles a comparison can mask, in the order the screens showed them.
-   */
-  public holdingRoles(application: string, written: readonly string[]): string[] {
-    const lines = [...(this.view(application)?.lines ?? [])].filter((line) => written.some((value) => observed(value, [line])));
-    return [...new Set(lines.flatMap((line) => /^- ([a-z]+)\b/.exec(line)?.[1] ?? []))].filter((role) => MASKED_ROLES.has(role));
+  public visited(): string[] {
+    return [...new Set(this.done.flatMap((action) => (action.screen === undefined ? [] : [`${action.application} ${action.screen}`])))];
   }
 
   /**

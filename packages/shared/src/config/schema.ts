@@ -215,7 +215,7 @@ export const configSchema = {
         visualTests: {
           type: "boolean",
           description:
-            "Whether a visual test is written for each screen a plan opens by an address; true by default. It compares the screen with a reference made at its first run and committed with it, the zones whose content changes masked. A reference is that of one browser on one machine: run the tests where their references were made.",
+            "Whether visual tests are designed, in a pass of their own after the other tests; true by default. An agent plans the states of the screens worth comparing, and each test compares the whole page with a reference made at its first run and committed with it, the zones whose content changes masked. A reference is that of one browser on one machine: run the tests where their references were made.",
         },
         visualTolerance: {
           type: "number",

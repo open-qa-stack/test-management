@@ -202,7 +202,7 @@ export interface DesignSettings {
    * plans it alone then the agent that writes its tests, and told the tests of the levels below; `single`, all in one plan. `by-level` by default.
    */
   passes?: "by-level" | "single";
-  /** Whether a visual test is written for each screen a plan opens by an address; `true` by default. */
+  /** Whether visual tests are designed, in a pass of their own after the other tests; `true` by default. */
   visualTests?: boolean;
   /** The share of the pixels of a screen that may differ from its reference, from 0 to 1; `0.01` by default. */
   visualTolerance?: number;

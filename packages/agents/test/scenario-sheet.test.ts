@@ -187,7 +187,7 @@ test("Search an order by \\"customer\\" name", { tag: ["@level-functional","@dom
     assert.deepEqual(await new CharterCheck({ repository, rules: charter.rules }).check({ path: "apps/shop/put-back.spec.ts", content }), []);
   });
 
-  it("ends a visual step with the comparison of the screen with its reference, what changes masked, and says what the agent may add", () => {
+  it("ends a visual step with the comparison of the whole page with its reference, and says how the agent masks what changes", () => {
     const visual = {
       ...SEARCH,
       kind: "visual" as const,
@@ -195,7 +195,7 @@ test("Search an order by \\"customer\\" name", { tag: ["@level-functional","@dom
         {
           action: "Open /orders and compare the screen with its reference",
           code: ['await page.goto("/orders");'],
-          screenshot: { mask: ['page.getByRole("cell")', 'page.getByRole("status")'], tolerance: 0.01 },
+          screenshot: { tolerance: 0.01 },
           expects: [],
         },
       ],
@@ -204,8 +204,8 @@ test("Search an order by \\"customer\\" name", { tag: ["@level-functional","@dom
       skeleton(visual, false).includes(
         [
           '    await page.goto("/orders");',
-          "    // Mask a zone that changes from one run to the next, with a locator of a snapshot; never raise the tolerance.",
-          '    await expect(page).toHaveScreenshot({ animations: "disabled", mask: [page.getByRole("cell"), page.getByRole("status")], maxDiffPixelRatio: 0.01 });',
+          "    // When the screen differs from one run to the next, add mask: [a locator of the zone that changes], as precise as can be; never raise the tolerance.",
+          '    await expect(page).toHaveScreenshot({ fullPage: true, animations: "disabled", maxDiffPixelRatio: 0.01 });',
           "  });",
         ].join("\n"),
       ),

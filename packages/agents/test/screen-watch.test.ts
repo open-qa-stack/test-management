@@ -758,48 +758,20 @@ describe("a page the harness looks at by itself", () => {
   });
 });
 
-describe("the elements of a screen whose content changes, as the harness sees them by looking twice", () => {
-  const at = (time: string, visits: string) =>
-    [
-      '- heading "Orders" [level=1] [ref=e2] → page.getByRole("heading", { name: "Orders", exact: true })',
-      `- status [ref=e3]: Updated at ${time}`,
-      `- generic [ref=e4]: ${visits} visits`,
-      // A line that names no role is none an element can be found by.
-      `- "${visits} visits so far"`,
-      "- row [ref=e5]:",
-      '  - cell "Mira Veldane" [ref=e6]',
-      '  - cell "71 Orchard Lane" [ref=e7]',
-    ].join("\n");
-
-  it("are named by their role: those whose line differs from one look to the next, and those that hold a value a test writes", async () => {
-    const watch = new ScreenWatch(["shop"], page(["", at("10:00", "3"), at("10:01", "4")]).tools);
-    assert.deepEqual(await watch.changingRoles("shop", "/orders", ["71 Orchard Lane"]), { roles: ["status", "cell"], left: ["generic"] });
-    // The harness may look at a screen of an application the agent never opened.
-    const unseen = new ScreenWatch(["ledger"], page(["", at("10:00", "3"), at("10:01", "3")]).tools);
-    assert.deepEqual(await unseen.changingRoles("shop", "/orders", []), { roles: ["status"], left: [] });
-    // A screen that shows the same twice, and nothing a test writes, has nothing to mask.
-    const still = new ScreenWatch(["shop"], page(["", at("10:00", "3"), at("10:00", "3")]).tools);
-    assert.deepEqual(await still.changingRoles("shop", "/orders", []), { roles: [], left: [] });
-  });
-
-  it("are those the screens the agent saw showed a value a test writes in, for a state the harness cannot open again", async () => {
-    const watch = new ScreenWatch(["shop"], page(["", at("10:00", "3")]).tools);
-    await run(watch, "goto");
-    await run(watch, "snapshot");
-    assert.deepEqual(
-      [watch.holdingRoles("shop", ["71 Orchard Lane", "visits"]), watch.holdingRoles("shop", []), watch.holdingRoles("ledger", ["71 Orchard Lane"])],
-      [["cell"], [], []],
-    );
-  });
-
-  it("are unknown when the page cannot be opened, and for an application the watch does not follow", async () => {
-    const failing: ToolDefinition = {
-      name: "shop_goto",
-      description: "goto",
+describe("the screens the actions of the agent left the page on", () => {
+  it("are named once each, by their application and their route, in the order the agent reached them", async () => {
+    const tool = (action: string, url: string): ToolDefinition => ({
+      name: `shop_${action}`,
+      description: action,
       parameters: { type: "object" },
-      execute: async () => Promise.reject(new Error("down")),
-    };
-    assert.equal(await new ScreenWatch(["shop"], [failing]).changingRoles("shop", "/orders", []), undefined);
-    assert.equal(await new ScreenWatch(["shop"], page([""]).tools).changingRoles("ledger", "/orders", []), undefined);
+      execute: async () => ({ url, code: `await page.${action}();` }),
+    });
+    const snapshot: ToolDefinition = { ...tool("snapshot", ""), execute: async () => ({ page: "", truncated: false }) };
+    const orders = "http://127.0.0.1/orders";
+    const tools = [tool("goto", orders), tool("click", `${orders}/42`), tool("fill", orders), tool("select_option", orders), tool("check", orders), snapshot];
+    const watch = new ScreenWatch(["shop"], tools);
+    assert.deepEqual(watch.visited(), []);
+    for (const action of ["goto", "click", "fill"]) await run(watch, action);
+    assert.deepEqual(watch.visited(), ["shop /orders", "shop /orders/:id"]);
   });
 });

@@ -135,6 +135,8 @@ export interface PlanRules {
   readonly review: PlanReview;
   /** Whether the plan is of visual tests alone: every scenario then has the kind visual. */
   readonly visual?: boolean;
+  /** The screens the tests the repository has open and no visual test compares, as `uncomparedScreens` gives them: a plan of visual tests is asked about each. */
+  readonly uncompared?: readonly string[];
   /** The tests the repository already has, by what each does and verifies: a scenario one of them covers is set aside. */
   readonly existing?: readonly CoveringTest[];
   /** The model that judges the scenarios the code could not tell from one another; the comparison by the code alone without it. */
@@ -508,6 +510,36 @@ export class PlanProposal {
   }
 
   /**
+   * The lines that name the screens the plan leaves aside, so that the agent says what to make of each: those
+   * it opened and no scenario goes through, and, for a plan of visual tests, those the tests of the repository
+   * open and no visual test compares. The harness plans nothing in their place: it asks.
+   */
+  private leftScreens(): string[] {
+    const through = new Set(
+      this.draft.scenarios.flatMap((scenario) =>
+        this.cited(
+          scenario,
+          scenario.steps.flatMap((step) => step.actions),
+        ).flatMap((action) => (action.screen === undefined ? [] : [`${action.application} ${action.screen}`])),
+      ),
+    );
+    const opened = this.rules.screens.visited().filter((screen) => !through.has(screen));
+    const uncompared = (this.rules.uncompared ?? []).filter((screen) => !through.has(screen));
+    return [
+      ...(opened.length === 0
+        ? []
+        : [
+            `You opened these screens, and no scenario goes through them: ${opened.join("; ")}. Is there something of the brief to verify there? Plan it, or leave a screen the brief is not about.`,
+          ]),
+      ...(uncompared.length === 0
+        ? []
+        : [
+            `The tests the repository has open these screens, which no visual test compares: ${uncompared.join("; ")}. Open each and plan its visual scenario, or leave a screen that is not worth comparing.`,
+          ]),
+    ];
+  }
+
+  /**
    * The warning told once to an agent that closes a plan which leaves in doubt whether its brief is covered:
    * levels asked that no scenario is of, or functional scenarios that are all of what works. The same call
    * again confirms that the brief asks nothing more, and closes the plan.
@@ -551,6 +583,7 @@ export class PlanProposal {
           ]
         : []),
       ...this.missingLevels(),
+      ...this.leftScreens(),
       "Does the brief ask a business rule, an information or a behaviour none of these scenarios verifies?",
       `Next: if it does, call ${PLAN_TOOL} with only the scenarios to add, each verifying what none above does; if the brief is covered, call ${PLAN_TOOL} with "scenarios": []. A scenario that bears the id of one above replaces it.`,
     ].join("\n");

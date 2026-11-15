@@ -22,8 +22,8 @@ export interface CoveringTest {
   readonly described: string;
   /** The values it writes in the environment of its application, which a screen may show changed while it runs. */
   readonly writes: readonly string[];
-  /** Identifier of the domain of its scenario. */
-  readonly domain: string;
+  /** Whether it is a visual test: it compares a screen with its reference. */
+  readonly visual: boolean;
   /** The lines of its plan that open a screen by an address, with the screen of each. */
   readonly opens: readonly PlannedLine[];
 }

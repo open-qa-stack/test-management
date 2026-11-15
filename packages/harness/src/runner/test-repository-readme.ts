@@ -74,7 +74,7 @@ A test that writes data creates its own or puts back what it changed, so that it
 
 ## Visual tests
 
-A visual test opens a screen and compares it with its reference, an image made at its first run and committed beside it. The zones whose content changes from one run to the next are masked, so that the test tells a change of layout or of look, not one of data. A reference is that of one browser on one machine: run the visual tests where their references were made, and make them again there with \`npx playwright test --grep @kind-visual --update-snapshots\` when a screen is meant to change.
+A visual test opens a screen and compares it with its reference, an image made at its first run and committed beside it. It compares the whole page, and the zones whose content changes from one run to the next are masked in the test, each by its own locator, so that the test tells a change of layout or of look, not one of data. A reference is that of one browser on one machine: run the visual tests where their references were made, and make them again there with \`npx playwright test --grep @kind-visual --update-snapshots\` when a screen is meant to change.
 
 ## When a test fails
 

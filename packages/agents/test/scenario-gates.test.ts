@@ -253,7 +253,7 @@ describe("the gates of a visual test", () => {
       {
         action: "Open /orders and compare the screen with its reference",
         code: ['await page.goto("/orders");'],
-        screenshot: { mask: [], tolerance: 0.01 },
+        screenshot: { tolerance: 0.01 },
         expects: [],
       },
     ],
@@ -266,23 +266,26 @@ describe("the gates of a visual test", () => {
     return scenarioErrors(syntax.outline, visual, { skeleton: "The skeleton.", codes: [] });
   };
 
-  it("keep the comparison of the whole screen at the tolerance of the plan, with whatever is masked", async () => {
+  it("keep the comparison of the whole page at the tolerance of the plan, with whatever the agent masked", async () => {
     assert.deepEqual(
-      await codes('await expect(page).toHaveScreenshot({ animations: "disabled", mask: [page.getByRole("cell")], maxDiffPixelRatio: 0.01 });'),
+      await codes(
+        'await expect(page).toHaveScreenshot({ fullPage: true, animations: "disabled", mask: [page.getByRole("cell", { name: "Total" })], maxDiffPixelRatio: 0.01 });',
+      ),
       [],
     );
   });
 
-  it("refuse one held to an element, one whose tolerance is raised, and a step that compares nothing", async () => {
+  it("refuse one held to an element, one whose tolerance is raised, one of what the window shows alone, and a step that compares nothing", async () => {
     const refused = {
       code: "TEST-VISUAL",
       message:
-        "step 1 must compare the whole screen with its reference, at the tolerance of the plan: await expect(page).toHaveScreenshot({ …, maxDiffPixelRatio: 0.01 }). A zone that changes is added to mask; the comparison is never held to one element, and the tolerance never raised.",
+        "step 1 must compare the whole screen with its reference, at the tolerance of the plan: await expect(page).toHaveScreenshot({ fullPage: true, …, maxDiffPixelRatio: 0.01 }). A zone that changes is added to mask; the comparison is never held to one element nor to what the window shows, and the tolerance never raised.",
       remedy: "The skeleton.",
     };
     for (const comparison of [
-      'await expect(page.getByRole("heading", { name: "Orders" })).toHaveScreenshot({ animations: "disabled", mask: [], maxDiffPixelRatio: 0.01 });',
-      'await expect(page).toHaveScreenshot({ animations: "disabled", mask: [], maxDiffPixelRatio: 0.2 });',
+      'await expect(page.getByRole("heading", { name: "Orders" })).toHaveScreenshot({ fullPage: true, animations: "disabled", maxDiffPixelRatio: 0.01 });',
+      'await expect(page).toHaveScreenshot({ fullPage: true, animations: "disabled", maxDiffPixelRatio: 0.2 });',
+      'await expect(page).toHaveScreenshot({ animations: "disabled", maxDiffPixelRatio: 0.01 });',
       "",
     ])
       assert.deepEqual(await codes(comparison), [refused], comparison);

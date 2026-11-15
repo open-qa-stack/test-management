@@ -47,17 +47,19 @@ Keep with remember a fact the agents after you should know, such as a rule or a 
 /** What a plan of one level alone makes of a brief, whatever the brief asks as a whole. */
 const LEVEL_READINGS: Readonly<Record<ScenarioLevel, string>> = {
   smoke:
-    "At this level the brief only names the applications it is about: plan, for each, one scenario of one step that opens its first address and expects one text of the page. The brief itself is not done here.",
+    "At this level the brief only names the applications it is about: plan, for each, one scenario of one step that opens its first address and expects one text of the page. The brief itself is not done here. Leave no application of the brief without its scenario.",
   functional:
-    "At this level, take the screens the brief goes through one at a time. For each, plan many small scenarios, one for each behaviour of that screen: each rule of a form, each message, each way to search or to filter, each input that is wrong or matches nothing. A scenario may go through other screens to reach its own, such as the one that signs in; everything it expects is on that one screen.",
-  business: "At this level, plan one scenario for each whole journey of the brief inside one application, through its screens to its result.",
-  "cross-application": "At this level, plan the scenarios that do an action of the brief in one application and check its effect in another.",
+    "At this level, take the screens the brief goes through one at a time. For each, plan many small scenarios, one for each behaviour of that screen: each rule of a form, each message, each way to search or to filter, each input that is wrong or matches nothing. A scenario may go through other screens to reach its own, such as the one that signs in; everything it expects is on that one screen. Be exhaustive: leave no behaviour of a screen of the brief without its scenario.",
+  business:
+    "At this level, plan one scenario for each whole journey of the brief inside one application, through its screens to its result. Be exhaustive: each journey the brief makes possible, and each way it may end, has its scenario.",
+  "cross-application":
+    "At this level, plan the scenarios that do an action of the brief in one application and check its effect in another. Be exhaustive: each effect of the brief that crosses applications has its scenario.",
   "end-to-end": "At this level, plan the scenarios that follow a journey of the brief through three applications or more.",
 };
 
 /** What a plan of visual tests alone makes of a brief. */
 const VISUAL_READING =
-  "This plan is of visual tests alone, and the other tests of the brief are written already: each scenario has the kind visual and the level functional. A visual test leads to one state of a screen and compares it with a reference image; the harness adds that comparison after the last step, you do not. Plan one scenario for each state of the screens of the brief worth comparing: a screen as it opens, a dialog open, a form with its messages after a wrong input, a menu unfolded, a tab chosen, the page a click on a row leads to. Cite the actions that lead to the state, and expect one text that tells it is reached. A visual test verifies the layout and the look, not the data: plan none to verify a value.";
+  "This plan is of visual tests alone, and the other tests of the brief are written already: each scenario has the kind visual and the level functional. A visual test leads to one state of a screen and compares it with a reference image; the harness adds that comparison after the last step, you do not. Plan one scenario for each state of the screens of the brief worth comparing: a screen as it opens, a dialog open, a form with its messages after a wrong input, a menu unfolded, a tab chosen, the page a click on a row leads to. Cite the actions that lead to the state, and expect one text that tells it is reached. A visual test verifies the layout and the look, not the data: plan none to verify a value. Be exhaustive: every screen the brief goes through, and every state of each worth comparing, has its scenario.";
 
 /**
  * Writes the request that starts the session that plans: the brief, the domains of the knowledge with what

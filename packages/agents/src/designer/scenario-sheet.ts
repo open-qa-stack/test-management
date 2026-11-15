@@ -39,15 +39,14 @@ export function skeleton(scenario: PlannedScenario, screenshots: boolean, fixtur
       `// Expect ${number}.${k + 1}: ${oneLine(expect.result)}.`,
       ...assertionsOf(expect, written).map(here),
     ]);
-    // A visual step ends with the comparison of the screen with its reference, what changes from one run to the next masked.
+    // A visual step ends with the comparison of the whole page with its reference. What changes from one run to the next is for
+    // the agent that writes the test to find and mask.
     const compared =
       step.screenshot === undefined
         ? []
         : [
-            "// Mask a zone that changes from one run to the next, with a locator of a snapshot; never raise the tolerance.",
-            here(
-              `await expect(page).toHaveScreenshot({ animations: "disabled", mask: [${step.screenshot.mask.join(", ")}], maxDiffPixelRatio: ${step.screenshot.tolerance} });`,
-            ),
+            "// When the screen differs from one run to the next, add mask: [a locator of the zone that changes], as precise as can be; never raise the tolerance.",
+            here(`await expect(page).toHaveScreenshot({ fullPage: true, animations: "disabled", maxDiffPixelRatio: ${step.screenshot.tolerance} });`),
           ];
     const attach = screenshots
       ? [here(`await testInfo.attach(${JSON.stringify(String(number))}, { body: await page.screenshot(), contentType: "image/png" });`)]
