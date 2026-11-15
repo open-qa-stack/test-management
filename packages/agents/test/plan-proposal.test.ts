@@ -1622,7 +1622,37 @@ describe("the effect of a scenario on the data of the environment", () => {
       refused.error,
       /^Refused \(PLAN-EFFECT\): scenario a finds "Orders" at step 1, makes it go at step 2, and no step after brings it back: its test would pass once, then fail when run again, since what it starts from is gone\. Add a last step that puts it back /,
     );
-    assert.equal(typeof (await (await saved()).tool().execute({ scenarios: [changing(step("Give the list its name back", [3], ["Orders"]))] })), "string");
+    // The step that puts it back says it restores, and opens an address: its test runs it even when an earlier step failed.
+    const back = (actions: number[], restores?: boolean) => ({
+      ...step("Give the list its name back", actions, ["Orders"]),
+      ...(restores === undefined ? {} : { restores }),
+    });
+    const error = async (...last: ReturnType<typeof back>[]) =>
+      ((await (await saved()).tool().execute({ scenarios: [changing(...last)] })) as { error: string }).error;
+    assert.match(
+      await error(back([1, 3])),
+      /^Refused \(PLAN-RESTORE\): scenario a makes "Orders" go at step 2 and brings it back after, and no step says it restores: a test that fails before the end would leave the data changed\. Give "restores": true to the step that puts it back, after step 2/,
+    );
+    assert.match(
+      await error(back([3], true)),
+      /^Refused \(PLAN-RESTORE\): step 3 of scenario a restores, and starts with the action 3 \(await page\.click\(\);\), which opens no address: its test runs that step even when an earlier step failed, wherever the page then is\. Open the address it starts from with shop_goto/,
+    );
+    // A scenario that writes and leaves what it starts from as it is has nothing to put back.
+    const adding = scenario("a", { effect: "write", data: [], steps: [step("Open the orders", [1], ["Orders"]), step("Save an order", [2], ["Orders"])] });
+    assert.equal(typeof (await (await saved()).tool().execute({ scenarios: [adding] })), "string");
+    const restoring = await saved();
+    assert.equal(typeof (await restoring.tool().execute({ scenarios: [changing(back([1, 3], true))] })), "string");
+    assert.equal(typeof (await restoring.tool().execute({ scenarios: [] })), "string");
+    assert.deepEqual(
+      restoring.accepted!.scenarios[0]!.steps.map((kept) => kept.restores),
+      [undefined, undefined, true],
+    );
+    // A scenario that only reads puts nothing back.
+    const reading = scenario("a", { data: [], steps: [{ ...step("Open the orders", [1], ["Orders"]), restores: true }] });
+    assert.match(
+      ((await (await saved()).tool().execute({ scenarios: [reading] })) as { error: string }).error,
+      /^Refused \(PLAN-RESTORE\): scenario a is said to only read the data of the environment, and one of its steps says it restores/,
+    );
     // What a step shows once the scenario wrote is its own: taking it away again is none of what it starts from.
     const own = scenario("a", {
       effect: "write",
@@ -1683,14 +1713,14 @@ describe("the start of a scenario that writes, looked at again by the harness", 
     actions,
     expects: [{ result: action, shows, absent }],
   });
-  /** Opens the orders (1), renames the order with Save (2), then puts its name back with Undo (3). */
+  /** Opens the orders (1), renames the order with Save (2), then opens them again and puts its name back with Undo (3), in a step that restores. */
   const renaming = scenario("a", {
     effect: "write",
     data: [],
     steps: [
       step("Open the orders", [1], ["ORD-1042"]),
       step("Rename the order", [2], ["ORD-2000"], ["ORD-1042"]),
-      step("Give it its name back", [3], ["ORD-1042"], ["ORD-2000"]),
+      { ...step("Give it its name back", [1, 3], ["ORD-1042"], ["ORD-2000"]), restores: true },
     ],
   });
 

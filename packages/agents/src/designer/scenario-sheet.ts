@@ -44,6 +44,10 @@ export function skeleton(scenario: PlannedScenario, screenshots: boolean, fixtur
       "  });",
     ].join("\n");
   });
+  // The steps from the one that restores on run whatever the steps before did: a test that fails leaves the data as it found it.
+  const restoring = scenario.steps.findIndex((step) => step.restores === true);
+  const deeper = (step: string) => step.replaceAll(/^/gm, "  ");
+  const body = restoring === -1 ? steps : ["  try {", ...steps.slice(0, restoring).map(deeper), "  } finally {", ...steps.slice(restoring).map(deeper), "  }"];
   const opened = others.filter((application) => !given.includes(application)).map(tabVariable);
   // The test asks for what its lines name: its page, or its own application for the page objects, and each other application.
   const names = (name: string) => steps.some((step) => new RegExp(`(?<![\\w.$])${name}\\.`).test(step));
@@ -60,7 +64,7 @@ export function skeleton(scenario: PlannedScenario, screenshots: boolean, fixtur
     "",
     `test(${JSON.stringify(oneLine(scenario.title))}, { tag: ${JSON.stringify(scenarioTags(scenario))} }, async (${screenshots ? `${taken}, testInfo` : taken}) => {`,
     ...opened.map((tab) => `  const ${tab} = await context.newPage();`),
-    ...steps,
+    ...body,
     "});",
     "",
   ].join("\n");

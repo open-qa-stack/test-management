@@ -73,6 +73,11 @@ export interface PlannedStep {
   readonly application?: string;
   /** The lines of code that do it in a test, as the browser tools returned them during the exploration; none for a step done on no screen. The harness writes them, never the agent. */
   readonly code: readonly string[];
+  /**
+   * Whether the step puts back what the scenario changed. Its test runs it, and every step after it, even when an
+   * earlier step failed, so that a test that fails leaves the data of the environment as it found it.
+   */
+  readonly restores?: boolean;
   /** Where each line of code comes from, one for each line, in their order. The harness writes them, never the agent. */
   readonly lines?: readonly PlannedLine[];
   /** What the step expects after the action; none for a step that only leads to the next. */

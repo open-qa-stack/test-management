@@ -147,6 +147,46 @@ test("Search an order by \\"customer\\" name", { tag: ["@level-functional","@dom
     );
   });
 
+  it("runs the step that restores, and those after it, whatever the steps before did: a test that fails leaves the data as it found it", async () => {
+    const restoring = {
+      ...SHOWN,
+      effect: "write" as const,
+      steps: [...SHOWN.steps, { ...SHOWN.steps[0]!, action: "Put the order back", restores: true }, SHOWN.steps[0]!],
+    };
+    const content = skeleton(restoring, false);
+    assert.ok(
+      content.includes(["  try {", '    await test.step("1. Open the orders", async () => {', '      await page.goto("/orders");', "    });"].join("\n")),
+      content,
+    );
+    assert.ok(
+      content.endsWith(
+        [
+          "  } finally {",
+          '    await test.step("3. Put the order back", async () => {',
+          '      await page.goto("/orders");',
+          "    });",
+          '    await test.step("4. Open the orders", async () => {',
+          '      await page.goto("/orders");',
+          "    });",
+          "  }",
+          "});",
+          "",
+        ].join("\n"),
+      ),
+      content,
+    );
+    // The steps are found where they are, and the charter has nothing against the form.
+    const syntax = await moduleSyntax(content);
+    assert.ok(syntax.ok);
+    assert.deepEqual(
+      syntax.outline.steps.map((step) => step.title),
+      ["1. Open the orders", "2. Search the orders of Veldane", "3. Put the order back", "4. Open the orders"],
+    );
+    const charter = resolveCharter({ disable: [], add: [] });
+    assert.ok(charter.ok);
+    assert.deepEqual(await new CharterCheck({ repository, rules: charter.rules }).check({ path: "apps/shop/put-back.spec.ts", content }), []);
+  });
+
   it("asserts a text several elements share the locator of by their number: one at least, or none left", () => {
     assert.deepEqual(
       skeleton(SHARED, false)

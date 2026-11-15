@@ -100,7 +100,7 @@ function stepLines(step: PlannedStep, at: number): string[] {
   const code = step.code.join("\n");
   const fence = ticks(code, 3);
   return [
-    `### Step ${at + 1}. ${oneLine(step.action)}`,
+    `### Step ${at + 1}. ${oneLine(step.action)}${step.restores === true ? " (restores: run even after a failure)" : ""}`,
     "",
     ...(step.code.length === 0 ? [] : [`${fence}ts`, code, fence, ""]),
     ...step.expects.flatMap((expect, k) => expectLines(expect, `${at + 1}.${k + 1}`)),

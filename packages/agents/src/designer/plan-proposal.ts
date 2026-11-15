@@ -73,6 +73,8 @@ export interface SubmittedStep {
   readonly action: string;
   /** The numbers of the actions of the exploration that did the step, in order, as the results of the browser tools gave them. */
   readonly actions: readonly number[];
+  /** Whether the step puts back what the scenario changed: its test runs it, and those after it, even when an earlier step failed. */
+  readonly restores?: boolean;
   /** What the step expects after the action. */
   readonly expects: readonly SubmittedExpect[];
 }
@@ -380,6 +382,11 @@ export class PlanProposal {
                         maxItems: 12,
                         items: { type: "integer", minimum: 1 },
                         description: ACTIONS_FIELD,
+                      },
+                      restores: {
+                        type: "boolean",
+                        description:
+                          "true for the step that puts back what the scenario changed, in a scenario that writes: its test runs that step, and those after it, even when an earlier step failed, so that a failed test leaves the data as it found it. That step starts by opening an address, since it may run from anywhere.",
                       },
                       expects: {
                         type: "array",
@@ -1033,8 +1040,9 @@ export class PlanProposal {
     };
     const scenarios = plan.scenarios.map((scenario) => {
       const elements = this.located(scenario).map((located) => ({ where: located.where, element: elementOf(located) }));
-      const steps = scenario.steps.map(({ action, actions, expects }, at) => ({
+      const steps = scenario.steps.map(({ action, actions, expects, restores }, at) => ({
         action,
+        ...(restores === true ? { restores } : {}),
         ...stepApplication(scenario.application, this.cited(scenario, actions)),
         code: this.cited(scenario, actions).map((done) => (done.application === scenario.application ? done.code : elsewhere(done))),
         lines: this.cited(scenario, actions).map((done) => {
@@ -1182,6 +1190,13 @@ export class PlanProposal {
    */
   private effectErrors(scenario: SubmittedScenario): Refusal[] {
     if (scenario.effect === "write") return this.replayErrors(scenario);
+    if (scenario.steps.some((step) => step.restores === true))
+      return [
+        {
+          code: "PLAN-RESTORE",
+          message: `scenario ${scenario.id} is said to only read the data of the environment, and one of its steps says it restores: a scenario that changes nothing puts nothing back. Give it the effect write, or remove "restores" from its steps.`,
+        },
+      ];
     const writing = this.cited(
       scenario,
       scenario.steps.flatMap((step) => step.actions),
@@ -1211,7 +1226,8 @@ export class PlanProposal {
       step.expects.flatMap((expect) =>
         expect.shows.filter(checkable).flatMap((text): Refusal[] => {
           const gone = scenario.steps.findIndex((later, j) => j > at && later.expects.some((other) => other.absent.some((absent) => sameText(absent, text))));
-          if (gone === -1 || shown(gone + 1, text)) return [];
+          if (gone === -1) return [];
+          if (shown(gone + 1, text)) return this.restoreErrors(scenario, gone, text);
           return [
             {
               code: "PLAN-EFFECT",
@@ -1221,6 +1237,31 @@ export class PlanProposal {
         }),
       ),
     );
+  }
+
+  /**
+   * What the gates refuse in how a scenario puts back a text it starts from and makes go: no step after says
+   * it restores, or the first that does opens no address. Its test runs the steps from that one on even when
+   * an earlier step failed, wherever the page then is: without them a test that fails leaves the data changed,
+   * and fails again from its first step.
+   */
+  private restoreErrors(scenario: SubmittedScenario, gone: number, text: string): Refusal[] {
+    const at = scenario.steps.findIndex((step, j) => j > gone && step.restores === true);
+    if (at === -1)
+      return [
+        {
+          code: "PLAN-RESTORE",
+          message: `scenario ${scenario.id} makes "${text}" go at step ${gone + 1} and brings it back after, and no step says it restores: a test that fails before the end would leave the data changed. Give "restores": true to the step that puts it back, after step ${gone + 1}; its test runs that step, and those after it, even when an earlier step failed.`,
+        },
+      ];
+    const first = this.cited(scenario, scenario.steps[at]!.actions)[0];
+    if (first === undefined || first.tool === "goto") return [];
+    return [
+      {
+        code: "PLAN-RESTORE",
+        message: `step ${at + 1} of scenario ${scenario.id} restores, and starts with the action ${first.number} (${first.code}), which opens no address: its test runs that step even when an earlier step failed, wherever the page then is. Open the address it starts from with ${scopedToolName(first.application, "goto")}, do the step from there, and cite that action first.`,
+      },
+    ];
   }
 
   /**

@@ -97,6 +97,13 @@ describe("the file of a plan", () => {
     assert.equal(PLAN_FILE_SUFFIX, ".plan.md");
   });
 
+  it("says of a step that restores that its test runs it even after a failure", () => {
+    const restoring = { ...SEARCH, steps: [...SEARCH.steps, { action: "Put the customer back", code: [], expects: [], restores: true }] };
+    const text = planFileText({ ...RECORD, scenarios: [restoring] });
+    assert.ok(text.includes(`### Step ${restoring.steps.length}. Put the customer back (restores: run even after a failure)\n`), text);
+    assert.deepEqual(readPlanFile(text)?.scenarios[0]?.steps.at(-1)?.restores, true);
+  });
+
   it("says under its own heading what the brief asks and no scenario does, and reads it back", () => {
     const uncovered = [{ asked: "Change the address\nof a customer.", reason: "No screen offers to edit an address." }];
     const text = planFileText({ ...RECORD, uncovered });
