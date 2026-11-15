@@ -95,6 +95,7 @@ describe("criterion 2 — without changes, the instructions of the writer and th
     // It is told what the plan fixed, what concerns the plan rather than the test, and how it reports.
     for (const said of [
       "What is fixed, and is no finding",
+      "not.toHaveCount(0)",
       "context.newPage()",
       "process.env.OQAS_BASE_URL_",
       "none breaks a rule of the charter",
