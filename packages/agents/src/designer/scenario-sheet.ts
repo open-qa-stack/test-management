@@ -3,7 +3,9 @@ import type { PlannedScenario } from "@open-qa-stack/domain";
 import { assertionsOf } from "./assertion-line.ts";
 import type { DesignCursor } from "./design-cursor.ts";
 import { oneLine } from "./one-line.ts";
-import { onTab, tabVariable } from "./tab-variable.ts";
+import { onTab } from "./tab-variable.ts";
+import { tabVariable } from "@open-qa-stack/shared";
+import { fixturesFor, PLAYWRIGHT_ALONE, type FixturesFile, type TestFixtures } from "./test-fixtures.ts";
 
 /**
  * The skeleton of the test of a scenario: one test, one `test.step` per step of the plan, titled by its
@@ -18,9 +20,10 @@ import { onTab, tabVariable } from "./tab-variable.ts";
  *
  * @param scenario - The scenario.
  * @param screenshots - Whether each step ends with a screenshot attached to the report, as the charter may ask.
+ * @param fixtures - What the test is given: the module of its `test`, and the tabs that module gives.
  * @returns The text of the file.
  */
-export function skeleton(scenario: PlannedScenario, screenshots: boolean): string {
+export function skeleton(scenario: PlannedScenario, screenshots: boolean, fixtures: TestFixtures = PLAYWRIGHT_ALONE): string {
   const steps = scenario.steps.map((step, at) => {
     const number = at + 1;
     // The expects of a step done on another application are asserted on the tab of that application.
@@ -36,15 +39,15 @@ export function skeleton(scenario: PlannedScenario, screenshots: boolean): strin
       "  });",
     ].join("\n");
   });
-  const others = scenario.applications ?? [];
-  const given = others.length === 0 ? "{ page }" : "{ page, context }";
-  const fixtures = screenshots ? `${given}, testInfo` : given;
+  // The tab of each other application the test acts on: a fixture where the repository gives one, or else a page the test opens.
+  const tabs = (scenario.applications ?? []).map(tabVariable);
+  const opened = tabs.filter((tab) => !fixtures.tabs.includes(tab));
+  const given = `{ ${["page", ...tabs.filter((tab) => fixtures.tabs.includes(tab)), ...(opened.length === 0 ? [] : ["context"])].join(", ")} }`;
   return [
-    `import { expect, test } from "@playwright/test";`,
+    `import { expect, test } from ${JSON.stringify(fixtures.module)};`,
     "",
-    `test(${JSON.stringify(oneLine(scenario.title))}, { tag: ${JSON.stringify(scenarioTags(scenario))} }, async (${fixtures}) => {`,
-    // A tab for each other application the test acts on, so that what is under way on one stays while it acts on another.
-    ...others.map((application) => `  const ${tabVariable(application)} = await context.newPage();`),
+    `test(${JSON.stringify(oneLine(scenario.title))}, { tag: ${JSON.stringify(scenarioTags(scenario))} }, async (${screenshots ? `${given}, testInfo` : given}) => {`,
+    ...opened.map((tab) => `  const ${tab} = await context.newPage();`),
     ...steps,
     "});",
     "",
@@ -57,13 +60,14 @@ export function skeleton(scenario: PlannedScenario, screenshots: boolean): strin
  *
  * @param cursor - Where the design stands, with a scenario open.
  * @param screenshots - Whether each step ends with a screenshot attached to the report.
+ * @param fixtures - The file of the fixtures the tests of the repository share, if any.
  * @returns The text the agent is told.
  */
-export function scenarioSheet(cursor: DesignCursor, screenshots: boolean): string {
+export function scenarioSheet(cursor: DesignCursor, screenshots: boolean, fixtures?: FixturesFile): string {
   const scenario = cursor.scenario!;
   const data = scenario.data.length === 0 ? "none" : scenario.data.map((entry) => `${JSON.stringify(entry.value)} (${entry.from})`).join("; ");
   const others =
-    scenario.applications === undefined ? "" : `; it also acts on ${scenario.applications.join(", ")}, each in a tab of its own, as the skeleton opens them`;
+    scenario.applications === undefined ? "" : `; it also acts on ${scenario.applications.join(", ")}, each in a tab of its own, as the skeleton gives them`;
   const cited = scenario.sources.map(({ source, item }) => (item === undefined ? source : `${source}: ${oneLine(item)}`));
   return [
     `Scenario ${cursor.rank} of ${cursor.plan.scenarios.length}: ${scenario.id} — ${scenario.title} (${scenario.level} level, ${scenario.kind}, ${scenario.case}, ${effectWords(scenario.effect)}), application ${scenario.application}${others}.`,
@@ -72,7 +76,7 @@ export function scenarioSheet(cursor: DesignCursor, screenshots: boolean): strin
     `Cited: ${cited.join("; ")}.`,
     `File: ${cursor.path}`,
     "",
-    skeleton(scenario, screenshots),
+    skeleton(scenario, screenshots, fixturesFor(cursor.path!, fixtures)),
     cursor.next(),
   ].join("\n");
 }

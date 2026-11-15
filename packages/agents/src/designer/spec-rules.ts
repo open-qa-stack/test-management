@@ -82,12 +82,23 @@ function parseManifest(manifest: string | undefined): { readonly dependencies?: 
  * @param path - Absolute path of the test.
  * @param repositoryRoot - Absolute path of the test repository.
  * @param packages - The packages a test may import, as `testPackages` gives them.
+ * @param fixtures - The module of the fixtures of the repository, as the test imports it, when it has some.
  * @returns A sentence for each refused import, which names its module.
  */
-export function importErrors(imports: readonly ModuleImport[], path: string, repositoryRoot: string, packages: readonly string[] = [TEST_MODULE]): string[] {
-  const allowed = `import only ${packages.join(", ")} or a relative path inside the test repository`;
+export function importErrors(
+  imports: readonly ModuleImport[],
+  path: string,
+  repositoryRoot: string,
+  packages: readonly string[] = [TEST_MODULE],
+  fixtures?: string,
+): string[] {
+  // Where the repository has fixtures, Playwright itself is imported through them: its own test would lack them.
+  const names = fixtures === undefined ? packages : packages.filter((name) => name !== TEST_MODULE);
+  const allowed = `import only ${names.length === 0 ? "" : `${names.join(", ")} or `}a relative path inside the test repository`;
   return imports.flatMap(({ module, line }) => {
-    if (module !== undefined && packages.some((name) => module === name || module.startsWith(`${name}/`))) return [];
+    if (fixtures !== undefined && module === TEST_MODULE)
+      return [`Line ${line} imports ${TEST_MODULE}; import test and expect from "${fixtures}", the fixtures of the test repository.`];
+    if (module !== undefined && names.some((name) => module === name || module.startsWith(`${name}/`))) return [];
     if (module === undefined) return [`Line ${line} imports a module whose name is computed; ${allowed}.`];
     if (!module.startsWith("./") && !module.startsWith("../")) return [`Line ${line} imports ${module}; ${allowed}.`];
     const inside = relative(repositoryRoot, resolve(dirname(path), module));

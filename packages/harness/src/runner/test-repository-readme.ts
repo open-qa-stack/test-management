@@ -18,6 +18,7 @@ The automated tests of the applications below, written with [Playwright](https:/
 | Path | What it holds |
 |---|---|
 ${applications.join("\n")}
+| \`${project.appsDir}/fixtures.ts\` | The fixtures every test shares: the \`test\` and the \`expect\` the tests import, with a tab for each application. |
 | \`playwright.config.ts\` | One project per application of \`oqas.json\`, the reports and what is kept of a failed test. |
 | \`${project.stateDir}/\` | What the runs leave: the report, the results, the traces of the failed tests. |
 
@@ -43,6 +44,10 @@ OQAS_ENVIRONMENT=<environment> npm test
 | \`npm run test:read-only\` | The tests that change no data of the environment. |
 | \`npm run report\` | Opens the report of the last run. |
 | \`npm run typecheck\` | Checks the types of every test, without running any. |
+
+## Fixtures
+
+A test imports \`test\` and \`expect\` from \`${project.appsDir}/fixtures.ts\`, never from \`@playwright/test\` itself, so that what the repository adds to a test is added once. A test acts on its application with \`page\`; one that acts on another application as well asks for its tab by name, such as \`customerManagementPage\` for an application \`customer-management\`, and what is under way on one stays as it is while the test acts on the other. A fixture a team needs — an account signed in, data created then removed — goes in that file.
 
 ## Tags
 

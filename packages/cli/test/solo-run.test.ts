@@ -82,7 +82,7 @@ function repository(config: string | undefined): string {
   );
   writeFileSync(
     join(root, "node_modules", "@playwright", "test", "index.d.ts"),
-    "export interface APIResponse { ok(): boolean; text(): Promise<string>; }\nexport interface APIRequestContext { get(url: string): Promise<APIResponse>; }\nexport declare const test: ((title: string, body: (fixtures: { request: APIRequestContext }) => Promise<void>) => void) & ((title: string, details: { tag: string[] }, body: (fixtures: { request: APIRequestContext }) => Promise<void>) => void) & { step<T>(title: string, body: () => Promise<T>): Promise<T> };\nexport declare function expect(value: unknown, message?: string): { toBe(expected: unknown): void; toContain(expected: string): void };\n",
+    "export interface APIResponse { ok(): boolean; text(): Promise<string>; }\nexport interface APIRequestContext { get(url: string): Promise<APIResponse>; }\nexport interface Page { goto(url: string): Promise<unknown>; }\ninterface Extending { extend<T>(fixtures: { [K in keyof T]: (given: { context: { newPage(): Promise<T[K]> } }, use: (value: T[K]) => Promise<void>) => Promise<void> }): TestType; }\ntype TestType = ((title: string, body: (fixtures: { request: APIRequestContext }) => Promise<void>) => void) & ((title: string, details: { tag: string[] }, body: (fixtures: { request: APIRequestContext }) => Promise<void>) => void) & { step<T>(title: string, body: () => Promise<T>): Promise<T> } & Extending;\nexport declare const test: TestType;\nexport declare function expect(value: unknown, message?: string): { toBe(expected: unknown): void; toContain(expected: string): void };\n",
   );
   if (config !== undefined) writeFileSync(join(root, "oqas.json"), config);
   git(root, "add", "-A");
@@ -199,7 +199,7 @@ const index = {
   domains: [{ id: "orders", label: "Orders", description: "Placing and following an order.", from: [{ source: "order-specs", domain: "orders" }] }],
 };
 const spec = (title: string) =>
-  `import { test, expect } from "@playwright/test";\n\ntest("${title}", async ({ request }) => {\n  await test.step("1. Get the orders", async () => {\n    const response = await request.get("/orders");\n    expect(await response.text()).toContain("A customer places an order");\n    expect("${title}").toBe("${title}");\n  });\n});\n`;
+  `import { test, expect } from "../fixtures.ts";\n\ntest("${title}", async ({ request }) => {\n  await test.step("1. Get the orders", async () => {\n    const response = await request.get("/orders");\n    expect(await response.text()).toContain("A customer places an order");\n    expect("${title}").toBe("${title}");\n  });\n});\n`;
 const IDS = ["test-1", "test-2", "test-3"];
 const scenario = (id: string) => ({
   id,
@@ -974,6 +974,7 @@ describe("autonomy, criterion 4 — a design stopped by maxIterations after a pl
         ["configuration", "prerequisites", "design", "execution"],
       );
       assert.deepEqual(git(first.root, "ls-tree", "-r", "--name-only", branch, "apps").split("\n"), [
+        "apps/fixtures.ts",
         "apps/shop/test-1.spec.ts",
         "apps/shop/test-2.spec.ts",
         "apps/shop/test-3.spec.ts",
@@ -1022,7 +1023,7 @@ describe("autonomy, criterion 4 — a design stopped by maxIterations after a pl
       assert.equal(third.code, 5, third.err);
       const last = stateOf(first.root, "oqas-2026-11-13T14-00-00-000Z");
       assert.deepEqual([last.designed, last.designState], [["apps/shop/test-1.spec.ts"], second.designState]);
-      assert.equal(git(first.root, "ls-tree", "-r", "--name-only", last.branch!, "apps"), "apps/shop/test-1.spec.ts");
+      assert.equal(git(first.root, "ls-tree", "-r", "--name-only", last.branch!, "apps"), "apps/fixtures.ts\napps/shop/test-1.spec.ts");
     } finally {
       await server.close();
     }

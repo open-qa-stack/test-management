@@ -430,7 +430,7 @@ describe("criterion 12 — the base of the test repository", () => {
     // A Playwright project as a team would set it up: a script per level of the pyramid of tests, strict types, a README and a workflow.
     assert.deepEqual(
       files.map((file) => file.path),
-      ["package.json", "playwright.config.ts", "tsconfig.json", ".gitignore", "README.md", ".github/workflows/tests.yml"],
+      ["package.json", "playwright.config.ts", "tsconfig.json", ".gitignore", "README.md", "tests/fixtures.ts", ".github/workflows/tests.yml"],
     );
     const scripts = (JSON.parse(files[0]!.content) as { scripts: Record<string, string> }).scripts;
     assert.deepEqual(
@@ -453,11 +453,15 @@ describe("criterion 12 — the base of the test repository", () => {
     for (const said of [
       "| `tests/shop/` | The tests of Shop. |",
       "| `tests/back-office/` | The tests of Back Office. |",
+      "| `tests/fixtures.ts` | The fixtures every test shares",
+      "## Fixtures",
       "`@playwright/test` 1.64.1",
       "npm run test:business",
       "@data-write",
     ])
       assert.ok(text("README.md").includes(said), said);
+    // The fixtures the tests import give a tab for each application.
+    assert.match(text("tests/fixtures.ts"), /\n {2}shopPage: Page;\n {2}backOfficePage: Page;\n/);
     // The workflow reads the repository and nothing else, and pins every action to a commit.
     const workflow = text(".github/workflows/tests.yml");
     assert.ok(workflow.includes("permissions:\n  contents: read") && workflow.includes("npm run typecheck") && workflow.includes("npx playwright test --list"));

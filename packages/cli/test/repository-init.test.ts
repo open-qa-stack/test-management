@@ -44,7 +44,7 @@ describe("the initialisation of a test repository as a Playwright project", () =
     assert.deepEqual([await init(), err], [0, []]);
     assert.deepEqual(out, [
       `The test repository ${root} is a Playwright project at @playwright/test 1.64.1.\n`,
-      "Created: package.json, playwright.config.ts, tsconfig.json, .gitignore, README.md, .github/workflows/tests.yml.\n",
+      "Created: package.json, playwright.config.ts, tsconfig.json, .gitignore, README.md, tests/fixtures.ts, .github/workflows/tests.yml.\n",
       "Next: read what was created, run npm install, then commit it with the lockfile.\n",
     ]);
     const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as { devDependencies: Record<string, string> };
@@ -65,7 +65,7 @@ describe("the initialisation of a test repository as a Playwright project", () =
         '{ "name": "ours" }\n',
         "# Ours\n",
         [
-          "Created: playwright.config.ts, tsconfig.json, .gitignore, .github/workflows/tests.yml.\n",
+          "Created: playwright.config.ts, tsconfig.json, .gitignore, tests/fixtures.ts, .github/workflows/tests.yml.\n",
           "Kept as they were, already there: package.json, README.md.\n",
           "Next: read what was created, run npm install, then commit it with the lockfile.\n",
         ],
@@ -74,7 +74,7 @@ describe("the initialisation of a test repository as a Playwright project", () =
     out.length = 0;
     await init();
     assert.deepEqual(out.slice(1), [
-      "Kept as they were, already there: package.json, playwright.config.ts, tsconfig.json, .gitignore, README.md, .github/workflows/tests.yml.\n",
+      "Kept as they were, already there: package.json, playwright.config.ts, tsconfig.json, .gitignore, README.md, tests/fixtures.ts, .github/workflows/tests.yml.\n",
       "Nothing was missing.\n",
     ]);
   });

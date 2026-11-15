@@ -210,6 +210,17 @@ describe("the skeleton of a test of several applications", () => {
     assert.ok(charter.ok);
     assert.deepEqual(await new CharterCheck({ repository, rules: charter.rules }).check({ path: "apps/shop/search-order-by-customer.spec.ts", content }), []);
   });
+
+  it("asks the fixtures of the repository for the tab they give, and opens itself the one they do not", async () => {
+    const two = { ...CROSSING, applications: ["customer-desk", "billing"] };
+    const given = skeleton(two, false, { module: "../fixtures.ts", tabs: ["customerDeskPage", "billingPage"] });
+    assert.ok(given.startsWith('import { expect, test } from "../fixtures.ts";\n'), given);
+    assert.ok(given.includes("async ({ page, customerDeskPage, billingPage }) => {"), given);
+    assert.doesNotMatch(given, /newPage/);
+    const partly = skeleton(two, false, { module: "../fixtures.ts", tabs: ["customerDeskPage"] });
+    assert.ok(partly.includes("async ({ page, customerDeskPage, context }) => {\n  const billingPage = await context.newPage();\n"), partly);
+    assert.ok((await moduleSyntax(partly)).ok);
+  });
 });
 
 describe("the sheet of a scenario", () => {
@@ -231,8 +242,12 @@ describe("the sheet of a scenario", () => {
     // A test of several applications is told the others it acts on, and bears a tag for each.
     const crossing = new DesignCursor({ scenarios: [{ ...SEARCH, level: "cross-application", applications: ["desk"] }] }, () => "apps/shop/a.spec.ts");
     const told = scenarioSheet(crossing, false);
-    assert.ok(told.includes("application shop; it also acts on desk, each in a tab of its own, as the skeleton opens them."), told);
+    assert.ok(told.includes("application shop; it also acts on desk, each in a tab of its own, as the skeleton gives them."), told);
     assert.ok(told.includes('"@app-shop","@app-desk"'), told);
+    // Its skeleton imports the fixtures the repository shares, from the folder of its file.
+    const shared = scenarioSheet(crossing, false, { path: "apps/fixtures.ts", tabs: ["deskPage"], created: false });
+    assert.ok(shared.includes('import { expect, test } from "../fixtures.ts";'), shared);
+    assert.ok(shared.includes("async ({ page, deskPage }) => {"), shared);
     // A scenario without data says so, and a source cited whole is named alone.
     cursor.close();
     assert.deepEqual(

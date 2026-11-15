@@ -18,6 +18,7 @@ import { scenarioErrors } from "./scenario-gates.ts";
 import { scenarioSheet, skeleton } from "./scenario-sheet.ts";
 import { snapshotLines, type ScreenWatch } from "./screen-watch.ts";
 import type { SourceWatch } from "./source-watch.ts";
+import { fixturesFor, type FixturesFile } from "./test-fixtures.ts";
 import type { TestCheck, TestFinding, TestReference, TestRunner, TestTrial, Verdict } from "@open-qa-stack/domain";
 import { addressErrors, fileErrors, heldVariables, importErrors, locatorsOf, secretValueErrors, type DeclaredSecret } from "./spec-rules.ts";
 
@@ -66,6 +67,8 @@ export interface ProposalRules {
   readonly runner: TestRunner;
   /** The packages a test may import, as `testPackages` gives them. */
   readonly packages: readonly string[];
+  /** The file of the fixtures the tests of the repository share; a test imports Playwright itself without one. */
+  readonly fixtures?: FixturesFile;
   /** Whether each step of a test ends with a screenshot attached to the report, as the charter may ask. */
   readonly screenshots: boolean;
   /** The clock of the dates a test is classed at. */
@@ -189,7 +192,7 @@ export class TestProposals {
    * @returns The sheet; `undefined` once every scenario is closed.
    */
   public get sheet(): string | undefined {
-    return this.cursor.scenario === undefined ? undefined : scenarioSheet(this.cursor, this.rules.screenshots);
+    return this.cursor.scenario === undefined ? undefined : scenarioSheet(this.cursor, this.rules.screenshots, this.rules.fixtures);
   }
 
   /**
@@ -702,7 +705,7 @@ export class TestProposals {
 
   /** Keeps the last text of a scenario closed without a test that counts, classed as given, with its runs. */
   private setAside(open: Open, classing: Omit<Classed, "at">, closedBy: string): void {
-    const content = this.submitted ?? skeleton(open.scenario, this.rules.screenshots);
+    const content = this.submitted ?? skeleton(open.scenario, this.rules.screenshots, fixturesFor(open.path, this.rules.fixtures));
     const ran = open.cursor.runs.findLast((run) => run.content === content && judged(run));
     this.kept.push({
       path: open.path,
@@ -745,6 +748,7 @@ export class TestProposals {
   private async checked(scenario: PlannedScenario, path: string, content: string): Promise<Refusal[]> {
     const { repositoryRoot, addresses, secrets, check } = this.rules;
     const { screens } = this.session!;
+    const fixtures = fixturesFor(path, this.rules.fixtures);
     // A secret is refused before the text is read: what a later refusal quotes of the text is cut, and a secret cut is masked by nothing.
     const held = secretValueErrors(content, secrets);
     if (held.length > 0) return held.map((message) => ({ code: "TEST-SECRET", message }));
@@ -752,14 +756,17 @@ export class TestProposals {
     if (!syntax.ok) return [{ code: "TEST-SYNTAX", message: `The test does not parse as TypeScript: ${syntax.error}.` }];
     const coded = (code: string, messages: readonly string[]) => messages.map((message) => ({ code, message }));
     const written = [
-      ...coded("TEST-IMPORT", importErrors(syntax.imports, join(repositoryRoot, path), repositoryRoot, this.rules.packages)),
+      ...coded(
+        "TEST-IMPORT",
+        importErrors(syntax.imports, join(repositoryRoot, path), repositoryRoot, this.rules.packages, this.rules.fixtures && fixtures.module),
+      ),
       ...coded("TEST-FILE", fileErrors(content)),
       ...coded("TEST-ADDRESS", addressErrors(content, addresses)),
     ];
     if (written.length > 0) return written;
     this.submitted = content;
     const { outline } = syntax;
-    const sheet = skeleton(scenario, this.rules.screenshots);
+    const sheet = skeleton(scenario, this.rules.screenshots, fixtures);
     // A locator of the skeleton comes from the plan: the screens of its exploration showed it.
     const given = await locatorsOf(sheet);
     const own = outline.locators.filter((locator) => !given.some((planned) => planned.role === locator.role && planned.text === locator.text));

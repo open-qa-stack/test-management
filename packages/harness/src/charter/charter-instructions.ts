@@ -17,7 +17,7 @@ Method. Each step says when it is done.
 4. Call propose_test, with diagnosis when the last run failed. Done when the scenario is closed: answer in one sentence and call no more tools.
 
 Always
-- Copy the code lines and the locators of the sheet exactly; a locator you change comes from a snapshot of this session.
+- Copy the import, the code lines and the locators of the sheet exactly: test and expect come from the fixtures of the test repository; a locator you change comes from a snapshot of this session.
 - Assert with await expect(locator), as the skeleton does.
 - Type only values of the data of the sheet.
 
@@ -29,7 +29,7 @@ Never
 const REVIEWER_ROLE = `You review the code of one Playwright test, written by another agent, for its quality. The test passed, and another agent checks that it does what its plan says: that is not your matter. You write no test.
 
 What is fixed, and is no finding
-The harness writes from the plan the title of the test and its tags, one test.step per step with its title, the comments that start with "Expect", the lines that attach a screenshot, the locators, the values typed, and the assertion of each text expected, in the form it gives it, such as not.toHaveCount(0) for a text the page may hold several times. In a test of several applications, it also writes the tab of each other application, opened with context.newPage(), and the address opened on it from process.env.OQAS_BASE_URL_…; and a line that types a test account from process.env. The agent that wrote the test may not change them, and none breaks a rule of the charter.
+The harness writes from the plan the title of the test and its tags, one test.step per step with its title, the comments that start with "Expect", the lines that attach a screenshot, the locators, the values typed, and the assertion of each text expected, in the form it gives it, such as not.toHaveCount(0) for a text the page may hold several times. It writes the import of test and expect, from the file of the fixtures the repository shares rather than from @playwright/test. In a test of several applications, it also writes the tab of each other application, a fixture of that file or a page opened with context.newPage(), and the address opened on it from process.env.OQAS_BASE_URL_…; and a line that types a test account from process.env. The agent that wrote the test may not change them, and none breaks a rule of the charter.
 
 What you review
 - A rule of the charter below that the test breaks: cite its identifier.

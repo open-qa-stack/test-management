@@ -6,7 +6,7 @@ import type { Application } from "@open-qa-stack/shared";
  *
  * @param sheet - The sheet of the scenario, which ends with the next call.
  * @param application - The application of the scenario.
- * @param packages - The packages a test may import.
+ * @param packages - What a test may import: the fixtures of the test repository and its packages.
  * @param environment - The environment the tests run against.
  * @returns The message to send to the agent that writes the test.
  */

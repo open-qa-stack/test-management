@@ -1,4 +1,4 @@
-import { baseUrlVariable } from "@open-qa-stack/shared";
+import { baseUrlVariable, FIXTURES_FILE_NAME, sharedFixtures } from "@open-qa-stack/shared";
 import { testRepositoryReadme } from "./test-repository-readme.ts";
 import { testRepositoryWorkflow } from "./test-repository-workflow.ts";
 
@@ -81,8 +81,8 @@ const LEVELS = ["smoke", "functional", "business", "cross-application", "end-to-
 /**
  * The files of a test repository initialised as a Playwright project: its `package.json`, with
  * `@playwright/test` at an exact version and a script for each level of the pyramid of tests, its
- * `playwright.config.ts`, its `tsconfig.json`, its `.gitignore`, its `README.md` and the workflow that
- * verifies its tests on a pull request.
+ * `playwright.config.ts`, its `tsconfig.json`, its `.gitignore`, its `README.md`, the fixtures its tests
+ * share and the workflow that verifies its tests on a pull request.
  *
  * @remarks
  * The lockfile is made by `npm install` from this `package.json`. The configuration imports only
@@ -93,7 +93,7 @@ const LEVELS = ["smoke", "functional", "business", "cross-application", "end-to-
  * @returns The files, each by its path relative to the root of the repository.
  */
 export function testRepositoryBase(project: TestProject): BaseFile[] {
-  const { playwrightVersion, appsDir, stateDir } = project;
+  const { playwrightVersion, applications, appsDir, stateDir } = project;
   const manifest = {
     name: "playwright-tests",
     private: true,
@@ -128,6 +128,7 @@ export function testRepositoryBase(project: TestProject): BaseFile[] {
     { path: "tsconfig.json", content: `${JSON.stringify(compiler, null, 2)}\n` },
     { path: ".gitignore", content: `${ignored.join("\n")}\n` },
     { path: "README.md", content: testRepositoryReadme(project) },
+    { path: `${appsDir}/${FIXTURES_FILE_NAME}`, content: sharedFixtures(applications.map((application) => application.id)) },
     { path: ".github/workflows/tests.yml", content: testRepositoryWorkflow() },
   ];
 }

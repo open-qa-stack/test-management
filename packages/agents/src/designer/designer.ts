@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, posix } from "node:path";
 import type { AgentEvent, AgentRuntime, PlanReview, ScenarioLevel, StopReason, TerminalEvent, TestPlan, UncoveredRequest } from "@open-qa-stack/domain";
 import {
@@ -32,7 +32,8 @@ import { PlanProposal } from "./plan-proposal.ts";
 import { PLANNER_INSTRUCTIONS, planRequest } from "./planner-prompt.ts";
 import { sessionTools, type SessionTools } from "./session-tools.ts";
 import type { TestCheck, TestRunner } from "@open-qa-stack/domain";
-import { declaredAddresses, declaredSecrets, testPackages } from "./spec-rules.ts";
+import { declaredAddresses, declaredSecrets, TEST_MODULE, testPackages } from "./spec-rules.ts";
+import { ensureFixtures } from "./test-fixtures.ts";
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import { SESSION_END, TestProposals, type AcceptedTest } from "./test-proposals.ts";
 import { TestRepository } from "./test-repository.ts";
@@ -260,6 +261,8 @@ export class Designer {
       opened.harness("review", { type: "usage", ...usageOf(counters) });
       return last;
     };
+    // The file of fixtures written for this design, until its tests are committed with it.
+    let uncommitted: string | undefined;
     // A session that throws leaves its phase ended as failed.
     try {
       let planned: TestPlan | undefined = frozen;
@@ -301,6 +304,13 @@ export class Designer {
       }
       // The agents that write and review code read the API of Playwright at the version the test repository installs.
       const playwright = playwrightTools(await PlaywrightReference.load(repositoryRoot));
+      // The tests import their test from the fixtures the repository shares, written now when it has none.
+      const fixtures = await ensureFixtures(
+        repositoryRoot,
+        config.repository.appsDir,
+        config.applications.map((application) => application.id),
+      );
+      if (fixtures.created) uncommitted = fixtures.path;
       const proposals = new TestProposals(
         {
           repositoryRoot,
@@ -314,6 +324,7 @@ export class Designer {
             : {}),
           runner: this.options.runner,
           packages,
+          fixtures,
           screenshots: this.options.screenshots ?? false,
           now,
         },
@@ -343,7 +354,8 @@ export class Designer {
         const request = writeRequest(
           sheet,
           applications.find((application) => application.id === about)!,
-          packages,
+          // Playwright itself is imported through the fixtures of the repository.
+          [fixtures.path, ...packages.filter((name) => name !== TEST_MODULE)],
           index.environment,
         );
         const task = { instructions: this.options.writerInstructions, tools, request, reminder: () => proposals.reminder() };
@@ -395,7 +407,8 @@ export class Designer {
         tests: kept,
       };
       const statePath = resume?.state ?? posix.join(config.repository.stateDir, DESIGNS_FOLDER, `${id}.json`);
-      await this.write(repository, state, statePath, record, tests, journal);
+      await this.write(repository, state, statePath, record, tests, fixtures.created ? [fixtures.path] : [], journal);
+      if (tests.length > 0) uncommitted = undefined;
       const counted = kept.filter((test) => COUNTED.has(test.classes.at(-1)!.class)).length;
       // The count of the harness: each scenario of the plan is accounted for — by a test that counts, by another test that already
       // verifies it, or by the reason the agent that writes gave for which no test can do it. Nothing else closes a design.
@@ -425,16 +438,22 @@ export class Designer {
       };
     } finally {
       phases.close();
+      // A file of fixtures written for tests that were not committed is no one's: the next design writes it again.
+      if (uncommitted !== undefined) await rm(join(repositoryRoot, uncommitted), { force: true });
     }
   }
 
-  /** Writes the state, the file of its plan and the new tests and, with a test at least, commits them on the branch, created if need be. */
+  /**
+   * Writes the state, the file of its plan and the new tests and, with a test at least, commits them on the branch, created if need be,
+   * with the files written for them before.
+   */
   private async write(
     repository: TestRepository,
     state: DesignState,
     statePath: string,
     plan: PlanRecord,
     tests: readonly AcceptedTest[],
+    shared: readonly string[],
     journal: Journal,
   ): Promise<void> {
     const { repositoryRoot } = this.options;
@@ -463,12 +482,7 @@ export class Designer {
       return test.classes.at(-1)!.class === "unfinished" ? `- ${test.path}: unfinished (${test.closedBy})` : `- ${test.path}: ${titles.get(test.scenario)}`;
     };
     const message = [`test: add ${tests.length} generated Playwright tests`, "", ...tests.map(line)].join("\n");
-    const committed = new Set(
-      await repository.commit(
-        files.map(([path]) => path),
-        message,
-      ),
-    );
+    const committed = new Set(await repository.commit([...files.map(([path]) => path), ...shared], message));
     for (const test of tests) journal.record("info", `The test ${test.path} was written.`);
     const ignored = (path: string) => (committed.has(path) ? "" : ", which git ignores: it was not committed");
     journal.record("info", `The plan was written to ${state.plan}${ignored(state.plan)}.`);

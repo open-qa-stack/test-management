@@ -159,7 +159,7 @@ function snapshot(root: string): Record<string, string> {
 
 /** The test of a scenario whose one step opens the orders and asserts their heading, as the plan expects; it notes its scenario, which tells its body from the others. */
 const spec = (title: string) =>
-  `import { test, expect } from "@playwright/test";\n\ntest("${title}", async ({ page }) => {\n  test.info().annotations.push({ type: "scenario", description: "${title}" });\n  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n    await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();\n  });\n});\n`;
+  `import { test, expect } from "../fixtures.ts";\n\ntest("${title}", async ({ page }) => {\n  test.info().annotations.push({ type: "scenario", description: "${title}" });\n  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n    await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();\n  });\n});\n`;
 
 /** A call of a tool by the model. */
 interface Call {
@@ -403,6 +403,9 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     assert.equal(git(root, "branch", "--show-current"), BRANCH);
     assert.deepEqual(specsOf(root), ["apps/shop/follow-order.spec.ts", "apps/shop/list-orders.spec.ts", "apps/shop/place-order.spec.ts"]);
     assert.equal(readFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "utf8"), tagged(spec("list-orders")));
+    // The fixtures the tests import are written for a repository that has none, and committed with them.
+    assert.ok(filesOf(root).includes("apps/fixtures.ts"));
+    assert.match(readFileSync(join(root, "apps", "fixtures.ts"), "utf8"), /^export const test = base\.extend<ApplicationTabs>\(\{\n {2}shopPage: /m);
     const state = stateOf(outcome);
     assert.equal(outcome.statePath, join(root, ".oqas", "designs", "design-20261113T100000Z.json"));
     assert.equal(outcome.planPath, join(root, ".oqas", "designs", "design-20261113T100000Z.plan.md"));
@@ -514,7 +517,7 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
       "You write the Playwright test of one scenario of an accepted plan",
       "PW-WAIT-01",
       "Sign-in: with the account demo; the lines of the sheet that sign in read it from process.env: keep them as they are.",
-      "A test may import: @playwright/test.",
+      "A test may import: apps/fixtures.ts.",
       "Intent: Verifies list-orders.",
       "Cited: shop: /orders.",
     ])
@@ -574,7 +577,7 @@ describe("criterion 3 — with two valid tests the design fails, the journal say
     assert.deepEqual(specsOf(root), ["apps/shop/follow-order.spec.ts", "apps/shop/list-orders.spec.ts", "apps/shop/place-order.spec.ts"]);
     assert.match(
       readFileSync(join(root, "apps", "shop", "follow-order.spec.ts"), "utf8"),
-      /^import \{ expect, test \} from "@playwright\/test";\n\ntest\("The follow-order scenario"/,
+      /^import \{ expect, test \} from "\.\.\/fixtures\.ts";\n\ntest\("The follow-order scenario"/,
     );
     assert.deepEqual(stateOf(outcome).tests[2], {
       path: "apps/shop/follow-order.spec.ts",
@@ -631,10 +634,13 @@ describe("criterion 3 — with two valid tests the design fails, the journal say
     assert.equal(outcome.ok, false);
     assert.match(messages(outcome), /The session failed: .*\n[^]*No test was written: 0 tests were obtained/);
     assert.deepEqual(snapshot(root).branches, before.branches);
+    // The fixtures written for the tests of this design go with them: nothing is left that no commit holds.
+    assert.equal(existsSync(join(root, "apps", "fixtures.ts")), false);
+    assert.doesNotMatch(git(root, "status", "--porcelain", "--untracked-files=all"), /fixtures/);
   });
 });
 
-describe("criterion 4 — a test that imports anything but @playwright/test or a relative path is not run, and the journal names the module", () => {
+describe("criterion 4 — a test that imports anything but the fixtures, a declared package or a relative path is not run, and the journal names the module", () => {
   it("refuses a platform package, a computed module, a path outside the repository and another test", async () => {
     const imports = (line: string) => `${line}\n${spec("imports")}`;
     const refused = [
@@ -649,7 +655,7 @@ describe("criterion 4 — a test that imports anything but @playwright/test or a
     const journal = messages(outcome);
     assert.match(
       journal,
-      /\[TEST-IMPORT\] The test apps\/shop\/list-orders\.spec\.ts could not be run: Line 1 imports @open-qa-stack\/agents; import only @playwright\/test/,
+      /\[TEST-IMPORT\] The test apps\/shop\/list-orders\.spec\.ts could not be run: Line 1 imports @open-qa-stack\/agents; import only a relative path inside the test repository\./,
     );
     assert.match(journal, /\[TEST-IMPORT\] .*: Line 1 imports a module whose name is computed/);
     assert.match(journal, /\[TEST-IMPORT\] .*: Line 1 imports \.\.\/\.\.\/\.\.\/outside\.ts, outside the test repository\./);
@@ -662,7 +668,7 @@ describe("criterion 4 — a test that imports anything but @playwright/test or a
 
 describe("criterion 5 — a test that does not parse as TypeScript is not run, and the journal holds the parse error", () => {
   it("refuses it with the line and column of the error", async () => {
-    const { outcome } = await design(replies([[run(`import { test } from "@playwright/test";\ntest("x", async () => {\n`, "parse")], ...valid(3)]));
+    const { outcome } = await design(replies([[run(`import { test } from "../fixtures.ts";\ntest("x", async () => {\n`, "parse")], ...valid(3)]));
     assert.match(
       messages(outcome),
       /\[TEST-SYNTAX\] The test apps\/shop\/list-orders\.spec\.ts could not be run: The test does not parse as TypeScript: line \d+, column \d+: (missing|unexpected) /,
@@ -796,7 +802,7 @@ describe("criterion 10 — no generated test imports another, and nothing is wri
         assert.ok(syntax.ok);
         assert.deepEqual(
           syntax.imports.map((imported) => imported.module),
-          ["@playwright/test"],
+          ["../fixtures.ts"],
         );
       }
     }
@@ -872,6 +878,8 @@ describe("guiding the designer", () => {
     );
     assert.equal(readFileSync(join(root, "apps", "shop", "list-orders.spec.ts"), "utf8"), "// kept\n");
     assert.match(asked(server, 1), /\nFile: apps\/shop\/list-orders-3\.spec\.ts\n/);
+    // The repository had no fixtures of its own: those written are committed with the tests.
+    assert.ok(filesOf(root).includes("apps/fixtures.ts"));
   });
 
   it("designs nothing without a readable index that matches its schema", async () => {
@@ -905,7 +913,7 @@ describe("the sheet of a scenario", () => {
     const sheet = asked(server, 1);
     assert.ok(
       sheet.startsWith(
-        'Write the test of this scenario for the environment local.\n\nSign-in: with the account demo; the lines of the sheet that sign in read it from process.env: keep them as they are.\nA test may import: @playwright/test.\n\nScenario 1 of 3: list-orders — The list-orders scenario (functional level, other, negative, reads data), application shop.\nIntent: Verifies list-orders.\nData: "Ada" (shop); "zzqx" (made-up).\nCited: shop: /orders.\nFile: apps/shop/list-orders.spec.ts\n\nimport { expect, test } from "@playwright/test";\n\ntest("The list-orders scenario", { tag: ["@level-functional","@domain-orders","@app-shop","@kind-other","@case-negative","@data-read"] }, async ({ page }) => {\n  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n    // Expect 1.1: The orders show.\n    await expect(page.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();\n  });\n});\n',
+        'Write the test of this scenario for the environment local.\n\nSign-in: with the account demo; the lines of the sheet that sign in read it from process.env: keep them as they are.\nA test may import: apps/fixtures.ts.\n\nScenario 1 of 3: list-orders — The list-orders scenario (functional level, other, negative, reads data), application shop.\nIntent: Verifies list-orders.\nData: "Ada" (shop); "zzqx" (made-up).\nCited: shop: /orders.\nFile: apps/shop/list-orders.spec.ts\n\nimport { expect, test } from "../fixtures.ts";\n\ntest("The list-orders scenario", { tag: ["@level-functional","@domain-orders","@app-shop","@kind-other","@case-negative","@data-read"] }, async ({ page }) => {\n  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n    // Expect 1.1: The orders show.\n    await expect(page.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();\n  });\n});\n',
       ),
       sheet,
     );
@@ -1307,7 +1315,7 @@ describe("the repair contract", () => {
 
 describe("refusals for the same reason", () => {
   it("give what the gate would accept from the third, start again after a run, and close the scenario at the fifth", async () => {
-    const flat = (marker: string) => `import { test } from "@playwright/test";\n\ntest("list", async () => {});\n// ${marker}\n`;
+    const flat = (marker: string) => `import { test } from "../fixtures.ts";\n\ntest("list", async () => {});\n// ${marker}\n`;
     const turns = [
       ...["1", "2", "3"].map((marker) => [run(flat(marker), `s${marker}`)]),
       [run(broken("list-orders"), "ran")],
@@ -1458,7 +1466,7 @@ describe("what the designer may keep", () => {
 describe("a visual test", () => {
   it("is run and kept: it opens a page and compares a full capture with its reference", async () => {
     const runner = new FakeTestRunner();
-    const visual = `import { test, expect } from "@playwright/test";\n\ntest("the list of orders looks as it should", async ({ page }) => {\n  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n    await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();\n    await expect(page).toHaveScreenshot({ fullPage: true });\n  });\n});\n`;
+    const visual = `import { test, expect } from "../fixtures.ts";\n\ntest("the list of orders looks as it should", async ({ page }) => {\n  await test.step("1. Open the orders", async () => {\n    await page.goto("/orders");\n    await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();\n    await expect(page).toHaveScreenshot({ fullPage: true });\n  });\n});\n`;
     const { outcome } = await design(replies([...write("list-orders", visual), ...valid(3).slice(2)]), { runner });
     assert.equal(outcome.tests.find((test) => test.path === "apps/shop/list-orders.spec.ts")?.verdict, "passed", messages(outcome));
     assert.ok(runner.runs.some((test) => test.content === tagged(visual)));
@@ -1497,18 +1505,22 @@ describe("the packages a test may import", () => {
   it("let an accessibility test import axe-core when the test repository declares it, and refuse a package it does not", async () => {
     const manifest = JSON.stringify({ devDependencies: { "@playwright/test": "1.64.1", "@axe-core/playwright": "4.11.0" } });
     const a11y = spec("list-orders")
-      .replace('from "@playwright/test";', 'from "@playwright/test";\nimport AxeBuilder from "@axe-core/playwright";')
+      .replace('from "../fixtures.ts";', 'from "../fixtures.ts";\nimport AxeBuilder from "@axe-core/playwright";')
       .replace("  });\n});", "    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);\n  });\n});");
-    const other = spec("x").replace('from "@playwright/test";', 'from "@playwright/test";\nimport { faker } from "@faker-js/faker";');
-    const { outcome, server } = await design(replies([[run(other, "faker")], ...write("list-orders", a11y), ...valid(3).slice(2)]), {
+    const other = spec("x").replace('from "../fixtures.ts";', 'from "../fixtures.ts";\nimport { faker } from "@faker-js/faker";');
+    const bare = `import { test as bare } from "@playwright/test";\n${spec("x")}`;
+    const { outcome, server } = await design(replies([[run(other, "faker")], [run(bare, "bare")], ...write("list-orders", a11y), ...valid(3).slice(2)]), {
       root: repository(INDEX, manifest),
     });
     assert.equal(outcome.tests.find((test) => test.path === "apps/shop/list-orders.spec.ts")?.verdict, "passed", messages(outcome));
+    assert.match(toolResult(server, "faker"), /Refused \(TEST-IMPORT\): Line 2 imports @faker-js\/faker; import only @axe-core\/playwright or a relative path/);
+    // Playwright itself is imported through the fixtures of the repository, which the refusal names.
     assert.match(
-      toolResult(server, "faker"),
-      /Refused \(TEST-IMPORT\): Line 2 imports @faker-js\/faker; import only @playwright\/test, @axe-core\/playwright or a relative path/,
+      String(toolResult(server, "bare")),
+      /Refused \(TEST-IMPORT\): Line 1 imports @playwright\/test; import test and expect from .*\.\.\/fixtures\.ts.*, the fixtures of the test repository\./,
     );
-    assert.match(asked(server, 1), /\nA test may import: @playwright\/test, @axe-core\/playwright\.\n/);
+
+    assert.match(asked(server, 1), /\nA test may import: apps\/fixtures\.ts, @axe-core\/playwright\.\n/);
   });
 });
 
