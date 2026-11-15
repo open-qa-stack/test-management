@@ -1,0 +1,60 @@
+name: release
+
+# Started by hand, for a version the maintainer names. It verifies the commit and builds what a
+# release is made of, as artifacts of the run: it publishes nothing, tags nothing and writes nothing
+# to the repository. Publishing is a step of its own, added once the packages are ready for it.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: The version the artifacts are built for, such as 0.1.0.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Version
+        env:
+          VERSION: ${{ inputs.version }}
+        # A version is three numbers, with a pre-release after a hyphen when there is one.
+        run: |
+          printf '%s' "$VERSION" | grep --extended-regexp --quiet '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$' \
+            || { echo "The version \"$VERSION\" is not of the form 1.2.3 or 1.2.3-rc.1."; exit 1; }
+      - name: Browser of the tests
+        run: pnpm --filter @open-qa-stack/tools exec playwright-core install --with-deps chromium
+      - name: Check
+        run: pnpm check
+      - name: Scan of the whole history
+        run: pnpm scan --all
+      - name: Advisories
+        run: pnpm audit --prod --audit-level=moderate
+      - name: Packages
+        # The tarball of every package of the workspace, as a registry would receive it.
+        run: |
+          mkdir -p release
+          pnpm --recursive --filter "./packages/*" exec pnpm pack --pack-destination "$GITHUB_WORKSPACE/release"
+      - name: Keep the candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-${{ inputs.version }}
+          path: release
+          if-no-files-found: error

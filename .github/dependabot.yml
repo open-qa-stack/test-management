@@ -1,0 +1,14 @@
+# Weekly proposals for the pinned dependencies and the actions of the pipeline: one pull request per
+# update, checked and reviewed like any other; nothing merges on its own.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    versioning-strategy: increase
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

@@ -55,6 +55,19 @@ A merge commit is a commit like the others. The message git proposes for it, `Me
 git merge --no-ff -m "feat(check): scan the commits of a branch" <branch>
 ```
 
+## Continuous integration
+
+The pipeline of the repository, in `.github/workflows/`, runs on every pull request and on every commit of `main`. It only reads the repository, holds no secret and publishes nothing, so it runs the same way for a pull request that comes from a fork. Every action it uses is pinned to a commit.
+
+| Workflow | Job | What it verifies |
+|---|---|---|
+| `ci` | `check` | `pnpm check` on a clean clone, with the Node.js `.nvmrc` names, the dependencies installed from the frozen lockfile and the Chromium the workspace pins. |
+| `ci` | `hygiene` | `pnpm scan` on every commit the pull request brings, not only its last: the message of each, and the lines it adds. |
+| `ci` | `advisories` | No production dependency has a known vulnerability of moderate severity or more. |
+| `release` | `candidate` | Started by hand for a version: the check, the scan of the whole history, the advisories, then the tarball of every package, kept as artifacts of the run. It publishes nothing and tags nothing. |
+
+A pull request can be merged once `check`, `hygiene` and `advisories` are green: they are the required checks of `main`. `.github/dependabot.yml` proposes, each week, the updates of the pinned dependencies and of the actions, one pull request each.
+
 ## Scanning before publishing
 
 `pnpm scan` looks for what must not be published, and changes nothing.
