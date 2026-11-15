@@ -225,6 +225,7 @@ A test of one of the two upper levels acts on several applications. Its scenario
 Each scenario says its `effect`: `read` when its test only reads the data of the environment, `write` when it creates, changes or removes some. Every test and every user share that data, so a test that writes must pass again right after it passed: it enters data of its own, such as a made-up name no other run uses, or its last step puts back what it changed.
 
 - **In the plan.** A scenario said to only read that cites a click on an element whose name says it creates, changes or removes data — the same guess from words that guards an exploration — is refused with `PLAN-EFFECT`.
+- **In the plan, again.** A scenario that writes, expects a text shown at a step, expects it gone at a later one and never expects it shown again removes what it starts from: it is refused with `PLAN-EFFECT`, and asked for a last step that puts the text back, done on the screens too, or for data of its own.
 - **In the run.** A test that writes is run a second time once it passed. When the second run fails or cannot run, the test is held to have failed, and the agent is told why: it relies on data its own run changed.
 - **In the tags.** `@data-read` or `@data-write`, so that a run of the tests that only read is one command away, such as `--grep @data-read`.
 

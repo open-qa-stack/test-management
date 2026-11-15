@@ -1159,7 +1159,7 @@ export class PlanProposal {
    * the name, as the one that guards an exploration.
    */
   private effectErrors(scenario: SubmittedScenario): Refusal[] {
-    if (scenario.effect === "write") return [];
+    if (scenario.effect === "write") return this.replayErrors(scenario);
     const writing = this.cited(
       scenario,
       scenario.steps.flatMap((step) => step.actions),
@@ -1171,6 +1171,30 @@ export class PlanProposal {
         message: `scenario ${scenario.id} is said to only read the data of the environment, and it cites the action ${writing.number} (${writing.code}), a click on "${writing.changes}", which may create, change or remove some. Give it the effect write, and make it pass again once it passed: with data of its own, or a last step that puts back what it changed. If this click changes nothing, leave the action out or say so in the intent and give the effect write all the same.`,
       },
     ];
+  }
+
+  /**
+   * What the gates refuse in a scenario that writes: a text an early step expects shown, that a later step
+   * expects gone, and that no step after brings back. The scenario removes what it starts from: its test would
+   * pass once and fail when run again.
+   */
+  private replayErrors(scenario: SubmittedScenario): Refusal[] {
+    const shown = (from: number, text: string) =>
+      scenario.steps.slice(from).some((step) => step.expects.some((expect) => expect.shows.some((other) => sameText(other, text))));
+    return scenario.steps.flatMap((step, at) =>
+      step.expects.flatMap((expect) =>
+        expect.shows.filter(checkable).flatMap((text): Refusal[] => {
+          const gone = scenario.steps.findIndex((later, j) => j > at && later.expects.some((other) => other.absent.some((absent) => sameText(absent, text))));
+          if (gone === -1 || shown(gone + 1, text)) return [];
+          return [
+            {
+              code: "PLAN-EFFECT",
+              message: `scenario ${scenario.id} expects "${text}" at step ${at + 1}, makes it go at step ${gone + 1}, and no step after brings it back: its test would pass once, then fail when run again, since what it starts from is gone. Add a last step that puts it back — do it on the screens, cite its actions and expect "${text}" shown again — or start from data of its own, such as a record the scenario creates under a made-up name.`,
+            },
+          ];
+        }),
+      ),
+    );
   }
 
   /**

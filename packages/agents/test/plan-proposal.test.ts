@@ -1570,4 +1570,16 @@ describe("the effect of a scenario on the data of the environment", () => {
     // A click whose name says nothing of the kind is one of a scenario that reads.
     assert.equal(typeof (await (await saved()).tool().execute({ scenarios: [told("read", [1, 3])] })), "string");
   });
+
+  it("refuses a scenario that writes, makes go a text it starts from and never brings it back, and keeps one that puts it back", async () => {
+    const step = (action: string, shows: string[], absent: string[] = []) => ({ action, actions: [1], expects: [{ result: action, shows, absent }] });
+    const changing = (...last: ReturnType<typeof step>[]) =>
+      scenario("a", { effect: "write", data: [], steps: [step("Open the orders", ["Orders"]), step("Rename the list", [], ["Orders"]), ...last] });
+    const refused = (await (await saved()).tool().execute({ scenarios: [changing()] })) as { error: string };
+    assert.match(
+      refused.error,
+      /^Refused \(PLAN-EFFECT\): scenario a expects "Orders" at step 1, makes it go at step 2, and no step after brings it back: its test would pass once, then fail when run again, since what it starts from is gone\. Add a last step that puts it back /,
+    );
+    assert.equal(typeof (await (await saved()).tool().execute({ scenarios: [changing(step("Give the list its name back", ["Orders"]))] })), "string");
+  });
 });
