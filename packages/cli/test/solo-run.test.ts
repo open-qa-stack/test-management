@@ -50,7 +50,8 @@ function configText(modelUrl: string, changes: Record<string, unknown> = {}): st
     model: { mode: "provider-key", provider: "openai", baseUrl: modelUrl, model: MODEL },
     autonomy: { level: "autonomous" },
     // The review of a plan by an agent of its own has its sessions, which the design of the agents tests.
-    design: { reviewPlan: false, reviewTests: false, reviewCode: false, levels: ["functional"] },
+    // One level and no visual test: a design is then one pass, which the passes of a design test by themselves.
+    design: { reviewPlan: false, reviewTests: false, reviewCode: false, levels: ["functional"], visualTests: false },
     ...changes,
   });
 }

@@ -264,6 +264,7 @@ export class SoloRun {
               : { resume: { state: resumed.designState, ...(resumed.branch === undefined ? {} : { branch: resumed.branch }) } }),
           },
           config.design.passes,
+          config.design.visualTests,
           (pass) => new Designer(pass).run(),
         ).run();
         this.relay(journal, "design", outcome.journal);

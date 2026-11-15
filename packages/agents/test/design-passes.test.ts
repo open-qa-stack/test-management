@@ -36,7 +36,7 @@ describe("the passes of a design", () => {
         uncovered: [{ asked: "A journey", reason: "It needs an account." }],
       },
     };
-    const passes = new DesignPasses(options({ levels: ["business", "smoke", "functional"] }), "by-level", async (pass) => {
+    const passes = new DesignPasses(options({ levels: ["business", "smoke", "functional"] }), "by-level", false, async (pass) => {
       asked.push(pass.levels);
       return given[pass.levels![0]!]!;
     });
@@ -58,7 +58,7 @@ describe("the passes of a design", () => {
 
   it("keep the branch and the state of the last level that wrote a test, and stop at the level a limit cut short", async () => {
     const asked: string[] = [];
-    const passes = new DesignPasses(options({ levels: ["smoke", "functional", "business"] }), "by-level", async (pass) => {
+    const passes = new DesignPasses(options({ levels: ["smoke", "functional", "business"] }), "by-level", false, async (pass) => {
       const level = pass.levels![0]!;
       asked.push(level);
       if (level === "smoke") return { ok: true, branch: "oqas/a", statePath: "a.json", planPath: "a.plan.md", tests: [test("smoke.spec.ts")], journal: [] };
@@ -69,6 +69,30 @@ describe("the passes of a design", () => {
     assert.deepEqual([outcome.ok, outcome.branch, outcome.statePath, outcome.stoppedBy, outcome.uncovered], [false, "oqas/a", "a.json", "duration", undefined]);
   });
 
+  it("end with a pass of visual tests alone, planned by an agent, when the design makes visual tests", async () => {
+    const asked: [readonly string[] | undefined, string | undefined][] = [];
+    const design = async (pass: DesignerOptions): Promise<DesignOutcome> => {
+      asked.push([pass.levels, pass.visual]);
+      return { ok: true, tests: pass.visual === "pass" ? [test("visual.spec.ts")] : [], journal: [] };
+    };
+    const outcome = await new DesignPasses(options({ levels: ["functional", "smoke"] }), "by-level", true, design).run();
+    assert.deepEqual(asked, [
+      [["smoke"], undefined],
+      [["functional"], undefined],
+      [["functional"], "pass"],
+    ]);
+    assert.deepEqual(outcome.journal.at(-1), said("Pass visual: 1 test."));
+    // One level and the visual tests are two passes; in a single plan, the harness adds the visual tests itself.
+    asked.length = 0;
+    await new DesignPasses(options({ levels: ["business"] }), "by-level", true, design).run();
+    await new DesignPasses(options({ levels: ["smoke", "business"] }), "single", true, design).run();
+    assert.deepEqual(asked, [
+      [["business"], undefined],
+      [["functional"], "pass"],
+      [["smoke", "business"], "socle"],
+    ]);
+  });
+
   it("are one design when one level is asked, when a design is resumed, and when the configuration asks for a single plan", async () => {
     const whole: DesignOutcome = { ok: true, tests: [], journal: [] };
     const run = async (changes: Partial<DesignerOptions>, passes: "by-level" | "single" = "by-level") => {
@@ -77,7 +101,7 @@ describe("the passes of a design", () => {
         asked.push(pass.levels);
         return whole;
       };
-      assert.equal(await new DesignPasses(options(changes), passes, design).run(), whole);
+      assert.equal(await new DesignPasses(options(changes), passes, false, design).run(), whole);
       return asked;
     };
     assert.deepEqual(await run({ levels: ["functional"] }), [["functional"]]);

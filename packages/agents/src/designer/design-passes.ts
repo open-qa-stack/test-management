@@ -10,7 +10,8 @@ export type DesignRun = (options: DesignerOptions) => Promise<DesignOutcome>;
 /**
  * Designs the tests of a brief level by level: for each level asked, from the base of the pyramid of tests
  * to its top, a design of its own — an agent that plans that level alone, then the agent that writes each of
- * its tests — and the next one only once it is over.
+ * its tests — and the next one only once it is over. The visual tests, when the design makes some, are a last
+ * pass of their own.
  *
  * @remarks
  * Each pass commits its tests before the next one starts, on a branch made from that of the pass before: the
@@ -27,10 +28,12 @@ export class DesignPasses {
   /**
    * @param options - What a design needs, with the levels asked.
    * @param passes - `by-level` for a pass per level; `single` for every level in one plan.
+   * @param visual - Whether the design makes visual tests.
    * @param design - Runs one design, as `Designer` does.
    */
-  public constructor(options: DesignerOptions, passes: "by-level" | "single", design: DesignRun) {
-    this.#options = options;
+  public constructor(options: DesignerOptions, passes: "by-level" | "single", visual: boolean, design: DesignRun) {
+    // In a single plan the harness adds the visual tests itself; by level, they are a pass of their own.
+    this.#options = visual ? { ...options, visual: "socle" } : options;
     this.#passes = passes;
     this.#design = design;
   }
@@ -44,11 +47,19 @@ export class DesignPasses {
   public async run(): Promise<DesignOutcome> {
     const asked = this.#options.levels ?? [];
     const levels = PYRAMID.filter((level) => asked.includes(level));
-    if (this.#passes === "single" || this.#options.resume !== undefined || levels.length < 2) return this.#design(this.#options);
+    if (this.#passes === "single" || this.#options.resume !== undefined) return this.#design(this.#options);
+    // The visual tests come last, in a pass of their own: their agent builds on every test the levels gave.
+    const { visual, ...leveled } = this.#options;
+    const passes: DesignerOptions[] = [
+      ...levels.map((level) => ({ ...leveled, levels: [level] })),
+      ...(visual === undefined ? [] : [{ ...leveled, levels: ["functional" as const], visual: "pass" as const }]),
+    ];
+    if (passes.length < 2) return this.#design(this.#options);
     let merged: DesignOutcome = { ok: true, tests: [], journal: [] };
-    for (const level of levels) {
-      const pass = await this.#design({ ...this.#options, levels: [level] });
-      const said = { level: "info" as const, message: `Pass ${level}: ${pass.tests.length} ${pass.tests.length === 1 ? "test" : "tests"}.` };
+    for (const options of passes) {
+      const pass = await this.#design(options);
+      const name = options.visual === "pass" ? "visual" : options.levels![0]!;
+      const said = { level: "info" as const, message: `Pass ${name}: ${pass.tests.length} ${pass.tests.length === 1 ? "test" : "tests"}.` };
       const uncovered = [...(merged.uncovered ?? []), ...(pass.uncovered ?? [])];
       merged = {
         ...merged,

@@ -118,7 +118,15 @@ export async function coveringTests(repositoryRoot: string, stateDir: string, pr
     for (const test of state.tests ?? []) {
       const scenario = plan?.scenarios.find((candidate) => candidate.id === test.scenario);
       const verified = scenario === undefined || test.verdict !== "passed" || !present.includes(test.path) ? undefined : verifiedOf(scenario);
-      if (verified !== undefined) covering.push({ path: test.path, verified, described: described(scenario!), writes: writtenValues(scenario!) });
+      if (verified !== undefined)
+        covering.push({
+          path: test.path,
+          verified,
+          described: described(scenario!),
+          writes: writtenValues(scenario!),
+          domain: scenario!.domain,
+          opens: scenario!.steps.flatMap((step) => step.lines!).filter((line) => line.code.startsWith("await page.goto(")),
+        });
     }
   }
   return covering;

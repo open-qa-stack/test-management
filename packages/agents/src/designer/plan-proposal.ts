@@ -133,6 +133,8 @@ export interface PlanRules {
   readonly reads: SourceWatch;
   /** Decides whether a plan that passes the rules may be carried out. */
   readonly review: PlanReview;
+  /** Whether the plan is of visual tests alone: every scenario then has the kind visual. */
+  readonly visual?: boolean;
   /** The tests the repository already has, by what each does and verifies: a scenario one of them covers is set aside. */
   readonly existing?: readonly CoveringTest[];
   /** The model that judges the scenarios the code could not tell from one another; the comparison by the code alone without it. */
@@ -1352,6 +1354,13 @@ export class PlanProposal {
     const { level, id } = scenario;
     const where = `scenario ${id} is of the level ${level}`;
     const refused = (message: string): Refusal[] => [{ code: "PLAN-LEVEL", message }];
+    if (this.rules.visual === true && scenario.kind !== "visual")
+      return [
+        {
+          code: "PLAN-VISUAL",
+          message: `scenario ${id} has the kind ${scenario.kind}, and this plan is of visual tests alone: the other tests of the brief are written already. Give it the kind visual when it leads to a state of a screen worth comparing with its reference, or leave it out.`,
+        },
+      ];
     if (!this.rules.levels.includes(level))
       return refused(
         `${where}, which this plan is not asked for. The levels asked: ${this.rules.levels.join(", ")}. Give it one of them, or leave the scenario out and say so in uncovered.`,

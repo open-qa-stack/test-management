@@ -782,6 +782,16 @@ describe("the elements of a screen whose content changes, as the harness sees th
     assert.deepEqual(await still.changingRoles("shop", "/orders", []), { roles: [], left: [] });
   });
 
+  it("are those the screens the agent saw showed a value a test writes in, for a state the harness cannot open again", async () => {
+    const watch = new ScreenWatch(["shop"], page(["", at("10:00", "3")]).tools);
+    await run(watch, "goto");
+    await run(watch, "snapshot");
+    assert.deepEqual(
+      [watch.holdingRoles("shop", ["71 Orchard Lane", "visits"]), watch.holdingRoles("shop", []), watch.holdingRoles("ledger", ["71 Orchard Lane"])],
+      [["cell"], [], []],
+    );
+  });
+
   it("are unknown when the page cannot be opened, and for an application the watch does not follow", async () => {
     const failing: ToolDefinition = {
       name: "shop_goto",

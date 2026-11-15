@@ -36,7 +36,7 @@ import { declaredAddresses, declaredSecrets, TEST_MODULE, testPackages } from ".
 import { PageObjects } from "./page-objects.ts";
 import { coveringTests, existingTestTools, existingTests } from "./existing-tests.ts";
 import { ensureFixtures } from "./test-fixtures.ts";
-import { visualScenarios } from "./visual-scenarios.ts";
+import { visualScenarios, withComparisons } from "./visual-scenarios.ts";
 import { WrittenFiles } from "./written-files.ts";
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import { SESSION_END, TestProposals, type AcceptedTest } from "./test-proposals.ts";
@@ -77,6 +77,12 @@ export interface DesignerOptions {
   readonly reviewCode?: boolean;
   /** The levels of the pyramid of tests the plan is asked for; `smoke`, `functional` and `business` by default. */
   readonly levels?: readonly ScenarioLevel[];
+  /**
+   * The visual tests of the design, when it makes some: `pass` for a plan of visual tests alone, the agent that plans saying which
+   * states of the screens to compare; `socle` for a plan of other tests, after which the harness compares each screen it opens.
+   * Either way each screen opened by an address has its comparison.
+   */
+  readonly visual?: "pass" | "socle";
   /** Whether each step of a test ends with a screenshot attached to the report, as the charter may ask; the skeleton of a test then holds it. `false` by default. */
   readonly screenshots?: boolean;
   /** Name of the branch to create; `oqas/design-<date>` by default. */
@@ -291,13 +297,14 @@ export class Designer {
             review: this.options.planReview ?? ACCEPT_EVERY_PLAN,
             ...(this.options.reviewPlan === true ? { judge: new PlanReviewer(reviewed) } : {}),
             existing,
+            ...(this.options.visual === "pass" ? { visual: true } : {}),
             now,
           },
           journal,
         );
         const offered = [...session.screens.tools(), ...session.reads.tools()];
         const map = new IndexMap(index, await this.cards(index), offered, owners, await this.written(index));
-        const request = planRequest(brief, index.environment, map.domains(), applications, levels);
+        const request = planRequest(brief, index.environment, map.domains(), applications, levels, this.options.visual === "pass");
         const notes = agentNotes(config, repositoryRoot, env, { role: "planner", task: id, now });
         const tools = [...map.toolset(), ...existingTestTools(present), ...offered, ...notes, plan.tool()].map((tool) => endedWithPlan(tool, plan));
         const task = { instructions: PLANNER_INSTRUCTIONS, tools, request, reminder: () => plan.reminder() };
@@ -311,19 +318,23 @@ export class Designer {
             `No test was written: ${obtained(0)}, one per scenario of the plan is expected.`,
             last.type === "stopped" ? last.reason.limit : undefined,
           );
-        // A visual test for each screen the plan opens by an address: the harness adds them last, as scenarios of their own.
-        // The harness looks at those screens itself, in a browser of its own: that of the agent closed with its session.
-        if (config.design.visualTests) {
+        // The visual scenarios the agent planned end with their comparison, and each screen opened by an address has one: the harness
+        // adds those the plan lacks, last. It looks at the screens itself, in a browser of its own: that of the agent closed with its session.
+        if (this.options.visual !== undefined) {
           const looking = sessionTools(scope);
           const rules = {
             applications: applications.filter((application) => application.type !== "api"),
             screens: looking.screens,
+            seen: session.screens,
             tolerance: config.design.visualTolerance,
             present: paths,
             existing,
           };
-          const visual = await visualScenarios(planned.scenarios, rules, journal).finally(() => looking.close());
-          planned = { ...planned, scenarios: [...planned.scenarios, ...visual] };
+          const compared = async (scenarios: TestPlan["scenarios"]) => {
+            const told = await withComparisons(scenarios, rules);
+            return [...told, ...(await visualScenarios(told, rules, journal))];
+          };
+          planned = { ...planned, scenarios: await compared(planned.scenarios).finally(() => looking.close()) };
         }
       }
       // The agents that write and review code read the API of Playwright at the version the test repository installs.

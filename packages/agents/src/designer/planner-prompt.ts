@@ -55,6 +55,10 @@ const LEVEL_READINGS: Readonly<Record<ScenarioLevel, string>> = {
   "end-to-end": "At this level, plan the scenarios that follow a journey of the brief through three applications or more.",
 };
 
+/** What a plan of visual tests alone makes of a brief. */
+const VISUAL_READING =
+  "This plan is of visual tests alone, and the other tests of the brief are written already: each scenario has the kind visual and the level functional. A visual test leads to one state of a screen and compares it with a reference image; the harness adds that comparison after the last step, you do not. Plan one scenario for each state of the screens of the brief worth comparing: a screen as it opens, a dialog open, a form with its messages after a wrong input, a menu unfolded, a tab chosen, the page a click on a row leads to. Cite the actions that lead to the state, and expect one text that tells it is reached. A visual test verifies the layout and the look, not the data: plan none to verify a value.";
+
 /**
  * Writes the request that starts the session that plans: the brief, the domains of the knowledge with what
  * the sources hold of each, the applications and how to sign in to them, then the next call. Nothing else of
@@ -69,6 +73,7 @@ const LEVEL_READINGS: Readonly<Record<ScenarioLevel, string>> = {
  * @param environment - The environment the tests run against.
  * @param domains - The domains of the knowledge, a line each, as `IndexMap.domains` gives them.
  * @param applications - The applications a test may be about.
+ * @param visual - Whether the plan is of visual tests alone; `false` by default.
  * @returns The message to send to the agent that plans.
  */
 export function planRequest(
@@ -77,6 +82,7 @@ export function planRequest(
   domains: readonly string[],
   applications: readonly Application[],
   levels: readonly ScenarioLevel[],
+  visual = false,
 ): string {
   const asked =
     brief === undefined
@@ -93,11 +99,13 @@ export function planRequest(
     `Knowledge of the applications, by domain:\n${domains.join("\n")}`,
     `Applications:\n${known.join("\n")}`,
     `Levels of the pyramid of tests asked: ${levels.join(", ")}.`,
-    ...(levels.length === 1
-      ? [
-          `This plan is of the level ${levels[0]!} alone, and the tests of the levels below it are written already. ${LEVEL_READINGS[levels[0]!]} Never say in uncovered that this level cannot do the whole brief: plan what it verifies of it.`,
-        ]
-      : []),
+    ...(visual
+      ? [VISUAL_READING]
+      : levels.length === 1
+        ? [
+            `This plan is of the level ${levels[0]!} alone, and the tests of the levels below it are written already. ${LEVEL_READINGS[levels[0]!]} Never say in uncovered that this level cannot do the whole brief: plan what it verifies of it.`,
+          ]
+        : []),
     next,
   ].join("\n\n");
 }

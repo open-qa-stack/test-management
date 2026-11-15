@@ -279,7 +279,10 @@ describe("the scenarios of a plan, asked until the brief is covered", () => {
       data: scenario("a").data.map((entry) => entry.value),
       steps: [{ does: [OPENED, ""], shows: ["Orders"], absent: [] }],
     };
-    const { proposal: made, journal } = await proposal({ now, existing: [{ path, verified: written, described: "Open the orders", writes: [] }] });
+    const { proposal: made, journal } = await proposal({
+      now,
+      existing: [{ path, verified: written, described: "Open the orders", writes: [], domain: "orders", opens: [] }],
+    });
     const told = (await add(made, { scenarios: [scenario("a"), scenario("d")] })) as string;
     assert.ok(
       told.includes(
@@ -308,7 +311,11 @@ describe("the scenarios of a plan, asked until the brief is covered", () => {
         return [{ id: "a", of: path, reason: "The test already opens the orders and reads their heading." }];
       },
     };
-    const { proposal: made } = await proposal({ now, judge, existing: [{ path, verified: written, described: "Find an order", writes: [] }] });
+    const { proposal: made } = await proposal({
+      now,
+      judge,
+      existing: [{ path, verified: written, described: "Find an order", writes: [], domain: "orders", opens: [] }],
+    });
     const told = (await add(made, { scenarios: [scenario("a")] })) as string;
     assert.deepEqual(asked, [[`${path}: Find an order`, "a"]]);
     assert.ok(
@@ -1523,6 +1530,15 @@ describe("the level of a scenario, held to what its actions went through", () =>
     assert.equal(
       await answered(await explored(["smoke", "functional"]), at("business", [1, 2, 3])),
       "business, which this plan is not asked for. The levels asked: smoke, functional. Give it one of them, or leave the scenario out and say so in uncovered.",
+    );
+  });
+
+  it("holds a plan of visual tests alone to scenarios of the kind visual", async () => {
+    const { proposal: made } = await proposal({ visual: true });
+    const refused = (await add(made, { scenarios: [scenario("a"), scenario("b", { kind: "visual" })] })) as { error: string };
+    assert.match(
+      refused.error,
+      /^Refused \(PLAN-VISUAL\): scenario a has the kind other, and this plan is of visual tests alone: the other tests of the brief are written already\. Give it the kind visual .*, or leave it out\.\nNothing else was refused\.$/,
     );
   });
 

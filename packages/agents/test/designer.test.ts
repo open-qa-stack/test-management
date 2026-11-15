@@ -285,8 +285,8 @@ interface Setup {
   readonly check?: TestCheck;
   readonly branch?: string | null;
   readonly env?: Readonly<Record<string, string>>;
-  /** Whether a visual test is written for each screen the plan opens; none by default here, so that a design is its scenarios alone. */
-  readonly visual?: boolean;
+  /** The visual tests of the design, when it makes some; none by default here, so that a design is its scenarios alone. */
+  readonly visual?: "pass" | "socle";
   /** How the tests are built, when it is not as the configuration says by default. */
   readonly architecture?: "fixtures" | "standalone";
   /** Whether the plan is submitted before the script; it is by default. */
@@ -325,7 +325,7 @@ async function design(script: readonly { status?: number; body: unknown }[], set
     const declared = configFor(server.baseUrl, setup.limits);
     const seeing: ResolvedConfig = setup.vision === true ? { ...declared, model: { ...declared.model, capabilities: ["vision"] } } : declared;
     const built: ResolvedConfig = setup.architecture === undefined ? seeing : { ...seeing, design: { ...seeing.design, architecture: setup.architecture } };
-    const config: ResolvedConfig = { ...built, design: { ...built.design, visualTests: setup.visual === true } };
+    const config: ResolvedConfig = built;
     const charter = resolveCharter(config.charter);
     assert.ok(charter.ok);
     const designer = new Designer({
@@ -343,6 +343,7 @@ async function design(script: readonly { status?: number; body: unknown }[], set
       ...(setup.reviewPlan === undefined ? {} : { reviewPlan: setup.reviewPlan }),
       ...(setup.reviewTests === undefined ? {} : { reviewTests: setup.reviewTests }),
       ...(setup.reviewerInstructions === undefined ? {} : { reviewerInstructions: setup.reviewerInstructions }),
+      ...(setup.visual === undefined ? {} : { visual: setup.visual }),
       ...(setup.reviewCode === undefined ? {} : { reviewCode: setup.reviewCode }),
       // The scenarios of these tests are functional: the plan is asked for that level alone unless a test says otherwise.
       ...(setup.levels === "default" ? {} : { levels: setup.levels ?? ["functional"] }),
@@ -607,7 +608,7 @@ describe("how the tests are built, as the configuration says", () => {
 describe("the visual test of each screen a plan opens", () => {
   it("is a scenario the harness adds after the plan, whose sheet ends with the comparison of the screen with its reference", async () => {
     // The session of the visual scenario ends without a call: its skeleton is kept as an unfinished test.
-    const { outcome, server } = await design([...replies(valid(3)), ...replies([])], { visual: true });
+    const { outcome, server } = await design([...replies(valid(3)), ...replies([])], { visual: "socle" });
     const plan = planOf(outcome);
     assert.deepEqual(
       plan.scenarios.map((scenario) => [scenario.id, scenario.kind]),
@@ -616,6 +617,29 @@ describe("the visual test of each screen a plan opens", () => {
     const sheet = asked(server, 4);
     assert.match(sheet, /\nFile: apps\/shop\/tests\/orders\/visual\/visual-shop-orders\.spec\.ts\n/);
     assert.ok(sheet.includes('await expect(page).toHaveScreenshot({ animations: "disabled", mask: [], maxDiffPixelRatio: 0.01 });'), sheet);
+  });
+});
+
+describe("a plan of visual tests alone", () => {
+  it("is asked of the agent, held to visual scenarios, and each ends with the comparison the harness adds", async () => {
+    const state = { ...PLAN, arguments: { scenarios: [scenario("orders-as-opened", "visual")] } };
+    const script = [
+      { body: toolCalls(MODEL, [OPEN]) },
+      { body: toolCalls(MODEL, [state]) },
+      { body: toolCalls(MODEL, [COVERED]) },
+      { body: answer(MODEL, "Done.") },
+    ];
+    const { outcome, server } = await design([...script, ...replies([])], { plan: false, visual: "pass" });
+    assert.match(JSON.stringify(server.requests[0]!.body), /This plan is of visual tests alone/);
+    // The screen the agent compares as it opens has no other comparison.
+    assert.deepEqual(
+      planOf(outcome).scenarios.map((kept) => [kept.id, kept.steps.at(-1)!.screenshot]),
+      [["orders-as-opened", { mask: [], tolerance: 0.01 }]],
+    );
+    assert.ok(
+      asked(server, 1).includes('await expect(page).toHaveScreenshot({ animations: "disabled", mask: [], maxDiffPixelRatio: 0.01 });'),
+      asked(server, 1),
+    );
   });
 });
 

@@ -99,6 +99,16 @@ describe("the request of the session that plans", () => {
     assert.doesNotMatch(planRequest("Test the search of an order.", "local", DOMAINS, [SHOP], ["smoke", "functional"]), /This plan is of the level/);
   });
 
+  it("says, for a plan of visual tests alone, which states of the screens are worth comparing, and that the harness adds the comparison", () => {
+    const visual = planRequest("Test the search of an order.", "local", DOMAINS, [SHOP], ["functional"], true);
+    assert.match(
+      visual,
+      /\n\nThis plan is of visual tests alone, and the other tests of the brief are written already: each scenario has the kind visual and the level functional\./,
+    );
+    assert.match(visual, /a dialog open, a form with its messages after a wrong input, a menu unfolded/);
+    assert.doesNotMatch(visual, /This plan is of the level functional alone/);
+  });
+
   it("gives the same domains without a brief, and asks then for the tests that matter most", () => {
     // A user interface of another environment is none of this one's.
     const elsewhere = { ...SHOP, environments: [{ name: "staging", uiUrl: "http://shop.test" }] };

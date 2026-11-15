@@ -1,4 +1,4 @@
-import type { PlanEnd, SetAsideScenario } from "@open-qa-stack/domain";
+import type { PlanEnd, PlannedLine, SetAsideScenario } from "@open-qa-stack/domain";
 import type { Journal } from "../common/journal.ts";
 import type { DuplicateJudge, JudgedDuplicate } from "./duplicate-judge.ts";
 import { coveredBy, type Verified } from "./verified.ts";
@@ -22,6 +22,10 @@ export interface CoveringTest {
   readonly described: string;
   /** The values it writes in the environment of its application, which a screen may show changed while it runs. */
   readonly writes: readonly string[];
+  /** Identifier of the domain of its scenario. */
+  readonly domain: string;
+  /** The lines of its plan that open a screen by an address, with the screen of each. */
+  readonly opens: readonly PlannedLine[];
 }
 
 /** What a draft needs of the scenarios it holds. */

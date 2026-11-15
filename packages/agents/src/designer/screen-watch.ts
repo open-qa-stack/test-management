@@ -686,6 +686,19 @@ export class ScreenWatch {
   }
 
   /**
+   * The kinds of elements the screens of an application showed a value a test writes in, by their role: what
+   * a comparison masks of a state the harness cannot open again by itself.
+   *
+   * @param application - Identifier of the application.
+   * @param written - The values the tests write in the environment.
+   * @returns The roles a comparison can mask, in the order the screens showed them.
+   */
+  public holdingRoles(application: string, written: readonly string[]): string[] {
+    const lines = [...(this.view(application)?.lines ?? [])].filter((line) => written.some((value) => observed(value, [line])));
+    return [...new Set(lines.flatMap((line) => /^- ([a-z]+)\b/.exec(line)?.[1] ?? []))].filter((role) => MASKED_ROLES.has(role));
+  }
+
+  /**
    * The screen an action acts on: the one it opens, for an address, or else the one the action before it on
    * its application left the page on.
    *
