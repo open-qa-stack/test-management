@@ -365,7 +365,9 @@ describe("criterion 4 — outlines of TypeScript and Java files, the git history
     await assert.rejects(call("git_show", { commit: git("rev-parse", "HEAD:secret.txt") }), /^Error: git show failed: /);
     await assert.rejects(call("git_log", { path: "../secret.txt" }), /leads outside the folder/);
     await assert.rejects(call("git_show", { commit: "abcdef12" }), /^Error: git show failed: fatal: /);
-    await assert.rejects(new GitHistory(new CodeFolder(code), 1).log(undefined, 1), /^Error: git log failed: it ran out of time$/);
+    // A command stopped for running too long is told as such, whatever the speed of the machine: how a program is stopped has its own test.
+    const stopped = async () => ({ exitCode: null, stdout: "", stderr: "", timedOut: true, truncated: false });
+    await assert.rejects(new GitHistory(new CodeFolder(code), 1, stopped).log(undefined, 1), /^Error: git log failed: it ran out of time$/);
   });
 
   it("runs a shell command only when the folder allows it, with PATH as its only variable", async () => {

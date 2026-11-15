@@ -57,14 +57,17 @@ const SAFE_ENV = { GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: "/dev/null", GIT
 export class GitHistory {
   private readonly folder: CodeFolder;
   private readonly timeoutMs: number;
+  private readonly run: typeof runProcess;
 
   /**
    * @param folder - The folder, inside a git repository.
    * @param timeoutMs - Longest one git command may run; `GIT_TIMEOUT_MS` by default.
+   * @param run - Runs a program; `runProcess` by default.
    */
-  public constructor(folder: CodeFolder, timeoutMs = GIT_TIMEOUT_MS) {
+  public constructor(folder: CodeFolder, timeoutMs = GIT_TIMEOUT_MS, run: typeof runProcess = runProcess) {
     this.folder = folder;
     this.timeoutMs = timeoutMs;
+    this.run = run;
   }
 
   /**
@@ -121,7 +124,7 @@ export class GitHistory {
   }
 
   private async git(args: readonly string[]): Promise<string> {
-    const result: ProcessResult = await runProcess("git", [...SAFE, ...args], await this.folder.rootPath(), this.timeoutMs, SAFE_ENV);
+    const result: ProcessResult = await this.run("git", [...SAFE, ...args], await this.folder.rootPath(), this.timeoutMs, SAFE_ENV);
     if (result.exitCode !== 0 && !result.truncated)
       throw new Error(`git ${args[0]} failed: ${result.timedOut ? "it ran out of time" : result.stderr.trim().split("\n")[0]}`);
     return result.truncated ? `${result.stdout}\n[output cut]` : result.stdout;
