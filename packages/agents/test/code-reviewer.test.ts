@@ -45,6 +45,22 @@ describe("the agent that reviews the quality of the code of a test", () => {
     assert.equal(task!.request, `The test:\n\`\`\`ts\n${TEST.trimEnd()}\n\`\`\`\n\nNext: call report_quality with what you found, or with an empty list.`);
   });
 
+  it("is given the tools it may read with before it reports, such as the reference of Playwright", async () => {
+    let offered: string[] = [];
+    const reference = { name: "playwright_read", description: "Reads.", parameters: { type: "object" }, execute: async () => "" };
+    const reviewer = new CodeReviewer(
+      async (task) => {
+        offered = task.tools.map((tool) => tool.name);
+        await task.tools.at(-1)!.execute({ findings: [] });
+        return END;
+      },
+      "Review.",
+      [reference],
+    );
+    await reviewer.judge(TEST);
+    assert.deepEqual(offered, ["playwright_read", "report_quality"]);
+  });
+
   it("finds nothing in a test it reports nothing of, and throws when its session ends without a report", async () => {
     const quiet = new CodeReviewer(async (task) => {
       await task.tools[0]!.execute({});

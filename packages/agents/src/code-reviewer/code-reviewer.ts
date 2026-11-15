@@ -1,3 +1,4 @@
+import type { ToolDefinition } from "@open-qa-stack/domain";
 import { findingLine, reportedFindings, type ReviewSession } from "../common/reported-findings.ts";
 import type { QualityFinding } from "../designer/design-state.ts";
 import type { QualityJudge } from "../designer/quality-judge.ts";
@@ -15,7 +16,8 @@ export const MAX_FINDINGS = 5;
  * @remarks
  * It is an agent of its own: each review runs in a session of its own, with the instructions its caller
  * composes from the test charter — such as `reviewerInstructions` of the harness — and `report_quality` as
- * its only tool. It sees the test and nothing else: neither its plan, whose coherence with the test is the
+ * the tool it reports with; it may be given tools to read with, such as the reference of Playwright at the
+ * version installed. It sees the test and nothing else: neither its plan, whose coherence with the test is the
  * matter of another agent, nor the session of the agent that wrote it.
  *
  * A finding concerns the test, which the agent that wrote it can repair, or the plan, which it cannot: a
@@ -26,14 +28,17 @@ export const MAX_FINDINGS = 5;
 export class CodeReviewer implements QualityJudge {
   private readonly run: ReviewSession;
   private readonly instructions: string;
+  private readonly tools: readonly ToolDefinition[];
 
   /**
    * @param run - Runs the session of a review, under the limits and with the trace of its caller.
    * @param instructions - The system instructions of the reviewer, with the charter it reviews against.
+   * @param tools - What it may read before it reports, such as the reference of Playwright; nothing by default.
    */
-  public constructor(run: ReviewSession, instructions: string) {
+  public constructor(run: ReviewSession, instructions: string, tools: readonly ToolDefinition[] = []) {
     this.run = run;
     this.instructions = instructions;
+    this.tools = tools;
   }
 
   /** {@inheritDoc QualityJudge.judge} */
@@ -42,6 +47,7 @@ export class CodeReviewer implements QualityJudge {
       instructions: this.instructions,
       request: `The test:\n\`\`\`ts\n${test.trimEnd()}\n\`\`\`\n\nNext: call ${QUALITY_TOOL} with what you found, or with an empty list.`,
       tool: QUALITY_TOOL,
+      tools: this.tools,
       description: "Reports what the code of the test lacks in quality; an empty list when it needs nothing.",
       finding: {
         type: "object",

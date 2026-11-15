@@ -458,6 +458,11 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     const writing = sessions(server)[1]!.tools.map((tool) => tool.function.name);
     // The session of a scenario has the screens of its application, the sources it cites, those that tell why a run failed, and the notes to read.
     assert.ok(["shop_goto", "shop_code_list_files", "run_test", "propose_test", "recall"].every((tool) => writing.includes(tool)));
+    // It has the reference of Playwright at the version installed; the session that plans writes no code, and has none.
+    assert.deepEqual(
+      [writing.filter((tool) => tool.startsWith("playwright_")), tools.filter((tool) => tool.startsWith("playwright_"))],
+      [["playwright_search", "playwright_read"], []],
+    );
     assert.deepEqual(
       writing.filter((tool) => tool === "propose_plan" || tool === "remember" || /^(index|shop_db|shop_api|order_specs|ledger_api)_/.test(tool)),
       [],

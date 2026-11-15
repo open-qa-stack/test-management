@@ -14,6 +14,8 @@ export interface FindingsReport<T> {
   readonly description: string;
   /** The shape of one finding, given to the model. */
   readonly finding: JsonSchema;
+  /** The tools the agent may read with before it reports; none by default. */
+  readonly tools?: readonly ToolDefinition[];
   /** When the list is empty, in the words of the reminder: `when the test is coherent with its scenario`. */
   readonly whenEmpty: string;
   /** The findings a call reports, those it gives wrongly left out. */
@@ -41,7 +43,7 @@ export async function reportedFindings<T>(run: ReviewSession, report: FindingsRe
     },
   };
   const reminder = () => (reported === undefined ? `Call ${report.tool} now, with an empty list ${report.whenEmpty}.` : undefined);
-  const last = await run({ instructions: report.instructions, tools: [tool], request: report.request, reminder });
+  const last = await run({ instructions: report.instructions, tools: [...(report.tools ?? []), tool], request: report.request, reminder });
   if (reported !== undefined) return reported;
   if (last.type === "error") throw new Error(last.error.message);
   throw new Error(last.type === "stopped" ? `the review reached its ${last.reason.limit} limit.` : "the review ended without a report.");

@@ -220,6 +220,10 @@ With the option `reviewTests` (the key `design.reviewTests` of the configuration
 
 The reviewer refuses no test alone. Its last review is kept with the test in the design state, as `review`: its date and its findings, none when the test is coherent with its scenario. A text is reviewed once: proposed again unchanged, it is not read again.
 
+### The reference of Playwright
+
+The agent that writes a test and the agent that reviews its code are held to the Playwright the tests run with, not to the one they remember. Both get `playwright_search` and `playwright_read`, the [tools that read the reference](../../tools/docs/knowledge-tools.md#the-reference-of-playwright) of its API in the packages the test repository installs: what a method does, how it is declared and each of its options, at that very version. A member the reference does not have does not exist there. The reviewer is told to read a method before it says one does not exist or names one to write instead; the agent that plans writes no code, and has neither tool.
+
 ### The review of the code of a test
 
 A third agent reviews the quality of the code, whatever the plan: the code reviewer, in a session of its own, with the test and `report_quality` as its only tool. Its instructions are composed from the test charter by the caller, as those of the agent that writes are — `reviewerInstructions` of the harness —, and the review is done when the option `reviewCode` of the designer asks for it: the command asks unless the key `design.reviewCode` of the configuration is `false`.

@@ -83,3 +83,15 @@ The tools let an agent go by levels instead of reading everything:
 `file` may be left out when the source is one document. A text longer than 20,000 characters is cut, with how to read the rest section by section.
 
 `knowledgeInventory` gives the documents of the source, each by its path with its title, its number of headings and its length as facts, and the fingerprint of their paths and texts. It exports nothing: which document, which section is worth an element is for the agent that maps the source to say.
+
+## The reference of Playwright
+
+`PlaywrightReference.load(repositoryRoot)` reads the reference of the API of Playwright from the packages a test repository installs: the type files `playwright-core/types/types.d.ts` and `playwright/types/test.d.ts` document every member of every interface, and `@playwright/test/package.json` gives the version. It is the reference of the version the tests run with. A repository that installs no Playwright has an empty one.
+
+`playwrightTools(reference)` gives two tools, whose descriptions name the version:
+
+| Tool | What it returns |
+|---|---|
+| `playwright_search` | The members that echo words — in their name, which counts more, their description or their options —, fifteen at most, each with its name, such as `Locator.filter`, and the first sentence of its description. |
+| `playwright_read` | One member whole: its description, how it is declared and each of its options, cut past 8,000 characters. The forms of a method are one member. A name the reference does not have is answered with an error that says so and names the closest members. |
+

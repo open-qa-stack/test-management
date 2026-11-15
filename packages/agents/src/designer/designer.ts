@@ -10,7 +10,7 @@ import {
   type ResolvedConfig,
   type SourceCard,
 } from "@open-qa-stack/shared";
-import type { BrowserAccess } from "@open-qa-stack/tools";
+import { PlaywrightReference, playwrightTools, type BrowserAccess } from "@open-qa-stack/tools";
 import { agentNotes, agentRecall } from "../common/agent-notes.ts";
 import { runAgentTask, taskEnd, taskLimits, type AgentTask } from "../common/agent-task.ts";
 import { usageOf } from "../common/model-usage.ts";
@@ -299,6 +299,8 @@ export class Designer {
             last.type === "stopped" ? last.reason.limit : undefined,
           );
       }
+      // The agents that write and review code read the API of Playwright at the version the test repository installs.
+      const playwright = playwrightTools(await PlaywrightReference.load(repositoryRoot));
       const proposals = new TestProposals(
         {
           repositoryRoot,
@@ -308,7 +310,7 @@ export class Designer {
           ...(this.options.check === undefined ? {} : { check: this.options.check }),
           ...(this.options.reviewTests === true ? { coherence: new CoherenceReviewer(reviewed) } : {}),
           ...(this.options.reviewCode === true && this.options.reviewerInstructions !== undefined
-            ? { quality: new CodeReviewer(reviewed, this.options.reviewerInstructions) }
+            ? { quality: new CodeReviewer(reviewed, this.options.reviewerInstructions, playwright) }
             : {}),
           runner: this.options.runner,
           packages,
@@ -337,7 +339,7 @@ export class Designer {
         proposals.begin(session);
         const beyond = new SheetWatch(scenario, () => proposals.failedSoFar, journal);
         const looking = beyond.watched([...session.screens.tools(), ...session.reads.tools()]);
-        const tools = [...looking, ...recall, proposals.trialTool(), proposals.tool()];
+        const tools = [...looking, ...recall, ...playwright, proposals.trialTool(), proposals.tool()];
         const request = writeRequest(
           sheet,
           applications.find((application) => application.id === about)!,

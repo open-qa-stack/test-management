@@ -100,6 +100,8 @@ describe("criterion 2 — without changes, the instructions of the writer and th
       "process.env.OQAS_BASE_URL_",
       "none breaks a rule of the charter",
       "a finding that concerns the plan",
+      "playwright_read give its reference",
+      "what you remember may be of another version",
       "When in doubt, it is no finding",
       "Call report_quality once",
     ])
@@ -213,7 +215,7 @@ describe("the guide of the writer", () => {
       "Charter. Every test is checked against these rules before it runs; a finding names the rule and shows an example.",
     ]);
     const lines = (heading: string) => instructions.split(`\n\n${heading}\n`)[1]!.split("\n\n")[0]!.split("\n");
-    assert.equal(lines("How this works").length, 4);
+    assert.equal(lines("How this works").length, 5);
     for (const heading of ["Always", "Never"]) assert.equal(lines(heading).length, 3);
     const steps = lines("Method. Each step says when it is done.");
     assert.deepEqual(
@@ -228,7 +230,7 @@ describe("the guide of the writer", () => {
 
   it("stays with the writer whatever the rules in force, and is short enough for a small model", () => {
     assert.ok(writerInstructions([], DEFAULT_REPOSITORY).startsWith("You write the Playwright test of one scenario"));
-    assert.ok(writerInstructions(rules, DEFAULT_REPOSITORY).length <= 4100, String(writerInstructions(rules, DEFAULT_REPOSITORY).length));
+    assert.ok(writerInstructions(rules, DEFAULT_REPOSITORY).length <= 4300, String(writerInstructions(rules, DEFAULT_REPOSITORY).length));
   });
 });
 

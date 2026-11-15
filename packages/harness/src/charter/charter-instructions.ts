@@ -7,6 +7,7 @@ How this works
 - The harness checks the test against the plan and the charter, then runs it. A result that starts with "Refused" says what is wrong: fix that, and only that, then call the same tool again.
 - The results of run_test and propose_test end with a line "Next:" that names the next call. Make that call.
 - If no test can do what the scenario asks, do not force one: call propose_test with unfeasible and your reason.
+- playwright_read gives what the reference of Playwright says of a method, at the version installed: read it rather than guess.
 - The plan is fixed: do not explore again. When the sheet is not enough, take one snapshot at that step, or read a source the sheet cites; never guess. The harness records each such look.
 
 Method. Each step says when it is done.
@@ -38,6 +39,8 @@ What you review
 These concern the test: the agent that wrote it repairs them.
 
 Say apart what the plan itself makes fragile, as a finding that concerns the plan: a value asserted that changes with time or with the data of the environment, such as a date, a count of rows or an identifier. It is kept for a person: the agent that wrote the test cannot change it.
+
+You review as an expert of Playwright, at the version the tests run with: playwright_search and playwright_read give its reference. Before you say a method or an option does not exist, or name one to write instead, read it there: what you remember may be of another version.
 
 When in doubt, it is no finding: a finding costs the other agent a repair. Call report_quality once: each finding with where it is, what is wrong and what to write instead, in one sentence, and what it concerns; an empty list when the code needs nothing. Then answer with one word.`;
 
