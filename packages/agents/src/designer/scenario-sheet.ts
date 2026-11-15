@@ -1,6 +1,6 @@
 import { effectWords, scenarioTags } from "./scenario-tags.ts";
 import type { PlannedScenario } from "@open-qa-stack/domain";
-import { assertionsOf } from "./assertion-line.ts";
+import { assertionsOf, writtenValues } from "./assertion-line.ts";
 import type { DesignCursor } from "./design-cursor.ts";
 import { oneLine } from "./one-line.ts";
 import { onTab } from "./tab-variable.ts";
@@ -29,12 +29,16 @@ export function skeleton(scenario: PlannedScenario, screenshots: boolean, fixtur
   const given = others.filter((application) => fixtures.applications.includes(application));
   const fromFixture = (line: string) =>
     given.reduce((text, application) => text.replaceAll(tabVariable(application), `${applicationVariable(application)}.page`), line);
+  const written = writtenValues(scenario);
   const steps = scenario.steps.map((step, at) => {
     const number = at + 1;
     // The expects of a step done on another application are asserted on the tab of that application.
     const here = (line: string) => (step.application === undefined ? line : onTab(line, step.application));
     const doing = step.code.length === 0 ? [`// Do: ${oneLine(step.action)}. Copy the code lines the browser tools returned.`] : step.code;
-    const expects = step.expects.flatMap((expect, k) => [`// Expect ${number}.${k + 1}: ${oneLine(expect.result)}.`, ...assertionsOf(expect).map(here)]);
+    const expects = step.expects.flatMap((expect, k) => [
+      `// Expect ${number}.${k + 1}: ${oneLine(expect.result)}.`,
+      ...assertionsOf(expect, written).map(here),
+    ]);
     const attach = screenshots
       ? [here(`await testInfo.attach(${JSON.stringify(String(number))}, { body: await page.screenshot(), contentType: "image/png" });`)]
       : [];

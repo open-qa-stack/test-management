@@ -1,16 +1,30 @@
-import type { ExpectedElement, PlannedExpect } from "@open-qa-stack/domain";
-import { observed } from "./observed.ts";
+import type { ExpectedElement, PlannedExpect, PlannedScenario } from "@open-qa-stack/domain";
+import { checkable, observed } from "./observed.ts";
+
+/**
+ * The values a test of a scenario writes in the environment: those of its data, for a scenario that writes.
+ *
+ * @param scenario - The scenario.
+ * @returns The values long enough to be told in a text; none for a scenario that only reads.
+ */
+export function writtenValues(scenario: Pick<PlannedScenario, "effect" | "data">): string[] {
+  return scenario.effect === "write" ? scenario.data.map((entry) => entry.value).filter(checkable) : [];
+}
 
 /**
  * The assertions of the texts of an expect of a plan, as a test writes them: those it shows, then those it
  * no longer shows, each on the element the plan gives for it, if it gives one.
  *
  * @param expect - The expect.
+ * @param written - The values the test writes in the environment, as `writtenValues` gives them.
  * @returns The lines of the assertions, one per text.
  */
-export function assertionsOf(expect: PlannedExpect): string[] {
+export function assertionsOf(expect: PlannedExpect, written: readonly string[] = []): string[] {
   const element = (text: string) => expect.elements.find((candidate) => candidate.text === text);
-  return [...expect.shows.map((text) => assertionOf(text, false, element(text))), ...expect.absent.map((text) => assertionOf(text, true, element(text)))];
+  // What a test writes stays in the environment, in a history or a list, and each run may add to it: such a text is counted.
+  const repeats = (text: string) => written.some((value) => observed(value, [text]));
+  const line = (text: string, negative: boolean) => assertionOf(text, negative, element(text), repeats(text));
+  return [...expect.shows.map((text) => line(text, false)), ...expect.absent.map((text) => line(text, true))];
 }
 
 /**
@@ -24,11 +38,17 @@ export function assertionsOf(expect: PlannedExpect): string[] {
  * @param text - The text.
  * @param negative - Whether the screen no longer shows it.
  * @param element - The element the plan gives for it, if it gives one; never a field for a text the screen no longer shows.
+ * @param repeats - Whether the text holds a value the test writes: the page may then hold it in several places, more with each
+ * run, whatever it held when the plan was made, and the elements it shows are counted.
  * @returns The line of the assertion.
  */
-export function assertionOf(text: string, negative: boolean, element: ExpectedElement | undefined): string {
+export function assertionOf(text: string, negative: boolean, element: ExpectedElement | undefined, repeats = false): string {
   const quoted = JSON.stringify(text);
   if (element?.field === true) return `await expect(${element.locator}).toHaveValue(${quoted});`;
+  if (repeats && (element === undefined || observed(text, [element.locator]))) {
+    const located = shown(element?.locator ?? `page.getByText(${quoted})`);
+    return negative ? `await expect(${located}).toHaveCount(0);` : `await expect(${located}).not.toHaveCount(0);`;
+  }
   // Several elements share the locator: one at least is shown, or none is left.
   if (element?.count !== undefined)
     return negative ? `await expect(${element.locator}).toHaveCount(0);` : `await expect(${shown(element.locator)}).not.toHaveCount(0);`;

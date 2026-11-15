@@ -1,6 +1,6 @@
 import type { PlannedScenario, PlannedStep } from "@open-qa-stack/domain";
 import type { SpecAssertion, SpecOutline } from "@open-qa-stack/tools";
-import { assertionsOf } from "./assertion-line.ts";
+import { assertionsOf, writtenValues } from "./assertion-line.ts";
 import { checkable, observed } from "./observed.ts";
 import type { Refusal } from "./refusal.ts";
 import { PROPOSE_TOOL } from "./test-proposals.ts";
@@ -52,7 +52,10 @@ export function scenarioErrors(outline: SpecOutline, scenario: PlannedScenario, 
     if (range !== undefined && !outline.actions.some((start) => range.start <= start && start < range.end))
       refusals.push(actionRefusal(number, step, help.codes));
     // The whole step, for a model that would keep only the lines it is given.
-    const remedy = [`Step ${number} must hold all of these, with its actions:`, ...step.expects.flatMap(assertionsOf)].join("\n");
+    const remedy = [
+      `Step ${number} must hold all of these, with its actions:`,
+      ...step.expects.flatMap((expect) => assertionsOf(expect, writtenValues(scenario))),
+    ].join("\n");
     step.expects.forEach((expect, k) => {
       const texts = [...expect.shows.map((text) => ({ text, negative: false })), ...expect.absent.map((text) => ({ text, negative: true }))].filter(
         ({ text }) => checkable(text),
