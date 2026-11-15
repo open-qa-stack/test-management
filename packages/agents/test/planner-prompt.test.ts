@@ -85,6 +85,20 @@ describe("the request of the session that plans", () => {
     );
   });
 
+  it("says, for a plan of one level alone, what that level makes of the brief, and that the level is never an excuse to plan nothing", () => {
+    const smoke = planRequest("Test the search of an order.", "local", DOMAINS, [SHOP], ["smoke"]);
+    assert.match(
+      smoke,
+      /\n\nThis plan is of the level smoke alone, and the tests of the levels below it are written already\. At this level the brief only names the applications it is about: .* Never say in uncovered that this level cannot do the whole brief: plan what it verifies of it\.\n\n/,
+    );
+    const functional = planRequest("Test the search of an order.", "local", DOMAINS, [SHOP], ["functional"]);
+    assert.match(
+      functional,
+      /take the screens the brief goes through one at a time\. For each, plan many small scenarios, one for each behaviour of that screen/,
+    );
+    assert.doesNotMatch(planRequest("Test the search of an order.", "local", DOMAINS, [SHOP], ["smoke", "functional"]), /This plan is of the level/);
+  });
+
   it("gives the same domains without a brief, and asks then for the tests that matter most", () => {
     // A user interface of another environment is none of this one's.
     const elsewhere = { ...SHOP, environments: [{ name: "staging", uiUrl: "http://shop.test" }] };

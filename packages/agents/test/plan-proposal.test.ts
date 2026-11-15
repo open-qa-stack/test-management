@@ -1531,9 +1531,13 @@ describe("the level of a scenario, held to what its actions went through", () =>
       await answered(await explored(), at("smoke", [1, 2])),
       /^smoke, and one of its actions does more than open an address: .* or give it the level functional\.$/,
     );
+    // A functional test may go through a screen to reach its own: what it expects is on one screen.
+    const step = (actions: number[]) => ({ action: "Open the orders", actions, expects: [{ result: "The orders show", shows: ["Orders"], absent: [] }] });
+    const through = scenario("a", { level: "functional", data: [], steps: [{ ...step([1]), expects: [] }, step([3])] });
+    assert.doesNotMatch(await answered(await explored(), through), /^functional, and its steps expect results/);
     assert.match(
-      await answered(await explored(), at("functional", [1, 3])),
-      /^functional, and its actions went through 2 screens \(\/orders, \/orders\/:id\): a functional test verifies one behaviour of one screen\. Give it the level business /,
+      await answered(await explored(), scenario("a", { level: "functional", data: [], steps: [step([1]), step([3])] })),
+      /^functional, and its steps expect results on 2 screens \(\/orders, \/orders\/:id\): a functional test verifies the behaviours of one screen\. It may go through other screens to reach that one, and expects nothing there\. Give it the level business /,
     );
     assert.match(
       await answered(await explored(), at("business", [1, 2])),

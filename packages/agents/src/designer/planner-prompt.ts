@@ -44,6 +44,17 @@ Cover the brief: each business rule, each information and each behaviour it is a
 
 Keep with remember a fact the agents after you should know, such as a rule or a pitfall of the application.`;
 
+/** What a plan of one level alone makes of a brief, whatever the brief asks as a whole. */
+const LEVEL_READINGS: Readonly<Record<ScenarioLevel, string>> = {
+  smoke:
+    "At this level the brief only names the applications it is about: plan, for each, one scenario of one step that opens its first address and expects one text of the page. The brief itself is not done here.",
+  functional:
+    "At this level, take the screens the brief goes through one at a time. For each, plan many small scenarios, one for each behaviour of that screen: each rule of a form, each message, each way to search or to filter, each input that is wrong or matches nothing. A scenario may go through other screens to reach its own, such as the one that signs in; everything it expects is on that one screen.",
+  business: "At this level, plan one scenario for each whole journey of the brief inside one application, through its screens to its result.",
+  "cross-application": "At this level, plan the scenarios that do an action of the brief in one application and check its effect in another.",
+  "end-to-end": "At this level, plan the scenarios that follow a journey of the brief through three applications or more.",
+};
+
 /**
  * Writes the request that starts the session that plans: the brief, the domains of the knowledge with what
  * the sources hold of each, the applications and how to sign in to them, then the next call. Nothing else of
@@ -82,6 +93,11 @@ export function planRequest(
     `Knowledge of the applications, by domain:\n${domains.join("\n")}`,
     `Applications:\n${known.join("\n")}`,
     `Levels of the pyramid of tests asked: ${levels.join(", ")}.`,
+    ...(levels.length === 1
+      ? [
+          `This plan is of the level ${levels[0]!} alone, and the tests of the levels below it are written already. ${LEVEL_READINGS[levels[0]!]} Never say in uncovered that this level cannot do the whole brief: plan what it verifies of it.`,
+        ]
+      : []),
     next,
   ].join("\n\n");
 }

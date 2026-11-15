@@ -1382,9 +1382,13 @@ export class PlanProposal {
           );
     const screens = [...new Set(cited.flatMap((action) => action.screen ?? []))];
     const went = `its actions went through ${screens.length} ${screens.length === 1 ? "screen" : "screens"} (${screens.join(", ")})`;
-    if (level === "functional" && screens.length > 1)
+    // A functional test may go through other screens to reach its own, such as the one that signs in: what it expects is on one screen.
+    const verified = [
+      ...new Set(scenario.steps.filter((step) => step.expects.length > 0).flatMap((step) => this.cited(scenario, step.actions).at(-1)?.screen ?? [])),
+    ];
+    if (level === "functional" && verified.length > 1)
       return refused(
-        `${where}, and ${went}: a functional test verifies one behaviour of one screen. Give it the level business when it verifies the journey through these screens; otherwise keep the steps of one screen, and open that screen by its address.`,
+        `${where}, and its steps expect results on ${verified.length} screens (${verified.join(", ")}): a functional test verifies the behaviours of one screen. It may go through other screens to reach that one, and expects nothing there. Give it the level business when it verifies the journey through these screens; otherwise keep the expects of one screen.`,
       );
     if (level === "business" && screens.length === 1)
       return refused(
