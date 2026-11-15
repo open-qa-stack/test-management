@@ -6,6 +6,10 @@ Test campaigns for Playwright, drafted by agents and decided by people.
 
 Open QA Stack is licensed under the [Apache License, Version 2.0](LICENSE) (`Apache-2.0`).
 
+Copyright 2026 Quentin Joly and the Open QA Stack contributors.
+
+Contributions are accepted under the [contributor license agreement](CLA.md): you keep your copyright, the project keeps one legal basis. On your first pull request you are asked to sign it, once, by a comment; a check reminds you and holds the merge until the signature is recorded. It is not an assignment: it grants the maintainer a license broad enough to defend the code, answer for its provenance and adapt how the project is licensed without tracking down every past author. If you contribute for an employer, the employer signs it as an entity.
+
 ## Checking a change
 
 `pnpm check`, run at the root of the repository with the Node.js `.nvmrc` names, tells whether a commit can be delivered. It runs the steps below in order, stops at the first that fails, names it, and changes no file.
@@ -57,7 +61,7 @@ git merge --no-ff -m "feat(check): scan the commits of a branch" <branch>
 
 ## Continuous integration
 
-The pipeline of the repository, in `.github/workflows/`, runs on every pull request and on every commit of `main`. It only reads the repository, holds no secret and publishes nothing, so it runs the same way for a pull request that comes from a fork. Every action it uses is pinned to a commit.
+The pipeline of the repository, in `.github/workflows/`, runs on every pull request and on every commit of `main`. The workflows that verify a change, `ci` and `release`, only read the repository, hold no secret and publish nothing, so they run the same way for a pull request that comes from a fork. The workflow `cla` is the one that writes: it comments on a pull request and records a signature, on the code of `main` and never on that of the pull request. Every action they use is pinned to a commit.
 
 | Workflow | Job | What it verifies |
 |---|---|---|
@@ -65,8 +69,9 @@ The pipeline of the repository, in `.github/workflows/`, runs on every pull requ
 | `ci` | `hygiene` | `pnpm scan` on every commit the pull request brings, not only its last: the message of each, and the lines it adds. |
 | `ci` | `advisories` | No production dependency has a known vulnerability of moderate severity or more. |
 | `release` | `candidate` | Started by hand for a version: the check, the scan of the whole history, the advisories, then the tarball of every package, kept as artifacts of the run. It publishes nothing and tags nothing. |
+| `cla` | `cla` | Every author of a pull request has signed the [contributor license agreement](CLA.md); the signatures are kept in the branch `cla-signatures`. The maintainer and the bots that open dependency pull requests are exempt. |
 
-A pull request can be merged once `check`, `hygiene` and `advisories` are green: they are the required checks of `main`. `.github/dependabot.yml` proposes, each week, the updates of the pinned dependencies and those of the actions, each kind in one pull request, so that the pipeline runs once for them.
+A pull request can be merged once `check`, `hygiene`, `advisories` and `cla` are green: they are the required checks of `main`. `.github/dependabot.yml` proposes, each week, the updates of the pinned dependencies and those of the actions, each kind in one pull request, so that the pipeline runs once for them.
 
 ## Scanning before publishing
 
