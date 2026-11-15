@@ -66,7 +66,7 @@ The pipeline of the repository, in `.github/workflows/`, runs on every pull requ
 | `ci` | `advisories` | No production dependency has a known vulnerability of moderate severity or more. |
 | `release` | `candidate` | Started by hand for a version: the check, the scan of the whole history, the advisories, then the tarball of every package, kept as artifacts of the run. It publishes nothing and tags nothing. |
 
-A pull request can be merged once `check`, `hygiene` and `advisories` are green: they are the required checks of `main`. `.github/dependabot.yml` proposes, each week, the updates of the pinned dependencies and of the actions, one pull request each.
+A pull request can be merged once `check`, `hygiene` and `advisories` are green: they are the required checks of `main`. `.github/dependabot.yml` proposes, each week, the updates of the pinned dependencies and those of the actions, each kind in one pull request, so that the pipeline runs once for them.
 
 ## Scanning before publishing
 
