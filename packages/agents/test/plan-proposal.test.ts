@@ -642,6 +642,28 @@ describe("the gates of a plan", () => {
     assert.deepEqual(await submit(made, plan("x", "y", "z")), { error: told[5] });
   });
 
+  it("close the plan with the scenarios it holds when six calls in a row are refused, and count the refusals again from each call kept", async () => {
+    const { proposal: made, journal } = await proposal();
+    const twice = { scenarios: [scenario("c"), scenario("c")] };
+    // Five refusals, a call kept, then five more: none of the two runs of refusals reaches six.
+    for (let at = 0; at < 5; at += 1) await add(made, twice);
+    assert.equal(typeof (await add(made, plan("a"))), "string");
+    for (let at = 0; at < 5; at += 1) assert.ok("error" in ((await add(made, twice)) as object));
+    assert.equal(made.accepted, undefined);
+    // The sixth in a row closes the plan with what it holds: the scenario kept is not lost.
+    const closed = await add(made, twice);
+    assert.match(
+      closed as string,
+      /^The plan was accepted with 1 scenario: the harness refused the scenarios last submitted, time after time, and kept those the plan held\./,
+    );
+    assert.deepEqual([made.accepted!.scenarios.map((kept) => kept.id), made.accepted!.ended, made.refused], [["a"], "refused", undefined]);
+    assert.ok(
+      journal
+        .entries()
+        .some((entry) => entry.message === "The harness refused 6 calls in a row, the last one for PLAN-ID: the plan is closed with the scenarios it holds."),
+    );
+  });
+
   it("refuse a source cited and never read, a value its source never showed, and a text no tool showed, until they were", async () => {
     const { proposal: made, screens, reads } = await proposal({}, false);
     const [search, query, guide] = reads.tools();

@@ -453,6 +453,8 @@ export class PlanProposal {
     for (const number of submitted.accepts ?? []) this.accepts.add(number);
     const alone = this.nominalAlone(submitted);
     if (alone !== undefined) return this.masked(alone);
+    // A call the gates let through is progress: the refusals before it count no more.
+    this.refusedPlans = 0;
     const aside = await this.draft.keep(submitted.scenarios);
     const end = this.draft.ended(submitted.scenarios.length);
     return end === undefined ? this.masked(this.askMore(aside)) : this.settle(end, aside);
@@ -589,12 +591,20 @@ export class PlanProposal {
   }
 
   /** Refuses a plan, and counts it: from the third refusal of one reason the agent is told only what the gate would accept, and the last plan stops the design. */
-  private refuse(found: readonly Refusal[]): { error: string } {
+  private async refuse(found: readonly Refusal[]): Promise<string | { error: string }> {
     // A refusal may name a value of the plan, which may be a declared one.
     const refusals = maskedRefusals(found, (text) => this.masked(text));
     this.lastCodes = [...new Set(refusals.map((refusal) => refusal.code))];
     journalRefusals(this.journal, "The plan was refused by the harness", refusals);
     this.refusedPlans += 1;
+    // A plan that already holds scenarios is not lost for the ones that could not be added: it is closed with them.
+    if (this.refusedPlans >= MAX_REFUSED_PLANS && this.draft.scenarios.length > 0) {
+      this.journal.record(
+        "info",
+        `The harness refused ${MAX_REFUSED_PLANS} calls in a row, the last one for ${this.lastCodes.join(", ")}: the plan is closed with the scenarios it holds.`,
+      );
+      return this.settle("refused");
+    }
     if (this.refusedPlans >= MAX_REFUSED_PLANS) {
       this.refusal = `the harness refused ${MAX_REFUSED_PLANS} plans, the last one for ${this.lastCodes.join(", ")}.`;
       this.journal.record("error", `The plan was refused: ${this.refusal} The design stops; no test is written.`);

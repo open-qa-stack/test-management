@@ -285,6 +285,7 @@ The harness stops asking, and the plan records why in `ended`:
 | `covered` | The agent called `propose_plan` with no scenario: it says the brief is covered. A plan whose functional scenarios are all of what works is asked once, before it is closed, what the application answers to an input that matches nothing, is wrong or is forbidden, and what else a user does on the same screens; the same call again confirms that the brief asks nothing of the kind. |
 | `exhausted` | Three scenarios submitted in a row were duplicates. The first is only told to the agent; at the second, the agent is reminded that it may say the brief is covered; the third closes the plan. A scenario kept in between starts the count again. |
 | `session-end` | The session of the agent ended once it was asked for more: the plan is closed with the scenarios kept. |
+| `refused` | Six calls in a row were refused by the gates while the plan held scenarios: it is closed with them, and the journal says so. A call the gates let through starts the count again. With no scenario kept, the design stops, as before. |
 | `none` | The first call gave no scenario, and said in `uncovered` why no test can do what the brief asks: the plan is closed without a scenario, no test is written, and the design succeeds. Without `uncovered`, such a call is refused with `PLAN-COUNT`. |
 
 The plan closed is then inscribed and goes to the review that accepts or refuses it.

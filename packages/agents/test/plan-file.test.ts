@@ -151,6 +151,7 @@ describe("the file of a plan", () => {
     assert.deepEqual(readPlanFile(text), record);
     for (const [end, said] of [
       ["covered", "the agent said the brief is covered."],
+      ["refused", "the harness refused the scenarios last submitted, time after time, and kept those the plan held."],
       ["session-end", "the agent ended its session without another scenario."],
       ["none", "the agent said no test can do what the brief asks."],
     ] as const)
