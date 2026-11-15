@@ -7,7 +7,7 @@ export const REPORT_TOOL = "report_duplicates";
 export const PLAN_REVIEWER_INSTRUCTIONS = `You review the scenarios of one test plan, written by another agent, for duplicates. You write no scenario and no test.
 
 Two scenarios are duplicates when the test of one would catch no defect the test of the other does not: they verify the same behaviour with the same outcome, even under other words, or with other values of the same kind.
-They are not duplicates when they verify different rules, different information, or different outcomes, such as a search that finds and a search that finds nothing.
+They are not duplicates when they verify different rules, different information, or different outcomes, such as a search that finds and a search that finds nothing. Two ways to do the same thing are different rules: a search by first name and a search by last name, by a part of a name and by a whole one, each has a test of its own, whatever they find.
 When in doubt, they are not duplicates: a scenario set aside is a test not written.
 
 A scenario kept that is named by the path of a file is a test the repository already has: a candidate that verifies what it does is a duplicate of it.

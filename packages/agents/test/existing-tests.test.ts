@@ -142,6 +142,7 @@ describe("the tests of earlier designs a new scenario is compared with", () => {
         path: "apps/shop/search.spec.ts",
         described:
           'search (nominal, shop). Verifies it.\nEnters: "Veldane"\n1. Open the customers\n2. Search Veldane -> The customer shows; shows "Mira Veldane"; no longer shows "Ada Brennick"',
+        writes: [],
         verified: {
           application: "shop",
           data: ["Veldane"],
@@ -155,6 +156,7 @@ describe("the tests of earlier designs a new scenario is compared with", () => {
         path: "apps/shop/api.spec.ts",
         described:
           'api (nominal, shop). Verifies it.\nEnters: "Veldane"\n1. Get the customers -> The customer shows; shows "Mira Veldane"; no longer shows "Ada Brennick"',
+        writes: [],
         verified: { application: "shop", data: ["Veldane"], steps: [{ does: ["Get the customers"], shows: ["Mira Veldane"], absent: ["Ada Brennick"] }] },
       },
     ]);

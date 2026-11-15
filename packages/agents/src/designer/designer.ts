@@ -320,6 +320,7 @@ export class Designer {
             screens: looking.screens,
             tolerance: config.design.visualTolerance,
             present: paths,
+            existing,
           };
           const visual = await visualScenarios(planned.scenarios, rules, journal).finally(() => looking.close());
           planned = { ...planned, scenarios: [...planned.scenarios, ...visual] };

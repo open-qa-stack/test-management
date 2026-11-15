@@ -51,8 +51,9 @@ describe("the visual scenarios of a plan", () => {
       }),
       scenario("seen", [line("shop", "/basket", GOTO("/basket")), line("shop", "/down", GOTO("/down"))]),
     ];
+    const existing = [{ verified: { application: "desk", data: [], steps: [] }, writes: ["Ticket 12"] }];
     const present = ["apps/shop/tests/orders/visual/visual-shop-basket.spec.ts"];
-    const visual = await visualScenarios(plan, { applications, screens, tolerance: 0.02, present }, journal);
+    const visual = await visualScenarios(plan, { applications, screens, tolerance: 0.02, present, existing }, journal);
     assert.deepEqual(
       visual.map((made) => [made.id, made.application, made.domain, made.feature, made.kind]),
       [
@@ -70,10 +71,10 @@ describe("the visual scenarios of a plan", () => {
       },
     ]);
     assert.equal(visual[0]!.title, "The screen /orders of Shop looks as its reference");
-    // Each screen is looked at once, with the values the tests of its application write; one a test already compares is not.
+    // Each screen is looked at once, with the values the tests of its application write, those of the plan and those already there; one a test already compares is not.
     assert.deepEqual(asked, [
       ["shop", "/orders", ["Mira Veldane"]],
-      ["desk", "/tickets", []],
+      ["desk", "/tickets", ["Ticket 12"]],
       ["shop", "/down", ["Mira Veldane"]],
     ]);
     assert.deepEqual(

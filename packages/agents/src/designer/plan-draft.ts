@@ -20,6 +20,8 @@ export interface CoveringTest {
   readonly verified: Verified;
   /** What it does and verifies, as the judge reads it. */
   readonly described: string;
+  /** The values it writes in the environment of its application, which a screen may show changed while it runs. */
+  readonly writes: readonly string[];
 }
 
 /** What a draft needs of the scenarios it holds. */

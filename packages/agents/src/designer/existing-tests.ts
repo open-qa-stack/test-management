@@ -1,6 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join, posix } from "node:path";
 import type { PlannedScenario, ToolDefinition } from "@open-qa-stack/domain";
+import { writtenValues } from "./assertion-line.ts";
 import { DESIGNS_FOLDER, type DesignState } from "./design-state.ts";
 import type { CoveringTest } from "./plan-draft.ts";
 import { readPlanFile } from "./plan-file.ts";
@@ -117,7 +118,7 @@ export async function coveringTests(repositoryRoot: string, stateDir: string, pr
     for (const test of state.tests ?? []) {
       const scenario = plan?.scenarios.find((candidate) => candidate.id === test.scenario);
       const verified = scenario === undefined || test.verdict !== "passed" || !present.includes(test.path) ? undefined : verifiedOf(scenario);
-      if (verified !== undefined) covering.push({ path: test.path, verified, described: described(scenario!) });
+      if (verified !== undefined) covering.push({ path: test.path, verified, described: described(scenario!), writes: writtenValues(scenario!) });
     }
   }
   return covering;

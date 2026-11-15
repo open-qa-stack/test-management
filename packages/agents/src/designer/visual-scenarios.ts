@@ -2,6 +2,7 @@ import type { PlannedScenario } from "@open-qa-stack/domain";
 import type { Journal } from "../common/journal.ts";
 import { writtenValues } from "./assertion-line.ts";
 import { screenFile } from "./page-object-file.ts";
+import type { CoveringTest } from "./plan-draft.ts";
 import type { ScreenWatch } from "./screen-watch.ts";
 
 /** The functionality the visual scenarios of a domain are filed under. */
@@ -17,6 +18,8 @@ export interface VisualRules {
   readonly tolerance: number;
   /** The paths of the tests the repository already has: a screen one of them compares is not compared again. */
   readonly present: readonly string[];
+  /** The tests the repository already has, each with the values it writes: a screen of its application may show them changed. */
+  readonly existing: readonly Pick<CoveringTest, "verified" | "writes">[];
 }
 
 /** A line of code that opens an address of the application of its test. */
@@ -40,7 +43,11 @@ const OPENED = /^await page\.goto\(("(?:[^"\\]|\\.)*")\);$/;
  */
 export async function visualScenarios(scenarios: readonly PlannedScenario[], rules: VisualRules, journal: Journal): Promise<PlannedScenario[]> {
   const visual: PlannedScenario[] = [];
-  const written = (application: string) => scenarios.filter((scenario) => scenario.application === application).flatMap(writtenValues);
+  // What a test writes may show changed on a screen while another runs: those of this plan, and those of the tests already there.
+  const written = (application: string) => [
+    ...scenarios.filter((scenario) => scenario.application === application).flatMap(writtenValues),
+    ...rules.existing.filter((earlier) => earlier.verified.application === application).flatMap((earlier) => earlier.writes),
+  ];
   for (const scenario of scenarios) {
     for (const line of scenario.steps.flatMap((step) => step.lines ?? [])) {
       const address = OPENED.exec(line.code)?.[1];

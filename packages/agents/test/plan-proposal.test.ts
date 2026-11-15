@@ -279,7 +279,7 @@ describe("the scenarios of a plan, asked until the brief is covered", () => {
       data: scenario("a").data.map((entry) => entry.value),
       steps: [{ does: [OPENED, ""], shows: ["Orders"], absent: [] }],
     };
-    const { proposal: made, journal } = await proposal({ now, existing: [{ path, verified: written, described: "Open the orders" }] });
+    const { proposal: made, journal } = await proposal({ now, existing: [{ path, verified: written, described: "Open the orders", writes: [] }] });
     const told = (await add(made, { scenarios: [scenario("a"), scenario("d")] })) as string;
     assert.ok(
       told.includes(
@@ -308,7 +308,7 @@ describe("the scenarios of a plan, asked until the brief is covered", () => {
         return [{ id: "a", of: path, reason: "The test already opens the orders and reads their heading." }];
       },
     };
-    const { proposal: made } = await proposal({ now, judge, existing: [{ path, verified: written, described: "Find an order" }] });
+    const { proposal: made } = await proposal({ now, judge, existing: [{ path, verified: written, described: "Find an order", writes: [] }] });
     const told = (await add(made, { scenarios: [scenario("a")] })) as string;
     assert.deepEqual(asked, [[`${path}: Find an order`, "a"]]);
     assert.ok(
