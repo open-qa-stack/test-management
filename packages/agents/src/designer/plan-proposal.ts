@@ -19,6 +19,7 @@ import { planEndText } from "./plan-end.ts";
 import { journalRefusals, maskedRefusals, refusalText, repeatedText, type Refusal } from "./refusal.ts";
 import { GUIDED_REFUSALS, RefusalStreak } from "./refusal-streak.ts";
 import { baseUrlVariable } from "@open-qa-stack/shared";
+import { onTab } from "./tab-variable.ts";
 import { screenScope, type ScreenWatch, type ShownElement, type WatchedAction } from "./screen-watch.ts";
 import type { SourceWatch } from "./source-watch.ts";
 import { heldVariables, type DeclaredSecret } from "./spec-rules.ts";
@@ -1009,6 +1010,7 @@ export class PlanProposal {
       const elements = this.located(scenario).map((located) => ({ where: located.where, element: elementOf(located) }));
       const steps = scenario.steps.map(({ action, actions, expects }, at) => ({
         action,
+        ...stepApplication(scenario.application, this.cited(scenario, actions)),
         code: this.cited(scenario, actions).map((done) => (done.application === scenario.application ? done.code : elsewhere(done))),
         expects: expects.map((expect, k) => ({
           ...expect,
@@ -1117,17 +1119,17 @@ export class PlanProposal {
         ];
       });
     });
-    // A test has one page: it reaches another application by opening one of its addresses.
+    // A test of several applications opens a tab for each other one: the tab is empty until an address is opened on it.
     const order = this.cited(
       scenario,
       scenario.steps.flatMap((step) => step.actions),
     );
-    for (const [at, action] of order.entries()) {
-      const before = order[at - 1];
-      if (before !== undefined && before.application !== action.application && action.tool !== "goto")
+    for (const action of order) {
+      const opening = order.find((other) => other.application === action.application)!;
+      if (action === opening && action.application !== application && action.tool !== "goto")
         refusals.push({
           code: "PLAN-START",
-          message: `scenario ${scenario.id} cites the action ${action.number} (${action.code}), done on ${action.application}, right after the action ${before.number}, done on ${before.application}: its test has one page, which must open an address of ${action.application} first. Open it with ${scopedToolName(action.application, "goto")}, do the step from there, and cite that action before the action ${action.number}.`,
+          message: `scenario ${scenario.id} cites the action ${action.number} (${action.code}) as the first it does on ${action.application}, and it opens no address: its test opens a tab for ${action.application}, empty until an address is opened on it. Open the address with ${scopedToolName(action.application, "goto")}, do the step from there, and cite that action before the action ${action.number}.`,
         });
     }
     const first = this.cited(scenario, scenario.steps[0]!.actions)[0];
@@ -1264,13 +1266,20 @@ export class PlanProposal {
   }
 }
 
+/** The application the expects of a step are asserted on, when it is not that of its test: the one its last cited action was done on. */
+function stepApplication(own: string, cited: readonly WatchedAction[]): { readonly application?: string } {
+  const last = cited.at(-1)?.application;
+  return last === undefined || last === own ? {} : { application: last };
+}
+
 /**
- * The line of code of an action done on another application than that of its test. The base address of a
- * test is that of its application: an address of another one is opened on the base address the harness
- * gives for it, which the test reads from the environment.
+ * The line of code of an action done on another application than that of its test. Such a test opens a tab
+ * for each other application: the line acts on that tab, and an address is opened on the base address the
+ * harness gives for the application, which the test reads from the environment.
  */
 function elsewhere(done: WatchedAction): string {
-  return done.code.replace(/^await page\.goto\((".*")\);$/, `await page.goto(new URL($1, process.env.${baseUrlVariable(done.application)}).href);`);
+  const based = done.code.replace(/^await page\.goto\((".*")\);$/, `await page.goto(new URL($1, process.env.${baseUrlVariable(done.application)}).href);`);
+  return onTab(based, done.application);
 }
 
 /** What the agent is told of a scenario set aside: which one covers it, who decided and why. */

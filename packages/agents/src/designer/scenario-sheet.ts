@@ -3,6 +3,7 @@ import type { PlannedScenario } from "@open-qa-stack/domain";
 import { assertionsOf } from "./assertion-line.ts";
 import type { DesignCursor } from "./design-cursor.ts";
 import { oneLine } from "./one-line.ts";
+import { onTab, tabVariable } from "./tab-variable.ts";
 
 /**
  * The skeleton of the test of a scenario: one test, one `test.step` per step of the plan, titled by its
@@ -22,10 +23,12 @@ import { oneLine } from "./one-line.ts";
 export function skeleton(scenario: PlannedScenario, screenshots: boolean): string {
   const steps = scenario.steps.map((step, at) => {
     const number = at + 1;
+    // The expects of a step done on another application are asserted on the tab of that application.
+    const here = (line: string) => (step.application === undefined ? line : onTab(line, step.application));
     const doing = step.code.length === 0 ? [`// Do: ${oneLine(step.action)}. Copy the code lines the browser tools returned.`] : step.code;
-    const expects = step.expects.flatMap((expect, k) => [`// Expect ${number}.${k + 1}: ${oneLine(expect.result)}.`, ...assertionsOf(expect)]);
+    const expects = step.expects.flatMap((expect, k) => [`// Expect ${number}.${k + 1}: ${oneLine(expect.result)}.`, ...assertionsOf(expect).map(here)]);
     const attach = screenshots
-      ? [`await testInfo.attach(${JSON.stringify(String(number))}, { body: await page.screenshot(), contentType: "image/png" });`]
+      ? [here(`await testInfo.attach(${JSON.stringify(String(number))}, { body: await page.screenshot(), contentType: "image/png" });`)]
       : [];
     return [
       `  await test.step(${JSON.stringify(`${number}. ${oneLine(step.action)}`)}, async () => {`,
@@ -33,11 +36,15 @@ export function skeleton(scenario: PlannedScenario, screenshots: boolean): strin
       "  });",
     ].join("\n");
   });
-  const fixtures = screenshots ? "{ page }, testInfo" : "{ page }";
+  const others = scenario.applications ?? [];
+  const given = others.length === 0 ? "{ page }" : "{ page, context }";
+  const fixtures = screenshots ? `${given}, testInfo` : given;
   return [
     `import { expect, test } from "@playwright/test";`,
     "",
     `test(${JSON.stringify(oneLine(scenario.title))}, { tag: ${JSON.stringify(scenarioTags(scenario))} }, async (${fixtures}) => {`,
+    // A tab for each other application the test acts on, so that what is under way on one stays while it acts on another.
+    ...others.map((application) => `  const ${tabVariable(application)} = await context.newPage();`),
     ...steps,
     "});",
     "",
@@ -56,9 +63,7 @@ export function scenarioSheet(cursor: DesignCursor, screenshots: boolean): strin
   const scenario = cursor.scenario!;
   const data = scenario.data.length === 0 ? "none" : scenario.data.map((entry) => `${JSON.stringify(entry.value)} (${entry.from})`).join("; ");
   const others =
-    scenario.applications === undefined
-      ? ""
-      : `; it also acts on ${scenario.applications.join(", ")}, whose addresses it opens on the base address the environment gives for each`;
+    scenario.applications === undefined ? "" : `; it also acts on ${scenario.applications.join(", ")}, each in a tab of its own, as the skeleton opens them`;
   const cited = scenario.sources.map(({ source, item }) => (item === undefined ? source : `${source}: ${oneLine(item)}`));
   return [
     `Scenario ${cursor.rank} of ${cursor.plan.scenarios.length}: ${scenario.id} — ${scenario.title} (${scenario.level} level, ${scenario.kind}, ${scenario.case}), application ${scenario.application}${others}.`,

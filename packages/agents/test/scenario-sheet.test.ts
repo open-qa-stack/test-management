@@ -12,6 +12,7 @@ import { scenarioSheet, skeleton } from "../src/designer/scenario-sheet.ts";
 /** Types of `@playwright/test` that a skeleton uses. */
 const PLAYWRIGHT_TYPES = `
 export interface Locator { click(): Promise<void>; fill(value: string): Promise<void>; }
+export interface BrowserContext { newPage(): Promise<Page>; }
 export interface Page {
   goto(url: string): Promise<void>;
   screenshot(): Promise<Uint8Array>;
@@ -19,7 +20,7 @@ export interface Page {
   getByRole(role: string, options?: { name?: string; exact?: boolean }): Locator;
 }
 export interface TestInfo { attach(name: string, options: { body: Uint8Array; contentType: string }): Promise<void>; }
-type Body = (fixtures: { page: Page }, testInfo: TestInfo) => Promise<void>;
+type Body = (fixtures: { page: Page; context: BrowserContext }, testInfo: TestInfo) => Promise<void>;
 export declare const test: ((title: string, body: Body) => void) & ((title: string, details: { tag: string[] }, body: Body) => void) & { step<T>(title: string, body: () => Promise<T>): Promise<T> };
 export declare const expect: (actual: unknown) => { toBeVisible(): Promise<void>; toBeHidden(): Promise<void>; toHaveValue(value: string): Promise<void>; toHaveCount(count: number): Promise<void>; not: { toHaveCount(count: number): Promise<void> } };
 `;
@@ -167,6 +168,49 @@ test("Search an order by \\"customer\\" name", { tag: ["@level-functional","@dom
   });
 });
 
+describe("the skeleton of a test of several applications", () => {
+  /** A search on the shop, then its effect checked on the desk of the customer service. */
+  const CROSSING: PlannedScenario = {
+    ...SEARCH,
+    level: "cross-application",
+    applications: ["customer-desk"],
+    steps: [
+      { ...SEARCH.steps[0]!, code: ['await page.goto("/orders");'] },
+      {
+        action: "Open the tickets of the desk",
+        application: "customer-desk",
+        code: ['await customerDeskPage.goto(new URL("/tickets", process.env.OQAS_BASE_URL_CUSTOMER_DESK).href);'],
+        expects: [
+          {
+            result: "The ticket of the order shows",
+            shows: ["Ticket 12", "Open"],
+            absent: [],
+            elements: [{ text: "Ticket 12", locator: 'page.getByRole("link", { name: "Ticket 12", exact: true })', field: false }],
+          },
+        ],
+      },
+    ],
+  };
+
+  it("opens a tab for each other application, and asserts what a step done there expects on its tab", async () => {
+    const content = skeleton(CROSSING, true);
+    const lines = content.split("\n").map((line) => line.trim());
+    assert.ok(lines.includes("const customerDeskPage = await context.newPage();"), content);
+    assert.ok(content.includes("async ({ page, context }, testInfo) => {"), content);
+    for (const line of [
+      'await expect(customerDeskPage.getByRole("link", { name: "Ticket 12", exact: true })).toBeVisible();',
+      'await expect(customerDeskPage.getByText("Open")).not.toHaveCount(0);',
+      'await testInfo.attach("2", { body: await customerDeskPage.screenshot(), contentType: "image/png" });',
+      'await testInfo.attach("1", { body: await page.screenshot(), contentType: "image/png" });',
+    ])
+      assert.ok(lines.includes(line), `${line}\n${content}`);
+    assert.ok((await moduleSyntax(content)).ok);
+    const charter = resolveCharter({ disable: [], add: [] });
+    assert.ok(charter.ok);
+    assert.deepEqual(await new CharterCheck({ repository, rules: charter.rules }).check({ path: "apps/shop/search-order-by-customer.spec.ts", content }), []);
+  });
+});
+
 describe("the sheet of a scenario", () => {
   it("names the scenario, its intent, its data, what it cites and its file before the skeleton, and ends with the next call", () => {
     const cursor = new DesignCursor({ scenarios: [SEARCH, { ...SEARCH, id: "other", data: [] }] }, (scenario) => `apps/shop/${scenario.id}.spec.ts`);
@@ -186,7 +230,7 @@ describe("the sheet of a scenario", () => {
     // A test of several applications is told the others it acts on, and bears a tag for each.
     const crossing = new DesignCursor({ scenarios: [{ ...SEARCH, level: "cross-application", applications: ["desk"] }] }, () => "apps/shop/a.spec.ts");
     const told = scenarioSheet(crossing, false);
-    assert.ok(told.includes("application shop; it also acts on desk, whose addresses it opens on the base address the environment gives for each."), told);
+    assert.ok(told.includes("application shop; it also acts on desk, each in a tab of its own, as the skeleton opens them."), told);
     assert.ok(told.includes('"@app-shop","@app-desk"'), told);
     // A scenario without data says so, and a source cited whole is named alone.
     cursor.close();

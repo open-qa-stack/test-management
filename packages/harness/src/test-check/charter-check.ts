@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, normalize, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,6 +24,9 @@ const COMPILER_OPTIONS = {
   allowImportingTsExtensions: true,
   skipLibCheck: true,
 };
+
+/** The folder of the types that declare the environment a test reads, in a test repository without the types of Node.js. */
+const ENVIRONMENT_TYPES = "oqas-types";
 
 /** What a charter check needs. */
 export interface CharterCheckOptions {
@@ -72,9 +75,23 @@ export class CharterCheck implements TestCheck {
       await mkdir(dirname(join(folder, path)), { recursive: true });
       await writeFile(join(folder, path), test.content);
       await symlink(join(this.#repository, "node_modules"), join(folder, "node_modules"), "dir");
+      // A test reads the environment the runner gives it; a repository without the types of Node.js has no name for it.
+      const typed = await stat(join(this.#repository, "node_modules", "@types", "node")).then(
+        () => true,
+        () => false,
+      );
+      if (!typed) {
+        await mkdir(join(folder, ENVIRONMENT_TYPES, "environment"), { recursive: true });
+        await writeFile(
+          join(folder, ENVIRONMENT_TYPES, "environment", "index.d.ts"),
+          "declare const process: { readonly env: Readonly<Record<string, string | undefined>> };\n",
+        );
+      }
+      // The compiler includes no package of types unless it is named.
+      const typeRoots = typed ? { types: ["node"] } : { typeRoots: [`./${ENVIRONMENT_TYPES}`], types: ["environment"] };
       await writeFile(
         join(folder, "tsconfig.json"),
-        JSON.stringify({ compilerOptions: { ...COMPILER_OPTIONS, rootDirs: [".", this.#repository] }, files: [path] }),
+        JSON.stringify({ compilerOptions: { ...COMPILER_OPTIONS, ...typeRoots, rootDirs: [".", this.#repository] }, files: [path] }),
       );
       await writeFile(join(folder, "oxlintrc.json"), JSON.stringify(this.#configuration()));
       return readLintReport(await lint(folder, path), this.#charterRuleOf).map((finding) => {

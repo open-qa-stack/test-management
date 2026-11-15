@@ -149,6 +149,25 @@ test("renews a policy", async ({ page }, testInfo) => {
     assert.deepEqual(await check.check({ path: PATH, content: conforming }), []);
   });
 
+  it("lets a test read the environment the runner gives it, in a repository with the types of Node.js or without them", async () => {
+    const reading = spec(
+      '  await page.getByLabel("User").fill(process.env.SHOP_USER!);\n  await page.goto(new URL("/orders", process.env.OQAS_BASE_URL_DESK).href);',
+    );
+    assert.deepEqual(await check.check({ path: PATH, content: reading }), []);
+    const typed = testRepository();
+    try {
+      mkdirSync(join(typed, "node_modules", "@types", "node"), { recursive: true });
+      writeFileSync(
+        join(typed, "node_modules", "@types", "node", "package.json"),
+        JSON.stringify({ name: "@types/node", version: "0.0.0", types: "index.d.ts" }),
+      );
+      writeFileSync(join(typed, "node_modules", "@types", "node", "index.d.ts"), "declare var process: { env: Record<string, string | undefined> };\n");
+      assert.deepEqual(await new CharterCheck({ repository: typed, rules: DEFAULT_RULES.rules }).check({ path: PATH, content: reading }), []);
+    } finally {
+      rmSync(typed, { recursive: true, force: true });
+    }
+  });
+
   it("returns no finding for the example of the method of the designer", async () => {
     assert.deepEqual(await check.check({ path: "apps/shop/search-orders.spec.ts", content: `${DESIGNER_EXAMPLE}\n` }), []);
   });

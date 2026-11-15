@@ -56,6 +56,8 @@ export interface PlannedExpect {
 export interface PlannedStep {
   /** What the user does, in one sentence. */
   readonly action: string;
+  /** Identifier of the application the step ends on and its expects are asserted on, when it is not that of the test: the test acts on it in a tab of its own. The harness writes it, never the agent. */
+  readonly application?: string;
   /** The lines of code that do it in a test, as the browser tools returned them during the exploration; none for a step done on no screen. The harness writes them, never the agent. */
   readonly code: readonly string[];
   /** What the step expects after the action; none for a step that only leads to the next. */

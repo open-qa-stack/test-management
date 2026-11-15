@@ -1474,7 +1474,7 @@ describe("the level of a scenario, held to what its actions went through", () =>
     );
   });
 
-  it("keeps a test of several applications, opens the addresses of the others on their base address, and names them in the plan", async () => {
+  it("keeps a test of several applications, does on the tab of each other one what was done on it, and names them in the plan", async () => {
     const made = await explored();
     assert.equal(await answered(made, at("cross-application", [1, 2, 4, 5])), "kept");
     // The plan is closed once the agent confirms it holds no scenario of the other levels asked.
@@ -1486,14 +1486,15 @@ describe("the level of a scenario, held to what its actions went through", () =>
     await made.tool().execute({ scenarios: [] });
     const [kept] = made.accepted!.scenarios;
     assert.deepEqual(
-      [kept!.application, kept!.applications, kept!.steps[0]!.code],
+      [kept!.application, kept!.applications, kept!.steps[0]!.application, kept!.steps[0]!.code],
       [
         "shop",
         ["desk"],
+        "desk",
         [
           'await page.goto("/orders");',
           "await shop.act(1);",
-          'await page.goto(new URL("/tickets", process.env.OQAS_BASE_URL_DESK).href);',
+          'await deskPage.goto(new URL("/tickets", process.env.OQAS_BASE_URL_DESK).href);',
           "await desk.act(1);",
         ],
       ],
@@ -1501,12 +1502,14 @@ describe("the level of a scenario, held to what its actions went through", () =>
     assert.equal(await answered(await explored(), at("end-to-end", [1, 4, 6])), "kept");
   });
 
-  it("refuses an action on another application that no address opened there comes before: a test has one page", async () => {
+  it("refuses a first action on another application that opens no address: its tab is empty", async () => {
     const refused = (await (await explored()).tool().execute({ scenarios: [at("cross-application", [1, 5])] })) as { error: string };
     assert.match(
       refused.error,
-      /^Refused \(PLAN-START\): scenario a cites the action 5 \(await desk\.act\(1\);\), done on desk, right after the action 1, done on shop: its test has one page, which must open an address of desk first\. Open it with desk_goto, do the step from there, and cite that action before the action 5\./,
+      /^Refused \(PLAN-START\): scenario a cites the action 5 \(await desk\.act\(1\);\) as the first it does on desk, and it opens no address: its test opens a tab for desk, empty until an address is opened on it\. Open the address with desk_goto, do the step from there, and cite that action before the action 5\./,
     );
+    // Once its address was opened, the test comes back to the tab of an application without opening it again.
+    assert.equal(await answered(await explored(), at("cross-application", [1, 4, 2, 5])), "kept");
   });
 
   it("names, when it asks for more, the levels asked that no scenario is of yet", async () => {
