@@ -5,7 +5,6 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import { validateConfig, type ResolvedConfig } from "@open-qa-stack/shared";
 import { testSite } from "@open-qa-stack/testing";
-import { imageSecrets } from "../src/common/config-secrets.ts";
 import { totalUsage, usageOf } from "../src/common/model-usage.ts";
 import { interfaceSubject } from "../src/source-cartographer/card-subject.ts";
 
@@ -89,14 +88,6 @@ describe("the card of a user interface, with a model that reads images", () => {
       await site.close();
       rmSync(folder, { recursive: true, force: true });
     }
-  });
-});
-
-describe("the secrets no screenshot shown to a model may show", () => {
-  it("are those of the configuration and the passwords of the test accounts set, each once", () => {
-    const env = { SHOP_DB_URL: DATABASE, ADMIN_USER: "root", ADMIN_PASSWORD: DATABASE, AUDIT_PASSWORD: "" };
-    assert.deepEqual(imageSecrets(configFor("http://127.0.0.1:9", []), env), [DATABASE]);
-    assert.deepEqual(imageSecrets(configFor("http://127.0.0.1:9", []), { ADMIN_PASSWORD: "admin-pw" }), ["admin-pw"]);
   });
 });
 

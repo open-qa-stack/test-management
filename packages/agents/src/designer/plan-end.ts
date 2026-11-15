@@ -5,13 +5,11 @@ import type { PlanEnd } from "@open-qa-stack/domain";
  * file of the plan give it.
  *
  * @param end - The reason.
- * @param maximum - Most scenarios a plan holds.
  * @returns The sentence, which starts in lower case and ends with a full stop.
  */
-export function planEndText(end: PlanEnd, maximum: number): string {
+export function planEndText(end: PlanEnd): string {
   if (end === "covered") return "the agent said the brief is covered.";
   if (end === "none") return "the agent said no test can do what the brief asks.";
   if (end === "exhausted") return "the scenarios last submitted were duplicates, and the agent has nothing new to verify.";
-  if (end === "maximum") return `the plan holds ${maximum} scenarios, the most a plan may.`;
   return "the agent ended its session without another scenario.";
 }

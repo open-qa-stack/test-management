@@ -73,8 +73,7 @@ export function browserTools(applications: readonly Application[], access: Brows
     navigationMs: access.navigationTimeoutMs ?? NAVIGATION_TIMEOUT_MS,
     settleMs: access.settleTimeoutMs ?? SETTLE_TIMEOUT_MS,
   });
-  const passwords = applications.flatMap((application) => (application.authentication.accounts ?? []).map((account) => access.env[account.passwordEnv] ?? ""));
-  const imageSecrets = [...passwords, ...(access.secrets ?? [])].filter((secret) => secret !== "");
+  const imageSecrets = (access.secrets ?? []).filter((secret) => secret !== "");
   const tools = applications.flatMap((application) => {
     const environment = application.environments.find((e) => e.name === access.environment);
     return hasUserInterface(environment)

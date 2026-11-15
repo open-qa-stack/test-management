@@ -2,7 +2,7 @@ import { join } from "node:path";
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import { declaredValues, readsImages, type Application, type Knowledge, type ResolvedConfig } from "@open-qa-stack/shared";
 import { browserTools, knowledgeTools, scopedToolName, type BrowserAccess } from "@open-qa-stack/tools";
-import { imageSecrets } from "../common/config-secrets.ts";
+import { configSecrets } from "../common/config-secrets.ts";
 import { ScreenWatch } from "./screen-watch.ts";
 import { SourceWatch } from "./source-watch.ts";
 
@@ -55,7 +55,7 @@ export function sessionTools(scope: SessionScope): SessionTools {
     env,
     screenshotsDir: join(repositoryRoot, config.repository.stateDir, "screenshots"),
     vision: readsImages(config.model),
-    secrets: imageSecrets(config, env),
+    secrets: configSecrets(config, env),
     ...scope.browser,
   });
   const screens = new ScreenWatch(

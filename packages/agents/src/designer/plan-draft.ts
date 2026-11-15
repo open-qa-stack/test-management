@@ -12,8 +12,6 @@ export const PLAN_DUPLICATE = "PLAN-DUPLICATE";
 
 /** What a draft needs of the scenarios it holds. */
 export interface DraftRules<S> {
-  /** Most scenarios a plan holds. */
-  readonly maximum: number;
   /** What a scenario does and verifies, for the comparison by the code. */
   readonly verified: (scenario: S) => Verified;
   /** What a scenario does and verifies, as the judge reads it. */
@@ -145,8 +143,7 @@ export class PlanDraft<S extends { readonly id: string; readonly title: string; 
   public ended(submitted: number): PlanEnd | undefined {
     // An agent that submits nothing says it is done: with scenarios kept, the brief is covered; with none, no test can do what it asks.
     if (submitted === 0) return this.kept.length === 0 ? "none" : "covered";
-    if (this.streak >= MAX_DUPLICATES_IN_A_ROW) return "exhausted";
-    return this.kept.length >= this.rules.maximum ? "maximum" : undefined;
+    return this.streak >= MAX_DUPLICATES_IN_A_ROW ? "exhausted" : undefined;
   }
 
   /** What the judge finds among the scenarios the code let through, kept only when it names one of them and a scenario before it. */

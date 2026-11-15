@@ -817,14 +817,13 @@ describe("criterion 6 — the tests run on a page served locally, without networ
   });
 });
 
-describe("test accounts — the agent types them by name, and their passwords never reach the model", () => {
-  it("types a declared account by its name, and masks its password in everything returned, in every form", async () => {
+describe("test accounts — the agent types them by name, and a test reads them from their variables", () => {
+  it("types a declared account by its name, and gives the line of code that reads it from its variable", async () => {
     await withTools(async (tool) => {
       const typed = [
         await tool("shop_fill").execute({ target: { label: "Email" }, value: { account: "demo", field: "username" } }),
         await tool("shop_fill").execute({ target: { role: "textbox", name: "Password" }, value: { account: "demo", field: "password" } }),
       ];
-      // A test reads the credential from the variable of the account, never by its value.
       assert.deepEqual(
         typed.map((result) => (result as { code: string }).code),
         [
@@ -832,20 +831,9 @@ describe("test accounts — the agent types them by name, and their passwords ne
           'await page.getByRole("textbox", { name: "Password", exact: true }).fill(process.env.SHOP_PASSWORD!);',
         ],
       );
-      const returned = [await tool("shop_click").execute({ target: { role: "button", name: "Sign in" } }), await tool("shop_snapshot").execute({})];
-      const text = await page(tool);
-      assert.match(text, new RegExp(`Hello max@example\\.com \\${SECRET_MASK}`));
-      await tool("shop_goto").execute({ url: "/login" });
-      await tool("shop_fill").execute({ target: { role: "textbox", name: "Password" }, value: { account: "demo", field: "password" } });
-      returned.push(await tool("shop_snapshot").execute({}), await tool("shop_click").execute({ target: { role: "button", name: "Go" } }));
-      returned.push(await tool("shop_network").execute({}));
-      await reject(
-        tool("shop_goto").execute({ url: `${elsewhere.origin}/?q=${encodeURIComponent(PASSWORD)}` }),
-        new RegExp(`\\?q=\\${SECRET_MASK} is not an address`),
-      );
-      const all = JSON.stringify(returned);
-      for (const form of secretForms(PASSWORD)) assert.ok(!all.includes(form), form);
-      assert.match(all, /\/second\?p=\[secret\]/);
+      // Nothing of a test account is masked: a test environment shows it.
+      await tool("shop_click").execute({ target: { role: "button", name: "Sign in" } });
+      assert.match(await page(tool), new RegExp(`Hello max@example\\.com ${PASSWORD}`));
     });
   });
 

@@ -17,7 +17,8 @@ const MODEL = "test-model";
 const BRANCH = "oqas/design-test";
 const USERNAME = "ada.brennick@example.com";
 const PASSWORD = "Tr0ub4dor&3";
-const ENV = { SHOP_USERNAME: USERNAME, SHOP_PASSWORD: PASSWORD, SHOP_DB_URL: "postgresql://shop:s3cret-db-pass@127.0.0.1:5999/shop" };
+const DB_URL = "postgresql://shop:s3cret-db-pass@127.0.0.1:5999/shop";
+const ENV = { SHOP_USERNAME: USERNAME, SHOP_PASSWORD: PASSWORD, SHOP_DB_URL: DB_URL };
 
 let site: TestSite;
 let workspace: string;
@@ -287,7 +288,8 @@ interface Setup {
   readonly planReview?: PlanReview;
   /** Whether the agent that reviews plans is asked about duplicates. */
   readonly reviewPlan?: boolean;
-  readonly levels?: readonly ScenarioLevel[];
+  /** The levels the plan is asked for; `default` for those of the designer itself. */
+  readonly levels?: readonly ScenarioLevel[] | "default";
   readonly observe?: (line: { event: { type: string } }) => void;
   readonly resume?: { readonly state: string; readonly branch?: string };
   /** Whether the configuration declares that the model reads images. */
@@ -327,7 +329,8 @@ async function design(script: readonly { status?: number; body: unknown }[], set
       ...(setup.brief === undefined ? {} : { brief: setup.brief }),
       ...(setup.planReview === undefined ? {} : { planReview: setup.planReview }),
       ...(setup.reviewPlan === undefined ? {} : { reviewPlan: setup.reviewPlan }),
-      ...(setup.levels === undefined ? {} : { levels: setup.levels }),
+      // The scenarios of these tests are functional: the plan is asked for that level alone unless a test says otherwise.
+      ...(setup.levels === "default" ? {} : { levels: setup.levels ?? ["functional"] }),
       ...(setup.observe === undefined ? {} : { observe: setup.observe }),
       ...(setup.resume === undefined ? {} : { resume: setup.resume }),
     });
@@ -527,7 +530,7 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
   });
 });
 
-describe("criterion 2 — a plan holds four scenarios at most, and each gives one test", () => {
+describe("criterion 2 — each scenario of a plan gives one test", () => {
   it("writes the four tests of a plan of four scenarios, then refuses any further call", async () => {
     const four = { ...PLAN, arguments: { scenarios: [...IDS, "cancel-order"].map((id) => scenario(id)) } };
     const after = run(spec("late"), "late");
@@ -657,18 +660,18 @@ describe("criterion 5 — a test that does not parse as TypeScript is not run, a
 });
 
 describe("criterion 6 — a test that holds a declared address or the value of an account variable is not run", () => {
-  it("refuses an address, a host, a username and a password, and masks the values in the journal", async () => {
+  it("refuses an address, a host and a connection string, masks its value in the journal, and lets a test hold the credentials of a test account", async () => {
     const runner = new FakeTestRunner();
     const { outcome, server } = await design(
       replies([
         [
           run(spec("x").replace(`"/orders"`, `"${site.origin}/orders"`), "address"),
           run(spec("x").replace(`"/orders"`, `"//ledger.test:8100/orders"`), "host"),
-          run(spec("x").replace(`"/orders"`, `"/login?user=${encodeURIComponent(USERNAME)}"`), "login"),
-          run(`const password = "${PASSWORD}";\ntest("x", async () => {\n`, "leaky"),
+          run(spec("x").replace(`"/orders"`, `"/orders?db=${encodeURIComponent(DB_URL)}"`), "login"),
+          run(`const base = "${DB_URL}";\ntest("x", async () => {\n`, "leaky"),
         ],
         [run(broken("list-orders"), "failing")],
-        [close("leaked", { cause: "application", evidence: `It signs in with ${PASSWORD}.` })],
+        [close("leaked", { cause: "application", evidence: `It reads ${DB_URL}.` })],
         [look("again")],
         ...valid(3),
       ]),
@@ -677,18 +680,19 @@ describe("criterion 6 — a test that holds a declared address or the value of a
     const journal = messages(outcome);
     assert.match(journal, new RegExp(`\\[TEST-ADDRESS\\] .*: The test holds ${site.origin.replaceAll(".", "\\.")}, an address of the configuration`));
     assert.match(journal, /\[TEST-ADDRESS\] .*: The test holds ledger\.test:8100, an address of the configuration/);
-    assert.match(journal, /\[TEST-SECRET\] .*: The proposal holds the value of SHOP_USERNAME; read it with process\.env\.SHOP_USERNAME instead\./);
+    assert.match(journal, /\[TEST-SECRET\] .*: The proposal holds the value of SHOP_DB_URL; read it with process\.env\.SHOP_DB_URL instead\./);
     assert.match(
       toolResult(server, "leaked"),
-      /Refused \(PROPOSE-SECRET\): the diagnosis holds the value of SHOP_PASSWORD\. Leave it out; a test reads it with process\.env\.SHOP_PASSWORD\./,
+      /Refused \(PROPOSE-SECRET\): the diagnosis holds the value of SHOP_DB_URL\. Leave it out; a test reads it with process\.env\.SHOP_DB_URL\./,
     );
-    assert.match(journal, /\[TEST-SYNTAX\] .*: The test does not parse as TypeScript: line 1, column 1: unexpected "const password = \\"\[secret\]\\";"/);
+    // A text that holds a secret is refused for it before it is read: nothing of it is quoted.
+    assert.doesNotMatch(journal, /TEST-SYNTAX/);
     assert.equal(runner.runs.length, 4);
     const told = server.requests.flatMap((request) =>
       (request.body as { messages: { role: string; content: unknown }[] }).messages.filter((message) => message.role === "tool"),
     );
     const traces = [journal, JSON.stringify(told)].join("\n");
-    assert.ok(!traces.includes(PASSWORD) && !traces.includes(USERNAME) && !traces.includes(encodeURIComponent(USERNAME)));
+    assert.ok(!traces.includes(DB_URL) && !traces.includes(encodeURIComponent(DB_URL)));
   });
 
   it("checks only the variables the environment sets", async () => {
@@ -885,7 +889,7 @@ describe("the sheet of a scenario", () => {
       { plan: false },
     );
     // The session that plans is told its plan is accepted, and that it is over; the sheet goes to the session of the scenario.
-    assert.match(told(server, "plan"), /^The plan is not closed yet\. It holds 3 of 8 scenarios at most: list-orders, place-order, follow-order\.\n/);
+    assert.match(told(server, "plan"), /^The plan is not closed yet\. It holds 3 scenarios: list-orders, place-order, follow-order\.\n/);
     const sheet = asked(server, 1);
     assert.ok(
       sheet.startsWith(
@@ -1870,7 +1874,7 @@ describe("what a plan may hold", () => {
       id: "plan-leaky",
       name: "propose_plan",
       arguments: {
-        scenarios: [scenario("list-orders", "other", { data: [{ value: USERNAME, from: "shop" }] }), scenario("place-order"), scenario("follow-order")],
+        scenarios: [scenario("list-orders", "other", { data: [{ value: DB_URL, from: "shop" }] }), scenario("place-order"), scenario("follow-order")],
       },
     };
     const beyond = {
@@ -1889,9 +1893,9 @@ describe("what a plan may hold", () => {
     assert.equal(outcome.ok, true, messages(outcome));
     assert.match(
       toolResult(server, "plan-leaky"),
-      /Refused \(PLAN-SECRET\): the plan holds the value of SHOP_USERNAME\. Leave it out; a test reads it with process\.env\.SHOP_USERNAME\./,
+      /Refused \(PLAN-SECRET\): the plan holds the value of SHOP_DB_URL\. Leave it out; a test reads it with process\.env\.SHOP_DB_URL\./,
     );
-    assert.ok(!messages(outcome).includes(USERNAME));
+    assert.ok(!messages(outcome).includes(DB_URL));
     assert.deepEqual(planOf(outcome).scenarios[0]!.sources, [{ source: "shop-guide", item: "Guide" }]);
   });
 
@@ -1919,7 +1923,7 @@ describe("what a plan may hold", () => {
       /Refused \(PLAN-RESULT\): no text scenario list-orders expects appeared, or went, after an action of yours on shop\. Do its steps with shop_goto, shop_fill and shop_click/,
     );
     assert.match(toolResult(server, "search"), /Order 42 of Ada/);
-    assert.match(told(server, "done"), /^The plan is not closed yet\. It holds 3 of 8 scenarios at most: list-orders, place-order, follow-order\.\n/);
+    assert.match(told(server, "done"), /^The plan is not closed yet\. It holds 3 scenarios: list-orders, place-order, follow-order\.\n/);
     // The plan kept holds the code of the action each step cites: the sheet of its first scenario gives it, and the text no element showed by itself.
     assert.ok(
       asked(server, 1).includes(
@@ -2265,9 +2269,11 @@ describe("resume — a design a limit stopped goes on from its plan and its test
 });
 
 describe("the levels of the pyramid of tests a plan is asked for", () => {
-  it("are those the caller names, told to the agent that plans", async () => {
+  it("are those the caller names, or smoke, functional and business, told to the agent that plans", async () => {
     const { outcome, server } = await design(replies(valid(3)), { levels: ["functional", "cross-application"] });
     assert.equal(outcome.ok, true, messages(outcome));
     assert.match(JSON.stringify(server.requests[0]!.body), /Levels of the pyramid of tests asked: functional, cross-application\./);
+    const usual = await design(replies(valid(3)), { levels: "default" });
+    assert.match(JSON.stringify(usual.server.requests[0]!.body), /Levels of the pyramid of tests asked: smoke, functional, business\./);
   });
 });

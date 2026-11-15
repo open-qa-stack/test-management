@@ -72,7 +72,13 @@ const ADMIN: Application = {
 
 /** Runs `use` with the browser tools of the shop, the model reading images or not, then closes the browser. */
 async function withTools<T>(vision: boolean | undefined, use: (tool: (action: string) => ToolDefinition) => Promise<T>): Promise<T> {
-  const options = { environment: "local", env: ENV, screenshotsDir: folder, secrets: [DATABASE], ...(vision === undefined ? {} : { vision }) };
+  const options = {
+    environment: "local",
+    env: ENV,
+    screenshotsDir: folder,
+    secrets: [DATABASE, PASSWORD, ADMIN_PASSWORD],
+    ...(vision === undefined ? {} : { vision }),
+  };
   const toolset = browserTools([shop(), ADMIN], options);
   try {
     return await use((action) => toolset.tools.find((t) => t.name === `shop_${action}`)!);
@@ -138,7 +144,7 @@ describe("criterion 2 — with vision, the screenshot tool gives the image, neve
 });
 
 describe("criterion 3 — no image of a page that shows a secret goes to the model, and password fields are covered", () => {
-  it("gives the path alone, and why, for a page whose text shows the password of a test account", async () => {
+  it("gives the path alone, and why, for a page whose text shows a secret the session declares", async () => {
     await withTools(true, async (tool) => {
       await tool("goto").execute({ url: "/hint" });
       const result = await tool("screenshot").execute({});
@@ -152,8 +158,8 @@ describe("criterion 3 — no image of a page that shows a secret goes to the mod
     ["/frame", "in a frame"],
     ["/shadow", "in a shadow root"],
     ["/upper", "in capitals, by its style"],
-    ["/admin", "of a test account of another application"],
-    ["/database", "a connection string the session declares, rather than a password"],
+    ["/admin", "the session declares for another application"],
+    ["/database", "that is a connection string"],
     ["/fleeting", "until the capture is over"],
   ] as const) {
     it(`gives the path alone for a page that shows the secret ${where}`, async () => {
@@ -164,7 +170,7 @@ describe("criterion 3 — no image of a page that shows a secret goes to the mod
     });
   }
 
-  it("gives the path alone for a page whose text field shows the password", async () => {
+  it("gives the path alone for a page whose text field shows the secret", async () => {
     await withTools(true, async (tool) => {
       await tool("goto").execute({ url: "/login" });
       await tool("fill").execute({ target: { label: "Code" }, value: { account: "demo", field: "password" } });

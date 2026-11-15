@@ -35,7 +35,19 @@ export function declaredVariables(config: VariableSections): DeclaredVariable[] 
 }
 
 /**
- * The values of the environment variables a configuration names, which no tool shows to an agent where it can
+ * The environment variables of a configuration whose values are secrets: the connection strings of the
+ * databases and the key of the model. The credentials of the test accounts are not: a test environment shows
+ * them, an agent types them and a test may hold them.
+ *
+ * @param config - The configuration.
+ * @returns Each such variable where it is named, in the order of the file.
+ */
+export function secretVariables(config: VariableSections): DeclaredVariable[] {
+  return declaredVariables(config).filter(({ path }) => !path.startsWith("/applications"));
+}
+
+/**
+ * The values of the secrets a configuration names, which no tool shows to an agent where it can
  * mask them.
  *
  * @param config - The configuration.
@@ -43,5 +55,5 @@ export function declaredVariables(config: VariableSections): DeclaredVariable[] 
  * @returns The values set and not empty, each once.
  */
 export function declaredValues(config: VariableSections, env: Readonly<Record<string, string | undefined>>): string[] {
-  return [...new Set(declaredVariables(config).flatMap(({ name }) => (env[name] ? [env[name]] : [])))];
+  return [...new Set(secretVariables(config).flatMap(({ name }) => (env[name] ? [env[name]] : [])))];
 }

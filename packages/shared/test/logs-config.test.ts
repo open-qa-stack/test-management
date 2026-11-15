@@ -61,21 +61,19 @@ describe("logs criterion 1 — a configuration that declares a log file or a con
   });
 });
 
-describe("logs criterion 4 — the values to mask are those of every variable the configuration names", () => {
-  it("gives the credentials, the connection strings and the model key, each once, without the unset ones", () => {
+describe("logs criterion 4 — the values to mask are those of the secrets the configuration names", () => {
+  it("gives the connection strings and the model key, each once, without the unset ones nor the credentials of the test accounts", () => {
     const result = validateConfig(exampleText(), EXAMPLE_ENV);
     assert.ok(result.ok);
-    const env = { ...EXAMPLE_ENV, CUSTOMER_CORE_DB_URL: EXAMPLE_ENV["POLICY_MANAGEMENT_DB_URL"], CSS_DEMO_USERNAME: "", UNRELATED: "not-named" };
+    const env = { ...EXAMPLE_ENV, CUSTOMER_CORE_DB_URL: EXAMPLE_ENV["POLICY_MANAGEMENT_DB_URL"], CUSTOMER_SELF_SERVICE_DB_URL: "", UNRELATED: "not-named" };
     assert.deepEqual(
       new Set(declaredValues(result.config, env)),
       new Set([
-        "demo-password-value",
-        "postgresql://user:secret@localhost:5433/customerselfservice",
         "postgresql://user:secret@localhost:5433/customermanagement",
         "postgresql://user:secret@localhost:5433/policymanagement",
         "test-model-key-value",
       ]),
     );
-    assert.equal(declaredValues(result.config, env).length, 5);
+    assert.equal(declaredValues(result.config, env).length, 3);
   });
 });

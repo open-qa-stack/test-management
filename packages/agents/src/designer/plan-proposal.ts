@@ -22,7 +22,6 @@ import { baseUrlVariable } from "@open-qa-stack/shared";
 import { screenScope, type ScreenWatch, type ShownElement, type WatchedAction } from "./screen-watch.ts";
 import type { SourceWatch } from "./source-watch.ts";
 import { heldVariables, type DeclaredSecret } from "./spec-rules.ts";
-import { MAX_TESTS } from "./test-proposals.ts";
 import type { Verified } from "./verified.ts";
 
 /** Name of the tool the designer submits its test plan with. */
@@ -32,6 +31,15 @@ export const MADE_UP = "made-up";
 /** The last line of what the agent is told while no plan is accepted. */
 export const PLAN_NEXT = `Next: read what the brief is about and do it once on the screens, then call ${PLAN_TOOL}.`;
 /** How what the agent is told of the plan accepted ends: its session is over. */
+/** What a scenario of each level would add to a plan that holds none, as the agent is told before it closes the plan. */
+const LEVEL_HINTS: Readonly<Record<ScenarioLevel, string>> = {
+  smoke: "one scenario of one step that opens the first address of the application and expects one text of the page.",
+  functional:
+    "one scenario for each behaviour of a screen the brief is about, such as each way to search, each rule of a form, each message — many small scenarios, each on one screen.",
+  business: "one scenario for each whole journey the brief is about, through several screens to its result.",
+  "cross-application": "one scenario that does an action in one application and checks its effect in another.",
+  "end-to-end": "one scenario that follows a journey through three applications or more.",
+};
 /** The levels of a test that acts on several applications. */
 const CROSSING: ReadonlySet<ScenarioLevel> = new Set(["cross-application", "end-to-end"]);
 const SESSION_OVER = "Next: answer with one sentence. Call no more tools.";
@@ -130,7 +138,7 @@ export interface PlanRules {
  * The test plan of a design, submitted with `propose_plan` before any test is run.
  *
  * @remarks
- * A plan holds the scenarios its brief needs, `MAX_TESTS` at most, submitted in several calls: the harness
+ * A plan holds the scenarios its brief needs, as many as it takes, submitted in several calls: the harness
  * keeps those of a call in a `PlanDraft`, sets aside each one another already covers, and asks what the
  * brief still needs, until the agent adds nothing, its last scenarios were duplicates, or the plan is full.
  * A session that ends meanwhile closes the plan with the scenarios kept. Each names its case, its application, its
@@ -198,7 +206,6 @@ export class PlanProposal {
     this.journal = journal;
     this.draft = new PlanDraft(
       {
-        maximum: MAX_TESTS,
         verified: (scenario) => this.verified(scenario),
         described,
         ...(rules.judge === undefined ? {} : { judge: rules.judge }),
@@ -283,13 +290,12 @@ export class PlanProposal {
     const texts = (description: string) => ({ type: "array", maxItems: 8, items: { type: "string", minLength: 1 }, description });
     return {
       name: PLAN_TOOL,
-      description: `Submits the test plan, once you have read the sources and done the brief once on the screens. As many scenarios as the brief needs, ${MAX_TESTS} at most, each verifying something the others do not: one per business rule, information or behaviour the brief is about; with two functional scenarios or more, one is negative. Each scenario gives its data (every value the test enters, with the source that showed it, or "${MADE_UP}" for a value the test invents), then its steps as a user does them. A step has one action, in actions the numbers of the browser actions that did it when you explored, and 0 to 4 expects; an expect states one result seen after the action, with in shows the exact texts the screen then displays and in absent the exact texts it no longer displays. Each step becomes one test.step, and each text one assertion: the harness writes their code and their locators from the actions you cite and the screens you saw; you never write a locator. The harness refuses a value or a text no tool showed you.`,
+      description: `Submits the test plan, once you have read the sources and done the brief once on the screens. As many scenarios as the brief needs, each verifying something the others do not: one per business rule, information or behaviour the brief is about; with two functional scenarios or more, one is negative. Each scenario gives its data (every value the test enters, with the source that showed it, or "${MADE_UP}" for a value the test invents), then its steps as a user does them. A step has one action, in actions the numbers of the browser actions that did it when you explored, and 0 to 4 expects; an expect states one result seen after the action, with in shows the exact texts the screen then displays and in absent the exact texts it no longer displays. Each step becomes one test.step, and each text one assertion: the harness writes their code and their locators from the actions you cite and the screens you saw; you never write a locator. The harness refuses a value or a text no tool showed you.`,
       parameters: {
         type: "object",
         properties: {
           scenarios: {
             type: "array",
-            maxItems: MAX_TESTS,
             items: {
               type: "object",
               properties: {
@@ -444,25 +450,17 @@ export class PlanProposal {
   }
 
   /**
-   * What the gates refuse in how many scenarios a call gives: more than a plan may hold, or none for a plan
-   * that holds none, unless the call says in `uncovered` why no test can do what the brief asks.
+   * What the gates refuse in how many scenarios a call gives: none for a plan that holds none, unless the
+   * call says in `uncovered` why no test can do what the brief asks. A plan holds as many scenarios as its
+   * brief takes.
    */
   private countErrors(whole: number, explained: boolean): Refusal[] {
-    if (whole === 0 && explained) return [];
-    if (whole === 0)
-      return [
-        {
-          code: "PLAN-COUNT",
-          message:
-            "the plan holds no scenario. Give one scenario at least, for what the brief is about; or, when no test can do what the brief asks, say so: give in uncovered what it asks and why, with no scenario.",
-        },
-      ];
-    if (whole <= MAX_TESTS) return [];
-    const kept = this.draft.scenarios.length;
+    if (whole > 0 || explained) return [];
     return [
       {
         code: "PLAN-COUNT",
-        message: `the plan would hold ${whole} scenarios, and it holds ${MAX_TESTS} at most${kept === 0 ? "" : `: ${kept} are kept, add ${MAX_TESTS - kept} at most`}. Keep those that verify what the others do not, and say in uncovered what the plan has no room for.`,
+        message:
+          "the plan holds no scenario. Give one scenario at least, for what the brief is about; or, when no test can do what the brief asks, say so: give in uncovered what it asks and why, with no scenario.",
       },
     ];
   }
@@ -479,20 +477,31 @@ export class PlanProposal {
   }
 
   /**
-   * The warning told once to an agent that closes a plan whose functional scenarios are all of what works: a
-   * brief is seldom covered without what the application answers to an input that matches nothing or is
-   * wrong. The same call again confirms that the brief has no such case, and closes the plan.
+   * The warning told once to an agent that closes a plan which leaves in doubt whether its brief is covered:
+   * levels asked that no scenario is of, or functional scenarios that are all of what works. The same call
+   * again confirms that the brief asks nothing more, and closes the plan.
    */
   private nominalAlone(submitted: SubmittedPlan): string | undefined {
+    if (submitted.scenarios.length > 0 || this.draft.scenarios.length === 0 || this.warnedNominal) return undefined;
     const functional = this.draft.scenarios.filter((scenario) => scenario.kind === "functional");
-    if (submitted.scenarios.length > 0 || functional.length === 0 || functional.some((scenario) => scenario.case === "negative") || this.warnedNominal)
-      return undefined;
+    const nominal = functional.length > 0 && !functional.some((scenario) => scenario.case === "negative");
+    const held = new Set(this.draft.scenarios.map((scenario) => scenario.level));
+    const missing = this.rules.levels.filter((level) => !held.has(level));
+    if (!nominal && missing.length === 0) return undefined;
     this.warnedNominal = true;
-    this.journal.record("info", "The agent closed a plan that verifies only what works; it was asked once for what the application answers otherwise.");
+    this.journal.record(
+      "info",
+      `The agent closed a plan that ${[...(nominal ? ["verifies only what works"] : []), ...(missing.length === 0 ? [] : [`holds no scenario of ${missing.join(", ")}`])].join(" and ")}; it was asked once whether the brief calls for more.`,
+    );
     return [
-      `The plan is not closed yet. It verifies only what works: ${functional.map((scenario) => scenario.id).join(", ")}.`,
-      "A brief is seldom covered by that alone. On the screens of these scenarios, what does the application answer to an input that matches nothing, is wrong or is forbidden? What else does a user do there that the brief is about, such as opening a row or going to the next page?",
-      `Next: do it on the screens, then call ${PLAN_TOOL} with only the scenarios to add. If the brief asks nothing of the kind, call ${PLAN_TOOL} with "scenarios": [] again: that confirms it, and closes the plan.`,
+      `The plan is not closed yet. It holds ${this.draft.scenarios.map((scenario) => `${scenario.id} (${scenario.level})`).join(", ")}.`,
+      ...missing.map((level) => `No scenario is of the level ${level}, which is asked: ${LEVEL_HINTS[level]}`),
+      ...(nominal
+        ? [
+            "It verifies only what works. On the screens of these scenarios, what does the application answer to an input that matches nothing, is wrong or is forbidden?",
+          ]
+        : []),
+      `Next: do it on the screens, then call ${PLAN_TOOL} with only the scenarios to add. If the brief calls for none of this, call ${PLAN_TOOL} with "scenarios": [] again: that confirms it, and closes the plan.`,
     ].join("\n");
   }
 
@@ -503,7 +512,7 @@ export class PlanProposal {
   private askMore(aside: readonly SetAsideScenario[]): string {
     const kept = this.draft.scenarios.map((scenario) => scenario.id);
     return [
-      `The plan is not closed yet. It holds ${kept.length} of ${MAX_TESTS} scenarios at most: ${kept.join(", ")}.`,
+      `The plan is not closed yet. It holds ${kept.length} ${kept.length === 1 ? "scenario" : "scenarios"}: ${kept.join(", ")}.`,
       ...aside.map(setAsideLine),
       ...(this.draft.repeating
         ? [
@@ -534,11 +543,11 @@ export class PlanProposal {
     // What the brief asks and the plan leaves out is said where a person reads it, not left in an answer of the agent.
     for (const { asked, reason } of plan.uncovered ?? [])
       this.journal.record("error", this.masked(`The plan does not cover what the brief asks: ${asked} ${reason}`));
-    this.journal.record("info", `The harness asked for no more scenarios: ${planEndText(end, MAX_TESTS)}`);
+    this.journal.record("info", `The harness asked for no more scenarios: ${planEndText(end)}`);
     this.journal.record("info", `The plan was accepted: ${plan.scenarios.map((scenario) => scenario.id).join(", ") || "no scenario"}.`);
     // What the harness took out of the plan is told to the agent, not done behind its back.
     return [
-      `The plan was accepted with ${plan.scenarios.length} ${plan.scenarios.length === 1 ? "scenario" : "scenarios"}: ${planEndText(end, MAX_TESTS)}`,
+      `The plan was accepted with ${plan.scenarios.length} ${plan.scenarios.length === 1 ? "scenario" : "scenarios"}: ${planEndText(end)}`,
       ...aside.map(setAsideLine),
       ...echoes,
       SESSION_OVER,

@@ -5,7 +5,7 @@ import { readsImages, validateDomainIndex, type DomainIndex, type IndexSource, t
 import { browserTools, knowledgeTools, scopedToolName, type BrowserAccess, type KnowledgeAccess } from "@open-qa-stack/tools";
 import { agentNotes } from "../common/agent-notes.ts";
 import { ScreenTrail } from "../application-explorer/screen-trail.ts";
-import { configSecrets, imageSecrets } from "../common/config-secrets.ts";
+import { configSecrets } from "../common/config-secrets.ts";
 import { runAgentTask, taskEnd, taskLimits } from "../common/agent-task.ts";
 import { Journal, type JournalEntry } from "../common/journal.ts";
 import { NO_USAGE, totalUsage, usageOf, type ModelUsage } from "../common/model-usage.ts";
@@ -244,7 +244,7 @@ export class Cartographer {
       environment,
       screenshotsDir: join(repositoryRoot, config.repository.stateDir, "screenshots"),
       vision: readsImages(config.model),
-      secrets: imageSecrets(config, env),
+      secrets: configSecrets(config, env),
       ...this.options.browser,
     });
     const tools = explored.flatMap((application) => {

@@ -1,5 +1,5 @@
 import { dirname, relative, resolve, sep } from "node:path";
-import { declaredVariables, type ResolvedConfig } from "@open-qa-stack/shared";
+import { secretVariables, type ResolvedConfig } from "@open-qa-stack/shared";
 import { moduleSyntax, secretForms, type ModuleImport, type SpecLocator } from "@open-qa-stack/tools";
 
 /** The only package a generated test may import. */
@@ -37,15 +37,15 @@ export function declaredAddresses(config: ResolvedConfig): string[] {
 }
 
 /**
- * The values of the environment variables the configuration names: the credentials of the test accounts,
- * the connection strings and the key of the model.
+ * The values of the secrets the configuration names: the connection strings and the key of the model. The
+ * credentials of the test accounts are none: a test may hold them.
  *
  * @param config - The resolved configuration.
  * @param env - The environment the configuration reads.
  * @returns Each variable set and not empty, with its value.
  */
 export function declaredSecrets(config: ResolvedConfig, env: Readonly<Record<string, string | undefined>>): DeclaredSecret[] {
-  const names = [...new Set(declaredVariables(config).map((variable) => variable.name))];
+  const names = [...new Set(secretVariables(config).map((variable) => variable.name))];
   return names.flatMap((variable) => (env[variable] ? [{ variable, value: env[variable] }] : []));
 }
 

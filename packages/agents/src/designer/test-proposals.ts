@@ -31,8 +31,6 @@ export const TEST_DUPLICATE = "TEST-DUPLICATE";
 const SESSION_OVER = "Next: answer with one sentence. Call no more tools.";
 /** Longest error told to the agent for a test that did not pass. */
 const MAX_TOLD_ERROR = 1500;
-/** Most tests a design writes: the most scenarios a plan holds. */
-export const MAX_TESTS = 8;
 
 /** A test accepted, with its text. */
 export interface AcceptedTest extends Omit<DesignedTest, "references"> {
@@ -579,6 +577,9 @@ export class TestProposals {
   private async checked(scenario: PlannedScenario, path: string, content: string): Promise<Refusal[]> {
     const { repositoryRoot, addresses, secrets, check } = this.rules;
     const { screens } = this.session!;
+    // A secret is refused before the text is read: what a later refusal quotes of the text is cut, and a secret cut is masked by nothing.
+    const held = secretValueErrors(content, secrets);
+    if (held.length > 0) return held.map((message) => ({ code: "TEST-SECRET", message }));
     const syntax = await moduleSyntax(content);
     if (!syntax.ok) return [{ code: "TEST-SYNTAX", message: `The test does not parse as TypeScript: ${syntax.error}.` }];
     const coded = (code: string, messages: readonly string[]) => messages.map((message) => ({ code, message }));
@@ -586,7 +587,6 @@ export class TestProposals {
       ...coded("TEST-IMPORT", importErrors(syntax.imports, join(repositoryRoot, path), repositoryRoot, this.rules.packages)),
       ...coded("TEST-FILE", fileErrors(content)),
       ...coded("TEST-ADDRESS", addressErrors(content, addresses)),
-      ...coded("TEST-SECRET", secretValueErrors(content, secrets)),
     ];
     if (written.length > 0) return written;
     this.submitted = content;

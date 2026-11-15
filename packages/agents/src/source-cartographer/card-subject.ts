@@ -10,7 +10,7 @@ import {
   type SourceInventory,
 } from "@open-qa-stack/tools";
 import { surveySource } from "../cartographer/source-survey.ts";
-import { imageSecrets } from "../common/config-secrets.ts";
+import { configSecrets } from "../common/config-secrets.ts";
 
 /** The user interface of an application in one environment, named by the application. */
 export interface InterfaceSource {
@@ -80,7 +80,7 @@ export async function interfaceSubject(
     ...access,
     environment: source.environment,
     vision: readsImages(config.model),
-    secrets: imageSecrets(config, access.env),
+    secrets: configSecrets(config, access.env),
   });
   return {
     fingerprint,

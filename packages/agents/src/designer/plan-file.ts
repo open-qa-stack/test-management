@@ -1,7 +1,6 @@
 import type { PlanEnd, PlannedExpect, PlannedScenario, PlannedStep, SetAsideScenario, UncoveredRequest } from "@open-qa-stack/domain";
 import { oneLine } from "./one-line.ts";
 import { planEndText } from "./plan-end.ts";
-import { MAX_TESTS } from "./test-proposals.ts";
 
 /** What the name of the file of a plan ends with, after the identifier of its design. */
 export const PLAN_FILE_SUFFIX = ".plan.md";
@@ -49,7 +48,7 @@ export function planFileText(record: PlanRecord): string {
     "",
     `- Environment: ${record.environment}`,
     ...(record.brief === undefined ? [] : [`- Brief: ${flat(record.brief)}`]),
-    ...(record.ended === undefined ? [] : [`- Scenarios: ${record.scenarios.length}; ${planEndText(record.ended, MAX_TESTS)}`]),
+    ...(record.ended === undefined ? [] : [`- Scenarios: ${record.scenarios.length}; ${planEndText(record.ended)}`]),
     "",
     "The harness wrote this file from the plan it accepted, and reads its last part again. Edit neither part by hand: a file whose two parts differ is not read.",
     "",

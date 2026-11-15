@@ -6,7 +6,7 @@ import type { Account, Application, Environment } from "@open-qa-stack/shared";
 import { scopedToolName } from "../common/tool-name.ts";
 import { LOG_CAPACITY, type ApplicationPage, type PageScope, type PageState, type TargetMatch, type Until } from "./application-page.ts";
 import type { BrowserSession } from "./browser-session.ts";
-import { redact, redactText, secretForms } from "./redact.ts";
+import { secretForms } from "./redact.ts";
 import { TARGET_SCHEMA, targetCode, type Target } from "./target.ts";
 
 /** Longest wait an agent may ask for, in milliseconds. */
@@ -36,7 +36,7 @@ export interface ApplicationToolAccess {
   readonly screenshotsDir: string;
   /** Whether the model reads images: the screenshot tool then gives it the image too. */
   readonly vision: boolean;
-  /** The secrets no image the model is shown may show: the passwords of every test account, and those the session adds. */
+  /** The secrets no image the model is shown may show: those the session gives. */
   readonly imageSecrets: readonly string[];
 }
 
@@ -51,9 +51,8 @@ const limit = (description: string) => ({ type: "integer", minimum: 1, maximum: 
  * Calls on the page of the application run one after the other, in the order they came, so that
  * calls the model makes at once do not interrupt each other. Tools that act return where the page is
  * afterwards, and the line of code a test writes to do the same: a path relative to the user interface for
- * an address of it, and the environment variable of a credential rather than its value. The agent types a test account's credentials by
- * naming the account, never by their value; the passwords are masked in everything the tools return,
- * errors included, in the forms a page may show them.
+ * an address of it, and the environment variable of a credential rather than its value. The agent may type a test account's credentials by
+ * naming the account; nothing of them is masked: a test environment shows them.
  *
  * @param application - The application.
  * @param environment - Its environment, which has a user interface.
@@ -62,7 +61,6 @@ const limit = (description: string) => ({ type: "integer", minimum: 1, maximum: 
  */
 export function applicationTools(application: Application, environment: Environment & { uiUrl: string }, access: ApplicationToolAccess): ToolDefinition[] {
   const scope = pageScope(application.id, environment);
-  const secrets = (application.authentication.accounts ?? []).flatMap((account) => nonEmpty(access.env[account.passwordEnv]).flatMap(secretForms));
   // A page may show a secret in another case than its own, by a style; an image is refused whatever the case.
   const unseen = access.imageSecrets.flatMap(secretForms).map((form) => form.toLowerCase());
   const showsSecret = (text: string) => unseen.some((form) => text.toLowerCase().includes(form));
@@ -73,13 +71,7 @@ export function applicationTools(application: Application, environment: Environm
     <T>(use: (page: ApplicationPage, args: T) => Promise<unknown>) =>
     (args: unknown) => {
       const run = queue.then(async () => {
-        try {
-          const result = await use(await access.session.page(scope), args as T);
-          // A screenshot shows its image only once its page holds no secret.
-          return result instanceof ImageToolResult ? result : redact(result, secrets);
-        } catch (failure) {
-          throw new Error(redactText(failure instanceof Error ? failure.message : String(failure), secrets));
-        }
+        return use(await access.session.page(scope), args as T);
       });
       queue = run.catch(() => undefined);
       return run;
@@ -129,7 +121,7 @@ export function applicationTools(application: Application, environment: Environm
     },
     {
       name: name("fill"),
-      description: `Fills a field of the page ${where}. To type a test account's credential, give { "account": <name>, "field": "username" | "password" } as the value: you are never given the password. Accounts: ${accountNames(application)}. Returns where the page is, and the line of code that does the same in a test.`,
+      description: `Fills a field of the page ${where}. To type a test account's credential, give { "account": <name>, "field": "username" | "password" } as the value. Accounts: ${accountNames(application)}. Returns where the page is, and the line of code that does the same in a test.`,
       parameters: {
         type: "object",
         properties: {
@@ -315,8 +307,4 @@ function credentialVariable(application: Application, { account, field }: Creden
   const declared: Account | undefined = application.authentication.accounts?.find((a) => a.name === account);
   if (declared === undefined) throw new Error(`${application.id} has no test account named ${account}; accounts: ${accountNames(application)}.`);
   return field === "username" ? declared.usernameEnv : declared.passwordEnv;
-}
-
-function nonEmpty(value: string | undefined): string[] {
-  return value === undefined || value === "" ? [] : [value];
 }

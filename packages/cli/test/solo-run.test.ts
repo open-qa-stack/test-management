@@ -50,7 +50,7 @@ function configText(modelUrl: string, changes: Record<string, unknown> = {}): st
     model: { mode: "provider-key", provider: "openai", baseUrl: modelUrl, model: MODEL },
     autonomy: { level: "autonomous" },
     // The review of a plan by an agent of its own has its sessions, which the design of the agents tests.
-    design: { reviewPlan: false },
+    design: { reviewPlan: false, levels: ["functional"] },
     ...changes,
   });
 }
@@ -609,7 +609,7 @@ describe("the command oqas", () => {
     assert.equal(run.code, 0, run.err);
     // Each call of a tool with its result, each message of the harness, and what each phase asked of the model.
     assert.match(run.err, /^\d\d:\d\d:\d\d plan -> propose_plan\(/m);
-    assert.match(run.err, /^\d\d:\d\d:\d\d plan <- The plan is not closed yet\. It holds 3 of 8 scenarios at most: test-1, test-2, test-3\./m);
+    assert.match(run.err, /^\d\d:\d\d:\d\d plan <- The plan is not closed yet\. It holds 3 scenarios: test-1, test-2, test-3\./m);
     assert.match(run.err, /^\d\d:\d\d:\d\d write harness: Write the test of this scenario/m);
     assert.match(run.err, /^\d\d:\d\d:\d\d plan \d+ model requests/m);
     // The journal is still printed, and an entry of the journal is printed once.

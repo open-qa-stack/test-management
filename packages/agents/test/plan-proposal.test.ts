@@ -165,7 +165,7 @@ describe("the scenarios of a plan, asked until the brief is covered", () => {
   /** What the harness asks once it kept scenarios. */
   const asked = (kept: string[], aside: string[] = []) =>
     [
-      `The plan is not closed yet. It holds ${kept.length} of 8 scenarios at most: ${kept.join(", ")}.`,
+      `The plan is not closed yet. It holds ${kept.length} ${kept.length === 1 ? "scenario" : "scenarios"}: ${kept.join(", ")}.`,
       ...aside,
       "Does the brief ask a business rule, an information or a behaviour none of these scenarios verifies?",
       'Next: if it does, call propose_plan with only the scenarios to add, each verifying what none above does; if the brief is covered, call propose_plan with "scenarios": []. A scenario that bears the id of one above replaces it.',
@@ -215,22 +215,13 @@ describe("the scenarios of a plan, asked until the brief is covered", () => {
     assert.deepEqual([made.accepted, made.refused, made.reminder(), made.drafted], [undefined, "Not this one.", undefined, false]);
   });
 
-  it("refuse a plan without a scenario and one that holds too many, and replace a scenario by the one that bears its id", async () => {
+  it("refuse a plan without a scenario, keep as many as the brief takes, and replace a scenario by the one that bears its id", async () => {
     const { proposal: made } = await proposal();
     assert.deepEqual(await add(made, { scenarios: [] }), {
       error:
         "Refused (PLAN-COUNT): the plan holds no scenario. Give one scenario at least, for what the brief is about; or, when no test can do what the brief asks, say so: give in uncovered what it asks and why, with no scenario.\nNothing else was refused.",
     });
-    const nine = ["a", "b", "c", "d", "e", "f", "g", "h", "i"];
-    assert.match(
-      ((await add(made, plan(...nine))) as { error: string }).error,
-      /^Refused \(PLAN-COUNT\): the plan would hold 9 scenarios, and it holds 8 at most\. Keep/,
-    );
     assert.equal(await add(made, plan("a", "b")), asked(["a", "b"]));
-    assert.match(
-      ((await add(made, plan(...nine.slice(2)))) as { error: string }).error,
-      /the plan would hold 9 scenarios, and it holds 8 at most: 2 are kept, add 6 at most\./,
-    );
     // The scenario b is submitted again, changed: it takes the place of the first.
     assert.equal(await add(made, { scenarios: [scenario("b", { title: "Changed" })] }), asked(["a", "b"]));
     assert.equal(await add(made, { scenarios: [] }), `${accepted(2)}\nNext: answer with one sentence. Call no more tools.`);
@@ -314,13 +305,6 @@ describe("the scenarios of a plan, asked until the brief is covered", () => {
       ].join("\n"),
     );
     assert.deepEqual([made.accepted!.ended, made.accepted!.setAside!.length], ["exhausted", 5]);
-    // A plan that is full is closed as well: it guards a design against scenarios without end.
-    const { proposal: full } = await proposal();
-    assert.match(
-      (await add(full, plan("a", "b", "c", "d", "e", "f", "g", "h"))) as string,
-      /^The plan was accepted with 8 scenarios: the plan holds 8 scenarios, the most a plan may\.\n/,
-    );
-    assert.equal(full.accepted!.ended, "maximum");
   });
 
   it("ask the judge about the scenarios the code let through, keep of its answer what names one of them and a scenario before it, and go on without it when it fails", async () => {
@@ -1365,10 +1349,16 @@ describe("a plan that verifies only what works", () => {
     const warned = await add(made, { scenarios: [] });
     assert.match(
       warned as string,
-      /^The plan is not closed yet\. It verifies only what works: a\.\n[^]*call propose_plan with "scenarios": \[\] again: that confirms it, and closes the plan\.$/,
+      /^The plan is not closed yet\. It holds a \(functional\)\.\nIt verifies only what works\. [^]*call propose_plan with "scenarios": \[\] again: that confirms it, and closes the plan\.$/,
     );
     assert.equal(await add(made, { scenarios: [] }), `${accepted(1)}\nNext: answer with one sentence. Call no more tools.`);
-    assert.equal(journal.entries().filter((entry) => entry.message.startsWith("The agent closed a plan that verifies only what works")).length, 1);
+    assert.equal(
+      journal
+        .entries()
+        .filter((entry) => entry.message === "The agent closed a plan that verifies only what works; it was asked once whether the brief calls for more.")
+        .length,
+      1,
+    );
   });
 
   it("is closed at once when a scenario is negative, or none is functional", async () => {
@@ -1487,6 +1477,12 @@ describe("the level of a scenario, held to what its actions went through", () =>
   it("keeps a test of several applications, opens the addresses of the others on their base address, and names them in the plan", async () => {
     const made = await explored();
     assert.equal(await answered(made, at("cross-application", [1, 2, 4, 5])), "kept");
+    // The plan is closed once the agent confirms it holds no scenario of the other levels asked.
+    const doubted = (await made.tool().execute({ scenarios: [] })) as string;
+    assert.match(
+      doubted,
+      /^The plan is not closed yet\. It holds a \(cross-application\)\.\nNo scenario is of the level smoke, which is asked: one scenario of one step that opens the first address/,
+    );
     await made.tool().execute({ scenarios: [] });
     const [kept] = made.accepted!.scenarios;
     assert.deepEqual(
