@@ -65,11 +65,11 @@ git merge --no-ff -m "feat(check): scan the commits of a branch" <branch>
 
 ## Continuous integration
 
-The pipeline of the repository, in `.github/workflows/`, runs on every pull request and on every commit of `main`; `ci` can also be started by hand. The workflows that verify a change, `ci` and `release`, only read the repository, hold no secret and publish nothing, so they run the same way for a pull request that comes from a fork. The workflow `cla` is the one that writes: it comments on a pull request and records a signature, on the code of `main` and never on that of the pull request. Every action they use is pinned to a commit.
+The pipeline of the repository, in `.github/workflows/`, runs on every pull request and on every commit of `main`; `ci` can also be started by hand. The workflows that verify a change, `ci` and `release`, only read the repository and publish nothing, so they run the same way for a pull request that comes from a fork. Their one secret, the token of the SonarCloud analysis, reaches that step alone, and the step is skipped where the token is absent. The workflow `cla` is the one that writes: it comments on a pull request and records a signature, on the code of `main` and never on that of the pull request. Every action they use is pinned to a commit.
 
 | Workflow | Job | What it verifies |
 |---|---|---|
-| `ci` | `check` | `pnpm check` on a clean clone, with the Node.js `.nvmrc` names, the dependencies installed from the frozen lockfile and the Chromium the workspace pins. |
+| `ci` | `check` | `pnpm check` on a clean clone, with the Node.js `.nvmrc` names, the dependencies installed from the frozen lockfile and the Chromium the workspace pins. Then, when the token is there, the SonarCloud analysis of the code and of the coverage of the whole suite, configured by `sonar-project.properties`. |
 | `ci` | `hygiene` | `pnpm scan` on every commit the pull request brings, not only its last: the message of each, and the lines it adds. |
 | `ci` | `advisories` | No production dependency has a known vulnerability of moderate severity or more. |
 | `release` | `candidate` | Started by hand for a version: the check, the scan of the whole history, the advisories, then the tarball of every package, kept as artifacts of the run. It publishes nothing and tags nothing. |
