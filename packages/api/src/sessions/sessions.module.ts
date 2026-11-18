@@ -1,8 +1,9 @@
 import { Logger, Module } from "@nestjs/common";
 import { Configuration, Sessions } from "@open-qa-stack/engine";
-import { ConfigurationStore, SessionStore } from "@open-qa-stack/store";
+import { SessionStore } from "@open-qa-stack/store";
 import { ApiConfiguration } from "../config/api-configuration.ts";
 import { DatabaseModule } from "../database/database.module.ts";
+import { RepositoryConfigurationModule } from "../repository-configuration/repository-configuration.module.ts";
 import { EventStreams } from "./event-streams.ts";
 import { ProjectController } from "./project.controller.ts";
 import { RunEnvironment } from "./run-environment.ts";
@@ -16,18 +17,13 @@ import { StreamPace } from "./stream-pace.ts";
  * test repository the API was given. The routes hold no rule of the sessions: each calls one operation.
  */
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, RepositoryConfigurationModule],
   controllers: [ProjectController, SessionsController],
   providers: [
     EventStreams,
     RunEnvironment,
     SessionsLifecycle,
     StreamPace,
-    {
-      provide: Configuration,
-      inject: [ConfigurationStore, ApiConfiguration],
-      useFactory: (store: ConfigurationStore, { repository }: ApiConfiguration) => new Configuration(store, repository),
-    },
     {
       provide: Sessions,
       inject: [SessionStore, Configuration, ApiConfiguration, RunEnvironment],

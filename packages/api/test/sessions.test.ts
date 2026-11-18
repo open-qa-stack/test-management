@@ -239,7 +239,7 @@ describe("a problem", () => {
       expectedProblem(new NoRepositoryError()),
       problemOf(
         "unavailable",
-        "The API was started without a test repository, and opens no session: set OQAS_REPOSITORY to the absolute path of a folder that holds oqas.json, and start the API again.",
+        "The API was started without a test repository: it opens no session and changes no configuration. Set OQAS_REPOSITORY to the absolute path of a folder that holds oqas.json, and start the API again.",
       ),
     );
   });
