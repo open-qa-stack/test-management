@@ -154,7 +154,7 @@ export class Run {
         const durationMs = now().getTime() - at;
         const modelRequests = requests() - before;
         steps.push({ step, durationMs, modelRequests });
-        journal.record(step, "finished", ok ? `The ${step} succeeded.` : `The ${step} did not succeed.`, { durationMs, modelRequests });
+        journal.record(step, "finished", ok ? succeeded(step) : `The ${step} did not succeed.`, { durationMs, modelRequests });
       };
       try {
         journal.record(step, "started", `The ${step} starts.`);
@@ -401,6 +401,14 @@ export class Run {
   private relay(journal: RunJournal, step: Step, entries: readonly JournalEntry[]): void {
     for (const entry of entries) journal.record(step, entry.level, entry.source === undefined ? entry.message : `${entry.source}: ${entry.message}`);
   }
+}
+
+/**
+ * What the journal says of a step that succeeded. The summary is written whatever the run came to: it says so,
+ * rather than read as a run that succeeded.
+ */
+function succeeded(step: Step): string {
+  return step === "summary" ? "The summary of the run was written." : `The ${step} succeeded.`;
 }
 
 /**

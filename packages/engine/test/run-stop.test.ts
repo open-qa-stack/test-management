@@ -54,7 +54,7 @@ describe("a run its host asks to stop", () => {
     assert.equal(code, 5);
     assert.match(err, /\[cartography\] The run was asked to stop: the cartography does not start\./);
     assert.doesNotMatch(err, /The cartography starts|design|execution/);
-    assert.match(err, /The summary succeeded\./);
+    assert.match(err, /The summary of the run was written\./);
     assert.equal(server.requests.length, 1, "the model was only checked");
     const state = stateOf(root);
     assert.deepEqual([state.exitCode, state.stoppedBy, state.steps.map(({ step }) => step)], [5, undefined, ["configuration", "prerequisites"]]);
@@ -103,7 +103,7 @@ describe("a run its host asks to stop", () => {
     assert.ok(Date.now() - startedAt < 30_000, `the run ended ${Date.now() - startedAt} ms after it started`);
     assert.match(host.err, /\[cartography\] error: The cartography stopped: the run was asked to stop\./);
     assert.doesNotMatch(host.err, /unexpected error|The design starts/);
-    assert.match(host.err, /The summary succeeded\./);
+    assert.match(host.err, /The summary of the run was written\./);
   });
 });
 
