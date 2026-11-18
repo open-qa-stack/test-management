@@ -1,0 +1,83 @@
+import assert from "node:assert/strict";
+import type { Session, SessionResult, SessionTest } from "@open-qa-stack/shared/sessions";
+import { describe, it } from "vitest";
+import { durationText, elapsedText, openingText, stateOf, testsText } from "../../src/agent/session-facts.ts";
+import { COMPLETED, RUNNING } from "./session-fixture.ts";
+
+/**
+ * The session of the fixtures, completed with a result of its own.
+ *
+ * @param changes - What differs from the result of the fixtures.
+ * @returns The session.
+ */
+const endedWith = (changes: Partial<SessionResult>): Session => ({ ...COMPLETED, result: { ...COMPLETED.result!, ...changes } });
+
+/** A session completed whose result the API has not told. */
+const UNTOLD: Session = { ...RUNNING, state: "completed" };
+
+describe("the state of a session", () => {
+  it("reads as live while its agents work, as interrupted when it stopped", () => {
+    assert.deepEqual(stateOf(RUNNING), { tone: "info", label: "en direct" });
+    assert.deepEqual(stateOf({ ...COMPLETED, state: "interrupted" }), { tone: "warn", label: "interrompue" });
+  });
+
+  it("reads as how the session ended once it is completed", () => {
+    assert.deepEqual(stateOf(COMPLETED), { tone: "ok", label: "tests réussis" });
+    assert.deepEqual(stateOf(endedWith({ outcome: "failed" })), { tone: "ko", label: "test en échec" });
+    assert.deepEqual(stateOf(endedWith({ outcome: "inconclusive" })), { tone: "warn", label: "test sans verdict" });
+    assert.deepEqual(stateOf(endedWith({ outcome: "stopped" })), { tone: "neutral", label: "arrêtée avant la fin" });
+  });
+
+  it("reads as ended, no more, when a completed session has no result", () => {
+    assert.deepEqual(stateOf(UNTOLD), { tone: "neutral", label: "terminée" });
+  });
+
+  it("reads as ended, no more, when the API tells a state or a way of ending this console does not know", () => {
+    assert.deepEqual(stateOf({ ...RUNNING, state: "archived" as Session["state"] }), { tone: "neutral", label: "terminée" });
+    assert.deepEqual(stateOf(endedWith({ outcome: "abandoned" as SessionResult["outcome"] })), { tone: "neutral", label: "terminée" });
+    assert.deepEqual(stateOf({ ...COMPLETED, state: "archived" as Session["state"] }), { tone: "ok", label: "tests réussis" });
+  });
+});
+
+describe("the duration of a session", () => {
+  it("is written in seconds under a minute, rounded", () => {
+    assert.deepEqual([0, 499, 1500, 59_499].map(durationText), ["0 s", "0 s", "2 s", "59 s"]);
+  });
+
+  it("is written in minutes and seconds from a minute on, the seconds on two digits", () => {
+    assert.deepEqual([59_500, 65_000, 113_600, 3_600_000].map(durationText), ["1 min 00 s", "1 min 05 s", "1 min 54 s", "60 min 00 s"]);
+  });
+});
+
+describe("the time an action took", () => {
+  it("is written in milliseconds under a second, rounded", () => {
+    assert.deepEqual([0, 40.4, 999].map(elapsedText), ["0 ms", "40 ms", "999 ms"]);
+  });
+
+  it("is written in seconds with a decimal under a minute, and as a duration beyond", () => {
+    assert.deepEqual([1000, 1250, 59_940, 60_000, 113_600].map(elapsedText), ["1,0 s", "1,3 s", "59,9 s", "1 min 00 s", "1 min 54 s"]);
+  });
+});
+
+describe("the opening of a session", () => {
+  it("is written as its day and its time, in universal time", () => {
+    assert.equal(openingText(RUNNING), "2026-11-15 · 14:44:06 UTC");
+  });
+});
+
+describe("the tests of a session", () => {
+  it("are counted as how many passed out of how many", () => {
+    assert.equal(testsText(COMPLETED), "1 / 1 test(s) réussi(s)");
+    const tests: SessionTest[] = [
+      { id: "a", verdict: "passed", reason: "" },
+      { id: "b", verdict: "failed", reason: "" },
+      { id: "c", verdict: "blocked", reason: "" },
+    ];
+    assert.equal(testsText(endedWith({ outcome: "failed", tests })), "1 / 3 test(s) réussi(s)");
+  });
+
+  it("are not counted when the session has no result, or a result without a test", () => {
+    assert.equal(testsText(RUNNING), undefined);
+    assert.equal(testsText(endedWith({ outcome: "stopped", tests: [] })), undefined);
+  });
+});

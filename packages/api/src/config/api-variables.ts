@@ -1,4 +1,5 @@
-import { databaseUrl, nonEmptyText, portNumber } from "./value-type.ts";
+import { absolutePath, commandLine, databaseUrl, nonEmptyText, portNumber } from "./value-type.ts";
+import type { CommandLine } from "./command-line.ts";
 import type { DatabaseUrl } from "./database-url.ts";
 import type { EnvironmentVariable } from "./environment-variable.ts";
 
@@ -31,4 +32,21 @@ export const API_VARIABLES = {
     example: "8080",
   } satisfies EnvironmentVariable<number>,
   ...DATABASE_VARIABLES,
+  soloRepository: {
+    name: "OQAS_SOLO_REPOSITORY",
+    description:
+      "The test repository whose runs of the oqas command line the instance shows as sessions: a bridge, until workers write the sessions to the database.",
+    type: absolutePath,
+    secret: false,
+    optional: true,
+    example: "/srv/tests",
+  } satisfies EnvironmentVariable<string>,
+  soloCommand: {
+    name: "OQAS_SOLO_COMMAND",
+    description: "The command that starts oqas, which opening a session from the instance runs on that repository: part of the same bridge.",
+    type: commandLine,
+    secret: false,
+    optional: true,
+    example: "node /clone/packages/cli/src/main.ts",
+  } satisfies EnvironmentVariable<CommandLine>,
 } as const;

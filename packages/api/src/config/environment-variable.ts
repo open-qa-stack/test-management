@@ -10,7 +10,9 @@ export interface EnvironmentVariable<T> {
   readonly type: ValueType<T>;
   /** A secret value never appears in a log, an error message or a response. */
   readonly secret: boolean;
-  /** Raw value used when the variable is unset; a variable without one is required. */
+  /** Raw value used when the variable is unset; a variable without one is required, unless it is optional. */
   readonly defaultValue?: string;
+  /** Set on a variable that may stay unset: it then has no value. */
+  readonly optional?: true;
   readonly example: string;
 }

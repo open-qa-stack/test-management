@@ -27,7 +27,7 @@ async function buildCopy(broken: boolean): Promise<number | null> {
     await cp(join(ROOT, "tsconfig.base.json"), join(root, "tsconfig.base.json"));
     await cp(APP, copy, { recursive: true, filter: (source) => !/[\\/](?:node_modules|dist)$/.test(source) });
     await symlink(join(APP, "node_modules"), join(copy, "node_modules"), "dir");
-    if (broken) await appendFile(join(copy, "src/shell.tsx"), "\nexport const = ;\n");
+    if (broken) await appendFile(join(copy, "src/shell/shell.tsx"), "\nexport const = ;\n");
     return spawnSync("pnpm", ["run", "--silent", "build"], { cwd: copy, stdio: "ignore" }).status;
   } finally {
     await rm(root, { recursive: true, force: true });

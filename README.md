@@ -38,6 +38,14 @@ An AI agent writes tests in minutes — tests that pass. Locators it guessed, as
 
 Specialised agents work in turn, level by level: smoke, functional, business, cross-application, then visual. Each level builds on the tests of the one before. At every step a harness checks what the agents submit against what was really seen in your application — and refuses the rest.
 
+## Watch the agents work
+
+<p align="center">
+  <img src="docs/assets/console-session.png" width="100%" alt="The console of Open QA Stack following a session live: the planner, a line per action with its duration, and two refusals of the harness, one with its code. Beside the thread, the page the agent has before its eyes.">
+</p>
+
+The console shows the agents at work, live: what each of them thinks, what it tells the others, what it does, and every time the harness says no — with the reason. Nothing in it is sample data: it follows the sessions of an instance through its API, event by event, and a session that ended can be replayed step by step. The agents are the first part of the console; its other screens are on their way.
+
 ## What you get
 
 - **Coverage that follows your test pyramid.** From "the application answers" to journeys across several applications and visual regression — each level planned by an agent that does only that.
@@ -60,6 +68,8 @@ oqas --brief "search a customer and open their profile"  # ask for tests, in you
 ```
 
 Three steps, and the first one is yours: `oqas.json` is where you say what to test and what is known of it. Open QA Stack is run from a clone of this repository, against a test environment, with a model you bring. [Get started](docs/getting-started.md) takes you from an empty folder to tests on a branch, and [the configuration](packages/shared/docs/configuration.md) says what goes in the file.
+
+To watch a run rather than read it, start the API of an instance on your test repository and open [the console](apps/web/README.md).
 
 ## Contributing
 

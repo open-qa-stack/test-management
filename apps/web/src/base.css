@@ -1,8 +1,85 @@
+/*
+ * What every sheet builds on. The sheets are written for a phone first: their rules lay out a narrow screen,
+ * and a wider one adds to them from 720 px, where a line holds more, and from 1100 px, the width of a desktop.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* A phone turned on its side keeps the sizes of the sheets. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--sheet);
   color: var(--text);
   font-family: var(--font);
   font-size: var(--fs);
   line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--primary);
+}
+
+a:hover {
+  color: var(--link-hover);
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+h1 {
+  letter-spacing: -0.015em;
+}
+
+/* Whatever takes the keyboard shows it. */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* A title takes the focus to say where the console arrived; it is not a control, and shows no ring. */
+h1:focus {
+  outline: 0;
+}
+
+/* Read by a screen reader, not shown. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.muted {
+  color: var(--text-3);
+}
+
+.small {
+  font-size: var(--fs-s);
+}
+
+.xs {
+  font-size: var(--fs-xs);
+}
+
+.grow {
+  flex: 1;
+  min-width: 0;
 }

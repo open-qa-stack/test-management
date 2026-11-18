@@ -1,0 +1,35 @@
+import { HttpStatus } from "@nestjs/common";
+import type { Problem, ProblemCode } from "@open-qa-stack/shared/sessions";
+
+/** What every problem of one code has in common. */
+interface ProblemKind {
+  /** The HTTP status it is answered with, unless the problem bears its own. */
+  readonly status: number;
+  readonly title: string;
+}
+
+const KINDS: Readonly<Record<ProblemCode, ProblemKind>> = {
+  unknown_session: { status: HttpStatus.NOT_FOUND, title: "Unknown session" },
+  invalid_request: { status: HttpStatus.BAD_REQUEST, title: "Invalid request" },
+  session_running: { status: HttpStatus.CONFLICT, title: "A session is running" },
+  unavailable: { status: HttpStatus.SERVICE_UNAVAILABLE, title: "Sessions cannot be opened" },
+  not_opened: { status: HttpStatus.BAD_GATEWAY, title: "Session not opened" },
+  opening_timed_out: { status: HttpStatus.SERVICE_UNAVAILABLE, title: "Opening timed out" },
+  error: { status: HttpStatus.INTERNAL_SERVER_ERROR, title: "Request not answered" },
+};
+
+/**
+ * Writes the body of an answer that is not a success.
+ *
+ * @remarks
+ * The type and the title of a problem depend on its code alone, so that a client can rely on them: the type is
+ * a reference relative to the root of the API, which stays the same behind any proxy.
+ *
+ * @param code - The code of the problem.
+ * @param detail - What went wrong this time.
+ * @param status - The HTTP status of the answer; that of the code when left out.
+ * @returns The problem.
+ */
+export function problemOf(code: ProblemCode, detail: string, status: number = KINDS[code].status): Problem {
+  return { type: `/problems/${code.replaceAll("_", "-")}`, title: KINDS[code].title, status, detail, code };
+}

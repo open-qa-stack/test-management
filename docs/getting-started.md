@@ -34,6 +34,20 @@ node <clone>/packages/cli/src/main.ts --repository <test repository> \
 
 The tests are written on a new local branch of the test repository. Nothing is pushed: you read the branch, and you merge it or not.
 
+## Watch the agents work
+
+To watch the agents instead of reading their lines, start the API of an instance on the same repository and the console, each in a terminal of its own:
+
+```sh
+pnpm --dir <clone> --filter @open-qa-stack/api build
+OQAS_HOST=127.0.0.1 OQAS_PORT=8080 OQAS_DATABASE_URL=postgres://oqas@127.0.0.1:5432/oqas \
+  OQAS_SOLO_REPOSITORY=<test repository> OQAS_SOLO_COMMAND="node <clone>/packages/cli/src/main.ts" \
+  pnpm --dir <clone> --filter @open-qa-stack/api start
+pnpm --dir <clone> --filter @open-qa-stack/web dev
+```
+
+Open the address the console prints. Each run of `oqas` in the repository is a session: its thread fills while the agents work — what each of them thinks, does and hands in, and every refusal of the harness — and a request written in the console opens a session as `oqas --brief` does. [Sessions](../packages/api/docs/sessions.md) describes what the API serves and where sessions come from today; the API starts without its database, and reports itself not ready until one answers.
+
 ## What the repository holds afterwards
 
 A Playwright project a team would have set up by hand, which runs without Open QA Stack:
