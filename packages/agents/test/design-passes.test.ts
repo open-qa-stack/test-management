@@ -73,6 +73,18 @@ describe("the passes of a design", () => {
     assert.deepEqual([outcome.ok, outcome.branch, outcome.statePath, outcome.stoppedBy, outcome.uncovered], [false, "oqas/a", "a.json", "duration", undefined]);
   });
 
+  it("stop at a pass that could not start, which every pass after it would meet too", async () => {
+    const asked: [readonly string[] | undefined, boolean | undefined][] = [];
+    const refused = { level: "error" as const, message: "Tracked files are changed: specs/orders.md." };
+    const outcome = await new DesignPasses(options({ levels: ["smoke", "functional"] }), "by-level", true, async (pass) => {
+      asked.push([pass.levels, pass.visual]);
+      return { ok: false, tests: [], journal: [refused], unstarted: true };
+    }).run();
+    assert.deepEqual(asked, [[["smoke"], undefined]]);
+    assert.deepEqual(outcome.journal, [refused, said("Pass smoke: 0 tests.")]);
+    assert.equal(outcome.ok, false);
+  });
+
   it("end with a pass of visual tests alone, planned by an agent, when the design makes visual tests", async () => {
     const asked: [readonly string[] | undefined, boolean | undefined][] = [];
     const design = async (pass: DesignerOptions): Promise<DesignOutcome> => {
