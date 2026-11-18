@@ -1333,14 +1333,29 @@ export class PlanProposal {
     ];
   }
 
-  /** The texts a scenario that writes starts from and makes go: brought back by a step that restores, or refused. */
+  /**
+   * The texts a scenario that writes starts from and makes go: brought back by a step that restores, or refused. A
+   * text expected gone from another screen than the one that showed it, such as a heading of another application,
+   * did not go: that screen never showed it.
+   */
   private removedErrors(scenario: SubmittedScenario, starting: readonly SubmittedStep[]): Refusal[] {
     const shown = (from: number, text: string) =>
       scenario.steps.slice(from).some((step) => step.expects.some((expect) => expect.shows.some((other) => sameText(other, text))));
+    // The screen a step expects its results on: the one its last action left the page on, when a tool told it.
+    const screenOf = (step: SubmittedStep) => {
+      const last = this.cited(scenario, step.actions).at(-1);
+      return last?.screen === undefined ? undefined : `${last.application} ${last.screen}`;
+    };
+    const elsewhere = (step: SubmittedStep, later: SubmittedStep) => {
+      const [from, to] = [screenOf(step), screenOf(later)];
+      return from !== undefined && to !== undefined && from !== to;
+    };
     return starting.flatMap((step, at) =>
       step.expects.flatMap((expect) =>
         expect.shows.filter(checkable).flatMap((text): Refusal[] => {
-          const gone = scenario.steps.findIndex((later, j) => j > at && later.expects.some((other) => other.absent.some((absent) => sameText(absent, text))));
+          const gone = scenario.steps.findIndex(
+            (later, j) => j > at && !elsewhere(step, later) && later.expects.some((other) => other.absent.some((absent) => sameText(absent, text))),
+          );
           if (gone === -1) return [];
           if (shown(gone + 1, text)) return this.restoreErrors(scenario, gone, text);
           return [
@@ -1384,7 +1399,8 @@ export class PlanProposal {
    * scenario starts on and reads the page. A text its first step finds there that the page no longer shows
    * means the exploration changed the environment and did not put it back: the test would fail from its first
    * step. Only a first step that opens addresses and nothing else is looked at, and a page that cannot be
-   * read holds the plan to nothing.
+   * read holds the plan to nothing. So does an application the agent signed in to: the harness reads the page
+   * the agent is signed in to, and a test starts signed out.
    */
   private async staleErrors(scenarios: readonly SubmittedScenario[]): Promise<Refusal[]> {
     const refusals: Refusal[] = [];
@@ -1395,6 +1411,7 @@ export class PlanProposal {
       const texts = first!.expects.flatMap((expect) => expect.shows).filter(checkable);
       if (address === undefined || texts.length === 0 || opening.some((action) => action.tool !== "goto")) continue;
       const { application } = opening.at(-1)!;
+      if (this.rules.screens.actions(application).some((action) => SIGNING_IN.test(action.code))) continue;
       const missing = await this.rules.screens.missingAt(application, address, texts);
       if (missing === undefined || missing.length === 0) continue;
       this.journal.record(

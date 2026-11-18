@@ -671,8 +671,9 @@ export class ScreenWatch {
   }
 
   /**
-   * The actions after which the screen of an application showed a text beside its fields: the screen of an
-   * action is what the page showed between it and the next action on its application.
+   * The actions after which the screen of an application showed a text beside its fields, or as the value of a field
+   * the agent did not type it in, such as an amount the application filled a form with: the screen of an action is
+   * what the page showed between it and the next action on its application.
    *
    * @param application - Identifier of the application.
    * @param text - The text.
@@ -680,8 +681,15 @@ export class ScreenWatch {
    * user interface.
    */
   public shownAfter(application: string, text: string): number[] {
+    const filled = [...(this.view(application)?.filled ?? [])];
+    // A field shows its value, not its name, and what the agent typed in it is no answer of the application.
+    const shownBy = (line: string): string[] => {
+      const value = fieldValue(line);
+      if (value === undefined) return [line];
+      return filled.some((typed) => sameText(typed, value)) ? [] : [value];
+    };
     return this.done
-      .filter((action) => within(application, action.application) && observed(text, besideFields(this.after.get(action.number)!.shown)))
+      .filter((action) => within(application, action.application) && observed(text, [...this.after.get(action.number)!.shown].flatMap(shownBy)))
       .map((action) => action.number);
   }
 
