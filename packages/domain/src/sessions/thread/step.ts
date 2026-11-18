@@ -1,33 +1,7 @@
-import type { AgentRole } from "@open-qa-stack/domain/sessions";
-import type { IconName } from "../ui/icon.tsx";
+import type { ActionLook, AgentRole } from "../session-event.ts";
 
 /** Who speaks or acts in a session: the person who asked, one of the agents, or the harness that holds them to the evidence. */
 export type Speaker = "user" | AgentRole | "harness";
-
-/** A file an agent reads or writes: its path and its lines. */
-export interface CodeLook {
-  readonly kind: "code";
-  /** The path of the file. */
-  readonly file: string;
-  /** Its lines. */
-  readonly lines: readonly string[];
-  /** What the look shows, in a sentence. */
-  readonly caption: string;
-}
-
-/** A text an agent reads: the page a browser tool rendered for it, a piece of knowledge. */
-export interface DocumentLook {
-  readonly kind: "document";
-  /** Where the excerpt comes from. */
-  readonly source: string;
-  /** The excerpt. */
-  readonly excerpt: readonly string[];
-  /** What the look shows, in a sentence. */
-  readonly caption: string;
-}
-
-/** What an agent looks at when it acts. */
-export type Look = CodeLook | DocumentLook;
 
 /** What every step of a session carries. */
 interface StepBase {
@@ -61,15 +35,16 @@ export interface DeliveryStep extends StepBase {
 export interface ToolStep extends StepBase {
   readonly kind: "tool";
   readonly from: Speaker;
-  readonly icon: IconName;
+  /** The name of the tool, by which a presentation draws it. */
+  readonly tool: string;
   /** What the agent did, in the past tense. */
   readonly title: string;
-  /** What it got, in a sentence. */
+  /** What it got, on one line. */
   readonly detail?: string;
-  /** How it ended, for a run of a test. */
+  /** How it ended, when the answer of the tool says so. */
   readonly outcome?: "passed" | "failed";
-  /** What the agent looked at. */
-  readonly look?: Look;
+  /** What the agent had before its eyes when the tool answered. */
+  readonly look?: ActionLook;
   /** Whether the tool has not answered yet. */
   readonly pending?: boolean;
   /** How long the tool took to answer, in milliseconds, once it did. */
@@ -88,28 +63,28 @@ export interface VerdictStep extends StepBase {
   readonly text: string;
 }
 
-/** A scenario of a plan. */
-export interface PlannedScenario {
+/** A scenario of a plan, as a thread lists it. */
+export interface ListedScenario {
   /** Its priority, such as `P0`, or its level when the plan gives no priority. */
   readonly priority: string;
   readonly title: string;
-  /** Its level of the pyramid and where it comes from. */
+  /** Its case and the application it tests, when the plan says them. */
   readonly source: string;
 }
 
-/** The plan of a pass, once the harness and the review accepted it. */
+/** The plan of a pass, once the harness accepted it. */
 export interface PlanStep extends StepBase {
   readonly kind: "plan";
   readonly title: string;
-  readonly scenarios: readonly PlannedScenario[];
+  readonly scenarios: readonly ListedScenario[];
 }
 
 /** A pass starts: one loop of the agents for one level of the pyramid. */
 export interface PassStep extends StepBase {
   readonly kind: "pass";
-  /** Its rank and its level, such as `Passe 1 · Smoke`. */
+  /** Its phase, and its level once its request names it. */
   readonly title: string;
-  /** What the level makes of the request. */
+  /** The scenario the pass works on, when it works on one. */
   readonly summary: string;
   /** Whether it is a part of a pass, such as the writing of one test, which the progress of the session leaves out. */
   readonly minor?: boolean;
@@ -139,24 +114,5 @@ export interface NoteStep extends StepBase {
   readonly text: string;
 }
 
-/** A step of a session. */
+/** A step of a session, as its thread tells it. */
 export type Step = SayStep | DeliveryStep | ToolStep | VerdictStep | PlanStep | PassStep | OutcomeStep | NoteStep;
-
-/**
- * Where a session is for whoever reads its thread: `queued` while it waits its turn, `live` while its
- * agents work, `ended` once no step will come.
- */
-export type SessionStage = "queued" | "live" | "ended";
-
-/** A session of the agents, as its thread tells it, step by step. */
-export interface SessionScript {
-  /** The identifier of the session. */
-  readonly id: string;
-  /** What was asked, or when the session was opened when nothing was. */
-  readonly title: string;
-  /** The knowledge sources the agents read. */
-  readonly sources: readonly string[];
-  /** Where the session is: more steps may come until it ended. */
-  readonly stage: SessionStage;
-  readonly steps: readonly Step[];
-}

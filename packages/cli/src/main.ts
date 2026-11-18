@@ -6,6 +6,7 @@ const code = await soloCommand(process.argv.slice(2), {
   cwd: process.cwd(),
   stdout: process.stdout,
   stderr: process.stderr,
+  ...(process.stdin.isTTY && process.stdout.isTTY ? { terminal: { stdin: process.stdin, stdout: process.stdout } } : {}),
   onInterrupt: (listener) => {
     process.on("SIGINT", listener);
     return () => process.off("SIGINT", listener);

@@ -27,7 +27,7 @@ The console reaches its instance under `/api`, on its own origin, where the API 
 | `src/api/`                    | The client of the API, the one error every screen shows and its French wordings, the poll of a call, the stream of a session, whether a session ended. |
 | `src/shell/`                  | The frame of every screen: the top bar and the navigation, beside the mark on a narrow screen, a sidebar from 1100 px wide.           |
 | `src/ui/`                     | The components every screen shares, and their style sheet.                                                                            |
-| `src/agent/`                  | The sessions: how the events of one read as the steps of its thread, how it is followed or replayed, its thread, and the panel of a look. |
+| `src/agent/`                  | The sessions: the words of the console for the steps of a thread, which `@open-qa-stack/domain/sessions` reads from the events of a session for every presentation, how a session is followed or replayed, its thread, and the panel of a look. |
 
 A screen is a function of what the API told and of its route: it holds no state and listens to no event. A filter or a selection is an address, so that every state of the console can be linked to, and tested by rendering it. The application alone holds state — what the API sent, and how each session is read — and hands it to the screen that shows it. No screen calls the network: `src/api/` does, with the types of `@open-qa-stack/domain/sessions`.
 
@@ -46,7 +46,7 @@ While a session goes on — it runs, or waits its turn — its bar offers to sto
 
 A session that did not change keeps the object the state already holds, so that what is computed from it is not computed again at every list.
 
-Every failure of the API is an `ApiError` with the `code` of the problem the API answered, `error` when it gave none, or `unreachable` when no answer came. The console decides on that code alone: it words the codes it knows in French (`src/api/problem-text.ts`), shows the `detail` of the API otherwise, and says « Hors ligne » only for `unreachable`. A value the console does not know — a state, a phase, an outcome, a type of event — reads as a neutral one, or is ignored: a later version of the API does not break an earlier console. One predicate, `hasEnded` in `src/api/session-state.ts`, tells whether a session no longer goes on: it has not while it is `queued` or `running`, and has in any other state, one the console does not know included.
+Every failure of the API is an `ApiError` with the `code` of the problem the API answered, `error` when it gave none, or `unreachable` when no answer came. The console decides on that code alone: it words the codes it knows in French (`src/api/problem-text.ts`), shows the `detail` of the API otherwise, and says « Hors ligne » only for `unreachable`. A value the console does not know — a state, a phase, an outcome, a type of event — reads as a neutral one, or is ignored: a later version of the API does not break an earlier console. One predicate, `hasEnded` of `@open-qa-stack/domain/sessions`, tells whether a session no longer goes on, for the console as for the conversation of the command line: it has not while it is `queued` or `running`, and has in any other state, one the console does not know included.
 
 ## Styles and design tokens
 

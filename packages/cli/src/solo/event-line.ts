@@ -66,8 +66,13 @@ function named(agent: AgentRole): string {
   return agent.replaceAll("_", " ");
 }
 
-/** A value on one line, cut to the longest length shown. */
-function shortened(value: unknown): string {
+/**
+ * Puts a value on one line a person reads.
+ *
+ * @param value - A text, or a value written as JSON.
+ * @returns It on one line, cut to {@link MAX_FOLLOWED_LENGTH} characters with an ellipsis when it holds more.
+ */
+export function shortened(value: unknown): string {
   const text = (typeof value === "string" ? value : String(JSON.stringify(value))).replace(/\s+/g, " ").trim();
   return text.length > MAX_FOLLOWED_LENGTH ? `${text.slice(0, MAX_FOLLOWED_LENGTH)}…` : text;
 }

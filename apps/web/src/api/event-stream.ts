@@ -1,6 +1,5 @@
-import type { SessionEvent } from "@open-qa-stack/domain/sessions";
+import { hasEnded, type SessionEvent } from "@open-qa-stack/domain/sessions";
 import { API_BASE } from "./api-client.ts";
-import { hasEnded } from "./session-state.ts";
 
 /**
  * Where a stream of events is: `connecting` until it first opens, `open` while it receives, `reconnecting`

@@ -1,5 +1,5 @@
 import type { IconName } from "../ui/icon.tsx";
-import type { Speaker } from "./session-script.ts";
+import type { Speaker } from "@open-qa-stack/domain/sessions";
 
 /** How the console shows who speaks: a name, a role, an icon and a colour family. */
 export interface Identity {

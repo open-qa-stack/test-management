@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Icon } from "../ui/icon.tsx";
 import { IDENTITIES } from "./agents.ts";
-import type { Speaker } from "./session-script.ts";
+import type { Speaker } from "@open-qa-stack/domain/sessions";
 
 /** What the mark of a speaker needs. */
 export interface SpeakerMarkProps {

@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import { eyeIdOf, focusAfterLook, LOOK_TITLE_ID, openedLookOf, withoutLook } from "../../src/agent/opened-look.ts";
-import type { SessionScript } from "../../src/agent/session-script.ts";
+import type { SessionScript } from "@open-qa-stack/domain/sessions";
 import { at } from "../render.ts";
 
-const LOOK = { kind: "document", source: "card", excerpt: ["a rule"], caption: "The card." } as const;
+const LOOK = { kind: "page", name: "card", lines: ["a rule"] } as const;
 
 /** A session whose second step looked at something, whose third did not, and whose last has not answered. */
 const SCRIPT: SessionScript = {
@@ -14,15 +14,19 @@ const SCRIPT: SessionScript = {
   stage: "live",
   steps: [
     { kind: "say", from: "user", at: "10:00:00", text: "Cover the quotes." },
-    { kind: "tool", from: "planner", at: "10:00:01", icon: "web", title: "Opened the form", look: LOOK },
-    { kind: "tool", from: "planner", at: "10:00:02", icon: "pen", title: "Proposed a plan" },
-    { kind: "tool", from: "writer", at: "10:00:03", icon: "play", title: "Ran the test", pending: true },
+    { kind: "tool", from: "planner", at: "10:00:01", tool: "shop_goto", title: "Opened the form", look: LOOK },
+    { kind: "tool", from: "planner", at: "10:00:02", tool: "propose_plan", title: "Proposed a plan" },
+    { kind: "tool", from: "writer", at: "10:00:03", tool: "run_test", title: "Ran the test", pending: true },
   ],
 };
 
 describe("the look an address opens", () => {
   it("is the look of the action the address names by its rank, with the sentence of that action", () => {
-    assert.deepEqual(openedLookOf(at("#/agent/sessions/s?show=talk&look=1"), SCRIPT), { index: 1, action: "Opened the form", look: LOOK });
+    assert.deepEqual(openedLookOf(at("#/agent/sessions/s?show=talk&look=1"), SCRIPT), {
+      index: 1,
+      action: "Opened the form",
+      look: { kind: "document", source: "card", excerpt: ["a rule"], caption: "La page, telle que l’outil l’a rendue à l’agent." },
+    });
   });
 
   it("is nothing when the address names no step, a step that is no action, or an action that looked at nothing", () => {

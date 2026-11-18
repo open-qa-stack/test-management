@@ -1,18 +1,22 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import type { ShownStep } from "../../src/agent/playback.ts";
-import type { Step } from "../../src/agent/session-script.ts";
-import { turnsOf, type Turn } from "../../src/agent/turns.ts";
-import { liveOf } from "./session-fixture.ts";
+import { turnsOf, type Step, type Turn } from "../src/sessions/index.ts";
+
+/** A step as a presentation shows it: with its rank, and whether it is still going. */
+interface ShownStep {
+  readonly index: number;
+  readonly step: Step;
+  readonly running: boolean;
+}
 
 /**
  * Shows steps in full, as a thread that follows an ended session does.
  *
  * @param steps - The steps, in order.
- * @returns Each with its rank, its text written, none running.
+ * @returns Each with its rank, none running.
  */
 function shownOf(steps: readonly Step[]): ShownStep[] {
-  return steps.map((step, index) => ({ index, step, written: step.kind === "say" ? step.text : "", running: false }));
+  return steps.map((step, index) => ({ index, step, running: false }));
 }
 
 /**
@@ -21,14 +25,14 @@ function shownOf(steps: readonly Step[]): ShownStep[] {
  * @param turn - The turn.
  * @returns The summary, such as `agent:planner 5,6,7`.
  */
-function summaryOf(turn: Turn): string {
+function summaryOf(turn: Turn<ShownStep>): string {
   const ranks = "items" in turn ? turn.items.map(({ index }) => index) : [turn.shown.index];
   return `${turn.kind}${turn.kind === "agent" ? `:${turn.agent}` : ""} ${ranks.join(",")}`;
 }
 
 const NOTE: Step = { kind: "note", at: "09:00:00", text: "A note." };
 const THOUGHT: Step = { kind: "say", from: "planner", at: "09:00:01", text: "I think.", thinking: true };
-const ACTION: Step = { kind: "tool", from: "planner", at: "09:00:02", icon: "web", title: "A ouvert /" };
+const ACTION: Step = { kind: "tool", from: "planner", at: "09:00:02", tool: "shop_goto", title: "Opened /" };
 const ANSWER: Step = { kind: "say", from: "writer", at: "09:00:03", text: "Done." };
 
 describe("the turns of a thread", () => {
@@ -36,21 +40,21 @@ describe("the turns of a thread", () => {
     assert.deepEqual(turnsOf([]), []);
   });
 
-  it("read the session of the fixtures as a conversation, every step kept once and in order", () => {
-    const { shown } = liveOf().frame;
-    const turns = turnsOf(shown);
-    assert.deepEqual(turns.map(summaryOf), [
-      "card 0",
-      "notes 1",
-      "card 2",
-      "request 3",
-      "brief 4",
-      "agent:planner 5,6,7",
-      "card 8",
-      "card 9",
-      "card 10",
-      "agent:writer 11,12",
+  it("read a session as a conversation, every step kept once and in order", () => {
+    const shown = shownOf([
+      { kind: "pass", at: "09:00:00", title: "Configuration", summary: "" },
+      NOTE,
+      { kind: "pass", at: "09:00:00", title: "Plan", summary: "" },
+      { kind: "say", from: "user", at: "09:00:00", text: "Test the search." },
+      { kind: "say", from: "harness", to: "planner", at: "09:00:00", text: "Plan it." },
+      THOUGHT,
+      ACTION,
+      { ...ACTION, at: "09:00:03" },
+      { kind: "plan", at: "09:00:04", title: "Plan accepted", scenarios: [] },
+      ANSWER,
     ]);
+    const turns = turnsOf(shown);
+    assert.deepEqual(turns.map(summaryOf), ["card 0", "notes 1", "card 2", "request 3", "brief 4", "agent:planner 5,6,7", "card 8", "agent:writer 9"]);
     assert.deepEqual(turns[3], { kind: "request", shown: shown[3] });
     assert.deepEqual(turns[5], { kind: "agent", agent: "planner", items: shown.slice(5, 8) });
   });
@@ -125,7 +129,7 @@ describe("the turns of a thread", () => {
   });
 
   it("keep the steps as the thread shows them, the one still going included", () => {
-    const running: ShownStep = { index: 7, step: ACTION, written: "", running: true };
+    const running: ShownStep = { index: 7, step: ACTION, running: true };
     const [turn] = turnsOf([running]);
     assert.deepEqual(turn, { kind: "agent", agent: "planner", items: [running] });
   });

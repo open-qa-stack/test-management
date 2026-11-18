@@ -6,6 +6,12 @@ export interface CommandOutput {
   write(text: string): unknown;
 }
 
+/** The terminal a person sits at: where the command reads their keys and draws its screen. */
+export interface CommandTerminal {
+  readonly stdin: NodeJS.ReadStream;
+  readonly stdout: NodeJS.WriteStream;
+}
+
 /** What the command runs with: its environment, its folder and its outputs. */
 export interface CommandIo {
   readonly env: Readonly<Record<string, string | undefined>>;
@@ -13,6 +19,8 @@ export interface CommandIo {
   readonly cwd: string;
   readonly stdout: CommandOutput;
   readonly stderr: CommandOutput;
+  /** The terminal of the person, when the command has one on both its input and its output: without it, the command asks nothing and draws nothing. */
+  readonly terminal?: CommandTerminal;
   /**
    * Listens to the person who asks the command to stop, Ctrl-C in a terminal: the listener is called each
    * time they do.

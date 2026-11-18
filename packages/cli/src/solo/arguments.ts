@@ -7,6 +7,8 @@ export type Command =
   | { readonly name: "help" }
   /** Initialise the test repository as a Playwright project. */
   | { readonly name: "init" }
+  /** Open the conversation, where the sessions are opened and followed. */
+  | { readonly name: "converse"; readonly environment?: string }
   /** Open a session, and follow it to its end. */
   | { readonly name: "run"; readonly brief: string; readonly environment?: string }
   /** List the sessions. */
@@ -50,7 +52,8 @@ const PORT_DIGITS = /^[0-9]{1,5}$/;
 const UI_ALONE = "--ui serves the console, where the sessions are opened and followed: it takes --repository, --host and --port alone.";
 
 /** How to run the command, as `oqas --help` prints it. */
-export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>] --brief <text> [--follow] [--output text|json] [--no-input]
+export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
+       oqas [--repository <folder>] [--environment <name>] --brief <text> [--follow] [--output text|json] [--no-input]
        oqas [--repository <folder>] sessions [--output text|json]
        oqas [--repository <folder>] show <session> [--follow] [--output text|json]
        oqas [--repository <folder>] attach <session> [--follow] [--output text|json]
@@ -59,7 +62,8 @@ export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
        oqas [--repository <folder>] --ui [--host <address>] [--port <number>]
        oqas [--repository <folder>] --init
 
-With --brief, opens a session: maps the target application, designs Playwright tests on a new local branch, runs
+Without a command, in a terminal, opens a conversation: say what to test and a session opens, its thread is
+followed live, what you type is said to its agents, and / lists the commands. With --brief, opens a session: maps the target application, designs Playwright tests on a new local branch, runs
 them and gives a verdict per test. The other commands read the sessions of the test repository and act on one,
 from any terminal: <session> is its identifier, or the start or the end of it when no other session shares it.
 With --ui, serves the console of the test repository in a browser, on this machine, until Ctrl-C: the sessions
@@ -78,7 +82,7 @@ Options:
   --brief <text>         What to test, in your words: a domain, a ticket, a rule, a journey.
   --follow               Print what the agents do besides what the harness tells: each tool call, its result, each message.
   --output text|json     How to print: lines to read, the default, or JSON Lines, one event of the session a line.
-  --no-input             Never ask anything on the terminal. The command asks nothing yet: the option is accepted for the scripts that set it.
+  --no-input             Never ask anything on the terminal: without a command, the conversation is not opened.
   --ui                   Serve the console of the test repository and print its address; Ctrl-C stops it.
   --host <address>       With --ui, the address to listen on; 127.0.0.1 by default. The console asks nobody who
                          they are: keep it on this machine.
@@ -87,10 +91,10 @@ Options:
                          lacks, overwrite none, run nothing.
   --help                 Print this help.
 
-Exit codes of a session followed to its end: 0 every test passed, 1 a test failed, 2 a test was blocked,
+Exit codes of a session followed to its end, and of the conversation for the last session it opened: 0 every test passed, 1 a test failed, 2 a test was blocked,
 indeterminate, skipped or not run, 3 the configuration or the arguments are invalid, 4 a prerequisite is missing,
 5 the session did not go to its end. The other commands exit with 0, with 3 when they are refused, with 5 when they fail.
---ui exits with 0 once it is stopped.
+--ui exits with 0 once it is stopped, and so does a conversation that opened no session.
 `;
 
 /** The options that take none. */
@@ -129,7 +133,9 @@ export function parseArguments(argv: readonly string[]): Parsed {
   const init = flags.has("--init");
   // The console is where the sessions are opened and read: beside it, nothing of a session nor of another command is taken.
   const beside = init || follow || words.length > 0 || [environment, brief, values.output].some((value) => value !== undefined);
-  const command = flags.has("--ui") && !help ? served(beside, host, port) : commandOf(words, { environment, brief, follow, help, init });
+  // The conversation asks on the terminal, and prints a screen, not lines: it goes with where it takes place, and with nothing else.
+  const asks = !flags.has("--no-input") && !follow && values.output === undefined;
+  const command = flags.has("--ui") && !help ? served(beside, host, port) : commandOf(words, { environment, brief, follow, help, init, asks });
   if (typeof command === "string") return refused(command);
   if (command.name !== "ui" && command.name !== "help" && (host !== undefined || port !== undefined))
     return refused("--host and --port say where --ui listens: they go with it alone.");
@@ -155,15 +161,18 @@ function commandOf(
     readonly follow: boolean;
     readonly help: boolean;
     readonly init: boolean;
+    /** Whether the command may open the conversation, when it is given nothing else to do. */
+    readonly asks: boolean;
   },
 ): Command | string {
-  const { environment, brief, follow, help, init } = options;
+  const { environment, brief, follow, help, init, asks } = options;
   if (help) return { name: "help" };
   const opens = environment !== undefined || brief !== undefined;
   const [name, ...rest] = words;
   if (init)
     return opens || name !== undefined ? "--init writes the files of the test repository and runs nothing: it takes --repository alone." : { name: "init" };
   if (name === undefined) {
+    if (brief === undefined && asks) return { name: "converse", ...(environment === undefined ? {} : { environment }) };
     if (brief === undefined) return "Say what to test with --brief, or name a command; see oqas --help.";
     return { name: "run", brief, ...(environment === undefined ? {} : { environment }) };
   }
