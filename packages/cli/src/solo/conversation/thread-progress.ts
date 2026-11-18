@@ -20,7 +20,7 @@ export interface ThreadProgress {
 export function progressOf(script: SessionScript): ThreadProgress {
   const pass = script.steps.findLast((step) => step.kind === "pass");
   const last = script.steps.at(-1);
-  const acts = last !== undefined && (last.kind === "say" || last.kind === "tool") && last.from !== "user" && last.from !== "harness";
+  const acts = last !== undefined && (last.kind === "say" || last.kind === "tool" || last.kind === "review") && last.from !== "user" && last.from !== "harness";
   return {
     ...(pass === undefined ? {} : { pass: pass.title }),
     ...(pass === undefined || pass.summary === "" ? {} : { scenario: pass.summary }),

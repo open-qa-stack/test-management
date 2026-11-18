@@ -99,7 +99,7 @@ function followed(script: SessionScript): { readonly shown: ShownStep[]; readonl
     index,
     step,
     written: step.kind === "say" ? step.text : "",
-    running: script.stage === "live" && step.kind === "tool" && step.pending === true,
+    running: script.stage === "live" && (step.kind === "tool" || step.kind === "review") && step.pending === true,
   }));
   const last = script.steps.at(-1);
   const speaking = script.stage === "live" && last !== undefined ? fromOf(last) : undefined;
@@ -117,7 +117,7 @@ function replayed(script: SessionScript, tick: number): { readonly shown: ShownS
     const elapsed = tick - start;
     const running = elapsed < duration;
     shown.push({ index, step, written: step.kind === "say" ? step.text.slice(0, running ? elapsed * CHARACTERS_PER_TICK : step.text.length) : "", running });
-    if (running && (step.kind === "say" || step.kind === "tool")) speaking = step.from;
+    if (running && (step.kind === "say" || step.kind === "tool" || step.kind === "review")) speaking = step.from;
     start += duration + PAUSE_TICKS;
   }
   return { shown, ...(speaking === undefined ? {} : { speaking }) };
@@ -224,13 +224,14 @@ export type ThreadFilter = "all" | "talk" | "actions" | "verdicts";
  * @param filter - What the thread keeps.
  * @param speaker - The only speaker the thread follows, if any.
  * @returns Whether the step shows. The start of a pass always does, and the delivery of a message, which only
- * says where a message shown is; a verdict or a note is the harness speaking.
+ * says where a message shown is; a verdict or a note is the harness speaking, and the verdict of a reviewer is
+ * one of the verdicts too.
  */
 export function shows(step: Step, filter: ThreadFilter, speaker?: Speaker): boolean {
   if (step.kind === "pass" || step.kind === "delivery") return true;
   if (speaker !== undefined && fromOf(step) !== speaker) return false;
   if (filter === "talk") return step.kind === "say";
   if (filter === "actions") return step.kind === "tool" || step.kind === "plan" || step.kind === "outcome";
-  if (filter === "verdicts") return step.kind === "verdict" || step.kind === "note";
+  if (filter === "verdicts") return step.kind === "verdict" || step.kind === "review" || step.kind === "note";
   return true;
 }

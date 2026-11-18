@@ -854,6 +854,67 @@
   margin-top: var(--gap-line);
 }
 
+/* The verdict of a reviewer: who reviewed what and what it came to, each remark under a hairline, the call folded at the end. */
+.remarks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-row);
+  margin: var(--gap-row) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.remark {
+  padding-top: var(--gap-row);
+  border-top: var(--hairline) solid var(--line-soft);
+}
+
+.remark-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gap-line) var(--space-2);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+  overflow-wrap: anywhere;
+}
+
+.remark-text {
+  max-inline-size: var(--measure);
+  margin: var(--gap-line) 0 0;
+  font-size: var(--type-reading);
+  line-height: var(--leading-reading);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.review-call {
+  margin-top: var(--gap-row);
+  color: var(--text-2);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+}
+
+.review-call summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+  cursor: pointer;
+}
+
+.review-call dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--gap-line) var(--space-3);
+  margin: 0 0 var(--gap-line);
+}
+
+.review-call dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 /* A plan the harness accepted, and what the session produced: a card whose rows share their columns. */
 .result-card {
   display: grid;

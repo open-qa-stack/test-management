@@ -289,3 +289,125 @@ describe("the script of a session", () => {
     assert.deepEqual(stepsOf(events.slice(0, 2), INTERRUPTED), []);
   });
 });
+describe("the verdict of a reviewer", () => {
+  const RECORDED = "Recorded. Answer with one word; call no more tools.";
+
+  it("is a review of its own, with each remark in full, the plumbing of its call kept in it, its one-word reply too", () => {
+    assert.deepEqual(
+      stepsOf([
+        { type: "phase_started", phase: "write", scenario: "search" },
+        { type: "harness_message", to: "code_reviewer", text: "The test: …" },
+        {
+          type: "action_started",
+          action: "r",
+          agent: "code_reviewer",
+          tool: "report_quality",
+          arguments: {
+            findings: [
+              { where: " Step 1 ", what: "The total depends on the data.", rule: "PW-DATA-01", concerns: "plan" },
+              { what: "No screenshot ends the step.", rule: " " },
+              { where: "Step 2" },
+              "not a finding",
+            ],
+          },
+        },
+        { type: "action_finished", action: "r", outcome: "done", result: ` ${RECORDED} `, durationMs: 6 },
+        { type: "agent_message", agent: "code_reviewer", text: " Done ", reasoning: false },
+      ]).slice(2),
+      [
+        {
+          kind: "review",
+          from: "code_reviewer",
+          at: "14:44:08",
+          scenario: "search",
+          remarks: [
+            { text: "The total depends on the data.", where: "Step 1", rule: "PW-DATA-01", concerns: "plan" },
+            { text: "No screenshot ends the step." },
+          ],
+          tool: "report_quality",
+          answer: RECORDED,
+          durationMs: 6,
+          reply: "Done",
+        },
+      ],
+    );
+  });
+
+  it("names the scenario a reviewer of the plan found a duplicate, and what it repeats, and reviews no scenario", () => {
+    const [review] = stepsOf([
+      { type: "phase_started", phase: "plan" },
+      {
+        type: "action_started",
+        action: "r",
+        agent: "plan_reviewer",
+        tool: "report_duplicates",
+        arguments: {
+          duplicates: [
+            { id: "search-again", of: "tests/search.spec.ts", reason: "Both search a customer." },
+            { id: "alone", reason: "No of." },
+          ],
+        },
+      },
+    ]).slice(1);
+    assert.deepEqual(review, {
+      kind: "review",
+      from: "plan_reviewer",
+      at: "14:44:07",
+      remarks: [{ text: "Both search a customer.", duplicate: { scenario: "search-again", of: "tests/search.spec.ts" } }, { text: "No of." }],
+      tool: "report_duplicates",
+      pending: true,
+    });
+  });
+
+  it("finds no remark in an empty list, and none in a call that holds no list: a reviewer reads before it reports", () => {
+    const steps = stepsOf([
+      { type: "action_started", action: "a", agent: "coherence_reviewer", tool: "report_findings", arguments: { findings: [] } },
+      { type: "action_started", action: "b", agent: "coherence_reviewer", tool: "tests_read", arguments: { path: "a.spec.ts" } },
+      { type: "action_started", action: "c", agent: "coherence_reviewer", tool: "report_findings", arguments: null },
+      { type: "action_started", action: "d", agent: "writer", tool: "report_findings", arguments: { findings: [] } },
+    ]);
+    assert.deepEqual(
+      steps.map((step) => (step.kind === "review" ? step.remarks : step.kind)),
+      [[], "tool", "tool", "tool"],
+    );
+  });
+
+  it("is told refused when the harness refused the call, and then takes no reply", () => {
+    const steps = stepsOf([
+      { type: "action_started", action: "r", agent: "coherence_reviewer", tool: "report_findings", arguments: { findings: [] } },
+      { type: "action_finished", action: "r", outcome: "failed", result: "The arguments do not match.", durationMs: 2 },
+      { type: "agent_message", agent: "coherence_reviewer", text: "Pass", reasoning: false },
+    ]);
+    assert.deepEqual(steps, [
+      {
+        kind: "review",
+        from: "coherence_reviewer",
+        at: "14:44:06",
+        remarks: [],
+        tool: "report_findings",
+        answer: "The arguments do not match.",
+        durationMs: 2,
+        refused: true,
+      },
+      { kind: "say", from: "coherence_reviewer", at: "14:44:08", text: "Pass" },
+    ]);
+  });
+
+  it("tells what a reviewer says after its verdict when it is more than a word, or after something else, or a reasoning", () => {
+    const steps = stepsOf([
+      { type: "action_started", action: "r", agent: "code_reviewer", tool: "report_quality", arguments: { findings: [] } },
+      { type: "action_finished", action: "r", outcome: "done", result: "Recorded.", durationMs: 2 },
+      { type: "agent_message", agent: "code_reviewer", text: "I think it holds.", reasoning: true },
+      { type: "agent_message", agent: "code_reviewer", text: "It is fine overall.", reasoning: false },
+      { type: "agent_message", agent: "code_reviewer", text: "Done", reasoning: false },
+      { type: "action_started", action: "s", agent: "code_reviewer", tool: "report_quality", arguments: { findings: [] } },
+      { type: "action_finished", action: "s", outcome: "done", result: "Recorded.", durationMs: 2 },
+      { type: "action_started", action: "t", agent: "code_reviewer", tool: "tests_read", arguments: {} },
+      { type: "agent_message", agent: "code_reviewer", text: "Done", reasoning: false },
+    ]);
+    assert.deepEqual(
+      steps.map((step) => (step.kind === "say" ? step.text : step.kind === "review" ? `review ${step.reply ?? ""}` : step.kind)),
+      ["review ", "I think it holds.", "It is fine overall.", "Done", "review ", "tool", "Done"],
+    );
+  });
+});

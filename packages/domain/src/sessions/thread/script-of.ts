@@ -3,10 +3,17 @@ import type { Session } from "../session.ts";
 import type { AgentRole, SessionEvent } from "../session-event.ts";
 import type { ScriptWording } from "./script-wording.ts";
 import type { SessionScript, SessionStage } from "./session-script.ts";
-import type { ProducedTest, Step } from "./step.ts";
+import { remarksOf } from "./remarks-of.ts";
+import type { ProducedTest, ReviewStep, Reviewer, Step } from "./step.ts";
 
 /** The agents a thread knows: what one it does not know says or does is left out, as any event it does not know. */
 const AGENTS: ReadonlySet<string> = new Set<AgentRole>(["cartographer", "planner", "plan_reviewer", "writer", "coherence_reviewer", "code_reviewer"]);
+
+/** The agents that review, whose verdict is a step of its own. */
+const REVIEWERS: ReadonlySet<string> = new Set<Reviewer>(["plan_reviewer", "coherence_reviewer", "code_reviewer"]);
+
+/** What a reviewer says once its verdict was taken, when it is the word the harness asks for: no space in it. */
+const WORD = /^\S+$/;
 
 /** A text on one line, for what a presentation draws as a title. */
 function oneLine(text: string): string {
@@ -37,7 +44,9 @@ function stageOf(session: Session): SessionStage {
  * named after the level its request asks for. A message of the harness to an agent, of an agent, or of the
  * person is something said, and the delivery of a message the person sent during the session a step of its
  * own, so that a replay tells it when it happened; an action and its end are one step, worded as a sentence, pending until the tool
- * answered, with what the agent looked at; a plan the harness accepted is listed; a refusal is a verdict with
+ * answered, with what the agent looked at; the call a reviewer hands its verdict in with is a review, its remarks
+ * read from the arguments of the call, and what the harness answers and the word the reviewer replies with are kept
+ * in it rather than told; a plan the harness accepted is listed; a refusal is a verdict with
  * its code, a note a line of the harness. Once the session has ended it closes on the verdict of each test, or,
  * when none ran, on the scenarios the harness closed; an interruption is told. Every text is whole, as a person
  * needs it, since the end of a refusal says what to do; a title alone is put on one line.
@@ -54,6 +63,10 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
   const closed: ProducedTest[] = [];
   let asked: string | undefined;
   let plan: number | undefined;
+  /** The scenario whose test is being written, which a reviewer of a test reviews. */
+  let scenario: string | undefined;
+  /** By reviewer, the rank of its verdict the harness just took, whose one-word reply is still to come. */
+  const replies = new Map<string, number>();
   for (const event of events) {
     if (("agent" in event && !AGENTS.has(event.agent)) || ("to" in event && !AGENTS.has(event.to))) continue;
     const at = clock(event.at);
@@ -66,9 +79,16 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
       case "message_delivered":
         steps.push({ kind: "delivery", at, message: event.message, to: event.agent });
         break;
-      case "agent_message":
+      case "agent_message": {
+        const verdict = event.reasoning ? undefined : replies.get(event.agent);
+        if (!event.reasoning) replies.delete(event.agent);
+        if (verdict !== undefined && WORD.test(event.text.trim())) {
+          steps[verdict] = { ...(steps[verdict] as ReviewStep), reply: event.text.trim() };
+          break;
+        }
         steps.push({ kind: "say", from: event.agent, at, text: event.text.trim(), ...(event.reasoning ? { thinking: true } : {}) });
         break;
+      }
       case "harness_message":
         if (event.level !== undefined && plan !== undefined) steps[plan] = { ...steps[plan]!, title: `${wording.phase("plan")} · ${event.level}` } as Step;
         steps.push({ kind: "say", from: "harness", to: event.to, at, text: event.text.trim() });
@@ -78,12 +98,27 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
         if (event.source !== undefined) sources.add(event.source);
         else {
           const part = event.phase === "review" || event.phase === "write";
+          scenario = event.scenario;
           if (event.phase === "plan") plan = steps.length;
           steps.push({ kind: "pass", at, title: wording.phase(event.phase), summary: event.scenario ?? "", ...(part ? { minor: true } : {}) });
         }
         break;
-      case "action_started":
+      case "action_started": {
         actions.set(event.action, steps.length);
+        replies.delete(event.agent);
+        const remarks = REVIEWERS.has(event.agent) ? remarksOf(event.arguments) : undefined;
+        if (remarks !== undefined) {
+          steps.push({
+            kind: "review",
+            from: event.agent as Reviewer,
+            at,
+            ...(scenario === undefined ? {} : { scenario }),
+            remarks,
+            tool: event.tool,
+            pending: true,
+          });
+          break;
+        }
         steps.push({
           kind: "tool",
           from: event.agent,
@@ -93,9 +128,17 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
           pending: true,
         });
         break;
+      }
       case "action_finished": {
         const index = actions.get(event.action);
         const started = index === undefined ? undefined : steps[index];
+        if (index !== undefined && started?.kind === "review") {
+          const { pending: _taken, ...review } = started;
+          const refused = event.outcome === "failed";
+          steps[index] = { ...review, answer: event.result.trim(), durationMs: event.durationMs, ...(refused ? { refused } : {}) };
+          if (!refused) replies.set(review.from, index);
+          break;
+        }
         if (index === undefined || started?.kind !== "tool") break;
         const { pending: _answered, ...answered } = started;
         steps[index] = {

@@ -63,6 +63,48 @@ export interface VerdictStep extends StepBase {
   readonly text: string;
 }
 
+/** The agents that review: the plan for duplicates, a test against its scenario, a test for the quality of its code. */
+export type Reviewer = Extract<AgentRole, "plan_reviewer" | "coherence_reviewer" | "code_reviewer">;
+
+/** A remark of a reviewer, as it gave it. */
+export interface Remark {
+  /** What is wrong, or why a scenario repeats one before it. */
+  readonly text: string;
+  /** Where, when the reviewer said it: a step of the test, an assertion. */
+  readonly where?: string;
+  /** The rule of the charter it breaks, when the reviewer named one. */
+  readonly rule?: string;
+  /** What it concerns, when the reviewer said it: `test`, which its writer can repair, or `plan`, which it cannot. */
+  readonly concerns?: string;
+  /** The scenario a reviewer of the plan found a duplicate, and what it repeats. */
+  readonly duplicate?: { readonly scenario: string; readonly of: string };
+}
+
+/**
+ * A reviewer hands in its verdict: its remarks, none when it found nothing. The call of the tool it reports with,
+ * the answer of the harness and the word the reviewer replies with are the working of the review: they are kept
+ * here, for whoever looks into it, and make no step of their own.
+ */
+export interface ReviewStep extends StepBase {
+  readonly kind: "review";
+  readonly from: Reviewer;
+  /** The scenario whose test was reviewed; none when the plan was. */
+  readonly scenario?: string;
+  readonly remarks: readonly Remark[];
+  /** The name of the tool the verdict was handed in with. */
+  readonly tool: string;
+  /** Whether the harness has not answered yet. */
+  readonly pending?: boolean;
+  /** Whether the harness refused the call: the verdict was not taken, and the reviewer is to hand it in again. */
+  readonly refused?: boolean;
+  /** What the harness answered the call. */
+  readonly answer?: string;
+  /** What the reviewer said once its verdict was taken: a word. */
+  readonly reply?: string;
+  /** How long the harness took to answer, in milliseconds. */
+  readonly durationMs?: number;
+}
+
 /** A scenario of a plan, as a thread lists it. */
 export interface ListedScenario {
   /** Its priority, such as `P0`, or its level when the plan gives no priority. */
@@ -115,4 +157,4 @@ export interface NoteStep extends StepBase {
 }
 
 /** A step of a session, as its thread tells it. */
-export type Step = SayStep | DeliveryStep | ToolStep | VerdictStep | PlanStep | PassStep | OutcomeStep | NoteStep;
+export type Step = SayStep | DeliveryStep | ToolStep | ReviewStep | VerdictStep | PlanStep | PassStep | OutcomeStep | NoteStep;

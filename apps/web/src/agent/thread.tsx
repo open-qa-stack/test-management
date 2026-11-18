@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { hrefTo } from "../routing/route.ts";
-import { Badge } from "../ui/badge.tsx";
+import { Badge, type BadgeTone } from "../ui/badge.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Icon } from "../ui/icon.tsx";
 import { IDENTITIES } from "./agents.ts";
@@ -13,6 +13,8 @@ import {
   type OutcomeStep,
   type PassStep,
   type PlanStep,
+  type Remark,
+  type ReviewStep,
   type SayStep,
   type SessionStage,
   type Speaker,
@@ -22,6 +24,7 @@ import {
 } from "@open-qa-stack/domain/sessions";
 import { SpeakerMark } from "./speaker-mark.tsx";
 import { iconOf } from "./tool-icon.ts";
+import { counted } from "../ui/counted.ts";
 
 /** What the thread of a session needs. */
 export interface ThreadProps {
@@ -284,6 +287,88 @@ function Verdict({ step, index, back }: { readonly step: VerdictStep; readonly i
   );
 }
 
+/** What a reviewer reviewed, as its card says it. */
+function reviewedOf(step: ReviewStep): string {
+  return step.scenario === undefined ? "a relu le plan" : `a relu le test de ${step.scenario}`;
+}
+
+/** The verdict of a reviewer in a few words, and its colour: none found is a pass; a call the harness refused or has not answered yet is no verdict. */
+function reviewVerdictOf(step: ReviewStep, running: boolean): readonly [BadgeTone, string] {
+  if (step.refused === true) return ["ko", "non retenu par le harnais"];
+  if (running) return ["neutral", "en cours"];
+  const count = step.remarks.length;
+  if (step.from === "plan_reviewer") return count === 0 ? ["ok", "aucun doublon"] : ["warn", counted(count, "doublon", "doublons")];
+  return count === 0 ? ["ok", "aucune remarque"] : ["warn", counted(count, "remarque", "remarques")];
+}
+
+/** A remark of a reviewer, in full: the scenario a duplicate is and what it repeats, where it is and by which rule, then what it says. */
+function RemarkView({ remark }: { readonly remark: Remark }): ReactNode {
+  const placed = remark.duplicate !== undefined || remark.where !== undefined || remark.rule !== undefined || remark.concerns === "plan";
+  return (
+    <li className="remark">
+      {placed && (
+        <div className="remark-head">
+          {remark.duplicate !== undefined && (
+            <span>
+              <b>{remark.duplicate.scenario}</b> double <span className="mono">{remark.duplicate.of}</span>
+            </span>
+          )}
+          {remark.where !== undefined && <b>{remark.where}</b>}
+          {remark.rule !== undefined && <span className="verdict-code">{remark.rule}</span>}
+          {remark.concerns === "plan" && <Badge tone="neutral">porte sur le plan</Badge>}
+        </div>
+      )}
+      <p className="remark-text">{remark.text}</p>
+    </li>
+  );
+}
+
+/**
+ * The verdict of a reviewer: who reviewed what, what it came to, and each of its remarks in full. The call it
+ * was handed in with — the tool, what the harness answered, the word the reviewer replied — is folded under it,
+ * for whoever looks into the working of the review.
+ */
+function Review({ step, running }: { readonly step: ReviewStep; readonly running: boolean }): ReactNode {
+  const [tone, verdict] = reviewVerdictOf(step, running);
+  return (
+    <article className="verdict review">
+      <header className="verdict-head">
+        <div className="lead">
+          <SpeakerMark speaker={step.from} size="sm" active={running} />
+          <b>{IDENTITIES[step.from].name}</b>
+          <span className="turn-role">{reviewedOf(step)}</span>
+          <Badge tone={tone}>{verdict}</Badge>
+        </div>
+        <span className="turn-at">{step.at}</span>
+      </header>
+      {step.remarks.length > 0 && (
+        <ol className="remarks">
+          {step.remarks.map((remark, index) => (
+            <RemarkView key={index} remark={remark} />
+          ))}
+        </ol>
+      )}
+      {step.answer !== undefined && (
+        <details className="review-call">
+          <summary>Détails de l’appel</summary>
+          <dl>
+            <dt>Outil</dt>
+            <dd className="mono">{step.tool}</dd>
+            <dt>Réponse du harnais</dt>
+            <dd>{step.answer}</dd>
+            {step.reply !== undefined && (
+              <>
+                <dt>Réponse du relecteur</dt>
+                <dd>{step.reply}</dd>
+              </>
+            )}
+          </dl>
+        </details>
+      )}
+    </article>
+  );
+}
+
 /** The plan of a pass, once accepted: its scenarios. */
 function Plan({ step }: { readonly step: PlanStep }): ReactNode {
   return (
@@ -373,6 +458,7 @@ function TurnView({ turn, back }: { readonly turn: Turn<ShownStep>; readonly bac
   if (turn.kind === "brief") return <Brief shown={turn.shown} />;
   if (turn.kind === "notes") return <Notes items={turn.items} />;
   const { step } = turn.shown;
+  if (step.kind === "review") return <Review step={step} running={turn.shown.running} />;
   if (step.kind === "verdict") return <Verdict step={step} index={turn.shown.index} back={back} />;
   if (step.kind === "plan") return <Plan step={step} />;
   if (step.kind === "pass") return <Pass step={step} />;

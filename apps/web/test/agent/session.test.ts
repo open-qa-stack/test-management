@@ -538,6 +538,69 @@ describe("the thread of a session", () => {
     assert.doesNotMatch(thread(liveWith([{ ...lines, text: "a\nb\nc\nd\ne\nf" }])), /folded|read-more/);
   });
 
+  it("shows the verdict of a reviewer as what it is: who reviewed what, what it came to, each remark in full, the call folded under it", () => {
+    const review: Step = {
+      kind: "review",
+      from: "code_reviewer",
+      at: "09:00:01",
+      scenario: "search",
+      remarks: [{ text: "The total depends on the data.", where: "Step 1", rule: "PW-DATA-01", concerns: "plan" }, { text: "No screenshot ends the step." }],
+      tool: "report_quality",
+      answer: "Recorded. Answer with one word; call no more tools.",
+      reply: "Done",
+      durationMs: 6,
+    };
+    const html = thread(liveWith([review]));
+    assert.match(
+      textOf(html),
+      /^Relecteur de code a relu le test de search 2 remarques 09:00:01 Step 1 PW-DATA-01 porte sur le plan The total depends on the data\. No screenshot ends the step\. Détails de l’appel Outil report_quality Réponse du harnais Recorded\. Answer with one word; call no more tools\. Réponse du relecteur Done$/,
+    );
+    assert.match(
+      html,
+      /<article class="verdict review">.*<span class="badge warn">2 remarques<\/span>.*<ol class="remarks"><li class="remark"><div class="remark-head"><b>Step 1<\/b><span class="verdict-code">PW-DATA-01<\/span>/,
+    );
+    assert.match(html, /<li class="remark"><p class="remark-text">No screenshot ends the step\.<\/p><\/li>/);
+    assert.match(html, /<details class="review-call"><summary>Détails de l’appel<\/summary>/);
+  });
+
+  it("says a reviewer found nothing, a duplicate of the plan with what it repeats, a call not taken, and one still on its way", () => {
+    const clean: Step = {
+      kind: "review",
+      from: "coherence_reviewer",
+      at: "09:00:01",
+      scenario: "search",
+      remarks: [],
+      tool: "report_findings",
+      answer: "Recorded.",
+    };
+    const plan: Step = {
+      kind: "review",
+      from: "plan_reviewer",
+      at: "09:00:02",
+      remarks: [{ text: "Both search a customer.", duplicate: { scenario: "search-again", of: "tests/search.spec.ts" } }],
+      tool: "report_duplicates",
+      answer: "Recorded.",
+    };
+    const none: Step = { ...plan, remarks: [] };
+    const refused: Step = { ...clean, refused: true, answer: "The arguments do not match." };
+    const text = textOf(thread(liveWith([clean, plan, none, refused])));
+    assert.match(
+      text,
+      /Relecteur de cohérence a relu le test de search aucune remarque 09:00:01 Détails de l’appel Outil report_findings Réponse du harnais Recorded\. Relecteur/,
+    );
+    assert.match(text, /Relecteur du plan a relu le plan 1 doublon 09:00:02 search-again double tests\/search\.spec\.ts Both search a customer\./);
+    assert.match(text, /Relecteur du plan a relu le plan aucun doublon/);
+    assert.match(
+      text,
+      /aucune remarque.*non retenu par le harnais 09:00:01 Détails de l’appel Outil report_findings Réponse du harnais The arguments do not match\.$/,
+    );
+    const pending: Step = { kind: "review", from: "code_reviewer", at: "09:00:03", remarks: [], tool: "report_quality", pending: true };
+    const going = thread(liveWith([pending], RUNNING));
+    assert.match(going, /<span class="speaker-mark sm tone-ok active"[^>]*>.*<span class="badge neutral">en cours<\/span>/);
+    assert.doesNotMatch(going, /review-call|<ol/);
+    assert.match(thread(liveWith([pending])), /<span class="badge ok">aucune remarque<\/span>/);
+  });
+
   it("lists the scenarios of an accepted plan under their count", () => {
     assert.match(textOf(thread()), /Plan accepté par le harnais 1 scénario\(s\) 14:44:16 smoke Search a customer nominal · customer-management/);
     const html = thread(liveWith(REVIEWED));
