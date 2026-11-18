@@ -76,6 +76,27 @@ const run = (watch: ScreenWatch, action: string, args: object = {}) =>
     .find((tool) => tool.name === `shop_${action}`)!
     .execute(args) as Promise<Record<string, unknown>>;
 
+describe("the screens that showed a text", () => {
+  it("count the value of a field the application filled, and not one the agent typed, nor the name of a field", async () => {
+    const form = '- spinbutton "Amount in CHF": "1500"\n- textbox "Note"';
+    const typed = '- spinbutton "Amount in CHF": "1500"\n- textbox "Note": Urgent';
+    const tools = page([form, typed]).tools.map((tool) =>
+      tool.name === "shop_goto" || tool.name === "shop_fill"
+        ? { ...tool, execute: async (args: unknown) => ({ ...((await tool.execute(args)) as object), code: tool.name }) }
+        : tool,
+    );
+    const watch = new ScreenWatch(["shop"], tools);
+    await run(watch, "goto");
+    await run(watch, "fill", { value: "Urgent" });
+    assert.deepEqual(
+      ["1500", "Urgent", "Amount in CHF", "Note"].map((text) => watch.shownAfter("shop", text)),
+      [[1, 2], [], [], []],
+    );
+    // An application without a user interface showed nothing.
+    assert.deepEqual(watch.shownAfter("ledger", "1500"), []);
+  });
+});
+
 describe("the clicks that write", () => {
   /** The tools of a page whose clicks send a request that writes, but a click on Respond, which only opens a dialog; its network tool gives the requests sent. */
   function writingPage(network: (sent: readonly object[]) => unknown): ToolDefinition[] {

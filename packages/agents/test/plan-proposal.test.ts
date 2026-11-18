@@ -794,7 +794,8 @@ describe("the gates of a plan", () => {
           ...submitted.scenarios[0]!,
           sources: [{ source: "orders-db" }, { source: "shop" }, { source: "specs" }],
           data: [...data.slice(0, 4), { value: "ORD-1042", from: "orders-db" }],
-          steps: [{ action: "Search zzqx", expects: [{ result: "Nothing matches", shows, absent: ["ORD-1057", "Lena"] }] }],
+          // The value the field holds untyped is shown once the action that filled it is done: the step cites it.
+          steps: [{ action: "Search zzqx", actions: [1, 2], expects: [{ result: "Nothing matches", shows, absent: ["ORD-1057", "Lena"] }] }],
         },
         scenario("b"),
         scenario("c"),
@@ -899,7 +900,7 @@ describe("the gates of a plan", () => {
       scenarios: [
         functional("a", {
           data: [{ value, from: "shop" }],
-          steps: [{ action: `Search ${value}`, expects: [{ result: "The search answers", shows: [value, "ORD-1042"], absent: [] }] }],
+          steps: [{ action: `Search ${value}`, actions: [1, 3, 4], expects: [{ result: "The search answers", shows: [value, "ORD-1042"], absent: [] }] }],
         }),
         scenario("b"),
         scenario("c"),
@@ -1850,7 +1851,9 @@ describe("the start of a scenario that writes, looked at again by the harness", 
           state.renamed = target?.name === "Save";
           return { code: `await page.getByRole("button", { name: "${target?.name}" }).click();` };
         }),
-        ...["fill", "select_option", "check"].map((action) => tool(action, () => ({ code: `await page.${action}();` }))),
+        // The reference of an account is typed from the environment, as the real tool types it.
+        tool("fill", () => ({ code: 'await page.getByRole("textbox", { name: "Password", exact: true }).fill(process.env.SHOP_PASSWORD!);' })),
+        ...["select_option", "check"].map((action) => tool(action, () => ({ code: `await page.${action}();` }))),
       ],
     };
   };
@@ -1924,5 +1927,24 @@ describe("the start of a scenario that writes, looked at again by the harness", 
     const acting = await changedAgain();
     const first = { ...renaming, steps: [{ ...renaming.steps[0]!, actions: [1, 3] }, renaming.steps[1]!, renaming.steps[2]!] };
     assert.equal(typeof (await acting.made.tool().execute({ scenarios: [first] })), "string");
+    // A text expected gone from another screen than the one that showed it did not go: that screen never showed it.
+    const moved = await explored();
+    await moved.call("shop_goto", { url: "/orders" });
+    await moved.call("shop_click", { target: { role: "button", name: "Save" } });
+    await moved.call("shop_click", { target: { role: "button", name: "Undo" } });
+    await moved.call("shop_goto", { url: "/customers" });
+    const elsewhere = {
+      ...renaming,
+      steps: [step("Open the orders", [1], ["ORD-1042"]), step("Open the customers", [4], ["Orders"], ["ORD-1042"])],
+    };
+    // Its level is refused, being of two screens; its effect is not.
+    assert.doesNotMatch(((await moved.made.tool().execute({ scenarios: [elsewhere] })) as { error: string }).error, /PLAN-EFFECT/);
+    // A step whose screen is not known, such as one that cites no action, is compared all the same.
+    const unknown = { ...renaming, steps: [step("Open the orders", [1], ["ORD-1042"]), step("Rename the order", [], [], ["ORD-1042"])] };
+    assert.match(((await moved.made.tool().execute({ scenarios: [unknown] })) as { error: string }).error, /no step after brings it back/);
+    // Once the agent signed in, the page the harness reads is not the one a test starts on, signed out.
+    const signedIn = await changedAgain();
+    await signedIn.call("shop_fill", { target: { label: "Password" }, value: { account: "demo", field: "password" } });
+    assert.equal(typeof (await signedIn.made.tool().execute({ scenarios: [renaming] })), "string");
   });
 });
