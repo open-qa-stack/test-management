@@ -40,7 +40,10 @@ describe("an event of a session, as a person reads it in a terminal", () => {
     assert.equal(eventLine(told({ type: "phase_started", phase: "configuration" })), "[configuration] started");
     assert.equal(eventLine(told({ type: "phase_started", phase: "card", source: "order-specs" })), "[card] started: order-specs");
     assert.equal(eventLine(told({ type: "phase_started", phase: "write", scenario: "list-orders" })), "[write] started: list-orders");
-    assert.equal(eventLine(told({ type: "note", phase: "summary", text: "The summary succeeded." })), "[summary] The summary succeeded.");
+    assert.equal(
+      eventLine(told({ type: "note", phase: "summary", text: "The summary of the run was written." })),
+      "[summary] The summary of the run was written.",
+    );
     assert.equal(
       eventLine(told({ type: "refusal", phase: "prerequisites", text: "npm cannot be run; it installs the dependencies of the test repository." })),
       "[prerequisites] error: npm cannot be run; it installs the dependencies of the test repository.",

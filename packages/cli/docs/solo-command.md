@@ -147,7 +147,7 @@ Session session-2026-11-16T08-12-45-120Z-9f3a1c2b
 [write] started: search-customer
 08:19:02 scenario search-customer closed: passed
 [execution] passed: customer-management › search-customer.spec.ts:3 › finds a customer by last name.
-[summary] The summary succeeded.
+[summary] The summary of the run was written.
 08:21:30 session completed
 ```
 
