@@ -11,8 +11,9 @@ import type { MessageEvent } from "@nestjs/common";
 import type { MessageReceipt, Session, SessionList, SessionMessage, SessionOpening } from "@open-qa-stack/domain/sessions";
 
 /**
- * `GET /sessions`, `GET /sessions/:id`, `GET /sessions/:id/events`, `POST /sessions`, `POST /sessions/:id/messages`
- * and `POST /sessions/:id/interruption`: each route is one operation on the sessions, said in HTTP.
+ * `GET /sessions`, `GET /sessions/:id`, `GET /sessions/:id/events`, `POST /sessions`, `POST /sessions/:id/messages`,
+ * `POST /sessions/:id/resumption` and `POST /sessions/:id/interruption`: each route is one operation on the
+ * sessions, said in HTTP.
  */
 @Controller("sessions")
 export class SessionsController {
@@ -92,6 +93,19 @@ export class SessionsController {
   @HttpCode(HttpStatus.ACCEPTED)
   send(@Param("id") id: string, @Body(SessionMessagePipe) message: SessionMessage): Promise<MessageReceipt> {
     return this.#sessions.say(id, message);
+  }
+
+  /**
+   * Resumes a session that ended with what the person says more to it, which starts a new turn of its work.
+   *
+   * @returns The session, answered with `202`: `running` when its turn started at once, `queued` when it waits;
+   * its stream tells the turn from the message on. An unknown session is answered with `404`, one that goes on
+   * with `409`: it takes a message instead. An API that was given no test repository answers `503`.
+   */
+  @Post(":id/resumption")
+  @HttpCode(HttpStatus.ACCEPTED)
+  resume(@Param("id") id: string, @Body(SessionMessagePipe) message: SessionMessage): Promise<Session> {
+    return this.#sessions.resume(id, message);
   }
 
   /**

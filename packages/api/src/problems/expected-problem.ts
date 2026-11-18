@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus } from "@nestjs/common";
-import { isRecord, SessionEndedError, UnknownSessionError } from "@open-qa-stack/domain";
+import { isRecord, SessionEndedError, SessionStateError, UnknownSessionError } from "@open-qa-stack/domain";
 import { NoRepositoryError } from "@open-qa-stack/engine";
 import { DatabaseUnavailableError } from "@open-qa-stack/store";
 import { API_VARIABLES } from "../config/api-variables.ts";
@@ -23,8 +23,8 @@ function refusalOf(status: number, detail: string): Problem {
  *
  * @remarks
  * Five kinds of errors are expected: those the routes raise for a request they cannot read, the refusals of
- * the operations on sessions — a session that does not exist, one that ended, no test repository to run one
- * in — a database that cannot be reached, those the framework raises for a request it refuses — an unknown
+ * the operations on sessions — a session that does not exist, one that ended, one that goes on and is resumed,
+ * no test repository to run one in — a database that cannot be reached, those the framework raises for a request it refuses — an unknown
  * route, a method that is not allowed — and those the HTTP server raises with a client status before a route
  * is reached — a body that is not JSON, a media type it does not read. Their messages are written for the
  * client, but that of the database, which may name its host: the client is told what to do instead. Anything
@@ -37,7 +37,8 @@ export function expectedProblem(error: unknown): Problem | undefined {
   if (error instanceof SessionError) return error.problem();
   if (error instanceof UnknownSessionError) return problemOf("unknown_session", error.message);
   if (error instanceof SessionEndedError)
-    return problemOf("session_ended", `${error.message} It takes no message and no interruption: open another session to go on.`);
+    return problemOf("session_ended", `${error.message} It takes no message and no interruption: resume it with a message to go on.`);
+  if (error instanceof SessionStateError) return problemOf("session_running", `${error.message} It goes on: send it a message instead.`);
   if (error instanceof NoRepositoryError) return problemOf("unavailable", NO_REPOSITORY);
   if (error instanceof DatabaseUnavailableError) return problemOf("unavailable", DATABASE_UNAVAILABLE);
   if (error instanceof HttpException) return refusalOf(error.getStatus(), error.message);
