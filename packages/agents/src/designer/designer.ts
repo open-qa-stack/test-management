@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, posix } from "node:path";
 import {
+  CONFIG_FILE_NAME,
   validateDomainIndex,
   validateSourceCard,
   validateSourceManifest,
@@ -133,6 +134,8 @@ export interface DesignOutcome {
   readonly tracePath?: string;
   /** The limit that cut the design short, when one stopped the session that plans before its plan, or the session of a scenario while it was open. */
   readonly stoppedBy?: StopReason["limit"];
+  /** Whether the design stopped before its first session, on the test repository or the index: another pass would stop on them too. */
+  readonly unstarted?: true;
 }
 
 /** The types of the sources that tell why a run failed, which the session of every scenario may read. */
@@ -151,9 +154,9 @@ const ACCEPT_EVERY_PLAN: PlanReview = { review: async () => ({ accepted: true })
  *
  * @remarks
  * Before any session, the index must be readable, and the test repository must be the root of a git
- * repository with no tracked file changed, no untracked file outside the folders of the state and the index,
- * and no branch of the name to create; otherwise nothing is written. A design that goes on with the branch of
- * an earlier one needs that branch instead, which it checks out first, and commits its tests on it.
+ * repository with no tracked file changed and no untracked file outside the folders of the state and the index —
+ * the configuration file, which the console rewrites, excepted — and no branch of the name to create; otherwise
+ * nothing is written. A design that goes on with the branch of an earlier one needs that branch instead, which it checks out first, and commits its tests on it.
  *
  * A plan may hold no scenario, when the agent says why no test can do what the brief asks: the design then
  * writes its plan and its state, no test, and succeeds.
@@ -212,19 +215,22 @@ export class Designer {
       journal.record("error", message);
       return { ok: false, tests: [], journal: journal.entries(), ...traced(), ...(stoppedBy === undefined ? {} : { stoppedBy }) };
     };
+    const unstarted = (message: string): DesignOutcome => ({ ...failed(message), unstarted: true });
     const now = this.options.now ?? (() => new Date());
     const start = now();
     const id = `design-${start.toISOString().replace(/[-:]|\.\d+/g, "")}`;
     const repository = new TestRepository(repositoryRoot);
     const { continuedBranch } = this.options;
     const branch = continuedBranch ?? this.options.branch ?? `${BRANCH_PREFIX}${id}`;
-    const problems = await repository.problems(branch, [config.repository.stateDir, config.repository.indexDir], continuedBranch !== undefined);
+    // The console writes the configuration file when a person saves a revision: that change is not the developer's.
+    const reserved = [config.repository.stateDir, config.repository.indexDir, CONFIG_FILE_NAME];
+    const problems = await repository.problems(branch, reserved, continuedBranch !== undefined);
     for (const problem of problems) journal.record("error", problem);
-    if (problems.length > 0) return failed("No branch was created and no file was written.");
+    if (problems.length > 0) return unstarted("No branch was created and no file was written.");
     if (continuedBranch !== undefined && (await repository.branch()) !== continuedBranch) await repository.switchTo(continuedBranch);
     const { brief } = this.options;
     const index = await this.index();
-    if (typeof index === "string") return failed(`No test was designed: ${index}`);
+    if (typeof index === "string") return unstarted(`No test was designed: ${index}`);
 
     const applications = config.applications.filter((application) => application.environments.some((environment) => environment.name === index.environment));
     const packages = testPackages(await readFile(join(repositoryRoot, "package.json"), "utf8").catch(() => undefined));

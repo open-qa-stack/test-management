@@ -144,8 +144,21 @@ describe("criterion 7 — a dirty working tree or a taken branch stops the desig
         "No branch was created and no file was written.",
       ],
     );
+    assert.equal(outcome.unstarted, true);
     assert.deepEqual(snapshot(root), before);
     assert.equal(server.requests.length, 0);
+  });
+
+  it("leaves the configuration file the console rewrote as it is: the design goes on, and does not commit it", async () => {
+    const root = repository();
+    writeFileSync(join(root, "oqas.json"), "{}\n");
+    git(root, "add", "oqas.json");
+    git(root, "commit", "-q", "-m", "chore: configure the harness");
+    writeFileSync(join(root, "oqas.json"), '{ "language": "fr" }\n');
+    const { outcome } = await design(replies(valid(3)), { root });
+    assert.equal(outcome.ok, true, messages(outcome));
+    assert.equal(git(root, "diff", "--name-only", "main", BRANCH, "--", "oqas.json"), "");
+    assert.equal(git(root, "status", "--porcelain", "--", "oqas.json"), "M oqas.json");
   });
 
   it("refuses a folder that is not the root of a git repository, and a branch name git refuses", async () => {

@@ -24,10 +24,10 @@ export class TestRepository {
   /**
    * Tells what keeps new tests from being committed on a branch: a folder that is not the root of a git
    * repository with a commit, a branch name that is not valid, a branch to create that is already taken or one
-   * to go on with that does not exist, a tracked file changed, or an untracked file outside the reserved folders.
+   * to go on with that does not exist, a tracked file changed, or an untracked file outside the reserved paths.
    *
    * @param branch - Name of the branch.
-   * @param reserved - Folders, relative to the root, that the harness writes: the files it changes or adds there are expected.
+   * @param reserved - Folders and files, relative to the root, that the harness writes: what it changes or adds there is expected.
    * @param existing - Whether the branch is one to go on with, which must exist; one to create, which must not, by default.
    * @returns A sentence for each problem; none when the tests can be committed on the branch.
    */
@@ -41,17 +41,16 @@ export class TestRepository {
     if (!(await this.succeeds("check-ref-format", "--branch", branch))) problems.push(`${branch} is not a valid branch name.`);
     else if ((await this.hasBranch(branch)) !== existing)
       problems.push(existing ? `The branch ${branch} does not exist: there is nothing to go on with.` : `The branch ${branch} already exists.`);
-    const folders = reserved.map((folder) => `${posix.normalize(folder).replace(/(?<!\/)\/+$/, "")}/`);
-    // The harness writes the state and the index itself: a change there is its own, not the developer's.
+    const paths = reserved.map((path) => posix.normalize(path).replace(/(?<!\/)\/+$/, ""));
+    const reservedPath = (path: string): boolean => paths.some((kept) => path === kept || path.startsWith(`${kept}/`));
+    // The harness writes the state, the index and the configuration file itself: a change there is its own, not the developer's.
     const changed = (await this.git("status", "--porcelain", "--untracked-files=no"))
       .split("\n")
       .filter((line) => line !== "")
       .map((line) => line.slice(3))
-      .filter((path) => !folders.some((folder) => path.startsWith(folder)));
+      .filter((path) => !reservedPath(path));
     if (changed.length > 0) problems.push(`Tracked files are changed: ${changed.join(", ")}.`);
-    const untracked = (await this.git("ls-files", "--others", "--exclude-standard", "-z"))
-      .split("\0")
-      .filter((path) => path !== "" && !folders.some((folder) => path.startsWith(folder)));
+    const untracked = (await this.git("ls-files", "--others", "--exclude-standard", "-z")).split("\0").filter((path) => path !== "" && !reservedPath(path));
     if (untracked.length > 0) problems.push(`Untracked files are outside the folders of the state and the index: ${untracked.join(", ")}.`);
     return problems;
   }
