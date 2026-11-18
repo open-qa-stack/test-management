@@ -1,0 +1,308 @@
+import assert from "node:assert/strict";
+import { describe, it } from "vitest";
+import {
+  CHARACTERS_PER_TICK,
+  durationOf,
+  endOf,
+  frameOf,
+  INITIAL_PLAYBACK,
+  passesOf,
+  PAUSE_TICKS,
+  played,
+  shows,
+  TOOL_TICKS,
+  type Playback,
+} from "../../src/agent/playback.ts";
+import type { SessionScript, Step } from "../../src/agent/session-script.ts";
+
+const LOOK = { kind: "document", source: "card", excerpt: ["a rule"], caption: "The card." } as const;
+
+/**
+ * A short session: a request, a pass, a reasoning, a tool with a look, a refusal, a note, a plan, a message, a
+ * tool that has not answered, and what the session produced.
+ */
+const STEPS: readonly Step[] = [
+  { kind: "say", from: "user", at: "10:00:00", text: "Cover the quotes." },
+  { kind: "pass", at: "10:00:01", title: "Pass 1", summary: "The shortest path." },
+  { kind: "say", from: "planner", at: "10:00:02", thinking: true, text: "12345678" },
+  { kind: "tool", from: "planner", at: "10:00:03", icon: "web", title: "Opened the form", look: LOOK },
+  { kind: "verdict", at: "10:00:04", accepted: false, code: "PLAN-SHOWN", about: "The plan", text: "Never shown." },
+  { kind: "note", at: "10:00:05", text: "The plan was accepted." },
+  { kind: "plan", at: "10:00:06", title: "The plan", scenarios: [{ priority: "smoke", title: "A scenario", source: "nominal" }] },
+  { kind: "say", from: "writer", at: "10:00:07", text: "Done" },
+  { kind: "tool", from: "writer", at: "10:00:08", icon: "play", title: "Ran the test", pending: true },
+  { kind: "outcome", at: "10:00:09", title: "1 test", tests: [{ title: "A test", level: "smoke", verdict: "passed" }] },
+];
+
+/** The session of a run that ended. */
+const SCRIPT: SessionScript = { id: "s", title: "A session", sources: ["a card"], live: false, steps: STEPS };
+
+/** The same session while its run still writes. */
+const LIVE: SessionScript = { ...SCRIPT, live: true };
+
+/** The tick each step starts at in a replay. */
+const STARTS = STEPS.reduce<number[]>(
+  (starts, _step, index) => [...starts, index === 0 ? 0 : starts[index - 1]! + durationOf(STEPS[index - 1]!) + PAUSE_TICKS],
+  [],
+);
+
+/**
+ * A replay at a tick.
+ *
+ * @param tick - How far it is.
+ * @param changes - What differs from a replay that is stopped at the first speed.
+ * @returns The playback.
+ */
+const at = (tick: number, changes: Partial<Playback> = {}): Playback => ({ following: false, tick, playing: false, speed: 1, ...changes });
+
+/**
+ * The first steps of the session, as a session of their own.
+ *
+ * @param count - How many steps to keep.
+ * @param live - Whether its run still writes.
+ * @returns The session.
+ */
+const upTo = (count: number, live = true): SessionScript => ({ ...SCRIPT, live, steps: STEPS.slice(0, count) });
+
+describe("the duration of a step", () => {
+  it("is the time to write a message of an agent, none for one of the person, the time a tool answers, a tick otherwise", () => {
+    assert.deepEqual(STEPS.map(durationOf), [0, 1, 8 / CHARACTERS_PER_TICK, TOOL_TICKS, 1, 1, 1, 1, TOOL_TICKS, 1]);
+    assert.equal(endOf(SCRIPT), STARTS.at(-1)! + 1 + PAUSE_TICKS);
+  });
+});
+
+describe("the frame of a session a person follows", () => {
+  it("shows every step of a run that ended in full, with nobody speaking and nothing more to come", () => {
+    assert.equal(INITIAL_PLAYBACK.following, true);
+    const frame = frameOf(SCRIPT, INITIAL_PLAYBACK);
+    assert.deepEqual(
+      frame.shown.map(({ index, written, running }) => [index, written, running]),
+      STEPS.map((step, index) => [index, step.kind === "say" ? step.text : "", false]),
+    );
+    assert.deepEqual([frame.speaking, frame.finished, frame.actions, frame.pass, frame.passRank, frame.progress], [undefined, true, 2, "Pass 1", 0, 1]);
+    assert.ok(!("speaking" in frame));
+  });
+
+  it("shows a tool that has not answered as running while the run still writes, and counts it only once it has", () => {
+    const frame = frameOf(upTo(9), INITIAL_PLAYBACK);
+    assert.deepEqual(
+      frame.shown.map(({ running }) => running),
+      [false, false, false, false, false, false, false, false, true],
+    );
+    assert.deepEqual([frame.speaking, frame.finished, frame.actions, frame.progress], ["writer", false, 1, 1]);
+  });
+
+  it("names who the last step of a run that still writes comes from: its speaker, the harness for a refusal or a note, nobody otherwise", () => {
+    assert.deepEqual(
+      [3, 4, 5, 6, 7, 8, 10].map((count) => frameOf(upTo(count), INITIAL_PLAYBACK).speaking),
+      ["planner", "planner", "harness", "harness", undefined, "writer", undefined],
+    );
+    assert.equal(frameOf(upTo(2), INITIAL_PLAYBACK).speaking, undefined);
+    assert.equal(frameOf(upTo(5, false), INITIAL_PLAYBACK).speaking, undefined);
+  });
+
+  it("shows a run that wrote nothing yet as an empty session more is to come of, and one that ended so as over", () => {
+    const waiting = frameOf(upTo(0), INITIAL_PLAYBACK);
+    assert.deepEqual([waiting.shown.length, waiting.speaking, waiting.finished, waiting.progress, waiting.pass], [0, undefined, false, 1, undefined]);
+    const over = frameOf(upTo(0, false), INITIAL_PLAYBACK);
+    assert.deepEqual([over.shown.length, over.finished, over.progress], [0, true, 1]);
+  });
+});
+
+describe("the frame of a session a person replays", () => {
+  it("opens on what was asked, written in full, with nobody speaking", () => {
+    const frame = frameOf(SCRIPT, at(0));
+    assert.deepEqual(
+      frame.shown.map(({ index, written, running }) => [index, written, running]),
+      [[0, "Cover the quotes.", false]],
+    );
+    assert.deepEqual(
+      [frame.speaking, frame.finished, frame.actions, frame.pass, frame.passRank, frame.progress],
+      [undefined, false, 0, undefined, undefined, 0],
+    );
+  });
+
+  it("writes a message a few characters at a tick, and names who speaks while it does", () => {
+    const writing = frameOf(SCRIPT, at(STARTS[2]! + 1));
+    assert.deepEqual([writing.shown.at(-1)!.written, writing.shown.at(-1)!.running, writing.speaking, writing.pass], ["1234", true, "planner", "Pass 1"]);
+    const written = frameOf(SCRIPT, at(STARTS[2]! + 2));
+    assert.deepEqual([written.shown.at(-1)!.written, written.shown.at(-1)!.running, written.speaking], ["12345678", false, undefined]);
+  });
+
+  it("shows a tool as running until it answers, then counts it", () => {
+    const running = frameOf(SCRIPT, at(STARTS[3]! + 1));
+    assert.deepEqual([running.shown.at(-1)!.running, running.speaking, running.actions], [true, "planner", 0]);
+    const answered = frameOf(SCRIPT, at(STARTS[3]! + TOOL_TICKS));
+    assert.deepEqual([answered.shown.at(-1)!.running, answered.actions], [false, 1]);
+  });
+
+  it("answers in its time a tool that has not answered in the run, as any other", () => {
+    assert.equal(frameOf(LIVE, at(STARTS[8]! + 1)).shown.at(-1)!.running, true);
+    const answered = frameOf(LIVE, at(STARTS[8]! + TOOL_TICKS));
+    assert.deepEqual([answered.shown.at(-1)!.running, answered.actions], [false, 2]);
+  });
+
+  it("names nobody while the start of a pass, a refusal, a note or a plan shows", () => {
+    assert.deepEqual(
+      [1, 4, 5, 6].map((index) => {
+        const frame = frameOf(SCRIPT, at(STARTS[index]!));
+        return [frame.shown.at(-1)!.index, frame.shown.at(-1)!.running, frame.speaking];
+      }),
+      [
+        [1, true, undefined],
+        [4, true, undefined],
+        [5, true, undefined],
+        [6, true, undefined],
+      ],
+    );
+  });
+
+  it("is finished once every step is shown in full, if the run has ended", () => {
+    const end = endOf(SCRIPT);
+    assert.deepEqual([frameOf(SCRIPT, at(end - PAUSE_TICKS - 1)).finished, frameOf(SCRIPT, at(end - PAUSE_TICKS)).finished], [false, true]);
+    assert.equal(frameOf(LIVE, at(end)).finished, false);
+  });
+
+  it("measures how far it is, and never past the end", () => {
+    const end = endOf(SCRIPT);
+    assert.deepEqual([frameOf(SCRIPT, at(end / 2)).progress, frameOf(SCRIPT, at(end * 2)).progress], [0.5, 1]);
+    assert.deepEqual([frameOf(upTo(0), at(0)).progress, frameOf(upTo(0, false), at(0)).finished], [1, true]);
+  });
+});
+
+describe("the playback of a session", () => {
+  it("stays as it is on a beat while the session is followed or the replay is stopped", () => {
+    assert.equal(played(SCRIPT, INITIAL_PLAYBACK, { type: "beat" }), INITIAL_PLAYBACK);
+    const following = { ...INITIAL_PLAYBACK, playing: true };
+    assert.equal(played(SCRIPT, following, { type: "beat" }), following);
+    const stopped = at(3);
+    assert.equal(played(SCRIPT, stopped, { type: "beat" }), stopped);
+  });
+
+  it("moves a replay that plays by its speed at each beat", () => {
+    assert.deepEqual(played(SCRIPT, at(0, { playing: true, speed: 2 }), { type: "beat" }), at(2, { playing: true, speed: 2 }));
+  });
+
+  it("follows the session again once the replay has shown everything", () => {
+    const end = endOf(SCRIPT);
+    assert.deepEqual(played(SCRIPT, at(end - 2, { playing: true }), { type: "beat" }), at(end - 1, { playing: true }));
+    assert.deepEqual(played(SCRIPT, at(end - 1, { playing: true }), { type: "beat" }), at(end - 1, { following: true }));
+    assert.deepEqual(played(LIVE, at(end - 1, { playing: true, speed: 8 }), { type: "beat" }), at(end - 1, { following: true, speed: 8 }));
+  });
+
+  it("replays from the first step, going on by itself at the speed it had", () => {
+    assert.deepEqual(played(SCRIPT, { ...INITIAL_PLAYBACK, speed: 4 }, { type: "restart" }), at(0, { playing: true, speed: 4 }));
+    assert.deepEqual(played(SCRIPT, at(40, { speed: 2 }), { type: "restart" }), at(0, { playing: true, speed: 2 }));
+  });
+
+  it("stops a replay and starts it again, and leaves a session that is followed as it is", () => {
+    assert.equal(played(SCRIPT, at(3, { playing: true }), { type: "toggle" }).playing, false);
+    assert.equal(played(SCRIPT, at(3), { type: "toggle" }).playing, true);
+    assert.equal(played(SCRIPT, INITIAL_PLAYBACK, { type: "toggle" }), INITIAL_PLAYBACK);
+  });
+
+  it("goes through the speeds, back to the first after the last or from a speed it does not know", () => {
+    assert.deepEqual(
+      [1, 2, 4, 8, 3].map((speed) => played(SCRIPT, at(0, { speed }), { type: "faster" }).speed),
+      [2, 4, 8, 1, 1],
+    );
+    assert.deepEqual(played(SCRIPT, INITIAL_PLAYBACK, { type: "faster" }), { ...INITIAL_PLAYBACK, speed: 2 });
+  });
+
+  it("skips to the next decision of the harness, a refusal then a plan, stopped there, then follows the session", () => {
+    const refusal = played(SCRIPT, at(0, { playing: true }), { type: "skip" });
+    assert.deepEqual(refusal, at(STARTS[4]! + 1));
+    assert.equal(frameOf(SCRIPT, refusal).shown.at(-1)!.step.kind, "verdict");
+    const plan = played(SCRIPT, refusal, { type: "skip" });
+    assert.deepEqual(plan, at(STARTS[6]! + 1));
+    assert.deepEqual(played(SCRIPT, { ...plan, speed: 2 }, { type: "skip" }), at(STARTS[6]! + 1, { following: true, speed: 2 }));
+  });
+
+  it("skips without going back, and leaves a session that is followed as it is", () => {
+    assert.deepEqual(played(SCRIPT, at(STARTS[4]! + 3), { type: "skip" }), at(STARTS[6]! + 1));
+    assert.equal(played(SCRIPT, INITIAL_PLAYBACK, { type: "skip" }), INITIAL_PLAYBACK);
+  });
+
+  it("leaves a replay for the session as it is now", () => {
+    assert.deepEqual(played(SCRIPT, at(12, { playing: true, speed: 4 }), { type: "follow" }), at(12, { following: true, speed: 4 }));
+  });
+});
+
+describe("the passes of a session", () => {
+  const TWO: SessionScript = { ...SCRIPT, steps: [...STEPS.slice(0, 4), { kind: "pass", at: "10:01:00", title: "Pass 2", summary: "The rules." }, STEPS[7]!] };
+
+  it("are pending before a replay reaches them, current while it is in them, done afterwards and at its end", () => {
+    assert.deepEqual(passesOf(TWO, frameOf(TWO, at(0))), [
+      { title: "Pass 1", state: "pending" },
+      { title: "Pass 2", state: "pending" },
+    ]);
+    assert.deepEqual(
+      passesOf(TWO, frameOf(TWO, at(STARTS[2]!))).map(({ state }) => state),
+      ["current", "pending"],
+    );
+    assert.deepEqual(
+      passesOf(TWO, frameOf(TWO, at(STARTS[4]!))).map(({ state }) => state),
+      ["done", "current"],
+    );
+    assert.deepEqual(
+      passesOf(TWO, frameOf(TWO, at(endOf(TWO)))).map(({ state }) => state),
+      ["done", "done"],
+    );
+  });
+
+  it("are all done when a run that ended is followed, the last one current while the run still writes", () => {
+    assert.deepEqual(
+      passesOf(TWO, frameOf(TWO, INITIAL_PLAYBACK)).map(({ state }) => state),
+      ["done", "done"],
+    );
+    const live = { ...TWO, live: true };
+    assert.deepEqual(
+      passesOf(live, frameOf(live, INITIAL_PLAYBACK)).map(({ state }) => state),
+      ["done", "current"],
+    );
+  });
+});
+
+describe("the passes of a session whose passes have parts, or the same title", () => {
+  const PARTS: SessionScript = {
+    ...SCRIPT,
+    steps: [
+      STEPS[0]!,
+      { kind: "pass", at: "10:00:01", title: "Plan", summary: "" },
+      { kind: "pass", at: "10:00:02", title: "Writing", summary: "a", minor: true },
+      { kind: "pass", at: "10:00:03", title: "Plan", summary: "" },
+    ],
+  };
+
+  it("leave the parts out, and tell two passes of the same title apart by their rank", () => {
+    const first = frameOf(PARTS, at(2 * PAUSE_TICKS + 2));
+    assert.deepEqual([first.pass, first.passRank, first.shown.length], ["Plan", 0, 3]);
+    assert.deepEqual(
+      passesOf(PARTS, first).map(({ state }) => state),
+      ["current", "pending"],
+    );
+    assert.deepEqual(
+      passesOf(PARTS, frameOf(PARTS, at(3 * PAUSE_TICKS + 2))).map(({ state }) => state),
+      ["done", "current"],
+    );
+  });
+});
+
+describe("what the thread keeps", () => {
+  const kinds = (filter: Parameters<typeof shows>[1], speaker?: Parameters<typeof shows>[2]) =>
+    STEPS.filter((step) => shows(step, filter, speaker)).map((step) => step.kind);
+
+  it("is everything, what is said, what is done or what the harness decides and notes, the start of a pass always", () => {
+    assert.equal(kinds("all").length, STEPS.length);
+    assert.deepEqual(kinds("talk"), ["say", "pass", "say", "say"]);
+    assert.deepEqual(kinds("actions"), ["pass", "tool", "plan", "tool", "outcome"]);
+    assert.deepEqual(kinds("verdicts"), ["pass", "verdict", "note"]);
+  });
+
+  it("follows one speaker, a verdict or a note being the harness speaking, a plan and an outcome nobody", () => {
+    assert.deepEqual(kinds("all", "planner"), ["pass", "say", "tool"]);
+    assert.deepEqual(kinds("all", "harness"), ["pass", "verdict", "note"]);
+    assert.deepEqual(kinds("talk", "writer"), ["pass", "say"]);
+    assert.deepEqual(kinds("actions", "writer"), ["pass", "tool"]);
+  });
+});

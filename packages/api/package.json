@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@nestjs/testing": "12.4.2",
+    "@open-qa-stack/shared": "workspace:*",
     "@open-qa-stack/testing": "workspace:*",
     "@types/pg": "8.23.1",
     "drizzle-kit": "0.31.11"

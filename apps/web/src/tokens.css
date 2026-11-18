@@ -1,54 +1,77 @@
 :root {
-  --bg: #f4f5f7;
+  --sheet: #f6f7fa;
   --surface: #fff;
+  --surface-soft: #fafbfc;
   --line: #e3e6eb;
   --line-soft: #eef0f3;
+  --hairline: #e4e7ee;
+  --field-line: #d6dae1;
   --text: #1a1d23;
   --text-2: #4b5563;
   --text-3: #6b7280;
-  --text-4: #9aa3b0;
   --primary: #2458d6;
   --primary-soft: #eef2fb;
+  --primary-faint: #f4f7fe;
+  --primary-tint: #dfe6f7;
   --primary-line: #c9d6f5;
-  --ok: #15803d;
+  --link-hover: #1a44ad;
+  --ok: #147a3a;
   --ok-soft: #e4f5ea;
   --ko: #b91c1c;
   --ko-soft: #fde8e8;
-  --warn: #b45309;
-  --warn-soft: #fdf0dc;
-  --ai: #6d28d9;
-  --ai-soft: #f1ecfd;
-  --ai-line: #d9d0f5;
-  --neutral: #5b6472;
-  --neutral-soft: #eef0f3;
-  --r: 6px;
-  --row: 36px;
-  --fs: 13px;
-
-  --surface-soft: #fafbfc;
-  --primary-hover: #1f4dbd;
-  --primary-faint: #f4f7fe;
-  --primary-tint: #dfe6f7;
-  --primary-count: #dbe4fa;
-  --on-primary: #fff;
-  --link-hover: #1a44ad;
   --ko-faint: #fff5f5;
   --ko-line: #f1b8b8;
-  --warn-faint: #fffbf3;
+  --warn: #8a5a12;
+  --warn-soft: #fdf0dc;
   --warn-line: #f3dfb8;
-  --warn-strong: #8a5a12;
-  --ai-faint: #faf8ff;
-  --field-line: #d6dae1;
-  --field-readonly: #f8f9fb;
-  --skeleton-shine: #f6f7f9;
-  --skeleton-line: #e9ecf1;
-  --inverse: #1a1d23;
-  --on-inverse: #fff;
-  --inverse-link: #9cc0ff;
-  --overlay: rgba(20, 24, 33, 0.38);
-  --shadow-modal: rgba(20, 24, 33, 0.25);
-  --shadow-toast: rgba(0, 0, 0, 0.25);
+  --ai: #6d28d9;
+  --ai-soft: #f1ecfd;
+  --neutral: #5b6472;
+  --neutral-soft: #eef0f3;
+
+  /* The brand, after its mark, a deep blue and the lights that play on it, each dark enough to carry white. */
+  --brand-navy: #16357f;
+  --brand-violet: #5b3fd6;
+  --brand-teal: #0f766e;
+  --brand-amber: #a85a08;
+  --mark-violet: #7c5cf2;
+  --mark-teal: #1fc7b6;
+  --mark-cyan: #22a8f0;
+  --on-brand: #fff;
+  --focus-ring: rgba(36, 88, 214, 0.35);
+  --shadow-soft: rgba(22, 53, 127, 0.06);
+
+  /* The sizes the sheets share, as a phone needs them, the least height of what a finger presses among them. */
+  --tap: 44px;
+  --gutter: 16px;
+  --pad: 14px;
+  --r: 6px;
+  --r-control: 8px;
+  --r-card: 12px;
+  --fs-xs: 12px;
+  --fs-s: 13px;
+  --fs: 15px;
+  --fs-read: 16px;
+  --fs-title: 20px;
 
   --font: Inter, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+@media (min-width: 720px) {
+  :root {
+    --gutter: 20px;
+  }
+}
+
+/* A desktop is read closer and pointed at with precision: its text is denser, and what is pressed may be smaller. */
+@media (min-width: 1100px) {
+  :root {
+    --tap: 24px;
+    --fs-xs: 11px;
+    --fs-s: 12px;
+    --fs: 13px;
+    --fs-read: 14px;
+    --fs-title: 21px;
+  }
 }

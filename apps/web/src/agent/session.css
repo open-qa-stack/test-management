@@ -1,0 +1,1068 @@
+/*
+ * The screen of a session: its thread alone, in one column that stays comfortable to read however wide the
+ * screen. What an agent had before its eyes opens on demand, in a panel: the whole screen of a phone, a drawer
+ * at the right from 1100 px, which the thread makes room for. From 720 px a line holds more: what belongs to
+ * the harness is set in under the pictures of the agents.
+ */
+.session {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 860px;
+  min-width: 0;
+  margin-inline: auto;
+}
+
+/* The bar of a session: its state and its facts, or the controls of its replay. */
+.session-bar {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 8px 8px 8px 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 1px 2px var(--shadow-soft);
+}
+
+.session-bar .badge {
+  margin-right: auto;
+}
+
+.session-facts {
+  order: 1;
+  flex-basis: 100%;
+  color: var(--text-3);
+  font-size: var(--fs-s);
+  overflow-wrap: anywhere;
+}
+
+/* A bar that follows the page hides the strip the thread would show over it. */
+.session-bar::before {
+  content: "";
+  position: absolute;
+  inset: -9px -1px 100%;
+  background: var(--sheet);
+}
+
+/* The controls of a replay follow the page, since the thread scrolls as it is written. */
+.session-bar.replay {
+  position: sticky;
+  top: 8px;
+  z-index: 2;
+  padding-left: 8px;
+}
+
+/* On a phone the controls keep to their icons, their names left to a screen reader, and the progress goes over them. */
+.btn-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* The speed keeps its width as its figure changes. */
+.playback-speed {
+  min-width: 44px;
+}
+
+.playback-progress {
+  order: -1;
+  flex-basis: 100%;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--neutral-soft);
+}
+
+.playback-progress i {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+}
+
+.playback-progress ~ .btn {
+  margin-left: auto;
+}
+
+/* The passes of the session: one line, which scrolls on a phone; each but the last is tied to the next. */
+.pass-stepper {
+  display: flex;
+  align-items: center;
+  padding: 2px 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.pass-step {
+  flex: none;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.pass-step .sep {
+  width: 16px;
+  height: 1px;
+  margin: 0 10px;
+  background: var(--line);
+}
+
+.pass-step .s {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-3);
+  font-size: var(--fs-s);
+  font-weight: 500;
+}
+
+.pass-step .s.cur,
+.pass-step .s.done {
+  color: var(--text);
+}
+
+.pass-step .n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--neutral-soft);
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.pass-step .done .n {
+  background: var(--ok);
+  color: var(--on-brand);
+}
+
+.pass-step .cur .n {
+  background: var(--brand-navy);
+  color: var(--on-brand);
+}
+
+/* What the thread keeps: every choice in sight, on as many lines as it takes. */
+.thread-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.thread,
+.thread-item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* The end of the thread, which the console keeps in view while a run writes. */
+.thread-end {
+  height: 1px;
+  scroll-margin-bottom: 40px;
+}
+
+/* What the person asked: a bubble at the right, as in a conversation. */
+.request {
+  align-self: flex-end;
+  max-width: 88%;
+  padding: 10px 14px;
+  border-radius: 14px 14px 4px 14px;
+  background: var(--brand-navy);
+  color: var(--on-brand);
+  font-size: var(--fs-read);
+  overflow-wrap: anywhere;
+}
+
+/* The picture of who speaks: a rounded square in the colour of its family, dark enough for its white icon. */
+.speaker-mark {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  color: var(--on-brand);
+}
+
+.speaker-mark.sm {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+}
+
+.speaker-mark.lg {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+}
+
+.speaker-mark.tone-primary {
+  background: var(--primary);
+}
+
+.speaker-mark.tone-ai {
+  background: var(--brand-violet);
+}
+
+.speaker-mark.tone-ok {
+  background: var(--brand-teal);
+}
+
+.speaker-mark.tone-warn {
+  background: var(--brand-amber);
+}
+
+.speaker-mark.tone-neutral {
+  background: var(--brand-navy);
+}
+
+/*
+ * A turn of an agent: its picture and its name, then what it thought, said and did. On a phone what follows
+ * the name takes the whole width; it is set in under the name once a line holds more.
+ */
+.turn {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 10px;
+  align-items: center;
+}
+
+.turn-body {
+  display: contents;
+}
+
+.turn-body > * {
+  grid-column: 1 / -1;
+}
+
+.turn-body > .turn-head {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/*
+ * The name of an agent follows it in the thread. It reads as a name, and is pressed as a link: as tall as a
+ * finger, it reaches over the line without making the head of the turn taller than the picture beside it.
+ */
+.turn-agent {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  min-width: var(--tap);
+  min-height: max(30px, var(--tap));
+  margin-block: calc((30px - max(30px, var(--tap))) / 2);
+  border-radius: var(--r);
+  color: var(--text);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.turn-agent:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.turn-role {
+  min-width: 0;
+  color: var(--text-3);
+  font-size: var(--fs-s);
+}
+
+.turn-head .turn-role {
+  display: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.turn-at {
+  flex: none;
+  margin-left: auto;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+
+.turn-text {
+  margin: 0;
+  font-size: var(--fs-read);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.caret {
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  margin-left: 2px;
+  background: currentColor;
+  opacity: 0.6;
+  vertical-align: -2px;
+}
+
+/* What unfolds: a line to press, as tall as a finger, with no marker of its own. */
+.thinking summary,
+.brief summary,
+.notes summary,
+.act summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: max(24px, var(--tap));
+  list-style: none;
+  cursor: pointer;
+}
+
+.thinking summary::-webkit-details-marker,
+.brief summary::-webkit-details-marker,
+.notes summary::-webkit-details-marker,
+.act summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A reasoning: one muted line, which unfolds. */
+.thinking {
+  padding-left: 10px;
+  border-left: 2px solid var(--brand-violet);
+  color: var(--text-3);
+}
+
+.thinking summary {
+  color: var(--brand-violet);
+  font-size: var(--fs-s);
+}
+
+.thinking svg,
+.notes svg {
+  flex: none;
+}
+
+.thinking-label {
+  font-weight: 600;
+}
+
+.thinking-preview,
+.note-preview {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-3);
+  font-style: italic;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thinking[open] .thinking-preview,
+.notes[open] .note-preview {
+  display: none;
+}
+
+.thinking-text {
+  margin: 0 0 4px;
+  font-size: var(--fs);
+  font-style: italic;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* An action: a line, with how it ended; what the tool answered unfolds under it. */
+.act {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: max(34px, calc(var(--tap) + 2px));
+  padding-left: 12px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-control);
+  background: var(--surface);
+  color: var(--text-2);
+}
+
+.act + .act {
+  margin-top: -2px;
+}
+
+.act.selected {
+  border-color: var(--primary);
+  background: var(--primary-faint);
+  scroll-margin: calc(var(--tap) + 16px) 0 16px;
+}
+
+.act > details {
+  flex: 1;
+  min-width: 0;
+}
+
+.act > svg,
+.act summary > svg {
+  flex: none;
+}
+
+/* What an action did is read in full once unfolded; folded, it keeps to two lines, to one on a desktop. */
+.act-title {
+  flex: 1;
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.act details[open] .act-title {
+  display: block;
+}
+
+.act-time {
+  flex: none;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+
+/* An action without an eye ends on its own margin. */
+.act > :last-child:not(.act-look) {
+  margin-right: 12px;
+}
+
+.act-state {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+
+.act-state.ok {
+  background: var(--ok);
+}
+
+.act-state.ko {
+  background: var(--ko);
+}
+
+.spinner {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--primary-line);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+}
+
+/* The eye of an action leads to what the agent had before its eyes. */
+.act-look {
+  flex: none;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: max(24px, var(--tap));
+  height: max(24px, var(--tap));
+  border-radius: var(--r);
+  color: var(--text-3);
+}
+
+.act-look:hover {
+  background: var(--neutral-soft);
+  color: var(--primary);
+}
+
+.act-result {
+  max-height: 220px;
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  overflow-y: auto;
+  border-radius: var(--r);
+  background: var(--surface-soft);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* The harness hands the work to an agent: a line, its request folded. */
+.brief,
+.notes {
+  color: var(--text-3);
+  font-size: var(--fs-s);
+}
+
+.brief summary b {
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+.brief-text {
+  margin: 0 0 4px;
+  padding: 8px 10px;
+  border-radius: var(--r-control);
+  background: var(--surface-soft);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.notes.single {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.notes.single svg {
+  margin-top: 3px;
+}
+
+.note-text {
+  overflow-wrap: anywhere;
+}
+
+.notes ul {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 4px;
+  padding: 0;
+  list-style: none;
+}
+
+.notes li {
+  display: flex;
+  gap: 10px;
+  overflow-wrap: anywhere;
+}
+
+.notes li .turn-at {
+  margin-left: 0;
+}
+
+/* A verdict of the harness: the one thing the thread never folds. */
+.verdict {
+  padding: 10px var(--pad);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.verdict.refused {
+  border-color: var(--ko-line);
+  background: var(--ko-faint);
+}
+
+.verdict.accepted {
+  border-color: var(--ok);
+  background: var(--ok-soft);
+}
+
+.verdict-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* On the tint of a verdict, what is said beside its name takes the darker grey, which stays readable there. */
+.verdict .turn-role,
+.verdict .turn-at {
+  color: var(--text-2);
+}
+
+.verdict-code {
+  padding: 1px 7px;
+  border: 1px solid var(--ko-line);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--ko);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+/* A refusal that quotes a whole page keeps to its first lines. */
+.verdict-text {
+  display: -webkit-box;
+  margin: 6px 0 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  font-size: var(--fs-read);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+/* A plan the harness accepted, and what the session produced. */
+.result-card {
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.result-card header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 10px var(--pad);
+}
+
+.result-card.outcome header {
+  background: var(--surface-soft);
+}
+
+/* A scenario or a test: its mark and its title, then what is said of it, under the title on a phone. */
+.result-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 10px;
+  align-items: center;
+  padding: 8px var(--pad);
+  border-top: 1px solid var(--line-soft);
+}
+
+.result-title {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.result-row .turn-role {
+  grid-column: 2;
+  overflow-wrap: anywhere;
+}
+
+/* The start of a pass: a label between two hairlines; a part of a pass, a small label. */
+.pass {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  color: var(--text-3);
+}
+
+.pass::before,
+.pass::after {
+  content: "";
+  flex: 1;
+  min-width: 12px;
+  height: 1px;
+  background: var(--hairline);
+}
+
+.pass-title {
+  color: var(--brand-navy);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.pass-summary {
+  min-width: 0;
+  font-size: var(--fs-s);
+  overflow-wrap: anywhere;
+}
+
+.pass.minor {
+  margin-top: 2px;
+}
+
+.pass.minor::before {
+  display: none;
+}
+
+.pass.minor .pass-title {
+  flex: none;
+  color: var(--text-3);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* Who is at work, while the session goes on. */
+.working {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 5px;
+  color: var(--text-3);
+}
+
+.dots {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+
+/* While a look covers the screen, the page behind it does not scroll under the finger. */
+html:has(.look-panel) {
+  overflow: hidden;
+}
+
+/*
+ * What an agent had before its eyes, over the page: on a phone it takes the whole screen, and what it shows
+ * scrolls inside it.
+ */
+.look-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--surface);
+}
+
+.look-panel-head {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 4px 8px var(--gutter);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.look-panel-titles {
+  flex: 1;
+  min-width: 0;
+  padding-block: 4px;
+}
+
+.look-panel h2 {
+  margin: 0;
+  color: var(--brand-navy);
+  font-size: var(--fs-read);
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+/* The title takes the focus to say the panel opened; it is not a control, and shows no ring. */
+.look-panel h2:focus {
+  outline: 0;
+}
+
+.look-panel-action {
+  margin: 2px 0 0;
+  color: var(--text-3);
+  font-size: var(--fs-s);
+  overflow-wrap: anywhere;
+}
+
+.look-panel-close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: max(32px, var(--tap));
+  height: max(32px, var(--tap));
+  border-radius: var(--r);
+  color: var(--text-2);
+}
+
+.look-panel-close:hover {
+  background: var(--neutral-soft);
+  color: var(--text);
+}
+
+/* The look takes the height its panel leaves it: its caption stays in sight under a long file or a long page. */
+.look {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  padding: 12px var(--gutter) 16px;
+}
+
+.look-frame {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+
+.look-bar {
+  flex: none;
+  padding: 4px 10px;
+  background: var(--neutral-soft);
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+
+/* A long file or a long page scrolls inside its frame, and keeps a few lines on the shortest screen. */
+.look-code,
+.look-document {
+  min-height: 120px;
+  margin: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+/* A line of code is not broken: its file scrolls sideways too. */
+.look-code {
+  padding: 8px 0;
+  font-size: var(--fs-xs);
+  line-height: 1.55;
+}
+
+.look-line {
+  display: block;
+  padding: 0 10px;
+  white-space: pre;
+}
+
+.look-document {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px 10px 28px;
+  font-size: var(--fs-s);
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 720px) {
+  .session-bar {
+    flex-wrap: nowrap;
+    gap: 10px;
+    padding: 8px 12px;
+  }
+
+  .session-bar .badge {
+    margin-right: 0;
+  }
+
+  .session-facts {
+    order: 0;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .btn-label {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+  }
+
+  .playback-progress {
+    order: 0;
+    flex: 1;
+    min-width: 80px;
+  }
+
+  .playback-progress ~ .btn {
+    margin-left: 0;
+  }
+
+  .pass-stepper {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+
+  .request {
+    max-width: 78%;
+  }
+
+  .turn {
+    column-gap: 12px;
+    align-items: start;
+  }
+
+  .turn-body > *,
+  .turn-body > .turn-head {
+    grid-column: 2;
+  }
+
+  .turn-body > .turn-head {
+    min-height: 30px;
+  }
+
+  .turn-head .turn-role {
+    display: block;
+  }
+
+  /* What belongs to the harness is set in under the pictures of the agents. */
+  .brief,
+  .notes,
+  .pass.minor {
+    padding-left: 42px;
+  }
+
+  .verdict,
+  .result-card {
+    margin-left: 42px;
+  }
+
+  .result-row {
+    grid-template-columns: auto minmax(0, 1fr) minmax(0, auto);
+  }
+
+  .result-row .turn-role {
+    grid-column: 3;
+    max-width: 22em;
+  }
+}
+
+@media (min-width: 1100px) {
+  html:has(.look-panel) {
+    overflow: visible;
+  }
+
+  /* The page makes room for the drawer, so that nothing of the thread — the eyes of its actions least of all — is read through it. */
+  .shell-page:has(.look-panel) {
+    --look-panel: clamp(420px, 38vw, 560px);
+
+    padding-right: var(--look-panel);
+  }
+
+  /* A drawer at the right, as tall as the window, which the page scrolls behind. */
+  .look-panel {
+    left: auto;
+    width: var(--look-panel);
+    border-left: 1px solid var(--hairline);
+    box-shadow: -12px 0 32px var(--shadow-soft);
+  }
+
+  .look-panel-head {
+    padding: 12px 10px 12px var(--gutter);
+  }
+
+  .session-bar {
+    position: sticky;
+    top: 8px;
+    z-index: 2;
+  }
+
+  .act {
+    padding: 4px 6px 4px 10px;
+  }
+
+  .act > :last-child:not(.act-look) {
+    margin-right: 4px;
+  }
+
+  .act-title {
+    display: block;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .act details[open] .act-title {
+    white-space: normal;
+  }
+}
+
+/* What moves does so only for who did not ask for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .playback-progress i {
+    transition: width 0.2s linear;
+  }
+
+  /* Only the place moves: a page whose animations are held, as a background tab's, still shows its thread. */
+  .thread-item {
+    animation: thread-in 0.25s ease-out;
+  }
+
+  .caret {
+    animation: caret-blink 0.9s steps(2) infinite;
+  }
+
+  .spinner {
+    animation: spinner-turn 0.8s linear infinite;
+  }
+
+  .speaker-mark.active {
+    animation: mark-pulse 1.4s ease-in-out infinite;
+  }
+
+  .dots i {
+    animation: dot-bounce 1.2s ease-in-out infinite;
+  }
+
+  .dots i:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+
+  .dots i:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+
+  /* Only the place moves here too: a panel whose animation is held still shows its look. */
+  .look-panel {
+    animation: look-in 0.18s ease-out;
+  }
+}
+
+@keyframes thread-in {
+  from {
+    transform: translateY(6px);
+  }
+}
+
+@keyframes look-in {
+  from {
+    transform: translateX(24px);
+  }
+}
+
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes spinner-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes mark-pulse {
+  50% {
+    box-shadow: 0 0 0 5px var(--primary-tint);
+  }
+}
+
+@keyframes dot-bounce {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}

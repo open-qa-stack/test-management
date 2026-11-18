@@ -16,6 +16,9 @@ import { HealthService } from "../src/health/health.service.ts";
 import { NotReadyError } from "../src/health/not-ready-error.ts";
 import { NotReadyFilter } from "../src/health/not-ready.filter.ts";
 import type { Readiness } from "../src/health/readiness.ts";
+import { NoSessionSource } from "../src/sessions/no-session-source.ts";
+import { SessionSource } from "../src/sessions/session-source.ts";
+import { SessionsService } from "../src/sessions/sessions.service.ts";
 
 const CONFIGURATION = { OQAS_PORT: "8080", OQAS_DATABASE_URL: "postgres://oqas@127.0.0.1:1/oqas" };
 
@@ -32,6 +35,8 @@ describe("the root module", () => {
       [DatabaseStatus, { check: async () => ({ check: "up" }) }],
       [SchemaCheck, { onApplicationBootstrap: async () => {} }],
       [HealthService, { status: () => status }],
+      [SessionSource, { sessions: async () => [] }],
+      [SessionsService, { sessions: async () => [] }],
     ]);
     let builder = Test.createTestingModule({ imports: [AppModule.forRoot(configuration)] });
     for (const [token, double] of doubles) builder = builder.overrideProvider(token).useValue(double);
@@ -44,7 +49,7 @@ describe("the root module", () => {
     }
   });
 
-  it("provides the configuration it was given, the database it names, its migrations, its status and the health service", async () => {
+  it("provides the configuration it was given, the database it names, its migrations, its status, the health service and the sessions", async () => {
     const configuration = ApiConfiguration.read(CONFIGURATION);
     const module = await Test.createTestingModule({ imports: [AppModule.forRoot(configuration)] }).compile();
     try {
@@ -54,6 +59,8 @@ describe("the root module", () => {
       assert.ok(module.get(DatabaseStatus) instanceof DatabaseStatus);
       assert.ok(module.get(SchemaCheck) instanceof SchemaCheck);
       assert.ok(module.get(HealthService) instanceof HealthService);
+      assert.ok(module.get(SessionsService) instanceof SessionsService);
+      assert.ok(module.get(SessionSource) instanceof NoSessionSource);
     } finally {
       await module.close();
     }

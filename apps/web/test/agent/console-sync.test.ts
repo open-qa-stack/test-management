@@ -1,0 +1,249 @@
+import assert from "node:assert/strict";
+import type { Project, Session } from "@open-qa-stack/shared/sessions";
+import { afterEach, beforeEach, describe, it, vi } from "vitest";
+import type { ConsoleAction } from "../../src/agent/console-state.ts";
+import { ConsoleSync, PAUSE_MS } from "../../src/agent/console-sync.ts";
+import { ApiClient } from "../../src/api/api-client.ts";
+import { FakeDocument } from "../api/fake-document.ts";
+import { FakeEventSource } from "../api/fake-event-source.ts";
+import { COMPLETED, EVENTS, numbered, RUNNING, SESSION_ID } from "./session-fixture.ts";
+
+const PROJECT: Project = { name: "Demo", applications: [] };
+
+/** The event that says the session of the fixtures completed. */
+const COMPLETED_EVENT = numbered([...EVENTS.slice(0, 3), { type: "state_changed", state: "completed" }])[3]!;
+
+/** What the instance does when called: it answers, or cannot be reached. */
+type Answer = () => Response;
+
+/** An answer that carries a JSON body. */
+const json =
+  (body: unknown, status = 200): Answer =>
+  () =>
+    new Response(JSON.stringify(body), { status });
+
+/** A problem of the API, by its code. */
+const problem = (code: string, status: number): Answer => json({ code, status, detail: `The API says ${code}.` }, status);
+
+/** An instance that cannot be reached. */
+const unreachable: Answer = () => {
+  throw new TypeError("Failed to fetch");
+};
+
+/** An instance a test plays: what it answers to each call, which a test changes as it goes, and the calls it got. */
+class PlayedApi {
+  /** What it answers, by method and path. */
+  public readonly answers = new Map<string, Answer>();
+  /** The calls it got, by method and path, in order. */
+  public readonly calls: string[] = [];
+  /** The actions the state of the console was told, in order. */
+  public readonly told: ConsoleAction[] = [];
+  public readonly sync = new ConsoleSync(
+    new ApiClient(async (input, init) => {
+      const call = `${init?.method ?? "GET"} ${input}`;
+      this.calls.push(call);
+      return this.answers.get(call)!();
+    }),
+    (action) => this.told.push(action),
+  );
+
+  /**
+   * Sets what the instance answers to a call from now on.
+   *
+   * @param call - The method and the path, such as `GET /api/sessions`.
+   * @param answer - What it answers.
+   */
+  public answer(call: string, answer: Answer): void {
+    this.answers.set(call, answer);
+  }
+}
+
+/** Lets the answers of the instance reach the console. */
+const settled = (): Promise<unknown> => vi.advanceTimersByTimeAsync(0);
+
+/** Lets a pause pass, and the answers to what is asked after it reach the console. */
+const paused = (): Promise<unknown> => vi.advanceTimersByTimeAsync(PAUSE_MS);
+
+describe("what keeps the console in step with its instance", () => {
+  let api = new PlayedApi();
+
+  beforeEach(() => {
+    api = new PlayedApi();
+    FakeEventSource.opened.length = 0;
+    vi.useFakeTimers();
+    vi.stubGlobal("EventSource", FakeEventSource);
+    vi.stubGlobal("window", globalThis);
+    vi.stubGlobal("document", new FakeDocument());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  describe("reading the project", () => {
+    it("reads it once: it is not asked again after the API described it", async () => {
+      api.answer("GET /api/project", json(PROJECT));
+      api.sync.project();
+      await vi.advanceTimersByTimeAsync(10 * PAUSE_MS);
+      assert.deepEqual(api.told, [{ type: "project", project: PROJECT }]);
+      assert.deepEqual(api.calls, ["GET /api/project"]);
+    });
+
+    it("asks again while the API fails, saying the instance unreachable only when it is", async () => {
+      api.answer("GET /api/project", problem("error", 500));
+      const stop = api.sync.project();
+      await settled();
+      assert.deepEqual(api.told, []);
+      api.answer("GET /api/project", unreachable);
+      await paused();
+      assert.deepEqual(api.told, [{ type: "unreachable" }]);
+      api.answer("GET /api/project", json(PROJECT));
+      await paused();
+      assert.deepEqual(api.told.at(-1), { type: "project", project: PROJECT });
+      assert.equal(api.calls.length, 3);
+      stop();
+    });
+  });
+
+  describe("listing the sessions", () => {
+    it("lists them again and again, each list under the rank it was asked at", async () => {
+      api.answer("GET /api/sessions", json({ items: [RUNNING] }));
+      const stop = api.sync.sessions();
+      await settled();
+      api.answer("GET /api/sessions", json({ items: [COMPLETED] }));
+      await paused();
+      assert.deepEqual(api.told, [
+        { type: "sessions", sessions: [RUNNING], askedAt: 1 },
+        { type: "sessions", sessions: [COMPLETED], askedAt: 2 },
+      ]);
+      stop();
+      await vi.advanceTimersByTimeAsync(10 * PAUSE_MS);
+      assert.equal(api.calls.length, 2);
+    });
+
+    it("says why the API could not list them when it answered so, and the instance unreachable when it did not answer", async () => {
+      api.answer("GET /api/sessions", problem("error", 500));
+      const stop = api.sync.sessions();
+      await settled();
+      assert.deepEqual(api.told, [{ type: "unlisted", message: "The API says error." }]);
+      api.answer("GET /api/sessions", unreachable);
+      await paused();
+      assert.deepEqual(api.told.slice(1), [{ type: "unreachable" }]);
+      stop();
+    });
+  });
+
+  describe("opening a session", () => {
+    it("says it is opening, then opened, ranked after the list asked before the API answered and before the next, and hands the session over", async () => {
+      api.answer("GET /api/sessions", json({ items: [] }));
+      api.answer("POST /api/sessions", json(RUNNING, 201));
+      const stop = api.sync.sessions();
+      const opened: Session[] = [];
+      api.sync.open("tester la recherche d'un client", (session) => opened.push(session));
+      assert.deepEqual(api.told, [{ type: "opening" }]);
+      await settled();
+      // The list asked first is answered last: its rank tells the state it was asked before the session opened.
+      assert.deepEqual(api.told.slice(1), [
+        { type: "opened", session: RUNNING, answeredAt: 2 },
+        { type: "sessions", sessions: [], askedAt: 1 },
+      ]);
+      assert.deepEqual(opened, [RUNNING]);
+      await paused();
+      assert.deepEqual(api.told.at(-1), { type: "sessions", sessions: [], askedAt: 3 });
+      stop();
+    });
+
+    it("says why the API refused, in the words of the console, and hands nothing over", async () => {
+      api.answer("POST /api/sessions", problem("session_running", 409));
+      const opened: Session[] = [];
+      api.sync.open("tester", (session) => opened.push(session));
+      await settled();
+      assert.deepEqual(api.told, [
+        { type: "opening" },
+        { type: "refused", message: "Une session est déjà en cours : attendez qu’elle se termine pour en ouvrir une autre." },
+      ]);
+      assert.deepEqual(opened, []);
+    });
+  });
+
+  describe("following a session", () => {
+    const SESSION = `GET /api/sessions/${SESSION_ID}`;
+
+    it("follows its stream and reads the session itself, once, whatever the list holds", async () => {
+      api.answer(SESSION, json(RUNNING));
+      const leave = api.sync.follow(SESSION_ID);
+      assert.deepEqual(api.told, [{ type: "followed", id: SESSION_ID }]);
+      FakeEventSource.last.onopen?.();
+      FakeEventSource.last.receive(EVENTS[0]!);
+      await vi.advanceTimersByTimeAsync(10 * PAUSE_MS);
+      assert.deepEqual(api.told.slice(1), [
+        { type: "stream", id: SESSION_ID, state: "open" },
+        { type: "session", session: RUNNING },
+        { type: "events", id: SESSION_ID, events: [EVENTS[0]] },
+      ]);
+      assert.deepEqual(api.calls, [SESSION]);
+      leave();
+    });
+
+    it("reads the session again once its stream ended, to learn what it came to", async () => {
+      api.answer(SESSION, json(RUNNING));
+      api.sync.follow(SESSION_ID);
+      await settled();
+      api.answer(SESSION, json(COMPLETED));
+      FakeEventSource.last.receive(COMPLETED_EVENT);
+      await vi.advanceTimersByTimeAsync(10 * PAUSE_MS);
+      assert.deepEqual(api.told.slice(2), [
+        { type: "events", id: SESSION_ID, events: [COMPLETED_EVENT] },
+        { type: "stream", id: SESSION_ID, state: "ended" },
+        { type: "session", session: COMPLETED },
+      ]);
+      assert.deepEqual(api.calls, [SESSION, SESSION]);
+    });
+
+    it("drops the first reading when the stream ended before it answered", async () => {
+      api.answer(SESSION, json(COMPLETED));
+      api.sync.follow(SESSION_ID);
+      FakeEventSource.last.receive(COMPLETED_EVENT);
+      await vi.advanceTimersByTimeAsync(10 * PAUSE_MS);
+      assert.deepEqual(
+        api.told.filter(({ type }) => type === "session"),
+        [{ type: "session", session: COMPLETED }],
+      );
+    });
+
+    it("asks for the session again while the API fails to tell it, saying the instance unreachable only when it is", async () => {
+      api.answer(SESSION, problem("error", 500));
+      const leave = api.sync.follow(SESSION_ID);
+      await settled();
+      api.answer(SESSION, unreachable);
+      await paused();
+      assert.deepEqual(api.told.slice(1), [{ type: "unreachable" }]);
+      api.answer(SESSION, json(RUNNING));
+      await paused();
+      assert.deepEqual(api.told.at(-1), { type: "session", session: RUNNING });
+      leave();
+    });
+
+    it("says the session missing when the instance keeps none of that name, and stops asking and following it", async () => {
+      api.answer(SESSION, problem("unknown_session", 404));
+      const leave = api.sync.follow(SESSION_ID);
+      await vi.advanceTimersByTimeAsync(10 * PAUSE_MS);
+      assert.deepEqual(api.told.slice(1), [{ type: "missing", id: SESSION_ID }]);
+      assert.deepEqual(api.calls, [SESSION]);
+      assert.equal(FakeEventSource.last.closed, true);
+      assert.equal(vi.getTimerCount(), 0);
+      leave();
+    });
+
+    it("leaves the session: its stream closed, nothing more asked nor told but that it left", async () => {
+      api.answer(SESSION, json(RUNNING));
+      const leave = api.sync.follow(SESSION_ID);
+      leave();
+      await vi.advanceTimersByTimeAsync(10 * PAUSE_MS);
+      assert.deepEqual(api.told, [{ type: "followed", id: SESSION_ID }, { type: "left" }]);
+      assert.equal(FakeEventSource.last.closed, true);
+      assert.equal(vi.getTimerCount(), 0);
+    });
+  });
+});

@@ -17,6 +17,8 @@ The API reads its configuration once, at startup, from environment variables onl
 | `OQAS_HOST` | a text that is not empty | no | no | `0.0.0.0` | `127.0.0.1` | The address the API listens on. |
 | `OQAS_PORT` | an integer from 1 to 65535 | yes | no | | `8080` | The TCP port the API listens on. |
 | `OQAS_DATABASE_URL` | a PostgreSQL connection URL with a host name, starting with postgres:// or postgresql:// | yes | yes | | `postgres://oqas:change-me@127.0.0.1:5432/oqas` | The connection URL of the PostgreSQL database of the instance. |
+| `OQAS_SOLO_REPOSITORY` | an absolute path | no | no | | `/srv/tests` | The test repository whose runs of the oqas command line the instance shows as sessions: a bridge, until workers write the sessions to the database. |
+| `OQAS_SOLO_COMMAND` | a program and its arguments, separated by spaces, one that holds a space between quotes | no | no | | `node /clone/packages/cli/src/main.ts` | The command that starts oqas, which opening a session from the instance runs on that repository: part of the same bridge. |
 
 A missing required variable or an invalid value stops the startup before anything listens. The process exits with code `1` and writes to the error output one line per variable at fault, naming the variable and the rule it breaks, never its value:
 
@@ -72,9 +74,19 @@ content-type: application/json; charset=utf-8
 
 Each change of the state of the database is logged once, from the check at startup on, as a warning when the instance is not ready.
 
+## Errors
+
+Every answer that is not a success is a problem, as RFC 9457 describes one, served as `application/problem+json`: a route that does not exist, a body the API cannot read and a failure of the API included. The readiness route alone answers `503` with the body above. A failure of the API is answered `500` without its message, which is logged. The body and its codes are described in [the problems](sessions.md#problems).
+
+## Sessions
+
+The routes of the project and of the sessions, the stream of their events and the two variables that bridge an instance to the `oqas` command line are described in [the sessions](sessions.md).
+
+The stream of events is long-lived: a proxy before the API must not buffer `text/event-stream` answers. The stream carries a comment every 15 seconds, so an idle timeout of the proxy above that is enough. The command `OQAS_SOLO_COMMAND` names is started with the environment of the API without the variables marked secret above.
+
 ## Stopping
 
-On `SIGTERM` or `SIGINT`, the API closes its modules and its server, then exits on that signal.
+On `SIGTERM` or `SIGINT`, the API ends the streams of events still open, closes its modules and its server, then exits on that signal.
 
 ## Development
 

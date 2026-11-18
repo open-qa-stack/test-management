@@ -6,12 +6,13 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { closedPort } from "@open-qa-stack/testing";
 import { ApiConfiguration } from "../src/config/api-configuration.ts";
+import { splitCommandLine } from "../src/config/command-line.ts";
 import { API_VARIABLES } from "../src/config/api-variables.ts";
 import { ConfigurationError } from "../src/config/configuration-error.ts";
 import type { EnvironmentVariable } from "../src/config/environment-variable.ts";
 import { processEnvironment } from "../src/config/process-environment.ts";
 import { readVariables } from "../src/config/read-variables.ts";
-import { databaseUrl, nonEmptyText, portNumber, type ValueType } from "../src/config/value-type.ts";
+import { absolutePath, commandLine, databaseUrl, nonEmptyText, portNumber, type ValueType } from "../src/config/value-type.ts";
 import { childEnvironment, TEST_ENVIRONMENT } from "./support/environment.ts";
 
 const DATABASE = "postgres://oqas:secret@127.0.0.1:5432/oqas";
@@ -93,7 +94,7 @@ describe("the documentation of the configuration", () => {
     const expected = (Object.values(API_VARIABLES) as EnvironmentVariable<unknown>[]).map((variable) => [
       code(variable.name),
       variable.type.rule,
-      variable.defaultValue === undefined ? "yes" : "no",
+      variable.defaultValue === undefined && variable.optional !== true ? "yes" : "no",
       variable.secret ? "yes" : "no",
       code(variable.defaultValue),
       code(variable.example),
@@ -139,6 +140,79 @@ describe("a text", () => {
   it("is not empty", () => {
     assert.deepEqual(nonEmptyText.parse("x"), { ok: true, value: "x" });
     assert.deepEqual(nonEmptyText.parse(""), { ok: false });
+  });
+});
+
+describe("an absolute path", () => {
+  it("starts at the root of the file system", () => {
+    assert.deepEqual(absolutePath.parse("/srv/tests"), { ok: true, value: "/srv/tests" });
+    for (const raw of ["", "tests", "./tests", "../tests"]) assert.deepEqual(absolutePath.parse(raw), { ok: false }, raw);
+  });
+});
+
+describe("a command", () => {
+  it("is split into its program and its arguments at the spaces, however many", () => {
+    assert.deepEqual(splitCommandLine("node /clone/packages/cli/src/main.ts"), ["node", "/clone/packages/cli/src/main.ts"]);
+    assert.deepEqual(splitCommandLine("  oqas\t--follow \n"), ["oqas", "--follow"]);
+    assert.deepEqual(commandLine.parse("oqas"), { ok: true, value: ["oqas"] });
+  });
+
+  it("keeps what is between quotes as it is, spaces and the other quote included, and joins it to what touches it", () => {
+    assert.deepEqual(splitCommandLine(`node "/my clone/main.ts" --name='it"s' ''`), ["node", "/my clone/main.ts", `--name=it"s`, ""]);
+    assert.deepEqual(splitCommandLine(`"/opt/my tools"/oqas`), ["/opt/my tools/oqas"]);
+  });
+
+  it("takes nothing else as special: neither a variable, nor an escape, nor what a shell would run", () => {
+    assert.deepEqual(splitCommandLine("C:\\tools\\oqas.cmd $HOME ; rm -rf / | `id`"), ["C:\\tools\\oqas.cmd", "$HOME", ";", "rm", "-rf", "/", "|", "`id`"]);
+  });
+
+  it("is refused when it names no program or leaves a quote open", () => {
+    for (const raw of ["", "   ", `"" --follow`, `node "main.ts`, "node 'main.ts"]) {
+      assert.equal(splitCommandLine(raw), undefined, raw);
+      assert.deepEqual(commandLine.parse(raw), { ok: false }, raw);
+    }
+  });
+});
+
+describe("an optional variable", () => {
+  const variables = {
+    port: { name: "TEST_PORT", description: "A port.", type: portNumber, secret: false, optional: true, example: "8080" },
+  } satisfies Record<string, EnvironmentVariable<unknown>>;
+
+  it("has no value when it is not set, and is read like any other when it is", () => {
+    assert.deepEqual(readVariables(variables, {}), {});
+    assert.deepEqual(readVariables(variables, { TEST_PORT: "8080" }), { port: 8080 });
+  });
+
+  it("is refused when it is set to an invalid value", () => {
+    assert.deepEqual(
+      violationsOf(() => readVariables(variables, { TEST_PORT: "" })),
+      ["TEST_PORT must be an integer from 1 to 65535."],
+    );
+  });
+});
+
+describe("the bridge to the command line", () => {
+  const REQUIRED = { OQAS_PORT: "8080", OQAS_DATABASE_URL: DATABASE };
+
+  it("is not configured by default", () => {
+    const configuration = ApiConfiguration.read(REQUIRED);
+    assert.deepEqual([configuration.soloRepository, configuration.soloCommand], [undefined, undefined]);
+  });
+
+  it("is configured with the test repository and with the command that starts oqas", () => {
+    const configuration = ApiConfiguration.read({ ...REQUIRED, OQAS_SOLO_REPOSITORY: "/srv/tests", OQAS_SOLO_COMMAND: "node '/my clone/main.ts'" });
+    assert.deepEqual([configuration.soloRepository, configuration.soloCommand], ["/srv/tests", ["node", "/my clone/main.ts"]]);
+  });
+
+  it("is refused with a relative repository or a command that cannot be split", () => {
+    assert.deepEqual(
+      violationsOf(() => ApiConfiguration.read({ ...REQUIRED, OQAS_SOLO_REPOSITORY: "tests", OQAS_SOLO_COMMAND: "node 'main.ts" })),
+      [
+        "OQAS_SOLO_REPOSITORY must be an absolute path.",
+        "OQAS_SOLO_COMMAND must be a program and its arguments, separated by spaces, one that holds a space between quotes.",
+      ],
+    );
   });
 });
 
