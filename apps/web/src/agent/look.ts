@@ -1,25 +1,24 @@
 import type { ActionLook } from "@open-qa-stack/domain/sessions";
+import { applicationOf } from "./browser-tool.ts";
 
-/** A file an agent reads or writes: its path and its lines. */
+/** A file an agent handed a tool: its path and its lines. */
 export interface CodeLook {
   readonly kind: "code";
   /** The path of the file. */
   readonly file: string;
   /** Its lines. */
   readonly lines: readonly string[];
-  /** What the look shows, in a sentence. */
-  readonly caption: string;
 }
 
-/** A text an agent reads: the page a browser tool rendered for it, a piece of knowledge. */
+/** A page a browser tool rendered for an agent. */
 export interface DocumentLook {
   readonly kind: "document";
-  /** Where the excerpt comes from. */
+  /** Its address. */
   readonly source: string;
-  /** The excerpt. */
+  /** The application whose page it is, when the tool that rendered it names one. */
+  readonly application?: string;
+  /** What the page holds, a line each. */
   readonly excerpt: readonly string[];
-  /** What the look shows, in a sentence. */
-  readonly caption: string;
 }
 
 /** What an agent looks at when it acts, as the side of a session draws it. */
@@ -28,11 +27,24 @@ export type Look = CodeLook | DocumentLook;
 /**
  * Reads what an agent had before its eyes as the side of the session draws it.
  *
- * @param look - What the action ended on: the file the agent handed in, or the page a tool rendered for it.
- * @returns The file as code, the page as a document, each with what it shows in a sentence.
+ * @param look - What the action looked at: the file the agent handed the tool, or the page the tool rendered.
+ * @param tool - The tool of the action, which names the application of a page.
+ * @returns The file as code, the page as a document.
  */
-export function lookOf(look: ActionLook): Look {
-  return look.kind === "file"
-    ? { kind: "code", file: look.name, lines: look.lines, caption: "Le test que l’agent a remis." }
-    : { kind: "document", source: look.name, excerpt: look.lines, caption: "La page, telle que l’outil l’a rendue à l’agent." };
+export function lookOf(look: ActionLook, tool: string): Look {
+  if (look.kind === "file") return { kind: "code", file: look.name, lines: look.lines };
+  const application = applicationOf(tool);
+  return { kind: "document", source: look.name, ...(application === undefined ? {} : { application }), excerpt: look.lines };
+}
+
+/**
+ * Titles a look by what it shows, as its panel heads it.
+ *
+ * @param look - The look.
+ * @returns Its title — « Fichier de test » or « Page consultée » — and what it is: the path of the file, or the
+ * application and the address of the page.
+ */
+export function lookTitleOf(look: Look): readonly [title: string, subtitle: string] {
+  if (look.kind === "code") return ["Fichier de test", look.file];
+  return ["Page consultée", look.application === undefined ? look.source : `${look.application} · ${look.source}`];
 }

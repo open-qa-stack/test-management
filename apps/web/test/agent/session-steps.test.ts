@@ -89,7 +89,7 @@ describe("the script of a session", () => {
       from: "planner",
       at: "14:44:14",
       tool: "propose_plan",
-      title: "A proposé un plan de 1 scénario(s)",
+      title: "A proposé un plan de 1 scénario",
       detail: "The plan was accepted: search.",
       durationMs: 40,
       outcome: "passed",
@@ -334,7 +334,7 @@ describe("the end of a script", () => {
     assert.deepEqual(steps.at(-1), {
       kind: "outcome",
       at: "14:44:20",
-      title: "Verdict de l’exécution : 1 test(s)",
+      title: "Verdict de l’exécution : 1 test",
       tests: [{ title: "Rechercher un client par son nom", level: "", verdict: "passed", note: "Every attempt passed." }],
     });
   });
@@ -352,7 +352,7 @@ describe("the end of a script", () => {
     assert.deepEqual(last, {
       kind: "outcome",
       at: "14:44:06",
-      title: "Verdict de l’exécution : 2 test(s)",
+      title: "Verdict de l’exécution : 2 tests",
       tests: [
         { title: "Rechercher un client par son nom", level: "", verdict: "passed", note: "Every attempt passed." },
         { title: "Créer un client", level: "", verdict: "failed", note: "An assertion failed." },
@@ -367,7 +367,7 @@ describe("the end of a script", () => {
       {
         kind: "outcome",
         at: "14:44:09",
-        title: "2 test(s) clos par le harnais",
+        title: "2 tests clos par le harnais",
         tests: [
           { title: "search", level: "smoke", verdict: "passed" },
           { title: "create", level: "", verdict: "failed" },

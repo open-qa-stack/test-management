@@ -1,3 +1,5 @@
+import { counted } from "../ui/counted.ts";
+
 /** Reads a field of the arguments of a tool call as a text; empty when it has none. */
 function argument(args: unknown, name: string): string {
   const value = (args as Readonly<Record<string, unknown>> | null | undefined)?.[name];
@@ -48,12 +50,12 @@ const TITLES: readonly (readonly [RegExp, (source: string, args: unknown, subjec
   [/^knowledge_read$/, (_source, args) => `A lu ${argument(args, "item")}`],
   [/^tests_list$/, () => "A cherché les tests existants"],
   [/^tests_read$/, (_source, args) => `A lu le test ${argument(args, "path")}`],
-  [/^propose_plan$/, (_source, args) => `A proposé un plan de ${count(args, "scenarios")} scénario(s)`],
+  [/^propose_plan$/, (_source, args) => `A proposé un plan de ${counted(count(args, "scenarios"), "scénario", "scénarios")}`],
   [/^run_test$/, (_source, _args, subject) => (subject === undefined ? "A joué le test" : `A joué « ${subject} »`)],
   [/^propose_test$/, (_source, _args, subject) => (subject === undefined ? "A remis le test" : `A remis « ${subject} »`)],
-  [/^report_duplicates$/, (_source, args) => `A signalé ${count(args, "duplicates")} doublon(s)`],
-  [/^report_findings$/, (_source, args) => `A rendu ${count(args, "findings")} constat(s) de cohérence`],
-  [/^report_quality$/, (_source, args) => `A rendu ${count(args, "findings")} remarque(s) sur le code`],
+  [/^report_duplicates$/, (_source, args) => `A signalé ${counted(count(args, "duplicates"), "doublon", "doublons")}`],
+  [/^report_findings$/, (_source, args) => `A rendu ${counted(count(args, "findings"), "constat", "constats")} de cohérence`],
+  [/^report_quality$/, (_source, args) => `A rendu ${counted(count(args, "findings"), "remarque", "remarques")} sur le code`],
   [/^remember$/, () => "A noté quelque chose pour la suite"],
 ];
 

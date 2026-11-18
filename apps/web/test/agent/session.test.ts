@@ -65,7 +65,7 @@ const REVIEWED: readonly Step[] = [
   {
     kind: "outcome",
     at: "09:00:06",
-    title: "Verdict de l’exécution : 4 test(s)",
+    title: "Verdict de l’exécution : 4 tests",
     tests: [
       { title: "Search a customer", level: "smoke", verdict: "passed" },
       { title: "Open a customer", level: "", verdict: "failed", note: "The heading never showed." },
@@ -342,7 +342,7 @@ describe("the thread of a session", () => {
     assert.equal(countOf(html, /<article class="turn">/g), 2);
     assert.match(
       text,
-      /Planificateur explore l’application et propose le plan 14:44:11 Réflexion I should open the application first\. I should open the application first\. A ouvert \/ dans customer-management \{"url":"http:\/\/localhost:3020\/"\} 900 ms A proposé un plan de 1 scénario\(s\) The plan was accepted: search\. 40 ms /,
+      /Planificateur explore l’application et propose le plan 14:44:11 Réflexion I should open the application first\. I should open the application first\. A ouvert \/ dans customer-management \{"url":"http:\/\/localhost:3020\/"\} 900 ms A proposé un plan de 1 scénario The plan was accepted: search\. 40 ms /,
     );
     assert.match(text, /Rédacteur écrit et joue les tests Playwright 14:44:19 I write the test now\. A joué le test Rédacteur travaille$/);
     assert.match(
@@ -406,7 +406,7 @@ describe("the thread of a session", () => {
     assert.match(
       html,
       new RegExp(
-        `<div class="act"><details><summary class="act-line"><span class="act-state" aria-hidden="true"></span><svg [^>]*>.*?</svg><span class="act-title">A ouvert / dans customer-management</span></summary><pre class="act-result">\\{&quot;url&quot;:&quot;http://localhost:3020/&quot;\\}</pre></details><a id="look-eye-${PAGE_TOOL}" class="act-look" href="${ADDRESS}\\?look=${PAGE_TOOL}" aria-label="A ouvert / dans customer-management — voir ce que l’agent avait sous les yeux"><svg [^>]*>.*?</svg></a><span class="act-time">900 ms</span></div>`,
+        `<div class="act"><details><summary class="act-line"><span class="act-state" aria-hidden="true"></span><svg [^>]*>.*?</svg><span class="act-title">A ouvert / dans customer-management</span></summary><pre class="act-result">\\{&quot;url&quot;:&quot;http://localhost:3020/&quot;\\}</pre></details><a id="look-eye-${PAGE_TOOL}" class="act-look" href="${ADDRESS}\\?look=${PAGE_TOOL}" aria-label="A ouvert / dans customer-management — voir la page consultée"><svg [^>]*>.*?</svg></a><span class="act-time">900 ms</span></div>`,
       ),
     );
     assert.deepEqual(linksOf(html), [`${ADDRESS}?agent=planner`, `${ADDRESS}?look=${PAGE_TOOL}`, `${ADDRESS}?agent=writer`]);
@@ -428,7 +428,7 @@ describe("the thread of a session", () => {
   it("marks an action that passed, and gives no link to one that looked at nothing", () => {
     assert.match(
       thread(),
-      /<div class="act"><details><summary class="act-line"><span class="act-state ok" role="img" aria-label="réussi"><\/span><svg [^>]*>.*?<\/svg><span class="act-title">A proposé un plan de 1 scénario\(s\)<\/span><\/summary><pre class="act-result">The plan was accepted: search\.<\/pre><\/details><span class="act-time">40 ms<\/span><\/div>/,
+      /<div class="act"><details><summary class="act-line"><span class="act-state ok" role="img" aria-label="réussi"><\/span><svg [^>]*>.*?<\/svg><span class="act-title">A proposé un plan de 1 scénario<\/span><\/summary><pre class="act-result">The plan was accepted: search\.<\/pre><\/details><span class="act-time">40 ms<\/span><\/div>/,
     );
   });
 
@@ -464,7 +464,7 @@ describe("the thread of a session", () => {
     assert.match(
       html,
       new RegExp(
-        `<div class="act"><details><summary class="act-line"><span class="act-state" aria-hidden="true"></span><svg [^>]*>.*?</svg><span class="act-text"><span class="act-title">A remis le test</span><span class="act-path">search-customer.spec.ts</span></span></summary><pre class="act-code">test\\(&#x27;search&#x27;, async \\(\\) =&gt; \\{\\}\\);</pre></details><a id="look-eye-5" class="act-look" href="${ADDRESS}\\?look=5" aria-label="A remis le test — voir ce que l’agent avait sous les yeux">`,
+        `<div class="act"><details><summary class="act-line"><span class="act-state" aria-hidden="true"></span><svg [^>]*>.*?</svg><span class="act-text"><span class="act-title">A remis le test</span><span class="act-path">search-customer.spec.ts</span></span></summary><pre class="act-code">test\\(&#x27;search&#x27;, async \\(\\) =&gt; \\{\\}\\);</pre></details><a id="look-eye-5" class="act-look" href="${ADDRESS}\\?look=5" aria-label="A remis le test — voir le fichier de test">`,
       ),
     );
     assert.deepEqual(linksOf(html), [`${ADDRESS}?agent=planner`, `${ADDRESS}?agent=writer`, `${ADDRESS}?look=5`]);
@@ -661,11 +661,11 @@ describe("the thread of a session", () => {
   });
 
   it("lists the scenarios of an accepted plan under their count", () => {
-    assert.match(textOf(thread()), /Plan accepté par le harnais 1 scénario\(s\) 14:44:16 smoke Search a customer nominal · customer-management/);
+    assert.match(textOf(thread()), /Plan accepté par le harnais 1 scénario 14:44:16 smoke Search a customer nominal · customer-management/);
     const html = thread(liveWith(REVIEWED));
     assert.match(
       textOf(html),
-      /Plan accepté par le harnais 2 scénario\(s\) 09:00:03 P0 Search a customer smoke · \/customers P1 Open a customer smoke · \/customers\/1/,
+      /Plan accepté par le harnais 2 scénarios 09:00:03 P0 Search a customer smoke · \/customers P1 Open a customer smoke · \/customers\/1/,
     );
     assert.match(
       html,
@@ -693,9 +693,9 @@ describe("the thread of a session", () => {
     const html = thread(liveWith(REVIEWED));
     assert.match(
       textOf(html),
-      /Verdict de l’exécution : 4 test\(s\) réussi Search a customer smoke échoué Open a customer The heading never showed\. bloqué Delete a customer skipped Export the customers$/,
+      /Verdict de l’exécution : 4 tests réussi Search a customer smoke échoué Open a customer The heading never showed\. bloqué Delete a customer skipped Export the customers$/,
     );
-    assert.match(html, /<section class="result-card outcome"><header><b>Verdict de l’exécution : 4 test\(s\)<\/b><\/header>/);
+    assert.match(html, /<section class="result-card outcome"><header><b>Verdict de l’exécution : 4 tests<\/b><\/header>/);
     assert.match(
       html,
       /<div class="result-row"><span class="badge ok">réussi<\/span><span class="result-title">Search a customer<\/span><span class="turn-role">smoke<\/span><\/div>/,
@@ -703,7 +703,7 @@ describe("the thread of a session", () => {
     assert.match(html, /<span class="badge ko">échoué<\/span>/);
     assert.match(html, /<span class="badge warn">bloqué<\/span><span class="result-title">Delete a customer<\/span><span class="turn-role"><\/span><\/div>/);
     assert.match(html, /<span class="badge warn">skipped<\/span>/);
-    assert.match(textOf(thread(liveOf(COMPLETED))), /Verdict de l’exécution : 1 test\(s\) réussi Rechercher un client par son nom Every attempt passed\.$/);
+    assert.match(textOf(thread(liveOf(COMPLETED))), /Verdict de l’exécution : 1 test réussi Rechercher un client par son nom Every attempt passed\.$/);
   });
 
   it("keeps a kind of step or an agent when asked, and its links keep what the address holds", () => {
@@ -737,26 +737,45 @@ describe("the thread of a session", () => {
 
 describe("what an agent looked at", () => {
   it("is a file with its lines, an empty one kept as a line, or a text with its excerpt", () => {
-    const code = render(createElement(LookView, { look: { kind: "code", file: "a.spec.ts", lines: ["one", "", "three"], caption: "The test." } }));
+    const code = render(createElement(LookView, { look: { kind: "code", file: "a.spec.ts", lines: ["one", "", "three"] }, caption: "A joué « a »" }));
     assert.match(code, /<span class="look-line">one<\/span><span class="look-line"> <\/span><span class="look-line">three<\/span>/);
-    const document = render(createElement(LookView, { look: { kind: "document", source: "the card", excerpt: ["A rule."], caption: "What is known." } }));
-    assert.equal(textOf(document), "the card A rule. What is known.");
+    const document = render(
+      createElement(LookView, { look: { kind: "document", source: "http://localhost/", excerpt: ["A rule."] }, caption: "A regardé la page de shop" }),
+    );
+    assert.equal(textOf(document), "A rule. A regardé la page de shop");
   });
 });
 
 describe("the panel of a look", () => {
   /** The panel of the look of the page the planner opened, closed by the address of the session. */
   const panel = (): string => {
-    const look = { kind: "document", source: "http://localhost:3020/", excerpt: ['- heading "Customers"'], caption: "La page." } as const;
+    const look = { kind: "document", source: "http://localhost:3020/", application: "customer-management", excerpt: ['- heading "Customers"'] } as const;
     return render(createElement(LookPanel, { opened: { index: PAGE_TOOL, action: "A ouvert / dans customer-management", look }, close: ADDRESS }));
   };
 
-  it("is a dialog that does not hold the keyboard, named by its title and by the action it belongs to", () => {
+  it("is a dialog that does not hold the keyboard, titled by what it shows and named by what it is", () => {
     const html = panel();
-    assert.match(html, /^<section class="look-panel" role="dialog" aria-modal="false" aria-labelledby="look-panel-title look-panel-action">/);
-    assert.match(html, /<h2 id="look-panel-title" tabindex="-1">Sous les yeux de l’agent<\/h2>/);
-    assert.match(html, /<p id="look-panel-action" class="look-panel-action">A ouvert \/ dans customer-management<\/p>/);
-    assert.equal(textOf(html), 'Sous les yeux de l’agent A ouvert / dans customer-management http://localhost:3020/ - heading "Customers" La page.');
+    assert.match(html, /^<section class="look-panel" role="dialog" aria-modal="false" aria-labelledby="look-panel-title look-panel-subtitle">/);
+    assert.match(html, /<h2 id="look-panel-title" tabindex="-1">Page consultée<\/h2>/);
+    assert.match(html, /<p id="look-panel-subtitle" class="look-panel-subtitle">customer-management · http:\/\/localhost:3020\/<\/p>/);
+    assert.equal(textOf(html), 'Page consultée customer-management · http://localhost:3020/ - heading "Customers" A ouvert / dans customer-management');
+  });
+
+  it("titles a file as a test file under its path, and a page whose application is unknown under its address", () => {
+    const file = render(
+      createElement(LookPanel, {
+        opened: { index: 1, action: "A joué « a »", look: { kind: "code", file: "apps/shop/tests/a.spec.ts", lines: ["test();"] } },
+        close: ADDRESS,
+      }),
+    );
+    assert.match(textOf(file), /^Fichier de test apps\/shop\/tests\/a\.spec\.ts /);
+    const page = render(
+      createElement(LookPanel, {
+        opened: { index: 1, action: "A regardé", look: { kind: "document", source: "http://localhost/", excerpt: [] } },
+        close: ADDRESS,
+      }),
+    );
+    assert.match(textOf(page), /^Page consultée http:\/\/localhost\/ /);
   });
 
   it("is closed by a link to the address it is given, named « Fermer »", () => {
@@ -846,7 +865,7 @@ describe("the stop of a session", () => {
         html,
         /<span id="session-stop" class="session-stopping" role="status" tabindex="-1">arrêt demandé…<\/span><button type="button" class="btn ghost sm">/,
       );
-      assert.match(textOf(html), /en direct 2026-11-15 · 14:44:06 UTC · 2 action\(s\) arrêt demandé… Rejouer/);
+      assert.match(textOf(html), /en direct 2026-11-15 · 14:44:06 UTC · 2 actions arrêt demandé… Rejouer/);
       assert.doesNotMatch(html, /class="session-stop"|Arrêter/);
     }
     assert.doesNotMatch(stoppedWith({ state: "asked" }, "", INTERRUPTED), /arrêt demandé|session-stop/);
@@ -887,9 +906,9 @@ describe("the screen of a session", () => {
     const html = screen();
     assert.match(
       html,
-      /<div class="session-bar"><span class="badge info">en direct<\/span><span class="session-facts">2026-11-15 · 14:44:06 UTC · 2 action\(s\)<\/span><a id="session-stop" class="btn ghost sm" href="#\/agent\/sessions\/[^"?]+\?stop=ask"><svg [^>]*><rect [^>]*\/><\/svg> Arrêter<\/a><button type="button" class="btn ghost sm"><svg [^>]*>.*?<\/svg> Rejouer<\/button><\/div>/,
+      /<div class="session-bar"><span class="badge info">en direct<\/span><span class="session-facts">2026-11-15 · 14:44:06 UTC · 2 actions<\/span><a id="session-stop" class="btn ghost sm" href="#\/agent\/sessions\/[^"?]+\?stop=ask"><svg [^>]*><rect [^>]*\/><\/svg> Arrêter<\/a><button type="button" class="btn ghost sm"><svg [^>]*>.*?<\/svg> Rejouer<\/button><\/div>/,
     );
-    assert.match(textOf(html), /en direct 2026-11-15 · 14:44:06 UTC · 2 action\(s\) Arrêter Rejouer ✓ Configuration/);
+    assert.match(textOf(html), /en direct 2026-11-15 · 14:44:06 UTC · 2 actions Arrêter Rejouer ✓ Configuration/);
     assert.match(html, /<div class="content"><div class="session"><div class="session-bar">/);
     assert.doesNotMatch(html, /disabled|role="progressbar"|session-bar replay/);
     assert.deepEqual(pressed(), ["restart"]);
@@ -908,25 +927,25 @@ describe("the screen of a session", () => {
   it("adds what an ended session knows: its duration, its model requests and its branch", () => {
     assert.match(
       textOf(screen("", liveOf(COMPLETED))),
-      /tests réussis 2026-11-15 · 14:44:06 UTC · 1 min 54 s · 3 action\(s\) · 50 requêtes au modèle · oqas\/design-20261115T144408Z Rejouer/,
+      /tests réussis 2026-11-15 · 14:44:06 UTC · 1 min 54 s · 3 actions · 50 requêtes au modèle · oqas\/design-20261115T144408Z Rejouer/,
     );
-    assert.match(textOf(screen("", liveOf(STOPPED))), /arrêtée avant la fin 2026-11-15 · 14:44:06 UTC · 42 s · 3 action\(s\) · 3 requêtes au modèle Rejouer/);
+    assert.match(textOf(screen("", liveOf(STOPPED))), /arrêtée avant la fin 2026-11-15 · 14:44:06 UTC · 42 s · 3 actions · 3 requêtes au modèle Rejouer/);
   });
 
   it("tells only the opening and the actions of a session that has no result", () => {
     const interrupted = screen("", liveOf(INTERRUPTED));
-    assert.match(textOf(interrupted), /interrompue 2026-11-15 · 14:44:06 UTC · 3 action\(s\) Rejouer/);
+    assert.match(textOf(interrupted), /interrompue 2026-11-15 · 14:44:06 UTC · 3 actions Rejouer/);
     assert.match(interrupted, /<div class="session-bar"><span class="badge warn">interrompue<\/span>/);
     const untold = screen("", liveOf({ ...RUNNING, state: "completed" }));
     assert.match(
       untold,
-      /<div class="session-bar"><span class="badge neutral">terminée<\/span><span class="session-facts">2026-11-15 · 14:44:06 UTC · 3 action\(s\)<\/span>/,
+      /<div class="session-bar"><span class="badge neutral">terminée<\/span><span class="session-facts">2026-11-15 · 14:44:06 UTC · 3 actions<\/span>/,
     );
   });
 
   it("counts the knowledge sources the agents read, each once, among the facts of a session that read some", () => {
     const written = liveWith([{ kind: "say", from: "cartographer", at: "09:00:00", text: "Je lis les sources." }], INTERRUPTED, ["specification", "tickets"]);
-    assert.match(textOf(screen("", written)), /interrompue 2026-11-15 · 14:44:06 UTC · 2 source\(s\) de connaissance lue\(s\) · 0 action\(s\) Rejouer/);
+    assert.match(textOf(screen("", written)), /interrompue 2026-11-15 · 14:44:06 UTC · 2 sources de connaissance lues · 0 action Rejouer/);
     const events = numbered([
       { type: "phase_started", phase: "survey" },
       { type: "phase_started", phase: "card", source: "orders-db" },
@@ -934,8 +953,8 @@ describe("the screen of a session", () => {
       { type: "phase_started", phase: "card", source: "orders-db" },
       { type: "agent_message", agent: "cartographer", text: "I read the sources.", reasoning: false },
     ]);
-    assert.match(textOf(screen("", liveOf(RUNNING, {}, events))), /UTC · 2 source\(s\) de connaissance lue\(s\) · 0 action\(s\) Arrêter Rejouer/);
-    assert.doesNotMatch(screen(), /source\(s\)/);
+    assert.match(textOf(screen("", liveOf(RUNNING, {}, events))), /UTC · 2 sources de connaissance lues · 0 action Arrêter Rejouer/);
+    assert.doesNotMatch(screen(), /de connaissance lue/);
   });
 
   it("offers no replay of a session that has no event", () => {
@@ -966,7 +985,7 @@ describe("the screen of a session", () => {
   it("says in its bar that a queued session waits for an agent, and names nobody at work under what was asked", () => {
     const html = screen("", liveOf(QUEUED, {}, ASKED));
     assert.match(html, /<span class="badge outline">en file<\/span>/);
-    assert.match(textOf(html), /en file 2026-11-15 · 14:44:06 UTC · en attente d’un agent · 0 action\(s\) Arrêter Rejouer /);
+    assert.match(textOf(html), /en file 2026-11-15 · 14:44:06 UTC · en attente d’un agent · 0 action Arrêter Rejouer /);
     assert.doesNotMatch(html, /class="working"|travaille/);
     assert.match(textOf(screen("", liveOf(QUEUED, { following: false, tick: 30 }, ASKED))), /× 1 Tout afficher/);
   });
@@ -1016,7 +1035,7 @@ describe("the screen of a session", () => {
 
   it("is its thread alone by default: no panel, no action marked, and nothing but the thread to switch to", () => {
     const html = screen();
-    assert.doesNotMatch(html, /look-panel|role="dialog"|Sous les yeux de l’agent|act selected|aria-current="true"[^>]*class="act-look"/);
+    assert.doesNotMatch(html, /look-panel|role="dialog"|Page consultée|Fichier de test|act selected|aria-current="true"[^>]*class="act-look"/);
     assert.doesNotMatch(html, /Regard|Vues de la session|view=/);
     assert.ok(linksOf(html).includes(`${ADDRESS}?look=${PAGE_TOOL}`));
   });
@@ -1024,16 +1043,16 @@ describe("the screen of a session", () => {
   it("opens from the address the look of the action it names, marks that action, and closes by the same address without it", () => {
     const live = liveWith([...fixtureScript().steps, ...REVIEWED]);
     const page = screen(`?look=${PAGE_TOOL}`, live);
-    assert.match(textOf(page), /Sous les yeux de l’agent A ouvert \/ dans customer-management http:\/\/localhost:3020\/ - heading "Customers"/);
+    assert.match(
+      textOf(page),
+      /Page consultée customer-management · http:\/\/localhost:3020\/ - heading "Customers" - textbox "Search\.\.\." A ouvert \/ dans customer-management/,
+    );
     assert.match(page, new RegExp(`<div class="act selected"><details>.{0,900}<a id="look-eye-${PAGE_TOOL}" class="act-look"`));
     assert.equal(countOf(page, /class="act selected"/g), 1);
     assert.match(page, new RegExp(`<a class="look-panel-close" href="${ADDRESS}" aria-label="Fermer">`));
     assert.match(page, /<\/section><div class="session-end"><\/div><section class="look-panel" role="dialog"/);
     const file = screen(`?look=${fixtureScript().steps.length + 5}`, live);
-    assert.match(
-      textOf(file),
-      /Sous les yeux de l’agent A remis le test search-customer\.spec\.ts test\('search', async \(\) => \{\}\); Le test que l’agent a remis\.$/,
-    );
+    assert.match(textOf(file), /Fichier de test search-customer\.spec\.ts test\('search', async \(\) => \{\}\); A remis le test$/);
   });
 
   it("keeps the filter and the agent of the address in the eyes of the thread and in the link that closes the look", () => {
@@ -1052,7 +1071,7 @@ describe("the screen of a session", () => {
 
   it("keeps open, while the session is replayed, the look of an action the replay has not reached yet", () => {
     const early = screen(`?look=${PAGE_TOOL}`, replayAt(REASONING, 0));
-    assert.match(textOf(early), /Sous les yeux de l’agent A ouvert \/ dans customer-management http:\/\/localhost:3020\//);
+    assert.match(textOf(early), /Page consultée customer-management · http:\/\/localhost:3020\//);
     assert.doesNotMatch(early, /act selected|look-eye/);
     const running = screen(`?look=${PAGE_TOOL}`, replayAt(PAGE_TOOL, 1));
     assert.match(running, /<div class="act selected"><div class="act-line"><span class="spinner"/);

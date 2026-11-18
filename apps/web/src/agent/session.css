@@ -1121,9 +1121,10 @@ html:has(.look-panel) {
   outline: 0;
 }
 
-.look-panel-action {
+.look-panel-subtitle {
   margin: var(--gap-line) 0 0;
   color: var(--text-3);
+  font-family: var(--font-mono);
   font-size: var(--type-small);
   line-height: var(--leading-small);
   overflow-wrap: anywhere;
@@ -1162,14 +1163,6 @@ html:has(.look-panel) {
   overflow: hidden;
   border: var(--hairline) solid var(--line);
   border-radius: var(--radius-control);
-}
-
-.look-bar {
-  flex: none;
-  padding: var(--space-1) var(--space-3);
-  background: var(--neutral-soft);
-  color: var(--text-2);
-  overflow-wrap: anywhere;
 }
 
 /* A long file or a long page scrolls inside its frame, and keeps a few lines on the shortest screen. */

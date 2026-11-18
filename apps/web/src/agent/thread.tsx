@@ -157,7 +157,7 @@ function Action({ step, shown, back }: { readonly step: ToolStep; readonly shown
       className="act-look"
       href={hrefTo(back.path, { ...back.query, look: String(shown.index) })}
       aria-current={selected ? "true" : undefined}
-      aria-label={`${step.title} — voir ce que l’agent avait sous les yeux`}
+      aria-label={`${step.title} — voir ${step.look.kind === "file" ? "le fichier de test" : "la page consultée"}`}
     >
       <Icon name="eye" />
     </a>
@@ -411,7 +411,7 @@ function Plan({ step }: { readonly step: PlanStep }): ReactNode {
         <div className="lead">
           <span className="act-state ok" aria-hidden="true" />
           <b>{step.title}</b>
-          <span className="turn-role">{step.scenarios.length} scénario(s)</span>
+          <span className="turn-role">{counted(step.scenarios.length, "scénario", "scénarios")}</span>
         </div>
         <span className="turn-at">{step.at}</span>
       </header>

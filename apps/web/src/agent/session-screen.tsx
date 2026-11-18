@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { counted } from "../ui/counted.ts";
 import { hrefTo, type Route } from "../routing/route.ts";
 import { Badge } from "../ui/badge.tsx";
 import { Icon } from "../ui/icon.tsx";
@@ -40,9 +41,9 @@ function factsOf(live: LiveSession): string[] {
     openingText(session),
     ...(waiting === undefined ? [] : [waiting]),
     ...(result === undefined ? [] : [durationText(result.durationMs)]),
-    ...(script.sources.length === 0 ? [] : [`${script.sources.length} source(s) de connaissance lue(s)`]),
-    `${frame.actions} action(s)`,
-    ...(result === undefined ? [] : [`${result.modelRequests} requêtes au modèle`]),
+    ...(script.sources.length === 0 ? [] : [counted(script.sources.length, "source de connaissance lue", "sources de connaissance lues")]),
+    counted(frame.actions, "action", "actions"),
+    ...(result === undefined ? [] : [counted(result.modelRequests, "requête au modèle", "requêtes au modèle")]),
     ...(result?.branch === undefined ? [] : [result.branch]),
   ];
 }
