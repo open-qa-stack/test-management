@@ -957,7 +957,8 @@ function fieldValue(line: string): string | undefined {
   const start = FIELD.exec(line);
   if (start === null) return undefined;
   const value = line.slice(start[0].length);
-  const end = value.indexOf(" → ");
+  // What follows the arrow is the locator of the field, or why it has none: an empty field starts with it.
+  const end = value.search(/(?:^| )→ /);
   return end === -1 ? value : value.slice(0, end);
 }
 
@@ -976,10 +977,36 @@ function absent(lines: ReadonlySet<string>, other: ReadonlySet<string>): string[
 
 /** The lines of a snapshot without their indentation, but the empty ones. */
 function pageLines(page: string): string[] {
-  return page
-    .split("\n")
-    .map(normalized)
-    .filter((line) => line !== "");
+  const raw = page.split("\n");
+  const lines: string[] = [];
+  // The lines that give the value of a field above them, told with the field.
+  const values = new Set<number>();
+  for (let at = 0; at < raw.length; at += 1) {
+    const line = normalized(raw[at]!);
+    if (line === "" || values.has(at)) continue;
+    const value = fieldValue(line) === "" ? childValue(raw, at) : undefined;
+    if (value === undefined) {
+      lines.push(line);
+      continue;
+    }
+    // The value of a field given on a line of its own, under it, is its value: no text beside the fields.
+    const [head, ...rest] = line.split(" → ");
+    lines.push([`${head!.replace(/:$/, "")}: ${value.text}`, ...rest].join(" → "));
+    values.add(value.at);
+  }
+  return lines;
+}
+
+/** The text a line of the role text under a field gives, after the properties of the field, such as its placeholder; none when it gives none. */
+function childValue(raw: readonly string[], field: number): { readonly text: string; readonly at: number } | undefined {
+  const indent = raw[field]!.length - raw[field]!.trimStart().length;
+  for (let at = field + 1; at < raw.length && raw[at]!.length - raw[at]!.trimStart().length > indent; at += 1) {
+    const child = normalized(raw[at]!);
+    if (child.startsWith("- /")) continue;
+    const text = /^- text: (.+)$/.exec(child)?.[1];
+    return text === undefined ? undefined : { text, at };
+  }
+  return undefined;
 }
 
 /** A line of a snapshot without its indentation. */

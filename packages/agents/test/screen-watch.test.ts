@@ -97,6 +97,34 @@ describe("the screens that showed a text", () => {
   });
 });
 
+describe("the value of a field a snapshot gives under it", () => {
+  it("is the value of the field, not a text beside the fields, once its properties are read past", async () => {
+    const form = [
+      '- textbox: → no unique locator: 2 elements match page.getByRole("textbox")',
+      "  - /placeholder: Date of Birth",
+      "  - text: 1975-06-14",
+      '- textbox "Name": Ada',
+      "  - text: Ada Brennick",
+      "- textbox:",
+      "  - button: Clear",
+      "- textbox:",
+      "- generic: Customer",
+    ].join("\n");
+    const watch = new ScreenWatch(["shop"], page([form]).tools);
+    await run(watch, "goto");
+    assert.deepEqual(
+      ["1975-06-14", "Ada Brennick", "Customer", "Clear"].map((text) => [watch.onlyInFields("shop", text), watch.showsBesideFields("shop", text)]),
+      [
+        ["value", false],
+        // A field that holds a value already: the line under it is a text of its own.
+        [undefined, true],
+        [undefined, true],
+        [undefined, true],
+      ],
+    );
+  });
+});
+
 describe("the clicks that write", () => {
   /** The tools of a page whose clicks send a request that writes, but a click on Respond, which only opens a dialog; its network tool gives the requests sent. */
   function writingPage(network: (sent: readonly object[]) => unknown): ToolDefinition[] {
