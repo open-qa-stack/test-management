@@ -27,6 +27,8 @@ export class TestRepository {
   readonly #workspace: string;
   readonly #site: Server;
   #hold: (step: RanCommand) => Promise<void> = async () => undefined;
+  /** Opens the doors given so far: a test that fails before it opens one leaves no run held behind it. */
+  #openDoors: () => void = () => undefined;
 
   private constructor(workspace: string, site: Server, model: ScriptedServer) {
     this.#workspace = workspace;
@@ -63,12 +65,22 @@ export class TestRepository {
     let open: () => void = () => undefined;
     const reached = new Promise<void>((resolve) => (arrive = resolve));
     const opened = new Promise<void>((resolve) => (open = resolve));
+    const before = this.#openDoors;
+    this.#openDoors = () => {
+      before();
+      open();
+    };
     this.#hold = async ({ command }) => {
       if (command[0] !== "npm" || command[1] !== "ci") return;
       arrive();
       await opened;
     };
     return { reached, open };
+  }
+
+  /** Lets every run held at a door through, as a test that ends does, whether it passed or not. */
+  openDoors(): void {
+    this.#openDoors();
   }
 
   /** Stops the application and the model, and removes the repository. */

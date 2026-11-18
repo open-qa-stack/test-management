@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import { basename } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { setTimeout as pause } from "node:timers/promises";
 import { Logger } from "@nestjs/common";
 import type { MessageReceipt, Problem, Session, SessionEvent, SessionList, SessionResult } from "@open-qa-stack/domain/sessions";
@@ -47,6 +48,8 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
   let api: TestApi;
   /** What a test started besides the API of every test, closed after it. */
   let started: { close(): Promise<void> }[];
+  /** The test repositories a test started, whose doors are opened before anything is closed. */
+  let repositories: TestRepository[];
   before(async () => {
     sessions = await SessionDatabase.create(engine, new Logger("Database"));
     store = sessions.store;
@@ -56,9 +59,11 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
     await sessions.clear();
     logger = new CapturedLogger();
     started = [];
+    repositories = [];
     api = await hosted(quiet);
   });
   afterEach(async () => {
+    for (const repository of repositories) repository.openDoors();
     await api.close();
     for (const one of started.reverse()) await one.close();
   });
@@ -77,6 +82,7 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
     await api.close();
     const repository = await TestRepository.create(chain());
     const own = await hosted(repository);
+    repositories.push(repository);
     started.push(repository, own);
     return { repository, api: own };
   }
@@ -390,9 +396,10 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
       assert.deepEqual([status, type, session.state, location], [201, JSON_TYPE, "running", `sessions/${session.id}`]);
       assert.match(session.id, /^session-\d{4}-\d{2}-\d{2}T[\d-]+Z-[0-9a-f]{8}$/);
       assert.deepEqual([session.request, session.environment], ["Test the listing of the orders.", "local"]);
-      // Held at the door, the session tells nothing more: what the location answers is what the store holds.
+      // Held at the door, the session tells nothing more once what it told before is written: what the location answers is what the store holds.
       await door.reached;
-      assert.deepEqual((await answerOf(await fetch(new URL(location, response.url)))).body, await store.session(session.id));
+      const told = async (): Promise<unknown> => (await answerOf(await fetch(new URL(location, response.url)))).body;
+      await eventually(async () => isDeepStrictEqual(await told(), await store.session(session.id)));
       const waiting = await opened(STOPPED_AT_ONCE, own);
       assert.equal(waiting.state, "queued");
       assert.equal((await store.session(waiting.id))?.state, "queued", "one session at a time");
