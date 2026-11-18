@@ -3,7 +3,14 @@ import { describe, it } from "vitest";
 import { errorsOf, validateVariant } from "./helpers.ts";
 
 /** How the tests are built, when the configuration does not say. */
-const BUILT = { architecture: "page-objects", fixturesFile: "apps/shared/fixtures.ts", visualTests: true, visualTolerance: 0.01, passes: "by-level" };
+const BUILT = {
+  architecture: "page-objects",
+  fixturesFile: "apps/shared/fixtures.ts",
+  visualTests: true,
+  visualTolerance: 0.01,
+  passes: "by-level",
+  testLanguage: "en",
+};
 
 describe("the review of a plan for duplicates is read from the configuration", () => {
   it("is asked when absent, and as given otherwise", () => {
@@ -72,5 +79,24 @@ describe("how the levels asked are designed is read from the configuration", () 
     assert.ok(given.ok);
     assert.equal(given.config.design.passes, "single");
     assert.ok(errorsOf(validateVariant((config) => (config["design"] = { passes: "parallel" }))).some((error) => error.path === "/design/passes"));
+  });
+});
+
+describe("the languages are read from the configuration", () => {
+  it("are English when absent, and as given otherwise, apart for the person and for the tests", () => {
+    const absent = validateVariant(() => undefined);
+    assert.ok(absent.ok);
+    assert.deepEqual([absent.config.language, absent.config.design.testLanguage], ["en", "en"]);
+    const given = validateVariant((config) => {
+      config["language"] = "fr";
+      config["design"] = { testLanguage: "en" };
+    });
+    assert.ok(given.ok);
+    assert.deepEqual([given.config.language, given.config.design.testLanguage], ["fr", "en"]);
+  });
+
+  it("refuses a language the product does not speak, with its JSON path", () => {
+    assert.ok(errorsOf(validateVariant((config) => (config["language"] = "de"))).some((error) => error.path === "/language"));
+    assert.ok(errorsOf(validateVariant((config) => (config["design"] = { testLanguage: "fr-FR" }))).some((error) => error.path === "/design/testLanguage"));
   });
 });

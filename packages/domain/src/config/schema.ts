@@ -1,3 +1,5 @@
+import { LANGUAGES } from "./language.ts";
+
 /** Pattern every environment variable name must match. */
 export const ENV_VAR_PATTERN = "^[A-Z_][A-Z0-9_]*$";
 /** Pattern of identifiers: lower case letters and digits separated by hyphens. */
@@ -30,6 +32,7 @@ const charterRuleId = { type: "string", pattern: CHARTER_RULE_ID_PATTERN } as co
 export const CONTAINER_NAME_PATTERN = "^[A-Za-z0-9][A-Za-z0-9_.-]*$";
 
 const positiveInteger = { type: "integer", minimum: 1 } as const;
+const language = { enum: LANGUAGES } as const;
 
 const attachment = {
   type: "object",
@@ -60,6 +63,11 @@ export const configSchema = {
   properties: {
     $schema: { type: "string" },
     formatVersion: { const: 1, description: "Version of the file format, independent of the product version." },
+    language: {
+      ...language,
+      description:
+        "The language the console, the conversation of the command line and the agents speak to the person in, as a BCP 47 tag; en by default. The instructions the agents are given stay in English.",
+    },
     applications: { type: "array", minItems: 1, items: { $ref: "#/$defs/application" } },
     knowledge: { type: "array", items: { $ref: "#/$defs/knowledge" } },
     repository: { $ref: "#/$defs/repository" },
@@ -251,6 +259,11 @@ export const configSchema = {
           items: { type: "string", enum: ["smoke", "functional", "business", "cross-application", "end-to-end"] },
           description:
             "The levels of the pyramid of tests a plan is asked for, from its base to its top: smoke, the application answers; functional, one behaviour of one screen; business, a journey through several screens; cross-application, an action in an application and its effect in another; end-to-end, a journey through three applications or more. smoke, functional and business by default.",
+        },
+        testLanguage: {
+          ...language,
+          description:
+            "The language of what the tests say, as a BCP 47 tag: their titles, their steps and the intents written in their code; en by default. The code itself, its names included, stays in English.",
         },
       },
     },
