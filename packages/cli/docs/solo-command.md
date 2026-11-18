@@ -34,6 +34,8 @@ The command is a presentation of [the operations on sessions](../../engine/docs/
 | `oqas config show` | Prints the configuration in force, and how `oqas.json` stands to it: see [The configuration](#the-configuration). |
 | `oqas config import` | Takes `oqas.json` as the configuration in force, when it changed. |
 | `oqas config export` | Writes the configuration in force over `oqas.json`, when it changed. |
+| `oqas knowledge list` | Lists the knowledge sources of the configuration in force, and the documents the instance keeps: see [The knowledge](#the-knowledge). |
+| `oqas knowledge add-document <source> <file>...` | Uploads Markdown files as documents of a source declared `"stored": true`. |
 | `oqas --ui` | Serves the console of the test repository in a browser, and runs the sessions opened in it, until Ctrl-C: see [The console](#the-console). |
 | `oqas --init` | Makes a Playwright project of the test repository and runs nothing: see [Initialising a test repository](#initialising-a-test-repository). |
 | `oqas --help` | Prints the usage. |
@@ -254,6 +256,24 @@ oqas.json is in step with it.
 ```
 
 `oqas config show` writes nothing: when the file changed since the revision in force, it says so, with the two commands that settle it. `import` and `export` print the revision in force once they are done; each does nothing when the file is in step. With `--output json`, each prints the configuration as `GET /api/configuration` gives it: the revision in force, and how the file stands to it. They exit with `0`, or with `3` when the file to take is not valid, or when there is neither a revision nor a file.
+
+## The knowledge
+
+The knowledge sources are declared in the configuration, each with its attachments. A source of `type` `document` declared `"stored": true` holds documents uploaded to the instance rather than files of the test repository: [the database of the instance](../../store/docs/database.md#the-documents-of-the-knowledge-sources) keeps them, and a session writes them to the state folder, where its agents read them.
+
+```console
+$ oqas knowledge add-document underwriting-guides guides/quotes.md guides/claims.md
+2 documents were uploaded to underwriting-guides.
+  claims.md, 5120 bytes, uploaded on 2026-11-18T09:12:45.120Z
+  quotes.md, 2048 bytes, uploaded on 2026-11-18T09:12:45.120Z
+$ oqas knowledge list
+policy-management-api: OpenAPI contract, http://localhost:8090/v3/api-docs; attached to policy-management.
+underwriting-guides: documents the instance keeps; attached to policy-management.
+  claims.md, 5120 bytes, uploaded on 2026-11-18T09:12:45.120Z
+  quotes.md, 2048 bytes, uploaded on 2026-11-18T09:12:45.120Z
+```
+
+`oqas knowledge list` writes nothing; it lists the sources of the configuration in force, which `oqas config import` takes from `oqas.json` when it changed. `add-document` takes the files whose paths it is given, relative to the current folder, each named as its document after the last part of its path, all of them or none, by [the rules of an upload](../../api/docs/knowledge.md#uploading-documents): a document of the same name is replaced. With `--output json`, `list` prints the sources, each with its documents when the instance keeps them, and `add-document` the documents of the source once they are kept. They exit with `0`, or with `3` when the upload breaks a rule — each error is told beside its file — when the source is not declared stored in the configuration in force, or when a file cannot be read.
 
 ## Speaking to a session
 

@@ -210,3 +210,38 @@ export function RemoveButton({ pointer, label }: { readonly pointer: string; rea
     </button>
   );
 }
+
+/**
+ * The choices of a list, each its value and its label.
+ *
+ * @param values - The values.
+ * @param label - What names a value.
+ * @returns The choices, in the order of the values.
+ */
+export function choices<const V extends string>(values: readonly V[], label: (value: V) => string): { readonly value: V; readonly label: string }[] {
+  return values.map((value) => ({ value, label: label(value) }));
+}
+
+/**
+ * The name of an item of a list, or its rank when it has none yet.
+ *
+ * @param name - The name of the item.
+ * @param rank - Its rank in the list.
+ * @returns The name, or the rank from one.
+ */
+export const nameOf = (name: string, rank: number): string => (name === "" ? String(rank + 1) : name);
+
+/**
+ * The head of an item of a list: what it is, and the button that removes it, which names it.
+ *
+ * @param props - What the item is called, and where it is.
+ * @returns The head.
+ */
+export function ItemHead({ title, pointer, removal }: { readonly title: string; readonly pointer: string; readonly removal: string }): ReactNode {
+  return (
+    <div className="config-item-head">
+      <span>{title}</span>
+      <RemoveButton pointer={pointer} label={removal} />
+    </div>
+  );
+}

@@ -24,7 +24,8 @@ export interface NavigationGroup {
 
 /**
  * The navigation of the console: the agents, which it shows at work, then what it will show of the repository
- * of tests and of their runs, named so that a person sees what is coming, and the configuration of the project.
+ * of tests and of their runs, named so that a person sees what is coming, and the knowledge and the configuration of
+ * the project.
  */
 export const NAVIGATION: readonly NavigationGroup[] = [
   { key: "work", entries: [{ icon: "agent", key: "agent", path: "/agent" }] },
@@ -44,5 +45,11 @@ export const NAVIGATION: readonly NavigationGroup[] = [
       { icon: "warning", key: "defects" },
     ],
   },
-  { key: "project", entries: [{ icon: "settings", key: "configuration", path: "/configuration" }] },
+  {
+    key: "project",
+    entries: [
+      { icon: "layers", key: "knowledge", path: "/knowledge" },
+      { icon: "settings", key: "configuration", path: "/configuration" },
+    ],
+  },
 ];

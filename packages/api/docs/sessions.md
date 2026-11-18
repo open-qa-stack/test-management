@@ -318,6 +318,7 @@ content-type: application/problem+json; charset=utf-8
 | `session_ended` | `409` | `/problems/session-ended` | The session no longer goes on: it takes no message, and no interruption, until it is resumed. |
 | `unavailable` | `503` | `/problems/unavailable` | The database of the instance cannot be reached: neither the project nor a session can be read, asked for or sent a message; try again once [the instance reports itself ready](running.md#readiness). Or a session, or a change of the configuration, is asked of an API that was started without a test repository: the detail says what to set. |
 | `stale_revision`, `configuration_conflict`, `invalid_configuration`, `no_configuration` | `409`, `409`, `422`, `404` | `/problems/stale-revision`, … | The refusals of [the configuration](configuration.md#problems). |
+| `unknown_document_source`, `unknown_document`, `invalid_documents` | `404`, `404`, `422` | `/problems/unknown-document-source`, … | The refusals of [the documents of the knowledge sources](knowledge.md#problems). |
 | `error` | any other | `/problems/error` | Anything else: a route that does not exist (`404`), a media type the API does not read (`415`), or a failure of the API (`500`). |
 
 A failure of the API is logged on the instance and answered `500` with a detail that says nothing of it: the message of such an error may name a file or an address of the machine.

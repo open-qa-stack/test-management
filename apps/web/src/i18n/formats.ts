@@ -47,3 +47,18 @@ export function momentText(iso: string): string {
 export function dateText(iso: string): string {
   return new Intl.DateTimeFormat(locale(), { dateStyle: "short", timeStyle: "short" }).format(new Date(iso));
 }
+
+/**
+ * Writes a size as a person reads it, in decimal units: a byte, a kilobyte of a thousand bytes, a megabyte of a
+ * million.
+ *
+ * @param bytes - The size, in bytes.
+ * @returns It in bytes, the unit written whole, under a thousand, in kilobytes under a million, in megabytes beyond, to a decimal at most.
+ */
+export function sizeText(bytes: number): string {
+  const [value, size] = bytes < 1000 ? [bytes, "byte"] : bytes < 1_000_000 ? [bytes / 1000, "kilobyte"] : [bytes / 1_000_000, "megabyte"];
+  // A count of bytes is written whole, the short name of the unit being the same in the singular and the plural.
+  return new Intl.NumberFormat(locale(), { style: "unit", unit: size, unitDisplay: size === "byte" ? "long" : "short", maximumFractionDigits: 1 }).format(
+    value,
+  );
+}

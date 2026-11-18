@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { describe, it } from "vitest";
-import type { Knowledge, ToolDefinition } from "@open-qa-stack/domain";
+import type { ReachableKnowledge, ToolDefinition } from "@open-qa-stack/domain";
 import { COLUMNS_QUERY, KEYS_QUERY, SERVER_ACCESS_QUERY, TABLES_QUERY } from "../src/postgresql/catalog-query.ts";
 import { dataRows, MAX_VALUE_LENGTH } from "../src/postgresql/data-rows.ts";
 import { PgSqlClient, type PgConnection } from "../src/postgresql/pg-sql-client.ts";
@@ -11,7 +11,12 @@ import { knowledgeTools, type SqlClient, type SqlResult } from "../src/index.ts"
 import { sqlResult } from "./sql-result.ts";
 
 const REPOSITORY = fileURLToPath(new URL("./fixtures/repository/", import.meta.url));
-const DATABASE: Knowledge = { id: "policy-db", type: "postgresql", connectionStringEnv: "POLICY_DB_URL", attachments: [{ application: "policy-management" }] };
+const DATABASE: ReachableKnowledge = {
+  id: "policy-db",
+  type: "postgresql",
+  connectionStringEnv: "POLICY_DB_URL",
+  attachments: [{ application: "policy-management" }],
+};
 
 /** A database double: a catalog with two tables, one result for any other query, and every query remembered. */
 class FakeDatabase implements SqlClient {

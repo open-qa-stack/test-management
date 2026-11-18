@@ -1,51 +1,10 @@
 import type { ReactNode } from "react";
-import type { Knowledge, OqasConfig, RevisionSummary } from "@open-qa-stack/domain/sessions";
+import type { OqasConfig, RevisionSummary } from "@open-qa-stack/domain/sessions";
 import { Badge } from "../ui/badge.tsx";
 import { Card } from "../ui/card.tsx";
-import { EmptyState } from "../ui/empty-state.tsx";
 import { dateText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
 import { originText } from "./configuration-words.ts";
-
-/** Where a source is read from: its address, its file, its container or the variable of its connection, never a secret. */
-function whereOf(source: Knowledge): string {
-  if (source.type === "postgresql") return t("configuration.records.variable", { name: source.connectionStringEnv });
-  if (source.type === "openapi") return source.url ?? source.path;
-  if (source.type === "logs") return source.path ?? t("configuration.records.container", { name: source.container });
-  return source.path;
-}
-
-/**
- * The knowledge sources of the configuration, read only: their edition comes in a later version.
- *
- * @param props - The sources of the draft.
- * @returns Their card.
- */
-export function KnowledgeCard({ knowledge }: { readonly knowledge: readonly Knowledge[] }): ReactNode {
-  return (
-    <Card
-      title={t("configuration.records.knowledge")}
-      hint={t("configuration.records.readOnly")}
-      aside={<Badge tone="outline">{t("configuration.records.soon")}</Badge>}
-    >
-      <p className="row small muted">{t("configuration.records.knowledgeNote")}</p>
-      {knowledge.length === 0 && <EmptyState title={t("configuration.records.noKnowledge")} />}
-      {knowledge.map((source) => (
-        <div key={source.id} className="row config-record">
-          <div className="grow">
-            <b className="mono">{source.id}</b>
-            <div className="small muted">
-              {t(`configuration.records.kinds.${source.type}`)} · <span className="mono">{whereOf(source)}</span>
-            </div>
-          </div>
-          <span className="small muted">
-            {source.attachments.map((attachment) => [attachment.application, attachment.environment, attachment.api].filter(Boolean).join(" › ")).join(", ")}
-          </span>
-        </div>
-      ))}
-    </Card>
-  );
-}
 
 /**
  * The history of the configuration: every revision, the latest first, with where it comes from.

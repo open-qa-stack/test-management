@@ -3,8 +3,17 @@ import { describe, it } from "node:test";
 import { HttpStatus } from "@nestjs/common";
 import { HttpAdapterHost } from "@nestjs/core";
 import { Test } from "@nestjs/testing";
-import { Configuration, Sessions } from "@open-qa-stack/engine";
-import { ConfigurationStore, Database, type DatabaseState, DatabaseStatus, InstanceDatabase, SchemaMigrations, SessionStore } from "@open-qa-stack/store";
+import { Configuration, KnowledgeDocuments, Sessions } from "@open-qa-stack/engine";
+import {
+  ConfigurationStore,
+  Database,
+  type DatabaseState,
+  DatabaseStatus,
+  DocumentStore,
+  InstanceDatabase,
+  SchemaMigrations,
+  SessionStore,
+} from "@open-qa-stack/store";
 import { AppModule } from "../src/app.module.ts";
 import { ApiConfiguration } from "../src/config/api-configuration.ts";
 import { SchemaCheck } from "../src/database/schema-check.ts";
@@ -49,7 +58,7 @@ describe("the root module", () => {
     }
   });
 
-  it("provides the configuration it was given, the database it names, its migrations, its status, the health service, and the operations on sessions and on the configuration over that database", async () => {
+  it("provides the configuration it was given, the database it names, its migrations, its status, the health service, and the operations on sessions, on the configuration and on the documents over that database", async () => {
     const configuration = ApiConfiguration.read(CONFIGURATION);
     const module = await Test.createTestingModule({ imports: [AppModule.forRoot(configuration)] }).compile();
     try {
@@ -59,6 +68,8 @@ describe("the root module", () => {
       assert.equal(module.get(SessionStore), module.get(InstanceDatabase).sessions);
       assert.equal(module.get(ConfigurationStore), module.get(InstanceDatabase).configuration);
       assert.ok(module.get(Configuration) instanceof Configuration);
+      assert.equal(module.get(DocumentStore), module.get(InstanceDatabase).documents);
+      assert.ok(module.get(KnowledgeDocuments) instanceof KnowledgeDocuments);
       assert.ok(module.get(SchemaMigrations) instanceof SchemaMigrations);
       assert.ok(module.get(DatabaseStatus) instanceof DatabaseStatus);
       assert.ok(module.get(SchemaCheck) instanceof SchemaCheck);

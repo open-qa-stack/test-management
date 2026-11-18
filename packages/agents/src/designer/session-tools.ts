@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { declaredValues, readsImages, type Application, type Knowledge, type ResolvedConfig, type ToolDefinition } from "@open-qa-stack/domain";
+import { declaredValues, readsImages, type Application, type ReachableKnowledge, type ResolvedConfig, type ToolDefinition } from "@open-qa-stack/domain";
 import { browserTools, knowledgeTools, scopedToolName, type BrowserAccess } from "@open-qa-stack/tools";
 import { configSecrets } from "../common/config-secrets.ts";
 import { ScreenWatch } from "./screen-watch.ts";
@@ -18,7 +18,7 @@ export interface SessionScope {
   /** The applications the session has the browser tools of, when they have a user interface in the environment. */
   readonly applications: readonly Application[];
   /** The knowledge sources the session has the tools of. */
-  readonly sources: readonly Knowledge[];
+  readonly sources: readonly ReachableKnowledge[];
   /** When the task started: the tools of the logs read from there. */
   readonly start: Date;
   /** How the browser starts and waits; a headless Chromium with the default waits when `undefined`. */
@@ -68,7 +68,7 @@ export function sessionTools(scope: SessionScope): SessionTools {
 }
 
 /** The tools of the sources, the search of each base saying that the data of a plan come from results such as its own. */
-function withDataHint(tools: readonly ToolDefinition[], sources: readonly Knowledge[]): ToolDefinition[] {
+function withDataHint(tools: readonly ToolDefinition[], sources: readonly ReachableKnowledge[]): ToolDefinition[] {
   const searches = new Set(sources.filter((source) => source.type === "postgresql").map((source) => scopedToolName(source.id, "search")));
   return tools.map((tool) =>
     searches.has(tool.name) ? { ...tool, description: `${tool.description} A value of the data of a plan comes from a result such as this one.` } : tool,

@@ -87,6 +87,22 @@ export interface ConfigurationRevisionsTable {
 }
 
 /**
+ * The documents uploaded to the knowledge sources of the instance, each under its source and its file name: an
+ * upload of a name the source holds replaces it.
+ *
+ * @remarks
+ * The source is the identifier a revision of the configuration declares it under: the documents stay with it,
+ * whether a revision declares it or not. The size is that of the text in UTF-8, in bytes.
+ */
+export interface KnowledgeDocumentsTable {
+  source: string;
+  name: string;
+  uploaded_at: StoredInstant;
+  bytes: number;
+  text: string;
+}
+
+/**
  * The schema of the database of an instance, on every database the store supports: the tables the migrations
  * create, and what the statements of the store are checked against.
  */
@@ -96,4 +112,5 @@ export interface StoreSchema {
   session_events: SessionEventsTable;
   session_messages: SessionMessagesTable;
   configuration_revisions: ConfigurationRevisionsTable;
+  knowledge_documents: KnowledgeDocumentsTable;
 }

@@ -23,6 +23,10 @@ export type Command =
   | { readonly name: "stop"; readonly session: string }
   /** Print the configuration in force, take the configuration file as it, or write it to the file. */
   | { readonly name: "config"; readonly action: ConfigAction }
+  /** List the knowledge sources of the configuration in force, with the documents the instance keeps of each. */
+  | { readonly name: "knowledge"; readonly action: "list" }
+  /** Upload files as documents of a source the instance keeps. */
+  | { readonly name: "knowledge"; readonly action: "add-document"; readonly source: string; readonly files: readonly string[] }
   /** Serve the console of the test repository, and the sessions opened in it. */
   | { readonly name: "ui"; readonly host: string; readonly port: number };
 
@@ -68,6 +72,8 @@ export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
        oqas [--repository <folder>] say <session> <text> [--output text|json]
        oqas [--repository <folder>] stop <session> [--output text|json]
        oqas [--repository <folder>] config show|import|export [--output text|json]
+       oqas [--repository <folder>] knowledge list [--output text|json]
+       oqas [--repository <folder>] knowledge add-document <source> <file>... [--output text|json]
        oqas [--repository <folder>] --ui [--host <address>] [--port <number>]
        oqas [--repository <folder>] --init
 
@@ -88,6 +94,11 @@ Commands:
   config show            Print the configuration in force, and how oqas.json stands to it.
   config import          Take oqas.json as the configuration in force, when it changed.
   config export          Write the configuration in force over oqas.json, when it changed.
+  knowledge list         List the knowledge sources of the configuration in force, and the documents the instance
+                         keeps of each source declared "stored": true.
+  knowledge add-document <source> <file>...
+                         Upload Markdown files as documents of such a source, all of them or none: a document of
+                         the same name is replaced.
 
 Options:
   --repository <folder>  The test repository, which holds oqas.json; the current folder by default.
@@ -190,6 +201,7 @@ function commandOf(
     return { name: "run", brief, ...(environment === undefined ? {} : { environment }) };
   }
   if (name === "config") return configured(rest, opens || follow);
+  if (name === "knowledge") return knowledgeOf(rest, opens || follow);
   if (!Object.hasOwn(ON_SESSIONS, name)) return `Unknown command ${name}; see oqas --help.`;
   const known = name as keyof typeof ON_SESSIONS;
   const taken: readonly string[] = ON_SESSIONS[known];
@@ -208,4 +220,13 @@ function configured(words: readonly string[], ofASession: boolean): Command | st
   if (words.length !== 1 || known === undefined) return "oqas config takes show, import or export.";
   if (ofASession) return "oqas config acts on the configuration: it takes no --brief, --environment nor --follow.";
   return { name: "config", action: known };
+}
+
+/** What `oqas knowledge` asks for, or why it is refused: a list, or the documents to add to a source, and nothing of a session. */
+function knowledgeOf(words: readonly string[], ofASession: boolean): Command | string {
+  const [action, source, ...files] = words;
+  if (ofASession) return "oqas knowledge acts on the knowledge sources: it takes no --brief, --environment nor --follow.";
+  if (action === "list" && source === undefined) return { name: "knowledge", action };
+  if (action === "add-document" && source !== undefined && files.length > 0) return { name: "knowledge", action, source, files };
+  return "oqas knowledge takes list, or add-document then a source and one file at least.";
 }

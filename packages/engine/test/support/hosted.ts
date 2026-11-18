@@ -7,6 +7,7 @@ import { Configuration, Sessions, type SessionsHost } from "../../src/index.ts";
 import { eventually } from "./eventually.ts";
 import { held } from "./held.ts";
 import { MemoryConfigurationStore } from "./memory-configuration-store.ts";
+import { MemoryDocumentStore } from "./memory-document-store.ts";
 import { MemorySessionStore } from "./memory-session-store.ts";
 import { RecordingLogger } from "./recording-logger.ts";
 
@@ -67,6 +68,8 @@ export class Hosted {
   readonly store: MemorySessionStore;
   /** The store of the revisions of the configuration of the test repository. */
   readonly configuration = new MemoryConfigurationStore();
+  /** The store of the documents of the knowledge sources the instance keeps. */
+  readonly documents = new MemoryDocumentStore();
   readonly logger = new RecordingLogger();
   readonly server: ScriptedServer;
   /** The test repository the sessions run in. */
@@ -87,6 +90,7 @@ export class Hosted {
     this.sessions = new Sessions({
       store: this.store,
       configuration: new Configuration(this.configuration, this.root),
+      documents: this.documents,
       repository: this.root,
       env: ENV,
       logger: this.logger,

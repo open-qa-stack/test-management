@@ -14,6 +14,9 @@ const WORDED: ReadonlySet<string> = new Set<Exclude<ProblemCode, "error">>([
   "configuration_conflict",
   "invalid_configuration",
   "no_configuration",
+  "unknown_document_source",
+  "unknown_document",
+  "invalid_documents",
 ]);
 
 /**

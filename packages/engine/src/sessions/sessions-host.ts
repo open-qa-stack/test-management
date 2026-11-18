@@ -1,4 +1,4 @@
-import type { CommandRunner, ResolvedConfig, SessionStorePort } from "@open-qa-stack/domain";
+import type { CommandRunner, DocumentStorePort, ResolvedConfig, SessionStorePort } from "@open-qa-stack/domain";
 import type { Configuration } from "../configuration/configuration.ts";
 import type { OpenRuntime } from "../ports/open-runtime.ts";
 import type { SessionsLogger } from "./sessions-logger.ts";
@@ -11,6 +11,8 @@ export interface SessionsHost {
   readonly store: SessionStorePort;
   /** The operations on the configuration of the instance, which the runs read theirs from, in the test repository of the host. */
   readonly configuration: Configuration;
+  /** The store of the documents of the knowledge sources the instance keeps, which the runs read. */
+  readonly documents: DocumentStorePort;
   /**
    * Absolute path of the test repository the sessions run in, a folder that holds `oqas.json`; `undefined` for
    * a host that has none, which serves what the store keeps and opens no session.

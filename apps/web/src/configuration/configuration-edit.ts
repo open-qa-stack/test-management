@@ -83,6 +83,13 @@ export const NEW_ITEMS = {
   environment: { name: "" },
   api: { name: "", baseUrl: "" },
   account: { name: "", usernameEnv: "", passwordEnv: "" },
+  attachment: { application: "" },
+  openapi: { id: "", type: "openapi", url: "", attachments: [{ application: "" }] },
+  postgresql: { id: "", type: "postgresql", connectionStringEnv: "", attachments: [{ application: "" }] },
+  document: { id: "", type: "document", path: "", attachments: [{ application: "" }] },
+  stored: { id: "", type: "document", stored: true, attachments: [{ application: "" }] },
+  "source-code": { id: "", type: "source-code", path: "", attachments: [{ application: "" }] },
+  logs: { id: "", type: "logs", path: "", attachments: [{ application: "" }] },
 } as const;
 
 /** A kind of item a button adds. */

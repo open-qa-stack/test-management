@@ -3,12 +3,14 @@ import {
   CONFIG_FILE_NAME,
   runIdAt,
   declaredValues,
+  storedDocumentSources,
   ExitCode,
   InvalidConfigurationError,
   NoConfigurationError,
   validateConfig,
   type ConfigurationRevision,
   type CommandRunner,
+  type DocumentStorePort,
   type ExitCodeValue,
   type ResolvedConfig,
   type RunState,
@@ -41,6 +43,7 @@ import { exitCodeOf } from "./exit-code.ts";
 import { missingPrerequisites } from "./prerequisites.ts";
 import { RunJournal } from "./run-journal.ts";
 import { runnableTests } from "./runnable-tests.ts";
+import { writeStoredDocuments } from "./stored-documents.ts";
 
 /** The rule of the charter that ends each step of a test with a screenshot, which the skeleton of a test then holds. */
 const SCREENSHOT_RULE = "PW-SHOT-01";
@@ -60,6 +63,8 @@ export interface RunOptions {
   readonly branch?: string;
   /** Where the configuration is read: the revision in force, once it is in step with the configuration file. */
   readonly configuration: ConfigurationSource;
+  /** Where the documents of the knowledge sources the instance keeps are read, which the cartography writes to the state folder first. */
+  readonly documents: Pick<DocumentStorePort, "documents">;
   /** The environment of the process: the secrets and the accounts the configuration names. */
   readonly env: Readonly<Record<string, string | undefined>>;
   /** Receives the journal, an entry at a time, and keeps it. */
@@ -87,8 +92,9 @@ export interface RunOptions {
  * @remarks
  * The run works in the test repository, a folder, whoever hosts it: the branch, the tests, the cards and the
  * traces are written there. What differs from a host to another goes through the ports of its options: the
- * configuration, the journal, the inbox, the store of the state, the runtime of the agents, the commands and
- * the clock.
+ * configuration, the documents the instance keeps, the journal, the inbox, the store of the state, the runtime of
+ * the agents, the commands and the clock. The cartography starts by writing those documents to the state folder,
+ * where the agents read them.
  *
  * Each step starts only when the one before succeeded; once the prerequisites passed, the summary closes the
  * runtime of the agents and writes the state whatever the end of the others. A missing or invalid configuration stops the run
@@ -129,7 +135,7 @@ export class Run {
     const early = new RunJournal(this.options.journal, now, []);
     const loaded = await this.configuration(early, now);
     if (typeof loaded === "number") return loaded;
-    const { config, environment, rules } = loaded;
+    const { config, environment, rules, stored } = loaded;
     const { brief } = this.options;
     const journal = new RunJournal(this.options.journal, now, declaredValues(config, this.options.env));
     journal.adopt(early.entries);
@@ -224,6 +230,8 @@ export class Run {
     const observed = { inbox, ...(this.options.follow === undefined ? {} : { observe: this.options.follow }) };
     const chain = async (): Promise<ExitCodeValue> => {
       const mapped = await unlessStopped("cartography", async () => {
+        // The agents read the documents the instance keeps where they read those of the repository: in a folder.
+        await writeStoredDocuments(this.options.repositoryRoot, config.repository.stateDir, stored, this.options.documents);
         const outcome = await new Cartographer({
           config,
           environment,
@@ -354,7 +362,7 @@ export class Run {
   private async configuration(
     journal: RunJournal,
     now: () => Date,
-  ): Promise<{ config: ResolvedConfig; environment: string; rules: ActiveRule[]; durationMs: number } | ExitCodeValue> {
+  ): Promise<{ config: ResolvedConfig; environment: string; rules: ActiveRule[]; stored: string[]; durationMs: number } | ExitCodeValue> {
     const at = now().getTime();
     journal.record("configuration", "started", "The configuration starts.");
     const revision = await this.options.configuration.synchronise().catch((error: unknown) => refused(journal, error));
@@ -386,7 +394,7 @@ export class Run {
       modelRequests: 0,
       scope: { environment, applications: result.config.applications.map((application) => application.id), levels: result.config.design.levels },
     });
-    return { config: result.config, environment, rules: charter.rules, durationMs };
+    return { config: result.config, environment, rules: charter.rules, stored: storedDocumentSources(revision.document), durationMs };
   }
 
   /** Writes the entries of the journal of a role to the journal of the run. */

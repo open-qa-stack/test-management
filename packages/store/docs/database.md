@@ -1,6 +1,6 @@
 # The database
 
-An instance keeps its state in one database: the project, the sessions, their events, the messages sent to them, and the revisions of its configuration. The processes that say [the operations on sessions](../../engine/docs/engine.md#the-operations-on-sessions) reach it — the API, and the `oqas` command in a terminal — each of which runs the sessions it opened, and [meets the others there](#several-processes-on-one-database). They do so through `@open-qa-stack/store`, which holds the schema of the database, its migrations, its connections, [the commands of the life of a session](#the-life-of-a-session), and [the one assembly of them](#the-database-of-an-instance-assembled) every process uses.
+An instance keeps its state in one database: the project, the sessions, their events, the messages sent to them, the revisions of its configuration, and the documents uploaded to its knowledge sources. The processes that say [the operations on sessions](../../engine/docs/engine.md#the-operations-on-sessions) reach it — the API, and the `oqas` command in a terminal — each of which runs the sessions it opened, and [meets the others there](#several-processes-on-one-database). They do so through `@open-qa-stack/store`, which holds the schema of the database, its migrations, its connections, [the commands of the life of a session](#the-life-of-a-session), and [the one assembly of them](#the-database-of-an-instance-assembled) every process uses.
 
 ## One schema, two databases
 
@@ -66,10 +66,11 @@ The migrations so far:
 | `0001_sessions` | The tables of the project, of the sessions, of their events and of the messages sent to them. |
 | `0002_session_hosts` | The host of a session, the date of its last beat, and the interruption another process asked for: what [several processes on one database](#several-processes-on-one-database) meet through. The three columns are empty on the sessions that were there before, which read as left by a host that died. |
 | `0003_configuration_revisions` | The table of [the revisions of the configuration](#the-revisions-of-the-configuration). An instance that had none synchronises its `oqas.json` into a first revision when a process next starts on it. |
+| `0004_knowledge_documents` | The table of [the documents of the knowledge sources](#the-documents-of-the-knowledge-sources), empty until a document is uploaded. |
 
 ## The database of an instance, assembled
 
-`InstanceDatabase` is the database of an instance as a process gets it, assembled once for all of them: given the URL `instanceDatabaseUrl` resolved and the logger of the process, it holds the connection (`database`), the migrations (`migrations`), their status (`status`), the store of the sessions (`sessions`) and that of the configuration (`configuration`), and opens nothing until a statement needs it. The API provides its parts to its modules; the `oqas` command hands its store to the operations.
+`InstanceDatabase` is the database of an instance as a process gets it, assembled once for all of them: given the URL `instanceDatabaseUrl` resolved and the logger of the process, it holds the connection (`database`), the migrations (`migrations`), their status (`status`), the store of the sessions (`sessions`), that of the configuration (`configuration`) and that of the documents (`documents`), and opens nothing until a statement needs it. The API provides its parts to its modules; the `oqas` command hands its store to the operations.
 
 `prepare()` is the one rule that brings the schema in order before a process reads anything: on a SQLite file it applies the pending migrations; on a server it applies none, and raises `PendingMigrationsError` — `The database schema is not up to date: 2 migrations are pending. Apply them with the migration command, then start again.` — when some are pending. A server that cannot be reached is not refused there: its status reports it, and what reads the database next raises `DatabaseUnavailableError`, so that a server that starts before its database still starts.
 
@@ -91,7 +92,7 @@ The store writes a date and a JSON value as the same text to both, and reads bac
 
 ## Tables
 
-The database keeps the project of the instance, its sessions, the events of each session, the messages a person sent to it, and the revisions of its configuration. [The sessions](../../api/docs/sessions.md#where-sessions-are-kept-and-what-runs-them) tell who writes what.
+The database keeps the project of the instance, its sessions, the events of each session, the messages a person sent to it, the revisions of its configuration, and the documents uploaded to its knowledge sources. [The sessions](../../api/docs/sessions.md#where-sessions-are-kept-and-what-runs-them) tell who writes what.
 
 `project` holds one row at most: a check on its key refuses a second one.
 
@@ -150,6 +151,16 @@ The primary key of a message is its session and its number. A number is given on
 | `origin` | `text` | `file`, `console` or `command`: where the revision comes from, as [the operations on the configuration](../../engine/docs/engine.md#the-operations-on-the-configuration) tell. |
 | `file_digest` | `text` | The SHA-256 digest of the `oqas.json` the revision was read from or wrote, which tells whether the file changed since. |
 | `document` | JSON | The whole configuration, as `oqas.json` holds it: served whole, never filtered on. Like the file, it names the environment variables that hold the secrets, and holds none. |
+
+`knowledge_documents` holds one row a document uploaded to a knowledge source declared `stored`.
+
+| Column | Type | Why |
+|---|---|---|
+| `source` | `text`, primary key with `name` | The identifier of the knowledge source, as the configuration declares it. |
+| `name` | `text` | The file name of the document, unique in its source. |
+| `uploaded_at` | date | When it was uploaded last. |
+| `bytes` | `integer` | The size of its text in UTF-8, which a listing tells without reading the text. |
+| `text` | `text` | The document, whole. |
 
 The columns that keep a date, a JSON value or a boolean are kept [as each database keeps them](#how-each-type-is-kept). Nothing filters on what a JSON column holds, which is served as it was written, its fields in the order they were given: on PostgreSQL the columns are `json` and not `jsonb`, which would sort the fields.
 
@@ -218,6 +229,14 @@ The store notifies no one, and nothing listens to the database: the process that
 - **A revision is made from the revision in force.** One made from another — replaced since, or that does not exist — is refused with `StaleRevisionError`, which names the revision in force, and nothing is kept.
 - **Of two revisions made from the same one at the same moment, one is kept.** The transaction writes first: it inserts the row of the number that follows, which the other already holds or waits for. The statement is the same on both databases.
 - **What is done alongside a revision happens with it.** `alongside` runs inside the transaction, once the revision is known to be in order: the operations write `oqas.json` there. When it throws, nothing is kept.
+
+## The documents of the knowledge sources
+
+`DocumentStore` is the one place that writes the documents. It implements `DocumentStorePort` of `@open-qa-stack/domain`: it lists the documents of a source without their texts, `list(source)`, reads them with their texts, `documents(source)`, or one of them, `read(source, name)`; it keeps an upload, `put(source, entries)`, and removes a document, `remove(source, name)`.
+
+- **An upload is kept whole or not at all**, in one transaction: a document of a name the source holds replaces it, and is dated anew.
+- **The documents of a source are listed by their names**, code unit by code unit, the same on both databases whatever their collation.
+- **The store applies no rule of an upload**: which sources take documents, which names, formats and sizes, is for [the operations on documents](../../engine/docs/engine.md#the-operations-on-documents) to tell, before anything is kept.
 
 ## Several processes on one database
 

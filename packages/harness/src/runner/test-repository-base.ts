@@ -1,4 +1,13 @@
-import { applicationPages, appsFrom, baseUrlVariable, DATABASE_FILE_NAME, PAGES_FOLDER, PAGES_INDEX, sharedFixtures } from "@open-qa-stack/domain";
+import {
+  applicationPages,
+  appsFrom,
+  baseUrlVariable,
+  DATABASE_FILE_NAME,
+  PAGES_FOLDER,
+  PAGES_INDEX,
+  sharedFixtures,
+  STORED_DOCUMENTS_FOLDER,
+} from "@open-qa-stack/domain";
 import { testRepositoryReadme } from "./test-repository-readme.ts";
 import { testRepositoryWorkflow } from "./test-repository-workflow.ts";
 
@@ -154,6 +163,8 @@ export function testRepositoryBase(project: TestProject): BaseFile[] {
     `${stateDir}/junit.xml`,
     `${stateDir}/runs/`,
     `${stateDir}/traces/`,
+    // The documents the instance keeps, which a run writes there for its agents to read: the database keeps them.
+    `${stateDir}/${STORED_DOCUMENTS_FOLDER}/`,
     // The database of an instance that was given no other, with the files SQLite keeps beside it.
     `${stateDir}/${DATABASE_FILE_NAME}*`,
   ];

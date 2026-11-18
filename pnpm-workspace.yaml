@@ -9,3 +9,6 @@ peerDependencyRules:
 # not run at install, so that an install needs no compiler.
 ignoredBuiltDependencies:
   - better-sqlite3
+# The parser @fastify/multipart reads uploads with, held to a release that had been out for two weeks when it was added.
+overrides:
+  "@fastify/busboy": 3.2.4

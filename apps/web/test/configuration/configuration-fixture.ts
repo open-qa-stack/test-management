@@ -25,6 +25,7 @@ export const DOCUMENT: OqasConfig = {
     { id: "local-contract", type: "openapi", path: "specs/openapi.yaml", attachments: [{ application: "shop" }] },
     { id: "orders", type: "postgresql", connectionStringEnv: "SHOP_DB_URL", attachments: [{ application: "shop" }] },
     { id: "specs", type: "document", path: "specs/orders.md", attachments: [{ application: "shop" }] },
+    { id: "manuals", type: "document", stored: true, attachments: [{ application: "shop" }] },
     { id: "code", type: "source-code", path: "../shop", attachments: [{ application: "shop" }] },
     { id: "server-log", type: "logs", path: "logs/server.log", attachments: [{ application: "shop" }] },
     { id: "container-log", type: "logs", container: "shop", engine: "podman", attachments: [{ application: "shop" }] },

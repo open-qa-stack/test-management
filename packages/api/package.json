@@ -21,6 +21,7 @@
     "test": "pnpm -s build && node dist/test/support/with-test-database.js node --test --enable-source-maps --import @open-qa-stack/testing/loopback-only --experimental-test-coverage --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 --test-coverage-include='**/src/**' --test-coverage-exclude='../**' 'dist/test/**/*.test.js'"
   },
   "dependencies": {
+    "@fastify/multipart": "10.1.7",
     "@fastify/static": "10.1.11",
     "@nestjs/common": "12.4.2",
     "@nestjs/core": "12.4.2",
@@ -28,6 +29,7 @@
     "@open-qa-stack/domain": "workspace:*",
     "@open-qa-stack/engine": "workspace:*",
     "@open-qa-stack/store": "workspace:*",
+    "fastify": "5.12.8",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2"
   },

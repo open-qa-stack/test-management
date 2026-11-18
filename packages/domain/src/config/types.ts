@@ -65,10 +65,18 @@ export interface PostgresqlKnowledge extends KnowledgeBase {
   connectionStringEnv: string;
 }
 
-/** A document stored in the repository, such as a specification. */
+/** Documents of the test repository, such as specifications: one file, or a folder of them. */
 export interface DocumentKnowledge extends KnowledgeBase {
   type: "document";
   path: string;
+  stored?: never;
+}
+
+/** Documents uploaded to the instance, which its database keeps, instead of files of the test repository. */
+export interface StoredDocumentKnowledge extends KnowledgeBase {
+  type: "document";
+  stored: true;
+  path?: never;
 }
 
 /**
@@ -96,13 +104,19 @@ export type LogsKnowledge = KnowledgeBase & { type: "logs" } & (
   );
 
 /** Something the agents may read about the applications. */
-export type Knowledge = OpenApiKnowledge | PostgresqlKnowledge | DocumentKnowledge | SourceCodeKnowledge | LogsKnowledge;
+export type Knowledge = OpenApiKnowledge | PostgresqlKnowledge | DocumentKnowledge | StoredDocumentKnowledge | SourceCodeKnowledge | LogsKnowledge;
+
+/**
+ * The knowledge sources as a run reaches them: the documents an instance keeps are read from the folder the run
+ * writes them to, as the documents of the test repository are.
+ */
+export type ReachableKnowledge = Exclude<Knowledge, StoredDocumentKnowledge>;
 
 /**
  * The knowledge sources a cartography maps into domains: all but logs, which tell what a service did, not
  * what an application holds.
  */
-export type MappedKnowledge = Exclude<Knowledge, LogsKnowledge>;
+export type MappedKnowledge = Exclude<ReachableKnowledge, LogsKnowledge>;
 
 /** Layout of the test repository; every folder is relative to its root. */
 export interface Repository {
@@ -242,7 +256,7 @@ export interface ResolvedConfig {
   formatVersion: FormatVersion;
   language: Language;
   applications: Application[];
-  knowledge: Knowledge[];
+  knowledge: ReachableKnowledge[];
   repository: Required<Repository>;
   charter: Required<CharterSettings>;
   cartography: Required<CartographySettings>;
