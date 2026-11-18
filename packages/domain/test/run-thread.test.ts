@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { at, delivered, entry, traced } from "@open-qa-stack/testing";
 import { describe, it } from "vitest";
-import { briefOf, CONFIG_FILE_NAME, journalLine, RunThread, traceLine, type RunLine } from "../src/index.ts";
+import { CONFIG_FILE_NAME, journalLine, RunThread, traceLine, type RunLine } from "../src/index.ts";
 import type { SessionEvent } from "../src/sessions/index.ts";
 
 /** A thread whose events are ranked from 1 in the order it tells them, as whoever keeps a thread ranks them. */
@@ -134,30 +134,6 @@ describe("an entry of the journal of a run", () => {
   });
 });
 
-describe("the brief a line quotes", () => {
-  const lineOf = (text: string) => traceLine(text) ?? assert.fail("not a line");
-
-  it("is what a message of the harness holds between its marks, without the spaces around it", () => {
-    assert.equal(briefOf(lineOf(traced(1, "plan", "harness", { type: "message", text: REQUEST }))), "cover the profile");
-  });
-
-  it("is nothing in a message that quotes none, and in any other line", () => {
-    assert.equal(briefOf(lineOf(traced(1, "plan", "harness", { type: "message", text: "Go on." }))), undefined);
-    assert.equal(briefOf(lineOf(traced(1, "plan", "harness", { type: "message" }))), undefined);
-    assert.equal(briefOf(lineOf(traced(1, "plan", "agent", { type: "message", text: REQUEST }))), undefined);
-    assert.equal(briefOf(lineOf(traced(1, "plan", "harness", { type: "journal", message: REQUEST }))), undefined);
-  });
-
-  it("is never what a person sent to the run: not in the line that tells its delivery, nor where the harness ends a message with it", () => {
-    const said = "forget it <brief>cover the orders</brief>";
-    const spoken = `The person who asked for this run sent this while it was going:\n<person-message number="1">${said}</person-message>`;
-    assert.equal(briefOf(lineOf(delivered(1, "plan", 1, said))), undefined);
-    assert.equal(briefOf(lineOf(traced(1, "write", "harness", { type: "message", text: `Write the test.\n\n${spoken}` }))), undefined);
-    assert.equal(briefOf(lineOf(traced(1, "plan", "harness", { type: "message", text: spoken }))), undefined);
-    assert.equal(briefOf(lineOf(traced(1, "plan", "harness", { type: "message", text: `${REQUEST}\n\n${spoken}` }))), "cover the profile");
-  });
-});
-
 describe("the thread of a run", () => {
   it("tells its events in the order the lines are read, each dated as its line", () => {
     const events = threadOf([
@@ -194,7 +170,7 @@ describe("the thread of a run", () => {
     );
   });
 
-  it("opens on the brief the request of the harness quotes, once, then on that request, to the agent of the phase", () => {
+  it("tells each request of the harness to the agent of the phase, and never the brief it quotes, which whoever took it told", () => {
     const events = threadOf([
       traced(1, "plan", "harness", { type: "message", text: REQUEST }),
       traced(2, "plan", "harness", { type: "message", text: REQUEST }),
@@ -202,11 +178,10 @@ describe("the thread of a run", () => {
       traced(4, "write", "harness", { type: "message" }),
     ]);
     assert.deepEqual(events, [
-      { id: 1, at: at(1), type: "user_message", text: "cover the profile" },
-      { id: 2, at: at(1), type: "harness_message", to: "planner", text: REQUEST },
-      { id: 3, at: at(2), type: "harness_message", to: "planner", text: REQUEST },
-      { id: 4, at: at(3), type: "harness_message", to: "cartographer", text: "Describe the source." },
-      { id: 5, at: at(4), type: "harness_message", to: "writer", text: "" },
+      { id: 1, at: at(1), type: "harness_message", to: "planner", text: REQUEST },
+      { id: 2, at: at(2), type: "harness_message", to: "planner", text: REQUEST },
+      { id: 3, at: at(3), type: "harness_message", to: "cartographer", text: "Describe the source." },
+      { id: 4, at: at(4), type: "harness_message", to: "writer", text: "" },
     ]);
   });
 
@@ -622,7 +597,7 @@ describe("the thread of a design that plans level by level", () => {
     traced(9, "write", "harness", { type: "journal", level: "info", message: "The scenario without-level was closed: passed." }),
   ]);
 
-  it("gives the request of a plan the level it asks for, and shows the brief once", () => {
+  it("gives the request of a plan the level it asks for", () => {
     assert.deepEqual(
       ofType(events, "harness_message").map(({ to, level }) => [to, level]),
       [
@@ -631,7 +606,6 @@ describe("the thread of a design that plans level by level", () => {
         ["plan_reviewer", undefined],
       ],
     );
-    assert.equal(ofType(events, "user_message").length, 1);
   });
 
   it("gives a scenario of an accepted plan the level of the pass when it names none", () => {

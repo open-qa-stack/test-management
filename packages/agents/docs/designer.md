@@ -437,7 +437,7 @@ Expect 1.1: The table lists the order of Mira Veldane only.
 ```
 ````
 
-The record is written with two spaces of indentation, one value per line; it is shortened here. `readPlanFile` reads a file only when it is, to the character, what `planFileText` writes for its record: a file without a record, with a record that is no JSON or of another format version, or whose page or record a hand changed, is not read, and the design it belongs to is not resumed.
+The record is written with two spaces of indentation, one value per line; it is shortened here. `readPlanFile` reads a file only when it is, to the character, what `planFileText` writes for its record: a file without a record, with a record that is no JSON or of another format version, or whose page or record a hand changed, is not read.
 
 ## Outcome
 
@@ -448,11 +448,7 @@ The sessions are traced in `<stateDir>/traces/design-<environment>-<date>.jsonl`
 - With fewer such tests than scenarios, those kept are written and committed all the same, the unfinished ones included, and the journal gives their number.
 - With none, nothing is written and no branch is created, unless a limit stopped the design after its plan was accepted: the state and the file of the plan are then written, and nothing is committed.
 - When the plan is refused, by the review or six times by the gates, nothing is written and no branch is created; the journal gives the reason.
-- When a limit of the autonomy stops the session of a scenario while it is open, the journal names the limit, and the design stops there: the tests of the scenarios closed before it are written, the scenario under way is not, and the design may be resumed from it. A limit that stops a session once its scenario is closed, or the session that plans once its plan is accepted, stops nothing: the design goes on with the next session.
+- When a limit of the autonomy stops the session of a scenario while it is open, the journal names the limit, and the design stops there: the tests of the scenarios closed before it are written, and the scenario under way is not. A limit that stops a session once its scenario is closed, or the session that plans once its plan is accepted, stops nothing: the design goes on with the next session.
 - When a session fails, the design stops, and what was kept is written.
-
-## Resuming a design
-
-`resume` names a design a limit stopped: the path of its state, relative to the test repository, and its branch once it holds a test. The working tree must be clean, as for a new design, and the branch, when it exists, is checked out. The state must be readable, of the current format, and so must the file of the plan it names, with a scenario of the plan not closed; otherwise nothing starts. No session plans: the scenarios not closed are written, each in its session, from the first of them, exactly as in a new design — a session gets the sheet of its scenario, whose skeleton holds the code and the elements the plan kept, and neither the plan nor the tests kept: a test made of the lines of its sheet runs without the session looking at a screen. The limits are those of the configuration, counted afresh for each session. Once the sessions are over, the new tests, the file of the plan, unchanged, and the state, which then lists the tests of every run and adds up what their sessions used, are committed on the same branch, created if the design held no test yet. A plan, a test kept or a scenario closed is never done again.
 
 The designer runs each test with `runner`, which gives the verdict; the review of the branch judges them.

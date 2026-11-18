@@ -26,6 +26,8 @@ export interface CommandIo {
   readonly connect?: (config: ResolvedConfig, env: Readonly<Record<string, string | undefined>>) => Promise<OpenRuntime>;
   /** The clock of the runs; the system clock by default. */
   readonly now?: () => Date;
+  /** The folder of the built console `oqas --ui` serves; that of the workspace by default. */
+  readonly console?: string;
   /** The paces of the command among the processes that reach the same database; those of the engine by default. */
   readonly pace?: SessionsPace;
 }

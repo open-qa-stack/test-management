@@ -13,7 +13,7 @@ import { ConfigurationError } from "../src/config/configuration-error.ts";
 import type { EnvironmentVariable } from "../src/config/environment-variable.ts";
 import { processEnvironment } from "../src/config/process-environment.ts";
 import { readVariables } from "../src/config/read-variables.ts";
-import { databaseUrl, nonEmptyText, portNumber, testRepository, type ValueType } from "../src/config/value-type.ts";
+import { builtConsole, databaseUrl, nonEmptyText, portNumber, testRepository, type ValueType } from "../src/config/value-type.ts";
 import { childEnvironment, TEST_ENVIRONMENT } from "./support/environment.ts";
 
 const DATABASE = "postgres://oqas:secret@127.0.0.1:5432/oqas";
@@ -87,8 +87,8 @@ describe("the configuration of the API", () => {
     for (const variable of Object.values(API_VARIABLES) as EnvironmentVariable<unknown>[]) {
       assert.match(variable.name, /^OQAS_[A-Z_]+$/);
       assert.ok(variable.description.length > 0 && variable.type.rule.length > 0);
-      // The example of the test repository names a folder of the machine of whoever reads it.
-      if (variable.type === testRepository) assert.ok(isAbsolute(variable.example));
+      // The examples of the test repository and of the console name folders of the machine of whoever reads them.
+      if (variable.type === testRepository || variable.type === builtConsole) assert.ok(isAbsolute(variable.example));
       else assert.ok(variable.type.parse(variable.example).ok);
       if (variable.defaultValue !== undefined) assert.ok(variable.type.parse(variable.defaultValue).ok);
     }

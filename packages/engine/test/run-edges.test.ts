@@ -26,7 +26,7 @@ describe("the edges of a run", () => {
     assert.ok(!host.err.includes("npm cannot be run"), host.err);
   });
 
-  it("takes the only environment declared, maps a source again when forced, and shows who follows each line of the trace", async () => {
+  it("takes the only environment declared, keeps the card of a source that did not change, and shows who follows each line of the trace", async () => {
     const single = (url: string) =>
       configText(url, {
         applications: [
@@ -42,7 +42,8 @@ describe("the edges of a run", () => {
       });
     // The dependencies cannot be installed: each run stops once its cartography is over.
     const script = { install: 1 };
-    const first = await ran(chain(), { config: single, script });
+    const followed: TraceLine[] = [];
+    const first = await ran(chain(), { config: single, script, follow: (line) => followed.push(line) });
     assert.match(first.err, /the run targets the environment local\./);
     assert.match(first.err, /\[cartography\] finished: The cartography succeeded\./);
     // Each run has a model of its own, which the configuration of the repository names.
@@ -52,10 +53,6 @@ describe("the edges of a run", () => {
     };
     const kept = await ran(chain(), { root: again, config: single, script, now: later(13) });
     assert.match(kept.err, /The card of order-specs is up to date; it was kept\./);
-    const followed: TraceLine[] = [];
-    const forced = await ran(chain(), { root: again, config: single, script, now: later(14), force: true, follow: (line) => followed.push(line) });
-    assert.doesNotMatch(forced.err, /it was kept/);
-    assert.match(forced.err, /\[cartography\] finished: The cartography succeeded\./);
     assert.ok(followed.some((line) => line.phase === "consolidation" && line.event.type === "tool-call"));
   });
 

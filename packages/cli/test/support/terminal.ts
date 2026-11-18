@@ -43,6 +43,8 @@ export interface Run {
   readonly io?: Partial<CommandIo>;
   /** Called with each text the command writes on its error output, as it writes it. */
   readonly heard?: (text: string) => void;
+  /** Called with each text the command writes on its standard output, as it writes it. */
+  readonly printed?: (text: string) => void;
 }
 
 /**
@@ -104,7 +106,12 @@ export class Terminal {
     const code = await soloCommand(["--repository", this.root, ...argv], {
       env: { SHOP_DB_URL: WITNESS, ...run.env },
       cwd: "/",
-      stdout: { write: (text) => (out += text) },
+      stdout: {
+        write: (text) => {
+          out += text;
+          run.printed?.(text);
+        },
+      },
       stderr: {
         write: (text) => {
           err += text;

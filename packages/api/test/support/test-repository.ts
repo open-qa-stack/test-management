@@ -6,7 +6,7 @@ import { join } from "node:path";
 import type { CommandRunner } from "@open-qa-stack/domain";
 import { scriptedServer, type ScriptedServer } from "@open-qa-stack/testing";
 import { FakeRunner, fixtureConfig, fixtureRepository, WITNESS, type RanCommand, type RanOutcome } from "@open-qa-stack/testing/fixture-repository";
-import type { RunEnvironment } from "../../src/sessions/run-environment.ts";
+import type { SessionsRuns } from "../../src/api-entry.ts";
 
 /** A door a run waits at until a test opens it. */
 export interface Door {
@@ -46,7 +46,7 @@ export class TestRepository {
   }
 
   /** What the API gives its runs: the variable the configuration of the repository names, the doubles, and writes made again at once. */
-  get environment(): Partial<RunEnvironment> {
+  get runs(): SessionsRuns {
     const doubles = new FakeRunner(this.root);
     const runner: CommandRunner = {
       run: async (step): Promise<RanOutcome> => {

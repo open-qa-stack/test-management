@@ -86,7 +86,16 @@ function liveWith(steps: readonly Step[], session: Session = INTERRUPTED, source
   const stage = session.state === "running" ? "live" : session.state === "queued" ? "queued" : "ended";
   const script: SessionScript = { id: SESSION_ID, title: "Couvrir la recherche", sources, stage, steps };
   const playback = { ...INITIAL_PLAYBACK, ...changes };
-  return { session, stream: "open", script, playback, frame: frameOf(script, playback), saying: { state: "idle" }, controls: NO_CONTROLS };
+  return {
+    session,
+    stream: "open",
+    script,
+    playback,
+    frame: frameOf(script, playback),
+    saying: { state: "idle" },
+    stopping: { state: "idle" },
+    controls: NO_CONTROLS,
+  };
 }
 
 /**
@@ -192,9 +201,10 @@ function screen(query = "", live: LiveSession = liveOf()): string {
  * Presses every button of the screen of a session but the one that submits its composer, in order.
  *
  * @param changes - What differs from the playback of a session just opened.
+ * @param query - The query of the address of the session; none by default.
  * @returns The controls the buttons called, in order.
  */
-function pressed(changes: Partial<Playback> = {}): string[] {
+function pressed(changes: Partial<Playback> = {}, query = ""): string[] {
   const calls: string[] = [];
   const controls: SessionControls = {
     ...NO_CONTROLS,
@@ -203,8 +213,9 @@ function pressed(changes: Partial<Playback> = {}): string[] {
     faster: () => calls.push("faster"),
     skip: () => calls.push("skip"),
     follow: () => calls.push("follow"),
+    stop: () => calls.push("stop"),
   };
-  const buttons = elementsOf(screenOf("", { ...liveOf(RUNNING, changes), controls }), "button").filter((button) => button["type"] === "button");
+  const buttons = elementsOf(screenOf(query, { ...liveOf(RUNNING, changes), controls }), "button").filter((button) => button["type"] === "button");
   for (const button of buttons) (button["onClick"] as () => void)();
   return calls;
 }
@@ -631,6 +642,63 @@ describe("the composer of a session", () => {
 /** What a session holds before it started: what was asked. */
 const ASKED = numbered([{ type: "user_message", text: "tester la recherche d'un client" }]);
 
+describe("the stop of a session", () => {
+  const STOP = "?stop=ask";
+  const stoppedWith = (stopping: LiveSession["stopping"], query = STOP, session: Session = RUNNING) => screen(query, { ...liveOf(session), stopping });
+
+  it("is offered in the bar of a session that runs or waits its turn, by a link to its confirmation, and never once the session ended", () => {
+    for (const session of [RUNNING, QUEUED]) {
+      assert.deepEqual(
+        linksOf(screen("?show=talk", liveOf(session))).filter((href) => href.includes("stop=")),
+        [`${ADDRESS}?show=talk&stop=ask`],
+      );
+    }
+    for (const session of [COMPLETED, INTERRUPTED, STOPPED]) {
+      for (const query of ["", STOP]) assert.doesNotMatch(screen(query, liveOf(session)), /Arrêter|session-stop/, session.state);
+    }
+    assert.doesNotMatch(screen("", liveOf(RUNNING, { following: false, tick: 30 })), /id="session-stop"/);
+  });
+
+  it("stops nothing by itself: the screen holds no button that stops until the address opens the confirmation", () => {
+    assert.doesNotMatch(screen(), /class="session-stop"|Arrêter la session/);
+    assert.deepEqual(pressed(), ["restart"]);
+    assert.deepEqual(pressed({}, STOP), ["restart", "stop"]);
+  });
+
+  it("is confirmed under the bar: what stopping does, the way out first, then the button that stops", () => {
+    const html = screen(`?show=talk&stop=ask`);
+    assert.match(
+      html,
+      /<\/div><section class="session-stop" aria-labelledby="session-stop-title"><h2 id="session-stop-title" class="session-stop-title">Arrêter cette session \?<\/h2><p class="session-stop-note">Ses agents s’arrêtent dès qu’ils rendent la main, et la session ne reprend pas\. Ce qu’ils ont écrit reste dans le dépôt de tests\.<\/p><div class="session-stop-actions"><a id="session-stop-cancel" class="btn" href="#\/agent\/sessions\/[^"?]+\?show=talk">Annuler<\/a><button type="button" class="btn danger">Arrêter la session<\/button><\/div><\/section><div class="pass-stepper"/,
+    );
+    assert.doesNotMatch(html, /role="alert"/);
+    assert.match(screen(STOP, liveOf(QUEUED, {}, ASKED)), /class="session-stop"/);
+    assert.match(screen(STOP, liveOf(RUNNING, { following: false, tick: 30 })), /class="session-stop"/);
+  });
+
+  it("cannot be asked twice while the request is on its way, and says why the instance refused, the button free to ask again", () => {
+    assert.match(stoppedWith({ state: "sending" }), /<button type="button" class="btn danger" disabled="">Arrêter la session<\/button>/);
+    const refused = stoppedWith({ state: "refused", message: "L’instance ne répond pas." });
+    assert.match(
+      refused,
+      /<button type="button" class="btn danger">Arrêter la session<\/button><\/div><p class="session-stop-refused" role="alert">L’instance ne répond pas\.<\/p><\/section>/,
+    );
+  });
+
+  it("says in the bar that the stop was asked once the instance took it, the session still going on, and offers it no more", () => {
+    for (const query of ["", STOP]) {
+      const html = stoppedWith({ state: "asked" }, query);
+      assert.match(
+        html,
+        /<span id="session-stop" class="session-stopping" role="status" tabindex="-1">arrêt demandé…<\/span><button type="button" class="btn ghost sm">/,
+      );
+      assert.match(textOf(html), /en direct 2026-11-15 · 14:44:06 UTC · 2 action\(s\) arrêt demandé… Rejouer/);
+      assert.doesNotMatch(html, /class="session-stop"|Arrêter/);
+    }
+    assert.doesNotMatch(stoppedWith({ state: "asked" }, "", INTERRUPTED), /arrêt demandé|session-stop/);
+  });
+});
+
 describe("the screen of a session", () => {
   it("lets the person speak to the agents under the thread while they work or are waited for, in a replay too, and not once the session ended", () => {
     assert.match(screen(), /<\/section><form class="composer">.*<\/form><div class="session-end"><\/div><\/div>/);
@@ -665,9 +733,9 @@ describe("the screen of a session", () => {
     const html = screen();
     assert.match(
       html,
-      /<div class="session-bar"><span class="badge info">en direct<\/span><span class="session-facts">2026-11-15 · 14:44:06 UTC · 2 action\(s\)<\/span><button type="button" class="btn ghost sm"><svg [^>]*>.*?<\/svg> Rejouer<\/button><\/div>/,
+      /<div class="session-bar"><span class="badge info">en direct<\/span><span class="session-facts">2026-11-15 · 14:44:06 UTC · 2 action\(s\)<\/span><a id="session-stop" class="btn ghost sm" href="#\/agent\/sessions\/[^"?]+\?stop=ask"><svg [^>]*><rect [^>]*\/><\/svg> Arrêter<\/a><button type="button" class="btn ghost sm"><svg [^>]*>.*?<\/svg> Rejouer<\/button><\/div>/,
     );
-    assert.match(textOf(html), /en direct 2026-11-15 · 14:44:06 UTC · 2 action\(s\) Rejouer ✓ Configuration/);
+    assert.match(textOf(html), /en direct 2026-11-15 · 14:44:06 UTC · 2 action\(s\) Arrêter Rejouer ✓ Configuration/);
     assert.match(html, /<div class="content"><div class="session"><div class="session-bar">/);
     assert.doesNotMatch(html, /disabled|role="progressbar"|session-bar replay/);
     assert.deepEqual(pressed(), ["restart"]);
@@ -677,7 +745,7 @@ describe("the screen of a session", () => {
     for (const session of [RUNNING, COMPLETED]) {
       const html = screen("", { ...liveOf(session), stream: "reconnecting" });
       assert.match(html, /<span class="session-facts">connexion au flux interrompue, nouvelle tentative…<\/span>/);
-      assert.match(textOf(html), /connexion au flux interrompue, nouvelle tentative… Rejouer/);
+      assert.match(textOf(html), /connexion au flux interrompue, nouvelle tentative… (Arrêter )?Rejouer/);
       assert.doesNotMatch(html, /14:44:06 UTC/);
     }
     assert.doesNotMatch(screen("", { ...liveOf(), stream: "connecting" }), /connexion au flux interrompue/);
@@ -712,7 +780,7 @@ describe("the screen of a session", () => {
       { type: "phase_started", phase: "card", source: "orders-db" },
       { type: "agent_message", agent: "cartographer", text: "I read the sources.", reasoning: false },
     ]);
-    assert.match(textOf(screen("", liveOf(RUNNING, {}, events))), /UTC · 2 source\(s\) de connaissance lue\(s\) · 0 action\(s\) Rejouer/);
+    assert.match(textOf(screen("", liveOf(RUNNING, {}, events))), /UTC · 2 source\(s\) de connaissance lue\(s\) · 0 action\(s\) Arrêter Rejouer/);
     assert.doesNotMatch(screen(), /source\(s\)/);
   });
 
@@ -744,7 +812,7 @@ describe("the screen of a session", () => {
   it("says in its bar that a queued session waits for an agent, and names nobody at work under what was asked", () => {
     const html = screen("", liveOf(QUEUED, {}, ASKED));
     assert.match(html, /<span class="badge outline">en file<\/span>/);
-    assert.match(textOf(html), /en file 2026-11-15 · 14:44:06 UTC · en attente d’un agent · 0 action\(s\) Rejouer /);
+    assert.match(textOf(html), /en file 2026-11-15 · 14:44:06 UTC · en attente d’un agent · 0 action\(s\) Arrêter Rejouer /);
     assert.doesNotMatch(html, /class="working"|travaille/);
     assert.match(textOf(screen("", liveOf(QUEUED, { following: false, tick: 30 }, ASKED))), /× 1 Tout afficher/);
   });

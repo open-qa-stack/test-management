@@ -170,6 +170,37 @@ describe("what keeps the console in step with its instance", () => {
     });
   });
 
+  describe("stopping a session", () => {
+    const INTERRUPTION = `POST /api/sessions/${SESSION_ID}/interruption`;
+
+    it("says it is asking, posts the interruption, then says the API took it and tells who asked", async () => {
+      let taken = 0;
+      api.answer(INTERRUPTION, () => new Response(null, { status: 202 }));
+      api.sync.interrupt(SESSION_ID, () => (taken += 1));
+      assert.deepEqual(api.told, [{ type: "stopping", id: SESSION_ID }]);
+      await settled();
+      assert.deepEqual(api.calls, [INTERRUPTION]);
+      assert.deepEqual(api.told.slice(1), [{ type: "stop_asked", id: SESSION_ID }]);
+      assert.equal(taken, 1);
+    });
+
+    it("says why the API refused, in the words of the console, and tells nobody the request was taken", async () => {
+      const taken = (): void => assert.fail("the request was not taken");
+      api.answer(INTERRUPTION, problem("session_ended", 409));
+      api.sync.interrupt(SESSION_ID, taken);
+      await settled();
+      api.answer(INTERRUPTION, unreachable);
+      api.sync.interrupt(SESSION_ID, taken);
+      await settled();
+      assert.deepEqual(api.told, [
+        { type: "stopping", id: SESSION_ID },
+        { type: "unstopped", id: SESSION_ID, message: "La session vient de se terminer : elle ne prend plus ni message ni arrêt." },
+        { type: "stopping", id: SESSION_ID },
+        { type: "unstopped", id: SESSION_ID, message: "L’instance ne répond pas." },
+      ]);
+    });
+  });
+
   describe("sending a message to a session", () => {
     const MESSAGES = `POST /api/sessions/${SESSION_ID}/messages`;
 
@@ -191,7 +222,7 @@ describe("what keeps the console in step with its instance", () => {
       await settled();
       assert.deepEqual(api.told, [
         { type: "saying", id: SESSION_ID },
-        { type: "unsaid", id: SESSION_ID, message: "La session vient de se terminer : elle ne prend plus de message." },
+        { type: "unsaid", id: SESSION_ID, message: "La session vient de se terminer : elle ne prend plus ni message ni arrêt." },
         { type: "saying", id: SESSION_ID },
         { type: "unsaid", id: SESSION_ID, message: "L’instance ne répond pas." },
       ]);

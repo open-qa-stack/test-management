@@ -37,6 +37,26 @@ describe("the arguments of the command", () => {
       assert.deepEqual(parseArguments(["--init", ...other]), refused(INIT_ALONE), other.join(" "));
   });
 
+  it("serve the console on this machine and the port of oqas, or where they say, with the repository and nothing else", () => {
+    assert.deepEqual(parseArguments(["--ui"]), read({ name: "ui", host: "127.0.0.1", port: 6727 }));
+    assert.deepEqual(
+      parseArguments(["--repository", "tests", "--ui", "--host", "0.0.0.0", "--port", "0", "--no-input"]),
+      read({ name: "ui", host: "0.0.0.0", port: 0 }, { repository: "tests" }),
+    );
+    assert.deepEqual(parseArguments(["--ui", "--port", "65535"]), read({ name: "ui", host: "127.0.0.1", port: 65535 }));
+    assert.deepEqual(parseArguments(["--ui", "--brief", "Orders.", "--help"]), read({ name: "help" }));
+    const alone = "--ui serves the console, where the sessions are opened and followed: it takes --repository, --host and --port alone.";
+    for (const other of [["--brief", "Test the orders."], ["--environment", "local"], ["--follow"], ["--output", "json"], ["sessions"], ["--init"]])
+      assert.deepEqual(parseArguments(["--ui", ...other]), refused(alone), other.join(" "));
+    for (const port of ["65536", "-1", "http", "80.5", "123456"])
+      assert.deepEqual(parseArguments(["--ui", "--port", port]), refused("--port needs an integer from 0 to 65535."), port);
+    const elsewhere = "--host and --port say where --ui listens: they go with it alone.";
+    assert.deepEqual(parseArguments(["sessions", "--port", "8080"]), refused(elsewhere));
+    assert.deepEqual(parseArguments(["--brief", "Orders.", "--host", "0.0.0.0"]), refused(elsewhere));
+    assert.deepEqual(parseArguments(["--init", "--port", "8080"]), refused(elsewhere));
+    assert.deepEqual(parseArguments(["--help", "--port", "8080"]), read({ name: "help" }));
+  });
+
   it("are refused when an option lacks its value, is not known, or names no way to print", () => {
     assert.deepEqual(parseArguments(["--repository"]), refused("--repository needs a value."));
     assert.deepEqual(parseArguments(["--environment", "--help"]), refused("--environment needs a value."));

@@ -1,7 +1,7 @@
 import type { FormEvent, KeyboardEvent } from "react";
 import type { Session } from "@open-qa-stack/domain/sessions";
 import type { StreamState } from "../api/event-stream.ts";
-import type { Sending } from "./console-state.ts";
+import type { Sending, Stopping } from "./console-state.ts";
 import type { Frame, Playback } from "./playback.ts";
 import type { SessionScript } from "./session-script.ts";
 
@@ -19,6 +19,8 @@ export interface SessionControls {
   readonly follow: () => void;
   /** Sends to the agents the message the form of the composer holds. */
   readonly say: (event: FormEvent<HTMLFormElement>) => void;
+  /** Asks the instance to stop the session: what the confirmation of a stop does, and nothing else. */
+  readonly stop: () => void;
   /** Hears a key of the field of the composer: Enter sends, Shift+Enter starts a new line. */
   readonly sayOnEnter: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
 }
@@ -35,5 +37,7 @@ export interface LiveSession {
   readonly frame: Frame;
   /** Where the message the person sends to its agents is. */
   readonly saying: Sending;
+  /** Where the request of the person to stop it is. */
+  readonly stopping: Stopping;
   readonly controls: SessionControls;
 }

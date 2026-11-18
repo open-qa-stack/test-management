@@ -9,7 +9,7 @@ import type { SessionStore } from "@open-qa-stack/store";
 import { acceptConnections, listeningConnections, refuseConnections, SessionDatabase, type DatabaseEngine } from "@open-qa-stack/store/testing";
 import { at, closedPort } from "@open-qa-stack/testing";
 import { chain } from "@open-qa-stack/testing/fixture-repository";
-import { startApi } from "../../src/start-api.ts";
+import { apiFrom } from "../support/started-api.ts";
 import { CapturedLogger } from "../support/captured-logger.ts";
 import { EventStream } from "../support/event-stream.ts";
 import { eventually } from "../support/eventually.ts";
@@ -69,7 +69,7 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
 
   /** Starts the API on the database of the tests, with a test repository to run its sessions in. */
   function hosted(repository: TestRepository): Promise<TestApi> {
-    return sessionsApi({ database: sessions.url, repository: repository.root, environment: repository.environment, logger });
+    return sessionsApi({ database: sessions.url, repository: repository.root, runs: repository.runs, logger });
   }
 
   /** Starts another API, on a test repository of its own whose model answers the whole scripted chain; both are closed after the test. */
@@ -200,7 +200,7 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
       assert.deepEqual(await answerOf(await fetch(`${api.url}/nowhere`)), {
         status: 404,
         type: PROBLEM_TYPE,
-        body: { type: "/problems/error", title: "Request not answered", status: 404, detail: "Cannot GET /nowhere", code: "error" },
+        body: { type: "/problems/error", title: "Request not answered", status: 404, detail: "Cannot GET /api/nowhere", code: "error" },
       });
       const malformed = await problemOf(await post("{"));
       assert.deepEqual([malformed.status, malformed.type, malformed.body.code], [400, PROBLEM_TYPE, "invalid_request"]);
@@ -626,7 +626,7 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
     async function quick(): Promise<{ repository: TestRepository; api: TestApi }> {
       await api.close();
       const repository = await TestRepository.create(chain());
-      const own = await sessionsApi({ database: sessions.url, repository: repository.root, environment: { ...repository.environment, pace: QUICK }, logger });
+      const own = await sessionsApi({ database: sessions.url, repository: repository.root, runs: { ...repository.runs, pace: QUICK }, logger });
       started.push(repository, own);
       return { repository, api: own };
     }
@@ -677,7 +677,7 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
       await api.close();
       const running = await kept("run elsewhere");
       const waiting = await store.ask({ request: "asked elsewhere", environment: "nowhere" }, GONE);
-      api = await sessionsApi({ database: sessions.url, repository: quiet.root, environment: { ...quiet.environment, pace: QUICK }, logger });
+      api = await sessionsApi({ database: sessions.url, repository: quiet.root, runs: { ...quiet.runs, pace: QUICK }, logger });
       await pause(QUICK.beatMs * 10);
       assert.deepEqual([(await store.session(running.id))?.state, (await store.session(waiting.id))?.state], ["running", "queued"]);
       assert.deepEqual(
@@ -718,7 +718,8 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
       const own = await sessionsApi({
         database: sessions.url,
         repository: repository.root,
-        environment: { ...repository.environment, stopWithinMs: 20 },
+        runs: repository.runs,
+        stopWithinMs: 20,
         logger,
       });
       started.push(repository);
@@ -748,16 +749,16 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
       it("starts all the same, reports itself not ready, and answers 503 on every route of the project and of the sessions, without a word of its database", async () => {
         const log = new CapturedLogger();
         const port = await closedPort();
-        const alone = await startApi(
+        const alone = await apiFrom(
           {
             OQAS_HOST: "127.0.0.1",
             OQAS_PORT: String(port),
             OQAS_DATABASE_URL: `postgres://oqas:witness-7a1c@127.0.0.1:${await closedPort()}/oqas`,
             OQAS_REPOSITORY: quiet.root,
           },
-          { logger: log },
+          log,
         );
-        const to = { url: `http://127.0.0.1:${port}`, close: () => alone.close() };
+        const to = { url: `${alone.url}/api`, origin: alone.url, close: () => alone.close() };
         try {
           assert.equal((await fetch(`${to.url}/health`)).status, 200);
           assert.deepEqual(await answerOf(await fetch(`${to.url}/health/ready`)), {

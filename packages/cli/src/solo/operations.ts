@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { CONFIG_FILE_NAME } from "@open-qa-stack/domain";
-import { liveRuntime, Sessions } from "@open-qa-stack/engine";
+import { liveRuntime, Sessions, type SessionsHost } from "@open-qa-stack/engine";
 import { DATABASE_URL_VARIABLE, DatabaseUrl, InstanceDatabase, instanceDatabaseUrl } from "@open-qa-stack/store";
 import { UsageError } from "./usage-error.ts";
 import type { CommandIo } from "./command-io.ts";
@@ -39,20 +39,9 @@ const STOP_WITHIN_MS = 10_000;
  * @throws `DatabaseUnavailableError` when the file of the database cannot be opened.
  */
 export async function openOperations(io: CommandIo, repository: string, hosts: boolean): Promise<Operations> {
-  const logger = { log: () => undefined, warn: (message: string) => void io.stderr.write(`oqas: ${message}\n`) };
+  const logger = commandLogger(io);
   const instance = new InstanceDatabase(databaseOf(io, repository), logger);
-  const connect = io.connect ?? liveRuntime;
-  const sessions = new Sessions({
-    store: instance.sessions,
-    repository: hosts ? repository : undefined,
-    takesOver: false,
-    env: io.env,
-    logger,
-    openRuntime: (config) => connect(config, io.env),
-    ...(io.runner === undefined ? {} : { runner: io.runner }),
-    ...(io.now === undefined ? {} : { now: io.now }),
-    ...(io.pace === undefined ? {} : { pace: io.pace }),
-  });
+  const sessions = new Sessions({ ...runsOf(io), store: instance.sessions, repository: hosts ? repository : undefined, takesOver: false, logger });
   const close = async (withinMs = STOP_WITHIN_MS): Promise<void> => {
     if (hosts) await sessions.stop(withinMs);
     await instance.close();
@@ -66,8 +55,37 @@ export async function openOperations(io: CommandIo, repository: string, hosts: b
   return { sessions, close };
 }
 
-/** The URL of the database of the instance, from the environment of the command and its test repository. */
-function databaseOf(io: CommandIo, repository: string): DatabaseUrl {
+/**
+ * @param io - The outputs of the command.
+ * @returns Where a command reports what goes wrong around its sessions: on its error output, under its name. What went as expected is not told.
+ */
+export function commandLogger(io: Pick<CommandIo, "stderr">): { log(message: unknown): void; warn(message: unknown): void; error(message: unknown): void } {
+  const told = (message: unknown): void => void io.stderr.write(`oqas: ${String(message)}\n`);
+  return { log: () => undefined, warn: told, error: told };
+}
+
+/**
+ * @param io - What the command runs with.
+ * @returns What the runs of the sessions a command hosts work with, in whichever presentation hosts them: its environment, and what it was given in place of the machine.
+ */
+export function runsOf(io: CommandIo): Pick<SessionsHost, "env" | "openRuntime" | "runner" | "now" | "pace"> {
+  const connect = io.connect ?? liveRuntime;
+  return {
+    env: io.env,
+    openRuntime: (config) => connect(config, io.env),
+    ...(io.runner === undefined ? {} : { runner: io.runner }),
+    ...(io.now === undefined ? {} : { now: io.now }),
+    ...(io.pace === undefined ? {} : { pace: io.pace }),
+  };
+}
+
+/**
+ * @param io - The environment of the command.
+ * @param repository - Absolute path of the test repository.
+ * @returns The URL of the database of the instance, from the environment of the command and its test repository.
+ * @throws {@link UsageError} when the database cannot be told: its URL is no URL, or the repository holds no configuration to place it by.
+ */
+export function databaseOf(io: CommandIo, repository: string): DatabaseUrl {
   const raw = io.env[DATABASE_URL_VARIABLE];
   const given = raw === undefined ? undefined : DatabaseUrl.parse(raw);
   if (raw !== undefined && given === undefined) throw new UsageError(`${DATABASE_URL_VARIABLE} must be ${DatabaseUrl.rule}.`);

@@ -329,8 +329,8 @@ describe("the locators of a test", () => {
   const passing: TestRunner = {
     run: async (test) => ({ startedAt: STARTED, tests: [{ id: test.path, verdict: "passed", reason: "Every attempt passed." }] }),
   };
-  /** The proposals of a session that looked at no screen, as one that resumes a design, and its screens. */
-  const resumed = () => {
+  /** The proposals of a session that looked at no screen yet, as the session of a scenario is when it opens, and its screens. */
+  const opened = () => {
     const screens = new ScreenWatch(["shop"], shopTools());
     const proposals = new TestProposals(rules(passing), new Journal(), { scenarios: [planned] });
     const sheet = proposals.sheet!;
@@ -339,20 +339,20 @@ describe("the locators of a test", () => {
   };
 
   it("are those of the skeleton of its scenario, which the plan gives: a test made of its lines alone runs in a session that saw no screen", async () => {
-    const { proposals, sheet } = resumed();
+    const { proposals, sheet } = opened();
     const content = skeleton(planned, false);
     assert.ok(sheet.includes(content));
     assert.ok(content.includes(`    ${OPENED}\n    // Expect 1.1: The ledger shows.\n    await expect(${HEADING}).toBeVisible();`), content);
     assert.match(String(await proposals.trialTool().execute({ content })), /^Run of the file: passed\./);
     // The same element, written another way, is the one of the plan still.
-    const { proposals: again } = resumed();
+    const { proposals: again } = opened();
     const reworded = content.replace(HEADING, 'page.getByRole("heading", { name: "Ledger" })');
     assert.notEqual(reworded, content);
     assert.match(String(await again.trialTool().execute({ content: reworded })), /^Run of the file: passed\./);
   });
 
   it("are else ones a screen of the session showed: another is refused until the agent looked", async () => {
-    const { proposals, screens } = resumed();
+    const { proposals, screens } = opened();
     const other = skeleton(planned, false).replace(HEADING, 'page.getByRole("banner").getByText("Ledger")');
     assert.deepEqual(await proposals.trialTool().execute({ content: other }), {
       error:
@@ -469,9 +469,9 @@ describe("the session of a scenario", () => {
     );
   });
 
-  it("starts from the first scenario an earlier design did not close, and has no sheet once all are closed", () => {
-    const proposals = new TestProposals(rules(passing), new Journal(), { scenarios: [first, second] }, 1);
-    assert.match(proposals.sheet!, /^Scenario 2 of 2: close-ledger /);
+  it("starts from the first scenario of the plan, and has no sheet once all are closed", () => {
+    const proposals = new TestProposals(rules(passing), new Journal(), { scenarios: [first] });
+    assert.match(proposals.sheet!, /^Scenario 1 of 1: /);
     proposals.begin(BLIND);
     proposals.giveUp("SESSION-END");
     assert.equal(proposals.sheet, undefined);

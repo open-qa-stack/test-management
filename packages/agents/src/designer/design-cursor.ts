@@ -44,14 +44,12 @@ export class DesignCursor {
   /**
    * @param plan - The accepted plan.
    * @param place - Gives the file of the test of a scenario, relative to the test repository, when it opens.
-   * @param closed - How many scenarios, from the first, an earlier session closed; none by default.
    */
-  public constructor(plan: TestPlan, place: (scenario: PlannedScenario) => string, closed = 0) {
+  public constructor(plan: TestPlan, place: (scenario: PlannedScenario) => string) {
     this.plan = plan;
     this.#place = place;
-    this.#at = closed;
     // A plan may hold no scenario, when no test can do what its brief asks: nothing is open then.
-    const open = plan.scenarios[closed];
+    const open = plan.scenarios[0];
     this.#path = open === undefined ? undefined : place(open);
   }
 

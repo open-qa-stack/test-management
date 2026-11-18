@@ -212,13 +212,16 @@ describe("Ctrl-C in the terminal of oqas --brief", () => {
     let err = "";
     const stderr = { write: (text: string) => (err += text) };
     let press = (): void => undefined;
-    const interruptions = new Interruptions({ stderr, onInterrupt: (listener) => ((press = listener), () => undefined) }, () =>
-      Promise.reject(new Error("The session s1 no longer goes on.")),
+    const wording = { asked: "The session is asked to stop, and ends soon.", failed: "The session was not asked to stop" };
+    const interruptions = new Interruptions(
+      { stderr, onInterrupt: (listener) => ((press = listener), () => undefined) },
+      () => Promise.reject(new Error("The session s1 no longer goes on.")),
+      wording,
     );
     press();
     await pause(0);
     assert.match(err, /\nThe session was not asked to stop: The session s1 no longer goes on\.\n$/);
     interruptions.end();
-    new Interruptions({ stderr }, () => assert.fail("nobody asks")).end();
+    new Interruptions({ stderr }, () => assert.fail("nobody asks"), wording).end();
   });
 });

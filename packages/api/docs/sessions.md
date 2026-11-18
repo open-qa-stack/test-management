@@ -2,24 +2,26 @@
 
 A session is a request made to the agents, and the work it opened. The API gives the project of the instance, its sessions, the events of each session as they happen, takes the sessions a person asks for and the messages a person sends to a session that goes on, and interrupts a session. Each route is one of [the operations on sessions](../../engine/docs/engine.md#the-operations-on-sessions) of the engine, said in HTTP: the API runs the sessions it is asked for, in its own process. The web console follows the agents through these routes.
 
+Every route of the API is under `/api`, wherever the API runs: what is under that path is REST, and nothing else is — the rest of the address is [the console](running.md#the-console), when the API serves it.
+
 The shapes of every body are the types of `@open-qa-stack/domain/sessions`. A client ignores a field, a type of event or a value it does not know: fields, types and values are added over time.
 
 | Route | Answer |
 |---|---|
-| `GET /project` | The project. |
-| `GET /sessions` | The list of the sessions, the latest first. |
-| `GET /sessions/:id` | One session. |
-| `GET /sessions/:id/events` | The events of a session, as a stream of server-sent events. |
-| `POST /sessions` | Asks for a session. |
-| `POST /sessions/:id/messages` | Sends a message to a session that goes on. |
-| `POST /sessions/:id/interruption` | Interrupts a session that goes on. |
+| `GET /api/project` | The project. |
+| `GET /api/sessions` | The list of the sessions, the latest first. |
+| `GET /api/sessions/:id` | One session. |
+| `GET /api/sessions/:id/events` | The events of a session, as a stream of server-sent events. |
+| `POST /api/sessions` | Asks for a session. |
+| `POST /api/sessions/:id/messages` | Sends a message to a session that goes on. |
+| `POST /api/sessions/:id/interruption` | Interrupts a session that goes on. |
 
 The project, the list and a session are answered with `cache-control: no-store`: they are read as they are now. Every answer that is not a success is [a problem](#problems).
 
 ## Project
 
 ```http
-GET /project
+GET /api/project
 
 HTTP/1.1 200 OK
 content-type: application/json; charset=utf-8
@@ -36,7 +38,7 @@ cache-control: no-store
 ## Session
 
 ```http
-GET /sessions/session-2026-11-14T09-00-00-000Z-9f3a1c2b
+GET /api/sessions/session-2026-11-14T09-00-00-000Z-9f3a1c2b
 
 HTTP/1.1 200 OK
 content-type: application/json; charset=utf-8
@@ -72,10 +74,10 @@ A client reads a state it does not know as a session that no longer goes on.
 | `branch` | The branch of the test repository its tests were written on, when they were. |
 | `tests` | The verdict of each test: its `id`, its `verdict` and the `reason`. The verdict is `passed`, `failed`, `blocked`, `indeterminate`, `skipped` or `not_run`; anything else a session came to is told as `indeterminate`. |
 
-`GET /sessions` answers the sessions, the latest first, as the `items` of an object, which leaves room for what a list will carry besides them:
+`GET /api/sessions` answers the sessions, the latest first, as the `items` of an object, which leaves room for what a list will carry besides them:
 
 ```http
-GET /sessions
+GET /api/sessions
 
 HTTP/1.1 200 OK
 content-type: application/json; charset=utf-8
@@ -86,10 +88,10 @@ cache-control: no-store
 
 ## Events
 
-`GET /sessions/:id/events` answers `text/event-stream`: every event of the session in the order of their identifiers, then each new one as it happens. Each event is one message, whose `id` is the identifier of the event and whose data is the event as JSON:
+`GET /api/sessions/:id/events` answers `text/event-stream`: every event of the session in the order of their identifiers, then each new one as it happens. Each event is one message, whose `id` is the identifier of the event and whose data is the event as JSON:
 
 ```http
-GET /sessions/session-2026-11-14T09-00-00-000Z-9f3a1c2b/events
+GET /api/sessions/session-2026-11-14T09-00-00-000Z-9f3a1c2b/events
 
 HTTP/1.1 200 OK
 content-type: text/event-stream
@@ -152,12 +154,12 @@ The stream ends once the session ended: after the `state_changed` event that tel
 A client that reconnects names the last event it got, and gets only the events after it. `EventSource` does so by itself, in the `Last-Event-ID` header. A client that opens a new stream and cannot set a header names it in the address instead; the header wins when both are present:
 
 ```http
-GET /sessions/session-2026-11-14T09-00-00-000Z-9f3a1c2b/events
+GET /api/sessions/session-2026-11-14T09-00-00-000Z-9f3a1c2b/events
 Last-Event-ID: 2
 ```
 
 ```http
-GET /sessions/session-2026-11-14T09-00-00-000Z-9f3a1c2b/events?after=2
+GET /api/sessions/session-2026-11-14T09-00-00-000Z-9f3a1c2b/events?after=2
 ```
 
 An identifier that is no whole number is refused with `400` and the code `invalid_request`, in the header as in the address.
@@ -167,7 +169,7 @@ The server also ends the stream when the events can no longer be read, which it 
 ## Opening a session
 
 ```http
-POST /sessions
+POST /api/sessions
 content-type: application/json
 
 {"request":"cover the search of a customer","environment":"local"}
@@ -198,7 +200,7 @@ The API takes every session it is asked for, whatever runs already: one session 
 A person corrects the direction of a session that goes on by sending it a message:
 
 ```http
-POST /sessions/session-2026-11-16T08-12-45-120Z-4be07d1a/messages
+POST /api/sessions/session-2026-11-16T08-12-45-120Z-4be07d1a/messages
 content-type: application/json
 
 {"text":"not the admin pages: only what a customer sees"}
@@ -233,7 +235,7 @@ A message is given to one agent, once. Where it conflicts with the request that 
 ## Interrupting a session
 
 ```http
-POST /sessions/session-2026-11-16T08-12-45-120Z-4be07d1a/interruption
+POST /api/sessions/session-2026-11-16T08-12-45-120Z-4be07d1a/interruption
 
 HTTP/1.1 202 Accepted
 ```
@@ -268,7 +270,7 @@ content-type: application/problem+json; charset=utf-8
 | Code | Status | Type | When |
 |---|---|---|---|
 | `unknown_session` | `404` | `/problems/unknown-session` | The session does not exist. |
-| `invalid_request` | `400` | `/problems/invalid-request` | The request is not valid: a body that is not JSON, a field of `POST /sessions` or of a message at fault, an identifier of event that is none. The detail names what is at fault. |
+| `invalid_request` | `400` | `/problems/invalid-request` | The request is not valid: a body that is not JSON, a field of `POST /api/sessions` or of a message at fault, an identifier of event that is none. The detail names what is at fault. |
 | `session_ended` | `409` | `/problems/session-ended` | The session no longer goes on: it takes no message, and no interruption. |
 | `unavailable` | `503` | `/problems/unavailable` | The database of the instance cannot be reached: neither the project nor a session can be read, asked for or sent a message; try again once [the instance reports itself ready](running.md#readiness). Or a session is asked of an API that was started without a test repository: the detail says what to set. |
 | `error` | any other | `/problems/error` | Anything else: a route that does not exist (`404`), a media type the API does not read (`415`), or a failure of the API (`500`). |
@@ -283,13 +285,13 @@ The routes hold no rule of the sessions. Each calls one operation of `Sessions`,
 
 | Route | Operation |
 |---|---|
-| `GET /project` | `project()` |
-| `GET /sessions` | `sessions()` |
-| `GET /sessions/:id` | `session(id)` |
-| `GET /sessions/:id/events` | `events(id, after)`, whose events the API sends as they are told |
-| `POST /sessions` | `open(opening)` |
-| `POST /sessions/:id/messages` | `say(id, message)` |
-| `POST /sessions/:id/interruption` | `interrupt(id)` |
+| `GET /api/project` | `project()` |
+| `GET /api/sessions` | `sessions()` |
+| `GET /api/sessions/:id` | `session(id)` |
+| `GET /api/sessions/:id/events` | `events(id, after)`, whose events the API sends as they are told |
+| `POST /api/sessions` | `open(opening)` |
+| `POST /api/sessions/:id/messages` | `say(id, message)` |
+| `POST /api/sessions/:id/interruption` | `interrupt(id)` |
 
 The operations keep the sessions in [the database](../../store/docs/database.md#tables) of the instance — each change is one command of [the life of a session](../../store/docs/database.md#the-life-of-a-session) — and run each session opened here with the engine, in the test repository the API [was started with](running.md#configuration). What a session tells is written to the database, then the streams open on it are woken in the memory of the process: nothing listens to the database, and nothing polls it for a session the API runs. The identifier of an event is its rank in its session, given once when the event is written and never changed: a client that resumes a stream after an identifier gets the same events whatever happened since.
 

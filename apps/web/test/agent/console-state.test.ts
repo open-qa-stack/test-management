@@ -97,7 +97,14 @@ describe("the session a console follows", () => {
   const FOLLOWING = consoleAfter(INITIAL_STATE, { type: "followed", id: SESSION_ID });
 
   it("starts with a stream that connects, no event, no message on its way, and the session yet to be told", () => {
-    assert.deepEqual(FOLLOWING.followed, { id: SESSION_ID, missing: false, stream: "connecting", events: [], saying: { state: "idle" } });
+    assert.deepEqual(FOLLOWING.followed, {
+      id: SESSION_ID,
+      missing: false,
+      stream: "connecting",
+      events: [],
+      saying: { state: "idle" },
+      stopping: { state: "idle" },
+    });
   });
 
   it("starts with the session as the list has it, when it has it", () => {
@@ -202,6 +209,38 @@ describe("the opening of a session", () => {
   it("keeps the message of the API when it refused", () => {
     const refused = after([{ type: "opening" }, { type: "refused", message: "Une session est déjà en cours." }]);
     assert.deepEqual(refused.opening, { state: "refused", message: "Une session est déjà en cours." });
+  });
+});
+
+describe("the request of a person to stop the session a console follows", () => {
+  const FOLLOWING = consoleAfter(INITIAL_STATE, { type: "followed", id: SESSION_ID });
+  const SENDING = consoleAfter(FOLLOWING, { type: "stopping", id: SESSION_ID });
+
+  it("is sending once the person confirmed it, then asked once the API took it: the session goes on until its host obeyed", () => {
+    assert.deepEqual(FOLLOWING.followed?.stopping, { state: "idle" });
+    assert.deepEqual(SENDING.followed?.stopping, { state: "sending" });
+    const asked = consoleAfter(SENDING, { type: "stop_asked", id: SESSION_ID });
+    assert.deepEqual(asked.followed, { ...FOLLOWING.followed, stopping: { state: "asked" } });
+  });
+
+  it("keeps the message of the API when it refused, until the person asks again", () => {
+    const refused = consoleAfter(SENDING, { type: "unstopped", id: SESSION_ID, message: "L’instance ne répond pas." });
+    assert.deepEqual(refused.followed?.stopping, { state: "refused", message: "L’instance ne répond pas." });
+    assert.deepEqual(refused.followed?.saying, { state: "idle" });
+    assert.deepEqual(consoleAfter(refused, { type: "stopping", id: SESSION_ID }).followed?.stopping, { state: "sending" });
+  });
+
+  it("ignores what the API answers for a session the console no longer follows, and is forgotten with the session", () => {
+    for (const action of [
+      { type: "stopping", id: EARLIER.id },
+      { type: "stop_asked", id: EARLIER.id },
+      { type: "unstopped", id: EARLIER.id, message: "Refused." },
+    ] as const) {
+      assert.equal(consoleAfter(SENDING, action), SENDING);
+      assert.equal(consoleAfter(INITIAL_STATE, action), INITIAL_STATE);
+    }
+    const asked = consoleAfter(SENDING, { type: "stop_asked", id: SESSION_ID });
+    assert.deepEqual(after([{ type: "left" }, { type: "followed", id: SESSION_ID }], asked).followed?.stopping, { state: "idle" });
   });
 });
 

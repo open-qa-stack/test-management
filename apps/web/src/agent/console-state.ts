@@ -17,10 +17,18 @@ export interface Followed {
   readonly events: readonly SessionEvent[];
   /** Where the message the person sends to its agents is. */
   readonly saying: Sending;
+  /** Where the request of the person to stop it is. */
+  readonly stopping: Stopping;
 }
 
 /** Where something the person sends to the instance is: nothing sent, sent and not answered yet, or the error the API answered. */
 export type Sending = { readonly state: "idle" } | { readonly state: "sending" } | { readonly state: "refused"; readonly message: string };
+
+/**
+ * Where the request to stop a session is: as anything sent, then `asked` once the instance took it. A session
+ * another process runs goes on until that process obeyed: the request is taken, and the session not yet ended.
+ */
+export type Stopping = Sending | { readonly state: "asked" };
 
 /** Where the opening of a session is. */
 export type Opening = Sending;
@@ -79,6 +87,12 @@ export type ConsoleAction =
   | { readonly type: "said"; readonly id: string }
   /** The API refused the message sent to a session. */
   | { readonly type: "unsaid"; readonly id: string; readonly message: string }
+  /** The person asked to stop a session. */
+  | { readonly type: "stopping"; readonly id: string }
+  /** The API took the request to stop a session. */
+  | { readonly type: "stop_asked"; readonly id: string }
+  /** The API refused to stop a session. */
+  | { readonly type: "unstopped"; readonly id: string; readonly message: string }
   /** The person acted on the playback of a session. */
   | { readonly type: "playback"; readonly script: SessionScript; readonly action: PlaybackAction };
 
@@ -88,9 +102,9 @@ const IDLE: Sending = { state: "idle" };
 /** The state of a console that just opened. */
 export const INITIAL_STATE: ConsoleState = { openedAt: 0, unreachable: false, opening: IDLE, playbacks: {} };
 
-/** The state once the message a person sends to a session is somewhere else; unchanged when the console no longer follows that session. */
-function withSaying(state: ConsoleState, id: string, saying: Sending): ConsoleState {
-  return state.followed?.id === id ? { ...state, followed: { ...state.followed, saying } } : state;
+/** The state once what a person sends to a session — a message, a request to stop — is somewhere else; unchanged when the console no longer follows that session. */
+function withSent(state: ConsoleState, id: string, sent: Pick<Followed, "saying"> | Pick<Followed, "stopping">): ConsoleState {
+  return state.followed?.id === id ? { ...state, followed: { ...state.followed, ...sent } } : state;
 }
 
 /**
@@ -123,7 +137,7 @@ function listed(before: readonly Session[] | undefined, now: readonly Session[])
  * session the console no longer follows changes nothing; an event already received is not kept twice; a session
  * that did not change keeps its object; an answer of the API says the instance is reachable again; a session
  * the API just opened is listed first, and a list asked before it was opened, which may lack it, is ignored;
- * the message a person sends belongs to the session followed, and is forgotten with it.
+ * the message a person sends and their request to stop belong to the session followed, and are forgotten with it.
  */
 export function consoleAfter(state: ConsoleState, action: ConsoleAction): ConsoleState {
   switch (action.type) {
@@ -144,7 +158,15 @@ export function consoleAfter(state: ConsoleState, action: ConsoleAction): Consol
       const session = state.sessions?.find(({ id }) => id === action.id);
       return {
         ...state,
-        followed: { id: action.id, missing: false, stream: "connecting", events: [], saying: IDLE, ...(session === undefined ? {} : { session }) },
+        followed: {
+          id: action.id,
+          missing: false,
+          stream: "connecting",
+          events: [],
+          saying: IDLE,
+          stopping: IDLE,
+          ...(session === undefined ? {} : { session }),
+        },
       };
     }
     case "session": {
@@ -182,11 +204,17 @@ export function consoleAfter(state: ConsoleState, action: ConsoleAction): Consol
     case "refused":
       return { ...state, opening: { state: "refused", message: action.message } };
     case "saying":
-      return withSaying(state, action.id, { state: "sending" });
+      return withSent(state, action.id, { saying: { state: "sending" } });
     case "said":
-      return withSaying(state, action.id, IDLE);
+      return withSent(state, action.id, { saying: IDLE });
     case "unsaid":
-      return withSaying(state, action.id, { state: "refused", message: action.message });
+      return withSent(state, action.id, { saying: { state: "refused", message: action.message } });
+    case "stopping":
+      return withSent(state, action.id, { stopping: { state: "sending" } });
+    case "stop_asked":
+      return withSent(state, action.id, { stopping: { state: "asked" } });
+    case "unstopped":
+      return withSent(state, action.id, { stopping: { state: "refused", message: action.message } });
     case "playback": {
       const { script } = action;
       return { ...state, playbacks: { ...state.playbacks, [script.id]: played(script, playbackOf(state, script.id), action.action) } };

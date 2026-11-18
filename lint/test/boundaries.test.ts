@@ -33,6 +33,8 @@ const ALLOWED: readonly (readonly [Short, Short])[] = [
   ["engine", "agents"],
   ["engine", "tools"],
   ["engine", "domain"],
+  ["cli", "api"],
+  ["cli", "web"],
   ["cli", "engine"],
   ["cli", "store"],
   ["cli", "harness"],
@@ -89,11 +91,11 @@ describe("criterion 1 — the delivered code keeps to its boundaries", () => {
   });
 });
 
-describe("criterion 2 — each of the 54 couples out of the table is refused by package name", () => {
+describe("criterion 2 — each of the 52 couples out of the table is refused by package name", () => {
   const of = linted(Object.fromEntries(REFUSED.map(([source, target]) => [coupleFile(source, target), byName(name(target))])));
-  it("counts 54 refused couples among the 72 of the nine packages", () => {
+  it("counts 52 refused couples among the 72 of the nine packages", () => {
     assert.equal(COUPLES.length, 72);
-    assert.equal(REFUSED.length, 54);
+    assert.equal(REFUSED.length, 52);
   });
   for (const [source, target] of REFUSED) {
     it(`refuses ${source} → ${target}, naming the file, the line, the source, the target and the rule`, () => {

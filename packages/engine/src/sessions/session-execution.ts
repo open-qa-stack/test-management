@@ -67,7 +67,7 @@ export class SessionExecution {
     const tell = (line: RunLine | undefined): void => writer.tell(line === undefined ? [] : thread.add(line));
     // A line goes through the text a run writes of it, which is what every host reads a run from.
     const journal = new SessionJournal(id, (entry) => tell(journalLine(JSON.stringify(entry))));
-    const kept = new SessionRunStore(id);
+    const kept = new SessionRunStore();
     let result: SessionResult | undefined;
     let failure: string | undefined;
     try {
@@ -80,8 +80,6 @@ export class SessionExecution {
         env,
         journal,
         follow: (line) => tell(traceLine(JSON.stringify(line))),
-        // The summary of a run is the result of its session.
-        print: () => undefined,
         openInbox: () => inbox,
         store: kept,
         openRuntime: this.#host.openRuntime ?? ((config) => liveRuntime(config, env)),

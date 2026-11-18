@@ -5,8 +5,6 @@ import {
   runIdAt,
   declaredValues,
   ExitCode,
-  isRecord,
-  isRunState,
   validateConfig,
   type CommandRunner,
   type ExitCodeValue,
@@ -49,23 +47,17 @@ export interface RunOptions {
   readonly repositoryRoot: string;
   /** The environment to run against; the only one declared by default. */
   readonly environment?: string;
-  /** Maps every source again, even those whose card is up to date. */
-  readonly force?: boolean;
   /** What to test, in the developer's words; the designer works on the whole domain index without it. */
   readonly brief?: string;
-  /** The identifier of a run a limit stopped: the run resumes it, in its environment, with its brief, from the step it stopped at. */
-  readonly resume?: string;
   /** The environment of the process: the secrets and the accounts the configuration names. */
   readonly env: Readonly<Record<string, string | undefined>>;
   /** Receives the journal, an entry at a time, and keeps it. */
   readonly journal: JournalOutput;
   /** Receives each line of the trace of the agents as it is written, to follow the run; nothing follows it otherwise. */
   readonly follow?: (line: TraceLine) => void;
-  /** Receives the summary, a line at a time. */
-  readonly print: (line: string) => void;
   /** Opens the inbox of the run, which a person speaks to its agents through: the messages they send while it is going, wherever the host takes them from. */
   readonly openInbox: (run: RunReference) => Inbox;
-  /** Keeps the state of the run, and finds that of the run to resume. */
+  /** Keeps the state of the run. */
   readonly store: RunStore;
   /** Opens the runtime of the agents on the model of the configuration. */
   readonly openRuntime: (config: ResolvedConfig) => Promise<OpenRuntime>;
@@ -84,14 +76,14 @@ export interface RunOptions {
  * @remarks
  * The run works in the test repository, a folder, whoever hosts it: the branch, the tests, the cards and the
  * traces are written there. What differs from a host to another goes through the ports of its options: the
- * journal, the summary, the inbox, the store of the state, the runtime of the agents, the commands and the
+ * journal, the inbox, the store of the state, the runtime of the agents, the commands and the
  * clock.
  *
  * Each step starts only when the one before succeeded; once the prerequisites passed, the summary closes the
  * runtime of the agents and writes the state whatever the end of the others. A missing or invalid configuration stops the run
  * before anything else, with nothing written to the test repository. Nothing is pushed, and the git
  * configuration of the repository is left as it is. The journal goes to its output, which keeps it once the
- * prerequisites passed; the summary is printed; every declared secret is masked. The guardrail of the
+ * prerequisites passed; every declared secret is masked. The guardrail of the
  * autonomy, counted from the start of the run, stops every task of the agents.
  *
  * While the run is going, a person speaks to its agents through its inbox: the session that leads the step
@@ -102,11 +94,9 @@ export interface RunOptions {
  * to go on, the step under way stops on that refusal, no other step starts, and the summary closes the run,
  * which ends as one a step stopped.
  *
- * A run a limit stopped in its cartography or its design says how to resume it; a design cut short that gave
- * its tests still leads to their execution. Resumed, a run takes the environment and the brief of the one it
- * resumes, and starts again from the step that was stopped: the cartography keeps the cards it made, and the
- * design goes on from its plan and its tests, on its branch. A run is resumed once: then the run that resumed
- * it is to be resumed, if a limit stopped it.
+ * A run a limit stopped in its cartography or its design keeps what it produced, and says so: the cards made,
+ * the plan accepted and the tests kept stay in the test repository. It is not resumed: the next run maps only
+ * the sources without an up-to-date card, and designs anew.
  */
 export class Run {
   private readonly options: RunOptions;
@@ -128,13 +118,13 @@ export class Run {
     const early = new RunJournal(this.options.journal, now, []);
     const loaded = await this.configuration(early, now);
     if (typeof loaded === "number") return loaded;
-    const { config, environment, rules, resumed } = loaded;
-    const brief = resumed === undefined ? this.options.brief : resumed.brief;
+    const { config, environment, rules } = loaded;
+    const { brief } = this.options;
     const journal = new RunJournal(this.options.journal, now, declaredValues(config, this.options.env));
     journal.adopt(early.entries);
     const runId = runIdAt(started);
     const reference: RunReference = { runId, stateDir: config.repository.stateDir };
-    // What a person sends to the inbox while the run is going reaches the agent at work, and holds for those after it; a run resumed is a run of its own, with an inbox of its own.
+    // What a person sends to the inbox while the run is going reaches the agent at work, and holds for those after it.
     const inbox = this.options.openInbox(reference);
     const steps: { step: Step; durationMs: number; modelRequests: number }[] = [{ step: "configuration", durationMs: loaded.durationMs, modelRequests: 0 }];
     // The requests of a step are those its sessions sent to the model, whatever its end.
@@ -183,7 +173,6 @@ export class Run {
     const state = {
       formatVersion: 1 as const,
       runId,
-      ...(resumed === undefined ? {} : { resumes: resumed.runId }),
       environment,
       ...(brief === undefined ? {} : { brief }),
       startedAt: started.toISOString(),
@@ -203,7 +192,6 @@ export class Run {
         // A runtime that cannot be closed is told, and the state is written all the same.
         await open?.close().catch((error: unknown) => journal.record("summary", "error", `The runtime of the agents could not be closed: ${messageOf(error)}`));
         await this.options.store.write(reference, written);
-        this.summarize(written, this.options.store.location(reference));
         return { value: undefined, ok: true };
       });
       return exitCode;
@@ -222,30 +210,25 @@ export class Run {
     };
     const observed = { inbox, ...(this.options.follow === undefined ? {} : { observe: this.options.follow }) };
     const chain = async (): Promise<ExitCodeValue> => {
-      // A run resumed in its design has its index already.
-      const mapped =
-        resumed?.stoppedBy!.step === "design"
-          ? undefined
-          : await unlessStopped("cartography", async () => {
-              const outcome = await new Cartographer({
-                config,
-                environment,
-                repositoryRoot: this.options.repositoryRoot,
-                env: this.options.env,
-                runtime: await agents(),
-                concurrency: config.cartography.concurrency,
-                ...observed,
-                ...(this.options.force === true ? { force: true } : {}),
-              }).run();
-              this.relay(journal, "cartography", outcome.journal);
-              return { value: outcome, ok: outcome.index !== undefined };
-            });
-      if (mapped?.ok === false) {
+      const mapped = await unlessStopped("cartography", async () => {
+        const outcome = await new Cartographer({
+          config,
+          environment,
+          repositoryRoot: this.options.repositoryRoot,
+          env: this.options.env,
+          runtime: await agents(),
+          concurrency: config.cartography.concurrency,
+          ...observed,
+        }).run();
+        this.relay(journal, "cartography", outcome.journal);
+        return { value: outcome, ok: outcome.index !== undefined };
+      });
+      if (!mapped.ok) {
         const limit = mapped.value.stoppedBy;
         if (limit !== undefined) found = { stoppedBy: { step: "cartography", limit } };
         return ExitCode.interrupted;
       }
-      found = { index: mapped === undefined ? resumed!.index! : this.inRepository(mapped.value.indexPath!) };
+      found = { index: this.inRepository(mapped.value.indexPath!) };
       const trials = new TrialRunner({ config, environment, repositoryRoot: this.options.repositoryRoot, runner, env: this.options.env });
       const designed = await unlessStopped("design", async () => {
         // The tests are checked against the dependencies of the test repository: they are installed first.
@@ -272,9 +255,6 @@ export class Run {
             levels: config.design.levels,
             ...observed,
             ...(brief === undefined ? {} : { brief }),
-            ...(resumed?.designState === undefined
-              ? {}
-              : { resume: { state: resumed.designState, ...(resumed.branch === undefined ? {} : { branch: resumed.branch }) } }),
           },
           config.design.passes,
           config.design.visualTests,
@@ -292,11 +272,11 @@ export class Run {
         designed: tests,
         ...(statePath === undefined ? {} : { designState: this.inRepository(statePath) }),
       };
-      // A design a limit cut short can be resumed, even once it gave its tests.
+      // A design a limit cut short says so, even once it gave its tests.
       if (stoppedBy !== undefined) found = { ...found, stoppedBy: { step: "design", limit: stoppedBy } };
       const { run, leftOut } = runnableTests(designed.value.tests);
       // A design that left a scenario without a test still gave the others: they are run, and the run does not end as passed.
-      // One a limit cut short is resumed instead, and one that gave no test to run has nothing to go on with.
+      // One a limit cut short runs none of them, and one that gave no test to run has nothing to go on with.
       const partial = !designed.ok;
       if (partial && (stoppedBy !== undefined || run.length === 0)) return ExitCode.interrupted;
       if (partial) journal.record("design", "info", "The design is incomplete: the tests it gave are run, and the run cannot end as passed.");
@@ -354,11 +334,11 @@ export class Run {
     return relative(this.options.repositoryRoot, path).split(sep).join(posix.sep);
   }
 
-  /** The configuration, the environment, the rules of the charter and the run to resume, or the exit code when they cannot be had. */
+  /** The configuration, the environment and the rules of the charter, or the exit code when they cannot be had. */
   private async configuration(
     journal: RunJournal,
     now: () => Date,
-  ): Promise<{ config: ResolvedConfig; environment: string; rules: ActiveRule[]; durationMs: number; resumed?: RunState } | ExitCodeValue> {
+  ): Promise<{ config: ResolvedConfig; environment: string; rules: ActiveRule[]; durationMs: number } | ExitCodeValue> {
     const at = now().getTime();
     journal.record("configuration", "started", "The configuration starts.");
     const path = join(this.options.repositoryRoot, CONFIG_FILE_NAME);
@@ -372,10 +352,8 @@ export class Run {
       for (const error of result.errors) journal.record("configuration", "error", `${error.path || "/"}: ${error.message}`);
       return ExitCode.configuration;
     }
-    const resumed = this.options.resume === undefined ? undefined : await this.resumable(result.config, journal, this.options.resume);
-    if (typeof resumed === "number") return resumed;
     const declared = [...new Set(result.config.applications.flatMap((application) => application.environments.map((environment) => environment.name)))];
-    const environment = resumed?.environment ?? this.options.environment ?? (declared.length === 1 ? declared[0] : undefined);
+    const environment = this.options.environment ?? (declared.length === 1 ? declared[0] : undefined);
     if (environment === undefined) {
       journal.record("configuration", "error", `Several environments are declared (${declared.join(", ")}); name one with --environment.`);
       return ExitCode.configuration;
@@ -394,54 +372,12 @@ export class Run {
       durationMs,
       modelRequests: 0,
     });
-    return { config: result.config, environment, rules: charter.rules, durationMs, ...(resumed === undefined ? {} : { resumed }) };
-  }
-
-  /**
-   * The state of the run to resume, or the exit code when it cannot be resumed: its state cannot be read,
-   * no limit stopped it, or another run resumed it already.
-   */
-  private async resumable(config: ResolvedConfig, journal: RunJournal, runId: string): Promise<RunState | ExitCodeValue> {
-    const { stateDir } = config.repository;
-    const { where, state } = await this.options.store.read({ runId, stateDir });
-    if (!isRunState(state, runId)) {
-      journal.record("configuration", "error", `The run ${runId} cannot be resumed: its state ${where} cannot be read.`);
-      return ExitCode.configuration;
-    }
-    if (state.stoppedBy === undefined) {
-      journal.record("configuration", "error", `The run ${runId} was not stopped by a limit; only a run a limit stopped can be resumed.`);
-      return ExitCode.configuration;
-    }
-    const states = await this.options.store.readAll(stateDir);
-    const resuming = states.find((other): other is RunState => isRecord(other) && other["resumes"] === runId && typeof other["runId"] === "string");
-    if (resuming !== undefined) {
-      journal.record(
-        "configuration",
-        "error",
-        `The run ${runId} was resumed already, by the run ${resuming.runId}; resume that one instead, if a limit stopped it.`,
-      );
-      return ExitCode.configuration;
-    }
-    journal.record("configuration", "info", `The run resumes ${runId}, which its ${state.stoppedBy.limit} limit stopped in its ${state.stoppedBy.step}.`);
-    return state;
+    return { config: result.config, environment, rules: charter.rules, durationMs };
   }
 
   /** Writes the entries of the journal of a role to the journal of the run. */
   private relay(journal: RunJournal, step: Step, entries: readonly JournalEntry[]): void {
     for (const entry of entries) journal.record(step, entry.level, entry.source === undefined ? entry.message : `${entry.source}: ${entry.message}`);
-  }
-
-  /** Prints the summary of a run, which ends with where its state is kept. */
-  private summarize(state: RunState, kept: string): void {
-    const lines = [
-      `Run ${state.runId}: exit code ${state.exitCode}.`,
-      ...(state.branch === undefined ? [] : [`Tests written on the branch ${state.branch}.`]),
-      ...state.tests.map((test) => `${test.verdict.padEnd(13)} ${test.id}`),
-      ...(state.uncovered ?? []).map(({ asked, reason }) => `Not covered: ${asked} ${reason}`),
-      ...(state.stoppedBy === undefined ? [] : [stoppedByLimit(state)]),
-      `State: ${kept}`,
-    ];
-    for (const line of lines) this.options.print(`${line}\n`);
   }
 }
 

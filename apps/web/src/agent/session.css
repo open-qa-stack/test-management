@@ -65,6 +65,56 @@
   overflow-wrap: anywhere;
 }
 
+/* The word that a stop was asked, where the link that asks for it stood: read beside the state, and focused when the confirmation closes. */
+.session-stopping {
+  padding: 0 var(--space-2);
+  color: var(--text-2);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+  white-space: nowrap;
+}
+
+/*
+ * The confirmation of a stop: a card under the bar, in the tone of what cannot be undone, which says what
+ * stopping does before the way out and the button that stops.
+ */
+.session-stop {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-row);
+  padding: var(--pad);
+  border: var(--hairline) solid var(--ko-line);
+  border-radius: var(--radius-card);
+  background: var(--ko-faint);
+}
+
+.session-stop-title {
+  margin: 0;
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
+  font-weight: var(--weight-strong);
+}
+
+.session-stop-note {
+  max-width: var(--measure);
+  margin: 0;
+  color: var(--text-2);
+}
+
+.session-stop-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--gap-row);
+}
+
+.session-stop-refused {
+  margin: 0;
+  color: var(--ko);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+}
+
 /* The controls of a replay follow the page, since the thread scrolls as it is written. */
 .session-bar.replay {
   position: sticky;

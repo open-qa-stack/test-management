@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "vitest";
 import {
@@ -20,11 +20,6 @@ import {
   broken,
   design,
   messages,
-  filesOf,
-  toolsOffered,
-  requestText,
-  sessions,
-  firstMessage,
   told,
   stateOf,
   planOf,
@@ -122,155 +117,36 @@ describe("the trace of a design", () => {
   });
 });
 
-describe("resume — a design a limit stopped goes on from its plan and its tests, on its branch", () => {
-  /** The relative path of the state of the design of the helper. */
-  const STATE = ".oqas/designs/design-20261113T100000Z.json";
-  /** A design the limit of a session stopped: the plan is accepted, the first test kept, the second run but not closed when its session reaches its fourth model call. */
-  const stopped = (brief?: string) =>
-    design(replies([...valid(1), [run(spec("place-order"), "r-place-order")], [look("l1")], [look("l2")], [look("l3")]]), {
-      limits: { maxIterations: 4, maxMinutes: 10, maxActions: 200 },
-      ...(brief === undefined ? {} : { brief }),
-    });
+describe("a design a limit of the autonomy stopped", () => {
+  const LIMITS = { maxIterations: 4, maxMinutes: 10, maxActions: 200 };
 
-  it("keeps the plan and the test of a design a limit stopped, and names the limit", async () => {
-    const { outcome, root } = await stopped();
+  it("keeps its plan and the test it closed, on its branch, and names the limit", async () => {
+    // The plan is accepted, the first test kept, the second run but not closed when its session reaches its fourth model call.
+    const { outcome, root } = await design(replies([...valid(1), [run(spec("place-order"), "r-place-order")], [look("l1")], [look("l2")], [look("l3")]]), {
+      limits: LIMITS,
+      brief: "Test the orders.",
+    });
     assert.deepEqual([outcome.ok, outcome.stoppedBy, outcome.branch], [false, "iterations", BRANCH]);
     assert.deepEqual(specsOf(root), ["apps/shop/tests/orders/listing/list-orders.spec.ts"]);
     const state = stateOf(outcome);
     assert.deepEqual([planOf(outcome).scenarios.map((scenario) => scenario.id), state.tests.map((test) => test.scenario)], [IDS, ["list-orders"]]);
+    assert.deepEqual([state.brief, planOf(outcome).brief], ["Test the orders.", "Test the orders."]);
   });
 
-  it("gives each session the sheet of its scenario alone, offers no plan tool, and ends on the same branch with every test, written from the sheets without a look at a screen", async () => {
-    const first = await stopped();
-    const before = git(first.root, "rev-parse", BRANCH);
-    git(first.root, "switch", "--quiet", "main");
-    // The session resumed opens no page: the code and the locators of its tests are those its sheets give, from the plan.
-    const { outcome, root, server } = await design(replies(valid(3).slice(3)), {
-      root: first.root,
-      plan: false,
-      resume: { state: STATE, branch: BRANCH },
-    });
-    assert.equal(outcome.ok, true, messages(outcome));
-    assert.equal(outcome.stoppedBy, undefined);
-    const request = requestText(server);
-    // The first session is that of the first scenario not closed: it is given neither the plan nor the test kept.
-    assert.ok(!request.includes("list-orders"));
-    assert.match(request, /Scenario 2 of 3: place-order/);
-    assert.deepEqual(
-      sessions(server).map((body) => /Scenario \d of 3: [a-z-]+/.exec(firstMessage(body))?.[0]),
-      ["Scenario 2 of 3: place-order", "Scenario 3 of 3: follow-order"],
-    );
-    assert.ok(
-      request.includes(
-        JSON.stringify(
-          '    await page.goto("/orders");\n    // Expect 1.1: The orders show.\n    await expect(page.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();',
-        ).slice(1, -1),
-      ),
-    );
-    assert.ok(!toolsOffered(server).includes("propose_plan"));
-    assert.equal(git(root, "branch", "--show-current"), BRANCH);
-    assert.deepEqual(specsOf(root), [
-      "apps/shop/tests/orders/listing/follow-order.spec.ts",
-      "apps/shop/tests/orders/listing/list-orders.spec.ts",
-      "apps/shop/tests/orders/listing/place-order.spec.ts",
-    ]);
-    assert.equal(git(root, "rev-parse", `${BRANCH}~1`), before);
-    const state = stateOf(outcome);
-    assert.equal(outcome.statePath, join(root, STATE));
-    assert.deepEqual(
-      state.tests.map((test) => test.scenario),
-      IDS,
-    );
-    assert.deepEqual([state.plan, outcome.planPath], [stateOf(first.outcome).plan, first.outcome.planPath]);
-    assert.deepEqual(planOf(outcome), planOf(first.outcome));
-    assert.ok(filesOf(root).includes(state.plan));
-    // What every session used, those of the design resumed included.
-    assert.equal(state.run.iterations, 3 + 3 + 4 + 3 + 3);
-  });
-
-  it("keeps a plan accepted without a test, with no branch, and creates the branch once the design resumed writes one", async () => {
-    const first = await design(replies([[run(spec("list-orders"), "r1")], [look("l1")], [look("l2")], [look("l3")]]), {
-      limits: { maxIterations: 4, maxMinutes: 10, maxActions: 200 },
-    });
-    assert.deepEqual([first.outcome.stoppedBy, first.outcome.branch, first.outcome.tests], ["iterations", undefined, []]);
+  it("keeps a plan accepted without a test, with no branch, and commits nothing", async () => {
+    const { outcome, root } = await design(replies([[run(spec("list-orders"), "r1")], [look("l1")], [look("l2")], [look("l3")]]), { limits: LIMITS });
+    assert.deepEqual([outcome.stoppedBy, outcome.branch, outcome.tests], ["iterations", undefined, []]);
     assert.match(
-      messages(first.outcome),
+      messages(outcome),
       /The design state was written to \S+\.json, and its plan to \S+\.plan\.md; no new test was written, and nothing was committed\./,
     );
-    assert.equal(git(first.root, "branch", "--list", BRANCH), "");
-    // The revision checked out moves before the design is resumed: the branch starts from where it is now.
-    writeFileSync(join(first.root, "notes.md"), "Notes.\n");
-    git(first.root, "add", "notes.md");
-    git(first.root, "commit", "--quiet", "-m", "docs: add notes");
-    const head = git(first.root, "rev-parse", "HEAD");
-    assert.notEqual(stateOf(first.outcome).base, head);
-    const again = await design(replies(valid(3)), { root: first.root, plan: false, resume: { state: STATE, branch: BRANCH } });
-    assert.equal(again.outcome.ok, true, messages(again.outcome));
-    assert.match(requestText(again.server), /Scenario 1 of 3: list-orders/);
-    assert.equal(specsOf(again.root).length, 3);
-    assert.ok(filesOf(again.root).includes(stateOf(again.outcome).plan), "the plan is committed with the first tests");
-    assert.equal(stateOf(again.outcome).base, head);
-    assert.equal(git(again.root, "rev-parse", `${BRANCH}~1`), head);
+    assert.equal(git(root, "branch", "--list", BRANCH), "");
   });
 
-  it("keeps the brief of the design, in its state and in the file of its plan", async () => {
-    const first = await stopped("Test the orders.");
-    const { outcome } = await design(replies(valid(3).slice(3)), { root: first.root, plan: false, resume: { state: STATE, branch: BRANCH } });
-    const state = stateOf(outcome);
-    assert.deepEqual([state.brief, planOf(outcome).brief, state.tests.map((test) => test.scenario)], ["Test the orders.", "Test the orders.", IDS]);
-  });
-
-  it("names the limit that stops a design before its plan, and writes nothing", async () => {
+  it("names the limit that stops it before its plan, and writes nothing", async () => {
     const { outcome, root } = await design(replies([[OPEN]]), { plan: false, limits: { maxIterations: 1, maxMinutes: 10, maxActions: 200 } });
     assert.deepEqual([outcome.ok, outcome.stoppedBy, outcome.statePath], [false, "iterations", undefined]);
     assert.ok(!existsSync(join(root, ".oqas", "designs")));
-  });
-
-  it("commits nothing when the design resumed is stopped again before a new test", async () => {
-    const first = await stopped();
-    const before = git(first.root, "rev-parse", BRANCH);
-    const { outcome } = await design(replies([[look("l1")], [look("l2")]]), {
-      root: first.root,
-      plan: false,
-      resume: { state: STATE, branch: BRANCH },
-      limits: { maxIterations: 1, maxMinutes: 10, maxActions: 200 },
-    });
-    assert.deepEqual([outcome.stoppedBy, outcome.tests.length], ["iterations", 1]);
-    assert.equal(git(first.root, "rev-parse", BRANCH), before);
-    assert.equal(stateOf(outcome).run.iterations, 3 + 3 + 4 + 1);
-  });
-
-  it("refuses a state it cannot read, or of an earlier format, and a plan missing, or that a hand changed", async () => {
-    const missing = await design([], { plan: false, resume: { state: ".oqas/designs/none.json" } });
-    assert.match(messages(missing.outcome), /The design state \.oqas\/designs\/none\.json cannot be read; the design was not resumed\./);
-    const first = await stopped();
-    const state = join(first.root, STATE);
-    const plan = first.outcome.planPath!;
-    const again = () => design([], { root: first.root, plan: false, resume: { state: STATE, branch: BRANCH } });
-    const accepted = readFileSync(plan, "utf8");
-    writeFileSync(plan, accepted.replace("Open the orders", "Open the list of the orders"));
-    const edited = await again();
-    assert.match(
-      messages(edited.outcome),
-      /The plan \.oqas\/designs\/design-20261113T100000Z\.plan\.md of the design state \.oqas\/designs\/design-20261113T100000Z\.json cannot be read; the design was not resumed\./,
-    );
-    rmSync(plan);
-    assert.match(messages((await again()).outcome), /The plan \S+ of the design state \S+ cannot be read; the design was not resumed\./);
-    writeFileSync(state, readFileSync(state, "utf8").replace('"formatVersion": 4', '"formatVersion": 3'));
-    const dated = await again();
-    assert.match(messages(dated.outcome), /The design state \.oqas\/designs\/design-20261113T100000Z\.json cannot be read; the design was not resumed\./);
-    assert.equal(edited.server.requests.length + dated.server.requests.length, 0);
-  });
-
-  it("refuses a plan with every scenario closed, and a changed working tree", async () => {
-    const done = await design(replies(valid(3)));
-    const closed = await design([], { root: done.root, plan: false, resume: { state: STATE, branch: BRANCH } });
-    assert.match(messages(closed.outcome), /Every scenario of the plan of .* is closed; there is nothing to resume\./);
-    const first = await stopped();
-    writeFileSync(join(first.root, "specs", "orders.md"), "changed\n");
-    const dirty = await design([], { root: first.root, plan: false, resume: { state: STATE, branch: BRANCH } });
-    assert.match(messages(dirty.outcome), /Tracked files are changed: specs\/orders\.md\.\nThe design was not resumed\./);
-    assert.equal(dirty.server.requests.length, 0);
   });
 });
 

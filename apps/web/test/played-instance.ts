@@ -37,14 +37,16 @@ export class PlayedInstance {
   public streamDown = false;
   /** Why the API refuses to open a session, when it does. */
   public refusal: ProblemCode | undefined;
-  /** Whether the API refuses a message, as it does to a session that just ended. */
+  /** Whether the API refuses a message or an interruption, as it does to a session that just ended. */
   public deaf = false;
-  /** What the API waits for before it answers a request to open a session, or a message. */
+  /** What the API waits for before it answers a request to open a session, a message, or an interruption. */
   public hold: Promise<void> = Promise.resolve();
   /** The requests to open a session the API received. */
   public readonly asked: SessionOpening[] = [];
   /** The messages the API took for the session, in order. */
   public readonly said: SessionMessage[] = [];
+  /** The sessions the API was asked to interrupt, in order. */
+  public readonly interrupted: string[] = [];
   /** The event each stream of the session was asked to resume after; none for a stream asked from its start. */
   public readonly resumed: (string | undefined)[] = [];
   /** The session the API opened on request, once it did. */
@@ -58,6 +60,11 @@ export class PlayedInstance {
   public complete(): void {
     this.happened = EVENTS.length;
     this.session = COMPLETED;
+  }
+
+  /** Has the process that runs the session obey an interruption: the session is interrupted, and its last event says so. */
+  public obey(): void {
+    this.session = { ...RUNNING, state: "interrupted" };
   }
 
   /** Starts the session the API opened: it runs, its stream tells so, and its planner speaks. */
@@ -101,7 +108,7 @@ export class PlayedInstance {
       const items = [...(this.opened === undefined ? [] : [this.opened]), ...(this.listed ? [this.session] : [])];
       return { body: JSON.stringify({ items } satisfies SessionList) };
     }
-    const [, id, part] = /^\/api\/sessions\/([^/]+)(\/events|\/messages)?$/.exec(path) ?? [];
+    const [, id, part] = /^\/api\/sessions\/([^/]+)(\/events|\/messages|\/interruption)?$/.exec(path) ?? [];
     const session = id === SESSION_ID ? this.session : id === OPENED_ID ? this.opened : undefined;
     if (session === undefined) return problem("unknown_session", 404, "No session has this identifier.");
     if (part === undefined) return { body: JSON.stringify(session) };
@@ -115,10 +122,17 @@ export class PlayedInstance {
       else this.tell(sent);
       return { status: 202, body: JSON.stringify({ number: this.said.length }) };
     }
+    if (part === "/interruption") {
+      await this.hold;
+      if (this.deaf) return problem("session_ended", 409, "The session no longer goes on.");
+      this.interrupted.push(id!);
+      // The request is taken, and the session goes on until the process that runs it obeys.
+      return { status: 202, body: "" };
+    }
     if (this.streamDown) return problem("unavailable", 503, "The stream cannot be opened.");
     if (id === SESSION_ID) this.resumed.push(after);
     // The answer ends after what the session has so far: the console connects again, and asks for what happened since.
-    const completion: SessionEvent = { ...this.next(), type: "state_changed", state: "completed" };
+    const completion: SessionEvent = { ...this.next(), type: "state_changed", state: session.state === "interrupted" ? "interrupted" : "completed" };
     const played = [...EVENTS.slice(0, this.happened), ...this.since, ...(session.state === "running" ? [] : [completion])];
     const events = id === SESSION_ID ? played : this.openedEvents;
     const fresh = events.filter((event) => event.id > Number(after ?? 0));

@@ -178,13 +178,12 @@ export class TestProposals {
    * @param rules - What the tests are checked against.
    * @param journal - Where refusals, runs and the scenarios closed are written.
    * @param plan - The accepted plan.
-   * @param closed - How many scenarios, from the first, an earlier design closed; none by default, and fewer than the plan holds.
    */
-  public constructor(rules: ProposalRules, journal: Journal, plan: TestPlan, closed = 0) {
+  public constructor(rules: ProposalRules, journal: Journal, plan: TestPlan) {
     this.rules = rules;
     this.journal = journal;
     this.forms = rules.secrets.flatMap((secret) => secretForms(secret.value));
-    this.cursor = new DesignCursor(plan, (scenario) => this.place(scenario), closed);
+    this.cursor = new DesignCursor(plan, (scenario) => this.place(scenario));
   }
 
   /**

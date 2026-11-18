@@ -44,9 +44,8 @@ export async function toldByTheEngine(replies: Parameters<typeof scriptedServer>
         },
       },
       follow: (line) => tell(traceLine(JSON.stringify(line))),
-      print: () => undefined,
       openInbox: () => ({ pending: () => [], heard: () => [], delivered: () => undefined }),
-      store: { location: () => "memory", read: async () => ({ where: "memory", state: undefined }), readAll: async () => [], write: async () => undefined },
+      store: { write: async () => undefined },
       openRuntime: (config) => liveRuntime(config, {}),
       runner: new FakeRunner(root, script),
     }).run();
