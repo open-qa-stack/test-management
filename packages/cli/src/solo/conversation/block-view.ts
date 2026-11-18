@@ -3,6 +3,7 @@ import { ActionBlock } from "./action-block.ts";
 import { CardBlock } from "./card-block.ts";
 import { NoteBlock } from "./note-block.ts";
 import { PassRule } from "./pass-rule.ts";
+import { ReviewBlock } from "./review-block.ts";
 import { SaidBlock } from "./said-block.ts";
 import type { Theme } from "./palette.ts";
 import type { Block } from "./thread-blocks.ts";
@@ -31,6 +32,8 @@ export function BlockView({ block, live, theme, width }: BlockViewProps): ReactN
       return h(NoteBlock, { block, theme });
     case "pass":
       return h(PassRule, { block, theme, width });
+    case "review":
+      return h(ReviewBlock, { block, theme });
     case "verdict":
     case "plan":
     case "outcome":

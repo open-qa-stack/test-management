@@ -198,7 +198,7 @@ describe("the shell on a narrow and on a wide screen", () => {
 
 describe("what an agent had before its eyes", () => {
   /** The eye of the action that opened the page of the application. */
-  const EYE = "A: A ouvert / dans customer-management — voir ce que l’agent avait sous les yeux";
+  const EYE = "A: A ouvert / dans customer-management — voir la page consultée";
 
   it("is closed by default: a session is its thread alone, in one column that starts where the title of the page does", async () => {
     for (const width of [390, 1440]) {
@@ -227,14 +227,14 @@ describe("what an agent had before its eyes", () => {
     const page = await app().open(1440, SESSION, new PlayedInstance().api);
     try {
       await page.getByText("I write the test now.").waitFor();
-      await page.getByRole("link", { name: /voir ce que l’agent avait sous les yeux/ }).click();
-      const panel = page.getByRole("dialog", { name: "Sous les yeux de l’agent A ouvert / dans customer-management" });
+      await page.getByRole("link", { name: /voir la page consultée/ }).click();
+      const panel = page.getByRole("dialog", { name: "Page consultée customer-management · http://localhost:3020/" });
       await panel.waitFor();
       assert.equal(new URL(page.url()).hash, LOOKED);
       await panel.getByText('heading "Customers"').waitFor();
       assert.equal(await page.locator(".act.selected .act-title").innerText(), "A ouvert / dans customer-management");
       assert.equal(await page.locator(".act.selected").count(), 1);
-      assert.equal(await focusedOf(page), "H2: Sous les yeux de l’agent");
+      assert.equal(await focusedOf(page), "H2: Page consultée");
     } finally {
       await page.close();
     }
@@ -251,7 +251,7 @@ describe("what an agent had before its eyes", () => {
       try {
         await page.setViewportSize({ width, height: 420 });
         await page.getByText("I write the test now.").waitFor();
-        const eye = page.getByRole("link", { name: /voir ce que l’agent avait sous les yeux/ });
+        const eye = page.getByRole("link", { name: /voir la page consultée/ });
         for (const [name, close] of closings) {
           await eye.click();
           await page.getByRole("dialog").waitFor();
@@ -275,7 +275,7 @@ describe("what an agent had before its eyes", () => {
         await page.setViewportSize({ width, height: 420 });
         await page.getByText("I write the test now.").waitFor();
         await page.evaluate(() => window.scrollTo(0, 120));
-        await page.getByRole("link", { name: /voir ce que l’agent avait sous les yeux/ }).click();
+        await page.getByRole("link", { name: /voir la page consultée/ }).click();
         const panel = page.getByRole("dialog");
         await panel.getByText('heading "Customers"').waitFor();
         await settled(panel);
@@ -386,6 +386,31 @@ describe("the thread of a session", () => {
           .locator(".turn-head .turn-at, .brief .turn-at, .verdict .turn-at, .result-card .turn-at, .act-time")
           .evaluateAll((all) => [...new Set(all.map((one) => one.getBoundingClientRect().right))]);
         assert.deepEqual(ends, [thread.x + thread.width - 16], `${width}: one right edge for the times`);
+      } finally {
+        await page.close();
+      }
+    }
+  });
+
+  it("folds a long refusal to its first lines, and unfolds it in place to its end, which says what to do, from a button a finger can press", async () => {
+    for (const width of [390, 1440]) {
+      const page = await app().open(width, SESSION, new PlayedInstance().api);
+      try {
+        const text = page.locator(".verdict-text");
+        const button = page.getByRole("button", { name: "Lire la suite" });
+        await button.waitFor();
+        const folded = await text.evaluate((element) => [element.scrollHeight > element.clientHeight, element.clientHeight] as const);
+        assert.equal(folded[0], true, `${width}: the end is hidden while folded`);
+        assert.equal(await button.getAttribute("aria-expanded"), "false");
+        if (width < 1100) assert.deepEqual(await tooSmallOf(page), []);
+        await button.click();
+        const unfolded = page.getByRole("button", { name: "Replier" });
+        assert.equal(await unfolded.getAttribute("aria-expanded"), "true");
+        assert.equal(await text.evaluate((element) => element.scrollHeight <= element.clientHeight), true, `${width}: the whole text shows`);
+        assert.ok((await text.evaluate((element) => element.clientHeight)) > folded[1]);
+        await page.getByText(/then propose the plan again\.$/).waitFor();
+        await unfolded.click();
+        await button.waitFor();
       } finally {
         await page.close();
       }
@@ -515,11 +540,11 @@ describe("what the person says to the agents while they work", () => {
     try {
       await fieldOf(page).waitFor();
       instance.complete();
-      await page.getByText("Verdict de l’exécution : 1 test(s)").waitFor();
+      await page.getByText("Verdict de l’exécution : 1 test").waitFor();
       await fieldOf(page).waitFor({ state: "detached" });
       assert.equal(await page.locator(".composer, textarea").count(), 0);
       await page.reload();
-      await page.getByText("Verdict de l’exécution : 1 test(s)").waitFor();
+      await page.getByText("Verdict de l’exécution : 1 test").waitFor();
       assert.equal(await page.locator(".composer, textarea").count(), 0);
       assert.equal(await page.getByRole("button", { name: "Envoyer" }).count(), 0);
     } finally {
@@ -721,7 +746,7 @@ describe("the console in a browser", () => {
       assert.equal(await reasoning.count(), 1);
       assert.deepEqual(instance.resumed.slice(0, 2), [undefined, "6"]);
       instance.complete();
-      await page.getByText("Verdict de l’exécution : 1 test(s)").waitFor();
+      await page.getByText("Verdict de l’exécution : 1 test").waitFor();
       assert.equal(await page.getByRole("status").filter({ hasText: "travaille" }).count(), 0);
       assert.equal(instance.resumed.at(-1), String(EVENTS.length));
     } finally {
@@ -734,7 +759,7 @@ describe("the console in a browser", () => {
     instance.complete();
     const page = await app().open(1280, `#/agent/sessions/${SESSION_ID}`, instance.api);
     try {
-      await page.getByText("Verdict de l’exécution : 1 test(s)").waitFor();
+      await page.getByText("Verdict de l’exécution : 1 test").waitFor();
       await page.waitForTimeout(1500);
       assert.deepEqual(instance.resumed, [undefined]);
     } finally {
@@ -857,7 +882,7 @@ describe("the console in a browser", () => {
       assert.equal(await page.locator(".thread .request").count(), 2, "what was said while it waited stays in the thread");
       assert.equal(await field.isEnabled(), true);
       instance.completeOpened();
-      await page.getByText("Verdict de l’exécution : 1 test(s)").waitFor();
+      await page.getByText("Verdict de l’exécution : 1 test").waitFor();
       await state.filter({ hasText: "tests réussis" }).waitFor();
       await field.waitFor({ state: "detached" });
       assert.equal(await working.count(), 0);
@@ -947,14 +972,16 @@ describe("the code of the console is covered in full", () => {
         await page.getByRole("link", { name: /tester la recherche d'un client/ }).click();
         await page.getByText("I write the test now.").waitFor();
         await page
-          .getByRole("link", { name: /voir ce que l’agent avait sous les yeux/ })
+          .getByRole("link", { name: /voir la page consultée/ })
           .first()
           .click();
         await page.locator(".act.selected").waitFor();
-        await page.getByRole("dialog", { name: /^Sous les yeux de l’agent/ }).waitFor();
+        await page.getByRole("dialog", { name: /^Page consultée/ }).waitFor();
         await page.keyboard.press("Tab");
         await page.keyboard.press("Escape");
         await page.getByRole("dialog").waitFor({ state: "detached" });
+        await page.getByRole("button", { name: "Lire la suite" }).click();
+        await page.getByRole("button", { name: "Replier" }).waitFor();
         await page.getByRole("button", { name: "Rejouer" }).click();
         await page.getByRole("button", { name: "Pause" }).waitFor();
         await page.waitForFunction(() => Number(document.querySelector(".playback-progress")?.getAttribute("aria-valuenow")) > 0);

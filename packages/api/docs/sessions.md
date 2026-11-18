@@ -118,8 +118,8 @@ Every event has an `id`, its rank in the session from 1, the date `at` it happen
 | `agent_message` | An agent wrote something, or reasoned when `reasoning` is true: `agent`, `text`. |
 | `harness_message` | The harness asked something of an agent, `to`: its request, then each reminder; `level` when it asks for the plan of one level of the test pyramid. |
 | `phase_started` | A `phase` of the work started, on a knowledge `source` or for the test of a `scenario` when it has one. |
-| `action_started` | An agent called a `tool` with `arguments`; `action` identifies the call. |
-| `action_finished` | The tool answered: the `action`, its `outcome` (`passed`, `failed`, or `done` when the answer says neither), the `result`, `durationMs`, and the `look` of the page it rendered or of the file it was handed. |
+| `action_started` | An agent called a `tool` with `arguments`; `action` identifies the call. The `look` of the file the agent handed the tool, such as the test it runs, when it handed one: it can be read while the tool works. |
+| `action_finished` | The tool answered: the `action`, its `outcome` (`passed`, `failed`, or `done` when the answer says neither), the `result`, `durationMs`, the `look` of the page it rendered, and the `tests` a run of a file of tests ran, each with its `id` and its `verdict`. A session told before the start of an action carried its file tells that file here. |
 | `plan_accepted` | The harness accepted a plan: its `scenarios`. |
 | `refusal` | The harness refused what an agent handed in, or the work hit an error: `phase`, `text`, and the `code` of the gate when one refused. |
 | `note` | The harness noted something it did or saw: `phase`, `text`. |
@@ -130,14 +130,7 @@ The agents are `cartographer`, `planner`, `plan_reviewer`, `writer`, `coherence_
 
 A client ignores an event whose type it does not know, and reads a value it does not know — a phase, an agent, an outcome — as it would an absent one.
 
-The texts of the events are those the agents and the harness wrote, never reworded. An event is bounded, whatever an agent handed to a tool; a text that is cut ends on `…`:
-
-| What | Bound |
-|---|---|
-| The `text` of a message, of a note or of a refusal | 2000 characters. |
-| Every text the `arguments` of an action hold, however deep | 2000 characters each. |
-| The `result` of an action | 1000 characters. |
-| The `look` of an action | Its first 28 lines, 240 characters each. |
+The texts of the events are those the agents and the harness wrote, never reworded, and whole: a message, a note, a refusal, every text the `arguments` of an action hold, its `result`, every line of its `look`. A person reads them to the end, and the end of a refusal says what to do. Only a runaway is cut, such as a tool that answers with a dump, so that an event every follower receives stays of a reasonable size: a text longer than 1 048 576 characters keeps that many, and ends on `…`.
 
 ### Following and resuming
 

@@ -25,8 +25,19 @@ describe("the look an address opens", () => {
     assert.deepEqual(openedLookOf(at("#/agent/sessions/s?show=talk&look=1"), SCRIPT), {
       index: 1,
       action: "Opened the form",
-      look: { kind: "document", source: "card", excerpt: ["a rule"], caption: "La page, telle que l’outil l’a rendue à l’agent." },
+      look: { kind: "document", source: "card", application: "shop", excerpt: ["a rule"] },
     });
+  });
+
+  it("is the file of a test as code, under its path, and a page of a tool that names no application under its address alone", () => {
+    const steps = [
+      ...SCRIPT.steps,
+      { kind: "tool", from: "writer", at: "10:00:04", tool: "run_test", title: "Ran a", look: { kind: "file", name: "a.spec.ts", lines: ["test();"] } },
+      { kind: "tool", from: "planner", at: "10:00:05", tool: "knowledge_read", title: "Read", look: LOOK },
+    ] as const;
+    const script = { ...SCRIPT, steps };
+    assert.deepEqual(openedLookOf(at("#/agent/sessions/s?look=4"), script)?.look, { kind: "code", file: "a.spec.ts", lines: ["test();"] });
+    assert.deepEqual(openedLookOf(at("#/agent/sessions/s?look=5"), script)?.look, { kind: "document", source: "card", excerpt: ["a rule"] });
   });
 
   it("is nothing when the address names no step, a step that is no action, or an action that looked at nothing", () => {

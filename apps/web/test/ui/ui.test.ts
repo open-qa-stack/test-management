@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { describe, it } from "vitest";
 import { Badge } from "../../src/ui/badge.tsx";
 import { Card } from "../../src/ui/card.tsx";
+import { counted } from "../../src/ui/counted.ts";
 import { EmptyState } from "../../src/ui/empty-state.tsx";
 import { Icon } from "../../src/ui/icon.tsx";
 import { Page } from "../../src/ui/page.tsx";
@@ -57,5 +58,14 @@ describe("the components of the console", () => {
     assert.match(html, /<h1 tabindex="-1">Un test<\/h1>/);
     const entity = render(createElement(Page, { crumbs: [{ label: "Tests" }], entity: "entity", children: "content" }));
     assert.equal(entity, '<div class="ph"><div class="crumb"><span class="crumb-step"><b>Tests</b></span></div></div>entity<div class="content">content</div>');
+  });
+});
+
+describe("a count with what it counts", () => {
+  it("is in the singular below two, zero included, and in the plural from two", () => {
+    assert.deepEqual(
+      [0, 1, 2, 12].map((count) => counted(count, "scénario", "scénarios")),
+      ["0 scénario", "1 scénario", "2 scénarios", "12 scénarios"],
+    );
   });
 });

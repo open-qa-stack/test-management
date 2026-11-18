@@ -104,6 +104,7 @@ describe("the session a console follows", () => {
       events: [],
       saying: { state: "idle" },
       stopping: { state: "idle" },
+      unfolded: [],
     });
   });
 
@@ -241,6 +242,30 @@ describe("the request of a person to stop the session a console follows", () => 
     }
     const asked = consoleAfter(SENDING, { type: "stop_asked", id: SESSION_ID });
     assert.deepEqual(after([{ type: "left" }, { type: "followed", id: SESSION_ID }], asked).followed?.stopping, { state: "idle" });
+  });
+});
+
+describe("the long texts a person unfolds in the session a console follows", () => {
+  const FOLLOWING = consoleAfter(INITIAL_STATE, { type: "followed", id: SESSION_ID });
+
+  it("are unfolded by their rank, each in turn, and folded again by the same", () => {
+    const both = after(
+      [
+        { type: "unfold", id: SESSION_ID, index: 7 },
+        { type: "unfold", id: SESSION_ID, index: 3 },
+      ],
+      FOLLOWING,
+    );
+    assert.deepEqual(both.followed?.unfolded, [7, 3]);
+    assert.deepEqual(consoleAfter(both, { type: "unfold", id: SESSION_ID, index: 7 }).followed?.unfolded, [3]);
+  });
+
+  it("change nothing for a session the console does not follow, and are forgotten with the session", () => {
+    const action = { type: "unfold", id: EARLIER.id, index: 1 } as const;
+    assert.equal(consoleAfter(FOLLOWING, action), FOLLOWING);
+    assert.equal(consoleAfter(INITIAL_STATE, action), INITIAL_STATE);
+    const unfolded = consoleAfter(FOLLOWING, { type: "unfold", id: SESSION_ID, index: 1 });
+    assert.deepEqual(after([{ type: "left" }, { type: "followed", id: SESSION_ID }], unfolded).followed?.unfolded, []);
   });
 });
 

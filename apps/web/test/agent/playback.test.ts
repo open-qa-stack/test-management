@@ -144,6 +144,16 @@ describe("the frame of a session a person replays", () => {
     assert.deepEqual([answered.shown.at(-1)!.running, answered.actions], [false, 1]);
   });
 
+  it("shows a review whose call the harness has not answered as going, by its reviewer, followed or replayed", () => {
+    const review: Step = { kind: "review", from: "plan_reviewer", at: "10:00:10", remarks: [], tool: "report_duplicates", pending: true };
+    const script: SessionScript = { ...LIVE, steps: [review] };
+    const followed = frameOf(script, INITIAL_PLAYBACK);
+    assert.deepEqual([followed.shown[0]!.running, followed.speaking, followed.actions], [true, "plan_reviewer", 0]);
+    assert.equal(frameOf({ ...script, stage: "ended" }, INITIAL_PLAYBACK).shown[0]!.running, false);
+    const replayed = frameOf(script, at(0));
+    assert.deepEqual([replayed.shown[0]!.running, replayed.speaking], [true, "plan_reviewer"]);
+  });
+
   it("answers in its time a tool that has not answered in the run, as any other", () => {
     assert.equal(frameOf(LIVE, at(STARTS[8]! + 1)).shown.at(-1)!.running, true);
     const answered = frameOf(LIVE, at(STARTS[8]! + TOOL_TICKS));
@@ -312,6 +322,23 @@ describe("what the thread keeps", () => {
     assert.deepEqual(kinds("all", "harness"), ["pass", "verdict", "note"]);
     assert.deepEqual(kinds("talk", "writer"), ["pass", "say"]);
     assert.deepEqual(kinds("actions", "writer"), ["pass", "tool"]);
+  });
+
+  it("keeps the verdict of a reviewer among the verdicts, and with the reviewer it follows", () => {
+    const review: Step = { kind: "review", from: "code_reviewer", at: "10:00:10", remarks: [], tool: "report_quality" };
+    assert.deepEqual(
+      (["all", "talk", "actions", "verdicts"] as const).map((filter) => shows(review, filter)),
+      [true, false, false, true],
+    );
+    assert.deepEqual([shows(review, "all", "code_reviewer"), shows(review, "all", "harness")], [true, false]);
+  });
+
+  it("keeps a row of notes alike as the harness speaking, among the verdicts", () => {
+    const alike: Step = { kind: "repeated", at: "10:00:10", before: "A ", after: ".", sources: ["a", "b"], notes: [] };
+    assert.deepEqual(
+      (["all", "talk", "actions", "verdicts"] as const).map((filter) => shows(alike, filter, "harness")),
+      [true, false, false, true],
+    );
   });
 
   it("keeps the delivery of a message whatever else it keeps: it only says where a message the thread shows is", () => {

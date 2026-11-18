@@ -1,4 +1,5 @@
 import type { Session } from "@open-qa-stack/domain/sessions";
+import { counted } from "../ui/counted.ts";
 import type { BadgeTone } from "../ui/badge.tsx";
 
 /** How the state of a session reads, and its colour family. */
@@ -74,7 +75,7 @@ export function waitText(session: Session): string | undefined {
 export function testsText(session: Session): string | undefined {
   const tests = session.result?.tests ?? [];
   if (tests.length === 0) return undefined;
-  return `${tests.filter(({ verdict }) => verdict === "passed").length} / ${tests.length} test(s) réussi(s)`;
+  return `${tests.filter(({ verdict }) => verdict === "passed").length} / ${counted(tests.length, "test réussi", "tests réussis")}`;
 }
 
 /**

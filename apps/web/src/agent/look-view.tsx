@@ -2,17 +2,16 @@ import type { ReactNode } from "react";
 import type { Look } from "./look.ts";
 
 /**
- * What an agent looked at: a file, or a text such as the page a browser tool rendered for it.
+ * What an agent looked at: a file, or the page a browser tool rendered for it.
  *
- * @param props - The look.
+ * @param props - The look, and what the agent did, in a sentence, which captions it.
  * @returns The look, drawn as its kind asks, with its caption.
  */
-export function LookView({ look }: { readonly look: Look }): ReactNode {
+export function LookView({ look, caption }: { readonly look: Look; readonly caption: string }): ReactNode {
   return (
     <div className="look">
-      {look.kind === "code" ? (
-        <div className="look-frame">
-          <div className="look-bar mono xs">{look.file}</div>
+      <div className="look-frame">
+        {look.kind === "code" ? (
           <pre className="look-code mono">
             {look.lines.map((line, index) => (
               <span key={index} className="look-line">
@@ -20,18 +19,15 @@ export function LookView({ look }: { readonly look: Look }): ReactNode {
               </span>
             ))}
           </pre>
-        </div>
-      ) : (
-        <div className="look-frame">
-          <div className="look-bar mono xs">{look.source}</div>
+        ) : (
           <ul className="look-document">
             {look.excerpt.map((line, index) => (
               <li key={index}>{line}</li>
             ))}
           </ul>
-        </div>
-      )}
-      <div className="small muted">{look.caption}</div>
+        )}
+      </div>
+      <div className="small muted">{caption}</div>
     </div>
   );
 }

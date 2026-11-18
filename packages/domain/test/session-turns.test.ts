@@ -85,6 +85,11 @@ describe("the turns of a thread", () => {
     assert.deepEqual(turns.map(summaryOf), ["notes 0,1,2", "agent:writer 3", "notes 4"]);
   });
 
+  it("gather a row of notes alike with the notes around it", () => {
+    const alike: Step = { kind: "repeated", at: "09:00:00", before: "The card of ", after: " was kept.", sources: ["a", "b"], notes: [NOTE, NOTE] };
+    assert.deepEqual(turnsOf(shownOf([NOTE, alike, ANSWER, alike])).map(summaryOf), ["notes 0,1", "agent:writer 2", "notes 3"]);
+  });
+
   it("give the request of the person and each message of the harness to an agent a turn of its own", () => {
     const asked: Step = { kind: "say", from: "user", at: "09:00:00", text: "tester" };
     const brief: Step = { kind: "say", from: "harness", to: "writer", at: "09:00:01", text: "Write it." };

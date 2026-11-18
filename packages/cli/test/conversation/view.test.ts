@@ -132,6 +132,57 @@ describe("the thread of a session that goes on", () => {
     assert.equal(lines.filter((line) => line.includes("…")).length, 5);
   });
 
+  it("writes a row of notes alike on one line, with how many sources, then the sources", () => {
+    const kept = (source: string): readonly EventBody[] => [
+      { type: "phase_started", phase: "card", source },
+      { type: "note", phase: "card", text: `The card of ${source} is up to date; it was kept.` },
+    ];
+    const lines = screenOf(showing([...kept("orders-api"), ...kept("orders-db"), ...kept("orders-specs")]), 100);
+    fits(lines, 100);
+    assert.deepEqual(from(lines, "The card of").slice(0, 2), [
+      "■ The card of … is up to date; it was kept. · 3 sources",
+      "  orders-api, orders-db, orders-specs",
+    ]);
+  });
+
+  it("writes the verdict of a reviewer under its name, each remark in full, without the call nor the word it replied", () => {
+    const remark = "The asserted total of 50 customers is environment data that can change, so the test breaks when a customer is added.";
+    const lines = screenOf(
+      showing([
+        {
+          type: "action_started",
+          action: "d",
+          agent: "plan_reviewer",
+          tool: "report_duplicates",
+          arguments: { duplicates: [{ id: "b", of: "a.spec.ts", reason: "Same." }] },
+        },
+        { type: "action_finished", action: "d", outcome: "failed", result: "Refused.", durationMs: 6 },
+        { type: "phase_started", phase: "write", scenario: "search" },
+        {
+          type: "action_started",
+          action: "q",
+          agent: "code_reviewer",
+          tool: "report_quality",
+          arguments: { findings: [{ where: "Step 1", what: remark, rule: "PW-DATA-01", concerns: "plan" }, { what: "No screenshot." }] },
+        },
+        { type: "action_finished", action: "q", outcome: "done", result: "Recorded. Answer with one word; call no more tools.", durationMs: 6 },
+        { type: "agent_message", agent: "code_reviewer", text: "Done", reasoning: false },
+        { type: "action_started", action: "c", agent: "coherence_reviewer", tool: "report_findings", arguments: { findings: [] } },
+      ]),
+      60,
+    );
+    fits(lines, 60);
+    const text = lines.join("\n");
+    assert.match(text, /□ Code reviewer · reviewed the test of search: 2\s+remarks/);
+    assert.match(
+      text.replace(/\s+/g, " "),
+      /- Step 1 \(PW-DATA-01\) \[plan\]: The asserted total of 50 customers is environment data that can change, so the test breaks when a customer is added\. - No screenshot\./,
+    );
+    assert.match(text.replace(/\s+/g, " "), /Plan reviewer · reviewed the plan: 1 duplicate, not taken by the harness - b repeats a\.spec\.ts: Same\./);
+    assert.match(text.replace(/\s+/g, " "), /Coherence reviewer · reviewed the test of search: no remark, handing it in/);
+    assert.doesNotMatch(text, /Recorded|Done/);
+  });
+
   it("names the message of the person delivered once an agent took it, the notes of the harness under one mark, and an error no gate gave as one", () => {
     const lines = screenOf(
       showing([

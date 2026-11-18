@@ -71,7 +71,7 @@ describe("oqas, without a command, in a terminal", () => {
     assert.match(text, /── Plan · functional ─+\n\n■ Harness → Planner\n {2}Plan Playwright tests for the environment local\./);
     assert.match(text, /◆ Planner\n {2}· Read section 1 of order-specs · \d+(\.\d)? m?s\n {2}· Proposed a plan of 3 scenarios · /);
     assert.match(text, /── Writing a test · test-1\n/);
-    assert.match(text, /● Writer\n {2}✓ Ran the test · /);
+    assert.match(text, /● Writer\n {2}✓ Ran "[^"\n]+" · /);
     assert.match(
       text,
       / {2}Verdicts of the run: 3 tests\n✓ passed {2}the test\n✓ passed {2}the test\n✓ passed {2}the test\n\nSession completed · tests passed\n[\d.]+ s · 17 model requests · 3 of 3 tests passed · branch oqas\/design-\d{8}T\d{6}Z\n/,

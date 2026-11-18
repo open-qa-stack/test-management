@@ -22,13 +22,21 @@ export interface PlannedScenario {
   readonly case?: string;
 }
 
-/** What an agent had before its eyes when an action ended: the page a browser tool rendered, or the file it handed in. */
+/** What an agent had before its eyes in an action: the file it handed a tool, or the page a browser tool rendered. */
 export interface ActionLook {
   readonly kind: "page" | "file";
   /** The address of the page, or the name of the file. */
   readonly name: string;
-  /** Its first lines. */
+  /** Its lines, all of them. */
   readonly lines: readonly string[];
+}
+
+/** A test a tool ran, with its verdict. */
+export interface ActionTest {
+  /** The test as its runner names it: the project, the file and its line, then its title, as `shop › tests/search.spec.ts:3 › searches a customer`. */
+  readonly id: string;
+  /** Its verdict, as the runner gave it: `passed`, `failed`… */
+  readonly verdict: string;
 }
 
 /** What every event of a session carries. */
@@ -91,8 +99,10 @@ export interface ActionStartedEvent extends EventBase {
   readonly action: string;
   readonly agent: AgentRole;
   readonly tool: string;
-  /** The arguments of the call, their long texts cut. */
+  /** The arguments of the call, whole. */
   readonly arguments: unknown;
+  /** The file the agent hands the tool, such as the test it runs: it can be read while the tool works. */
+  readonly look?: ActionLook;
 }
 
 /** An action ended: the tool answered. */
@@ -101,11 +111,17 @@ export interface ActionFinishedEvent extends EventBase {
   readonly action: string;
   /** `passed` or `failed` when the answer says so — a test that ran, a submission accepted or refused; `done` otherwise. */
   readonly outcome: "passed" | "failed" | "done";
-  /** What the tool answered, cut when long. */
+  /** What the tool answered, whole. */
   readonly result: string;
   /** How long the action took, in milliseconds. */
   readonly durationMs: number;
+  /**
+   * The page the tool rendered for the agent. A file the agent handed in is told by the start of the action; a
+   * thread written before it was is told here.
+   */
   readonly look?: ActionLook;
+  /** The tests the tool ran, each with its verdict, when it ran a file of tests. */
+  readonly tests?: readonly ActionTest[];
 }
 
 /** The harness accepted a plan. */
@@ -146,8 +162,10 @@ export interface StateChangedEvent extends EventBase {
 }
 
 /**
- * An event of the thread of a session. Types are added over time: a client ignores an event whose type it
- * does not know, and reads a value it does not know — a phase, an outcome — as it would an absent one.
+ * An event of the thread of a session. Its texts are whole: a client shows them as they are, and a person reads
+ * them to the end; only a runaway of a megabyte or more is cut, the cut marked by an ellipsis. Types are added
+ * over time: a client ignores an event whose type it does not know, and reads a value it does not know — a
+ * phase, an outcome — as it would an absent one.
  */
 export type SessionEvent =
   | UserMessageEvent
