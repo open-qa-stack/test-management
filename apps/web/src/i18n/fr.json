@@ -390,7 +390,11 @@
       "path-outside-root": "Le chemin sort du dépôt de tests.",
       "path-invalid": "Le chemin contient des caractères de contrôle.",
       "format-version": "Version de format non prise en charge : 1 est attendu.",
-      "json": "Le fichier n’est pas du JSON valide."
+      "json": "Le fichier n’est pas du JSON valide.",
+      "openapi-source": "Soit une adresse, soit un fichier du dépôt : exactement l’un des deux.",
+      "document-source": "Soit un chemin, soit des documents déposés : exactement l’un des deux.",
+      "logs-source": "Soit un fichier de journal, soit un conteneur et son moteur.",
+      "container-name": "Nom de conteneur attendu : lettres, chiffres, tirets bas, points et tirets."
     },
     "origins": {
       "file": "Fichier oqas.json",
@@ -516,23 +520,62 @@
       "addAccount": "Ajouter un compte",
       "addEnvironment": "Ajouter un environnement"
     },
-    "remove": "Retirer",
-    "records": {
+    "knowledge": {
       "kinds": {
         "openapi": "Contrat OpenAPI",
         "postgresql": "Base PostgreSQL",
-        "document": "Document",
+        "document": "Documents du dépôt",
+        "stored": "Documents déposés",
         "source-code": "Code source",
         "logs": "Journaux"
       },
-      "variable": "variable {{name}}",
-      "container": "conteneur {{name}}",
-      "stored": "déposés sur l’instance",
-      "knowledge": "Connaissances",
+      "add": {
+        "openapi": "Ajouter un contrat OpenAPI",
+        "postgresql": "Ajouter une base PostgreSQL",
+        "document": "Ajouter des documents du dépôt",
+        "stored": "Ajouter des documents déposés",
+        "source-code": "Ajouter du code source",
+        "logs": "Ajouter des journaux"
+      },
+      "untitled": "Source {{rank}}",
+      "removeSource": "Retirer la source {{name}}",
+      "url": "Adresse du contrat",
+      "openapiHint": "Soit son adresse, soit un fichier du dépôt de tests.",
+      "contractPath": "Fichier du contrat",
+      "connectionStringEnv": "Variable de la chaîne de connexion",
+      "connectionStringEnvHint": "Son nom seulement : la chaîne de connexion reste sur la machine qui mène les sessions.",
+      "documentPath": "Document ou dossier",
+      "documentPathHint": "Dans le dépôt de tests : un fichier Markdown, ou un dossier qui en contient.",
+      "storedNote": "Ses documents sont gardés par l’instance, et s’y déposent une fois la configuration enregistrée.",
+      "codePath": "Dossier du code",
+      "codePathHint": "Relatif au dépôt de tests ; il peut en sortir, vers un autre dépôt.",
+      "commands": "Commandes permises aux agents",
+      "commandChoices": {
+        "none": "Aucune : lister, chercher et lire",
+        "git": "L’historique git",
+        "shell": "Toute commande du shell"
+      },
+      "commandsDefault": "L’historique git (par défaut)",
+      "logPath": "Fichier de journal",
+      "logsHint": "Soit un fichier de journal, soit un conteneur et son moteur.",
+      "container": "Conteneur",
+      "engine": "Moteur de conteneurs",
+      "noEngine": "Aucun",
+      "attachments": "Rattachée à",
+      "attachmentsHint": "Les applications dont les sessions lisent cette source, chacune restreinte au besoin à l’un de ses environnements et de ses API.",
+      "attachment": "Rattachement {{rank}}",
+      "theAttachment": "le rattachement {{rank}}",
+      "application": "Application",
+      "chooseApplication": "Choisir une application",
+      "environment": "Environnement",
+      "anyEnvironment": "Tous les environnements",
+      "api": "API",
+      "anyApi": "Toutes les API",
+      "addAttachment": "Ajouter un rattachement"
+    },
+    "remove": "Retirer",
+    "records": {
       "readOnly": "en lecture seule",
-      "soon": "bientôt modifiables",
-      "knowledgeNote": "Leur édition dans la console arrive dans un prochain lot ; d’ici là, elles se déclarent dans oqas.json, et la console les reprend.",
-      "noKnowledge": "Aucune source de connaissance",
       "history": "Historique des révisions",
       "latestFirst": "la plus récente d’abord",
       "revision": "Révision {{number}}",
@@ -567,7 +610,10 @@
       "agents": "Agents",
       "repository": "Dépôt de tests",
       "history": "Historique",
-      "secrets": "Aucun secret n’est gardé : ni dans oqas.json, ni dans la base. La configuration nomme les variables d’environnement qui les tiennent, sur la machine qui lance les sessions."
+      "secrets": "Aucun secret n’est gardé : ni dans oqas.json, ni dans la base. La configuration nomme les variables d’environnement qui les tiennent, sur la machine qui lance les sessions.",
+      "knowledge": "Connaissances",
+      "knowledgeNote": "Ce que les agents lisent des applications. Chaque source dit où elle se lit — jamais un secret — et les applications auxquelles elle se rattache.",
+      "noKnowledge": "Aucune source de connaissance"
     }
   }
 }

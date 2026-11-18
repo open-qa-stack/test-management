@@ -390,7 +390,11 @@
       "path-outside-root": "The path leaves the test repository.",
       "path-invalid": "The path holds control characters.",
       "format-version": "Format version not supported: 1 is expected.",
-      "json": "The file is not valid JSON."
+      "json": "The file is not valid JSON.",
+      "openapi-source": "Either an address, or a file of the repository: exactly one.",
+      "document-source": "Either a path, or uploaded documents: exactly one.",
+      "logs-source": "Either a log file, or a container and its engine.",
+      "container-name": "Name of a container expected: letters, digits, underscores, dots and hyphens."
     },
     "origins": {
       "file": "File oqas.json",
@@ -516,23 +520,62 @@
       "addAccount": "Add an account",
       "addEnvironment": "Add an environment"
     },
-    "remove": "Remove",
-    "records": {
+    "knowledge": {
       "kinds": {
         "openapi": "OpenAPI contract",
         "postgresql": "PostgreSQL database",
-        "document": "Document",
+        "document": "Documents of the repository",
+        "stored": "Uploaded documents",
         "source-code": "Source code",
         "logs": "Logs"
       },
-      "variable": "variable {{name}}",
-      "container": "container {{name}}",
-      "stored": "uploaded to the instance",
-      "knowledge": "Knowledge",
+      "add": {
+        "openapi": "Add an OpenAPI contract",
+        "postgresql": "Add a PostgreSQL database",
+        "document": "Add documents of the repository",
+        "stored": "Add uploaded documents",
+        "source-code": "Add source code",
+        "logs": "Add logs"
+      },
+      "untitled": "Source {{rank}}",
+      "removeSource": "Remove the source {{name}}",
+      "url": "Address of the contract",
+      "openapiHint": "Either its address, or a file of the test repository.",
+      "contractPath": "File of the contract",
+      "connectionStringEnv": "Variable of the connection string",
+      "connectionStringEnvHint": "Its name only: the connection string stays on the machine that runs the sessions.",
+      "documentPath": "Document or folder",
+      "documentPathHint": "In the test repository: a Markdown file, or a folder of them.",
+      "storedNote": "Its documents are kept by the instance, and uploaded to it once the configuration is saved.",
+      "codePath": "Folder of the code",
+      "codePathHint": "Relative to the test repository; it may lead outside, to another repository.",
+      "commands": "Commands the agents may run there",
+      "commandChoices": {
+        "none": "None: list, search and read",
+        "git": "The git history",
+        "shell": "Any shell command"
+      },
+      "commandsDefault": "The git history (default)",
+      "logPath": "Log file",
+      "logsHint": "Either a log file, or a container and its engine.",
+      "container": "Container",
+      "engine": "Container engine",
+      "noEngine": "None",
+      "attachments": "Attached to",
+      "attachmentsHint": "The applications whose sessions read this source, each narrowed to one of its environments and APIs if need be.",
+      "attachment": "Attachment {{rank}}",
+      "theAttachment": "the attachment {{rank}}",
+      "application": "Application",
+      "chooseApplication": "Choose an application",
+      "environment": "Environment",
+      "anyEnvironment": "Every environment",
+      "api": "API",
+      "anyApi": "Every API",
+      "addAttachment": "Add an attachment"
+    },
+    "remove": "Remove",
+    "records": {
       "readOnly": "read only",
-      "soon": "soon editable",
-      "knowledgeNote": "Their edition in the console comes in a later version; until then, they are declared in oqas.json, and the console takes them up.",
-      "noKnowledge": "No knowledge source",
       "history": "History of the revisions",
       "latestFirst": "the latest first",
       "revision": "Revision {{number}}",
@@ -567,7 +610,10 @@
       "agents": "Agents",
       "repository": "Test repository",
       "history": "History",
-      "secrets": "No secret is kept: neither in oqas.json, nor in the database. The configuration names the environment variables that hold them, on the machine that runs the sessions."
+      "secrets": "No secret is kept: neither in oqas.json, nor in the database. The configuration names the environment variables that hold them, on the machine that runs the sessions.",
+      "knowledge": "Knowledge",
+      "knowledgeNote": "What the agents read about the applications. Each source names where it is read — never a secret — and the applications it belongs to.",
+      "noKnowledge": "No knowledge source"
     }
   }
 }

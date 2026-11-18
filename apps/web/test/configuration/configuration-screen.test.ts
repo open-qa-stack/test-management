@@ -127,20 +127,74 @@ describe("the screen of the configuration", () => {
     assert.match(text, /Aucune source de connaissance/);
   });
 
-  it("shows the knowledge sources read only, where each is read from, and never a secret", () => {
-    const text = textOf(screen(stateAfter([])));
-    assert.match(text, /Connaissances · en lecture seule bientôt modifiables Leur édition dans la console arrive dans un prochain lot/);
+  it("shows each knowledge source with what it is read from, never a secret, and what it is attached to", () => {
+    const html = screen(stateAfter([]));
+    const text = textOf(html);
+    assert.match(text, /Connaissances Ce que les agents lisent des applications\./);
     for (const source of [
-      "contract Contrat OpenAPI · http://127.0.0.1:3001/openapi.json shop › local › backend",
-      "local-contract Contrat OpenAPI · specs/openapi.yaml shop",
-      "orders Base PostgreSQL · variable SHOP_DB_URL shop",
-      "specs Document · specs/orders.md shop",
-      "manuals Document · déposés sur l’instance shop",
-      "code Code source · ../shop shop",
-      "server-log Journaux · logs/server.log shop",
-      "container-log Journaux · conteneur shop shop",
+      "contract · Contrat OpenAPI Retirer",
+      "local-contract · Contrat OpenAPI Retirer",
+      "orders · Base PostgreSQL Retirer",
+      "specs · Documents du dépôt Retirer",
+      "manuals · Documents déposés Retirer",
+      "code · Code source Retirer",
+      "server-log · Journaux Retirer",
+      "container-log · Journaux Retirer",
     ])
       assert.ok(text.includes(source), source);
+    assert.ok(bears(html, "/knowledge/0/url", 'value="http://127.0.0.1:3001/openapi.json"', 'placeholder="https://"'));
+    assert.ok(bears(html, "/knowledge/1/path", 'value="specs/openapi.yaml"'));
+    assert.ok(bears(html, "/knowledge/2/connectionStringEnv", 'value="SHOP_DB_URL"', 'aria-describedby="config-knowledge-2-connectionStringEnv-hint"'));
+    assert.match(text, /Son nom seulement : la chaîne de connexion reste sur la machine qui mène les sessions\./);
+    assert.ok(bears(html, "/knowledge/3/path", 'value="specs/orders.md"'));
+    assert.deepEqual(fieldsNamed(html, "/knowledge/4/path"), []);
+    assert.match(text, /Ses documents sont gardés par l’instance, et s’y déposent une fois la configuration enregistrée\./);
+    assert.ok(bears(html, "/knowledge/5/commands", 'data-kind="choice"'));
+    assert.match(
+      text,
+      /Commandes permises aux agents L’historique git \(par défaut\) Aucune : lister, chercher et lire L’historique git Toute commande du shell/,
+    );
+    assert.ok(bears(html, "/knowledge/7/container", 'value="shop"'));
+    assert.match(html, /<option value="podman" selected="">podman<\/option>/);
+    assert.match(
+      text,
+      /Rattachement 1 Retirer Application Choisir une application shop Environnement Tous les environnements local API Toutes les API backend Ajouter un rattachement/,
+    );
+    assert.match(html, /<option value="backend" selected="">backend<\/option>/);
+    assert.match(html, /aria-label="Retirer le rattachement 1 de contract" data-remove="\/knowledge\/0\/attachments\/0"/);
+    assert.match(html, /aria-label="Retirer la source manuals" data-remove="\/knowledge\/4"/);
+    assert.match(
+      text,
+      /Ajouter un contrat OpenAPI Ajouter une base PostgreSQL Ajouter des documents du dépôt Ajouter des documents déposés Ajouter du code source Ajouter des journaux/,
+    );
+    for (const kind of ["openapi", "postgresql", "document", "stored", "source-code", "logs"])
+      assert.match(html, new RegExp(`data-add="/knowledge" data-item="${kind}"`), kind);
+  });
+
+  it("shows a source added as it is to fill, and keeps a reference that no longer names anything, beside its error", () => {
+    const added = stateAfter([
+      { type: "add", pointer: "/knowledge", item: { id: "", type: "document", stored: true, attachments: [{ application: "" }] } },
+      { type: "edit", pointer: "/knowledge/8/attachments/0/environment", value: "gone" },
+      { type: "edit", pointer: "/knowledge/8/attachments/0/api", value: "old" },
+    ]);
+    const errors: ConfigError[] = [
+      { kind: "reference", path: "/knowledge/8/attachments/0/application", rule: "slug", message: "Expected a slug." },
+      { kind: "structure", path: "/knowledge/8", rule: "document-source", message: 'Declare exactly one of "path" or "stored".' },
+    ];
+    const html = screen({ ...added, errors });
+    const text = textOf(html);
+    assert.match(text, /Source 9 · Documents déposés Retirer Soit un chemin, soit des documents déposés : exactement l’un des deux\./);
+    assert.match(html, /<select id="config-knowledge-8-attachments-0-application"[^>]*aria-invalid="true"/);
+    assert.match(html, /<option value="" selected="">Choisir une application<\/option>/);
+    assert.match(html, /<option value="gone" selected="">gone<\/option>/);
+    assert.match(html, /<option value="old" selected="">old<\/option>/);
+  });
+
+  it("says when the configuration declares no knowledge source", () => {
+    assert.match(
+      textOf(screen(stateAfter([], { ...DOCUMENT, knowledge: [] }))),
+      /Connaissances Ce que les agents .* Aucune source de connaissance Ajouter un contrat OpenAPI/,
+    );
   });
 
   it("says a change is not saved, and lets the person save it or drop it", () => {
