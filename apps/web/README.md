@@ -1,8 +1,8 @@
 # @open-qa-stack/web
 
-The console of an instance: a React application built with Vite. As a rule of the workspace, it may import no package of the workspace other than `@open-qa-stack/domain`, and of it only the contract of sessions, `@open-qa-stack/domain/sessions`: the rest of the domain runs on Node.js.
+The console of an instance: a React application built with Vite. As a rule of the workspace, it may import no package of the workspace other than `@open-qa-stack/domain`, and of it only the contract of its API, `@open-qa-stack/domain/sessions` — the sessions, and the configuration — : the rest of the domain runs on Node.js.
 
-The console shows the agents at work, live. It holds no sample data: everything it shows comes from the API of its instance, [`@open-qa-stack/api`](../../packages/api/README.md). Its first screen takes a request, which opens a session, and lists the sessions, the one whose agents are working first; the thread of a session fills event by event, and a session that ended can be replayed step by step. The other parts of the console are named in its navigation as « bientôt », and open nothing yet.
+The console shows the agents at work, live. It holds no sample data: everything it shows comes from the API of its instance, [`@open-qa-stack/api`](../../packages/api/README.md). Its first screen takes a request, which opens a session, and lists the sessions, the one whose agents are working first; the thread of a session fills event by event, and a session that ended can be replayed step by step. [The configuration](#the-configuration) of the project is shown, changed and saved in a screen of its own. The other parts of the console are named in its navigation as « bientôt », and open nothing yet.
 
 ## Build and run
 
@@ -27,6 +27,7 @@ The console reaches its instance under `/api`, on its own origin, where the API 
 | `src/api/`                    | The client of the API, the one error every screen shows and its French wordings, the poll of a call, the stream of a session, whether a session ended. |
 | `src/shell/`                  | The frame of every screen: the top bar and the navigation, beside the mark on a narrow screen, a sidebar from 1100 px wide.           |
 | `src/ui/`                     | The components every screen shares, and their style sheet.                                                                            |
+| `src/configuration/`          | The configuration: its form, the state of a draft and what keeps it in step with the instance, the French words of the errors of its schema. |
 | `src/agent/`                  | The sessions: the words of the console for the steps of a thread, which `@open-qa-stack/domain/sessions` reads from the events of a session for every presentation, how a session is followed or replayed, its thread, and the panel of a look. |
 
 A screen is a function of what the API told and of its route: it holds no state and listens to no event. A filter or a selection is an address, so that every state of the console can be linked to, and tested by rendering it. The application alone holds state — what the API sent, and how each session is read — and hands it to the screen that shows it. No screen calls the network: `src/api/` does, with the types of `@open-qa-stack/domain/sessions`.
@@ -47,6 +48,18 @@ While a session goes on — it runs, or waits its turn — its bar offers to sto
 A session that did not change keeps the object the state already holds, so that what is computed from it is not computed again at every list.
 
 Every failure of the API is an `ApiError` with the `code` of the problem the API answered, `error` when it gave none, or `unreachable` when no answer came. The console decides on that code alone: it words the codes it knows in French (`src/api/problem-text.ts`), shows the `detail` of the API otherwise, and says « Hors ligne » only for `unreachable`. A value the console does not know — a state, a phase, an outcome, a type of event — reads as a neutral one, or is ignored: a later version of the API does not break an earlier console. One predicate, `hasEnded` of `@open-qa-stack/domain/sessions`, tells whether a session no longer goes on, for the console as for the conversation of the command line: it has not while it is `queued` or `running`, and has in any other state, one the console does not know included.
+
+### The configuration
+
+`#/configuration` shows the configuration in force — what `oqas.json` holds, kept by the instance as revisions — in a form the person changes, then saves:
+
+- **What is changed**: the applications and their environments — the address of the interface, the named APIs, what the exploration may do —, the sign-in of the users with the names of the variables that hold the credentials of the test accounts, the model — its server, its name, the variable of its key, whether it reads images, its effort —, the autonomy, the levels of the pyramid of tests a plan is asked for, and the layout of the test repository. A secret is never asked for: the configuration names the variable that holds it.
+- **What is read only**: the knowledge sources, whose edition comes in a later version; the JSON of the draft; the history of the revisions, the latest first, with where each comes from — the file, the console, or `oqas config export`.
+- **Errors**: each draft is checked by the instance (`POST /configuration/validation`) as it changes, by the schema of `oqas.json` and its rules: the console validates nothing itself. Each error stands under its field, which it describes for a screen reader, worded in French by its rule (`src/configuration/configuration-words.ts`), and all of them are counted at the head of the form.
+- **Saving** is explicit, by « Enregistrer » (`POST /configuration/revisions`), made from the revision the draft was read from: a change made from a revision another replaced since is refused, and « Annuler les modifications » takes the revision in force. A draft is kept while the instance tells a newer revision.
+- **When the file changed**, the screen says so, and « Prendre oqas.json » takes it (`POST /configuration/synchronisation`). A change saved while the file changed too is refused, and the screen leaves the two ways out: « Garder le fichier », or « Garder mes modifications », which rewrites it.
+
+The state of the screen is a reducer of its own, `src/configuration/configuration-state.ts`, and `src/configuration/configuration-sync.ts` keeps it in step with the instance, reading the configuration and its revisions every two seconds. Its fields are named after the JSON Pointer of what they hold, which the reducer changes and the errors of the instance name; `src/configuration/configuration-page.tsx` holds that state in a browser, as `src/app.tsx` does for the sessions, and is measured there.
 
 ## Styles and design tokens
 

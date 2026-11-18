@@ -4,6 +4,7 @@ import { AgentHomeScreen } from "./agent/agent-home-screen.tsx";
 import type { Opening } from "./agent/console-state.ts";
 import type { LiveSession } from "./agent/live-session.ts";
 import { SessionScreen } from "./agent/session-screen.tsx";
+import { ConfigurationPage } from "./configuration/configuration-page.tsx";
 import { hrefTo, type Route } from "./routing/route.ts";
 import { Shell } from "./shell/shell.tsx";
 import { EmptyState } from "./ui/empty-state.tsx";
@@ -29,6 +30,8 @@ export interface ConsoleProps {
   readonly opening?: Opening;
   /** Opens the session the form of the entry asks for. */
   readonly onOpen?: (event: FormEvent<HTMLFormElement>) => void;
+  /** Reads the project again once the configuration, which names its applications, was saved. */
+  readonly onConfigured?: () => void;
 }
 
 /**
@@ -36,13 +39,14 @@ export interface ConsoleProps {
  * that says the instance keeps no such session, or that the address leads nowhere.
  */
 type Shown =
-  | { readonly screen: "entry" | "no_session" | "nowhere" }
+  | { readonly screen: "entry" | "configuration" | "no_session" | "nowhere" }
   | { readonly screen: "session"; readonly live: LiveSession }
   | { readonly screen: "opening"; readonly id: string };
 
 /** The title of each screen that has one of its own; a session is titled by what was asked. */
 const TITLES: Readonly<Record<Exclude<Shown["screen"], "session">, string>> = {
   entry: "Agent",
+  configuration: "Configuration",
   opening: "Ouverture de la session…",
   no_session: "Session introuvable",
   nowhere: "Page introuvable",
@@ -72,6 +76,7 @@ export function isEntry(route: Route): boolean {
 /** What the console shows: a session once the API told the one the route opens, a wait until it did or said it keeps none. */
 function shownOf({ route, live, missing = false }: ConsoleProps): Shown {
   if (isEntry(route)) return { screen: "entry" };
+  if (route.path.length === 1 && route.path[0] === "configuration") return { screen: "configuration" };
   const id = sessionAt(route);
   if (id === undefined) return { screen: "nowhere" };
   if (live?.script.id === id) return { screen: "session", live };
@@ -89,9 +94,9 @@ export function documentTitleOf(props: ConsoleProps): string {
   return `${shown.screen === "session" ? shown.live.script.title : TITLES[shown.screen]} · Open QA Stack`;
 }
 
-/** The screen of a route: the entry of the agent, a session, or a page that says where the address leads. */
+/** The screen of a route: the entry of the agent, a session, the configuration, or a page that says where the address leads. */
 function Screen(props: ConsoleProps): ReactNode {
-  const { route, project, sessions, unlisted, opening = { state: "idle" }, onOpen } = props;
+  const { route, project, sessions, unlisted, opening = { state: "idle" }, onOpen, onConfigured } = props;
   const name = project?.name ?? "Projet";
   const shown = shownOf(props);
   const back = <a href={hrefTo("/agent")}>Revenir aux sessions</a>;
@@ -108,6 +113,8 @@ function Screen(props: ConsoleProps): ReactNode {
       );
     case "session":
       return <SessionScreen route={route} live={shown.live} project={name} />;
+    case "configuration":
+      return <ConfigurationPage project={name} {...(onConfigured === undefined ? {} : { onSaved: onConfigured })} />;
     case "opening":
       return (
         <Page crumbs={[{ label: name }, { label: "Agent", href: hrefTo("/agent") }, { label: shown.id }]} title={TITLES.opening}>

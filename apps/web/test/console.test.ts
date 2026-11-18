@@ -159,6 +159,15 @@ describe("the console", () => {
     );
   });
 
+  it("shows the configuration at its address, which reads it from the instance", () => {
+    const html = consoleAt("#/configuration", { project: PROJECT });
+    assert.equal(pageOf(html), "lakeside-tests / Configuration Configuration Lecture de la configuration Elle apparaît dès que l’instance a répondu.");
+    assert.equal(documentTitleOf({ route: at("#/configuration") }), "Configuration · Open QA Stack");
+    assert.match(pageOf(consoleAt("#/configuration/more")), /Page introuvable/);
+    // Told what reads the project again once a change is saved, the screen shows the same until one is.
+    assert.equal(pageOf(consoleAt("#/configuration", { project: PROJECT, onConfigured: () => undefined })), pageOf(html));
+  });
+
   it("says an address leads nowhere, and how to come back", () => {
     for (const hash of ["#/nowhere", "#/agent/sessions", `${SESSION}/batch`, "#/agent/nowhere"]) {
       const html = consoleAt(hash, { sessions: [RUNNING] });

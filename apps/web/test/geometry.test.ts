@@ -147,7 +147,15 @@ describe("the geometry of the console comes from its tokens", () => {
   });
 
   it("reads every style sheet of the console", () => {
-    assert.deepEqual(sheets(), ["agent/agent-home.css", "agent/session.css", "base.css", "shell/shell.css", TOKENS, "ui/ui.css"]);
+    assert.deepEqual(sheets(), [
+      "agent/agent-home.css",
+      "agent/session.css",
+      "base.css",
+      "configuration/configuration.css",
+      "shell/shell.css",
+      TOKENS,
+      "ui/ui.css",
+    ]);
   });
 });
 

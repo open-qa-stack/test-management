@@ -6,7 +6,7 @@ import { focusAfterLook, openedLookOf, withoutLook } from "./agent/opened-look.t
 import { frameOf, type PlaybackAction } from "./agent/playback.ts";
 import { scriptOf } from "./agent/session-steps.ts";
 import { asksToStop, focusAfterStop, withoutStop } from "./agent/stop-request.ts";
-import { ApiClient } from "./api/api-client.ts";
+import { api } from "./api/instance-api.ts";
 import { Console, documentTitleOf, isEntry, sessionAt, type ConsoleProps } from "./console.tsx";
 import { hrefTo, parseRoute } from "./routing/route.ts";
 
@@ -15,9 +15,6 @@ const BEAT_MS = 45;
 
 /** How far below the window the end of the thread may be for the console to keep following it, in pixels. */
 const FOLLOWED_PX = 600;
-
-/** The API of the instance that serves the console. */
-const api = new ApiClient((input, init) => fetch(input, init));
 
 /** Tells React when the address changes. */
 function onAddressChange(changed: () => void): () => void {
@@ -62,6 +59,9 @@ export function App(): ReactNode {
     const beat = window.setInterval(() => dispatch({ type: "playback", script, action: { type: "beat" } }), BEAT_MS);
     return () => window.clearInterval(beat);
   }, [replaying, script]);
+
+  // The configuration names the applications of the project: once it is saved, the project is read again.
+  const configured = useMemo(() => sync.project.bind(sync), [sync]);
 
   const open = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -119,6 +119,7 @@ export function App(): ReactNode {
     missing: followed?.missing === true,
     opening: state.opening,
     onOpen: open,
+    onConfigured: configured,
     ...(state.project === undefined ? {} : { project: state.project }),
     ...(state.sessions === undefined ? {} : { sessions: state.sessions }),
     ...(state.unlisted === undefined ? {} : { unlisted: state.unlisted }),

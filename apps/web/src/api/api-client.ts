@@ -1,4 +1,19 @@
-import type { MessageReceipt, Problem, Project, Session, SessionList, SessionMessage, SessionOpening } from "@open-qa-stack/domain/sessions";
+import type {
+  ConfigError,
+  ConfigurationCheck,
+  ConfigurationView,
+  MessageReceipt,
+  OqasConfig,
+  Problem,
+  Project,
+  RevisionChange,
+  RevisionList,
+  RevisionSummary,
+  Session,
+  SessionList,
+  SessionMessage,
+  SessionOpening,
+} from "@open-qa-stack/domain/sessions";
 import { ApiError } from "./api-error.ts";
 import { problemCode, problemText } from "./problem-text.ts";
 
@@ -17,7 +32,8 @@ function posting(body: unknown): RequestInit {
 async function failureOf(response: Response): Promise<ApiError> {
   const problem = (await response.json().catch(() => undefined)) as Partial<Record<keyof Problem, unknown>> | null | undefined;
   const code = problemCode(problem?.code);
-  return new ApiError(problemText(code, problem?.detail), response.status, code);
+  const errors = Array.isArray(problem?.errors) ? (problem.errors as ConfigError[]) : [];
+  return new ApiError(problemText(code, problem?.detail), response.status, code, errors);
 }
 
 /**
@@ -96,6 +112,47 @@ export class ApiClient {
    */
   public async interrupt(id: string): Promise<void> {
     await this.#answer(`/sessions/${encodeURIComponent(id)}/interruption`, { method: "POST" });
+  }
+
+  /** @returns The configuration of the instance as it is now: the revision in force, and how its file stands to it. */
+  public configuration(): Promise<ConfigurationView> {
+    return this.#ask<ConfigurationView>("/configuration");
+  }
+
+  /** @returns The revisions of the configuration, the latest first. */
+  public async revisions(): Promise<readonly RevisionSummary[]> {
+    return (await this.#ask<RevisionList>("/configuration/revisions")).items;
+  }
+
+  /**
+   * Checks a configuration, without anything recorded.
+   *
+   * @param document - The configuration.
+   * @returns Every error it holds, each where it is; none when it is valid.
+   */
+  public async check(document: OqasConfig): Promise<readonly ConfigError[]> {
+    return (await this.#ask<ConfigurationCheck>("/configuration/validation", posting(document))).errors;
+  }
+
+  /**
+   * Saves a change of the configuration, which rewrites its file.
+   *
+   * @param change - The configuration as it is to be, and the revision it was made from.
+   * @returns The configuration as it is now; the failure carries the code `stale_revision`, `configuration_conflict`
+   * or `invalid_configuration` with its errors when the instance refuses the change.
+   */
+  public save(change: RevisionChange): Promise<ConfigurationView> {
+    return this.#ask<ConfigurationView>("/configuration/revisions", posting(change));
+  }
+
+  /**
+   * Takes the file of the configuration as it is now as the revision in force.
+   *
+   * @returns The configuration as it is now; the failure carries the code `invalid_configuration` with its errors
+   * when the file is not valid.
+   */
+  public synchronise(): Promise<ConfigurationView> {
+    return this.#ask<ConfigurationView>("/configuration/synchronisation", { method: "POST" });
   }
 
   /** The answer of the instance to a call, once it is a success. */
