@@ -262,6 +262,15 @@ describe("the scenarios of a plan, asked until the brief is covered", () => {
     );
   });
 
+  it("bound no text of a plan by its length: what the brief asks and why no test does it are told whole", async () => {
+    const { proposal: made } = await proposal();
+    assert.doesNotMatch(JSON.stringify(made.tool().parameters), /maxLength/);
+    const asked = `Change the address of a customer, ${"and of each of the people insured with it, ".repeat(8)}from the profile.`;
+    const uncovered = Array.from({ length: 6 }, (_, index) => ({ asked: `${asked} ${String(index)}`, reason: "No screen of shop offers to edit an address." }));
+    await add(made, { scenarios: [], uncovered });
+    assert.deepEqual(made.accepted?.uncovered, uncovered);
+  });
+
   it("close a plan of one scenario with it, once the session of the agent ended without another", async () => {
     const { proposal: made, journal } = await proposal();
     await made.close();

@@ -423,17 +423,16 @@ export class PlanProposal {
           },
           uncovered: {
             type: "array",
-            maxItems: 5,
+            maxItems: 40,
             description:
               "What the brief asks that no scenario covers — a business rule, an information, a behaviour — because the application does not let a test do it, such as an action no screen offers, or because the plan has no room for it: say it here rather than plan another test in its place without a word. Leave it out when the plan covers the brief. A plan may hold no scenario at all when it says here why no test can do what the brief asks.",
             items: {
               type: "object",
               properties: {
-                asked: { type: "string", minLength: 1, maxLength: 200, description: "What the brief asks, in one sentence." },
+                asked: { type: "string", minLength: 1, description: "What the brief asks, in one sentence." },
                 reason: {
                   type: "string",
                   minLength: 1,
-                  maxLength: 400,
                   description: "Why no test does it: what you saw of the application or read of its sources, or that the plan has no room for it.",
                 },
               },
