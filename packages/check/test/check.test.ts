@@ -238,6 +238,18 @@ describe("the check", { concurrency: true }, () => {
     assert.equal(run.code, 0, run.output);
   });
 
+  it("keeps, when asked, the coverage of every run in one report, each path from the root of the workspace", async () => {
+    const report = await inDemo(async (workspace) => {
+      await testedTogether(workspace);
+      const run = await workspace.check({ OQAS_COVERAGE_REPORT: "coverage/lcov.info" });
+      assert.equal(run.code, 0, run.output);
+      return workspace.read("coverage/lcov.info");
+    });
+    const files = [...report.matchAll(/^SF:(.*)$/gm)].map((line) => String(line[1])).sort((one, other) => one.localeCompare(other));
+    assert.deepEqual(files, ["packages/demo/src/sign.ts", "packages/together/src/double.ts"]);
+    assert.equal(report.match(/end_of_record/g)?.length, 2);
+  });
+
   it("fails on a file the script of the root does not cover, naming its package", async () => {
     const run = await inDemo(async (workspace) => {
       await testedTogether(workspace);

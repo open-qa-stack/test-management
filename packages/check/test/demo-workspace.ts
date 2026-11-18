@@ -100,12 +100,16 @@ export class DemoWorkspace {
    * Runs the check at the root of the workspace, as a command started outside of any test, so that the test
    * runner it starts runs the tests of the workspace.
    *
+   * @param variables - Variables of the environment the check is given, besides those of the test runner.
    * @returns What the check gave.
    */
-  public async check(): Promise<CheckRun> {
-    const env = { ...process.env };
+  public async check(variables: Readonly<Record<string, string>> = {}): Promise<CheckRun> {
+    const env: NodeJS.ProcessEnv = { ...process.env };
     delete env["NODE_TEST_CONTEXT"];
     delete env["NODE_OPTIONS"];
+    // The check that runs these tests may be asked to keep its coverage: the one a test starts is asked only by the test.
+    delete env["OQAS_COVERAGE_REPORT"];
+    Object.assign(env, variables);
     // A runner of continuous integration asks the tools for colours; the tests read plain text.
     delete env["FORCE_COLOR"];
     env["NO_COLOR"] = "1";
