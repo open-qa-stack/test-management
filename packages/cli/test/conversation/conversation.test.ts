@@ -6,7 +6,7 @@ import { SessionEndedError, UnknownSessionError } from "@open-qa-stack/domain";
 import type { Session } from "@open-qa-stack/domain/sessions";
 import { Conversation, type ConversationProps, type Leaving } from "../../src/solo/conversation/conversation.ts";
 import { FakeSessions } from "./fake-sessions.ts";
-import { COMPLETED, CONTEXT, FAILED, NOW, numbered, RUNNING, THREAD } from "./fixtures.ts";
+import { COMPLETED, CONTEXT, FAILED, NOW, numbered, RUNNING, THREAD, completion } from "./fixtures.ts";
 import { UNICODE, until } from "./screen.ts";
 
 const ENTER = "\r";
@@ -116,22 +116,53 @@ describe("the conversation", () => {
     await stage.sees("  Leave the archived customers out.\n  delivered to the writer");
   });
 
-  it("closes the thread on what the session came to, and takes the next request as a new session", async () => {
+  it("closes the thread on what the session came to, goes on with it on what the person types next, and opens another after /new", async () => {
     const stage = await staged();
     await opening(stage);
-    stage.sessions.tell(RUNNING.id, numbered(THREAD));
+    stage.sessions.tell(RUNNING.id, numbered([...THREAD, completion(COMPLETED)]));
     stage.sessions.end(COMPLETED);
     await stage.sees("Session completed · tests passed");
-    await stage.sees("›  What do we test next?");
+    await stage.sees("›  What do the agents do next?");
     assert.match(
       stage.screen(),
       /✓ passed {2}opens a customer\n\nSession completed · tests passed\n1 min 12 s · 17 model requests · 2 of 2 tests passed · branch oqas\/design-20261113T144405Z\n/,
     );
+    assert.match(stage.screen(), /Enter go on · \/new another session · Ctrl-C quit/);
+    await stage.press("Fix the failing test.", "› Fix the failing test.");
+    await stage.press(ENTER, "›  Say something to the agents");
+    assert.deepEqual(stage.sessions.resumed, [[RUNNING.id, "Fix the failing test."]]);
+    await until(() => stage.sessions.after.length === 2, "the new turn is followed");
+    assert.deepEqual(stage.sessions.after, [0, THREAD.length + 1], "the new turn is followed after the thread of the one before");
+    const turn = numbered(
+      [
+        { type: "user_message", text: "Fix the failing test." },
+        { type: "state_changed", state: "queued" },
+        { type: "state_changed", state: "running" },
+      ],
+      THREAD.length + 2,
+    );
+    stage.sessions.tell(RUNNING.id, turn);
+    await stage.sees(/› You\n {2}Fix the failing test\./);
+    stage.sessions.end({ ...RUNNING, state: "interrupted" });
+    await stage.sees("›  What do the agents do next?");
     const next: Session = { ...RUNNING, id: "session-2026-11-13T15-00-00-000Z-11112222" };
     stage.sessions.next = next;
+    await stage.press("/new", "› /new");
+    await stage.press(ENTER, "›  What do we test?");
     await stage.press("Test the returns.", "› Test the returns.");
     await stage.press(ENTER, `Session ${next.id}`);
     assert.equal(stage.sessions.openings.length, 2);
+  });
+
+  it("tells why the session on screen could not be resumed, and follows nothing new", async () => {
+    const stage = await staged();
+    await opening(stage);
+    stage.sessions.end(COMPLETED);
+    await stage.sees("›  What do the agents do next?");
+    stage.sessions.failing.set("resume", new SessionEndedError(RUNNING.id));
+    await stage.press("Go on.", "› Go on.");
+    await stage.press(ENTER, `Told: The session ${RUNNING.id} no longer goes on.`);
+    assert.deepEqual(stage.sessions.after, [0]);
   });
 
   it("times the session that goes on by the clock", async () => {

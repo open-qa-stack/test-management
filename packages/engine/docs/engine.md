@@ -1,6 +1,6 @@
 # The engine
 
-The engine is the application core of Open QA Stack, and holds two things. `Run` is one run on a test repository: every step, in one place, whatever starts it. `Sessions` is [the operations on the sessions of an instance](#the-operations-on-sessions) — open one, speak to it, interrupt it, read them, follow one — which run each session with a `Run`, in the process that hosts them. No rule of the product lives outside: [the `oqas` command](../../cli/docs/solo-command.md) says the operations in a terminal, and [the API](../../api/docs/sessions.md) says them in HTTP, both on the database of the instance.
+The engine is the application core of Open QA Stack, and holds two things. `Run` is one run on a test repository: every step, in one place, whatever starts it. `Sessions` is [the operations on the sessions of an instance](#the-operations-on-sessions) — open one, speak to it, resume it once it ended, interrupt it, read them, follow one — which run each session with a `Run`, in the process that hosts them. No rule of the product lives outside: [the `oqas` command](../../cli/docs/solo-command.md) says the operations in a terminal, and [the API](../../api/docs/sessions.md) says them in HTTP, both on the database of the instance.
 
 ```ts
 import { liveRuntime, Run } from "@open-qa-stack/engine";
@@ -24,7 +24,7 @@ Each step starts only when the one before succeeded; once the prerequisites pass
 1. **Configuration.** `oqas.json`, at the root of the test repository, is read and validated, the environment is chosen, and the test charter is resolved.
 2. **Prerequisites.** The folder is the root of a git repository with a commit, the model server answers, `npm` can be run, and the repository is a Playwright project.
 3. **Cartography.** The sources without an up-to-date card are mapped, then consolidated into the domain index, by the cartographer of `@open-qa-stack/agents`.
-4. **Design.** The dependencies of the test repository are installed, then the tests are designed in passes on a new local branch, by the designer of `@open-qa-stack/agents`, each test checked against the charter and run against the application before it is kept.
+4. **Design.** The dependencies of the test repository are installed, then the tests are designed in passes on a new local branch, by the designer of `@open-qa-stack/agents`, each test checked against the charter and run against the application before it is kept. A run given the `branch` of an earlier one goes on with it instead: the design checks it out, reads the tests it holds as those of the repository, and commits its own on it.
 5. **Execution.** The tests designed run together, and the harness pronounces a verdict per test.
 6. **Summary.** The messages no agent received are told, the runtime of the agents is closed, and the state of the run is written.
 
@@ -151,12 +151,17 @@ const leave = events.subscribe({ event: (event) => show(event), ended: () => don
 | `stop(withinMs)` | Stops hosting: no other session starts, the one that runs is asked to stop, and its end is awaited for the time given. Resolves with `false` when it did not end in time: the execution is then left to end by itself, and gives up what the store, which its host closes, no longer takes. The beats end, and those the process gave are withdrawn: what it still hosts reads as left at once. No timer outlives it. |
 | `open(opening)` | Asks the store for the session, then starts it at once when none runs: it is returned `running`, or `queued` when it waits its turn. Raises `NoRepositoryError` on a host without a test repository. |
 | `say(id, message)` | Has the store take the message, which numbers it and tells it in the thread, then drops it in the inbox of the execution of the session when it runs here. |
+| `resume(id, message)` | Has the store resume a session that ended for a new turn on what the person says, then starts it at once when none runs, as `open` does: it is returned `running`, or `queued`. Raises `SessionStateError` for a session that goes on, which takes a message instead, and `NoRepositoryError` on a host without a test repository. |
 | `interrupt(id)` | Asks a session that runs here to stop; interrupts at once one that waits; leaves in the store the interruption of one another process runs. |
 | `project()`, `sessions()`, `session(id)` | Read what the store keeps. |
 | `thread(id)` | Reads the events of a session so far. |
 | `events(id, after)` | Gives the events of a session to follow, from a rank on, to its end. |
 
 A session that does not exist raises `UnknownSessionError`, and one that ended refuses a message or an interruption with `SessionEndedError`: the errors of `@open-qa-stack/domain`, which a presentation words for its client.
+
+### The turns of a session
+
+A session is worked on in turns: the first on what opened it, and one more each time a person resumes it once it ended. The run of a turn that resumes a session is asked what the person says now, after what its agents need of the turns before — what was asked first and since, the messages that reached an agent, the verdicts of the last turn that completed — and is given the branch the tests of those turns are on, which it goes on with: its design reads them as the tests of the repository, sets aside what they already cover, and commits its own tests beside them. A message no agent received in a turn before is handed to the agents of this one, as any message the session holds. The result of the session is that of its last turn, which the completion of the turn tells in the thread.
 
 ### In the process that hosts
 

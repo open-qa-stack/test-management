@@ -3,7 +3,7 @@ import { describe, it } from "vitest";
 import type { Session } from "@open-qa-stack/domain/sessions";
 import { conversationReducer } from "../../src/solo/conversation/conversation-reducer.ts";
 import { initialState, PICKED_SESSIONS, RECENT_SESSIONS, type ConversationState, type Printed } from "../../src/solo/conversation/conversation-state.ts";
-import { after, COMPLETED, FAILED, NOW, numbered, RUNNING, showing, THREAD } from "./fixtures.ts";
+import { after, COMPLETED, FAILED, NOW, numbered, RUNNING, showing, THREAD, endOf } from "./fixtures.ts";
 
 const HOME = after([]);
 const LIVE = showing();
@@ -144,7 +144,7 @@ describe("a thread that comes on screen", () => {
   it("is headed by its session, starts empty, and is of a session this process runs when it opened it", () => {
     const opened = after([{ type: "opened", session: RUNNING, hosted: true }]);
     assert.deepEqual(opened.printed.at(-1), { kind: "heading", session: RUNNING });
-    assert.deepEqual([opened.shown, opened.hosted], [{ session: RUNNING, events: [], settled: 0 }, [RUNNING.id]]);
+    assert.deepEqual([opened.shown, opened.hosted], [{ session: RUNNING, events: [], settled: 0, resumed: 0 }, [RUNNING.id]]);
     assert.deepEqual(after([{ type: "opened", session: FAILED, hosted: false }]).hosted, []);
   });
 
@@ -229,7 +229,7 @@ describe("the events of the session on screen", () => {
 
 describe("the end of the session on screen", () => {
   it("settles every block of its thread, the verdicts of its tests last, then writes what it came to", () => {
-    const ended = after([{ type: "ended", session: COMPLETED }], LIVE);
+    const ended = after(endOf(COMPLETED), LIVE);
     assert.deepEqual(printedOf(ended).slice(LIVE.printed.length), ["block:message", "block:pass", "block:action", "block:outcome", "result"]);
     assert.deepEqual(ended.printed.at(-1), { kind: "result", session: COMPLETED });
     assert.equal(ended.shown?.session, COMPLETED);
@@ -244,6 +244,22 @@ describe("the end of the session on screen", () => {
   it("is ignored when it is of another session than the one on screen, or when none is", () => {
     assert.equal(conversationReducer(LIVE, { type: "ended", session: FAILED }), LIVE);
     assert.equal(conversationReducer(HOME, { type: "ended", session: COMPLETED }), HOME);
+  });
+});
+
+describe("the session on screen once it is resumed", () => {
+  it("goes on with its thread for a new turn, which this process runs, and is followed anew", () => {
+    const picked = after([{ type: "opened", session: FAILED, hosted: false }, ...endOf(FAILED)]);
+    const resumed = after([{ type: "resumed", session: { ...FAILED, state: "running" } }], picked);
+    assert.deepEqual([resumed.shown?.session.state, resumed.shown?.resumed, resumed.shown?.events], ["running", 1, picked.shown?.events]);
+    assert.deepEqual(resumed.hosted, [FAILED.id]);
+    const again = after([...endOf({ ...FAILED, state: "interrupted" }), { type: "resumed", session: { ...FAILED, state: "queued" } }], resumed);
+    assert.deepEqual([again.shown?.resumed, again.hosted], [2, [FAILED.id]]);
+  });
+
+  it("is ignored when it is of another session than the one on screen, or when none is", () => {
+    assert.equal(conversationReducer(LIVE, { type: "resumed", session: FAILED }), LIVE);
+    assert.equal(conversationReducer(HOME, { type: "resumed", session: COMPLETED }), HOME);
   });
 });
 

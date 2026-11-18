@@ -294,6 +294,40 @@ describe("the events of a session, from a rank on", () => {
     resumed.leave();
   });
 
+  it("go on through an end a person resumed the session from, and end with the end of its last turn", async () => {
+    const { store, notifications, id } = await running();
+    await store.interrupt(id);
+    await store.resume(id, "Go on.", "host");
+    const { events, ends } = followed(new SessionEventStream(store, notifications, id, 0));
+    const after = followed(new SessionEventStream(store, notifications, id, 3));
+    await eventually(() => assert.deepEqual([events.length, after.events.length], [5, 2]));
+    await pause(20);
+    assert.deepEqual([ends, after.ends], [[], []]);
+    await store.start(id, "host");
+    await store.complete(id, { outcome: "passed", durationMs: 1, modelRequests: 1, tests: [] });
+    notifications.notify(id);
+    await eventually(() => assert.deepEqual([ends, after.ends], [["ended"], ["ended"]]));
+    assert.deepEqual(
+      events.map((event) => (event.type === "state_changed" ? event.state : event.type)),
+      ["user_message", "running", "interrupted", "user_message", "queued", "running", "completed"],
+    );
+  });
+
+  it("tell no end to a listener that left on the last event before it", async () => {
+    const { store, notifications, id } = await running();
+    await store.interrupt(id);
+    const ends: string[] = [];
+    const leave = new SessionEventStream(store, notifications, id, 0).subscribe({
+      event: (event) => {
+        if (event.id === 3) leave();
+      },
+      ended: () => ends.push("ended"),
+      failed: assert.fail,
+    });
+    await pause(20);
+    assert.deepEqual(ends, []);
+  });
+
   it("are read once more after a reading during which the session was notified, from the last event told", async () => {
     const { store, notifications, id } = await running();
     const reading = held();

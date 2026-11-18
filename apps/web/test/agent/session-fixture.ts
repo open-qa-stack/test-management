@@ -104,13 +104,28 @@ export const EVENTS: readonly SessionEvent[] = numbered([
 ]);
 
 /**
+ * The events of the session of the fixtures.
+ *
+ * @param session - The session.
+ * @returns Those of its work and, once it completed, the event that tells so with its result, at the date of its last event.
+ */
+export function eventsOf(session: Session): readonly SessionEvent[] {
+  if (session.state !== "completed") return EVENTS;
+  const { result } = session;
+  return [
+    ...EVENTS,
+    { id: EVENTS.length + 1, at: session.lastEventAt, type: "state_changed", state: "completed", ...(result === undefined ? {} : { result }) },
+  ];
+}
+
+/**
  * The steps of the session of the fixtures.
  *
  * @param session - The session; the one whose agents are working by default.
- * @param events - Its events; those of the fixtures by default.
+ * @param events - Its events; those of the fixtures for that session by default.
  * @returns Its script.
  */
-export function fixtureScript(session: Session = RUNNING, events: readonly SessionEvent[] = EVENTS): SessionScript {
+export function fixtureScript(session: Session = RUNNING, events: readonly SessionEvent[] = eventsOf(session)): SessionScript {
   return scriptOf(session, events);
 }
 
@@ -119,10 +134,10 @@ export function fixtureScript(session: Session = RUNNING, events: readonly Sessi
  *
  * @param session - The session; the one whose agents are working by default.
  * @param changes - What differs from the playback of a session just opened.
- * @param events - Its events; those of the fixtures by default.
+ * @param events - Its events; those of the fixtures for that session by default.
  * @returns The session, its stream open, no message on its way, with controls that do nothing.
  */
-export function liveOf(session: Session = RUNNING, changes: Partial<Playback> = {}, events: readonly SessionEvent[] = EVENTS): LiveSession {
+export function liveOf(session: Session = RUNNING, changes: Partial<Playback> = {}, events: readonly SessionEvent[] = eventsOf(session)): LiveSession {
   const script = scriptOf(session, events);
   const playback = { ...INITIAL_PLAYBACK, ...changes };
   return {

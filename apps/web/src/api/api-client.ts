@@ -77,6 +77,17 @@ export class ApiClient {
   }
 
   /**
+   * Resumes a session that ended with what the person says more to it, for a new turn of its work.
+   *
+   * @param id - The identifier of the session.
+   * @param message - What the person asks of the new turn.
+   * @returns The session, `running` or `queued` for its new turn; the failure carries the code `session_running` when the session goes on.
+   */
+  public resume(id: string, message: SessionMessage): Promise<Session> {
+    return this.#ask<Session>(`/sessions/${encodeURIComponent(id)}/resumption`, posting(message));
+  }
+
+  /**
    * Asks the instance to interrupt a session that goes on. The instance takes the request and answers at
    * once: the session ends when the process that runs it obeyed, which its stream tells.
    *

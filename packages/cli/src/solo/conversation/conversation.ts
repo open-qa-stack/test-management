@@ -13,7 +13,7 @@ import type { Theme } from "./palette.ts";
 const TICK_MS = 1000;
 
 /** The operations on sessions the conversation calls. */
-export type ConversationSessions = Pick<Sessions, "open" | "say" | "interrupt" | "sessions" | "session" | "events">;
+export type ConversationSessions = Pick<Sessions, "open" | "say" | "resume" | "interrupt" | "sessions" | "session" | "events">;
 
 /** How the person left the conversation. */
 export interface Leaving {
@@ -52,8 +52,9 @@ export interface ConversationProps {
  * @remarks
  * Everything the screen shows is in the state the reducer gives, and everything a key asks is read from that
  * state by `requestOf` and `interruptionOf`. This component does the rest, and nothing else: it follows the
- * events of the session on screen — subscribed when a thread comes on screen, left when another does or when
- * the conversation ends —, calls the operation a key asked for, and tells the reducer what came back. The
+ * events of the session on screen — subscribed when a thread comes on screen, again after its last event when
+ * the session is resumed for a new turn, left when another thread comes or when the conversation ends —, calls
+ * the operation a key asked for, and tells the reducer what came back. The
  * events a session tells in one go are given to the reducer together, so that a long thread reopened is read
  * once and not once per event.
  *
@@ -68,8 +69,11 @@ export function Conversation({ sessions, context, latest, theme, now, serve, rea
   const fail = (error: unknown): void => dispatch({ type: "failed", why: reasonOf(error) });
 
   const followed = state.shown?.session.id;
+  const turn = state.shown?.resumed;
   useEffect(() => {
     if (followed === undefined) return undefined;
+    // A turn the conversation resumed the session for is followed after what the thread already holds.
+    const after = state.shown?.events.at(-1)?.id ?? 0;
     let left = false;
     let leave = (): void => undefined;
     let told: SessionEvent[] = [];
@@ -89,14 +93,14 @@ export function Conversation({ sessions, context, latest, theme, now, serve, rea
       },
       failed: fail,
     };
-    void sessions.events(followed, 0).then((events) => {
+    void sessions.events(followed, after).then((events) => {
       if (!left) leave = events.subscribe(listener);
     }, fail);
     return () => {
       left = true;
       leave();
     };
-  }, [followed]);
+  }, [followed, turn]);
 
   const timed = state.shown !== undefined && !hasEnded(state.shown.session.state);
   useEffect(() => {
@@ -118,6 +122,8 @@ export function Conversation({ sessions, context, latest, theme, now, serve, rea
           .then((session) => dispatch({ type: "opened", session, hosted: true }), fail);
       case "say":
         return void sessions.say(request.session, { text: request.text }).catch(fail);
+      case "resume":
+        return void sessions.resume(request.session, { text: request.text }).then((session) => dispatch({ type: "resumed", session }), fail);
       case "confirm-stop":
         return void sessions.interrupt(request.session).catch(fail);
       case "pick":

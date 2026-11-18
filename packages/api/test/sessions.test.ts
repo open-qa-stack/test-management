@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { BadRequestException, Logger, type MessageEvent, NotFoundException } from "@nestjs/common";
 import type { HttpAdapterHost } from "@nestjs/core";
-import { SessionEndedError, UnknownSessionError } from "@open-qa-stack/domain";
+import { SessionEndedError, SessionStateError, UnknownSessionError } from "@open-qa-stack/domain";
 import type { MessageReceipt, Problem, ProblemCode, Project, Session, SessionEvent, SessionMessage, SessionOpening } from "@open-qa-stack/domain/sessions";
 import { type EventListener, NoRepositoryError, type SessionEventStream, type Sessions } from "@open-qa-stack/engine";
 import { DatabaseUnavailableError } from "@open-qa-stack/store";
@@ -221,11 +221,15 @@ describe("a problem", () => {
     assert.deepEqual(expectedProblem(new SessionError("session_running", "Wait.")), problemOf("session_running", "Wait."));
   });
 
-  it("is read from a refusal of the operations: a session that does not exist, one that ended, and no test repository to run one in, with what to set", () => {
+  it("is read from a refusal of the operations: a session that does not exist, one that ended, one that goes on and is resumed, and no test repository to run one in, with what to set", () => {
     assert.deepEqual(expectedProblem(new UnknownSessionError("s2")), problemOf("unknown_session", "No session s2."));
     assert.deepEqual(
+      expectedProblem(new SessionStateError("s1", "resume", "running")),
+      problemOf("session_running", "The session s1 takes no resume while it is running. It goes on: send it a message instead."),
+    );
+    assert.deepEqual(
       expectedProblem(new SessionEndedError("s1")),
-      problemOf("session_ended", "The session s1 no longer goes on. It takes no message and no interruption: open another session to go on."),
+      problemOf("session_ended", "The session s1 no longer goes on. It takes no message and no interruption: resume it with a message to go on."),
     );
     assert.deepEqual(
       expectedProblem(new NoRepositoryError()),

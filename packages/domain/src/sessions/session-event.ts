@@ -1,4 +1,4 @@
-import type { SessionState } from "./session.ts";
+import type { SessionResult, SessionState } from "./session.ts";
 
 /** An agent of a session. */
 export type AgentRole = "cartographer" | "planner" | "plan_reviewer" | "writer" | "coherence_reviewer" | "code_reviewer";
@@ -99,11 +99,11 @@ interface EventBase {
   readonly at: string;
 }
 
-/** The person said something: what opened the session, or a message sent while it was going on. */
+/** The person said something: what opened the session or resumed it once it had ended, or a message sent while it was going on. */
 export interface UserMessageEvent extends EventBase {
   readonly type: "user_message";
   readonly text: string;
-  /** The number of a message sent while the session was going on, from 1; left out for what opened it. */
+  /** The number of a message sent while the session was going on, from 1; left out for what opened or resumed it. */
   readonly number?: number;
 }
 
@@ -228,6 +228,8 @@ export interface ScenarioClosedEvent extends EventBase {
 export interface StateChangedEvent extends EventBase {
   readonly type: "state_changed";
   readonly state: SessionState;
+  /** What the turn of the session came to, when it is `completed`: the result the session holds until another turn starts. */
+  readonly result?: SessionResult;
 }
 
 /**

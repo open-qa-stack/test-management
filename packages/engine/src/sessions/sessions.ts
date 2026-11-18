@@ -14,9 +14,9 @@ import { DEFAULT_PACE, type SessionsPace } from "./sessions-pace.ts";
 import type { SessionsHost } from "./sessions-host.ts";
 
 /**
- * The operations on the sessions of an instance: open one, say something to it, interrupt it, read them, and
- * follow what one tells. Whatever shows the sessions — a REST API, a terminal — calls these and holds no rule
- * of its own.
+ * The operations on the sessions of an instance: open one, say something to it, resume it once it ended,
+ * interrupt it, read them, and follow what one tells. Whatever shows the sessions — a REST API, a terminal —
+ * calls these and holds no rule of its own.
  *
  * @remarks
  * The operations run the sessions in the process that hosts them, by calling the engine: no other process
@@ -169,14 +169,31 @@ export class Sessions {
    * @throws {@link NoRepositoryError} when the host has no test repository to run it in.
    * @throws What the store raises when it cannot take the session.
    */
-  async open(opening: SessionOpening): Promise<Session> {
-    const { repository, store } = this.#host;
-    if (repository === undefined) throw new NoRepositoryError();
-    await this.start();
-    const asked = await store.ask(opening, this.#identity);
-    this.#waiting.add(asked.id);
-    const started = await this.#startNext(repository);
-    return started?.id === asked.id ? started : asked;
+  open(opening: SessionOpening): Promise<Session> {
+    return this.#line((store) => store.ask(opening, this.#identity));
+  }
+
+  /**
+   * Resumes a session that ended with something more the person says to it: the store takes it as what is asked
+   * of a new turn, and the session runs that turn at once when no other does, and waits its turn otherwise.
+   *
+   * @remarks
+   * The run of the turn is asked what the person says now, with what the turns before did, and goes on with the
+   * branch their tests are on. The process that resumes the session hosts it from then on, as the one that opens a
+   * session does.
+   *
+   * @param id - The identifier of the session.
+   * @param message - What the person asks of the new turn.
+   * @returns The session: `running` when its turn started at once, `queued` when it waits.
+   * @throws {@link NoRepositoryError} when the host has no test repository to run it in.
+   * @throws `UnknownSessionError` when there is no such session, `SessionStateError` when it goes on: it takes a message instead.
+   */
+  resume(id: string, message: SessionMessage): Promise<Session> {
+    return this.#line(async (store) => {
+      const resumed = await store.resume(id, message.text, this.#identity);
+      this.#notifications.notify(id);
+      return resumed;
+    });
   }
 
   /**
@@ -215,6 +232,22 @@ export class Sessions {
     await this.#host.store.requestInterruption(id, this.#pace.silentAfterMs);
     this.#waiting.remove(id);
     this.#notifications.notify(id);
+  }
+
+  /**
+   * Has the store put a session in line for this host, then starts it when no other runs.
+   *
+   * @param ask - What the store is asked, which gives the session that waits.
+   * @returns The session: `running` when it started at once, `queued` when it waits.
+   */
+  async #line(ask: (store: SessionsHost["store"]) => Promise<Session>): Promise<Session> {
+    const { repository, store } = this.#host;
+    if (repository === undefined) throw new NoRepositoryError();
+    await this.start();
+    const asked = await ask(store);
+    this.#waiting.add(asked.id);
+    const started = await this.#startNext(repository);
+    return started?.id === asked.id ? started : asked;
   }
 
   /** Puts the store in order after whatever hosts died, starts the first session that waits, and beats from then on. */

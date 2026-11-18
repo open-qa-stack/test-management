@@ -82,7 +82,8 @@ function stageOf(session: Session): SessionStage {
  * Reads the events of a session as the steps its thread shows, in the words of a presentation.
  *
  * @remarks
- * What the session works on is a step of its own, which a presentation shows at the head of the thread. A phase starts a pass, a part of one when it reviews or writes a test, and none when it works on one source; a plan pass is
+ * What the session works on is a step of its own, which a presentation shows at the head of the thread; a later turn
+ * that works on the same tells it no more, and one that works on another tells it again. A phase starts a pass, a part of one when it reviews or writes a test, and none when it works on one source; a plan pass is
  * named after the level its request asks for. A message of the harness to an agent, of an agent, or of the
  * person is something said, and the delivery of a message the person sent during the session a step of its
  * own, so that a replay tells it when it happened; an action and its end are one step, worded as a sentence, pending until the tool
@@ -90,8 +91,10 @@ function stageOf(session: Session): SessionStage {
  * declares — and the verdict of each test a run ran; the call a reviewer hands its verdict in with is a review, its remarks
  * read from the arguments of the call, and what the harness answers and the word the reviewer replies with are kept
  * in it rather than told; a plan the harness accepted is told with each of its scenarios whole, and the refusals about each since its plan
- * started; a refusal is a verdict with its code, the scenario it is about and the parts of its text, a note a line of the harness. Once the session has ended it closes on the verdict of each test, or,
- * when none ran, on the scenarios the harness closed; an interruption is told. Every text is whole, as a person
+ * started; a refusal is a verdict with its code, the scenario it is about and the parts of its text, a note a line of the harness. Each
+ * turn of the session — what was asked, or what the person asked once it had ended, and the work it opened — closes with its end: on
+ * the verdict of each test of the result its completion tells, or, when none ran, on the scenarios the harness closed in the turn; an
+ * interruption is told. Every text is whole, as a person
  * needs it, since the end of a refusal says what to do; a title alone is put on one line.
  *
  * @param session - The session, as it was last told.
@@ -116,6 +119,8 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
   let previous: Alike | undefined;
   /** By reviewer, the rank of its verdict the harness just took, whose one-word reply is still to come. */
   const replies = new Map<string, number>();
+  /** The scope last told, as a text that compares it with the next. */
+  let scope: string | undefined;
   /** By scenario, the refusals of the harness about it since the plan of the pass started. */
   const refused = new Map<string, VerdictStep[]>();
   for (const event of events) {
@@ -216,9 +221,14 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
         };
         break;
       }
-      case "scope_resolved":
+      case "scope_resolved": {
+        // Each turn resolves its scope again: one that the turn before already told adds nothing, and one that changed is told where it did.
+        const told = JSON.stringify([event.environment, event.applications, event.levels]);
+        if (told === scope) break;
+        scope = told;
         steps.push({ kind: "scope", at, title: wording.scope, environment: event.environment, applications: event.applications, levels: event.levels });
         break;
+      }
       case "plan_accepted":
         steps.push({
           kind: "plan",
@@ -257,24 +267,24 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
       case "scenario_closed":
         closed.push({ title: event.scenario, level: event.level ?? "", verdict: event.verdict });
         break;
-      case "state_changed":
+      case "state_changed": {
         if (event.state === "interrupted") steps.push({ kind: "note", at, text: wording.interrupted });
+        if (event.state !== "interrupted" && event.state !== "completed") break;
+        // A turn closes on the verdict of each test of its result, or, when none ran, on the scenarios the harness closed in it.
+        const tests = event.result?.tests ?? [];
+        if (tests.length > 0)
+          steps.push({
+            kind: "outcome",
+            at,
+            title: wording.verdicts(tests.length),
+            tests: tests.map(({ id, verdict, reason }) => ({ title: testTitle(id), level: "", verdict, note: reason })),
+          });
+        else if (closed.length > 0) steps.push({ kind: "outcome", at, title: wording.closed(closed.length), tests: [...closed] });
+        closed.length = 0;
         break;
+      }
     }
   }
-  const stage = stageOf(session);
-  const last = steps.at(-1);
-  const tests = session.result?.tests ?? [];
-  if (stage === "ended" && last !== undefined && tests.length > 0) {
-    steps.push({
-      kind: "outcome",
-      at: last.at,
-      title: wording.verdicts(tests.length),
-      tests: tests.map(({ id, verdict, reason }) => ({ title: testTitle(id), level: "", verdict, note: reason })),
-    });
-  } else if (stage === "ended" && last !== undefined && closed.length > 0) {
-    steps.push({ kind: "outcome", at: last.at, title: wording.closed(closed.length), tests: closed });
-  }
   const opened = wording.opened(session.openedAt.slice(0, 10), clock(session.openedAt));
-  return { id: session.id, title: oneLine(session.request ?? asked ?? opened), sources: [...sources], stage, steps };
+  return { id: session.id, title: oneLine(session.request ?? asked ?? opened), sources: [...sources], stage: stageOf(session), steps };
 }

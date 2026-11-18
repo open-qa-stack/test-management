@@ -311,6 +311,8 @@ export interface Setup {
   readonly limits?: { maxIterations: number; maxMinutes: number; maxActions: number };
   readonly check?: TestCheck;
   readonly branch?: string | null;
+  /** The branch of an earlier design the design goes on with, when it goes on with one. */
+  readonly continued?: string;
   readonly env?: Readonly<Record<string, string>>;
   /** The visual tests of the design, when it makes some; none by default here, so that a design is its scenarios alone. */
   readonly visual?: boolean;
@@ -364,6 +366,7 @@ export async function design(script: readonly { status?: number; body: unknown }
       writerInstructions: writerInstructions(charter.rules, config.repository),
       browser: { actionTimeoutMs: 1000, navigationTimeoutMs: 3000, settleTimeoutMs: 0 },
       ...(setup.branch === null ? {} : { branch: setup.branch ?? BRANCH, now: () => new Date("2026-11-13T10:00:00.000Z") }),
+      ...(setup.continued === undefined ? {} : { continuedBranch: setup.continued }),
       ...(setup.check === undefined ? {} : { check: setup.check }),
       runner: setup.runner ?? new FakeTestRunner(),
       ...(setup.brief === undefined ? {} : { brief: setup.brief }),

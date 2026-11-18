@@ -181,7 +181,7 @@ describe("a session that ends", () => {
     now = 30;
     await store.complete(id, RESULT);
     assert.deepEqual(await store.session(id), { id, request: "cover the profile", openedAt: at(0), lastEventAt: at(30), state: "completed", result: RESULT });
-    assert.deepEqual((await store.eventsAfter(id, 0)).at(-1), { id: 3, at: at(30), type: "state_changed", state: "completed" });
+    assert.deepEqual((await store.eventsAfter(id, 0)).at(-1), { id: 3, at: at(30), type: "state_changed", state: "completed", result: RESULT });
   });
 
   it("is interrupted without a result, which its last event tells", async () => {
@@ -510,5 +510,67 @@ describe("an interruption another process asks for", () => {
     await store.complete(id, RESULT);
     await refused(() => store.requestInterruption(id, SILENCE_MS), SessionEndedError, id);
     await refused(() => store.requestInterruption("unknown", SILENCE_MS), UnknownSessionError, "unknown");
+  });
+});
+
+describe("a session a person resumes once it ended", () => {
+  it("waits again under the host that resumes it, without the result of the turn before, which its completion told; two events tell it", async () => {
+    const { id } = await started();
+    now = 30;
+    await store.complete(id, RESULT);
+    now = 40;
+    const resumed = await store.resume(id, "Fix the failing test.", OTHER);
+    assert.deepEqual(resumed, { id, request: "cover the profile", openedAt: at(0), lastEventAt: at(40), state: "queued" });
+    assert.deepEqual(await store.session(id), resumed);
+    assert.deepEqual(await gained(id, 3), [
+      { id: 4, at: at(40), type: "user_message", text: "Fix the failing test." },
+      { id: 5, at: at(40), type: "state_changed", state: "queued" },
+    ]);
+    assert.deepEqual(await hosting(id), { host: OTHER, seen: at(40), asked: null });
+    assert.deepEqual(await messages(id), [], "what is asked of a turn is no message for its agents");
+  });
+
+  it("goes on with a new turn, whose end is its own: started by its host, then completed with the result of that turn", async () => {
+    const { id } = await started();
+    await store.interrupt(id);
+    await store.resume(id, "Go on.", HOST);
+    await store.start(id, HOST);
+    const turn: SessionResult = { ...RESULT, outcome: "failed" };
+    await store.complete(id, turn);
+    assert.deepEqual([(await store.session(id))?.state, (await store.session(id))?.result], ["completed", turn]);
+    assert.deepEqual(
+      (await store.eventsAfter(id, 0)).flatMap((event) => (event.type === "state_changed" ? [event.state] : [])),
+      ["running", "interrupted", "queued", "running", "completed"],
+    );
+  });
+
+  it("forgets an interruption asked while the turn before ran", async () => {
+    const { id } = await started();
+    now = 4;
+    await store.requestInterruption(id, SILENCE_MS);
+    await store.interrupt(id);
+    await store.resume(id, "Go on.", HOST);
+    assert.equal((await hosting(id)).asked, null);
+    assert.deepEqual(await store.interruptionRequests(HOST), []);
+  });
+
+  it("is refused for a session that goes on, which takes a message instead, and for one that does not exist", async () => {
+    const waiting = await asked(0);
+    const running = await started();
+    for (const { id } of [waiting, running]) await refused(() => store.resume(id, "More.", HOST), SessionStateError, id);
+    await assert.rejects(store.resume(running.id, "More.", HOST), { message: `The session ${running.id} takes no resume while it is running.` });
+    await refused(() => store.resume("unknown", "More.", HOST), UnknownSessionError, "unknown");
+  });
+
+  it("is resumed by one of two people who resume it at the same time: the other is told it goes on", async () => {
+    const { id } = await started();
+    await store.complete(id, RESULT);
+    const resumptions = await Promise.allSettled([store.resume(id, "One.", HOST), store.resume(id, "Two.", OTHER)]);
+    assert.deepEqual(resumptions.map(({ status }) => status).sort(), ["fulfilled", "rejected"]);
+    assert.ok(resumptions.some((settled) => settled.status === "rejected" && settled.reason instanceof SessionStateError));
+    assert.deepEqual((await told(id)).slice(3), [
+      [4, "user_message"],
+      [5, "state_changed"],
+    ]);
   });
 });

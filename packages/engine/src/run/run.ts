@@ -49,6 +49,11 @@ export interface RunOptions {
   readonly environment?: string;
   /** What to test, in the developer's words; the designer works on the whole domain index without it. */
   readonly brief?: string;
+  /**
+   * The branch of an earlier run whose tests this one goes on with: the design checks it out and commits on it, and
+   * the state names it whatever the design wrote; a new branch by default.
+   */
+  readonly branch?: string;
   /** The environment of the process: the secrets and the accounts the configuration names. */
   readonly env: Readonly<Record<string, string | undefined>>;
   /** Receives the journal, an entry at a time, and keeps it. */
@@ -71,7 +76,7 @@ export interface RunOptions {
 
 /**
  * A run of the engine: it reads the configuration, checks the machine, maps the target, designs tests on a
- * new local branch, runs them, and writes a summary.
+ * new local branch, or on the branch of an earlier run it goes on with, runs them, and writes a summary.
  *
  * @remarks
  * The run works in the test repository, a folder, whoever hosts it: the branch, the tests, the cards and the
@@ -255,6 +260,7 @@ export class Run {
             levels: config.design.levels,
             ...observed,
             ...(brief === undefined ? {} : { brief }),
+            ...(this.options.branch === undefined ? {} : { continuedBranch: this.options.branch }),
           },
           config.design.passes,
           config.design.visualTests,
@@ -264,7 +270,9 @@ export class Run {
         return { value: outcome, ok: outcome.ok };
       });
       const tests = designed.value.tests.map((test) => test.path);
-      const { branch, statePath, stoppedBy, uncovered = [] } = designed.value;
+      const { statePath, stoppedBy, uncovered = [] } = designed.value;
+      // The tests of a run that goes on with an earlier one are on its branch, whether this one added any or not.
+      const branch = designed.value.branch ?? this.options.branch;
       found = {
         ...found,
         ...(uncovered.length === 0 ? {} : { uncovered }),

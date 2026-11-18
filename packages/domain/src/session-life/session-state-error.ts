@@ -2,7 +2,7 @@ import type { SessionCommand } from "./session-command.ts";
 
 /**
  * Raised when a command reaches a session that goes on in a state the command is not for: a session that
- * still waits is told an event, or one that runs is started again.
+ * still waits is told an event, one that runs is started again, or one that goes on is resumed.
  */
 export class SessionStateError extends Error {
   /**

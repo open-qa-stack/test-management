@@ -8,13 +8,14 @@ const PORT = /^[0-9]{1,5}$/;
 
 /**
  * What the person asks when they press Enter, read from the conversation as it is: to open a session, to say
- * something to the one on screen, one of the commands, the answer to what stands over the input — or nothing,
- * or something the conversation refuses, with why.
+ * something to the one on screen, to resume it once it ended, one of the commands, the answer to what stands over
+ * the input — or nothing, or something the conversation refuses, with why.
  */
 export type Request =
   | { readonly kind: "nothing" }
   | { readonly kind: "open"; readonly request: string }
   | { readonly kind: "say"; readonly session: string; readonly text: string }
+  | { readonly kind: "resume"; readonly session: string; readonly text: string }
   | { readonly kind: "pick"; readonly session: Session }
   | { readonly kind: "stop"; readonly session: string }
   | { readonly kind: "confirm-stop"; readonly session: string }
@@ -57,8 +58,8 @@ function commandOf(state: ConversationState, line: string): Request {
  * @param state - The conversation.
  * @returns The answer to what stands over the input when something does: the session the picker has selected,
  * or the stop that is confirmed. Otherwise what the input holds: nothing when it is empty, a command when it
- * starts with a slash, something said to the session on screen while it goes on, and what to test in a new
- * session when no session goes on there.
+ * starts with a slash, something said to the session on screen while it goes on, what resumes it for a new turn
+ * once it ended, and what to test in a new session when no session is on screen.
  */
 export function requestOf(state: ConversationState): Request {
   const { overlay, shown } = state;
@@ -70,5 +71,6 @@ export function requestOf(state: ConversationState): Request {
   const line = state.input.trim();
   if (line === "") return { kind: "nothing" };
   if (line.startsWith("/")) return commandOf(state, line);
-  return shown === undefined || hasEnded(shown.session.state) ? { kind: "open", request: line } : { kind: "say", session: shown.session.id, text: line };
+  if (shown === undefined) return { kind: "open", request: line };
+  return { kind: hasEnded(shown.session.state) ? "resume" : "say", session: shown.session.id, text: line };
 }

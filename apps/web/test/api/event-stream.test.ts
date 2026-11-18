@@ -55,6 +55,11 @@ describe("the stream of the events of a session", () => {
     assert.equal(FakeEventSource.opened.length, 2);
   });
 
+  it("starts after the last event already received, when it is given one", () => {
+    followEvents(SESSION_ID, { events: () => undefined, state: () => undefined }, 4);
+    assert.equal(FakeEventSource.last.url, `${STREAM}?after=4`);
+  });
+
   it("is open once the source opened, and reconnecting after a cut", () => {
     const { source, told } = follow();
     assert.deepEqual(told.states, []);

@@ -24,7 +24,7 @@ type Statements = Kysely<StoreSchema>;
 type SessionRow = Selectable<SessionsTable>;
 
 /** What a command changes of the row of a session, besides the date of its last event. */
-type SessionChange = Pick<Updateable<SessionsTable>, "state" | "result" | "host" | "host_seen_at">;
+type SessionChange = Pick<Updateable<SessionsTable>, "state" | "result" | "host" | "host_seen_at" | "interruption_requested_at">;
 
 /** A row of the sessions as the session it holds: what is absent is left out, dates are ISO 8601. */
 function sessionOf({ id, request, environment, opened_at, last_event_at, state, result }: SessionRow): Session {
@@ -44,8 +44,8 @@ function sessionOf({ id, request, environment, opened_at, last_event_at, state, 
  * keeps them: the truth of what the process that hosts the sessions does.
  *
  * @remarks
- * A session is asked for, started by its host, told event after event, sent messages, then ended. Each of
- * these commands is one transaction. Which states a command is for, and the state it leaves the session in,
+ * A session is asked for, started by its host, told event after event, sent messages, then ended, and
+ * resumed for another turn when the person says more to it. Each of these commands is one transaction. Which states a command is for, and the state it leaves the session in,
  * are what `SESSION_LIFE` says: the statements here are what holds them when two commands reach a session at
  * the same moment. A command on a session writes to its row first: two commands on the same session run one
  * after the other, so that each event takes the rank that follows the last and each message the number that
@@ -222,7 +222,8 @@ export class SessionStore implements SessionStorePort {
   }
 
   /**
-   * Ends a session whose work went to its end: it becomes `completed` with its result, and an event tells so.
+   * Ends a session whose work went to its end: it becomes `completed` with its result, and an event tells so
+   * with that result.
    *
    * @param id - The identifier of the session.
    * @param result - What the session came to.
@@ -231,7 +232,7 @@ export class SessionStore implements SessionStorePort {
    * @throws {@link SessionStateError} when the session still waits.
    */
   async complete(id: string, result: SessionResult): Promise<void> {
-    await this.#advance(id, "complete", (transaction) => this.#end(transaction, id, SESSION_LIFE.complete.to, { result: storedJson(result) }));
+    await this.#advance(id, "complete", (transaction) => this.#end(transaction, id, SESSION_LIFE.complete.to, { result: storedJson(result) }, { result }));
   }
 
   /**
@@ -268,6 +269,33 @@ export class SessionStore implements SessionStorePort {
       await transaction.insertInto("session_messages").values({ session_id: id, number, at, text }).execute();
       await this.#tell(transaction, id, [{ at, type: "user_message", text, number }]);
       return { number };
+    });
+  }
+
+  /**
+   * Resumes a session that ended with what a person says more to it: it waits, `queued`, for its host to start
+   * a new turn of work on that message, which an event tells as what was asked of the turn, without a number,
+   * then another the change of state. The process that resumes it is its host from then on, with this as its
+   * first beat on it; the session no longer holds the result of the turn before, which its completion told, and
+   * an interruption asked while that turn ran is forgotten.
+   *
+   * @param id - The identifier of the session.
+   * @param text - What the person asks of the new turn.
+   * @param host - What names the process that resumes it.
+   * @returns The session, now waiting.
+   * @throws {@link UnknownSessionError} when there is no such session.
+   * @throws {@link SessionStateError} when the session goes on: it takes a message instead.
+   */
+  resume(id: string, text: string, host: string): Promise<Session> {
+    const at = instant(this.#clock());
+    const state = SESSION_LIFE.resume.to;
+    return this.#advance(id, "resume", async (transaction, found) => {
+      const events: UnrankedEvent[] = [
+        { at, type: "user_message", text },
+        { at, type: "state_changed", state },
+      ];
+      await this.#tell(transaction, id, events, { state, result: null, host, host_seen_at: at, interruption_requested_at: null });
+      return sessionOf({ ...found, state, result: null, last_event_at: at });
     });
   }
 
@@ -435,9 +463,15 @@ export class SessionStore implements SessionStorePort {
     });
   }
 
-  /** Ends a session in the state given, with the event that tells it, dated as the session is. */
-  #end(transaction: Statements, id: string, state: "completed" | "interrupted", change: SessionChange = {}): Promise<void> {
-    return this.#tell(transaction, id, [{ at: instant(this.#clock()), type: "state_changed", state }], { ...change, state });
+  /** Ends a session in the state given, with the event that tells it and what that event carries besides, dated as the session is. */
+  #end(
+    transaction: Statements,
+    id: string,
+    state: "completed" | "interrupted",
+    change: SessionChange = {},
+    told: { result?: SessionResult } = {},
+  ): Promise<void> {
+    return this.#tell(transaction, id, [{ at: instant(this.#clock()), type: "state_changed", state, ...told }], { ...change, state });
   }
 
   /** Appends events to a session whose row the transaction holds, and dates the session by the last of them. */

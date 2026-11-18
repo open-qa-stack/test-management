@@ -63,7 +63,7 @@ export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
        oqas [--repository <folder>] --init
 
 Without a command, in a terminal, opens a conversation: say what to test and a session opens, its thread is
-followed live, what you type is said to its agents, and / lists the commands. With --brief, opens a session: maps the target application, designs Playwright tests on a new local branch, runs
+followed live, what you type is said to its agents or, once it ended, goes on with it, and / lists the commands. With --brief, opens a session: maps the target application, designs Playwright tests on a new local branch, runs
 them and gives a verdict per test. The other commands read the sessions of the test repository and act on one,
 from any terminal: <session> is its identifier, or the start or the end of it when no other session shares it.
 With --ui, serves the console of the test repository in a browser, on this machine, until Ctrl-C: the sessions
@@ -73,7 +73,8 @@ Commands:
   sessions               List the sessions, the latest first.
   show <session>         Print a session and its thread so far.
   attach <session>       Follow a session to its end, as the command that opened it does.
-  say <session> <text>   Say something to the agents of a session that goes on.
+  say <session> <text>   Say something to the agents of a session that goes on, or go on with one that ended:
+                         its new turn runs here, followed to its end.
   stop <session>         Interrupt a session that goes on.
 
 Options:

@@ -337,35 +337,13 @@ describe("the end of a script", () => {
     { type: "scenario_closed", scenario: "create", verdict: "failed" },
   ];
 
-  it("closes on the verdict of each test of the result, named by its title alone, at the time of the last step", () => {
+  it("closes on the verdict of each test of the result its completion tells, in the words of the console, at the time it completed", () => {
     const { steps } = fixtureScript(COMPLETED);
-    assert.equal(steps.length, 14);
     assert.deepEqual(steps.at(-1), {
       kind: "outcome",
-      at: "14:44:20",
+      at: "14:44:30",
       title: "Verdict de l’exécution : 1 test",
       tests: [{ title: "Rechercher un client par son nom", level: "", verdict: "passed", note: "Every attempt passed." }],
-    });
-  });
-
-  it("prefers the tests of the result to the scenarios the harness closed, and names a test its runner prefixes with nothing as it is", () => {
-    const session: Session = {
-      ...COMPLETED,
-      result: {
-        ...COMPLETED.result!,
-        outcome: "failed",
-        tests: [...COMPLETED.result!.tests, { id: "Créer un client", verdict: "failed", reason: "An assertion failed." }],
-      },
-    };
-    const last = scriptWith(CLOSED, session).steps.at(-1);
-    assert.deepEqual(last, {
-      kind: "outcome",
-      at: "14:44:06",
-      title: "Verdict de l’exécution : 2 tests",
-      tests: [
-        { title: "Rechercher un client par son nom", level: "", verdict: "passed", note: "Every attempt passed." },
-        { title: "Créer un client", level: "", verdict: "failed", note: "An assertion failed." },
-      ],
     });
   });
 
@@ -383,21 +361,6 @@ describe("the end of a script", () => {
         ],
       },
     ]);
-    const empty: Session = { ...COMPLETED, result: { ...COMPLETED.result!, outcome: "stopped", tests: [] } };
-    assert.equal(scriptWith(CLOSED, empty).steps.at(-1)?.kind, "outcome");
-  });
-
-  it("closes on nothing while the session goes on, when it produced nothing, or when it has no step", () => {
-    assert.deepEqual(
-      scriptWith(CLOSED).steps.map((step) => step.kind),
-      ["pass"],
-    );
-    assert.deepEqual(
-      scriptWith([{ type: "phase_started", phase: "plan" }], INTERRUPTED).steps.map((step) => step.kind),
-      ["pass"],
-    );
-    assert.deepEqual(scriptOf(COMPLETED, []).steps, []);
-    assert.deepEqual(scriptWith([{ type: "scenario_closed", scenario: "search", verdict: "passed" }], INTERRUPTED).steps, []);
   });
 });
 
