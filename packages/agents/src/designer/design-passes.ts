@@ -68,7 +68,8 @@ export class DesignPasses {
         tests: [...merged.tests, ...pass.tests],
         journal: [...merged.journal, ...pass.journal, said],
       };
-      if (pass.stoppedBy !== undefined) break;
+      // A pass cut short by a limit, or that could not start, leaves nothing the next could build on: they stop there.
+      if (pass.stoppedBy !== undefined || pass.unstarted === true) break;
     }
     return merged;
   }
