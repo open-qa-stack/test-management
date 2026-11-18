@@ -440,7 +440,12 @@ export class TestProposals {
     const told =
       failed === undefined
         ? []
-        : [this.mask(failureHint(failed.reason, scenario.application)), ...shown.map((line) => this.mask(line)), this.failedRuns(cursor, scenario)];
+        : [
+            ...(page !== undefined && signedOut(page, content) ? [SIGNED_OUT] : []),
+            this.mask(failureHint(failed.reason, scenario.application)),
+            ...shown.map((line) => this.mask(line)),
+            this.failedRuns(cursor, scenario),
+          ];
     return [...twice, this.described(trial), ...told, cursor.next()].join("\n");
   }
 
@@ -977,4 +982,15 @@ function described(trial: TestTrial, mask: (text: string) => string): string {
   });
   const logs = trial.tests.some((test) => test.verdict !== "passed") ? [`The logs of the services since ${trial.startedAt} tell what they did meanwhile.`] : [];
   return [`Run of the file: ${verdictOf(trial)}.`, ...tests, ...logs].join("\n");
+}
+
+/** A line of a snapshot of a field that takes a password: the page asks to sign in. */
+const PASSWORD_FIELD = /^- textbox "[^"]*password[^"]*"/i;
+
+/** What the agent is told of a run that failed on a page that asks to sign in. */
+const SIGNED_OUT = `The page at the failure asks to sign in: the test starts signed out, and signs in nowhere. Sign in at its first step, with the lines the browser tools gave when you signed in, which read the account from process.env; a locator or a wait would not get past this page.`;
+
+/** Whether a test that failed was left signed out: the page at the failure asks for a password, and the test types no credential of an account. */
+function signedOut(page: readonly string[], content: string): boolean {
+  return page.some((line) => PASSWORD_FIELD.test(line)) && !/\.fill\(process\.env\./.test(content);
 }
