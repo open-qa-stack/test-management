@@ -46,7 +46,16 @@ describe("the syntax of a TypeScript module", () => {
     assert.deepEqual(await moduleSyntax(`import { test } from "@playwright/test";\ntest("x", async () => {\n`), {
       ok: false,
       error: `line 1, column 1: unexpected "import { test } from \\"@playwright/test\\";"`,
-    });
+    }); // A string left open makes the whole file an error: the place given is the one inside it that went wrong.
+    const open = [
+      'import { test } from "@playwright/test";',
+      'test("a", async ({ page }, testInfo) => {',
+      '  await page.goto("/");',
+      '  await testInfo.attach("1", { body: await page.screenshot(), contentType: "image/png\' });',
+      "});",
+      "",
+    ].join("\n");
+    assert.deepEqual(await moduleSyntax(open), { ok: false, error: 'line 4, column 91: missing "\\""' });
   });
 });
 
