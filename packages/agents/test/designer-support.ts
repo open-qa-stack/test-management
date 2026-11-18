@@ -9,7 +9,7 @@ import { CopilotAgentRuntime, ModelGateway, resolveCharter, writerInstructions }
 import { validateConfig, type DomainIndex, type ResolvedConfig, type SourceCard } from "@open-qa-stack/shared";
 import { answer, scriptedServer, testSite, toolCalls, type ScriptedServer, type TestSite } from "@open-qa-stack/testing";
 import type { PlanReview, ProposedTest, ScenarioLevel, TestCheck, TestRunner, TestTrial } from "@open-qa-stack/domain";
-import { Designer, readPlanFile, type DesignOutcome, type DesignState, type PlanRecord } from "../src/index.ts";
+import { Designer, readPlanFile, type DesignOutcome, type DesignState, type PersonInbox, type PlanRecord, type TraceLine } from "../src/index.ts";
 
 export const MODEL = "test-model";
 
@@ -316,7 +316,9 @@ export interface Setup {
   readonly reviewCode?: boolean;
   /** The levels the plan is asked for; `default` for those of the designer itself. */
   readonly levels?: readonly ScenarioLevel[] | "default";
-  readonly observe?: (line: { event: { type: string } }) => void;
+  readonly observe?: (line: TraceLine) => void;
+  /** The inbox of the run the design is of, when a person may speak to it. */
+  readonly inbox?: PersonInbox;
   readonly resume?: { readonly state: string; readonly branch?: string };
   /** Whether the configuration declares that the model reads images. */
   readonly vision?: boolean;
@@ -365,6 +367,7 @@ export async function design(script: readonly { status?: number; body: unknown }
       ...(setup.levels === "default" ? {} : { levels: setup.levels ?? ["functional"] }),
       ...(setup.observe === undefined ? {} : { observe: setup.observe }),
       ...(setup.resume === undefined ? {} : { resume: setup.resume }),
+      ...(setup.inbox === undefined ? {} : { inbox: setup.inbox }),
     });
     return { outcome: await designer.run(), root, server, before };
   } finally {

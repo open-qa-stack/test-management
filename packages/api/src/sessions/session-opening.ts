@@ -1,4 +1,4 @@
-import { isRecord } from "../json.ts";
+import { requestBody } from "./request-body.ts";
 import { SessionError } from "./session-error.ts";
 import type { SessionOpening } from "@open-qa-stack/shared/sessions";
 
@@ -26,11 +26,7 @@ function isText(value: unknown): value is string {
  * {@link MAX_REQUEST_LENGTH}, `environment` that is given and is not a text, is empty or starts with `--`.
  */
 export function sessionOpeningOf(body: unknown): SessionOpening {
-  if (!isRecord(body)) throw new SessionError("invalid_request", "The body must be a JSON object.");
-  const known: readonly string[] = FIELDS;
-  const unknown = Object.keys(body).find((field) => !known.includes(field));
-  if (unknown !== undefined) throw new SessionError("invalid_request", `${unknown} is not a field of a request to open a session.`);
-  const { request, environment } = body;
+  const { request, environment } = requestBody(body, FIELDS, "a request to open a session");
   if (!isText(request)) throw new SessionError("invalid_request", "request must be a text that is not empty and does not start with --.");
   if (request.length > MAX_REQUEST_LENGTH) throw new SessionError("invalid_request", `request must not be longer than ${MAX_REQUEST_LENGTH} characters.`);
   if (environment === undefined) return { request };

@@ -1,5 +1,5 @@
 import { Observable } from "rxjs";
-import type { Project, Session, SessionEvent, SessionOpening } from "@open-qa-stack/shared/sessions";
+import type { MessageReceipt, Project, Session, SessionEvent, SessionMessage, SessionOpening } from "@open-qa-stack/shared/sessions";
 
 /**
  * Where the sessions of the instance come from: what the routes read them from and open them with.
@@ -42,4 +42,19 @@ export abstract class SessionSource {
    * not start in time.
    */
   abstract open(opening: SessionOpening): Promise<Session>;
+
+  /**
+   * Takes a message a person sends to a session that is going on, for the agents at work in it.
+   *
+   * @remarks
+   * A message that is taken is not delivered yet: the events of the session tell it, under its number, then
+   * the agent it reached.
+   *
+   * @param id - The identifier of a session.
+   * @param message - What the person says.
+   * @returns The receipt, which numbers the message in the session; `undefined` when there is no such session.
+   * @throws {@link SessionError} `session_ended` when the session no longer goes on, `unavailable` when the
+   * source takes no message.
+   */
+  abstract send(id: string, message: SessionMessage): Promise<MessageReceipt | undefined>;
 }

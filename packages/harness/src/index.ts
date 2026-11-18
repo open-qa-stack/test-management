@@ -30,6 +30,7 @@ export {
   type RunOutcome,
   type RunResult,
 } from "./runner/pinned-run.ts";
+export { runInboxFile } from "./runner/run-inbox-file.ts";
 export { LocalRunner } from "./runner/local-runner.ts";
 export { TRIALS_FOLDER, TrialRunner } from "./runner/trial-runner.ts";
 export { listedTests, reportedTests } from "./runner/reporter-json.ts";

@@ -41,7 +41,7 @@ Specialised agents work in turn, level by level: smoke, functional, business, cr
 ## Watch the agents work
 
 <p align="center">
-  <img src="docs/assets/console-session.png" width="100%" alt="The console of Open QA Stack following a session live: the planner, a line per action with its duration, and two refusals of the harness, one with its code. Beside the thread, the page the agent has before its eyes.">
+  <img src="docs/assets/console-session.png" width="100%" alt="The console of Open QA Stack following a session live: the planner, a line per action with its duration, two refusals of the harness, one with its code, and under the thread the field to speak to the agents.">
 </p>
 
 The console shows the agents at work, live: what each of them thinks, what it tells the others, what it does, and every time the harness says no — with the reason. Nothing in it is sample data: it follows the sessions of an instance through its API, event by event, and a session that ended can be replayed step by step. The agents are the first part of the console; its other screens are on their way.

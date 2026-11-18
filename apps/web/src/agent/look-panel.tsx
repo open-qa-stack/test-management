@@ -35,7 +35,7 @@ export function LookPanel({ opened, close }: LookPanelProps): ReactNode {
           </p>
         </div>
         <a className="look-panel-close" href={close} aria-label="Fermer">
-          <Icon name="close" size={18} />
+          <Icon name="close" size={20} />
         </a>
       </header>
       <LookView look={opened.look} />

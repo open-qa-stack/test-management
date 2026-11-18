@@ -29,3 +29,40 @@ export function traced(seconds: number, phase: string, actor: "harness" | "agent
 export function entry(seconds: number, step: string, event: string, message: string): string {
   return `${JSON.stringify({ at: at(seconds), step, event, message })}\n`;
 }
+
+/**
+ * Writes a line of the inbox of a run.
+ *
+ * @param seconds - When, in seconds after the start of the first run.
+ * @param text - What the person says.
+ * @returns The line, as the instance appends it, with its end.
+ */
+export function sent(seconds: number, text: string): string {
+  return `${JSON.stringify({ at: at(seconds), text })}\n`;
+}
+
+/**
+ * Writes the line the harness traces when it delivers a message of the person to the session of a phase.
+ *
+ * @param seconds - When, in seconds after the start of the first run.
+ * @param phase - The phase of the session that received it.
+ * @param message - The number of the message.
+ * @param text - What the person said.
+ * @returns The line, with its end.
+ */
+export function delivered(seconds: number, phase: string, message: number, text = "said"): string {
+  return traced(seconds, phase, "harness", { type: "person", message, text });
+}
+
+/**
+ * Writes the line the harness traces when it delivers a message of the person, dated by the clock of the
+ * machine: a message the instance took is dated by that clock, and its delivery comes after it.
+ *
+ * @param phase - The phase of the session that received it.
+ * @param message - The number of the message.
+ * @param text - What the person said.
+ * @returns The line, with its end.
+ */
+export function deliveredNow(phase: string, message: number, text: string): string {
+  return `${JSON.stringify({ at: new Date().toISOString(), phase, actor: "harness", event: { type: "person", message, text } })}\n`;
+}

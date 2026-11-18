@@ -47,6 +47,11 @@ export class TestRepository {
     return join(this.root, this.#stateDir, "runs", `${id}.jsonl`);
   }
 
+  /** The inbox of a run, absolute. */
+  inboxPath(id: string): string {
+    return join(this.root, this.#stateDir, "runs", `${id}.inbox.jsonl`);
+  }
+
   /** The state of a run, absolute. */
   statePath(id: string): string {
     return join(this.root, this.#stateDir, "runs", `${id}.json`);
@@ -60,6 +65,11 @@ export class TestRepository {
   /** Appends text to the journal of a run, which it starts when it has none. */
   journal(id: string, text: string): void {
     this.#append(this.journalPath(id), text);
+  }
+
+  /** Appends text to the inbox of a run, which it starts when it has none, as a person who writes to it by hand does. */
+  inbox(id: string, text: string): void {
+    this.#append(this.inboxPath(id), text);
   }
 
   /** Appends text to the trace of an agent, which it starts when it has none. */

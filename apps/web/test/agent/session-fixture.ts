@@ -5,7 +5,15 @@ import type { SessionScript } from "../../src/agent/session-script.ts";
 import { scriptOf } from "../../src/agent/session-steps.ts";
 
 /** Controls that do nothing: a rendering in a test listens to none of them. */
-export const NO_CONTROLS: SessionControls = { toggle: () => {}, restart: () => {}, faster: () => {}, skip: () => {}, follow: () => {} };
+export const NO_CONTROLS: SessionControls = {
+  toggle: () => {},
+  restart: () => {},
+  faster: () => {},
+  skip: () => {},
+  follow: () => {},
+  say: () => {},
+  sayOnEnter: () => {},
+};
 
 /** The identifier of the session of the fixtures. */
 export const SESSION_ID = "oqas-2026-11-15T14-44-06-348Z";
@@ -92,10 +100,10 @@ export function fixtureScript(session: Session = RUNNING, events: readonly Sessi
  * @param session - The session; the one whose agents are working by default.
  * @param changes - What differs from the playback of a session just opened.
  * @param events - Its events; those of the fixtures by default.
- * @returns The session, its stream open, with controls that do nothing.
+ * @returns The session, its stream open, no message on its way, with controls that do nothing.
  */
 export function liveOf(session: Session = RUNNING, changes: Partial<Playback> = {}, events: readonly SessionEvent[] = EVENTS): LiveSession {
   const script = scriptOf(session, events);
   const playback = { ...INITIAL_PLAYBACK, ...changes };
-  return { session, stream: "open", script, playback, frame: frameOf(script, playback), controls: NO_CONTROLS };
+  return { session, stream: "open", script, playback, frame: frameOf(script, playback), saying: { state: "idle" }, controls: NO_CONTROLS };
 }

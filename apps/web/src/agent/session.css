@@ -1,81 +1,102 @@
 /*
  * The screen of a session: its thread alone, in one column that stays comfortable to read however wide the
- * screen. What an agent had before its eyes opens on demand, in a panel: the whole screen of a phone, a drawer
- * at the right from 1100 px, which the thread makes room for. From 720 px a line holds more: what belongs to
- * the harness is set in under the pictures of the agents.
+ * screen, and starts where the title of the page does. While the agents work, the composer of a message to
+ * them stays at the bottom of the window, under that column. What an agent had before its eyes opens on demand,
+ * in a panel: the whole screen of a phone, a drawer at the right from 1100 px, which the thread makes room for.
+ * From 720 px a line holds more: what an agent did and what belongs to the harness start on one keyline, beside
+ * the pictures of the agents.
  */
 .session {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--gap-turn);
   width: 100%;
-  max-width: 860px;
+  max-width: var(--column);
   min-width: 0;
-  margin-inline: auto;
 }
 
-/* The bar of a session: its state and its facts, or the controls of its replay. */
+/*
+ * The bar of a session: its state and its facts, or the controls of its replay. A panel, whose buttons take the
+ * radius its padding leaves; what it reads as text is set in as the text of a card is.
+ */
 .session-bar {
   position: relative;
+  isolation: isolate;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 8px;
-  padding: 8px 8px 8px 12px;
-  border: 1px solid var(--hairline);
-  border-radius: 10px;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-panel);
+}
+
+/* A bar that follows the page hides what the thread would show over it, and around its upper corners. */
+.session-bar::before {
+  content: "";
+  position: absolute;
+  inset: calc(-1 * var(--space-2)) 0 50%;
+  z-index: -1;
+  background: var(--sheet);
+}
+
+/* The surface of the bar, drawn over what hides the thread. */
+.session-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border: var(--hairline) solid var(--line);
+  border-radius: inherit;
   background: var(--surface);
-  box-shadow: 0 1px 2px var(--shadow-soft);
+  box-shadow: var(--elevation-rest);
 }
 
 .session-bar .badge {
-  margin-right: auto;
+  margin: 0 auto 0 var(--space-2);
 }
 
 .session-facts {
   order: 1;
   flex-basis: 100%;
+  padding: 0 var(--space-2) var(--space-1);
   color: var(--text-3);
-  font-size: var(--fs-s);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
   overflow-wrap: anywhere;
-}
-
-/* A bar that follows the page hides the strip the thread would show over it. */
-.session-bar::before {
-  content: "";
-  position: absolute;
-  inset: -9px -1px 100%;
-  background: var(--sheet);
 }
 
 /* The controls of a replay follow the page, since the thread scrolls as it is written. */
 .session-bar.replay {
   position: sticky;
-  top: 8px;
+  top: var(--space-2);
   z-index: 2;
-  padding-left: 8px;
+}
+
+.session-bar.replay::after {
+  box-shadow: var(--elevation-raised);
 }
 
 /* On a phone the controls keep to their icons, their names left to a screen reader, and the progress goes over them. */
 .btn-label {
   position: absolute;
-  width: 1px;
-  height: 1px;
+  width: var(--hairline);
+  height: var(--hairline);
   overflow: hidden;
   clip-path: inset(50%);
 }
 
 /* The speed keeps its width as its figure changes. */
 .playback-speed {
-  min-width: 44px;
+  min-width: var(--space-12);
 }
 
 .playback-progress {
   order: -1;
   flex-basis: 100%;
-  height: 6px;
+  height: var(--space-1);
+  margin: var(--space-1) var(--space-2);
   overflow: hidden;
-  border-radius: 3px;
+  border-radius: var(--radius-pill);
   background: var(--neutral-soft);
 }
 
@@ -93,7 +114,6 @@
 .pass-stepper {
   display: flex;
   align-items: center;
-  padding: 2px 4px;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -106,19 +126,20 @@
 }
 
 .pass-step .sep {
-  width: 16px;
-  height: 1px;
-  margin: 0 10px;
+  width: var(--space-4);
+  height: var(--hairline);
+  margin: 0 var(--space-2);
   background: var(--line);
 }
 
 .pass-step .s {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   color: var(--text-3);
-  font-size: var(--fs-s);
-  font-weight: 500;
+  font-size: var(--type-small);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-small);
 }
 
 .pass-step .s.cur,
@@ -130,13 +151,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-pill);
   background: var(--neutral-soft);
   color: var(--text-2);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--type-caption);
+  font-weight: var(--weight-strong);
 }
 
 .pass-step .done .n {
@@ -153,57 +174,179 @@
 .thread-filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--space-2);
 }
 
 .thread,
 .thread-item {
   display: flex;
   flex-direction: column;
-  gap: 10px;
   min-width: 0;
 }
 
-/* The end of the thread, which the console keeps in view while a run writes. */
-.thread-end {
-  height: 1px;
-  scroll-margin-bottom: 40px;
+/*
+ * What stands apart in the thread, each step twice the one before: the rows of a turn, then the turns, then
+ * the passes. The harness that hands the work over, and the label of a part of a pass, stay close to what they open.
+ */
+.thread-item + .thread-item,
+.thread-item + .working {
+  margin-top: var(--gap-turn);
 }
 
-/* What the person asked: a bubble at the right, as in a conversation. */
+.thread-item:has(> .brief) + .thread-item,
+.thread-item:has(> .pass.minor) + .thread-item {
+  margin-top: var(--gap-row);
+}
+
+.thread-item + .thread-item:has(> .pass:not(.minor)) {
+  margin-top: var(--gap-pass);
+}
+
+/* The end of the session, which the console keeps in view while a run writes: under the composer when there is one, so that the thread ends over it. */
+.session-end {
+  height: var(--hairline);
+  scroll-margin-bottom: var(--space-12);
+}
+
+/* A session that takes messages fills the window, so that its composer stands at the bottom however short its thread. */
+.shell-page:has(.composer) {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 0;
+}
+
+.content:has(.composer) {
+  flex: 1 0 auto;
+  padding-bottom: 0;
+}
+
+.session:has(.composer) {
+  flex: 1 0 auto;
+}
+
+/*
+ * Where the person speaks to the agents: a strip that follows the bottom of the window and hides the thread
+ * that scrolls under it, clear of what a phone keeps for itself down there.
+ */
+.composer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-line);
+  margin-top: auto;
+  padding: var(--space-2) 0 max(var(--space-3), env(safe-area-inset-bottom));
+  background: var(--sheet);
+}
+
+/* The end of the session stands at the foot of the composer, and takes no room under it. */
+.composer + .session-end {
+  margin-top: calc(-1 * (var(--gap-turn) + var(--hairline)));
+}
+
+/* The frame of the message: a panel raised over the thread, whose button takes the radius its padding leaves. */
+.composer-field {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  padding: var(--inset-panel);
+  border: var(--hairline) solid var(--field-line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  box-shadow: var(--elevation-raised);
+}
+
+/* The frame shows the focus of its field, which has no outline of its own. */
+.composer-field:focus-within {
+  border-color: var(--primary);
+  box-shadow: var(--halo);
+}
+
+/*
+ * At 16 px a phone does not zoom on the field when it takes the focus. One line stands as high as the button
+ * beside it, its text on the middle of that button; where a browser can, the field grows with what is written.
+ */
+.composer textarea {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--control);
+  max-height: calc(8 * var(--leading-reading));
+  padding: calc((var(--control) - var(--leading-reading)) / 2) var(--space-2);
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--type-reading);
+  line-height: var(--leading-reading);
+  field-sizing: content;
+  resize: none;
+}
+
+.composer textarea::placeholder {
+  color: var(--text-3);
+  opacity: 1;
+}
+
+.composer-refused {
+  margin: 0;
+  padding: 0 var(--pad);
+  color: var(--ko);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+}
+
+/* What the person asked: a bubble at the right, as in a conversation, which keeps the lines the person wrote. */
 .request {
   align-self: flex-end;
-  max-width: 88%;
-  padding: 10px 14px;
-  border-radius: 14px 14px 4px 14px;
+  max-width: min(88%, var(--measure));
+  padding: var(--space-3) var(--pad);
+  border-radius: var(--radius-panel) var(--radius-panel) var(--radius-inner) var(--radius-panel);
   background: var(--brand-navy);
   color: var(--on-brand);
-  font-size: var(--fs-read);
+  font-size: var(--type-reading);
+  line-height: var(--leading-reading);
   overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
-/* The picture of who speaks: a rounded square in the colour of its family, dark enough for its white icon. */
+/* What the person said since, and under it where that message is, under the text of the bubble. */
+.sent {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--gap-line);
+}
+
+.sent-status {
+  padding-right: var(--pad);
+  color: var(--text-3);
+  font-size: var(--type-caption);
+  line-height: var(--leading-caption);
+}
+
+/* The picture of who speaks: a square in the colour of its family, dark enough for its white icon, rounded by a quarter of its side. */
 .speaker-mark {
   flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
+  width: var(--picture);
+  height: var(--picture);
+  border-radius: var(--radius-control);
   color: var(--on-brand);
 }
 
 .speaker-mark.sm {
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
+  width: var(--picture-sm);
+  height: var(--picture-sm);
+  border-radius: var(--radius-inner);
 }
 
 .speaker-mark.lg {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
+  width: var(--space-12);
+  height: var(--space-12);
+  border-radius: var(--radius-card);
 }
 
 .speaker-mark.tone-primary {
@@ -227,14 +370,14 @@
 }
 
 /*
- * A turn of an agent: its picture and its name, then what it thought, said and did. On a phone what follows
- * the name takes the whole width; it is set in under the name once a line holds more.
+ * A turn of an agent: its picture and its name, then what it thought, said and did, which starts on the
+ * keyline, under the name, at every width.
  */
 .turn {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 6px 10px;
-  align-items: center;
+  grid-template-columns: var(--picture) minmax(0, 1fr);
+  gap: var(--gap-row) var(--space-3);
+  align-items: start;
 }
 
 .turn-body {
@@ -242,15 +385,17 @@
 }
 
 .turn-body > * {
-  grid-column: 1 / -1;
+  grid-column: 2;
 }
 
+/* The time of a turn ends where the times of the cards and of the actions do. */
 .turn-body > .turn-head {
-  grid-column: 2;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-width: 0;
+  min-height: var(--picture);
+  padding-right: var(--pad);
 }
 
 /*
@@ -262,11 +407,11 @@
   display: inline-flex;
   align-items: center;
   min-width: var(--tap);
-  min-height: max(30px, var(--tap));
-  margin-block: calc((30px - max(30px, var(--tap))) / 2);
-  border-radius: var(--r);
+  min-height: max(var(--picture), var(--tap));
+  margin-block: calc((var(--picture) - max(var(--picture), var(--tap))) / 2);
+  border-radius: var(--radius-inner);
   color: var(--text);
-  font-weight: 700;
+  font-weight: var(--weight-strong);
   text-decoration: none;
 }
 
@@ -278,7 +423,8 @@
 .turn-role {
   min-width: 0;
   color: var(--text-3);
-  font-size: var(--fs-s);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
 }
 
 .turn-head .turn-role {
@@ -288,41 +434,71 @@
   white-space: nowrap;
 }
 
+/* A time: on the line of the text it stands beside. */
 .turn-at {
   flex: none;
   margin-left: auto;
   color: var(--text-3);
   font-family: var(--font-mono);
-  font-size: var(--fs-xs);
+  font-size: var(--type-caption);
+  line-height: var(--leading-body);
+}
+
+/* What is read at length keeps to a line the eye follows back without losing its place. */
+.turn-text,
+.thinking-text,
+.verdict-text,
+.brief-text {
+  max-inline-size: var(--measure);
+  overflow-wrap: anywhere;
+}
+
+/* A note is small text in one line or two: it takes a wider measure than what is read at length. */
+.note-text,
+.notes summary,
+.notes li {
+  max-inline-size: var(--measure-wide);
+  overflow-wrap: anywhere;
 }
 
 .turn-text {
   margin: 0;
-  font-size: var(--fs-read);
-  line-height: 1.55;
-  overflow-wrap: anywhere;
+  font-size: var(--type-reading);
+  line-height: var(--leading-reading);
   white-space: pre-wrap;
 }
 
 .caret {
   display: inline-block;
-  width: 7px;
-  height: 14px;
-  margin-left: 2px;
+  width: var(--space-2);
+  height: var(--space-4);
+  margin-left: var(--space-1);
   background: currentColor;
   opacity: 0.6;
-  vertical-align: -2px;
+  vertical-align: text-bottom;
+}
+
+/* A line that starts with a mark: the mark and what it says on one middle, two steps apart. */
+.thinking summary,
+.brief summary,
+.notes summary,
+.act-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 /* What unfolds: a line to press, as tall as a finger, with no marker of its own. */
 .thinking summary,
 .brief summary,
+.notes summary {
+  min-height: var(--tap);
+}
+
+.thinking summary,
+.brief summary,
 .notes summary,
 .act summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: max(24px, var(--tap));
   list-style: none;
   cursor: pointer;
 }
@@ -334,25 +510,27 @@
   display: none;
 }
 
-/* A reasoning: one muted line, which unfolds. */
+/* A reasoning: one muted line, which unfolds, set in as what an action holds. */
 .thinking {
-  padding-left: 10px;
-  border-left: 2px solid var(--brand-violet);
+  padding-left: var(--pad);
+  box-shadow: inset var(--stroke) 0 0 var(--brand-violet);
   color: var(--text-3);
 }
 
 .thinking summary {
   color: var(--brand-violet);
-  font-size: var(--fs-s);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
 }
 
 .thinking svg,
-.notes svg {
+.notes svg,
+.act-line > svg {
   flex: none;
 }
 
 .thinking-label {
-  font-weight: 600;
+  font-weight: var(--weight-strong);
 }
 
 .thinking-preview,
@@ -372,45 +550,41 @@
 }
 
 .thinking-text {
-  margin: 0 0 4px;
-  font-size: var(--fs);
+  margin: 0 0 var(--gap-line);
   font-style: italic;
-  line-height: 1.55;
-  overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 
-/* An action: a line, with how it ended; what the tool answered unfolds under it. */
+/*
+ * An action: a row with how it ended; what the tool answered unfolds under it. Its eye
+ * and its time keep to its first line, the time at the right, where every time of the thread ends.
+ */
 .act {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: max(34px, calc(var(--tap) + 2px));
-  padding-left: 12px;
-  border: 1px solid var(--hairline);
-  border-radius: var(--r-control);
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: 0 var(--inset);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-control);
   background: var(--surface);
   color: var(--text-2);
 }
 
-.act + .act {
-  margin-top: -2px;
-}
-
+/* An action brought into view stays clear of the bar that follows the page. */
 .act.selected {
   border-color: var(--primary);
   background: var(--primary-faint);
-  scroll-margin: calc(var(--tap) + 16px) 0 16px;
+  scroll-margin: calc(var(--control) + var(--space-8)) 0 var(--space-4);
 }
 
-.act > details {
+.act > details,
+.act > .act-line {
   flex: 1;
   min-width: 0;
 }
 
-.act > svg,
-.act summary > svg {
-  flex: none;
+.act-line {
+  min-height: var(--row-line);
 }
 
 /* What an action did is read in full once unfolded; folded, it keeps to two lines, to one on a desktop. */
@@ -430,53 +604,56 @@
   display: block;
 }
 
+/* The times of the actions are figures in a column: each ends at the right, and leaves the eyes before it in a column too. */
 .act-time {
   flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: var(--space-12);
+  min-height: var(--row-line);
   color: var(--text-3);
   font-family: var(--font-mono);
-  font-size: var(--fs-xs);
+  font-size: var(--type-caption);
 }
 
-/* An action without an eye ends on its own margin. */
-.act > :last-child:not(.act-look) {
-  margin-right: 12px;
+/* How an action ended: a dot in the room of the spinner it replaces, so that the line does not move when it ends. */
+.act-state,
+.spinner {
+  flex: none;
+  width: var(--space-3);
+  height: var(--space-3);
+  border: var(--stroke) solid transparent;
+  border-radius: var(--radius-pill);
 }
 
 .act-state {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--text-3);
+  background: var(--text-3) padding-box;
 }
 
 .act-state.ok {
-  background: var(--ok);
+  background-color: var(--ok);
 }
 
 .act-state.ko {
-  background: var(--ko);
+  background-color: var(--ko);
 }
 
 .spinner {
-  flex: none;
-  width: 12px;
-  height: 12px;
-  border: 2px solid var(--primary-line);
+  border-color: var(--primary-line);
   border-top-color: var(--primary);
-  border-radius: 50%;
 }
 
-/* The eye of an action leads to what the agent had before its eyes. */
+/* The eye of an action leads to what the agent had before its eyes; set in the row, it takes the radius that leaves. */
 .act-look {
   flex: none;
-  align-self: flex-start;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: max(24px, var(--tap));
-  height: max(24px, var(--tap));
-  border-radius: var(--r);
+  width: var(--tap);
+  height: var(--tap);
+  margin-block: calc((var(--row-line) - var(--tap)) / 2);
+  border-radius: var(--radius-inner);
   color: var(--text-3);
 }
 
@@ -486,15 +663,15 @@
 }
 
 .act-result {
-  max-height: 220px;
-  margin: 0 0 8px;
-  padding: 8px 10px;
+  max-height: calc(12 * var(--leading-caption));
+  margin: 0 0 var(--space-2);
+  padding: var(--space-2) var(--space-3);
   overflow-y: auto;
-  border-radius: var(--r);
+  border-radius: var(--radius-inner);
   background: var(--surface-soft);
   font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  line-height: 1.5;
+  font-size: var(--type-caption);
+  line-height: var(--leading-caption);
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
@@ -503,63 +680,64 @@
 .brief,
 .notes {
   color: var(--text-3);
-  font-size: var(--fs-s);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+}
+
+.brief summary {
+  padding-right: var(--pad);
 }
 
 .brief summary b {
   color: var(--text-2);
-  font-weight: 600;
 }
 
+/* What unfolds under a line of the harness starts where the text of that line does. */
 .brief-text {
-  margin: 0 0 4px;
-  padding: 8px 10px;
-  border-radius: var(--r-control);
+  margin: 0 0 var(--gap-line) calc(var(--picture-sm) + var(--space-2));
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
   background: var(--surface-soft);
-  line-height: 1.5;
-  overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 
 .notes.single {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
-.notes.single svg {
-  margin-top: 3px;
-}
-
-.note-text {
-  overflow-wrap: anywhere;
+/* The mark of a note takes the room of the picture of the harness, on its middle: what the harness says starts on one edge. */
+.notes svg {
+  width: var(--picture-sm);
 }
 
 .notes ul {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin: 0 0 4px;
-  padding: 0;
+  gap: var(--gap-line);
+  margin: 0 0 var(--gap-line);
+  padding: 0 0 0 calc(var(--picture-sm) + var(--space-2));
   list-style: none;
 }
 
 .notes li {
   display: flex;
-  gap: 10px;
-  overflow-wrap: anywhere;
+  gap: var(--space-2);
 }
 
 .notes li .turn-at {
   margin-left: 0;
+  line-height: var(--leading-small);
 }
 
 /* A verdict of the harness: the one thing the thread never folds. */
 .verdict {
-  padding: 10px var(--pad);
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  padding: var(--space-3) var(--inset);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-card);
   background: var(--surface);
+  box-shadow: var(--elevation-rest);
 }
 
 .verdict.refused {
@@ -572,11 +750,21 @@
   background: var(--ok-soft);
 }
 
-.verdict-head {
+/* The head of a card: what it is about, which wraps, then its time, which stays on the first line. */
+.verdict-head,
+.result-card header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.lead {
+  flex: 1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--gap-line) var(--space-2);
+  min-width: 0;
 }
 
 /* On the tint of a verdict, what is said beside its name takes the darker grey, which stays readable there. */
@@ -586,43 +774,44 @@
 }
 
 .verdict-code {
-  padding: 1px 7px;
-  border: 1px solid var(--ko-line);
-  border-radius: var(--r);
+  padding: 0 var(--space-2);
+  border: var(--hairline) solid var(--ko-line);
+  border-radius: var(--radius-inner);
   background: var(--surface);
   color: var(--ko);
   font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  font-weight: 600;
+  font-size: var(--type-caption);
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-caption);
 }
 
 /* A refusal that quotes a whole page keeps to its first lines. */
 .verdict-text {
   display: -webkit-box;
-  margin: 6px 0 0;
+  margin: var(--gap-row) 0 0;
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
   line-clamp: 4;
-  font-size: var(--fs-read);
-  line-height: 1.55;
-  overflow-wrap: anywhere;
+  font-size: var(--type-reading);
+  line-height: var(--leading-reading);
 }
 
-/* A plan the harness accepted, and what the session produced. */
+/* A plan the harness accepted, and what the session produced: a card whose rows share their columns. */
 .result-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--space-2);
   overflow: hidden;
-  border: 1px solid var(--hairline);
-  border-radius: 10px;
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-card);
   background: var(--surface);
+  box-shadow: var(--elevation-rest);
 }
 
 .result-card header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 8px;
-  padding: 10px var(--pad);
+  grid-column: 1 / -1;
+  padding: var(--space-3) var(--inset);
 }
 
 .result-card.outcome header {
@@ -631,16 +820,21 @@
 
 /* A scenario or a test: its mark and its title, then what is said of it, under the title on a phone. */
 .result-row {
+  grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 2px 10px;
+  grid-template-columns: subgrid;
+  row-gap: var(--gap-line);
   align-items: center;
-  padding: 8px var(--pad);
-  border-top: 1px solid var(--line-soft);
+  padding: var(--space-3) var(--inset);
+  border-top: var(--hairline) solid var(--line-soft);
+}
+
+.result-row .badge {
+  justify-self: start;
 }
 
 .result-title {
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   overflow-wrap: anywhere;
 }
 
@@ -653,8 +847,7 @@
 .pass {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 10px;
+  gap: var(--space-3);
   color: var(--text-3);
 }
 
@@ -662,27 +855,25 @@
 .pass::after {
   content: "";
   flex: 1;
-  min-width: 12px;
-  height: 1px;
-  background: var(--hairline);
+  min-width: var(--space-4);
+  height: var(--hairline);
+  background: var(--line);
 }
 
 .pass-title {
   color: var(--brand-navy);
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  letter-spacing: 0.07em;
+  font-size: var(--type-caption);
+  font-weight: var(--weight-strong);
+  letter-spacing: var(--tracking-caps);
+  line-height: var(--leading-caption);
   text-transform: uppercase;
 }
 
 .pass-summary {
   min-width: 0;
-  font-size: var(--fs-s);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
   overflow-wrap: anywhere;
-}
-
-.pass.minor {
-  margin-top: 2px;
 }
 
 .pass.minor::before {
@@ -692,28 +883,29 @@
 .pass.minor .pass-title {
   flex: none;
   color: var(--text-3);
-  font-weight: 600;
-  letter-spacing: 0.04em;
 }
 
-/* Who is at work, while the session goes on. */
+/* Who is at work, while the session goes on: its picture on the middle of the pictures of the turns, its name on their keyline. */
 .working {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding-left: 5px;
+  gap: var(--space-3);
   color: var(--text-3);
+}
+
+.working .speaker-mark {
+  margin-inline: calc((var(--picture) - var(--picture-sm)) / 2);
 }
 
 .dots {
   display: inline-flex;
-  gap: 3px;
+  gap: var(--space-1);
 }
 
 .dots i {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
+  width: var(--space-1);
+  height: var(--space-1);
+  border-radius: var(--radius-pill);
   background: var(--text-3);
 }
 
@@ -741,23 +933,23 @@ html:has(.look-panel) {
   flex: none;
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 8px 4px 8px var(--gutter);
-  border-bottom: 1px solid var(--hairline);
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--gutter);
+  border-bottom: var(--hairline) solid var(--line);
 }
 
 .look-panel-titles {
   flex: 1;
   min-width: 0;
-  padding-block: 4px;
+  padding-block: var(--space-1);
 }
 
 .look-panel h2 {
   margin: 0;
   color: var(--brand-navy);
-  font-size: var(--fs-read);
-  font-weight: 650;
-  line-height: 1.3;
+  font-size: var(--type-heading);
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-heading);
 }
 
 /* The title takes the focus to say the panel opened; it is not a control, and shows no ring. */
@@ -766,9 +958,10 @@ html:has(.look-panel) {
 }
 
 .look-panel-action {
-  margin: 2px 0 0;
+  margin: var(--gap-line) 0 0;
   color: var(--text-3);
-  font-size: var(--fs-s);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
   overflow-wrap: anywhere;
 }
 
@@ -777,9 +970,9 @@ html:has(.look-panel) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: max(32px, var(--tap));
-  height: max(32px, var(--tap));
-  border-radius: var(--r);
+  width: var(--control);
+  height: var(--control);
+  border-radius: var(--radius-control);
   color: var(--text-2);
 }
 
@@ -793,9 +986,9 @@ html:has(.look-panel) {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--gap-row);
   min-height: 0;
-  padding: 12px var(--gutter) 16px;
+  padding: var(--space-4) var(--gutter);
 }
 
 .look-frame {
@@ -803,13 +996,13 @@ html:has(.look-panel) {
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--r);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-control);
 }
 
 .look-bar {
   flex: none;
-  padding: 4px 10px;
+  padding: var(--space-1) var(--space-3);
   background: var(--neutral-soft);
   color: var(--text-2);
   overflow-wrap: anywhere;
@@ -818,7 +1011,7 @@ html:has(.look-panel) {
 /* A long file or a long page scrolls inside its frame, and keeps a few lines on the shortest screen. */
 .look-code,
 .look-document {
-  min-height: 120px;
+  min-height: calc(8 * var(--leading-caption));
   margin: 0;
   overflow: auto;
   overscroll-behavior: contain;
@@ -826,31 +1019,43 @@ html:has(.look-panel) {
 
 /* A line of code is not broken: its file scrolls sideways too. */
 .look-code {
-  padding: 8px 0;
-  font-size: var(--fs-xs);
-  line-height: 1.55;
+  padding: var(--space-2) 0;
+  font-size: var(--type-caption);
+  line-height: var(--leading-caption);
 }
 
 .look-line {
   display: block;
-  padding: 0 10px;
+  padding: 0 var(--space-3);
   white-space: pre;
 }
 
 .look-document {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 10px 12px 10px 28px;
-  font-size: var(--fs-s);
+  gap: var(--gap-line);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-8);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
   overflow-wrap: anywhere;
+}
+
+/* What belongs to the harness starts on the keyline of the turns, beside the pictures of the agents. */
+.brief,
+.notes,
+.pass.minor {
+  padding-left: var(--keyline);
+}
+
+.verdict,
+.result-card {
+  margin-left: var(--keyline);
 }
 
 @media (min-width: 720px) {
   .session-bar {
     flex-wrap: nowrap;
-    gap: 10px;
-    padding: 8px 12px;
+    gap: var(--space-3);
   }
 
   .session-bar .badge {
@@ -861,6 +1066,7 @@ html:has(.look-panel) {
     order: 0;
     flex: 1;
     min-width: 0;
+    padding: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -877,7 +1083,7 @@ html:has(.look-panel) {
   .playback-progress {
     order: 0;
     flex: 1;
-    min-width: 80px;
+    min-width: var(--space-12);
   }
 
   .playback-progress ~ .btn {
@@ -886,44 +1092,14 @@ html:has(.look-panel) {
 
   .pass-stepper {
     flex-wrap: wrap;
-    row-gap: 6px;
-  }
-
-  .request {
-    max-width: 78%;
-  }
-
-  .turn {
-    column-gap: 12px;
-    align-items: start;
-  }
-
-  .turn-body > *,
-  .turn-body > .turn-head {
-    grid-column: 2;
-  }
-
-  .turn-body > .turn-head {
-    min-height: 30px;
+    row-gap: var(--gap-row);
   }
 
   .turn-head .turn-role {
     display: block;
   }
 
-  /* What belongs to the harness is set in under the pictures of the agents. */
-  .brief,
-  .notes,
-  .pass.minor {
-    padding-left: 42px;
-  }
-
-  .verdict,
   .result-card {
-    margin-left: 42px;
-  }
-
-  .result-row {
     grid-template-columns: auto minmax(0, 1fr) minmax(0, auto);
   }
 
@@ -940,35 +1116,25 @@ html:has(.look-panel) {
 
   /* The page makes room for the drawer, so that nothing of the thread — the eyes of its actions least of all — is read through it. */
   .shell-page:has(.look-panel) {
-    --look-panel: clamp(420px, 38vw, 560px);
-
-    padding-right: var(--look-panel);
+    padding-right: var(--drawer);
   }
 
-  /* A drawer at the right, as tall as the window, which the page scrolls behind. */
+  /* A drawer at the right, as tall as the window, raised over the page that scrolls behind it. */
   .look-panel {
     left: auto;
-    width: var(--look-panel);
-    border-left: 1px solid var(--hairline);
-    box-shadow: -12px 0 32px var(--shadow-soft);
-  }
-
-  .look-panel-head {
-    padding: 12px 10px 12px var(--gutter);
+    width: var(--drawer);
+    border-left: var(--hairline) solid var(--line);
+    box-shadow: var(--elevation-raised);
   }
 
   .session-bar {
     position: sticky;
-    top: 8px;
+    top: var(--space-2);
     z-index: 2;
   }
 
-  .act {
-    padding: 4px 6px 4px 10px;
-  }
-
-  .act > :last-child:not(.act-look) {
-    margin-right: 4px;
+  .session-bar::after {
+    box-shadow: var(--elevation-raised);
   }
 
   .act-title {
@@ -1025,13 +1191,13 @@ html:has(.look-panel) {
 
 @keyframes thread-in {
   from {
-    transform: translateY(6px);
+    transform: translateY(var(--space-2));
   }
 }
 
 @keyframes look-in {
   from {
-    transform: translateX(24px);
+    transform: translateX(var(--space-6));
   }
 }
 
@@ -1049,7 +1215,7 @@ html:has(.look-panel) {
 
 @keyframes mark-pulse {
   50% {
-    box-shadow: 0 0 0 5px var(--primary-tint);
+    box-shadow: 0 0 0 var(--space-1) var(--primary-tint);
   }
 }
 
@@ -1063,6 +1229,6 @@ html:has(.look-panel) {
 
   30% {
     opacity: 1;
-    transform: translateY(-3px);
+    transform: translateY(calc(-1 * var(--space-1)));
   }
 }

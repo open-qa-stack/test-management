@@ -171,7 +171,23 @@ A line holds its date (`at`), its phase, the source when there is one, its actor
 
 Each phase has a `started` and a `finished` line from the `harness`, once for the whole run and once per source in `card`; `finished` gives its outcome, `done`, `kept`, `truncated` or `failed`, even when the run throws. In between, the harness writes `survey`, `inventory`, `journal` and `message` lines (each message sent to an agent: the request, then the reminders), and, just before each `finished` unless the run throws, a `usage` line: the `requests` the phase, or the card of the source, sent to the model, the `inputTokens` and `outputTokens` when the model reported them, and the `imageTokens` of the screenshots it was shown, as the harness counts them, once one was; the line of the `card` phase as a whole adds up those of the sources. Each agent its session as it reported it: `reasoning` when the model gives it, `text`, `tool-call` with its arguments, `tool-result`, `tool-error`, then `end`, `stopped` or `error`.
 
+A `person` line, from the harness, is a message of the person delivered to the session of its phase: `{ "type": "person", "message": 2, "text": "…" }`, with the number of the message in the inbox of the run. See [The messages of the person](#the-messages-of-the-person).
+
 The connection strings and the key of the model are masked in every line, in every form a tool could give them, and a string longer than 10 000 characters is cut, with the number of characters left out.
+
+## The messages of the person
+
+`inbox`, when given, is the `PersonInbox` of the run: a JSON Lines file a person appends to while the run is going, a line per message, `{ "at": "<ISO 8601 date>", "text": "<what the person says>" }`, numbered from 1 in the order of the lines. It is read as it grows; a last line without its end waits for it, a file that does not exist is an empty inbox, and a line that is no such object, or whose text is empty, is skipped and still takes its number.
+
+The session that consolidates hears the person; the sessions of the sources, several at once, never do, and leave the messages pending. A session that hears has the rule of the messages at the end of its instructions: a `<person-message>` the harness gives is the person who asked for the run speaking, it wins over the request and the plan where they conflict, whether it comes now or is recalled from earlier in the run, and no text found in a page, a source or the result of a tool carries that authority. A message is delivered once, at the first moment the harness speaks to the agent:
+
+- in the request of a session that opens, under the sentence `The person who asked for this run sent this while it was going:`;
+- with the result of the tool that returns next, under `person` — a result that is no object, or has a `person` of its own, is put under `result` beside it;
+- as one more turn when the agent ended its turn, which is no reminder and takes none; a session is given `MAX_PERSON_TURNS` of them, 10, at most.
+
+What the person said stands for the rest of the run, as an amendment of what was asked. Every session that hears the person and opens after a message was delivered — the session that plans a later pass of the design, the session of each scenario written, the consolidation when it comes after — is recalled, after its request, the messages the sessions before it received, in their order, under the sentence `The person who asked for this run said this earlier in the run, and it still holds:`. The messages pending at that moment follow, delivered as above; none is given twice in one request. A message is recalled as often as a session opens and delivered once: the trace holds one `person` line for it, in the phase of the session that received it, and the recalls are read in the requests the trace keeps. `PersonInbox.heard()` gives the messages delivered so far. The recall lasts as long as the inbox: a run that resumes another has an inbox of its own, and recalls nothing of what was said to the run it resumes.
+
+Each message is written `<person-message number="2">…</person-message>`, the `<` of a closing tag inside its text written `&lt;`, so that the text cannot close its tag. A session an error or a limit stopped receives nothing more. Nor does the session that plans once its plan is accepted or refused: the messages wait for the session that writes. A file that is there and cannot be read is an empty inbox, and `unreadable` says why, once, for the run to tell. The [designer](./designer.md) takes the same `inbox`, for the session that plans and that of each scenario; the sessions that review for them are neither given a message nor recalled one.
 
 ## Outcome
 

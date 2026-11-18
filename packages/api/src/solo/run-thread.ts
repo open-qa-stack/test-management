@@ -1,7 +1,8 @@
 import { isRecord, textOf } from "../json.ts";
+import { RelayedErrors } from "./relayed-errors.ts";
 import { briefOf } from "./run-lines.ts";
 import type { ActionFinishedEvent, ActionLook, AgentRole, PlannedScenario, SessionEvent, SessionState } from "@open-qa-stack/shared/sessions";
-import type { RunLine, RunLineEvent, TracedPhase } from "./run-line.ts";
+import type { PersonLine, RunLine, RunLineEvent, ThreadLine, TracedPhase } from "./run-line.ts";
 
 /** Longest text of a message, of a note or of a refusal; a longer one is cut. */
 const MAX_TEXT = 2000;
@@ -27,6 +28,7 @@ const AGENTS: Readonly<Record<Exclude<TracedPhase, "review">, AgentRole>> = {
 
 const OPENED = /^The scenario (\S+) was opened(?:; its test is (\S+)\.)?/;
 const CLOSED = /^The scenario (\S+) was closed: (passed|failed)/;
+const ACCEPTED = /^The plan was accepted: (.+)\.$/;
 const CODED = /^\[([A-Z-]+)\] ([^]*)$/;
 const LEVEL = /\bof the level ([a-z-]+) alone/;
 const FAILED = /^(?:Refused|Warning) \(|: failed\./;
@@ -83,18 +85,27 @@ function outcomeOf(result: unknown): ActionFinishedEvent["outcome"] {
 }
 
 /**
- * The thread of a session, written from the lines of a run of the command line, read in the order of their dates.
+ * The thread of a session, written from the lines of a run of the command line and from those of its inbox,
+ * read in the order of their dates.
  *
  * @remarks
+ * A message a person sent to the run is a `user_message` that bears its number, and the line the harness
+ * traces when it hands that message to the session of a phase a `message_delivered` to the agent of the phase.
  * A phase that starts is a `phase_started`, the writing of a test with the scenario the harness opened before.
  * What the harness sent an agent is a `harness_message` to the agent of the phase, the three reviewers told
  * apart by what the harness asks them; the first request that quotes the brief of the person is preceded by a
  * `user_message`, and the request of a plan gives the level it is asked for. What the harness or the command
  * journaled is a `note`, a `refusal` with its code for an error, and a `scenario_closed` when it closes a
- * scenario. What the model wrote or thought is an `agent_message`. A tool call is an `action_started` and its
+ * scenario; an error the harness traced and the command relayed in its journal is told once. What the model wrote or thought is an `agent_message`. A tool call is an `action_started` and its
  * answer the `action_finished` of the same action, with what the agent looked at when the tool rendered a page
  * or took a file; a plan the harness accepted is followed by a `plan_accepted`. A task the harness stopped and
  * an error of an agent session are refusals. Nothing is worded here: every text is one the run wrote, cut when long.
+ *
+ * An agent builds a plan over several calls, and closes it with one that proposes nothing: the call the
+ * harness accepts does not carry the plan. The scenarios of a `plan_accepted` are therefore those the agent
+ * proposed since its plan phase started, a later one replacing an earlier one of the same identifier; when the
+ * harness journaled which it accepted — `The plan was accepted: a, b.` — they are those it names, in that
+ * order, since it may have refused or set aside the others in between.
  *
  * The end of a phase, the counts of the harness and the end of a turn are left out: the contract of the
  * events has no place for them.
@@ -107,6 +118,11 @@ export class RunThread {
   #file: string | undefined;
   #reviewer: AgentRole = "plan_reviewer";
   readonly #calls = new Map<string, PendingCall>();
+  readonly #errors = new RelayedErrors();
+  /** The scenarios proposed since the plan phase started, by their identifiers. */
+  #proposed = new Map<string, PlannedScenario>();
+  /** The identifiers the harness named when it journaled that it accepted the plan. */
+  #accepted: readonly string[] | undefined;
 
   /**
    * Reads the next line of the run.
@@ -114,11 +130,13 @@ export class RunThread {
    * @param line - The line; lines are given in the order of their dates.
    * @returns The events it adds to the thread, numbered after those before; none for a line the thread does not tell.
    */
-  add(line: RunLine): SessionEvent[] {
+  add(line: ThreadLine): SessionEvent[] {
+    if (line.actor === "person") return [this.#said(line)];
     const { at, event } = line;
     if (line.actor === "agent") return this.#acted(at, line.phase, event);
     if (event.type === "started") return [this.#started(line)];
-    if (event.type === "journal") return [this.#journaled(line)];
+    if (event.type === "journal") return this.#journaled(line);
+    if (line.actor === "harness" && event.type === "person") return this.#delivered(at, line.phase, event["message"]);
     return line.actor === "harness" && event.type === "message" ? this.#asked(at, line.phase, textOf(event["text"]), briefOf(line)) : [];
   }
 
@@ -137,8 +155,20 @@ export class RunThread {
     return phase === "review" ? this.#reviewer : AGENTS[phase];
   }
 
+  #said({ at, number, text }: PersonLine): SessionEvent {
+    return { id: this.#next++, at, type: "user_message", text: cut(text, MAX_TEXT), number };
+  }
+
+  /** The delivery of a message of the person to the agent of a phase; nothing when the line does not number the message. */
+  #delivered(at: string, phase: TracedPhase, message: unknown): SessionEvent[] {
+    return typeof message === "number" ? [{ id: this.#next++, at, type: "message_delivered", message, agent: this.#agent(phase) }] : [];
+  }
+
   #started({ at, phase, source }: RunLine): SessionEvent {
-    if (phase === "plan") this.#level = undefined;
+    if (phase === "plan") {
+      this.#level = undefined;
+      this.#unplanned();
+    }
     const scenario = phase === "write" ? this.#scenario : undefined;
     return {
       id: this.#next++,
@@ -150,8 +180,28 @@ export class RunThread {
     };
   }
 
-  #journaled({ at, phase, event }: RunLine): SessionEvent {
+  /** Forgets the plan being built: a plan phase starts from none, and so does what follows an accepted plan. */
+  #unplanned(): void {
+    this.#proposed = new Map();
+    this.#accepted = undefined;
+  }
+
+  /**
+   * Whether an error a line journals is still to be told: the command relays in its journal, under the name of
+   * the source when there is one, the errors the harness traced.
+   */
+  #untold({ actor, source }: RunLine, message: string): boolean {
+    if (actor === "command") return this.#errors.relayed(message);
+    return this.#errors.traced(source === undefined ? message : `${source}: ${message}`);
+  }
+
+  #journaled(line: RunLine): SessionEvent[] {
+    const { at, phase, event } = line;
     const message = textOf(event["message"]);
+    const failed = event["level"] === "error";
+    if (failed && !this.#untold(line, message)) return [];
+    const accepted = ACCEPTED.exec(message);
+    if (accepted !== null) this.#accepted = textOf(accepted[1]).split(", ");
     const opened = OPENED.exec(message);
     if (opened !== null) [, this.#scenario, this.#file] = opened;
     const closed = CLOSED.exec(message);
@@ -159,19 +209,21 @@ export class RunThread {
       this.#scenario = undefined;
       this.#file = undefined;
       const verdict = closed[2] === "passed" ? "passed" : "failed";
-      return {
-        id: this.#next++,
-        at,
-        type: "scenario_closed",
-        scenario: textOf(closed[1]),
-        ...(this.#level === undefined ? {} : { level: this.#level }),
-        verdict,
-      };
+      return [
+        {
+          id: this.#next++,
+          at,
+          type: "scenario_closed",
+          scenario: textOf(closed[1]),
+          ...(this.#level === undefined ? {} : { level: this.#level }),
+          verdict,
+        },
+      ];
     }
-    if (event["level"] !== "error") return { id: this.#next++, at, type: "note", phase, text: cut(message, MAX_TEXT) };
+    if (!failed) return [{ id: this.#next++, at, type: "note", phase, text: cut(message, MAX_TEXT) }];
     const coded = CODED.exec(message);
-    if (coded === null) return { id: this.#next++, at, type: "refusal", phase, text: cut(message, MAX_TEXT) };
-    return { id: this.#next++, at, type: "refusal", phase, code: textOf(coded[1]), text: cut(textOf(coded[2]), MAX_TEXT) };
+    if (coded === null) return [{ id: this.#next++, at, type: "refusal", phase, text: cut(message, MAX_TEXT) }];
+    return [{ id: this.#next++, at, type: "refusal", phase, code: textOf(coded[1]), text: cut(textOf(coded[2]), MAX_TEXT) }];
   }
 
   #asked(at: string, phase: TracedPhase, text: string, brief: string | undefined): SessionEvent[] {
@@ -224,6 +276,7 @@ export class RunThread {
     const { callId: action, tool } = event;
     if (typeof action !== "string" || typeof tool !== "string") return [];
     this.#calls.set(action, { at, tool, arguments: event["arguments"] });
+    if (tool === "propose_plan") for (const scenario of this.#scenarios(event["arguments"])) this.#proposed.set(scenario.id, scenario);
     return [{ id: this.#next++, at, type: "action_started", action, agent, tool, arguments: bounded(event["arguments"]) }];
   }
 
@@ -244,7 +297,9 @@ export class RunThread {
       ...(look === undefined ? {} : { look }),
     };
     if (call.tool !== "propose_plan" || outcome !== "passed") return [finished];
-    return [finished, { id: this.#next++, at, type: "plan_accepted", scenarios: this.#scenarios(call.arguments) }];
+    const scenarios = this.#accepted?.flatMap((id) => this.#proposed.get(id) ?? []) ?? [...this.#proposed.values()];
+    this.#unplanned();
+    return [finished, { id: this.#next++, at, type: "plan_accepted", scenarios }];
   }
 
   /** What the agent had before its eyes: the file it handed in, named after the test being written, or the page the tool rendered. */

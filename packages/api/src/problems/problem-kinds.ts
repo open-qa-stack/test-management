@@ -12,6 +12,7 @@ const KINDS: Readonly<Record<ProblemCode, ProblemKind>> = {
   unknown_session: { status: HttpStatus.NOT_FOUND, title: "Unknown session" },
   invalid_request: { status: HttpStatus.BAD_REQUEST, title: "Invalid request" },
   session_running: { status: HttpStatus.CONFLICT, title: "A session is running" },
+  session_ended: { status: HttpStatus.CONFLICT, title: "Session ended" },
   unavailable: { status: HttpStatus.SERVICE_UNAVAILABLE, title: "Sessions cannot be opened" },
   not_opened: { status: HttpStatus.BAD_GATEWAY, title: "Session not opened" },
   opening_timed_out: { status: HttpStatus.SERVICE_UNAVAILABLE, title: "Opening timed out" },

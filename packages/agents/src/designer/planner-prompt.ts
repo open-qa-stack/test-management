@@ -4,6 +4,7 @@ import type { Application } from "@open-qa-stack/shared";
 import { scopedToolName } from "@open-qa-stack/tools";
 import { DOMAIN_TOOL, LIST_TOOL, READ_TOOL } from "./index-map.ts";
 import { PLAN_TOOL } from "./plan-proposal.ts";
+import { withoutClosing } from "../common/tag-closing.ts";
 
 /**
  * System instructions of the agent that plans the tests of a design: what it is for, how the harness
@@ -71,7 +72,7 @@ const VISUAL_READING =
  * the system instructions. What only the agent that writes a test needs, such as the packages a test may
  * import, is left to it.
  *
- * @param brief - What the developer wants tested, in their own words, if anything.
+ * @param brief - What the developer wants tested, in their own words, if anything; it cannot close the tag it is given between.
  * @param environment - The environment the tests run against.
  * @param domains - The domains of the knowledge, a line each, as `IndexMap.domains` gives them.
  * @param applications - The applications a test may be about.
@@ -89,7 +90,7 @@ export function planRequest(
   const asked =
     brief === undefined
       ? "No brief was given: plan the tests that matter most across the domains below."
-      : `Brief of the developer, in their words:\n<brief>\n${brief}\n</brief>`;
+      : `Brief of the developer, in their words:\n<brief>\n${withoutClosing(brief, "brief")}\n</brief>`;
   const next =
     brief === undefined
       ? `Next: call ${DOMAIN_TOOL} on the domains above that matter most, read what they hold, do it once on the screens, then call ${PLAN_TOOL}.`

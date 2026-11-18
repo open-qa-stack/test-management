@@ -66,7 +66,7 @@ export function Shell({ route, project, unreachable = false, children }: ShellPr
         <div className="top-tools">
           {name !== undefined && (
             <span className="chip mono">
-              <Icon name="git" size={13} /> {name}
+              <Icon name="git" /> {name}
             </span>
           )}
         </div>

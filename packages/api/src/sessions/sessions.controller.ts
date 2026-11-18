@@ -1,14 +1,15 @@
-import { Body, Controller, Get, Header, Headers, Param, Post, Query, Res, Sse } from "@nestjs/common";
+import { Body, Controller, Get, Header, Headers, HttpCode, HttpStatus, Param, Post, Query, Res, Sse } from "@nestjs/common";
 import { HttpAdapterHost } from "@nestjs/core";
 import { endWith, interval, map, merge, type Observable, startWith, takeWhile } from "rxjs";
 import { eventIdOf } from "./event-id.ts";
+import { SessionMessagePipe } from "./session-message.pipe.ts";
 import { SessionOpeningPipe } from "./session-opening.pipe.ts";
 import { SessionsService } from "./sessions.service.ts";
 import { StreamPace } from "./stream-pace.ts";
 import type { MessageEvent } from "@nestjs/common";
-import type { Session, SessionList, SessionOpening } from "@open-qa-stack/shared/sessions";
+import type { MessageReceipt, Session, SessionList, SessionMessage, SessionOpening } from "@open-qa-stack/shared/sessions";
 
-/** `GET /sessions`, `GET /sessions/:id`, `GET /sessions/:id/events` and `POST /sessions`. */
+/** `GET /sessions`, `GET /sessions/:id`, `GET /sessions/:id/events`, `POST /sessions` and `POST /sessions/:id/messages`. */
 @Controller("sessions")
 export class SessionsController {
   readonly #sessions: SessionsService;
@@ -72,5 +73,16 @@ export class SessionsController {
     const session = await this.#sessions.open(opening);
     this.#adapterHost.httpAdapter.setHeader(response, "Location", `sessions/${encodeURIComponent(session.id)}`);
     return session;
+  }
+
+  /**
+   * @returns The receipt of the message, answered with `202`: the message is taken, and the stream of the
+   * events tells later the agent it reached. An unknown session is answered with `404`, one that no longer
+   * goes on with `409`.
+   */
+  @Post(":id/messages")
+  @HttpCode(HttpStatus.ACCEPTED)
+  send(@Param("id") id: string, @Body(SessionMessagePipe) message: SessionMessage): Promise<MessageReceipt> {
+    return this.#sessions.send(id, message);
   }
 }

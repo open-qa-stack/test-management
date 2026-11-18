@@ -16,8 +16,9 @@ export class AppendedLines {
   /**
    * Reads what was appended to the file.
    *
-   * @returns The lines completed since the last reading, without their end and without empty ones; a line
-   * still being written waits for the next reading, and so does a file that does not exist yet.
+   * @returns The lines completed since the last reading, in order and without their end, the empty ones
+   * included: the rank of a line in its file can be counted. A line still being written waits for the next
+   * reading, and so does a file that does not exist yet.
    */
   async read(): Promise<string[]> {
     const file = await open(this.#path, "r").catch(() => undefined);
@@ -30,11 +31,7 @@ export class AppendedLines {
       const end = appended.lastIndexOf("\n");
       if (end < 0) return [];
       this.#offset += end + 1;
-      return appended
-        .subarray(0, end)
-        .toString("utf8")
-        .split("\n")
-        .filter((line) => line !== "");
+      return appended.subarray(0, end).toString("utf8").split("\n");
     } finally {
       await file.close();
     }

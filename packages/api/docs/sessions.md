@@ -1,6 +1,6 @@
 # Sessions
 
-A session is a request made to the agents, and the work it opened. The API gives the project of the instance, its sessions, the events of each session as they happen, and opens new sessions. The web console follows the agents through these routes.
+A session is a request made to the agents, and the work it opened. The API gives the project of the instance, its sessions, the events of each session as they happen, opens new sessions, and takes the messages a person sends to a session that is going on. The web console follows the agents through these routes.
 
 The shapes of every body are the types of `@open-qa-stack/shared/sessions`. A client ignores a field, a type of event or a value it does not know: fields, types and values are added over time.
 
@@ -11,6 +11,7 @@ The shapes of every body are the types of `@open-qa-stack/shared/sessions`. A cl
 | `GET /sessions/:id` | One session. |
 | `GET /sessions/:id/events` | The events of a session, as a stream of server-sent events. |
 | `POST /sessions` | Opens a session. |
+| `POST /sessions/:id/messages` | Sends a message to a session that is going on. |
 
 The project, the list and a session are answered with `cache-control: no-store`: they are read as they are now. Every answer that is not a success is [a problem](#problems).
 
@@ -105,7 +106,8 @@ Every event has an `id`, its rank in the session from 1, the date `at` it happen
 
 | Type | Meaning |
 |---|---|
-| `user_message` | The person asked something: `text`. |
+| `user_message` | The person said something: `text`. What opened the session has no `number`; a message sent while it was going on has its `number`, from 1. |
+| `message_delivered` | A message sent while the session was going on reached an `agent`: `message` is the number of the message. |
 | `agent_message` | An agent wrote something, or reasoned when `reasoning` is true: `agent`, `text`. |
 | `harness_message` | The harness asked something of an agent, `to`: its request, then each reminder; `level` when it asks for the plan of one level of the test pyramid. |
 | `phase_started` | A `phase` of the work started, on a knowledge `source` or for the test of a `scenario` when it has one. |
@@ -181,6 +183,43 @@ The answer is the session, `running`. `Location` is where to read it, as a refer
 
 One session works at a time: while a session is `running`, or another is being opened, the answer is `409` with the code `session_running`.
 
+## Sending a message
+
+A person corrects the direction of a session that is going on by sending it a message:
+
+```http
+POST /sessions/oqas-2026-11-16T08-12-45-120Z/messages
+content-type: application/json
+
+{"text":"not the admin pages: only what a customer sees"}
+
+HTTP/1.1 202 Accepted
+content-type: application/json; charset=utf-8
+
+{"number":1}
+```
+
+| Field | Value |
+|---|---|
+| `text` | What the person says to the agents: a text that is not empty, of 4000 characters at most. |
+
+Any other field is refused. The answer is `202`: the message is taken, not delivered yet. `number` is its number in the session, from 1, which the events repeat.
+
+The stream of the session then tells what becomes of it:
+
+1. A `user_message` with that `number`, once the message is taken.
+2. A `message_delivered` whose `message` is that number, once it reached an `agent`. A message reaches the agent at work at its next action. When no agent that can receive it is at work, it waits for the next session of the planner or of the writer to open, and is delivered then.
+3. No `message_delivered` when no agent is at work any more: the session then tells it, before it ends, with a `note` of the `summary` phase that names the message.
+
+A message is given to one agent, once. Where it conflicts with the request that opened the session, or with the plan, the agents follow the message.
+
+| Status | Code | When |
+|---|---|---|
+| `400` | `invalid_request` | The body is not valid; the detail names the field at fault. |
+| `404` | `unknown_session` | The session does not exist. |
+| `409` | `session_ended` | The session is `completed` or `interrupted`: it takes no message. Open another session to go on. |
+| `503` | `unavailable` | The instance has no source of sessions. |
+
 ## Problems
 
 Every answer of the API that is not a success — of these routes, of a route that does not exist, of a body that cannot be read — is a problem, as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) describes one, served as `application/problem+json`. The readiness route alone keeps [a body of its own](running.md#readiness).
@@ -203,9 +242,10 @@ content-type: application/problem+json; charset=utf-8
 | Code | Status | Type | When |
 |---|---|---|---|
 | `unknown_session` | `404` | `/problems/unknown-session` | The session does not exist. |
-| `invalid_request` | `400` | `/problems/invalid-request` | The request is not valid: a body that is not JSON, a field of `POST /sessions` at fault, an identifier of event that is none. The detail names what is at fault. |
+| `invalid_request` | `400` | `/problems/invalid-request` | The request is not valid: a body that is not JSON, a field of `POST /sessions` or of a message at fault, an identifier of event that is none. The detail names what is at fault. |
 | `session_running` | `409` | `/problems/session-running` | A session is running, or being opened: it must end before another is opened. |
-| `unavailable` | `503` | `/problems/unavailable` | The instance cannot open sessions; the detail says what to configure. |
+| `session_ended` | `409` | `/problems/session-ended` | The session no longer goes on, and takes no message. |
+| `unavailable` | `503` | `/problems/unavailable` | The instance cannot open sessions, or has no source of sessions to send a message to; the detail says what to configure. |
 | `not_opened` | `502` | `/problems/not-opened` | What runs the sessions did not open it; the log of the instance says why. |
 | `opening_timed_out` | `503` | `/problems/opening-timed-out` | The session did not start in time. |
 | `error` | any other | `/problems/error` | Anything else: a route that does not exist (`404`), a media type the API does not read (`415`), or a failure of the API (`500`). |
@@ -218,8 +258,14 @@ The routes read the sessions from one source, behind which the rest of the API k
 
 Workers will run the agents and write the events of each session to the database of the instance; the source will then read them there. Workers do not exist yet. Until they do, an instance can show the runs of the `oqas` command line in a test repository on its own machine:
 
-- `OQAS_SOLO_REPOSITORY` names the test repository. Each run it holds is a session, under the identifier of the run; its events are read from the journal and the traces the run writes in the state folder of the repository, which the API never writes to. A run is `running` from its start, `completed` once it wrote its state, and `interrupted` when it wrote no state and nothing else for ten minutes. The state folder is the one the configuration of the repository declares, `repository.stateDir` of `oqas.json`, when it is a relative path that stays inside the repository; otherwise the instance logs a warning and reads the default folder, `.oqas`.
+- `OQAS_SOLO_REPOSITORY` names the test repository. Each run it holds is a session, under the identifier of the run; its events are read from the journal and the traces the run writes in the state folder of the repository, and from its inbox. A run is `running` from its start, `completed` once it wrote its state, and `interrupted` when it wrote no state and nothing else for ten minutes. The state folder is the one the configuration of the repository declares, `repository.stateDir` of `oqas.json`, when it is a relative path that stays inside the repository; otherwise the instance logs a warning and reads the default folder, `.oqas`.
 - `OQAS_SOLO_COMMAND` names the command that starts `oqas`. `POST /sessions` starts it, without a shell, with `--repository`, `--brief` and, when the request names one, `--environment`. The command is given the environment of the API without the variables [marked secret](running.md#configuration): the URL of the database does not reach it. The run goes on when the request is answered, and when the API stops. The request is answered once the journal of the run exists. When the command stops before that, the answer is `502`: what the command wrote to its error output is logged on the instance as a warning, its last ten lines at most, and never answered. When the run has not started after 30 seconds, the command and every program it started are stopped, and the answer is `503`.
+
+What the agents do is read from the traces, and what the command does around them from the journal of the run. The journal also relays, once a step is over, what the harness journaled in the traces of the cartography and of the design: those entries are left out, but the errors no trace tells, which are what the command says itself — why a design stopped before any agent worked, for one. Such an error is a `refusal`, under the phase `survey` for the cartography and `plan` for the design, since the journal names the step and not the phase. An error is the same as one a trace tells when it bears the same message, after the name of its source when the trace gives one; the same message journaled twice is two errors.
+
+An agent builds its plan over several calls of `propose_plan`, and closes it with a call that proposes nothing: the call the harness accepts does not carry the plan. The `scenarios` of a `plan_accepted` are those the agent proposed since its plan phase started, a later one replacing an earlier one of the same identifier. When the harness journals which scenarios it accepted, `The plan was accepted: a, b.`, they are those it names, in that order: it may have refused or set aside others in between.
+
+A message sent to a session is appended to the inbox of its run, `runs/<run>.inbox.jsonl` in the state folder, beside the journal of the run: one line a message, `{"at":"<ISO 8601 date>","text":"<what the person says>"}`. The run reads that file while it is going, and numbers the messages by the rank of their lines, from 1; a line that is no such object, or whose text is empty, is no message and still takes its number. The inbox is the one thing the API writes in the test repository: everything else it only reads. The run traces each delivery, which the stream tells as `message_delivered`. The inbox is no sign of life of a run: a message does not keep a silent run from being called `interrupted`, and the last event of a session is dated by what the run itself wrote.
 
 Two runs must not work in the same repository at once: a session is opened only when no run of the repository is `running`, the runs someone started by hand included, and one at a time. A run that was killed without writing its state therefore holds the next opening back until it is called `interrupted`, ten minutes after its last write.
 
@@ -228,7 +274,12 @@ Without `OQAS_SOLO_REPOSITORY`, the instance has no session and its project has 
 This bridge has limits the database will not have:
 
 - The events of a session are numbered by reading the files of its run from their start, every 250 milliseconds while a stream follows it. A line is told once the date it bears is older than that pace, which leaves the run the time to write the lines it dated before: every reading then numbers the events the same. Their identifiers are stable as long as those files only grow, which is what a run does. A file that is rewritten or removed, or a run that writes again after it was called interrupted, renumbers the events that follow: a client that resumes from an identifier it got before may then miss an event, or get one twice.
+- The messages of a session are numbered by counting the lines of its inbox, by the one instance that serves the repository. Something else that appends to the same inbox at the same moment — another instance, a person by hand — may be answered the number of the neighbouring line. A line someone appended without its end takes the next message with it: the run reads both as one line that is no message.
+- A message taken at the very moment its run ends may be neither delivered nor told as not delivered: the run had already read its inbox for the last time.
+- A line of an inbox that bears no date is not told as a `user_message`, though the run may deliver it.
 - A stream ends when its run is called `interrupted`. A run that writes again afterwards is `running` again, and a stream opened then follows it.
 - A scenario of an accepted plan that names no level, in a pass that names none, is left out of `plan_accepted`: the contract requires the level of a scenario.
+- A scenario the harness accepted and the agent did not propose in the same plan phase is left out of `plan_accepted` too: only its identifier is known.
+- An error of the journal of the cartography is told under `survey` whatever phase it happened in.
 - A run someone starts by hand in the same repository at the moment a session is opened is taken for that session.
 - The end of a phase, the counts of the harness and the end of a turn of an agent are not told: the events have no type for them.

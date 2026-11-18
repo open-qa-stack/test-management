@@ -15,10 +15,15 @@ export interface Followed {
   readonly stream: StreamState;
   /** Its events, in order. */
   readonly events: readonly SessionEvent[];
+  /** Where the message the person sends to its agents is. */
+  readonly saying: Sending;
 }
 
-/** Where the opening of a session is: nothing asked, the request sent, or the error the API answered. */
-export type Opening = { readonly state: "idle" } | { readonly state: "sending" } | { readonly state: "refused"; readonly message: string };
+/** Where something the person sends to the instance is: nothing sent, sent and not answered yet, or the error the API answered. */
+export type Sending = { readonly state: "idle" } | { readonly state: "sending" } | { readonly state: "refused"; readonly message: string };
+
+/** Where the opening of a session is. */
+export type Opening = Sending;
 
 /** What the console knows: what its instance told it, and how the person reads each session. */
 export interface ConsoleState {
@@ -68,11 +73,25 @@ export type ConsoleAction =
   | { readonly type: "opened"; readonly session: Session; readonly answeredAt: number }
   /** The API refused to open a session. */
   | { readonly type: "refused"; readonly message: string }
+  /** The person sent a message to the agents of a session. */
+  | { readonly type: "saying"; readonly id: string }
+  /** The API took the message sent to a session. */
+  | { readonly type: "said"; readonly id: string }
+  /** The API refused the message sent to a session. */
+  | { readonly type: "unsaid"; readonly id: string; readonly message: string }
   /** The person acted on the playback of a session. */
   | { readonly type: "playback"; readonly script: SessionScript; readonly action: PlaybackAction };
 
+/** Nothing sent, or nothing left to tell of what was. */
+const IDLE: Sending = { state: "idle" };
+
 /** The state of a console that just opened. */
-export const INITIAL_STATE: ConsoleState = { openedAt: 0, unreachable: false, opening: { state: "idle" }, playbacks: {} };
+export const INITIAL_STATE: ConsoleState = { openedAt: 0, unreachable: false, opening: IDLE, playbacks: {} };
+
+/** The state once the message a person sends to a session is somewhere else; unchanged when the console no longer follows that session. */
+function withSaying(state: ConsoleState, id: string, saying: Sending): ConsoleState {
+  return state.followed?.id === id ? { ...state, followed: { ...state.followed, saying } } : state;
+}
 
 /**
  * A session as the API tells it now, in the object the console already holds when nothing it shows differs:
@@ -103,7 +122,8 @@ function listed(before: readonly Session[] | undefined, now: readonly Session[])
  * @returns The state after it — the same object when nothing changed. What a stream or the API gives for a
  * session the console no longer follows changes nothing; an event already received is not kept twice; a session
  * that did not change keeps its object; an answer of the API says the instance is reachable again; a session
- * the API just opened is listed first, and a list asked before it was opened, which may lack it, is ignored.
+ * the API just opened is listed first, and a list asked before it was opened, which may lack it, is ignored;
+ * the message a person sends belongs to the session followed, and is forgotten with it.
  */
 export function consoleAfter(state: ConsoleState, action: ConsoleAction): ConsoleState {
   switch (action.type) {
@@ -122,7 +142,10 @@ export function consoleAfter(state: ConsoleState, action: ConsoleAction): Consol
       return state.unreachable ? state : { ...state, unreachable: true };
     case "followed": {
       const session = state.sessions?.find(({ id }) => id === action.id);
-      return { ...state, followed: { id: action.id, missing: false, stream: "connecting", events: [], ...(session === undefined ? {} : { session }) } };
+      return {
+        ...state,
+        followed: { id: action.id, missing: false, stream: "connecting", events: [], saying: IDLE, ...(session === undefined ? {} : { session }) },
+      };
     }
     case "session": {
       const { followed } = state;
@@ -151,13 +174,19 @@ export function consoleAfter(state: ConsoleState, action: ConsoleAction): Consol
     case "opened":
       return {
         ...state,
-        opening: { state: "idle" },
+        opening: IDLE,
         openedAt: action.answeredAt,
         unreachable: false,
         sessions: [action.session, ...(state.sessions ?? []).filter((session) => session.id !== action.session.id)],
       };
     case "refused":
       return { ...state, opening: { state: "refused", message: action.message } };
+    case "saying":
+      return withSaying(state, action.id, { state: "sending" });
+    case "said":
+      return withSaying(state, action.id, IDLE);
+    case "unsaid":
+      return withSaying(state, action.id, { state: "refused", message: action.message });
     case "playback": {
       const { script } = action;
       return { ...state, playbacks: { ...state.playbacks, [script.id]: played(script, playbackOf(state, script.id), action.action) } };

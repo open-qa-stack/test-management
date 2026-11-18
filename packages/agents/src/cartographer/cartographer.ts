@@ -8,6 +8,8 @@ import { ScreenTrail } from "../application-explorer/screen-trail.ts";
 import { configSecrets } from "../common/config-secrets.ts";
 import { runAgentTask, taskEnd, taskLimits } from "../common/agent-task.ts";
 import { Journal, type JournalEntry } from "../common/journal.ts";
+import { PersonDelivery } from "../common/person-delivery.ts";
+import type { PersonInbox } from "../common/person-inbox.ts";
 import { NO_USAGE, totalUsage, usageOf, type ModelUsage } from "../common/model-usage.ts";
 import { runTrace } from "../common/run-trace.ts";
 import type { Trace } from "../common/trace.ts";
@@ -51,6 +53,8 @@ export interface CartographerOptions {
   readonly now?: () => Date;
   /** Receives each line of the trace as it is written, to follow the cartography while it runs. */
   readonly observe?: (line: TraceLine) => void;
+  /** The inbox of the run: the session that consolidates is given the messages a person sends while it is open, and recalled those delivered earlier in the run; those that map a source, several at once, never are. No session hears anyone without it. */
+  readonly inbox?: PersonInbox;
 }
 
 /** What a cartography produced. */
@@ -180,6 +184,7 @@ export class Cartographer {
     const notes = agentNotes(config, repositoryRoot, env, { role: "cartographer", task: `index-${environment}-${now().toISOString()}`, now });
     const browser = this.browser(sources);
     const events: AgentEvent[] = [];
+    const { inbox } = this.options;
     const task = {
       instructions: CARTOGRAPHER_INSTRUCTIONS,
       tools: [sourceDomainTool(cards, written), ...knowledgeTools(declared(sources), access), ...browser.tools, ...notes, submission.tool()],
@@ -191,6 +196,9 @@ export class Cartographer {
         trace.agent("consolidation", event);
         if (event.type === "tool-error") journal.record("error", `${event.tool}: ${event.message}`);
       },
+      ...(inbox === undefined
+        ? {}
+        : { person: new PersonDelivery(inbox, ({ number, text }) => trace.harness("consolidation", { type: "person", message: number, text })) }),
     };
     await runAgentTask(this.options.runtime, task, taskLimits(config)).finally(() => browser.close());
     const { last, counters } = taskEnd(events);

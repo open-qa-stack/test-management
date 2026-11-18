@@ -39,10 +39,21 @@ interface EventBase {
   readonly at: string;
 }
 
-/** The person asked something. */
+/** The person said something: what opened the session, or a message sent while it was going on. */
 export interface UserMessageEvent extends EventBase {
   readonly type: "user_message";
   readonly text: string;
+  /** The number of a message sent while the session was going on, from 1; left out for what opened it. */
+  readonly number?: number;
+}
+
+/** A message the person sent while the session was going on reached an agent. */
+export interface MessageDeliveredEvent extends EventBase {
+  readonly type: "message_delivered";
+  /** The number of the message. */
+  readonly message: number;
+  /** The agent that received it. */
+  readonly agent: AgentRole;
 }
 
 /** An agent wrote something, or reasoned. */
@@ -140,6 +151,7 @@ export interface StateChangedEvent extends EventBase {
  */
 export type SessionEvent =
   | UserMessageEvent
+  | MessageDeliveredEvent
   | AgentMessageEvent
   | HarnessMessageEvent
   | PhaseStartedEvent

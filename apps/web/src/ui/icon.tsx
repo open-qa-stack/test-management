@@ -54,15 +54,25 @@ const DRAWINGS = {
 export type IconName = keyof typeof DRAWINGS;
 
 /** What an icon needs. */
+/** The sides an icon is drawn at, in CSS pixels: steps of the grid of the console. */
+export type IconSize = 12 | 16 | 20 | 24;
+
+/** The side of the square every icon is drawn in, in the units of its drawing. */
+const VIEW = 24;
+
+/** How thick the line of an icon is, in CSS pixels, whatever its size. */
+const STROKE = 1.5;
+
 export interface IconProps {
   /** Which icon. */
   readonly name: IconName;
-  /** Its side, in CSS pixels; 16 by default. */
-  readonly size?: number;
+  /** Its side; 16 px by default. */
+  readonly size?: IconSize;
 }
 
 /**
- * An outline icon, drawn with the colour of the text around it and hidden from assistive technologies.
+ * An outline icon, drawn with the colour of the text around it and hidden from assistive technologies. Its line
+ * keeps one thickness on the screen at every size, so that a small icon beside a large one reads as the same hand.
  *
  * @param props - The icon and its size.
  * @returns The icon.
@@ -72,10 +82,10 @@ export function Icon({ name, size = 16 }: IconProps): ReactNode {
     <svg
       width={size}
       height={size}
-      viewBox="0 0 24 24"
+      viewBox={`0 0 ${VIEW} ${VIEW}`}
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth={(STROKE * VIEW) / size}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"

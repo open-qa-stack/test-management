@@ -15,7 +15,7 @@ import {
 } from "@open-qa-stack/shared";
 import { answer, scriptedServer, testSite, toolCalls, type ScriptedServer, type TestSite } from "@open-qa-stack/testing";
 import { fingerprintOf, knowledgeInventory, type SqlClient } from "@open-qa-stack/tools";
-import { Cartographer, INDEX_FILE_NAME, type CartographyOutcome, type TraceLine } from "../src/index.ts";
+import { Cartographer, INDEX_FILE_NAME, type CartographyOutcome, type PersonInbox, type TraceLine } from "../src/index.ts";
 
 export const MODEL = "test-model";
 
@@ -120,6 +120,8 @@ export interface Setup {
   readonly force?: boolean;
   /** Changes the repository once its cards are written, before the run. */
   readonly prepare?: (root: string) => void;
+  /** The inbox of the run the cartography is of, when a person may speak to it. */
+  readonly inbox?: PersonInbox;
 }
 
 export function configFor(modelUrl: string, setup: Setup = {}): ResolvedConfig {
@@ -339,6 +341,7 @@ export async function cartography(
       ...(setup.autonomous === true ? {} : { now: () => new Date("2026-11-13T10:00:00.000Z") }),
       ...(setup.observe === undefined ? {} : { observe: setup.observe }),
       ...(setup.force === undefined ? {} : { force: setup.force }),
+      ...(setup.inbox === undefined ? {} : { inbox: setup.inbox }),
     });
     return { outcome: await cartographer.run(), server, root, database, before };
   } finally {

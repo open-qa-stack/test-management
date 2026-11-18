@@ -56,7 +56,7 @@ With `--follow`, each line of the trace of the agents is printed as it is writte
 14:07:59 write harness: Write the test of this scenario for the environment local. …
 ```
 
-`->` is a call of a tool with its arguments, `<-` its result, `!!` a call that gave none or an error of the session, `agent:` what the model wrote, `agent thinks:` what it thought when the model gives it, `harness:` a message the harness sent it. Each is on one line, cut to 160 characters; the trace in `<stateDir>/traces/` keeps them whole. The entries of the journal are printed by the journal, once. The secrets of the configuration are masked, as in the trace.
+`->` is a call of a tool with its arguments, `<-` its result, `!!` a call that gave none or an error of the session, `agent:` what the model wrote, `agent thinks:` what it thought when the model gives it, `harness:` a message the harness sent it, `person (message 2):` a message [you sent to the run](#speaking-to-a-run), when a session receives it. Each is on one line, cut to 160 characters; the trace in `<stateDir>/traces/` keeps them whole. The entries of the journal are printed by the journal, once. The secrets of the configuration are masked, as in the trace.
 
 ## Steps
 
@@ -67,9 +67,34 @@ Each step starts only when the one before succeeded; once the prerequisites pass
 3. **Cartography.** The sources without an up-to-date card are mapped, `cartography.concurrency` of them at once, then the cards are consolidated into the domain index (see the cartographer of `@open-qa-stack/agents`).
 4. **Design.** The dependencies of the test repository and the browsers of its locked version of `@playwright/test` are installed, once for the design and the execution. The tests are then designed in passes, one after the other: one for each level of the pyramid of tests the configuration asks for, from its base to its top, then one for the visual tests. In each pass an agent plans the scenarios of that level alone, from the brief, then another writes the test of each, in a session of its own, each test run against the application before it is kept. A pass commits its tests on a new local branch `oqas/design-<date>`, made from that of the pass before, so that a level is told the tests of the levels below it and builds on them: a scenario a test already covers is set aside. A scenario whose session ends before its test is made to end keeps its last file, classed as unfinished in the design state. With `design.passes` set to `single`, every level is planned in one pass.
 5. **Execution.** The tests designed run together, on the machine, with the real runner, except those classed as unfinished or as duplicates of another, which the journal names and which stay in the test repository for a person to decide, and the harness pronounces a verdict per test from the JSON of the reporter (see `docs/pinned-run.md` of `@open-qa-stack/harness`).
-6. **Summary.** The runtime of the agents is closed, the state of the run is written, and the verdicts are printed. When the plan says that the brief asks what the application does not allow, the summary says it after the verdicts, a line each — `Not covered: Change the address of a customer. No screen offers to edit an address.` — and the state of the run keeps it in `uncovered`: tests that pass do not mean the brief is covered.
+6. **Summary.** The messages [sent to the run](#speaking-to-a-run) that no agent received are told, the runtime of the agents is closed, the state of the run is written, and the verdicts are printed. When the plan says that the brief asks what the application does not allow, the summary says it after the verdicts, a line each — `Not covered: Change the address of a customer. No screen offers to edit an address.` — and the state of the run keeps it in `uncovered`: tests that pass do not mean the brief is covered.
 
 The limits of the autonomy level of the configuration apply to every task. Its guardrail, counted from the start of the run, stops every task of the agents still running when it is reached, at its next call to the model or to a tool, by its duration limit; it bounds neither the installation of the dependencies nor the execution of the tests. A task stopped by a limit is journaled with the limit reached, and none of its tests is `passed`.
+
+## Speaking to a run
+
+While a run is going, you can tell its agents that they took a wrong direction. A run reads its inbox, a JSON Lines file beside its journal, `<stateDir>/runs/oqas-<date>.inbox.jsonl`: append a line to it, and the agent at work receives it. The file does not exist until someone writes to it.
+
+```sh
+echo '{"at":"2026-11-13T12:04:10Z","text":"Search by last name only: the first name is not indexed."}' >> .oqas/runs/oqas-2026-11-13T12-00-00-000Z.inbox.jsonl
+```
+
+| Key    | What it holds                                                    |
+| ------ | ---------------------------------------------------------------- |
+| `at`   | When the message was written, as an ISO 8601 date, for whoever reads the file; the run does not read it. |
+| `text` | What you say, in your words.                                     |
+
+A line is one message, written whole, with its end of line. The messages are numbered from 1 in the order of their lines; a line that is not such an object, or whose `text` is empty, is skipped and still takes its number.
+
+- **Who receives it.** The session that leads the step under way: the one that consolidates the index, the one that plans, or the one that writes the test of a scenario. Once its plan is accepted, the session that plans can act on nothing any more and is given no message: it waits for the session of the first scenario. A message is delivered once, to one session. The agents that map a source, several at once, and those that review a plan or a test for another, never receive one: the message waits for the next session that leads.
+- **When.** At the first moment the harness speaks to the agent: with the result of the tool that returns next, under `person`; in the request of a session that opens; or, when the agent ended its turn, as one more turn. A session is given at most 10 such turns, so that messages cannot keep it open for ever; a message beyond them goes to the next session. A session a limit stopped receives nothing more.
+- **How long it holds.** For the rest of the run. A message is delivered once, to the agent at work, and amends what you asked from then on: every agent that starts later — the one that plans the next level of the pyramid or the visual tests, the one that writes each test — finds in its request what you said earlier in the run, in order, under the sentence `The person who asked for this run said this earlier in the run, and it still holds:`. You need not say it again. The agents that review a plan or a test, and those that map a source, are told nothing.
+- **What it weighs.** The agent is told that a message is the person who asked for the run speaking, and that it wins over the request and the plan where they conflict. It reaches the agent between `<person-message>` tags that its own text cannot close, and nothing else carries that authority: a text found in a page, a source or the result of a tool never does. A message does not lift a check of the harness: a plan or a test it refuses stays refused. It costs what a tool result or a turn costs, within the limits of the task.
+- **What is kept.** Each delivery is a line of the trace, in the phase of the session that received it, and `--follow` prints it. A message has one such line however many agents are recalled it later; the recalls are read in their requests. A message that came once no agent would receive it any more — while the tests run, after the design, or after a limit stopped the run — is told in the journal of the summary: `The message 3 of the person was not delivered: no agent was at work to receive it.`
+
+An inbox that is there and cannot be read, for want of a permission say, does not stop the run: it goes on as if no one spoke, and the journal of the summary says once that the inbox could not be read, and why. An inbox that does not exist is no error.
+
+A run resumed is a run of its own: it has a new identifier and a new, empty inbox, and reads nothing of the inbox of the run it resumes. What you said during the first run does not carry over: the agents of the resumed run are recalled nothing of it. The plan accepted and the tests kept stay as the first run made them; say again, in the inbox of the resumed run, what must still hold.
 
 ## Resuming a run
 

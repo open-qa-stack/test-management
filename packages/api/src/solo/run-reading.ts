@@ -1,24 +1,25 @@
 import { AppendedLines } from "./appended-lines.ts";
 import { compareText } from "./compare-text.ts";
-import { journalLine, traceLine } from "./run-lines.ts";
+import { inboxLine, journalLine, traceLine } from "./run-lines.ts";
 import { RunThread } from "./run-thread.ts";
 import type { SessionEvent, SessionState } from "@open-qa-stack/shared/sessions";
 import type { RunFolder } from "./run-folder.ts";
-import type { RunLine } from "./run-line.ts";
+import type { ThreadLine } from "./run-line.ts";
 
 /** A file of a run that is followed: what it gained, and its lines that are too recent to be told yet. */
 interface FollowedFile {
   readonly appended: AppendedLines;
-  waiting: RunLine[];
+  waiting: ThreadLine[];
 }
 
 /**
- * The events of one run, read as the run writes them: each reading gives the events its journal and its
- * traces gained since the reading before, the traces it started since included.
+ * The events of one run, read as the run writes them: each reading gives the events its journal, its inbox
+ * and its traces gained since the reading before, the traces it started since included.
  *
  * @remarks
  * The lines of every file are told together in the order of their dates; lines of the same date keep the
- * order of the files, the journal first, then the order they were written in. A reading only tells the lines
+ * order of the files, the journal first, the inbox next, then the order they were written in. The lines of
+ * the inbox are numbered as the command line numbers them: every line counts, a message or not. A reading only tells the lines
  * dated before its horizon, a margin before it began: a line dated later waits for a next reading, so that no
  * file can still gain a line that belongs before one already told, even when the run writes a line a moment
  * after the date it bears. The events are therefore numbered the same by every reading of the same files,
@@ -35,6 +36,7 @@ export class RunReading {
   readonly #marginMs: number;
   readonly #followed = new Map<string, FollowedFile>();
   readonly #thread = new RunThread();
+  #inboxLines = 0;
   #lastAt = "";
   #told: SessionState = "running";
 
@@ -64,11 +66,15 @@ export class RunReading {
     const horizon = new Date(began.getTime() - this.#marginMs).toISOString();
     const files = await this.#folder.files(this.#id);
     if (files === undefined) throw this.#gone();
-    const ready: RunLine[] = [];
+    const ready: ThreadLine[] = [];
     let waiting = 0;
-    for (const [rank, path] of [files.journal, ...files.traces].entries()) {
+    const readers: (readonly [string, (text: string) => ThreadLine | undefined])[] = [
+      [files.journal, journalLine],
+      [files.inbox, (text) => inboxLine(text, ++this.#inboxLines)],
+      ...files.traces.map((path) => [path, traceLine] as const),
+    ];
+    for (const [path, read] of readers) {
       const file = this.#follow(path);
-      const read = rank === 0 ? journalLine : traceLine;
       const lines = [...file.waiting, ...(await file.appended.read()).flatMap((text) => read(text) ?? [])];
       file.waiting = lines.filter((line) => line.at >= horizon);
       ready.push(...lines.filter((line) => line.at < horizon));

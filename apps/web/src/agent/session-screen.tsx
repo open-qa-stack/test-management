@@ -4,6 +4,7 @@ import { Badge } from "../ui/badge.tsx";
 import { Icon } from "../ui/icon.tsx";
 import { Page } from "../ui/page.tsx";
 import { AGENTS, IDENTITIES } from "./agents.ts";
+import { Composer } from "./composer.tsx";
 import type { LiveSession } from "./live-session.ts";
 import { LookPanel } from "./look-panel.tsx";
 import { openedLookOf, withoutLook } from "./opened-look.ts";
@@ -50,7 +51,7 @@ function FollowBar({ live }: { readonly live: LiveSession }): ReactNode {
       <Badge tone={state.tone}>{state.label}</Badge>
       <span className="session-facts">{live.stream === "reconnecting" ? "connexion au flux interrompue, nouvelle tentative…" : factsOf(live).join(" · ")}</span>
       <button type="button" className="btn ghost sm" onClick={live.controls.restart} disabled={live.script.steps.length === 0}>
-        <Icon name="restart" size={13} /> Rejouer
+        <Icon name="restart" /> Rejouer
       </button>
     </div>
   );
@@ -65,11 +66,11 @@ function ReplayBar({ live }: { readonly live: LiveSession }): ReactNode {
   return (
     <div className="session-bar replay">
       <button type="button" className="btn primary sm" onClick={controls.toggle}>
-        <Icon name={playback.playing ? "pause" : "play"} size={13} />
+        <Icon name={playback.playing ? "pause" : "play"} />
         <span className="btn-label">{playback.playing ? "Pause" : "Reprendre"}</span>
       </button>
       <button type="button" className="btn ghost sm" onClick={controls.skip} aria-label="Aller à la prochaine décision du harnais">
-        <Icon name="forward" size={13} />
+        <Icon name="forward" />
         <span className="btn-label">Décision suivante</span>
       </button>
       <button type="button" className="btn ghost sm playback-speed" onClick={controls.faster} aria-label="Changer la vitesse">
@@ -93,7 +94,8 @@ function ReplayBar({ live }: { readonly live: LiveSession }): ReactNode {
 }
 
 /**
- * A session: its thread alone, followed as the agents work or replayed. What an agent had before its eyes
+ * A session: its thread alone, followed as the agents work or replayed, over the composer of a message to the
+ * agents for as long as they work. What an agent had before its eyes
  * when it acted opens in a panel, from the eye of that action: the address names the action (`?look=6`).
  *
  * @param props - The route, the session and the project.
@@ -151,6 +153,8 @@ export function SessionScreen({ route, live, project }: SessionScreenProps): Rea
           query={kept}
           {...(followed === undefined ? {} : { followed })}
         />
+        {live.session.state === "running" && <Composer saying={live.saying} onSay={live.controls.say} onKey={live.controls.sayOnEnter} />}
+        <div className="session-end" />
         {opened !== undefined && <LookPanel opened={opened} close={withoutLook(route)} />}
       </div>
     </Page>

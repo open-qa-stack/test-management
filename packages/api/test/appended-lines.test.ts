@@ -6,10 +6,10 @@ import { AppendedLines } from "../src/solo/appended-lines.ts";
 import { temporaryFolder } from "./support/test-repository.ts";
 
 describe("the lines appended to a file", () => {
-  it("gives every completed line on the first reading, without the empty ones", async () => {
+  it("gives every completed line on the first reading, the empty ones included, so that the rank of a line can be counted", async () => {
     const file = join(temporaryFolder(), "journal.jsonl");
     writeFileSync(file, '{"n":1}\n\n{"n":2}\n');
-    assert.deepEqual(await new AppendedLines(file).read(), ['{"n":1}', '{"n":2}']);
+    assert.deepEqual(await new AppendedLines(file).read(), ['{"n":1}', "", '{"n":2}']);
   });
 
   it("never gives a line twice: a reading only holds what was appended since the one before", async () => {

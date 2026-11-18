@@ -87,6 +87,32 @@ describe("the turns of a thread", () => {
     assert.deepEqual(turnsOf(shownOf([asked, asked, brief, brief])).map(summaryOf), ["request 0", "request 1", "brief 2", "brief 3"]);
   });
 
+  it("give a message the person sent during the session a turn of its own, waiting for an agent until a delivery names it", () => {
+    const asked: Step = { kind: "say", from: "user", at: "09:00:00", text: "tester" };
+    const first: Step = { kind: "say", from: "user", at: "09:00:04", text: "sans le profil", number: 1 };
+    const second: Step = { kind: "say", from: "user", at: "09:00:05", text: "et vite", number: 2 };
+    const delivery: Step = { kind: "delivery", at: "09:00:06", message: 2, to: "writer" };
+    const shown = shownOf([asked, first, second, ANSWER, delivery]);
+    assert.deepEqual(turnsOf(shown.slice(0, 4)).map(summaryOf), ["request 0", "message 1", "message 2", "agent:writer 3"]);
+    assert.deepEqual(turnsOf(shown), [
+      { kind: "request", shown: shown[0] },
+      { kind: "message", shown: shown[1] },
+      { kind: "message", shown: shown[2], deliveredTo: "writer" },
+      { kind: "agent", agent: "writer", items: [shown[3]] },
+    ]);
+  });
+
+  it("make no turn of a delivery: an agent goes on under its name across it, and the notes of the harness stay gathered", () => {
+    const sent: Step = { kind: "say", from: "user", at: "09:00:00", text: "sans le profil", number: 1 };
+    const delivery: Step = { kind: "delivery", at: "09:00:02", message: 1, to: "planner" };
+    assert.deepEqual(turnsOf(shownOf([sent, THOUGHT, delivery, ACTION, NOTE, delivery, NOTE])).map(summaryOf), ["message 0", "agent:planner 1,3", "notes 4,6"]);
+  });
+
+  it("ignore the delivery of a message the thread does not show", () => {
+    const delivery: Step = { kind: "delivery", at: "09:00:02", message: 3, to: "planner" };
+    assert.deepEqual(turnsOf(shownOf([THOUGHT, delivery])).map(summaryOf), ["agent:planner 0"]);
+  });
+
   it("leave the start of a pass, a verdict, a plan and the outcome each alone, as a card", () => {
     const cards: readonly Step[] = [
       { kind: "pass", at: "09:00:00", title: "Plan", summary: "" },

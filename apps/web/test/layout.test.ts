@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import type { Problem, ProblemCode, Session, SessionEvent, SessionList, SessionOpening } from "@open-qa-stack/shared/sessions";
 import { afterAll, beforeAll, describe, it } from "vitest";
-import { COMPLETED, EVENTS, RUNNING, SESSION_ID } from "./agent/session-fixture.ts";
+import { EVENTS, SESSION_ID } from "./agent/session-fixture.ts";
 import type { Locator, Page } from "playwright-core";
-import { BuiltConsole, UNREACHABLE, type Api, type ApiAnswer } from "./built-console.ts";
+import { BuiltConsole } from "./built-console.ts";
+import { OPENED_ID, PlayedInstance } from "./played-instance.ts";
 
 let built: BuiltConsole | undefined;
 
@@ -19,87 +19,6 @@ afterAll(async () => {
 function app(): BuiltConsole {
   assert.ok(built, "the console is built");
   return built;
-}
-
-/** The identifier of the session the played instance opens on request. */
-const OPENED_ID = "oqas-2026-11-16T09-00-00-000Z";
-
-/** The event that says the session of the fixtures completed, after all the others. */
-const COMPLETION: SessionEvent = { id: EVENTS.length + 1, at: "2026-11-15T14:46:00.000Z", type: "state_changed", state: "completed" };
-
-/**
- * A problem, as the API answers one.
- *
- * @param code - Its code.
- * @param status - Its status.
- * @param detail - What it says went wrong.
- * @returns The answer.
- */
-function problem(code: ProblemCode, status: number, detail: string): ApiAnswer {
-  const body: Problem = { type: `/problems/${code}`, title: "A problem", status, detail, code };
-  return { status, contentType: "application/problem+json", body: JSON.stringify(body) };
-}
-
-/** The API of an instance that holds one session, which a test may change as it goes. */
-class PlayedInstance {
-  /** The session, as the API tells it now. */
-  public session: Session = RUNNING;
-  /** How many events the session has so far. */
-  public happened = EVENTS.length;
-  /** Whether the instance cannot be reached. */
-  public down = false;
-  /** Whether the list of the project has the session. */
-  public listed = true;
-  /** Whether the API fails to list the sessions. */
-  public unlisted = false;
-  /** Whether the API fails to open the stream of a session. */
-  public streamDown = false;
-  /** Why the API refuses to open a session, when it does. */
-  public refusal: ProblemCode | undefined;
-  /** What the API waits for before it answers a request to open a session. */
-  public hold: Promise<void> = Promise.resolve();
-  /** The requests to open a session the API received. */
-  public readonly asked: SessionOpening[] = [];
-  /** The event each stream of the session was asked to resume after; none for a stream asked from its start. */
-  public readonly resumed: (string | undefined)[] = [];
-  /** The session the API opened on request, once it did. */
-  private opened: Session | undefined;
-
-  /** Completes the session: its last event says so, and the API tells what it came to. */
-  public complete(): void {
-    this.happened = EVENTS.length;
-    this.session = COMPLETED;
-  }
-
-  /** What the API does with a request. */
-  public readonly api: Api = async ({ path, method, after, body }) => {
-    if (this.down) return UNREACHABLE;
-    if (path === "/api/project")
-      return { body: JSON.stringify({ name: "lakeside", applications: [{ id: "customer-management", name: "Customer Management" }] }) };
-    if (path === "/api/sessions" && method === "POST") {
-      await this.hold;
-      if (this.refusal !== undefined) return problem(this.refusal, 503, "The API refuses in its own words.");
-      const asked = JSON.parse(body!) as SessionOpening;
-      this.asked.push(asked);
-      this.opened = { id: OPENED_ID, request: asked.request, openedAt: "2026-11-16T09:00:00.000Z", lastEventAt: "2026-11-16T09:00:00.000Z", state: "running" };
-      return { status: 201, body: JSON.stringify(this.opened) };
-    }
-    if (path === "/api/sessions") {
-      if (this.unlisted) return problem("error", 500, "The folder of the sessions cannot be read.");
-      const items = [...(this.opened === undefined ? [] : [this.opened]), ...(this.listed ? [this.session] : [])];
-      return { body: JSON.stringify({ items } satisfies SessionList) };
-    }
-    const [, id, stream] = /^\/api\/sessions\/([^/]+)(\/events)?$/.exec(path) ?? [];
-    const session = id === SESSION_ID ? this.session : id === OPENED_ID ? this.opened : undefined;
-    if (session === undefined) return problem("unknown_session", 404, "No session has this identifier.");
-    if (stream === undefined) return { body: JSON.stringify(session) };
-    if (this.streamDown) return problem("unavailable", 503, "The stream cannot be opened.");
-    if (id !== SESSION_ID) return { contentType: "text/event-stream", body: ": nothing yet\n\n" };
-    this.resumed.push(after);
-    // The answer ends after what the session has so far: the console connects again, and asks for what happened since.
-    const events = [...EVENTS.slice(0, this.happened), ...(session.state === "running" ? [] : [COMPLETION])].filter((event) => event.id > Number(after ?? 0));
-    return { contentType: "text/event-stream", body: `: events\n\n${events.map((event) => `id: ${event.id}\ndata: ${JSON.stringify(event)}\n\n`).join("")}` };
-  };
 }
 
 /** The address of the session of the fixtures. */
@@ -125,7 +44,8 @@ function overflowOf(page: Page): Promise<number> {
  * Lists what a person can press on a page that a finger would miss.
  *
  * @param page - The page.
- * @returns Each link, button, folded block and field shown that is less than 44 px wide or high, with its size.
+ * @returns Each link, button, folded block and field shown that is less than 44 px wide or high, with its size,
+ * read to the hundredth of a pixel: a box laid out at a fraction of a pixel is not measured exactly.
  */
 function tooSmallOf(page: Page): Promise<string[]> {
   return page.evaluate(
@@ -133,7 +53,7 @@ function tooSmallOf(page: Page): Promise<string[]> {
       [...document.querySelectorAll("a, button, summary, textarea")]
         .filter((element) => element.checkVisibility())
         .map((element) => ({ element, box: element.getBoundingClientRect() }))
-        .filter(({ box }) => box.width < least || box.height < least)
+        .filter(({ box }) => Math.round(box.width * 100) < least * 100 || Math.round(box.height * 100) < least * 100)
         .map(({ element, box }) => `${element.tagName} « ${element.getAttribute("aria-label") ?? element.textContent} » ${box.width} × ${box.height}`),
     TAP,
   );
@@ -280,7 +200,7 @@ describe("what an agent had before its eyes", () => {
   /** The eye of the action that opened the page of the application. */
   const EYE = "A: A ouvert / dans customer-management — voir ce que l’agent avait sous les yeux";
 
-  it("is closed by default: a session is its thread alone, in one centred column on a wide screen", async () => {
+  it("is closed by default: a session is its thread alone, in one column that starts where the title of the page does", async () => {
     for (const width of [390, 1440]) {
       const page = await app().open(width, SESSION, new PlayedInstance().api);
       try {
@@ -288,10 +208,14 @@ describe("what an agent had before its eyes", () => {
         assert.equal(await page.getByRole("dialog").count(), 0, `${width}`);
         assert.equal(await page.locator(".act.selected").count(), 0, `${width}`);
         const thread = await page.locator(".thread").boundingBox();
-        const around = await page.locator(".content").boundingBox();
-        assert.ok(thread !== null && around !== null);
-        assert.ok(thread.width <= 880, `${width}: a column of ${thread.width} px`);
-        assert.ok(Math.abs(thread.x - around.x - (around.x + around.width - thread.x - thread.width)) <= 1, `${width}: centred`);
+        const title = await page.getByRole("heading", { level: 1 }).boundingBox();
+        assert.ok(thread !== null && title !== null);
+        assert.ok(thread.width <= 860, `${width}: a column of ${thread.width} px`);
+        const edges = await page
+          .locator(".crumb, .session-bar, .pass-stepper, .thread-filters, .composer")
+          .evaluateAll((all) => all.map((one) => one.getBoundingClientRect().x));
+        assert.deepEqual(edges, [title.x, title.x, title.x, title.x, title.x], `${width}: one left edge`);
+        assert.equal(thread.x, title.x, `${width}: the thread starts where the title does`);
         assert.equal(await overflowOf(page), 0, `${width}`);
       } finally {
         await page.close();
@@ -436,6 +360,38 @@ describe("the thread of a session", () => {
     }
   });
 
+  it("starts what an agent did and what the harness says on one keyline, beside the pictures, at every width, and ends every time on one edge", async () => {
+    for (const [width, keyline] of [
+      [390, 44],
+      [1440, 44],
+    ] as const) {
+      const page = await app().open(width, SESSION, new PlayedInstance().api);
+      try {
+        await page.getByText("I write the test now.").waitFor();
+        const thread = await page.locator(".thread").boundingBox();
+        assert.ok(thread !== null);
+        const starts = await page
+          .locator(".turn-body > :not(.turn-head), .brief .speaker-mark, .verdict, .result-card, .pass.minor .pass-title")
+          .evaluateAll((all) => [...new Set(all.map((one) => one.getBoundingClientRect().left))]);
+        assert.deepEqual(starts, [thread.x + keyline], `${width}: one keyline`);
+        const texts = await page
+          .locator(".brief summary > span:not([class]), .note-text")
+          .evaluateAll((all) => [...new Set(all.map((one) => one.getBoundingClientRect().left))]);
+        assert.deepEqual(texts, [thread.x + keyline + 28], `${width}: the harness speaks from one edge, after the room of its mark`);
+        const held = await page
+          .locator(".act-line, .thinking svg, .lead")
+          .evaluateAll((all) => [...new Set(all.map((one) => one.getBoundingClientRect().left))]);
+        assert.deepEqual(held, [thread.x + keyline + 16], `${width}: what a surface holds is set in by one padding`);
+        const ends = await page
+          .locator(".turn-head .turn-at, .brief .turn-at, .verdict .turn-at, .result-card .turn-at, .act-time")
+          .evaluateAll((all) => [...new Set(all.map((one) => one.getBoundingClientRect().right))]);
+        assert.deepEqual(ends, [thread.x + thread.width - 16], `${width}: one right edge for the times`);
+      } finally {
+        await page.close();
+      }
+    }
+  });
+
   it("keeps the passes of a session on one line on a phone", async () => {
     const page = await app().open(360, SESSION, new PlayedInstance().api);
     try {
@@ -458,6 +414,206 @@ describe("the thread of a session", () => {
       assert.equal(await moving(), 0);
     } finally {
       await page.close();
+    }
+  });
+});
+
+describe("what the person says to the agents while they work", () => {
+  /** The field of the composer. */
+  const fieldOf = (page: Page): Locator => page.getByRole("textbox", { name: "Dites aux agents ce qu’il faut corriger" });
+
+  /** Tells whether something ends at the bottom of the window, to the pixel: a page whose height is a fraction of one is not laid out more exactly. */
+  const atBottom = (end: number): boolean => Math.abs(end - 800) < 1;
+
+  /** The bubble of a message the person sent, with where it is under it. */
+  const sentOf = (page: Page, text: string): Locator => page.locator(".sent", { hasText: text });
+
+  it("is sent by the button, shows as a bubble of the person once the instance took it, then says which agent received it", async () => {
+    const instance = new PlayedInstance();
+    let release = (): void => {};
+    instance.hold = new Promise((resolve) => (release = resolve));
+    const page = await app().open(1280, SESSION, instance.api);
+    try {
+      const field = fieldOf(page);
+      const button = page.getByRole("button", { name: "Envoyer" });
+      await field.fill("  sans le profil  ");
+      await button.click();
+      await page.locator(".composer textarea:disabled").waitFor();
+      assert.equal(await button.isDisabled(), true);
+      assert.equal(await page.locator(".sent").count(), 0, "nothing shows before the instance took the message");
+      release();
+      const sent = sentOf(page, "sans le profil");
+      await sent.getByText("en attente d’un agent").waitFor();
+      assert.deepEqual(instance.said, [{ text: "sans le profil" }]);
+      assert.deepEqual([await field.inputValue(), await field.isDisabled(), await button.isDisabled()], ["", false, false]);
+      assert.equal(await field.evaluate((element) => element === document.activeElement), true, "the field keeps the focus");
+      instance.deliver(1, "writer");
+      await sent.getByText("remis à Rédacteur").waitFor();
+      assert.match(await sent.locator(".request").innerText(), /^Votre message :\s+sans le profil$/);
+      assert.equal(await page.getByRole("heading", { level: 1 }).innerText(), "tester la recherche d'un client");
+      assert.equal(await page.title(), "tester la recherche d'un client · Open QA Stack");
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("is sent by Enter, while Shift+Enter starts a new line; an empty one is not sent", async () => {
+    const instance = new PlayedInstance();
+    const page = await app().open(1280, SESSION, instance.api);
+    try {
+      const field = fieldOf(page);
+      await field.fill("   ");
+      await field.press("Enter");
+      await field.fill("sans le profil");
+      await field.press("Shift+Enter");
+      await field.pressSequentially("ni les contrats");
+      assert.equal(await field.inputValue(), "sans le profil\nni les contrats");
+      assert.deepEqual(instance.said, []);
+      await field.press("Enter");
+      await sentOf(page, "ni les contrats").waitFor();
+      assert.deepEqual(instance.said, [{ text: "sans le profil\nni les contrats" }]);
+      assert.equal(await field.inputValue(), "");
+      const lines = await sentOf(page, "ni les contrats")
+        .locator(".request")
+        .evaluate((bubble) => bubble.getClientRects().length > 0 && bubble.clientHeight);
+      assert.ok(Number(lines) > 60, "the bubble keeps the two lines the person wrote");
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("keeps what the person wrote and says why, over a thread still in sight, when the session just ended, then sends it once the instance takes it", async () => {
+    const instance = new PlayedInstance();
+    instance.deaf = true;
+    const page = await app().open(390, SESSION, instance.api);
+    try {
+      const field = fieldOf(page);
+      await field.fill("sans le profil");
+      await page.getByRole("button", { name: "Envoyer" }).click();
+      const alert = page.getByRole("alert");
+      await alert.waitFor();
+      assert.equal(await alert.innerText(), "La session vient de se terminer : elle ne prend plus de message.");
+      assert.deepEqual([await field.inputValue(), await field.isDisabled()], ["sans le profil", false]);
+      assert.equal(await field.evaluate((element) => element === document.activeElement), true, "the field takes the focus back");
+      assert.equal(await page.locator(".sent").count(), 0);
+      await page.waitForFunction(() => {
+        const composer = document.querySelector(".composer")!.getBoundingClientRect();
+        return composer.bottom > window.innerHeight - 1 && document.querySelector(".working")!.getBoundingClientRect().bottom <= composer.top;
+      });
+      instance.deaf = false;
+      await field.press("Enter");
+      await sentOf(page, "sans le profil").waitFor();
+      assert.equal(await alert.count(), 0);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("is offered only while the session goes on: the composer leaves when it completes, and an ended session has none", async () => {
+    const instance = new PlayedInstance();
+    const page = await app().open(1280, SESSION, instance.api);
+    try {
+      await fieldOf(page).waitFor();
+      instance.complete();
+      await page.getByText("Verdict de l’exécution : 1 test(s)").waitFor();
+      await fieldOf(page).waitFor({ state: "detached" });
+      assert.equal(await page.locator(".composer, textarea").count(), 0);
+      await page.reload();
+      await page.getByText("Verdict de l’exécution : 1 test(s)").waitFor();
+      assert.equal(await page.locator(".composer, textarea").count(), 0);
+      assert.equal(await page.getByRole("button", { name: "Envoyer" }).count(), 0);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("stays at the bottom of a phone, over the end of the thread, which a new message scrolls into sight above it", async () => {
+    const instance = new PlayedInstance();
+    const page = await app().open(390, SESSION, instance.api);
+    /** The bottom of an element, and the top and the bottom of the composer, in the window. */
+    const over = (above: Locator): Promise<readonly [number, number, number]> =>
+      above.evaluate((element) => {
+        const composer = document.querySelector(".composer")!.getBoundingClientRect();
+        return [element.getBoundingClientRect().bottom, composer.top, composer.bottom] as const;
+      });
+    try {
+      const working = page.getByRole("status").filter({ hasText: "travaille" });
+      await working.waitFor();
+      await page.waitForFunction(() => window.scrollY > 0);
+      const [end, top, bottom] = await over(working);
+      assert.ok(atBottom(bottom), `the composer stands at the bottom of the window: ${bottom}`);
+      assert.ok(end <= top, `the thread ends at ${end}, over the composer, which starts at ${top}`);
+      assert.deepEqual(await tooSmallOf(page), []);
+      assert.equal(await overflowOf(page), 0);
+      const size = await fieldOf(page).evaluate((field) => parseFloat(getComputedStyle(field).fontSize));
+      assert.ok(size >= 16, `a field of ${size} px`);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      assert.ok(atBottom((await over(working))[2]), "the composer stays there while the thread scrolls");
+      assert.equal(await working.evaluate((element) => element.getBoundingClientRect().top > window.innerHeight), true);
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      await fieldOf(page).fill("sans le profil");
+      await fieldOf(page).press("Enter");
+      const sent = sentOf(page, "sans le profil");
+      await sent.waitFor();
+      await page.waitForFunction(() => {
+        const status = document.querySelector('.working[role="status"]')!.getBoundingClientRect();
+        return status.bottom <= document.querySelector(".composer")!.getBoundingClientRect().top && status.top > 0;
+      });
+      assert.equal(await sent.isVisible(), true);
+      assert.equal(await overflowOf(page), 0);
+      assert.deepEqual(await tooSmallOf(page), []);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("stands at the bottom of the window however short the thread, which does not scroll then", async () => {
+    const instance = new PlayedInstance();
+    instance.happened = 2;
+    for (const width of [390, 1440]) {
+      const page = await app().open(width, SESSION, instance.api);
+      try {
+        await page.getByRole("status").filter({ hasText: "travaille" }).waitFor();
+        const composer = await page.locator(".composer").boundingBox();
+        assert.ok(composer !== null);
+        assert.ok(atBottom(composer.y + composer.height), `${width}`);
+        assert.equal(await page.evaluate(() => document.documentElement.scrollHeight), 800, `${width}`);
+      } finally {
+        await page.close();
+      }
+    }
+  });
+
+  it("stays under the thread beside the drawer of a look on a wide screen, and behind the look that covers a phone", async () => {
+    const wide = await app().open(1440, LOOKED, new PlayedInstance().api);
+    try {
+      const panel = wide.getByRole("dialog");
+      await panel.getByText('heading "Customers"').waitFor();
+      await settled(panel);
+      const drawer = await panel.boundingBox();
+      const thread = await wide.locator(".thread").boundingBox();
+      const composer = await wide.locator(".composer").boundingBox();
+      assert.ok(drawer !== null && thread !== null && composer !== null);
+      assert.deepEqual([composer.x, composer.width], [thread.x, thread.width]);
+      assert.ok(atBottom(composer.y + composer.height), `the composer ends at ${composer.y + composer.height}`);
+      assert.ok(composer.x + composer.width <= drawer.x, `the composer ends at ${composer.x + composer.width}, the drawer starts at ${drawer.x}`);
+      await fieldOf(wide).fill("sans le profil");
+      assert.equal(await fieldOf(wide).inputValue(), "sans le profil", "the composer still takes what is written beside the drawer");
+    } finally {
+      await wide.close();
+    }
+    const phone = await app().open(390, LOOKED, new PlayedInstance().api);
+    try {
+      const panel = phone.getByRole("dialog");
+      await panel.getByText('heading "Customers"').waitFor();
+      await settled(panel);
+      const covered = await phone.locator(".composer textarea").evaluate((field) => {
+        const box = field.getBoundingClientRect();
+        return document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)?.closest(".look-panel") !== null;
+      });
+      assert.equal(covered, true);
+    } finally {
+      await phone.close();
     }
   });
 });
@@ -700,6 +856,17 @@ describe("the code of the console is covered in full", () => {
         await page.getByText("Plan accepté par le harnais").waitFor();
         await page.getByRole("button", { name: "Revenir au direct" }).click();
         await page.getByRole("button", { name: "Rejouer" }).waitFor();
+        const field = page.getByRole("textbox", { name: "Dites aux agents ce qu’il faut corriger" });
+        await field.fill("   ");
+        await field.press("Enter");
+        instance.deaf = true;
+        await field.fill("sans le profil");
+        await field.press("Shift+Enter");
+        await field.press("Enter");
+        await page.getByText("La session vient de se terminer").waitFor();
+        instance.deaf = false;
+        await page.getByRole("button", { name: "Envoyer" }).click();
+        await page.locator(".sent", { hasText: "sans le profil" }).waitFor();
         instance.down = true;
         await page.getByRole("alert").waitFor();
         instance.down = false;

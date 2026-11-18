@@ -20,8 +20,9 @@ body {
   background: var(--sheet);
   color: var(--text);
   font-family: var(--font);
-  font-size: var(--fs);
-  line-height: 1.45;
+  font-size: var(--type-body);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-body);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -39,13 +40,18 @@ textarea {
 }
 
 h1 {
-  letter-spacing: -0.015em;
+  letter-spacing: var(--tracking-title);
+}
+
+/* What is stressed takes the one strong weight of the console. */
+b {
+  font-weight: var(--weight-strong);
 }
 
 /* Whatever takes the keyboard shows it. */
 :focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
+  outline: var(--stroke) solid var(--primary);
+  outline-offset: var(--stroke);
 }
 
 /* A title takes the focus to say where the console arrived; it is not a control, and shows no ring. */
@@ -56,8 +62,8 @@ h1:focus {
 /* Read by a screen reader, not shown. */
 .sr-only {
   position: absolute;
-  width: 1px;
-  height: 1px;
+  width: var(--hairline);
+  height: var(--hairline);
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
@@ -72,11 +78,13 @@ h1:focus {
 }
 
 .small {
-  font-size: var(--fs-s);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
 }
 
 .xs {
-  font-size: var(--fs-xs);
+  font-size: var(--type-caption);
+  line-height: var(--leading-caption);
 }
 
 .grow {

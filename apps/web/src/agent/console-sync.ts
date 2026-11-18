@@ -114,6 +114,21 @@ export class ConsoleSync {
     );
   }
 
+  /**
+   * Sends a message to the agents of a session that goes on. The message shows in the thread once the stream of
+   * the session gives it, not before: what the thread shows is what the instance took.
+   *
+   * @param id - The identifier of the session.
+   * @param text - What the person says.
+   */
+  public say(id: string, text: string): void {
+    this.#dispatch({ type: "saying", id });
+    this.#api.say(id, { text }).then(
+      () => this.#dispatch({ type: "said", id }),
+      (error: ApiError) => this.#dispatch({ type: "unsaid", id, message: error.message }),
+    );
+  }
+
   /** Reads a session until the API told it, or said it keeps none of that name. */
   #read(id: string, missing: () => void): () => void {
     const stop = poll(

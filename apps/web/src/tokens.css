@@ -4,7 +4,6 @@
   --surface-soft: #fafbfc;
   --line: #e3e6eb;
   --line-soft: #eef0f3;
-  --hairline: #e4e7ee;
   --field-line: #d6dae1;
   --text: #1a1d23;
   --text-2: #4b5563;
@@ -40,19 +39,89 @@
   --on-brand: #fff;
   --focus-ring: rgba(36, 88, 214, 0.35);
   --shadow-soft: rgba(22, 53, 127, 0.06);
+  --shadow-deep: rgba(22, 53, 127, 0.12);
 
-  /* The sizes the sheets share, as a phone needs them, the least height of what a finger presses among them. */
+  /* The one scale of every margin, padding, gap and offset, on a grid of 4 px, where a step is named after its count of 4 px. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  /* What stands apart down a page, each step twice the one before, from a line and what hangs under it to a pass and the one before. */
+  --gap-line: var(--space-1);
+  --gap-row: var(--space-2);
+  --gap-turn: var(--space-4);
+  --gap-pass: var(--space-8);
+
+  /* The edges the sheets share, which are the gutter of a page and the inset of what a surface holds, a card or a row alike. */
+  --gutter: var(--space-4);
+  --pad: var(--space-4);
+
+  /* What a surface with a border holds stands as far from its outer edge, the hairline counted in. */
+  --inset: calc(var(--pad) - var(--hairline));
+  --inset-panel: calc(var(--space-2) - var(--hairline));
+
+  /* What a finger presses, a control, a row, the bar of the console, the pictures of who speaks. */
   --tap: 44px;
-  --gutter: 16px;
-  --pad: 14px;
-  --r: 6px;
-  --r-control: 8px;
-  --r-card: 12px;
-  --fs-xs: 12px;
-  --fs-s: 13px;
-  --fs: 15px;
-  --fs-read: 16px;
-  --fs-title: 20px;
+  --control: 44px;
+  --row: 48px;
+  --bar: 56px;
+  --picture: 32px;
+  --picture-sm: 20px;
+
+  /* The line of a row, inside its two hairlines, which a finger presses and so stays as high as one. */
+  --row-line: calc(var(--row) - 2 * var(--hairline));
+
+  /* Where what an agent did starts, under its name and beside its picture. */
+  --keyline: calc(var(--picture) + var(--space-3));
+
+  /* The columns, which are the sidebar, the thread, the entry, the drawer of a look, and the longest line that reads well. */
+  --sidebar: 224px;
+  --column: 848px;
+  --column-narrow: 768px;
+  --drawer: clamp(420px, 38vw, 560px);
+  --measure: 64ch;
+  --measure-wide: 96ch;
+
+  /* The corners. A surface set in another takes the radius of the outer one less the padding between them, the least step when nothing is left. */
+  --radius-inner: 4px;
+  --radius-control: 8px;
+  --radius-card: 12px;
+  --radius-panel: 16px;
+  --radius-pill: 999px;
+
+  /* The sizes of the text, each 14 px times a power of 1.125, to the pixel, and for each the height of its line, on the grid. */
+  --type-caption: 11px;
+  --type-small: 12px;
+  --type-body: 14px;
+  --type-reading: 16px;
+  --type-heading: 18px;
+  --type-title: 22px;
+  --type-display: 28px;
+  --leading-caption: 16px;
+  --leading-small: 16px;
+  --leading-body: 20px;
+  --leading-reading: 24px;
+  --leading-heading: 24px;
+  --leading-title: 28px;
+  --leading-display: 36px;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-strong: 600;
+  --tracking-caps: 0.06em;
+  --tracking-title: -0.015em;
+
+  /* The lines, which are the hairline of every border and the stroke of a focus ring or of an accent. */
+  --hairline: 1px;
+  --stroke: 2px;
+
+  /* The two heights a surface stands at, resting on the page or raised over what scrolls under it, and the halo of a field that has the focus. */
+  --elevation-rest: 0 1px 2px var(--shadow-soft);
+  --elevation-raised: 0 4px 16px var(--shadow-deep);
+  --halo: 0 0 0 var(--space-1) var(--focus-ring);
 
   --font: Inter, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
@@ -60,18 +129,15 @@
 
 @media (min-width: 720px) {
   :root {
-    --gutter: 20px;
+    --gutter: var(--space-6);
   }
 }
 
-/* A desktop is read closer and pointed at with precision: its text is denser, and what is pressed may be smaller. */
+/* A desktop is pointed at with precision: what is pressed there may be smaller, a control and a row lower. */
 @media (min-width: 1100px) {
   :root {
     --tap: 24px;
-    --fs-xs: 11px;
-    --fs-s: 12px;
-    --fs: 13px;
-    --fs-read: 14px;
-    --fs-title: 21px;
+    --control: 32px;
+    --row: 32px;
   }
 }
