@@ -1,4 +1,4 @@
-import type { IndexSourceType } from "@open-qa-stack/shared";
+import type { IndexSourceType } from "@open-qa-stack/domain";
 
 /** How the instructions of the workflow of a source speak of its elements, by what the source is. */
 export interface SourceWords {

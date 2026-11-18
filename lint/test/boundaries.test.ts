@@ -7,12 +7,12 @@ import { DemoWorkspace, lint, ROOT, type LintConfiguration } from "./demo-worksp
 /** The nine packages of the product, by short name, and their folders. */
 const PACKAGES = {
   domain: "packages/domain",
-  shared: "packages/shared",
+  store: "packages/store",
   api: "packages/api",
   harness: "packages/harness",
   tools: "packages/tools",
   agents: "packages/agents",
-  worker: "packages/worker",
+  engine: "packages/engine",
   cli: "packages/cli",
   web: "apps/web",
 } as const;
@@ -21,26 +21,24 @@ type Short = keyof typeof PACKAGES;
 
 /** The couples of packages the architecture allows, source first. */
 const ALLOWED: readonly (readonly [Short, Short])[] = [
+  ["store", "domain"],
+  ["api", "engine"],
+  ["api", "store"],
   ["api", "domain"],
-  ["api", "shared"],
   ["harness", "domain"],
-  ["harness", "shared"],
   ["tools", "domain"],
-  ["tools", "shared"],
   ["agents", "domain"],
-  ["agents", "shared"],
   ["agents", "tools"],
-  ["worker", "harness"],
-  ["worker", "agents"],
-  ["worker", "tools"],
-  ["worker", "domain"],
-  ["worker", "shared"],
-  ["cli", "shared"],
+  ["engine", "harness"],
+  ["engine", "agents"],
+  ["engine", "tools"],
+  ["engine", "domain"],
+  ["cli", "engine"],
   ["cli", "harness"],
   ["cli", "agents"],
   ["cli", "tools"],
   ["cli", "domain"],
-  ["web", "shared"],
+  ["web", "domain"],
 ];
 
 const SHORTS = Object.keys(PACKAGES) as Short[];
@@ -51,7 +49,9 @@ const name = (short: Short): string => `@open-qa-stack/${short}`;
 /** The folder of the demonstration sources of a package; the solo mode for the command line. */
 const sources = (short: Short): string => `${PACKAGES[short]}/src${short === "cli" ? "/solo" : ""}`;
 const coupleFile = (source: Short, target: Short): string => `${sources(source)}/imports-${target}.ts`;
-const byName = (target: Short): string => `// The package imported by its name.\nimport { value } from "${name(target)}";\nexport const used = value;\n`;
+/** The entry of a package a source imports: the web console reads the domain by its contract of sessions only. */
+const entry = (source: Short, target: Short): string => `${name(target)}${source === "web" && target === "domain" ? "/sessions" : ""}`;
+const byName = (specifier: string): string => `// The package imported by its name.\nimport { value } from "${specifier}";\nexport const used = value;\n`;
 const allowedOf = (source: Short): string => {
   const allowed = ALLOWED.filter(([s]) => s === source).map(([, t]) => name(t));
   return allowed.length === 0 ? "none" : allowed.join(", ");
@@ -89,11 +89,11 @@ describe("criterion 1 — the delivered code keeps to its boundaries", () => {
   });
 });
 
-describe("criterion 2 — each of the 52 couples out of the table is refused by package name", () => {
-  const of = linted(Object.fromEntries(REFUSED.map(([source, target]) => [coupleFile(source, target), byName(target)])));
-  it("counts 52 refused couples among the 72 of the nine packages", () => {
+describe("criterion 2 — each of the 54 couples out of the table is refused by package name", () => {
+  const of = linted(Object.fromEntries(REFUSED.map(([source, target]) => [coupleFile(source, target), byName(name(target))])));
+  it("counts 54 refused couples among the 72 of the nine packages", () => {
     assert.equal(COUPLES.length, 72);
-    assert.equal(REFUSED.length, 52);
+    assert.equal(REFUSED.length, 54);
   });
   for (const [source, target] of REFUSED) {
     it(`refuses ${source} → ${target}, naming the file, the line, the source, the target and the rule`, () => {
@@ -136,8 +136,8 @@ describe("criterion 3 — a refused couple is refused whatever the form of the i
   }
 });
 
-describe("criterion 4 — each of the 20 couples of the table is accepted", () => {
-  const of = linted(Object.fromEntries(ALLOWED.map(([source, target]) => [coupleFile(source, target), byName(target)])));
+describe("criterion 4 — each of the 23 couples of the table is accepted", () => {
+  const of = linted(Object.fromEntries(ALLOWED.map(([source, target]) => [coupleFile(source, target), byName(entry(source, target))])));
   for (const [source, target] of ALLOWED) {
     it(`accepts ${source} → ${target}`, () => {
       assert.deepEqual(of(coupleFile(source, target)), []);
@@ -150,6 +150,8 @@ describe("criterion 5 — the domain imports only the external modules its list 
     "packages/domain/src/left-pad.ts": 'import leftPad from "left-pad";\nexport const pad = leftPad;\n',
     "packages/domain/src/file-system.ts": 'import { readFile } from "node:fs/promises";\nexport const read = readFile;\n',
     "packages/domain/src/schema.ts": 'import { z } from "zod/v4";\nexport const schema = z;\n',
+    "packages/domain/src/validation.ts":
+      'import { posix } from "node:path";\nimport { Ajv2020 } from "ajv/dist/2020.js";\nexport const used = [posix, Ajv2020];\n',
   };
   const external = (file: string, target: string, allowed: string): string =>
     `${file}:1:1: @open-qa-stack/domain may not import ${target}; among the external modules, it may import ${allowed}. [Error/open-qa-stack(package-boundaries)]`;
@@ -160,13 +162,16 @@ describe("criterion 5 — the domain imports only the external modules its list 
     table[1].packages["@open-qa-stack/domain"]!.external!.push("zod");
   });
   it("refuses an external module absent from the list, a module of Node.js included", () => {
-    assert.deepEqual(delivered("packages/domain/src/left-pad.ts"), [external("packages/domain/src/left-pad.ts", "left-pad", "none")]);
-    assert.deepEqual(delivered("packages/domain/src/file-system.ts"), [external("packages/domain/src/file-system.ts", "node:fs", "none")]);
-    assert.deepEqual(delivered("packages/domain/src/schema.ts"), [external("packages/domain/src/schema.ts", "zod", "none")]);
+    assert.deepEqual(delivered("packages/domain/src/left-pad.ts"), [external("packages/domain/src/left-pad.ts", "left-pad", "ajv, node:path")]);
+    assert.deepEqual(delivered("packages/domain/src/file-system.ts"), [external("packages/domain/src/file-system.ts", "node:fs", "ajv, node:path")]);
+    assert.deepEqual(delivered("packages/domain/src/schema.ts"), [external("packages/domain/src/schema.ts", "zod", "ajv, node:path")]);
+  });
+  it("accepts the modules of the list, by their name or by a path into them", () => {
+    assert.deepEqual(delivered("packages/domain/src/validation.ts"), []);
   });
   it("accepts a module the demonstration configuration adds to the list, and refuses the others", () => {
     assert.deepEqual(demonstration("packages/domain/src/schema.ts"), []);
-    assert.deepEqual(demonstration("packages/domain/src/left-pad.ts"), [external("packages/domain/src/left-pad.ts", "left-pad", "zod")]);
+    assert.deepEqual(demonstration("packages/domain/src/left-pad.ts"), [external("packages/domain/src/left-pad.ts", "left-pad", "ajv, node:path, zod")]);
   });
 });
 
@@ -193,13 +198,13 @@ describe("criterion 7 — the SDK of the agents is imported by the implementatio
   const sdk = 'import { CopilotClient } from "@github/copilot-sdk";\nexport const client = CopilotClient;\n';
   const refused = [
     "packages/harness/src/runner/session.ts",
-    "packages/worker/src/session.ts",
+    "packages/engine/src/run/session.ts",
     "packages/cli/src/solo/session.ts",
     "packages/api/src/session.ts",
   ];
   const implementation = "packages/harness/src/copilot/session.ts";
-  const dynamic = "packages/worker/src/dynamic.ts";
-  const installed = "packages/worker/src/installed.ts";
+  const dynamic = "packages/engine/src/dynamic.ts";
+  const installed = "packages/engine/src/installed.ts";
   const of = linted({
     ...Object.fromEntries([...refused, implementation].map((file) => [file, sdk])),
     [dynamic]: "export const sdk = await import(`@github/copilot-sdk`);\n",
@@ -219,17 +224,17 @@ describe("criterion 7 — the SDK of the agents is imported by the implementatio
   });
 });
 
-describe("criterion 8 — the connected mode of the command line imports only shared", () => {
+describe("criterion 8 — the connected mode of the command line imports only the domain", () => {
   const connected = (file: string): string => `packages/cli/src/connected/${file}`;
   const solo = (file: string): string => `packages/cli/src/solo/${file}`;
-  const refused = ["harness", "agents", "tools", "domain"] as const;
+  const refused = ["harness", "agents", "tools"] as const;
   const of = linted({
-    ...Object.fromEntries(refused.map((target) => [connected(`${target}.ts`), byName(target)])),
+    ...Object.fromEntries(refused.map((target) => [connected(`${target}.ts`), byName(name(target))])),
     [connected("sdk.ts")]: 'import { CopilotClient } from "@github/copilot-sdk";\nexport const client = CopilotClient;\n',
-    [connected("shared.ts")]: byName("shared"),
+    [connected("domain.ts")]: byName(name("domain")),
     [connected("solo.ts")]: 'import { soloCommand } from "../solo/solo-command.ts";\nexport const command = soloCommand;\n',
     [connected("installed.ts")]: 'import { runner } from "../../node_modules/@open-qa-stack/harness/src/index.ts";\nexport const used = runner;\n',
-    ...Object.fromEntries(refused.map((target) => [solo(`${target}.ts`), byName(target)])),
+    ...Object.fromEntries(refused.map((target) => [solo(`${target}.ts`), byName(name(target))])),
   });
   it("is set by an override of the lint configuration on the folder of the connected mode", async () => {
     const configuration = (await import(join(ROOT, ".oxlintrc.json"), { with: { type: "json" } })) as { default: { overrides: { files: string[] }[] } };
@@ -238,14 +243,14 @@ describe("criterion 8 — the connected mode of the command line imports only sh
   for (const target of refused) {
     it(`refuses ${target} in connected/`, () => {
       const file = connected(`${target}.ts`);
-      assert.deepEqual(of(file), [forbidden(file, 2, "packages/cli/src/connected", name(target), name("shared"), "folder-boundaries")]);
+      assert.deepEqual(of(file), [forbidden(file, 2, "packages/cli/src/connected", name(target), name("domain"), "folder-boundaries")]);
     });
   }
   it("refuses the SDK of the agents in connected/", () => {
     assert.deepEqual(of(connected("sdk.ts")), [confined(connected("sdk.ts"))]);
   });
-  it("accepts shared in connected/", () => {
-    assert.deepEqual(of(connected("shared.ts")), []);
+  it("accepts the domain in connected/", () => {
+    assert.deepEqual(of(connected("domain.ts")), []);
   });
   it("refuses a file of solo/ imported by a relative path in connected/", () => {
     assert.deepEqual(of(connected("solo.ts")), [
@@ -254,7 +259,7 @@ describe("criterion 8 — the connected mode of the command line imports only sh
   });
   it("refuses harness reached by a path through the installed packages in connected/", () => {
     const file = connected("installed.ts");
-    assert.deepEqual(of(file), [forbidden(file, 1, "packages/cli/src/connected", name("harness"), name("shared"), "folder-boundaries")]);
+    assert.deepEqual(of(file), [forbidden(file, 1, "packages/cli/src/connected", name("harness"), name("domain"), "folder-boundaries")]);
   });
   for (const target of refused) {
     it(`accepts ${target} in solo/`, () => {
@@ -273,7 +278,7 @@ describe("criterion 9 — a manifest that declares a dependency of the workspace
     assert.deepEqual(await workspace.checkManifests(), {
       code: 1,
       output:
-        "packages/agents/package.json:6: @open-qa-stack/agents may not import @open-qa-stack/harness; among the packages of the workspace, it may import @open-qa-stack/domain, @open-qa-stack/shared, @open-qa-stack/tools. (dependencies) [open-qa-stack/package-boundaries]\n",
+        "packages/agents/package.json:6: @open-qa-stack/agents may not import @open-qa-stack/harness; among the packages of the workspace, it may import @open-qa-stack/domain, @open-qa-stack/tools. (dependencies) [open-qa-stack/package-boundaries]\n",
     });
   });
   it("passes when the manifest keeps to the table, the dependencies of its tests apart", async () => {
@@ -290,5 +295,23 @@ describe("criterion 10 — the tests of the criteria run on demonstration files 
     afterAll(() => workspace.remove());
     assert.ok(!workspace.root.startsWith(ROOT));
     assert.ok(!(workspace.root + "/").startsWith(join(ROOT, "packages")));
+  });
+});
+
+describe("criterion 11 — the web console imports the contract of sessions and nothing else of the domain", () => {
+  const sessions = "apps/web/src/sessions.ts";
+  const whole = "apps/web/src/whole.ts";
+  const of = linted({
+    [sessions]: 'import type { Session } from "@open-qa-stack/domain/sessions";\nexport type Shown = Session;\n',
+    [whole]:
+      'import type { Verdict } from "@open-qa-stack/domain";\nexport const domain = await import("@open-qa-stack/domain");\nexport type Shown = Verdict;\n',
+  });
+  const restricted = (line: number, column: number): string =>
+    `${whole}:${line}:${column}: '@open-qa-stack/domain' import is restricted from being used. [Error/eslint(no-restricted-imports)]`;
+  it("accepts the entry of the sessions", () => {
+    assert.deepEqual(of(sessions), []);
+  });
+  it("refuses the main entry, by a static or a dynamic import", () => {
+    assert.deepEqual(of(whole), [restricted(1, 1), restricted(2, 29)]);
   });
 });

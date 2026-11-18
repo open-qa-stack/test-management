@@ -1,4 +1,4 @@
-import { isRecord } from "../json.ts";
+import { isRecord } from "@open-qa-stack/domain";
 import { SessionError } from "./session-error.ts";
 
 /**

@@ -1,4 +1,4 @@
-import type { SourceManifest } from "@open-qa-stack/shared";
+import type { SourceManifest } from "@open-qa-stack/domain";
 import { redactText, secretForms } from "@open-qa-stack/tools";
 import { cites } from "./cited-names.ts";
 import type { DomainMember } from "./domain-file.ts";

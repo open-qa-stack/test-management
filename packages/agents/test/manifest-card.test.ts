@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { validateSourceCard, validateSourceManifest } from "@open-qa-stack/shared";
+import { validateSourceCard, validateSourceManifest } from "@open-qa-stack/domain";
 import type { ExportedElement, SourceExport, SourceInventory } from "@open-qa-stack/tools";
 import { exportManifest, type DomainFile } from "../src/source-workflow/export-manifest.ts";
 import { Grouping } from "../src/source-workflow/grouping.ts";

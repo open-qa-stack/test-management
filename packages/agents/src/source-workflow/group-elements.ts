@@ -1,9 +1,8 @@
-import type { AgentEvent, AgentRuntime, StopReason, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
-import type { IndexSourceType } from "@open-qa-stack/shared";
+import type { AgentEvent, AgentRuntime, IndexSourceType, ModelUsage, StopReason, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
 import { redactText, secretForms, type SourceExport } from "@open-qa-stack/tools";
 import { runAgentTask, taskEnd } from "../common/agent-task.ts";
 import type { Journal } from "../common/journal.ts";
-import { totalUsage, usageOf, type ModelUsage } from "../common/model-usage.ts";
+import { totalUsage, usageOf } from "../common/model-usage.ts";
 import { BatchPlacement } from "./batch-placement.ts";
 import { elementBatches } from "./element-batches.ts";
 import type { Grouping } from "./grouping.ts";

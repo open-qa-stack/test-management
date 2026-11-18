@@ -15,7 +15,7 @@ pnpm --filter @open-qa-stack/tools exec playwright-core install chromium
 
 ## Set up your test repository
 
-Your tests live in a git repository of their own, with a commit at least, on a machine that has npm. Put an `oqas.json` at its root — [`packages/shared/examples/lakeside-mutual/oqas.json`](../packages/shared/examples/lakeside-mutual/oqas.json) is a complete one — then make it a Playwright project and commit:
+Your tests live in a git repository of their own, with a commit at least, on a machine that has npm. Put an `oqas.json` at its root — [`packages/domain/examples/lakeside-mutual/oqas.json`](../packages/domain/examples/lakeside-mutual/oqas.json) is a complete one — then make it a Playwright project and commit:
 
 ```sh
 node <clone>/packages/cli/src/main.ts --repository <test repository> --init
@@ -36,17 +36,25 @@ The tests are written on a new local branch of the test repository. Nothing is p
 
 ## Watch the agents work
 
-To watch the agents instead of reading their lines, start the API of an instance on the same repository and the console, each in a terminal of its own:
+The command line alone needs nothing more. To watch the agents instead of reading their lines, and to ask for tests from a browser, run an instance on the same machine: one server, and the console. There is no database to install: the server keeps its own, a file in the state folder of your test repository, `.oqas/oqas.db`, which it makes when it starts.
+
+Start the server with its test repository, and the console, each in a terminal of its own, from the clone:
 
 ```sh
-pnpm --dir <clone> --filter @open-qa-stack/api build
-OQAS_HOST=127.0.0.1 OQAS_PORT=8080 OQAS_DATABASE_URL=postgres://oqas@127.0.0.1:5432/oqas \
-  OQAS_SOLO_REPOSITORY=<test repository> OQAS_SOLO_COMMAND="node <clone>/packages/cli/src/main.ts" \
-  pnpm --dir <clone> --filter @open-qa-stack/api start
-pnpm --dir <clone> --filter @open-qa-stack/web dev
+export OQAS_MODEL_API_KEY=…   # the variable oqas.json names for the key of the model
+pnpm --filter @open-qa-stack/api build
+OQAS_HOST=127.0.0.1 OQAS_PORT=8080 OQAS_REPOSITORY=<test repository> pnpm --filter @open-qa-stack/api start
 ```
 
-Open the address the console prints. Each run of `oqas` in the repository is a session: its thread fills while the agents work — what each of them thinks, does and hands in, and every refusal of the harness — and a request written in the console opens a session as `oqas --brief` does. [Sessions](../packages/api/docs/sessions.md) describes what the API serves and where sessions come from today; the API starts without its database, and reports itself not ready until one answers.
+```sh
+pnpm --filter @open-qa-stack/web dev
+```
+
+Open the address the console prints, and write what to test. The request is a session: the server runs it in your test repository as `oqas --brief` does, and its thread fills while the agents work — what each of them thinks, does and hands in, and every refusal of the harness. A message written under the thread reaches the agent at work, and a session can be interrupted. The tests are written on a new local branch, as with the command line, and nothing is pushed.
+
+The server is the one process of the instance, and runs one session at a time: the next one waits its turn. `<test repository>` is an absolute path; without `OQAS_REPOSITORY` the server only shows the sessions it holds. [Running the API](../packages/api/docs/running.md) says how it is configured and how it stops, [sessions](../packages/api/docs/sessions.md) what it serves, and [the database](../packages/store/docs/database.md) what the instance keeps.
+
+An instance that several people share can keep its database on a PostgreSQL server instead: give the server its URL in `OQAS_DATABASE_URL`, and nothing else changes. [The database](../packages/store/docs/database.md#one-schema-two-databases) says how.
 
 ## What the repository holds afterwards
 
@@ -73,6 +81,6 @@ Every test bears the tags of what it is: its level in the pyramid of tests, its 
 ## Going further
 
 - [The command](../packages/cli/docs/solo-command.md): its options, what each step does, its exit codes.
-- [The configuration](../packages/shared/docs/configuration.md): every key of `oqas.json`; [its schema](../packages/shared/schema/oqas.schema.json) is the reference.
+- [The configuration](../packages/domain/docs/configuration.md): every key of `oqas.json`; [its schema](../packages/domain/schema/oqas.schema.json) is the reference.
 - [The test charter](../packages/harness/docs/test-charter.md): the rules every generated test is held to.
 - [How the tests are designed](../packages/agents/docs/designer.md): the agents, what the harness checks, what it refuses.

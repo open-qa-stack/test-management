@@ -1,10 +1,9 @@
 import { effectWords, scenarioTags } from "./scenario-tags.ts";
-import type { PlannedScenario } from "@open-qa-stack/domain";
+import { applicationVariable, tabVariable, type PlannedScenario } from "@open-qa-stack/domain";
 import { assertionsOf, writtenValues } from "./assertion-line.ts";
 import type { DesignCursor } from "./design-cursor.ts";
 import { oneLine } from "./one-line.ts";
 import { onTab } from "./tab-variable.ts";
-import { applicationVariable, tabVariable } from "@open-qa-stack/shared";
 import { fixturesFor, PLAYWRIGHT_ALONE, type FixturesFile, type TestFixtures } from "./test-fixtures.ts";
 
 /**

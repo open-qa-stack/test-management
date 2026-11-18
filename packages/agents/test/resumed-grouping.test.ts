@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import type { SourceManifest } from "@open-qa-stack/shared";
+import type { SourceManifest } from "@open-qa-stack/domain";
 import type { SourceExport } from "@open-qa-stack/tools";
 import { resumedGrouping } from "../src/source-workflow/resumed-grouping.ts";
 

@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, it } from "vitest";
-import { sharedFixtures } from "@open-qa-stack/shared";
+import { sharedFixtures } from "@open-qa-stack/domain";
 import { ensureFixtures, fixturesFor, PLAYWRIGHT_ALONE } from "../src/designer/test-fixtures.ts";
 import { WrittenFiles } from "../src/designer/written-files.ts";
 

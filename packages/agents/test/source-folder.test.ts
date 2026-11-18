@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, it } from "vitest";
-import type { SourceManifest } from "@open-qa-stack/shared";
+import type { SourceManifest } from "@open-qa-stack/domain";
 import type { ExportedElement, SourceExport } from "@open-qa-stack/tools";
 import { exportManifest } from "../src/source-workflow/export-manifest.ts";
 import { Grouping } from "../src/source-workflow/grouping.ts";

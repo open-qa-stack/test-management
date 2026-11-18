@@ -1,4 +1,4 @@
-import type { Application } from "@open-qa-stack/shared";
+import type { Application } from "@open-qa-stack/domain";
 
 /**
  * Writes the request that starts the session of one scenario: how its test signs in, the packages it may

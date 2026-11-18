@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "vitest";
-import { validateConfig, type ResolvedConfig } from "@open-qa-stack/shared";
+import { validateConfig, type ResolvedConfig } from "@open-qa-stack/domain";
 import { testSite } from "@open-qa-stack/testing";
 import { totalUsage, usageOf } from "../src/common/model-usage.ts";
 import { interfaceSubject } from "../src/source-cartographer/card-subject.ts";

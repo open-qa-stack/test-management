@@ -1,0 +1,114 @@
+import assert from "node:assert/strict";
+import { scriptedServer, type ScriptedServer } from "@open-qa-stack/testing";
+import { configText, FakeRunner, repository, WITNESS, type RanCommand, type RanOutcome, type Script } from "@open-qa-stack/testing/test-repository";
+import type { CommandRunner } from "@open-qa-stack/domain";
+import type { Session, SessionEvent } from "@open-qa-stack/domain/sessions";
+import { Sessions, type SessionsHost } from "../../src/index.ts";
+import { eventually } from "./eventually.ts";
+import { held } from "./held.ts";
+import { MemorySessionStore } from "./memory-session-store.ts";
+import { RecordingLogger } from "./recording-logger.ts";
+
+/** The environment of the runs of the tests: the one variable the configuration of the test repository names. */
+export const ENV = { SHOP_DB_URL: WITNESS };
+
+/** How a test sets the operations it hosts. */
+export interface Setup {
+  /** What the doubles of npm and Playwright answer. */
+  readonly script?: Script;
+  /** Called before a command of a run is answered, which waits for it: a test holds a run there. */
+  readonly before?: (step: RanCommand) => Promise<void> | void;
+  /** What the host gives besides its test repository, its store and its doubles. */
+  readonly host?: Partial<SessionsHost>;
+}
+
+/** A door a run waits at until a test opens it. */
+export interface Door {
+  /** Settles once the run reached the door. */
+  readonly reached: Promise<void>;
+  /** Holds a command of the run at the door when the command is one the door is for. */
+  readonly hold: (step: RanCommand) => Promise<void>;
+  /** Lets the run through, now and from then on. */
+  open(): void;
+}
+
+/** Whether a command installs the dependencies of the test repository: what a design starts with, once the cartography is over. */
+const installs = ({ command }: RanCommand): boolean => command[0] === "npm" && command[1] === "ci";
+
+/** @returns A door the design of a run waits at, before it installs the dependencies of the test repository. */
+export function designDoor(): Door {
+  const reached = held();
+  const opened = held();
+  return {
+    reached: reached.promise,
+    hold: async (step) => {
+      if (!installs(step)) return;
+      reached.resolve();
+      await opened.promise;
+    },
+    open: opened.resolve,
+  };
+}
+
+/**
+ * The operations on sessions as a test hosts them: a store kept in memory, a test repository, and a model
+ * that answers as scripted.
+ */
+export class Hosted {
+  readonly store = new MemorySessionStore();
+  readonly logger = new RecordingLogger();
+  readonly server: ScriptedServer;
+  /** The test repository the sessions run in. */
+  readonly root: string;
+  readonly sessions: Sessions;
+
+  private constructor(server: ScriptedServer, setup: Setup) {
+    this.server = server;
+    this.root = repository(configText(server.baseUrl));
+    const doubles = new FakeRunner(this.root, setup.script);
+    const runner: CommandRunner = {
+      run: async (step): Promise<RanOutcome> => {
+        await setup.before?.(step);
+        return doubles.run(step);
+      },
+    };
+    this.sessions = new Sessions({
+      store: this.store,
+      repository: this.root,
+      env: ENV,
+      logger: this.logger,
+      runner,
+      writerPace: { firstRetryMs: 5, maxRetryMs: 20 },
+      ...setup.host,
+    });
+  }
+
+  /**
+   * @param replies - What the model answers, in order.
+   * @param setup - How the operations are set.
+   * @returns The operations, not started yet.
+   */
+  static async create(replies: Parameters<typeof scriptedServer>[0], setup: Setup = {}): Promise<Hosted> {
+    return new Hosted(await scriptedServer(replies), setup);
+  }
+
+  /** Waits until a session ended, and gives it. */
+  ended(id: string): Promise<Session> {
+    return eventually(async () => {
+      const session = await this.store.session(id);
+      assert.ok(session !== undefined && (session.state === "completed" || session.state === "interrupted"), session?.state);
+      return session;
+    });
+  }
+
+  /** The events of a session, in order. */
+  events(id: string): Promise<SessionEvent[]> {
+    return this.store.eventsAfter(id, 0);
+  }
+
+  /** Stops the operations and the model. */
+  async close(): Promise<void> {
+    await this.sessions.stop(10_000);
+    await this.server.close();
+  }
+}

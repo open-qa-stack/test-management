@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, it } from "vitest";
-import { DEFAULT_REPOSITORY, validateConfig, type CharterSettings } from "@open-qa-stack/shared";
+import { DEFAULT_REPOSITORY, validateConfig, type CharterSettings } from "@open-qa-stack/domain";
 import { moduleSyntax } from "@open-qa-stack/tools";
 import { CHARTER_DOC_FILE, documentedSection, renderRules } from "../scripts/emit-charter-doc.ts";
 import { DESIGNER_EXAMPLE } from "./designer-example.ts";
@@ -183,7 +183,7 @@ describe("criterion 5 — the charter and its composition are tested without mod
     for (const file of readdirSync(dir)) {
       const source = readFileSync(new URL(file, dir), "utf8");
       for (const [, statement, specifier] of source.matchAll(/^(import .*) from "([^"]+)";$/gm)) {
-        assert.ok(specifier!.startsWith("./") || (specifier === "@open-qa-stack/shared" && statement!.startsWith("import type ")), `${file}: ${specifier}`);
+        assert.ok(specifier!.startsWith("./") || (specifier === "@open-qa-stack/domain" && statement!.startsWith("import type ")), `${file}: ${specifier}`);
       }
     }
   });

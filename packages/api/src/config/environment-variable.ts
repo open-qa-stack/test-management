@@ -12,7 +12,9 @@ export interface EnvironmentVariable<T> {
   readonly secret: boolean;
   /** Raw value used when the variable is unset; a variable without one is required, unless it is optional. */
   readonly defaultValue?: string;
-  /** Set on a variable that may stay unset: it then has no value. */
-  readonly optional?: true;
+  /** Whether the variable may be left unset, and then has no value: the API starts without what it sets. */
+  readonly optional?: boolean;
+  /** The name of the variable that stands in for this one when it is left unset: one of the two must be set. */
+  readonly orElse?: string;
   readonly example: string;
 }

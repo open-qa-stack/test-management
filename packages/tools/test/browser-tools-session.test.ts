@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import type { Application } from "@open-qa-stack/shared";
+import type { Application } from "@open-qa-stack/domain";
 import { REFUSED } from "../src/browser/page-log.ts";
 import { browserTools } from "../src/index.ts";
 import { ENV, site, elsewhere, api, screenshots, downPort, applications, withTools, page, reject } from "./browser-tools-support.ts";

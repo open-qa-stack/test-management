@@ -1,4 +1,4 @@
-import type { Project, Session, SessionEvent } from "@open-qa-stack/shared/sessions";
+import type { Project, Session, SessionEvent } from "@open-qa-stack/domain/sessions";
 import type { StreamState } from "../api/event-stream.ts";
 import { INITIAL_PLAYBACK, played, type Playback, type PlaybackAction } from "./playback.ts";
 import type { SessionScript } from "./session-script.ts";

@@ -1,4 +1,4 @@
-import type { IndexSourceType, Knowledge, MappedKnowledge, ResolvedConfig } from "@open-qa-stack/shared";
+import type { IndexSourceType, Knowledge, MappedKnowledge, ResolvedConfig } from "@open-qa-stack/domain";
 
 /** A source the cartographer reads: a knowledge source, or the user interface of an application. */
 export type RunSource =

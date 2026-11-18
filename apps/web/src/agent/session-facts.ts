@@ -1,4 +1,4 @@
-import type { Session } from "@open-qa-stack/shared/sessions";
+import type { Session } from "@open-qa-stack/domain/sessions";
 import type { BadgeTone } from "../ui/badge.tsx";
 
 /** How the state of a session reads, and its colour family. */
@@ -22,11 +22,12 @@ const OUTCOMES: Readonly<Record<string, StateLabel>> = {
  * Reads the state of a session.
  *
  * @param session - The session.
- * @returns `en direct` while its agents work, `interrompue` when it stopped without ending; otherwise how it
- * ended, or `terminée` when nothing tells it: a state this console does not know is one of a session that no
+ * @returns `en file` while it waits its turn, in the tone of what has not started, `en direct` while its
+ * agents work, `interrompue` when it stopped without ending; otherwise how it ended, or `terminée` when nothing tells it: a state this console does not know is one of a session that no
  * longer goes on.
  */
 export function stateOf(session: Session): StateLabel {
+  if (session.state === "queued") return { tone: "outline", label: "en file" };
   if (session.state === "running") return { tone: "info", label: "en direct" };
   if (session.state === "interrupted") return { tone: "warn", label: "interrompue" };
   return (session.result === undefined ? undefined : OUTCOMES[session.result.outcome]) ?? ENDED;
@@ -51,6 +52,17 @@ export function durationText(milliseconds: number): string {
  */
 export function openingText(session: Session): string {
   return `${session.openedAt.slice(0, 10)} · ${session.openedAt.slice(11, 19)} UTC`;
+}
+
+/**
+ * Says what a session waits for.
+ *
+ * @param session - The session.
+ * @returns That it waits for an agent while it is queued, or nothing: a state alone does not tell a person
+ * why nothing moves.
+ */
+export function waitText(session: Session): string | undefined {
+  return session.state === "queued" ? "en attente d’un agent" : undefined;
 }
 
 /**

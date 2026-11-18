@@ -1,6 +1,5 @@
 import { join } from "node:path";
-import type { ToolDefinition } from "@open-qa-stack/domain";
-import type { ResolvedConfig } from "@open-qa-stack/shared";
+import type { ResolvedConfig, ToolDefinition } from "@open-qa-stack/domain";
 import { Notebook, notesTools } from "@open-qa-stack/tools";
 import { configSecrets } from "./config-secrets.ts";
 

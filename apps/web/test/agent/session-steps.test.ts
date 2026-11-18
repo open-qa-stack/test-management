@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import type { ActionFinishedEvent, Session, SessionPhase } from "@open-qa-stack/shared/sessions";
+import type { ActionFinishedEvent, Session, SessionPhase } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
 import type { SessionScript, Step } from "../../src/agent/session-script.ts";
 import { scriptOf } from "../../src/agent/session-steps.ts";
-import { COMPLETED, fixtureScript, numbered, RUNNING, SESSION_ID, type EventBody } from "./session-fixture.ts";
+import { COMPLETED, fixtureScript, numbered, QUEUED, RUNNING, SESSION_ID, type EventBody } from "./session-fixture.ts";
 
 /** A session nobody asked anything in, whose agents are working. */
 const UNASKED: Session = { id: SESSION_ID, openedAt: RUNNING.openedAt, lastEventAt: RUNNING.lastEventAt, state: "running" };
@@ -45,11 +45,12 @@ describe("the script of a session", () => {
   const script = fixtureScript();
   const { steps } = script;
 
-  it("carries the identifier of the session, and goes on only while its agents work", () => {
-    assert.deepEqual([script.id, script.live, script.sources, steps.length], [SESSION_ID, true, [], 13]);
-    assert.equal(fixtureScript({ ...RUNNING, state: "archived" as Session["state"] }).live, false);
-    assert.equal(fixtureScript(COMPLETED).live, false);
-    assert.equal(fixtureScript(INTERRUPTED).live, false);
+  it("carries the identifier of the session, and where it is: queued, live while its agents work, ended in any other state", () => {
+    assert.deepEqual([script.id, script.stage, script.sources, steps.length], [SESSION_ID, "live", [], 13]);
+    assert.equal(fixtureScript(QUEUED).stage, "queued");
+    assert.equal(fixtureScript({ ...RUNNING, state: "archived" as Session["state"] }).stage, "ended");
+    assert.equal(fixtureScript(COMPLETED).stage, "ended");
+    assert.equal(fixtureScript(INTERRUPTED).stage, "ended");
   });
 
   it("starts a pass at each phase, a plan named after the level its request asks for, the writing of a test as a part", () => {

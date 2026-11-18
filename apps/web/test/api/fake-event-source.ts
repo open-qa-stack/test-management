@@ -1,4 +1,4 @@
-import type { SessionEvent } from "@open-qa-stack/shared/sessions";
+import type { SessionEvent } from "@open-qa-stack/domain/sessions";
 
 /**
  * The source of events of a browser, as far as the stream uses it: it records its address and whether it was

@@ -1,6 +1,6 @@
-import { ImageToolResult, type ToolDefinition } from "@open-qa-stack/domain";
-import type { PersonInbox } from "./person-inbox.ts";
-import { PERSON_SAID_EARLIER, PERSON_SPOKE, personTags, type PersonMessage } from "./person-message.ts";
+import { ImageToolResult, personTags, type PersonMessage, type ToolDefinition } from "@open-qa-stack/domain";
+import type { Inbox } from "./inbox.ts";
+import { PERSON_SAID_EARLIER, PERSON_SPOKE } from "./person-message.ts";
 
 /**
  * Gives one session the messages the person sends while it is open: each message of the inbox goes to the
@@ -17,7 +17,7 @@ import { PERSON_SAID_EARLIER, PERSON_SPOKE, personTags, type PersonMessage } fro
  * each having been delivered once.
  */
 export class PersonDelivery {
-  private readonly inbox: PersonInbox;
+  private readonly inbox: Inbox;
   private readonly record: (message: PersonMessage) => void;
   private readonly listening: () => boolean;
 
@@ -27,7 +27,7 @@ export class PersonDelivery {
    * @param listening - Whether the session may still act on a message; always by default. Once it may not,
    * it is given none, and the messages wait for the next session.
    */
-  public constructor(inbox: PersonInbox, record: (message: PersonMessage) => void, listening: () => boolean = () => true) {
+  public constructor(inbox: Inbox, record: (message: PersonMessage) => void, listening: () => boolean = () => true) {
     this.inbox = inbox;
     this.record = record;
     this.listening = listening;

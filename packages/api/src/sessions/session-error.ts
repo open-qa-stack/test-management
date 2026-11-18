@@ -1,5 +1,5 @@
 import { problemOf } from "../problems/problem-kinds.ts";
-import type { Problem } from "@open-qa-stack/shared/sessions";
+import type { Problem } from "@open-qa-stack/domain/sessions";
 import type { SessionFailure } from "./session-failure.ts";
 
 /** Raised when a request about sessions cannot be answered; the API answers it with its problem. */

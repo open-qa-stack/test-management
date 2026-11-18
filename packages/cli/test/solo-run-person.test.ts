@@ -2,10 +2,9 @@ import assert from "node:assert/strict";
 import { appendFileSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "vitest";
-import type { TraceLine } from "@open-qa-stack/agents";
-import { runInboxFile } from "@open-qa-stack/harness";
+import { runInboxFile, type TraceLine } from "@open-qa-stack/domain";
 import { followedLine } from "../src/index.ts";
-import { chain, FIRST_RUN, journalOf, repository, solo } from "./solo-run-support.ts";
+import { chain, FIRST_RUN, journalOf, later, repository, solo } from "./solo-run-support.ts";
 
 /** Appends a message to the inbox of the first run of a test repository, as a person does by hand. */
 function say(root: string, text: string): void {
@@ -29,6 +28,7 @@ describe("a person who speaks to a run of the solo command", () => {
     let late = false;
     const run = await solo(chain(), {
       environment: "local",
+      now: later(12),
       root: (config) => {
         root = repository(config);
         say(root, "The orders are the only domain.");
@@ -68,6 +68,7 @@ describe("a run whose inbox cannot be read", () => {
   it("goes to its end without it, and says so once, in the journal of its summary", async () => {
     const run = await solo(chain(), {
       environment: "local",
+      now: later(12),
       root: (config) => {
         const root = repository(config);
         mkdirSync(join(root, ".oqas", "runs", runInboxFile(FIRST_RUN)), { recursive: true });

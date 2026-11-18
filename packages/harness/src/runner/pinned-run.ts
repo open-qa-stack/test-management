@@ -3,21 +3,19 @@ import { join, posix } from "node:path";
 import {
   lockedPlaywrightVersion,
   networkFailureAddresses,
+  RUNS_FOLDER,
   testVerdicts,
   type CommandOutcome,
   type CommandRunner,
-  type ReportedTest,
   type ListedTest,
+  type ReportedTest,
+  type ResolvedConfig,
   type TestVerdict,
   type Verdict,
 } from "@open-qa-stack/domain";
-import type { ResolvedConfig } from "@open-qa-stack/shared";
 import { LocalRunner } from "./local-runner.ts";
 import { listedTests, reportedTests } from "./reporter-json.ts";
 import { baseUrlVariable, ENVIRONMENT_VARIABLE } from "./test-repository-base.ts";
-
-/** Folder of the runs, in the state folder of the test repository. */
-export const RUNS_FOLDER = "runs";
 
 /** Longest wait for an address to answer, in milliseconds, when none is given. */
 const REACH_TIMEOUT_MS = 5000;

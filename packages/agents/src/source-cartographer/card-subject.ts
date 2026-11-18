@@ -1,5 +1,4 @@
-import type { ToolDefinition } from "@open-qa-stack/domain";
-import { readsImages, type MappedKnowledge, type ResolvedConfig } from "@open-qa-stack/shared";
+import { readsImages, type MappedKnowledge, type ResolvedConfig, type ToolDefinition } from "@open-qa-stack/domain";
 import {
   browserTools,
   fingerprintOf,

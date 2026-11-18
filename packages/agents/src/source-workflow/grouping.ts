@@ -1,4 +1,4 @@
-import type { ManifestDomain } from "@open-qa-stack/shared";
+import type { ManifestDomain } from "@open-qa-stack/domain";
 
 /** Most elements of one source a domain holds; a domain that has them is full, and a narrower one is asked for. */
 export const MAX_DOMAIN_ELEMENTS = 40;

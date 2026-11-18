@@ -1,4 +1,4 @@
-import type { Repository, TestArchitecture } from "@open-qa-stack/shared";
+import type { Repository, TestArchitecture } from "@open-qa-stack/domain";
 import type { ActiveRule } from "./charter-rule.ts";
 /** What the agent that writes a test copies from its sheet, by how the tests of the repository are built. */
 const COPIED: Readonly<Record<TestArchitecture, string>> = {

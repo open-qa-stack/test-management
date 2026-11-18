@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import type { Project, Session } from "@open-qa-stack/shared/sessions";
+import type { Project, Session } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
 import { consoleAfter, INITIAL_STATE, playbackOf, type ConsoleAction, type ConsoleState } from "../../src/agent/console-state.ts";
 import { INITIAL_PLAYBACK } from "../../src/agent/playback.ts";

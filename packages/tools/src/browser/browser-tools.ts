@@ -1,6 +1,5 @@
 import { chromium, type Browser } from "playwright-core";
-import type { ToolDefinition } from "@open-qa-stack/domain";
-import type { Application, Environment } from "@open-qa-stack/shared";
+import type { Application, Environment, ToolDefinition } from "@open-qa-stack/domain";
 import type { TargetMatch } from "./application-page.ts";
 import { applicationMatches, applicationTools } from "./application-tools.ts";
 import { BrowserSession } from "./browser-session.ts";

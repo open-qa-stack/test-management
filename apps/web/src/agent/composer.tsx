@@ -13,7 +13,7 @@ export interface ComposerProps {
 }
 
 /**
- * Where the person speaks to the agents while they work: a field and its button, under the thread. While a
+ * Where the person speaks to the agents until the session ended: a field and its button, under the thread. While a
  * message is on its way nothing else can be sent; a message the instance refused stays in the field, under
  * which the console says why.
  *

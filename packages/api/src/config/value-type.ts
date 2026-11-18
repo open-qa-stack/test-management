@@ -1,6 +1,7 @@
-import { isAbsolute } from "node:path";
-import { type CommandLine, splitCommandLine } from "./command-line.ts";
-import { DatabaseUrl } from "./database-url.ts";
+import { existsSync } from "node:fs";
+import { isAbsolute, join } from "node:path";
+import { CONFIG_FILE_NAME } from "@open-qa-stack/domain";
+import { DatabaseUrl } from "@open-qa-stack/store";
 
 const PORT_DIGITS = /^[0-9]{1,5}$/;
 
@@ -32,28 +33,19 @@ export const nonEmptyText: ValueType<string> = {
   },
 };
 
-/** A PostgreSQL connection URL, such as `postgres://user:password@host:5432/database`. */
+/** The connection URL of a database the store supports: a PostgreSQL server, or a SQLite file. */
 export const databaseUrl: ValueType<DatabaseUrl> = {
-  rule: "a PostgreSQL connection URL with a host name, starting with postgres:// or postgresql://",
+  rule: "a database URL: postgres:// or postgresql:// with a host name for a PostgreSQL server, or sqlite: followed by the path of a file",
   parse(raw) {
     const value = DatabaseUrl.parse(raw);
     return value === undefined ? { ok: false } : { ok: true, value };
   },
 };
 
-/** The absolute path of a file or of a folder. */
-export const absolutePath: ValueType<string> = {
-  rule: "an absolute path",
+/** A test repository: the absolute path of a folder that holds the configuration of Open QA Stack. */
+export const testRepository: ValueType<string> = {
+  rule: `the absolute path of a folder that holds ${CONFIG_FILE_NAME}`,
   parse(raw) {
-    return isAbsolute(raw) ? { ok: true, value: raw } : { ok: false };
-  },
-};
-
-/** A command: its program, then its arguments, split by {@link splitCommandLine}. */
-export const commandLine: ValueType<CommandLine> = {
-  rule: "a program and its arguments, separated by spaces, one that holds a space between quotes",
-  parse(raw) {
-    const value = splitCommandLine(raw);
-    return value === undefined ? { ok: false } : { ok: true, value };
+    return isAbsolute(raw) && existsSync(join(raw, CONFIG_FILE_NAME)) ? { ok: true, value: raw } : { ok: false };
   },
 };

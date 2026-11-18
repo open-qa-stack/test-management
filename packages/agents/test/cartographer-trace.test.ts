@@ -3,7 +3,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "vitest";
 import { answer, closedPort, toolCalls } from "@open-qa-stack/testing";
-import { MAX_TRACED_LENGTH, type TraceLine } from "../src/index.ts";
+import type { TraceLine } from "@open-qa-stack/domain";
+import { MAX_TRACED_LENGTH } from "../src/index.ts";
 import {
   MODEL,
   DB_URL,

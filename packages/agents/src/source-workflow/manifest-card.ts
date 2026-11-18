@@ -1,4 +1,4 @@
-import type { SourceCard, SourceManifest } from "@open-qa-stack/shared";
+import type { SourceCard, SourceManifest } from "@open-qa-stack/domain";
 import type { SourceInventory } from "@open-qa-stack/tools";
 
 /**

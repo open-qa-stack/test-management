@@ -1,5 +1,4 @@
-import type { ToolDefinition } from "@open-qa-stack/domain";
-import type { CardItem, DomainIndex, IndexSourceType, SourceCard, SourceManifest } from "@open-qa-stack/shared";
+import type { CardItem, DomainIndex, IndexSourceType, SourceCard, SourceManifest, ToolDefinition } from "@open-qa-stack/domain";
 import { scopedToolName } from "@open-qa-stack/tools";
 
 /** Name of the tool that gives a domain: the sources that hold it, then what one of them says of it. */

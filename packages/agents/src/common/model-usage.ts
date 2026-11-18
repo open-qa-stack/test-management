@@ -1,17 +1,4 @@
-import type { TaskCounters } from "@open-qa-stack/domain";
-
-/**
- * The requests a phase or a source sent to the model, the tokens they sent and received when the model
- * reported them, those of the tokens sent that its server read from its cache, once it reported some, and
- * those of the images they sent, as the harness counts them, once one was.
- */
-export interface ModelUsage {
-  readonly requests: number;
-  readonly inputTokens?: number;
-  readonly outputTokens?: number;
-  readonly cachedTokens?: number;
-  readonly imageTokens?: number;
-}
+import type { ModelUsage, TaskCounters } from "@open-qa-stack/domain";
 
 /** What a phase uses when it calls no model. */
 export const NO_USAGE: ModelUsage = { requests: 0 };

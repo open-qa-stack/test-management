@@ -1,14 +1,15 @@
-import type {
-  ExpectedElement,
-  PlanEnd,
-  PlannedExpect,
-  PlannedScenario,
-  PlanReview,
-  ScenarioLevel,
-  SetAsideScenario,
-  TestPlan,
-  ToolDefinition,
-  UncoveredRequest,
+import {
+  baseUrlVariable,
+  type ExpectedElement,
+  type PlanEnd,
+  type PlannedExpect,
+  type PlannedScenario,
+  type PlanReview,
+  type ScenarioLevel,
+  type SetAsideScenario,
+  type TestPlan,
+  type ToolDefinition,
+  type UncoveredRequest,
 } from "@open-qa-stack/domain";
 import { redactText, scopedToolName, secretForms } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
@@ -18,7 +19,6 @@ import { PlanDraft } from "./plan-draft.ts";
 import { planEndText } from "./plan-end.ts";
 import { journalRefusals, maskedRefusals, refusalText, repeatedText, type Refusal } from "./refusal.ts";
 import { GUIDED_REFUSALS, RefusalStreak } from "./refusal-streak.ts";
-import { baseUrlVariable } from "@open-qa-stack/shared";
 import { onTab } from "./tab-variable.ts";
 import type { CoveringTest } from "./plan-draft.ts";
 import { described } from "./scenario-description.ts";

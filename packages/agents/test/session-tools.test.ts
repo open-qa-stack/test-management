@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { validateConfig, type ResolvedConfig } from "@open-qa-stack/shared";
+import { validateConfig, type ResolvedConfig } from "@open-qa-stack/domain";
 import { sessionTools } from "../src/designer/session-tools.ts";
 
 const ENV = { SHOP_DB_URL: "postgresql://shop:s3cret-db-pass@127.0.0.1:5999/shop" };

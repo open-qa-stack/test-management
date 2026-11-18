@@ -1,4 +1,4 @@
-import type { TraceLine } from "@open-qa-stack/agents";
+import type { TraceLine } from "@open-qa-stack/domain";
 
 /** Longest text shown of what a tool was given, returned, or of what an agent or the harness said. */
 export const MAX_FOLLOWED_LENGTH = 160;

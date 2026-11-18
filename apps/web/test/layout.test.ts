@@ -745,7 +745,7 @@ describe("the console in a browser", () => {
     }
   });
 
-  it("opens the session a person asks for, and goes to its thread", async () => {
+  it("opens the session a person asks for, and goes to its thread, where it waits in the queue", async () => {
     const instance = new PlayedInstance();
     const page = await app().open(1280, "#/agent", instance.api);
     try {
@@ -754,6 +754,39 @@ describe("the console in a browser", () => {
       await page.getByRole("heading", { level: 1, name: "vérifier le changement d'adresse" }).waitFor();
       assert.equal(new URL(page.url()).hash, `#/agent/sessions/${OPENED_ID}`);
       assert.deepEqual(instance.asked, [{ request: "vérifier le changement d'adresse" }]);
+      await page.locator(".thread .request", { hasText: "vérifier le changement d'adresse" }).waitFor();
+      assert.equal(await page.locator(".session-bar .badge").innerText(), "en file");
+      assert.equal(await page.getByRole("status").filter({ hasText: "travaille" }).count(), 0);
+      assert.equal(await page.getByRole("textbox", { name: "Dites aux agents ce qu’il faut corriger" }).isEnabled(), true);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("takes a message for a queued session, goes on with its thread once it started, and closes it when it completes", async () => {
+    const instance = new PlayedInstance();
+    const page = await app().open(1280, "#/agent", instance.api);
+    try {
+      const field = page.getByRole("textbox", { name: "Dites aux agents ce qu’il faut corriger" });
+      const state = page.locator(".session-bar .badge");
+      const working = page.getByRole("status").filter({ hasText: "Planificateur travaille" });
+      await page.getByRole("textbox", { name: "Dites aux agents quoi tester" }).fill("vérifier le changement d'adresse");
+      await page.getByRole("button", { name: "Démarrer une session" }).click();
+      await field.fill("sans le profil");
+      await field.press("Enter");
+      await page.locator(".sent", { hasText: "sans le profil" }).getByText("en attente d’un agent").waitFor();
+      assert.deepEqual(instance.said, [{ text: "sans le profil" }]);
+      assert.equal(await state.innerText(), "en file");
+      instance.take();
+      await working.waitFor();
+      await state.filter({ hasText: "en direct" }).waitFor();
+      assert.equal(await page.locator(".thread .request").count(), 2, "what was said while it waited stays in the thread");
+      assert.equal(await field.isEnabled(), true);
+      instance.completeOpened();
+      await page.getByText("Verdict de l’exécution : 1 test(s)").waitFor();
+      await state.filter({ hasText: "tests réussis" }).waitFor();
+      await field.waitFor({ state: "detached" });
+      assert.equal(await working.count(), 0);
     } finally {
       await page.close();
     }
@@ -773,7 +806,9 @@ describe("the console in a browser", () => {
       release();
       await page.waitForResponse((response) => response.request().method() === "POST");
       await page.getByRole("link", { name: "Revenir aux sessions" }).click();
-      await page.getByRole("link", { name: /vérifier le changement d'adresse/ }).waitFor();
+      const row = page.getByRole("link", { name: /vérifier le changement d'adresse/ });
+      await row.waitFor();
+      assert.match(await row.innerText(), /en attente d’un agent\s+en file$/);
       assert.equal(new URL(page.url()).hash, "#/agent");
     } finally {
       await page.close();

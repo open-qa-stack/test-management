@@ -1,5 +1,5 @@
 import type { ShownStep } from "./playback.ts";
-import type { AgentRole } from "@open-qa-stack/shared/sessions";
+import type { AgentRole } from "@open-qa-stack/domain/sessions";
 
 /** A message the person sent during the session, and the rank of its turn. */
 interface Sent {

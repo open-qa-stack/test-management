@@ -1,4 +1,4 @@
-import type { ProblemCode } from "@open-qa-stack/shared/sessions";
+import type { ProblemCode } from "@open-qa-stack/domain/sessions";
 
 /** Why a call to the API failed: the code of the problem the API answered, or `unreachable` when no answer came. */
 export type ApiErrorCode = ProblemCode | "unreachable";

@@ -1,6 +1,6 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { validateSourceManifest, type SourceManifest } from "@open-qa-stack/shared";
+import { validateSourceManifest, type SourceManifest } from "@open-qa-stack/domain";
 import { redactText, secretForms, type SourceExport } from "@open-qa-stack/tools";
 
 /** Folder of the export, in the folder of a source. */

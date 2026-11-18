@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createElement } from "react";
-import type { Project } from "@open-qa-stack/shared/sessions";
+import type { Project } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
 import { NAVIGATION } from "../src/shell/navigation.ts";
 import { Shell } from "../src/shell/shell.tsx";

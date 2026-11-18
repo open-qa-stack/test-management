@@ -1,4 +1,4 @@
-import { camelName } from "@open-qa-stack/shared";
+import { camelName } from "@open-qa-stack/domain";
 
 /** A locator of a screen, as a member of its page object. */
 export interface LocatorMember {

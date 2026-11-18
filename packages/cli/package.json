@@ -19,8 +19,8 @@
   "dependencies": {
     "@open-qa-stack/agents": "workspace:*",
     "@open-qa-stack/domain": "workspace:*",
+    "@open-qa-stack/engine": "workspace:*",
     "@open-qa-stack/harness": "workspace:*",
-    "@open-qa-stack/shared": "workspace:*",
     "@open-qa-stack/tools": "workspace:*"
   },
   "devDependencies": {

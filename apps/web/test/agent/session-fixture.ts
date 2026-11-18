@@ -1,4 +1,4 @@
-import type { Session, SessionEvent } from "@open-qa-stack/shared/sessions";
+import type { Session, SessionEvent } from "@open-qa-stack/domain/sessions";
 import type { LiveSession, SessionControls } from "../../src/agent/live-session.ts";
 import { frameOf, INITIAL_PLAYBACK, type Playback } from "../../src/agent/playback.ts";
 import type { SessionScript } from "../../src/agent/session-script.ts";
@@ -26,6 +26,9 @@ export const RUNNING: Session = {
   lastEventAt: "2026-11-15T14:44:30.000Z",
   state: "running",
 };
+
+/** The same session before it started. */
+export const QUEUED: Session = { ...RUNNING, lastEventAt: RUNNING.openedAt, state: "queued" };
 
 /** The same session once completed, every test passed. */
 export const COMPLETED: Session = {

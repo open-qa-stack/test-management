@@ -12,10 +12,11 @@ import {
   type ResolvedConfig,
   type SourceCard,
   type SourceCardSubmission,
-} from "@open-qa-stack/shared";
+  type TraceLine,
+} from "@open-qa-stack/domain";
 import { answer, scriptedServer, testSite, toolCalls, type ScriptedServer, type TestSite } from "@open-qa-stack/testing";
 import { fingerprintOf, knowledgeInventory, type SqlClient } from "@open-qa-stack/tools";
-import { Cartographer, INDEX_FILE_NAME, type CartographyOutcome, type PersonInbox, type TraceLine } from "../src/index.ts";
+import { Cartographer, INDEX_FILE_NAME, type CartographyOutcome, type PersonInbox } from "../src/index.ts";
 
 export const MODEL = "test-model";
 

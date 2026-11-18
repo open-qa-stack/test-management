@@ -1,0 +1,196 @@
+# The database
+
+An instance keeps its state in one database: the project, the sessions, their events and the messages sent to them. One process reaches it, the API, which hosts [the operations on sessions](../../engine/docs/engine.md#the-operations-on-sessions) and runs the sessions itself. It does so through `@open-qa-stack/store`, which holds the schema of the database, its migrations, its connections and [the commands of the life of a session](#the-life-of-a-session).
+
+## One schema, two databases
+
+Which database it is is a setting. The store has one schema, one series of migrations and one set of statements, written with [Kysely](https://kysely.dev), and the connection URL alone tells which database runs them:
+
+| URL | Database | When |
+|---|---|---|
+| none | SQLite, in the file `oqas.db` of the state folder of the test repository, `.oqas` unless `oqas.json` names another | The default: nothing to install, nothing to configure. |
+| `sqlite:<path>` | SQLite, in the file named | The same, with the file kept elsewhere. `sqlite::memory:` keeps it in memory, for a test. |
+| `postgres://…`, `postgresql://…` | A PostgreSQL server | An instance whose database is kept on a server: shared, backed up and watched as the others of its host are. |
+
+The URL is what the API reads from `OQAS_DATABASE_URL`, a secret it reads from its environment only (see [running the API](../../api/docs/running.md#configuration)).
+
+Supported means tested: every test of the store and of the API that goes through a database is written once and runs on both, at every commit. The versions are those the tests run on: the SQLite of the better-sqlite3 the workspace pins, and PostgreSQL 18, in the image named in `compose.yaml` at the root of the repository, `postgres:18.7-alpine3.24`.
+
+`openKysely`, in `packages/store/src/database/open-kysely.ts`, is the one place that turns a URL into a database. The rest of the store does not know which one it runs on, except [the migrations](#migrations), which name each type once for both, and `stored-values.ts`, where [what the two keep differently](#how-each-type-is-kept) meets.
+
+### SQLite
+
+The store runs SQLite with the SQLite dialect of Kysely on [better-sqlite3](https://github.com/WiseLibs/better-sqlite3), which holds SQLite itself: an instance has no database to install.
+
+- **One process, one connection.** The file belongs to the process that opens it. Its one connection is lent to one unit of work at a time, a statement alone or a whole transaction: what is read meanwhile waits, and never falls in the middle of what another writes. An instance is one process, so nothing else is needed; two instances on the same file are not supported.
+- **The file is made when needed**, with its folder, and kept with a write-ahead log: whoever reads it from outside, a backup or a shell, never stops the instance from writing. SQLite keeps two files beside it while it is open, `oqas.db-wal` and `oqas.db-shm`: copy the three together, or copy the file once the instance stopped. `oqas --init` has git ignore them in a test repository.
+- **better-sqlite3 is a native module.** Its package holds the binary of each platform it supports — Linux, with glibc or musl, macOS and Windows, on x64 and arm64 — so `pnpm install` downloads nothing more and needs no compiler: `pnpm-workspace.yaml` lists the module under `ignoredBuiltDependencies`, so that its build from source is not run. On another platform, move it to `onlyBuiltDependencies` and install again, with what [node-gyp](https://github.com/nodejs/node-gyp#installation) asks for: Python and a C++ compiler.
+
+### PostgreSQL
+
+A development database runs in a container, with [Docker](https://docs.docker.com/get-started/get-docker/) or [Podman](https://podman.io/docs/installation) and its compose provider as the only prerequisite. From the root of the repository:
+
+```sh
+docker compose up --detach   # or: podman compose up --detach
+```
+
+It listens on `127.0.0.1:5432`, or on the port set in `OQAS_DATABASE_PORT`, for the user `oqas` without a password, and keeps its data in the `oqas_database` volume. Its URL is `postgres://oqas@127.0.0.1:5432/oqas`. It accepts connections from this machine only and is meant for development only. `docker compose down --volumes` removes it with its data.
+
+### Another database later
+
+A database to support later is a dialect for Kysely, named in `openKysely` under the scheme of its URL, which `DatabaseUrl` learns to read. The migrations and the statements stay as they are as long as it has what they use — transactions, `returning`, `on conflict`. What it keeps differently goes in `stored-values.ts`, and the tests written for every database gain a third run: an entry in `packages/store/test/support/database-engine.ts`, and a project in `vitest.config.ts`. It is supported once they pass.
+
+## Migrations
+
+The schema is the type `StoreSchema`, in `packages/store/src/database/schema.ts`, which every statement of the store is checked against. It changes through the versioned migrations of `packages/store/src/database/migrations`, written with the schema builder of Kysely so that each runs unchanged on both databases, and applied in the order of their names, each one once. The database records those it applied in the table `kysely_migration`.
+
+Who applies them depends on whom the database belongs to:
+
+- **A SQLite file** belongs to the instance alone: the API applies the pending migrations itself when it starts, before it listens.
+- **A PostgreSQL server** may be shared, so changing its schema is an explicit step, before the API starts and after each upgrade:
+
+```sh
+pnpm --filter @open-qa-stack/api build
+OQAS_DATABASE_URL=postgres://oqas@127.0.0.1:5432/oqas pnpm --filter @open-qa-stack/api migrate
+```
+
+The command belongs to the API, which reads the URL from its configuration; what it runs, `runMigrations`, belongs to the store, and is what the API calls on a SQLite file. It applies every pending migration, then says how many it applied; run again, it changes nothing and says the schema is up to date. On PostgreSQL the series is one transaction: a migration that fails undoes those applied before it in the same run, and two runs at once on the same server apply each migration once. On SQLite each migration is applied and recorded in turn: one that fails stays pending, with those after it, and its error is raised. The command exits with code `1`, without the URL nor its password, when the database cannot be reached.
+
+To change the schema, change the type and add a migration that brings a database to it, under the next number, in `packages/store/src/database/migrations/index.ts`. A migration that has been released is never edited: a correction is a new migration. The tests fail on both databases when a migrated database and the type differ: a table or a column that one has and not the other, what a column keeps, or whether it may be empty.
+
+## How each type is kept
+
+A migration names a type once. PostgreSQL has each of them. SQLite keeps the name and gives the column no type of its own: it stores what it is given. It also takes an empty key unless told otherwise, so a migration says `notNull` of a primary key too.
+
+| What a column keeps | Named in a migration | PostgreSQL | SQLite |
+|---|---|---|---|
+| A text | `text` | `text` | The text. |
+| A whole number | `integer` | `integer` | The integer. |
+| A date | `timestamptz(3)` | `timestamp (3) with time zone` | The text of the date in ISO 8601, in UTC, to the millisecond, such as `2026-11-16T08:12:45.120Z`: these texts sort as the dates do. |
+| A JSON value | `json` | `json`, which keeps the text as it was written | The JSON text. |
+| A boolean | `boolean` | `boolean` | The integer `0` or `1`. |
+
+The store writes a date and a JSON value as the same text to both, and reads back what each gives — a `Date` and a parsed value from the client of PostgreSQL, the text from SQLite. Both directions go through `packages/store/src/database/stored-values.ts`, and nowhere else: `instant`, which also refuses a text that is no date, `storedJson` and `jsonOf`. The one boolean of the schema is filled by the database and never read.
+
+## Tables
+
+The database keeps the project of the instance, its sessions, the events of each session and the messages a person sent to it. [The sessions](../../api/docs/sessions.md#where-sessions-are-kept-and-what-runs-them) tell who writes what.
+
+`project` holds one row at most: a check on its key refuses a second one.
+
+| Column | Type | Why |
+|---|---|---|
+| `only` | `boolean`, primary key, always true | What holds the table to one row. |
+| `name` | `text`, nullable | A project may have no name yet. |
+| `applications` | JSON | The applications, each with its `id` and its `name`: served whole, never filtered on. |
+
+`sessions` holds one row a session.
+
+| Column | Type | Why |
+|---|---|---|
+| `id` | `text`, primary key | The identifier the store gave the session when it was [asked for](#the-life-of-a-session). Nothing is read in it. |
+| `request`, `environment` | `text`, nullable | What the person asked, and where; the environment is left out of a session that names none. |
+| `opened_at`, `last_event_at` | date | Dates are served to the millisecond; the sessions are listed by the first, the latest first. |
+| `state` | `text` | `queued`, `running`, `completed` or `interrupted`. States are added over time, and a client reads one it does not know: an enumerated type would need a migration for each. |
+| `result` | JSON, nullable | Present once the session is completed: served whole, never filtered on. |
+
+The sessions that wait are started by the one process that hosts them, in an order it keeps in memory and makes again from this table when it starts: no index serves a queue.
+
+`session_events` holds one row an event.
+
+| Column | Type | Why |
+|---|---|---|
+| `session_id` | `text`, references `sessions`, removed with its session | The session of the event. |
+| `id` | `integer` | The rank of the event in its session, from 1: the identifier a stream resumes after. |
+| `at` | date | When it happened. |
+| `type` | `text` | Types are added over time; the changes of state of a session are read by it. |
+| `payload` | JSON | What the event carries besides its rank, its date and its type. |
+
+The primary key of an event is its session and its rank. A rank is given once, in the transaction that writes the event, which holds the row of its session: a client that resumes a stream after a rank gets the same events whatever happened since.
+
+`session_messages` holds one row a message a person sent to a session that went on.
+
+| Column | Type | Why |
+|---|---|---|
+| `session_id` | `text`, references `sessions`, removed with its session | The session of the message. |
+| `number` | `integer` | The number of the message in its session, from 1: what its receipt and its events repeat. |
+| `at` | date | When the person sent it. |
+| `text` | `text` | What the person says to the agents. |
+| `delivered_to` | `text`, nullable | The agent that received it; empty while the message waits for one. |
+| `delivered_at` | date, nullable | When it received it. |
+
+The primary key of a message is its session and its number. A number is given once, in the transaction that takes the message, which holds the row of its session: two messages sent at the same moment take two numbers that follow each other.
+
+The columns that keep a date, a JSON value or a boolean are kept [as each database keeps them](#how-each-type-is-kept). Nothing filters on what a JSON column holds, which is served as it was written, its fields in the order they were given: on PostgreSQL the columns are `json` and not `jsonb`, which would sort the fields.
+
+## The life of a session
+
+`SessionStore` is the one place that writes the sessions. It implements `SessionStorePort`, the port `@open-qa-stack/domain` declares for what keeps the sessions, which [the operations on sessions](../../engine/docs/engine.md#the-operations-on-sessions) are written against. Besides what it reads — the project, the sessions, a session, its events after a rank, its pending messages — it has one command for each step of the life of a session. Each command is one transaction: it happens whole or not at all.
+
+| Command | Sent for | What it does |
+|---|---|---|
+| `ask(opening)` | A person who opens a session | Inserts a session, `queued`, under a new identifier, with what the person asked as its first event, a `user_message`. Answers the session. |
+| `start(id)` | The host, when the turn of the session comes | The session becomes `running`, and a `state_changed` tells it. Answers the session. |
+| `append(id, events)` | The run of the session | Appends the events the run tells, at the ranks that follow the last event of the session, and dates the session by the last of them. |
+| `say(id, text)` | A person who speaks to a session | Takes a message of the person: a row of `session_messages` under the number that follows the last, and a `user_message` with that number. Answers the number. |
+| `deliver(id, number, agent)` | The run of the session | Marks a pending message as received by an agent, which a `message_delivered` tells. `pendingMessages(id)` reads those still to deliver, in the order of their numbers. |
+| `complete(id, result)` | The run of the session | Ends the session with its result: it becomes `completed`, and a `state_changed` tells it. |
+| `interrupt(id)` | Whoever stops a session | Ends the session without a result: it becomes `interrupted`, and a `state_changed` tells it. |
+| `abandonRunning()` | The host, when it starts | Interrupts every `running` session, each with its `state_changed`: nothing runs yet in a process that starts, so those were left by one that died. Answers their identifiers. A session that waits is left to wait. |
+
+Which states a command is for, and the state it leaves the session in, are stated once, without a database, in `SESSION_LIFE` of `@open-qa-stack/domain`:
+
+| Command | For a session that is | Leaves it |
+|---|---|---|
+| `start` | `queued` | `running` |
+| `append`, `deliver` | `running` | as it was |
+| `complete` | `running` | `completed` |
+| `say` | `queued` or `running` | as it was |
+| `interrupt` | `queued` or `running` | `interrupted` |
+| `abandon`, the rule of `abandonRunning` | `running` | `interrupted` |
+
+`ask` opens a session `queued`, and nothing leaves `completed` nor `interrupted`. The store reads its decisions from that table — the state a session is asked in, the state `start` sets, the states `abandonRunning` selects and the one it sets, the refusal of a command — and holds them with its statements.
+
+A command that names a session is refused, and writes nothing, with one of the errors of `@open-qa-stack/domain`:
+
+| Error | When |
+|---|---|
+| `UnknownSessionError` | The identifier names no session. |
+| `SessionEndedError` | The session is `completed` or `interrupted`. |
+| `SessionStateError` | The session goes on in a state the command is not for: it still waits and is told an event, a delivery or its result, or it runs and is started again. |
+| `MessageNotPendingError` | `deliver` names a message the session does not hold, or that an agent already received: a message is delivered once. |
+
+A run whose session was ended under it learns so from the next thing it writes, and stops.
+
+What these guarantee, when two commands reach a session at the same moment — a message of a person while the run appends events, for one:
+
+- **A rank and a number are given once, without a gap.** Every command on a session starts by writing to the row of the session — the state it already has, which it reads back: the database holds the row for the transaction from then on, and two commands on the same session run one after the other. The second reads the last rank, and the last number, once the first has committed. The statement is the same on both databases; on SQLite, whose one connection runs one transaction at a time, it has nothing left to hold.
+- **A command is judged on the state it finds when it writes.** The state it reads back is the one no other command can change before it ends.
+- **A session is started once.** Of two that start the same session, one is refused.
+- **A session and the event that tells its state change together.** A session that reads as ended always holds the `state_changed` that ends its streams.
+
+The identifier `ask` gives is `session-`, the date to the millisecond, and eight random hexadecimal characters, such as `session-2026-11-16T08-12-45-120Z-9f3a1c2b`: identifiers sort in the order the sessions were asked for, and two sessions asked for in the same millisecond differ. A client reads nothing in it. What the store dates — a session it opens, the events it tells itself, a message, a delivery — it dates by the clock of the process that runs the command; the events a run appends bear the dates the run gave them.
+
+The store notifies no one, and nothing listens to the database: the process that writes an event is the one that serves it, and wakes the streams open on the session [in its own memory](../../engine/docs/engine.md#how-an-event-travels).
+
+## Tests
+
+The tests of data access run against real databases; no double replaces SQL. Those that hold for every database are written once, in `packages/store/test/each-database`, and run once on each: `OQAS_TEST_DATABASE` names to them the database of the run, and each test file creates databases of its own — a SQLite file in a folder of its own, or a database of the PostgreSQL test server — and removes them, so that files running at the same time never see each other's data.
+
+| Run | Command | What it needs |
+|---|---|---|
+| The store on SQLite, with the tests that need no database | `pnpm exec vitest run --project store` | Nothing: it takes a second, and is the loop to develop in. |
+| The store on PostgreSQL, with the tests of what only a server does — a pool, a server out of reach, two processes that migrate at once | `pnpm exec vitest run --project store-postgres` | A container engine. |
+| The API, on both | `pnpm --filter @open-qa-stack/api test` | A container engine. |
+| Everything | `pnpm test`, and `pnpm check` | A container engine. |
+
+A run on PostgreSQL starts a disposable server for itself, in a container of the image above, and removes it afterwards. It uses the container engine named in `OQAS_CONTAINER_ENGINE`, or else the first of `podman` and `docker` found on the path. Every container the tests start carries the label `oqas-test=1`, and the containers of a run are removed when it ends, also when it is interrupted with `SIGINT` or `SIGTERM`.
+
+To run these tests against a server already running, such as the development database, give its URL as a user allowed to create databases:
+
+```sh
+OQAS_TEST_DATABASE_URL=postgres://oqas@127.0.0.1:5432/oqas pnpm exec vitest run --project store-postgres
+OQAS_TEST_DATABASE_URL=postgres://oqas@127.0.0.1:5432/oqas pnpm --filter @open-qa-stack/api test
+```
+
+What the tests of the two packages share lives in `packages/store/test/support`, which the store gives as `@open-qa-stack/store/testing`: the two databases as the tests see them, the disposable server and what starts it once for a run, and a database with the schema of the instance and its store.

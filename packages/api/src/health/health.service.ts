@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { DatabaseStatus } from "../database/database-status.ts";
+import { DatabaseStatus } from "@open-qa-stack/store";
 import type { HealthStatus } from "./health-status.ts";
 import { NotReadyError } from "./not-ready-error.ts";
 import type { Readiness } from "./readiness.ts";

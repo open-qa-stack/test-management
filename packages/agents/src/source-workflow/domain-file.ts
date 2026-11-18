@@ -1,4 +1,4 @@
-import type { ManifestDomain } from "@open-qa-stack/shared";
+import type { ManifestDomain } from "@open-qa-stack/domain";
 
 /** An element of a domain, as its file must name it. */
 export interface DomainMember {

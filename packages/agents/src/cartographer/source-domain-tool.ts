@@ -1,5 +1,4 @@
-import type { ToolDefinition } from "@open-qa-stack/domain";
-import type { SourceCard } from "@open-qa-stack/shared";
+import type { SourceCard, ToolDefinition } from "@open-qa-stack/domain";
 
 /** Name of the tool that gives what the agent of a source wrote of one of its domains. */
 export const READ_DOMAIN_TOOL = "read_source_domain";

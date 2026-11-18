@@ -1,5 +1,5 @@
-import type { AgentRole, Problem, ProblemCode, Session, SessionEvent, SessionList, SessionMessage, SessionOpening } from "@open-qa-stack/shared/sessions";
-import { COMPLETED, EVENTS, RUNNING, SESSION_ID } from "./agent/session-fixture.ts";
+import type { AgentRole, Problem, ProblemCode, Session, SessionEvent, SessionList, SessionMessage, SessionOpening } from "@open-qa-stack/domain/sessions";
+import { COMPLETED, EVENTS, RUNNING, SESSION_ID, type EventBody } from "./agent/session-fixture.ts";
 import { UNREACHABLE, type Api, type ApiAnswer } from "./built-console.ts";
 
 /** The identifier of the session the played instance opens on request. */
@@ -18,7 +18,10 @@ function problem(code: ProblemCode, status: number, detail: string): ApiAnswer {
   return { status, contentType: "application/problem+json", body: JSON.stringify(body) };
 }
 
-/** The API of an instance that holds one session, which a test may change as it goes. */
+/**
+ * The API of an instance that holds one session, which a test may change as it goes, and opens another on
+ * request: that one waits, queued, until the test starts it.
+ */
 export class PlayedInstance {
   /** The session, as the API tells it now. */
   public session: Session = RUNNING;
@@ -46,6 +49,8 @@ export class PlayedInstance {
   public readonly resumed: (string | undefined)[] = [];
   /** The session the API opened on request, once it did. */
   private opened: Session | undefined;
+  /** What happened in the session the API opened, from what the person asked. */
+  private readonly openedEvents: SessionEvent[] = [];
   /** What happened in the session after the events of the fixtures: the messages the person sent, and their deliveries. */
   private readonly since: SessionEvent[] = [];
 
@@ -53,6 +58,18 @@ export class PlayedInstance {
   public complete(): void {
     this.happened = EVENTS.length;
     this.session = COMPLETED;
+  }
+
+  /** Starts the session the API opened: it runs, its stream tells so, and its planner speaks. */
+  public take(): void {
+    this.opened = { ...this.opened!, state: "running" };
+    this.tell({ type: "state_changed", state: "running" }, { type: "agent_message", agent: "planner", text: "I read what was asked.", reasoning: false });
+  }
+
+  /** Completes the session the API opened: its last event says so, and the API tells what it came to. */
+  public completeOpened(): void {
+    this.opened = { ...this.opened!, state: "completed", result: COMPLETED.result! };
+    this.tell({ type: "state_changed", state: "completed" });
   }
 
   /**
@@ -75,7 +92,8 @@ export class PlayedInstance {
       if (this.refusal !== undefined) return problem(this.refusal, 503, "The API refuses in its own words.");
       const asked = JSON.parse(body!) as SessionOpening;
       this.asked.push(asked);
-      this.opened = { id: OPENED_ID, request: asked.request, openedAt: "2026-11-16T09:00:00.000Z", lastEventAt: "2026-11-16T09:00:00.000Z", state: "running" };
+      this.opened = { id: OPENED_ID, request: asked.request, openedAt: "2026-11-16T09:00:00.000Z", lastEventAt: "2026-11-16T09:00:00.000Z", state: "queued" };
+      this.tell({ type: "user_message", text: asked.request });
       return { status: 201, body: JSON.stringify(this.opened) };
     }
     if (path === "/api/sessions") {
@@ -92,18 +110,28 @@ export class PlayedInstance {
       if (this.deaf) return problem("session_ended", 409, "The session no longer goes on.");
       const message = JSON.parse(body!) as SessionMessage;
       this.said.push(message);
-      this.since.push({ ...this.next(), type: "user_message", text: message.text, number: this.said.length });
+      const sent: EventBody = { type: "user_message", text: message.text, number: this.said.length };
+      if (id === SESSION_ID) this.since.push({ ...this.next(), ...sent });
+      else this.tell(sent);
       return { status: 202, body: JSON.stringify({ number: this.said.length }) };
     }
     if (this.streamDown) return problem("unavailable", 503, "The stream cannot be opened.");
-    if (id !== SESSION_ID) return { contentType: "text/event-stream", body: ": nothing yet\n\n" };
-    this.resumed.push(after);
+    if (id === SESSION_ID) this.resumed.push(after);
     // The answer ends after what the session has so far: the console connects again, and asks for what happened since.
     const completion: SessionEvent = { ...this.next(), type: "state_changed", state: "completed" };
-    const events = [...EVENTS.slice(0, this.happened), ...this.since, ...(session.state === "running" ? [] : [completion])];
+    const played = [...EVENTS.slice(0, this.happened), ...this.since, ...(session.state === "running" ? [] : [completion])];
+    const events = id === SESSION_ID ? played : this.openedEvents;
     const fresh = events.filter((event) => event.id > Number(after ?? 0));
     return { contentType: "text/event-stream", body: `: events\n\n${fresh.map((event) => `id: ${event.id}\ndata: ${JSON.stringify(event)}\n\n`).join("")}` };
   };
+
+  /** Adds events to the session the API opened, at the ranks and the seconds that follow its last. */
+  private tell(...bodies: readonly EventBody[]): void {
+    for (const body of bodies) {
+      const id = this.openedEvents.length + 1;
+      this.openedEvents.push({ ...body, id, at: `2026-11-16T09:00:${String(id).padStart(2, "0")}.000Z` } as SessionEvent);
+    }
+  }
 
   /** The rank and the date of the next event of the session, after all it has. */
   private next(): Pick<SessionEvent, "id" | "at"> {

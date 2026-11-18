@@ -99,10 +99,10 @@ function followed(script: SessionScript): { readonly shown: ShownStep[]; readonl
     index,
     step,
     written: step.kind === "say" ? step.text : "",
-    running: script.live && step.kind === "tool" && step.pending === true,
+    running: script.stage === "live" && step.kind === "tool" && step.pending === true,
   }));
   const last = script.steps.at(-1);
-  const speaking = script.live && last !== undefined ? fromOf(last) : undefined;
+  const speaking = script.stage === "live" && last !== undefined ? fromOf(last) : undefined;
   return { shown, ...(speaking === undefined ? {} : { speaking }) };
 }
 
@@ -136,7 +136,7 @@ export function frameOf(script: SessionScript, playback: Playback): Frame {
   return {
     shown,
     ...(speaking === undefined ? {} : { speaking }),
-    finished: !script.live && (playback.following || playback.tick >= end - PAUSE_TICKS),
+    finished: script.stage === "ended" && (playback.following || playback.tick >= end - PAUSE_TICKS),
     actions: shown.filter(({ step, running }) => step.kind === "tool" && !running).length,
     ...passOf(shown),
     progress: playback.following || end === 0 ? 1 : Math.min(1, playback.tick / end),

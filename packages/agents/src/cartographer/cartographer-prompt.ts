@@ -1,4 +1,4 @@
-import type { SourceCard } from "@open-qa-stack/shared";
+import type { SourceCard } from "@open-qa-stack/domain";
 import { SUBMIT_TOOL } from "./domain-consolidation.ts";
 import type { RunSource } from "./run-sources.ts";
 import { READ_DOMAIN_TOOL } from "./source-domain-tool.ts";

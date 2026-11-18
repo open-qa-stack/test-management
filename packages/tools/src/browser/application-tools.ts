@@ -1,8 +1,7 @@
 import { join } from "node:path";
 import { destructiveName } from "./destructive-target.ts";
 import type { Locator } from "playwright-core";
-import { ImageToolResult, type ToolDefinition } from "@open-qa-stack/domain";
-import type { Account, Application, Environment } from "@open-qa-stack/shared";
+import { ImageToolResult, type Account, type Application, type Environment, type ToolDefinition } from "@open-qa-stack/domain";
 import { scopedToolName } from "../common/tool-name.ts";
 import { LOG_CAPACITY, type ApplicationPage, type PageScope, type PageState, type TargetMatch, type Until } from "./application-page.ts";
 import type { BrowserSession } from "./browser-session.ts";

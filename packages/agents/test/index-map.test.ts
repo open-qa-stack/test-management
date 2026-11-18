@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import type { ToolDefinition } from "@open-qa-stack/domain";
-import type { DomainIndex, SourceCard, SourceManifest } from "@open-qa-stack/shared";
+import type { DomainIndex, SourceCard, SourceManifest, ToolDefinition } from "@open-qa-stack/domain";
 import { IndexMap, type WrittenSource } from "../src/designer/index-map.ts";
 
 const INDEX: DomainIndex = {

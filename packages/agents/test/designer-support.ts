@@ -6,10 +6,21 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll } from "vitest";
 import { CopilotAgentRuntime, ModelGateway, resolveCharter, writerInstructions } from "@open-qa-stack/harness";
-import { validateConfig, type DomainIndex, type ResolvedConfig, type SourceCard } from "@open-qa-stack/shared";
+import {
+  validateConfig,
+  type DomainIndex,
+  type PlanReview,
+  type ProposedTest,
+  type ResolvedConfig,
+  type ScenarioLevel,
+  type SourceCard,
+  type TestCheck,
+  type TestRunner,
+  type TestTrial,
+  type TraceLine,
+} from "@open-qa-stack/domain";
 import { answer, scriptedServer, testSite, toolCalls, type ScriptedServer, type TestSite } from "@open-qa-stack/testing";
-import type { PlanReview, ProposedTest, ScenarioLevel, TestCheck, TestRunner, TestTrial } from "@open-qa-stack/domain";
-import { Designer, readPlanFile, type DesignOutcome, type DesignState, type PersonInbox, type PlanRecord, type TraceLine } from "../src/index.ts";
+import { Designer, readPlanFile, type DesignOutcome, type DesignState, type PersonInbox, type PlanRecord } from "../src/index.ts";
 
 export const MODEL = "test-model";
 

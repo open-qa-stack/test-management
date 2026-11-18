@@ -1,8 +1,7 @@
 import { join } from "node:path";
-import type { ResolvedConfig } from "@open-qa-stack/shared";
+import type { ResolvedConfig, TraceLine } from "@open-qa-stack/domain";
 import { configSecrets } from "./config-secrets.ts";
 import { Trace } from "./trace.ts";
-import type { TraceLine } from "./trace-line.ts";
 
 /** What a run needs to open its trace. */
 export interface RunTraceOptions {

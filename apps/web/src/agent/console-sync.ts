@@ -1,4 +1,4 @@
-import type { Session } from "@open-qa-stack/shared/sessions";
+import type { Session } from "@open-qa-stack/domain/sessions";
 import type { ApiClient } from "../api/api-client.ts";
 import type { ApiError } from "../api/api-error.ts";
 import { followEvents } from "../api/event-stream.ts";
@@ -71,8 +71,9 @@ export class ConsoleSync {
   }
 
   /**
-   * Follows a session: its stream of events, and the session itself, read on arrival and once its stream
-   * ended, when the API knows what it came to. A session the instance does not keep is no longer followed.
+   * Follows a session: its stream of events, and the session itself, read on arrival and each time its stream
+   * says it changed state — it started, or it ended and the API knows what it came to. A session the
+   * instance does not keep is no longer followed.
    *
    * @param id - The identifier of the session.
    * @returns What leaves the session.
@@ -80,13 +81,13 @@ export class ConsoleSync {
   public follow(id: string): () => void {
     this.#dispatch({ type: "followed", id });
     const stopStream = followEvents(id, {
-      events: (events) => this.#dispatch({ type: "events", id, events }),
-      state: (state) => {
-        this.#dispatch({ type: "stream", id, state });
-        if (state !== "ended") return;
+      events: (events) => {
+        this.#dispatch({ type: "events", id, events });
+        if (!events.some(({ type }) => type === "state_changed")) return;
         stopReading();
         stopReading = this.#read(id, stopStream);
       },
+      state: (state) => this.#dispatch({ type: "stream", id, state }),
     });
     let stopReading = this.#read(id, stopStream);
     return () => {

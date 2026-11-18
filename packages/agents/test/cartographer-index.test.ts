@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { describe, it } from "vitest";
-import { validateDomainIndex } from "@open-qa-stack/shared";
+import { validateDomainIndex } from "@open-qa-stack/domain";
 import { answer, closedPort, toolCalls } from "@open-qa-stack/testing";
 import { type SqlClient } from "@open-qa-stack/tools";
 import {

@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { after, before, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
+import { Logger } from "@nestjs/common";
+import { DatabaseUrl, runMigrations } from "@open-qa-stack/store";
+import { PostgresContainer } from "@open-qa-stack/store/testing";
 import { closedPort } from "@open-qa-stack/testing";
-import { MIGRATIONS_FOLDER } from "../src/database/migrations-folder.ts";
-import { runMigrations } from "../src/database/run-migrations.ts";
 import { startApi } from "../src/start-api.ts";
 import { CapturedLogger } from "./support/captured-logger.ts";
 import { childEnvironment } from "./support/environment.ts";
-import { PostgresContainer } from "./support/postgres-container.ts";
 
 const MAIN = fileURLToPath(new URL("../src/main.js", import.meta.url));
 const WITNESS = "witness-9d1e7b42";
@@ -78,7 +78,7 @@ describe("an error of connection", () => {
     );
     assert.equal(
       run.err,
-      "The configuration is invalid:\n- OQAS_DATABASE_URL must be a PostgreSQL connection URL with a host name, starting with postgres:// or postgresql://.\n",
+      "The configuration is invalid:\n- OQAS_DATABASE_URL must be a database URL: postgres:// or postgresql:// with a host name for a PostgreSQL server, or sqlite: followed by the path of a file.\n",
     );
     assert.ok(!leaks(run.out + run.err, url));
   });
@@ -86,7 +86,7 @@ describe("an error of connection", () => {
 
 describe("the readiness of the instance", () => {
   it("is not ready while the database is stopped, ready once it is started, and the process answers throughout", async () => {
-    await runMigrations({ OQAS_DATABASE_URL: started().url }, MIGRATIONS_FOLDER);
+    await runMigrations(DatabaseUrl.parse(started().url) as DatabaseUrl, new Logger("Database"));
     await started().stop();
     const port = await closedPort();
     const logger = new CapturedLogger();
@@ -94,7 +94,7 @@ describe("the readiness of the instance", () => {
     try {
       assert.deepEqual(await get(port, "/health/ready"), UNREACHABLE);
       assert.deepEqual(await get(port, "/health"), ALIVE);
-      assert.deepEqual(warnings(logger).length, 1, logger.lines.join("\n"));
+      assert.deepEqual(warnings(logger).filter((line) => line.endsWith(" Database")).length, 1, logger.lines.join("\n"));
 
       await started().restart();
       assert.deepEqual(await get(port, "/health/ready"), READY);

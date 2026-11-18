@@ -1,5 +1,5 @@
 import type { FormEvent, ReactNode } from "react";
-import type { Project, Session } from "@open-qa-stack/shared/sessions";
+import type { Project, Session } from "@open-qa-stack/domain/sessions";
 import { AgentHomeScreen } from "./agent/agent-home-screen.tsx";
 import type { Opening } from "./agent/console-state.ts";
 import type { LiveSession } from "./agent/live-session.ts";

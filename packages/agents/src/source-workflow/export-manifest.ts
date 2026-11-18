@@ -1,4 +1,4 @@
-import type { ManifestDomain, SourceManifest } from "@open-qa-stack/shared";
+import type { ManifestDomain, SourceManifest } from "@open-qa-stack/domain";
 import type { SourceExport } from "@open-qa-stack/tools";
 import type { Grouping } from "./grouping.ts";
 import { EXPORT_FOLDER } from "./source-folder.ts";
