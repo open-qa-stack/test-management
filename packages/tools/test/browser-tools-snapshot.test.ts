@@ -49,7 +49,7 @@ describe("criterion 2 — a snapshot lists the elements one can act on, with rol
         );
         await reject(
           tool("shop_snapshot").execute({ within: { text: "Again" } }),
-          /^page\.getByText\("Again", \{ exact: true \}\) matches more than one element; use a locator that matches one\./,
+          /^page\.getByText\("Again", \{ exact: true \}\) matches 2 elements, and no locator the test charter allows tells them apart/,
         );
       },
       { actionTimeoutMs: 300 },
@@ -93,6 +93,11 @@ describe("criterion 2 — a snapshot lists the elements one can act on, with rol
       );
       assert.match(line(text, 'button "Open"'), / → no unique locator: 2 elements match page\.getByRole\("button", \{ name: "Open", exact: true \}\)$/);
       assert.match(line(text, 'button "Edit"'), / → no unique locator: 2 elements match page\.getByRole\("button", \{ name: "Edit", exact: true \}\)$/);
+      // A button its row tells apart is one the agent can reach: the locator it gave is only too broad.
+      await reject(
+        tool("shop_click").execute({ target: { role: "button", name: "Manage" } }),
+        /^page\.getByRole\("button", \{ name: "Manage", exact: true \}\) matches more than one element; use a locator that matches one\./,
+      );
       const clicked = (await tool("shop_click").execute({ target: { role: "button", name: "Manage", within: { role: "row", name: "Lena Veldane" } } })) as {
         code: string;
       };

@@ -2,6 +2,7 @@ import { setTimeout as wait } from "node:timers/promises";
 import { errors, type Browser, type Frame, type Locator, type Page, type Route } from "playwright-core";
 import { PageLog, type ConsoleEntry, type NetworkEntry } from "./page-log.ts";
 import { pageSnapshot, type PageSnapshot } from "./page-snapshot.ts";
+import { distinguishable } from "./recommended-target.ts";
 import { renderedText } from "./rendered-text.ts";
 import { shortText } from "./short-text.ts";
 import { locate, targetCode, type NameMatch, type Target } from "./target.ts";
@@ -340,7 +341,11 @@ export class ApplicationPage {
     if (target === undefined) return failure instanceof errors.TimeoutError ? late : firstLine(failure);
     const code = targetCode(target, match);
     if (failure instanceof errors.TimeoutError) return (await locate(this.page, target, match).count()) === 0 ? `${code} matches no element.` : late;
-    if (firstLine(failure).includes("strict mode violation")) return `${code} matches more than one element; use a locator that matches one.`;
+    if (firstLine(failure).includes("strict mode violation")) {
+      const found = locate(this.page, target, match);
+      if (await distinguishable(this.page, target, found)) return `${code} matches more than one element; use a locator that matches one.`;
+      return `${code} matches ${await found.count()} elements, and no locator the test charter allows tells them apart: the page gives them no label of their own, no test id, and no row or dialog that holds one alone. This is a defect of testability of the application, not of the test. Leave out what needs one of them, and say why, naming them: the application should give each its own label or a test id.`;
+    }
     return firstLine(failure);
   }
 }
