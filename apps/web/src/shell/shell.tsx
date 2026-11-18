@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Project } from "@open-qa-stack/domain/sessions";
 import { hrefTo, isUnder, type Route } from "../routing/route.ts";
+import { t } from "../i18n/i18n.ts";
 import { Icon } from "../ui/icon.tsx";
 import { HOME_PATH, NAVIGATION, type NavigationEntry } from "./navigation.ts";
 
@@ -22,8 +23,8 @@ function NavigationItem({ entry, route }: { readonly entry: NavigationEntry; rea
     return (
       <span className="nav-soon">
         <Icon name={entry.icon} />
-        <span className="nav-label">{entry.label}</span>
-        <span className="soon">bientôt</span>
+        <span className="nav-label">{t(`shell.entries.${entry.key}`)}</span>
+        <span className="soon">{t("shell.soon")}</span>
       </span>
     );
   }
@@ -32,15 +33,9 @@ function NavigationItem({ entry, route }: { readonly entry: NavigationEntry; rea
   return (
     <a href={hrefTo(entry.path)} className={active ? "on" : undefined} aria-current={active ? "page" : undefined}>
       <Icon name={entry.icon} />
-      <span className="nav-label">{entry.label}</span>
+      <span className="nav-label">{t(`shell.entries.${entry.key}`)}</span>
     </a>
   );
-}
-
-/** How many applications a project has, in words. */
-function applicationsOf(project: Project): string {
-  const count = project.applications.length;
-  return count === 1 ? "1 application" : `${count} applications`;
 }
 
 /**
@@ -56,7 +51,7 @@ export function Shell({ route, project, unreachable = false, children }: ShellPr
     <div className="shell">
       {unreachable && (
         <div className="env" role="alert">
-          ● Hors ligne <span className="n">— l’instance ne répond plus ; la page reprendra seule dès son retour</span>
+          ● {t("shell.offline")} <span className="n">{t("shell.offlineDetail")}</span>
         </div>
       )}
       <header className="top">
@@ -73,21 +68,21 @@ export function Shell({ route, project, unreachable = false, children }: ShellPr
         </div>
       </header>
       <aside className="shell-sidebar">
-        <nav className="nav" aria-label="Navigation principale">
+        <nav className="nav" aria-label={t("shell.navigation")}>
           {project !== undefined && name !== undefined && (
             <div className="proj">
               <span className="proj-avatar">{name.slice(0, 2).toUpperCase()}</span>
               <b>
                 {name}
-                <small>{applicationsOf(project)} · projet</small>
+                <small>{t("shell.applications", { count: project.applications.length })}</small>
               </b>
             </div>
           )}
           {NAVIGATION.map((group) => (
-            <div key={group.label} className="nav-group">
-              <div className="grp">{group.label}</div>
+            <div key={group.key} className="nav-group">
+              <div className="grp">{t(`shell.groups.${group.key}`)}</div>
               {group.entries.map((entry) => (
-                <NavigationItem key={entry.label} entry={entry} route={route} />
+                <NavigationItem key={entry.key} entry={entry} route={route} />
               ))}
             </div>
           ))}

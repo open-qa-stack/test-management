@@ -15,6 +15,7 @@ import type {
   SessionOpening,
 } from "@open-qa-stack/domain/sessions";
 import { ApiError } from "./api-error.ts";
+import { t } from "../i18n/i18n.ts";
 import { problemCode, problemText } from "./problem-text.ts";
 
 /** The path the console reaches the API of its instance under. */
@@ -161,7 +162,7 @@ export class ApiClient {
     try {
       response = await this.#fetch(`${API_BASE}${path}`, init);
     } catch {
-      throw new ApiError("L’instance ne répond pas.", 0, "unreachable");
+      throw new ApiError(t("problems.unreachable"), 0, "unreachable");
     }
     if (!response.ok) throw await failureOf(response);
     return response;
@@ -172,7 +173,7 @@ export class ApiClient {
     try {
       return (await response.json()) as T;
     } catch {
-      throw new ApiError("La réponse de l’instance est illisible.", response.status, "error");
+      throw new ApiError(t("problems.unreadable"), response.status, "error");
     }
   }
 }

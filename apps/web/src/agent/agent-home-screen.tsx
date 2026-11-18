@@ -1,12 +1,14 @@
 import type { FormEvent, ReactNode } from "react";
 import type { Session } from "@open-qa-stack/domain/sessions";
+import { durationText, momentText } from "../i18n/formats.ts";
+import { t } from "../i18n/i18n.ts";
 import { hrefTo } from "../routing/route.ts";
 import { Badge } from "../ui/badge.tsx";
 import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
 import type { Opening } from "./console-state.ts";
-import { durationText, openingText, stateOf, testsText, waitText } from "./session-facts.ts";
+import { stateOf, testsText, waitText } from "./session-facts.ts";
 
 /** What the entry of the agent needs. */
 export interface AgentHomeScreenProps {
@@ -27,17 +29,17 @@ function SessionRow({ session }: { readonly session: Session }): ReactNode {
   const state = stateOf(session);
   const live = session.state === "running";
   const facts = [
-    openingText(session),
+    momentText(session.openedAt),
     session.environment,
     waitText(session),
     session.result === undefined ? undefined : durationText(session.result.durationMs),
-    session.result === undefined ? undefined : `${session.result.modelRequests} requêtes au modèle`,
+    session.result === undefined ? undefined : t("facts.modelRequests", { count: session.result.modelRequests }),
     testsText(session),
   ].filter((fact) => fact !== undefined);
   return (
     <a className={live ? "row run-row live" : "row run-row"} href={hrefTo(`/agent/sessions/${session.id}`)}>
       <div className="grow">
-        <div className="agent-home-session">{session.request ?? (live ? "Session en cours" : "Session sans demande")}</div>
+        <div className="agent-home-session">{session.request ?? t(live ? "home.running" : "home.unasked")}</div>
         <div className="small muted">{facts.join(" · ")}</div>
       </div>
       <Badge tone={state.tone}>{state.label}</Badge>
@@ -55,16 +57,16 @@ export function AgentHomeScreen({ project, sessions, unlisted, opening, onOpen }
   const live = sessions?.filter(({ state }) => state === "running") ?? [];
   const sending = opening.state === "sending";
   return (
-    <Page crumbs={[{ label: project }, { label: "Agent" }]}>
+    <Page crumbs={[{ label: project }, { label: t("console.titles.entry") }]}>
       <div className="agent-home">
         <h1 className="agent-home-title" tabIndex={-1}>
-          Qu’est-ce qu’on teste ?
+          {t("home.title")}
         </h1>
         <form className="agent-home-prompt" onSubmit={onOpen}>
           <label className="sr-only" htmlFor="agent-home-request">
-            Dites aux agents quoi tester
+            {t("home.requestLabel")}
           </label>
-          <textarea id="agent-home-request" name="request" required disabled={sending} placeholder="Une règle, un ticket, un écran, un parcours…" />
+          <textarea id="agent-home-request" name="request" required disabled={sending} placeholder={t("home.requestPlaceholder")} />
           <div className="agent-home-actions">
             {opening.state === "refused" && (
               <span className="small agent-home-refused" role="alert">
@@ -72,17 +74,17 @@ export function AgentHomeScreen({ project, sessions, unlisted, opening, onOpen }
               </span>
             )}
             <button type="submit" className="btn primary" disabled={sending}>
-              {sending ? "Ouverture…" : "Démarrer une session"}
+              {t(sending ? "home.sending" : "home.start")}
             </button>
           </div>
         </form>
-        <Card className="agent-home-sessions" title="Sessions" hint={live.length > 0 ? `${live.length} en direct` : "chaque demande ouvre une session"}>
+        <Card className="agent-home-sessions" title={t("home.sessions")} hint={live.length > 0 ? t("home.live", { count: live.length }) : t("home.hint")}>
           {sessions === undefined && (
             <div className="row small muted" role="status">
-              {unlisted ?? "Lecture des sessions…"}
+              {unlisted ?? t("home.reading")}
             </div>
           )}
-          {sessions?.length === 0 && <EmptyState title="Aucune session pour l’instant">La première apparaîtra ici dès qu’une demande sera faite.</EmptyState>}
+          {sessions?.length === 0 && <EmptyState title={t("home.emptyTitle")}>{t("home.emptyBody")}</EmptyState>}
           {sessions?.map((session) => (
             <SessionRow key={session.id} session={session} />
           ))}

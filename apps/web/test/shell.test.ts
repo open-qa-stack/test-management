@@ -5,6 +5,9 @@ import { describe, it } from "vitest";
 import { NAVIGATION } from "../src/shell/navigation.ts";
 import { Shell } from "../src/shell/shell.tsx";
 import { at, linksOf, render, textOf } from "./render.ts";
+import { speaking } from "./i18n/in-language.ts";
+
+const inEnglish = speaking("en");
 
 /**
  * A project as the API describes it.
@@ -93,8 +96,15 @@ describe("the shell", () => {
     assert.match(textOf(html), /^✓ Open QA Stack Travail Agent /);
   });
 
-  it("counts the applications of the project, in the singular for one", () => {
-    assert.match(textOf(shell("#/", { project: projectWith(1) })), /lakeside-tests 1 application · projet/);
-    assert.match(textOf(shell("#/", { project: projectWith(0) })), /lakeside-tests 0 applications · projet/);
+  it("counts the applications of the project as French does, in the singular below two", () => {
+    assert.match(textOf(shell("#/", { project: projectWith(0) })), /lakeside-tests 0 application · projet/);
+    assert.match(textOf(shell("#/", { project: projectWith(2) })), /lakeside-tests 2 applications · projet/);
+  });
+
+  it("is written in English when the console speaks it", async () => {
+    await inEnglish();
+    const text = textOf(shell("#/", { project: projectWith(1), unreachable: true }));
+    assert.match(text, /● Offline — the instance no longer answers; the page picks up by itself once it is back/);
+    assert.match(text, /lakeside-tests 1 application · project Work Agent Repository Discovery soon To review soon Tests soon Coverage soon/);
   });
 });

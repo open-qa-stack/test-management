@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
+import { languageOf, type OqasConfig } from "../src/index.ts";
 import { errorsOf, validateVariant } from "./helpers.ts";
 
 /** How the tests are built, when the configuration does not say. */
@@ -98,5 +99,20 @@ describe("the languages are read from the configuration", () => {
   it("refuses a language the product does not speak, with its JSON path", () => {
     assert.ok(errorsOf(validateVariant((config) => (config["language"] = "de"))).some((error) => error.path === "/language"));
     assert.ok(errorsOf(validateVariant((config) => (config["design"] = { testLanguage: "fr-FR" }))).some((error) => error.path === "/design/testLanguage"));
+  });
+});
+
+describe("the language of the configuration in force", () => {
+  it("is that of its revision, and English when the revision names none or there is none", () => {
+    const revision = { number: 1, origin: "file", recordedAt: "2026-11-18T09:00:00.000Z", fileDigest: "digest" } as const;
+    const document: OqasConfig = {
+      formatVersion: 1,
+      applications: [],
+      knowledge: [],
+      model: { mode: "provider-key", provider: "openai", baseUrl: "http://127.0.0.1:1/v1", model: "m" },
+    };
+    assert.equal(languageOf({ revision: { ...revision, document: { ...document, language: "fr" } }, file: "in_step" }), "fr");
+    assert.equal(languageOf({ revision: { ...revision, document }, file: "in_step" }), "en");
+    assert.equal(languageOf({ file: "missing" }), "en");
   });
 });

@@ -28,7 +28,7 @@ export type {
   TaskCriteria,
   TestLevel,
 } from "../config/types.ts";
-export { DEFAULT_LANGUAGE, LANGUAGES } from "../config/language.ts";
+export { DEFAULT_LANGUAGE, LANGUAGES, languageOf } from "../config/language.ts";
 export type { ConfigurationCheck, RevisionChange, RevisionList } from "../configuration-life/configuration-exchanges.ts";
 export type { ConfigurationRevision, RevisionOrigin, RevisionSummary } from "../configuration-life/configuration-revision.ts";
 export type { ConfigurationView } from "../configuration-life/configuration-view.ts";

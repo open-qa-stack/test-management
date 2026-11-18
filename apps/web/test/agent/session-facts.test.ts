@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import type { Session, SessionResult, SessionTest } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
-import { durationText, elapsedText, openingText, stateOf, testsText, waitText } from "../../src/agent/session-facts.ts";
+import { stateOf, testsText, waitText } from "../../src/agent/session-facts.ts";
 import { COMPLETED, QUEUED, RUNNING } from "./session-fixture.ts";
 
 /**
@@ -47,32 +47,6 @@ describe("what a session waits for", () => {
   it("is an agent while it is queued, and nothing in any other state", () => {
     assert.equal(waitText(QUEUED), "en attente d’un agent");
     assert.deepEqual([RUNNING, COMPLETED, { ...RUNNING, state: "archived" as Session["state"] }].map(waitText), [undefined, undefined, undefined]);
-  });
-});
-
-describe("the duration of a session", () => {
-  it("is written in seconds under a minute, rounded", () => {
-    assert.deepEqual([0, 499, 1500, 59_499].map(durationText), ["0 s", "0 s", "2 s", "59 s"]);
-  });
-
-  it("is written in minutes and seconds from a minute on, the seconds on two digits", () => {
-    assert.deepEqual([59_500, 65_000, 113_600, 3_600_000].map(durationText), ["1 min 00 s", "1 min 05 s", "1 min 54 s", "60 min 00 s"]);
-  });
-});
-
-describe("the time an action took", () => {
-  it("is written in milliseconds under a second, rounded", () => {
-    assert.deepEqual([0, 40.4, 999].map(elapsedText), ["0 ms", "40 ms", "999 ms"]);
-  });
-
-  it("is written in seconds with a decimal under a minute, and as a duration beyond", () => {
-    assert.deepEqual([1000, 1250, 59_940, 60_000, 113_600].map(elapsedText), ["1,0 s", "1,3 s", "59,9 s", "1 min 00 s", "1 min 54 s"]);
-  });
-});
-
-describe("the opening of a session", () => {
-  it("is written as its day and its time, in universal time", () => {
-    assert.equal(openingText(RUNNING), "2026-11-15 · 14:44:06 UTC");
   });
 });
 

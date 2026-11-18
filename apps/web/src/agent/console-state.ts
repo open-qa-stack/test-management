@@ -1,4 +1,4 @@
-import type { Project, Session, SessionEvent, SessionScript } from "@open-qa-stack/domain/sessions";
+import type { Language, Project, Session, SessionEvent, SessionScript } from "@open-qa-stack/domain/sessions";
 import type { StreamState } from "../api/event-stream.ts";
 import { INITIAL_PLAYBACK, played, type Playback, type PlaybackAction } from "./playback.ts";
 
@@ -38,6 +38,8 @@ export type Opening = Sending;
 export interface ConsoleState {
   /** The project; `undefined` before the API described it. */
   readonly project?: Project;
+  /** The language of the configuration in force; `undefined` before the API told it. */
+  readonly language?: Language;
   /** The sessions of the project, the latest first; `undefined` before the API listed them. */
   readonly sessions?: readonly Session[];
   /** Why the API last failed to list the sessions, when it answered and failed. */
@@ -58,6 +60,8 @@ export interface ConsoleState {
 export type ConsoleAction =
   /** The API described the project. */
   | { readonly type: "project"; readonly project: Project }
+  /** The API told the language of the configuration in force. */
+  | { readonly type: "language"; readonly language: Language }
   /** The API listed the sessions, asked at a rank among the calls of the console. */
   | { readonly type: "sessions"; readonly sessions: readonly Session[]; readonly askedAt: number }
   /** The API answered that it could not list the sessions. */
@@ -147,6 +151,8 @@ export function consoleAfter(state: ConsoleState, action: ConsoleAction): Consol
   switch (action.type) {
     case "project":
       return { ...state, project: action.project, unreachable: false };
+    case "language":
+      return { ...state, language: action.language, unreachable: false };
     case "sessions": {
       if (action.askedAt < state.openedAt) return state;
       const sessions = listed(state.sessions, action.sessions);

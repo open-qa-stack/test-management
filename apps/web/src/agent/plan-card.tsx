@@ -1,24 +1,11 @@
 import type { ReactNode } from "react";
 import type { PlannedExpect, PlannedScenario, PlanScenario, PlanStep } from "@open-qa-stack/domain/sessions";
 import { Badge } from "../ui/badge.tsx";
-import { counted } from "../ui/counted.ts";
+import { t, type Words } from "../i18n/i18n.ts";
 
-/** How the values a plan gives a scenario read; one this console does not know reads as it is. */
-const WORDS: Readonly<Record<string, string>> = {
-  nominal: "nominal",
-  negative: "négatif",
-  read: "lecture seule",
-  write: "écrit des données",
-  functional: "fonctionnel",
-  visual: "visuel",
-  accessibility: "accessibilité",
-  other: "autre",
-  "made-up": "inventée",
-};
-
-/** A value of a plan, in the words of the console. */
+/** A value of a plan, in the words of the console; one it does not know reads as it is. */
 function worded(value: string): string {
-  return WORDS[value] ?? value;
+  return t(`plan.words.${value as keyof Words["plan"]["words"]}`, { defaultValue: value });
 }
 
 /** What a scenario is said to be beside its title: its case and the application it tests. */
@@ -29,15 +16,15 @@ function placeOf(scenario: PlannedScenario): string {
 /** The facts of a scenario, each with its label, those the plan does not say left out. */
 function factsOf(scenario: PlannedScenario): (readonly [string, ReactNode])[] {
   const facts: (readonly [string, ReactNode | undefined])[] = [
-    ["Identifiant", <span className="mono">{scenario.id}</span>],
-    ["Niveau", scenario.level],
-    ["Cas", scenario.case === undefined ? undefined : worded(scenario.case)],
-    ["Effet", scenario.effect === undefined ? undefined : worded(scenario.effect)],
-    ["Nature", scenario.kind === undefined ? undefined : worded(scenario.kind)],
-    ["Application", scenario.application],
-    ["Domaine", [scenario.domain, scenario.feature].filter((part) => part !== undefined).join(" · ") || undefined],
+    [t("plan.facts.id"), <span className="mono">{scenario.id}</span>],
+    [t("plan.facts.level"), scenario.level],
+    [t("plan.facts.case"), scenario.case === undefined ? undefined : worded(scenario.case)],
+    [t("plan.facts.effect"), scenario.effect === undefined ? undefined : worded(scenario.effect)],
+    [t("plan.facts.kind"), scenario.kind === undefined ? undefined : worded(scenario.kind)],
+    [t("plan.facts.application"), scenario.application],
+    [t("plan.facts.domain"), [scenario.domain, scenario.feature].filter((part) => part !== undefined).join(" · ") || undefined],
     [
-      "Sources",
+      t("plan.facts.sources"),
       scenario.sources === undefined || scenario.sources.length === 0 ? undefined : (
         <ul className="plain-list">
           {scenario.sources.map((source, index) => (
@@ -50,9 +37,9 @@ function factsOf(scenario: PlannedScenario): (readonly [string, ReactNode])[] {
       ),
     ],
     [
-      "Données",
+      t("plan.facts.data"),
       scenario.data === undefined ? undefined : scenario.data.length === 0 ? (
-        "aucune saisie"
+        t("plan.noInput")
       ) : (
         <ul className="plain-list">
           {scenario.data.map((value, index) => (
@@ -87,8 +74,8 @@ function Expect({ expect }: { readonly expect: PlannedExpect }): ReactNode {
   return (
     <li>
       <p className="expect-result">{expect.result}</p>
-      <Texts label="Affiche" texts={expect.shows} />
-      <Texts label="N’affiche plus" texts={expect.absent} />
+      <Texts label={t("plan.shows")} texts={expect.shows} />
+      <Texts label={t("plan.absent")} texts={expect.absent} />
     </li>
   );
 }
@@ -96,7 +83,7 @@ function Expect({ expect }: { readonly expect: PlannedExpect }): ReactNode {
 /**
  * A scenario of a plan, as a cell that unfolds: its level, its title and where it applies on its line; unfolded,
  * what it verifies, every fact the plan gives, each step with what it expects, then the scenario as the event
- * told it, folded under « Détails ». The refusals of the harness about it before the plan was accepted are counted on
+ * told it, folded under “Details”. The refusals of the harness about it before the plan was accepted are counted on
  * its line and told in full under its steps. A scenario of a thread written before the plan told more shows what it has.
  */
 function ScenarioCell({ scenario }: { readonly scenario: PlanScenario }): ReactNode {
@@ -108,7 +95,7 @@ function ScenarioCell({ scenario }: { readonly scenario: PlanScenario }): ReactN
         <Badge tone="neutral">{planned.level}</Badge>
         <span className="result-title">{planned.title}</span>
         {place !== "" && <span className="turn-role">{place}</span>}
-        {refusals.length > 0 && <Badge tone="warn">{counted(refusals.length, "refus du harnais", "refus du harnais")}</Badge>}
+        {refusals.length > 0 && <Badge tone="warn">{t("count.refusals", { count: refusals.length })}</Badge>}
       </summary>
       <div className="scenario-body">
         {planned.intent !== undefined && <p className="scenario-intent">{planned.intent}</p>}
@@ -121,7 +108,7 @@ function ScenarioCell({ scenario }: { readonly scenario: PlanScenario }): ReactN
           ))}
         </dl>
         {planned.steps !== undefined && planned.steps.length > 0 && (
-          <ol className="scenario-steps" aria-label="Étapes">
+          <ol className="scenario-steps" aria-label={t("plan.steps")}>
             {planned.steps.map((step, index) => (
               <li key={index}>
                 <p className="scenario-action">
@@ -129,7 +116,7 @@ function ScenarioCell({ scenario }: { readonly scenario: PlanScenario }): ReactN
                   {step.restores === true && (
                     <>
                       {" "}
-                      <Badge tone="outline">remet en état</Badge>
+                      <Badge tone="outline">{t("plan.restores")}</Badge>
                     </>
                   )}
                 </p>
@@ -145,8 +132,8 @@ function ScenarioCell({ scenario }: { readonly scenario: PlanScenario }): ReactN
           </ol>
         )}
         {refusals.length > 0 && (
-          <section className="scenario-refusals" aria-label="Refus du harnais avant l’acceptation du plan">
-            <p className="expect-label">Refusé par le harnais avant l’acceptation du plan</p>
+          <section className="scenario-refusals" aria-label={t("plan.refusalsLabel")}>
+            <p className="expect-label">{t("plan.refusalsTitle")}</p>
             <ol className="plain-list">
               {refusals.map((refusal, index) => (
                 <li key={index} className="scenario-refusal">
@@ -159,7 +146,7 @@ function ScenarioCell({ scenario }: { readonly scenario: PlanScenario }): ReactN
           </section>
         )}
         <details className="raw">
-          <summary>Détails</summary>
+          <summary>{t("plan.details")}</summary>
           <pre>{JSON.stringify(planned, null, 2)}</pre>
         </details>
       </div>
@@ -181,7 +168,7 @@ export function PlanCard({ step }: { readonly step: PlanStep }): ReactNode {
         <div className="lead">
           <span className="act-state ok" aria-hidden="true" />
           <b>{step.title}</b>
-          <span className="turn-role">{counted(step.scenarios.length, "scénario", "scénarios")}</span>
+          <span className="turn-role">{t("count.scenarios", { count: step.scenarios.length })}</span>
         </div>
         <span className="turn-at">{step.at}</span>
       </header>

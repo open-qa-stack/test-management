@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { Stopping } from "./console-state.ts";
+import { t } from "../i18n/i18n.ts";
 import { STOP_CANCEL_ID } from "./stop-request.ts";
 
 /** What the confirmation of a stop needs. */
@@ -25,17 +26,15 @@ export function StopConfirmation({ stopping, cancel, onStop }: StopConfirmationP
   return (
     <section className="session-stop" aria-labelledby="session-stop-title">
       <h2 id="session-stop-title" className="session-stop-title">
-        Arrêter cette session ?
+        {t("stop.title")}
       </h2>
-      <p className="session-stop-note">
-        Ses agents s’arrêtent dès qu’ils rendent la main, et la session ne reprend pas. Ce qu’ils ont écrit reste dans le dépôt de tests.
-      </p>
+      <p className="session-stop-note">{t("stop.note")}</p>
       <div className="session-stop-actions">
         <a id={STOP_CANCEL_ID} className="btn" href={cancel}>
-          Annuler
+          {t("stop.cancel")}
         </a>
         <button type="button" className="btn danger" onClick={onStop} disabled={stopping.state === "sending"}>
-          Arrêter la session
+          {t("stop.confirm")}
         </button>
       </div>
       {stopping.state === "refused" && (

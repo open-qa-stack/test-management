@@ -1,4 +1,4 @@
-import { hasEnded, type Session } from "@open-qa-stack/domain/sessions";
+import { hasEnded, languageOf, type Session } from "@open-qa-stack/domain/sessions";
 import type { ApiClient } from "../api/api-client.ts";
 import type { ApiError } from "../api/api-error.ts";
 import { followEvents } from "../api/event-stream.ts";
@@ -47,6 +47,41 @@ export class ConsoleSync {
       PAUSE_MS,
     );
     return stop;
+  }
+
+  /**
+   * Reads the language of the configuration in force, again for as long as the API fails to tell it: English
+   * when the instance has no configuration, or one that names none.
+   *
+   * @returns What stops reading it.
+   */
+  public language(): () => void {
+    const stop = poll(
+      {
+        ask: () => this.#api.configuration(),
+        told: (view) => {
+          this.#dispatch({ type: "language", language: languageOf(view) });
+          stop();
+        },
+        failed: (error) => this.#unanswered(error),
+      },
+      PAUSE_MS,
+    );
+    return stop;
+  }
+
+  /**
+   * Reads again what the configuration names, once it was saved: the project, whose applications it names, and its language.
+   *
+   * @returns What stops reading them.
+   */
+  public configured(): () => void {
+    const project = this.project();
+    const language = this.language();
+    return () => {
+      project();
+      language();
+    };
   }
 
   /**

@@ -1,5 +1,6 @@
 import { useContext, type ReactNode } from "react";
 import { EditContext, idOf, type NewItem } from "./configuration-edit.ts";
+import { t } from "../i18n/i18n.ts";
 import { errorText } from "./configuration-words.ts";
 
 /** What every field shows: where it is, its label, and what helps fill it. */
@@ -205,7 +206,7 @@ export function RemoveButton({ pointer, label }: { readonly pointer: string; rea
   const { click } = useContext(EditContext);
   return (
     <button type="button" className="btn sm ghost" aria-label={label} data-remove={pointer} onClick={click}>
-      Retirer
+      {t("configuration.remove")}
     </button>
   );
 }

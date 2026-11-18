@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { t } from "../i18n/i18n.ts";
 import { Icon } from "../ui/icon.tsx";
 import { lookTitleOf } from "./look.ts";
 import { LookView } from "./look-view.tsx";
@@ -18,7 +19,7 @@ export interface LookPanelProps {
 /**
  * What an agent had before its eyes when it acted, in a panel a person opens from that action: the whole
  * screen of a phone, a drawer at the right of a wide one. It does not hold the keyboard — the thread stays
- * in reach behind it — and is titled by what it shows, « Fichier de test » or « Page consultée », and named by
+ * in reach behind it — and is titled by what it shows, “Test file” or “Page looked at”, and named by
  * that title and by what it is: the path of the file, or the application and the address of the page.
  *
  * @param props - The look, and the address that closes it.
@@ -37,7 +38,7 @@ export function LookPanel({ opened, close }: LookPanelProps): ReactNode {
             {subtitle}
           </p>
         </div>
-        <a className="look-panel-close" href={close} aria-label="Fermer">
+        <a className="look-panel-close" href={close} aria-label={t("look.close")}>
           <Icon name="close" size={20} />
         </a>
       </header>
