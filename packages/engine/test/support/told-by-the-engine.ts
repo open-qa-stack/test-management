@@ -1,7 +1,8 @@
 import { scriptedServer } from "@open-qa-stack/testing";
 import { configText, FakeRunner, repository, type Script } from "@open-qa-stack/testing/test-repository";
 import { journalLine, RunThread, traceLine, type RunEntry, type RunLine } from "@open-qa-stack/domain";
-import { liveRuntime, Run } from "../../src/index.ts";
+import { Configuration, liveRuntime, Run } from "../../src/index.ts";
+import { MemoryConfigurationStore } from "./memory-configuration-store.ts";
 import type { SessionEvent, UnrankedEvent } from "@open-qa-stack/domain/sessions";
 import { ENV } from "./hosted.ts";
 
@@ -30,6 +31,7 @@ export async function toldByTheEngine(replies: Parameters<typeof scriptedServer>
   try {
     await new Run({
       repositoryRoot: root,
+      configuration: new Configuration(new MemoryConfigurationStore(), root),
       brief: request,
       environment: "local",
       env: ENV,

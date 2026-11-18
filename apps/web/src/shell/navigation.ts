@@ -1,5 +1,8 @@
 import type { IconName } from "../ui/icon.tsx";
 
+/** The path of the screen the home of the console opens: the entry of the agent. */
+export const HOME_PATH = "/agent";
+
 /** An entry of the navigation. */
 export interface NavigationEntry {
   /** Its icon. */
@@ -20,7 +23,7 @@ export interface NavigationGroup {
 
 /**
  * The navigation of the console: the agents, which it shows at work, then what it will show of the repository
- * of tests and of their runs, named so that a person sees what is coming.
+ * of tests and of their runs, named so that a person sees what is coming, and the configuration of the project.
  */
 export const NAVIGATION: readonly NavigationGroup[] = [
   { label: "Travail", entries: [{ icon: "agent", label: "Agent", path: "/agent" }] },
@@ -40,4 +43,5 @@ export const NAVIGATION: readonly NavigationGroup[] = [
       { icon: "warning", label: "Anomalies" },
     ],
   },
+  { label: "Projet", entries: [{ icon: "settings", label: "Configuration", path: "/configuration" }] },
 ];

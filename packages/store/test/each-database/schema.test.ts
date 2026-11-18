@@ -50,6 +50,7 @@ const DECLARED: { readonly [Table in keyof StoreSchema]: { readonly [Column in k
     delivered_to: "text, or nothing",
     delivered_at: "instant, or nothing",
   },
+  configuration_revisions: { number: "integer", recorded_at: "instant", origin: "text", file_digest: "text", document: "json" },
 };
 
 /** The type each database gives a column for what it keeps, as its catalog names it. */

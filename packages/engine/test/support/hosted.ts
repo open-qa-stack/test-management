@@ -3,9 +3,10 @@ import { scriptedServer, type ScriptedServer } from "@open-qa-stack/testing";
 import { configText, FakeRunner, repository, WITNESS, type RanCommand, type RanOutcome, type Script } from "@open-qa-stack/testing/test-repository";
 import type { CommandRunner } from "@open-qa-stack/domain";
 import type { Session, SessionEvent } from "@open-qa-stack/domain/sessions";
-import { Sessions, type SessionsHost } from "../../src/index.ts";
+import { Configuration, Sessions, type SessionsHost } from "../../src/index.ts";
 import { eventually } from "./eventually.ts";
 import { held } from "./held.ts";
+import { MemoryConfigurationStore } from "./memory-configuration-store.ts";
 import { MemorySessionStore } from "./memory-session-store.ts";
 import { RecordingLogger } from "./recording-logger.ts";
 
@@ -64,6 +65,8 @@ export function designDoor(): Door {
  */
 export class Hosted {
   readonly store: MemorySessionStore;
+  /** The store of the revisions of the configuration of the test repository. */
+  readonly configuration = new MemoryConfigurationStore();
   readonly logger = new RecordingLogger();
   readonly server: ScriptedServer;
   /** The test repository the sessions run in. */
@@ -83,6 +86,7 @@ export class Hosted {
     };
     this.sessions = new Sessions({
       store: this.store,
+      configuration: new Configuration(this.configuration, this.root),
       repository: this.root,
       env: ENV,
       logger: this.logger,

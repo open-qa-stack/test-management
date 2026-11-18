@@ -1,13 +1,15 @@
 import { join } from "node:path";
 import { CONFIG_FILE_NAME } from "@open-qa-stack/domain";
-import { liveRuntime, Sessions, type SessionsHost } from "@open-qa-stack/engine";
+import { Configuration, liveRuntime, Sessions, type SessionsHost } from "@open-qa-stack/engine";
 import { DATABASE_URL_VARIABLE, DatabaseUrl, InstanceDatabase, instanceDatabaseUrl } from "@open-qa-stack/store";
 import { UsageError } from "./usage-error.ts";
 import type { CommandIo } from "./command-io.ts";
 
-/** The operations on the sessions of a test repository, as a command has them, and how to let go of them. */
+/** The operations on the sessions and on the configuration of a test repository, as a command has them, and how to let go of them. */
 export interface Operations {
   readonly sessions: Sessions;
+  /** The operations on the configuration of the test repository. */
+  readonly configuration: Configuration;
   /**
    * Stops hosting, when the command hosted a session, and closes the database.
    *
@@ -41,7 +43,15 @@ const STOP_WITHIN_MS = 10_000;
 export async function openOperations(io: CommandIo, repository: string, hosts: boolean): Promise<Operations> {
   const logger = commandLogger(io);
   const instance = new InstanceDatabase(databaseOf(io, repository), logger);
-  const sessions = new Sessions({ ...runsOf(io), store: instance.sessions, repository: hosts ? repository : undefined, takesOver: false, logger });
+  const configuration = new Configuration(instance.configuration, repository);
+  const sessions = new Sessions({
+    ...runsOf(io),
+    store: instance.sessions,
+    configuration,
+    repository: hosts ? repository : undefined,
+    takesOver: false,
+    logger,
+  });
   const close = async (withinMs = STOP_WITHIN_MS): Promise<void> => {
     if (hosts) await sessions.stop(withinMs);
     await instance.close();
@@ -52,7 +62,7 @@ export async function openOperations(io: CommandIo, repository: string, hosts: b
     await instance.close();
     throw error;
   }
-  return { sessions, close };
+  return { sessions, configuration, close };
 }
 
 /**

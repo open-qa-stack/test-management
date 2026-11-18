@@ -12,6 +12,10 @@ const WORDED: readonly ProblemCode[] = [
   "not_opened",
   "opening_timed_out",
   "session_ended",
+  "stale_revision",
+  "configuration_conflict",
+  "invalid_configuration",
+  "no_configuration",
 ];
 
 describe("the code of a problem", () => {
@@ -39,6 +43,10 @@ describe("the wording of a problem", () => {
       "La session n’a pas pu être ouverte.",
       "L’ouverture de la session a pris trop de temps : réessayez dans un instant.",
       "La session vient de se terminer : il n’y a plus rien à arrêter, et votre message, envoyé de nouveau, la poursuit.",
+      "La configuration a changé depuis que vous l’avez ouverte : relisez-la, puis refaites votre modification.",
+      "oqas.json a changé depuis la dernière synchronisation : gardez le fichier, ou gardez vos modifications.",
+      "La configuration n’est pas valide : corrigez les champs signalés.",
+      "L’instance n’a pas encore de configuration.",
     ]);
     assert.equal(problemText("unavailable", undefined), wordings[3]);
   });

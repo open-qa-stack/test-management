@@ -1,3 +1,4 @@
+import type { OqasConfig, RevisionOrigin } from "@open-qa-stack/domain";
 import type { AgentRole, Application, SessionEvent, SessionResult, SessionState } from "@open-qa-stack/domain/sessions";
 import type { StoredBoolean, StoredInstant, StoredJson } from "./stored-values.ts";
 
@@ -69,6 +70,23 @@ export interface SessionMessagesTable {
 }
 
 /**
+ * The revisions of the configuration of the instance, each under its number: from 1, given once, never changed.
+ * The revision in force is the one with the highest.
+ *
+ * @remarks
+ * The origin is a text, as the state of a session is. The document is served whole and never filtered on: it is
+ * kept as JSON. The digest is that of the configuration file the revision was read from or wrote, which tells
+ * whether the file changed since.
+ */
+export interface ConfigurationRevisionsTable {
+  number: number;
+  recorded_at: StoredInstant;
+  origin: RevisionOrigin;
+  file_digest: string;
+  document: StoredJson<OqasConfig>;
+}
+
+/**
  * The schema of the database of an instance, on every database the store supports: the tables the migrations
  * create, and what the statements of the store are checked against.
  */
@@ -77,4 +95,5 @@ export interface StoreSchema {
   sessions: SessionsTable;
   session_events: SessionEventsTable;
   session_messages: SessionMessagesTable;
+  configuration_revisions: ConfigurationRevisionsTable;
 }

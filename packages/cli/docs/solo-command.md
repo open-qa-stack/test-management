@@ -31,6 +31,9 @@ The command is a presentation of [the operations on sessions](../../engine/docs/
 | `oqas attach <session>` | Follows a session to its end, whoever runs it, and exits with the code of its run. A session that ended is printed whole, at once. |
 | `oqas say <session> <text>` | Says something to the agents of a session that goes on: see [Speaking to a session](#speaking-to-a-session). Goes on with a session that ended: see [Going on with a session that ended](#going-on-with-a-session-that-ended). |
 | `oqas stop <session>` | Interrupts a session that goes on: see [Stopping a session](#stopping-a-session). |
+| `oqas config show` | Prints the configuration in force, and how `oqas.json` stands to it: see [The configuration](#the-configuration). |
+| `oqas config import` | Takes `oqas.json` as the configuration in force, when it changed. |
+| `oqas config export` | Writes the configuration in force over `oqas.json`, when it changed. |
 | `oqas --ui` | Serves the console of the test repository in a browser, and runs the sessions opened in it, until Ctrl-C: see [The console](#the-console). |
 | `oqas --init` | Makes a Playwright project of the test repository and runs nothing: see [Initialising a test repository](#initialising-a-test-repository). |
 | `oqas --help` | Prints the usage. |
@@ -195,7 +198,7 @@ A program reads an event whose type it does not know as one to ignore: types are
 
 ## Initialising a test repository
 
-`oqas --init` makes a Playwright project of a test repository, from its `oqas.json`. It is a program, not an agent: it calls no model, installs nothing, commits nothing and needs none of the secrets a run reads.
+`oqas --init` makes a Playwright project of a test repository, from [its configuration](#the-configuration): the revision in force, once `oqas.json` is taken when it changed — the first time, the file becomes the first revision. It is a program, not an agent: it calls no model, installs nothing, commits nothing and needs none of the secrets a run reads.
 
 | File | What it holds |
 |---|---|
@@ -221,7 +224,7 @@ git add -A && git commit -m "chore: initialise the Playwright project"
 
 The run of a session goes through six steps. Each starts only when the one before succeeded; once the prerequisites passed, the summary runs whatever the end of the others.
 
-1. **Configuration.** `oqas.json` is read and validated, the environment is chosen, and the test charter is resolved. A missing or invalid configuration stops the session before anything else: no model is called, and nothing is written to the repository but the database that keeps the session.
+1. **Configuration.** The revision in force of [the configuration](#the-configuration) is read, once `oqas.json` is taken when it changed, and validated against the environment; the environment is chosen, and the test charter is resolved. A missing configuration, or a file that changed and is not valid, stops the session before anything else: no model is called, and nothing is written to the repository but the database that keeps the session.
 2. **Prerequisites.** The folder is the root of a git repository with a commit, the model server of the configuration answers, `npm` can be run, and the repository is a Playwright project: it has a `playwright.config.ts`. One that has none is [initialised](#initialising-a-test-repository) first.
 3. **Cartography.** The sources without an up-to-date card are mapped, `cartography.concurrency` of them at once, then the cards are consolidated into the domain index (see the cartographer of `@open-qa-stack/agents`).
 4. **Design.** The dependencies of the test repository and the browsers of its locked version of `@playwright/test` are installed, once for the design and the execution. The tests are then designed in passes, one after the other: one for each level of the pyramid of tests the configuration asks for, from its base to its top, then one for the visual tests. In each pass an agent plans the scenarios of that level alone, from the brief, then another writes the test of each, in a session of its own, each test run against the application before it is kept. A pass commits its tests on a new local branch `oqas/design-<date>`, made from that of the pass before, so that a level is told the tests of the levels below it and builds on them: a scenario a test already covers is set aside. A scenario whose session ends before its test is made to end keeps its last file, classed as unfinished in the design state. With `design.passes` set to `single`, every level is planned in one pass.
@@ -229,6 +232,26 @@ The run of a session goes through six steps. Each starts only when the one befor
 6. **Summary.** The messages [sent to the session](#speaking-to-a-session) that no agent received are told, the runtime of the agents is closed, and the session ends with its result: the verdict of each test, the branch, how long it took and how many requests it sent to the model. When the plan says that the brief asks what the application does not allow, the thread says it when the plan is accepted, a line each — `[plan] error: The plan does not cover what the brief asks: Change the address of a customer. No screen offers to edit an address.` — and the file of the plan keeps it under `Not covered`: tests that pass do not mean the brief is covered.
 
 The limits of the autonomy level of the configuration apply to every task. Its guardrail, counted from the start of the run, stops every task of the agents still running when it is reached, at its next call to the model or to a tool, by its duration limit; it bounds neither the installation of the dependencies nor the execution of the tests. A task stopped by a limit is told in the thread with the limit reached, and none of its tests is `passed`. A session whose cartography or design a limit stopped keeps what it produced — the cards made, the plan accepted and the tests kept, on the branch of the design — and says so; it is not resumed: the next session maps only the sources without an up-to-date card, and designs anew.
+
+## The configuration
+
+The configuration of the test repository — what `oqas.json` holds — is kept in [the database of the instance](../../store/docs/database.md#the-revisions-of-the-configuration) as revisions, each the whole document with its date and its origin, and kept in step with the file by [the operations on the configuration](../../engine/docs/engine.md#the-operations-on-the-configuration). A run reads the revision in force; the console shows and edits it.
+
+- **A file that changed is taken** when a session starts, when the console is served, and with `oqas config import`: it becomes the revision in force, of origin `file`. The first time a command meets the repository, the file is its first revision.
+- **A change saved in the console rewrites the file**, its keys in the order of the schema: `git diff oqas.json` shows what changed, and it is committed as any other change.
+- **A file that changed and is not valid is refused**, and the revision in force kept: the session stops on the errors of the file, each where it is, and on the two ways out — correct the file, or write the revision in force over it with `oqas config export`.
+
+```console
+$ oqas config show
+Revision 3 of the configuration, saved in the console on 2026-11-18T09:12:45.120Z.
+oqas.json is in step with it.
+{
+  "formatVersion": 1,
+  …
+}
+```
+
+`oqas config show` writes nothing: when the file changed since the revision in force, it says so, with the two commands that settle it. `import` and `export` print the revision in force once they are done; each does nothing when the file is in step. With `--output json`, each prints the configuration as `GET /api/configuration` gives it: the revision in force, and how the file stands to it. They exit with `0`, or with `3` when the file to take is not valid, or when there is neither a revision nor a file.
 
 ## Speaking to a session
 
@@ -310,11 +333,11 @@ A session is run by the process that opened it, and by no other: `oqas --brief` 
 | `4`  | The session was interrupted in its prerequisites: one of the machine is missing.                                                                                                                                                                                             |
 | `5`  | The session did not go to its end: it is completed, `stopped` — no index was written, the dependencies could not be installed, the design gave no test to run or was cut short by a limit, a step stopped on an unexpected error, which the thread tells — or it was interrupted, by Ctrl-C, by `oqas stop`, from the console, or because its process died. Also, for every command: the database cannot be reached, or the command stopped on an unexpected error, which goes to the error output. |
 
-`oqas sessions`, `show`, `say` to a session that goes on, `stop`, `--init` and `--help` exit with `0` once they did what they were asked, and so does a conversation that opened no session. A conversation left while the last session it opened still went on exits with `5`. `oqas --ui` exits with `0` once it was stopped, with `5` when it was left at once or could not start, and with `3` when its port is taken or the console is not built.
+`oqas sessions`, `show`, `say` to a session that goes on, `stop`, `config`, `--init` and `--help` exit with `0` once they did what they were asked, and so does a conversation that opened no session. A conversation left while the last session it opened still went on exits with `5`. `oqas --ui` exits with `0` once it was stopped, with `5` when it was left at once or could not start, and with `3` when its port is taken or the console is not built.
 
 ## The command and the engine
 
-The command holds no rule of a session: it reads its arguments, assembles the database of the instance with [`InstanceDatabase`](../../store/docs/database.md#the-database-of-an-instance-assembled) of `@open-qa-stack/store` as the API does, gives its store to the `Sessions` of [`@open-qa-stack/engine`](../../engine/docs/engine.md#the-operations-on-sessions), and says one operation:
+The command holds no rule of a session: it reads its arguments, assembles the database of the instance with [`InstanceDatabase`](../../store/docs/database.md#the-database-of-an-instance-assembled) of `@open-qa-stack/store` as the API does, gives its stores to the `Sessions` and the `Configuration` of [`@open-qa-stack/engine`](../../engine/docs/engine.md#the-operations-on-sessions), and says one operation:
 
 | Command | Operation |
 | --- | --- |
@@ -325,6 +348,8 @@ The command holds no rule of a session: it reads its arguments, assembles the da
 | `oqas attach` | `events` to the end of the session, then `session`. |
 | `oqas say` | `say`, or `resume` for a session that ended, then `events` and `session`. |
 | `oqas stop` | `interrupt`, then `session`. |
+| `oqas config` | On the `Configuration` of the engine: `view` for `show`; `synchronise`, then `view`, for `import`; `restore`, then `view`, for `export`. |
+| `oqas --init` | `synchronise` on the `Configuration` of the engine. |
 
 `oqas`, `oqas --brief`, `oqas say` and `oqas --ui` are the commands that host — `say` only the session it resumes: each gives the operations its test repository, and stops them, within ten seconds, before it leaves. `oqas --ui` says no operation itself: it starts the REST presentation of `@open-qa-stack/api` in its process, whose routes say them, and loads that package only then — no other command pays for an HTTP server. The conversation is drawn with [Ink](https://github.com/vadimdemedes/ink) and React, which are loaded when it opens and by no other command; its screen is a function of a state that one reducer gives, in `src/solo/conversation/`, and what it reads of a thread — the steps and their turns — is the code the console reads it with, in `@open-qa-stack/domain/sessions`.
 

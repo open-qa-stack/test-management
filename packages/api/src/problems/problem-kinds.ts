@@ -16,6 +16,10 @@ const KINDS: Readonly<Record<ProblemCode, ProblemKind>> = {
   unavailable: { status: HttpStatus.SERVICE_UNAVAILABLE, title: "Sessions unavailable" },
   not_opened: { status: HttpStatus.BAD_GATEWAY, title: "Session not opened" },
   opening_timed_out: { status: HttpStatus.SERVICE_UNAVAILABLE, title: "Opening timed out" },
+  stale_revision: { status: HttpStatus.CONFLICT, title: "Stale revision" },
+  configuration_conflict: { status: HttpStatus.CONFLICT, title: "Configuration conflict" },
+  invalid_configuration: { status: HttpStatus.UNPROCESSABLE_ENTITY, title: "Invalid configuration" },
+  no_configuration: { status: HttpStatus.NOT_FOUND, title: "No configuration" },
   error: { status: HttpStatus.INTERNAL_SERVER_ERROR, title: "Request not answered" },
 };
 

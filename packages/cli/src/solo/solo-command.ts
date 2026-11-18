@@ -1,9 +1,10 @@
 import { resolve } from "node:path";
-import { ExitCode, type ExitCodeValue } from "@open-qa-stack/domain";
+import { configurationText, ExitCode, type ConfigurationView, type ExitCodeValue } from "@open-qa-stack/domain";
 import { playwrightVersion } from "@open-qa-stack/tools";
 import { hasEnded, type Session } from "@open-qa-stack/domain/sessions";
-import type { Sessions } from "@open-qa-stack/engine";
+import type { Configuration, Sessions } from "@open-qa-stack/engine";
 import { parseArguments, USAGE, type Arguments, type Command } from "./arguments.ts";
+import { fileLine, revisionLine } from "./configuration-lines.ts";
 import { eventLine, ofTheAgents } from "./event-line.ts";
 import { failureOf } from "./failure.ts";
 import { followSession } from "./follow-session.ts";
@@ -60,13 +61,6 @@ export async function soloCommand(argv: readonly string[], io: CommandIo): Promi
     return ExitCode.passed;
   }
   const repository = resolve(io.cwd, options.repository ?? ".");
-  if (command.name === "init")
-    return new RepositoryInit({
-      repositoryRoot: repository,
-      playwrightVersion: playwrightVersion(),
-      write: (line) => io.stderr.write(line),
-      print: (line) => io.stdout.write(line),
-    }).run();
   try {
     return await onSessions(command, options, repository, io);
   } catch (error) {
@@ -76,8 +70,8 @@ export async function soloCommand(argv: readonly string[], io: CommandIo): Promi
   }
 }
 
-/** Runs a command on the sessions of a test repository, with the operations opened for it and let go of afterwards. */
-async function onSessions(command: Exclude<Command, { name: "help" | "init" }>, options: Arguments, repository: string, io: CommandIo): Promise<ExitCodeValue> {
+/** Runs a command on the sessions or the configuration of a test repository, with the operations opened for it and let go of afterwards. */
+async function onSessions(command: Exclude<Command, { name: "help" }>, options: Arguments, repository: string, io: CommandIo): Promise<ExitCodeValue> {
   if (command.name === "run") return opened({ command, options, io }, repository);
   if (command.name === "say") return said({ command, options, io }, repository);
   if (command.name === "ui") return servedConsole(command, repository, io);
@@ -87,9 +81,19 @@ async function onSessions(command: Exclude<Command, { name: "help" | "init" }>, 
     const { converse } = await import("./conversation/converse.ts");
     return converse({ repository, terminal: io.terminal, io, ...(command.environment === undefined ? {} : { environment: command.environment }) });
   }
-  const { sessions, close } = await openOperations(io, repository, false);
+  const { sessions, configuration, close } = await openOperations(io, repository, false);
   try {
     switch (command.name) {
+      case "init":
+        return await new RepositoryInit({
+          repositoryRoot: repository,
+          configuration,
+          playwrightVersion: playwrightVersion(),
+          write: (line) => io.stderr.write(line),
+          print: (line) => io.stdout.write(line),
+        }).run();
+      case "config":
+        return await configured({ configuration, command, options, io });
       case "sessions":
         return await listed({ sessions, command, options, io });
       case "show":
@@ -102,6 +106,27 @@ async function onSessions(command: Exclude<Command, { name: "help" | "init" }>, 
   } finally {
     await close();
   }
+}
+
+/**
+ * `oqas config`: prints the configuration in force and how the configuration file stands to it; with `import`,
+ * takes the file as the configuration in force first, when it changed; with `export`, writes the configuration in
+ * force over the file first, when it changed.
+ */
+async function configured({
+  configuration,
+  command,
+  options,
+  io,
+}: Omit<Asked<"config">, "sessions"> & { configuration: Configuration }): Promise<ExitCodeValue> {
+  if (command.action === "import") await configuration.synchronise();
+  if (command.action === "export") await configuration.restore();
+  const view: ConfigurationView = await configuration.view();
+  const { revision, file } = view;
+  const lines = [revision === undefined ? "The instance keeps no revision of the configuration." : revisionLine(revision), fileLine(file)];
+  const document = command.action === "show" && revision !== undefined ? `\n${configurationText(revision.document).trimEnd()}` : "";
+  print({ options, io }, `${lines.join("\n")}${document}`, view);
+  return ExitCode.passed;
 }
 
 /** Writes a line to the standard output, as a text or as the JSON of a value. */

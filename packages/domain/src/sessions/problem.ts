@@ -1,11 +1,26 @@
+import type { ConfigError } from "../config/types.ts";
+
 /**
  * Why the API refused or failed, as a code a client can act on: the session asked for does not exist, the
  * request is not valid, the session goes on and takes a message rather than a resumption, the session no longer
  * goes on and takes no message until it is resumed, no source of sessions is configured, the session could not
- * be opened, or its opening took too long; `error` for anything else.
+ * be opened, or its opening took too long; for the configuration, a change made from a revision another
+ * replaced since, a change that would overwrite a configuration file that changed too, a configuration that is not
+ * valid, or an instance that has none; `error` for anything else.
  */
 export type ProblemCode =
-  "unknown_session" | "invalid_request" | "session_running" | "session_ended" | "unavailable" | "not_opened" | "opening_timed_out" | "error";
+  | "unknown_session"
+  | "invalid_request"
+  | "session_running"
+  | "session_ended"
+  | "unavailable"
+  | "not_opened"
+  | "opening_timed_out"
+  | "stale_revision"
+  | "configuration_conflict"
+  | "invalid_configuration"
+  | "no_configuration"
+  | "error";
 
 /**
  * The body of every answer of the API that is not a success, as RFC 9457 describes a problem, served as
@@ -21,4 +36,6 @@ export interface Problem {
   /** What went wrong this time, and what to do about it. */
   readonly detail: string;
   readonly code: ProblemCode;
+  /** For `invalid_configuration`, every error of the configuration, each where it is. */
+  readonly errors?: readonly ConfigError[];
 }

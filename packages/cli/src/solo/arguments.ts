@@ -21,8 +21,16 @@ export type Command =
   | { readonly name: "say"; readonly session: string; readonly text: string }
   /** Interrupt a session that goes on. */
   | { readonly name: "stop"; readonly session: string }
+  /** Print the configuration in force, take the configuration file as it, or write it to the file. */
+  | { readonly name: "config"; readonly action: ConfigAction }
   /** Serve the console of the test repository, and the sessions opened in it. */
   | { readonly name: "ui"; readonly host: string; readonly port: number };
+
+/** What `oqas config` does: print the configuration in force, take the configuration file as it, or write it over the file. */
+export type ConfigAction = "show" | "import" | "export";
+
+/** What `oqas config` is followed by. */
+const CONFIG_ACTIONS: readonly ConfigAction[] = ["show", "import", "export"];
 
 /** The arguments of the command, once read. */
 export interface Arguments {
@@ -59,6 +67,7 @@ export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
        oqas [--repository <folder>] attach <session> [--follow] [--output text|json]
        oqas [--repository <folder>] say <session> <text> [--output text|json]
        oqas [--repository <folder>] stop <session> [--output text|json]
+       oqas [--repository <folder>] config show|import|export [--output text|json]
        oqas [--repository <folder>] --ui [--host <address>] [--port <number>]
        oqas [--repository <folder>] --init
 
@@ -76,6 +85,9 @@ Commands:
   say <session> <text>   Say something to the agents of a session that goes on, or go on with one that ended:
                          its new turn runs here, followed to its end.
   stop <session>         Interrupt a session that goes on.
+  config show            Print the configuration in force, and how oqas.json stands to it.
+  config import          Take oqas.json as the configuration in force, when it changed.
+  config export          Write the configuration in force over oqas.json, when it changed.
 
 Options:
   --repository <folder>  The test repository, which holds oqas.json; the current folder by default.
@@ -177,6 +189,7 @@ function commandOf(
     if (brief === undefined) return "Say what to test with --brief, or name a command; see oqas --help.";
     return { name: "run", brief, ...(environment === undefined ? {} : { environment }) };
   }
+  if (name === "config") return configured(rest, opens || follow);
   if (!Object.hasOwn(ON_SESSIONS, name)) return `Unknown command ${name}; see oqas --help.`;
   const known = name as keyof typeof ON_SESSIONS;
   const taken: readonly string[] = ON_SESSIONS[known];
@@ -186,4 +199,13 @@ function commandOf(
   const [session = "", text = ""] = rest;
   if (known === "sessions") return { name: known };
   return known === "say" ? { name: known, session, text } : { name: known, session };
+}
+
+/** What `oqas config` asks for, or why it is refused: one action, and nothing of a session. */
+function configured(words: readonly string[], ofASession: boolean): Command | string {
+  const [action] = words;
+  const known = CONFIG_ACTIONS.find((one) => one === action);
+  if (words.length !== 1 || known === undefined) return "oqas config takes show, import or export.";
+  if (ofASession) return "oqas config acts on the configuration: it takes no --brief, --environment nor --follow.";
+  return { name: "config", action: known };
 }

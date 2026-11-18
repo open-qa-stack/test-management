@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, it } from "vitest";
 import { EVENTS, SESSION_ID } from "./agent/session-fixture.ts";
 import type { Locator, Page } from "playwright-core";
 import { BuiltConsole } from "./built-console.ts";
+import { ConfiguredInstance } from "./configuration/configured-instance.ts";
 import { OPENED_ID, PlayedInstance } from "./played-instance.ts";
 
 let built: BuiltConsole | undefined;
@@ -973,6 +974,96 @@ describe("the console in a browser", () => {
   });
 });
 
+describe("the configuration in a browser", () => {
+  /** The configuration of the instance, its form read. */
+  async function configurationAt(width: number, instance = new ConfiguredInstance()): Promise<Page> {
+    const page = await app().open(width, "#/configuration", instance.api);
+    await page.getByRole("heading", { name: "Applications et environnements" }).waitFor();
+    return page;
+  }
+
+  /** What a finger would miss among the fields of the form and the boxes it checks, besides the links and the buttons. */
+  function tooSmallFieldsOf(page: Page): Promise<string[]> {
+    return page.evaluate(
+      (least) =>
+        [...document.querySelectorAll(".config-field input, .config-field select, .check")]
+          .map((element) => ({ element, box: element.getBoundingClientRect() }))
+          .filter(({ box }) => Math.round(box.height * 100) < least * 100)
+          .map(({ element, box }) => `${element.tagName} ${element.getAttribute("name") ?? element.textContent} ${box.height}`),
+      TAP,
+    );
+  }
+
+  it("fits a phone and a wide screen, every field and button a finger can press, what is typed at 16 px at least", async () => {
+    for (const width of [390, 1440]) {
+      const page = await configurationAt(width);
+      try {
+        await page.locator("details.config-json summary").click();
+        assert.equal(await overflowOf(page), 0, `${width}`);
+        if (width < 1100) {
+          // Every entry of the bar stands whole in the window, its icon named by its label.
+          for (const name of ["Agent", "Configuration"]) {
+            const box = await page.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name }).boundingBox();
+            assert.ok(box !== null && box.x >= 0 && box.x + box.width <= width, `${name} at ${width}`);
+          }
+          const save = await page.getByRole("button", { name: "Enregistrer" }).evaluate((button) => getComputedStyle(button).opacity);
+          assert.equal(save, "1", "a disabled button of the head keeps its text legible");
+          assert.deepEqual(await tooSmallOf(page), [], `${width}`);
+          assert.deepEqual(await tooSmallFieldsOf(page), [], `${width}`);
+          const size = await page.getByLabel("Modèle", { exact: true }).evaluate((field) => parseFloat(getComputedStyle(field).fontSize));
+          assert.ok(size >= 16, `${size} px`);
+        }
+      } finally {
+        await page.close();
+      }
+    }
+  });
+
+  it("shows beside its field the error the instance finds as the person types, then saves the change, which the history lists", async () => {
+    const instance = new ConfiguredInstance();
+    const page = await configurationAt(1440, instance);
+    try {
+      const model = page.getByLabel("Modèle", { exact: true });
+      await model.fill("");
+      await page.locator("#config-model-model-errors").filter({ hasText: "Ce champ ne peut pas être vide." }).waitFor();
+      assert.equal(await model.getAttribute("aria-invalid"), "true");
+      await page.getByText("1 erreur à corriger avant d’enregistrer").waitFor();
+      await model.fill("other-model");
+      await page.getByText("1 erreur à corriger").waitFor({ state: "detached" });
+      await page.getByRole("button", { name: "Enregistrer" }).click();
+      await page.getByRole("status").filter({ hasText: "Révision 3 enregistrée" }).waitFor();
+      await page.getByText("Révision 3", { exact: true }).waitFor();
+      assert.equal(instance.saved[0]!.document.model.model, "other-model");
+      assert.equal(await page.getByRole("button", { name: "Enregistrer" }).isDisabled(), true);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("refuses a change while the file changed too, and leaves the person the two ways out, each one press", async () => {
+    const instance = new ConfiguredInstance();
+    instance.fileChanged = true;
+    const page = await configurationAt(390, instance);
+    try {
+      await page.getByText("oqas.json a changé depuis la révision en vigueur").waitFor();
+      await page.getByLabel("Modèle", { exact: true }).fill("kept-model");
+      await page.getByRole("button", { name: "Enregistrer" }).click();
+      const conflict = page.getByRole("alert").filter({ hasText: "oqas.json a changé depuis la dernière synchronisation" });
+      await conflict.waitFor();
+      assert.deepEqual(await tooSmallOf(page), []);
+      await conflict.getByRole("button", { name: "Garder mes modifications" }).click();
+      await page.getByRole("status").filter({ hasText: "Révision 3 enregistrée" }).waitFor();
+      assert.equal(instance.saved[0]!.replaceFile, true);
+      instance.fileChanged = true;
+      await page.getByRole("button", { name: "Prendre oqas.json" }).click();
+      await page.getByRole("status").filter({ hasText: "Révision 4 enregistrée" }).waitFor();
+      assert.equal(instance.revisions[0]!.origin, "file");
+    } finally {
+      await page.close();
+    }
+  });
+});
+
 describe("the code of the console is covered in full", () => {
   it("runs every line of the entry point and of the application when the console is used in the browser", async () => {
     const source = (await readFile(new URL("../src/main.tsx", import.meta.url), "utf8")).split("\n");
@@ -1048,5 +1139,39 @@ describe("the code of the console is covered in full", () => {
     assert.deepEqual(main!.uncovered, []);
     assert.ok(application!.lines.length > 20, "the application is in the build");
     assert.deepEqual(application!.uncovered, []);
+  });
+
+  it("runs every line of the screen of the configuration when it is used in the browser", async () => {
+    const instance = new ConfiguredInstance();
+    const [screen] = await app().measure(
+      ["src/configuration/configuration-page.tsx"],
+      async (page) => {
+        await page.goto("http://console.test/#/configuration");
+        await page.getByRole("heading", { name: "Applications et environnements" }).waitFor();
+        await page.getByLabel("Nom", { exact: true }).first().fill("Boutique");
+        await page.getByLabel("Attente d’une réponse, en secondes").fill("90");
+        await page.getByLabel("Ce qu’elle expose").selectOption("web");
+        await page.getByLabel("Niveau", { exact: true }).selectOption("autonomous");
+        await page.getByLabel("Inter-applications").check();
+        await page.getByRole("button", { name: "Ajouter un environnement" }).click();
+        await page.getByRole("button", { name: "Retirer l’environnement 2 de Boutique" }).click();
+        await page.getByRole("button", { name: "Annuler les modifications" }).click();
+        await page.getByRole("button", { name: "Enregistrer" }).waitFor({ state: "attached" });
+        await page.getByLabel("Modèle", { exact: true }).fill("saved-model");
+        await page.getByRole("button", { name: "Enregistrer" }).click();
+        await page.getByRole("status").filter({ hasText: "Révision 3 enregistrée" }).waitFor();
+        instance.fileChanged = true;
+        await page.getByLabel("Modèle", { exact: true }).fill("kept-model");
+        await page.getByRole("button", { name: "Enregistrer" }).click();
+        await page.getByRole("button", { name: "Garder mes modifications" }).click();
+        await page.getByRole("status").filter({ hasText: "Révision 4 enregistrée" }).waitFor();
+        instance.fileChanged = true;
+        await page.getByRole("button", { name: "Prendre oqas.json" }).click();
+        await page.getByRole("status").filter({ hasText: "Révision 5 enregistrée" }).waitFor();
+      },
+      instance.api,
+    );
+    assert.ok(screen!.lines.length > 10, "the screen is in the build");
+    assert.deepEqual(screen!.uncovered, []);
   });
 });

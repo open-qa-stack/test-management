@@ -3,7 +3,8 @@ import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "vitest";
 import { answer, closedPort } from "@open-qa-stack/testing";
-import { MODEL, workspace, configText, chain, ran, stateOf, journalOf, untracked } from "./run-support.ts";
+import { liveRuntime, Run } from "../src/index.ts";
+import { MODEL, workspace, configText, chain, hostOf, plugged, ran, repository, stateOf, journalOf, untracked } from "./run-support.ts";
 
 describe("solo command, criterion 1 — without a configuration, the command stops with 3 and touches nothing", () => {
   it("calls no model, runs nothing, and creates no file", async () => {
@@ -19,7 +20,45 @@ describe("solo command, criterion 2 — an invalid configuration, or an environm
     const run = await ran([], { config: (url) => JSON.parse(JSON.stringify(configText(url))).replace('"autonomous"', '"reckless"') });
     assert.equal(run.code, 3);
     assert.match(run.err, /\/autonomy\/level/);
+    assert.match(run.err, /oqas\.json is not a valid configuration: correct it\./);
     assert.deepEqual([run.server.requests.length, untracked(run.root)], [0, ""]);
+  });
+
+  it("tells the ways out of a file that changed and is not valid: correct it, or write the revision in force over it", async () => {
+    const root = repository(configText("http://127.0.0.1:9/v1"));
+    await hostOf(root).configuration.synchronise();
+    writeFileSync(join(root, "oqas.json"), "{");
+    const host = plugged(root);
+    const code = await new Run({ repositoryRoot: root, environment: "local", env: {}, ...host.ports, openRuntime: (config) => liveRuntime(config, {}) }).run();
+    assert.equal(code, 3);
+    assert.match(host.err, /\[configuration\] error: \/: The file is not valid JSON\./);
+    assert.match(
+      host.err,
+      /oqas\.json changed and is not a valid configuration: correct it, or write the revision 1 in force over it, from the console or with oqas config export\./,
+    );
+  });
+
+  it("names the variable of the environment the configuration in force names and the machine does not set", async () => {
+    const root = repository(configText("http://127.0.0.1:9/v1"));
+    const host = plugged(root);
+    const code = await new Run({ repositoryRoot: root, environment: "local", env: {}, ...host.ports, openRuntime: (config) => liveRuntime(config, {}) }).run();
+    assert.equal(code, 3);
+    assert.match(host.err, /\[configuration\] error: \/knowledge\/1\/connectionStringEnv: Environment variable SHOP_DB_URL is not set\./);
+  });
+
+  it("stops on what the source of the configuration raises when it is no refusal of the configuration", async () => {
+    const root = repository(configText("http://127.0.0.1:9/v1"));
+    const host = plugged(root);
+    const configuration = { synchronise: () => Promise.reject(new Error("The database is unreachable.")) };
+    const run = new Run({
+      repositoryRoot: root,
+      environment: "local",
+      env: {},
+      ...host.ports,
+      configuration,
+      openRuntime: (config) => liveRuntime(config, {}),
+    });
+    await assert.rejects(run.run(), { message: "The database is unreachable." });
   });
 
   it("names the environment at fault, and asks for one when several are declared", async () => {

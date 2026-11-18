@@ -1,11 +1,8 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
 import { setTimeout as pause } from "node:timers/promises";
-import type { RunEntry, RunState } from "@open-qa-stack/domain";
+import type { OqasConfig, RunEntry, RunState } from "@open-qa-stack/domain";
 import type { SessionEvent } from "@open-qa-stack/domain/sessions";
-import { afterAll, describe, it } from "vitest";
+import { describe, it } from "vitest";
 import { EventNotifications } from "../src/sessions/event-notifications.ts";
 import { repositoryProject } from "../src/sessions/repository-project.ts";
 import { RunningExecutions, type RunningExecution } from "../src/sessions/running-executions.ts";
@@ -18,34 +15,11 @@ import { eventually } from "./support/eventually.ts";
 import { held } from "./support/held.ts";
 import { MemorySessionStore } from "./support/memory-session-store.ts";
 
-const folders: string[] = [];
-afterAll(() => {
-  for (const folder of folders) rmSync(folder, { recursive: true, force: true });
-});
-
-/** A test repository whose configuration holds a given text; none when the text is left out. */
-function repositoryWith(configuration?: string): string {
-  const folder = mkdtempSync(join(tmpdir(), "oqas-session-project-"));
-  folders.push(folder);
-  if (configuration !== undefined) writeFileSync(join(folder, "oqas.json"), configuration);
-  return folder;
-}
-
 describe("the project of a test repository", () => {
-  it("is named after its folder, with the applications its configuration declares, one without a name named after its identifier", async () => {
-    const folder = repositoryWith(JSON.stringify({ applications: [{ id: "shop", name: "Shop" }, { id: "back-office" }, { name: "No identifier" }, "shop"] }));
-    assert.deepEqual(await repositoryProject(folder), {
-      name: basename(folder),
-      applications: [
-        { id: "shop", name: "Shop" },
-        { id: "back-office", name: "back-office" },
-      ],
-    });
-  });
-
-  it("has no application when the configuration declares none as a list, is no object, is no JSON, or cannot be read", async () => {
-    for (const folder of [repositoryWith('{"applications":{}}'), repositoryWith("[]"), repositoryWith("{"), repositoryWith()])
-      assert.deepEqual(await repositoryProject(folder), { name: basename(folder), applications: [] });
+  it("is named after its folder, with the applications of the configuration in force, and none without one", () => {
+    const configuration = { applications: [{ id: "shop", name: "Shop", type: "web" }] } as OqasConfig;
+    assert.deepEqual(repositoryProject("/srv/shop-tests", configuration), { name: "shop-tests", applications: [{ id: "shop", name: "Shop" }] });
+    assert.deepEqual(repositoryProject("/srv/shop-tests", undefined), { name: "shop-tests", applications: [] });
   });
 });
 
