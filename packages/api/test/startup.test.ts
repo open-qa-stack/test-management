@@ -7,10 +7,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { FastifyAdapter } from "@nestjs/platform-fastify";
 import type { Session, SessionList } from "@open-qa-stack/domain/sessions";
 import { closedPort } from "@open-qa-stack/testing";
-import { startApi } from "../src/start-api.ts";
+import { environmentSettings } from "../src/config/environment-settings.ts";
+import { startApi } from "../src/index.ts";
+import { apiFrom } from "./support/started-api.ts";
 import { childEnvironment } from "./support/environment.ts";
 import { eventually } from "./support/eventually.ts";
 
@@ -25,9 +26,9 @@ async function absentDatabase(): Promise<string> {
 describe("an API started with a valid configuration", () => {
   it("listens on the configured port, and its health route answers 200 with the documented body", async () => {
     const port = await closedPort();
-    const app = await startApi({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port), OQAS_DATABASE_URL: await absentDatabase() }, { logger: false });
+    const app = await apiFrom({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port), OQAS_DATABASE_URL: await absentDatabase() });
     try {
-      const response = await fetch(`http://127.0.0.1:${port}/health`);
+      const response = await fetch(`http://127.0.0.1:${port}/api/health`);
       assert.equal(response.status, 200);
       assert.match(String(response.headers.get("content-type")), /^application\/json/);
       assert.equal(await response.text(), '{"status":"ok"}');
@@ -36,18 +37,14 @@ describe("an API started with a valid configuration", () => {
     }
   });
 
-  it("runs on an underlying Fastify instance", async () => {
-    const port = await closedPort();
-    const app = await startApi({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port), OQAS_DATABASE_URL: await absentDatabase() }, { logger: false });
+  it("listens on any free port when it is given 0, and tells the address it answers at", async () => {
+    const read = environmentSettings({ OQAS_HOST: "127.0.0.1", OQAS_PORT: "1", OQAS_DATABASE_URL: await absentDatabase() });
+    const api = await startApi({ ...read, port: 0, logger: false });
     try {
-      const adapter = app.getHttpAdapter();
-      assert.ok(adapter instanceof FastifyAdapter);
-      assert.equal(adapter.getType(), "fastify");
-      const instance = adapter.getInstance();
-      assert.equal(typeof instance.inject, "function");
-      assert.equal(instance.server, app.getHttpServer());
+      assert.match(api.url, /^http:\/\/127\.0\.0\.1:[1-9][0-9]*$/);
+      assert.equal((await fetch(`${api.url}/api/health`)).status, 200);
     } finally {
-      await app.close();
+      await api.close();
     }
   });
 
@@ -65,8 +62,8 @@ describe("an API started with a valid configuration", () => {
       );
       const exit = once(child, "exit");
       await listening;
-      assert.match(output, new RegExp(`\\[Api\\] Listening on 127\\.0\\.0\\.1:${port}`));
-      assert.equal((await fetch(`http://127.0.0.1:${port}/health`)).status, 200);
+      assert.match(output, new RegExp(`\\[Api\\] Listening on http://127\\.0\\.0\\.1:${port}`));
+      assert.equal((await fetch(`http://127.0.0.1:${port}/api/health`)).status, 200);
       child.kill(stop);
       const [code, signal] = await exit;
       assert.deepEqual([code, signal], [null, stop]);
@@ -80,15 +77,15 @@ describe("an API given a test repository and no database", () => {
     // The configuration of this repository lacks everything a run needs: its session ends at once.
     writeFileSync(join(repository, "oqas.json"), "{}");
     const port = await closedPort();
-    const start = () => startApi({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port), OQAS_REPOSITORY: repository }, { logger: false });
-    const sessions = async (): Promise<Session[]> => ((await (await fetch(`http://127.0.0.1:${port}/sessions`)).json()) as SessionList).items.slice();
+    const start = () => apiFrom({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port), OQAS_REPOSITORY: repository });
+    const sessions = async (): Promise<Session[]> => ((await (await fetch(`http://127.0.0.1:${port}/api/sessions`)).json()) as SessionList).items.slice();
     try {
       const first = await start();
       let ended: Session[];
       try {
-        const ready = await fetch(`http://127.0.0.1:${port}/health/ready`);
+        const ready = await fetch(`http://127.0.0.1:${port}/api/health/ready`);
         assert.deepEqual([ready.status, await ready.json()], [200, { status: "ready", checks: { database: "up" } }]);
-        const opened = await fetch(`http://127.0.0.1:${port}/sessions`, {
+        const opened = await fetch(`http://127.0.0.1:${port}/api/sessions`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ request: "cover the profile" }),
@@ -140,7 +137,7 @@ describe("an API whose port is taken", () => {
     const { port } = taken.address() as { port: number };
     const database = await absentDatabase();
     try {
-      await assert.rejects(startApi({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port), OQAS_DATABASE_URL: await absentDatabase() }, { logger: false }), {
+      await assert.rejects(apiFrom({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port), OQAS_DATABASE_URL: await absentDatabase() }), {
         code: "EADDRINUSE",
       });
       const run = await new Promise<{ code: number | null; err: string }>((resolve) =>

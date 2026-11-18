@@ -1,42 +1,30 @@
-import { Logger, type LoggerService } from "@nestjs/common";
+import { Logger } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
+import { layOut } from "./api-layout.ts";
 import { AppModule } from "./app.module.ts";
 import { ApiConfiguration } from "./config/api-configuration.ts";
-import type { Environment } from "./config/environment-variable.ts";
-
-/** How the API is started, besides its environment. */
-export interface StartOptions {
-  /** Where the API logs; the console when left out, nowhere when `false`. */
-  readonly logger?: LoggerService | false;
-}
+import type { StartApi } from "./api-entry.ts";
 
 /**
- * Reads the configuration, then starts the API on the Fastify adapter and listens on the configured
- * address. A database that cannot be reached does not stop the startup: the API starts, and reports
- * itself not ready until the database answers. `SIGTERM` and `SIGINT` close it, then the process exits
- * on that signal.
- *
- * @param env - The environment the configuration is read from.
- * @param options - How the API is started.
- * @returns The application, listening.
- * @throws {@link ConfigurationError} before anything starts, when the configuration is invalid.
- * @throws `PendingMigrationsError` before anything listens, when the database answers but has not
- * applied every versioned migration.
+ * Starts an API on the Fastify adapter, from its settings alone: the program of the package gives those it
+ * read from its environment, a command those it read from its arguments, and both get the same application.
  */
-export async function startApi(env: Environment, options: StartOptions = {}): Promise<NestFastifyApplication> {
-  const configuration = ApiConfiguration.read(env);
+export const startApi: StartApi = async (settings) => {
+  const configuration = ApiConfiguration.of(settings);
   const app = await NestFactory.create<NestFastifyApplication>(AppModule.forRoot(configuration), new FastifyAdapter(), {
     abortOnError: false,
-    ...(options.logger === undefined ? {} : { logger: options.logger }),
+    ...(settings.logger === undefined ? {} : { logger: settings.logger }),
   });
-  app.enableShutdownHooks(["SIGTERM", "SIGINT"]);
+  await layOut(app, configuration.console);
+  if (settings.signals !== undefined) app.enableShutdownHooks([...settings.signals]);
   try {
     await app.listen(configuration.port, configuration.host);
   } catch (error) {
     await app.close();
     throw error;
   }
-  new Logger("Api").log(`Listening on ${configuration.host}:${configuration.port}`);
-  return app;
-}
+  const url = await app.getUrl();
+  new Logger("Api").log(`Listening on ${url}`);
+  return { url, close: () => app.close() };
+};

@@ -12,6 +12,7 @@ export const NO_CONTROLS: SessionControls = {
   skip: () => {},
   follow: () => {},
   say: () => {},
+  stop: () => {},
   sayOnEnter: () => {},
 };
 
@@ -108,5 +109,14 @@ export function fixtureScript(session: Session = RUNNING, events: readonly Sessi
 export function liveOf(session: Session = RUNNING, changes: Partial<Playback> = {}, events: readonly SessionEvent[] = EVENTS): LiveSession {
   const script = scriptOf(session, events);
   const playback = { ...INITIAL_PLAYBACK, ...changes };
-  return { session, stream: "open", script, playback, frame: frameOf(script, playback), saying: { state: "idle" }, controls: NO_CONTROLS };
+  return {
+    session,
+    stream: "open",
+    script,
+    playback,
+    frame: frameOf(script, playback),
+    saying: { state: "idle" },
+    stopping: { state: "idle" },
+    controls: NO_CONTROLS,
+  };
 }

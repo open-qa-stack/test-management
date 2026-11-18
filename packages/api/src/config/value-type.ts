@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { CONFIG_FILE_NAME } from "@open-qa-stack/domain";
 import { DatabaseUrl } from "@open-qa-stack/store";
+import { CONSOLE_PAGE } from "../console/serve-console.ts";
 
 const PORT_DIGITS = /^[0-9]{1,5}$/;
 
@@ -47,5 +48,13 @@ export const testRepository: ValueType<string> = {
   rule: `the absolute path of a folder that holds ${CONFIG_FILE_NAME}`,
   parse(raw) {
     return isAbsolute(raw) && existsSync(join(raw, CONFIG_FILE_NAME)) ? { ok: true, value: raw } : { ok: false };
+  },
+};
+
+/** A built console: the absolute path of a folder that holds its page. */
+export const builtConsole: ValueType<string> = {
+  rule: `the absolute path of a folder that holds ${CONSOLE_PAGE}`,
+  parse(raw) {
+    return isAbsolute(raw) && existsSync(join(raw, CONSOLE_PAGE)) ? { ok: true, value: raw } : { ok: false };
   },
 };

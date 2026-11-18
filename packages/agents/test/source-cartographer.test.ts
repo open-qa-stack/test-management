@@ -170,7 +170,6 @@ interface Setup {
   readonly source?: CardSource;
   readonly database?: SqlClient;
   readonly root?: string;
-  readonly force?: boolean;
   /** The inventory read before, handed to the cartographer. */
   readonly inventory?: SourceInventory;
   readonly limits?: { maxIterations: number; maxMinutes: number; maxActions: number };
@@ -203,7 +202,6 @@ async function cartography(replies: readonly { status?: number; body: unknown }[
       runtime,
       ...(setup.realDatabase === true ? {} : { sqlClient: () => setup.database ?? new CatalogDouble() }),
       ...(setup.systemClock === true ? {} : { now: () => new Date("2026-11-13T03:00:00.000Z") }),
-      ...(setup.force === undefined ? {} : { force: setup.force }),
       ...(setup.inventory === undefined ? {} : { inventory: setup.inventory }),
     });
     return { outcome: await cartographer.run(), server };
@@ -561,18 +559,16 @@ describe("criterion 4 — the cartographer of a source offers only the tools of 
 });
 
 describe("freshness, criterion 1 — an unchanged source is not mapped again; a changed one is", () => {
-  it("keeps an up-to-date card without calling the model, and makes it again when forced or when the source changed", async () => {
+  it("keeps an up-to-date card without calling the model, and makes it again when the source changed or the card cannot be read", async () => {
     const root = mkdtempSync(join(workspace, "repo-"));
     const database = new CatalogDouble();
-    await cartography(happy(), { root, database });
+    const first = await cartography(happy(), { root, database });
     const kept = await cartography([], { root, database });
     assert.deepEqual([kept.outcome.kept, kept.server.requests.length], [true, 0]);
     assert.match(messages(kept.outcome), /The card of shop-db is up to date; it was kept\./);
-    const forced = await cartography(happy(), { root, database, force: true });
-    assert.equal(forced.outcome.kept, false);
     database.extraColumn = true;
     const changed = await cartography(happy(), { root, database });
-    assert.deepEqual([changed.outcome.kept, changed.outcome.card!.fingerprint === forced.outcome.card!.fingerprint], [false, false]);
+    assert.deepEqual([changed.outcome.kept, changed.outcome.card!.fingerprint === first.outcome.card!.fingerprint], [false, false]);
     writeFileSync(changed.outcome.cardPath!, "{");
     assert.equal((await cartography(happy(), { root, database })).outcome.kept, false);
   });
@@ -1141,11 +1137,11 @@ describe("the card of a user interface", () => {
       );
       assert.doesNotMatch(JSON.stringify(server.requests[2]!.body), /Nothing was clicked/);
       // A session a limit cut leaves what was opened and not placed unplaced; one that failed opened nothing, and no card is written.
-      const cut = await cartography(script, { source, config: writable, force: true, limits: { maxIterations: 1, maxMinutes: 10, maxActions: 200 } });
+      const cut = await cartography(script, { source, config: writable, limits: { maxIterations: 1, maxMinutes: 10, maxActions: 200 } });
       assert.match(messages(cut.outcome), /The session that explores shop reached its iterations limit\./);
       assert.match(messages(cut.outcome), /No card was written: no element of shop was placed\./);
       const down = await closedPort();
-      const failed = await cartography([], { source, config: writable, force: true, modelUrl: `http://127.0.0.1:${down}/v1` });
+      const failed = await cartography([], { source, config: writable, modelUrl: `http://127.0.0.1:${down}/v1` });
       assert.match(messages(failed.outcome), /The session that explores shop failed: /);
     } finally {
       await site.close();
@@ -1242,7 +1238,6 @@ describe("freshness, criterion 2 — the sources without an up-to-date card are 
       ];
       assert.equal((await cartography(script(), setup)).outcome.kept, false);
       assert.equal((await cartography([], setup)).outcome.kept, true);
-      assert.equal((await cartography(script(), { ...setup, force: true })).outcome.kept, false);
       const unused: AgentRuntime = { openSession: () => Promise.reject(new Error("no session expected")), close: async () => undefined };
       const config = setup.config({ ...configFor("http://127.0.0.1:1"), knowledge: [] });
       const results = await mapSources({ config, environment: "local", repositoryRoot: root, env: {}, runtime: unused });

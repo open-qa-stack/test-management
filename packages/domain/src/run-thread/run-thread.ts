@@ -1,6 +1,5 @@
 import { isRecord, textOf } from "../json.ts";
 import { RelayedErrors } from "./relayed-errors.ts";
-import { briefOf } from "./run-lines.ts";
 import type { TracePhase } from "../run/trace-line.ts";
 import type { ActionFinishedEvent, ActionLook, AgentRole, PlannedScenario } from "../sessions/session-event.ts";
 import type { UnrankedEvent } from "../sessions/unranked-event.ts";
@@ -95,8 +94,8 @@ function outcomeOf(result: unknown): ActionFinishedEvent["outcome"] {
  * `message_delivered` to the agent of the phase; the message itself is told by whoever took it from the person.
  * A phase that starts is a `phase_started`, the writing of a test with the scenario the harness opened before.
  * What the harness sent an agent is a `harness_message` to the agent of the phase, the three reviewers told
- * apart by what the harness asks them; the first request that quotes the brief of the person is preceded by a
- * `user_message`, and the request of a plan gives the level it is asked for. What the harness or the command
+ * apart by what the harness asks them, and the request of a plan gives the level it is asked for. What the
+ * person asked is no event of the run: whoever took it from the person told it. What the harness or the command
  * journaled is a `note`, a `refusal` with its code for an error, and a `scenario_closed` when it closes a
  * scenario; an error the harness traced and the command relayed in its journal is told once. What the model wrote or thought is an `agent_message`. A tool call is an `action_started` and its
  * answer the `action_finished` of the same action, with what the agent looked at when the tool rendered a page
@@ -113,7 +112,6 @@ function outcomeOf(result: unknown): ActionFinishedEvent["outcome"] {
  * events has no place for them.
  */
 export class RunThread {
-  #briefed = false;
   #level: string | undefined;
   #scenario: string | undefined;
   #file: string | undefined;
@@ -137,7 +135,7 @@ export class RunThread {
     if (event.type === "started") return [this.#started(line)];
     if (event.type === "journal") return this.#journaled(line);
     if (line.actor === "harness" && event.type === "person") return this.#delivered(at, line.phase, event["message"]);
-    return line.actor === "harness" && event.type === "message" ? this.#asked(at, line.phase, textOf(event["text"]), briefOf(line)) : [];
+    return line.actor === "harness" && event.type === "message" ? this.#asked(at, line.phase, textOf(event["text"])) : [];
   }
 
   #agent(phase: TracePhase): AgentRole {
@@ -209,12 +207,8 @@ export class RunThread {
     return [{ at, type: "refusal", phase, code: textOf(coded[1]), text: cut(textOf(coded[2]), MAX_TEXT) }];
   }
 
-  #asked(at: string, phase: TracePhase, text: string, brief: string | undefined): UnrankedEvent[] {
+  #asked(at: string, phase: TracePhase, text: string): UnrankedEvent[] {
     const events: UnrankedEvent[] = [];
-    if (brief !== undefined && !this.#briefed) {
-      this.#briefed = true;
-      events.push({ at, type: "user_message", text: brief });
-    }
     if (phase === "review") this.#reviewer = reviewerOf(text);
     const level = phase === "plan" ? LEVEL.exec(text)?.[1] : undefined;
     if (level !== undefined) this.#level = level;

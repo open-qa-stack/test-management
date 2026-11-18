@@ -1,5 +1,4 @@
-import { isRecord, parseJson, textOf } from "../json.ts";
-import { PERSON_TAG } from "../run/person-message.ts";
+import { isRecord, parseJson } from "../json.ts";
 import type { Step } from "../run/run-entry.ts";
 import type { TracePhase } from "../run/trace-line.ts";
 import type { CommandStep, RelayedPhase, RunLine } from "./thread-line.ts";
@@ -13,11 +12,6 @@ const RELAYED: ReadonlyMap<string, RelayedPhase> = new Map<Exclude<Step, Command
   ["cartography", "survey"],
   ["design", "plan"],
 ]);
-
-const BRIEF = /<brief>\s*([^]*?)\s*<\/brief>/;
-
-/** What opens the words of a person in a message of the harness, which ends with them. */
-const PERSON_WORDS = `<${PERSON_TAG}`;
 
 /** The date a line bears, in the one form dates are compared in; `undefined` when it bears none. */
 function dateOf(value: unknown): string | undefined {
@@ -66,24 +60,4 @@ export function journalLine(text: string): RunLine | undefined {
   if (phase === undefined) return undefined;
   if (event === "started") return { at, phase, actor: "command", event: { type: "started" } };
   return { at, phase, actor: "command", event: { type: "journal", level, message } };
-}
-
-/**
- * Finds the brief of the person in a line: the harness quotes it, between `<brief>` and `</brief>`, in the
- * request it sends to the agent that plans.
- *
- * @remarks
- * The harness ends a message with what the person sent while the run was going, and those words may hold
- * anything, the marks of a brief included. A brief is therefore only read before them: a message sent to
- * the run never passes for what opened it.
- *
- * @param line - The line.
- * @returns The brief, without the spaces around it; `undefined` when the line is no message of the harness or quotes none.
- */
-export function briefOf(line: RunLine): string | undefined {
-  if (line.actor !== "harness" || line.event.type !== "message") return undefined;
-  const text = textOf(line.event["text"]);
-  const quoted = BRIEF.exec(text);
-  const person = text.indexOf(PERSON_WORDS);
-  return quoted === null || (person >= 0 && person < quoted.index) ? undefined : quoted[1];
 }

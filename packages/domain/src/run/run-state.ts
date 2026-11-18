@@ -1,4 +1,3 @@
-import { isRecord } from "../json.ts";
 import type { StopReason } from "../agent/task-limits.ts";
 import type { UncoveredRequest } from "../test/test-plan.ts";
 import type { TestVerdict } from "../test/test-verdicts.ts";
@@ -11,8 +10,6 @@ export interface RunState {
   readonly formatVersion: 1;
   /** Identifier of the run: `oqas-` and its date. */
   readonly runId: string;
-  /** The run this one resumes, when it resumes one. */
-  readonly resumes?: string;
   /** The environment the run targeted. */
   readonly environment: string;
   /** What to test, in the developer's words, when it was given. */
@@ -35,7 +32,7 @@ export interface RunState {
   readonly uncovered?: readonly UncoveredRequest[];
   /** The design state, relative to the test repository, when the design wrote it. */
   readonly designState?: string;
-  /** The step a limit of the autonomy stopped, and the limit, when one stopped the run: it can then be resumed. */
+  /** The step a limit of the autonomy stopped, and the limit, when one stopped the run. */
   readonly stoppedBy?: { readonly step: "cartography" | "design"; readonly limit: StopReason["limit"] };
   /** The result of the run of the tests, relative to the test repository, when they ran. */
   readonly run?: string;
@@ -45,29 +42,4 @@ export interface RunState {
   readonly tests: readonly TestVerdict[];
   /** Where the journal of the run is kept, as the output of the journal names it: a path relative to the test repository when a file holds it. */
   readonly journal: string;
-}
-
-/** Whether a value is absent or a string. */
-function isOptionalString(value: unknown): boolean {
-  return value === undefined || typeof value === "string";
-}
-
-/**
- * Whether a value is the state of the run `runId`, with what a resume reads of it: its environment, its brief,
- * its design, and the step and the limit that stopped it, with its index when the step is the design.
- *
- * @param value - What a store gave as the state of the run.
- * @param runId - Identifier of the run.
- * @returns Whether a run can be resumed from it, once a limit stopped it.
- */
-export function isRunState(value: unknown, runId: string): value is RunState {
-  if (!isRecord(value) || value["formatVersion"] !== 1 || value["runId"] !== runId || typeof value["environment"] !== "string") return false;
-  const stop = value["stoppedBy"];
-  return (
-    [value["brief"], value["branch"], value["designState"]].every(isOptionalString) &&
-    (stop === undefined ||
-      (isRecord(stop) &&
-        typeof stop["limit"] === "string" &&
-        (stop["step"] === "cartography" || (stop["step"] === "design" && typeof value["index"] === "string"))))
-  );
 }

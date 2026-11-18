@@ -10,6 +10,7 @@ import { followSession } from "./follow-session.ts";
 import { Interruptions } from "./interruptions.ts";
 import { openOperations } from "./operations.ts";
 import { RepositoryInit } from "./repository-init.ts";
+import { servedConsole } from "./served-console.ts";
 import { exitCodeOf } from "./session-exit.ts";
 import { listedLine, summaryLines } from "./session-lines.ts";
 import { referredSession } from "./session-reference.ts";
@@ -36,8 +37,9 @@ const REFUSALS = [UsageError, UnknownSessionError, SessionEndedError, PendingMig
  * The command is a presentation of the operations on sessions of the engine, on the database of the instance:
  * what it opens, a server on the same database shows, and what a server opens, it reads, follows, speaks to
  * and interrupts. With `--brief` it opens a session, which it runs in its own process, follows it to its end
- * and exits with the code of its run. The other commands host nothing: they read the database or post to it,
- * and the process that runs the session does the rest.
+ * and exits with the code of its run. With `--ui` it serves the console, and runs the sessions opened in it
+ * until it is stopped. The other commands host nothing: they read the database or post to it, and the process
+ * that runs the session does the rest.
  *
  * @param argv - The arguments, without the program.
  * @param io - The environment, the folder and the outputs.
@@ -80,6 +82,7 @@ export async function soloCommand(argv: readonly string[], io: CommandIo): Promi
 /** Runs a command on the sessions of a test repository, with the operations opened for it and let go of afterwards. */
 async function onSessions(command: Exclude<Command, { name: "help" | "init" }>, options: Arguments, repository: string, io: CommandIo): Promise<ExitCodeValue> {
   if (command.name === "run") return opened({ command, options, io }, repository);
+  if (command.name === "ui") return servedConsole(command, repository, io);
   const { sessions, close } = await openOperations(io, repository, false);
   try {
     switch (command.name) {
@@ -138,7 +141,10 @@ async function opened({ command, options, io }: Omit<Asked<"run">, "sessions">, 
     const { brief: request, environment } = command;
     const { id } = await sessions.open({ request, ...(environment === undefined ? {} : { environment }) });
     io.stderr.write(`Session ${id}\n`);
-    const interruptions = new Interruptions(io, () => sessions.interrupt(id));
+    const interruptions = new Interruptions(io, () => sessions.interrupt(id), {
+      asked: "The session is asked to stop, and ends soon.",
+      failed: "The session was not asked to stop",
+    });
     const ended = followed({ sessions, options, io }, id);
     const left = interruptions.leftAtOnce.then(() => {
       // Nothing is waited for any more: neither the session, nor what its following still raises.

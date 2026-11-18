@@ -40,7 +40,7 @@ describe("solo command, criteria 10 and 11 — nothing is pushed, the git config
 describe("solo command, criterion 12 — the value of the connection string appears nowhere", () => {
   it("is in neither the journal, the state, nor the outputs", async () => {
     const run = await ran(chain(), { environment: "local" });
-    for (const trace of [run.err, run.out, JSON.stringify(journalOf(run.root)), JSON.stringify(stateOf(run.root))]) assert.ok(!trace.includes("w1tness-pass"));
+    for (const trace of [run.err, JSON.stringify(journalOf(run.root)), JSON.stringify(stateOf(run.root))]) assert.ok(!trace.includes("w1tness-pass"));
   });
 
   it("is masked in the reason of a verdict", async () => {
@@ -58,7 +58,7 @@ describe("solo command, criterion 12 — the value of the connection string appe
     const run = await ran(chain(), { environment: "local", script: { install: 1, installError: `npm error cannot reach ${WITNESS}\n` } });
     assert.equal(run.code, 5, run.err);
     assert.match(run.err, /npm error cannot reach \[secret\]/);
-    for (const trace of [run.err, run.out, JSON.stringify(journalOf(run.root)), JSON.stringify(stateOf(run.root))]) assert.ok(!trace.includes("w1tness-pass"));
+    for (const trace of [run.err, JSON.stringify(journalOf(run.root)), JSON.stringify(stateOf(run.root))]) assert.ok(!trace.includes("w1tness-pass"));
   });
 });
 
@@ -122,16 +122,14 @@ describe("solo command, the charter and the dependencies", () => {
 });
 
 describe("what the brief asks and the plan leaves out", () => {
-  it("is printed in the summary and kept in the state of the run, and neither for a plan that covers the brief", async () => {
+  it("is kept in the state of the run, and not for a plan that covers the brief", async () => {
     const uncovered = [{ asked: "Cancel an order.", reason: "No operation of the shop cancels one." }];
     const partial = submit("propose_plan", { scenarios: IDS.map(scenario), uncovered }, "plan");
     const replies = chain().map((reply) => (reply.body === planned.body ? { body: toolCalls(MODEL, [partial]) } : reply));
     const run = await ran(replies, { environment: "local" });
     assert.equal(run.code, 0, run.err);
-    assert.match(run.out, /\nNot covered: Cancel an order\. No operation of the shop cancels one\.\nState: /);
     assert.deepEqual(stateOf(run.root).uncovered, uncovered);
     const whole = await ran(chain(), { environment: "local" });
-    assert.doesNotMatch(whole.out, /Not covered/);
     assert.equal("uncovered" in stateOf(whole.root), false);
   });
 });
@@ -145,7 +143,6 @@ describe("a brief no test can do", () => {
     assert.equal(run.code, 2, run.err);
     assert.match(run.err, /\[design\] No test is run: the design gave none\./);
     assert.doesNotMatch(run.err, /\[execution\]/);
-    assert.match(run.out, /\nNot covered: Cancel an order\. No operation of the shop cancels one\.\nState: /);
     assert.equal(run.runner.finalRuns, 0);
     // The brief went to the designer, and the state of the run keeps it.
     assert.ok(run.server.requests.some((request) => (JSON.stringify(request.body) ?? "").includes("<brief>\\nCancel an order.\\n</brief>")));

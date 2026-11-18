@@ -18,7 +18,9 @@ export type Command =
   /** Say something to a session that goes on. */
   | { readonly name: "say"; readonly session: string; readonly text: string }
   /** Interrupt a session that goes on. */
-  | { readonly name: "stop"; readonly session: string };
+  | { readonly name: "stop"; readonly session: string }
+  /** Serve the console of the test repository, and the sessions opened in it. */
+  | { readonly name: "ui"; readonly host: string; readonly port: number };
 
 /** The arguments of the command, once read. */
 export interface Arguments {
@@ -35,7 +37,17 @@ export interface Arguments {
 const ON_SESSIONS = { sessions: [], show: ["<session>"], attach: ["<session>"], say: ["<session>", "<text>"], stop: ["<session>"] } as const;
 
 /** The options that take a value. */
-const VALUED = ["--repository", "--environment", "--brief", "--output"] as const;
+const VALUED = ["--repository", "--environment", "--brief", "--output", "--host", "--port"] as const;
+
+/** The address `oqas --ui` listens on unless it is given another: this machine alone. */
+export const UI_HOST = "127.0.0.1";
+
+/** The port `oqas --ui` listens on unless it is given another: the letters of `oqas` on the keys of a phone. */
+export const UI_PORT = 6727;
+
+const PORT_DIGITS = /^[0-9]{1,5}$/;
+
+const UI_ALONE = "--ui serves the console, where the sessions are opened and followed: it takes --repository, --host and --port alone.";
 
 /** How to run the command, as `oqas --help` prints it. */
 export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>] --brief <text> [--follow] [--output text|json] [--no-input]
@@ -44,11 +56,14 @@ export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
        oqas [--repository <folder>] attach <session> [--follow] [--output text|json]
        oqas [--repository <folder>] say <session> <text> [--output text|json]
        oqas [--repository <folder>] stop <session> [--output text|json]
+       oqas [--repository <folder>] --ui [--host <address>] [--port <number>]
        oqas [--repository <folder>] --init
 
 With --brief, opens a session: maps the target application, designs Playwright tests on a new local branch, runs
 them and gives a verdict per test. The other commands read the sessions of the test repository and act on one,
 from any terminal: <session> is its identifier, or the start or the end of it when no other session shares it.
+With --ui, serves the console of the test repository in a browser, on this machine, until Ctrl-C: the sessions
+opened in it run in this process, and those of the other terminals are shown and followed in it.
 
 Commands:
   sessions               List the sessions, the latest first.
@@ -64,6 +79,10 @@ Options:
   --follow               Print what the agents do besides what the harness tells: each tool call, its result, each message.
   --output text|json     How to print: lines to read, the default, or JSON Lines, one event of the session a line.
   --no-input             Never ask anything on the terminal. The command asks nothing yet: the option is accepted for the scripts that set it.
+  --ui                   Serve the console of the test repository and print its address; Ctrl-C stops it.
+  --host <address>       With --ui, the address to listen on; 127.0.0.1 by default. The console asks nobody who
+                         they are: keep it on this machine.
+  --port <number>        With --ui, the port to listen on; 6727 by default, 0 for any free port.
   --init                 Initialise the test repository as a Playwright project, from its oqas.json: write the files it
                          lacks, overwrite none, run nothing.
   --help                 Print this help.
@@ -71,7 +90,11 @@ Options:
 Exit codes of a session followed to its end: 0 every test passed, 1 a test failed, 2 a test was blocked,
 indeterminate, skipped or not run, 3 the configuration or the arguments are invalid, 4 a prerequisite is missing,
 5 the session did not go to its end. The other commands exit with 0, with 3 when they are refused, with 5 when they fail.
+--ui exits with 0 once it is stopped.
 `;
+
+/** The options that take none. */
+const FLAGS = ["--help", "--follow", "--init", "--no-input", "--ui"] as const;
 
 /** What reading the arguments gives: them, or why they are refused. */
 export type Parsed = { readonly ok: true; readonly arguments: Arguments } | { readonly ok: false; readonly error: string };
@@ -85,12 +108,12 @@ const refused = (error: string): Parsed => ({ ok: false, error });
  * @returns The arguments, or why they are refused.
  */
 export function parseArguments(argv: readonly string[]): Parsed {
-  const values: { repository?: string; environment?: string; brief?: string; output?: string } = {};
+  const values: { repository?: string; environment?: string; brief?: string; output?: string; host?: string; port?: string } = {};
   const flags = new Set<string>();
   const words: string[] = [];
   for (let i = 0; i < argv.length; i++) {
     const argument = argv[i]!;
-    if (argument === "--help" || argument === "--follow" || argument === "--init" || argument === "--no-input") flags.add(argument);
+    if (FLAGS.some((flag) => flag === argument)) flags.add(argument);
     else if (VALUED.some((option) => option === argument)) {
       const value = argv[i + 1];
       if (value === undefined || value.trim() === "" || value.startsWith("--")) return refused(`${argument} needs a value.`);
@@ -99,15 +122,28 @@ export function parseArguments(argv: readonly string[]): Parsed {
     } else if (argument.startsWith("--")) return refused(`Unknown option ${argument}; see oqas --help.`);
     else words.push(argument);
   }
-  const { repository, environment, brief, output = "text" } = values;
+  const { repository, environment, brief, output = "text", host, port } = values;
   if (output !== "text" && output !== "json") return refused("--output needs text or json.");
   const follow = flags.has("--follow");
-  const command = commandOf(words, { environment, brief, follow, help: flags.has("--help"), init: flags.has("--init") });
+  const help = flags.has("--help");
+  const init = flags.has("--init");
+  // The console is where the sessions are opened and read: beside it, nothing of a session nor of another command is taken.
+  const beside = init || follow || words.length > 0 || [environment, brief, values.output].some((value) => value !== undefined);
+  const command = flags.has("--ui") && !help ? served(beside, host, port) : commandOf(words, { environment, brief, follow, help, init });
   if (typeof command === "string") return refused(command);
+  if (command.name !== "ui" && command.name !== "help" && (host !== undefined || port !== undefined))
+    return refused("--host and --port say where --ui listens: they go with it alone.");
   // An initialisation writes files and runs nothing: it takes the repository, and nothing of a session.
   if (command.name === "init" && (follow || values.output !== undefined))
     return refused("--init writes the files of the test repository and runs nothing: it takes --repository alone.");
   return { ok: true, arguments: { ...(repository === undefined ? {} : { repository }), output, follow, command } };
+}
+
+/** What `--ui` asks for, or why it is refused: it goes with where it listens, and with nothing else. */
+function served(beside: boolean, host = UI_HOST, port = String(UI_PORT)): Command | string {
+  if (beside) return UI_ALONE;
+  if (!PORT_DIGITS.test(port) || Number(port) > 65535) return "--port needs an integer from 0 to 65535.";
+  return { name: "ui", host, port: Number(port) };
 }
 
 /** What the words and the options of a session ask for, or why they ask for nothing the command does. */

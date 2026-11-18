@@ -44,7 +44,7 @@ async function spoken(inbox: Inbox, atExecution: () => void = () => undefined) {
       runner: new FakeRunner(root, script),
       now: () => new Date("2026-11-13T12:00:00.000Z"),
     }).run();
-    return { code, root, err: host.err, out: host.out };
+    return { code, root, err: host.err };
   } finally {
     await server.close();
   }
@@ -82,6 +82,5 @@ describe("a person who speaks to a run, through the inbox its host opens", () =>
       ["The message 2 of the person was not delivered: no agent was at work to receive it."],
     );
     assert.match(run.err, /\[summary\] The message 2 of the person was not delivered/);
-    assert.doesNotMatch(run.out, /person/);
   });
 });

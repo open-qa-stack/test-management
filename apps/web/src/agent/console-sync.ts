@@ -130,6 +130,24 @@ export class ConsoleSync {
     );
   }
 
+  /**
+   * Asks the instance to stop a session that goes on. The session shows as stopped once its stream says so,
+   * not before: one another process runs goes on until that process obeyed.
+   *
+   * @param id - The identifier of the session.
+   * @param taken - What to do once the instance took the request.
+   */
+  public interrupt(id: string, taken: () => void): void {
+    this.#dispatch({ type: "stopping", id });
+    this.#api.interrupt(id).then(
+      () => {
+        this.#dispatch({ type: "stop_asked", id });
+        taken();
+      },
+      (error: ApiError) => this.#dispatch({ type: "unstopped", id, message: error.message }),
+    );
+  }
+
   /** Reads a session until the API told it, or said it keeps none of that name. */
   #read(id: string, missing: () => void): () => void {
     const stop = poll(

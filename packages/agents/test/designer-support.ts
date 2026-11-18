@@ -330,7 +330,6 @@ export interface Setup {
   readonly observe?: (line: TraceLine) => void;
   /** The inbox of the run the design is of, when a person may speak to it. */
   readonly inbox?: Inbox;
-  readonly resume?: { readonly state: string; readonly branch?: string };
   /** Whether the configuration declares that the model reads images. */
   readonly vision?: boolean;
 }
@@ -377,7 +376,6 @@ export async function design(script: readonly { status?: number; body: unknown }
       // The scenarios of these tests are functional: the plan is asked for that level alone unless a test says otherwise.
       ...(setup.levels === "default" ? {} : { levels: setup.levels ?? ["functional"] }),
       ...(setup.observe === undefined ? {} : { observe: setup.observe }),
-      ...(setup.resume === undefined ? {} : { resume: setup.resume }),
       ...(setup.inbox === undefined ? {} : { inbox: setup.inbox }),
     });
     return { outcome: await designer.run(), root, server, before };
@@ -398,7 +396,7 @@ export const toolsOffered = (server: ScriptedServer) =>
 
 export const requestText = (server: ScriptedServer) => JSON.stringify(server.requests[0]!.body);
 
-/** The first request of each session of a design, in order: that of the session that plans, unless the design is resumed, then that of each scenario written. */
+/** The first request of each session of a design, in order: that of the session that plans, then that of each scenario written. */
 export const sessions = (server: ScriptedServer) =>
   server.requests
     .map((request) => request.body as { messages: { role: string; content: string }[]; tools: { function: { name: string; description: string } }[] })

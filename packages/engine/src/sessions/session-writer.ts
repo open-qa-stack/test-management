@@ -103,7 +103,7 @@ export class SessionWriter {
    * @param events - The events, in order; those told once the session has its end are ignored.
    */
   tell(events: readonly UnrankedEvent[]): void {
-    this.#take(events.filter((event) => event.type !== "user_message"));
+    this.#take(events);
   }
 
   /**

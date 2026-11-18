@@ -58,8 +58,6 @@ export interface CartographerOptions {
   readonly sqlClient?: KnowledgeAccess["sqlClient"];
   /** How the browser starts and waits; a headless Chromium with the default waits otherwise. */
   readonly browser?: Pick<BrowserAccess, "launch" | "actionTimeoutMs" | "navigationTimeoutMs" | "settleTimeoutMs">;
-  /** Maps every source again, even those whose card is up to date. */
-  readonly force?: boolean;
   /** Most sources mapped at once; one by default. */
   readonly concurrency?: number;
   /** The clock of the dates; the system clock by default. */
@@ -94,7 +92,7 @@ export interface CartographyOutcome {
  * Each source without an up-to-date card is then mapped on its own, in its own task, under the limits of
  * the configured autonomy. The index records the fingerprint of each card it is made of: when the index
  * already written is complete, of this environment, of the same sources and of the cards they have now, it is
- * kept, without the model, unless `force` is set. Otherwise a last task consolidates the cards, with the notes
+ * kept, without the model. Otherwise a last task consolidates the cards, with the notes
  * the agents kept but none of the tools of the sources, each element followed by the domains of other cards
  * that share a word with it, and hands its index in with `submit_index`, which must place every element of every
  * card in functional domains; the elements it leaves unassigned are asked once more. A source without a card is `not_read`. The index is written only once a
@@ -175,7 +173,7 @@ export class Cartographer {
     );
     const indexPath = this.indexPath();
     const previous = await readIndex(indexPath);
-    const stale = this.options.force === true ? "force is set" : indexStaleness(previous, environment, sources, cards);
+    const stale = indexStaleness(previous, environment, sources, cards);
     if (previous !== undefined && stale === undefined) {
       phases.start("index");
       journal.record("info", `The index ${indexPath} is complete and made of the cards every source has now, by their fingerprints; it was kept.`);

@@ -11,7 +11,6 @@ const code = await new Run({
   brief: "Test the search of a customer and their profile.",
   env: process.env,
   journal, // a JournalOutput
-  print: (line) => process.stdout.write(line),
   openInbox: (run) => inboxOf(run), // an Inbox
   store, // a RunStore
   openRuntime: (config) => liveRuntime(config, process.env),
@@ -22,16 +21,16 @@ const code = await new Run({
 
 Each step starts only when the one before succeeded; once the prerequisites passed, the summary runs whatever the end of the others.
 
-1. **Configuration.** `oqas.json`, at the root of the test repository, is read and validated, the environment is chosen, the test charter is resolved, and the run to resume is found when one is asked for.
+1. **Configuration.** `oqas.json`, at the root of the test repository, is read and validated, the environment is chosen, and the test charter is resolved.
 2. **Prerequisites.** The folder is the root of a git repository with a commit, the model server answers, `npm` can be run, and the repository is a Playwright project.
 3. **Cartography.** The sources without an up-to-date card are mapped, then consolidated into the domain index, by the cartographer of `@open-qa-stack/agents`.
 4. **Design.** The dependencies of the test repository are installed, then the tests are designed in passes on a new local branch, by the designer of `@open-qa-stack/agents`, each test checked against the charter and run against the application before it is kept.
 5. **Execution.** The tests designed run together, and the harness pronounces a verdict per test.
-6. **Summary.** The messages no agent received are told, the runtime of the agents is closed, the state of the run is written, and the summary is printed.
+6. **Summary.** The messages no agent received are told, the runtime of the agents is closed, and the state of the run is written.
 
 [The page of the command](../../cli/docs/solo-command.md#steps) says what each step does for the person who asks for the tests.
 
-`run()` resolves with the code the run ends with, one of the `ExitCode` of `@open-qa-stack/domain`: `passed` (0), `failed` (1), `unsettled` (2), `configuration` (3), `prerequisite` (4) or `interrupted` (5). A step that stops on an unexpected error is told in the journal and ends the run with `interrupted`. `run()` rejects only when a port does: the journal refuses an entry outside a step, the summary cannot be printed, or the state cannot be written.
+`run()` resolves with the code the run ends with, one of the `ExitCode` of `@open-qa-stack/domain`: `passed` (0), `failed` (1), `unsettled` (2), `configuration` (3), `prerequisite` (4) or `interrupted` (5). A step that stops on an unexpected error is told in the journal and ends the run with `interrupted`. `run()` rejects only when a port does: the journal refuses an entry outside a step, or the state cannot be written.
 
 ## What stays in the test repository
 
@@ -44,10 +43,9 @@ A port is what differs from a host to another. The engine declares it; the host 
 | Option | Port | What the engine does with it |
 | --- | --- | --- |
 | `journal` | `JournalOutput` | Tells what the run does, an entry at a time, and has the journal kept once the prerequisites passed. |
-| `print` | `(line: string) => void` | Prints the summary, a line at a time. |
 | `follow` | `(line: TraceLine) => void`, optional | Shows each line of the trace of the agents as it is written. |
 | `openInbox` | `(run: RunReference) => Inbox` | Gives the agents what a person says while the run is going. |
-| `store` | `RunStore` | Writes the state of the run at its end, and finds the run to resume. |
+| `store` | `RunStore` | Writes the state of the run at its end. |
 | `openRuntime` | `(config: ResolvedConfig) => Promise<OpenRuntime>` | Opens the runtime of the agents when the first step that calls the model starts, and closes it in the summary. |
 | `runner` | `CommandRunner` of `@open-qa-stack/domain`, optional | Runs `npm` and the tests. |
 | `now` | `() => Date`, optional | Dates the run, its entries and its steps, and counts the guardrail of the autonomy. |
@@ -58,10 +56,9 @@ One host plugs a run into these ports, [the operations on sessions](#the-operati
 | Option | The adapter the operations give |
 | --- | --- |
 | `journal` | `SessionJournal`: each entry becomes events of the session, once the journal is kept. |
-| `print` | Nothing: the summary is the result of the session. |
 | `follow` | Each line becomes events of the session. |
 | `openInbox` | `SessionInbox`: the messages the person said to the session, dropped in memory once the store took them. |
-| `store` | `SessionRunStore`: the state gives the result the session is completed with; no run is resumed. |
+| `store` | `SessionRunStore`: the state gives the result the session is completed with. |
 | `openRuntime` | `liveRuntime`, with the environment of the process, unless the host of the operations gives another. |
 | `runner` | A `LocalRunner` in the test repository, which is the default, unless the host of the operations gives another. |
 | `now` | The system clock, which is the default, unless the host of the operations gives another. |
@@ -99,22 +96,17 @@ interface Inbox {
 
 The inbox of a run is the `Inbox` of `@open-qa-stack/agents`, which the sessions that lead a step read: `pending` gives the messages no session received yet, numbered from 1 in the order they were sent, `delivered` marks them as received, and `heard` gives those received since the run started, which later sessions are recalled. Reading waits for nothing: an inbox reads what it holds and returns, which is why a host that takes the messages from elsewhere — a database — fetches them on its own and drops them in. The summary tells each message still pending, which no agent received.
 
-`openInbox` is called once per run, after the configuration: a run resumed is a run of its own, with an inbox of its own.
+`openInbox` is called once per run, after the configuration.
 
 ### `RunStore`
 
 ```ts
 interface RunStore {
-  location(run: RunReference): string;
-  read(run: RunReference): Promise<StoredState>;
-  readAll(stateDir: string): Promise<readonly unknown[]>;
   write(run: RunReference, state: RunState): Promise<void>;
 }
 ```
 
-`write` is called once, in the summary, with the `RunState` of the run: what it targeted, each step with its duration and its requests to the model, what the cartography and the design produced, the verdict of each test, and the step a limit stopped when one did. A store that cannot write rejects, and `run()` rejects with it. `location` names the state kept, which the last line of the summary gives.
-
-`read` and `readAll` serve a run that resumes another. `read` gives what is kept for a run as JSON reads it, `undefined` when nothing is, with where the store looked, which the journal names when the run cannot be resumed. `readAll` gives what is kept for every run of the test repository: the engine finds in it the run that already resumed the one asked for. The engine checks what a store gives; a store validates nothing.
+`write` is called once, in the summary, with the `RunState` of the run: what it targeted, each step with its duration and its requests to the model, what the cartography and the design produced, the verdict of each test, and the step a limit stopped when one did. A store that cannot write rejects, and `run()` rejects with it. A run a limit stopped is not resumed: what it produced stays in the test repository, and the next run maps only the sources without an up-to-date card, and designs anew.
 
 ## Stopping a run
 
@@ -130,8 +122,8 @@ A host stops a run by aborting the `AbortSignal` it gave as `stop`. Nothing is k
 To run the engine, a host:
 
 1. Gives it a test repository as a folder, the root of a git repository with a commit, and the environment variables the configuration names.
-2. Implements `JournalOutput`, to show the entries to whoever follows the run and to keep them; `RunStore`, to keep the state of each run and give it back to the run that resumes it; and `Inbox`, to hand the agents what a person says while the run is going.
-3. Says where the summary goes with `print`, and, to show the agents at work, takes the lines of their trace with `follow`.
+2. Implements `JournalOutput`, to show the entries to whoever follows the run and to keep them; `RunStore`, to keep the state of each run; and `Inbox`, to hand the agents what a person says while the run is going.
+3. Takes the lines of the trace of the agents with `follow`, to show them at work.
 4. Opens the runtime of the agents: `liveRuntime` opens it on the model of the configuration, through a gateway of its own, and is what every host uses unless it brings another `AgentRuntime`.
 5. Turns the end of `run()` into what it reports: the operations on sessions end a session with the result read from the state the run wrote, and interrupt a session whose run wrote none, or was asked to stop.
 

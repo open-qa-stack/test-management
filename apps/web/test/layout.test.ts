@@ -492,7 +492,7 @@ describe("what the person says to the agents while they work", () => {
       await page.getByRole("button", { name: "Envoyer" }).click();
       const alert = page.getByRole("alert");
       await alert.waitFor();
-      assert.equal(await alert.innerText(), "La session vient de se terminer : elle ne prend plus de message.");
+      assert.equal(await alert.innerText(), "La session vient de se terminer : elle ne prend plus ni message ni arrêt.");
       assert.deepEqual([await field.inputValue(), await field.isDisabled()], ["sans le profil", false]);
       assert.equal(await field.evaluate((element) => element === document.activeElement), true, "the field takes the focus back");
       assert.equal(await page.locator(".sent").count(), 0);
@@ -614,6 +614,80 @@ describe("what the person says to the agents while they work", () => {
       assert.equal(covered, true);
     } finally {
       await phone.close();
+    }
+  });
+});
+
+describe("the stop of a session, in a browser", () => {
+  /** What the bar of the session holds about its stop. */
+  const controlOf = (page: Page): Locator => page.locator("#session-stop");
+
+  it("opens a confirmation a finger can press, on the way out, which closes without stopping anything and gives the focus back", async () => {
+    const instance = new PlayedInstance();
+    const page = await app().open(390, SESSION, instance.api);
+    try {
+      await controlOf(page).click();
+      const confirmation = page.getByRole("region", { name: "Arrêter cette session ?" });
+      await confirmation.waitFor();
+      assert.equal(await focusedOf(page), "A: Annuler");
+      assert.deepEqual([await overflowOf(page), await tooSmallOf(page)], [0, []]);
+      assert.equal(await page.evaluate(() => window.location.hash.endsWith("?stop=ask")), true);
+      await page.keyboard.press("Enter");
+      await confirmation.waitFor({ state: "detached" });
+      assert.equal(await focusedOf(page), "A:  Arrêter");
+      assert.deepEqual(instance.interrupted, []);
+      await page.goBack();
+      await confirmation.waitFor();
+      await page.goForward();
+      await confirmation.waitFor({ state: "detached" });
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("asks the instance once the person confirmed, says the stop was asked while the session still runs, then shows it interrupted", async () => {
+    const instance = new PlayedInstance();
+    let release = (): void => {};
+    instance.hold = new Promise((resolve) => (release = resolve));
+    const page = await app().open(1280, `${SESSION}?show=talk&stop=ask`, instance.api);
+    try {
+      const stop = page.getByRole("button", { name: "Arrêter la session" });
+      await stop.click();
+      await page.locator(".session-stop .btn.danger:disabled").waitFor();
+      assert.deepEqual(instance.interrupted, []);
+      release();
+      await page.getByRole("status").filter({ hasText: "arrêt demandé…" }).waitFor();
+      assert.deepEqual(instance.interrupted, [SESSION_ID]);
+      assert.equal(await page.evaluate(() => window.location.hash), `${SESSION}?show=talk`);
+      assert.equal(await focusedOf(page), "SPAN: arrêt demandé…");
+      assert.equal(await page.locator(".session-stop").count(), 0);
+      assert.equal(await page.locator(".session-bar .badge").innerText(), "en direct");
+      instance.obey();
+      await page.locator(".session-bar .badge", { hasText: "interrompue" }).waitFor();
+      await controlOf(page).waitFor({ state: "detached" });
+      assert.equal(await page.locator(".composer").count(), 0);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("says why the instance refused under the confirmation, which stays open to ask again", async () => {
+    const instance = new PlayedInstance();
+    instance.deaf = true;
+    const page = await app().open(390, `${SESSION}?stop=ask`, instance.api);
+    try {
+      const stop = page.getByRole("button", { name: "Arrêter la session" });
+      await stop.click();
+      const alert = page.locator(".session-stop").getByRole("alert");
+      await alert.waitFor();
+      assert.equal(await alert.innerText(), "La session vient de se terminer : elle ne prend plus ni message ni arrêt.");
+      assert.deepEqual([await stop.isDisabled(), await overflowOf(page)], [false, 0]);
+      instance.deaf = false;
+      await stop.click();
+      await page.getByRole("status").filter({ hasText: "arrêt demandé…" }).waitFor();
+      assert.equal(await alert.count(), 0);
+    } finally {
+      await page.close();
     }
   });
 });
@@ -902,6 +976,9 @@ describe("the code of the console is covered in full", () => {
         instance.deaf = false;
         await page.getByRole("button", { name: "Envoyer" }).click();
         await page.locator(".sent", { hasText: "sans le profil" }).waitFor();
+        await page.getByRole("link", { name: "Arrêter" }).click();
+        await page.getByRole("button", { name: "Arrêter la session" }).click();
+        await page.getByRole("status").filter({ hasText: "arrêt demandé…" }).waitFor();
         instance.down = true;
         await page.getByRole("alert").waitFor();
         instance.down = false;

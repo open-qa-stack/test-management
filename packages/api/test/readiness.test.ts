@@ -6,7 +6,7 @@ import { Logger } from "@nestjs/common";
 import { DatabaseUrl, runMigrations } from "@open-qa-stack/store";
 import { PostgresContainer } from "@open-qa-stack/store/testing";
 import { closedPort } from "@open-qa-stack/testing";
-import { startApi } from "../src/start-api.ts";
+import { apiFrom } from "./support/started-api.ts";
 import { CapturedLogger } from "./support/captured-logger.ts";
 import { childEnvironment } from "./support/environment.ts";
 
@@ -44,9 +44,9 @@ describe("an error of connection", () => {
     url.password = WITNESS;
     const port = await closedPort();
     const logger = new CapturedLogger();
-    const app = await startApi({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port), OQAS_DATABASE_URL: url.href }, { logger });
+    const app = await apiFrom({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port), OQAS_DATABASE_URL: url.href }, logger);
     try {
-      const readiness = await get(port, "/health/ready");
+      const readiness = await get(port, "/api/health/ready");
       assert.deepEqual(readiness, UNREACHABLE);
       assert.ok(!leaks(readiness.body, url.href));
     } finally {
@@ -90,21 +90,21 @@ describe("the readiness of the instance", () => {
     await started().stop();
     const port = await closedPort();
     const logger = new CapturedLogger();
-    const app = await startApi({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port), OQAS_DATABASE_URL: started().url }, { logger });
+    const app = await apiFrom({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port), OQAS_DATABASE_URL: started().url }, logger);
     try {
-      assert.deepEqual(await get(port, "/health/ready"), UNREACHABLE);
-      assert.deepEqual(await get(port, "/health"), ALIVE);
+      assert.deepEqual(await get(port, "/api/health/ready"), UNREACHABLE);
+      assert.deepEqual(await get(port, "/api/health"), ALIVE);
       assert.deepEqual(warnings(logger).filter((line) => line.endsWith(" Database")).length, 1, logger.lines.join("\n"));
 
       await started().restart();
-      assert.deepEqual(await get(port, "/health/ready"), READY);
-      assert.deepEqual(await get(port, "/health/ready"), READY);
+      assert.deepEqual(await get(port, "/api/health/ready"), READY);
+      assert.deepEqual(await get(port, "/api/health/ready"), READY);
 
       await started().stop();
-      assert.deepEqual(await get(port, "/health/ready"), UNREACHABLE);
-      assert.deepEqual(await get(port, "/health"), ALIVE);
+      assert.deepEqual(await get(port, "/api/health/ready"), UNREACHABLE);
+      assert.deepEqual(await get(port, "/api/health"), ALIVE);
       await started().restart();
-      assert.deepEqual(await get(port, "/health/ready"), READY);
+      assert.deepEqual(await get(port, "/api/health/ready"), READY);
     } finally {
       await app.close();
     }
