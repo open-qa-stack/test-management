@@ -50,7 +50,15 @@
               },
               "@open-qa-stack/cli": {
                 "directory": "packages/cli",
-                "dependsOn": ["@open-qa-stack/engine", "@open-qa-stack/store", "@open-qa-stack/harness", "@open-qa-stack/tools", "@open-qa-stack/domain"]
+                "dependsOn": [
+                  "@open-qa-stack/api",
+                  "@open-qa-stack/web",
+                  "@open-qa-stack/engine",
+                  "@open-qa-stack/store",
+                  "@open-qa-stack/harness",
+                  "@open-qa-stack/tools",
+                  "@open-qa-stack/domain"
+                ]
               },
               "@open-qa-stack/web": { "directory": "apps/web", "dependsOn": ["@open-qa-stack/domain"] }
             }

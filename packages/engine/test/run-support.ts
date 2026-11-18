@@ -15,7 +15,7 @@ interface MemoryHost {
 
 const hosts = new Map<string, MemoryHost>();
 
-/** The host of a test repository, the same from a run to the one that resumes it. */
+/** The host of a test repository, the same from a run to the next. */
 export function hostOf(root: string): MemoryHost {
   const host = hosts.get(root) ?? { store: new MemoryRunStore(), journals: new Map<string, RunEntry[]>() };
   hosts.set(root, host);
@@ -24,11 +24,9 @@ export function hostOf(root: string): MemoryHost {
 
 /** The ports of one run, and what the run told through them. */
 export interface Plugged {
-  readonly ports: Pick<RunOptions, "journal" | "print" | "openInbox" | "store">;
+  readonly ports: Pick<RunOptions, "journal" | "openInbox" | "store">;
   /** The journal, as a person reads it. */
   readonly err: string;
-  /** The summary. */
-  readonly out: string;
 }
 
 /**
@@ -38,19 +36,14 @@ export interface Plugged {
 export function plugged(root: string): Plugged {
   const host = hostOf(root);
   const journal = new MemoryJournal(host.journals);
-  let out = "";
   return {
     ports: {
       journal,
-      print: (line) => (out += line),
       openInbox: () => ({ pending: () => [], heard: () => [], delivered: () => undefined }),
       store: host.store,
     },
     get err() {
       return journal.lines;
-    },
-    get out() {
-      return out;
     },
   };
 }
@@ -59,7 +52,6 @@ export interface Ran {
   readonly code: number;
   readonly root: string;
   readonly err: string;
-  readonly out: string;
   readonly server: ScriptedServer;
   readonly runner: FakeRunner;
 }
@@ -75,8 +67,6 @@ export async function ran(
     modelUrl?: string;
     now?: () => Date;
     brief?: string;
-    resume?: string;
-    force?: boolean;
     follow?: (line: TraceLine) => void;
   } = {},
 ): Promise<Ran> {
@@ -91,8 +81,6 @@ export async function ran(
       repositoryRoot: root,
       ...(setup.environment === undefined ? {} : { environment: setup.environment }),
       ...(setup.brief === undefined ? {} : { brief: setup.brief }),
-      ...(setup.resume === undefined ? {} : { resume: setup.resume }),
-      ...(setup.force === undefined ? {} : { force: setup.force }),
       ...(setup.follow === undefined ? {} : { follow: setup.follow }),
       env: { SHOP_DB_URL: WITNESS },
       ...host.ports,
@@ -100,7 +88,7 @@ export async function ran(
       runner,
       now: setup.now ?? (() => new Date("2026-11-13T12:00:00.000Z")),
     }).run();
-    return { code, root, err: host.err, out: host.out, server, runner };
+    return { code, root, err: host.err, server, runner };
   } finally {
     await server.close();
   }

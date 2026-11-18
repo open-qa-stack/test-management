@@ -112,6 +112,17 @@
   background: var(--primary);
 }
 
+/* What cannot be undone: in the tone of a failure, outlined rather than filled, so that it does not call to be pressed. */
+.btn.danger {
+  border-color: var(--ko-line);
+  background: var(--surface);
+  color: var(--ko);
+}
+
+.btn.danger:hover {
+  background: var(--ko-soft);
+}
+
 .btn.ghost {
   border-color: transparent;
   background: transparent;

@@ -38,7 +38,7 @@ describe("the wording of a problem", () => {
       "Aucune source de sessions n’est configurée sur cette instance.",
       "La session n’a pas pu être ouverte.",
       "L’ouverture de la session a pris trop de temps : réessayez dans un instant.",
-      "La session vient de se terminer : elle ne prend plus de message.",
+      "La session vient de se terminer : elle ne prend plus ni message ni arrêt.",
     ]);
     assert.equal(problemText("unavailable", undefined), wordings[3]);
   });

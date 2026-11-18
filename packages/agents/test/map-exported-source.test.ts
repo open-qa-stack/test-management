@@ -53,14 +53,13 @@ afterAll(() => {
 });
 
 /** Maps a source, of two tables by default, into the given folder. */
-async function mapped(folder: SourceFolder, elements: readonly ExportedElement[] = TWO, model: AgentRuntime = runtime, force = false) {
+async function mapped(folder: SourceFolder, elements: readonly ExportedElement[] = TWO, model: AgentRuntime = runtime) {
   const journal = new Journal();
   const outcome = await mapExportedSource({
     source: { id: "shop-db", type: "postgresql" },
     exported: { elements, fingerprint: "sha256:1" },
     partial: false,
     notes: [],
-    force,
     folder,
     runtime: model,
     limits: { maxIterations: 5, maxDurationMs: null, maxActions: null },
@@ -181,10 +180,9 @@ describe("the workflow of a source an earlier run mapped", () => {
     assert.deepEqual([retried.outcome.manifest.domains[0]!.writtenBy, retried.outcome.usage.requests], ["model", 1]);
   });
 
-  it("maps everything again when told to, and when the manifest left cannot be read", async () => {
+  it("maps everything again when the manifest left cannot be read", async () => {
     const folder = new SourceFolder(join(workspace, "forced"), []);
     await mapped(folder);
-    assert.equal((await mapped(folder, TWO, runtime, true)).outcome.usage.requests, 2);
     writeFileSync(join(folder.root, "manifest.json"), "{ not json");
     assert.equal((await mapped(folder)).outcome.usage.requests, 2);
     writeFileSync(join(folder.root, "manifest.json"), JSON.stringify({ formatVersion: 99 }));

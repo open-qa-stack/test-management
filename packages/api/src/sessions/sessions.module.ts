@@ -26,18 +26,9 @@ import { StreamPace } from "./stream-pace.ts";
     {
       provide: Sessions,
       inject: [SessionStore, ApiConfiguration, RunEnvironment],
-      useFactory: (store: SessionStore, { repository }: ApiConfiguration, { env, runner, writerPace, pace }: RunEnvironment) =>
-        new Sessions({
-          store,
-          repository,
-          // The API stays: it takes over the sessions that wait for a host that died.
-          takesOver: true,
-          env,
-          logger: new Logger("Sessions"),
-          ...(runner === undefined ? {} : { runner }),
-          ...(writerPace === undefined ? {} : { writerPace }),
-          ...(pace === undefined ? {} : { pace }),
-        }),
+      useFactory: (store: SessionStore, { repository }: ApiConfiguration, { runs }: RunEnvironment) =>
+        // The API stays: it takes over the sessions that wait for a host that died.
+        new Sessions({ ...runs, store, repository, takesOver: true, logger: new Logger("Sessions") }),
     },
   ],
 })

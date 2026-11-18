@@ -11,6 +11,8 @@ import { openedLookOf, withoutLook } from "./opened-look.ts";
 import { durationText, openingText, stateOf, waitText } from "./session-facts.ts";
 import { passesOf, type ThreadFilter } from "./playback.ts";
 import type { Speaker } from "./session-script.ts";
+import { StopConfirmation } from "./stop-confirmation.tsx";
+import { asksToStop, STOP_CONTROL_ID, withoutStop, withStop } from "./stop-request.ts";
 import { Thread } from "./thread.tsx";
 
 /** What the screen of a session needs. */
@@ -45,13 +47,32 @@ function factsOf(live: LiveSession): string[] {
   ];
 }
 
-/** The bar of a session that is followed: its state, its facts, and the replay it offers. */
-function FollowBar({ live }: { readonly live: LiveSession }): ReactNode {
+/**
+ * What the bar of a session that goes on holds about its stop: the link to its confirmation or, once the
+ * instance took the request, the word that it was asked — the session goes on until the process that runs it obeyed.
+ */
+function StopControl({ route, live }: { readonly route: Route; readonly live: LiveSession }): ReactNode {
+  if (live.stopping.state === "asked")
+    return (
+      <span id={STOP_CONTROL_ID} className="session-stopping" role="status" tabIndex={-1}>
+        arrêt demandé…
+      </span>
+    );
+  return (
+    <a id={STOP_CONTROL_ID} className="btn ghost sm" href={withStop(route)}>
+      <Icon name="stop" /> Arrêter
+    </a>
+  );
+}
+
+/** The bar of a session that is followed: its state, its facts, the way to stop it while it goes on, and the replay it offers. */
+function FollowBar({ route, live }: { readonly route: Route; readonly live: LiveSession }): ReactNode {
   const state = stateOf(live.session);
   return (
     <div className="session-bar">
       <Badge tone={state.tone}>{state.label}</Badge>
       <span className="session-facts">{live.stream === "reconnecting" ? "connexion au flux interrompue, nouvelle tentative…" : factsOf(live).join(" · ")}</span>
+      {live.script.stage !== "ended" && <StopControl route={route} live={live} />}
       <button type="button" className="btn ghost sm" onClick={live.controls.restart} disabled={live.script.steps.length === 0}>
         <Icon name="restart" /> Rejouer
       </button>
@@ -97,7 +118,8 @@ function ReplayBar({ live }: { readonly live: LiveSession }): ReactNode {
 
 /**
  * A session: its thread alone, followed as the agents work or replayed, over the composer of a message to the
- * agents until the session ended: one sent while it waits its turn is delivered when its agents start. What an agent had before its eyes
+ * agents until the session ended: one sent while it waits its turn is delivered when its agents start. Until
+ * then its bar offers to stop it, behind a confirmation the address opens (`?stop=ask`). What an agent had before its eyes
  * when it acted opens in a panel, from the eye of that action: the address names the action (`?look=6`).
  *
  * @param props - The route, the session and the project.
@@ -113,7 +135,10 @@ export function SessionScreen({ route, live, project }: SessionScreenProps): Rea
   return (
     <Page crumbs={[{ label: project }, { label: "Agent", href: hrefTo("/agent") }, { label: script.title }]} title={script.title}>
       <div className="session">
-        {playback.following ? <FollowBar live={live} /> : <ReplayBar live={live} />}
+        {playback.following ? <FollowBar route={route} live={live} /> : <ReplayBar live={live} />}
+        {asksToStop(route) && script.stage !== "ended" && live.stopping.state !== "asked" && (
+          <StopConfirmation stopping={live.stopping} cancel={withoutStop(route)} onStop={live.controls.stop} />
+        )}
         <div className="pass-stepper" aria-label="Passes de la session">
           {passesOf(script, frame).map((pass, index, passes) => (
             <span key={index} className="pass-step">

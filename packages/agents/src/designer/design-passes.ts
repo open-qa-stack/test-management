@@ -17,8 +17,7 @@ export type DesignRun = (options: DesignerOptions) => Promise<DesignOutcome>;
  * Each pass commits its tests before the next one starts, on a branch made from that of the pass before: the
  * agent that plans a level is told the tests the levels below it gave, and a scenario one of them covers is
  * set aside, so that a level builds on those below instead of writing them again. A pass a limit cut short
- * stops the passes: its design is the one a run resumes. A design resumed is one pass; with a single plan, the
- * levels are one pass, and the visual tests another.
+ * stops the passes. With a single plan, the levels are one pass, and the visual tests another.
  */
 export class DesignPasses {
   readonly #options: DesignerOptions;
@@ -41,11 +40,10 @@ export class DesignPasses {
    * Runs the passes.
    *
    * @returns What they gave together: the tests of each, in the order of the passes, the branch the last tests
-   * were written on, and the state of the last pass that wrote one, which is the one to resume.
+   * were written on, and the state of the last pass that wrote one.
    */
   public async run(): Promise<DesignOutcome> {
     const { levels: asked = [], visual, ...rest } = this.#options;
-    if (rest.resume !== undefined) return this.#design(this.#options);
     const levels = PYRAMID.filter((level) => asked.includes(level));
     // By level, each level is a pass; in a single plan, all of them are one. The visual tests come last, in a pass of their own:
     // their agent builds on every test the others gave.

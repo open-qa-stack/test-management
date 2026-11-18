@@ -12,9 +12,10 @@ import { Logger } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
 import { AppModule } from "../src/app.module.ts";
+import { layOut } from "../src/api-layout.ts";
 import { ApiConfiguration } from "../src/config/api-configuration.ts";
 import { HealthService } from "../src/health/health.service.ts";
-import { startApi } from "../src/start-api.ts";
+import { apiFrom } from "./support/started-api.ts";
 import { CapturedLogger } from "./support/captured-logger.ts";
 import { childEnvironment } from "./support/environment.ts";
 
@@ -56,7 +57,9 @@ async function fixtureApi(url: string): Promise<{ app: NestFastifyApplication; p
     .overrideProvider(InstanceDatabase)
     .useValue(new InstanceDatabase(configuration.database, new Logger("Database"), FIXTURE_MIGRATIONS))
     .compile();
-  return { app: module.createNestApplication<NestFastifyApplication>(new FastifyAdapter(), { logger: false }), port };
+  const app = module.createNestApplication<NestFastifyApplication>(new FastifyAdapter(), { logger: false });
+  await layOut(app, configuration.console);
+  return { app, port };
 }
 
 describe("the migration command", () => {
@@ -135,7 +138,7 @@ describe("pending migrations", () => {
         message: "The database schema is not up to date: 1 migration is pending. Apply them with the migration command, then start again.",
       });
       await app.close();
-      await assert.rejects(fetch(`http://127.0.0.1:${port}/health`));
+      await assert.rejects(fetch(`http://127.0.0.1:${port}/api/health`));
       assert.equal(
         new PendingMigrationsError(2).message,
         "The database schema is not up to date: 2 migrations are pending. Apply them with the migration command, then start again.",
@@ -153,7 +156,7 @@ describe("pending migrations", () => {
       const { app, port } = await fixtureApi(fresh.url);
       await app.listen(port, "127.0.0.1");
       try {
-        const ready = await fetch(`http://127.0.0.1:${port}/health/ready`);
+        const ready = await fetch(`http://127.0.0.1:${port}/api/health/ready`);
         assert.deepEqual([ready.status, await ready.json()], [200, { status: "ready", checks: { database: "up" } }]);
         assert.equal(await new SchemaMigrations(db, FIXTURE_MIGRATIONS).pending(), 0);
       } finally {
@@ -175,10 +178,7 @@ describe("pending migrations", () => {
       assert.equal(migrate.code, 1);
       assert.match(migrate.err, /column "name"/);
       const port = await closedPort();
-      await assert.rejects(
-        startApi({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port), OQAS_DATABASE_URL: fresh.url }, { logger: false }),
-        /column "name" does not exist/,
-      );
+      await assert.rejects(apiFrom({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port), OQAS_DATABASE_URL: fresh.url }), /column "name" does not exist/);
     } finally {
       await db.close();
       await fresh.drop();

@@ -228,7 +228,7 @@ describe("faster cartography", () => {
       assert.ok(usages(lines).every(([, , requests, input]) => requests === 0 && input === undefined));
     });
 
-    it("makes the index again when it is truncated, of another environment, unreadable, recorded no fingerprint, or force is set", async () => {
+    it("makes the index again when it is truncated, of another environment, unreadable, or recorded no fingerprint", async () => {
       const stale: readonly [(root: string) => unknown, string][] = [
         [
           (root) => ({ ...index(root), status: "truncated", sources: [...sources(ALL.slice(0, 3))(root), { id: "shop", type: "web", state: "not_read" }] }),
@@ -247,10 +247,6 @@ describe("faster cartography", () => {
         assert.equal(outcome.index!.producedAt, "2026-11-13T10:00:00.000Z", reason);
         assert.ok(messages(outcome).includes(`The index is made: ${reason}.`), messages(outcome));
       }
-      const silent = Array.from({ length: 16 }, () => ({ body: answer(MODEL, "Nothing to say.") }));
-      const forced = await cartography(silent, { force: true, prepare: written((made) => index(made)) });
-      assert.ok(forced.server.requests.length > 0);
-      assert.match(messages(forced.outcome), /The index is made: force is set\./);
     });
   });
 

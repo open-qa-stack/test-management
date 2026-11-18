@@ -1,6 +1,6 @@
 # Running the API
 
-`@open-qa-stack/api` is the back end of an instance: a NestJS application on the Fastify adapter. It keeps its state in one database, described in [the database](../../store/docs/database.md): a SQLite file in its test repository unless it is given another. It needs nothing installed beside it: no database server, identity provider, secret manager or cache. SQLite comes with the dependencies, as [a native module whose binaries are in its package](../../store/docs/database.md#sqlite). It is the process of an instance that stays: it serves the sessions, and runs those it is asked for with [the engine](../../engine/docs/engine.md), one at a time, in the test repository it is given. [The `oqas` command](../../cli/docs/solo-command.md), run on the same test repository, reaches the same database: the API serves the sessions a terminal opened, and a terminal reads, follows, speaks to and interrupts those the API runs.
+`@open-qa-stack/api` is the back end of an instance: a NestJS application on the Fastify adapter. It keeps its state in one database, described in [the database](../../store/docs/database.md): a SQLite file in its test repository unless it is given another. It needs nothing installed beside it: no database server, identity provider, secret manager or cache. SQLite comes with the dependencies, as [a native module whose binaries are in its package](../../store/docs/database.md#sqlite). It is the process of an instance that stays: it serves the sessions under `/api`, and [the console](#the-console) beside them when it is given one, and runs those it is asked for with [the engine](../../engine/docs/engine.md), one at a time, in the test repository it is given. [The `oqas` command](../../cli/docs/solo-command.md), run on the same test repository, reaches the same database: the API serves the sessions a terminal opened, and a terminal reads, follows, speaks to and interrupts those the API runs.
 
 ```sh
 pnpm --filter @open-qa-stack/api build
@@ -25,11 +25,14 @@ The API reads its configuration once, at startup, from environment variables onl
 | `OQAS_PORT` | an integer from 1 to 65535 | yes | no | | `8080` | The TCP port the API listens on. |
 | `OQAS_DATABASE_URL` | a database URL: postgres:// or postgresql:// with a host name for a PostgreSQL server, or sqlite: followed by the path of a file | no | yes | | `postgres://oqas:change-me@127.0.0.1:5432/oqas` | The connection URL of the database of the instance, to keep it elsewhere than in the test repository. Without it, the database is a SQLite file in the state folder of the test repository. |
 | `OQAS_REPOSITORY` | the absolute path of a folder that holds oqas.json | no | no | | `/srv/tests` | The test repository the sessions run in. Without it, the API serves the sessions it holds and opens none. |
+| `OQAS_CONSOLE` | the absolute path of a folder that holds index.html | no | no | | `/srv/console` | The built console, which the API then serves on its own address, beside its routes. Without it, the API serves its routes alone. |
 
 The database is a setting, and has a default:
 
 - **Without `OQAS_DATABASE_URL`**, the database is a SQLite file, `oqas.db`, in the state folder of the test repository — `.oqas`, unless `oqas.json` names another under `repository.stateDir`. The API makes the folder and the file when they are missing; there is nothing to install and nothing to prepare. `oqas --init` has git ignore the file.
 - **With `OQAS_DATABASE_URL`**, the database is the one the URL names: a PostgreSQL server, `postgres://…`, or a SQLite file kept elsewhere, `sqlite:<path>`. Everything the API does is the same on both; [the database](../../store/docs/database.md#one-schema-two-databases) says what each is for.
+
+`OQAS_CONSOLE` names the folder of [the built console](#the-console), which the API then serves on its own address.
 
 One of `OQAS_DATABASE_URL` and `OQAS_REPOSITORY` must be set: the API refuses to start with neither, in a message that names both.
 
@@ -69,7 +72,7 @@ On a server, pending migrations are checked before the API listens, and by the r
 
 ## Health
 
-`GET /health` answers as long as the process serves requests, without authentication:
+`GET /api/health` answers as long as the process serves requests, without authentication:
 
 ```http
 HTTP/1.1 200 OK
@@ -86,7 +89,7 @@ The route reveals neither the configuration, nor the versions of the dependencie
 
 ## Readiness
 
-`GET /health/ready` tells whether the instance can serve, without authentication. It answers `200` when the database answers and has applied every migration, and `503` otherwise; the process keeps answering in both cases.
+`GET /api/health/ready` tells whether the instance can serve, without authentication. It answers `200` when the database answers and has applied every migration, and `503` otherwise; the process keeps answering in both cases.
 
 ```http
 HTTP/1.1 503 Service Unavailable
@@ -107,6 +110,32 @@ With a SQLite file, the route says little more than the health route: the API do
 ## Errors
 
 Every answer that is not a success is a problem, as RFC 9457 describes one, served as `application/problem+json`: a route that does not exist, a body the API cannot read and a failure of the API included. The readiness route alone answers `503` with the body above. A failure of the API is answered `500` without its message, which is logged. The body and its codes are described in [the problems](sessions.md#problems).
+
+## The console
+
+The API serves its routes under `/api`, and nothing else there: a path under `/api` that is no route is answered with a problem, never with a page. Given the folder of a built console — `apps/web/dist` once `pnpm --filter @open-qa-stack/web build` ran — in `OQAS_CONSOLE`, it serves the console everywhere else, on the same address, so that the console reaches its instance on its own origin with no proxy between them:
+
+- a path that names a file of the build is answered with that file, under the media type of its extension, with an `ETag` a browser asks again with. The files under `assets/`, which bear a hash of their content in their name, are kept for a year, `immutable`; any other, `index.html` first, is `no-cache`: a new build is seen at the next visit;
+- a path that names no file and does not read as one — a route of the console — is answered with `index.html`; one that reads as a file, with an extension, is a route that does not exist;
+- nothing out of the folder, and no file whose name starts with a dot, is ever served.
+
+The folder is served by [`@fastify/static`](https://github.com/fastify/fastify-static), which lists its files when the API starts: a console built again is served once the API is started again. Without `OQAS_CONSOLE` the API serves its routes alone, and a reverse proxy that serves the console from elsewhere sends what is under `/api` to the API as it is, without rewriting the path. [`oqas --ui`](../../cli/docs/solo-command.md#the-console) starts this same application in the process of the command, on this machine.
+
+The API asks nobody who they are: whoever reaches its address reads the sessions, opens one and stops one. Keep it on a network you trust, or behind what authenticates for it.
+
+## Starting the API from a program
+
+The package has one entry, `startApi`, which its own program and the `oqas` command both call:
+
+```ts
+import { startApi } from "@open-qa-stack/api";
+
+const api = await startApi({ host: "127.0.0.1", port: 0, database, repository, console, runs: { env } });
+console.log(api.url);
+await api.close();
+```
+
+It takes everything the API is started with as settings, and reads nothing else — the environment of the process included: the program of the package gives it what it read from its variables, a command what it read from its arguments. `port` `0` listens on any free port, which `url` tells. `signals` names the signals that close the API and end the process; without it, whoever started the API closes it. `logger` says where it logs. `runs` is what the runs of its sessions work with, the environment the configuration of the test repository reads its secrets from first.
 
 ## Sessions
 

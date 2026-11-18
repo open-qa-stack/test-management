@@ -114,11 +114,30 @@ describe("the client of the API", () => {
     ]);
   });
 
+  it("asks to interrupt a session by a post without a body under its identifier, encoded, and reads nothing of the answer", async () => {
+    const { client, calls } = clientOf(() => new Response(null, { status: 202 }));
+    assert.equal(await client.interrupt("a/b"), undefined);
+    assert.deepEqual(calls, [["/api/sessions/a%2Fb/interruption", { method: "POST" }]]);
+    const ended = clientOf(() => problem("session_ended", 409));
+    assert.deepEqual(await failureOf(ended.client.interrupt("oqas-1")), {
+      message: "La session vient de se terminer : elle ne prend plus ni message ni arrêt.",
+      status: 409,
+      code: "session_ended",
+    });
+    const down = clientOf(() => {
+      throw new TypeError("Failed to fetch");
+    });
+    assert.deepEqual(await failureOf(down.client.interrupt("oqas-1")), { message: "L’instance ne répond pas.", status: 0, code: "unreachable" });
+  });
+
   it("says a session that just ended takes no more message", async () => {
     const { client } = clientOf(() => problem("session_ended", 409));
     await assert.rejects(client.say("oqas-1", { text: "sans le profil" }), (error: unknown) => {
       assert.ok(error instanceof ApiError);
-      assert.deepEqual([error.message, error.status, error.code], ["La session vient de se terminer : elle ne prend plus de message.", 409, "session_ended"]);
+      assert.deepEqual(
+        [error.message, error.status, error.code],
+        ["La session vient de se terminer : elle ne prend plus ni message ni arrêt.", 409, "session_ended"],
+      );
       return true;
     });
   });

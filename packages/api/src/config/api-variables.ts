@@ -1,4 +1,4 @@
-import { databaseUrl, nonEmptyText, portNumber, testRepository } from "./value-type.ts";
+import { builtConsole, databaseUrl, nonEmptyText, portNumber, testRepository } from "./value-type.ts";
 import { DATABASE_URL_VARIABLE, type DatabaseUrl } from "@open-qa-stack/store";
 import type { EnvironmentVariable } from "./environment-variable.ts";
 
@@ -47,4 +47,12 @@ export const API_VARIABLES = {
     example: "8080",
   } satisfies EnvironmentVariable<number>,
   ...DATABASE_VARIABLES,
+  console: {
+    name: "OQAS_CONSOLE",
+    description: "The built console, which the API then serves on its own address, beside its routes. Without it, the API serves its routes alone.",
+    type: builtConsole,
+    secret: false,
+    optional: true,
+    example: "/srv/console",
+  } satisfies EnvironmentVariable<string>,
 } as const;

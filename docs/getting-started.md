@@ -46,25 +46,21 @@ oqas stop 9f3a1c2b
 
 ## Watch the agents work
 
-The command line alone needs nothing more. To watch the agents instead of reading their lines, and to ask for tests from a browser, run a server on the same machine, and the console. There is no database to install: the server uses the file the command line does, `.oqas/oqas.db` in the state folder of your test repository, and so shows the sessions you opened from a terminal, as a terminal shows those opened from the console.
-
-Start the server with its test repository, and the console, each in a terminal of its own, from the clone:
+The command line alone needs nothing more. To watch the agents instead of reading their lines, and to ask for tests from a browser, serve the console of your test repository:
 
 ```sh
+pnpm --dir <clone> build      # once: builds the console
 export OQAS_MODEL_API_KEY=…   # the variable oqas.json names for the key of the model
-pnpm --filter @open-qa-stack/api build
-OQAS_HOST=127.0.0.1 OQAS_PORT=8080 OQAS_REPOSITORY=<test repository> pnpm --filter @open-qa-stack/api start
+oqas --ui
 ```
 
-```sh
-pnpm --filter @open-qa-stack/web dev
-```
+Open the address it prints, `http://127.0.0.1:6727`, and write what to test. There is no database to install and no server to start beside it: the command serves the console itself, on the file the other commands use, `.oqas/oqas.db` in the state folder of your test repository, and so shows the sessions you opened from a terminal, as a terminal shows those opened from the console.
 
-Open the address the console prints, and write what to test. The request is a session: the server runs it in your test repository as `oqas --brief` does, and its thread fills while the agents work — what each of them thinks, does and hands in, and every refusal of the harness. A message written under the thread reaches the agent at work, and a session can be interrupted. The tests are written on a new local branch, as with the command line, and nothing is pushed.
+The request is a session: the command runs it in your test repository as `oqas --brief` does, and its thread fills while the agents work — what each of them thinks, does and hands in, and every refusal of the harness. A message written under the thread reaches the agent at work, and a session can be stopped from its bar. The tests are written on a new local branch, as with the command line, and nothing is pushed. Ctrl-C stops the console.
 
-The server runs the sessions opened through it one at a time: the next one waits its turn. A session opened with `oqas --brief` runs in its terminal; run one at a time on a test repository. `<test repository>` is an absolute path; without `OQAS_REPOSITORY` the server only shows the sessions it holds. [Running the API](../packages/api/docs/running.md) says how it is configured and how it stops, [sessions](../packages/api/docs/sessions.md) what it serves, and [the database](../packages/store/docs/database.md) what the instance keeps.
+The console runs the sessions opened through it one at a time: the next one waits its turn. A session opened with `oqas --brief` runs in its terminal; run one at a time on a test repository. It listens on your machine alone, and asks nobody who they are: [the command](../packages/cli/docs/solo-command.md#the-console) says what it serves, on which port, and how it stops.
 
-An instance that several people share can keep its database on a PostgreSQL server instead: give the server its URL in `OQAS_DATABASE_URL`, and nothing else changes. [The database](../packages/store/docs/database.md#one-schema-two-databases) says how.
+An instance that several people share is a server that stays, [the API](../packages/api/docs/running.md), which serves the same console and can keep its database on a PostgreSQL server: [the database](../packages/store/docs/database.md#one-schema-two-databases) says how.
 
 ## What the repository holds afterwards
 

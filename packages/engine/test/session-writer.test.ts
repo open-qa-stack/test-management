@@ -13,7 +13,6 @@ const AT = "2026-11-16T08:00:00.000Z";
 const RESULT: SessionResult = { outcome: "passed", durationMs: 1000, modelRequests: 2, tests: [] };
 const note = (text: string): UnrankedEvent => ({ at: AT, type: "note", phase: "plan", text });
 const delivery = (message: number): UnrankedEvent => ({ at: AT, type: "message_delivered", message, agent: "planner" });
-const words = (text: string, number?: number): UnrankedEvent => ({ at: AT, type: "user_message", text, ...(number === undefined ? {} : { number }) });
 
 let store: ScriptedStore;
 let logger: RecordingLogger;
@@ -60,13 +59,6 @@ describe("what a run tells of its session", () => {
     await writer.end(undefined);
     assert.deepEqual(appended(), [["One."], ["Two.", "Three."]]);
     assert.deepEqual(store.sent.at(-1), ["interrupt", "s1"]);
-  });
-
-  it("leaves out what the run repeats of the words of the person, which the store told when it took them", async () => {
-    writer.tell([words("cover the profile"), note("One."), words("only what a customer sees", 1)]);
-    writer.tell([words("again")]);
-    await writer.end(RESULT);
-    assert.deepEqual(appended(), [["One."]]);
   });
 
   it("marks a message delivered with the command of the store that tells it, between the events told before and after it", async () => {

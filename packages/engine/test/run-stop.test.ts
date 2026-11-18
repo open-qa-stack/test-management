@@ -5,7 +5,7 @@ import type { AgentEvent, AgentRuntime, RunEntry, SessionOptions } from "@open-q
 import { liveRuntime, Run } from "../src/index.ts";
 import { RunStoppedError } from "../src/runtime/run-stopped-error.ts";
 import { StoppableRuntime } from "../src/runtime/stoppable-runtime.ts";
-import { chain, configText, FakeRunner, FIRST_RUN, plugged, repository, stateOf, WITNESS } from "./run-support.ts";
+import { chain, configText, FakeRunner, plugged, repository, stateOf, WITNESS } from "./run-support.ts";
 import { held } from "./support/held.ts";
 
 /**
@@ -39,7 +39,7 @@ async function stopped(stopAt: (entry: RunEntry) => boolean, replies: Parameters
       now: () => new Date("2026-11-13T12:00:00.000Z"),
       stop: stop.signal,
     }).run();
-    return { code, root, err: host.err, out: host.out, server, runner };
+    return { code, root, err: host.err, server, runner };
   } finally {
     await server.close();
   }
@@ -50,7 +50,7 @@ const ends = (step: string) => (entry: RunEntry) => entry.step === step && entry
 
 describe("a run its host asks to stop", () => {
   it("starts no step of its chain once the stop is asked, tells so, and goes to its summary: it ends as a run a step stopped", async () => {
-    const { code, root, err, out, server } = await stopped(ends("prerequisites"));
+    const { code, root, err, server } = await stopped(ends("prerequisites"));
     assert.equal(code, 5);
     assert.match(err, /\[cartography\] The run was asked to stop: the cartography does not start\./);
     assert.doesNotMatch(err, /The cartography starts|design|execution/);
@@ -58,7 +58,6 @@ describe("a run its host asks to stop", () => {
     assert.equal(server.requests.length, 1, "the model was only checked");
     const state = stateOf(root);
     assert.deepEqual([state.exitCode, state.stoppedBy, state.steps.map(({ step }) => step)], [5, undefined, ["configuration", "prerequisites"]]);
-    assert.match(out, new RegExp(`^Run ${FIRST_RUN}: exit code 5\\.`));
   });
 
   it("does not design once its cartography is over, nor run the tests its design gave", async () => {

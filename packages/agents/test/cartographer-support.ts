@@ -117,8 +117,6 @@ export interface Setup {
   readonly cards?: readonly string[];
   /** Receives each line of the trace as it is written. */
   readonly observe?: (line: TraceLine) => void;
-  /** Maps every source again, and makes the index again. */
-  readonly force?: boolean;
   /** Changes the repository once its cards are written, before the run. */
   readonly prepare?: (root: string) => void;
   /** The inbox of the run the cartography is of, when a person may speak to it. */
@@ -341,7 +339,6 @@ export async function cartography(
       ...(setup.realDatabase === true ? {} : { sqlClient: () => database }),
       ...(setup.autonomous === true ? {} : { now: () => new Date("2026-11-13T10:00:00.000Z") }),
       ...(setup.observe === undefined ? {} : { observe: setup.observe }),
-      ...(setup.force === undefined ? {} : { force: setup.force }),
       ...(setup.inbox === undefined ? {} : { inbox: setup.inbox }),
     });
     return { outcome: await cartographer.run(), server, root, database, before };

@@ -76,7 +76,19 @@ export class ApiClient {
     return this.#ask<MessageReceipt>(`/sessions/${encodeURIComponent(id)}/messages`, posting(message));
   }
 
-  async #ask<T>(path: string, init?: RequestInit): Promise<T> {
+  /**
+   * Asks the instance to interrupt a session that goes on. The instance takes the request and answers at
+   * once: the session ends when the process that runs it obeyed, which its stream tells.
+   *
+   * @param id - The identifier of the session.
+   * @returns Once the request is taken; the failure carries the code `session_ended` when the session no longer goes on.
+   */
+  public async interrupt(id: string): Promise<void> {
+    await this.#answer(`/sessions/${encodeURIComponent(id)}/interruption`, { method: "POST" });
+  }
+
+  /** The answer of the instance to a call, once it is a success. */
+  async #answer(path: string, init?: RequestInit): Promise<Response> {
     let response: Response;
     try {
       response = await this.#fetch(`${API_BASE}${path}`, init);
@@ -84,6 +96,11 @@ export class ApiClient {
       throw new ApiError("L’instance ne répond pas.", 0, "unreachable");
     }
     if (!response.ok) throw await failureOf(response);
+    return response;
+  }
+
+  async #ask<T>(path: string, init?: RequestInit): Promise<T> {
+    const response = await this.#answer(path, init);
     try {
       return (await response.json()) as T;
     } catch {

@@ -40,7 +40,7 @@ import { IndexMap, type WrittenSource } from "./index-map.ts";
 import { CodeReviewer } from "../code-reviewer/code-reviewer.ts";
 import { CoherenceReviewer } from "../coherence-reviewer/coherence-reviewer.ts";
 import { PlanReviewer } from "../plan-reviewer/plan-reviewer.ts";
-import { PLAN_FILE_SUFFIX, planFileText, readPlanFile, type PlanRecord } from "./plan-file.ts";
+import { PLAN_FILE_SUFFIX, planFileText, type PlanRecord } from "./plan-file.ts";
 import { PlanProposal } from "./plan-proposal.ts";
 import { PLANNER_INSTRUCTIONS, planRequest } from "./planner-prompt.ts";
 import { sessionTools, type SessionTools } from "./session-tools.ts";
@@ -97,11 +97,6 @@ export interface DesignerOptions {
   readonly screenshots?: boolean;
   /** Name of the branch to create; `oqas/design-<date>` by default. */
   readonly branch?: string;
-  /**
-   * A design a limit stopped: its state, relative to the test repository, and its branch once it holds a
-   * test. The design writes the scenarios of its plan that are not closed, without another plan, on its branch, and updates its state.
-   */
-  readonly resume?: { readonly state: string; readonly branch?: string };
   /** How the browser starts and waits; a headless Chromium with the default waits otherwise. */
   readonly browser?: Pick<BrowserAccess, "launch" | "actionTimeoutMs" | "navigationTimeoutMs" | "settleTimeoutMs">;
   /** Receives each line of the trace as it is written, to follow the design while it runs. */
@@ -124,7 +119,7 @@ export interface DesignOutcome {
   readonly planPath?: string;
   /** What the brief asks and the accepted plan leaves out, because the application does not allow it; none when the plan covers the brief, or without a plan. */
   readonly uncovered?: readonly UncoveredRequest[];
-  /** The test of each scenario closed, in the order of the plan, those of the design resumed first. */
+  /** The test of each scenario closed, in the order of the plan. */
   readonly tests: readonly DesignedTest[];
   /** What the run checked, refused and wrote. */
   readonly journal: readonly JournalEntry[];
@@ -213,20 +208,12 @@ export class Designer {
     const now = this.options.now ?? (() => new Date());
     const start = now();
     const id = `design-${start.toISOString().replace(/[-:]|\.\d+/g, "")}`;
-    const { resume } = this.options;
     const repository = new TestRepository(repositoryRoot);
-    const created = this.options.branch ?? `${BRANCH_PREFIX}${id}`;
-    const problems = await repository.problems(resume === undefined ? created : undefined, [config.repository.stateDir, config.repository.indexDir]);
+    const branch = this.options.branch ?? `${BRANCH_PREFIX}${id}`;
+    const problems = await repository.problems(branch, [config.repository.stateDir, config.repository.indexDir]);
     for (const problem of problems) journal.record("error", problem);
-    if (problems.length > 0) return failed(resume === undefined ? "No branch was created and no file was written." : "The design was not resumed.");
-    // The state of a design that holds a test may be committed on its branch only.
-    if (resume?.branch !== undefined && (await repository.hasBranch(resume.branch))) await repository.switchTo(resume.branch);
-    const resumed = await this.previous();
-    if (typeof resumed === "string") return failed(resumed);
-    const previous = resumed?.state;
-    const frozen = resumed === undefined ? undefined : { scenarios: resumed.plan.scenarios };
-    const branch = previous?.branch ?? created;
-    const brief = previous === undefined ? this.options.brief : previous.brief;
+    if (problems.length > 0) return failed("No branch was created and no file was written.");
+    const { brief } = this.options;
     const index = await this.index();
     if (typeof index === "string") return failed(`No test was designed: ${index}`);
 
@@ -296,53 +283,50 @@ export class Designer {
     let committed = false;
     // A session that throws leaves its phase ended as failed.
     try {
-      let planned: TestPlan | undefined = frozen;
-      if (planned === undefined) {
-        const session = sessionTools(scope);
-        const levels = this.options.levels ?? DEFAULT_LEVELS;
-        // What the repository already tests: the agent that plans reads it, and a scenario one of these tests covers is set aside.
-        const present = await existingTests(repositoryRoot, config.repository.appsDir);
-        const paths = present.map((test) => test.path);
-        const existing = await coveringTests(repositoryRoot, config.repository.stateDir, paths);
-        const plan = new PlanProposal(
-          {
-            sources: owners,
-            applications: applications.map((application) => application.id),
-            domains: index.domains.map((domain) => domain.id),
-            levels,
-            secrets: declaredSecrets(config, env),
-            addresses: declaredAddresses(config),
-            screens: session.screens,
-            reads: session.reads,
-            review: this.options.planReview ?? ACCEPT_EVERY_PLAN,
-            ...(this.options.reviewPlan === true ? { judge: new PlanReviewer(reviewed) } : {}),
-            existing,
-            ...(this.options.visual === true ? { visual: true, uncompared: uncomparedScreens(existing) } : {}),
-            now,
-          },
-          journal,
+      const session = sessionTools(scope);
+      const levels = this.options.levels ?? DEFAULT_LEVELS;
+      // What the repository already tests: the agent that plans reads it, and a scenario one of these tests covers is set aside.
+      const present = await existingTests(repositoryRoot, config.repository.appsDir);
+      const paths = present.map((test) => test.path);
+      const existing = await coveringTests(repositoryRoot, config.repository.stateDir, paths);
+      const plan = new PlanProposal(
+        {
+          sources: owners,
+          applications: applications.map((application) => application.id),
+          domains: index.domains.map((domain) => domain.id),
+          levels,
+          secrets: declaredSecrets(config, env),
+          addresses: declaredAddresses(config),
+          screens: session.screens,
+          reads: session.reads,
+          review: this.options.planReview ?? ACCEPT_EVERY_PLAN,
+          ...(this.options.reviewPlan === true ? { judge: new PlanReviewer(reviewed) } : {}),
+          existing,
+          ...(this.options.visual === true ? { visual: true, uncompared: uncomparedScreens(existing) } : {}),
+          now,
+        },
+        journal,
+      );
+      const offered = [...session.screens.tools(), ...session.reads.tools()];
+      const map = new IndexMap(index, await this.cards(index), offered, owners, await this.written(index));
+      const request = planRequest(brief, index.environment, map.domains(), applications, levels, this.options.visual === true);
+      const notes = agentNotes(config, repositoryRoot, env, { role: "planner", task: id, now });
+      const tools = [...map.toolset(), ...existingTestTools(present), ...offered, ...notes, plan.tool()].map((tool) => endedWithPlan(tool, plan));
+      const task = { instructions: PLANNER_INSTRUCTIONS, tools, request, reminder: () => plan.reminder() };
+      // Once its plan is accepted or refused, the session that plans can act on nothing: a message then waits for the agent that writes.
+      const open = () => plan.accepted === undefined && plan.refused === undefined;
+      const last = await sessionOf("plan", session, task, () => plan.accepted !== undefined || plan.drafted, open);
+      // A session that ends once scenarios are kept closes the plan with them: none is lost.
+      await plan.close();
+      if (plan.refused !== undefined) return failed(`No test was written: the plan was refused: ${plan.refused}`);
+      const accepted = plan.accepted;
+      if (accepted === undefined)
+        return failed(
+          `No test was written: ${obtained(0)}, one per scenario of the plan is expected.`,
+          last.type === "stopped" ? last.reason.limit : undefined,
         );
-        const offered = [...session.screens.tools(), ...session.reads.tools()];
-        const map = new IndexMap(index, await this.cards(index), offered, owners, await this.written(index));
-        const request = planRequest(brief, index.environment, map.domains(), applications, levels, this.options.visual === true);
-        const notes = agentNotes(config, repositoryRoot, env, { role: "planner", task: id, now });
-        const tools = [...map.toolset(), ...existingTestTools(present), ...offered, ...notes, plan.tool()].map((tool) => endedWithPlan(tool, plan));
-        const task = { instructions: PLANNER_INSTRUCTIONS, tools, request, reminder: () => plan.reminder() };
-        // Once its plan is accepted or refused, the session that plans can act on nothing: a message then waits for the agent that writes.
-        const open = () => plan.accepted === undefined && plan.refused === undefined;
-        const last = await sessionOf("plan", session, task, () => plan.accepted !== undefined || plan.drafted, open);
-        // A session that ends once scenarios are kept closes the plan with them: none is lost.
-        await plan.close();
-        if (plan.refused !== undefined) return failed(`No test was written: the plan was refused: ${plan.refused}`);
-        planned = plan.accepted;
-        if (planned === undefined)
-          return failed(
-            `No test was written: ${obtained(0)}, one per scenario of the plan is expected.`,
-            last.type === "stopped" ? last.reason.limit : undefined,
-          );
-        // The visual scenarios the agent planned end with the comparison of their screen with its reference.
-        planned = { ...planned, scenarios: withComparisons(planned.scenarios, config.design.visualTolerance) };
-      }
+      // The visual scenarios the agent planned end with the comparison of their screen with its reference.
+      let planned: TestPlan = { ...accepted, scenarios: withComparisons(accepted.scenarios, config.design.visualTolerance) };
       // The agents that write and review code read the API of Playwright at the version the test repository installs.
       const playwright = playwrightTools(await PlaywrightReference.load(repositoryRoot));
       // How the tests are built is a matter of the configuration. Unless each test stands alone, they import their test from the
@@ -376,7 +360,6 @@ export class Designer {
         },
         journal,
         planned,
-        previous?.tests.length,
       );
       // Each scenario not closed is written in a session of its own, which is given its sheet and nothing else of the plan.
       const recall = agentRecall(config, repositoryRoot, env, { role: "writer", task: id, now });
@@ -407,24 +390,21 @@ export class Designer {
         const task = { instructions: this.options.writerInstructions, tools, request, reminder: () => proposals.reminder() };
         const last = await sessionOf("write", session, task, () => !proposals.writing);
         beyond.close();
-        // A limit that cuts a scenario short stops the design, which may be resumed from that scenario; so does a session that failed.
+        // A limit that cuts a scenario short stops the design; so does a session that failed.
         if (last.type === "stopped" && proposals.writing) stoppedBy = last.reason.limit;
         if (last.type === "error" || stoppedBy !== undefined) break;
         if (proposals.writing) proposals.giveUp(SESSION_END);
       }
       const tests = proposals.accepted;
-      const kept = [
-        ...(previous?.tests ?? []),
-        ...tests.map(({ content: _content, references, ...test }) => ({
-          ...test,
-          ...(references.length === 0 ? {} : { references: references.map((reference) => reference.path) }),
-        })),
-      ];
+      const kept = tests.map(({ content: _content, references, ...test }) => ({
+        ...test,
+        ...(references.length === 0 ? {} : { references: references.map((reference) => reference.path) }),
+      }));
       // A plan without a scenario says why no test can do what the brief asks: it is kept, and there is nothing to write.
       if (planned.scenarios.length === 0)
         journal.record("info", "No test was written: the plan holds no scenario, and says what the brief asks that no test can do.");
       else if (kept.length === 0 && stoppedBy === undefined) return failed(`No test was written: ${obtained(0)}, one per scenario of the plan is expected.`);
-      const record: PlanRecord = resumed?.plan ?? {
+      const record: PlanRecord = {
         formatVersion: 2,
         design: id,
         environment: index.environment,
@@ -434,25 +414,18 @@ export class Designer {
       };
       const state: DesignState = {
         formatVersion: 4,
-        producedAt: previous?.producedAt ?? start.toISOString(),
+        producedAt: start.toISOString(),
         environment: index.environment,
         ...(brief === undefined ? {} : { brief }),
-        plan: previous?.plan ?? posix.join(config.repository.stateDir, DESIGNS_FOLDER, `${id}${PLAN_FILE_SUFFIX}`),
+        plan: posix.join(config.repository.stateDir, DESIGNS_FOLDER, `${id}${PLAN_FILE_SUFFIX}`),
         branch,
         // A branch still to create starts from the revision checked out now.
-        base: previous !== undefined && previous.tests.length > 0 ? previous.base : await repository.head(),
+        base: await repository.head(),
         model: { provider: config.model.provider, baseUrl: config.model.baseUrl, model: config.model.model },
-        run:
-          previous === undefined
-            ? used
-            : {
-                iterations: previous.run.iterations + used.iterations,
-                actions: previous.run.actions + used.actions,
-                durationMs: previous.run.durationMs + used.durationMs,
-              },
+        run: used,
         tests: kept,
       };
-      const statePath = resume?.state ?? posix.join(config.repository.stateDir, DESIGNS_FOLDER, `${id}.json`);
+      const statePath = posix.join(config.repository.stateDir, DESIGNS_FOLDER, `${id}.json`);
       await this.write(repository, state, statePath, record, tests, written.paths, journal);
       committed = tests.length > 0;
       const counted = kept.filter((test) => COUNTED.has(test.classes.at(-1)!.class)).length;
@@ -534,19 +507,6 @@ export class Designer {
     journal.record("info", `The plan was written to ${state.plan}${ignored(state.plan)}.`);
     journal.record("info", `The design state was written to ${statePath}${ignored(statePath)}.`);
     journal.record("info", `The tests were committed on ${state.branch}; the active branch of the test repository is ${await repository.branch()}.`);
-  }
-
-  /** The state of the design to resume and the plan its file records, none for a new design, or why it cannot be resumed. */
-  private async previous(): Promise<{ readonly state: DesignState; readonly plan: PlanRecord } | undefined | string> {
-    const path = this.options.resume?.state;
-    if (path === undefined) return undefined;
-    const { repositoryRoot } = this.options;
-    const state = (await readJson(join(repositoryRoot, path))) as DesignState | undefined;
-    if (state?.formatVersion !== 4) return `The design state ${path} cannot be read; the design was not resumed.`;
-    const plan = readPlanFile(await readFile(join(repositoryRoot, state.plan), "utf8").catch(() => ""));
-    if (plan === undefined) return `The plan ${state.plan} of the design state ${path} cannot be read; the design was not resumed.`;
-    if (state.tests.length >= plan.scenarios.length) return `Every scenario of the plan of ${path} is closed; there is nothing to resume.`;
-    return { state, plan };
   }
 
   /** The domain index, or why it cannot be read. */

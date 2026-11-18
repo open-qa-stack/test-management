@@ -44,7 +44,7 @@ Specialised agents work in turn, level by level: smoke, functional, business, cr
   <img src="docs/assets/console-session.png" width="100%" alt="The console of Open QA Stack following a session live: the planner, a line per action with its duration, two refusals of the harness, one with its code, and under the thread the field to speak to the agents.">
 </p>
 
-The console shows the agents at work, live: what each of them thinks, what it tells the others, what it does, and every time the harness says no — with the reason. Nothing in it is sample data: it follows the sessions of an instance through its API, event by event, and a session that ended can be replayed step by step. The agents are the first part of the console; its other screens are on their way.
+The console shows the agents at work, live: what each of them thinks, what it tells the others, what it does, and every time the harness says no — with the reason. Nothing in it is sample data: it follows the sessions of your test repository event by event, a session can be spoken to and stopped from it, and one that ended can be replayed step by step. `oqas --ui` is all it takes to open it. The agents are the first part of the console; its other screens are on their way.
 
 ## What you get
 
@@ -69,7 +69,7 @@ oqas --brief "search a customer and open their profile"  # ask for tests, in you
 
 Three steps, and the first one is yours: `oqas.json` is where you say what to test and what is known of it. Open QA Stack is run from a clone of this repository, against a test environment, with a model you bring. [Get started](docs/getting-started.md) takes you from an empty folder to tests on a branch, and [the configuration](packages/domain/docs/configuration.md) says what goes in the file.
 
-To watch the agents rather than read their lines, run an instance on your machine — one server that runs the sessions in your test repository, with no database to install — and open [the console](apps/web/README.md): [Get started](docs/getting-started.md#watch-the-agents-work) gives the commands. The command line alone needs none of it, and an instance to share can keep its database on a PostgreSQL server.
+To watch the agents rather than read their lines, run `oqas --ui` in your test repository and open the address it prints: [the console](apps/web/README.md), served by the command itself, with no database to install and no server to start — [Get started](docs/getting-started.md#watch-the-agents-work). An instance to share is a server that stays, and can keep its database on a PostgreSQL server.
 
 ## Contributing
 

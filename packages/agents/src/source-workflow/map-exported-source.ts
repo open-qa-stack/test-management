@@ -18,8 +18,6 @@ export interface ExportedSourceOptions {
   readonly exported: SourceExport;
   /** Whether the harness read only part of the source. */
   readonly partial: boolean;
-  /** Whether to map every element again, whatever an earlier run left. */
-  readonly force: boolean;
   /** The folder of the source, in the test repository. */
   readonly folder: SourceFolder;
   /** The tool each session keeps a fact with for the agents after it. */
@@ -45,7 +43,7 @@ export interface ExportedSourceOptions {
  * the file of each domain written, checks that no element is lost, and records it all in the manifest.
  *
  * @remarks
- * Unless `force` is set, the workflow goes on from the manifest an earlier run left, when it can be read:
+ * The workflow goes on from the manifest an earlier run left, when it can be read:
  * an element whose fingerprint did not change keeps its place, and only the others are placed again, each
  * told the domain it was in. The file of a domain is kept when the model wrote it, it still names every
  * element of the domain, and the domain neither gained, lost nor holds an element placed in this run; any
@@ -61,7 +59,7 @@ export interface ExportedSourceOptions {
  */
 export async function mapExportedSource(options: ExportedSourceOptions): Promise<SessionsUse & { readonly manifest: SourceManifest }> {
   const { source, exported, partial, folder, journal, now } = options;
-  const previous = options.force ? undefined : await folder.readManifest();
+  const previous = await folder.readManifest();
   const { grouping, former } = resumedGrouping(previous, exported);
   const kept = new Set(exported.elements.filter((element) => grouping.isSettled(element.name)).map((element) => element.name));
   const files = new Map<string, DomainFile>();

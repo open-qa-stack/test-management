@@ -1,7 +1,7 @@
 export type { JournalOutput } from "./ports/journal-output.ts";
 export type { OpenRuntime } from "./ports/open-runtime.ts";
 export type { RunReference } from "./ports/run-reference.ts";
-export type { RunStore, StoredState } from "./ports/run-store.ts";
+export type { RunStore } from "./ports/run-store.ts";
 export { Run, type RunOptions } from "./run/run.ts";
 export { liveRuntime } from "./runtime/live-runtime.ts";
 export { NoRepositoryError } from "./sessions/no-repository-error.ts";

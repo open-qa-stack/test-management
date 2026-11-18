@@ -4,7 +4,7 @@ import { DesignPasses, PYRAMID } from "../src/designer/design-passes.ts";
 import type { DesignerOptions, DesignOutcome } from "../src/designer/designer.ts";
 import { SpokenInbox } from "./spoken-inbox.ts";
 
-/** What a design needs, of which the passes read the levels and whether it is resumed. */
+/** What a design needs, of which the passes read the levels. */
 const options = (changes: Partial<DesignerOptions>): DesignerOptions => changes as DesignerOptions;
 const test = (path: string) => ({ path }) as DesignOutcome["tests"][number];
 const said = (message: string) => ({ level: "info" as const, message });
@@ -98,7 +98,7 @@ describe("the passes of a design", () => {
     ]);
   });
 
-  it("are one design when one level is asked, when a design is resumed, and when the configuration asks for a single plan", async () => {
+  it("are one design when one level is asked, and when the configuration asks for a single plan", async () => {
     const whole: DesignOutcome = { ok: true, tests: [], journal: [] };
     const run = async (changes: Partial<DesignerOptions>, passes: "by-level" | "single" = "by-level") => {
       const asked: (readonly string[] | undefined)[] = [];
@@ -111,7 +111,6 @@ describe("the passes of a design", () => {
     };
     assert.deepEqual(await run({ levels: ["functional"] }), [["functional"]]);
     assert.deepEqual(await run({}), [undefined]);
-    assert.deepEqual(await run({ levels: ["smoke", "functional"], resume: { state: "a.json" } }), [["smoke", "functional"]]);
     assert.deepEqual(await run({ levels: ["smoke", "functional"] }, "single"), [["smoke", "functional"]]);
   });
 });

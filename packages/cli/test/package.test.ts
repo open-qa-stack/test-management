@@ -3,12 +3,12 @@ import { readdirSync, readFileSync } from "node:fs";
 import { describe, it } from "vitest";
 
 describe("the package of the command", () => {
-  it("imports the engine, the store, the harness, the tools and the domain, no other package, and never the SDK of the agents", () => {
+  it("imports the engine, the store, the harness, the tools, the domain and, to serve the console, the API, no other package, and never the SDK of the agents", () => {
     const folder = new URL("../src/", import.meta.url);
     const imported = readdirSync(folder, { recursive: true })
       .filter((file) => String(file).endsWith(".ts"))
       .flatMap((file) => [...readFileSync(new URL(String(file), folder), "utf8").matchAll(/(?:from\s+|import\s*\(?\s*)"([^"]+)"/g)].map((match) => match[1]!));
-    const allowed = /^(node:|\.\/|@open-qa-stack\/(engine|store|harness|tools|domain(\/sessions)?)$)/;
+    const allowed = /^(node:|\.\/|@open-qa-stack\/(api|engine|store|harness|tools|domain(\/sessions)?)$)/;
     assert.ok(imported.length > 0);
     assert.deepEqual(
       imported.filter((module) => !allowed.test(module)),
@@ -16,12 +16,15 @@ describe("the package of the command", () => {
     );
     assert.ok(!imported.some((module) => module.includes("copilot")));
     const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { dependencies: Record<string, string> };
+    // The console is a dependency for its built files, which the command finds by the manifest of its package: none of its code is imported.
     assert.deepEqual(Object.keys(manifest.dependencies).sort(), [
+      "@open-qa-stack/api",
       "@open-qa-stack/domain",
       "@open-qa-stack/engine",
       "@open-qa-stack/harness",
       "@open-qa-stack/store",
       "@open-qa-stack/tools",
+      "@open-qa-stack/web",
     ]);
   });
 });

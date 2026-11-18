@@ -34,7 +34,7 @@ import { interfaceSubject, knowledgeSubject, type CardSource, type CardSubject, 
 import { SOURCE_CARTOGRAPHER_INSTRUCTIONS, sourceCardRequest } from "./source-cartographer-prompt.ts";
 
 /** What every workflow that leaves a manifest of a source is given. */
-type ManifestWorkflow = Omit<ExportedSourceOptions, "exported" | "partial" | "force">;
+type ManifestWorkflow = Omit<ExportedSourceOptions, "exported" | "partial">;
 
 /** Folder of the cards, in the index folder of the test repository. */
 export const CARDS_FOLDER = "sources";
@@ -57,8 +57,6 @@ export interface SourceCartographerOptions {
   readonly browser?: Pick<BrowserAccess, "launch" | "actionTimeoutMs" | "navigationTimeoutMs" | "settleTimeoutMs">;
   /** The inventory of a knowledge source read just before, so that it is not read again; read by the cartographer otherwise. */
   readonly inventory?: SourceInventory;
-  /** Maps the source again even when its card is up to date. */
-  readonly force?: boolean;
   /** The clock of the card date; the system clock by default. */
   readonly now?: () => Date;
   /** The trace the cartography writes to; a trace of its own, in the state folder, otherwise. */
@@ -93,8 +91,8 @@ export interface SourceCartographyOutcome {
  * For a knowledge source, the harness reads the inventory without the model — its elements, their
  * structural facts and its fingerprint. For a user interface, the elements are the screens the agent
  * visits, read from what the browser tools answer, and the fingerprint is that of its address, so that its
- * card is made again on demand only. A complete card whose fingerprint is the source's is kept as it is,
- * unless `force` is set.
+ * card is kept as long as its address is, and made again once its file is removed. A complete card whose
+ * fingerprint is the source's is kept as it is.
  *
  * The documents of a source are mapped by the agent that reads them, through `mapDocuments`: it chooses its
  * elements and hands each domain in with its file. A source that has an export — a database, a contract — goes through `mapExportedSource`: its export and its manifest
@@ -154,7 +152,7 @@ export class SourceCartographer {
       trace.harness("card", { type: "inventory", items: items.length, fingerprint, truncated: truncated === true }, source.id);
     }
     const cardPath = join(repositoryRoot, config.repository.indexDir, CARDS_FOLDER, `${source.id}.json`);
-    const existing = this.options.force === true ? undefined : await upToDate(cardPath, subject.fingerprint);
+    const existing = await upToDate(cardPath, subject.fingerprint);
     if (existing !== undefined) {
       journal.record("info", `The card of ${source.id} is up to date; it was kept.`, source.id);
       return { cardPath, card: existing, kept: true, usage: NO_USAGE, journal: journal.entries() };
@@ -244,7 +242,7 @@ export class SourceCartographer {
     const partial = inventory.truncated === true;
     return this.fromManifest(inventory, cardPath, journal, trace, now, (shared) =>
       // A session that places or documents a batch keeps a note, and reads none: its request holds what it needs.
-      mapExportedSource({ ...shared, notes: shared.notes.filter((tool) => tool.name === "remember"), exported, partial, force: this.options.force === true }),
+      mapExportedSource({ ...shared, notes: shared.notes.filter((tool) => tool.name === "remember"), exported, partial }),
     );
   }
 

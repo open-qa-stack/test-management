@@ -6,6 +6,12 @@
 oqas --environment local --brief "Test the search of a customer and their profile."
 ```
 
+To watch the agents work rather than read their lines, serve the console of the same test repository:
+
+```sh
+oqas --ui
+```
+
 The command is a presentation of [the operations on sessions](../../engine/docs/engine.md#the-operations-on-sessions) of the engine, on the database of the instance: the same operations [the API](../../api/docs/sessions.md) says in HTTP, on the same database. A session opened in a terminal is listed, followed, spoken to and interrupted from the console of a server started on the same test repository, and a session opened from the console is listed, followed, spoken to and interrupted from a terminal.
 
 ## Commands
@@ -18,6 +24,7 @@ The command is a presentation of [the operations on sessions](../../engine/docs/
 | `oqas attach <session>` | Follows a session to its end, whoever runs it, and exits with the code of its run. A session that ended is printed whole, at once. |
 | `oqas say <session> <text>` | Says something to the agents of a session that goes on: see [Speaking to a session](#speaking-to-a-session). |
 | `oqas stop <session>` | Interrupts a session that goes on: see [Stopping a session](#stopping-a-session). |
+| `oqas --ui` | Serves the console of the test repository in a browser, and runs the sessions opened in it, until Ctrl-C: see [The console](#the-console). |
 | `oqas --init` | Makes a Playwright project of the test repository and runs nothing: see [Initialising a test repository](#initialising-a-test-repository). |
 | `oqas --help` | Prints the usage. |
 
@@ -34,9 +41,12 @@ The commands that act on a session that exists run from any terminal, and from a
 | `--brief <text>`        |                               | What to test, in your words: a domain, a ticket, a rule, a journey. The designer looks up what echoes it in the index, explores, and plans its tests from it. |
 | `--follow`              | off                           | With `--brief`, `attach` and `show`: prints what the agents do besides what the harness tells of the session: see [The thread](#the-thread). |
 | `--output text\|json`   | `text`                        | How the command prints: lines a person reads, or [JSON Lines](#json-output) a program reads. Every command but `--init` takes it. |
+| `--ui`                  |                               | Serves [the console](#the-console) and prints its address. It takes `--repository`, `--host` and `--port`, and nothing of a session: with `--brief`, `--environment`, `--follow`, `--output` or a command, it is refused with `3`. |
+| `--host <address>`      | `127.0.0.1`                   | With `--ui`: the address to listen on. The default is this machine alone, and should stay so: the console asks nobody who they are. |
+| `--port <number>`       | `6727`                        | With `--ui`: the port to listen on, from 0 to 65535. `0` takes any free port, which the address printed tells. A port that is taken is refused with `3`. |
 | `--no-input`            |                               | Never asks anything on the terminal. The command asks nothing yet, and the option changes nothing: it is accepted so that a script that sets it keeps working once a session can ask a question. |
 
-A session is always opened by a brief: `oqas` without `--brief` and without a command is refused, with `3`.
+A session is always opened by a brief, in a terminal or in the console: `oqas` without `--brief`, without `--ui` and without a command is refused, with `3`.
 
 ## Where the sessions are kept
 
@@ -179,12 +189,33 @@ A message is refused, with `3`, by a session that ended. A session that still wa
 - **`oqas stop <session>`**, from any terminal, interrupts a session that goes on. One that waits is interrupted at once. One that another process runs is asked to stop through the database: that process reads the request at its next beat, within a second, stops the run as above and tells the session interrupted; `oqas stop` returns once the request is kept, and `oqas attach` shows the end. A session whose process died is interrupted at once.
 - **Ctrl-C in the terminal of `oqas attach`** stops following, and nothing else: the session goes on.
 
+## The console
+
+`oqas --ui` shows the sessions of the test repository in a browser: what each agent thinks, does and hands in, every refusal of the harness, a field to speak to the agents and a way to stop them.
+
+```text
+$ oqas --ui
+The console of /work/tests is served at the address below. Ctrl-C stops it.
+http://127.0.0.1:6727
+```
+
+The address goes to the standard output, alone; what a person is told besides goes to the error output. The command opens no browser.
+
+It is not a server to connect to: it is one more presentation of the same operations, on the database the other commands reach. The process of the command serves, on one address, the console at `/` and [the routes of the API](../../api/docs/sessions.md) under `/api` — the application [the API package](../../api/docs/running.md#starting-the-api-from-a-program) starts, given what the command read from its arguments. There is no database to install and nothing else to start.
+
+- **A session opened in the console runs in the process of `oqas --ui`**, one at a time, the next waiting its turn, with the variables of its environment — the key of the model, the test accounts — as `oqas --brief` reads them.
+- **A session another terminal runs is shown in it**, followed, spoken to and stopped from it, as from any terminal; and a session opened in the console is listed by `oqas sessions`, followed by `oqas attach`, spoken to by `oqas say` and stopped by `oqas stop`.
+- **Ctrl-C stops it**: the streams of the browsers end, the session it runs is asked to stop and is awaited up to ten seconds, its beats are withdrawn, and the command exits with `0`. The sessions that waited stay `queued`, and run when a console or a server is started again on the repository. **A second Ctrl-C** leaves at once, with `5`, without waiting: a session still running is left to the next process that hosts sessions, or to `oqas stop`.
+- **It listens on this machine alone**, `127.0.0.1:6727`, unless `--host` and `--port` say otherwise. The console asks nobody who they are: whoever reaches the address reads the sessions, opens one — which runs with the secrets of the environment of the command — and stops one. Do not give it an address others reach; the command warns when it is given one.
+
+The command serves the console as it was last built, the folder `dist` of the package `@open-qa-stack/web`; a console that was not built is refused with `3`, in a message that says to run `pnpm build` at the root of the workspace, which builds the console and the API.
+
 ## Several processes on one test repository
 
-A session is run by the process that opened it, and by no other: `oqas --brief` runs the session it opens, in its terminal; a server runs those opened through it, one at a time. Each process that runs sessions beats on them in the database, every second.
+A session is run by the process that opened it, and by no other: `oqas --brief` runs the session it opens, in its terminal; a server or `oqas --ui` runs those opened through it, one at a time. Each process that runs sessions beats on them in the database, every second.
 
 - A process that starts leaves the sessions of a process that beats alone. Starting `oqas --brief` while a server runs a session interrupts nothing, and neither does starting a server while a terminal runs one.
-- A process that has not beaten for 15 seconds died. The session it left `running` is interrupted by the next process that hosts sessions, at its next beat, or at once by `oqas stop`. The sessions it left `queued` are taken over, and run, by a server: `oqas --brief` runs the session it opens and no other, and leaves them waiting. Until then such a session reads as it was left: `oqas sessions` lists it `running` or `queued`, and `oqas attach` waits on it; `oqas stop` ends it.
+- A process that has not beaten for 15 seconds died. The session it left `running` is interrupted by the next process that hosts sessions, at its next beat, or at once by `oqas stop`. The sessions it left `queued` are taken over, and run, by a server or by `oqas --ui`: `oqas --brief` runs the session it opens and no other, and leaves them waiting. Until then such a session reads as it was left: `oqas sessions` lists it `running` or `queued`, and `oqas attach` waits on it; `oqas stop` ends it.
 - Two processes that each run a session on the same test repository work in the same folder at the same time, each on the branch of its design: run one at a time on a repository, as a server alone does.
 
 ## Exit codes
@@ -200,7 +231,7 @@ A session is run by the process that opened it, and by no other: `oqas --brief` 
 | `4`  | The session was interrupted in its prerequisites: one of the machine is missing.                                                                                                                                                                                             |
 | `5`  | The session did not go to its end: it is completed, `stopped` — no index was written, the dependencies could not be installed, the design gave no test to run or was cut short by a limit, a step stopped on an unexpected error, which the thread tells — or it was interrupted, by Ctrl-C, by `oqas stop`, from the console, or because its process died. Also, for every command: the database cannot be reached, or the command stopped on an unexpected error, which goes to the error output. |
 
-`oqas sessions`, `show`, `say`, `stop`, `--init` and `--help` exit with `0` once they did what they were asked.
+`oqas sessions`, `show`, `say`, `stop`, `--init` and `--help` exit with `0` once they did what they were asked. `oqas --ui` exits with `0` once it was stopped, with `5` when it was left at once or could not start, and with `3` when its port is taken or the console is not built.
 
 ## The command and the engine
 
@@ -215,7 +246,7 @@ The command holds no rule of a session: it reads its arguments, assembles the da
 | `oqas say` | `say`. |
 | `oqas stop` | `interrupt`, then `session`. |
 
-`oqas --brief` is the one command that hosts: it gives the operations its test repository, and stops them, within ten seconds, before it leaves.
+`oqas --brief` and `oqas --ui` are the commands that host: each gives the operations its test repository, and stops them, within ten seconds, before it leaves. `oqas --ui` says no operation itself: it starts the REST presentation of `@open-qa-stack/api` in its process, whose routes say them, and loads that package only then — no other command pays for an HTTP server.
 
 ## What it never does
 

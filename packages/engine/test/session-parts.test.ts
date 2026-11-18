@@ -98,7 +98,7 @@ describe("the state of a run, as its session keeps it", () => {
   };
 
   it("gives no result until the run wrote its state, then the result the domain reads from it", async () => {
-    const store = new SessionRunStore("s1");
+    const store = new SessionRunStore();
     assert.equal(store.result, undefined);
     await store.write({ runId: state.runId, stateDir: ".oqas" }, state);
     assert.deepEqual(store.result, {
@@ -107,15 +107,6 @@ describe("the state of a run, as its session keeps it", () => {
       modelRequests: 7,
       branch: "oqas/design",
       tests: [{ id: "orders", verdict: "failed", reason: "The total is wrong." }],
-    });
-    assert.equal(store.location(), "sessions/s1");
-  });
-
-  it("keeps the state of no run to resume: it lists none, and says so to a run that asks for one", async () => {
-    const store = new SessionRunStore("s1");
-    assert.deepEqual(await store.readAll(), []);
-    await assert.rejects(store.read(), {
-      message: "A session of an instance cannot resume a run: an instance keeps the result of a run, not the state to resume it from.",
     });
   });
 });

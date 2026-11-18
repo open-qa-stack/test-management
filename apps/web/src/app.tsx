@@ -5,6 +5,7 @@ import type { LiveSession, SessionControls } from "./agent/live-session.ts";
 import { focusAfterLook, openedLookOf, withoutLook } from "./agent/opened-look.ts";
 import { frameOf, type PlaybackAction } from "./agent/playback.ts";
 import { scriptOf } from "./agent/session-steps.ts";
+import { asksToStop, focusAfterStop, withoutStop } from "./agent/stop-request.ts";
 import { ApiClient } from "./api/api-client.ts";
 import { Console, documentTitleOf, isEntry, sessionAt, type ConsoleProps } from "./console.tsx";
 import { hrefTo, parseRoute } from "./routing/route.ts";
@@ -32,7 +33,8 @@ function currentHash(): string {
 /**
  * The console in a browser: it follows the address, keeps its state in step with the instance, names the page
  * and moves the focus as the person goes from screen to screen, keeps the end of a thread in view, sends what
- * the person says to the agents of a session and empties its field once the instance took it, takes the
+ * the person says to the agents of a session and empties its field once the instance took it, asks the
+ * instance to stop a session once the person confirmed it, takes the
  * keyboard into the look a person opens and back to its action when it closes, and beats the clock of a replay.
  *
  * @returns The console at the address of the page.
@@ -85,6 +87,8 @@ export function App(): ReactNode {
         const text = (event.currentTarget.elements.namedItem("message") as HTMLTextAreaElement).value.trim();
         if (text !== "") sync.say(session.id, text);
       },
+      // Once the instance took the request, its confirmation closes: the bar of the session says the stop was asked.
+      stop: () => sync.interrupt(session.id, () => (window.location.hash = withoutStop(parseRoute(currentHash())))),
       sayOnEnter: (event: FieldKeyboardEvent<HTMLTextAreaElement>): void => {
         // Enter sends, as in a conversation; with Shift it starts a new line, and while a character is being composed it chooses it.
         if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
@@ -92,7 +96,7 @@ export function App(): ReactNode {
         event.currentTarget.form!.requestSubmit();
       },
     };
-    live = { session, stream: followed.stream, script, playback, frame, saying: followed.saying, controls };
+    live = { session, stream: followed.stream, script, playback, frame, saying: followed.saying, stopping: followed.stopping, controls };
   }
   const shown: ConsoleProps = {
     route,
@@ -159,6 +163,14 @@ export function App(): ReactNode {
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
   }, [looked, route]);
+
+  const stopAsked = asksToStop(route);
+  const stopAskedBefore = useRef(stopAsked);
+  useEffect(() => {
+    const target = focusAfterStop(stopAskedBefore.current, stopAsked);
+    stopAskedBefore.current = stopAsked;
+    if (target !== undefined) document.querySelector<HTMLElement>(target)?.focus();
+  }, [stopAsked]);
 
   return <Console {...shown} />;
 }

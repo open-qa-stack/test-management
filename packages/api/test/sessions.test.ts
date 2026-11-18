@@ -7,6 +7,8 @@ import type { MessageReceipt, Problem, ProblemCode, Project, Session, SessionEve
 import { type EventListener, NoRepositoryError, type SessionEventStream, type Sessions } from "@open-qa-stack/engine";
 import { DatabaseUnavailableError } from "@open-qa-stack/store";
 import { lastValueFrom, toArray } from "rxjs";
+import { ApiConfiguration } from "../src/config/api-configuration.ts";
+import { environmentSettings } from "../src/config/environment-settings.ts";
 import { expectedProblem } from "../src/problems/expected-problem.ts";
 import { problemOf } from "../src/problems/problem-kinds.ts";
 import { eventIdOf } from "../src/sessions/event-id.ts";
@@ -22,8 +24,9 @@ import { SessionsController } from "../src/sessions/sessions.controller.ts";
 import { SessionsLifecycle } from "../src/sessions/sessions-lifecycle.ts";
 import { StreamPace } from "../src/sessions/stream-pace.ts";
 import { CapturedLogger } from "./support/captured-logger.ts";
-import { TEST_ENVIRONMENT } from "./support/environment.ts";
 
+/** The variables of an API that is configured, and never started. */
+const CONFIGURATION = { OQAS_PORT: "8080", OQAS_DATABASE_URL: "postgres://oqas@127.0.0.1:1/oqas" };
 const PROJECT: Project = { name: "shop-tests", applications: [{ id: "shop", name: "Shop" }] };
 const SESSION: Session = { id: "s 1", openedAt: "2026-11-14T09:00:00.000Z", lastEventAt: "2026-11-14T09:00:01.000Z", state: "running" };
 const ASKED: SessionEvent = { id: 1, at: "2026-11-14T09:00:00.000Z", type: "user_message", text: "cover the profile" };
@@ -398,7 +401,7 @@ describe("the operations on sessions, started and stopped with the API", () => {
     const operations = { start, stop: async (withinMs: number) => (within.push(withinMs), stopped) } as unknown as Sessions;
     Logger.overrideLogger(logger);
     try {
-      const lifecycle = new SessionsLifecycle(operations, new RunEnvironment());
+      const lifecycle = new SessionsLifecycle(operations, new RunEnvironment(ApiConfiguration.read(CONFIGURATION)));
       await lifecycle.onApplicationBootstrap();
       await lifecycle.onModuleDestroy();
     } finally {
@@ -420,8 +423,10 @@ describe("the operations on sessions, started and stopped with the API", () => {
     assert.deepEqual((await lived(() => Promise.reject("lost"), true)).lines, ["warn The sessions are not started, and will be when one is next opened: lost"]);
   });
 
-  it("run their sessions with the environment of the process, on the machine itself, at the pace of the engine", () => {
-    const environment = new RunEnvironment();
-    assert.deepEqual([environment.env, environment.runner, environment.writerPace], [TEST_ENVIRONMENT, undefined, undefined]);
+  it("run their sessions with what the API was started with: the environment it read its configuration from, or what a host settled for it", () => {
+    const read = environmentSettings(CONFIGURATION);
+    assert.deepEqual(new RunEnvironment(ApiConfiguration.of(read)).runs, { env: CONFIGURATION });
+    const runs = { env: { SHOP_DB_URL: "witness" }, pace: { beatMs: 5, silentAfterMs: 50, followMs: 5 } };
+    assert.equal(new RunEnvironment(ApiConfiguration.of({ ...read, runs })).runs, runs);
   });
 });
