@@ -18,7 +18,8 @@ const PAGE_BLOCK = /^```yaml\n([\s\S]*?)\n```$/m;
  * @remarks
  * The run is prepared once, at the first trial: the dependencies, then the browsers of the locked version.
  * Each file is written at its path for the time of its run, then removed, so that nothing is left in the
- * tracked files; its report and its traces stay in its folder of `<stateDir>/trials/`. The trials run one at
+ * tracked files: a file that is there already is refused, but for a test that repairs it, which replaces it for
+ * the time of its run before it is put back; its report and its traces stay in its folder of `<stateDir>/trials/`. The trials run one at
  * a time. The references a visual comparison lacks are made at the first run, then the file runs again
  * against them; they are given with the trial, to be kept with the test, and removed from the folder. The verdicts are those of `PinnedRun`, with, for a test that did not pass, every error of its
  * last attempt, the step that failed, its trace and the snapshot of the page at its failure, which the runner writes in the context of its error.
@@ -58,7 +59,9 @@ export class TrialRunner implements TestRunner {
     const { config, repositoryRoot } = this.options;
     const startedAt = (this.options.now ?? (() => new Date()))().toISOString();
     const file = join(repositoryRoot, test.path);
-    if (existsSync(file)) return { startedAt, tests: [], error: `${test.path} already exists in the test repository; give the test another file name.` };
+    const kept = existsSync(file) ? await readFile(file) : undefined;
+    if (kept !== undefined && test.replaces !== true)
+      return { startedAt, tests: [], error: `${test.path} already exists in the test repository; give the test another file name.` };
     const prepared = await this.pinned.prepare();
     if (!prepared.ok) return { startedAt, tests: [], error: prepared.reason };
     this.count += 1;
@@ -77,7 +80,8 @@ export class TrialRunner implements TestRunner {
       const tests = await Promise.all(ran.tests.map((verdict) => tried(verdict, byId.get(verdict.id), repositoryRoot)));
       return { startedAt, tests, ...(references.length === 0 ? {} : { references }) };
     } finally {
-      await rm(file, { force: true });
+      // A test the trial repairs is put back as the repository has it.
+      await (kept === undefined ? rm(file, { force: true }) : writeFile(file, kept));
       if (!hadSnapshots) await rm(snapshots, { recursive: true, force: true });
     }
   }

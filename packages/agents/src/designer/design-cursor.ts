@@ -37,6 +37,7 @@ export class DesignCursor {
   /** The accepted plan, frozen. */
   public readonly plan: TestPlan;
   readonly #place: (scenario: PlannedScenario) => string;
+  readonly #repairs: (scenario: PlannedScenario) => boolean;
   #at = 0;
   #path: string | undefined;
   #runs: ScenarioRun[] = [];
@@ -44,10 +45,12 @@ export class DesignCursor {
   /**
    * @param plan - The accepted plan.
    * @param place - Gives the file of the test of a scenario, relative to the test repository, when it opens.
+   * @param repairs - Whether a scenario repairs a test the repository has; none does by default.
    */
-  public constructor(plan: TestPlan, place: (scenario: PlannedScenario) => string) {
+  public constructor(plan: TestPlan, place: (scenario: PlannedScenario) => string, repairs: (scenario: PlannedScenario) => boolean = () => false) {
     this.plan = plan;
     this.#place = place;
+    this.#repairs = repairs;
     // A plan may hold no scenario, when no test can do what its brief asks: nothing is open then.
     const open = plan.scenarios[0];
     this.#path = open === undefined ? undefined : place(open);
@@ -108,6 +111,16 @@ export class DesignCursor {
     if (this.scenario?.id === scenario) this.#runs.push(run);
   }
 
+  /**
+   * Whether the scenario open repairs a test the repository has: its test is that one, not the skeleton of its plan.
+   *
+   * @returns Whether it does; `false` once every scenario is closed.
+   */
+  public get repairing(): boolean {
+    const scenario = this.scenario;
+    return scenario !== undefined && this.#repairs(scenario);
+  }
+
   /** Closes the scenario open, and opens the next one. */
   public close(): void {
     this.#at += 1;
@@ -124,6 +137,7 @@ export class DesignCursor {
   public next(): string {
     const scenario = this.scenario!;
     const last = this.#runs.at(-1);
+    if (last === undefined && this.repairing) return `Next: call ${RUN_TOOL} with the text of the test as the repository has it, unchanged.`;
     if (last === undefined)
       return `Next: check the skeleton of ${scenario.id} against its steps, complete what a comment asks, then call ${RUN_TOOL} with the whole file.`;
     if (last.verdict === "passed") return `Next: call ${PROPOSE_TOOL}.`;
