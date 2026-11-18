@@ -1,27 +1,42 @@
-import { Module } from "@nestjs/common";
+import { Logger, Module } from "@nestjs/common";
+import { Sessions } from "@open-qa-stack/engine";
+import { Database, SessionStore } from "@open-qa-stack/store";
 import { ApiConfiguration } from "../config/api-configuration.ts";
-import { SoloConfigurationCheck } from "../solo/solo-configuration-check.ts";
-import { SoloSessionSource } from "../solo/solo-session-source.ts";
-import { NoSessionSource } from "./no-session-source.ts";
+import { DatabaseModule } from "../database/database.module.ts";
+import { EventStreams } from "./event-streams.ts";
 import { ProjectController } from "./project.controller.ts";
-import { SessionSource } from "./session-source.ts";
+import { RunEnvironment } from "./run-environment.ts";
 import { SessionsController } from "./sessions.controller.ts";
-import { SessionsService } from "./sessions.service.ts";
+import { SessionsLifecycle } from "./sessions-lifecycle.ts";
 import { StreamPace } from "./stream-pace.ts";
 
 /**
- * The source the configuration names: the runs of the command line in a test repository when one is
- * configured, none otherwise. The source that reads the database of the instance will take their place here.
+ * The routes of the project and of the sessions, over the operations of the engine, which this process
+ * hosts: the operations keep the sessions in the database of the instance, and run them in the test
+ * repository the API was given. The routes hold no rule of the sessions: each calls one operation.
  */
-function sourceOf(configuration: ApiConfiguration): SessionSource {
-  const { soloRepository: repository, soloCommand: command, environmentWithoutSecrets: environment } = configuration;
-  if (repository === undefined) return new NoSessionSource();
-  return new SoloSessionSource({ repository, environment, ...(command === undefined ? {} : { command }) });
-}
-
-/** The routes of the project and of the sessions, and the source they read. */
 @Module({
+  imports: [DatabaseModule],
   controllers: [ProjectController, SessionsController],
-  providers: [SessionsService, StreamPace, SoloConfigurationCheck, { provide: SessionSource, inject: [ApiConfiguration], useFactory: sourceOf }],
+  providers: [
+    EventStreams,
+    RunEnvironment,
+    SessionsLifecycle,
+    StreamPace,
+    { provide: SessionStore, inject: [Database], useFactory: (database: Database) => new SessionStore(database) },
+    {
+      provide: Sessions,
+      inject: [SessionStore, ApiConfiguration, RunEnvironment],
+      useFactory: (store: SessionStore, { repository }: ApiConfiguration, { env, runner, writerPace }: RunEnvironment) =>
+        new Sessions({
+          store,
+          repository,
+          env,
+          logger: new Logger("Sessions"),
+          ...(runner === undefined ? {} : { runner }),
+          ...(writerPace === undefined ? {} : { writerPace }),
+        }),
+    },
+  ],
 })
 export class SessionsModule {}

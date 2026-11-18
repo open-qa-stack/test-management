@@ -8,6 +8,7 @@ export { ReplayMissError } from "./agent/errors/replay-miss-error.ts";
 export { SessionClosedError } from "./agent/errors/session-closed-error.ts";
 export type { StopReason, TaskCounters, TaskLimits } from "./agent/task-limits.ts";
 export type { JsonSchema, ToolDefinition } from "./agent/tool-definition.ts";
+export { isRecord, parseJson, textOf } from "./json.ts";
 export { imageTokens, PIXELS_PER_TOKEN } from "./image/image-tokens.ts";
 export { ImageToolResult } from "./image/image-tool-result.ts";
 export { pngSize, type ImageSize } from "./image/png-size.ts";
@@ -39,3 +40,70 @@ export type {
   TestPlan,
   UncoveredRequest,
 } from "./test/test-plan.ts";
+export { resolveLimits } from "./config/autonomy.ts";
+export { baseUrlVariable } from "./config/base-url-variable.ts";
+export { declaredValues, declaredVariables, secretVariables, type DeclaredVariable, type VariableSections } from "./config/declared-variables.ts";
+export { CONFIG_FILE_NAME, DATABASE_FILE_NAME, STATE_DIR_NAME } from "./config/file-names.ts";
+export { readsImages } from "./config/model-capabilities.ts";
+export { CHARTER_RULE_ID_PATTERN, configSchema, CONTAINER_NAME_PATTERN, ENV_VAR_PATTERN, SLUG_PATTERN } from "./config/schema.ts";
+export type * from "./config/types.ts";
+export { declaredStateDir, DEFAULT_REPOSITORY, validateConfig, type EnvironmentVariables } from "./config/validate.ts";
+export { placementErrors, unplacedItems, type SourceInventory } from "./domain-index/placement.ts";
+export { domainIndexSchema, domainSubmissionSchema } from "./domain-index/schema.ts";
+export type * from "./domain-index/types.ts";
+export { validateDomainIndex, validateDomainSubmission } from "./domain-index/validate.ts";
+export { sourceCardSchema, sourceCardSubmissionSchema } from "./source-card/schema.ts";
+export type * from "./source-card/types.ts";
+export { validateSourceCard, validateSourceCardSubmission } from "./source-card/validate.ts";
+export { placementSubmissionSchema, sourceManifestSchema } from "./source-manifest/schema.ts";
+export type * from "./source-manifest/types.ts";
+export { validatePlacementSubmission, validateSourceManifest } from "./source-manifest/validate.ts";
+export {
+  applicationClass,
+  applicationPages,
+  PAGES_FOLDER,
+  PAGES_INDEX,
+  screenMember,
+  SHARED_FOLDER,
+  TESTS_FOLDER,
+  type ScreenClass,
+} from "./test-repository/application-pages.ts";
+export { applicationVariable, camelName, className } from "./test-repository/application-variable.ts";
+export { appsFrom, sharedFixtures } from "./test-repository/shared-fixtures.ts";
+export { tabVariable } from "./test-repository/tab-variable.ts";
+export { ExitCode, type ExitCodeValue } from "./run/exit-code.ts";
+export { inboxLineOf, inboxMessage, type InboxMessage } from "./run/inbox-line.ts";
+export type { ModelUsage } from "./run/model-usage.ts";
+export { PERSON_TAG, personTags, type PersonMessage } from "./run/person-message.ts";
+export { entryLine, type RunEntry, type Step } from "./run/run-entry.ts";
+export { isRunState, type RunState } from "./run/run-state.ts";
+export {
+  journaledRun,
+  runIdAt,
+  runInboxFile,
+  runJournalFile,
+  RUNS_FOLDER,
+  runStamp,
+  runStartedAt,
+  runStateFile,
+  traceFile,
+  TRACES_FOLDER,
+  traceStamp,
+} from "./run/state-folder.ts";
+export { withoutClosing } from "./run/tag-closing.ts";
+export type { HarnessEvent, PhaseOutcome, TracedAgentEvent, TraceLine, TracePhase } from "./run/trace-line.ts";
+export { briefOf, inboxLine, journalLine, traceLine } from "./run-thread/run-lines.ts";
+export { sessionResultOf } from "./run-thread/run-result.ts";
+export { RunThread } from "./run-thread/run-thread.ts";
+export type { CommandStep, PersonLine, RelayedPhase, RunLine, RunLineEvent, ThreadLine } from "./run-thread/thread-line.ts";
+export { MessageNotPendingError } from "./session-life/message-not-pending-error.ts";
+export type { PendingMessage } from "./session-life/pending-message.ts";
+export type { SessionCommand } from "./session-life/session-command.ts";
+export type { SessionCommands } from "./session-life/session-commands.ts";
+export { SessionEndedError } from "./session-life/session-ended-error.ts";
+export { accepts, ASKED_STATE, isTerminal, nextState, refusalOf, SESSION_LIFE } from "./session-life/session-life.ts";
+export type { SessionQueries } from "./session-life/session-queries.ts";
+export type { SessionRefusal } from "./session-life/session-refusal.ts";
+export { SessionStateError } from "./session-life/session-state-error.ts";
+export type { SessionStorePort } from "./session-life/session-store-port.ts";
+export { UnknownSessionError } from "./session-life/unknown-session-error.ts";

@@ -1,5 +1,4 @@
-import type { AgentEvent, AgentRuntime, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
-import type { SourceManifest } from "@open-qa-stack/shared";
+import type { AgentEvent, AgentRuntime, SourceManifest, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
 import { runAgentTask } from "../common/agent-task.ts";
 import type { Journal } from "../common/journal.ts";
 import { sessionUse, type SessionsUse } from "../source-workflow/group-elements.ts";

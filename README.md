@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="docs/getting-started.md">Get started</a> ·
-  <a href="packages/shared/docs/configuration.md">Configuration</a> ·
+  <a href="packages/domain/docs/configuration.md">Configuration</a> ·
   <a href="packages/cli/docs/solo-command.md">The command</a> ·
   <a href="CONTRIBUTING.md">Contributing</a>
 </p>
@@ -67,9 +67,9 @@ oqas --init                                              # make your test reposi
 oqas --brief "search a customer and open their profile"  # ask for tests, in your words
 ```
 
-Three steps, and the first one is yours: `oqas.json` is where you say what to test and what is known of it. Open QA Stack is run from a clone of this repository, against a test environment, with a model you bring. [Get started](docs/getting-started.md) takes you from an empty folder to tests on a branch, and [the configuration](packages/shared/docs/configuration.md) says what goes in the file.
+Three steps, and the first one is yours: `oqas.json` is where you say what to test and what is known of it. Open QA Stack is run from a clone of this repository, against a test environment, with a model you bring. [Get started](docs/getting-started.md) takes you from an empty folder to tests on a branch, and [the configuration](packages/domain/docs/configuration.md) says what goes in the file.
 
-To watch a run rather than read it, start the API of an instance on your test repository and open [the console](apps/web/README.md).
+To watch the agents rather than read their lines, run an instance on your machine — one server that runs the sessions in your test repository, with no database to install — and open [the console](apps/web/README.md): [Get started](docs/getting-started.md#watch-the-agents-work) gives the commands. The command line alone needs none of it, and an instance to share can keep its database on a PostgreSQL server.
 
 ## Contributing
 

@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "vitest";
-import type { PlanReview } from "@open-qa-stack/domain";
+import type { PlanReview, TraceLine } from "@open-qa-stack/domain";
 import type { ScriptedServer } from "@open-qa-stack/testing";
 import { PERSON_RULE, PERSON_SAID_EARLIER, PERSON_SPOKE } from "../src/common/person-message.ts";
-import { PersonInbox, type DesignOutcome, type TraceLine } from "../src/index.ts";
+import { PersonInbox, type DesignOutcome } from "../src/index.ts";
 import {
   asked,
   COVERED,

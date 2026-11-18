@@ -1,25 +1,36 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, posix } from "node:path";
-import type { AgentEvent, AgentRuntime, PlanReview, ScenarioLevel, StopReason, TerminalEvent, TestPlan, UncoveredRequest } from "@open-qa-stack/domain";
 import {
   validateDomainIndex,
   validateSourceCard,
   validateSourceManifest,
+  type AgentEvent,
+  type AgentRuntime,
   type DomainIndex,
   type Knowledge,
+  type PlanReview,
   type ResolvedConfig,
+  type ScenarioLevel,
   type SourceCard,
-} from "@open-qa-stack/shared";
+  type StopReason,
+  type TerminalEvent,
+  type TestCheck,
+  type TestPlan,
+  type TestRunner,
+  type ToolDefinition,
+  type TraceLine,
+  type TracePhase,
+  type UncoveredRequest,
+} from "@open-qa-stack/domain";
 import { PlaywrightReference, playwrightTools, type BrowserAccess } from "@open-qa-stack/tools";
 import { agentNotes, agentRecall } from "../common/agent-notes.ts";
 import { runAgentTask, taskEnd, taskLimits, type AgentTask } from "../common/agent-task.ts";
 import { usageOf } from "../common/model-usage.ts";
 import { Journal, type JournalEntry } from "../common/journal.ts";
 import { PersonDelivery } from "../common/person-delivery.ts";
-import type { PersonInbox } from "../common/person-inbox.ts";
+import type { Inbox } from "../common/inbox.ts";
 import { runTrace } from "../common/run-trace.ts";
 import type { Trace } from "../common/trace.ts";
-import type { TraceLine, TracePhase } from "../common/trace-line.ts";
 import { TracedPhases } from "../common/traced-phases.ts";
 import { INDEX_FILE_NAME } from "../cartographer/cartographer.ts";
 import { CARDS_FOLDER } from "../source-cartographer/source-cartographer.ts";
@@ -33,14 +44,12 @@ import { PLAN_FILE_SUFFIX, planFileText, readPlanFile, type PlanRecord } from ".
 import { PlanProposal } from "./plan-proposal.ts";
 import { PLANNER_INSTRUCTIONS, planRequest } from "./planner-prompt.ts";
 import { sessionTools, type SessionTools } from "./session-tools.ts";
-import type { TestCheck, TestRunner } from "@open-qa-stack/domain";
 import { declaredAddresses, declaredSecrets, TEST_MODULE, testPackages } from "./spec-rules.ts";
 import { PageObjects } from "./page-objects.ts";
 import { coveringTests, existingTestTools, existingTests } from "./existing-tests.ts";
 import { ensureFixtures } from "./test-fixtures.ts";
 import { uncomparedScreens, withComparisons } from "./visual-scenarios.ts";
 import { WrittenFiles } from "./written-files.ts";
-import type { ToolDefinition } from "@open-qa-stack/domain";
 import { SESSION_END, TestProposals, type AcceptedTest } from "./test-proposals.ts";
 import { TestRepository } from "./test-repository.ts";
 import { SheetWatch } from "./sheet-watch.ts";
@@ -98,7 +107,7 @@ export interface DesignerOptions {
   /** Receives each line of the trace as it is written, to follow the design while it runs. */
   readonly observe?: (line: TraceLine) => void;
   /** The inbox of the run: the session that plans and that of each scenario are given the messages a person sends while they are open, and recalled those delivered earlier in the run. No session hears anyone without it. */
-  readonly inbox?: PersonInbox;
+  readonly inbox?: Inbox;
   /** The clock of the dates; the system clock by default. */
   readonly now?: () => Date;
 }

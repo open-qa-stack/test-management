@@ -35,7 +35,8 @@ jobs:
         run: pnpm --filter @open-qa-stack/tools exec playwright-core install --with-deps chromium
       - name: Check
         # Type check, lint, format, build, coverage directives, secrets, then the tests at full
-        # coverage. The tests of the API start a disposable PostgreSQL with the Docker of the runner.
+        # coverage. The tests of the store and of the API run on SQLite and on PostgreSQL: each of
+        # the two starts a disposable PostgreSQL with the Docker of the runner.
         run: pnpm check
 
   hygiene:

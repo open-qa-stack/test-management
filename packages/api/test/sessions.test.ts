@@ -1,59 +1,93 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { BadRequestException, type MessageEvent, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Logger, type MessageEvent, NotFoundException } from "@nestjs/common";
 import type { HttpAdapterHost } from "@nestjs/core";
-import type { MessageReceipt, Problem, ProblemCode, Project, Session, SessionEvent, SessionMessage, SessionOpening } from "@open-qa-stack/shared/sessions";
-import { lastValueFrom, type Observable, of, Subject, toArray } from "rxjs";
+import { SessionEndedError, UnknownSessionError } from "@open-qa-stack/domain";
+import type { MessageReceipt, Problem, ProblemCode, Project, Session, SessionEvent, SessionMessage, SessionOpening } from "@open-qa-stack/domain/sessions";
+import { type EventListener, NoRepositoryError, type SessionEventStream, type Sessions } from "@open-qa-stack/engine";
+import { DatabaseUnavailableError } from "@open-qa-stack/store";
+import { lastValueFrom, toArray } from "rxjs";
 import { expectedProblem } from "../src/problems/expected-problem.ts";
 import { problemOf } from "../src/problems/problem-kinds.ts";
 import { eventIdOf } from "../src/sessions/event-id.ts";
-import { NoSessionSource } from "../src/sessions/no-session-source.ts";
+import { EventStreams } from "../src/sessions/event-streams.ts";
 import { ProjectController } from "../src/sessions/project.controller.ts";
+import { RunEnvironment } from "../src/sessions/run-environment.ts";
 import { SessionError } from "../src/sessions/session-error.ts";
 import { MAX_REQUEST_LENGTH, sessionOpeningOf } from "../src/sessions/session-opening.ts";
 import { MAX_MESSAGE_LENGTH, sessionMessageOf } from "../src/sessions/session-message.ts";
 import { SessionMessagePipe } from "../src/sessions/session-message.pipe.ts";
 import { SessionOpeningPipe } from "../src/sessions/session-opening.pipe.ts";
-import { SessionSource } from "../src/sessions/session-source.ts";
 import { SessionsController } from "../src/sessions/sessions.controller.ts";
-import { SessionsService } from "../src/sessions/sessions.service.ts";
+import { SessionsLifecycle } from "../src/sessions/sessions-lifecycle.ts";
 import { StreamPace } from "../src/sessions/stream-pace.ts";
+import { CapturedLogger } from "./support/captured-logger.ts";
+import { TEST_ENVIRONMENT } from "./support/environment.ts";
 
 const PROJECT: Project = { name: "shop-tests", applications: [{ id: "shop", name: "Shop" }] };
 const SESSION: Session = { id: "s 1", openedAt: "2026-11-14T09:00:00.000Z", lastEventAt: "2026-11-14T09:00:01.000Z", state: "running" };
 const ASKED: SessionEvent = { id: 1, at: "2026-11-14T09:00:00.000Z", type: "user_message", text: "cover the profile" };
 const ENDED: SessionEvent = { id: 2, at: "2026-11-14T09:00:01.000Z", type: "state_changed", state: "completed" };
-const EVENTS: SessionEvent[] = [ASKED, ENDED];
 
-/** A source that holds one session, and remembers what it was asked. */
-class OneSession extends SessionSource {
+/** Events a test tells one by one to whoever follows them, as the operations give the events of a session. */
+class ToldEvents {
+  /** Who follows the events now. */
+  readonly listeners = new Set<EventListener>();
+
+  subscribe(listener: EventListener): () => void {
+    this.listeners.add(listener);
+    return () => void this.listeners.delete(listener);
+  }
+
+  /** The events as the operations type them. */
+  get stream(): SessionEventStream {
+    return this as unknown as SessionEventStream;
+  }
+
+  /** Tells events, then their end when asked. */
+  tell(events: readonly SessionEvent[], end = false): void {
+    for (const listener of this.listeners) {
+      for (const event of events) listener.event(event);
+      if (end) listener.ended();
+    }
+  }
+}
+
+/** The operations on one session, which remember what they were asked: a double of those of the engine. */
+class OneSession {
   readonly asked: unknown[] = [];
+  /** The events the operations give to follow; those of a session that ended, by default. */
+  told: ToldEvents | undefined;
 
-  override async project(): Promise<Project> {
-    return PROJECT;
-  }
+  project = async (): Promise<Project> => PROJECT;
+  sessions = async (): Promise<Session[]> => [SESSION];
+  session = async (): Promise<Session> => SESSION;
 
-  override async sessions(): Promise<Session[]> {
-    return [SESSION];
-  }
-
-  override async session(id: string): Promise<Session | undefined> {
-    return id === SESSION.id ? SESSION : undefined;
-  }
-
-  override events(id: string, after: number): Observable<SessionEvent> {
+  async events(id: string, after: number): Promise<SessionEventStream> {
     this.asked.push([id, after]);
-    return of(...EVENTS);
+    if (this.told !== undefined) return this.told.stream;
+    return {
+      subscribe: (listener: EventListener) => (listener.event(ASKED), listener.event(ENDED), listener.ended(), () => undefined),
+    } as unknown as SessionEventStream;
   }
 
-  override async open(opening: SessionOpening): Promise<Session> {
+  async open(opening: SessionOpening): Promise<Session> {
     this.asked.push(opening);
     return SESSION;
   }
 
-  override async send(id: string, message: SessionMessage): Promise<MessageReceipt | undefined> {
+  async say(id: string, message: SessionMessage): Promise<MessageReceipt> {
     this.asked.push([id, message]);
-    return id === SESSION.id ? { number: 3 } : undefined;
+    return { number: 3 };
+  }
+
+  async interrupt(id: string): Promise<void> {
+    this.asked.push(["interrupt", id]);
+  }
+
+  /** The double as the operations it stands for. */
+  get operations(): Sessions {
+    return this as unknown as Sessions;
   }
 }
 
@@ -68,11 +102,12 @@ function refusalOf(action: () => unknown): SessionError {
   return assert.fail("the request was not refused");
 }
 
-/** A controller of the sessions of a source, with the headers it sets on its answers. */
-function controllerOf(source: SessionSource, pace = new StreamPace()): { controller: SessionsController; headers: unknown[][] } {
+/** A controller over the operations on one session, with the headers it sets on its answers. */
+function controllerOf(source: OneSession, pace = new StreamPace()): { controller: SessionsController; streams: EventStreams; headers: unknown[][] } {
   const headers: unknown[][] = [];
   const adapterHost = { httpAdapter: { setHeader: (...args: unknown[]) => headers.push(args) } } as unknown as HttpAdapterHost;
-  return { controller: new SessionsController(new SessionsService(source), pace, adapterHost), headers };
+  const streams = new EventStreams();
+  return { controller: new SessionsController(source.operations, streams, pace, adapterHost), streams, headers };
 }
 
 describe("a request to open a session", () => {
@@ -159,35 +194,13 @@ describe("the identifier of the last event a client got", () => {
   }
 });
 
-describe("an instance without a source of sessions", () => {
-  const source = new NoSessionSource();
-
-  it("has a project without name nor application, no session, and no event", async () => {
-    assert.deepEqual(await source.project(), { applications: [] });
-    assert.deepEqual(await source.sessions(), []);
-    assert.equal(await source.session(), undefined);
-    assert.deepEqual(await lastValueFrom(source.events().pipe(toArray())), []);
-  });
-
-  it("cannot open a session nor take a message, and says how to give it a source", async () => {
-    for (const asked of [source.open(), source.send()]) {
-      await assert.rejects(asked, (error) => {
-        assert.ok(error instanceof SessionError);
-        assert.equal(error.failure, "unavailable");
-        assert.match(error.message, /^No source of sessions is configured: set OQAS_SOLO_REPOSITORY /);
-        return true;
-      });
-    }
-  });
-});
-
 describe("a problem", () => {
   for (const [code, status, type, title] of [
     ["unknown_session", 404, "/problems/unknown-session", "Unknown session"],
     ["invalid_request", 400, "/problems/invalid-request", "Invalid request"],
     ["session_running", 409, "/problems/session-running", "A session is running"],
     ["session_ended", 409, "/problems/session-ended", "Session ended"],
-    ["unavailable", 503, "/problems/unavailable", "Sessions cannot be opened"],
+    ["unavailable", 503, "/problems/unavailable", "Sessions unavailable"],
     ["not_opened", 502, "/problems/not-opened", "Session not opened"],
     ["opening_timed_out", 503, "/problems/opening-timed-out", "Opening timed out"],
     ["error", 500, "/problems/error", "Request not answered"],
@@ -203,6 +216,28 @@ describe("a problem", () => {
 
   it("is read from an error of the sessions, with its failure as the code and its message as the detail", () => {
     assert.deepEqual(expectedProblem(new SessionError("session_running", "Wait.")), problemOf("session_running", "Wait."));
+  });
+
+  it("is read from a refusal of the operations: a session that does not exist, one that ended, and no test repository to run one in, with what to set", () => {
+    assert.deepEqual(expectedProblem(new UnknownSessionError("s2")), problemOf("unknown_session", "No session s2."));
+    assert.deepEqual(
+      expectedProblem(new SessionEndedError("s1")),
+      problemOf("session_ended", "The session s1 no longer goes on. It takes no message and no interruption: open another session to go on."),
+    );
+    assert.deepEqual(
+      expectedProblem(new NoRepositoryError()),
+      problemOf(
+        "unavailable",
+        "The API was started without a test repository, and opens no session: set OQAS_REPOSITORY to the absolute path of a folder that holds oqas.json, and start the API again.",
+      ),
+    );
+  });
+
+  it("is read from a database that cannot be reached as sessions that are unavailable, without what the database said", () => {
+    assert.deepEqual(
+      expectedProblem(new DatabaseUnavailableError("connect ECONNREFUSED 10.0.0.7:5432")),
+      problemOf("unavailable", "The database of the instance cannot be reached, and its sessions with it: try again once the instance reports itself ready."),
+    );
   });
 
   it("is read from a refusal of the framework or of the HTTP server: an invalid request when the status is 400, an error of that status otherwise", () => {
@@ -225,85 +260,34 @@ describe("a problem", () => {
   });
 });
 
-describe("the service of the sessions", () => {
-  it("gives the project, the sessions and a session as their source does", async () => {
-    const service = new SessionsService(new OneSession());
-    assert.equal(await service.project(), PROJECT);
-    assert.deepEqual(await service.sessions(), [SESSION]);
-    assert.equal(await service.session(SESSION.id), SESSION);
-  });
-
-  it("refuses a session its source does not hold, for itself and for its events", async () => {
-    const service = new SessionsService(new OneSession());
-    for (const asked of [service.session("s2"), service.events("s2", 0)]) {
-      await assert.rejects(asked, (error) => {
-        assert.ok(error instanceof SessionError);
-        assert.deepEqual([error.failure, error.message], ["unknown_session", "No session s2."]);
-        return true;
-      });
-    }
-  });
-
-  it("follows the events of its source after the one it is given, to their end", async () => {
-    const source = new OneSession();
-    const service = new SessionsService(source);
-    assert.deepEqual(await lastValueFrom((await service.events(SESSION.id, 12)).pipe(toArray())), EVENTS);
-    assert.deepEqual(source.asked, [[SESSION.id, 12]]);
-  });
-
-  it("ends the streams of events still open when its module is destroyed, and at once those opened afterwards", async () => {
-    const events = new Subject<SessionEvent>();
-    const source = new OneSession();
-    source.events = () => events;
-    const service = new SessionsService(source);
-    const told = lastValueFrom((await service.events(SESSION.id, 0)).pipe(toArray()));
-    events.next(ASKED);
-    service.onModuleDestroy();
-    assert.deepEqual(await told, [ASKED]);
-    assert.equal(events.observed, false);
-    assert.deepEqual(await lastValueFrom((await service.events(SESSION.id, 0)).pipe(toArray())), []);
-    assert.equal(events.observed, false);
-  });
-
-  it("opens the session its source opens", async () => {
-    const source = new OneSession();
-    assert.equal(await new SessionsService(source).open({ request: "cover the profile" }), SESSION);
-    assert.deepEqual(source.asked, [{ request: "cover the profile" }]);
-  });
-
-  it("hands a message to its source, answers the receipt of the source, and refuses a session the source does not hold", async () => {
-    const source = new OneSession();
-    const service = new SessionsService(source);
-    assert.deepEqual(await service.send(SESSION.id, { text: "not that page" }), { number: 3 });
-    assert.deepEqual(source.asked, [[SESSION.id, { text: "not that page" }]]);
-    await assert.rejects(service.send("s2", { text: "not that page" }), (error) => {
-      assert.ok(error instanceof SessionError);
-      assert.deepEqual([error.failure, error.message], ["unknown_session", "No session s2."]);
-      return true;
-    });
-  });
-});
-
 describe("the controllers of the project and of the sessions", () => {
-  it("return what the service returns, the sessions as the items of a list", async () => {
+  it("return what the operations return, the sessions as the items of a list", async () => {
     const source = new OneSession();
-    assert.equal(await new ProjectController(new SessionsService(source)).project(), PROJECT);
+    assert.equal(await new ProjectController(source.operations).project(), PROJECT);
     const { controller } = controllerOf(source);
     assert.deepEqual(await controller.list(), { items: [SESSION] });
     assert.equal(await controller.one(SESSION.id), SESSION);
   });
 
   it("answer the session opened, and where to read it: a reference relative to the address of the request", async () => {
-    const { controller, headers } = controllerOf(new OneSession());
+    const source = new OneSession();
+    const { controller, headers } = controllerOf(source);
     const response = {};
     assert.equal(await controller.open({ request: "cover the profile" }, response), SESSION);
     assert.deepEqual(headers, [[response, "Location", "sessions/s%201"]]);
     assert.equal(headers[0]?.[0], response);
+    assert.deepEqual(source.asked, [{ request: "cover the profile" }]);
   });
 
-  it("answer the receipt of a message sent to a session", async () => {
-    const { controller } = controllerOf(new OneSession());
+  it("say a message to a session and answer its receipt, and interrupt a session", async () => {
+    const source = new OneSession();
+    const { controller } = controllerOf(source);
     assert.deepEqual(await controller.send(SESSION.id, { text: "not that page" }), { number: 3 });
+    assert.equal(await controller.interrupt(SESSION.id), undefined);
+    assert.deepEqual(source.asked, [
+      [SESSION.id, { text: "not that page" }],
+      ["interrupt", SESSION.id],
+    ]);
   });
 
   it("open a stream on the identifier it resumes after and the time to wait before reconnecting, send each event under its identifier, then end", async () => {
@@ -339,9 +323,8 @@ describe("the controllers of the project and of the sessions", () => {
   });
 
   it("send a comment at each heartbeat while a stream has nothing to say, and none once it ended", async () => {
-    const events = new Subject<SessionEvent>();
     const source = new OneSession();
-    source.events = () => events;
+    source.told = new ToldEvents();
     const { controller } = controllerOf(source, { heartbeatMs: 5, retryMs: 100 });
     const messages: MessageEvent[] = [];
     const ended = new Promise<void>(
@@ -352,12 +335,93 @@ describe("the controllers of the project and of the sessions", () => {
     );
     for (let waited = 0; waited < 1000 && messages.length < 3; waited += 5) await new Promise((resolve) => setTimeout(resolve, 5));
     assert.deepEqual(messages.slice(0, 3), [{ id: "0", retry: 100 }, { comment: "heartbeat" }, { comment: "heartbeat" }]);
-    events.next(ENDED);
-    events.complete();
+    source.told.tell([ENDED], true);
     await ended;
     const sent = messages.length;
     assert.deepEqual(messages.at(-1), { id: "2", data: ENDED });
     await new Promise((resolve) => setTimeout(resolve, 20));
     assert.equal(messages.length, sent);
+  });
+});
+
+describe("the events of a session, as the server streams them", () => {
+  it("are those the operations give, read while they are subscribed to, and left when the client leaves", () => {
+    const told = new ToldEvents();
+    const seen: SessionEvent[] = [];
+    const subscription = new EventStreams().of("s1", told.stream).subscribe((event) => seen.push(event));
+    told.tell([ASKED]);
+    assert.deepEqual([seen, told.listeners.size], [[ASKED], 1]);
+    subscription.unsubscribe();
+    assert.equal(told.listeners.size, 0);
+  });
+
+  it("end the streams still open when the module is destroyed, and at once those opened afterwards", async () => {
+    const told = new ToldEvents();
+    const streams = new EventStreams();
+    const followed = lastValueFrom(streams.of("s1", told.stream).pipe(toArray()));
+    told.tell([ASKED]);
+    streams.onModuleDestroy();
+    assert.deepEqual(await followed, [ASKED]);
+    assert.equal(told.listeners.size, 0);
+    assert.deepEqual(await lastValueFrom(streams.of("s1", told.stream).pipe(toArray())), []);
+    assert.equal(told.listeners.size, 0);
+  });
+
+  it("end, with a warning in the log, when they can no longer be read, an error or not", async () => {
+    const logger = new CapturedLogger();
+    Logger.overrideLogger(logger);
+    try {
+      for (const failure of [new Error("The database is unreachable."), "lost"]) {
+        const failing = {
+          subscribe: (listener: EventListener) => (listener.event(ASKED), listener.failed(failure), () => undefined),
+        } as unknown as SessionEventStream;
+        assert.deepEqual(await lastValueFrom(new EventStreams().of("s1", failing).pipe(toArray())), [ASKED]);
+      }
+    } finally {
+      Logger.overrideLogger(false);
+    }
+    assert.deepEqual(
+      logger.lines.map((line) => line.replace(/ Sessions$/, "")),
+      [
+        "warn The events of the session s1 can no longer be read: The database is unreachable.",
+        "warn The events of the session s1 can no longer be read: lost",
+      ],
+    );
+  });
+});
+
+describe("the operations on sessions, started and stopped with the API", () => {
+  /** The lifecycle over operations that start and stop as a test says, with what it logged. */
+  async function lived(start: () => Promise<void>, stopped: boolean): Promise<{ lines: string[]; within: number[] }> {
+    const logger = new CapturedLogger();
+    const within: number[] = [];
+    const operations = { start, stop: async (withinMs: number) => (within.push(withinMs), stopped) } as unknown as Sessions;
+    Logger.overrideLogger(logger);
+    try {
+      const lifecycle = new SessionsLifecycle(operations, new RunEnvironment());
+      await lifecycle.onApplicationBootstrap();
+      await lifecycle.onModuleDestroy();
+    } finally {
+      Logger.overrideLogger(false);
+    }
+    return { lines: logger.lines.map((line) => line.replace(/ Sessions$/, "")), within };
+  }
+
+  it("start with it, and are given ten seconds to stop with it, without a word when both went well", async () => {
+    assert.deepEqual(await lived(async () => undefined, true), { lines: [], within: [10_000] });
+  });
+
+  it("do not stop the startup when they cannot start, nor the stop when the session under way did not end in time: both are logged", async () => {
+    const failed = await lived(() => Promise.reject(new Error("The database is unreachable.")), false);
+    assert.deepEqual(failed.lines, [
+      "warn The sessions are not started, and will be when one is next opened: The database is unreachable.",
+      "warn The session under way did not end in time: it stays running in the database until the API starts again, and interrupts it.",
+    ]);
+    assert.deepEqual((await lived(() => Promise.reject("lost"), true)).lines, ["warn The sessions are not started, and will be when one is next opened: lost"]);
+  });
+
+  it("run their sessions with the environment of the process, on the machine itself, at the pace of the engine", () => {
+    const environment = new RunEnvironment();
+    assert.deepEqual([environment.env, environment.runner, environment.writerPace], [TEST_ENVIRONMENT, undefined, undefined]);
   });
 });

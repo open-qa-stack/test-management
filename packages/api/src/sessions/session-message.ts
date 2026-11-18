@@ -1,6 +1,6 @@
 import { requestBody } from "./request-body.ts";
 import { SessionError } from "./session-error.ts";
-import type { SessionMessage } from "@open-qa-stack/shared/sessions";
+import type { SessionMessage } from "@open-qa-stack/domain/sessions";
 
 /** The fields a client may send; the type keeps the list to those of a message. */
 const FIELDS = ["text"] as const satisfies readonly (keyof SessionMessage)[];

@@ -1,4 +1,4 @@
-import type { DomainIndex, SourceCard } from "@open-qa-stack/shared";
+import type { DomainIndex, SourceCard } from "@open-qa-stack/domain";
 import { cardFingerprint } from "./card-fingerprint.ts";
 import type { RunSource } from "./run-sources.ts";
 

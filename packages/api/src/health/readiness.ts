@@ -1,4 +1,4 @@
-import type { DatabaseState } from "../database/database-state.ts";
+import type { DatabaseState } from "@open-qa-stack/store";
 
 /** Body of the readiness route: whether the instance can serve, and the state of what it depends on. */
 export interface Readiness {

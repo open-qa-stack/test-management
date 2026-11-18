@@ -213,7 +213,7 @@ describe("criterion 10 — no generated test imports another, and nothing is wri
 });
 
 describe("criterion 11 — the designer imports neither the SDK nor a package its package may not depend on", () => {
-  it("imports only node modules, its own files and @open-qa-stack/domain, shared and tools", () => {
+  it("imports only node modules, its own files and @open-qa-stack/domain and tools", () => {
     const folder = new URL("../src/", import.meta.url);
     const files = readdirSync(folder, { recursive: true, encoding: "utf8" }).filter((file) => file.endsWith(".ts"));
     const imported = files.flatMap((file) =>
@@ -222,7 +222,7 @@ describe("criterion 11 — the designer imports neither the SDK nor a package it
       ),
     );
     const allowed = (module: string) =>
-      module.startsWith("node:") || module.startsWith(".") || ["@open-qa-stack/domain", "@open-qa-stack/shared", "@open-qa-stack/tools"].includes(module);
+      module.startsWith("node:") || module.startsWith(".") || ["@open-qa-stack/domain", "@open-qa-stack/tools"].includes(module);
     assert.ok(files.some((file) => file.startsWith("designer")));
     assert.deepEqual(
       imported.filter((module) => !allowed(module)),

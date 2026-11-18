@@ -1,4 +1,4 @@
-import type { MessageReceipt, Problem, Project, Session, SessionList, SessionMessage, SessionOpening } from "@open-qa-stack/shared/sessions";
+import type { MessageReceipt, Problem, Project, Session, SessionList, SessionMessage, SessionOpening } from "@open-qa-stack/domain/sessions";
 import { ApiError } from "./api-error.ts";
 import { problemCode, problemText } from "./problem-text.ts";
 

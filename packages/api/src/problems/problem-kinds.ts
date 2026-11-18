@@ -1,5 +1,5 @@
 import { HttpStatus } from "@nestjs/common";
-import type { Problem, ProblemCode } from "@open-qa-stack/shared/sessions";
+import type { Problem, ProblemCode } from "@open-qa-stack/domain/sessions";
 
 /** What every problem of one code has in common. */
 interface ProblemKind {
@@ -13,7 +13,7 @@ const KINDS: Readonly<Record<ProblemCode, ProblemKind>> = {
   invalid_request: { status: HttpStatus.BAD_REQUEST, title: "Invalid request" },
   session_running: { status: HttpStatus.CONFLICT, title: "A session is running" },
   session_ended: { status: HttpStatus.CONFLICT, title: "Session ended" },
-  unavailable: { status: HttpStatus.SERVICE_UNAVAILABLE, title: "Sessions cannot be opened" },
+  unavailable: { status: HttpStatus.SERVICE_UNAVAILABLE, title: "Sessions unavailable" },
   not_opened: { status: HttpStatus.BAD_GATEWAY, title: "Session not opened" },
   opening_timed_out: { status: HttpStatus.SERVICE_UNAVAILABLE, title: "Opening timed out" },
   error: { status: HttpStatus.INTERNAL_SERVER_ERROR, title: "Request not answered" },

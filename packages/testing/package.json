@@ -9,12 +9,14 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./loopback-only": "./src/loopback-only.ts"
+    "./fixture-repository": "./src/fixture-repository.ts",
+    "./loopback-only": "./src/loopback-only.ts",
+    "./test-repository": "./src/test-repository/index.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"
   },
-  "devDependencies": {
+  "dependencies": {
     "vitest": "5.1.0"
   }
 }

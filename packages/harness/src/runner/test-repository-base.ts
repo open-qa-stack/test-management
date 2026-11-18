@@ -1,4 +1,4 @@
-import { applicationPages, appsFrom, baseUrlVariable, PAGES_FOLDER, PAGES_INDEX, sharedFixtures } from "@open-qa-stack/shared";
+import { applicationPages, appsFrom, baseUrlVariable, DATABASE_FILE_NAME, PAGES_FOLDER, PAGES_INDEX, sharedFixtures } from "@open-qa-stack/domain";
 import { testRepositoryReadme } from "./test-repository-readme.ts";
 import { testRepositoryWorkflow } from "./test-repository-workflow.ts";
 
@@ -147,7 +147,16 @@ export function testRepositoryBase(project: TestProject): BaseFile[] {
     },
     include: [appsDir, "playwright.config.ts"],
   };
-  const ignored = ["node_modules/", `${stateDir}/test-results/`, `${stateDir}/report/`, `${stateDir}/junit.xml`, `${stateDir}/runs/`, `${stateDir}/traces/`];
+  const ignored = [
+    "node_modules/",
+    `${stateDir}/test-results/`,
+    `${stateDir}/report/`,
+    `${stateDir}/junit.xml`,
+    `${stateDir}/runs/`,
+    `${stateDir}/traces/`,
+    // The database of an instance that was given no other, with the files SQLite keeps beside it.
+    `${stateDir}/${DATABASE_FILE_NAME}*`,
+  ];
   return [
     { path: "package.json", content: `${JSON.stringify(manifest, null, 2)}\n` },
     { path: "playwright.config.ts", content: PLAYWRIGHT_CONFIG },

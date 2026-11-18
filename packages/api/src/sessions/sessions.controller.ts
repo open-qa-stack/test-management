@@ -1,23 +1,29 @@
 import { Body, Controller, Get, Header, Headers, HttpCode, HttpStatus, Param, Post, Query, Res, Sse } from "@nestjs/common";
 import { HttpAdapterHost } from "@nestjs/core";
 import { endWith, interval, map, merge, type Observable, startWith, takeWhile } from "rxjs";
+import { Sessions } from "@open-qa-stack/engine";
 import { eventIdOf } from "./event-id.ts";
+import { EventStreams } from "./event-streams.ts";
 import { SessionMessagePipe } from "./session-message.pipe.ts";
 import { SessionOpeningPipe } from "./session-opening.pipe.ts";
-import { SessionsService } from "./sessions.service.ts";
 import { StreamPace } from "./stream-pace.ts";
 import type { MessageEvent } from "@nestjs/common";
-import type { MessageReceipt, Session, SessionList, SessionMessage, SessionOpening } from "@open-qa-stack/shared/sessions";
+import type { MessageReceipt, Session, SessionList, SessionMessage, SessionOpening } from "@open-qa-stack/domain/sessions";
 
-/** `GET /sessions`, `GET /sessions/:id`, `GET /sessions/:id/events`, `POST /sessions` and `POST /sessions/:id/messages`. */
+/**
+ * `GET /sessions`, `GET /sessions/:id`, `GET /sessions/:id/events`, `POST /sessions`, `POST /sessions/:id/messages`
+ * and `POST /sessions/:id/interruption`: each route is one operation on the sessions, said in HTTP.
+ */
 @Controller("sessions")
 export class SessionsController {
-  readonly #sessions: SessionsService;
+  readonly #sessions: Sessions;
+  readonly #streams: EventStreams;
   readonly #pace: StreamPace;
   readonly #adapterHost: HttpAdapterHost;
 
-  constructor(sessions: SessionsService, pace: StreamPace, adapterHost: HttpAdapterHost) {
+  constructor(sessions: Sessions, streams: EventStreams, pace: StreamPace, adapterHost: HttpAdapterHost) {
     this.#sessions = sessions;
+    this.#streams = streams;
     this.#pace = pace;
     this.#adapterHost = adapterHost;
   }
@@ -54,7 +60,7 @@ export class SessionsController {
   @Sse(":id/events")
   async events(@Param("id") id: string, @Headers("last-event-id") lastEventId: unknown, @Query("after") after: unknown): Promise<Observable<MessageEvent>> {
     const known = eventIdOf("Last-Event-ID", lastEventId) ?? eventIdOf("after", after) ?? 0;
-    const events = await this.#sessions.events(id, known);
+    const events = this.#streams.of(id, await this.#sessions.events(id, known));
     const messages = events.pipe(
       map((event): MessageEvent => ({ id: String(event.id), data: event })),
       startWith<MessageEvent>({ id: String(known), retry: this.#pace.retryMs }),
@@ -65,8 +71,10 @@ export class SessionsController {
   }
 
   /**
-   * @returns The session opened, answered with `201` and, as `Location`, where to read it: a reference
-   * relative to the address of the request, which holds behind a proxy that serves the API under a prefix.
+   * @returns The session opened, `running` when it started at once and `queued` when it waits its turn,
+   * answered with `201` and, as `Location`, where to read it: a reference relative to the address of the
+   * request, which holds behind a proxy that serves the API under a prefix. An API that was given no test
+   * repository answers `503`.
    */
   @Post()
   async open(@Body(SessionOpeningPipe) opening: SessionOpening, @Res({ passthrough: true }) response: unknown): Promise<Session> {
@@ -83,6 +91,17 @@ export class SessionsController {
   @Post(":id/messages")
   @HttpCode(HttpStatus.ACCEPTED)
   send(@Param("id") id: string, @Body(SessionMessagePipe) message: SessionMessage): Promise<MessageReceipt> {
-    return this.#sessions.send(id, message);
+    return this.#sessions.say(id, message);
+  }
+
+  /**
+   * Interrupts a session that goes on, answered with `202`: one that waits is interrupted at once, one that
+   * runs is asked to stop, and the stream of the events tells when it did. An unknown session is answered
+   * with `404`, one that had already ended with `409`.
+   */
+  @Post(":id/interruption")
+  @HttpCode(HttpStatus.ACCEPTED)
+  interrupt(@Param("id") id: string): Promise<void> {
+    return this.#sessions.interrupt(id);
   }
 }

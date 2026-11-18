@@ -1,11 +1,7 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
-import type { AgentEvent } from "@open-qa-stack/domain";
+import { traceFile, TRACES_FOLDER, type AgentEvent, type HarnessEvent, type TraceLine, type TracePhase } from "@open-qa-stack/domain";
 import { redactText, secretForms } from "@open-qa-stack/tools";
-import type { HarnessEvent, TraceLine, TracePhase } from "./trace-line.ts";
-
-/** Folder of the traces, in the state folder of the test repository. */
-export const TRACES_FOLDER = "traces";
 
 /** Longest string a trace keeps whole. */
 export const MAX_TRACED_LENGTH = 10_000;
@@ -55,7 +51,7 @@ export class Trace {
    * @returns The path, named by `name` and the date.
    */
   public static pathFor(stateFolder: string, name: string, date: Date): string {
-    return join(stateFolder, TRACES_FOLDER, `${name}-${date.toISOString().replace(/[:.]/g, "-")}.jsonl`);
+    return join(stateFolder, TRACES_FOLDER, traceFile(name, date));
   }
 
   /**

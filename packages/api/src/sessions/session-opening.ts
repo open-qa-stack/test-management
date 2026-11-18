@@ -1,6 +1,6 @@
 import { requestBody } from "./request-body.ts";
 import { SessionError } from "./session-error.ts";
-import type { SessionOpening } from "@open-qa-stack/shared/sessions";
+import type { SessionOpening } from "@open-qa-stack/domain/sessions";
 
 /** The fields a client may send; the type keeps the list to those of an opening. */
 const FIELDS = ["request", "environment"] as const satisfies readonly (keyof SessionOpening)[];

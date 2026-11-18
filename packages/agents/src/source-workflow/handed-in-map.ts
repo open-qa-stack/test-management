@@ -1,5 +1,4 @@
-import type { ToolDefinition } from "@open-qa-stack/domain";
-import { SLUG_PATTERN, type ManifestDomain } from "@open-qa-stack/shared";
+import { SLUG_PATTERN, type ManifestDomain, type ToolDefinition } from "@open-qa-stack/domain";
 import { redactText, secretForms, sourceExport, type ElementDraft, type SourceExport } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
 import { minimalBody, unfenced, type DomainMember } from "./domain-file.ts";

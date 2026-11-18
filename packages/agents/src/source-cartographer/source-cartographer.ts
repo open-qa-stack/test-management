@@ -1,17 +1,28 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type { AgentEvent, AgentRuntime, StopReason, ToolDefinition } from "@open-qa-stack/domain";
-import { validateSourceCard, type ResolvedConfig, type SourceCard, type SourceCardSubmission, type SourceManifest } from "@open-qa-stack/shared";
+import {
+  validateSourceCard,
+  type AgentEvent,
+  type AgentRuntime,
+  type ModelUsage,
+  type PhaseOutcome,
+  type ResolvedConfig,
+  type SourceCard,
+  type SourceCardSubmission,
+  type SourceManifest,
+  type StopReason,
+  type ToolDefinition,
+  type TraceLine,
+} from "@open-qa-stack/domain";
 import { DocumentSet, type BrowserAccess, type KnowledgeAccess, type SourceExport, type SourceInventory } from "@open-qa-stack/tools";
 import { agentNotes } from "../common/agent-notes.ts";
 import { configSecrets } from "../common/config-secrets.ts";
 import { runAgentTask, taskEnd, taskLimits } from "../common/agent-task.ts";
 import { HandedIn } from "../common/handed-in.ts";
 import { Journal, type JournalEntry } from "../common/journal.ts";
-import { NO_USAGE, usageOf, type ModelUsage } from "../common/model-usage.ts";
+import { NO_USAGE, usageOf } from "../common/model-usage.ts";
 import { runTrace } from "../common/run-trace.ts";
 import type { Trace } from "../common/trace.ts";
-import type { PhaseOutcome, TraceLine } from "../common/trace-line.ts";
 import { manifestCard } from "../source-workflow/manifest-card.ts";
 import { mapApplication } from "../application-explorer/map-application.ts";
 import { mapDocuments } from "../document-cartographer/map-documents.ts";

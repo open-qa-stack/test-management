@@ -1,4 +1,4 @@
-import type { SourceManifest } from "@open-qa-stack/shared";
+import type { SourceManifest } from "@open-qa-stack/domain";
 import type { SourceExport } from "@open-qa-stack/tools";
 import { Grouping } from "./grouping.ts";
 

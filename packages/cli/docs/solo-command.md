@@ -161,6 +161,21 @@ The state of a run is written to `<stateDir>/runs/oqas-<date>.json`:
 
 `brief` is the brief of the run, when one was given; `designState` the state the design wrote, when it wrote one, which names the file of its plan, `<design>.plan.md` beside it; `stoppedBy`, such as `{ "step": "design", "limit": "iterations" }`, the step a limit stopped and the limit, when one stopped the run; `resumes` the run it resumes, when it resumes one. `steps` lists the steps that ran before the summary, which writes the state; a step that did not succeed is listed too, with the requests it sent to the model. `index`, `branch`, `run` and `report` are present once their step produced them, as paths relative to the test repository with forward slashes. The reason of each verdict has every declared secret masked.
 
+## The command and the engine
+
+The steps above are those of a run of [`@open-qa-stack/engine`](../../engine/docs/engine.md), which the command hosts. The command itself reads the options, prints the usage, initialises a test repository, and plugs the run into the terminal and the test repository:
+
+| What the run needs | What the command gives it |
+| --- | --- |
+| Where to tell what it does | `FileJournal`: the error output, and the file of the journal. |
+| Where to print its summary | The standard output. |
+| Who follows the agents | With `--follow`, the error output, a line of the trace at a time. |
+| The inbox of the person | The file `<stateDir>/runs/oqas-<date>.inbox.jsonl`. |
+| Where the state of a run is kept and found | `FileRunStore`: the file of the state, beside the journal. |
+| The runtime of the agents | The model of the configuration, with the environment of the process. |
+
+The exit code of the process is the code the run ends with.
+
 ## What it never does
 
 It pushes nothing, changes no remote nor the git configuration of the repository, and leaves an uncommitted change as it is: the designer refuses to start on a repository with one. It uses no container: the tests run on the machine, at the locked version of `@playwright/test`.

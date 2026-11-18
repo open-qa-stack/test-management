@@ -19,7 +19,6 @@
   "dependencies": {
     "@github/copilot-sdk": "1.0.31",
     "@open-qa-stack/domain": "workspace:*",
-    "@open-qa-stack/shared": "workspace:*",
     "ajv": "8.20.0",
     "eslint-plugin-playwright": "2.12.2",
     "oxlint": "1.93.0",

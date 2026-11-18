@@ -1,5 +1,4 @@
-import type { ToolDefinition } from "@open-qa-stack/domain";
-import type { SourceCodeCommands } from "@open-qa-stack/shared";
+import type { SourceCodeCommands, ToolDefinition } from "@open-qa-stack/domain";
 import { scopedToolName } from "../common/tool-name.ts";
 import type { CodeFolder } from "./code-folder.ts";
 import { searchCode } from "./code-search.ts";

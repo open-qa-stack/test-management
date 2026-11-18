@@ -6,8 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it } from "vitest";
-import type { ToolDefinition } from "@open-qa-stack/domain";
-import type { Knowledge } from "@open-qa-stack/shared";
+import type { Knowledge, ToolDefinition } from "@open-qa-stack/domain";
 import {
   ALL_COLUMNS_QUERY,
   assertCatalogQuery,

@@ -1,5 +1,11 @@
-import type { ToolDefinition } from "@open-qa-stack/domain";
-import { SLUG_PATTERN, validatePlacementSubmission, type ManifestDomain, type PlacementItem, type PlacementSubmission } from "@open-qa-stack/shared";
+import {
+  SLUG_PATTERN,
+  validatePlacementSubmission,
+  type ManifestDomain,
+  type PlacementItem,
+  type PlacementSubmission,
+  type ToolDefinition,
+} from "@open-qa-stack/domain";
 import { redactText, secretForms, type ExportedElement } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
 import { MAX_DOMAIN_ELEMENTS, type Grouping } from "./grouping.ts";

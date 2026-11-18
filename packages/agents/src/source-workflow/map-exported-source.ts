@@ -1,5 +1,4 @@
-import type { AgentEvent, AgentRuntime, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
-import type { ManifestDomain, SourceManifest } from "@open-qa-stack/shared";
+import type { AgentEvent, AgentRuntime, ManifestDomain, SourceManifest, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
 import type { ExportedElement, SourceExport } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
 import { cites, exportVocabulary } from "./cited-names.ts";

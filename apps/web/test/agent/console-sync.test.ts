@@ -1,14 +1,17 @@
 import assert from "node:assert/strict";
-import type { Project, Session } from "@open-qa-stack/shared/sessions";
+import type { Project, Session } from "@open-qa-stack/domain/sessions";
 import { afterEach, beforeEach, describe, it, vi } from "vitest";
 import type { ConsoleAction } from "../../src/agent/console-state.ts";
 import { ConsoleSync, PAUSE_MS } from "../../src/agent/console-sync.ts";
 import { ApiClient } from "../../src/api/api-client.ts";
 import { FakeDocument } from "../api/fake-document.ts";
 import { FakeEventSource } from "../api/fake-event-source.ts";
-import { COMPLETED, EVENTS, numbered, RUNNING, SESSION_ID } from "./session-fixture.ts";
+import { COMPLETED, EVENTS, numbered, QUEUED, RUNNING, SESSION_ID } from "./session-fixture.ts";
 
 const PROJECT: Project = { name: "Demo", applications: [] };
+
+/** The event that says the session started of the fixtures. */
+const TAKEN_EVENT = numbered([...EVENTS.slice(0, 2), { type: "state_changed", state: "running" }])[2]!;
 
 /** The event that says the session of the fixtures completed. */
 const COMPLETED_EVENT = numbered([...EVENTS.slice(0, 3), { type: "state_changed", state: "completed" }])[3]!;
@@ -211,6 +214,23 @@ describe("what keeps the console in step with its instance", () => {
         { type: "events", id: SESSION_ID, events: [EVENTS[0]] },
       ]);
       assert.deepEqual(api.calls, [SESSION]);
+      leave();
+    });
+
+    it("reads the session again when its stream says it started, and goes on following it", async () => {
+      api.answer(SESSION, json(QUEUED));
+      const leave = api.sync.follow(SESSION_ID);
+      await settled();
+      api.answer(SESSION, json(RUNNING));
+      FakeEventSource.last.receive(TAKEN_EVENT);
+      await vi.advanceTimersByTimeAsync(10 * PAUSE_MS);
+      assert.deepEqual(api.told.slice(1), [
+        { type: "session", session: QUEUED },
+        { type: "events", id: SESSION_ID, events: [TAKEN_EVENT] },
+        { type: "session", session: RUNNING },
+      ]);
+      assert.deepEqual(api.calls, [SESSION, SESSION]);
+      assert.equal(FakeEventSource.last.closed, false);
       leave();
     });
 

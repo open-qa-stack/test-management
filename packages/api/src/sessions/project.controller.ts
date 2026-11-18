@@ -1,13 +1,13 @@
 import { Controller, Get, Header } from "@nestjs/common";
-import { SessionsService } from "./sessions.service.ts";
-import type { Project } from "@open-qa-stack/shared/sessions";
+import { Sessions } from "@open-qa-stack/engine";
+import type { Project } from "@open-qa-stack/domain/sessions";
 
 /** `GET /project`. */
 @Controller("project")
 export class ProjectController {
-  readonly #sessions: SessionsService;
+  readonly #sessions: Sessions;
 
-  constructor(sessions: SessionsService) {
+  constructor(sessions: Sessions) {
     this.#sessions = sessions;
   }
 

@@ -1,106 +1,80 @@
-import { appendFileSync, mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { after } from "node:test";
+import { join } from "node:path";
+import type { CommandRunner } from "@open-qa-stack/domain";
+import { scriptedServer, type ScriptedServer } from "@open-qa-stack/testing";
+import { FakeRunner, fixtureConfig, fixtureRepository, WITNESS, type RanCommand, type RanOutcome } from "@open-qa-stack/testing/fixture-repository";
+import type { RunEnvironment } from "../../src/sessions/run-environment.ts";
 
-/** The identifiers of three runs, in the order they started. */
-export const FIRST = "oqas-2026-11-14T09-00-00-000Z";
-export const SECOND = "oqas-2026-11-14T10-00-00-000Z";
-export const THIRD = "oqas-2026-11-14T11-00-00-000Z";
-
-/** The date of an identifier, as the name of a trace ends on it, moved by some minutes. */
-export function stampOf(id: string, minutes = 0): string {
-  return id.slice("oqas-".length).replace(/-00-00-000Z$/, `-${String(minutes).padStart(2, "0")}-00-000Z`);
+/** A door a run waits at until a test opens it. */
+export interface Door {
+  /** Settles once the run reached the door. */
+  readonly reached: Promise<void>;
+  /** Lets the run through, now and from then on. */
+  open(): void;
 }
 
-const folders: string[] = [];
-
-after(() => {
-  for (const folder of folders.splice(0)) rmSync(folder, { recursive: true, force: true });
-});
-
-/** A temporary folder, removed once the tests of the file that asked for it are over. */
-export function temporaryFolder(): string {
-  const folder = mkdtempSync(join(tmpdir(), "oqas-api-"));
-  folders.push(folder);
-  return folder;
-}
-
-/** A temporary test repository, as the runs of `oqas` leave it. */
+/**
+ * What the sessions of an API under test run with: a test repository, the application it targets, a model
+ * that answers as scripted, and the doubles of npm and Playwright. No test calls a model nor installs anything.
+ */
 export class TestRepository {
-  /** The root of the repository, absolute. */
+  /** The absolute path of the test repository. */
   readonly root: string;
-  readonly #stateDir: string;
+  readonly model: ScriptedServer;
+  readonly #workspace: string;
+  readonly #site: Server;
+  #hold: (step: RanCommand) => Promise<void> = async () => undefined;
+
+  private constructor(workspace: string, site: Server, model: ScriptedServer) {
+    this.#workspace = workspace;
+    this.#site = site;
+    this.model = model;
+    this.root = fixtureRepository(workspace, fixtureConfig(model.baseUrl, `http://127.0.0.1:${(site.address() as AddressInfo).port}`));
+  }
 
   /**
-   * @param configuration - What `oqas.json` holds; no file when `undefined`.
-   * @param stateDir - The state folder the runs write to, from the root.
+   * @param replies - What the model answers, in order.
+   * @returns The test repository, its application and its model started.
    */
-  constructor(configuration: unknown = { formatVersion: 1 }, stateDir = ".oqas") {
-    this.root = temporaryFolder();
-    this.#stateDir = stateDir;
-    if (configuration !== undefined) writeFileSync(join(this.root, "oqas.json"), JSON.stringify(configuration));
+  static async create(replies: Parameters<typeof scriptedServer>[0]): Promise<TestRepository> {
+    const site = createServer((_request, response) => response.writeHead(200).end("ok"));
+    await new Promise<void>((resolve) => site.listen(0, "127.0.0.1", resolve));
+    return new TestRepository(mkdtempSync(join(tmpdir(), "oqas-api-")), site, await scriptedServer(replies));
   }
 
-  /** The journal of a run, absolute. */
-  journalPath(id: string): string {
-    return join(this.root, this.#stateDir, "runs", `${id}.jsonl`);
+  /** What the API gives its runs: the variable the configuration of the repository names, the doubles, and writes made again at once. */
+  get environment(): Partial<RunEnvironment> {
+    const doubles = new FakeRunner(this.root);
+    const runner: CommandRunner = {
+      run: async (step): Promise<RanOutcome> => {
+        await this.#hold(step);
+        return doubles.run(step);
+      },
+    };
+    return { env: { SHOP_DB_URL: WITNESS }, runner, writerPace: { firstRetryMs: 5, maxRetryMs: 20 } };
   }
 
-  /** The inbox of a run, absolute. */
-  inboxPath(id: string): string {
-    return join(this.root, this.#stateDir, "runs", `${id}.inbox.jsonl`);
+  /** @returns A door the design of the next run waits at, before it installs the dependencies of the test repository. */
+  designDoor(): Door {
+    let arrive: () => void = () => undefined;
+    let open: () => void = () => undefined;
+    const reached = new Promise<void>((resolve) => (arrive = resolve));
+    const opened = new Promise<void>((resolve) => (open = resolve));
+    this.#hold = async ({ command }) => {
+      if (command[0] !== "npm" || command[1] !== "ci") return;
+      arrive();
+      await opened;
+    };
+    return { reached, open };
   }
 
-  /** The state of a run, absolute. */
-  statePath(id: string): string {
-    return join(this.root, this.#stateDir, "runs", `${id}.json`);
-  }
-
-  /** The trace of an agent, absolute. */
-  tracePath(name: string, stamp: string): string {
-    return join(this.root, this.#stateDir, "traces", `${name}-${stamp}.jsonl`);
-  }
-
-  /** Appends text to the journal of a run, which it starts when it has none. */
-  journal(id: string, text: string): void {
-    this.#append(this.journalPath(id), text);
-  }
-
-  /** Appends text to the inbox of a run, which it starts when it has none, as a person who writes to it by hand does. */
-  inbox(id: string, text: string): void {
-    this.#append(this.inboxPath(id), text);
-  }
-
-  /** Appends text to the trace of an agent, which it starts when it has none. */
-  trace(name: string, stamp: string, text: string): void {
-    this.#append(this.tracePath(name, stamp), text);
-  }
-
-  /** Writes any file of the state folder. */
-  write(path: string, text: string): void {
-    const file = join(this.root, this.#stateDir, path);
-    mkdirSync(dirname(file), { recursive: true });
-    writeFileSync(file, text);
-  }
-
-  /** Ends a run: writes its state. */
-  end(id: string, state: unknown): void {
-    this.write(`runs/${id}.json`, JSON.stringify(state));
-  }
-
-  /** Dates the last write to a file. */
-  touch(path: string, at: Date): void {
-    utimesSync(path, at, at);
-  }
-
-  /** Removes a file. */
-  remove(path: string): void {
-    rmSync(path);
-  }
-
-  #append(file: string, text: string): void {
-    mkdirSync(dirname(file), { recursive: true });
-    appendFileSync(file, text);
+  /** Stops the application and the model, and removes the repository. */
+  async close(): Promise<void> {
+    await this.model.close();
+    await new Promise<void>((resolve) => this.#site.close(() => resolve()));
+    rmSync(this.#workspace, { recursive: true, force: true });
   }
 }

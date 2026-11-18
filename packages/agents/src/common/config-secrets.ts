@@ -1,6 +1,5 @@
-import type { ResolvedConfig } from "@open-qa-stack/shared";
+import type { IndexError, ResolvedConfig } from "@open-qa-stack/domain";
 import { secretForms, secretPaths } from "@open-qa-stack/tools";
-import type { IndexError } from "@open-qa-stack/shared";
 
 /**
  * The secrets of a configuration that no text written by an agent may hold: every connection string and the

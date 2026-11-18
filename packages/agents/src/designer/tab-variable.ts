@@ -1,4 +1,4 @@
-import { tabVariable } from "@open-qa-stack/shared";
+import { tabVariable } from "@open-qa-stack/domain";
 
 /** `page` where a line calls one of its members: a text that only ends with the word is left as it is. */
 const ON_PAGE =

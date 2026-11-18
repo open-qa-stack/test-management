@@ -1,4 +1,4 @@
-import type { AgentRole } from "@open-qa-stack/shared/sessions";
+import type { AgentRole } from "@open-qa-stack/domain/sessions";
 import type { IconName } from "../ui/icon.tsx";
 
 /** Who speaks or acts in a session: the person who asked, one of the agents, or the harness that holds them to the evidence. */
@@ -142,6 +142,12 @@ export interface NoteStep extends StepBase {
 /** A step of a session. */
 export type Step = SayStep | DeliveryStep | ToolStep | VerdictStep | PlanStep | PassStep | OutcomeStep | NoteStep;
 
+/**
+ * Where a session is for whoever reads its thread: `queued` while it waits its turn, `live` while its
+ * agents work, `ended` once no step will come.
+ */
+export type SessionStage = "queued" | "live" | "ended";
+
 /** A session of the agents, as its thread tells it, step by step. */
 export interface SessionScript {
   /** The identifier of the session. */
@@ -150,7 +156,7 @@ export interface SessionScript {
   readonly title: string;
   /** The knowledge sources the agents read. */
   readonly sources: readonly string[];
-  /** Whether the session still goes on: more steps may come. */
-  readonly live: boolean;
+  /** Where the session is: more steps may come until it ended. */
+  readonly stage: SessionStage;
   readonly steps: readonly Step[];
 }

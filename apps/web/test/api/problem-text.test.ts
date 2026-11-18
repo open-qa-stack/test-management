@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import type { ProblemCode } from "@open-qa-stack/shared/sessions";
+import type { ProblemCode } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
 import { problemCode, problemText } from "../../src/api/problem-text.ts";
 

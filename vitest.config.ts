@@ -9,17 +9,21 @@ const LOOPBACK_ONLY = fileURLToPath(new URL("./packages/testing/src/loopback-onl
  *
  * @param root - The folder of the package, from the root of the workspace.
  * @param test - What its tests need beside the settings they all share.
- * @returns The project, named after its folder.
+ * @returns The project, named after its folder unless its tests name it.
  */
 const project = (root: string, test: Record<string, unknown> = {}) => ({
   extends: true as const,
   test: { name: root.split("/").at(-1)!, root, include: ["test/**/*.test.ts"], ...test },
 });
 
+/** The tests of the store that are written once for every database it supports, which `OQAS_TEST_DATABASE` names to them. */
+const ON_EACH_DATABASE = "test/each-database/**/*.test.ts";
+
 /**
  * The tests of the workspace: one project per package, their files side by side in a pool of processes sized to
- * the machine, each file in a process of its own. A test never runs twice, and all of them together cover every
- * file of code, file by file.
+ * the machine, each file in a process of its own. A test never runs twice, but those of the store that are
+ * written for every database it supports, which run once on each; all of them together cover every file of
+ * code, file by file.
  */
 export default defineConfig({
   test: {
@@ -31,12 +35,22 @@ export default defineConfig({
     testTimeout: 120_000,
     hookTimeout: 120_000,
     projects: [
-      project("packages/domain"),
-      project("packages/shared", { setupFiles: ["./test/no-network.ts"] }),
+      project("packages/domain", { setupFiles: ["./test/no-network.ts"] }),
       project("packages/testing"),
+      // The tests of the store on SQLite, with those that need no database: nothing runs beside them.
+      project("packages/store", { setupFiles: [LOOPBACK_ONLY], include: ["test/*.test.ts", ON_EACH_DATABASE], env: { OQAS_TEST_DATABASE: "sqlite" } }),
+      // The same tests on a real PostgreSQL server, started once for all of them, with those of what only a server does.
+      project("packages/store", {
+        name: "store-postgres",
+        setupFiles: [LOOPBACK_ONLY],
+        globalSetup: ["./test/support/global-setup.ts"],
+        include: [ON_EACH_DATABASE, "test/postgres/**/*.test.ts"],
+        env: { OQAS_TEST_DATABASE: "postgres" },
+      }),
       project("packages/tools", { setupFiles: [LOOPBACK_ONLY] }),
       project("packages/harness", { setupFiles: [LOOPBACK_ONLY] }),
       project("packages/agents", { setupFiles: [LOOPBACK_ONLY] }),
+      project("packages/engine", { setupFiles: [LOOPBACK_ONLY] }),
       project("packages/cli", { setupFiles: [LOOPBACK_ONLY] }),
       project("apps/web"),
       project("lint"),

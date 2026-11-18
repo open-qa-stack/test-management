@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { validateConfig } from "@open-qa-stack/shared";
+import { validateConfig } from "@open-qa-stack/domain";
 import { runSources } from "../src/cartographer/run-sources.ts";
 
 describe("the sources of a cartography", () => {

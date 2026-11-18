@@ -1,5 +1,4 @@
-import type { AgentEvent, AgentRuntime, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
-import type { IndexSourceType, ManifestDomain } from "@open-qa-stack/shared";
+import type { AgentEvent, AgentRuntime, IndexSourceType, ManifestDomain, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
 import { redactText, secretForms, type ExportedElement } from "@open-qa-stack/tools";
 import { runAgentTask } from "../common/agent-task.ts";
 import type { Journal } from "../common/journal.ts";

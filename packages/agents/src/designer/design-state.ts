@@ -1,5 +1,4 @@
-import type { Verdict } from "@open-qa-stack/domain";
-import type { IndexModel, IndexRun } from "@open-qa-stack/shared";
+import type { IndexModel, IndexRun, Verdict } from "@open-qa-stack/domain";
 import type { ErrorClass } from "./run-failure.ts";
 
 /** Folder of the design states, in the state folder of the test repository. */

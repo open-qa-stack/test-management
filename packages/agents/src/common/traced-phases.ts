@@ -1,5 +1,5 @@
+import type { PhaseOutcome, TracePhase } from "@open-qa-stack/domain";
 import type { Trace } from "./trace.ts";
-import type { PhaseOutcome, TracePhase } from "./trace-line.ts";
 
 /**
  * The phases of a run that concern no source in particular, each traced from its `started` line to its

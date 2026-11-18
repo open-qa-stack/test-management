@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import type { SessionEvent } from "@open-qa-stack/shared/sessions";
+import type { SessionEvent } from "@open-qa-stack/domain/sessions";
 import { afterEach, beforeEach, describe, it, vi } from "vitest";
 import { followEvents, GATHER_MS, LONGEST_RETRY_MS, RETRY_MS, type StreamState } from "../../src/api/event-stream.ts";
 import { EVENTS, numbered, SESSION_ID, type EventBody } from "../agent/session-fixture.ts";
@@ -126,13 +126,15 @@ describe("the stream of the events of a session", () => {
     }
   });
 
-  it("goes on after the event that says the session runs", () => {
-    const { source, told } = follow();
-    source.receive(stateChanged("running"));
-    vi.advanceTimersByTime(GATHER_MS);
-    assert.deepEqual(told.states, []);
-    assert.equal(source.closed, false);
-    assert.equal(told.batches.length, 1);
+  it("goes on after the event that says the session waits its turn, or runs", () => {
+    for (const state of ["queued", "running"]) {
+      const { source, told } = follow();
+      source.receive(stateChanged(state));
+      vi.advanceTimersByTime(GATHER_MS);
+      assert.deepEqual(told.states, [], state);
+      assert.equal(source.closed, false, state);
+      assert.equal(told.batches.length, 1, state);
+    }
   });
 
   it("ignores a frame that is not an event", () => {

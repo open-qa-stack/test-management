@@ -1,4 +1,4 @@
-import type { ProblemCode } from "@open-qa-stack/shared/sessions";
+import type { ProblemCode } from "@open-qa-stack/domain/sessions";
 
 /** How the console words each problem it knows: the API writes its details for a developer, not for the person. */
 const WORDINGS: Readonly<Record<Exclude<ProblemCode, "error">, string>> = {

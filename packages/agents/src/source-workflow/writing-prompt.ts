@@ -1,4 +1,4 @@
-import type { IndexSourceType, ManifestDomain } from "@open-qa-stack/shared";
+import type { IndexSourceType, ManifestDomain } from "@open-qa-stack/domain";
 import type { ExportedElement } from "@open-qa-stack/tools";
 import { MAX_DOMAIN_FILE_LENGTH } from "./domain-file-control.ts";
 import { batchSummary } from "./element-batches.ts";

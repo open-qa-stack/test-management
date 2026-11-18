@@ -1,4 +1,4 @@
-import { className } from "@open-qa-stack/shared";
+import { className } from "@open-qa-stack/domain";
 import type { LocatorMember } from "./locator-member.ts";
 
 /** A member of a page object, as its file writes it: a getter, or a method given the names it needs. */

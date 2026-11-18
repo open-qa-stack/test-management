@@ -15,8 +15,8 @@ export function isPath(specifier: string): boolean {
 /**
  * The package a module specifier names, without the path into the package.
  *
- * @param specifier - The specifier of a package, such as `@open-qa-stack/shared/schema` or `node:fs/promises`.
- * @returns The name of the package, such as `@open-qa-stack/shared` or `node:fs`.
+ * @param specifier - The specifier of a package, such as `@open-qa-stack/domain/sessions` or `node:fs/promises`.
+ * @returns The name of the package, such as `@open-qa-stack/domain` or `node:fs`.
  */
 export function packageName(specifier: string): string {
   return specifier
@@ -42,7 +42,7 @@ const NODE_MODULES = `${sep}node_modules${sep}`;
  * The package a path reaches through a folder of installed packages, as a specifier names it.
  *
  * @param path - The absolute path of the module.
- * @returns What follows the last folder of installed packages, such as `@open-qa-stack/shared/src/index.ts`, or
+ * @returns What follows the last folder of installed packages, such as `@open-qa-stack/domain/src/index.ts`, or
  * `undefined` when the path goes through none.
  */
 export function installedModule(path: string): string | undefined {

@@ -23,7 +23,7 @@
     "react-dom": "19.3.1"
   },
   "devDependencies": {
-    "@open-qa-stack/shared": "workspace:*",
+    "@open-qa-stack/domain": "workspace:*",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "playwright-core": "1.64.1",

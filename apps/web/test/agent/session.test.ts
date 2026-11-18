@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createElement, type ReactNode } from "react";
-import type { Session, SessionEvent } from "@open-qa-stack/shared/sessions";
+import type { Session, SessionEvent } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
 import { Composer } from "../../src/agent/composer.tsx";
 import type { Sending } from "../../src/agent/console-state.ts";
@@ -14,7 +14,7 @@ import { SessionScreen } from "../../src/agent/session-screen.tsx";
 import { SpeakerMark } from "../../src/agent/speaker-mark.tsx";
 import { Thread } from "../../src/agent/thread.tsx";
 import { at, elementsOf, linksOf, render, textOf } from "../render.ts";
-import { COMPLETED, EVENTS, fixtureScript, liveOf, NO_CONTROLS, numbered, RUNNING, SESSION_ID } from "./session-fixture.ts";
+import { COMPLETED, EVENTS, fixtureScript, liveOf, NO_CONTROLS, numbered, QUEUED, RUNNING, SESSION_ID } from "./session-fixture.ts";
 
 const PATH = `/agent/sessions/${SESSION_ID}`;
 const ADDRESS = `#${PATH}`;
@@ -83,8 +83,8 @@ const REVIEWED: readonly Step[] = [
  * @returns The session, its stream open, with controls that do nothing.
  */
 function liveWith(steps: readonly Step[], session: Session = INTERRUPTED, sources: readonly string[] = [], changes: Partial<Playback> = {}): LiveSession {
-  const live = session.state === "running";
-  const script: SessionScript = { id: SESSION_ID, title: "Couvrir la recherche", sources, live, steps };
+  const stage = session.state === "running" ? "live" : session.state === "queued" ? "queued" : "ended";
+  const script: SessionScript = { id: SESSION_ID, title: "Couvrir la recherche", sources, stage, steps };
   const playback = { ...INITIAL_PLAYBACK, ...changes };
   return { session, stream: "open", script, playback, frame: frameOf(script, playback), saying: { state: "idle" }, controls: NO_CONTROLS };
 }
@@ -163,7 +163,7 @@ function countOf(html: string, pattern: RegExp): number {
  * @returns Its HTML.
  */
 function thread(live: LiveSession = liveOf(), lookIndex?: number): string {
-  return render(createElement(Thread, { path: PATH, frame: live.frame, lookIndex, live: live.script.live }));
+  return render(createElement(Thread, { path: PATH, frame: live.frame, lookIndex, stage: live.script.stage }));
 }
 
 /**
@@ -231,7 +231,12 @@ describe("the mark of a speaker", () => {
 });
 
 describe("the thread of a session", () => {
-  it("waits for the first events of a session that goes on, and says an ended one left nothing", () => {
+  it("says an empty session waits to be taken while it is queued, waits for the first events of one whose agents work, and says an ended one left nothing", () => {
+    const queued = textOf(thread(liveWith([], QUEUED)));
+    assert.equal(
+      queued,
+      "La session attend d’être prise par un agent Le fil se remplira dès qu’elle démarrera ; un message envoyé d’ici là sera remis à ses agents.",
+    );
     const waiting = textOf(thread(liveWith([], RUNNING)));
     assert.equal(waiting, "Les agents n’ont encore rien écrit Le fil se remplira dès leur premier événement.");
     const ended = textOf(thread(liveWith([])));
@@ -300,7 +305,14 @@ describe("the thread of a session", () => {
     const kept = (filter: "talk" | "all", followed?: "user"): string =>
       textOf(
         render(
-          createElement(Thread, { path: PATH, frame: live.frame, lookIndex: undefined, live: true, filter, ...(followed === undefined ? {} : { followed }) }),
+          createElement(Thread, {
+            path: PATH,
+            frame: live.frame,
+            lookIndex: undefined,
+            stage: "live",
+            filter,
+            ...(followed === undefined ? {} : { followed }),
+          }),
         ),
       );
     assert.match(kept("talk"), /Votre message : sans le profil remis à Rédacteur/);
@@ -328,7 +340,7 @@ describe("the thread of a session", () => {
       new RegExp(`<a class="turn-agent" href="${ADDRESS}\\?agent=planner" aria-label="Planificateur : ne voir que cet agent">Planificateur</a>`),
     );
     const { frame } = liveOf();
-    const talk = render(createElement(Thread, { path: PATH, frame, lookIndex: undefined, filter: "talk", query: { show: "talk" }, live: true }));
+    const talk = render(createElement(Thread, { path: PATH, frame, lookIndex: undefined, filter: "talk", query: { show: "talk" }, stage: "live" }));
     assert.deepEqual(linksOf(talk), [`${ADDRESS}?show=talk&agent=planner`, `${ADDRESS}?show=talk&agent=writer`]);
   });
 
@@ -342,7 +354,7 @@ describe("the thread of a session", () => {
         filter: "talk",
         followed: "writer",
         query: { show: "talk", agent: "writer" },
-        live: true,
+        stage: "live",
       }),
     );
     assert.match(followed, new RegExp(`<a class="turn-agent" href="${ADDRESS}\\?show=talk" aria-label="Rédacteur : voir tous les agents">Rédacteur</a>`));
@@ -540,7 +552,7 @@ describe("the thread of a session", () => {
         filter: "actions",
         followed: "planner",
         query: { show: "actions", agent: "planner" },
-        live: true,
+        stage: "live",
       }),
     );
     assert.deepEqual(linksOf(kept), [`${ADDRESS}?show=actions`, `${ADDRESS}?show=actions&agent=planner&look=${PAGE_TOOL}`]);
@@ -553,7 +565,7 @@ describe("the thread of a session", () => {
     const steps: readonly Step[] = [REVIEWED[4]!, note("The test ran.", 5), REVIEWED[5]!];
     const { frame } = liveWith(steps);
     assert.equal(countOf(thread(liveWith(steps)), /<article class="turn">/g), 2);
-    const kept = render(createElement(Thread, { path: PATH, frame, lookIndex: undefined, filter: "actions", live: false }));
+    const kept = render(createElement(Thread, { path: PATH, frame, lookIndex: undefined, filter: "actions", stage: "ended" }));
     assert.equal(countOf(kept, /<article class="turn">/g), 1);
   });
 });
@@ -616,9 +628,13 @@ describe("the composer of a session", () => {
   });
 });
 
+/** What a session holds before it started: what was asked. */
+const ASKED = numbered([{ type: "user_message", text: "tester la recherche d'un client" }]);
+
 describe("the screen of a session", () => {
-  it("lets the person speak to the agents under the thread while they work, in a replay too, and not once the session ended", () => {
+  it("lets the person speak to the agents under the thread while they work or are waited for, in a replay too, and not once the session ended", () => {
     assert.match(screen(), /<\/section><form class="composer">.*<\/form><div class="session-end"><\/div><\/div>/);
+    assert.match(screen("", liveOf(QUEUED, {}, ASKED)), /<\/section><form class="composer">.*<\/form><div class="session-end"><\/div><\/div>/);
     assert.match(screen("", liveOf(RUNNING, { following: false, tick: 30 })), /<form class="composer">/);
     for (const ended of [COMPLETED, INTERRUPTED, { ...RUNNING, state: "archived" as Session["state"] }]) {
       const html = screen("", liveOf(ended));
@@ -723,6 +739,14 @@ describe("the screen of a session", () => {
 
   it("ties each button of a replay to its control", () => {
     assert.deepEqual(pressed({ following: false, tick: 30 }), ["toggle", "skip", "faster", "follow"]);
+  });
+
+  it("says in its bar that a queued session waits for an agent, and names nobody at work under what was asked", () => {
+    const html = screen("", liveOf(QUEUED, {}, ASKED));
+    assert.match(html, /<span class="badge outline">en file<\/span>/);
+    assert.match(textOf(html), /en file 2026-11-15 · 14:44:06 UTC · en attente d’un agent · 0 action\(s\) Rejouer /);
+    assert.doesNotMatch(html, /class="working"|travaille/);
+    assert.match(textOf(screen("", liveOf(QUEUED, { following: false, tick: 30 }, ASKED))), /× 1 Tout afficher/);
   });
 
   it("leads from a replay back to the live session, or to the whole of an ended one", () => {

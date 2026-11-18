@@ -1,13 +1,18 @@
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
 import { once } from "node:events";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { FastifyAdapter } from "@nestjs/platform-fastify";
+import type { Session, SessionList } from "@open-qa-stack/domain/sessions";
 import { closedPort } from "@open-qa-stack/testing";
 import { startApi } from "../src/start-api.ts";
 import { childEnvironment } from "./support/environment.ts";
+import { eventually } from "./support/eventually.ts";
 
 const MAIN = fileURLToPath(new URL("../src/main.js", import.meta.url));
 const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
@@ -67,6 +72,65 @@ describe("an API started with a valid configuration", () => {
       assert.deepEqual([code, signal], [null, stop]);
     });
   }
+});
+
+describe("an API given a test repository and no database", () => {
+  it("keeps its sessions in a file of the state folder of the repository, which it makes, and finds them when it starts again", async () => {
+    const repository = mkdtempSync(join(tmpdir(), "oqas-api-startup-"));
+    // The configuration of this repository lacks everything a run needs: its session ends at once.
+    writeFileSync(join(repository, "oqas.json"), "{}");
+    const port = await closedPort();
+    const start = () => startApi({ OQAS_HOST: "127.0.0.1", OQAS_PORT: String(port), OQAS_REPOSITORY: repository }, { logger: false });
+    const sessions = async (): Promise<Session[]> => ((await (await fetch(`http://127.0.0.1:${port}/sessions`)).json()) as SessionList).items.slice();
+    try {
+      const first = await start();
+      let ended: Session[];
+      try {
+        const ready = await fetch(`http://127.0.0.1:${port}/health/ready`);
+        assert.deepEqual([ready.status, await ready.json()], [200, { status: "ready", checks: { database: "up" } }]);
+        const opened = await fetch(`http://127.0.0.1:${port}/sessions`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ request: "cover the profile" }),
+        });
+        assert.equal(opened.status, 201);
+        ended = await eventually(async () => {
+          const held = await sessions();
+          return held.every((session) => session.state === "interrupted" || session.state === "completed") && held;
+        });
+        assert.equal(ended.length, 1);
+      } finally {
+        await first.close();
+      }
+      assert.ok(existsSync(join(repository, ".oqas", "oqas.db")));
+      const second = await start();
+      try {
+        assert.deepEqual(await sessions(), ended);
+      } finally {
+        await second.close();
+      }
+    } finally {
+      rmSync(repository, { recursive: true, force: true });
+    }
+  });
+
+  it("starts as a program, and says that its database is up", async () => {
+    const repository = mkdtempSync(join(tmpdir(), "oqas-api-startup-"));
+    writeFileSync(join(repository, "oqas.json"), "{}");
+    const env = childEnvironment({ NO_COLOR: "1", OQAS_HOST: "127.0.0.1", OQAS_PORT: String(await closedPort()), OQAS_REPOSITORY: repository });
+    try {
+      const run = await new Promise<{ out: string; err: string }>((resolve) => {
+        const child = execFile(process.execPath, ["--enable-source-maps", MAIN], { env, encoding: "utf8" }, (_error, out, err) => resolve({ out, err }));
+        child.stdout?.on("data", (chunk: string) => {
+          if (chunk.includes("Listening on")) child.kill("SIGTERM");
+        });
+      });
+      assert.match(run.out, /\[Database\] The database is reachable and its schema is up to date\./);
+      assert.equal(run.err, "");
+    } finally {
+      rmSync(repository, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("an API whose port is taken", () => {

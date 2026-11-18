@@ -1,14 +1,13 @@
-import { resolve } from "node:path";
-import type { CommandRunner } from "@open-qa-stack/domain";
-import type { ResolvedConfig } from "@open-qa-stack/shared";
-import type { TraceLine } from "@open-qa-stack/agents";
-import { parseArguments, USAGE } from "./arguments.ts";
-import { followedLine } from "./followed-line.ts";
-import { ExitCode, type ExitCodeValue } from "./exit-code.ts";
-import { liveRuntime, type OpenRuntime } from "./live-runtime.ts";
+import { join, resolve } from "node:path";
+import { PersonInbox } from "@open-qa-stack/agents";
+import { ExitCode, runInboxFile, RUNS_FOLDER, type CommandRunner, type ExitCodeValue, type ResolvedConfig, type TraceLine } from "@open-qa-stack/domain";
+import { liveRuntime, Run, type OpenRuntime } from "@open-qa-stack/engine";
 import { playwrightVersion } from "@open-qa-stack/tools";
+import { parseArguments, USAGE } from "./arguments.ts";
+import { FileJournal } from "./file-journal.ts";
+import { FileRunStore } from "./file-run-store.ts";
+import { followedLine } from "./followed-line.ts";
 import { RepositoryInit } from "./repository-init.ts";
-import { SoloRun } from "./solo-run.ts";
 
 /** What the command runs with: its environment, its folder and its outputs. */
 export interface CommandIo {
@@ -21,11 +20,18 @@ export interface CommandIo {
   readonly runner?: CommandRunner;
   /** Opens the runtime of the agents; `liveRuntime` by default. */
   readonly connect?: (config: ResolvedConfig, env: Readonly<Record<string, string | undefined>>) => Promise<OpenRuntime>;
+  /** The clock; the system clock by default. */
+  readonly now?: () => Date;
 }
 
 /**
  * Runs `oqas` with its arguments: prints the usage, refuses a wrong option, initialises the test repository, or
  * runs the solo command.
+ *
+ * @remarks
+ * A run is a run of the engine, which the command plugs into the terminal and the test repository: the
+ * journal goes to the error output and to a file of the run, the summary to the standard output, the inbox
+ * is a file a person appends to, and the state of each run is a file beside its journal.
  *
  * @param argv - The arguments, without the program.
  * @param io - The environment, the folder and the outputs.
@@ -42,26 +48,30 @@ export async function soloCommand(argv: readonly string[], io: CommandIo): Promi
     io.stdout.write(USAGE);
     return ExitCode.passed;
   }
+  const repositoryRoot = resolve(io.cwd, repository ?? ".");
   if (init)
     return new RepositoryInit({
-      repositoryRoot: resolve(io.cwd, repository ?? "."),
+      repositoryRoot,
       playwrightVersion: playwrightVersion(),
       write: (line) => io.stderr.write(line),
       print: (line) => io.stdout.write(line),
     }).run();
   const connect = io.connect ?? liveRuntime;
-  const run = new SoloRun({
-    repositoryRoot: resolve(io.cwd, repository ?? "."),
+  const run = new Run({
+    repositoryRoot,
     ...(environment === undefined ? {} : { environment }),
     ...(brief === undefined ? {} : { brief }),
     ...(resume === undefined ? {} : { resume }),
     force,
     env: io.env,
-    write: (line) => io.stderr.write(line),
+    journal: new FileJournal(repositoryRoot, (line) => io.stderr.write(line)),
     ...(follow ? { follow: (line: TraceLine) => followed(line, io.stderr) } : {}),
     print: (line) => io.stdout.write(line),
+    openInbox: ({ runId, stateDir }) => new PersonInbox(join(repositoryRoot, stateDir, RUNS_FOLDER, runInboxFile(runId))),
+    store: new FileRunStore(repositoryRoot),
     openRuntime: (config) => connect(config, io.env),
     ...(io.runner === undefined ? {} : { runner: io.runner }),
+    ...(io.now === undefined ? {} : { now: io.now }),
   });
   try {
     return await run.run();
