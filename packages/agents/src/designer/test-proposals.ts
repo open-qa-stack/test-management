@@ -481,7 +481,7 @@ export class TestProposals {
     if (cursor.runs.some((run) => run.content === content && run.verdict !== "passed")) {
       refusals.push({
         code: "TEST-SAME",
-        message: `this text already failed, and nothing changed. Fix the locator or the wait the error names, or call ${PROPOSE_TOOL} with diagnosis.`,
+        message: `this text already failed, and nothing changed. Fix the locator or the wait the error names; when the application is at fault, call ${PROPOSE_TOOL} with diagnosis; when nothing in the test can get past the failure, call ${PROPOSE_TOOL} with unfeasible and say why.`,
       });
     }
     const last = cursor.runs.at(-1);
@@ -571,7 +571,7 @@ export class TestProposals {
       if (diagnosis.cause === "test" && left)
         refusals.push({
           code: "PROPOSE-EARLY",
-          message: `failed runs: ${cursor.failedRuns} of ${MAX_FAILED_RUNS}. Try a repair with ${RUN_TOOL} before giving up on the test itself.`,
+          message: `failed runs: ${cursor.failedRuns} of ${MAX_FAILED_RUNS}. Try a repair with ${RUN_TOOL} before giving up on the test itself; when nothing in the test can get past the failure, call ${PROPOSE_TOOL} with unfeasible and say why.`,
         });
       if (diagnosis.cause !== "test" && ended.errorClass !== "assertion") {
         const step = ended.failedStep === undefined ? "" : ` at step ${JSON.stringify(ended.failedStep)}`;

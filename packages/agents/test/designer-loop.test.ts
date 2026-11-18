@@ -181,9 +181,12 @@ describe("the repair contract", () => {
     );
     assert.equal(
       told(server, "same"),
-      "Refused (TEST-SAME): this text already failed, and nothing changed. Fix the locator or the wait the error names, or call propose_test with diagnosis.\nNothing else was refused.",
+      "Refused (TEST-SAME): this text already failed, and nothing changed. Fix the locator or the wait the error names; when the application is at fault, call propose_test with diagnosis; when nothing in the test can get past the failure, call propose_test with unfeasible and say why.\nNothing else was refused.",
     );
-    assert.match(told(server, "early"), /^Refused \(PROPOSE-EARLY\): failed runs: 1 of 3\. Try a repair with run_test before giving up on the test itself\.\n/);
+    assert.match(
+      told(server, "early"),
+      /^Refused \(PROPOSE-EARLY\): failed runs: 1 of 3\. Try a repair with run_test before giving up on the test itself; when nothing in the test can get past the failure, call propose_test with unfeasible and say why\.\n/,
+    );
     assert.match(
       told(server, "f3"),
       /\nThe element is not on the screen at that step\. .*\nFailed runs of list-orders: 3 of 3\.\nNext: call propose_test with diagnosis\.$/,

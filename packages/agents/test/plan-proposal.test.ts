@@ -701,9 +701,13 @@ describe("the gates of a plan", () => {
     const idError = "Refused (PLAN-ID): the id a is given to several scenarios. Give each scenario its own id.";
     const told = [];
     for (let at = 0; at < 6; at += 1) told.push(((await submit(made, twice)) as { error: string }).error);
+    const both = `${idError}\nRefused (PLAN-ID): the id b is given to several scenarios. Give each scenario its own id.\nNothing else was refused.`;
+    // The same scenarios again, with no browser action since, are told so once.
+    const same =
+      "These scenarios are those of the call refused last, and no browser action was done since: the same refusals hold. Do with the browser tools what they name, or leave the scenarios out and say why in uncovered.";
     assert.deepEqual(told.slice(0, 5), [
-      `${idError}\nRefused (PLAN-ID): the id b is given to several scenarios. Give each scenario its own id.\nNothing else was refused.`,
-      `${idError}\nRefused (PLAN-ID): the id b is given to several scenarios. Give each scenario its own id.\nNothing else was refused.`,
+      both,
+      `${same}\n${both}`,
       `Third refusal for the same reason. Do this:\n${idError}`,
       `Fourth refusal for the same reason. Do this:\n${idError}`,
       `Fifth refusal for the same reason. Do this:\n${idError}`,
@@ -1780,6 +1784,30 @@ describe("the effect of a scenario on the data of the environment", () => {
       refused.error,
       /^Refused \(PLAN-EFFECT\): scenario a finds "Orders" at step 1, makes it go at step 2, and no step after brings it back: its test would pass once, then fail when run again, since what it starts from is gone\. Add a last step that puts it back /,
     );
+    // Texts that go at the same step are told in one refusal, as are the refusals of a step that restores them.
+    const lines = async (scenarios: Scenario[]) =>
+      ((await (await saved()).tool().execute({ scenarios })) as { error: string }).error.split("\n").filter((line) => /PLAN-(EFFECT|RESTORE)/.test(line));
+    const two = (...last: Scenario["steps"]) =>
+      scenario("a", {
+        effect: "write",
+        data: [],
+        steps: [step("Open the orders", [1], ["Orders", "Order list"]), step("Rename the list", [2], [], ["Orders", "Order list"]), ...last],
+      });
+    const lostBoth = await lines([two()]);
+    assert.equal(lostBoth.length, 1);
+    assert.match(lostBoth[0]!, /finds "Orders", "Order list" at step 1, makes them go at step 2, and no step after brings them back/);
+    // A text the step names twice is told once.
+    const twice = scenario("a", {
+      effect: "write",
+      data: [],
+      steps: [step("Open the orders", [1], ["Orders", "Orders"]), step("Rename the list", [2], [], ["Orders"])],
+    });
+    assert.match((await lines([twice]))[0]!, /finds "Orders" at step 1, makes it go at step 2/);
+    const fromNowhere = await lines([two({ ...step("Give the list its name back", [3], ["Orders", "Order list"]), restores: true })]);
+    assert.equal(fromNowhere.length, 1);
+    assert.match(fromNowhere[0]!, /^Refused \(PLAN-RESTORE\): step 3 of scenario a restores, and starts with the action 3/);
+    const unsaid = await lines([two(step("Give the list its name back", [1, 3], ["Orders", "Order list"]))]);
+    assert.match(unsaid[0]!, /makes "Orders", "Order list" go at step 2 and brings them back after, and no step says it restores/);
     // The step that puts it back says it restores, and opens an address: its test runs it even when an earlier step failed.
     const back = (actions: number[], restores?: boolean) => ({
       ...step("Give the list its name back", actions, ["Orders"]),
