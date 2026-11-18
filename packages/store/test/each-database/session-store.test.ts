@@ -115,6 +115,29 @@ describe("the events the store keeps of a session", () => {
     assert.equal(await store.lastRank(id), 4);
   });
 
+  it("are kept whole, however long: a megabyte of text over many lines, in the arguments and the look of an action", async () => {
+    const { id } = await running(0);
+    const long = Array.from({ length: 4096 }, (_, rank) => `ligne ${rank} — ${"é".repeat(250)}`).join("\n");
+    const events: UnrankedEvent[] = [
+      { at: at(1), type: "refusal", phase: "write", code: "TEST-CHECK", text: long },
+      { at: at(2), type: "action_started", action: "a1", agent: "writer", tool: "run_test", arguments: { content: long } },
+      {
+        at: at(3),
+        type: "action_finished",
+        action: "a1",
+        outcome: "passed",
+        result: long,
+        durationMs: 1,
+        look: { kind: "file", name: "a.spec.ts", lines: long.split("\n") },
+      },
+    ];
+    await store.append(id, events);
+    assert.deepEqual(
+      (await store.eventsAfter(id, 2)).slice(1),
+      events.map((event, rank) => ({ id: rank + 3, ...event })),
+    );
+  });
+
   it("belong to their session alone", async () => {
     const first = await running(0);
     const second = await running(60);

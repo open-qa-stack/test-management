@@ -1,4 +1,5 @@
 import { scriptOf as scriptIn, type ScriptWording, type Session, type SessionEvent, type SessionScript } from "@open-qa-stack/domain/sessions";
+import { counted } from "../ui/counted.ts";
 import { toolTitle } from "./tool-title.ts";
 
 /** How the start of each phase reads; a later version of the API may name another. */
@@ -22,8 +23,8 @@ const WORDING: ScriptWording = {
   tool: toolTitle,
   planAccepted: "Plan accepté par le harnais",
   interrupted: "La session s’est arrêtée sans aller à son terme.",
-  verdicts: (tests) => `Verdict de l’exécution : ${tests} test(s)`,
-  closed: (scenarios) => `${scenarios} test(s) clos par le harnais`,
+  verdicts: (tests) => `Verdict de l’exécution : ${counted(tests, "test", "tests")}`,
+  closed: (scenarios) => `${counted(scenarios, "test clos", "tests clos")} par le harnais`,
   opened: (day, time) => `Session du ${day} à ${time} UTC`,
 };
 

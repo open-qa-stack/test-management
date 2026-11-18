@@ -27,7 +27,7 @@ export function openedLookOf(route: Route, script: SessionScript): OpenedLook | 
   const asked = route.query["look"];
   const index = script.steps.findIndex((_, rank) => String(rank) === asked);
   const step = script.steps[index];
-  return step?.kind === "tool" && step.look !== undefined ? { index, action: step.title, look: lookOf(step.look) } : undefined;
+  return step?.kind === "tool" && step.look !== undefined ? { index, action: step.title, look: lookOf(step.look, step.tool) } : undefined;
 }
 
 /**

@@ -32,7 +32,8 @@ export type Turn<Item extends Shown> =
  * @param shown - The steps, in order.
  * @returns The turns: the request of the person; each message the person sent since, with the agent it reached
  * once a delivery shown says so, the delivery itself being no turn; what an agent said and did until someone else came in; a
- * message of the harness to an agent; the notes of the harness that follow one another; and, each alone, the
+ * message of the harness to an agent; the notes of the harness that follow one another, a row of notes alike among
+ * them; and, each alone, the
  * start of a pass, a verdict, a plan and the outcome.
  */
 export function turnsOf<Item extends Shown>(shown: readonly Item[]): Turn<Item>[] {
@@ -45,7 +46,7 @@ export function turnsOf<Item extends Shown>(shown: readonly Item[]): Turn<Item>[
       const message = sent.get(step.message);
       // The delivery of a message the thread does not show tells nothing.
       if (message !== undefined) turns[message.rank] = { kind: "message", shown: message.shown, deliveredTo: step.to };
-    } else if (step.kind === "note") {
+    } else if (step.kind === "note" || step.kind === "repeated") {
       if (last?.kind === "notes") turns[turns.length - 1] = { kind: "notes", items: [...last.items, item] };
       else turns.push({ kind: "notes", items: [item] });
     } else if (step.kind !== "say" && step.kind !== "tool") {

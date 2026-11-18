@@ -1,29 +1,64 @@
 import { hasEnded } from "../session-state.ts";
 import type { Session } from "../session.ts";
-import type { AgentRole, SessionEvent } from "../session-event.ts";
+import type { ActionLook, AgentRole, SessionEvent } from "../session-event.ts";
 import type { ScriptWording } from "./script-wording.ts";
 import type { SessionScript, SessionStage } from "./session-script.ts";
-import type { ProducedTest, Step } from "./step.ts";
-
-/** Longest text of a message of the harness a thread shows as it is; an agent gets twice as much. */
-const MAX_TEXT = 420;
-
-/** Longest title of an action, arguments included. */
-const MAX_TITLE = 96;
-
-/** Longest answer of a tool a thread shows under its action. */
-const MAX_DETAIL = 600;
-
-/** Longest title of a session. */
-const MAX_SESSION_TITLE = 120;
+import { remarksOf } from "./remarks-of.ts";
+import type { NoteStep, ProducedTest, RepeatedNoteStep, ReviewStep, Reviewer, Step } from "./step.ts";
 
 /** The agents a thread knows: what one it does not know says or does is left out, as any event it does not know. */
 const AGENTS: ReadonlySet<string> = new Set<AgentRole>(["cartographer", "planner", "plan_reviewer", "writer", "coherence_reviewer", "code_reviewer"]);
 
-/** Cuts a text to a length, on one line when asked. */
-function cut(text: string, length: number, oneLine = false): string {
-  const kept = oneLine ? text.replace(/\s+/g, " ").trim() : text.trim();
-  return kept.length > length ? `${kept.slice(0, length)}…` : kept;
+/** The agents that review, whose verdict is a step of its own. */
+const REVIEWERS: ReadonlySet<string> = new Set<Reviewer>(["plan_reviewer", "coherence_reviewer", "code_reviewer"]);
+
+/** What a reviewer says once its verdict was taken, when it is the word the harness asks for: no space in it. */
+const WORD = /^\S+$/;
+
+/** A text on one line, for what a presentation draws as a title. */
+function oneLine(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+/** The title a file of tests gives each of its tests: `test("Search a customer", …)`. */
+const DECLARED = /\btest\(\s*(["'`])((?:(?!\1).)+)\1/g;
+
+/** The test a file is about: the title of the one test it declares, or the name of the file when it declares none or several. */
+function subjectOf(file: ActionLook): string {
+  const titles = [...file.lines.join("\n").matchAll(DECLARED)].map((declared) => declared[2]!);
+  return titles.length === 1 ? titles[0]! : file.name.split("/").at(-1)!;
+}
+
+/** The test an action is about: that of the file it looked at, when it was one. */
+function subjectIn(look: ActionLook | undefined): string | undefined {
+  return look?.kind === "file" ? subjectOf(look) : undefined;
+}
+
+/** A note about a source, around the name of that source: what tells it alike another about another source. */
+interface Alike {
+  readonly before: string;
+  readonly after: string;
+  readonly source: string;
+}
+
+/** A note as what it says around the name of a source, when it names it. */
+function alikeOf(text: string, source: string | undefined): Alike | undefined {
+  if (source === undefined) return undefined;
+  // The name as a word of its own, not a piece of another: `api` is not in `apis`, nor `a` in `card`.
+  const named = new RegExp(`(?<![\\w-])${source.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`).exec(text);
+  return named === null ? undefined : { before: text.slice(0, named.index), after: text.slice(named.index + source.length), source };
+}
+
+/**
+ * The step a note makes of the last one, the note before it: a row of notes alike, the same around the name of
+ * their source, grows by it.
+ */
+function noted(last: Step, previous: Alike, note: NoteStep, alike: Alike | undefined): RepeatedNoteStep | undefined {
+  if (alike === undefined || alike.before !== previous.before || alike.after !== previous.after) return undefined;
+  if (last.kind === "repeated") return { ...last, sources: [...last.sources, alike.source], notes: [...last.notes, note] };
+  return last.kind === "note"
+    ? { kind: "repeated", at: last.at, before: alike.before, after: alike.after, sources: [previous.source, alike.source], notes: [last, note] }
+    : undefined;
 }
 
 /** The time of an event, as a thread shows it. */
@@ -50,9 +85,13 @@ function stageOf(session: Session): SessionStage {
  * named after the level its request asks for. A message of the harness to an agent, of an agent, or of the
  * person is something said, and the delivery of a message the person sent during the session a step of its
  * own, so that a replay tells it when it happened; an action and its end are one step, worded as a sentence, pending until the tool
- * answered, with what the agent looked at; a plan the harness accepted is listed; a refusal is a verdict with
+ * answered, with what the agent looked at — the file it handed the tool from the start, named after the test it
+ * declares — and the verdict of each test a run ran; the call a reviewer hands its verdict in with is a review, its remarks
+ * read from the arguments of the call, and what the harness answers and the word the reviewer replies with are kept
+ * in it rather than told; a plan the harness accepted is listed; a refusal is a verdict with
  * its code, a note a line of the harness. Once the session has ended it closes on the verdict of each test, or,
- * when none ran, on the scenarios the harness closed; an interruption is told. Long texts are cut.
+ * when none ran, on the scenarios the harness closed; an interruption is told. Every text is whole, as a person
+ * needs it, since the end of a refusal says what to do; a title alone is put on one line.
  *
  * @param session - The session, as it was last told.
  * @param events - Its events, in order.
@@ -62,10 +101,20 @@ function stageOf(session: Session): SessionStage {
 export function scriptOf(session: Session, events: readonly SessionEvent[], wording: ScriptWording): SessionScript {
   const steps: Step[] = [];
   const actions = new Map<string, number>();
+  /** The arguments of each action, by its identifier, which its title is worded from again once its end names its test. */
+  const calls = new Map<string, unknown>();
   const sources = new Set<string>();
   const closed: ProducedTest[] = [];
   let asked: string | undefined;
   let plan: number | undefined;
+  /** The scenario whose test is being written, which a reviewer of a test reviews. */
+  let scenario: string | undefined;
+  /** The knowledge source the work is on, when it is on one. */
+  let source: string | undefined;
+  /** The last note, around the name of its source, while it is the last step. */
+  let previous: Alike | undefined;
+  /** By reviewer, the rank of its verdict the harness just took, whose one-word reply is still to come. */
+  const replies = new Map<string, number>();
   for (const event of events) {
     if (("agent" in event && !AGENTS.has(event.agent)) || ("to" in event && !AGENTS.has(event.to))) continue;
     const at = clock(event.at);
@@ -78,44 +127,86 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
       case "message_delivered":
         steps.push({ kind: "delivery", at, message: event.message, to: event.agent });
         break;
-      case "agent_message":
-        steps.push({ kind: "say", from: event.agent, at, text: cut(event.text, MAX_TEXT * 2), ...(event.reasoning ? { thinking: true } : {}) });
+      case "agent_message": {
+        const verdict = event.reasoning ? undefined : replies.get(event.agent);
+        if (!event.reasoning) replies.delete(event.agent);
+        if (verdict !== undefined && WORD.test(event.text.trim())) {
+          steps[verdict] = { ...(steps[verdict] as ReviewStep), reply: event.text.trim() };
+          break;
+        }
+        steps.push({ kind: "say", from: event.agent, at, text: event.text.trim(), ...(event.reasoning ? { thinking: true } : {}) });
         break;
+      }
       case "harness_message":
         if (event.level !== undefined && plan !== undefined) steps[plan] = { ...steps[plan]!, title: `${wording.phase("plan")} · ${event.level}` } as Step;
-        steps.push({ kind: "say", from: "harness", to: event.to, at, text: cut(event.text, MAX_TEXT) });
+        steps.push({ kind: "say", from: "harness", to: event.to, at, text: event.text.trim() });
         break;
       case "phase_started":
         // The work on one source is told by the notes of the harness, which name it: it starts no pass of its own.
+        source = event.source;
         if (event.source !== undefined) sources.add(event.source);
         else {
           const part = event.phase === "review" || event.phase === "write";
+          scenario = event.scenario;
           if (event.phase === "plan") plan = steps.length;
           steps.push({ kind: "pass", at, title: wording.phase(event.phase), summary: event.scenario ?? "", ...(part ? { minor: true } : {}) });
         }
         break;
-      case "action_started":
+      case "action_started": {
         actions.set(event.action, steps.length);
+        replies.delete(event.agent);
+        const remarks = REVIEWERS.has(event.agent) ? remarksOf(event.arguments) : undefined;
+        if (remarks !== undefined) {
+          steps.push({
+            kind: "review",
+            from: event.agent as Reviewer,
+            at,
+            ...(scenario === undefined ? {} : { scenario }),
+            remarks,
+            tool: event.tool,
+            pending: true,
+          });
+          break;
+        }
+        calls.set(event.action, event.arguments);
+        const subject = subjectIn(event.look);
         steps.push({
           kind: "tool",
           from: event.agent,
           at,
           tool: event.tool,
-          title: cut(wording.tool(event.tool, event.arguments), MAX_TITLE, true),
+          title: oneLine(wording.tool(event.tool, event.arguments, subject)),
+          ...(event.look === undefined ? {} : { look: event.look }),
+          ...(subject === undefined ? {} : { subject }),
           pending: true,
         });
         break;
+      }
       case "action_finished": {
         const index = actions.get(event.action);
         const started = index === undefined ? undefined : steps[index];
+        if (index !== undefined && started?.kind === "review") {
+          const { pending: _taken, ...review } = started;
+          const refused = event.outcome === "failed";
+          steps[index] = { ...review, answer: event.result.trim(), durationMs: event.durationMs, ...(refused ? { refused } : {}) };
+          if (!refused) replies.set(review.from, index);
+          break;
+        }
         if (index === undefined || started?.kind !== "tool") break;
         const { pending: _answered, ...answered } = started;
+        const look = event.look ?? answered.look;
+        // A thread written before the start of an action showed its file tells it here only: the test is named now.
+        const subject = answered.subject ?? subjectIn(look);
         steps[index] = {
           ...answered,
-          detail: cut(event.result, MAX_DETAIL, true),
+          ...(subject === undefined || subject === answered.subject
+            ? {}
+            : { title: oneLine(wording.tool(answered.tool, calls.get(event.action), subject)), subject }),
+          detail: event.result.trim(),
           durationMs: event.durationMs,
           ...(event.outcome === "passed" || event.outcome === "failed" ? { outcome: event.outcome } : {}),
-          ...(event.look === undefined ? {} : { look: event.look }),
+          ...(look === undefined ? {} : { look }),
+          ...(event.tests === undefined ? {} : { tests: event.tests.map(({ id, verdict }) => ({ title: testTitle(id), verdict })) }),
         };
         break;
       }
@@ -138,12 +229,19 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
           accepted: false,
           ...(event.code === undefined ? {} : { code: event.code }),
           about: wording.phase(event.phase),
-          text: cut(event.text, MAX_TEXT),
+          text: event.text.trim(),
         });
         break;
-      case "note":
-        steps.push({ kind: "note", at, text: cut(event.text, MAX_TEXT, true) });
+      case "note": {
+        const note: NoteStep = { kind: "note", at, text: event.text.trim() };
+        const alike = alikeOf(note.text, source);
+        // A note came before this one: the thread holds a step.
+        const row = previous === undefined ? undefined : noted(steps.at(-1)!, previous, note, alike);
+        if (row === undefined) steps.push(note);
+        else steps[steps.length - 1] = row;
+        previous = alike;
         break;
+      }
       case "scenario_closed":
         closed.push({ title: event.scenario, level: event.level ?? "", verdict: event.verdict });
         break;
@@ -166,5 +264,5 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
     steps.push({ kind: "outcome", at: last.at, title: wording.closed(closed.length), tests: closed });
   }
   const opened = wording.opened(session.openedAt.slice(0, 10), clock(session.openedAt));
-  return { id: session.id, title: cut(session.request ?? asked ?? opened, MAX_SESSION_TITLE, true), sources: [...sources], stage, steps };
+  return { id: session.id, title: oneLine(session.request ?? asked ?? opened), sources: [...sources], stage, steps };
 }

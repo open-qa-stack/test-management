@@ -31,16 +31,23 @@ describe("the title of a tool call", () => {
       ["knowledge_read", { item: "src/pages" }, "A lu src/pages"],
       ["tests_list", { about: "quotes" }, "A cherché les tests existants"],
       ["tests_read", { path: "a.spec.ts" }, "A lu le test a.spec.ts"],
-      ["propose_plan", { scenarios: [{}, {}] }, "A proposé un plan de 2 scénario(s)"],
-      ["propose_plan", null, "A proposé un plan de 0 scénario(s)"],
+      ["propose_plan", { scenarios: [{}, {}] }, "A proposé un plan de 2 scénarios"],
+      ["propose_plan", null, "A proposé un plan de 0 scénario"],
       ["run_test", { content: "test();" }, "A joué le test"],
       ["propose_test", {}, "A remis le test"],
-      ["report_duplicates", { duplicates: [{}] }, "A signalé 1 doublon(s)"],
-      ["report_findings", { findings: [] }, "A rendu 0 constat(s) de cohérence"],
-      ["report_quality", { findings: [{}, {}] }, "A rendu 2 remarque(s) sur le code"],
+      ["report_duplicates", { duplicates: [{}] }, "A signalé 1 doublon"],
+      ["report_findings", { findings: [] }, "A rendu 0 constat de cohérence"],
+      ["report_quality", { findings: [{}, {}] }, "A rendu 2 remarques sur le code"],
       ["remember", { text: "A note." }, "A noté quelque chose pour la suite"],
     ];
     for (const [tool, args, title] of cases) assert.equal(toolTitle(tool, args), title, tool);
+  });
+
+  it("names the test a run or a handing in is about, when the agent handed the file of one", () => {
+    assert.deepEqual(
+      [toolTitle("run_test", {}, "Display the policies list"), toolTitle("propose_test", {}, "Display the policies list")],
+      ["A joué « Display the policies list »", "A remis « Display the policies list »"],
+    );
   });
 
   it("names what is typed from a test account, and never shows it", () => {

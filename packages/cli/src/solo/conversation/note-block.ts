@@ -12,16 +12,29 @@ export interface NoteBlockProps {
 }
 
 /**
- * A note of the harness: a muted line, under the mark of the harness when it opens a row of notes.
+ * A note of the harness: a muted line, under the mark of the harness when it opens a row of notes. Notes alike
+ * about several sources are one line, what they say around the name of a source, with how many, then the
+ * sources on a line of their own.
  *
  * @param props - The block and the theme.
- * @returns The line.
+ * @returns The lines.
  */
 export function NoteBlock({ block, theme }: NoteBlockProps): ReactNode {
   const { mark, ascii } = IDENTITIES.harness;
+  const { step } = block;
+  const muted = theme.ink("muted");
   return h(
     Box,
     { marginTop: block.heads ? 1 : 0 },
-    h(Marked, { mark: block.heads ? (theme.unicode ? mark : ascii) : "", style: theme.ink("muted") }, h(Text, theme.ink("muted"), block.step.text)),
+    h(
+      Marked,
+      { mark: block.heads ? (theme.unicode ? mark : ascii) : "", style: muted },
+      step.kind === "note"
+        ? h(Text, muted, step.text)
+        : [
+            h(Text, { key: "note", ...muted }, `${step.before}…${step.after} ${theme.glyphs.separator} ${step.sources.length} sources`),
+            h(Text, { key: "sources", ...muted }, step.sources.join(", ")),
+          ],
+    ),
   );
 }

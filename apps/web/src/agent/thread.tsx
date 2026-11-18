@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { hrefTo } from "../routing/route.ts";
-import { Badge } from "../ui/badge.tsx";
+import { Badge, type BadgeTone } from "../ui/badge.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Icon } from "../ui/icon.tsx";
 import { IDENTITIES } from "./agents.ts";
@@ -13,6 +13,9 @@ import {
   type OutcomeStep,
   type PassStep,
   type PlanStep,
+  type Remark,
+  type RepeatedNoteStep,
+  type ReviewStep,
   type SayStep,
   type SessionStage,
   type Speaker,
@@ -22,6 +25,7 @@ import {
 } from "@open-qa-stack/domain/sessions";
 import { SpeakerMark } from "./speaker-mark.tsx";
 import { iconOf } from "./tool-icon.ts";
+import { counted } from "../ui/counted.ts";
 
 /** What the thread of a session needs. */
 export interface ThreadProps {
@@ -39,6 +43,10 @@ export interface ThreadProps {
   readonly query?: Readonly<Record<string, string>>;
   /** Where the session is: an empty thread says what it waits for, or that nothing will come. */
   readonly stage: SessionStage;
+  /** The ranks of the long texts the person unfolded. */
+  readonly unfolded: readonly number[];
+  /** Unfolds a long text, by the rank of its step, or folds it again. */
+  readonly onUnfold: (index: number) => void;
 }
 
 /** What the links of a thread need to come back to it. */
@@ -48,7 +56,15 @@ interface Back {
   readonly lookIndex: number | undefined;
   /** The only speaker the thread follows, if any. */
   readonly followed: Speaker | undefined;
+  readonly unfolded: readonly number[];
+  readonly onUnfold: (index: number) => void;
 }
+
+/** How many lines a long text shows before it is unfolded. */
+const FOLDED_LINES = 6;
+
+/** How many characters a text holds at most to be shown whole at once: about the room of its folded lines. */
+const FOLDED_LENGTH = 480;
 
 /** What an empty thread says, by where its session is: its title, then what comes next. */
 const EMPTY: Readonly<Record<SessionStage, readonly [string, string]>> = {
@@ -91,38 +107,72 @@ function ActionState({ step, running }: { readonly step: ToolStep; readonly runn
   return <span className="act-state" aria-hidden="true" />;
 }
 
+/** What a run of a file of tests ran, a test a row: its verdict, then its title. */
+function RanTests({ step }: { readonly step: ToolStep }): ReactNode {
+  return (
+    <ul className="act-tests">
+      {step.tests!.map((test, index) => {
+        const [tone, label] = VERDICTS[test.verdict] ?? (["warn", test.verdict] as const);
+        return (
+          <li key={index}>
+            <Badge tone={tone}>{label}</Badge>
+            <span>{test.title}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 /**
- * An action of an agent, in a row: what it did and how it ended, on a line the answer of the tool unfolds under;
- * then its eye, which opens what the agent had before its eyes, and the time it took, which ends the row.
+ * An action of an agent, in a row: what it did and how it ended, on a line what it gave unfolds under; then its
+ * eye, which opens what the agent had before its eyes, and the time it took, which ends the row. An action on the
+ * file of a test names the test, says how its run ended and where the file is, and can be unfolded and looked
+ * into from its start: under it, the verdict of each test the run ran, what the tool answered when the run did
+ * not pass, and the code.
  */
 function Action({ step, shown, back }: { readonly step: ToolStep; readonly shown: ShownStep; readonly back: Back }): ReactNode {
+  const file = step.look?.kind === "file" ? step.look : undefined;
+  const ran = !shown.running && step.tests !== undefined && step.outcome !== undefined ? ` : ${VERDICTS[step.outcome]![1]}` : "";
+  const title = <span className="act-title">{`${step.title}${ran}`}</span>;
   const line = (
     <>
       <ActionState step={step} running={shown.running} />
       <Icon name={iconOf(step.tool)} />
-      <span className="act-title">{step.title}</span>
+      {file === undefined ? (
+        title
+      ) : (
+        <span className="act-text">
+          {title}
+          <span className="act-path">{file.name}</span>
+        </span>
+      )}
     </>
   );
+  const answered = !shown.running && step.detail !== undefined;
+  const told = answered && !(step.tests !== undefined && step.outcome === "passed");
   const selected = back.lookIndex === shown.index;
-  const look = step.look !== undefined && !shown.running && (
+  const look = step.look !== undefined && (!shown.running || file !== undefined) && (
     <a
       id={eyeIdOf(shown.index)}
       className="act-look"
       href={hrefTo(back.path, { ...back.query, look: String(shown.index) })}
       aria-current={selected ? "true" : undefined}
-      aria-label={`${step.title} — voir ce que l’agent avait sous les yeux`}
+      aria-label={`${step.title} — voir ${step.look.kind === "file" ? "le fichier de test" : "la page consultée"}`}
     >
       <Icon name="eye" />
     </a>
   );
   return (
     <div className={selected ? "act selected" : "act"}>
-      {shown.running || step.detail === undefined ? (
+      {!answered && file === undefined ? (
         <div className="act-line">{line}</div>
       ) : (
         <details>
           <summary className="act-line">{line}</summary>
-          <pre className="act-result">{step.detail}</pre>
+          {!shown.running && step.tests !== undefined && <RanTests step={step} />}
+          {told && <pre className="act-result">{step.detail}</pre>}
+          {file !== undefined && <pre className="act-code">{file.lines.join("\n")}</pre>}
         </details>
       )}
       {look}
@@ -189,28 +239,22 @@ function Brief({ shown }: { readonly shown: ShownStep }): ReactNode {
   );
 }
 
-/** The notes of the harness that follow one another: one in a line, several folded under their count. */
-function Notes({ items }: { readonly items: readonly ShownStep[] }): ReactNode {
-  const texts = items.map(({ step }) => step as NoteStep);
-  if (texts.length === 1) {
-    return (
-      <div className="notes single">
-        <Icon name="shield" />
-        <span className="note-text">{texts[0]!.text}</span>
-      </div>
-    );
-  }
+/** What a note says, on its line: its text, or for a row of notes alike what they say around their sources. */
+function noteTextOf(step: NoteStep | RepeatedNoteStep): string {
+  return step.kind === "note" ? step.text : `${step.before}…${step.after}`;
+}
+
+/** A row of notes alike: one line, what they say around the name of a source and how many sources, which unfolds on each note. */
+function RepeatedNotes({ step }: { readonly step: RepeatedNoteStep }): ReactNode {
   return (
     <details className="notes">
       <summary>
         <Icon name="shield" />
-        <span>{texts.length} notes du harnais</span>
-        <span className="note-preview" aria-hidden="true">
-          {texts.at(-1)!.text}
-        </span>
+        <span>{noteTextOf(step)}</span>
+        <span className="note-count">{counted(step.sources.length, "source", "sources")}</span>
       </summary>
       <ul>
-        {texts.map((note, index) => (
+        {step.notes.map((note, index) => (
           <li key={index}>
             <span className="turn-at">{note.at}</span> {note.text}
           </li>
@@ -220,8 +264,80 @@ function Notes({ items }: { readonly items: readonly ShownStep[] }): ReactNode {
   );
 }
 
-/** A verdict of the harness: accepted on evidence, or refused with the gate that refused. */
-function Verdict({ step }: { readonly step: VerdictStep }): ReactNode {
+/** The notes of the harness that follow one another: one in a line, a row of notes alike folded under its count of sources, several folded under their count. */
+function Notes({ items }: { readonly items: readonly ShownStep[] }): ReactNode {
+  const steps = items.map(({ step }) => step as NoteStep | RepeatedNoteStep);
+  const [first] = steps;
+  if (steps.length === 1 && first!.kind === "repeated") return <RepeatedNotes step={first!} />;
+  if (steps.length === 1) {
+    return (
+      <div className="notes single">
+        <Icon name="shield" />
+        <span className="note-text">{noteTextOf(first!)}</span>
+      </div>
+    );
+  }
+  return (
+    <details className="notes">
+      <summary>
+        <Icon name="shield" />
+        <span>{steps.length} notes du harnais</span>
+        <span className="note-preview" aria-hidden="true">
+          {noteTextOf(steps.at(-1)!)}
+        </span>
+      </summary>
+      <ul>
+        {steps.map((step, index) =>
+          step.kind === "repeated" ? (
+            <li key={index}>
+              <RepeatedNotes step={step} />
+            </li>
+          ) : (
+            <li key={index}>
+              <span className="turn-at">{step.at}</span> {step.text}
+            </li>
+          ),
+        )}
+      </ul>
+    </details>
+  );
+}
+
+/**
+ * A text read at length, whole: one that would not hold in a few lines shows its first ones, and a button under
+ * it unfolds the rest in place, then folds it again. The end of a refusal says what to do: it is one press away.
+ */
+function LongText({
+  id,
+  text,
+  className,
+  index,
+  back,
+}: {
+  readonly id: string;
+  readonly text: string;
+  readonly className: string;
+  readonly index: number;
+  readonly back: Back;
+}): ReactNode {
+  const long = text.length > FOLDED_LENGTH || text.split("\n").length > FOLDED_LINES;
+  const open = back.unfolded.includes(index);
+  return (
+    <>
+      <p id={id} className={long && !open ? `${className} folded` : className}>
+        {text}
+      </p>
+      {long && (
+        <button type="button" className="btn ghost sm read-more" aria-expanded={open} aria-controls={id} onClick={() => back.onUnfold(index)}>
+          {open ? "Replier" : "Lire la suite"}
+        </button>
+      )}
+    </>
+  );
+}
+
+/** A verdict of the harness: accepted on evidence, or refused with the gate that refused, and what it says in full. */
+function Verdict({ step, index, back }: { readonly step: VerdictStep; readonly index: number; readonly back: Back }): ReactNode {
   return (
     <article className={step.accepted ? "verdict accepted" : "verdict refused"}>
       <header className="verdict-head">
@@ -234,7 +350,89 @@ function Verdict({ step }: { readonly step: VerdictStep }): ReactNode {
         </div>
         <span className="turn-at">{step.at}</span>
       </header>
-      <p className="verdict-text">{step.text}</p>
+      <LongText id={`verdict-text-${index}`} className="verdict-text" text={step.text} index={index} back={back} />
+    </article>
+  );
+}
+
+/** What a reviewer reviewed, as its card says it. */
+function reviewedOf(step: ReviewStep): string {
+  return step.scenario === undefined ? "a relu le plan" : `a relu le test de ${step.scenario}`;
+}
+
+/** The verdict of a reviewer in a few words, and its colour: none found is a pass; a call the harness refused or has not answered yet is no verdict. */
+function reviewVerdictOf(step: ReviewStep, running: boolean): readonly [BadgeTone, string] {
+  if (step.refused === true) return ["ko", "non retenu par le harnais"];
+  if (running) return ["neutral", "en cours"];
+  const count = step.remarks.length;
+  if (step.from === "plan_reviewer") return count === 0 ? ["ok", "aucun doublon"] : ["warn", counted(count, "doublon", "doublons")];
+  return count === 0 ? ["ok", "aucune remarque"] : ["warn", counted(count, "remarque", "remarques")];
+}
+
+/** A remark of a reviewer, in full: the scenario a duplicate is and what it repeats, where it is and by which rule, then what it says. */
+function RemarkView({ remark }: { readonly remark: Remark }): ReactNode {
+  const placed = remark.duplicate !== undefined || remark.where !== undefined || remark.rule !== undefined || remark.concerns === "plan";
+  return (
+    <li className="remark">
+      {placed && (
+        <div className="remark-head">
+          {remark.duplicate !== undefined && (
+            <span>
+              <b>{remark.duplicate.scenario}</b> double <span className="mono">{remark.duplicate.of}</span>
+            </span>
+          )}
+          {remark.where !== undefined && <b>{remark.where}</b>}
+          {remark.rule !== undefined && <span className="verdict-code">{remark.rule}</span>}
+          {remark.concerns === "plan" && <Badge tone="neutral">porte sur le plan</Badge>}
+        </div>
+      )}
+      <p className="remark-text">{remark.text}</p>
+    </li>
+  );
+}
+
+/**
+ * The verdict of a reviewer: who reviewed what, what it came to, and each of its remarks in full. The call it
+ * was handed in with — the tool, what the harness answered, the word the reviewer replied — is folded under it,
+ * for whoever looks into the working of the review.
+ */
+function Review({ step, running }: { readonly step: ReviewStep; readonly running: boolean }): ReactNode {
+  const [tone, verdict] = reviewVerdictOf(step, running);
+  return (
+    <article className="verdict review">
+      <header className="verdict-head">
+        <div className="lead">
+          <SpeakerMark speaker={step.from} size="sm" active={running} />
+          <b>{IDENTITIES[step.from].name}</b>
+          <span className="turn-role">{reviewedOf(step)}</span>
+          <Badge tone={tone}>{verdict}</Badge>
+        </div>
+        <span className="turn-at">{step.at}</span>
+      </header>
+      {step.remarks.length > 0 && (
+        <ol className="remarks">
+          {step.remarks.map((remark, index) => (
+            <RemarkView key={index} remark={remark} />
+          ))}
+        </ol>
+      )}
+      {step.answer !== undefined && (
+        <details className="review-call">
+          <summary>Détails de l’appel</summary>
+          <dl>
+            <dt>Outil</dt>
+            <dd className="mono">{step.tool}</dd>
+            <dt>Réponse du harnais</dt>
+            <dd>{step.answer}</dd>
+            {step.reply !== undefined && (
+              <>
+                <dt>Réponse du relecteur</dt>
+                <dd>{step.reply}</dd>
+              </>
+            )}
+          </dl>
+        </details>
+      )}
     </article>
   );
 }
@@ -247,7 +445,7 @@ function Plan({ step }: { readonly step: PlanStep }): ReactNode {
         <div className="lead">
           <span className="act-state ok" aria-hidden="true" />
           <b>{step.title}</b>
-          <span className="turn-role">{step.scenarios.length} scénario(s)</span>
+          <span className="turn-role">{counted(step.scenarios.length, "scénario", "scénarios")}</span>
         </div>
         <span className="turn-at">{step.at}</span>
       </header>
@@ -328,7 +526,8 @@ function TurnView({ turn, back }: { readonly turn: Turn<ShownStep>; readonly bac
   if (turn.kind === "brief") return <Brief shown={turn.shown} />;
   if (turn.kind === "notes") return <Notes items={turn.items} />;
   const { step } = turn.shown;
-  if (step.kind === "verdict") return <Verdict step={step} />;
+  if (step.kind === "review") return <Review step={step} running={turn.shown.running} />;
+  if (step.kind === "verdict") return <Verdict step={step} index={turn.shown.index} back={back} />;
   if (step.kind === "plan") return <Plan step={step} />;
   if (step.kind === "pass") return <Pass step={step} />;
   return <Outcome step={step as OutcomeStep} />;
@@ -342,9 +541,9 @@ function TurnView({ turn, back }: { readonly turn: Turn<ShownStep>; readonly bac
  * @param props - The session at this moment.
  * @returns The thread.
  */
-export function Thread({ path, frame, lookIndex, filter = "all", followed, query = {}, stage }: ThreadProps): ReactNode {
+export function Thread({ path, frame, lookIndex, filter = "all", followed, query = {}, stage, unfolded, onUnfold }: ThreadProps): ReactNode {
   const turns = turnsOf(frame.shown.filter(({ step }) => shows(step, filter, followed)));
-  const back: Back = { path, query, lookIndex, followed };
+  const back: Back = { path, query, lookIndex, followed, unfolded, onUnfold };
   const working = frame.speaking === undefined || frame.speaking === "user" ? undefined : frame.speaking;
   return (
     <section className="thread" aria-label="Fil de la session">

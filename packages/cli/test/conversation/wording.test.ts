@@ -106,6 +106,10 @@ describe("the words of the terminal for a thread", () => {
     assert.deepEqual([WORDING.closed(1), WORDING.closed(2)], ["1 test closed by the harness", "2 tests closed by the harness"]);
     assert.equal(WORDING.opened("2026-11-13", "14:44:05"), "Session of 2026-11-13 at 14:44:05 UTC");
     assert.equal(WORDING.tool("run_test", {}), "Ran the test");
+    assert.deepEqual(
+      [WORDING.tool("run_test", {}, "Search a customer"), WORDING.tool("propose_test", {}, "Search a customer")],
+      ['Ran "Search a customer"', 'Handed in "Search a customer"'],
+    );
   });
 });
 

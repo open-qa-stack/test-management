@@ -78,13 +78,13 @@ describe("the opening of a session", () => {
 
 describe("the tests of a session", () => {
   it("are counted as how many passed out of how many", () => {
-    assert.equal(testsText(COMPLETED), "1 / 1 test(s) réussi(s)");
+    assert.equal(testsText(COMPLETED), "1 / 1 test réussi");
     const tests: SessionTest[] = [
       { id: "a", verdict: "passed", reason: "" },
       { id: "b", verdict: "failed", reason: "" },
       { id: "c", verdict: "blocked", reason: "" },
     ];
-    assert.equal(testsText(endedWith({ outcome: "failed", tests })), "1 / 3 test(s) réussi(s)");
+    assert.equal(testsText(endedWith({ outcome: "failed", tests })), "1 / 3 tests réussis");
   });
 
   it("are not counted when the session has no result, or a result without a test", () => {

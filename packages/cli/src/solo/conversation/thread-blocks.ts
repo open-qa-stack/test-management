@@ -5,6 +5,8 @@ import {
   type OutcomeStep,
   type PassStep,
   type PlanStep,
+  type RepeatedNoteStep,
+  type ReviewStep,
   type SayStep,
   type Step,
   type ToolStep,
@@ -25,14 +27,15 @@ export type Block =
   | { readonly kind: "speech"; readonly agent: AgentRole; readonly heads: boolean; readonly step: SayStep }
   | { readonly kind: "action"; readonly agent: AgentRole; readonly heads: boolean; readonly step: ToolStep }
   | { readonly kind: "brief"; readonly step: SayStep }
-  | { readonly kind: "note"; readonly heads: boolean; readonly step: NoteStep }
+  | { readonly kind: "note"; readonly heads: boolean; readonly step: NoteStep | RepeatedNoteStep }
   | { readonly kind: "pass"; readonly step: PassStep }
+  | { readonly kind: "review"; readonly step: ReviewStep }
   | { readonly kind: "verdict"; readonly step: VerdictStep }
   | { readonly kind: "plan"; readonly step: PlanStep }
   | { readonly kind: "outcome"; readonly step: OutcomeStep };
 
-/** A card of a thread: the start of a pass, a verdict, a plan or the outcome. */
-type Card = PassStep | VerdictStep | PlanStep | OutcomeStep;
+/** A card of a thread: the start of a pass, the verdict of a reviewer or of the harness, a plan or the outcome. */
+type Card = PassStep | ReviewStep | VerdictStep | PlanStep | OutcomeStep;
 
 /**
  * Reads the steps of a thread as the blocks a terminal writes, grouped as every presentation groups them.
@@ -56,7 +59,7 @@ export function blocksOf(steps: readonly Step[]): Block[] {
             : { kind: "speech", agent: turn.agent, heads: index === 0, step: step as SayStep },
         );
       case "notes":
-        return turn.items.map(({ step }, index) => ({ kind: "note", heads: index === 0, step: step as NoteStep }));
+        return turn.items.map(({ step }, index) => ({ kind: "note", heads: index === 0, step: step as NoteStep | RepeatedNoteStep }));
       case "card": {
         const step = turn.shown.step as Card;
         return [{ kind: step.kind, step } as Block];
@@ -65,9 +68,12 @@ export function blocksOf(steps: readonly Step[]): Block[] {
   });
 }
 
-/** Whether a block may still change: an action whose tool has not answered, a message no agent took yet, or the pass the thread ends on, which the request of the harness may still name. */
+/**
+ * Whether a block may still change: an action whose tool has not answered, a review the harness has not answered,
+ * a message no agent took yet, or the pass the thread ends on, which the request of the harness may still name.
+ */
 function isOpen(block: Block, last: boolean): boolean {
-  if (block.kind === "action") return block.step.pending === true;
+  if (block.kind === "action" || block.kind === "review") return block.step.pending === true;
   if (block.kind === "message") return block.deliveredTo === undefined;
   return block.kind === "pass" && last;
 }

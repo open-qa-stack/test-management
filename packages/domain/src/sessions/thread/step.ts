@@ -31,6 +31,14 @@ export interface DeliveryStep extends StepBase {
   readonly to: AgentRole;
 }
 
+/** A test an action ran, with its verdict. */
+export interface RanTest {
+  /** Its title, the project and the file its runner prefixes it with left out. */
+  readonly title: string;
+  /** Its verdict, as the runner gave it: `passed`, `failed`… */
+  readonly verdict: string;
+}
+
 /** An agent uses a tool: it reads, it opens a screen, it writes or runs a test. */
 export interface ToolStep extends StepBase {
   readonly kind: "tool";
@@ -43,8 +51,12 @@ export interface ToolStep extends StepBase {
   readonly detail?: string;
   /** How it ended, when the answer of the tool says so. */
   readonly outcome?: "passed" | "failed";
-  /** What the agent had before its eyes when the tool answered. */
+  /** What the agent had before its eyes: the file it handed the tool, from the start, or the page the tool rendered. */
   readonly look?: ActionLook;
+  /** The test the action is about, when the agent handed the tool the file of one: the title the file gives its test, or the name of the file. */
+  readonly subject?: string;
+  /** The tests the tool ran, each with its verdict, once it ran a file of tests. */
+  readonly tests?: readonly RanTest[];
   /** Whether the tool has not answered yet. */
   readonly pending?: boolean;
   /** How long the tool took to answer, in milliseconds, once it did. */
@@ -61,6 +73,48 @@ export interface VerdictStep extends StepBase {
   readonly about: string;
   /** Why, and what to do next. */
   readonly text: string;
+}
+
+/** The agents that review: the plan for duplicates, a test against its scenario, a test for the quality of its code. */
+export type Reviewer = Extract<AgentRole, "plan_reviewer" | "coherence_reviewer" | "code_reviewer">;
+
+/** A remark of a reviewer, as it gave it. */
+export interface Remark {
+  /** What is wrong, or why a scenario repeats one before it. */
+  readonly text: string;
+  /** Where, when the reviewer said it: a step of the test, an assertion. */
+  readonly where?: string;
+  /** The rule of the charter it breaks, when the reviewer named one. */
+  readonly rule?: string;
+  /** What it concerns, when the reviewer said it: `test`, which its writer can repair, or `plan`, which it cannot. */
+  readonly concerns?: string;
+  /** The scenario a reviewer of the plan found a duplicate, and what it repeats. */
+  readonly duplicate?: { readonly scenario: string; readonly of: string };
+}
+
+/**
+ * A reviewer hands in its verdict: its remarks, none when it found nothing. The call of the tool it reports with,
+ * the answer of the harness and the word the reviewer replies with are the working of the review: they are kept
+ * here, for whoever looks into it, and make no step of their own.
+ */
+export interface ReviewStep extends StepBase {
+  readonly kind: "review";
+  readonly from: Reviewer;
+  /** The scenario whose test was reviewed; none when the plan was. */
+  readonly scenario?: string;
+  readonly remarks: readonly Remark[];
+  /** The name of the tool the verdict was handed in with. */
+  readonly tool: string;
+  /** Whether the harness has not answered yet. */
+  readonly pending?: boolean;
+  /** Whether the harness refused the call: the verdict was not taken, and the reviewer is to hand it in again. */
+  readonly refused?: boolean;
+  /** What the harness answered the call. */
+  readonly answer?: string;
+  /** What the reviewer said once its verdict was taken: a word. */
+  readonly reply?: string;
+  /** How long the harness took to answer, in milliseconds. */
+  readonly durationMs?: number;
 }
 
 /** A scenario of a plan, as a thread lists it. */
@@ -114,5 +168,21 @@ export interface NoteStep extends StepBase {
   readonly text: string;
 }
 
+/**
+ * The harness noted the same thing of several sources in a row, such as a card it kept because it was up to
+ * date: one line for them all, each note kept.
+ */
+export interface RepeatedNoteStep extends StepBase {
+  readonly kind: "repeated";
+  /** What the notes say before the name of their source. */
+  readonly before: string;
+  /** What the notes say after the name of their source. */
+  readonly after: string;
+  /** The sources, in order: two or more. */
+  readonly sources: readonly string[];
+  /** Each note, in full. */
+  readonly notes: readonly NoteStep[];
+}
+
 /** A step of a session, as its thread tells it. */
-export type Step = SayStep | DeliveryStep | ToolStep | VerdictStep | PlanStep | PassStep | OutcomeStep | NoteStep;
+export type Step = SayStep | DeliveryStep | ToolStep | ReviewStep | VerdictStep | PlanStep | PassStep | OutcomeStep | NoteStep | RepeatedNoteStep;
