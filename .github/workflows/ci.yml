@@ -22,8 +22,14 @@ jobs:
     # The single command that tells whether a commit can be delivered, on a clean clone.
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      # Whether the analysis runs: a boolean, so that the token itself reaches that step alone.
+      SONAR_AVAILABLE: ${{ secrets.SONAR_TOKEN != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The analysis compares a pull request with its base: it needs the history.
+          fetch-depth: 0
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -38,6 +44,16 @@ jobs:
         # coverage. The tests of the store and of the API run on SQLite and on PostgreSQL: each of
         # the two starts a disposable PostgreSQL with the Docker of the runner.
         run: pnpm check
+        env:
+          # The coverage of every run of tests, in one report whose paths start from the root, for the analysis.
+          OQAS_COVERAGE_REPORT: coverage/lcov.info
+      - name: SonarCloud analysis
+        # Reads sonar-project.properties and the coverage the check kept. Skipped without the token, as in a pull
+        # request from a fork; the token reaches this step alone.
+        if: env.SONAR_AVAILABLE == 'true'
+        uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   hygiene:
     # Every commit the pull request brings, not only its last: the message of each follows the
