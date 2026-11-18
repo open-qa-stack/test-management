@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { createElement, type FormEvent, type ReactNode } from "react";
-import type { Session } from "@open-qa-stack/shared/sessions";
+import type { Session } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
 import { AgentHomeScreen, type AgentHomeScreenProps } from "../../src/agent/agent-home-screen.tsx";
 import { elementsOf, linksOf, render, textOf } from "../render.ts";
-import { COMPLETED, RUNNING, SESSION_ID } from "./session-fixture.ts";
+import { COMPLETED, QUEUED, RUNNING, SESSION_ID } from "./session-fixture.ts";
 
 /** An earlier session that stopped without ending: nothing tells what it was asked. */
 const INTERRUPTED: Session = {
@@ -114,6 +114,17 @@ describe("the entry of the agent", () => {
     );
     assert.match(text, /Session sans demande 2026-11-14 · 09:12:00 UTC interrompue$/);
     assert.doesNotMatch(text, /Lecture des sessions|Aucune session/);
+  });
+
+  it("says a queued session waits for an agent, where its facts go, without marking it as live", () => {
+    const html = home([QUEUED, COMPLETED]);
+    assert.match(
+      textOf(html),
+      /Sessions · chaque demande ouvre une session tester la recherche d'un client 2026-11-15 · 14:44:06 UTC · en attente d’un agent en file /,
+    );
+    assert.match(html, new RegExp(`<a class="row run-row" href="#/agent/sessions/${SESSION_ID}">`));
+    assert.match(html, /<span class="badge outline">en file<\/span>/);
+    assert.match(textOf(home([{ ...UNASKED, state: "queued" }])), /Session sans demande 2026-11-16 · 08:00:00 UTC · en attente d’un agent en file$/);
   });
 
   it("names a session nothing was asked of by whether its agents still work", () => {

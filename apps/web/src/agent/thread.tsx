@@ -7,7 +7,7 @@ import { IDENTITIES } from "./agents.ts";
 import { eyeIdOf } from "./opened-look.ts";
 import { shows, type Frame, type ShownStep, type ThreadFilter } from "./playback.ts";
 import { elapsedText } from "./session-facts.ts";
-import type { NoteStep, OutcomeStep, PassStep, PlanStep, SayStep, Speaker, ToolStep, VerdictStep } from "./session-script.ts";
+import type { NoteStep, OutcomeStep, PassStep, PlanStep, SayStep, SessionStage, Speaker, ToolStep, VerdictStep } from "./session-script.ts";
 import { SpeakerMark } from "./speaker-mark.tsx";
 import { turnsOf, type Turn } from "./turns.ts";
 
@@ -25,8 +25,8 @@ export interface ThreadProps {
   readonly followed?: Speaker;
   /** The parameters of the address the links of the thread keep, such as its filter. */
   readonly query?: Readonly<Record<string, string>>;
-  /** Whether the session still goes on: an empty thread then waits for its first events. */
-  readonly live: boolean;
+  /** Where the session is: an empty thread says what it waits for, or that nothing will come. */
+  readonly stage: SessionStage;
 }
 
 /** What the links of a thread need to come back to it. */
@@ -37,6 +37,13 @@ interface Back {
   /** The only speaker the thread follows, if any. */
   readonly followed: Speaker | undefined;
 }
+
+/** What an empty thread says, by where its session is: its title, then what comes next. */
+const EMPTY: Readonly<Record<SessionStage, readonly [string, string]>> = {
+  queued: ["La session attend d’être prise par un agent", "Le fil se remplira dès qu’elle démarrera ; un message envoyé d’ici là sera remis à ses agents."],
+  live: ["Les agents n’ont encore rien écrit", "Le fil se remplira dès leur premier événement."],
+  ended: ["Cette session n’a laissé aucun événement", "Elle s’est arrêtée avant que ses agents ne commencent."],
+};
 
 /** How each verdict of a test reads, and its colour family; any other reads as it is. */
 const VERDICTS: Readonly<Record<string, readonly ["ok" | "ko" | "warn", string]>> = {
@@ -318,28 +325,24 @@ function TurnView({ turn, back }: { readonly turn: Turn; readonly back: Back }):
 /**
  * The thread of a session, as a conversation: what was asked, what the person said since, each agent in turn — what it thought,
  * folded, what it said, and what it did, a line per action — the verdicts of the harness, the plans, and
- * what the session produced. While the session goes on, its last line names who is at work.
+ * what the session produced. While its agents work, its last line names who is at work.
  *
  * @param props - The session at this moment.
  * @returns The thread.
  */
-export function Thread({ path, frame, lookIndex, filter = "all", followed, query = {}, live }: ThreadProps): ReactNode {
+export function Thread({ path, frame, lookIndex, filter = "all", followed, query = {}, stage }: ThreadProps): ReactNode {
   const turns = turnsOf(frame.shown.filter(({ step }) => shows(step, filter, followed)));
   const back: Back = { path, query, lookIndex, followed };
   const working = frame.speaking === undefined || frame.speaking === "user" ? undefined : frame.speaking;
   return (
     <section className="thread" aria-label="Fil de la session">
-      {frame.shown.length === 0 && (
-        <EmptyState title={live ? "Les agents n’ont encore rien écrit" : "Cette session n’a laissé aucun événement"}>
-          {live ? "Le fil se remplira dès leur premier événement." : "Elle s’est arrêtée avant que ses agents ne commencent."}
-        </EmptyState>
-      )}
+      {frame.shown.length === 0 && <EmptyState title={EMPTY[stage][0]}>{EMPTY[stage][1]}</EmptyState>}
       {turns.map((turn, index) => (
         <div key={index} className="thread-item">
           <TurnView turn={turn} back={back} />
         </div>
       ))}
-      {live && frame.shown.length > 0 && (
+      {stage === "live" && frame.shown.length > 0 && (
         <div className="working" role="status">
           {working !== undefined && <SpeakerMark speaker={working} size="sm" active />}
           <span>{working === undefined ? "Les agents travaillent" : `${IDENTITIES[working].name} travaille`}</span>

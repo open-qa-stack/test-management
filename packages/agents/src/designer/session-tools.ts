@@ -1,6 +1,5 @@
 import { join } from "node:path";
-import type { ToolDefinition } from "@open-qa-stack/domain";
-import { declaredValues, readsImages, type Application, type Knowledge, type ResolvedConfig } from "@open-qa-stack/shared";
+import { declaredValues, readsImages, type Application, type Knowledge, type ResolvedConfig, type ToolDefinition } from "@open-qa-stack/domain";
 import { browserTools, knowledgeTools, scopedToolName, type BrowserAccess } from "@open-qa-stack/tools";
 import { configSecrets } from "../common/config-secrets.ts";
 import { ScreenWatch } from "./screen-watch.ts";

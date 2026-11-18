@@ -1,12 +1,12 @@
 import type { FormEvent, ReactNode } from "react";
-import type { Session } from "@open-qa-stack/shared/sessions";
+import type { Session } from "@open-qa-stack/domain/sessions";
 import { hrefTo } from "../routing/route.ts";
 import { Badge } from "../ui/badge.tsx";
 import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
 import type { Opening } from "./console-state.ts";
-import { durationText, openingText, stateOf, testsText } from "./session-facts.ts";
+import { durationText, openingText, stateOf, testsText, waitText } from "./session-facts.ts";
 
 /** What the entry of the agent needs. */
 export interface AgentHomeScreenProps {
@@ -22,13 +22,14 @@ export interface AgentHomeScreenProps {
   readonly onOpen?: (event: FormEvent<HTMLFormElement>) => void;
 }
 
-/** A session of the list: what was asked, when, how it went, and the link to its thread. */
+/** A session of the list: what was asked, when, what it waits for or how it went, and the link to its thread. */
 function SessionRow({ session }: { readonly session: Session }): ReactNode {
   const state = stateOf(session);
   const live = session.state === "running";
   const facts = [
     openingText(session),
     session.environment,
+    waitText(session),
     session.result === undefined ? undefined : durationText(session.result.durationMs),
     session.result === undefined ? undefined : `${session.result.modelRequests} requêtes au modèle`,
     testsText(session),

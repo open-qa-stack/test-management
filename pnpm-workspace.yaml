@@ -5,3 +5,7 @@ autoInstallPeers: false
 peerDependencyRules:
   ignoreMissing:
     - eslint
+# better-sqlite3 ships the binaries of the platforms it supports in its package: its build from source is
+# not run at install, so that an install needs no compiler.
+ignoredBuiltDependencies:
+  - better-sqlite3

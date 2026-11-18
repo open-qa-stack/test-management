@@ -1,5 +1,6 @@
-import type { SessionEvent } from "@open-qa-stack/shared/sessions";
+import type { SessionEvent } from "@open-qa-stack/domain/sessions";
 import { API_BASE } from "./api-client.ts";
+import { hasEnded } from "./session-state.ts";
 
 /**
  * Where a stream of events is: `connecting` until it first opens, `open` while it receives, `reconnecting`
@@ -42,7 +43,8 @@ function eventOf(data: string): SessionEvent | undefined {
  * answer that is not a success, so the stream never leaves reconnecting to it. Each new connection asks for
  * the events after the last one received, so that none comes twice, and waits longer than the one before for
  * as long as nothing comes. The event that says the session no longer goes on ends the stream: the API
- * completes it there, and connecting again would only ask for nothing.
+ * completes it there, and connecting again would only ask for nothing. A session that waits its turn goes
+ * on: its stream stays open, and gives what its agents do once they start.
  *
  * @param id - The identifier of the session.
  * @param listener - What to tell.
@@ -81,7 +83,7 @@ export function followEvents(id: string, listener: StreamListener): () => void {
       last = event.id;
       cuts = 0;
       gathered.push(event);
-      if (event.type === "state_changed" && event.state !== "running") {
+      if (event.type === "state_changed" && hasEnded(event.state)) {
         stop();
         hand();
         listener.state("ended");

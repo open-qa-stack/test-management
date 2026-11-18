@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join, posix } from "node:path";
-import { applicationVariable, appsFrom, sharedFixtures } from "@open-qa-stack/shared";
+import { applicationVariable, appsFrom, sharedFixtures } from "@open-qa-stack/domain";
 import { TEST_MODULE } from "./spec-rules.ts";
 import type { WrittenFiles } from "./written-files.ts";
 

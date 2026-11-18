@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it } from "vitest";
-import type { Knowledge } from "@open-qa-stack/shared";
+import type { Knowledge } from "@open-qa-stack/domain";
 import {
   ALL_COLUMNS_QUERY,
   CONSTRAINTS_QUERY,

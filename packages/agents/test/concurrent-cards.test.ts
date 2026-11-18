@@ -3,8 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, it } from "vitest";
-import type { AgentEvent, AgentRuntime, AgentSession, SessionOptions } from "@open-qa-stack/domain";
-import { validateConfig } from "@open-qa-stack/shared";
+import { validateConfig, type AgentEvent, type AgentRuntime, type AgentSession, type SessionOptions } from "@open-qa-stack/domain";
 import { mapSources } from "../src/index.ts";
 
 const workspace = mkdtempSync(join(tmpdir(), "oqas-concurrent-cards-"));

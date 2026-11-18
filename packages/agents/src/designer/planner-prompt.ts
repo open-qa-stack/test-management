@@ -1,10 +1,8 @@
-import type { ScenarioLevel } from "@open-qa-stack/domain";
+import { withoutClosing, type Application, type ScenarioLevel } from "@open-qa-stack/domain";
 import { TESTS_LIST_TOOL } from "./existing-tests.ts";
-import type { Application } from "@open-qa-stack/shared";
 import { scopedToolName } from "@open-qa-stack/tools";
 import { DOMAIN_TOOL, LIST_TOOL, READ_TOOL } from "./index-map.ts";
 import { PLAN_TOOL } from "./plan-proposal.ts";
-import { withoutClosing } from "../common/tag-closing.ts";
 
 /**
  * System instructions of the agent that plans the tests of a design: what it is for, how the harness

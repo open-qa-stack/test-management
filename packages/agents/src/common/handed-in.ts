@@ -1,5 +1,4 @@
-import type { JsonSchema, ToolDefinition } from "@open-qa-stack/domain";
-import type { IndexError, IndexValidation } from "@open-qa-stack/shared";
+import type { IndexError, IndexValidation, JsonSchema, ToolDefinition } from "@open-qa-stack/domain";
 import { redactText, secretForms } from "@open-qa-stack/tools";
 import type { Journal } from "./journal.ts";
 

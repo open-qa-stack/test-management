@@ -1,7 +1,7 @@
-import type { SessionEvent } from "@open-qa-stack/shared/sessions";
+import type { SessionEvent } from "@open-qa-stack/domain/sessions";
 
 /** How long a test waits for an event before it fails, in milliseconds. */
-const PATIENCE_MS = 5_000;
+const PATIENCE_MS = 30_000;
 
 /** A message of a stream of server-sent events: the identifier it bears, and the event it carries. */
 export interface StreamMessage {

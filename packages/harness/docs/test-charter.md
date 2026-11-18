@@ -6,7 +6,7 @@ Each rule has a stable identifier, such as `PW-WAIT-01`, a statement, a rational
 
 ## Tuning the charter
 
-The `charter` key of `oqas.json` (see the configuration file reference of `@open-qa-stack/shared`) disables default rules and adds rules of your own, each with a reason:
+The `charter` key of `oqas.json` (see the configuration file reference of `@open-qa-stack/domain`) disables default rules and adds rules of your own, each with a reason:
 
 ```json
 {

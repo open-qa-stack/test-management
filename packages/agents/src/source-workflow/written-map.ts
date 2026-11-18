@@ -1,4 +1,4 @@
-import type { SourceManifest } from "@open-qa-stack/shared";
+import type { SourceManifest } from "@open-qa-stack/domain";
 import type { Journal } from "../common/journal.ts";
 import { renderDomainFile } from "./domain-file.ts";
 import { coverageErrors } from "./domain-file-control.ts";

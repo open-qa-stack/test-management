@@ -4,17 +4,19 @@ import { describe, it } from "vitest";
 import { AgentRuntimeError, ModelResponseError, ModelUnreachableError, ReplayMissError, SessionClosedError } from "../src/index.ts";
 
 describe("criterion 1 — the AgentRuntime contract depends on nothing", () => {
-  it("imports nothing but its own files", () => {
-    const root = new URL("../src/", import.meta.url);
-    const files = readdirSync(root, { recursive: true, encoding: "utf8" }).filter((f) => f.endsWith(".ts"));
-    assert.ok(files.length > 0);
-    for (const file of files) {
-      const imports = [...readFileSync(new URL(file, root), "utf8").matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)].map((m) => m[1]!);
-      assert.deepEqual(
-        imports.filter((i) => !i.startsWith("./") && !i.startsWith("../")),
-        [],
-        file,
-      );
+  it("imports nothing but the files of the package, as do the tests, the images and the contract of sessions a browser reads", () => {
+    for (const folder of ["agent", "image", "test", "sessions"]) {
+      const root = new URL(`../src/${folder}/`, import.meta.url);
+      const files = readdirSync(root, { recursive: true, encoding: "utf8" }).filter((f) => f.endsWith(".ts"));
+      assert.ok(files.length > 0, folder);
+      for (const file of files) {
+        const imports = [...readFileSync(new URL(file, root), "utf8").matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)].map((m) => m[1]!);
+        assert.deepEqual(
+          imports.filter((i) => !i.startsWith("./") && !i.startsWith("../")),
+          [],
+          `${folder}/${file}`,
+        );
+      }
     }
   });
 });

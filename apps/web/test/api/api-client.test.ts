@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import type { Project } from "@open-qa-stack/shared/sessions";
+import type { Project } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
 import { API_BASE, ApiClient, type Fetch } from "../../src/api/api-client.ts";
 import { ApiError } from "../../src/api/api-error.ts";

@@ -1,17 +1,32 @@
-import { absolutePath, commandLine, databaseUrl, nonEmptyText, portNumber } from "./value-type.ts";
-import type { CommandLine } from "./command-line.ts";
-import type { DatabaseUrl } from "./database-url.ts";
+import { databaseUrl, nonEmptyText, portNumber, testRepository } from "./value-type.ts";
+import type { DatabaseUrl } from "@open-qa-stack/store";
 import type { EnvironmentVariable } from "./environment-variable.ts";
 
-/** The variables that reach the database, read by the API and by the migration command alike. */
+const REPOSITORY = "OQAS_REPOSITORY";
+
+/**
+ * The variables that name the database of the instance, read by the API and by the migration command alike:
+ * its URL or, without one, the test repository whose state folder holds it.
+ */
 export const DATABASE_VARIABLES = {
   database: {
     name: "OQAS_DATABASE_URL",
-    description: "The connection URL of the PostgreSQL database of the instance.",
+    description:
+      "The connection URL of the database of the instance, to keep it elsewhere than in the test repository. Without it, the database is a SQLite file in the state folder of the test repository.",
     type: databaseUrl,
     secret: true,
+    optional: true,
+    orElse: REPOSITORY,
     example: "postgres://oqas:change-me@127.0.0.1:5432/oqas",
   } satisfies EnvironmentVariable<DatabaseUrl>,
+  repository: {
+    name: REPOSITORY,
+    description: "The test repository the sessions run in. Without it, the API serves the sessions it holds and opens none.",
+    type: testRepository,
+    secret: false,
+    optional: true,
+    example: "/srv/tests",
+  } satisfies EnvironmentVariable<string>,
 } as const;
 
 /** Every environment variable the API reads; the documentation of the package lists the same. */
@@ -32,21 +47,4 @@ export const API_VARIABLES = {
     example: "8080",
   } satisfies EnvironmentVariable<number>,
   ...DATABASE_VARIABLES,
-  soloRepository: {
-    name: "OQAS_SOLO_REPOSITORY",
-    description:
-      "The test repository whose runs of the oqas command line the instance shows as sessions: a bridge, until workers write the sessions to the database.",
-    type: absolutePath,
-    secret: false,
-    optional: true,
-    example: "/srv/tests",
-  } satisfies EnvironmentVariable<string>,
-  soloCommand: {
-    name: "OQAS_SOLO_COMMAND",
-    description: "The command that starts oqas, which opening a session from the instance runs on that repository: part of the same bridge.",
-    type: commandLine,
-    secret: false,
-    optional: true,
-    example: "node /clone/packages/cli/src/main.ts",
-  } satisfies EnvironmentVariable<CommandLine>,
 } as const;

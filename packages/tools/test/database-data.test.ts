@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { describe, it } from "vitest";
-import type { ToolDefinition } from "@open-qa-stack/domain";
-import type { Knowledge } from "@open-qa-stack/shared";
+import type { Knowledge, ToolDefinition } from "@open-qa-stack/domain";
 import { COLUMNS_QUERY, KEYS_QUERY, SERVER_ACCESS_QUERY, TABLES_QUERY } from "../src/postgresql/catalog-query.ts";
 import { dataRows, MAX_VALUE_LENGTH } from "../src/postgresql/data-rows.ts";
 import { PgSqlClient, type PgConnection } from "../src/postgresql/pg-sql-client.ts";

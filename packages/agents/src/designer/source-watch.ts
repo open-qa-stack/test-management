@@ -1,5 +1,4 @@
-import type { ToolDefinition } from "@open-qa-stack/domain";
-import type { Knowledge } from "@open-qa-stack/shared";
+import type { Knowledge, ToolDefinition } from "@open-qa-stack/domain";
 import { redactText, secretForms } from "@open-qa-stack/tools";
 import { toolsBySource } from "./index-map.ts";
 import { nextMoment } from "./moments.ts";

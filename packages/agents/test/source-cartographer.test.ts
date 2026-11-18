@@ -3,18 +3,18 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterAll, beforeAll, describe, it } from "vitest";
-import type { AgentRuntime } from "@open-qa-stack/domain";
-import { CopilotAgentRuntime, ModelGateway } from "@open-qa-stack/harness";
 import {
   validateConfig,
   validateSourceCard,
   validateSourceManifest,
+  type AgentRuntime,
   type Knowledge,
   type MappedKnowledge,
   type ResolvedConfig,
   type SourceCardSubmission,
   type SourceManifest,
-} from "@open-qa-stack/shared";
+} from "@open-qa-stack/domain";
+import { CopilotAgentRuntime, ModelGateway } from "@open-qa-stack/harness";
 import { answer, closedPort, scriptedServer, testSite, toolCalls, type ScriptedServer } from "@open-qa-stack/testing";
 import { fingerprintOf, knowledgeInventory, MAX_SCANNED_FILES, type SourceInventory, type SqlClient, type SqlResult } from "@open-qa-stack/tools";
 import { sourceCardRequest } from "../src/source-cartographer/source-cartographer-prompt.ts";

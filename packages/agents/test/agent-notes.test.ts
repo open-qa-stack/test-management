@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "vitest";
-import { validateConfig } from "@open-qa-stack/shared";
+import { validateConfig } from "@open-qa-stack/domain";
 import { agentNotes, agentRecall, NOTES_FILE } from "../src/common/agent-notes.ts";
 import { configSecrets } from "../src/common/config-secrets.ts";
 

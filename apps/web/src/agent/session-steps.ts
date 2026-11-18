@@ -1,6 +1,7 @@
-import type { ActionLook, Session, SessionEvent, SessionPhase } from "@open-qa-stack/shared/sessions";
+import type { ActionLook, Session, SessionEvent, SessionPhase } from "@open-qa-stack/domain/sessions";
+import { hasEnded } from "../api/session-state.ts";
 import type { IconName } from "../ui/icon.tsx";
-import type { Look, ProducedTest, SessionScript, Step } from "./session-script.ts";
+import type { Look, ProducedTest, SessionScript, SessionStage, Step } from "./session-script.ts";
 import { IDENTITIES } from "./agents.ts";
 import { toolTitle } from "./tool-title.ts";
 
@@ -70,6 +71,12 @@ function testTitle(id: string): string {
 /** When a session was opened, as its title gives it when nothing was asked. */
 function openingOf(session: Session): string {
   return `Session du ${session.openedAt.slice(0, 10)} à ${clock(session.openedAt)} UTC`;
+}
+
+/** Where a session is, for whoever reads its thread. */
+function stageOf(session: Session): SessionStage {
+  if (hasEnded(session.state)) return "ended";
+  return session.state === "running" ? "live" : "queued";
 }
 
 /**
@@ -182,18 +189,18 @@ export function scriptOf(session: Session, events: readonly SessionEvent[]): Ses
         break;
     }
   }
-  const live = session.state === "running";
+  const stage = stageOf(session);
   const last = steps.at(-1);
   const tests = session.result?.tests ?? [];
-  if (!live && last !== undefined && tests.length > 0) {
+  if (stage === "ended" && last !== undefined && tests.length > 0) {
     steps.push({
       kind: "outcome",
       at: last.at,
       title: `Verdict de l’exécution : ${tests.length} test(s)`,
       tests: tests.map(({ id, verdict, reason }) => ({ title: testTitle(id), level: "", verdict, note: reason })),
     });
-  } else if (!live && last !== undefined && closed.length > 0) {
+  } else if (stage === "ended" && last !== undefined && closed.length > 0) {
     steps.push({ kind: "outcome", at: last.at, title: `${closed.length} test(s) clos par le harnais`, tests: closed });
   }
-  return { id: session.id, title: cut(session.request ?? asked ?? openingOf(session), 120, true), sources: [...sources], live, steps };
+  return { id: session.id, title: cut(session.request ?? asked ?? openingOf(session), 120, true), sources: [...sources], stage, steps };
 }

@@ -1,6 +1,5 @@
 import { resolve } from "node:path";
-import type { ToolDefinition } from "@open-qa-stack/domain";
-import type { Knowledge } from "@open-qa-stack/shared";
+import type { Knowledge, ToolDefinition } from "@open-qa-stack/domain";
 import { DatabaseCatalog } from "./postgresql/database-catalog.ts";
 import { DatabaseData } from "./postgresql/database-data.ts";
 import { databaseTools } from "./postgresql/database-tools.ts";
@@ -27,7 +26,7 @@ export interface KnowledgeAccess {
   readonly sqlClient?: (connectionString: string) => SqlClient;
   /**
    * Values no log line may show: those of every environment variable the configuration names, as
-   * `declaredValues` of `@open-qa-stack/shared` gives them. None by default.
+   * `declaredValues` of `@open-qa-stack/domain` gives them. None by default.
    */
   readonly secrets?: readonly string[];
   /** The start of the task, from which the log tools read when the agent gives no instant; when the tools are made by default. */

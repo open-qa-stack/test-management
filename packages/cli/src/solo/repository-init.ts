@@ -1,8 +1,7 @@
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { testRepositoryBase } from "@open-qa-stack/harness";
-import { CONFIG_FILE_NAME, validateConfig, type EnvironmentVariables } from "@open-qa-stack/shared";
-import { ExitCode, type ExitCodeValue } from "./exit-code.ts";
+import { CONFIG_FILE_NAME, ExitCode, validateConfig, type EnvironmentVariables, type ExitCodeValue } from "@open-qa-stack/domain";
 
 /** What the initialisation of a test repository needs. */
 export interface RepositoryInitOptions {

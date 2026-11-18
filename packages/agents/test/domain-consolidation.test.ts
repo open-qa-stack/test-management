@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import type { SourceCard } from "@open-qa-stack/shared";
+import type { SourceCard } from "@open-qa-stack/domain";
 import { cartographyRequest, CARTOGRAPHER_INSTRUCTIONS } from "../src/cartographer/cartographer-prompt.ts";
 import { DomainConsolidation } from "../src/cartographer/domain-consolidation.ts";
 import { sourceDomainTool } from "../src/cartographer/source-domain-tool.ts";

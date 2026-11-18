@@ -1,4 +1,4 @@
-import type { IndexSourceType } from "@open-qa-stack/shared";
+import type { IndexSourceType } from "@open-qa-stack/domain";
 import type { ExportedElement } from "@open-qa-stack/tools";
 import { batchSummary } from "./element-batches.ts";
 import type { Grouping } from "./grouping.ts";

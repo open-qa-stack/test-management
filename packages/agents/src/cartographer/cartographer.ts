@@ -1,7 +1,21 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type { AgentEvent, AgentRuntime, StopReason, ToolDefinition } from "@open-qa-stack/domain";
-import { readsImages, validateDomainIndex, type DomainIndex, type IndexSource, type MappedKnowledge, type ResolvedConfig } from "@open-qa-stack/shared";
+import {
+  readsImages,
+  validateDomainIndex,
+  type AgentEvent,
+  type AgentRuntime,
+  type DomainIndex,
+  type HarnessEvent,
+  type IndexSource,
+  type MappedKnowledge,
+  type ModelUsage,
+  type PhaseOutcome,
+  type ResolvedConfig,
+  type StopReason,
+  type ToolDefinition,
+  type TraceLine,
+} from "@open-qa-stack/domain";
 import { browserTools, knowledgeTools, scopedToolName, type BrowserAccess, type KnowledgeAccess } from "@open-qa-stack/tools";
 import { agentNotes } from "../common/agent-notes.ts";
 import { ScreenTrail } from "../application-explorer/screen-trail.ts";
@@ -9,11 +23,10 @@ import { configSecrets } from "../common/config-secrets.ts";
 import { runAgentTask, taskEnd, taskLimits } from "../common/agent-task.ts";
 import { Journal, type JournalEntry } from "../common/journal.ts";
 import { PersonDelivery } from "../common/person-delivery.ts";
-import type { PersonInbox } from "../common/person-inbox.ts";
-import { NO_USAGE, totalUsage, usageOf, type ModelUsage } from "../common/model-usage.ts";
+import type { Inbox } from "../common/inbox.ts";
+import { NO_USAGE, totalUsage, usageOf } from "../common/model-usage.ts";
 import { runTrace } from "../common/run-trace.ts";
 import type { Trace } from "../common/trace.ts";
-import type { HarnessEvent, PhaseOutcome, TraceLine } from "../common/trace-line.ts";
 import { TracedPhases } from "../common/traced-phases.ts";
 import { CARDS_FOLDER } from "../source-cartographer/source-cartographer.ts";
 import { mapSources } from "../source-cartographer/sources-cartography.ts";
@@ -54,7 +67,7 @@ export interface CartographerOptions {
   /** Receives each line of the trace as it is written, to follow the cartography while it runs. */
   readonly observe?: (line: TraceLine) => void;
   /** The inbox of the run: the session that consolidates is given the messages a person sends while it is open, and recalled those delivered earlier in the run; those that map a source, several at once, never are. No session hears anyone without it. */
-  readonly inbox?: PersonInbox;
+  readonly inbox?: Inbox;
 }
 
 /** What a cartography produced. */

@@ -1,18 +1,19 @@
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
 import { once } from "node:events";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { isAbsolute, join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { closedPort } from "@open-qa-stack/testing";
 import { ApiConfiguration } from "../src/config/api-configuration.ts";
-import { splitCommandLine } from "../src/config/command-line.ts";
 import { API_VARIABLES } from "../src/config/api-variables.ts";
 import { ConfigurationError } from "../src/config/configuration-error.ts";
 import type { EnvironmentVariable } from "../src/config/environment-variable.ts";
 import { processEnvironment } from "../src/config/process-environment.ts";
 import { readVariables } from "../src/config/read-variables.ts";
-import { absolutePath, commandLine, databaseUrl, nonEmptyText, portNumber, type ValueType } from "../src/config/value-type.ts";
+import { databaseUrl, nonEmptyText, portNumber, testRepository, type ValueType } from "../src/config/value-type.ts";
 import { childEnvironment, TEST_ENVIRONMENT } from "./support/environment.ts";
 
 const DATABASE = "postgres://oqas:secret@127.0.0.1:5432/oqas";
@@ -74,7 +75,11 @@ describe("the configuration of the API", () => {
   it("names every variable at fault in one error", () => {
     assert.deepEqual(
       violationsOf(() => ApiConfiguration.read({ OQAS_HOST: "" })),
-      ["OQAS_HOST must be a text that is not empty.", "OQAS_PORT is required and is not set.", "OQAS_DATABASE_URL is required and is not set."],
+      [
+        "OQAS_HOST must be a text that is not empty.",
+        "OQAS_PORT is required and is not set.",
+        "OQAS_DATABASE_URL or OQAS_REPOSITORY must be set, and neither is.",
+      ],
     );
   });
 
@@ -82,7 +87,9 @@ describe("the configuration of the API", () => {
     for (const variable of Object.values(API_VARIABLES) as EnvironmentVariable<unknown>[]) {
       assert.match(variable.name, /^OQAS_[A-Z_]+$/);
       assert.ok(variable.description.length > 0 && variable.type.rule.length > 0);
-      assert.ok(variable.type.parse(variable.example).ok);
+      // The example of the test repository names a folder of the machine of whoever reads it.
+      if (variable.type === testRepository) assert.ok(isAbsolute(variable.example));
+      else assert.ok(variable.type.parse(variable.example).ok);
       if (variable.defaultValue !== undefined) assert.ok(variable.type.parse(variable.defaultValue).ok);
     }
   });
@@ -104,6 +111,76 @@ describe("the documentation of the configuration", () => {
   });
 });
 
+describe("the test repository of the API", () => {
+  it("is the absolute path of a folder that holds oqas.json, and may be left unset: the API then has none", () => {
+    const folder = mkdtempSync(join(tmpdir(), "oqas-api-configuration-"));
+    try {
+      assert.deepEqual(testRepository.parse(folder), { ok: false });
+      writeFileSync(join(folder, "oqas.json"), "{}");
+      assert.deepEqual(testRepository.parse(folder), { ok: true, value: folder });
+      assert.deepEqual(testRepository.parse("tests"), { ok: false });
+      const read = (variables: Record<string, string>) => ApiConfiguration.read({ OQAS_PORT: "8080", OQAS_DATABASE_URL: DATABASE, ...variables });
+      assert.equal(read({ OQAS_REPOSITORY: folder }).repository, folder);
+      assert.equal(read({}).repository, undefined);
+      assert.deepEqual(
+        violationsOf(() => read({ OQAS_REPOSITORY: join(folder, "nowhere") })),
+        ["OQAS_REPOSITORY must be the absolute path of a folder that holds oqas.json."],
+      );
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("the database of the API", () => {
+  /** Runs a test on a test repository whose configuration file holds the given content. */
+  function onRepository(configuration: string, test: (repository: string) => void): void {
+    const repository = mkdtempSync(join(tmpdir(), "oqas-api-configuration-"));
+    try {
+      writeFileSync(join(repository, "oqas.json"), configuration);
+      test(repository);
+    } finally {
+      rmSync(repository, { recursive: true, force: true });
+    }
+  }
+
+  it("is, when the API is given no URL, a SQLite file in the state folder of its test repository", () => {
+    onRepository("{}", (repository) => {
+      const { database } = ApiConfiguration.read({ OQAS_PORT: "8080", OQAS_REPOSITORY: repository });
+      assert.deepEqual([database.file, database.reveal()], [join(repository, ".oqas", "oqas.db"), `sqlite:${join(repository, ".oqas", "oqas.db")}`]);
+    });
+  });
+
+  it("follows the state folder the configuration of the test repository names", () => {
+    onRepository('{"repository":{"stateDir":"state/oqas"}}', (repository) => {
+      assert.equal(ApiConfiguration.read({ OQAS_PORT: "8080", OQAS_REPOSITORY: repository }).database.file, join(repository, "state", "oqas", "oqas.db"));
+    });
+  });
+
+  it("is the one the URL names when the API is given one, with or without a test repository", () => {
+    onRepository("{}", (repository) => {
+      for (const url of [DATABASE, "sqlite:/srv/instance/oqas.db"]) {
+        assert.equal(ApiConfiguration.read({ OQAS_PORT: "8080", OQAS_DATABASE_URL: url, OQAS_REPOSITORY: repository }).database.reveal(), url);
+        assert.equal(ApiConfiguration.read({ OQAS_PORT: "8080", OQAS_DATABASE_URL: url }).database.reveal(), url);
+      }
+    });
+  });
+
+  it("is asked for when the API is given neither: the message names both variables", () => {
+    assert.deepEqual(
+      violationsOf(() => ApiConfiguration.read({ OQAS_PORT: "8080" })),
+      ["OQAS_DATABASE_URL or OQAS_REPOSITORY must be set, and neither is."],
+    );
+  });
+
+  it("is not placed in a test repository that is not one: the variable at fault is named alone", () => {
+    assert.deepEqual(
+      violationsOf(() => ApiConfiguration.read({ OQAS_PORT: "8080", OQAS_REPOSITORY: "tests" })),
+      ["OQAS_REPOSITORY must be the absolute path of a folder that holds oqas.json."],
+    );
+  });
+});
+
 describe("a port", () => {
   it("is an integer from 1 to 65535, in decimal digits", () => {
     assert.deepEqual(
@@ -117,8 +194,8 @@ describe("a port", () => {
 });
 
 describe("a database URL", () => {
-  it("is a postgres or postgresql URL with a host name", () => {
-    for (const raw of ["postgres://127.0.0.1/oqas", "postgresql://oqas:p%40ss@db.example:5432/oqas?sslmode=require"]) {
+  it("is a postgres or postgresql URL with a host name, or sqlite: followed by the path of a file", () => {
+    for (const raw of ["postgres://127.0.0.1/oqas", "postgresql://oqas:p%40ss@db.example:5432/oqas?sslmode=require", "sqlite:/srv/tests/.oqas/oqas.db"]) {
       const parsed = databaseUrl.parse(raw);
       assert.ok(parsed.ok && parsed.value.reveal() === raw, raw);
     }
@@ -130,6 +207,7 @@ describe("a database URL", () => {
       "postgres:///oqas?host=/var/run/postgresql",
       "postgres://oqas:%zz@127.0.0.1/oqas",
       "http://127.0.0.1",
+      "sqlite:",
     ]) {
       assert.deepEqual(databaseUrl.parse(raw), { ok: false }, raw);
     }
@@ -143,75 +221,22 @@ describe("a text", () => {
   });
 });
 
-describe("an absolute path", () => {
-  it("starts at the root of the file system", () => {
-    assert.deepEqual(absolutePath.parse("/srv/tests"), { ok: true, value: "/srv/tests" });
-    for (const raw of ["", "tests", "./tests", "../tests"]) assert.deepEqual(absolutePath.parse(raw), { ok: false }, raw);
-  });
-});
-
-describe("a command", () => {
-  it("is split into its program and its arguments at the spaces, however many", () => {
-    assert.deepEqual(splitCommandLine("node /clone/packages/cli/src/main.ts"), ["node", "/clone/packages/cli/src/main.ts"]);
-    assert.deepEqual(splitCommandLine("  oqas\t--follow \n"), ["oqas", "--follow"]);
-    assert.deepEqual(commandLine.parse("oqas"), { ok: true, value: ["oqas"] });
-  });
-
-  it("keeps what is between quotes as it is, spaces and the other quote included, and joins it to what touches it", () => {
-    assert.deepEqual(splitCommandLine(`node "/my clone/main.ts" --name='it"s' ''`), ["node", "/my clone/main.ts", `--name=it"s`, ""]);
-    assert.deepEqual(splitCommandLine(`"/opt/my tools"/oqas`), ["/opt/my tools/oqas"]);
-  });
-
-  it("takes nothing else as special: neither a variable, nor an escape, nor what a shell would run", () => {
-    assert.deepEqual(splitCommandLine("C:\\tools\\oqas.cmd $HOME ; rm -rf / | `id`"), ["C:\\tools\\oqas.cmd", "$HOME", ";", "rm", "-rf", "/", "|", "`id`"]);
-  });
-
-  it("is refused when it names no program or leaves a quote open", () => {
-    for (const raw of ["", "   ", `"" --follow`, `node "main.ts`, "node 'main.ts"]) {
-      assert.equal(splitCommandLine(raw), undefined, raw);
-      assert.deepEqual(commandLine.parse(raw), { ok: false }, raw);
-    }
-  });
-});
-
-describe("an optional variable", () => {
+describe("a variable another one stands in for", () => {
   const variables = {
-    port: { name: "TEST_PORT", description: "A port.", type: portNumber, secret: false, optional: true, example: "8080" },
+    first: { name: "TEST_FIRST", description: "A text.", type: nonEmptyText, secret: false, optional: true, orElse: "TEST_SECOND", example: "x" },
+    second: { name: "TEST_SECOND", description: "A text.", type: nonEmptyText, secret: false, optional: true, example: "x" },
   } satisfies Record<string, EnvironmentVariable<unknown>>;
 
-  it("has no value when it is not set, and is read like any other when it is", () => {
-    assert.deepEqual(readVariables(variables, {}), {});
-    assert.deepEqual(readVariables(variables, { TEST_PORT: "8080" }), { port: 8080 });
+  it("may be left unset as long as the other is set, and the other without it", () => {
+    assert.deepEqual(readVariables(variables, { TEST_SECOND: "two" }), { second: "two" });
+    assert.deepEqual(readVariables(variables, { TEST_FIRST: "one" }), { first: "one" });
+    assert.deepEqual(readVariables(variables, { TEST_FIRST: "one", TEST_SECOND: "two" }), { first: "one", second: "two" });
   });
 
-  it("is refused when it is set to an invalid value", () => {
+  it("is asked for with the other when neither is set", () => {
     assert.deepEqual(
-      violationsOf(() => readVariables(variables, { TEST_PORT: "" })),
-      ["TEST_PORT must be an integer from 1 to 65535."],
-    );
-  });
-});
-
-describe("the bridge to the command line", () => {
-  const REQUIRED = { OQAS_PORT: "8080", OQAS_DATABASE_URL: DATABASE };
-
-  it("is not configured by default", () => {
-    const configuration = ApiConfiguration.read(REQUIRED);
-    assert.deepEqual([configuration.soloRepository, configuration.soloCommand], [undefined, undefined]);
-  });
-
-  it("is configured with the test repository and with the command that starts oqas", () => {
-    const configuration = ApiConfiguration.read({ ...REQUIRED, OQAS_SOLO_REPOSITORY: "/srv/tests", OQAS_SOLO_COMMAND: "node '/my clone/main.ts'" });
-    assert.deepEqual([configuration.soloRepository, configuration.soloCommand], ["/srv/tests", ["node", "/my clone/main.ts"]]);
-  });
-
-  it("is refused with a relative repository or a command that cannot be split", () => {
-    assert.deepEqual(
-      violationsOf(() => ApiConfiguration.read({ ...REQUIRED, OQAS_SOLO_REPOSITORY: "tests", OQAS_SOLO_COMMAND: "node 'main.ts" })),
-      [
-        "OQAS_SOLO_REPOSITORY must be an absolute path.",
-        "OQAS_SOLO_COMMAND must be a program and its arguments, separated by spaces, one that holds a space between quotes.",
-      ],
+      violationsOf(() => readVariables(variables, {})),
+      ["TEST_FIRST or TEST_SECOND must be set, and neither is."],
     );
   });
 });

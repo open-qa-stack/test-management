@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Project } from "@open-qa-stack/shared/sessions";
+import type { Project } from "@open-qa-stack/domain/sessions";
 import { hrefTo, isUnder, type Route } from "../routing/route.ts";
 import { Icon } from "../ui/icon.tsx";
 import { NAVIGATION, type NavigationEntry } from "./navigation.ts";

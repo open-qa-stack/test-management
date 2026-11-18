@@ -11,7 +11,7 @@ const SCRIPT: SessionScript = {
   id: "s",
   title: "A session",
   sources: [],
-  live: true,
+  stage: "live",
   steps: [
     { kind: "say", from: "user", at: "10:00:00", text: "Cover the quotes." },
     { kind: "tool", from: "planner", at: "10:00:01", icon: "web", title: "Opened the form", look: LOOK },

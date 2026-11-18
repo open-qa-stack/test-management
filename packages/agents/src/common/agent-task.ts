@@ -1,5 +1,4 @@
-import type { AgentEvent, AgentRuntime, TaskCounters, TaskLimits, TerminalEvent, ToolDefinition } from "@open-qa-stack/domain";
-import type { ResolvedConfig } from "@open-qa-stack/shared";
+import type { AgentEvent, AgentRuntime, ResolvedConfig, TaskCounters, TaskLimits, TerminalEvent, ToolDefinition } from "@open-qa-stack/domain";
 import type { PersonDelivery } from "./person-delivery.ts";
 import { PERSON_RULE } from "./person-message.ts";
 

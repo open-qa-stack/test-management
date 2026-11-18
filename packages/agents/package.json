@@ -15,7 +15,6 @@
   },
   "dependencies": {
     "@open-qa-stack/domain": "workspace:*",
-    "@open-qa-stack/shared": "workspace:*",
     "@open-qa-stack/tools": "workspace:*"
   },
   "devDependencies": {

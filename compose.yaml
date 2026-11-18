@@ -1,4 +1,5 @@
-# The PostgreSQL database of a development instance, reachable from this machine only.
+# A PostgreSQL server for development and for an instance that keeps its database on one, reachable from
+# this machine only. An instance needs none by default: its database is then a file in its test repository.
 name: oqas
 services:
   database:

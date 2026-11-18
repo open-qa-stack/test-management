@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import type { MappedKnowledge } from "@open-qa-stack/shared";
+import type { MappedKnowledge } from "@open-qa-stack/domain";
 import { DocumentSet } from "./document/document-set.ts";
 import type { SourceInventory } from "./common/source-inventory.ts";
 import { documentInventory } from "./document/document-inventory.ts";

@@ -4,7 +4,18 @@ import { withTags } from "./scenario-tags.ts";
 import { scenarioScope } from "./screen-watch.ts";
 import { existsSync } from "node:fs";
 import { join, posix } from "node:path";
-import type { PlannedScenario, TestPlan, ToolDefinition } from "@open-qa-stack/domain";
+import {
+  TESTS_FOLDER,
+  type PlannedScenario,
+  type TestCheck,
+  type TestFinding,
+  type TestPlan,
+  type TestReference,
+  type TestRunner,
+  type TestTrial,
+  type ToolDefinition,
+  type Verdict,
+} from "@open-qa-stack/domain";
 import { moduleSyntax, redactText, scopedToolName, secretForms, type SpecLocator } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
 import { DesignCursor, MAX_FAILED_RUNS, type ScenarioRun } from "./design-cursor.ts";
@@ -19,8 +30,6 @@ import { scenarioSheet, skeleton } from "./scenario-sheet.ts";
 import { snapshotLines, type ScreenWatch } from "./screen-watch.ts";
 import type { SourceWatch } from "./source-watch.ts";
 import { fixturesFor, type FixturesFile } from "./test-fixtures.ts";
-import { TESTS_FOLDER } from "@open-qa-stack/shared";
-import type { TestCheck, TestFinding, TestReference, TestRunner, TestTrial, Verdict } from "@open-qa-stack/domain";
 import { addressErrors, fileErrors, heldVariables, importErrors, locatorsOf, secretValueErrors, type DeclaredSecret } from "./spec-rules.ts";
 
 /** Name of the tool the designer closes a scenario with. */

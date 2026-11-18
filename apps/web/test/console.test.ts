@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createElement, type FormEvent } from "react";
-import type { Project } from "@open-qa-stack/shared/sessions";
+import type { Project } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
 import { Console, documentTitleOf, isEntry, sessionAt, type ConsoleProps } from "../src/console.tsx";
 import { COMPLETED, liveOf, RUNNING, SESSION_ID } from "./agent/session-fixture.ts";

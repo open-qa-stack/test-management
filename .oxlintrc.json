@@ -32,24 +32,33 @@
           "error",
           {
             "packages": {
-              "@open-qa-stack/domain": { "directory": "packages/domain", "dependsOn": [], "external": [] },
-              "@open-qa-stack/shared": { "directory": "packages/shared", "dependsOn": [] },
-              "@open-qa-stack/api": { "directory": "packages/api", "dependsOn": ["@open-qa-stack/domain", "@open-qa-stack/shared"] },
-              "@open-qa-stack/harness": { "directory": "packages/harness", "dependsOn": ["@open-qa-stack/domain", "@open-qa-stack/shared"] },
-              "@open-qa-stack/tools": { "directory": "packages/tools", "dependsOn": ["@open-qa-stack/domain", "@open-qa-stack/shared"] },
+              "@open-qa-stack/domain": { "directory": "packages/domain", "dependsOn": [], "external": ["ajv", "node:path"] },
+              "@open-qa-stack/store": { "directory": "packages/store", "dependsOn": ["@open-qa-stack/domain"] },
+              "@open-qa-stack/api": {
+                "directory": "packages/api",
+                "dependsOn": ["@open-qa-stack/engine", "@open-qa-stack/store", "@open-qa-stack/domain"]
+              },
+              "@open-qa-stack/harness": { "directory": "packages/harness", "dependsOn": ["@open-qa-stack/domain"] },
+              "@open-qa-stack/tools": { "directory": "packages/tools", "dependsOn": ["@open-qa-stack/domain"] },
               "@open-qa-stack/agents": {
                 "directory": "packages/agents",
-                "dependsOn": ["@open-qa-stack/domain", "@open-qa-stack/shared", "@open-qa-stack/tools"]
+                "dependsOn": ["@open-qa-stack/domain", "@open-qa-stack/tools"]
               },
-              "@open-qa-stack/worker": {
-                "directory": "packages/worker",
-                "dependsOn": ["@open-qa-stack/harness", "@open-qa-stack/agents", "@open-qa-stack/tools", "@open-qa-stack/domain", "@open-qa-stack/shared"]
+              "@open-qa-stack/engine": {
+                "directory": "packages/engine",
+                "dependsOn": ["@open-qa-stack/harness", "@open-qa-stack/agents", "@open-qa-stack/tools", "@open-qa-stack/domain"]
               },
               "@open-qa-stack/cli": {
                 "directory": "packages/cli",
-                "dependsOn": ["@open-qa-stack/shared", "@open-qa-stack/harness", "@open-qa-stack/agents", "@open-qa-stack/tools", "@open-qa-stack/domain"]
+                "dependsOn": [
+                  "@open-qa-stack/engine",
+                  "@open-qa-stack/harness",
+                  "@open-qa-stack/agents",
+                  "@open-qa-stack/tools",
+                  "@open-qa-stack/domain"
+                ]
               },
-              "@open-qa-stack/web": { "directory": "apps/web", "dependsOn": ["@open-qa-stack/shared"] }
+              "@open-qa-stack/web": { "directory": "apps/web", "dependsOn": ["@open-qa-stack/domain"] }
             }
           }
         ]
@@ -60,9 +69,25 @@
       "rules": { "open-qa-stack/pure-domain": "error" }
     },
     {
+      "files": ["apps/web/src/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@open-qa-stack/domain",
+                "message": "The console imports the contract of sessions, @open-qa-stack/domain/sessions, and nothing else of the domain: the rest runs on Node.js."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "files": ["packages/cli/src/connected/**"],
       "rules": {
-        "open-qa-stack/folder-boundaries": ["error", { "directory": "packages/cli/src/connected", "dependsOn": ["@open-qa-stack/shared"] }]
+        "open-qa-stack/folder-boundaries": ["error", { "directory": "packages/cli/src/connected", "dependsOn": ["@open-qa-stack/domain"] }]
       }
     }
   ]

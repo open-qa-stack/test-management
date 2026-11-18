@@ -1,5 +1,4 @@
-import type { ToolDefinition } from "@open-qa-stack/domain";
-import { SLUG_PATTERN, type DomainIndexSubmission, type IndexDomain, type SourceCard } from "@open-qa-stack/shared";
+import { SLUG_PATTERN, type DomainIndexSubmission, type IndexDomain, type SourceCard, type ToolDefinition } from "@open-qa-stack/domain";
 import { redactText, secretForms } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
 

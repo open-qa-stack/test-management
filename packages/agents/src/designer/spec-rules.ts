@@ -1,5 +1,5 @@
 import { dirname, relative, resolve, sep } from "node:path";
-import { secretVariables, type ResolvedConfig } from "@open-qa-stack/shared";
+import { secretVariables, type ResolvedConfig } from "@open-qa-stack/domain";
 import { moduleSyntax, secretForms, type ModuleImport, type SpecLocator } from "@open-qa-stack/tools";
 
 /** The only package a generated test may import. */

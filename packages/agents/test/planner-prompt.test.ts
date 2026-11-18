@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import type { Application } from "@open-qa-stack/shared";
+import type { Application } from "@open-qa-stack/domain";
 import { PLANNER_INSTRUCTIONS, planRequest } from "../src/designer/planner-prompt.ts";
 
 const SHOP: Application = {

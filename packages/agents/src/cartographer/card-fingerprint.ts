@@ -1,4 +1,4 @@
-import type { SourceCard } from "@open-qa-stack/shared";
+import type { SourceCard } from "@open-qa-stack/domain";
 import { fingerprintOf } from "@open-qa-stack/tools";
 
 /**

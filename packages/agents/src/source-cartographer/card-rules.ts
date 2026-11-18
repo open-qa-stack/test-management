@@ -1,4 +1,4 @@
-import { validateSourceCardSubmission, type IndexError, type SourceCardSubmission } from "@open-qa-stack/shared";
+import { validateSourceCardSubmission, type IndexError, type SourceCardSubmission } from "@open-qa-stack/domain";
 import type { SourceInventory } from "@open-qa-stack/tools";
 import { secretErrors } from "../common/config-secrets.ts";
 import { withUnassigned } from "../common/with-unassigned.ts";

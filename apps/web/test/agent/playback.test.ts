@@ -13,7 +13,7 @@ import {
   TOOL_TICKS,
   type Playback,
 } from "../../src/agent/playback.ts";
-import type { SessionScript, Step } from "../../src/agent/session-script.ts";
+import type { SessionScript, SessionStage, Step } from "../../src/agent/session-script.ts";
 
 const LOOK = { kind: "document", source: "card", excerpt: ["a rule"], caption: "The card." } as const;
 
@@ -35,10 +35,10 @@ const STEPS: readonly Step[] = [
 ];
 
 /** The session of a run that ended. */
-const SCRIPT: SessionScript = { id: "s", title: "A session", sources: ["a card"], live: false, steps: STEPS };
+const SCRIPT: SessionScript = { id: "s", title: "A session", sources: ["a card"], stage: "ended", steps: STEPS };
 
 /** The same session while its run still writes. */
-const LIVE: SessionScript = { ...SCRIPT, live: true };
+const LIVE: SessionScript = { ...SCRIPT, stage: "live" };
 
 /** The tick each step starts at in a replay. */
 const STARTS = STEPS.reduce<number[]>(
@@ -59,10 +59,10 @@ const at = (tick: number, changes: Partial<Playback> = {}): Playback => ({ follo
  * The first steps of the session, as a session of their own.
  *
  * @param count - How many steps to keep.
- * @param live - Whether its run still writes.
+ * @param stage - Where the session is; its run still writes by default.
  * @returns The session.
  */
-const upTo = (count: number, live = true): SessionScript => ({ ...SCRIPT, live, steps: STEPS.slice(0, count) });
+const upTo = (count: number, stage: SessionStage = "live"): SessionScript => ({ ...SCRIPT, stage, steps: STEPS.slice(0, count) });
 
 describe("the duration of a step", () => {
   it("is the time to write a message of an agent, none for one of the person, the time a tool answers, a tick otherwise", () => {
@@ -98,13 +98,21 @@ describe("the frame of a session a person follows", () => {
       ["planner", "planner", "harness", "harness", undefined, "writer", undefined],
     );
     assert.equal(frameOf(upTo(2), INITIAL_PLAYBACK).speaking, undefined);
-    assert.equal(frameOf(upTo(5, false), INITIAL_PLAYBACK).speaking, undefined);
+    assert.equal(frameOf(upTo(5, "ended"), INITIAL_PLAYBACK).speaking, undefined);
+  });
+
+  it("names nobody at work in a session that waits its turn, which more is to come of, followed or replayed to its end", () => {
+    const queued = upTo(1, "queued");
+    const frame = frameOf(queued, INITIAL_PLAYBACK);
+    assert.deepEqual([frame.shown.length, frame.speaking, frame.finished], [1, undefined, false]);
+    assert.equal(frameOf(queued, at(endOf(queued))).finished, false);
+    assert.equal(frameOf(upTo(9, "queued"), INITIAL_PLAYBACK).shown.at(-1)!.running, false);
   });
 
   it("shows a run that wrote nothing yet as an empty session more is to come of, and one that ended so as over", () => {
     const waiting = frameOf(upTo(0), INITIAL_PLAYBACK);
     assert.deepEqual([waiting.shown.length, waiting.speaking, waiting.finished, waiting.progress, waiting.pass], [0, undefined, false, 1, undefined]);
-    const over = frameOf(upTo(0, false), INITIAL_PLAYBACK);
+    const over = frameOf(upTo(0, "ended"), INITIAL_PLAYBACK);
     assert.deepEqual([over.shown.length, over.finished, over.progress], [0, true, 1]);
   });
 });
@@ -166,7 +174,7 @@ describe("the frame of a session a person replays", () => {
   it("measures how far it is, and never past the end", () => {
     const end = endOf(SCRIPT);
     assert.deepEqual([frameOf(SCRIPT, at(end / 2)).progress, frameOf(SCRIPT, at(end * 2)).progress], [0.5, 1]);
-    assert.deepEqual([frameOf(upTo(0), at(0)).progress, frameOf(upTo(0, false), at(0)).finished], [1, true]);
+    assert.deepEqual([frameOf(upTo(0), at(0)).progress, frameOf(upTo(0, "ended"), at(0)).finished], [1, true]);
   });
 });
 
@@ -255,7 +263,7 @@ describe("the passes of a session", () => {
       passesOf(TWO, frameOf(TWO, INITIAL_PLAYBACK)).map(({ state }) => state),
       ["done", "done"],
     );
-    const live = { ...TWO, live: true };
+    const live: SessionScript = { ...TWO, stage: "live" };
     assert.deepEqual(
       passesOf(live, frameOf(live, INITIAL_PLAYBACK)).map(({ state }) => state),
       ["done", "current"],

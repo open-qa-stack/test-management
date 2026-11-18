@@ -1,4 +1,4 @@
-import type { OpenApiKnowledge } from "@open-qa-stack/shared";
+import type { OpenApiKnowledge } from "@open-qa-stack/domain";
 import { readRepositoryFile } from "../common/repository-file.ts";
 
 /** An operation of an OpenAPI contract, as the list tool shows it. */

@@ -1,7 +1,15 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join, posix } from "node:path";
-import type { PlannedScenario, PlannedStep } from "@open-qa-stack/domain";
-import { applicationPages, applicationVariable, PAGES_FOLDER, PAGES_INDEX, screenMember, type ScreenClass } from "@open-qa-stack/shared";
+import {
+  applicationPages,
+  applicationVariable,
+  PAGES_FOLDER,
+  PAGES_INDEX,
+  screenMember,
+  type PlannedScenario,
+  type PlannedStep,
+  type ScreenClass,
+} from "@open-qa-stack/domain";
 import { memberAction } from "./locator-member.ts";
 import { PageObjectFile, screenFile } from "./page-object-file.ts";
 

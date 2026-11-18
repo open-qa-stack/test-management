@@ -1,5 +1,5 @@
 import type { FormEvent, KeyboardEvent } from "react";
-import type { Session } from "@open-qa-stack/shared/sessions";
+import type { Session } from "@open-qa-stack/domain/sessions";
 import type { StreamState } from "../api/event-stream.ts";
 import type { Sending } from "./console-state.ts";
 import type { Frame, Playback } from "./playback.ts";

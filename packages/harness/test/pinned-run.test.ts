@@ -6,8 +6,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterAll, beforeAll, describe, it } from "vitest";
-import type { CommandOutcome, CommandRunner, StepCommand } from "@open-qa-stack/domain";
-import { validateConfig, type ResolvedConfig } from "@open-qa-stack/shared";
+import { validateConfig, type CommandOutcome, type CommandRunner, type ResolvedConfig, type StepCommand } from "@open-qa-stack/domain";
 import { closedPort } from "@open-qa-stack/testing";
 import { baseUrlVariable, listedTests, LocalRunner, PinnedRun, reportedTests, testRepositoryBase, TrialRunner, type RunOutcome } from "../src/index.ts";
 
@@ -459,7 +458,7 @@ describe("criterion 12 — the base of the test repository", () => {
       "tests",
       "playwright.config.ts",
     ]);
-    assert.equal(text(".gitignore"), "node_modules/\n.oqas/test-results/\n.oqas/report/\n.oqas/junit.xml\n.oqas/runs/\n.oqas/traces/\n");
+    assert.equal(text(".gitignore"), "node_modules/\n.oqas/test-results/\n.oqas/report/\n.oqas/junit.xml\n.oqas/runs/\n.oqas/traces/\n.oqas/oqas.db*\n");
     for (const said of [
       "| `tests/shop/tests/` | The tests of Shop: a folder per domain, then one per functionality. |",
       "| `tests/back-office/tests/` | The tests of Back Office: a folder per domain, then one per functionality. |",

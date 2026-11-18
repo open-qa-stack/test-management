@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import type { ContainerEngine } from "@open-qa-stack/shared";
+import type { ContainerEngine } from "@open-qa-stack/domain";
 import { lineInstant } from "./log-instant.ts";
 import type { LogLines, LogSource } from "./log-source.ts";
 

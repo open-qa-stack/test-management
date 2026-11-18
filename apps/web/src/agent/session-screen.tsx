@@ -8,7 +8,7 @@ import { Composer } from "./composer.tsx";
 import type { LiveSession } from "./live-session.ts";
 import { LookPanel } from "./look-panel.tsx";
 import { openedLookOf, withoutLook } from "./opened-look.ts";
-import { durationText, openingText, stateOf } from "./session-facts.ts";
+import { durationText, openingText, stateOf, waitText } from "./session-facts.ts";
 import { passesOf, type ThreadFilter } from "./playback.ts";
 import type { Speaker } from "./session-script.ts";
 import { Thread } from "./thread.tsx";
@@ -29,12 +29,14 @@ const FILTERS: readonly (readonly [ThreadFilter, string])[] = [
   ["verdicts", "Verdicts du harnais"],
 ];
 
-/** The facts of a session, in a line: when it was opened, how long it took, what its agents read and did, what it cost, where its tests are. */
+/** The facts of a session, in a line: when it was opened, what it waits for, how long it took, what its agents read and did, what it cost, where its tests are. */
 function factsOf(live: LiveSession): string[] {
   const { session, frame, script } = live;
   const { result } = session;
+  const waiting = waitText(session);
   return [
     openingText(session),
+    ...(waiting === undefined ? [] : [waiting]),
     ...(result === undefined ? [] : [durationText(result.durationMs)]),
     ...(script.sources.length === 0 ? [] : [`${script.sources.length} source(s) de connaissance lue(s)`]),
     `${frame.actions} action(s)`,
@@ -87,7 +89,7 @@ function ReplayBar({ live }: { readonly live: LiveSession }): ReactNode {
         <i style={{ width: `${Math.round(frame.progress * 100)}%` }} />
       </div>
       <button type="button" className="btn ghost sm" onClick={controls.follow}>
-        {live.script.live ? "Revenir au direct" : "Tout afficher"}
+        {live.script.stage === "live" ? "Revenir au direct" : "Tout afficher"}
       </button>
     </div>
   );
@@ -95,7 +97,7 @@ function ReplayBar({ live }: { readonly live: LiveSession }): ReactNode {
 
 /**
  * A session: its thread alone, followed as the agents work or replayed, over the composer of a message to the
- * agents for as long as they work. What an agent had before its eyes
+ * agents until the session ended: one sent while it waits its turn is delivered when its agents start. What an agent had before its eyes
  * when it acted opens in a panel, from the eye of that action: the address names the action (`?look=6`).
  *
  * @param props - The route, the session and the project.
@@ -147,13 +149,13 @@ export function SessionScreen({ route, live, project }: SessionScreenProps): Rea
         <Thread
           path={path}
           frame={frame}
-          live={script.live}
+          stage={script.stage}
           lookIndex={opened?.index}
           filter={filter}
           query={kept}
           {...(followed === undefined ? {} : { followed })}
         />
-        {live.session.state === "running" && <Composer saying={live.saying} onSay={live.controls.say} onKey={live.controls.sayOnEnter} />}
+        {script.stage !== "ended" && <Composer saying={live.saying} onSay={live.controls.say} onKey={live.controls.sayOnEnter} />}
         <div className="session-end" />
         {opened !== undefined && <LookPanel opened={opened} close={withoutLook(route)} />}
       </div>

@@ -3,8 +3,7 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterAll, describe, it } from "vitest";
-import type { CharterSettings } from "@open-qa-stack/shared";
-import type { TestFinding } from "@open-qa-stack/domain";
+import type { CharterSettings, TestFinding } from "@open-qa-stack/domain";
 import { CHARTER_DOC_FILE, documentedSection, renderControls } from "../scripts/emit-charter-doc.ts";
 import { DESIGNER_EXAMPLE } from "./designer-example.ts";
 import { readLintReport } from "../src/test-check/lint-report.ts";

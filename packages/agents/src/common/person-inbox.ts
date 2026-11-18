@@ -1,5 +1,6 @@
 import { closeSync, fstatSync, openSync, readSync } from "node:fs";
-import type { PersonMessage } from "./person-message.ts";
+import { inboxMessage, type PersonMessage } from "@open-qa-stack/domain";
+import type { Inbox } from "./inbox.ts";
 
 const LINE_END = 0x0a;
 
@@ -19,7 +20,7 @@ const LINE_END = 0x0a;
  * gives each to one session, once. A message delivered is kept: what the person said stands for the rest of
  * the run, and the sessions that open later are told it again.
  */
-export class PersonInbox {
+export class PersonInbox implements Inbox {
   private readonly path: string;
   /** The bytes of the file read so far: whole lines only. */
   private offset = 0;
@@ -43,34 +44,22 @@ export class PersonInbox {
     return this.failure;
   }
 
-  /**
-   * The messages no session received yet.
-   *
-   * @returns Them, in the order they were written, those written since the last reading included.
-   */
+  /** {@inheritDoc Inbox.pending} */
   public pending(): readonly PersonMessage[] {
     for (const line of this.grown()) {
       this.lines += 1;
-      const text = textOf(line);
-      if (text !== undefined) this.waiting.push({ number: this.lines, text });
+      const message = inboxMessage(line);
+      if (message !== undefined) this.waiting.push({ number: this.lines, text: message.text });
     }
     return [...this.waiting];
   }
 
-  /**
-   * The messages a session received already, since the run started.
-   *
-   * @returns Them, in the order they were written.
-   */
+  /** {@inheritDoc Inbox.heard} */
   public heard(): readonly PersonMessage[] {
     return [...this.received];
   }
 
-  /**
-   * Marks messages as received by a session: they are pending no more, and are heard from then on.
-   *
-   * @param through - The number of the last message received.
-   */
+  /** {@inheritDoc Inbox.delivered} */
   public delivered(through: number): void {
     this.received.push(...this.waiting.splice(0, this.waiting.filter((message) => message.number <= through).length));
   }
@@ -92,16 +81,4 @@ export class PersonInbox {
       if (file !== undefined) closeSync(file);
     }
   }
-}
-
-/** What a line of the inbox says, when it is a message. */
-function textOf(line: string): string | undefined {
-  let value: unknown;
-  try {
-    value = JSON.parse(line);
-  } catch {
-    return undefined;
-  }
-  const text = typeof value === "object" && value !== null ? (value as { readonly text?: unknown }).text : undefined;
-  return typeof text === "string" && text.trim() !== "" ? text : undefined;
 }

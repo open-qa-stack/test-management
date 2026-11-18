@@ -3,10 +3,10 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, it } from "vitest";
-import { ImageToolResult, type AgentEvent, type ToolDefinition } from "@open-qa-stack/domain";
+import { ImageToolResult, type AgentEvent, type PersonMessage, type ToolDefinition } from "@open-qa-stack/domain";
 import { MAX_PERSON_TURNS, MAX_REMINDERS, runAgentTask, type AgentTask } from "../src/common/agent-task.ts";
 import { PersonDelivery } from "../src/common/person-delivery.ts";
-import { PERSON_RULE, PERSON_SAID_EARLIER, PERSON_SPOKE, type PersonMessage } from "../src/common/person-message.ts";
+import { PERSON_RULE, PERSON_SAID_EARLIER, PERSON_SPOKE } from "../src/common/person-message.ts";
 import { PersonInbox } from "../src/index.ts";
 import { END, say, TurnsRuntime, type Turn } from "./person-support.ts";
 

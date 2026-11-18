@@ -120,7 +120,7 @@ describe("the rule that keeps each package within its table", () => {
 });
 
 describe("the rule that keeps a folder to fewer packages than its package", () => {
-  const options = [{ directory: "packages/cli/src/connected", dependsOn: ["@open-qa-stack/shared"] }];
+  const options = [{ directory: "packages/cli/src/connected", dependsOn: ["@open-qa-stack/domain"] }];
   const connected = at("packages/cli/src/connected/rule.ts");
   tester.run("folder-boundaries", folderBoundaries, {
     valid: [
@@ -128,7 +128,7 @@ describe("the rule that keeps a folder to fewer packages than its package", () =
       {
         filename: connected,
         options,
-        code: 'import { config } from "@open-qa-stack/shared";\nimport { local } from "./local.ts";\nimport { fetch } from "undici";',
+        code: 'import { config } from "@open-qa-stack/domain";\nimport { local } from "./local.ts";\nimport { fetch } from "undici";',
       },
     ],
     invalid: [
@@ -137,9 +137,9 @@ describe("the rule that keeps a folder to fewer packages than its package", () =
         options,
         code: 'import { run } from "@open-qa-stack/harness";\nimport { solo } from "../solo/solo.ts";\nimport { runner } from "../../node_modules/@open-qa-stack/harness/src/index.ts";',
         errors: [
-          { messageId: "forbidden", data: { source: "packages/cli/src/connected", target: "@open-qa-stack/harness", allowed: "@open-qa-stack/shared" } },
-          { messageId: "relative", data: { source: "packages/cli/src/connected", target: "packages/cli/src/solo/solo.ts", allowed: "@open-qa-stack/shared" } },
-          { messageId: "forbidden", data: { source: "packages/cli/src/connected", target: "@open-qa-stack/harness", allowed: "@open-qa-stack/shared" } },
+          { messageId: "forbidden", data: { source: "packages/cli/src/connected", target: "@open-qa-stack/harness", allowed: "@open-qa-stack/domain" } },
+          { messageId: "relative", data: { source: "packages/cli/src/connected", target: "packages/cli/src/solo/solo.ts", allowed: "@open-qa-stack/domain" } },
+          { messageId: "forbidden", data: { source: "packages/cli/src/connected", target: "@open-qa-stack/harness", allowed: "@open-qa-stack/domain" } },
         ],
       },
     ],
@@ -176,12 +176,12 @@ describe("the rule that confines a package to one folder", () => {
         errors: [confined("packages/harness/test/hooks.test.ts", "@github/copilot-sdk/hooks")],
       },
       {
-        filename: at("packages/worker/src/agent.ts"),
+        filename: at("packages/engine/src/agent.ts"),
         options,
         code: 'export const sdk = await import(`@github/copilot-sdk`);\nimport { CopilotClient } from "../node_modules/@github/copilot-sdk/dist/index.js";',
         errors: [
-          confined("packages/worker/src/agent.ts", "@github/copilot-sdk"),
-          confined("packages/worker/src/agent.ts", "../node_modules/@github/copilot-sdk/dist/index.js"),
+          confined("packages/engine/src/agent.ts", "@github/copilot-sdk"),
+          confined("packages/engine/src/agent.ts", "../node_modules/@github/copilot-sdk/dist/index.js"),
         ],
       },
     ],
@@ -201,8 +201,8 @@ describe("the rule that keeps decorators out of the domain", () => {
 
 describe("the check of the manifests", () => {
   const workspace = new DemoWorkspace({
-    "packages/domain/package.json": JSON.stringify({ name: "@open-qa-stack/domain", peerDependencies: { "@open-qa-stack/shared": "workspace:*" } }),
-    "packages/shared/package.json": JSON.stringify({ name: "@open-qa-stack/shared" }),
+    "packages/domain/package.json": JSON.stringify({ name: "@open-qa-stack/domain", peerDependencies: { "@open-qa-stack/store": "workspace:*" } }),
+    "packages/store/package.json": JSON.stringify({ name: "@open-qa-stack/store" }),
   });
   const unset = new DemoWorkspace({}, (configuration) => {
     delete configuration["overrides"];
@@ -214,7 +214,7 @@ describe("the check of the manifests", () => {
 
   it("names each refused dependency of the workspace a manifest declares", async () => {
     assert.deepEqual(await (await ManifestCheck.of(workspace.root)).violations(), [
-      "packages/domain/package.json:1: @open-qa-stack/domain may not import @open-qa-stack/shared; among the packages of the workspace, it may import none. (peerDependencies) [open-qa-stack/package-boundaries]",
+      "packages/domain/package.json:1: @open-qa-stack/domain may not import @open-qa-stack/store; among the packages of the workspace, it may import none. (peerDependencies) [open-qa-stack/package-boundaries]",
     ]);
   });
   it("refuses a lint configuration that does not set the rule with its table", async () => {

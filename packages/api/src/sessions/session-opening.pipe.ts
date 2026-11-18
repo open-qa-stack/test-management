@@ -1,6 +1,6 @@
 import { Injectable, type PipeTransform } from "@nestjs/common";
 import { sessionOpeningOf } from "./session-opening.ts";
-import type { SessionOpening } from "@open-qa-stack/shared/sessions";
+import type { SessionOpening } from "@open-qa-stack/domain/sessions";
 
 /** Validates the body of `POST /sessions` before the route runs: the route and the service only see an opening that is valid. */
 @Injectable()

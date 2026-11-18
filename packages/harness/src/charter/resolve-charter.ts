@@ -1,4 +1,4 @@
-import type { CharterSettings, ConfigError } from "@open-qa-stack/shared";
+import type { CharterSettings, ConfigError } from "@open-qa-stack/domain";
 import type { ActiveRule, CharterRule } from "./charter-rule.ts";
 import { DEFAULT_CHARTER } from "./default-charter.ts";
 
