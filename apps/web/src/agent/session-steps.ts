@@ -22,6 +22,7 @@ const WORDING: ScriptWording = {
   phase: (phase) => PHASES[phase] ?? "Étape",
   tool: toolTitle,
   planAccepted: "Plan accepté par le harnais",
+  scope: "Portée de la session",
   interrupted: "La session s’est arrêtée sans aller à son terme.",
   verdicts: (tests) => `Verdict de l’exécution : ${counted(tests, "test", "tests")}`,
   closed: (scenarios) => `${counted(scenarios, "test clos", "tests clos")} par le harnais`,

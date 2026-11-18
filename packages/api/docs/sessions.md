@@ -116,12 +116,13 @@ Every event has an `id`, its rank in the session from 1, the date `at` it happen
 | `user_message` | The person said something: `text`. What opened the session, its first event, has no `number`; a message sent while it went on has its `number`, from 1. |
 | `message_delivered` | A message sent while the session was going on reached an `agent`: `message` is the number of the message. |
 | `agent_message` | An agent wrote something, or reasoned when `reasoning` is true: `agent`, `text`. |
+| `scope_resolved` | The configuration of the run was resolved: what the session works on, its `environment`, the identifiers of its `applications`, and the `levels` of the pyramid of tests its design is asked for, from the base. No other level is designed. A thread told before it existed has none. |
 | `harness_message` | The harness asked something of an agent, `to`: its request, then each reminder; `level` when it asks for the plan of one level of the test pyramid. |
 | `phase_started` | A `phase` of the work started, on a knowledge `source` or for the test of a `scenario` when it has one. |
 | `action_started` | An agent called a `tool` with `arguments`; `action` identifies the call. The `look` of the file the agent handed the tool, such as the test it runs, when it handed one: it can be read while the tool works. |
 | `action_finished` | The tool answered: the `action`, its `outcome` (`passed`, `failed`, or `done` when the answer says neither), the `result`, `durationMs`, the `look` of the page it rendered, and the `tests` a run of a file of tests ran, each with its `id` and its `verdict`. A session told before the start of an action carried its file tells that file here. |
-| `plan_accepted` | The harness accepted a plan: its `scenarios`. |
-| `refusal` | The harness refused what an agent handed in, or the work hit an error: `phase`, `text`, and the `code` of the gate when one refused. |
+| `plan_accepted` | The harness accepted a plan: its `scenarios`, [each whole](#the-scenarios-of-a-plan). |
+| `refusal` | The harness refused what an agent handed in, or the work hit an error: `phase`, `text`, the `code` of the gate when one refused, and the `scenario` it is about when the thread knows it. |
 | `note` | The harness noted something it did or saw: `phase`, `text`. |
 | `scenario_closed` | The harness closed a `scenario` with a `verdict`, at the `level` of its plan when known. |
 | `state_changed` | The session changed `state`: `running` once it started, then `completed` or `interrupted`. |
@@ -131,6 +132,23 @@ The agents are `cartographer`, `planner`, `plan_reviewer`, `writer`, `coherence_
 A client ignores an event whose type it does not know, and reads a value it does not know — a phase, an agent, an outcome — as it would an absent one.
 
 The texts of the events are those the agents and the harness wrote, never reworded, and whole: a message, a note, a refusal, every text the `arguments` of an action hold, its `result`, every line of its `look`. A person reads them to the end, and the end of a refusal says what to do. Only a runaway is cut, such as a tool that answers with a dump, so that an event every follower receives stays of a reasonable size: a text longer than 1 048 576 characters keeps that many, and ends on `…`.
+
+### The scenarios of a plan
+
+A scenario of a `plan_accepted` always has its `id`, its `title` and its `level`. The rest is what the plan said of it, each field present when the plan gave it, absent from a thread told before it was:
+
+| Field | Meaning |
+|---|---|
+| `application`, `case` | The application it tests; `nominal`, or `negative` when the input matches nothing, is wrong or is forbidden. |
+| `intent` | What it verifies, and why, in a sentence. |
+| `kind` | What it checks: `functional`, `visual`, `accessibility` or `other`. |
+| `effect` | `read` when its test only reads the data of the environment, `write` when it changes some. |
+| `domain`, `feature` | The domain of the index it comes from, and the functionality of that domain it verifies. |
+| `sources` | The sources it relies on: each a `source`, and the `item` of it the plan names. |
+| `data` | The values its test enters: each a `value`, and `from`, the source or application that showed it, or `made-up`. |
+| `steps` | Its steps, in order: each an `action` of the user, the `expects` it is checked by — a `result`, the texts the screen `shows` and those it no longer shows, `absent` — and `restores`, true for the step that puts back what the scenario changed. |
+
+The numbers of the browser actions a step cites are left out: the harness alone reads them.
 
 ### Following and resuming
 
@@ -301,6 +319,8 @@ An instance [starts all the same](running.md#startup) when its database cannot b
 What a run says — the entries of its journal and the lines of the traces of its agents — and how it reads as the events of a session are declared in `@open-qa-stack/domain`: `RunThread` writes the thread, the same for every host of the engine. The operations give it each entry and each line as the run tells it, and append what comes out; the store tells itself what the person says, and the delivery of each message.
 
 What the agents do comes from the traces, and what the run does around them from its journal. The journal also relays, once a step is over, what the harness journaled in the traces of the cartography and of the design: those entries are left out, but the errors no trace tells, which are what the run says itself — why a design stopped before any agent worked, for one. Such an error is a `refusal`, under the phase `survey` for the cartography and `plan` for the design, since the journal names the step and not the phase. An error is the same as one a trace tells when it bears the same message, after the name of its source when the trace gives one; the same message journaled twice is two errors.
+
+The `scenario` of a `refusal` is the first scenario its text names that the plan being built holds, as `scenario search` in a refusal of the plan; while the test of a scenario is written or reviewed, a refusal that names none is about that one.
 
 An agent builds its plan over several calls of `propose_plan`, and closes it with a call that proposes nothing: the call the harness accepts does not carry the plan. The `scenarios` of a `plan_accepted` are those the agent proposed since its plan phase started, a later one replacing an earlier one of the same identifier. When the harness journals which scenarios it accepted, `The plan was accepted: a, b.`, they are those it names, in that order: it may have refused or set aside others in between.
 

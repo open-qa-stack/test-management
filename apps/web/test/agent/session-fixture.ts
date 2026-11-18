@@ -58,9 +58,12 @@ export function numbered(bodies: readonly EventBody[]): SessionEvent[] {
   return bodies.map((body, index) => ({ ...body, id: index + 1, at: `2026-11-15T14:44:${String(6 + index).padStart(2, "0")}.000Z` }) as SessionEvent);
 }
 
-/** What the harness says when it refuses the plan of the fixtures: a page it quotes, then what to do, at its end. */
+/** What the harness says when it refuses the plan of the fixtures: why at length, a page it quotes, then what to do, at its end. */
 export const REFUSAL = [
-  "The plan was refused by the harness: name an element.",
+  'The plan was refused by the harness: scenario search, expect 1.1, names "Search...", and its element designated nothing the page showed when the harness looked for it.',
+  "A test would not find it: the harness reads the elements of a step from the screens the agent saw, and none of them showed this text where the step expects it.",
+  "The screen the step ends on was seen once, before the search was typed, and the text it names is the placeholder of the field, which a test does not assert.",
+  "The other expects of the scenario name texts the screens showed: they are kept as they are.",
   "",
   "The page is now at http://localhost:3020/:",
   '- heading "Customers"',
@@ -94,7 +97,7 @@ export const EVENTS: readonly SessionEvent[] = numbered([
   { type: "action_started", action: "c2", agent: "planner", tool: "propose_plan", arguments: { scenarios: [{ id: "search" }] } },
   { type: "action_finished", action: "c2", outcome: "passed", result: "The plan was accepted: search.", durationMs: 40 },
   { type: "plan_accepted", scenarios: [{ id: "search", title: "Search a customer", level: "smoke", application: "customer-management", case: "nominal" }] },
-  { type: "refusal", phase: "plan", code: "PLAN-ELEMENT", text: REFUSAL },
+  { type: "refusal", phase: "plan", code: "PLAN-ELEMENT", scenario: "search", text: REFUSAL },
   { type: "phase_started", phase: "write", scenario: "search" },
   { type: "agent_message", agent: "writer", text: "I write the test now.", reasoning: false },
   { type: "action_started", action: "c3", agent: "writer", tool: "run_test", arguments: { file: "search-customer.spec.ts" } },

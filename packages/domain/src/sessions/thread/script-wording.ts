@@ -19,6 +19,8 @@ export interface ScriptWording {
   readonly tool: (tool: string, args: unknown, subject?: string) => string;
   /** The title of a plan the harness accepted. */
   readonly planAccepted: string;
+  /** The title of what the session works on: its environment, its applications, the levels asked. */
+  readonly scope: string;
   /** What the thread notes when the session stopped without ending. */
   readonly interrupted: string;
   /**

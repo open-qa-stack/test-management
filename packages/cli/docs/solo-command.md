@@ -76,7 +76,9 @@ Type what to test and press Enter: a session opens, against the environment `--e
 - **Who speaks.** You, the cartographer, the planner, the writer, the reviewers and the harness each have a mark and a name, written once for what they say and do in a row.
 - **The phases**, each as a rule across the terminal: the configuration, the cartography, each plan with its level, the writing of each test, the run of the tests, the summary.
 - **What an agent does**, a line per action: a spinner while its tool has not answered, then whether it passed, failed or simply ended, and how long it took. An action that failed says why on a second line. A long line is cut, with an ellipsis.
-- **What the harness decides.** A refusal is marked as one, with the code of its gate and what to do next; a plan it accepted is listed, a scenario a line; its notes are muted lines.
+- **The scope of the session**, at its head, once its configuration is resolved: the levels of the pyramid of tests asked, which alone are designed, the applications and the environment, and that `design.levels` in `oqas.json` sets the levels.
+- **The verdicts**, of the harness and of the reviewers alike, in one form: the author under its mark, `automatic check` for the harness or `agent` for a reviewer, then what it came to and what it is about on the same line — the code of the gate, the phase, the scenario and the tool of a refusal, what a reviewer reviewed — and under it what it says in full: what was refused, what to do and the page it quotes, or each remark.
+- **What the harness decides.** A plan it accepted is written in full, each scenario with what it verifies, its facts, its sources, its data and each step with the texts it expects the screen to show or no longer show; its notes are muted lines.
 - **The end**: the verdict of each test, then how the session ended, how long it took, how many requests it sent to the model, how many tests passed and the branch they were written on.
 
 What is finished goes to the scrollback of the terminal, which scrolls and searches it as any other output; only what may still change — an action that goes on, a message no agent took yet — is redrawn, above the input.
@@ -131,6 +133,7 @@ Session session-2026-11-16T08-12-45-120Z-9f3a1c2b
 08:12:45 person: Test the search of a customer and their profile.
 08:12:45 session running
 [configuration] started
+[configuration] scope: environment local; applications shop; levels smoke, functional, business
 [configuration] The configuration is valid; the run targets the environment local.
 [prerequisites] started
 [plan] The plan was accepted: search-customer, open-profile.

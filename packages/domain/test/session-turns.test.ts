@@ -67,7 +67,7 @@ describe("the turns of a thread", () => {
   it("start a new turn of the same agent after anything else: a note, a card, a message of the harness or of the person", () => {
     const between: readonly Step[] = [
       NOTE,
-      { kind: "verdict", at: "09:00:02", accepted: true, about: "Plan", text: "Accepted." },
+      { kind: "verdict", at: "09:00:02", accepted: true, about: "Plan", text: "Accepted.", reason: "Accepted." },
       { kind: "say", from: "harness", to: "planner", at: "09:00:02", text: "Go on." },
       { kind: "say", from: "user", at: "09:00:02", text: "merci" },
     ];
@@ -126,7 +126,7 @@ describe("the turns of a thread", () => {
     const cards: readonly Step[] = [
       { kind: "pass", at: "09:00:00", title: "Plan", summary: "" },
       { kind: "pass", at: "09:00:00", title: "Plan", summary: "" },
-      { kind: "verdict", at: "09:00:01", accepted: false, about: "Plan", text: "Refused." },
+      { kind: "verdict", at: "09:00:01", accepted: false, about: "Plan", text: "Refused.", reason: "Refused." },
       { kind: "plan", at: "09:00:02", title: "Plan accepté", scenarios: [] },
       { kind: "outcome", at: "09:00:03", title: "Verdict", tests: [] },
     ];

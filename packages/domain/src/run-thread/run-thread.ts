@@ -1,9 +1,11 @@
 import { isRecord, textOf } from "../json.ts";
+import { plannedScenarioOf } from "./planned-scenario.ts";
 import { RelayedErrors } from "./relayed-errors.ts";
+import type { RunScope } from "../run/run-entry.ts";
 import type { TracePhase } from "../run/trace-line.ts";
 import type { ActionFinishedEvent, ActionLook, ActionTest, AgentRole, PlannedScenario } from "../sessions/session-event.ts";
 import type { UnrankedEvent } from "../sessions/unranked-event.ts";
-import type { RunLine, RunLineEvent } from "./thread-line.ts";
+import type { CommandStep, RelayedPhase, RunLine, RunLineEvent } from "./thread-line.ts";
 
 /**
  * Longest text an event holds, in characters: a message, a note, a refusal, the answer of a tool, a text of its
@@ -28,6 +30,8 @@ const OPENED = /^The scenario (\S+) was opened(?:; its test is (\S+)\.)?/;
 const CLOSED = /^The scenario (\S+) was closed: (passed|failed)/;
 const ACCEPTED = /^The plan was accepted: (.+)\.$/;
 const CODED = /^\[([A-Z-]+)\] ([^]*)$/;
+/** A scenario a text names by its identifier. */
+const NAMED = /\bscenario ([a-z0-9]+(?:-[a-z0-9]+)*)/g;
 const LEVEL = /\bof the level ([a-z-]+) alone/;
 const FAILED = /^(?:Refused|Warning) \(|: failed\./;
 const PASSED = /^The plan was accepted|: passed\./;
@@ -103,7 +107,7 @@ function outcomeOf(result: unknown): ActionFinishedEvent["outcome"] {
  * What the harness sent an agent is a `harness_message` to the agent of the phase, the three reviewers told
  * apart by what the harness asks them, and the request of a plan gives the level it is asked for. What the
  * person asked is no event of the run: whoever took it from the person told it. What the harness or the command
- * journaled is a `note`, a `refusal` with its code for an error, and a `scenario_closed` when it closes a
+ * journaled is a `note`, preceded by a `scope_resolved` for the entry that tells what the run works on, a `refusal` with its code for an error, and a `scenario_closed` when it closes a
  * scenario; an error the harness traced and the command relayed in its journal is told once. What the model wrote or thought is an `agent_message`. A tool call is an `action_started` and its
  * answer the `action_finished` of the same action: the start shows the file the agent hands the tool, which can
  * be read while the tool works, and the end the page the tool rendered and, for a run of a file of tests, the
@@ -210,10 +214,27 @@ export class RunThread {
         },
       ];
     }
+    // What the run works on is read, in its form, from the entry of the journal that tells it.
+    const scope = event["scope"] as RunScope | undefined;
+    if (scope !== undefined)
+      return [
+        { at, type: "scope_resolved", ...scope },
+        { at, type: "note", phase, text: bounded(message) },
+      ];
     if (!failed) return [{ at, type: "note", phase, text: bounded(message) }];
     const coded = CODED.exec(message);
-    if (coded === null) return [{ at, type: "refusal", phase, text: bounded(message) }];
-    return [{ at, type: "refusal", phase, code: textOf(coded[1]), text: bounded(textOf(coded[2])) }];
+    if (coded === null) return [this.#refusal(at, phase, message)];
+    return [{ ...this.#refusal(at, phase, textOf(coded[2])), code: textOf(coded[1]) }];
+  }
+
+  /**
+   * A refusal, with the scenario it is about: the first the text names that the plan being built holds, or, while
+   * the test of a scenario is written or reviewed, that one.
+   */
+  #refusal(at: string, phase: TracePhase | CommandStep | RelayedPhase, text: string): Extract<UnrankedEvent, { type: "refusal" }> {
+    const named = [...text.matchAll(NAMED)].map(([, id]) => textOf(id)).find((id) => this.#proposed.has(id) || id === this.#scenario);
+    const scenario = named ?? (phase === "write" || phase === "review" ? this.#scenario : undefined);
+    return { at, type: "refusal", phase, text: bounded(text), ...(scenario === undefined ? {} : { scenario }) };
   }
 
   #asked(at: string, phase: TracePhase, text: string): UnrankedEvent[] {
@@ -254,16 +275,17 @@ export class RunThread {
 
   /** The refusal a task that stopped or failed gives: what the run says of it under a key, or all it says. */
   #stopped(at: string, phase: TracePhase, why: unknown, key: string): UnrankedEvent {
-    return { at, type: "refusal", phase, text: bounded(textOf(isRecord(why) ? why[key] : why)) };
+    return this.#refusal(at, phase, textOf(isRecord(why) ? why[key] : why));
   }
 
   #called(at: string, agent: AgentRole, event: RunLineEvent): UnrankedEvent[] {
     const { callId: action, tool } = event;
     if (typeof action !== "string" || typeof tool !== "string") return [];
     this.#calls.set(action, { at, tool, arguments: event["arguments"] });
-    if (tool === "propose_plan") for (const scenario of this.#scenarios(event["arguments"])) this.#proposed.set(scenario.id, scenario);
+    const args = boundedArguments(event["arguments"]);
+    if (tool === "propose_plan") for (const scenario of this.#scenarios(args)) this.#proposed.set(scenario.id, scenario);
     const look = this.#handed(tool, event["arguments"]);
-    return [{ at, type: "action_started", action, agent, tool, arguments: boundedArguments(event["arguments"]), ...(look === undefined ? {} : { look }) }];
+    return [{ at, type: "action_started", action, agent, tool, arguments: args, ...(look === undefined ? {} : { look }) }];
   }
 
   #answered(at: string, action: unknown, result: unknown, failed: boolean): UnrankedEvent[] {
@@ -296,27 +318,10 @@ export class RunThread {
     return typeof content === "string" ? { kind: "file", name: this.#file ?? tool, lines: linesOf(content) } : undefined;
   }
 
-  /**
-   * The scenarios of the plan a call proposed: those that bear an identifier and have a level, their own or
-   * that of the pass when they name none.
-   */
+  /** The scenarios of the plan a call proposed: those that bear an identifier and have a level, their own or that of the pass when they name none. */
   #scenarios(proposed: unknown): PlannedScenario[] {
     const scenarios = isRecord(proposed) ? proposed["scenarios"] : undefined;
     if (!Array.isArray(scenarios)) return [];
-    return scenarios.flatMap((scenario: unknown) => {
-      if (!isRecord(scenario)) return [];
-      const { id, title, application, case: verified } = scenario;
-      const level = typeof scenario["level"] === "string" ? scenario["level"] : this.#level;
-      if (typeof id !== "string" || level === undefined) return [];
-      return [
-        {
-          id,
-          title: typeof title === "string" ? title : id,
-          level,
-          ...(typeof application === "string" ? { application } : {}),
-          ...(typeof verified === "string" ? { case: verified } : {}),
-        },
-      ];
-    });
+    return scenarios.flatMap((scenario: unknown) => plannedScenarioOf(scenario, this.#level) ?? []);
   }
 }

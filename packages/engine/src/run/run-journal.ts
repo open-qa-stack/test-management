@@ -67,10 +67,10 @@ export class RunJournal {
    * @param step - The step it belongs to.
    * @param event - What it is.
    * @param message - What happened, in a sentence.
-   * @param counts - For `finished`, the duration and the requests to the model.
+   * @param facts - For `finished`, the duration and the requests to the model, and what the run works on once its configuration is resolved.
    */
-  public record(step: Step, event: RunEntry["event"], message: string, counts: Pick<RunEntry, "durationMs" | "modelRequests"> = {}): void {
-    const entry: RunEntry = { at: this.now().toISOString(), step, event, message: this.mask(message), ...counts };
+  public record(step: Step, event: RunEntry["event"], message: string, facts: Pick<RunEntry, "durationMs" | "modelRequests" | "scope"> = {}): void {
+    const entry: RunEntry = { at: this.now().toISOString(), step, event, message: this.mask(message), ...facts };
     this.written.push(entry);
     this.output.entry(entry);
   }

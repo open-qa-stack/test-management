@@ -78,7 +78,7 @@ interface JournalOutput {
 }
 ```
 
-`entry` receives each entry as it is written: when, the step, whether it starts or ends the step, informs or tells an error, the message, and for the end of a step how long it took and how many requests it sent to the model. `entryLine` writes an entry as the line a person reads, the same in every host. The engine masks every value the configuration declares as a secret before an entry leaves it.
+`entry` receives each entry as it is written: when, the step, whether it starts or ends the step, informs or tells an error, the message, and for the end of a step how long it took and how many requests it sent to the model; the end of the configuration also gives the `scope` of the run: the environment it targets, the identifiers of the applications the configuration declares, and the levels of the pyramid of tests its design is asked for. `entryLine` writes an entry as the line a person reads, the same in every host. The engine masks every value the configuration declares as a secret before an entry leaves it.
 
 `keep` is called once, when the prerequisites passed: a run the configuration or the prerequisites stop keeps no journal. It is given the entries written so far, to be kept before those to come. The entries of the configuration were written before the secrets were known; `keep` gives them masked, so that the journal kept holds none. `location` names the journal kept, and the state of the run holds that name under `journal`.
 

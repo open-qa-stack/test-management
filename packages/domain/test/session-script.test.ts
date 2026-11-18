@@ -30,6 +30,7 @@ const WORDING: ScriptWording = {
   phase: (phase) => `phase ${phase}`,
   tool: (tool, args) => `${tool} ${JSON.stringify(args)}`,
   planAccepted: "plan accepted",
+  scope: "scope",
   interrupted: "interrupted",
   verdicts: (tests) => `${tests} verdicts`,
   closed: (scenarios) => `${scenarios} closed`,
@@ -193,13 +194,87 @@ describe("the script of a session", () => {
           at: "14:44:06",
           title: "plan accepted",
           scenarios: [
-            { priority: "smoke", title: "Search a customer", source: "nominal · shop" },
-            { priority: "functional", title: "Open a customer", source: "" },
+            { id: "search", title: "Search a customer", level: "smoke", case: "nominal", application: "shop", refusals: [] },
+            { id: "open", title: "Open a customer", level: "functional", refusals: [] },
           ],
         },
-        { kind: "verdict", at: "14:44:07", accepted: false, code: "PLAN-ELEMENT", about: "phase plan", text: "Name an element." },
-        { kind: "verdict", at: "14:44:08", accepted: false, about: "phase write", text: "The run failed." },
+        { kind: "verdict", at: "14:44:07", accepted: false, code: "PLAN-ELEMENT", about: "phase plan", text: "Name an element.", reason: "Name an element." },
+        { kind: "verdict", at: "14:44:08", accepted: false, about: "phase write", text: "The run failed.", reason: "The run failed." },
         { kind: "note", at: "14:44:09", text: "The plan\n was accepted." },
+      ],
+    );
+  });
+
+  it("tells what the session works on as a step of its own: its environment, its applications and the levels asked", () => {
+    assert.deepEqual(stepsOf([{ type: "scope_resolved", environment: "local", applications: ["shop"], levels: ["functional"] }]), [
+      { kind: "scope", at: "14:44:06", title: "scope", environment: "local", applications: ["shop"], levels: ["functional"] },
+    ]);
+  });
+
+  it("reads a refusal by its form — the tool or what was refused it opens on, its reason, the page it quotes — and keeps its text whole", () => {
+    const page = '\n\nThe page is now at http://localhost:3000/orders:\n- heading "Orders"\n  - button "Search"';
+    const texts = [
+      `shop_click: The button matches two elements.${page}`,
+      `The plan was refused by the harness: scenario search names no element.${page}\n\nTake a snapshot first.`,
+      "Name an element.",
+      "The design failed:\nno test.",
+    ];
+    const verdicts = stepsOf(texts.map((text) => ({ type: "refusal", phase: "plan", text })));
+    assert.deepEqual(
+      verdicts.map((step) => step.kind === "verdict" && [step.text === texts[verdicts.indexOf(step)], step.tool, step.subject, step.reason, step.page]),
+      [
+        [
+          true,
+          "shop_click",
+          undefined,
+          "The button matches two elements.",
+          { kind: "page", name: "http://localhost:3000/orders", lines: ['- heading "Orders"', '  - button "Search"'] },
+        ],
+        [
+          true,
+          undefined,
+          "The plan was refused by the harness",
+          "scenario search names no element.\n\nTake a snapshot first.",
+          { kind: "page", name: "http://localhost:3000/orders", lines: ['- heading "Orders"', '  - button "Search"'] },
+        ],
+        [true, undefined, undefined, "Name an element.", undefined],
+        [true, undefined, undefined, "The design failed:\nno test.", undefined],
+      ],
+    );
+  });
+
+  it("gives each scenario of an accepted plan the refusals about it since its plan started, and names the scenario of a refusal", () => {
+    const steps = stepsOf([
+      { type: "refusal", phase: "plan", code: "PLAN-LEVEL", scenario: "search", text: "Too early." },
+      { type: "phase_started", phase: "plan" },
+      { type: "refusal", phase: "plan", code: "PLAN-LEVEL", scenario: "search", text: "Two screens." },
+      { type: "refusal", phase: "plan", code: "PLAN-START", scenario: "search", text: "No address." },
+      { type: "refusal", phase: "plan", text: "Unrelated." },
+      {
+        type: "plan_accepted",
+        scenarios: [
+          { id: "search", title: "Search", level: "functional" },
+          { id: "open", title: "Open", level: "functional" },
+        ],
+      },
+      { type: "refusal", phase: "write", scenario: "search", text: "Later." },
+      { type: "plan_accepted", scenarios: [{ id: "search", title: "Search", level: "business" }] },
+    ]);
+    const plans = steps.filter((step) => step.kind === "plan");
+    assert.deepEqual(
+      plans.map(({ scenarios }) => scenarios.map(({ id, refusals }) => [id, refusals.map(({ code, scenario, text }) => [code, scenario, text])])),
+      [
+        [
+          [
+            "search",
+            [
+              ["PLAN-LEVEL", "search", "Two screens."],
+              ["PLAN-START", "search", "No address."],
+            ],
+          ],
+          ["open", []],
+        ],
+        [["search", [[undefined, "search", "Later."]]]],
       ],
     );
   });
