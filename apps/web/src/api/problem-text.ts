@@ -9,6 +9,10 @@ const WORDINGS: Readonly<Record<Exclude<ProblemCode, "error">, string>> = {
   unavailable: "Aucune source de sessions n’est configurée sur cette instance.",
   not_opened: "La session n’a pas pu être ouverte.",
   opening_timed_out: "L’ouverture de la session a pris trop de temps : réessayez dans un instant.",
+  stale_revision: "La configuration a changé depuis que vous l’avez ouverte : relisez-la, puis refaites votre modification.",
+  configuration_conflict: "oqas.json a changé depuis la dernière synchronisation : gardez le fichier, ou gardez vos modifications.",
+  invalid_configuration: "La configuration n’est pas valide : corrigez les champs signalés.",
+  no_configuration: "L’instance n’a pas encore de configuration.",
 };
 
 /** What the console says of a problem that has neither a wording here nor a detail. */

@@ -206,6 +206,10 @@ describe("a problem", () => {
     ["unavailable", 503, "/problems/unavailable", "Sessions unavailable"],
     ["not_opened", 502, "/problems/not-opened", "Session not opened"],
     ["opening_timed_out", 503, "/problems/opening-timed-out", "Opening timed out"],
+    ["stale_revision", 409, "/problems/stale-revision", "Stale revision"],
+    ["configuration_conflict", 409, "/problems/configuration-conflict", "Configuration conflict"],
+    ["invalid_configuration", 422, "/problems/invalid-configuration", "Invalid configuration"],
+    ["no_configuration", 404, "/problems/no-configuration", "No configuration"],
     ["error", 500, "/problems/error", "Request not answered"],
   ] as const satisfies readonly (readonly [ProblemCode, number, string, string])[]) {
     it(`of the code ${code} has the status ${status}, and a type and a title of its own`, () => {
