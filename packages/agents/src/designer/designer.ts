@@ -15,6 +15,8 @@ import { agentNotes, agentRecall } from "../common/agent-notes.ts";
 import { runAgentTask, taskEnd, taskLimits, type AgentTask } from "../common/agent-task.ts";
 import { usageOf } from "../common/model-usage.ts";
 import { Journal, type JournalEntry } from "../common/journal.ts";
+import { PersonDelivery } from "../common/person-delivery.ts";
+import type { PersonInbox } from "../common/person-inbox.ts";
 import { runTrace } from "../common/run-trace.ts";
 import type { Trace } from "../common/trace.ts";
 import type { TraceLine, TracePhase } from "../common/trace-line.ts";
@@ -95,6 +97,8 @@ export interface DesignerOptions {
   readonly browser?: Pick<BrowserAccess, "launch" | "actionTimeoutMs" | "navigationTimeoutMs" | "settleTimeoutMs">;
   /** Receives each line of the trace as it is written, to follow the design while it runs. */
   readonly observe?: (line: TraceLine) => void;
+  /** The inbox of the run: the session that plans and that of each scenario are given the messages a person sends while they are open, and recalled those delivered earlier in the run. No session hears anyone without it. */
+  readonly inbox?: PersonInbox;
   /** The clock of the dates; the system clock by default. */
   readonly now?: () => Date;
 }
@@ -231,13 +235,15 @@ export class Designer {
     const used = { iterations: 0, actions: 0, durationMs: 0 };
     /**
      * Runs one session of the design as a phase of its trace, under limits of its own, and gives how it ended.
-     * The phase ends as done when the session ended with what it was for, as `settled` tells.
+     * The phase ends as done when the session ended with what it was for, as `settled` tells. The session hears the
+     * person while `listening` tells it may still act on what they say; as long as it is open by default.
      */
     const sessionOf = async (
       name: "plan" | "write",
       session: SessionTools,
       task: Pick<AgentTask, "instructions" | "tools" | "request" | "reminder">,
       settled: () => boolean,
+      listening?: () => boolean,
     ): Promise<TerminalEvent> => {
       phases.start(name);
       const events: AgentEvent[] = [];
@@ -246,7 +252,13 @@ export class Designer {
         opened.agent(name, event);
         if (event.type === "tool-error") journal.record("error", `${event.tool}: ${event.message}`);
       };
-      const whole = { ...task, events, sent, received };
+      // A session of its own leads the design while it is open: the person speaks to it, never to a session that reviews for it.
+      const { inbox } = this.options;
+      const person =
+        inbox === undefined
+          ? {}
+          : { person: new PersonDelivery(inbox, ({ number, text }) => opened.harness(name, { type: "person", message: number, text }), listening) };
+      const whole = { ...task, events, sent, received, ...person };
       await runAgentTask(this.options.runtime, whole, taskLimits(config)).finally(() => session.close());
       const { last, counters } = taskEnd(events);
       used.iterations += counters.iterations;
@@ -307,7 +319,9 @@ export class Designer {
         const notes = agentNotes(config, repositoryRoot, env, { role: "planner", task: id, now });
         const tools = [...map.toolset(), ...existingTestTools(present), ...offered, ...notes, plan.tool()].map((tool) => endedWithPlan(tool, plan));
         const task = { instructions: PLANNER_INSTRUCTIONS, tools, request, reminder: () => plan.reminder() };
-        const last = await sessionOf("plan", session, task, () => plan.accepted !== undefined || plan.drafted);
+        // Once its plan is accepted or refused, the session that plans can act on nothing: a message then waits for the agent that writes.
+        const open = () => plan.accepted === undefined && plan.refused === undefined;
+        const last = await sessionOf("plan", session, task, () => plan.accepted !== undefined || plan.drafted, open);
         // A session that ends once scenarios are kept closes the plan with them: none is lost.
         await plan.close();
         if (plan.refused !== undefined) return failed(`No test was written: the plan was refused: ${plan.refused}`);

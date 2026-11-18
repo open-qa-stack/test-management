@@ -44,6 +44,17 @@ export interface SayStep extends StepBase {
   readonly text: string;
   /** Whether it is a reasoning, shown apart from what the agent says. */
   readonly thinking?: boolean;
+  /** The number of a message the person sent while the session was going on; none for what opened it. */
+  readonly number?: number;
+}
+
+/** A message the person sent while the session was going on reached an agent. */
+export interface DeliveryStep extends StepBase {
+  readonly kind: "delivery";
+  /** The number of the message. */
+  readonly message: number;
+  /** The agent that received it. */
+  readonly to: AgentRole;
 }
 
 /** An agent uses a tool: it reads, it opens a screen, it writes or runs a test. */
@@ -129,7 +140,7 @@ export interface NoteStep extends StepBase {
 }
 
 /** A step of a session. */
-export type Step = SayStep | ToolStep | VerdictStep | PlanStep | PassStep | OutcomeStep | NoteStep;
+export type Step = SayStep | DeliveryStep | ToolStep | VerdictStep | PlanStep | PassStep | OutcomeStep | NoteStep;
 
 /** A session of the agents, as its thread tells it, step by step. */
 export interface SessionScript {

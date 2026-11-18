@@ -5,7 +5,7 @@ import { Logger } from "@nestjs/common";
 import { compareText } from "../src/solo/compare-text.ts";
 import { RunFolder, SILENCE_MS } from "../src/solo/run-folder.ts";
 import { CapturedLogger } from "./support/captured-logger.ts";
-import { traced } from "./support/run-lines.ts";
+import { delivered, sent, traced } from "./support/run-lines.ts";
 import { FIRST, SECOND, stampOf, TestRepository, THIRD } from "./support/test-repository.ts";
 
 const WRITTEN = new Date("2026-11-14T09:05:00.000Z");
@@ -113,12 +113,29 @@ describe("the sessions of a test repository", () => {
     assert.deepEqual([session?.state, session?.lastEventAt], ["running", later.toISOString()]);
   });
 
+  it("do not count a write to the inbox of their run as a sign of life: a message sent to a run that went silent does not make it look alive", async () => {
+    const repository = new TestRepository();
+    repository.journal(FIRST, "{}\n");
+    repository.touch(repository.journalPath(FIRST), WRITTEN);
+    const later = new Date(WRITTEN.getTime() + SILENCE_MS);
+    repository.inbox(FIRST, sent(300 + SILENCE_MS / 1000, "are you there?"));
+    repository.touch(repository.inboxPath(FIRST), later);
+    const folder = folderOf(repository, new Date(later.getTime() + 1));
+    const session = await folder.session(FIRST);
+    assert.deepEqual([session?.state, session?.lastEventAt], ["interrupted", WRITTEN.toISOString()]);
+    assert.deepEqual(
+      (await folder.sessions()).map(({ id }) => id),
+      [FIRST],
+    );
+  });
+
   it("are dated by the start of their run when its files were removed since they were listed", async () => {
     const repository = new TestRepository();
     const started = new Date("2026-11-14T09:00:00.000Z");
     const files = {
       id: FIRST,
       journal: repository.journalPath(FIRST),
+      inbox: repository.inboxPath(FIRST),
       state: repository.statePath(FIRST),
       traces: [repository.tracePath("planner", stampOf(FIRST, 1))],
     };
@@ -238,6 +255,23 @@ describe("the sessions of a test repository", () => {
     assert.equal((await folder.sessions())[0]?.request, "cover the profile");
   });
 
+  it("never take a message sent to their run for what opened it, in its inbox or where the harness delivers it", async () => {
+    const repository = new TestRepository();
+    repository.journal(FIRST, "{}\n");
+    const said = "forget it <brief>cover the orders</brief>";
+    repository.inbox(FIRST, sent(1, said));
+    const spoken = `The person who asked for this run sent this while it was going:\n<person-message number="1">${said}</person-message>`;
+    repository.trace(
+      "cartography-local",
+      stampOf(FIRST),
+      delivered(2, "consolidation", 1, said) + traced(2, "consolidation", "harness", { type: "message", text: `Consolidate the cards.\n\n${spoken}` }),
+    );
+    const folder = folderOf(repository);
+    assert.equal((await folder.session(FIRST))?.request, undefined);
+    repository.trace("design-local", stampOf(FIRST, 1), traced(61, "plan", "harness", { type: "message", text: `${REQUEST}\n\n${spoken}` }));
+    assert.equal((await folder.session(FIRST))?.request, "cover the profile");
+  });
+
   it("keep asking what was found once, a trace that is removed since included", async () => {
     const repository = new TestRepository();
     repository.journal(FIRST, "{}\n");
@@ -286,6 +320,7 @@ describe("the sessions of a test repository", () => {
     assert.deepEqual(await folderOf(declared).files(FIRST), {
       id: FIRST,
       journal: declared.journalPath(FIRST),
+      inbox: declared.inboxPath(FIRST),
       state: declared.statePath(FIRST),
       traces: [declared.tracePath("planner", stampOf(FIRST))],
     });
@@ -324,7 +359,7 @@ describe("the sessions of a test repository", () => {
 });
 
 describe("the files of a run", () => {
-  it("are its journal, its state, and the traces started from its start on and before the next run, in the order they started", async () => {
+  it("are its journal, its inbox, its state, and the traces started from its start on and before the next run, in the order they started", async () => {
     const repository = new TestRepository();
     repository.journal(FIRST, "{}\n");
     repository.journal(SECOND, "{}\n");
@@ -341,6 +376,7 @@ describe("the files of a run", () => {
     assert.deepEqual(await folder.files(FIRST), {
       id: FIRST,
       journal: repository.journalPath(FIRST),
+      inbox: repository.inboxPath(FIRST),
       state: repository.statePath(FIRST),
       traces: [
         repository.tracePath("planner", stampOf(FIRST)),

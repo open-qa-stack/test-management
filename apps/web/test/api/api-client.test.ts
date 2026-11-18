@@ -105,6 +105,23 @@ describe("the client of the API", () => {
       ],
     ]);
   });
+
+  it("sends a message to a session by posting it as JSON under the identifier of the session, encoded, and gives its receipt", async () => {
+    const { client, calls } = clientOf(() => json({ number: 2 }, 202));
+    assert.deepEqual(await client.say("a/b", { text: "sans le profil" }), { number: 2 });
+    assert.deepEqual(calls, [
+      ["/api/sessions/a%2Fb/messages", { method: "POST", headers: { "content-type": "application/json" }, body: '{"text":"sans le profil"}' }],
+    ]);
+  });
+
+  it("says a session that just ended takes no more message", async () => {
+    const { client } = clientOf(() => problem("session_ended", 409));
+    await assert.rejects(client.say("oqas-1", { text: "sans le profil" }), (error: unknown) => {
+      assert.ok(error instanceof ApiError);
+      assert.deepEqual([error.message, error.status, error.code], ["La session vient de se terminer : elle ne prend plus de message.", 409, "session_ended"]);
+      return true;
+    });
+  });
 });
 
 describe("a failure of the API", () => {

@@ -11,7 +11,12 @@ import { render, textOf } from "../render.ts";
 describe("the components of the console", () => {
   it("draws an icon at its size, hidden from assistive technologies", () => {
     assert.match(render(createElement(Icon, { name: "check" })), /^<svg width="16" height="16"[^>]* aria-hidden="true"><path d="M5 12l5 5L20 7"\/><\/svg>$/);
-    assert.match(render(createElement(Icon, { name: "check", size: 13 })), /^<svg width="13" height="13"/);
+    assert.match(render(createElement(Icon, { name: "check", size: 24 })), /^<svg width="24" height="24"/);
+  });
+
+  it("draws the line of an icon 1.5 px thick on the screen at every size", () => {
+    const strokes = ([12, 16, 20, 24] as const).map((size) => /stroke-width="([^"]+)"/.exec(render(createElement(Icon, { name: "check", size })))![1]);
+    assert.deepEqual(strokes, ["3", "2.25", "1.8", "1.5"]);
   });
 
   it("shows a badge in its tone, square when asked", () => {

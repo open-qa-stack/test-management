@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { describe, it } from "node:test";
 import { setTimeout as pause } from "node:timers/promises";
-import type { Problem, Session, SessionEvent, SessionList } from "@open-qa-stack/shared/sessions";
+import type { MessageReceipt, Problem, Session, SessionEvent, SessionList } from "@open-qa-stack/shared/sessions";
 import { closedPort } from "@open-qa-stack/testing";
 import { Observable } from "rxjs";
 import { NoSessionSource } from "../src/sessions/no-session-source.ts";
@@ -12,7 +12,7 @@ import { startApi } from "../src/start-api.ts";
 import { CapturedLogger } from "./support/captured-logger.ts";
 import { EventStream } from "./support/event-stream.ts";
 import { fakeOqas } from "./support/fake-oqas.ts";
-import { at, entry, traced } from "./support/run-lines.ts";
+import { at, deliveredNow, entry, traced } from "./support/run-lines.ts";
 import { sessionsApi, type TestApi } from "./support/sessions-api.ts";
 import { FIRST, SECOND, stampOf, TestRepository } from "./support/test-repository.ts";
 
@@ -63,6 +63,11 @@ async function problemOf(response: Response): Promise<{ status: number; type: st
 /** Asks to open a session. */
 function post(api: TestApi, body: string, type = "application/json"): Promise<Response> {
   return fetch(`${api.url}/sessions`, { method: "POST", headers: { "content-type": type }, body });
+}
+
+/** Sends a message to a session. */
+function say(api: TestApi, id: string, body: string): Promise<Response> {
+  return fetch(`${api.url}/sessions/${id}/messages`, { method: "POST", headers: { "content-type": "application/json" }, body });
 }
 
 /** A source without session whose listing fails on an error that names a file of the machine. */
@@ -218,7 +223,10 @@ describe("the stream of the events of a session", () => {
       const stream = await EventStream.open(`${api.url}/sessions/${SECOND}/events`);
       try {
         assert.equal(await stream.block(), "id: 0\nretry: 1500");
-        assert.match(String(await stream.block()), /^id: 1\ndata: /);
+        // On a busy machine a heartbeat may come before the first reading of the run does.
+        let block = await stream.block();
+        while (block === ": heartbeat") block = await stream.block();
+        assert.match(String(block), /^id: 1\ndata: /);
         assert.deepEqual([await stream.block(), await stream.block()], [": heartbeat", ": heartbeat"]);
       } finally {
         await stream.close();
@@ -398,6 +406,119 @@ describe("the opening of a session", () => {
         await problemOf(await post(api, JSON.stringify({ request: "cover the profile" }))),
         problem(503, "opening_timed_out", "The session did not start within 50 ms; the command was stopped."),
       );
+    } finally {
+      await api.close();
+    }
+  });
+});
+
+describe("a message sent to a session that is going on", () => {
+  it("is answered 202 with its number in the session, from 1, and appended to the inbox of the run", async () => {
+    const repository = repositoryOfTwoRuns();
+    await withApi(repository, async (api) => {
+      for (const [text, number] of [
+        ["not that page", 1],
+        ["the other one", 2],
+      ] as const) {
+        assert.deepEqual(await answerOf(await say(api, SECOND, JSON.stringify({ text }))), {
+          status: 202,
+          type: JSON_TYPE,
+          body: { number } satisfies MessageReceipt,
+        });
+      }
+      const lines = readFileSync(repository.inboxPath(SECOND), "utf8").split("\n");
+      assert.deepEqual(
+        lines.slice(0, 2).map((line) => (JSON.parse(line) as { text: string }).text),
+        ["not that page", "the other one"],
+      );
+      assert.deepEqual(lines.slice(2), [""]);
+    });
+  });
+
+  it("is told by the stream of the session under its number, then its delivery to an agent once the run traces it", async () => {
+    const repository = repositoryOfTwoRuns();
+    await withApi(repository, async (api) => {
+      const stream = await EventStream.open(`${api.url}/sessions/${SECOND}/events`);
+      try {
+        await stream.take(1);
+        assert.equal((await say(api, SECOND, JSON.stringify({ text: "not that page" }))).status, 202);
+        const [said] = await stream.take(1);
+        assert.deepEqual({ ...said, at: "" }, { id: 2, at: "", type: "user_message", text: "not that page", number: 1 });
+        repository.trace("design-local", stampOf(SECOND), deliveredNow("plan", 1, "not that page"));
+        const [reached] = await stream.take(1);
+        assert.deepEqual({ ...reached, at: "" }, { id: 3, at: "", type: "message_delivered", message: 1, agent: "planner" });
+      } finally {
+        await stream.close();
+      }
+    });
+  });
+
+  it("keeps a number of its own when several are sent at once", async () => {
+    const repository = repositoryOfTwoRuns();
+    await withApi(repository, async (api) => {
+      const answers = await Promise.all(Array.from({ length: 12 }, (_, rank) => say(api, SECOND, JSON.stringify({ text: `message ${rank}` })).then(answerOf)));
+      assert.deepEqual(
+        answers.map(({ body }) => (body as MessageReceipt).number).sort((a, b) => a - b),
+        answers.map((_, rank) => rank + 1),
+      );
+      assert.equal(readFileSync(repository.inboxPath(SECOND), "utf8").split("\n").length, 13);
+    });
+  });
+
+  for (const [body, detail] of [
+    ["{}", "text must be a text that is not empty."],
+    ['{"text":"  "}', "text must be a text that is not empty."],
+    [JSON.stringify({ text: "x".repeat(4001) }), "text must not be longer than 4000 characters."],
+    ['{"text":"not that page","to":"writer"}', "to is not a field of a message to a session."],
+    ['["not that page"]', "The body must be a JSON object."],
+  ] as const) {
+    it(`is answered 400 with a problem that names what is at fault in ${body.slice(0, 40)}`, async () => {
+      const repository = repositoryOfTwoRuns();
+      await withApi(repository, async (api) => {
+        assert.deepEqual(await problemOf(await say(api, SECOND, body)), problem(400, "invalid_request", detail));
+        assert.equal(existsSync(repository.inboxPath(SECOND)), false);
+      });
+    });
+  }
+
+  it("is answered 404 with a problem by a session that does not exist", async () => {
+    await withApi(repositoryOfTwoRuns(), async (api) => {
+      assert.deepEqual(
+        await problemOf(await say(api, "oqas-unknown", JSON.stringify({ text: "not that page" }))),
+        problem(404, "unknown_session", "No session oqas-unknown."),
+      );
+    });
+  });
+
+  it("is answered 409 with a problem by a session that is completed, and by one that is interrupted", async () => {
+    const repository = repositoryOfTwoRuns();
+    repository.touch(repository.journalPath(SECOND), new Date(at(3602)));
+    await withApi(repository, async (api) => {
+      assert.deepEqual(await answerOf(await say(api, FIRST, JSON.stringify({ text: "not that page" }))), {
+        status: 409,
+        type: PROBLEM_TYPE,
+        body: {
+          type: "/problems/session-ended",
+          title: "Session ended",
+          status: 409,
+          detail: `The session ${FIRST} is completed and takes no message: open another session to go on.`,
+          code: "session_ended",
+        },
+      });
+      assert.deepEqual(
+        await problemOf(await say(api, SECOND, JSON.stringify({ text: "not that page" }))),
+        problem(409, "session_ended", `The session ${SECOND} is interrupted and takes no message: open another session to go on.`),
+      );
+      assert.equal(existsSync(repository.inboxPath(FIRST)) || existsSync(repository.inboxPath(SECOND)), false);
+    });
+  });
+
+  it("is answered 503 with a problem by an instance without a source of sessions, which says what to configure", async () => {
+    const api = await sessionsApi(new NoSessionSource());
+    try {
+      const refused = await problemOf(await say(api, FIRST, JSON.stringify({ text: "not that page" })));
+      assert.deepEqual([refused.status, refused.type, refused.body.code], [503, PROBLEM_TYPE, "unavailable"]);
+      assert.match(String(refused.body.detail), /^No source of sessions is configured: set OQAS_SOLO_REPOSITORY /);
     } finally {
       await api.close();
     }

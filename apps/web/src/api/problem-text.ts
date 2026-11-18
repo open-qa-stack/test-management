@@ -5,6 +5,7 @@ const WORDINGS: Readonly<Record<Exclude<ProblemCode, "error">, string>> = {
   unknown_session: "Le projet ne garde aucune session de ce nom.",
   invalid_request: "La demande n’est pas valide : dites aux agents quoi tester.",
   session_running: "Une session est déjà en cours : attendez qu’elle se termine pour en ouvrir une autre.",
+  session_ended: "La session vient de se terminer : elle ne prend plus de message.",
   unavailable: "Aucune source de sessions n’est configurée sur cette instance.",
   not_opened: "La session n’a pas pu être ouverte.",
   opening_timed_out: "L’ouverture de la session a pris trop de temps : réessayez dans un instant.",

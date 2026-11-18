@@ -1,4 +1,4 @@
-import type { Problem, Project, Session, SessionList, SessionOpening } from "@open-qa-stack/shared/sessions";
+import type { MessageReceipt, Problem, Project, Session, SessionList, SessionMessage, SessionOpening } from "@open-qa-stack/shared/sessions";
 import { ApiError } from "./api-error.ts";
 import { problemCode, problemText } from "./problem-text.ts";
 
@@ -7,6 +7,11 @@ export const API_BASE = "/api";
 
 /** How the console reaches the network: the `fetch` of the browser, or a double in a test. */
 export type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
+
+/** What a call that posts a JSON body is made with. */
+function posting(body: unknown): RequestInit {
+  return { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) };
+}
 
 /** The error an answer that is not a success stands for: its problem when it carries one, worded for the person. */
 async function failureOf(response: Response): Promise<ApiError> {
@@ -57,7 +62,18 @@ export class ApiClient {
    * @returns The session opened.
    */
   public open(opening: SessionOpening): Promise<Session> {
-    return this.#ask<Session>("/sessions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(opening) });
+    return this.#ask<Session>("/sessions", posting(opening));
+  }
+
+  /**
+   * Sends a message to the agents of a session that goes on.
+   *
+   * @param id - The identifier of the session.
+   * @param message - What the person says.
+   * @returns The receipt of the message; the failure carries the code `session_ended` when the session no longer goes on.
+   */
+  public say(id: string, message: SessionMessage): Promise<MessageReceipt> {
+    return this.#ask<MessageReceipt>(`/sessions/${encodeURIComponent(id)}/messages`, posting(message));
   }
 
   async #ask<T>(path: string, init?: RequestInit): Promise<T> {

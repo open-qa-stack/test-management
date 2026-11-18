@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import { DesignPasses, PYRAMID } from "../src/designer/design-passes.ts";
 import type { DesignerOptions, DesignOutcome } from "../src/designer/designer.ts";
+import { PersonInbox } from "../src/index.ts";
 
 /** What a design needs, of which the passes read the levels and whether it is resumed. */
 const options = (changes: Partial<DesignerOptions>): DesignerOptions => changes as DesignerOptions;
@@ -36,7 +37,10 @@ describe("the passes of a design", () => {
         uncovered: [{ asked: "A journey", reason: "It needs an account." }],
       },
     };
-    const passes = new DesignPasses(options({ levels: ["business", "smoke", "functional"] }), "by-level", false, async (pass) => {
+    // The passes are those of one run: each is given its inbox, so that what a person said during one holds in the next.
+    const inbox = new PersonInbox("inbox.jsonl");
+    const passes = new DesignPasses(options({ levels: ["business", "smoke", "functional"], inbox }), "by-level", false, async (pass) => {
+      assert.equal(pass.inbox, inbox);
       asked.push(pass.levels);
       return given[pass.levels![0]!]!;
     });

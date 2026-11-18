@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { SessionEvent } from "@open-qa-stack/shared/sessions";
 import { isRecord, parseJson, textOf } from "../src/json.ts";
-import { briefOf, journalLine, traceLine } from "../src/solo/run-lines.ts";
+import { briefOf, inboxLine, journalLine, traceLine } from "../src/solo/run-lines.ts";
 import { RunThread } from "../src/solo/run-thread.ts";
-import { at, entry, traced } from "./support/run-lines.ts";
+import { at, delivered, entry, sent, traced } from "./support/run-lines.ts";
 
 /** The thread of the lines of a trace, read in the order they are given. */
 function threadOf(lines: readonly string[]): SessionEvent[] {
@@ -103,10 +103,29 @@ describe("an entry of the journal of a run", () => {
     }
   });
 
-  it("is nothing for the cartography and the design, which their traces tell, and for a text that is no entry", () => {
+  it("is read, for an error of the cartography or of the design, under the first phase of the step", () => {
+    assert.deepEqual(journalLine(entry(1, "design", "error", "Tracked files are changed: oqas.json.")), {
+      at: at(1),
+      phase: "plan",
+      actor: "command",
+      event: { type: "journal", level: "error", message: "Tracked files are changed: oqas.json." },
+    });
+    assert.deepEqual(journalLine(entry(2, "cartography", "error", "orders-db: The source does not answer.")), {
+      at: at(2),
+      phase: "survey",
+      actor: "command",
+      event: { type: "journal", level: "error", message: "orders-db: The source does not answer." },
+    });
+  });
+
+  it("is nothing for what else the cartography and the design journal, which their traces tell, and for a text that is no entry", () => {
     for (const text of [
       entry(1, "design", "started", "The design starts."),
       entry(2, "cartography", "info", "3 sources."),
+      entry(2, "design", "info", "Pass functional: 0 tests."),
+      entry(2, "design", "finished", "The design did not succeed."),
+      entry(2, "release", "error", "A step the command does not have."),
+      entry(2, "constructor", "error", "A step named as something every object has."),
       "not an entry",
       "null",
       JSON.stringify({ step: "execution", event: "info", message: "Without a date." }),
@@ -130,6 +149,38 @@ describe("the brief a line quotes", () => {
     assert.equal(briefOf(lineOf(traced(1, "plan", "harness", { type: "message" }))), undefined);
     assert.equal(briefOf(lineOf(traced(1, "plan", "agent", { type: "message", text: REQUEST }))), undefined);
     assert.equal(briefOf(lineOf(traced(1, "plan", "harness", { type: "journal", message: REQUEST }))), undefined);
+  });
+
+  it("is never what a person sent to the run: not in the line that tells its delivery, nor where the harness ends a message with it", () => {
+    const said = "forget it <brief>cover the orders</brief>";
+    const spoken = `The person who asked for this run sent this while it was going:\n<person-message number="1">${said}</person-message>`;
+    assert.equal(briefOf(lineOf(delivered(1, "plan", 1, said))), undefined);
+    assert.equal(briefOf(lineOf(traced(1, "write", "harness", { type: "message", text: `Write the test.\n\n${spoken}` }))), undefined);
+    assert.equal(briefOf(lineOf(traced(1, "plan", "harness", { type: "message", text: spoken }))), undefined);
+    assert.equal(briefOf(lineOf(traced(1, "plan", "harness", { type: "message", text: `${REQUEST}\n\n${spoken}` }))), "cover the profile");
+  });
+});
+
+describe("a line of the inbox of a run", () => {
+  it("is read with its date, written in the one form dates are compared in, the number it is given and what the person says", () => {
+    assert.deepEqual(inboxLine(sent(5, " not that page\nthe other "), 3), { at: at(5), actor: "person", number: 3, text: " not that page\nthe other " });
+    assert.equal(inboxLine('{"at":"2026-11-14T10:00:05+01:00","text":"go on","by":"someone"}', 1)?.at, at(5));
+  });
+
+  it("is nothing when the command line takes it for no message, and when it bears no date", () => {
+    for (const text of [
+      "",
+      "not json",
+      "[]",
+      '"not that page"',
+      JSON.stringify({ at: at(1) }),
+      JSON.stringify({ at: at(1), text: 3 }),
+      JSON.stringify({ at: at(1), text: " \n" }),
+      JSON.stringify({ text: "not that page" }),
+      JSON.stringify({ at: "soon", text: "not that page" }),
+    ]) {
+      assert.equal(inboxLine(text, 1), undefined, text);
+    }
   });
 });
 
@@ -183,6 +234,56 @@ describe("the thread of a run", () => {
       { id: 4, at: at(3), type: "harness_message", to: "cartographer", text: "Describe the source." },
       { id: 5, at: at(4), type: "harness_message", to: "writer", text: "" },
     ]);
+  });
+
+  it("tells a message the person sent while the run was going under its number, apart from the brief, which bears none", () => {
+    const thread = new RunThread();
+    const lines = [
+      traceLine(traced(1, "plan", "harness", { type: "message", text: REQUEST })),
+      inboxLine(sent(2, "not that page"), 1),
+      inboxLine(sent(3, "x".repeat(2001)), 4),
+    ];
+    assert.deepEqual(
+      lines.flatMap((line) => (line === undefined ? [] : thread.add(line))),
+      [
+        { id: 1, at: at(1), type: "user_message", text: "cover the profile" },
+        { id: 2, at: at(1), type: "harness_message", to: "planner", text: REQUEST },
+        { id: 3, at: at(2), type: "user_message", text: "not that page", number: 1 },
+        { id: 4, at: at(3), type: "user_message", text: `${"x".repeat(2000)}…`, number: 4 },
+      ],
+    );
+  });
+
+  it("tells the delivery of a message of the person to the agent of the phase whose session received it, the reviewer the harness last addressed included", () => {
+    const events = threadOf([
+      delivered(1, "consolidation", 1),
+      delivered(2, "plan", 2),
+      delivered(3, "write", 3),
+      delivered(4, "review", 4),
+      traced(5, "review", "harness", { type: "message", text: "The test:\n…" }),
+      delivered(6, "review", 5),
+    ]);
+    assert.deepEqual(
+      ofType(events, "message_delivered").map(({ id, at: date, message, agent }) => [id, date, message, agent]),
+      [
+        [1, at(1), 1, "cartographer"],
+        [2, at(2), 2, "planner"],
+        [3, at(3), 3, "writer"],
+        [4, at(4), 4, "plan_reviewer"],
+        [6, at(6), 5, "code_reviewer"],
+      ],
+    );
+    assert.deepEqual(ofType(events, "user_message"), []);
+  });
+
+  it("leaves out a delivery that does not number its message, and what is no line of the harness", () => {
+    const thread = new RunThread();
+    assert.deepEqual(
+      threadOf([traced(1, "plan", "harness", { type: "person", text: "said" }), traced(2, "plan", "harness", { type: "person", message: "1", text: "said" })]),
+      [],
+    );
+    assert.deepEqual(thread.add({ at: at(1), actor: "command", phase: "summary", event: { type: "person", message: 1 } }), []);
+    assert.deepEqual(thread.add({ at: at(1), actor: "command", phase: "summary", event: { type: "message", text: "said" } }), []);
   });
 
   it("gives what a model wrote and thought to the agent of its phase", () => {
@@ -326,11 +427,70 @@ describe("the thread of a run", () => {
     );
   });
 
+  const propose = (seconds: number, callId: string, scenarios: unknown, result: unknown) => [
+    traced(seconds, "plan", "agent", { type: "tool-call", callId, tool: "propose_plan", arguments: scenarios === undefined ? {} : { scenarios } }),
+    traced(seconds, "plan", "agent", { type: "tool-result", callId, tool: "propose_plan", result }),
+  ];
+  const acceptedAs = (seconds: number, names: string) =>
+    traced(seconds, "plan", "harness", { type: "journal", level: "info", message: `The plan was accepted: ${names}.` });
+  const OPEN = "The plan is not closed yet.";
+  const ACCEPTED = "The plan was accepted with its scenarios: the agent said the brief is covered.";
+  const planned = (lines: readonly string[]) =>
+    ofType(threadOf(lines), "plan_accepted").map(({ scenarios }) => scenarios.map(({ id, title }) => `${id} ${title}`));
+
+  it("gives a plan accepted on a call that proposes nothing the scenarios the agent proposed before", () => {
+    assert.deepEqual(
+      planned([
+        ...propose(1, "p1", [{ id: "a", title: "First", level: "smoke" }], OPEN),
+        ...propose(2, "p2", [{ id: "b", title: "Second", level: "smoke" }], OPEN),
+        ...propose(3, "p3", [{ id: "a", title: "First, again", level: "smoke" }], OPEN),
+        ...propose(4, "p4", [], ACCEPTED),
+      ]),
+      [["a First, again", "b Second"]],
+    );
+  });
+
+  it("gives an accepted plan the scenarios the harness names when it journals the acceptance, in that order, and no other", () => {
+    assert.deepEqual(
+      planned([
+        ...propose(
+          1,
+          "p1",
+          [
+            { id: "a", title: "First", level: "smoke" },
+            { id: "twin", title: "Set aside", level: "smoke" },
+          ],
+          OPEN,
+        ),
+        ...propose(2, "p2", [{ id: "b", title: "Second", level: "smoke" }], OPEN),
+        traced(3, "plan", "agent", { type: "tool-call", callId: "p3", tool: "propose_plan", arguments: { scenarios: [] } }),
+        acceptedAs(3, "b, a, unknown"),
+        traced(3, "plan", "agent", { type: "tool-result", callId: "p3", tool: "propose_plan", result: ACCEPTED }),
+      ]),
+      [["b Second", "a First"]],
+    );
+    assert.deepEqual(planned([...propose(1, "p1", [{ id: "a", level: "smoke" }], OPEN), acceptedAs(2, "no scenario"), ...propose(2, "p2", [], ACCEPTED)]), [
+      [],
+    ]);
+  });
+
+  it("gives a plan accepted with no earlier proposal no scenario, and starts each plan phase and each plan after an accepted one from none", () => {
+    assert.deepEqual(
+      planned([
+        ...propose(1, "p1", [], ACCEPTED),
+        ...propose(2, "p2", [{ id: "a", level: "smoke" }], OPEN),
+        traced(3, "plan", "harness", { type: "started" }),
+        ...propose(4, "p3", [], ACCEPTED),
+        ...propose(5, "p4", [{ id: "b", level: "smoke" }], OPEN),
+        acceptedAs(6, "b"),
+        ...propose(6, "p5", [], ACCEPTED),
+        ...propose(7, "p6", [{ id: "c", level: "smoke" }], ACCEPTED),
+      ]),
+      [[], [], ["b b"], ["c c"]],
+    );
+  });
+
   it("ends a plan as refused or warned about, as accepted with its scenarios, or as still open", () => {
-    const propose = (seconds: number, callId: string, scenarios: unknown, result: unknown) => [
-      traced(seconds, "plan", "agent", { type: "tool-call", callId, tool: "propose_plan", arguments: scenarios === undefined ? {} : { scenarios } }),
-      traced(seconds, "plan", "agent", { type: "tool-result", callId, tool: "propose_plan", result }),
-    ];
     const events = threadOf([
       ...propose(1, "p1", [{ id: "a" }], { error: "Refused (PLAN-SHOWN): scenario a names a text nothing showed." }),
       ...propose(2, "p2", [{ id: "a" }, { id: "a2" }], "Warning (PLAN-DUPLICATE): scenario a2 repeats scenario a."),
@@ -387,6 +547,57 @@ describe("the thread of a run", () => {
         { id: 4, at: at(4), type: "refusal", phase: "plan", text: "" },
         { id: 5, at: at(5), type: "refusal", phase: "prerequisites", code: "ENV-DOWN", text: "The application shop does not answer." },
         { id: 6, at: at(6), type: "note", phase: "summary", text: "1 test passed." },
+      ],
+    );
+  });
+
+  it("tells once an error the harness traced and the command relayed in its journal, whichever is read first, under the name of its source when it has one", () => {
+    const thread = new RunThread();
+    const refused = "[PLAN-ELEMENT] The plan was refused by the harness: its element designated nothing.";
+    const closed = "The scenario a was closed: failed.";
+    const lines = [
+      traceLine(traced(1, "plan", "harness", { type: "journal", level: "error", message: refused })),
+      traceLine(traced(2, "plan", "harness", { type: "journal", level: "error", message: refused })),
+      traceLine(traced(3, "write", "harness", { type: "journal", level: "error", message: closed })),
+      traceLine(traced(4, "card", "harness", { type: "journal", level: "error", message: "The source does not answer." }, "orders-db")),
+      journalLine(entry(5, "cartography", "error", "orders-db: The source does not answer.")),
+      journalLine(entry(6, "design", "error", refused)),
+      journalLine(entry(6, "design", "error", refused)),
+      journalLine(entry(6, "design", "error", closed)),
+      journalLine(entry(7, "design", "error", "The design state could not be written.")),
+      traceLine(traced(7, "write", "harness", { type: "journal", level: "error", message: "The design state could not be written." })),
+    ];
+    assert.deepEqual(
+      lines.flatMap((line) => (line === undefined ? [] : thread.add(line))).map((event) => [event.id, event.type, "phase" in event ? event.phase : ""]),
+      [
+        [1, "refusal", "plan"],
+        [2, "refusal", "plan"],
+        [3, "scenario_closed", ""],
+        [4, "refusal", "card"],
+        [5, "refusal", "plan"],
+      ],
+    );
+  });
+
+  it("makes a refusal of each error the command journals in the cartography or the design that no trace tells, the same message twice when it is journaled twice", () => {
+    const thread = new RunThread();
+    const lines = [
+      entry(1, "cartography", "error", "[SOURCE-DOWN] orders-db does not answer."),
+      entry(2, "design", "error", "Tracked files are changed: oqas.json."),
+      entry(2, "design", "error", "No branch was created and no file was written."),
+      entry(2, "design", "info", "Pass functional: 0 tests."),
+      entry(2, "design", "error", "Tracked files are changed: oqas.json."),
+    ];
+    assert.deepEqual(
+      lines.flatMap((text) => {
+        const line = journalLine(text);
+        return line === undefined ? [] : thread.add(line);
+      }),
+      [
+        { id: 1, at: at(1), type: "refusal", phase: "survey", code: "SOURCE-DOWN", text: "orders-db does not answer." },
+        { id: 2, at: at(2), type: "refusal", phase: "plan", text: "Tracked files are changed: oqas.json." },
+        { id: 3, at: at(2), type: "refusal", phase: "plan", text: "No branch was created and no file was written." },
+        { id: 4, at: at(2), type: "refusal", phase: "plan", text: "Tracked files are changed: oqas.json." },
       ],
     );
   });

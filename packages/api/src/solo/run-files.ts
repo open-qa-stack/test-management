@@ -4,6 +4,8 @@ export interface RunFiles {
   readonly id: string;
   /** Its journal, which exists from its start on. */
   readonly journal: string;
+  /** Its inbox, which exists once a person sent the run a message. */
+  readonly inbox: string;
   /** Its state, which the run writes when it ends. */
   readonly state: string;
   /** Its traces, in the order they started. */

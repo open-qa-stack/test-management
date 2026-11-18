@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { BadRequestException, type MessageEvent, NotFoundException } from "@nestjs/common";
 import type { HttpAdapterHost } from "@nestjs/core";
-import type { Problem, ProblemCode, Project, Session, SessionEvent, SessionOpening } from "@open-qa-stack/shared/sessions";
+import type { MessageReceipt, Problem, ProblemCode, Project, Session, SessionEvent, SessionMessage, SessionOpening } from "@open-qa-stack/shared/sessions";
 import { lastValueFrom, type Observable, of, Subject, toArray } from "rxjs";
 import { expectedProblem } from "../src/problems/expected-problem.ts";
 import { problemOf } from "../src/problems/problem-kinds.ts";
@@ -11,6 +11,8 @@ import { NoSessionSource } from "../src/sessions/no-session-source.ts";
 import { ProjectController } from "../src/sessions/project.controller.ts";
 import { SessionError } from "../src/sessions/session-error.ts";
 import { MAX_REQUEST_LENGTH, sessionOpeningOf } from "../src/sessions/session-opening.ts";
+import { MAX_MESSAGE_LENGTH, sessionMessageOf } from "../src/sessions/session-message.ts";
+import { SessionMessagePipe } from "../src/sessions/session-message.pipe.ts";
 import { SessionOpeningPipe } from "../src/sessions/session-opening.pipe.ts";
 import { SessionSource } from "../src/sessions/session-source.ts";
 import { SessionsController } from "../src/sessions/sessions.controller.ts";
@@ -47,6 +49,11 @@ class OneSession extends SessionSource {
   override async open(opening: SessionOpening): Promise<Session> {
     this.asked.push(opening);
     return SESSION;
+  }
+
+  override async send(id: string, message: SessionMessage): Promise<MessageReceipt | undefined> {
+    this.asked.push([id, message]);
+    return id === SESSION.id ? { number: 3 } : undefined;
   }
 }
 
@@ -107,6 +114,38 @@ describe("a request to open a session", () => {
   });
 });
 
+describe("a message sent to a session", () => {
+  it("says what the person says, as it was written", () => {
+    assert.deepEqual(sessionMessageOf({ text: " --not that page\nthe other " }), { text: " --not that page\nthe other " });
+    assert.equal(sessionMessageOf({ text: "x".repeat(MAX_MESSAGE_LENGTH) }).text.length, 4000);
+  });
+
+  const TEXT = "text must be a text that is not empty.";
+  for (const [body, message] of [
+    [undefined, "The body must be a JSON object."],
+    ["not that page", "The body must be a JSON object."],
+    [["not that page"], "The body must be a JSON object."],
+    [{}, TEXT],
+    [{ text: "" }, TEXT],
+    [{ text: " \n" }, TEXT],
+    [{ text: 3 }, TEXT],
+    [{ text: ["not that page"] }, TEXT],
+    [{ text: "x".repeat(MAX_MESSAGE_LENGTH + 1) }, "text must not be longer than 4000 characters."],
+    [{ text: "not that page", agent: "writer" }, "agent is not a field of a message to a session."],
+  ] as const) {
+    it(`is refused, naming what is at fault, when it is ${JSON.stringify(body)?.slice(0, 60)}`, () => {
+      const refusal = refusalOf(() => sessionMessageOf(body));
+      assert.deepEqual([refusal.failure, refusal.message], ["invalid_request", message]);
+    });
+  }
+
+  it("is read by the pipe of the route as it is by itself", () => {
+    const pipe = new SessionMessagePipe();
+    assert.deepEqual(pipe.transform({ text: "not that page" }), { text: "not that page" });
+    assert.equal(refusalOf(() => pipe.transform({})).failure, "invalid_request");
+  });
+});
+
 describe("the identifier of the last event a client got", () => {
   it("is the number it wrote, and nothing when it sent none", () => {
     assert.deepEqual([eventIdOf("after", "12"), eventIdOf("after", "0"), eventIdOf("after", undefined)], [12, 0, undefined]);
@@ -130,13 +169,15 @@ describe("an instance without a source of sessions", () => {
     assert.deepEqual(await lastValueFrom(source.events().pipe(toArray())), []);
   });
 
-  it("cannot open a session, and says how to give it a source", async () => {
-    await assert.rejects(source.open(), (error) => {
-      assert.ok(error instanceof SessionError);
-      assert.equal(error.failure, "unavailable");
-      assert.match(error.message, /^No source of sessions is configured: set OQAS_SOLO_REPOSITORY /);
-      return true;
-    });
+  it("cannot open a session nor take a message, and says how to give it a source", async () => {
+    for (const asked of [source.open(), source.send()]) {
+      await assert.rejects(asked, (error) => {
+        assert.ok(error instanceof SessionError);
+        assert.equal(error.failure, "unavailable");
+        assert.match(error.message, /^No source of sessions is configured: set OQAS_SOLO_REPOSITORY /);
+        return true;
+      });
+    }
   });
 });
 
@@ -145,6 +186,7 @@ describe("a problem", () => {
     ["unknown_session", 404, "/problems/unknown-session", "Unknown session"],
     ["invalid_request", 400, "/problems/invalid-request", "Invalid request"],
     ["session_running", 409, "/problems/session-running", "A session is running"],
+    ["session_ended", 409, "/problems/session-ended", "Session ended"],
     ["unavailable", 503, "/problems/unavailable", "Sessions cannot be opened"],
     ["not_opened", 502, "/problems/not-opened", "Session not opened"],
     ["opening_timed_out", 503, "/problems/opening-timed-out", "Opening timed out"],
@@ -228,6 +270,18 @@ describe("the service of the sessions", () => {
     assert.equal(await new SessionsService(source).open({ request: "cover the profile" }), SESSION);
     assert.deepEqual(source.asked, [{ request: "cover the profile" }]);
   });
+
+  it("hands a message to its source, answers the receipt of the source, and refuses a session the source does not hold", async () => {
+    const source = new OneSession();
+    const service = new SessionsService(source);
+    assert.deepEqual(await service.send(SESSION.id, { text: "not that page" }), { number: 3 });
+    assert.deepEqual(source.asked, [[SESSION.id, { text: "not that page" }]]);
+    await assert.rejects(service.send("s2", { text: "not that page" }), (error) => {
+      assert.ok(error instanceof SessionError);
+      assert.deepEqual([error.failure, error.message], ["unknown_session", "No session s2."]);
+      return true;
+    });
+  });
 });
 
 describe("the controllers of the project and of the sessions", () => {
@@ -245,6 +299,11 @@ describe("the controllers of the project and of the sessions", () => {
     assert.equal(await controller.open({ request: "cover the profile" }, response), SESSION);
     assert.deepEqual(headers, [[response, "Location", "sessions/s%201"]]);
     assert.equal(headers[0]?.[0], response);
+  });
+
+  it("answer the receipt of a message sent to a session", async () => {
+    const { controller } = controllerOf(new OneSession());
+    assert.deepEqual(await controller.send(SESSION.id, { text: "not that page" }), { number: 3 });
   });
 
   it("open a stream on the identifier it resumes after and the time to wait before reconnecting, send each event under its identifier, then end", async () => {

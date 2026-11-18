@@ -78,14 +78,15 @@ function openingOf(session: Session): string {
  * @remarks
  * A phase starts a pass, a part of one when it reviews or writes a test, and none when it works on one source; a plan pass is
  * named after the level its request asks for. A message of the harness to an agent, of an agent, or of the
- * person is something said; an action and its end are one step, worded as a sentence, pending until the tool
+ * person is something said, and the delivery of a message the person sent during the session a step of its
+ * own, so that a replay tells it when it happened; an action and its end are one step, worded as a sentence, pending until the tool
  * answered, with what the agent looked at; a plan the harness accepted is listed; a refusal is a verdict with
  * its code, a note a line of the harness. Once the session has ended it closes on the verdict of each test, or,
  * when none ran, on the scenarios the harness closed; an interruption is told. Long texts are cut.
  *
  * @param session - The session, as the API last told it.
  * @param events - Its events, in order.
- * @returns The steps, with the title of the session: what was asked, or when it was opened.
+ * @returns The steps, with the title of the session: what was asked to open it, or when it was opened.
  */
 export function scriptOf(session: Session, events: readonly SessionEvent[]): SessionScript {
   const steps: Step[] = [];
@@ -100,8 +101,12 @@ export function scriptOf(session: Session, events: readonly SessionEvent[]): Ses
     const at = clock(event.at);
     switch (event.type) {
       case "user_message":
-        asked ??= event.text;
-        steps.push({ kind: "say", from: "user", at, text: event.text });
+        // A message sent while the session goes on corrects its direction: it is not what the session is about.
+        if (event.number === undefined) asked ??= event.text;
+        steps.push({ kind: "say", from: "user", at, text: event.text, ...(event.number === undefined ? {} : { number: event.number }) });
+        break;
+      case "message_delivered":
+        steps.push({ kind: "delivery", at, message: event.message, to: event.agent });
         break;
       case "agent_message":
         steps.push({ kind: "say", from: event.agent, at, text: cut(event.text, MAX_TEXT * 2), ...(event.reasoning ? { thinking: true } : {}) });

@@ -2,7 +2,12 @@ import { Injectable, Logger, type OnModuleDestroy } from "@nestjs/common";
 import { catchError, EMPTY, type Observable, ReplaySubject, takeUntil } from "rxjs";
 import { SessionError } from "./session-error.ts";
 import { SessionSource } from "./session-source.ts";
-import type { Project, Session, SessionEvent, SessionOpening } from "@open-qa-stack/shared/sessions";
+import type { MessageReceipt, Project, Session, SessionEvent, SessionMessage, SessionOpening } from "@open-qa-stack/shared/sessions";
+
+/** What a client that names a session the source does not hold is told. */
+function unknownSession(id: string): SessionError {
+  return new SessionError("unknown_session", `No session ${id}.`);
+}
 
 /** The project and the sessions of the instance, read from their source for the routes. */
 @Injectable()
@@ -33,7 +38,7 @@ export class SessionsService implements OnModuleDestroy {
    */
   async session(id: string): Promise<Session> {
     const session = await this.#source.session(id);
-    if (session === undefined) throw new SessionError("unknown_session", `No session ${id}.`);
+    if (session === undefined) throw unknownSession(id);
     return session;
   }
 
@@ -66,6 +71,21 @@ export class SessionsService implements OnModuleDestroy {
    */
   open(opening: SessionOpening): Promise<Session> {
     return this.#source.open(opening);
+  }
+
+  /**
+   * Takes a message a person sends to a session that is going on.
+   *
+   * @param id - The identifier of the session.
+   * @param message - What the person says.
+   * @returns The receipt, which numbers the message: the events of the session tell its delivery later.
+   * @throws {@link SessionError} `unknown_session` when there is no such session, and what the source raises
+   * when it cannot take the message.
+   */
+  async send(id: string, message: SessionMessage): Promise<MessageReceipt> {
+    const receipt = await this.#source.send(id, message);
+    if (receipt === undefined) throw unknownSession(id);
+    return receipt;
   }
 
   /** Ends every stream of events, those still open and those opened from now on, so that the server can close. */

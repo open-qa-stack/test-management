@@ -4,7 +4,15 @@ import { describe, it } from "vitest";
 import { problemCode, problemText } from "../../src/api/problem-text.ts";
 
 /** Every code of a problem the console has a wording for. */
-const WORDED: readonly ProblemCode[] = ["unknown_session", "invalid_request", "session_running", "unavailable", "not_opened", "opening_timed_out"];
+const WORDED: readonly ProblemCode[] = [
+  "unknown_session",
+  "invalid_request",
+  "session_running",
+  "unavailable",
+  "not_opened",
+  "opening_timed_out",
+  "session_ended",
+];
 
 describe("the code of a problem", () => {
   it("is kept when the console knows it", () => {
@@ -30,6 +38,7 @@ describe("the wording of a problem", () => {
       "Aucune source de sessions n’est configurée sur cette instance.",
       "La session n’a pas pu être ouverte.",
       "L’ouverture de la session a pris trop de temps : réessayez dans un instant.",
+      "La session vient de se terminer : elle ne prend plus de message.",
     ]);
     assert.equal(problemText("unavailable", undefined), wordings[3]);
   });

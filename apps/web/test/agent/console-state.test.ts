@@ -96,8 +96,8 @@ describe("the sessions a console lists", () => {
 describe("the session a console follows", () => {
   const FOLLOWING = consoleAfter(INITIAL_STATE, { type: "followed", id: SESSION_ID });
 
-  it("starts with a stream that connects, no event, and the session yet to be told", () => {
-    assert.deepEqual(FOLLOWING.followed, { id: SESSION_ID, missing: false, stream: "connecting", events: [] });
+  it("starts with a stream that connects, no event, no message on its way, and the session yet to be told", () => {
+    assert.deepEqual(FOLLOWING.followed, { id: SESSION_ID, missing: false, stream: "connecting", events: [], saying: { state: "idle" } });
   });
 
   it("starts with the session as the list has it, when it has it", () => {
@@ -131,7 +131,7 @@ describe("the session a console follows", () => {
 
   it("is missing once the instance said it keeps no session of that name", () => {
     const missing = after([{ type: "unreachable" }, { type: "missing", id: SESSION_ID }], FOLLOWING);
-    assert.deepEqual(missing.followed, { id: SESSION_ID, missing: true, stream: "connecting", events: [] });
+    assert.deepEqual(missing.followed, { ...FOLLOWING.followed, missing: true });
     assert.equal(missing.unreachable, false);
   });
 
@@ -150,7 +150,7 @@ describe("the session a console follows", () => {
       ],
       FOLLOWING,
     );
-    assert.deepEqual(state.followed, { id: SESSION_ID, missing: false, stream: "connecting", events: EVENTS.slice(0, 5) });
+    assert.deepEqual(state.followed, { ...FOLLOWING.followed, events: EVENTS.slice(0, 5) });
   });
 
   it("does not keep twice an event it already received, and stays the same state when a batch brings nothing new", () => {
@@ -202,6 +202,51 @@ describe("the opening of a session", () => {
   it("keeps the message of the API when it refused", () => {
     const refused = after([{ type: "opening" }, { type: "refused", message: "Une session est déjà en cours." }]);
     assert.deepEqual(refused.opening, { state: "refused", message: "Une session est déjà en cours." });
+  });
+});
+
+describe("the message a person sends to the session a console follows", () => {
+  const FOLLOWING = consoleAfter(INITIAL_STATE, { type: "followed", id: SESSION_ID });
+  const SENDING = consoleAfter(FOLLOWING, { type: "saying", id: SESSION_ID });
+
+  it("is sending once the person sent it, then nothing once the API took it", () => {
+    assert.deepEqual(SENDING.followed?.saying, { state: "sending" });
+    assert.deepEqual(consoleAfter(SENDING, { type: "said", id: SESSION_ID }).followed?.saying, { state: "idle" });
+  });
+
+  it("keeps the message of the API when it refused, until the person sends again", () => {
+    const refused = consoleAfter(SENDING, { type: "unsaid", id: SESSION_ID, message: "La session vient de se terminer." });
+    assert.deepEqual(refused.followed?.saying, { state: "refused", message: "La session vient de se terminer." });
+    assert.deepEqual(consoleAfter(refused, { type: "saying", id: SESSION_ID }).followed?.saying, { state: "sending" });
+  });
+
+  it("changes nothing else of the session: its stream and its events stay", () => {
+    const told = after(
+      [
+        { type: "stream", id: SESSION_ID, state: "open" },
+        { type: "events", id: SESSION_ID, events: EVENTS },
+      ],
+      FOLLOWING,
+    );
+    assert.deepEqual(consoleAfter(told, { type: "saying", id: SESSION_ID }).followed, { ...told.followed, saying: { state: "sending" } });
+  });
+
+  it("ignores what the API answers for a session the console no longer follows, or for none", () => {
+    for (const action of [
+      { type: "saying", id: EARLIER.id },
+      { type: "said", id: EARLIER.id },
+      { type: "unsaid", id: EARLIER.id, message: "Refused." },
+    ] as const) {
+      assert.equal(consoleAfter(SENDING, action), SENDING);
+      assert.equal(consoleAfter(INITIAL_STATE, action), INITIAL_STATE);
+    }
+  });
+
+  it("is forgotten once the person left the session: coming back, nothing is on its way and nothing was refused", () => {
+    const refused = consoleAfter(SENDING, { type: "unsaid", id: SESSION_ID, message: "Refused." });
+    for (const state of [SENDING, refused]) {
+      assert.deepEqual(after([{ type: "left" }, { type: "followed", id: SESSION_ID }], state).followed?.saying, { state: "idle" });
+    }
   });
 });
 

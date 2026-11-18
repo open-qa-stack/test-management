@@ -26,6 +26,8 @@ export type HarnessEvent =
   | { readonly type: "journal"; readonly level: "info" | "error"; readonly message: string }
   /** A message the harness sent to the agent: the request, then each reminder. */
   | { readonly type: "message"; readonly text: string }
+  /** A message of the person delivered to the session of the phase, by its number in the inbox of the run. */
+  | { readonly type: "person"; readonly message: number; readonly text: string }
   /** What a phase, or the card of a source, asked of the model, just before its end. */
   | ({ readonly type: "usage" } & ModelUsage);
 

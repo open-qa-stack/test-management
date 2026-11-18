@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import { describe, it } from "node:test";
 import { setTimeout as pause } from "node:timers/promises";
@@ -16,8 +16,8 @@ import type { SoloOptions } from "../src/solo/solo-options.ts";
 import { stopProcessGroup } from "../src/solo/stop-process-group.ts";
 import { CapturedLogger } from "./support/captured-logger.ts";
 import { fakeOqas } from "./support/fake-oqas.ts";
-import { at, entry, traced } from "./support/run-lines.ts";
-import { FIRST, stampOf, TestRepository } from "./support/test-repository.ts";
+import { at, deliveredNow, entry, traced } from "./support/run-lines.ts";
+import { FIRST, SECOND, stampOf, TestRepository } from "./support/test-repository.ts";
 
 const logger = new CapturedLogger();
 Logger.overrideLogger(logger);
@@ -193,6 +193,119 @@ describe("the events of a session of the command line", () => {
     repository.remove(repository.journalPath(FIRST));
     const error = await failure;
     assert.ok(error instanceof Error && error.message === `The test repository no longer holds the run ${FIRST}.`);
+  });
+});
+
+describe("a message sent to a session of the command line", () => {
+  /** The lines of the inbox of the first run, read as JSON. */
+  const inboxOf = (repository: TestRepository) =>
+    readFileSync(repository.inboxPath(FIRST), "utf8")
+      .split("\n")
+      .slice(0, -1)
+      .map((line) => JSON.parse(line) as unknown);
+
+  it("is appended to the inbox of its run, which it starts, as one line that bears its date and its text, and is numbered by that line", async () => {
+    const repository = new TestRepository();
+    repository.journal(FIRST, noted(1, "One."));
+    let seconds = 10;
+    const source = sourceOf(repository, { now: () => new Date(at(seconds)) });
+    assert.equal(existsSync(repository.inboxPath(FIRST)), false);
+    assert.deepEqual(await source.send(FIRST, { text: "not that page\nthe other" }), { number: 1 });
+    seconds = 11;
+    assert.deepEqual(await source.send(FIRST, { text: "and the orders" }), { number: 2 });
+    assert.equal(
+      readFileSync(repository.inboxPath(FIRST), "utf8"),
+      `{"at":"${at(10)}","text":"not that page\\nthe other"}\n{"at":"${at(11)}","text":"and the orders"}\n`,
+    );
+  });
+
+  it("is numbered after every line the inbox already holds, a message or not, as the run numbers it", async () => {
+    const repository = new TestRepository();
+    repository.journal(FIRST, noted(1, "One."));
+    repository.inbox(FIRST, 'not json\n\n{"text":"written by hand"}\n');
+    assert.deepEqual(await sourceOf(repository).send(FIRST, { text: "not that page" }), { number: 4 });
+  });
+
+  it("keeps a line and a number of its own when many are sent at once", async () => {
+    const repository = new TestRepository();
+    repository.journal(FIRST, noted(1, "One."));
+    const source = sourceOf(repository);
+    const texts = Array.from({ length: 25 }, (_, rank) => `message ${rank + 1}`);
+    const numbers = (await Promise.all(texts.map((text) => source.send(FIRST, { text })))).map((receipt) => receipt?.number ?? 0);
+    assert.deepEqual(
+      [...numbers].sort((a, b) => a - b),
+      texts.map((_, rank) => rank + 1),
+    );
+    const lines = inboxOf(repository) as { text: string }[];
+    assert.equal(lines.length, texts.length);
+    assert.deepEqual(
+      numbers.map((number) => lines[number - 1]?.text),
+      texts,
+    );
+  });
+
+  it("is told by the events of the session under its number, then its delivery once the run traces it", async () => {
+    const repository = new TestRepository();
+    repository.journal(FIRST, noted(1, "One."));
+    const source = sourceOf(repository);
+    const followed = take(source.events(FIRST, 0), 3);
+    await source.send(FIRST, { text: "not that page" });
+    const [, said] = await take(source.events(FIRST, 0), 2);
+    const [{ at: sentAt }] = inboxOf(repository) as [{ at: string }];
+    assert.deepEqual(said, { id: 2, at: sentAt, type: "user_message", text: "not that page", number: 1 });
+    repository.trace("design-local", stampOf(FIRST), deliveredNow("write", 1, "not that page"));
+    const [, again, reached] = await followed;
+    assert.deepEqual(again, said);
+    assert.deepEqual({ ...reached, at: "" }, { id: 3, at: "", type: "message_delivered", message: 1, agent: "writer" });
+  });
+
+  it("is nothing for a run the repository does not hold, where it writes nothing", async () => {
+    const repository = new TestRepository();
+    repository.journal(FIRST, noted(1, "One."));
+    assert.equal(await sourceOf(repository).send(SECOND, { text: "not that page" }), undefined);
+    assert.equal(existsSync(repository.inboxPath(SECOND)), false);
+  });
+
+  it("is refused by a session that is completed, and by one that is interrupted, whose inbox nothing reads any more", async () => {
+    const repository = new TestRepository();
+    repository.journal(FIRST, noted(1, "One."));
+    repository.end(FIRST, { exitCode: 0 });
+    repository.journal(SECOND, noted(3601, "One."));
+    repository.touch(repository.journalPath(SECOND), new Date(at(3602)));
+    const source = sourceOf(repository);
+    for (const [id, state] of [
+      [FIRST, "completed"],
+      [SECOND, "interrupted"],
+    ] as const) {
+      const refusal = await refusalOf(source.send(id, { text: "not that page" }));
+      assert.deepEqual(
+        [refusal.failure, refusal.message],
+        ["session_ended", `The session ${id} is ${state} and takes no message: open another session to go on.`],
+      );
+      assert.equal(existsSync(repository.inboxPath(id)), false);
+    }
+  });
+
+  it("does not make an interrupted session look alive when someone writes to the inbox of its run by hand", async () => {
+    const repository = new TestRepository();
+    repository.journal(FIRST, noted(1, "One."));
+    repository.touch(repository.journalPath(FIRST), new Date(at(2)));
+    repository.inbox(FIRST, `${JSON.stringify({ at: new Date().toISOString(), text: "are you there?" })}\n`);
+    const source = sourceOf(repository);
+    const session = await source.session(FIRST);
+    assert.deepEqual([session?.state, session?.lastEventAt], ["interrupted", at(2)]);
+    assert.equal((await refusalOf(source.send(FIRST, { text: "hello?" }))).failure, "session_ended");
+  });
+
+  it("fails when the inbox cannot be written, which does not hold back the messages sent after it", async () => {
+    const repository = new TestRepository();
+    repository.journal(FIRST, noted(1, "One."));
+    mkdirSync(repository.inboxPath(FIRST));
+    const source = sourceOf(repository);
+    const failed = source.send(FIRST, { text: "lost" });
+    await assert.rejects(failed, { code: "EISDIR" });
+    rmdirSync(repository.inboxPath(FIRST));
+    assert.deepEqual(await source.send(FIRST, { text: "kept" }), { number: 1 });
   });
 });
 

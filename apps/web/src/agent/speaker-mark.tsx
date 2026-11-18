@@ -13,7 +13,7 @@ export interface SpeakerMarkProps {
 }
 
 /** The size of the icon of a mark, in pixels. */
-const ICONS = { sm: 11, md: 15, lg: 18 } as const;
+const ICONS = { sm: 12, md: 16, lg: 24 } as const;
 
 /**
  * The mark of who speaks: its icon, on the colour of its family, as the picture of a member of a team.

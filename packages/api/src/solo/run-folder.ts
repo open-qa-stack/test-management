@@ -20,6 +20,13 @@ const STATE_FOLDER = ".oqas";
 /** The name of the journal of a run, which gives its identifier. */
 const JOURNAL = /^(oqas-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z)\.jsonl$/;
 
+/**
+ * What the name of the inbox of a run ends on, after the identifier of the run: the command line reads the
+ * messages of a person from `runs/oqas-<date>.inbox.jsonl`. It mirrors the command line, whose packages the
+ * API does not import.
+ */
+const INBOX_SUFFIX = ".inbox.jsonl";
+
 /** The name of a trace, which ends on the date it started, written as in the identifier of a run. */
 const TRACE = /-(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z)\.jsonl$/;
 
@@ -107,7 +114,9 @@ function resultOf(ended: Readonly<Record<string, unknown>>): SessionResult {
  * The configuration of the repository gives its applications and its state folder. In that folder,
  * `runs/oqas-<date>.jsonl` is the journal of a run, which exists while the run is going, and
  * `runs/oqas-<date>.json` its state, written when it ends; a trace, `traces/<name>-<date>.jsonl`, belongs to
- * the run that started before it and before the next run.
+ * the run that started before it and before the next run. `runs/oqas-<date>.inbox.jsonl` is the inbox of a
+ * run: what a person sent it. The run does not write it, so it is no sign of life: only the journal, the
+ * traces and the state date a run and tell whether it still works.
  *
  * The state folder the configuration declares is only followed inside the repository: the configuration is a
  * file of the repository, which must not make the instance read anywhere else on its machine.
@@ -159,6 +168,7 @@ export class RunFolder {
       return {
         id,
         journal: join(folder, "runs", `${id}.jsonl`),
+        inbox: join(folder, "runs", `${id}${INBOX_SUFFIX}`),
         state: join(folder, "runs", `${id}.json`),
         traces: traces.filter(({ stamp }) => stamp >= from && (until === undefined || stamp < until)).map(({ name }) => join(folder, "traces", name)),
       };
@@ -194,7 +204,7 @@ export class RunFolder {
    * @remarks
    * A run is `running` from its journal on, `completed` once its state is written, and `interrupted` when it
    * has no state and wrote nothing for {@link SILENCE_MS}. Its last event is dated by the last write to one of
-   * its files, or by its start when none is left.
+   * the files it writes, or by its start when none is left; its inbox, which others write, dates nothing.
    *
    * @param files - The files of the run.
    * @returns Its state, and when it last wrote; `undefined` when its journal was removed since its files were

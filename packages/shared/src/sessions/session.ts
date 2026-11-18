@@ -61,3 +61,15 @@ export interface SessionOpening {
   /** The environment to work against; the only one the project declares when left out. */
   readonly environment?: string;
 }
+
+/** What a person sends to a session that is going on, to correct its direction. */
+export interface SessionMessage {
+  /** What the person says to the agents. */
+  readonly text: string;
+}
+
+/** What the API answers once it took a message for a session. */
+export interface MessageReceipt {
+  /** The number of the message in the session, from 1: its delivery to an agent repeats it. */
+  readonly number: number;
+}

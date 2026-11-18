@@ -459,6 +459,46 @@ describe("the long texts of a script", () => {
   });
 });
 
+describe("a message the person sends while the session goes on", () => {
+  const SAID: readonly EventBody[] = [
+    { type: "user_message", text: "tester la recherche" },
+    { type: "agent_message", agent: "planner", text: "I plan.", reasoning: false },
+    { type: "user_message", text: "sans le profil", number: 1 },
+    { type: "agent_message", agent: "planner", text: "I go on.", reasoning: false },
+    { type: "message_delivered", message: 1, agent: "planner" },
+  ];
+
+  it("is something the person said, where it happened, with its number; what opened the session has none", () => {
+    const { steps } = scriptWith(SAID);
+    assert.deepEqual(steps[0], { kind: "say", from: "user", at: "14:44:06", text: "tester la recherche" });
+    assert.deepEqual(steps[2], { kind: "say", from: "user", at: "14:44:08", text: "sans le profil", number: 1 });
+  });
+
+  it("reaches an agent in a step of its own, which names the message and that agent, when it happened", () => {
+    const { steps } = scriptWith(SAID);
+    assert.equal(steps.length, 5);
+    assert.deepEqual(steps[4], { kind: "delivery", at: "14:44:10", message: 1, to: "planner" });
+  });
+
+  it("waits for an agent as long as no delivery came: the script holds none", () => {
+    assert.deepEqual(
+      scriptWith(SAID.slice(0, 4)).steps.map(({ kind }) => kind),
+      ["say", "say", "say", "say"],
+    );
+  });
+
+  it("never titles the session, which stays named after what opened it, or after its opening when nothing did", () => {
+    const corrected = [{ type: "user_message", text: "sans le profil", number: 1 }, ...SAID] as const;
+    assert.equal(scriptWith(corrected, UNASKED).title, "tester la recherche");
+    assert.equal(scriptWith([corrected[0]], UNASKED).title, "Session du 2026-11-15 à 14:44:06 UTC");
+  });
+
+  it("stays waiting when the agent it reached is one the console does not know: that delivery is left out", () => {
+    const { steps } = scriptWith([...SAID.slice(0, 4), { type: "message_delivered", message: 1, agent: "auditor" as "planner" }]);
+    assert.equal(steps.length, 4);
+  });
+});
+
 describe("an agent the console does not know", () => {
   it("is left out of the thread, with what the harness asks of it", () => {
     const stranger = "auditor" as "planner";

@@ -1,7 +1,7 @@
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join, posix, relative, sep } from "node:path";
 import type { CommandRunner, StopReason, TestVerdict, UncoveredRequest } from "@open-qa-stack/domain";
-import { Cartographer, Designer, DesignPasses, type JournalEntry, type TraceLine } from "@open-qa-stack/agents";
+import { Cartographer, Designer, DesignPasses, PersonInbox, type JournalEntry, type TraceLine } from "@open-qa-stack/agents";
 import {
   CharterCheck,
   reviewerInstructions,
@@ -9,6 +9,7 @@ import {
   LocalRunner,
   PinnedRun,
   resolveCharter,
+  runInboxFile,
   RUNS_FOLDER,
   TrialRunner,
   type ActiveRule,
@@ -107,6 +108,11 @@ export interface SoloRunState {
  * Lines file of the run; the summary goes to the standard output; every declared secret is masked. The
  * guardrail of the autonomy, counted from the start of the run, stops every task of the agents.
  *
+ * While the run is going, a person speaks to its agents by appending a message to its inbox, a JSON Lines
+ * file beside its journal: the session that leads the step under way receives it, and those that lead a
+ * step later in the run are recalled it. A message no session could receive is told in the journal of the
+ * summary.
+ *
  * A run a limit stopped in its cartography or its design says how to resume it; a design cut short that gave
  * its tests still leads to their execution. Resumed, a run takes the environment and the brief of the one it
  * resumes, and starts again from the step that was stopped: the cartography keeps the cards it made, and the
@@ -139,6 +145,8 @@ export class SoloRun {
     journal.adopt(early.entries);
     const runId = `oqas-${started.toISOString().replace(/[:.]/g, "-")}`;
     const runsDir = posix.join(config.repository.stateDir, RUNS_FOLDER);
+    // What a person appends to the inbox while the run is going reaches the agent at work, and holds for those after it; a run resumed is a run of its own, with an inbox of its own.
+    const inbox = new PersonInbox(join(this.options.repositoryRoot, runsDir, runInboxFile(runId)));
     const steps: { step: Step; durationMs: number; modelRequests: number }[] = [{ step: "configuration", durationMs: loaded.durationMs, modelRequests: 0 }];
     // The requests of a step are those its sessions sent to the model, whatever its end.
     let counted: CountedRuntime | undefined;
@@ -188,6 +196,11 @@ export class SoloRun {
       const written: SoloRunState = { ...state, ...found, exitCode, steps, durationMs: now().getTime() - started.getTime() };
       await timed("summary", async () => {
         if (written.stoppedBy !== undefined) journal.record("summary", "info", resumeHint(written));
+        // A message that came once no session would open any more was read by no one: the person is told which.
+        for (const { number } of inbox.pending())
+          journal.record("summary", "info", `The message ${number} of the person was not delivered: no agent was at work to receive it.`);
+        if (inbox.unreadable !== undefined)
+          journal.record("summary", "error", `The inbox of the run could not be read, and no message of it was delivered: ${inbox.unreadable}`);
         // A runtime that cannot be closed is told, and the state is written all the same.
         await open?.close().catch((error: unknown) => journal.record("summary", "error", `The runtime of the agents could not be closed: ${messageOf(error)}`));
         await writeFile(join(this.options.repositoryRoot, runsDir, `${runId}.json`), `${JSON.stringify(written, null, 2)}\n`);
@@ -207,7 +220,7 @@ export class SoloRun {
       }
       return counted;
     };
-    const observed = this.options.follow === undefined ? {} : { observe: this.options.follow };
+    const observed = { inbox, ...(this.options.follow === undefined ? {} : { observe: this.options.follow }) };
     const chain = async (): Promise<ExitCodeValue> => {
       // A run resumed in its design has its index already.
       const mapped =

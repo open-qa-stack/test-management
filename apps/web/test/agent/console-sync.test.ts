@@ -167,6 +167,34 @@ describe("what keeps the console in step with its instance", () => {
     });
   });
 
+  describe("sending a message to a session", () => {
+    const MESSAGES = `POST /api/sessions/${SESSION_ID}/messages`;
+
+    it("says it is sending, posts what the person said, then says the API took it", async () => {
+      api.answer(MESSAGES, json({ number: 1 }, 202));
+      api.sync.say(SESSION_ID, "sans le profil");
+      assert.deepEqual(api.told, [{ type: "saying", id: SESSION_ID }]);
+      await settled();
+      assert.deepEqual(api.calls, [MESSAGES]);
+      assert.deepEqual(api.told.slice(1), [{ type: "said", id: SESSION_ID }]);
+    });
+
+    it("says why the API refused, in the words of the console: the session just ended, or the instance does not answer", async () => {
+      api.answer(MESSAGES, problem("session_ended", 409));
+      api.sync.say(SESSION_ID, "sans le profil");
+      await settled();
+      api.answer(MESSAGES, unreachable);
+      api.sync.say(SESSION_ID, "sans le profil");
+      await settled();
+      assert.deepEqual(api.told, [
+        { type: "saying", id: SESSION_ID },
+        { type: "unsaid", id: SESSION_ID, message: "La session vient de se terminer : elle ne prend plus de message." },
+        { type: "saying", id: SESSION_ID },
+        { type: "unsaid", id: SESSION_ID, message: "L’instance ne répond pas." },
+      ]);
+    });
+  });
+
   describe("following a session", () => {
     const SESSION = `GET /api/sessions/${SESSION_ID}`;
 

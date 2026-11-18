@@ -1,11 +1,23 @@
 import { isRecord, parseJson, textOf } from "../json.ts";
-import type { CommandStep, RunLine, TracedPhase } from "./run-line.ts";
+import type { CommandStep, PersonLine, RelayedPhase, RunLine, TracedPhase } from "./run-line.ts";
 
 const TRACED: readonly TracedPhase[] = ["survey", "card", "consolidation", "index", "plan", "review", "write"];
 
 const STEPS: readonly CommandStep[] = ["configuration", "prerequisites", "execution", "summary"];
 
+/** The steps the agents work in, with the phase an error of their journal is told under. */
+const RELAYED: ReadonlyMap<string, RelayedPhase> = new Map([
+  ["cartography", "survey"],
+  ["design", "plan"],
+]);
+
 const BRIEF = /<brief>\s*([^]*?)\s*<\/brief>/;
+
+/**
+ * What opens the words of a person in a message of the harness: the tag the command line gives them to an
+ * agent between, at the end of the message. It mirrors the command line, whose packages the API does not import.
+ */
+const PERSON_WORDS = "<person-message";
 
 /** The date a line bears, in the one form dates are compared in; `undefined` when it bears none. */
 function dateOf(value: unknown): string | undefined {
@@ -34,29 +46,66 @@ export function traceLine(text: string): RunLine | undefined {
 /**
  * Reads an entry of the journal of a run.
  *
+ * @remarks
+ * The traces of the cartography and of the design tell those steps line by line, so their entries are left
+ * out, but their errors: the command journals some itself, around the agents, that no trace carries — what
+ * stopped the design before a session started, for one. The thread leaves out those a trace told already.
+ *
  * @param text - The entry, as the command wrote it.
  * @returns The entry as a line; `undefined` for a text that is no entry, and for an entry of the cartography or
- * of the design, which their traces tell line by line.
+ * of the design that is no error.
  */
 export function journalLine(text: string): RunLine | undefined {
   const entry = parseJson(text);
   if (!isRecord(entry)) return undefined;
-  const { event, message } = entry;
+  const { step, event, message } = entry;
   const at = dateOf(entry["at"]);
-  const phase = STEPS.find((known) => known === entry["step"]);
-  if (at === undefined || phase === undefined || typeof message !== "string") return undefined;
+  if (at === undefined || typeof step !== "string" || typeof message !== "string") return undefined;
+  const level = event === "error" ? "error" : "info";
+  const phase = STEPS.find((known) => known === step) ?? (level === "error" ? RELAYED.get(step) : undefined);
+  if (phase === undefined) return undefined;
   if (event === "started") return { at, phase, actor: "command", event: { type: "started" } };
-  return { at, phase, actor: "command", event: { type: "journal", level: event === "error" ? "error" : "info", message } };
+  return { at, phase, actor: "command", event: { type: "journal", level, message } };
+}
+
+/**
+ * Reads a line of the inbox of a run.
+ *
+ * @remarks
+ * The command line reads the text of a line alone, and numbers every line, a message or not. The date is
+ * read here besides, to place the message in the thread: a line without one is not told, though the run
+ * may deliver it.
+ *
+ * @param text - The line, as it was appended.
+ * @param number - The rank of the line in the inbox, from 1.
+ * @returns The message; `undefined` for a line the command line takes for no message — a text that is no
+ * JSON object, or one that says nothing — and for one that bears no date.
+ */
+export function inboxLine(text: string, number: number): PersonLine | undefined {
+  const line = parseJson(text);
+  if (!isRecord(line)) return undefined;
+  const at = dateOf(line["at"]);
+  const said = line["text"];
+  if (at === undefined || typeof said !== "string" || said.trim() === "") return undefined;
+  return { at, actor: "person", number, text: said };
 }
 
 /**
  * Finds the brief of the person in a line: the harness quotes it, between `<brief>` and `</brief>`, in the
  * request it sends to the agent that plans.
  *
+ * @remarks
+ * The harness ends a message with what the person sent while the run was going, and those words may hold
+ * anything, the marks of a brief included. A brief is therefore only read before them: a message sent to
+ * the run never passes for what opened it.
+ *
  * @param line - The line.
  * @returns The brief, without the spaces around it; `undefined` when the line is no message of the harness or quotes none.
  */
 export function briefOf(line: RunLine): string | undefined {
   if (line.actor !== "harness" || line.event.type !== "message") return undefined;
-  return BRIEF.exec(textOf(line.event["text"]))?.[1];
+  const text = textOf(line.event["text"]);
+  const quoted = BRIEF.exec(text);
+  const person = text.indexOf(PERSON_WORDS);
+  return quoted === null || (person >= 0 && person < quoted.index) ? undefined : quoted[1];
 }

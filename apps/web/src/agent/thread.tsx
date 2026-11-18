@@ -50,7 +50,7 @@ function Thinking({ step, shown }: { readonly step: SayStep; readonly shown: Sho
   return (
     <details className="thinking" open={shown.running}>
       <summary>
-        <Icon name="thought" size={13} />
+        <Icon name="thought" />
         <span className="thinking-label">Réflexion</span>
         <span className="thinking-preview" aria-hidden="true">
           {step.text}
@@ -73,16 +73,15 @@ function ActionState({ step, running }: { readonly step: ToolStep; readonly runn
 }
 
 /**
- * An action of an agent, in a line: what it did and how it ended; what the tool answered unfolds under it, and
- * its eye opens what the agent had before its eyes.
+ * An action of an agent, in a row: what it did and how it ended, on a line the answer of the tool unfolds under;
+ * then its eye, which opens what the agent had before its eyes, and the time it took, which ends the row.
  */
 function Action({ step, shown, back }: { readonly step: ToolStep; readonly shown: ShownStep; readonly back: Back }): ReactNode {
   const line = (
     <>
       <ActionState step={step} running={shown.running} />
-      <Icon name={step.icon} size={13} />
+      <Icon name={step.icon} />
       <span className="act-title">{step.title}</span>
-      {!shown.running && step.durationMs !== undefined && <span className="act-time">{elapsedText(step.durationMs)}</span>}
     </>
   );
   const selected = back.lookIndex === shown.index;
@@ -94,25 +93,21 @@ function Action({ step, shown, back }: { readonly step: ToolStep; readonly shown
       aria-current={selected ? "true" : undefined}
       aria-label={`${step.title} — voir ce que l’agent avait sous les yeux`}
     >
-      <Icon name="eye" size={13} />
+      <Icon name="eye" />
     </a>
   );
-  const className = selected ? "act selected" : "act";
-  if (shown.running || step.detail === undefined) {
-    return (
-      <div className={className}>
-        {line}
-        {look}
-      </div>
-    );
-  }
   return (
-    <div className={className}>
-      <details>
-        <summary>{line}</summary>
-        <pre className="act-result">{step.detail}</pre>
-      </details>
+    <div className={selected ? "act selected" : "act"}>
+      {shown.running || step.detail === undefined ? (
+        <div className="act-line">{line}</div>
+      ) : (
+        <details>
+          <summary className="act-line">{line}</summary>
+          <pre className="act-result">{step.detail}</pre>
+        </details>
+      )}
       {look}
+      {!shown.running && step.durationMs !== undefined && <span className="act-time">{elapsedText(step.durationMs)}</span>}
     </div>
   );
 }
@@ -181,7 +176,7 @@ function Notes({ items }: { readonly items: readonly ShownStep[] }): ReactNode {
   if (texts.length === 1) {
     return (
       <div className="notes single">
-        <Icon name="shield" size={12} />
+        <Icon name="shield" />
         <span className="note-text">{texts[0]!.text}</span>
       </div>
     );
@@ -189,7 +184,7 @@ function Notes({ items }: { readonly items: readonly ShownStep[] }): ReactNode {
   return (
     <details className="notes">
       <summary>
-        <Icon name="shield" size={12} />
+        <Icon name="shield" />
         <span>{texts.length} notes du harnais</span>
         <span className="note-preview" aria-hidden="true">
           {texts.at(-1)!.text}
@@ -211,11 +206,13 @@ function Verdict({ step }: { readonly step: VerdictStep }): ReactNode {
   return (
     <article className={step.accepted ? "verdict accepted" : "verdict refused"}>
       <header className="verdict-head">
-        <SpeakerMark speaker="harness" size="sm" />
-        <b>{IDENTITIES.harness.name}</b>
-        <Badge tone={step.accepted ? "ok" : "ko"}>{step.accepted ? "accepté" : "refusé"}</Badge>
-        {step.code !== undefined && <span className="verdict-code">{step.code}</span>}
-        <span className="turn-role">{step.about}</span>
+        <div className="lead">
+          <SpeakerMark speaker="harness" size="sm" />
+          <b>{IDENTITIES.harness.name}</b>
+          <Badge tone={step.accepted ? "ok" : "ko"}>{step.accepted ? "accepté" : "refusé"}</Badge>
+          {step.code !== undefined && <span className="verdict-code">{step.code}</span>}
+          <span className="turn-role">{step.about}</span>
+        </div>
         <span className="turn-at">{step.at}</span>
       </header>
       <p className="verdict-text">{step.text}</p>
@@ -228,9 +225,11 @@ function Plan({ step }: { readonly step: PlanStep }): ReactNode {
   return (
     <section className="result-card">
       <header>
-        <span className="act-state ok" aria-hidden="true" />
-        <b>{step.title}</b>
-        <span className="turn-role">{step.scenarios.length} scénario(s)</span>
+        <div className="lead">
+          <span className="act-state ok" aria-hidden="true" />
+          <b>{step.title}</b>
+          <span className="turn-role">{step.scenarios.length} scénario(s)</span>
+        </div>
         <span className="turn-at">{step.at}</span>
       </header>
       {step.scenarios.map((scenario, index) => (
@@ -279,6 +278,22 @@ function Outcome({ step }: { readonly step: OutcomeStep }): ReactNode {
   );
 }
 
+/**
+ * What the person said to the agents while they worked: a bubble as the request, and under it where the
+ * message is — waiting for an agent to take it, or with the agent that did.
+ */
+function Message({ turn }: { readonly turn: Extract<Turn, { kind: "message" }> }): ReactNode {
+  return (
+    <div className="sent">
+      <div className="request">
+        <span className="sr-only">Votre message : </span>
+        {turn.shown.written}
+      </div>
+      <span className="sent-status">{turn.deliveredTo === undefined ? "en attente d’un agent" : `remis à ${IDENTITIES[turn.deliveredTo].name}`}</span>
+    </div>
+  );
+}
+
 /** One turn of the thread, as its kind shows it. */
 function TurnView({ turn, back }: { readonly turn: Turn; readonly back: Back }): ReactNode {
   if (turn.kind === "request") {
@@ -289,6 +304,7 @@ function TurnView({ turn, back }: { readonly turn: Turn; readonly back: Back }):
       </div>
     );
   }
+  if (turn.kind === "message") return <Message turn={turn} />;
   if (turn.kind === "agent") return <AgentTurn turn={turn} back={back} />;
   if (turn.kind === "brief") return <Brief shown={turn.shown} />;
   if (turn.kind === "notes") return <Notes items={turn.items} />;
@@ -300,7 +316,7 @@ function TurnView({ turn, back }: { readonly turn: Turn; readonly back: Back }):
 }
 
 /**
- * The thread of a session, as a conversation: what was asked, then each agent in turn — what it thought,
+ * The thread of a session, as a conversation: what was asked, what the person said since, each agent in turn — what it thought,
  * folded, what it said, and what it did, a line per action — the verdicts of the harness, the plans, and
  * what the session produced. While the session goes on, its last line names who is at work.
  *
@@ -334,7 +350,6 @@ export function Thread({ path, frame, lookIndex, filter = "all", followed, query
           </span>
         </div>
       )}
-      <div className="thread-end" />
     </section>
   );
 }

@@ -87,7 +87,7 @@ export function endOf(script: SessionScript): number {
   return script.steps.reduce((total, step) => total + durationOf(step) + PAUSE_TICKS, 0);
 }
 
-/** Who a step comes from: its speaker, or the harness for what it decides and notes; nobody for the start of a pass or a card. */
+/** Who a step comes from: its speaker, or the harness for what it decides and notes; nobody for the start of a pass, a card or the delivery of a message. */
 function fromOf(step: Step): Speaker | undefined {
   if (step.kind === "verdict" || step.kind === "note") return "harness";
   return "from" in step ? step.from : undefined;
@@ -223,10 +223,11 @@ export type ThreadFilter = "all" | "talk" | "actions" | "verdicts";
  * @param step - The step.
  * @param filter - What the thread keeps.
  * @param speaker - The only speaker the thread follows, if any.
- * @returns Whether the step shows. The start of a pass always does; a verdict or a note is the harness speaking.
+ * @returns Whether the step shows. The start of a pass always does, and the delivery of a message, which only
+ * says where a message shown is; a verdict or a note is the harness speaking.
  */
 export function shows(step: Step, filter: ThreadFilter, speaker?: Speaker): boolean {
-  if (step.kind === "pass") return true;
+  if (step.kind === "pass" || step.kind === "delivery") return true;
   if (speaker !== undefined && fromOf(step) !== speaker) return false;
   if (filter === "talk") return step.kind === "say";
   if (filter === "actions") return step.kind === "tool" || step.kind === "plan" || step.kind === "outcome";

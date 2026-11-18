@@ -10,7 +10,7 @@ export const MAX_FOLLOWED_LENGTH = 160;
  * @remarks
  * A tool call is shown with its arguments, a result with its beginning, a refused call with its reason, each
  * on one line and cut to {@link MAX_FOLLOWED_LENGTH} characters; the trace keeps them whole. What the model
- * asked is shown at the end of each phase. The entries of the journal are left out: the journal prints them.
+ * asked is shown at the end of each phase, and a message of the person when a session receives it. The entries of the journal are left out: the journal prints them.
  * A line was written with the secrets of the configuration masked.
  *
  * @param line - The line of the trace.
@@ -38,6 +38,8 @@ function saidBy(line: TraceLine): string | undefined {
       return `agent thinks: ${shortened(event.text)}`;
     case "message":
       return `harness: ${shortened(event.text)}`;
+    case "person":
+      return `person (message ${event.message}): ${shortened(event.text)}`;
     case "error":
       return `!! ${event.error.name}: ${shortened(event.error.message)}`;
     case "stopped":
