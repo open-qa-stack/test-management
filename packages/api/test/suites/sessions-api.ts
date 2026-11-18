@@ -390,10 +390,11 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
       assert.deepEqual([status, type, session.state, location], [201, JSON_TYPE, "running", `sessions/${session.id}`]);
       assert.match(session.id, /^session-\d{4}-\d{2}-\d{2}T[\d-]+Z-[0-9a-f]{8}$/);
       assert.deepEqual([session.request, session.environment], ["Test the listing of the orders.", "local"]);
+      // Held at the door, the session tells nothing more: what the location answers is what the store holds.
+      await door.reached;
       assert.deepEqual((await answerOf(await fetch(new URL(location, response.url)))).body, await store.session(session.id));
       const waiting = await opened(STOPPED_AT_ONCE, own);
       assert.equal(waiting.state, "queued");
-      await door.reached;
       assert.equal((await store.session(waiting.id))?.state, "queued", "one session at a time");
       door.open();
       assert.equal((await ended(session.id, own)).result?.outcome, "passed");
