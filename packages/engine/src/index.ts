@@ -1,3 +1,5 @@
+export { Configuration } from "./configuration/configuration.ts";
+export type { ConfigurationSource } from "./ports/configuration-source.ts";
 export type { JournalOutput } from "./ports/journal-output.ts";
 export type { OpenRuntime } from "./ports/open-runtime.ts";
 export type { RunReference } from "./ports/run-reference.ts";

@@ -1,3 +1,4 @@
+import { ConfigurationStore } from "../configuration/configuration-store.ts";
 import { Database } from "../database/database.ts";
 import { DatabaseStatus } from "../database/database-status.ts";
 import { SchemaMigrations } from "../database/schema-migrations.ts";
@@ -10,8 +11,8 @@ import type { StoreLogger } from "../store-logger.ts";
 
 /**
  * The database of an instance, assembled once for whatever process reaches it — the server that hosts its
- * sessions, a terminal that opens one or reads them: the connection, the migrations, their status and the
- * store of the sessions, with the one rule that brings the schema in order before anything is read.
+ * sessions, a terminal that opens one or reads them: the connection, the migrations, their status, the
+ * store of the sessions and that of the configuration, with the one rule that brings the schema in order before anything is read.
  *
  * @remarks
  * Nothing is opened until a statement needs it: a process may assemble the database of a server that does not
@@ -26,6 +27,8 @@ export class InstanceDatabase {
   readonly status: DatabaseStatus;
   /** The store of the sessions, which the operations on sessions are given. */
   readonly sessions: SessionStore;
+  /** The store of the revisions of the configuration, which the operations on the configuration are given. */
+  readonly configuration: ConfigurationStore;
 
   /**
    * @param url - The connection URL of the database, as `instanceDatabaseUrl` resolves it.
@@ -37,6 +40,7 @@ export class InstanceDatabase {
     this.migrations = new SchemaMigrations(this.database, migrations);
     this.status = new DatabaseStatus(this.migrations, logger);
     this.sessions = new SessionStore(this.database);
+    this.configuration = new ConfigurationStore(this.database);
   }
 
   /**

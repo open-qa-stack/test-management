@@ -1,12 +1,12 @@
 import { Logger, Module, type OnApplicationShutdown } from "@nestjs/common";
-import { Database, DatabaseStatus, InstanceDatabase, SchemaMigrations, SessionStore } from "@open-qa-stack/store";
+import { ConfigurationStore, Database, DatabaseStatus, InstanceDatabase, SchemaMigrations, SessionStore } from "@open-qa-stack/store";
 import { ApiConfiguration } from "../config/api-configuration.ts";
 import { SchemaCheck } from "./schema-check.ts";
 
 /**
  * Provides the database of the instance as the store assembles it for every process that reaches it, and
- * each of its parts to whoever needs one — the connection, the migrations, their status, the store of the
- * sessions; checks its schema at startup, and closes its connections when the instance stops.
+ * each of its parts to whoever needs one — the connection, the migrations, their status, the stores of the
+ * sessions and of the configuration; checks its schema at startup, and closes its connections when the instance stops.
  */
 @Module({
   providers: [
@@ -19,9 +19,10 @@ import { SchemaCheck } from "./schema-check.ts";
     { provide: SchemaMigrations, useFactory: (instance: InstanceDatabase) => instance.migrations, inject: [InstanceDatabase] },
     { provide: DatabaseStatus, useFactory: (instance: InstanceDatabase) => instance.status, inject: [InstanceDatabase] },
     { provide: SessionStore, useFactory: (instance: InstanceDatabase) => instance.sessions, inject: [InstanceDatabase] },
+    { provide: ConfigurationStore, useFactory: (instance: InstanceDatabase) => instance.configuration, inject: [InstanceDatabase] },
     SchemaCheck,
   ],
-  exports: [InstanceDatabase, Database, SchemaMigrations, DatabaseStatus, SessionStore],
+  exports: [InstanceDatabase, Database, SchemaMigrations, DatabaseStatus, SessionStore, ConfigurationStore],
 })
 export class DatabaseModule implements OnApplicationShutdown {
   readonly #database: Database;

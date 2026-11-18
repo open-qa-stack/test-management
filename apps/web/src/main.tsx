@@ -7,6 +7,7 @@ import "./ui/ui.css";
 import "./shell/shell.css";
 import "./agent/session.css";
 import "./agent/agent-home.css";
+import "./configuration/configuration.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

@@ -21,6 +21,17 @@ Each error has a `kind`, a `path` (a JSON Pointer to the offending location, `""
 | `reference` | `unknown-reference`, `api-without-environment` |
 | `environment` | `env-var-missing` |
 
+`resolvedConfig(document)` gives a configuration the validation accepted with every default applied, as `validateConfig` does.
+
+## The configuration of an instance
+
+An instance keeps its configuration in its database, as revisions: each holds the whole document as this file holds it, its date, its origin — `file`, `console` or `command` — and the SHA-256 digest of the file it was read from or wrote, which tells whether the file changed since. The types and the port of the store that keeps them are in `src/configuration-life/`; the operations that keep them in step with the file are in [the engine](../../engine/docs/engine.md#the-operations-on-the-configuration).
+
+- `revisionDocument(content)` reads a file that would become a revision, validated as above but for the environment: a revision names the variables its runs read, and the run tells whether they are set.
+- `configurationText(document)` writes a configuration as a change of it rewrites this file: its keys in the order the schema declares them, indented by two spaces, with a final newline. The same document is always the same text, so that the diff of the file shows what changed.
+- `fileStateOf(revision, digest)` tells how the file stands to the revision in force: `in_step`, `changed` or `missing`.
+- `StaleRevisionError`, `ConfigurationConflictError`, `InvalidConfigurationError` and `NoConfigurationError` are the refusals of the configuration, which each presentation words.
+
 ## Keys
 
 Types used below: a *slug* matches `^[a-z0-9]+(-[a-z0-9]+)*$`; a *variable* is the name of an environment variable; a *URL* is absolute, uses `http` or `https` and carries no user name or password; a *path* is relative to the test repository root, may not leave it and contains no control character.

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { Project } from "@open-qa-stack/domain/sessions";
 import { hrefTo, isUnder, type Route } from "../routing/route.ts";
 import { Icon } from "../ui/icon.tsx";
-import { NAVIGATION, type NavigationEntry } from "./navigation.ts";
+import { HOME_PATH, NAVIGATION, type NavigationEntry } from "./navigation.ts";
 
 /** What the shell frames. */
 export interface ShellProps {
@@ -27,7 +27,8 @@ function NavigationItem({ entry, route }: { readonly entry: NavigationEntry; rea
       </span>
     );
   }
-  const active = route.path.length === 0 || isUnder(route, entry.path);
+  // The home of the console is the entry of the agent.
+  const active = isUnder(route, entry.path) || (route.path.length === 0 && entry.path === HOME_PATH);
   return (
     <a href={hrefTo(entry.path)} className={active ? "on" : undefined} aria-current={active ? "page" : undefined}>
       <Icon name={entry.icon} />
@@ -59,7 +60,7 @@ export function Shell({ route, project, unreachable = false, children }: ShellPr
         </div>
       )}
       <header className="top">
-        <a className="brand" href={hrefTo("/agent")}>
+        <a className="brand" href={hrefTo(HOME_PATH)}>
           <i>✓</i>
           <span>Open QA Stack</span>
         </a>

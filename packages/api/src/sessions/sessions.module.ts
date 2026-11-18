@@ -1,8 +1,9 @@
 import { Logger, Module } from "@nestjs/common";
-import { Sessions } from "@open-qa-stack/engine";
+import { Configuration, Sessions } from "@open-qa-stack/engine";
 import { SessionStore } from "@open-qa-stack/store";
 import { ApiConfiguration } from "../config/api-configuration.ts";
 import { DatabaseModule } from "../database/database.module.ts";
+import { RepositoryConfigurationModule } from "../repository-configuration/repository-configuration.module.ts";
 import { EventStreams } from "./event-streams.ts";
 import { ProjectController } from "./project.controller.ts";
 import { RunEnvironment } from "./run-environment.ts";
@@ -16,7 +17,7 @@ import { StreamPace } from "./stream-pace.ts";
  * test repository the API was given. The routes hold no rule of the sessions: each calls one operation.
  */
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, RepositoryConfigurationModule],
   controllers: [ProjectController, SessionsController],
   providers: [
     EventStreams,
@@ -25,10 +26,10 @@ import { StreamPace } from "./stream-pace.ts";
     StreamPace,
     {
       provide: Sessions,
-      inject: [SessionStore, ApiConfiguration, RunEnvironment],
-      useFactory: (store: SessionStore, { repository }: ApiConfiguration, { runs }: RunEnvironment) =>
+      inject: [SessionStore, Configuration, ApiConfiguration, RunEnvironment],
+      useFactory: (store: SessionStore, configuration: Configuration, { repository }: ApiConfiguration, { runs }: RunEnvironment) =>
         // The API stays: it takes over the sessions that wait for a host that died.
-        new Sessions({ ...runs, store, repository, takesOver: true, logger: new Logger("Sessions") }),
+        new Sessions({ ...runs, store, configuration, repository, takesOver: true, logger: new Logger("Sessions") }),
     },
   ],
 })

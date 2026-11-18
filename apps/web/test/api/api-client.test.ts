@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import type { Project } from "@open-qa-stack/domain/sessions";
+import type { OqasConfig, Project } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
 import { API_BASE, ApiClient, type Fetch } from "../../src/api/api-client.ts";
 import { ApiError } from "../../src/api/api-error.ts";
@@ -63,6 +63,60 @@ async function failureOf(call: Promise<unknown>): Promise<{ readonly message: st
   assert.equal(error.name, "ApiError");
   return { message: error.message, status: error.status, code: error.code };
 }
+
+describe("the client of the API, for the configuration", () => {
+  const VIEW = { file: "missing" };
+  const DOCUMENT = { formatVersion: 1 } as unknown as OqasConfig;
+  const ERROR = { kind: "structure", path: "/applications", rule: "required", message: 'Missing required key "applications".' };
+
+  it("reads the configuration as it is now, and its revisions out of the envelope the API answers", async () => {
+    const read = clientOf(() => json(VIEW));
+    assert.deepEqual(await read.client.configuration(), VIEW);
+    const listed = clientOf(() => json({ items: [] }));
+    assert.deepEqual(await listed.client.revisions(), []);
+    assert.deepEqual(
+      [...read.calls, ...listed.calls],
+      [
+        ["/api/configuration", undefined],
+        ["/api/configuration/revisions", undefined],
+      ],
+    );
+  });
+
+  it("checks a configuration, saves a change and takes the file by posting to the routes of the configuration", async () => {
+    const checked = clientOf(() => json({ errors: [ERROR] }));
+    assert.deepEqual(await checked.client.check(DOCUMENT), [ERROR]);
+    const saved = clientOf(() => json(VIEW, 201));
+    assert.deepEqual(await saved.client.save({ basedOn: 1, document: DOCUMENT }), VIEW);
+    const taken = clientOf(() => json(VIEW));
+    assert.deepEqual(await taken.client.synchronise(), VIEW);
+    assert.deepEqual(
+      [...checked.calls, ...saved.calls, ...taken.calls],
+      [
+        ["/api/configuration/validation", { method: "POST", headers: { "content-type": "application/json" }, body: '{"formatVersion":1}' }],
+        [
+          "/api/configuration/revisions",
+          { method: "POST", headers: { "content-type": "application/json" }, body: '{"basedOn":1,"document":{"formatVersion":1}}' },
+        ],
+        ["/api/configuration/synchronisation", { method: "POST" }],
+      ],
+    );
+  });
+
+  it("fails with the errors a configuration that is not valid holds, and with none for any other problem", async () => {
+    const invalid = clientOf(
+      () => new Response(JSON.stringify({ code: "invalid_configuration", status: 422, detail: "Not valid.", errors: [ERROR] }), { status: 422 }),
+    );
+    const error = await invalid.client.save({ basedOn: 1, document: DOCUMENT }).catch((reason: unknown) => reason);
+    assert.ok(error instanceof ApiError);
+    assert.deepEqual([error.code, error.errors], ["invalid_configuration", [ERROR]]);
+    const stale = await clientOf(() => problem("stale_revision", 409))
+      .client.save({ basedOn: 1, document: DOCUMENT })
+      .catch((reason: unknown) => reason);
+    assert.ok(stale instanceof ApiError);
+    assert.deepEqual([stale.code, stale.errors], ["stale_revision", []]);
+  });
+});
 
 describe("the client of the API", () => {
   it("reaches the API under the path of the instance", () => {

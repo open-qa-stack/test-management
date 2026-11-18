@@ -1,13 +1,15 @@
 import assert from "node:assert/strict";
-import { basename } from "node:path";
+import { writeFileSync } from "node:fs";
+import { basename, join } from "node:path";
 import { setTimeout as pause } from "node:timers/promises";
-import { SessionEndedError, SessionStateError, UnknownSessionError } from "@open-qa-stack/domain";
+import { CONFIG_FILE_NAME, SessionEndedError, SessionStateError, UnknownSessionError } from "@open-qa-stack/domain";
 import type { SessionEvent, SessionOpening } from "@open-qa-stack/domain/sessions";
 import { chain, ended, git, planned, read } from "@open-qa-stack/testing/test-repository";
 import { afterEach, describe, it } from "vitest";
-import { NoRepositoryError, Sessions } from "../src/index.ts";
+import { Configuration, NoRepositoryError, Sessions } from "../src/index.ts";
 import { eventually } from "./support/eventually.ts";
 import { designDoor, ENV, Hosted } from "./support/hosted.ts";
+import { MemoryConfigurationStore } from "./support/memory-configuration-store.ts";
 import { MemorySessionStore } from "./support/memory-session-store.ts";
 import { RecordingLogger } from "./support/recording-logger.ts";
 import { comparable, toldByTheEngine } from "./support/told-by-the-engine.ts";
@@ -126,7 +128,14 @@ describe("a session that is opened", () => {
     // A session the store holds without a request nor an environment, asked by a process that stopped since.
     const unsaid = await store.ask({} as SessionOpening, GONE);
     await store.release(GONE);
-    const sessions = new Sessions({ store, repository: hosted.root, takesOver: true, env: ENV, logger: new RecordingLogger() });
+    const sessions = new Sessions({
+      store,
+      configuration: new Configuration(new MemoryConfigurationStore(), hosted.root),
+      repository: hosted.root,
+      takesOver: true,
+      env: ENV,
+      logger: new RecordingLogger(),
+    });
     await sessions.start();
     await eventually(async () => assert.equal((await sessions.session(unsaid.id)).state, "interrupted"));
     assert.deepEqual((await store.eventsAfter(unsaid.id, 2)).map(said), [
@@ -143,7 +152,14 @@ describe("a session that is opened", () => {
     const kept = await store.ask({ request: REQUEST }, GONE);
     await store.release(GONE);
     hosted = await Hosted.create([]);
-    const reading = new Sessions({ store, repository: undefined, takesOver: true, env: ENV, logger: new RecordingLogger() });
+    const reading = new Sessions({
+      store,
+      configuration: new Configuration(new MemoryConfigurationStore(), undefined),
+      repository: undefined,
+      takesOver: true,
+      env: ENV,
+      logger: new RecordingLogger(),
+    });
     await reading.start();
     await assert.rejects(
       reading.open({ request: REQUEST }),
@@ -258,7 +274,14 @@ describe("a session a person resumes once it ended", () => {
     const store = new MemorySessionStore();
     const kept = await store.ask({ request: REQUEST }, GONE);
     await store.interrupt(kept.id);
-    const reading = new Sessions({ store, repository: undefined, takesOver: true, env: ENV, logger: new RecordingLogger() });
+    const reading = new Sessions({
+      store,
+      configuration: new Configuration(new MemoryConfigurationStore(), undefined),
+      repository: undefined,
+      takesOver: true,
+      env: ENV,
+      logger: new RecordingLogger(),
+    });
     await assert.rejects(reading.resume(kept.id, { text: "Go on." }), (error) => error instanceof NoRepositoryError);
     assert.equal(await reading.stop(10), true);
   });
@@ -426,6 +449,46 @@ describe("a host that starts", () => {
     const opened = await hosted.sessions.open(STOPPED_AT_ONCE);
     assert.equal((await hosted.ended(opened.id)).state, "interrupted");
     assert.equal(hosted.logger.lines[0], "warn 2 sessions were left running by a process that stopped, and interrupted.");
+  });
+});
+
+describe("the configuration of a host that starts", () => {
+  it("is brought in step with the file of the test repository, whose applications name the project", async () => {
+    hosted = await Hosted.create([]);
+    await hosted.sessions.start();
+    assert.deepEqual(
+      (await hosted.configuration.revisions()).map(({ number, origin }) => `${number} ${origin}`),
+      ["1 file"],
+    );
+    assert.deepEqual(await hosted.sessions.project(), { name: basename(hosted.root), applications: [{ id: "shop", name: "Shop" }] });
+    // A change of the configuration names its applications in the project at once.
+    const configuration = new Configuration(hosted.configuration, hosted.root);
+    const { revision } = await configuration.view();
+    await configuration.save({ ...revision!.document, applications: [{ ...revision!.document.applications[0]!, name: "Boutique" }] }, revision!.number);
+    assert.deepEqual((await hosted.sessions.project()).applications, [{ id: "shop", name: "Boutique" }]);
+  });
+
+  it("keeps the revision in force to name the project when the file changed and is no valid configuration, and names none without one", async () => {
+    hosted = await Hosted.create([]);
+    await new Configuration(hosted.configuration, hosted.root).synchronise();
+    writeFileSync(join(hosted.root, CONFIG_FILE_NAME), "{");
+    await hosted.sessions.start();
+    assert.deepEqual(hosted.logger.lines, []);
+    assert.deepEqual((await hosted.sessions.project()).applications, [{ id: "shop", name: "Shop" }]);
+    const bare = await Hosted.create([], { store: new MemorySessionStore() });
+    try {
+      writeFileSync(join(bare.root, CONFIG_FILE_NAME), "{");
+      await bare.sessions.start();
+      assert.deepEqual((await bare.sessions.project()).applications, []);
+    } finally {
+      await bare.close();
+    }
+  });
+
+  it("stops the startup when the store of the configuration does not answer", async () => {
+    hosted = await Hosted.create([]);
+    hosted.configuration.before = () => Promise.reject(new Error("The database is unreachable."));
+    await assert.rejects(hosted.sessions.start(), { message: "The database is unreachable." });
   });
 });
 

@@ -1,11 +1,13 @@
-import { readFile } from "node:fs/promises";
-import { join, posix, relative, sep } from "node:path";
+import { posix, relative, sep } from "node:path";
 import {
   CONFIG_FILE_NAME,
   runIdAt,
   declaredValues,
   ExitCode,
+  InvalidConfigurationError,
+  NoConfigurationError,
   validateConfig,
+  type ConfigurationRevision,
   type CommandRunner,
   type ExitCodeValue,
   type ResolvedConfig,
@@ -25,6 +27,7 @@ import {
   TrialRunner,
   type ActiveRule,
 } from "@open-qa-stack/harness";
+import type { ConfigurationSource } from "../ports/configuration-source.ts";
 import type { JournalOutput } from "../ports/journal-output.ts";
 import type { OpenRuntime } from "../ports/open-runtime.ts";
 import type { RunReference } from "../ports/run-reference.ts";
@@ -54,6 +57,8 @@ export interface RunOptions {
    * the state names it whatever the design wrote; a new branch by default.
    */
   readonly branch?: string;
+  /** Where the configuration is read: the revision in force, once it is in step with the configuration file. */
+  readonly configuration: ConfigurationSource;
   /** The environment of the process: the secrets and the accounts the configuration names. */
   readonly env: Readonly<Record<string, string | undefined>>;
   /** Receives the journal, an entry at a time, and keeps it. */
@@ -75,14 +80,14 @@ export interface RunOptions {
 }
 
 /**
- * A run of the engine: it reads the configuration, checks the machine, maps the target, designs tests on a
+ * A run of the engine: it reads the configuration in force, checks the machine, maps the target, designs tests on a
  * new local branch, or on the branch of an earlier run it goes on with, runs them, and writes a summary.
  *
  * @remarks
  * The run works in the test repository, a folder, whoever hosts it: the branch, the tests, the cards and the
  * traces are written there. What differs from a host to another goes through the ports of its options: the
- * journal, the inbox, the store of the state, the runtime of the agents, the commands and the
- * clock.
+ * configuration, the journal, the inbox, the store of the state, the runtime of the agents, the commands and
+ * the clock.
  *
  * Each step starts only when the one before succeeded; once the prerequisites passed, the summary closes the
  * runtime of the agents and writes the state whatever the end of the others. A missing or invalid configuration stops the run
@@ -349,15 +354,12 @@ export class Run {
   ): Promise<{ config: ResolvedConfig; environment: string; rules: ActiveRule[]; durationMs: number } | ExitCodeValue> {
     const at = now().getTime();
     journal.record("configuration", "started", "The configuration starts.");
-    const path = join(this.options.repositoryRoot, CONFIG_FILE_NAME);
-    const text = await readFile(path, "utf8").catch(() => undefined);
-    if (text === undefined) {
-      journal.record("configuration", "error", `${path} cannot be read; the solo command needs a ${CONFIG_FILE_NAME} at the root of the test repository.`);
-      return ExitCode.configuration;
-    }
-    const result = validateConfig(text, this.options.env);
+    const revision = await this.options.configuration.synchronise().catch((error: unknown) => refused(journal, error));
+    if (revision === undefined) return ExitCode.configuration;
+    const result = validateConfig(JSON.stringify(revision.document), this.options.env);
     if (!result.ok) {
-      for (const error of result.errors) journal.record("configuration", "error", `${error.path || "/"}: ${error.message}`);
+      // The revision is valid by the schema: what is left is the environment, each error at the key that names a variable.
+      for (const error of result.errors) journal.record("configuration", "error", `${error.path}: ${error.message}`);
       return ExitCode.configuration;
     }
     const declared = [...new Set(result.config.applications.flatMap((application) => application.environments.map((environment) => environment.name)))];
@@ -388,6 +390,27 @@ export class Run {
   private relay(journal: RunJournal, step: Step, entries: readonly JournalEntry[]): void {
     for (const entry of entries) journal.record(step, entry.level, entry.source === undefined ? entry.message : `${entry.source}: ${entry.message}`);
   }
+}
+
+/**
+ * Tells in the journal why the configuration cannot be had, and what to do.
+ *
+ * @returns Nothing, once it is told.
+ * @throws The error, when it is not one the configuration refuses with: the store cannot be read.
+ */
+function refused(journal: RunJournal, error: unknown): ConfigurationRevision | undefined {
+  if (error instanceof NoConfigurationError) {
+    journal.record("configuration", "error", `${error.message} Write a ${CONFIG_FILE_NAME} at the root of the test repository.`);
+    return undefined;
+  }
+  if (!(error instanceof InvalidConfigurationError)) throw error;
+  for (const found of error.errors) journal.record("configuration", "error", `${found.path || "/"}: ${found.message}`);
+  const way =
+    error.inForce === undefined
+      ? `${CONFIG_FILE_NAME} is not a valid configuration: correct it.`
+      : `${CONFIG_FILE_NAME} changed and is not a valid configuration: correct it, or write the revision ${error.inForce} in force over it, from the console or with oqas config export.`;
+  journal.record("configuration", "error", way);
+  return undefined;
 }
 
 /** What the summary of a run a limit stopped says of it. */

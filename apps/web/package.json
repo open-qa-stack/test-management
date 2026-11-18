@@ -15,7 +15,8 @@
   "coverage": {
     "measuredInBrowser": [
       "src/main.tsx",
-      "src/app.tsx"
+      "src/app.tsx",
+      "src/configuration/configuration-page.tsx"
     ]
   },
   "dependencies": {

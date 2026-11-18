@@ -17,6 +17,8 @@ The shapes of every body are the types of `@open-qa-stack/domain/sessions`. A cl
 | `POST /api/sessions/:id/resumption` | Resumes a session that ended, for a new turn on a message. |
 | `POST /api/sessions/:id/interruption` | Interrupts a session that goes on. |
 
+The configuration of the instance has routes of its own, under `/api/configuration`: see [the configuration](configuration.md).
+
 The project, the list and a session are answered with `cache-control: no-store`: they are read as they are now. Every answer that is not a success is [a problem](#problems).
 
 ## Project
@@ -314,7 +316,8 @@ content-type: application/problem+json; charset=utf-8
 | `invalid_request` | `400` | `/problems/invalid-request` | The request is not valid: a body that is not JSON, a field of `POST /api/sessions` or of a message at fault, an identifier of event that is none. The detail names what is at fault. |
 | `session_running` | `409` | `/problems/session-running` | The session goes on: it takes a message, not a resumption. |
 | `session_ended` | `409` | `/problems/session-ended` | The session no longer goes on: it takes no message, and no interruption, until it is resumed. |
-| `unavailable` | `503` | `/problems/unavailable` | The database of the instance cannot be reached: neither the project nor a session can be read, asked for or sent a message; try again once [the instance reports itself ready](running.md#readiness). Or a session is asked of an API that was started without a test repository: the detail says what to set. |
+| `unavailable` | `503` | `/problems/unavailable` | The database of the instance cannot be reached: neither the project nor a session can be read, asked for or sent a message; try again once [the instance reports itself ready](running.md#readiness). Or a session, or a change of the configuration, is asked of an API that was started without a test repository: the detail says what to set. |
+| `stale_revision`, `configuration_conflict`, `invalid_configuration`, `no_configuration` | `409`, `409`, `422`, `404` | `/problems/stale-revision`, … | The refusals of [the configuration](configuration.md#problems). |
 | `error` | any other | `/problems/error` | Anything else: a route that does not exist (`404`), a media type the API does not read (`415`), or a failure of the API (`500`). |
 
 A failure of the API is logged on the instance and answered `500` with a detail that says nothing of it: the message of such an error may name a file or an address of the machine.

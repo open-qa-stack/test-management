@@ -1,3 +1,4 @@
+import { ConfigurationStore } from "../../src/configuration/configuration-store.ts";
 import { Database } from "../../src/database/database.ts";
 import { DatabaseUrl } from "../../src/database/database-url.ts";
 import { runMigrations } from "../../src/database/run-migrations.ts";
@@ -7,13 +8,14 @@ import type { StoreLogger } from "../../src/store-logger.ts";
 import type { DatabaseEngine } from "./database-engine.ts";
 import type { TestDatabase } from "./test-database.ts";
 
-/** A database of its own with the schema of the instance, and the store of the sessions on it. */
+/** A database of its own with the schema of the instance, and the stores of the sessions and of the configuration on it. */
 export class SessionDatabase {
   /** Its connection URL. */
   readonly url: string;
   /** What the store reads and writes through, and the tests with it. */
   readonly database: Database;
   readonly store: SessionStore;
+  readonly configuration: ConfigurationStore;
   readonly #own: TestDatabase;
 
   private constructor(own: TestDatabase, url: DatabaseUrl, logger: StoreLogger) {
@@ -21,6 +23,7 @@ export class SessionDatabase {
     this.url = own.url;
     this.database = new Database(url, logger);
     this.store = new SessionStore(this.database);
+    this.configuration = new ConfigurationStore(this.database);
   }
 
   /**
@@ -35,9 +38,10 @@ export class SessionDatabase {
     return new SessionDatabase(own, url, logger);
   }
 
-  /** Empties the tables of the sessions, with their events and their messages, and of the project. */
+  /** Empties the tables of the sessions, with their events and their messages, of the project and of the configuration. */
   async clear(): Promise<void> {
     await this.database.kysely.deleteFrom("sessions").execute();
+    await this.database.kysely.deleteFrom("configuration_revisions").execute();
     await this.database.kysely.deleteFrom("project").execute();
   }
 

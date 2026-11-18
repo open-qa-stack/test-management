@@ -8,7 +8,7 @@ import { isRecord, parseJson } from "../json.ts";
 import { SHARED_FOLDER } from "../test-repository/application-pages.ts";
 import { STATE_DIR_NAME } from "./file-names.ts";
 import { configSchema } from "./schema.ts";
-import type { Attachment, ConfigError, OqasConfig, Repository, ValidationResult } from "./types.ts";
+import type { Attachment, ConfigError, OqasConfig, Repository, ResolvedConfig, ValidationResult } from "./types.ts";
 
 /** Environment the configuration is validated against, usually `process.env`. */
 export type EnvironmentVariables = Readonly<Record<string, string | undefined>>;
@@ -70,29 +70,36 @@ export function validateConfig(content: string, env: EnvironmentVariables): Vali
     return { ok: false, errors };
   }
 
+  return { ok: true, config: resolvedConfig(data) };
+}
+
+/**
+ * Gives a valid configuration with every default applied.
+ *
+ * @param data - A configuration the schema and the rules that span the document accept, such as the document of a revision.
+ * @returns The configuration, resolved.
+ */
+export function resolvedConfig(data: OqasConfig): ResolvedConfig {
   return {
-    ok: true,
-    config: {
-      formatVersion: data.formatVersion,
-      applications: data.applications,
-      knowledge: data.knowledge,
-      repository: { ...DEFAULT_REPOSITORY, ...data.repository },
-      charter: { disable: data.charter?.disable ?? [], add: data.charter?.add ?? [] },
-      cartography: { concurrency: data.cartography?.concurrency ?? 1 },
-      design: {
-        reviewPlan: data.design?.reviewPlan ?? true,
-        reviewTests: data.design?.reviewTests ?? true,
-        reviewCode: data.design?.reviewCode ?? true,
-        passes: data.design?.passes ?? "by-level",
-        visualTests: data.design?.visualTests ?? true,
-        visualTolerance: data.design?.visualTolerance ?? 0.01,
-        architecture: data.design?.architecture ?? "page-objects",
-        fixturesFile: data.design?.fixturesFile ?? `${data.repository?.appsDir ?? DEFAULT_REPOSITORY.appsDir}/${SHARED_FOLDER}/fixtures.ts`,
-        levels: data.design?.levels ?? ["smoke", "functional", "business"],
-      },
-      model: data.model,
-      autonomy: { level: (data.autonomy ?? DEFAULT_AUTONOMY).level, limits: resolveLimits(data.autonomy ?? DEFAULT_AUTONOMY) },
+    formatVersion: data.formatVersion,
+    applications: data.applications,
+    knowledge: data.knowledge,
+    repository: { ...DEFAULT_REPOSITORY, ...data.repository },
+    charter: { disable: data.charter?.disable ?? [], add: data.charter?.add ?? [] },
+    cartography: { concurrency: data.cartography?.concurrency ?? 1 },
+    design: {
+      reviewPlan: data.design?.reviewPlan ?? true,
+      reviewTests: data.design?.reviewTests ?? true,
+      reviewCode: data.design?.reviewCode ?? true,
+      passes: data.design?.passes ?? "by-level",
+      visualTests: data.design?.visualTests ?? true,
+      visualTolerance: data.design?.visualTolerance ?? 0.01,
+      architecture: data.design?.architecture ?? "page-objects",
+      fixturesFile: data.design?.fixturesFile ?? `${data.repository?.appsDir ?? DEFAULT_REPOSITORY.appsDir}/${SHARED_FOLDER}/fixtures.ts`,
+      levels: data.design?.levels ?? ["smoke", "functional", "business"],
     },
+    model: data.model,
+    autonomy: { level: (data.autonomy ?? DEFAULT_AUTONOMY).level, limits: resolveLimits(data.autonomy ?? DEFAULT_AUTONOMY) },
   };
 }
 

@@ -10,3 +10,24 @@ export type { SessionScript, SessionStage } from "./thread/session-script.ts";
 export type { RefusalParts } from "./thread/refusal-parts.ts";
 export type * from "./thread/step.ts";
 export { turnsOf, type Turn } from "./thread/turns.ts";
+export type {
+  Account,
+  Application as ConfiguredApplication,
+  Attachment,
+  Autonomy,
+  ConfigError,
+  ConfigErrorKind,
+  DesignSettings,
+  Environment,
+  Knowledge,
+  Model,
+  NamedApi,
+  OqasConfig,
+  Repository,
+  TaskCriteria,
+  TestLevel,
+} from "../config/types.ts";
+export type { ConfigurationCheck, RevisionChange, RevisionList } from "../configuration-life/configuration-exchanges.ts";
+export type { ConfigurationRevision, RevisionOrigin, RevisionSummary } from "../configuration-life/configuration-revision.ts";
+export type { ConfigurationView } from "../configuration-life/configuration-view.ts";
+export type { FileState } from "../configuration-life/file-state.ts";
