@@ -44,6 +44,8 @@ export interface ShownThread {
   readonly events: readonly SessionEvent[];
   /** How many blocks of its thread are written for good. */
   readonly settled: number;
+  /** How many times the conversation resumed the session once it ended: each turn is followed anew, after the events of the turns before. */
+  readonly resumed: number;
 }
 
 /** The conversation at a moment: everything its screen is drawn from. */

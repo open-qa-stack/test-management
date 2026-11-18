@@ -1,7 +1,8 @@
 /**
  * Why the API refused or failed, as a code a client can act on: the session asked for does not exist, the
- * request is not valid, a session is already running, the session no longer goes on and takes no message, no source of sessions is configured, the session could
- * not be opened, or its opening took too long; `error` for anything else.
+ * request is not valid, the session goes on and takes a message rather than a resumption, the session no longer
+ * goes on and takes no message until it is resumed, no source of sessions is configured, the session could not
+ * be opened, or its opening took too long; `error` for anything else.
  */
 export type ProblemCode =
   "unknown_session" | "invalid_request" | "session_running" | "session_ended" | "unavailable" | "not_opened" | "opening_timed_out" | "error";

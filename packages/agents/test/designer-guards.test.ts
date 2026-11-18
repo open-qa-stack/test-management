@@ -122,6 +122,9 @@ describe("criterion 6 — a test that holds a declared address or the value of a
   });
 });
 
+/** The branch of an earlier design a design goes on with. */
+const EARLIER = "oqas/design-earlier";
+
 describe("criterion 7 — a dirty working tree or a taken branch stops the design before anything is written", () => {
   it("stops on a changed tracked file, an untracked file outside the state and the index, and a taken branch, and changes nothing", async () => {
     const root = repository();
@@ -154,6 +157,29 @@ describe("criterion 7 — a dirty working tree or a taken branch stops the desig
     const invalid = await design(replies(valid(3)), { root, branch: "oqas/..bad" });
     assert.match(messages(invalid.outcome), /oqas\/\.\.bad is not a valid branch name\./);
     assert.deepEqual(snapshot(root), invalid.before);
+  });
+
+  it("goes on with the branch of an earlier design, checked out or not: its tests are committed on it, and no branch is created", async () => {
+    for (const checkedOut of [true, false]) {
+      const root = repository();
+      git(root, checkedOut ? "switch" : "branch", ...(checkedOut ? ["--create", EARLIER] : [EARLIER]));
+      const { outcome } = await design(replies(valid(3)), { root, continued: EARLIER });
+      assert.equal(outcome.branch, EARLIER);
+      assert.equal(git(root, "branch", "--show-current"), EARLIER);
+      assert.ok(filesOf(root, EARLIER).includes("apps/shop/tests/orders/listing/list-orders.spec.ts"), messages(outcome));
+      assert.equal(git(root, "branch", "--list", BRANCH), "");
+    }
+  });
+
+  it("refuses to go on with a branch that does not exist, and changes nothing", async () => {
+    const root = repository();
+    const { outcome, server, before } = await design(replies(valid(3)), { root, continued: "oqas/gone" });
+    assert.deepEqual(
+      outcome.journal.map((entry) => entry.message),
+      ["The branch oqas/gone does not exist: there is nothing to go on with.", "No branch was created and no file was written."],
+    );
+    assert.deepEqual(snapshot(root), before);
+    assert.equal(server.requests.length, 0);
   });
 
   it("creates the branch when the only untracked files are the index and the state", async () => {

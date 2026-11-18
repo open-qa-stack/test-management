@@ -112,7 +112,7 @@ export class MemorySessionStore implements SessionStorePort {
 
   async complete(id: string, result: SessionResult): Promise<void> {
     await this.#answer("complete", id);
-    this.#tell(this.#taking("complete", id), [{ at: this.#now(), type: "state_changed", state: "completed" }], { state: "completed", result });
+    this.#tell(this.#taking("complete", id), [{ at: this.#now(), type: "state_changed", state: "completed", result }], { state: "completed", result });
   }
 
   async interrupt(id: string): Promise<void> {
@@ -128,6 +128,24 @@ export class MemorySessionStore implements SessionStorePort {
     kept.messages.push({ number, at, text });
     this.#tell(kept, [{ at, type: "user_message", text, number }]);
     return { number };
+  }
+
+  async resume(id: string, text: string, host: string): Promise<Session> {
+    await this.#answer("resume", id);
+    const kept = this.#taking("resume", id);
+    const at = this.#now();
+    const { result: _before, ...session } = kept.session;
+    kept.session = session;
+    Object.assign(kept, { host, seen: this.#clock().getTime(), asked: false });
+    this.#tell(
+      kept,
+      [
+        { at, type: "user_message", text },
+        { at, type: "state_changed", state: SESSION_LIFE.resume.to },
+      ],
+      { state: SESSION_LIFE.resume.to },
+    );
+    return kept.session;
   }
 
   async deliver(id: string, number: number, agent: AgentRole): Promise<void> {

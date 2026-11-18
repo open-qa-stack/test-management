@@ -123,10 +123,11 @@ const CORRECTED: readonly SessionEvent[] = numbered([
  * The composer of a session.
  *
  * @param saying - Where the message the person sends is; nothing sent by default.
+ * @param ended - Whether the session ended; it goes on by default.
  * @returns Its HTML.
  */
-function composer(saying: Sending = { state: "idle" }): string {
-  return render(createElement(Composer, { saying, onSay: NO_CONTROLS.say, onKey: NO_CONTROLS.sayOnEnter }));
+function composer(saying: Sending = { state: "idle" }, ended = false): string {
+  return render(createElement(Composer, { saying, ended, onSay: NO_CONTROLS.say, onKey: NO_CONTROLS.sayOnEnter }));
 }
 
 /**
@@ -935,6 +936,15 @@ describe("the composer of a session", () => {
     assert.doesNotMatch(html, /disabled|role="alert"/);
   });
 
+  it("asks, once the session ended, what the agents are to do next, and names its button « Poursuivre la session »", () => {
+    const html = composer({ state: "idle" }, true);
+    assert.match(
+      html,
+      /<label class="sr-only" for="composer-message">Dites aux agents quoi faire ensuite : corriger un test, ajouter un scénario…<\/label><textarea id="composer-message" name="message" rows="2" placeholder="Dites aux agents quoi faire ensuite : corriger un test, ajouter un scénario……">/,
+    );
+    assert.match(html, /<span class="btn-label">Poursuivre la session<\/span>/);
+  });
+
   it("lets nothing be written nor sent while a message is on its way", () => {
     const html = composer({ state: "sending" });
     assert.match(html, /<textarea id="composer-message" name="message" rows="2" disabled=""/);
@@ -1013,14 +1023,14 @@ describe("the stop of a session", () => {
 });
 
 describe("the screen of a session", () => {
-  it("lets the person speak to the agents under the thread while they work or are waited for, in a replay too, and not once the session ended", () => {
-    assert.match(screen(), /<\/section><form class="composer">.*<\/form><div class="session-end"><\/div><\/div>/);
+  it("lets the person speak to the agents under the thread while they work or are waited for, in a replay too, and go on with the session once it ended", () => {
+    assert.match(screen(), /<\/section><form class="composer">.*Envoyer.*<\/form><div class="session-end"><\/div><\/div>/);
     assert.match(screen("", liveOf(QUEUED, {}, ASKED)), /<\/section><form class="composer">.*<\/form><div class="session-end"><\/div><\/div>/);
     assert.match(screen("", liveOf(RUNNING, { following: false, tick: 30 })), /<form class="composer">/);
     for (const ended of [COMPLETED, INTERRUPTED, { ...RUNNING, state: "archived" as Session["state"] }]) {
       const html = screen("", liveOf(ended));
-      assert.doesNotMatch(html, /composer|textarea|Envoyer/);
-      assert.match(html, /<\/section><div class="session-end"><\/div><\/div>/);
+      assert.match(html, /<\/section><form class="composer">.*Poursuivre la session.*<\/form><div class="session-end"><\/div><\/div>/);
+      assert.doesNotMatch(html, /Envoyer/);
     }
   });
 
@@ -1190,7 +1200,7 @@ describe("the screen of a session", () => {
     assert.match(page, new RegExp(`<div class="act selected"><details>.{0,900}<a id="look-eye-${PAGE_TOOL}" class="act-look"`));
     assert.equal(countOf(page, /class="act selected"/g), 1);
     assert.match(page, new RegExp(`<a class="look-panel-close" href="${ADDRESS}" aria-label="Fermer">`));
-    assert.match(page, /<\/section><div class="session-end"><\/div><section class="look-panel" role="dialog"/);
+    assert.match(page, /<\/section><form class="composer">.*<\/form><div class="session-end"><\/div><section class="look-panel" role="dialog"/);
     const file = screen(`?look=${fixtureScript().steps.length + 5}`, live);
     assert.match(textOf(file), /Fichier de test search-customer\.spec\.ts test\('search', async \(\) => \{\}\); A remis le test$/);
   });

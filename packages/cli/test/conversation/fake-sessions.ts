@@ -14,8 +14,12 @@ export class FakeSessions implements ConversationSessions {
   readonly openings: SessionOpening[] = [];
   /** What was said, and to which session. */
   readonly said: (readonly [string, string])[] = [];
+  /** What resumed a session once it ended, and which session. */
+  readonly resumed: (readonly [string, string])[] = [];
   /** The sessions that were asked to stop. */
   readonly interrupted: string[] = [];
+  /** The rank each following of the events of a session started after, in order. */
+  readonly after: number[] = [];
   /** The sessions whose events are followed now. */
   readonly followed = new Map<string, EventListener>();
   /** The sessions whose events were followed, then left. */
@@ -53,6 +57,15 @@ export class FakeSessions implements ConversationSessions {
     return { number: this.said.length };
   }
 
+  async resume(id: string, message: SessionMessage): Promise<Session> {
+    this.#fail("resume");
+    this.resumed.push([id, message.text]);
+    const at = this.held.findIndex((held) => held.id === id);
+    const { result: _before, ...session } = this.held[at]!;
+    this.held[at] = { ...session, state: "running" };
+    return this.held[at];
+  }
+
   async interrupt(id: string): Promise<void> {
     this.#fail("interrupt");
     this.interrupted.push(id);
@@ -70,8 +83,9 @@ export class FakeSessions implements ConversationSessions {
     return session;
   }
 
-  async events(id: string): Promise<SessionEventStream> {
+  async events(id: string, after: number): Promise<SessionEventStream> {
     this.#fail("events");
+    this.after.push(after);
     await this.gate;
     return {
       subscribe: (listener: EventListener) => {

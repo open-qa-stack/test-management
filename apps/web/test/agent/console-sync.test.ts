@@ -164,7 +164,7 @@ describe("what keeps the console in step with its instance", () => {
       await settled();
       assert.deepEqual(api.told, [
         { type: "opening" },
-        { type: "refused", message: "Une session est déjà en cours : attendez qu’elle se termine pour en ouvrir une autre." },
+        { type: "refused", message: "La session est de nouveau en cours : envoyez-lui votre message comme à une session qui travaille." },
       ]);
       assert.deepEqual(opened, []);
     });
@@ -194,7 +194,11 @@ describe("what keeps the console in step with its instance", () => {
       await settled();
       assert.deepEqual(api.told, [
         { type: "stopping", id: SESSION_ID },
-        { type: "unstopped", id: SESSION_ID, message: "La session vient de se terminer : elle ne prend plus ni message ni arrêt." },
+        {
+          type: "unstopped",
+          id: SESSION_ID,
+          message: "La session vient de se terminer : il n’y a plus rien à arrêter, et votre message, envoyé de nouveau, la poursuit.",
+        },
         { type: "stopping", id: SESSION_ID },
         { type: "unstopped", id: SESSION_ID, message: "L’instance ne répond pas." },
       ]);
@@ -222,10 +226,87 @@ describe("what keeps the console in step with its instance", () => {
       await settled();
       assert.deepEqual(api.told, [
         { type: "saying", id: SESSION_ID },
-        { type: "unsaid", id: SESSION_ID, message: "La session vient de se terminer : elle ne prend plus ni message ni arrêt." },
+        {
+          type: "unsaid",
+          id: SESSION_ID,
+          message: "La session vient de se terminer : il n’y a plus rien à arrêter, et votre message, envoyé de nouveau, la poursuit.",
+        },
         { type: "saying", id: SESSION_ID },
         { type: "unsaid", id: SESSION_ID, message: "L’instance ne répond pas." },
       ]);
+    });
+  });
+
+  describe("resuming a session that ended", () => {
+    const RESUMPTION = `POST /api/sessions/${SESSION_ID}/resumption`;
+    const SESSION = `GET /api/sessions/${SESSION_ID}`;
+
+    it("says it is sending, posts what the person said, says the API took it, tells the session, and follows its stream again after the last event", async () => {
+      api.answer(SESSION, json(COMPLETED));
+      const leave = api.sync.follow(SESSION_ID);
+      FakeEventSource.last.receive(COMPLETED_EVENT);
+      await settled();
+      api.answer(RESUMPTION, json(QUEUED, 202));
+      api.sync.resume(SESSION_ID, "corriger le test en échec");
+      assert.deepEqual(api.told.at(-1), { type: "saying", id: SESSION_ID });
+      await settled();
+      assert.deepEqual(api.calls.at(-1), RESUMPTION);
+      assert.deepEqual(api.told.slice(-2), [
+        { type: "said", id: SESSION_ID },
+        { type: "session", session: QUEUED },
+      ]);
+      assert.equal(FakeEventSource.opened.length, 2);
+      assert.equal(FakeEventSource.last.url, `/api/sessions/${SESSION_ID}/events?after=${COMPLETED_EVENT.id}`);
+      leave();
+    });
+
+    it("follows the stream again when the session it ended on is read going on, and only the session it follows", async () => {
+      api.answer(SESSION, json(RUNNING));
+      const leave = api.sync.follow(SESSION_ID);
+      await settled();
+      FakeEventSource.last.receive(COMPLETED_EVENT);
+      await vi.advanceTimersByTimeAsync(10 * PAUSE_MS);
+      assert.equal(FakeEventSource.opened.length, 2, "the end it was told was one the session went on from");
+      api.answer(`POST /api/sessions/other/resumption`, json({ ...RUNNING, id: "other" }, 202));
+      api.answer(SESSION, json(COMPLETED));
+      FakeEventSource.last.receive(COMPLETED_EVENT);
+      await vi.advanceTimersByTimeAsync(10 * PAUSE_MS);
+      api.sync.resume("other", "ailleurs");
+      await settled();
+      assert.equal(FakeEventSource.opened.length, 2);
+      leave();
+    });
+
+    it("says why the API refused, and reads again a session somebody resumed first, which it then follows", async () => {
+      api.answer(SESSION, json(COMPLETED));
+      const leave = api.sync.follow(SESSION_ID);
+      FakeEventSource.last.receive(COMPLETED_EVENT);
+      await settled();
+      api.answer(RESUMPTION, problem("session_running", 409));
+      api.answer(SESSION, json(RUNNING));
+      api.sync.resume(SESSION_ID, "corriger le test en échec");
+      await settled();
+      assert.deepEqual(api.told.slice(-2), [
+        {
+          type: "unsaid",
+          id: SESSION_ID,
+          message: "La session est de nouveau en cours : envoyez-lui votre message comme à une session qui travaille.",
+        },
+        { type: "session", session: RUNNING },
+      ]);
+      assert.equal(FakeEventSource.opened.length, 2);
+      api.answer(RESUMPTION, unreachable);
+      api.answer(SESSION, unreachable);
+      FakeEventSource.last.receive(COMPLETED_EVENT);
+      await settled();
+      api.sync.resume(SESSION_ID, "corriger le test en échec");
+      await settled();
+      assert.deepEqual(api.told.at(-1), { type: "unsaid", id: SESSION_ID, message: "L’instance ne répond pas." });
+      api.answer(RESUMPTION, problem("session_running", 409));
+      api.sync.resume(SESSION_ID, "corriger le test en échec");
+      await settled();
+      assert.deepEqual(api.told.at(-1), { type: "unreachable" });
+      leave();
     });
   });
 

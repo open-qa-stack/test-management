@@ -76,7 +76,7 @@ describe("oqas, without a command, in a terminal", () => {
       text,
       / {2}Verdicts of the run: 3 tests\n✓ passed {2}the test\n✓ passed {2}the test\n✓ passed {2}the test\n\nSession completed · tests passed\n[\d.]+ s · 17 model requests · 3 of 3 tests passed · branch oqas\/design-\d{8}T\d{6}Z\n/,
     );
-    await screen.sees("›  What do we test next?");
+    await screen.sees("›  What do the agents do next?");
     await screen.enter("/quit");
     assert.deepEqual([(await ended).code, (await ended).out, (await ended).err], [0, "", ""]);
     assert.match((await terminal.oqas(["sessions"])).out, /^session-\S+ {2}completed, passed {2}\S+ {2}Test the listing of the orders\.\n$/);
@@ -158,13 +158,13 @@ describe("oqas, without a command, in a terminal", () => {
     );
     screen.resize(60);
     await screen.enter("/help");
-    await screen.sees(/Keys\n[\s\S]*What do we test next\?/);
+    await screen.sees(/Keys\n[\s\S]*What do the agents do next\?/);
     const narrow = screen.text.slice(screen.text.lastIndexOf("Commands")).split("\n");
     assert.deepEqual(
       narrow.filter((line) => widthOf(line) > 60),
       [],
     );
-    assert.ok(narrow.includes("                it to the agents of the session that goes on"));
+    assert.ok(narrow.includes("                or go on with the session that ended"));
     await screen.enter("/quit");
     assert.equal((await ended).code, 3);
   });

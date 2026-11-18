@@ -1,6 +1,6 @@
 # Sessions
 
-A session is a request made to the agents, and the work it opened. The API gives the project of the instance, its sessions, the events of each session as they happen, takes the sessions a person asks for and the messages a person sends to a session that goes on, and interrupts a session. Each route is one of [the operations on sessions](../../engine/docs/engine.md#the-operations-on-sessions) of the engine, said in HTTP: the API runs the sessions it is asked for, in its own process. The web console follows the agents through these routes.
+A session is a request made to the agents, and the work it opened. The API gives the project of the instance, its sessions, the events of each session as they happen, takes the sessions a person asks for and the messages a person sends to a session that goes on, resumes a session that ended with what the person says more to it, and interrupts a session. Each route is one of [the operations on sessions](../../engine/docs/engine.md#the-operations-on-sessions) of the engine, said in HTTP: the API runs the sessions it is asked for, in its own process. The web console follows the agents through these routes.
 
 Every route of the API is under `/api`, wherever the API runs: what is under that path is REST, and nothing else is — the rest of the address is [the console](running.md#the-console), when the API serves it.
 
@@ -14,6 +14,7 @@ The shapes of every body are the types of `@open-qa-stack/domain/sessions`. A cl
 | `GET /api/sessions/:id/events` | The events of a session, as a stream of server-sent events. |
 | `POST /api/sessions` | Asks for a session. |
 | `POST /api/sessions/:id/messages` | Sends a message to a session that goes on. |
+| `POST /api/sessions/:id/resumption` | Resumes a session that ended, for a new turn on a message. |
 | `POST /api/sessions/:id/interruption` | Interrupts a session that goes on. |
 
 The project, the list and a session are answered with `cache-control: no-store`: they are read as they are now. Every answer that is not a success is [a problem](#problems).
@@ -55,16 +56,16 @@ cache-control: no-store
 | `openedAt` | When the session was opened, as an ISO 8601 date. |
 | `lastEventAt` | When its last event happened. |
 | `state` | See below. |
-| `result` | What the session came to; present once it is `completed`. |
+| `result` | What the last turn of the session came to; present once it is `completed`. |
 
 | State | Meaning |
 |---|---|
-| `queued` | The session was asked for, and waits its turn: one session runs at a time, in the order they were asked for. |
+| `queued` | The session was asked for, or resumed, and waits its turn: one session runs at a time, in the order they were asked for. |
 | `running` | The agents work. |
 | `completed` | The work ended; `result` tells how. |
 | `interrupted` | The work stopped without ending: its run stopped before it had a result, the session was interrupted, or the API stopped, or died. |
 
-A client reads a state it does not know as a session that no longer goes on.
+A client reads a state it does not know as a session that no longer goes on. A session that is `completed` or `interrupted` goes on again once [it is resumed](#resuming-a-session): it is `queued`, then `running`, and ends anew.
 
 | Field of `result` | Value |
 |---|---|
@@ -116,7 +117,7 @@ Every event has an `id`, its rank in the session from 1, the date `at` it happen
 | `user_message` | The person said something: `text`. What opened the session, its first event, has no `number`; a message sent while it went on has its `number`, from 1. |
 | `message_delivered` | A message sent while the session was going on reached an `agent`: `message` is the number of the message. |
 | `agent_message` | An agent wrote something, or reasoned when `reasoning` is true: `agent`, `text`. |
-| `scope_resolved` | The configuration of the run was resolved: what the session works on, its `environment`, the identifiers of its `applications`, and the `levels` of the pyramid of tests its design is asked for, from the base. No other level is designed. A thread told before it existed has none. |
+| `scope_resolved` | The configuration of the run was resolved: what the session works on, its `environment`, the identifiers of its `applications`, and the `levels` of the pyramid of tests its design is asked for, from the base. No other level is designed. Each turn of a resumed session tells it again; the console and the terminal show it once, and again only when it changed. A thread told before it existed has none. |
 | `harness_message` | The harness asked something of an agent, `to`: its request, then each reminder; `level` when it asks for the plan of one level of the test pyramid. |
 | `phase_started` | A `phase` of the work started, on a knowledge `source` or for the test of a `scenario` when it has one. |
 | `action_started` | An agent called a `tool` with `arguments`; `action` identifies the call. The `look` of the file the agent handed the tool, such as the test it runs, when it handed one: it can be read while the tool works. |
@@ -125,7 +126,7 @@ Every event has an `id`, its rank in the session from 1, the date `at` it happen
 | `refusal` | The harness refused what an agent handed in, or the work hit an error: `phase`, `text`, the `code` of the gate when one refused, and the `scenario` it is about when the thread knows it. |
 | `note` | The harness noted something it did or saw: `phase`, `text`. |
 | `scenario_closed` | The harness closed a `scenario` with a `verdict`, at the `level` of its plan when known. |
-| `state_changed` | The session changed `state`: `running` once it started, then `completed` or `interrupted`. |
+| `state_changed` | The session changed `state`: `running` once it started, then `completed` or `interrupted`. The change to `completed` carries the `result` of the session, which closes its thread on the verdict of each test. |
 
 The agents are `cartographer`, `planner`, `plan_reviewer`, `writer`, `coherence_reviewer` and `code_reviewer`. The phases are `configuration`, `prerequisites`, `survey`, `card`, `consolidation`, `index`, `plan`, `review`, `write`, `execution` and `summary`.
 
@@ -160,7 +161,7 @@ While the session has nothing to say, the stream carries a comment every 15 seco
 : heartbeat
 ```
 
-The stream ends once the session ended: after the `state_changed` event that tells it is `completed` or `interrupted`, the server closes the stream, and the session then carries its result. A session that waits its turn has not ended: its stream stays open, and carries its events once it started. The client closes its side when it gets the event that ends the session: an `EventSource` left open would reconnect, and get a stream that ends at once.
+The stream ends once the session ended: after the `state_changed` event that tells it is `completed` or `interrupted`, the server closes the stream, and the session then carries its result. A session that was resumed did not end at an end that a later `state_changed` follows: a stream opened on it goes on through that end, and ends with the last. A session that waits its turn has not ended: its stream stays open, and carries its events once it started. The client closes its side when it gets the event that ends the session: an `EventSource` left open would reconnect, and get a stream that ends at once. A client that closed it on an end the session was since resumed from — it reads the session, `queued` or `running` — opens a new stream after the last event it got.
 
 A client that reconnects names the last event it got, and gets only the events after it. `EventSource` does so by itself, in the `Last-Event-ID` header. A client that opens a new stream and cannot set a header names it in the address instead; the header wins when both are present:
 
@@ -240,8 +241,37 @@ A message is given to one agent, once. Where it conflicts with the request that 
 |---|---|---|
 | `400` | `invalid_request` | The body is not valid; the detail names the field at fault. |
 | `404` | `unknown_session` | The session does not exist. |
-| `409` | `session_ended` | The session is `completed` or `interrupted`: it takes no message. Open another session to go on. |
+| `409` | `session_ended` | The session is `completed` or `interrupted`: it takes no message. [Resume it](#resuming-a-session) with the message to go on. |
 | `503` | `unavailable` | The database of the instance cannot be reached. |
+
+## Resuming a session
+
+A person who has more to say to a session that ended — one test of eleven failed, a scenario is missing — resumes it with what they say, which opens a new turn of its work:
+
+```http
+POST /api/sessions/session-2026-11-16T08-12-45-120Z-4be07d1a/resumption
+content-type: application/json
+
+{"text":"fix the test that failed"}
+```
+
+```http
+HTTP/1.1 202 Accepted
+content-type: application/json; charset=utf-8
+
+{"id":"session-2026-11-16T08-12-45-120Z-4be07d1a","request":"cover the search of a customer","environment":"local","openedAt":"2026-11-16T08:12:45.120Z","lastEventAt":"2026-11-16T09:30:02.017Z","state":"running"}
+```
+
+The body is that of [a message](#sending-a-message), and is validated the same. The answer is `202` with the session: `running` when its turn started at once, `queued` when it waits behind another, as a session that is opened does. It no longer carries the result of the turn before, which the event that completed that turn keeps.
+
+The stream of the session tells the new turn after the turns before, in the same thread: a `user_message` without a `number`, what the person asks of the turn, then a `state_changed` to `queued`, then the work of the turn, which ends with a `state_changed` of its own. The run of the turn is told what was asked first and since, the messages that reached an agent, the verdicts of the last turn that completed, and goes on with the branch the tests of the turns before are on: its agents read those tests, set aside what they already cover, and commit their own on the same branch.
+
+| Status | Code | When |
+|---|---|---|
+| `400` | `invalid_request` | The body is not valid; the detail names the field at fault. |
+| `404` | `unknown_session` | The session does not exist. |
+| `409` | `session_running` | The session goes on, `queued` or `running`: it takes [a message](#sending-a-message) instead. |
+| `503` | `unavailable` | The API was started without a test repository, and the detail says to set `OQAS_REPOSITORY`; or the database of the instance cannot be reached. |
 
 ## Interrupting a session
 
@@ -282,13 +312,14 @@ content-type: application/problem+json; charset=utf-8
 |---|---|---|---|
 | `unknown_session` | `404` | `/problems/unknown-session` | The session does not exist. |
 | `invalid_request` | `400` | `/problems/invalid-request` | The request is not valid: a body that is not JSON, a field of `POST /api/sessions` or of a message at fault, an identifier of event that is none. The detail names what is at fault. |
-| `session_ended` | `409` | `/problems/session-ended` | The session no longer goes on: it takes no message, and no interruption. |
+| `session_running` | `409` | `/problems/session-running` | The session goes on: it takes a message, not a resumption. |
+| `session_ended` | `409` | `/problems/session-ended` | The session no longer goes on: it takes no message, and no interruption, until it is resumed. |
 | `unavailable` | `503` | `/problems/unavailable` | The database of the instance cannot be reached: neither the project nor a session can be read, asked for or sent a message; try again once [the instance reports itself ready](running.md#readiness). Or a session is asked of an API that was started without a test repository: the detail says what to set. |
 | `error` | any other | `/problems/error` | Anything else: a route that does not exist (`404`), a media type the API does not read (`415`), or a failure of the API (`500`). |
 
 A failure of the API is logged on the instance and answered `500` with a detail that says nothing of it: the message of such an error may name a file or an address of the machine.
 
-The contract of the problems, in `@open-qa-stack/domain/sessions`, still names three codes the API no longer answers, `session_running`, `not_opened` and `opening_timed_out`: a client written for an earlier version reads them, and none is sent.
+The contract of the problems, in `@open-qa-stack/domain/sessions`, still names two codes the API no longer answers, `not_opened` and `opening_timed_out`: a client written for an earlier version reads them, and neither is sent.
 
 ## Where sessions are kept, and what runs them
 
@@ -302,6 +333,7 @@ The routes hold no rule of the sessions. Each calls one operation of `Sessions`,
 | `GET /api/sessions/:id/events` | `events(id, after)`, whose events the API sends as they are told |
 | `POST /api/sessions` | `open(opening)` |
 | `POST /api/sessions/:id/messages` | `say(id, message)` |
+| `POST /api/sessions/:id/resumption` | `resume(id, message)` |
 | `POST /api/sessions/:id/interruption` | `interrupt(id)` |
 
 The operations keep the sessions in [the database](../../store/docs/database.md#tables) of the instance — each change is one command of [the life of a session](../../store/docs/database.md#the-life-of-a-session) — and run each session opened here with the engine, in the test repository the API [was started with](running.md#configuration). What a session tells is written to the database, then the streams open on it are woken in the memory of the process: nothing listens to the database, and nothing polls it for a session the API runs. The identifier of an event is its rank in its session, given once when the event is written and never changed: a client that resumes a stream after an identifier gets the same events whatever happened since.

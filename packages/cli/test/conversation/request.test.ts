@@ -5,11 +5,11 @@ import { interruptionOf } from "../../src/solo/conversation/interruption.ts";
 import { requestOf } from "../../src/solo/conversation/request.ts";
 import { hintedCommands, SLASH_COMMANDS } from "../../src/solo/conversation/slash-commands.ts";
 import type { ConversationState } from "../../src/solo/conversation/conversation-state.ts";
-import { after, COMPLETED, FAILED, RUNNING, showing } from "./fixtures.ts";
+import { after, COMPLETED, FAILED, RUNNING, showing, endOf } from "./fixtures.ts";
 
 const HOME = after([]);
 const LIVE = showing();
-const ENDED = after([{ type: "ended", session: COMPLETED }], LIVE);
+const ENDED = after(endOf(COMPLETED), LIVE);
 
 /** The conversation with something typed in its input. */
 const typing = (input: string, state: ConversationState = HOME): ConversationState => after([{ type: "typed", input }], state);
@@ -34,9 +34,12 @@ describe("what Enter asks", () => {
     for (const input of ["", "   "]) assert.deepEqual(requestOf(typing(input)), { kind: "nothing" });
   });
 
-  it("is to open a session with what was typed when no session goes on on screen: at the start, or once the one shown ended", () => {
+  it("is to open a session with what was typed when no session is on screen", () => {
     assert.deepEqual(requestOf(typing("  Test the returns. ")), { kind: "open", request: "Test the returns." });
-    assert.deepEqual(requestOf(typing("Test the returns.", ENDED)), { kind: "open", request: "Test the returns." });
+  });
+
+  it("is to resume the session on screen with what was typed once it ended, for a new turn", () => {
+    assert.deepEqual(requestOf(typing("Fix the failing test.", ENDED)), { kind: "resume", session: RUNNING.id, text: "Fix the failing test." });
   });
 
   it("is to say what was typed to the session on screen while it goes on", () => {
@@ -116,9 +119,9 @@ describe("what Ctrl-C does", () => {
 });
 
 describe("what the person may do now", () => {
-  it("is to open a session at the start, and the next one once the session on screen ended", () => {
+  it("is to open a session at the start, and to go on with the session on screen once it ended, or to open another with /new", () => {
     assert.deepEqual(hintsOf(HOME), { placeholder: "What do we test?", keys: ["Enter open a session", "/ commands", "Ctrl-C quit"] });
-    assert.deepEqual(hintsOf(ENDED), { placeholder: "What do we test next?", keys: ["Enter open a session", "/ commands", "Ctrl-C quit"] });
+    assert.deepEqual(hintsOf(ENDED), { placeholder: "What do the agents do next?", keys: ["Enter go on", "/new another session", "Ctrl-C quit"] });
   });
 
   it("is to speak to the agents while the session on screen goes on, and to stop it with Ctrl-C when this process runs it", () => {

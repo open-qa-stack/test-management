@@ -22,6 +22,8 @@ export type ConversationAction =
   | { readonly type: "submitted"; readonly request: Request }
   /** A thread comes on screen: that of a session just opened here, which this process runs, or of one picked. */
   | { readonly type: "opened"; readonly session: Session; readonly hosted: boolean }
+  /** The session on screen was resumed here for a new turn, which this process runs. */
+  | { readonly type: "resumed"; readonly session: Session }
   /** The session on screen told events. */
   | { readonly type: "told"; readonly session: string; readonly events: readonly SessionEvent[] }
   /** The session on screen ended: this is what it came to. */
@@ -162,7 +164,17 @@ export function conversationReducer(state: ConversationState, action: Conversati
       // A thread that is on screen already stays as it is, and goes on being followed.
       if (state.shown?.session.id === action.session.id) return state;
       const hosted = action.hosted ? [...state.hosted, action.session.id] : state.hosted;
-      return { ...printing(state, { kind: "heading", session: action.session }), hosted, shown: { session: action.session, events: [], settled: 0 } };
+      return {
+        ...printing(state, { kind: "heading", session: action.session }),
+        hosted,
+        shown: { session: action.session, events: [], settled: 0, resumed: 0 },
+      };
+    }
+    case "resumed": {
+      const { shown } = state;
+      if (shown === undefined || shown.session.id !== action.session.id) return state;
+      const hosted = state.hosted.includes(action.session.id) ? state.hosted : [...state.hosted, action.session.id];
+      return { ...state, hosted, shown: { ...shown, session: action.session, resumed: shown.resumed + 1 } };
     }
     case "told": {
       const { shown } = state;

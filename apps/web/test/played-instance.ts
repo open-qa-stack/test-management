@@ -47,6 +47,8 @@ export class PlayedInstance {
   public readonly said: SessionMessage[] = [];
   /** The sessions the API was asked to interrupt, in order. */
   public readonly interrupted: string[] = [];
+  /** What the session was resumed with once it ended, in order. */
+  public readonly resumedWith: SessionMessage[] = [];
   /** The event each stream of the session was asked to resume after; none for a stream asked from its start. */
   public readonly resumed: (string | undefined)[] = [];
   /** The session the API opened on request, once it did. */
@@ -76,7 +78,7 @@ export class PlayedInstance {
   /** Completes the session the API opened: its last event says so, and the API tells what it came to. */
   public completeOpened(): void {
     this.opened = { ...this.opened!, state: "completed", result: COMPLETED.result! };
-    this.tell({ type: "state_changed", state: "completed" });
+    this.tell({ type: "state_changed", state: "completed", result: COMPLETED.result! });
   }
 
   /**
@@ -108,7 +110,7 @@ export class PlayedInstance {
       const items = [...(this.opened === undefined ? [] : [this.opened]), ...(this.listed ? [this.session] : [])];
       return { body: JSON.stringify({ items } satisfies SessionList) };
     }
-    const [, id, part] = /^\/api\/sessions\/([^/]+)(\/events|\/messages|\/interruption)?$/.exec(path) ?? [];
+    const [, id, part] = /^\/api\/sessions\/([^/]+)(\/events|\/messages|\/resumption|\/interruption)?$/.exec(path) ?? [];
     const session = id === SESSION_ID ? this.session : id === OPENED_ID ? this.opened : undefined;
     if (session === undefined) return problem("unknown_session", 404, "No session has this identifier.");
     if (part === undefined) return { body: JSON.stringify(session) };
@@ -122,6 +124,19 @@ export class PlayedInstance {
       else this.tell(sent);
       return { status: 202, body: JSON.stringify({ number: this.said.length }) };
     }
+    if (part === "/resumption") {
+      await this.hold;
+      const message = JSON.parse(body!) as SessionMessage;
+      this.resumedWith.push(message);
+      // The end the session is resumed from stays in its thread, and the new turn starts under it: it runs at once.
+      this.since.push(this.completion(session));
+      this.since.push({ ...this.next(), type: "user_message", text: message.text });
+      this.since.push({ ...this.next(), type: "state_changed", state: "queued" });
+      this.since.push({ ...this.next(), type: "state_changed", state: "running" });
+      const { result: _turn, ...going } = session;
+      this.session = { ...going, state: "running" };
+      return { status: 202, body: JSON.stringify(this.session) };
+    }
     if (part === "/interruption") {
       await this.hold;
       if (this.deaf) return problem("session_ended", 409, "The session no longer goes on.");
@@ -132,8 +147,7 @@ export class PlayedInstance {
     if (this.streamDown) return problem("unavailable", 503, "The stream cannot be opened.");
     if (id === SESSION_ID) this.resumed.push(after);
     // The answer ends after what the session has so far: the console connects again, and asks for what happened since.
-    const completion: SessionEvent = { ...this.next(), type: "state_changed", state: session.state === "interrupted" ? "interrupted" : "completed" };
-    const played = [...EVENTS.slice(0, this.happened), ...this.since, ...(session.state === "running" ? [] : [completion])];
+    const played = [...EVENTS.slice(0, this.happened), ...this.since, ...(session.state === "running" ? [] : [this.completion(session)])];
     const events = id === SESSION_ID ? played : this.openedEvents;
     const fresh = events.filter((event) => event.id > Number(after ?? 0));
     return { contentType: "text/event-stream", body: `: events\n\n${fresh.map((event) => `id: ${event.id}\ndata: ${JSON.stringify(event)}\n\n`).join("")}` };
@@ -145,6 +159,13 @@ export class PlayedInstance {
       const id = this.openedEvents.length + 1;
       this.openedEvents.push({ ...body, id, at: `2026-11-16T09:00:${String(id).padStart(2, "0")}.000Z` } as SessionEvent);
     }
+  }
+
+  /** The event that tells the end of a session, with its result when it completed, after all the session has. */
+  private completion(session: Session): SessionEvent {
+    return session.state === "interrupted"
+      ? { ...this.next(), type: "state_changed", state: "interrupted" }
+      : { ...this.next(), type: "state_changed", state: "completed", ...(session.result === undefined ? {} : { result: session.result }) };
   }
 
   /** The rank and the date of the next event of the session, after all it has. */

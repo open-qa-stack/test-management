@@ -88,6 +88,29 @@ export const THREAD: readonly EventBody[] = [
 ];
 
 /**
+ * The event a session that completed tells its end with.
+ *
+ * @param session - The session, completed with its result.
+ * @returns The change of state, with the result.
+ */
+export function completion(session: Session): EventBody {
+  return { type: "state_changed", state: "completed", result: session.result! };
+}
+
+/**
+ * What the end of the session of the thread is told by, after the events of the thread: the event that tells it,
+ * for one that completed, then the session as it came to.
+ *
+ * @param session - The session, as it ended.
+ * @returns The actions.
+ */
+export function endOf(session: Session): ConversationAction[] {
+  const told: ConversationAction[] =
+    session.state === "completed" ? [{ type: "told", session: session.id, events: numbered([completion(session)], THREAD.length + 1) }] : [];
+  return [...told, { type: "ended", session }];
+}
+
+/**
  * Plays actions on a conversation.
  *
  * @param actions - What happens, in order.

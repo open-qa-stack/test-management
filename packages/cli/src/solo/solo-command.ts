@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import { ExitCode, type ExitCodeValue } from "@open-qa-stack/domain";
 import { playwrightVersion } from "@open-qa-stack/tools";
-import type { Session } from "@open-qa-stack/domain/sessions";
+import { hasEnded, type Session } from "@open-qa-stack/domain/sessions";
 import type { Sessions } from "@open-qa-stack/engine";
 import { parseArguments, USAGE, type Arguments, type Command } from "./arguments.ts";
 import { eventLine, ofTheAgents } from "./event-line.ts";
@@ -38,7 +38,7 @@ const NO_TERMINAL = "oqas opens its conversation in a terminal, and this is not 
  * what it opens, a server on the same database shows, and what a server opens, it reads, follows, speaks to
  * and interrupts. Without a command, in a terminal, it opens a conversation, where the sessions are opened,
  * followed, spoken to and stopped. With `--brief` it opens a session, which it runs in its own process, follows it to its end
- * and exits with the code of its run. With `--ui` it serves the console, and runs the sessions opened in it
+ * and exits with the code of its run; `say` does the same with the new turn of a session that ended, which it resumes. With `--ui` it serves the console, and runs the sessions opened in it
  * until it is stopped. The other commands host nothing: they read the database or post to it, and the process
  * that runs the session does the rest.
  *
@@ -79,6 +79,7 @@ export async function soloCommand(argv: readonly string[], io: CommandIo): Promi
 /** Runs a command on the sessions of a test repository, with the operations opened for it and let go of afterwards. */
 async function onSessions(command: Exclude<Command, { name: "help" | "init" }>, options: Arguments, repository: string, io: CommandIo): Promise<ExitCodeValue> {
   if (command.name === "run") return opened({ command, options, io }, repository);
+  if (command.name === "say") return said({ command, options, io }, repository);
   if (command.name === "ui") return servedConsole(command, repository, io);
   if (command.name === "converse") {
     if (io.terminal === undefined) throw new UsageError(NO_TERMINAL);
@@ -95,8 +96,6 @@ async function onSessions(command: Exclude<Command, { name: "help" | "init" }>, 
         return await shown({ sessions, command, options, io });
       case "attach":
         return await attached({ sessions, command, options, io });
-      case "say":
-        return await said({ sessions, command, options, io });
       case "stop":
         return await stopped({ sessions, command, options, io });
     }
@@ -118,37 +117,68 @@ async function named(sessions: Sessions, reference: string): Promise<Session> {
 /**
  * Follows a session to its end, then says what it came to.
  *
+ * @param after - The rank of the last event of the session not to print; 0 for every event.
  * @returns The code of the run of the session.
  */
-async function followed({ sessions, options, io }: Pick<Asked<Command["name"]>, "sessions" | "options" | "io">, id: string): Promise<ExitCodeValue> {
+async function followed(
+  { sessions, options, io }: Pick<Asked<Command["name"]>, "sessions" | "options" | "io">,
+  id: string,
+  after: number,
+): Promise<ExitCodeValue> {
   const json = options.output === "json";
   // A thread a person reads goes where the journal of a run always went, and leaves the standard output to the summary.
   const thread = new ThreadOutput(json ? io.stdout : io.stderr, options.output, options.follow);
-  await followSession(sessions, id, thread);
+  await followSession(sessions, id, thread, after);
   const session = await sessions.session(id);
   if (!json) for (const line of summaryLines(session)) io.stdout.write(`${line}\n`);
   return exitCodeOf(session, thread.lastPhase);
 }
 
+/** A session a command hosts, from the event after which its thread is printed. */
+interface Hosted {
+  readonly id: string;
+  /** The rank of the last event of the session not to print. */
+  readonly after: number;
+}
+
 /**
  * `oqas --brief`: opens a session, runs it in this process and follows it to its end.
+ */
+function opened({ command, options, io }: Omit<Asked<"run">, "sessions">, repository: string): Promise<ExitCodeValue> {
+  return hosting({ options, io }, repository, async (sessions) => {
+    const { brief: request, environment } = command;
+    const { id } = await sessions.open({ request, ...(environment === undefined ? {} : { environment }) });
+    return { id, after: 0 };
+  });
+}
+
+/**
+ * Runs in this process the session a command opens or resumes, and follows it to its end.
  *
  * @remarks
  * The person stops it with Ctrl-C: the first asks the session to stop, as `oqas stop` does, and the command
  * goes on to the end of the session, which comes soon; a second one leaves at once, without waiting for it.
+ *
+ * @param begin - Opens or resumes the session, on the operations of the command; gives no session when there is none to run.
+ * @returns The code of the run of the session; `0` when there was none to run.
  */
-async function opened({ command, options, io }: Omit<Asked<"run">, "sessions">, repository: string): Promise<ExitCodeValue> {
+async function hosting(
+  { options, io }: Pick<Asked<Command["name"]>, "options" | "io">,
+  repository: string,
+  begin: (sessions: Sessions) => Promise<Hosted | undefined>,
+): Promise<ExitCodeValue> {
   const { sessions, close } = await openOperations(io, repository, true);
   let withinMs: number | undefined;
   try {
-    const { brief: request, environment } = command;
-    const { id } = await sessions.open({ request, ...(environment === undefined ? {} : { environment }) });
+    const hosted = await begin(sessions);
+    if (hosted === undefined) return ExitCode.passed;
+    const { id, after } = hosted;
     io.stderr.write(`Session ${id}\n`);
     const interruptions = new Interruptions(io, () => sessions.interrupt(id), {
       asked: "The session is asked to stop, and ends soon.",
       failed: "The session was not asked to stop",
     });
-    const ended = followed({ sessions, options, io }, id);
+    const ended = followed({ sessions, options, io }, id, after);
     const left = interruptions.leftAtOnce.then(() => {
       // Nothing is waited for any more: neither the session, nor what its following still raises.
       withinMs = 0;
@@ -182,16 +212,28 @@ async function shown({ sessions, command, options, io }: Asked<"show">): Promise
 /** `oqas attach`: follows a session another process runs, or one that ended, as the command that opened it does. */
 async function attached({ sessions, command, options, io }: Asked<"attach">): Promise<ExitCodeValue> {
   const { id } = await named(sessions, command.session);
-  return followed({ sessions, options, io }, id);
+  return followed({ sessions, options, io }, id, 0);
 }
 
-/** `oqas say`: says something to a session that goes on; the process that runs it hands it to the agent at work. */
-async function said(asked: Asked<"say">): Promise<ExitCodeValue> {
-  const { sessions, command } = asked;
-  const { id } = await named(sessions, command.session);
-  const receipt = await sessions.say(id, { text: command.text });
-  print(asked, `Message ${receipt.number} is taken by the session ${id}.`, receipt);
-  return ExitCode.passed;
+/**
+ * `oqas say`: says something to a session. One that goes on takes it as a message, which the process that runs it
+ * hands to the agent at work. One that ended is resumed with it: this command runs its new turn, as `--brief`
+ * runs a session it opens, and follows it from the message on.
+ */
+function said({ command, options, io }: Omit<Asked<"say">, "sessions">, repository: string): Promise<ExitCodeValue> {
+  return hosting({ options, io }, repository, async (sessions) => {
+    const { id, state } = await named(sessions, command.session);
+    const text = { text: command.text };
+    if (hasEnded(state)) {
+      // The ranks of the events go from 1 without a gap: the thread of the turns before ends at its length.
+      const after = (await sessions.thread(id)).length;
+      await sessions.resume(id, text);
+      return { id, after };
+    }
+    const receipt = await sessions.say(id, text);
+    print({ options, io }, `Message ${receipt.number} is taken by the session ${id}.`, receipt);
+    return undefined;
+  });
 }
 
 /** `oqas stop`: interrupts a session that goes on; one another process runs is interrupted by that process, soon. */

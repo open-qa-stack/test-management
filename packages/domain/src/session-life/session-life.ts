@@ -14,6 +14,9 @@ const WAITING = ["queued"] as const satisfies readonly SessionState[];
 /** The state a session is worked on in. */
 const RUNNING = ["running"] as const satisfies readonly SessionState[];
 
+/** The states a session ended in, which a person may resume it from. */
+const ENDED = ["completed", "interrupted"] as const satisfies readonly SessionState[];
+
 /** What the life of a session says of one command. */
 interface CommandRule {
   /** The states the command is for. */
@@ -28,9 +31,10 @@ interface CommandRule {
  *
  * @remarks
  * A session is asked for `queued`, becomes `running` when its host starts it, and ends `completed` or
- * `interrupted`; nothing leaves these two. What is told of the work of a session — its events, the delivery
- * of a message, its result — is taken while it runs; a person speaks to a session, and whoever stops it
- * interrupts it, as long as it goes on. A session has one host, the process that asked for it or took it
+ * `interrupted`. A person who says something more to a session that ended resumes it: it waits again, `queued`,
+ * for a new turn of work on what they said, and nothing else leaves an end. What is told of the work of a
+ * session — its events, the delivery of a message, its result — is taken while it runs; a person speaks to a
+ * session, and whoever stops it interrupts it, as long as it goes on. A session has one host, the process that asked for it or took it
  * over, which beats on it as long as it goes on. A host that went silent died: a session it left running is
  * abandoned, and one it left waiting is taken over by a host that stays. Whoever keeps the sessions enforces
  * this table; the table says what its guards mean.
@@ -46,6 +50,8 @@ export const SESSION_LIFE = {
   complete: { from: RUNNING, to: "completed" },
   /** A message of the person to a session that goes on: one that waits keeps it for its first agent. */
   say: { from: GOING },
+  /** A message of the person to a session that ended: it waits for a new turn of work on that message. */
+  resume: { from: ENDED, to: "queued" },
   /** The end of a session whose work stopped, one that still waited included. */
   interrupt: { from: GOING, to: "interrupted" },
   /** The sign of life of a host, on each session it hosts that goes on. */
@@ -97,11 +103,12 @@ export function nextState(command: SessionCommand, state: SessionState): Session
  *
  * @param command - The command; those of a host name no session, and pick those they are for.
  * @param state - The state of the session; `undefined` when there is no such session.
- * @returns `unknown_session`, `session_ended` for a session that is completed or interrupted, `wrong_state`
- * for a session that goes on in a state the command is not for; `undefined` when the session takes the command.
+ * @returns `unknown_session`, `session_ended` for a session that ended and that the command is not for,
+ * `wrong_state` for a session that goes on in a state the command is not for; `undefined` when the session
+ * takes the command.
  */
 export function refusalOf(command: AddressedCommand, state: string | undefined): Exclude<SessionRefusal, "message_not_pending"> | undefined {
   if (state === undefined) return "unknown_session";
-  if (isTerminal(state)) return "session_ended";
-  return accepts(command, state) ? undefined : "wrong_state";
+  if (accepts(command, state)) return undefined;
+  return isTerminal(state) ? "session_ended" : "wrong_state";
 }

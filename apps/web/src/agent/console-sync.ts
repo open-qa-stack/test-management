@@ -1,4 +1,4 @@
-import type { Session } from "@open-qa-stack/domain/sessions";
+import { hasEnded, type Session } from "@open-qa-stack/domain/sessions";
 import type { ApiClient } from "../api/api-client.ts";
 import type { ApiError } from "../api/api-error.ts";
 import { followEvents } from "../api/event-stream.ts";
@@ -17,6 +17,8 @@ export class ConsoleSync {
   readonly #dispatch: (action: ConsoleAction) => void;
   /** How many lists were asked and sessions opened so far: the rank of the last, which orders their answers. */
   #calls = 0;
+  /** What hears the session followed as the API tells it, which follows its stream again when it went on after an end. */
+  #told: ((session: Session) => void) | undefined;
 
   /**
    * @param api - The API of the instance.
@@ -73,25 +75,47 @@ export class ConsoleSync {
   /**
    * Follows a session: its stream of events, and the session itself, read on arrival and each time its stream
    * says it changed state — it started, or it ended and the API knows what it came to. A session the
-   * instance does not keep is no longer followed.
+   * instance does not keep is no longer followed. A stream ends with an end of the session: one the API tells
+   * the session went on from — a person resumed it — is followed again, after the last event received.
    *
    * @param id - The identifier of the session.
    * @returns What leaves the session.
    */
   public follow(id: string): () => void {
     this.#dispatch({ type: "followed", id });
-    const stopStream = followEvents(id, {
-      events: (events) => {
-        this.#dispatch({ type: "events", id, events });
-        if (!events.some(({ type }) => type === "state_changed")) return;
-        stopReading();
-        stopReading = this.#read(id, stopStream);
-      },
-      state: (state) => this.#dispatch({ type: "stream", id, state }),
-    });
-    let stopReading = this.#read(id, stopStream);
+    let last: number | undefined;
+    let ended = false;
+    let stopStream: () => void;
+    // The stream followed now, whichever it is: the session is followed again after an end it went on from.
+    const leaveStream = (): void => stopStream();
+    const stream = (): void => {
+      ended = false;
+      stopStream = followEvents(
+        id,
+        {
+          events: (events) => {
+            last = events.at(-1)!.id;
+            this.#dispatch({ type: "events", id, events });
+            if (!events.some(({ type }) => type === "state_changed")) return;
+            stopReading();
+            stopReading = this.#read(id, leaveStream);
+          },
+          state: (state) => {
+            ended = state === "ended";
+            this.#dispatch({ type: "stream", id, state });
+          },
+        },
+        last,
+      );
+    };
+    this.#told = (session) => {
+      if (session.id === id && ended && !hasEnded(session.state)) stream();
+    };
+    stream();
+    let stopReading = this.#read(id, leaveStream);
     return () => {
-      stopStream();
+      this.#told = undefined;
+      leaveStream();
       stopReading();
       this.#dispatch({ type: "left" });
     };
@@ -131,6 +155,32 @@ export class ConsoleSync {
   }
 
   /**
+   * Resumes a session that ended with what the person says more to it. The session is told as the API answered
+   * it, and its stream followed again: the new turn shows in the thread as the stream gives it. One the API says
+   * goes on — somebody resumed it first — is read again, and followed as it goes on.
+   *
+   * @param id - The identifier of the session.
+   * @param text - What the person asks of the new turn.
+   */
+  public resume(id: string, text: string): void {
+    this.#dispatch({ type: "saying", id });
+    this.#api.resume(id, { text }).then(
+      (session) => {
+        this.#dispatch({ type: "said", id });
+        this.#heard(session);
+      },
+      (error: ApiError) => {
+        this.#dispatch({ type: "unsaid", id, message: error.message });
+        if (error.code === "session_running")
+          this.#api.session(id).then(
+            (session) => this.#heard(session),
+            (missed: ApiError) => this.#unanswered(missed),
+          );
+      },
+    );
+  }
+
+  /**
    * Asks the instance to stop a session that goes on. The session shows as stopped once its stream says so,
    * not before: one another process runs goes on until that process obeyed.
    *
@@ -154,7 +204,7 @@ export class ConsoleSync {
       {
         ask: () => this.#api.session(id),
         told: (session) => {
-          this.#dispatch({ type: "session", session });
+          this.#heard(session);
           stop();
         },
         failed: (error) => {
@@ -168,6 +218,12 @@ export class ConsoleSync {
       PAUSE_MS,
     );
     return stop;
+  }
+
+  /** Tells the state of the console a session as the API told it, and whoever follows it. */
+  #heard(session: Session): void {
+    this.#dispatch({ type: "session", session });
+    this.#told?.(session);
   }
 
   /** Says the instance unreachable when that is why a call failed: any other failure is an answer. */

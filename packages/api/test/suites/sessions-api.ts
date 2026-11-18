@@ -114,6 +114,11 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
     return fetch(`${to.url}/sessions/${id}/messages`, { method: "POST", headers: { "content-type": "application/json" }, body });
   }
 
+  /** Resumes a session that ended. */
+  function resume(id: string, body: string, to = api): Promise<Response> {
+    return fetch(`${to.url}/sessions/${id}/resumption`, { method: "POST", headers: { "content-type": "application/json" }, body });
+  }
+
   /** Interrupts a session. */
   function interrupt(id: string, to = api): Promise<Response> {
     return fetch(`${to.url}/sessions/${id}/interruption`, { method: "POST" });
@@ -183,7 +188,7 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
       assert.deepEqual(await answerOf(one), { status: 200, type: JSON_TYPE, body: items[1] });
     });
 
-    it("answer 404 with a problem for a session that does not exist: for itself, its events, a message and an interruption", async () => {
+    it("answer 404 with a problem for a session that does not exist: for itself, its events, a message, a resumption and an interruption", async () => {
       const unknown = {
         type: "/problems/unknown-session",
         title: "Unknown session",
@@ -195,6 +200,7 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
         await fetch(`${api.url}/sessions/session-unknown`),
         await fetch(`${api.url}/sessions/session-unknown/events`),
         await say("session-unknown", JSON.stringify({ text: "not that page" })),
+        await resume("session-unknown", JSON.stringify({ text: "go on" })),
         await interrupt("session-unknown"),
       ])
         assert.deepEqual(await answerOf(response), { status: 404, type: PROBLEM_TYPE, body: unknown });
@@ -265,7 +271,7 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
       assert.deepEqual({ ...messages[0]?.event, at: "" }, { id: 1, at: "", type: "user_message", text: "cover the profile" });
       assert.deepEqual({ ...messages[1]?.event, at: "" }, { id: 2, at: "", type: "state_changed", state: "running" });
       assert.deepEqual({ ...messages[2]?.event, at: "" }, { id: 3, at: "", type: "note", phase: "plan", text: "Three." });
-      assert.deepEqual({ ...messages[3]?.event, at: "" }, { id: 4, at: "", type: "state_changed", state: "completed" });
+      assert.deepEqual({ ...messages[3]?.event, at: "" }, { id: 4, at: "", type: "state_changed", state: "completed", result: RESULT });
       assert.equal(await stream.next(), undefined);
     });
 
@@ -555,7 +561,7 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
       for (const { id } of [completed, interrupted]) {
         assert.deepEqual(
           await problemOf(await interrupt(id)),
-          problem(409, "session_ended", `The session ${id} no longer goes on. It takes no message and no interruption: open another session to go on.`),
+          problem(409, "session_ended", `The session ${id} no longer goes on. It takes no message and no interruption: resume it with a message to go on.`),
         );
       }
     });
@@ -621,7 +627,7 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
           type: "/problems/session-ended",
           title: "Session ended",
           status: 409,
-          detail: `The session ${completed.id} no longer goes on. It takes no message and no interruption: open another session to go on.`,
+          detail: `The session ${completed.id} no longer goes on. It takes no message and no interruption: resume it with a message to go on.`,
           code: "session_ended",
         },
       });
@@ -630,10 +636,67 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
         problem(
           409,
           "session_ended",
-          `The session ${interrupted.id} no longer goes on. It takes no message and no interruption: open another session to go on.`,
+          `The session ${interrupted.id} no longer goes on. It takes no message and no interruption: resume it with a message to go on.`,
         ),
       );
       assert.deepEqual([await store.pendingMessages(completed.id), await store.pendingMessages(interrupted.id)], [[], []]);
+    });
+  });
+
+  describe("a session resumed once it ended", () => {
+    it("is answered 202 with the session, which runs a new turn on the message: its stream tells the turn, then its end with its result", async () => {
+      const { api: own } = await chained();
+      const first = await ended((await opened(WHOLE_CHAIN, own)).id, own);
+      assert.equal(first.result?.outcome, "passed");
+      const before = (await store.eventsAfter(first.id, 0)).length;
+      const { status, type, body } = await answerOf(await resume(first.id, JSON.stringify({ text: "Add a scenario for the export." }), own));
+      const session = body as Session;
+      assert.deepEqual([status, type, session.id, session.state, session.result], [202, JSON_TYPE, first.id, "running", undefined]);
+      const stream = await EventStream.open(`${own.url}/sessions/${first.id}/events`, String(before));
+      const told: SessionEvent[] = [];
+      for (let message = await stream.next(); message !== undefined; message = await stream.next()) told.push(message.event);
+      assert.deepEqual(
+        told.slice(0, 3).map((event) => (event.type === "state_changed" ? event.state : event.type === "user_message" ? event.text : event.type)),
+        ["Add a scenario for the export.", "queued", "running"],
+      );
+      const last = told.at(-1);
+      const again = await ended(first.id, own);
+      assert.deepEqual(last?.type === "state_changed" && [last.state, last.result], ["completed", again.result]);
+      assert.equal(again.result?.branch, first.result?.branch, "the turn goes on with the branch of the tests of the first");
+    });
+
+    it("waits its turn behind a session the API runs, and is refused with 503 by an API that was started without a test repository", async () => {
+      const { repository, api: own } = await chained();
+      const door = repository.designDoor();
+      await opened(WHOLE_CHAIN, own);
+      await door.reached;
+      const completed = await kept();
+      await store.complete(completed.id, RESULT);
+      const { status, body } = await answerOf(await resume(completed.id, JSON.stringify({ text: "go on" }), own));
+      assert.deepEqual([status, (body as Session).state], [202, "queued"]);
+      door.open();
+      const reading = await sessionsApi({ database: sessions.url });
+      try {
+        const interrupted = await kept();
+        await store.interrupt(interrupted.id);
+        const refused = await problemOf(await resume(interrupted.id, JSON.stringify({ text: "go on" }), reading));
+        assert.deepEqual([refused.status, refused.body.code], [503, "unavailable"]);
+        assert.equal((await store.session(interrupted.id))?.state, "interrupted");
+      } finally {
+        await reading.close();
+      }
+    });
+
+    it("is answered 409 with a problem by a session that goes on, which takes a message instead, and 400 by a body that is no message", async () => {
+      const running = await kept();
+      const waiting = await store.ask({ request: "cover the profile" }, GONE);
+      for (const { id, state } of [running, waiting])
+        assert.deepEqual(
+          await problemOf(await resume(id, JSON.stringify({ text: "go on" }))),
+          problem(409, "session_running", `The session ${id} takes no resume while it is ${state}. It goes on: send it a message instead.`),
+        );
+      assert.deepEqual(await problemOf(await resume(running.id, "{}")), problem(400, "invalid_request", "text must be a text that is not empty."));
+      assert.equal((await store.session(running.id))?.state, "running");
     });
   });
 

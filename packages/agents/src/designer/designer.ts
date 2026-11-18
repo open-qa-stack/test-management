@@ -97,6 +97,11 @@ export interface DesignerOptions {
   readonly screenshots?: boolean;
   /** Name of the branch to create; `oqas/design-<date>` by default. */
   readonly branch?: string;
+  /**
+   * The branch of an earlier design to go on with, in place of a new one: it is checked out before anything is
+   * read, so that the agents find the tests it holds, and the tests of this design are committed on it.
+   */
+  readonly continuedBranch?: string;
   /** How the browser starts and waits; a headless Chromium with the default waits otherwise. */
   readonly browser?: Pick<BrowserAccess, "launch" | "actionTimeoutMs" | "navigationTimeoutMs" | "settleTimeoutMs">;
   /** Receives each line of the trace as it is written, to follow the design while it runs. */
@@ -111,7 +116,7 @@ export interface DesignerOptions {
 export interface DesignOutcome {
   /** Whether each scenario of the plan has a test that passed, or that fails because of the application. */
   readonly ok: boolean;
-  /** The branch created, when tests were written; it is the one checked out. */
+  /** The branch the tests were committed on, when they were: the one created, or the one gone on with; it is the one checked out. */
   readonly branch?: string;
   /** Where the design state was written, when it was. */
   readonly statePath?: string;
@@ -146,7 +151,8 @@ const ACCEPT_EVERY_PLAN: PlanReview = { review: async () => ({ accepted: true })
  * @remarks
  * Before any session, the index must be readable, and the test repository must be the root of a git
  * repository with no tracked file changed, no untracked file outside the folders of the state and the index,
- * and no branch of the name to create; otherwise nothing is written.
+ * and no branch of the name to create; otherwise nothing is written. A design that goes on with the branch of
+ * an earlier one needs that branch instead, which it checks out first, and commits its tests on it.
  *
  * A plan may hold no scenario, when the agent says why no test can do what the brief asks: the design then
  * writes its plan and its state, no test, and succeeds.
@@ -209,10 +215,12 @@ export class Designer {
     const start = now();
     const id = `design-${start.toISOString().replace(/[-:]|\.\d+/g, "")}`;
     const repository = new TestRepository(repositoryRoot);
-    const branch = this.options.branch ?? `${BRANCH_PREFIX}${id}`;
-    const problems = await repository.problems(branch, [config.repository.stateDir, config.repository.indexDir]);
+    const { continuedBranch } = this.options;
+    const branch = continuedBranch ?? this.options.branch ?? `${BRANCH_PREFIX}${id}`;
+    const problems = await repository.problems(branch, [config.repository.stateDir, config.repository.indexDir], continuedBranch !== undefined);
     for (const problem of problems) journal.record("error", problem);
     if (problems.length > 0) return failed("No branch was created and no file was written.");
+    if (continuedBranch !== undefined && (await repository.branch()) !== continuedBranch) await repository.switchTo(continuedBranch);
     const { brief } = this.options;
     const index = await this.index();
     if (typeof index === "string") return failed(`No test was designed: ${index}`);

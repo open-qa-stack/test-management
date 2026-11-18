@@ -119,7 +119,7 @@ function ReplayBar({ live }: { readonly live: LiveSession }): ReactNode {
 
 /**
  * A session: its thread alone, followed as the agents work or replayed, over the composer of a message to the
- * agents until the session ended: one sent while it waits its turn is delivered when its agents start. Until
+ * agents: one sent while it waits its turn is delivered when its agents start, and one sent once it ended resumes it. Until
  * then its bar offers to stop it, behind a confirmation the address opens (`?stop=ask`). What an agent had before its eyes
  * when it acted opens in a panel, from the eye of that action: the address names the action (`?look=6`).
  *
@@ -183,7 +183,7 @@ export function SessionScreen({ route, live, project }: SessionScreenProps): Rea
           onUnfold={live.controls.unfold}
           {...(followed === undefined ? {} : { followed })}
         />
-        {script.stage !== "ended" && <Composer saying={live.saying} onSay={live.controls.say} onKey={live.controls.sayOnEnter} />}
+        <Composer saying={live.saying} ended={script.stage === "ended"} onSay={live.controls.say} onKey={live.controls.sayOnEnter} />
         <div className="session-end" />
         {opened !== undefined && <LookPanel opened={opened} close={withoutLook(route)} />}
       </div>

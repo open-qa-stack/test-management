@@ -33,7 +33,8 @@ function currentHash(): string {
 /**
  * The console in a browser: it follows the address, keeps its state in step with the instance, names the page
  * and moves the focus as the person goes from screen to screen, keeps the end of a thread in view, sends what
- * the person says to the agents of a session and empties its field once the instance took it, asks the
+ * the person says to the agents of a session — or resumes it with that, once it ended — and empties its field
+ * once the instance took it, asks the
  * instance to stop a session once the person confirmed it, takes the
  * keyboard into the look a person opens and back to its action when it closes, and beats the clock of a replay.
  *
@@ -85,7 +86,10 @@ export function App(): ReactNode {
       say: (event: FormEvent<HTMLFormElement>): void => {
         event.preventDefault();
         const text = (event.currentTarget.elements.namedItem("message") as HTMLTextAreaElement).value.trim();
-        if (text !== "") sync.say(session.id, text);
+        if (text === "") return;
+        // A session that ended takes no message: what the person says more resumes it, for a new turn.
+        if (script.stage === "ended") sync.resume(session.id, text);
+        else sync.say(session.id, text);
       },
       // Once the instance took the request, its confirmation closes: the bar of the session says the stop was asked.
       unfold: (index: number) => dispatch({ type: "unfold", id: session.id, index }),

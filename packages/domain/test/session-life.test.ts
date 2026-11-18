@@ -16,7 +16,7 @@ import {
 import type { SessionState } from "../src/sessions/index.ts";
 
 const STATES: readonly SessionState[] = ["queued", "running", "completed", "interrupted"];
-const COMMANDS: readonly SessionCommand[] = ["start", "append", "say", "deliver", "complete", "interrupt", "beat", "takeOver", "abandon"];
+const COMMANDS: readonly SessionCommand[] = ["start", "append", "say", "resume", "deliver", "complete", "interrupt", "beat", "takeOver", "abandon"];
 /** The commands that tell the work of a session, which runs. */
 const OF_THE_WORK = ["append", "deliver", "complete"] as const;
 /** The commands a session that goes on takes, whether it waits or runs. */
@@ -67,8 +67,13 @@ describe("the life of a session", () => {
     assert.deepEqual(transitions("takeOver"), ["queued", undefined, undefined, undefined]);
   });
 
-  it("ends once: no command is for a session that ended, and none leaves an end", () => {
-    for (const command of COMMANDS) {
+  it("lets a person resume a session that ended, and no other: it waits again for a new turn", () => {
+    assert.deepEqual(transitions("resume"), [undefined, undefined, "queued", "queued"]);
+    assert.equal(accepts("resume", "archived"), false);
+  });
+
+  it("leaves an end by a resumption alone: no other command is for a session that ended, and none leaves it in an end", () => {
+    for (const command of COMMANDS.filter((named) => named !== "resume")) {
       assert.deepEqual([accepts(command, "completed"), accepts(command, "interrupted"), accepts(command, "archived")], [false, false, false], command);
       for (const state of STATES) assert.notEqual(isTerminal(state) ? nextState(command, state) : undefined, state, `${command} of ${state}`);
     }
@@ -90,6 +95,13 @@ describe("a command that is refused", () => {
 
   it("is never one a person or whoever stops a session sends to a session that goes on", () => {
     for (const command of OPEN) for (const state of ["queued", "running"]) assert.equal(refusalOf(command, state), undefined, `${command} of ${state}`);
+  });
+
+  it("resumes a session that goes on, which takes a message instead, or one in an end nobody knows", () => {
+    assert.deepEqual(
+      [undefined, "queued", "running", "completed", "interrupted", "archived"].map((state) => refusalOf("resume", state)),
+      ["unknown_session", "wrong_state", "wrong_state", undefined, undefined, "session_ended"],
+    );
   });
 
   it("is raised as an error that names the session, with the state or the message it is about", () => {

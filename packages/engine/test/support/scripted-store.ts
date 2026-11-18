@@ -32,6 +32,7 @@ export class ScriptedStore implements SessionStorePort {
   complete = (id: string, result: unknown) => this.#take(undefined, "complete", id, result);
   interrupt = (id: string) => this.#take(undefined, "interrupt", id);
   say = () => Promise.reject(new Error("Nothing is said to a session of this store."));
+  resume = () => Promise.reject(new Error("No session is resumed on this store."));
   deliver = (id: string, number: number, agent: string) => this.#take(undefined, "deliver", id, number, agent);
   requestInterruption = () => Promise.reject(new Error("No interruption is asked of this store."));
   beat = async () => undefined;

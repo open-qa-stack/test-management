@@ -4,6 +4,7 @@ import { Run } from "../run/run.ts";
 import { liveRuntime } from "../runtime/live-runtime.ts";
 import { SessionJournal } from "./session-journal.ts";
 import { SessionRunStore } from "./session-run-store.ts";
+import { sessionTurn } from "./session-turn.ts";
 import { SessionWriter } from "./session-writer.ts";
 import type { SessionInbox } from "./session-inbox.ts";
 import type { SessionsHost } from "./sessions-host.ts";
@@ -29,9 +30,11 @@ export interface ExecutionOptions {
  * messages the session was sent while it waited to the end that is written to it.
  *
  * @remarks
- * What the session asked is the brief of the run, in the environment the session names. The entries of the
- * journal and the lines of the traces become the events of the session, as `RunThread` of the domain writes
- * them for every host, and are written in the order the run told them. The inbox of the run is the inbox of
+ * What the turn of the session asks is the brief of the run, in the environment the session names: the request
+ * of a session that opens, and, for one a person resumed, what they ask now with what the turns before did, on
+ * the branch they wrote their tests on, as `sessionTurn` tells it. The entries of the journal and the lines of
+ * the traces become the events of the session, as `RunThread` of the domain writes them for every host, and are
+ * written in the order the run told them. The inbox of the run is the inbox of
  * the execution. The state the run writes at its end gives the result the session is completed with; a run
  * that stopped before it wrote one — on its configuration or on a prerequisite — leaves its session
  * interrupted, and so does a run that was asked to stop, whatever it wrote.
@@ -73,9 +76,11 @@ export class SessionExecution {
     try {
       // What the person said while the session waited is there before the first agent works.
       for (const message of await store.pendingMessages(id)) inbox.drop(message);
+      const { brief, branch } = sessionTurn(request, await store.eventsAfter(id, 0));
       await new Run({
         repositoryRoot: repository,
-        ...(request === undefined ? {} : { brief: request }),
+        ...(brief === undefined ? {} : { brief }),
+        ...(branch === undefined ? {} : { branch }),
         ...(environment === undefined ? {} : { environment }),
         env,
         journal,
