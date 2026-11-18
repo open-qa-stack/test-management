@@ -33,8 +33,8 @@ const CODED = /^\[([A-Z-]+)\] ([^]*)$/;
 /** A scenario a text names by its identifier. */
 const NAMED = /\bscenario ([a-z0-9]+(?:-[a-z0-9]+)*)/g;
 const LEVEL = /\bof the level ([a-z-]+) alone/;
-const FAILED = /^(?:Refused|Warning) \(|: failed\./;
-const PASSED = /^The plan was accepted|: passed\./;
+const FAILED = /(?:^(?:Refused|Warning) \()|(?:: failed\.)/;
+const PASSED = /(?:^The plan was accepted)|(?:: passed\.)/;
 /** The answer of a run of a file of tests, then the line of each test it ran: `- <project › file:line › title>: <verdict>.` */
 const RAN = /^Run of the file: /;
 const TEST = /^- (.+ › .+): ([a-z_]+)\.$/gm;

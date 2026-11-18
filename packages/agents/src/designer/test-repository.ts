@@ -41,7 +41,7 @@ export class TestRepository {
     if (!(await this.succeeds("check-ref-format", "--branch", branch))) problems.push(`${branch} is not a valid branch name.`);
     else if ((await this.hasBranch(branch)) !== existing)
       problems.push(existing ? `The branch ${branch} does not exist: there is nothing to go on with.` : `The branch ${branch} already exists.`);
-    const folders = reserved.map((folder) => `${posix.normalize(folder).replace(/\/+$/, "")}/`);
+    const folders = reserved.map((folder) => `${posix.normalize(folder).replace(/(?<!\/)\/+$/, "")}/`);
     // The harness writes the state and the index itself: a change there is its own, not the developer's.
     const changed = (await this.git("status", "--porcelain", "--untracked-files=no"))
       .split("\n")

@@ -118,7 +118,7 @@ export function endOf(session: Session): ConversationAction[] {
  * @returns The conversation after them.
  */
 export function after(actions: readonly ConversationAction[], state: ConversationState = initialState([RUNNING, FAILED], NOW)): ConversationState {
-  return actions.reduce(conversationReducer, state);
+  return actions.reduce((conversation, action) => conversationReducer(conversation, action), state);
 }
 
 /**

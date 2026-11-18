@@ -3,7 +3,7 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, beforeAll } from "vitest";
+import { afterAll } from "vitest";
 import { fixtureConfig, fixtureRepository, git } from "./fixture.ts";
 
 export { git, MODEL, WITNESS } from "./fixture.ts";
@@ -12,16 +12,12 @@ export { git, MODEL, WITNESS } from "./fixture.ts";
 export const workspace = mkdtempSync(join(tmpdir(), "oqas-run-"));
 
 /** The application under test: a server that answers every request. */
-export let site: Server;
+export const site: Server = createServer((_request, response) => response.writeHead(200).end("ok"));
 
-/** The address of the application under test, known once the tests of the file started. */
-export let siteUrl = "";
+await new Promise<void>((resolve) => site.listen(0, "127.0.0.1", resolve));
 
-beforeAll(async () => {
-  site = createServer((_request, response) => response.writeHead(200).end("ok"));
-  await new Promise<void>((resolve) => site.listen(0, "127.0.0.1", resolve));
-  siteUrl = `http://127.0.0.1:${(site.address() as AddressInfo).port}`;
-});
+/** The address of the application under test. */
+export const siteUrl = `http://127.0.0.1:${(site.address() as AddressInfo).port}`;
 
 afterAll(async () => {
   await new Promise<void>((resolve) => site.close(() => resolve()));

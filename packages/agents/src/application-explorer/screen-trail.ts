@@ -113,7 +113,7 @@ export class ScreenTrail {
    * @returns Them, in the order of the first visit.
    */
   public get visited(): VisitedScreen[] {
-    return [...this.screens].map(([route, { title, page, links }]) => ({ route, title, page, links: [...links].sort() }));
+    return [...this.screens].map(([route, { title, page, links }]) => ({ route, title, page, links: [...links].sort((a, b) => a.localeCompare(b)) }));
   }
 
   /**

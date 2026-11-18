@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, posix, relative, resolve } from "node:path";
-import type { ProposedTest, ReportedTest, TestReference, TestRunner, TestTrial, TriedTest } from "@open-qa-stack/domain";
+import { byCodeUnits, type ProposedTest, type ReportedTest, type TestReference, type TestRunner, type TestTrial, type TriedTest } from "@open-qa-stack/domain";
 import { PinnedRun, type PinnedRunOptions, type Preparation } from "./pinned-run.ts";
 
 /** Folder of the trials, in the state folder of the test repository. */
@@ -114,5 +114,7 @@ async function referencesIn(folder: string, root: string): Promise<TestReference
   if (!existsSync(folder)) return [];
   const names = await readdir(folder, { recursive: true, withFileTypes: true });
   const files = names.filter((entry) => entry.isFile()).map((entry) => join(entry.parentPath, entry.name));
-  return Promise.all(files.sort().map(async (path) => ({ path: relative(root, path).split("\\").join("/"), content: new Uint8Array(await readFile(path)) })));
+  return Promise.all(
+    files.sort(byCodeUnits).map(async (path) => ({ path: relative(root, path).split("\\").join("/"), content: new Uint8Array(await readFile(path)) })),
+  );
 }

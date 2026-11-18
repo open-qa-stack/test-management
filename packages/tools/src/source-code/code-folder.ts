@@ -1,5 +1,6 @@
 import { opendir, readFile, realpath, stat } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { byCodeUnits } from "@open-qa-stack/domain";
 import { globMatcher } from "./glob-pattern.ts";
 
 /** Folders of dependencies and builds, never listed nor searched; hidden folders never are either. */
@@ -65,7 +66,7 @@ export class CodeFolder {
       return true;
     };
     const complete = await walk(root);
-    return { files: files.sort(), truncated: !complete };
+    return { files: files.sort(byCodeUnits), truncated: !complete };
   }
 
   /**

@@ -338,9 +338,11 @@ describe("live mode", () => {
   it("closes the sessions still open when the runtime closes", async () => {
     const server = await scriptedServer([]);
     try {
-      await withRuntime({ kind: "live", upstream: { baseUrl: server.baseUrl } }, MODEL, async (runtime) => {
-        await runtime.openSession({ instructions: "x", tools: [] });
-      });
+      await assert.doesNotReject(
+        withRuntime({ kind: "live", upstream: { baseUrl: server.baseUrl } }, MODEL, async (runtime) => {
+          await runtime.openSession({ instructions: "x", tools: [] });
+        }),
+      );
     } finally {
       await server.close();
     }

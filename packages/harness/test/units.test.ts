@@ -235,7 +235,7 @@ describe("Copilot runtime", () => {
         model: "m",
         homeDirectory: home,
       });
-      await runtime.close();
+      await assert.doesNotReject(runtime.close());
     } finally {
       rmSync(home, { recursive: true, force: true });
     }

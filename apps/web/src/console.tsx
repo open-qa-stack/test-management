@@ -44,6 +44,9 @@ type Shown =
   | { readonly screen: "session"; readonly live: LiveSession }
   | { readonly screen: "opening"; readonly id: string };
 
+/** The words of each screen that says what stands in place of a session, by the screen. */
+const NOTICES = { opening: "opening", no_session: "noSession", nowhere: "nowhere" } as const;
+
 /** The title of a screen that has one of its own; a session is titled by what was asked. */
 function titleOf(screen: Exclude<Shown["screen"], "session">): string {
   return t(`console.titles.${screen}`);
@@ -113,29 +116,21 @@ function Screen(props: ConsoleProps): ReactNode {
     case "configuration":
       return <ConfigurationPage project={name} {...(onConfigured === undefined ? {} : { onSaved: onConfigured })} />;
     case "opening":
-      return (
-        <Page crumbs={[{ label: name }, { label: t("console.titles.entry"), href: hrefTo("/agent") }, { label: shown.id }]} title={titleOf("opening")}>
-          <EmptyState title={t("console.opening.title")} action={back}>
-            {t("console.opening.body")}
-          </EmptyState>
-        </Page>
-      );
     case "no_session":
+    case "nowhere": {
+      const words = NOTICES[shown.screen];
+      const crumbs =
+        shown.screen === "opening"
+          ? [{ label: name }, { label: t("console.titles.entry"), href: hrefTo("/agent") }, { label: shown.id }]
+          : [{ label: name }, { label: titleOf(shown.screen) }];
       return (
-        <Page crumbs={[{ label: name }, { label: titleOf("no_session") }]} title={titleOf("no_session")}>
-          <EmptyState title={t("console.noSession.title")} action={back}>
-            {t("console.noSession.body")}
+        <Page crumbs={crumbs} title={titleOf(shown.screen)}>
+          <EmptyState title={t(`console.${words}.title`)} action={back}>
+            {t(`console.${words}.body`)}
           </EmptyState>
         </Page>
       );
-    case "nowhere":
-      return (
-        <Page crumbs={[{ label: name }, { label: titleOf("nowhere") }]} title={titleOf("nowhere")}>
-          <EmptyState title={t("console.nowhere.title")} action={back}>
-            {t("console.nowhere.body")}
-          </EmptyState>
-        </Page>
-      );
+    }
   }
 }
 

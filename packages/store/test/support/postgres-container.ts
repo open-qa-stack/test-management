@@ -18,7 +18,7 @@ const RUN_LABEL = "oqas-test-run";
 
 /** The PostgreSQL image of the development database, the version the tests run against. */
 export function postgresImage(): string {
-  const image = /^\s*image:\s*(\S+)\s*$/m.exec(readFileSync(COMPOSE_FILE, "utf8"))?.[1];
+  const image = /^[ \t]*image:[ \t]*(\S+)[ \t]*$/m.exec(readFileSync(COMPOSE_FILE, "utf8"))?.[1];
   if (image === undefined) throw new Error(`No image is named in ${COMPOSE_FILE}.`);
   return image;
 }
