@@ -65,6 +65,9 @@ const NAVIGATING = /\b(?:navigates?\s+to|go(?:es)?\s+to|visits?)\b/i;
 const CLICKING = /\b(?:clicks?|press(?:es)?|opens?|taps?)\b/i;
 /** Most actions of an application a refusal lists with their numbers, the last ones. */
 const MAX_LISTED_ACTIONS = 10;
+
+/** The code of an action that typed the credential of an account, which a test reads from the environment. */
+const SIGNING_IN = /\.fill\(process\.env\.[A-Za-z_][A-Za-z0-9_]*!\)/;
 /** The words that join another action to the one that types, such as the click that sends a form: the step does more than type. */
 const JOINED = /\b(?:and|then)\b/i;
 
@@ -790,6 +793,7 @@ export class PlanProposal {
       ...plan.scenarios.flatMap((scenario) => this.readErrors(scenario)),
       ...this.unexploredErrors(plan),
       ...plan.scenarios.flatMap((scenario) => this.actionErrors(scenario)),
+      ...plan.scenarios.flatMap((scenario) => this.signInErrors(scenario)),
       ...plan.scenarios.flatMap((scenario) => this.elementErrors(scenario)),
       ...plan.scenarios.flatMap((scenario) => this.levelErrors(scenario)),
       ...plan.scenarios.flatMap((scenario) => this.effectErrors(scenario)),
@@ -1153,6 +1157,32 @@ export class PlanProposal {
    * empty page; and an action that typed a value that is none of the data of the scenario, whose line its
    * test could not keep.
    */
+  /**
+   * What the gates refuse in how a scenario signs in: a test starts signed out, so that a scenario that acts on an
+   * application after the agent signed in to it cites the actions that signed in. A smoke scenario, which only
+   * opens an address, is held to nothing here.
+   */
+  private signInErrors(scenario: SubmittedScenario): Refusal[] {
+    if (scenario.level === "smoke") return [];
+    const { screens } = this.rules;
+    const cited = scenario.steps.flatMap((step) => step.actions).flatMap((number) => screens.action(number) ?? []);
+    return [...new Set(cited.map((action) => action.application))].flatMap((application): Refusal[] => {
+      const own = cited.filter((action) => action.application === application);
+      if (own.some((action) => SIGNING_IN.test(action.code))) return [];
+      // The page of its last action is that of the agent signed in last before it.
+      const last = Math.max(...own.map((action) => action.number));
+      const signIn = signInBefore(screens.actions(application), last);
+      if (signIn.length === 0) return [];
+      const numbers = signIn.map((action) => action.number).join(", ");
+      return [
+        {
+          code: "PLAN-SIGNIN",
+          message: `scenario ${scenario.id} acts on ${application} after the actions ${numbers} signed in to it, and none of its steps cites them: a test starts signed out. Cite ${numbers} first in the actions of the first step that acts on ${application}; or, for a scenario that verifies what a person who is not signed in sees, do its steps again signed out and cite those actions.`,
+        },
+      ];
+    });
+  }
+
   private actionErrors(scenario: SubmittedScenario): Refusal[] {
     const { screens } = this.rules;
     const { application } = scenario;
@@ -1563,4 +1593,22 @@ function planText(scenario: SubmittedScenario): string[] {
     ...scenario.data.map((entry) => entry.value),
     ...scenario.steps.flatMap((step) => [step.action, ...step.expects.flatMap((expect) => [expect.result, ...expect.shows, ...expect.absent])]),
   ];
+}
+
+/**
+ * The actions that signed in to an application last before an action: the address opened before the credentials were
+ * typed, the credentials, and the action that sent them.
+ *
+ * @param done - The actions done on the application, in order.
+ * @param before - The number of the action.
+ * @returns They, in order; none when the agent did not sign in before it.
+ */
+function signInBefore(done: readonly WatchedAction[], before: number): WatchedAction[] {
+  const earlier = done.filter((action) => action.number < before);
+  const last = earlier.findLastIndex((action) => SIGNING_IN.test(action.code));
+  if (last === -1) return [];
+  let start = last;
+  while (start > 0 && SIGNING_IN.test(earlier[start - 1]!.code)) start -= 1;
+  if (start > 0 && earlier[start - 1]!.tool === "goto") start -= 1;
+  return earlier.slice(start, last + 2);
 }
