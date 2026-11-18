@@ -10,6 +10,7 @@ import { Configuration, NoRepositoryError, Sessions } from "../src/index.ts";
 import { eventually } from "./support/eventually.ts";
 import { designDoor, ENV, Hosted } from "./support/hosted.ts";
 import { MemoryConfigurationStore } from "./support/memory-configuration-store.ts";
+import { MemoryDocumentStore } from "./support/memory-document-store.ts";
 import { MemorySessionStore } from "./support/memory-session-store.ts";
 import { RecordingLogger } from "./support/recording-logger.ts";
 import { comparable, toldByTheEngine } from "./support/told-by-the-engine.ts";
@@ -131,6 +132,7 @@ describe("a session that is opened", () => {
     const sessions = new Sessions({
       store,
       configuration: new Configuration(new MemoryConfigurationStore(), hosted.root),
+      documents: new MemoryDocumentStore(),
       repository: hosted.root,
       takesOver: true,
       env: ENV,
@@ -155,6 +157,7 @@ describe("a session that is opened", () => {
     const reading = new Sessions({
       store,
       configuration: new Configuration(new MemoryConfigurationStore(), undefined),
+      documents: new MemoryDocumentStore(),
       repository: undefined,
       takesOver: true,
       env: ENV,
@@ -277,6 +280,7 @@ describe("a session a person resumes once it ended", () => {
     const reading = new Sessions({
       store,
       configuration: new Configuration(new MemoryConfigurationStore(), undefined),
+      documents: new MemoryDocumentStore(),
       repository: undefined,
       takesOver: true,
       env: ENV,

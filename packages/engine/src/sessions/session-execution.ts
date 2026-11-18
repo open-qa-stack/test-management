@@ -80,6 +80,7 @@ export class SessionExecution {
       await new Run({
         repositoryRoot: repository,
         configuration: this.#host.configuration,
+        documents: this.#host.documents,
         ...(brief === undefined ? {} : { brief }),
         ...(branch === undefined ? {} : { branch }),
         ...(environment === undefined ? {} : { environment }),
