@@ -83,6 +83,8 @@ export interface ProposalRules {
   readonly screenshots: boolean;
   /** The clock of the dates a test is classed at. */
   readonly now: () => Date;
+  /** The file of the test each scenario repairs, by the identifier of the scenario: its test is written there again. */
+  readonly repairs?: ReadonlyMap<string, string>;
 }
 
 /** What the agent sees and reads in the session that writes the test of one scenario. */
@@ -755,9 +757,11 @@ export class TestProposals {
 
   /**
    * The file of the test of a scenario: named after it, in the folder of the tests of its application, under its domain then its
-   * functionality, with a number when that path is taken.
+   * functionality, with a number when that path is taken; the file of the test it repairs, for a scenario that repairs one.
    */
   private place(scenario: PlannedScenario): string {
+    const repaired = this.rules.repairs?.get(scenario.id);
+    if (repaired !== undefined) return repaired;
     const taken = (path: string) => this.kept.some((test) => test.path === path) || existsSync(join(this.rules.repositoryRoot, path));
     const name = (rank: number) =>
       posix.join(

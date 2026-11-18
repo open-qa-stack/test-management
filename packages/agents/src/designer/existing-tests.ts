@@ -95,6 +95,28 @@ function verifiedOf(scenario: PlannedScenario): Verified | undefined {
   };
 }
 
+/** A test an earlier design wrote, with the scenario of its plan; none when the plan cannot be read. */
+interface RecordedTest {
+  readonly test: DesignState["tests"][number];
+  readonly scenario?: PlannedScenario;
+}
+
+/** The tests earlier designs wrote, in the order of their designs, each with the scenario its plan gives it. */
+async function recordedTests(repositoryRoot: string, stateDir: string): Promise<RecordedTest[]> {
+  const folder = join(repositoryRoot, stateDir, DESIGNS_FOLDER);
+  const states = (await readdir(folder).catch(() => [])).filter((name) => name.endsWith(".json")).toSorted((a, b) => a.localeCompare(b));
+  const recorded: RecordedTest[] = [];
+  for (const name of states) {
+    const state = JSON.parse(await readFile(join(folder, name), "utf8")) as Partial<DesignState>;
+    const plan = readPlanFile(await readFile(join(repositoryRoot, state.plan ?? ""), "utf8").catch(() => ""));
+    for (const test of state.tests ?? []) {
+      const scenario = plan?.scenarios.find((candidate) => candidate.id === test.scenario);
+      recorded.push(scenario === undefined ? { test } : { test, scenario });
+    }
+  }
+  return recorded;
+}
+
 /**
  * The tests of earlier designs the repository still has and that passed, each by what it does and verifies:
  * what a new scenario is compared with, by the code, as it is with the scenarios of its own plan.
@@ -109,27 +131,36 @@ function verifiedOf(scenario: PlannedScenario): Verified | undefined {
  * @returns The tests, in the order of their designs.
  */
 export async function coveringTests(repositoryRoot: string, stateDir: string, present: readonly string[]): Promise<CoveringTest[]> {
-  const folder = join(repositoryRoot, stateDir, DESIGNS_FOLDER);
-  const states = (await readdir(folder).catch(() => [])).filter((name) => name.endsWith(".json")).toSorted((a, b) => a.localeCompare(b));
   const covering: CoveringTest[] = [];
-  for (const name of states) {
-    const state = JSON.parse(await readFile(join(folder, name), "utf8")) as Partial<DesignState>;
-    const plan = readPlanFile(await readFile(join(repositoryRoot, state.plan ?? ""), "utf8").catch(() => ""));
-    for (const test of state.tests ?? []) {
-      const scenario = plan?.scenarios.find((candidate) => candidate.id === test.scenario);
-      const verified = scenario === undefined || test.verdict !== "passed" || !present.includes(test.path) ? undefined : verifiedOf(scenario);
-      if (verified !== undefined)
-        covering.push({
-          path: test.path,
-          verified,
-          described: described(scenario!),
-          writes: writtenValues(scenario!),
-          visual: scenario!.kind === "visual",
-          opens: scenario!.steps.flatMap((step) => step.lines!).filter((line) => line.code.startsWith("await page.goto(")),
-        });
-    }
+  for (const { test, scenario } of await recordedTests(repositoryRoot, stateDir)) {
+    const verified = scenario === undefined || test.verdict !== "passed" || !present.includes(test.path) ? undefined : verifiedOf(scenario);
+    if (verified !== undefined)
+      covering.push({
+        path: test.path,
+        verified,
+        described: described(scenario!),
+        writes: writtenValues(scenario!),
+        visual: scenario!.kind === "visual",
+        opens: scenario!.steps.flatMap((step) => step.lines!).filter((line) => line.code.startsWith("await page.goto(")),
+      });
   }
   return covering;
+}
+
+/**
+ * The scenario of the plan of each test the repository has that a design wrote: what a repair of the test
+ * starts from. A test written by hand, or whose plan cannot be read, has none.
+ *
+ * @param repositoryRoot - Absolute path of the test repository.
+ * @param stateDir - Folder of the state, relative to the root.
+ * @param present - The paths of the test files the repository has.
+ * @returns The scenario of each, by its path; the latest design that wrote a path gives it.
+ */
+export async function plannedTests(repositoryRoot: string, stateDir: string, present: readonly string[]): Promise<Map<string, PlannedScenario>> {
+  const planned = new Map<string, PlannedScenario>();
+  for (const { test, scenario } of await recordedTests(repositoryRoot, stateDir))
+    if (scenario !== undefined && present.includes(test.path)) planned.set(test.path, scenario);
+  return planned;
 }
 
 /**

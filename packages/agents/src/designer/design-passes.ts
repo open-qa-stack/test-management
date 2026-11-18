@@ -68,8 +68,8 @@ export class DesignPasses {
         tests: [...merged.tests, ...pass.tests],
         journal: [...merged.journal, ...pass.journal, said],
       };
-      // A pass cut short by a limit, or that could not start, leaves nothing the next could build on: they stop there.
-      if (pass.stoppedBy !== undefined || pass.unstarted === true) break;
+      // A pass cut short by a limit, or that could not start, leaves nothing the next could build on: they stop there. A repair is a whole design.
+      if (pass.stoppedBy !== undefined || pass.unstarted === true || pass.repaired === true) break;
     }
     return merged;
   }

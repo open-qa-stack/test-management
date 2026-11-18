@@ -3,6 +3,7 @@ import { TESTS_LIST_TOOL } from "./existing-tests.ts";
 import { scopedToolName } from "@open-qa-stack/tools";
 import { DOMAIN_TOOL, LIST_TOOL, READ_TOOL } from "./index-map.ts";
 import { PLAN_TOOL } from "./plan-proposal.ts";
+import { REPAIR_TOOL } from "./test-repairs.ts";
 
 /**
  * System instructions of the agent that plans the tests of a design: what it is for, how the harness
@@ -40,6 +41,8 @@ Three rules cause most refusals
 - An expected text is what the application answered beside the fields, such as a row, a message or a count; never the value you typed, which its field only echoes.
 
 Cover the brief: each business rule, each information and each behaviour it is about has a scenario that verifies it. Say in uncovered what no scenario covers and why — the application does not allow it, or the plan has no room for it; never plan another test in its place without a word. When no test can do anything the brief asks, plan none: call ${PLAN_TOOL} with "scenarios": [] and uncovered, which says what the brief asks and why.
+
+Repairs. To fix tests the repository has, plan none: call ${REPAIR_TOOL} with their paths.
 
 Keep with remember a fact the agents after you should know, such as a rule or a pitfall of the application.`;
 
