@@ -10,6 +10,7 @@ export type { SessionScript, SessionStage } from "./thread/session-script.ts";
 export type { RefusalParts } from "./thread/refusal-parts.ts";
 export type * from "./thread/step.ts";
 export { turnsOf, type Turn } from "./thread/turns.ts";
+export { toolTitle, type ToolWord, type ToolWording } from "./thread/tool-title.ts";
 export type {
   Account,
   Application as ConfiguredApplication,
