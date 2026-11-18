@@ -33,7 +33,7 @@ describe("the database of an instance", () => {
   it("is closed without having been opened", async () => {
     const own = await engine.create();
     try {
-      await new Database(DatabaseUrl.parse(own.url) as DatabaseUrl, new RecordingLogger()).close();
+      await assert.doesNotReject(new Database(DatabaseUrl.parse(own.url) as DatabaseUrl, new RecordingLogger()).close());
     } finally {
       await own.drop();
     }
