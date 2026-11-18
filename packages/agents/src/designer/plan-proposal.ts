@@ -66,6 +66,10 @@ const CLICKING = /\b(?:clicks?|press(?:es)?|opens?|taps?)\b/i;
 /** Most actions of an application a refusal lists with their numbers, the last ones. */
 const MAX_LISTED_ACTIONS = 10;
 
+/** What the agent is told of the scenarios of the call refused last, submitted again with nothing done since. */
+const SAME_PLAN =
+  "These scenarios are those of the call refused last, and no browser action was done since: the same refusals hold. Do with the browser tools what they name, or leave the scenarios out and say why in uncovered.";
+
 /** The code of an action that typed the credential of an account, which a test reads from the environment. */
 const SIGNING_IN = /\.fill\(process\.env\.[A-Za-z_][A-Za-z0-9_]*!\)/;
 /** The words that join another action to the one that types, such as the click that sends a form: the step does more than type. */
@@ -211,6 +215,10 @@ export class PlanProposal {
   private lastCodes: readonly string[] = [];
   private readonly streak = new RefusalStreak();
   private refusedPlans = 0;
+  /** The call being checked, by its scenarios and the number of browser actions done before it. */
+  private call = "";
+  /** The last call refused, as `call` gives it. */
+  private lastRefused: string | undefined;
   /** The questions asked, by the application and the locator of their element. */
   private readonly asked = new Map<string, Question>();
   /** The scenarios kept while the harness asks for more. */
@@ -474,6 +482,8 @@ export class PlanProposal {
     // Once a plan is refused, the designer refuses every call before it reaches a tool.
     if (this.plan !== undefined) return { error: this.closed() };
     if (this.refusal !== undefined) return { error: this.blocked() };
+    const done = this.rules.applications.flatMap((application) => this.rules.screens.actions(application)).length;
+    this.call = `${JSON.stringify(submitted.scenarios)}#${done}`;
     const whole = { ...submitted, scenarios: this.draft.with(submitted.scenarios) };
     const count = this.countErrors(whole.scenarios.length, (submitted.uncovered ?? []).length > 0);
     if (count.length > 0) return this.refuse(count);
@@ -680,7 +690,11 @@ export class PlanProposal {
     }
     this.streak.record(refusals);
     const { code, times } = this.streak.repeated(refusals);
-    return { error: times < GUIDED_REFUSALS ? refusalText(refusals) : repeatedText(code, times, refusals) };
+    // The same scenarios again, with no browser action since, are told so once: from the third refusal, what the gate would accept is told instead.
+    const again = this.lastRefused === this.call;
+    this.lastRefused = this.call;
+    if (times >= GUIDED_REFUSALS) return { error: repeatedText(code, times, refusals) };
+    return { error: again ? `${SAME_PLAN}\n${refusalText(refusals)}` : refusalText(refusals) };
   }
 
   /** A text about the plan with the value of every declared variable masked. */
@@ -1363,23 +1377,27 @@ export class PlanProposal {
       const [from, to] = [screenOf(step), screenOf(later)];
       return from !== undefined && to !== undefined && from !== to;
     };
-    return starting.flatMap((step, at) =>
+    // Each text the scenario starts from and makes go, with the step that finds it and the one it goes at.
+    const removed = starting.flatMap((step, at) =>
       step.expects.flatMap((expect) =>
-        expect.shows.filter(checkable).flatMap((text): Refusal[] => {
+        expect.shows.filter(checkable).flatMap((text) => {
           const gone = scenario.steps.findIndex(
             (later, j) => j > at && !elsewhere(step, later) && later.expects.some((other) => other.absent.some((absent) => sameText(absent, text))),
           );
-          if (gone === -1) return [];
-          if (shown(gone + 1, text)) return this.restoreErrors(scenario, gone, text);
-          return [
-            {
-              code: "PLAN-EFFECT",
-              message: `scenario ${scenario.id} finds "${text}" at step ${at + 1}, makes it go at step ${gone + 1}, and no step after brings it back: its test would pass once, then fail when run again, since what it starts from is gone. Add a last step that puts it back — do it on the screens, cite its actions and expect "${text}" shown again — or start from data of its own, such as a record the scenario creates under a made-up name.`,
-            },
-          ];
+          return gone === -1 ? [] : [{ at, gone, text, back: shown(gone + 1, text) }];
         }),
       ),
     );
+    // Texts that go at the same step are told in one refusal: they have one cause, and one remedy.
+    const lost = grouped(removed.filter((text) => !text.back));
+    const brought = grouped(removed.filter((text) => text.back).map((text) => ({ ...text, at: -1 })));
+    return [
+      ...lost.map(({ at, gone, texts }) => ({
+        code: "PLAN-EFFECT",
+        message: `scenario ${scenario.id} finds ${quotedAll(texts)} at step ${at + 1}, makes ${texts.length === 1 ? "it" : "them"} go at step ${gone + 1}, and no step after brings ${texts.length === 1 ? "it" : "them"} back: its test would pass once, then fail when run again, since what it starts from is gone. Add a last step that puts ${texts.length === 1 ? "it" : "them"} back — do it on the screens, cite its actions and expect ${quotedAll(texts)} shown again — or start from data of its own, such as a record the scenario creates under a made-up name.`,
+      })),
+      ...brought.flatMap(({ gone, texts }) => this.restoreErrors(scenario, gone, texts)),
+    ].filter((refusal, at, all) => all.findIndex((other) => other.message === refusal.message) === at);
   }
 
   /**
@@ -1388,13 +1406,13 @@ export class PlanProposal {
    * an earlier step failed, wherever the page then is: without them a test that fails leaves the data changed,
    * and fails again from its first step.
    */
-  private restoreErrors(scenario: SubmittedScenario, gone: number, text: string): Refusal[] {
+  private restoreErrors(scenario: SubmittedScenario, gone: number, texts: readonly string[]): Refusal[] {
     const at = scenario.steps.findIndex((step, j) => j > gone && step.restores === true);
     if (at === -1)
       return [
         {
           code: "PLAN-RESTORE",
-          message: `scenario ${scenario.id} makes "${text}" go at step ${gone + 1} and brings it back after, and no step says it restores: a test that fails before the end would leave the data changed. Give "restores": true to the step that puts it back, after step ${gone + 1}; its test runs that step, and those after it, even when an earlier step failed.`,
+          message: `scenario ${scenario.id} makes ${quotedAll(texts)} go at step ${gone + 1} and brings ${texts.length === 1 ? "it" : "them"} back after, and no step says it restores: a test that fails before the end would leave the data changed. Give "restores": true to the step that puts it back, after step ${gone + 1}; its test runs that step, and those after it, even when an earlier step failed.`,
         },
       ];
     const first = this.cited(scenario, scenario.steps[at]!.actions)[0];
@@ -1641,4 +1659,20 @@ function signInBefore(done: readonly WatchedAction[], before: number): WatchedAc
   while (start > 0 && SIGNING_IN.test(earlier[start - 1]!.code)) start -= 1;
   if (start > 0 && earlier[start - 1]!.tool === "goto") start -= 1;
   return earlier.slice(start, last + 2);
+}
+
+/** Texts that go at the same step, from the same step, each once, in the order the scenario gives them. */
+function grouped(removed: readonly { readonly at: number; readonly gone: number; readonly text: string }[]): { at: number; gone: number; texts: string[] }[] {
+  const groups = new Map<string, { at: number; gone: number; texts: string[] }>();
+  for (const { at, gone, text } of removed) {
+    const group = groups.get(`${at} ${gone}`) ?? { at, gone, texts: [] };
+    if (!group.texts.some((other) => sameText(other, text))) group.texts.push(text);
+    groups.set(`${at} ${gone}`, group);
+  }
+  return [...groups.values()];
+}
+
+/** Texts, each quoted, as a sentence names them. */
+function quotedAll(texts: readonly string[]): string {
+  return texts.map((text) => JSON.stringify(text)).join(", ");
 }
