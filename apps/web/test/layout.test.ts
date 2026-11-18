@@ -517,7 +517,10 @@ describe("what the person says to the agents while they work", () => {
       await page.getByRole("button", { name: "Envoyer" }).click();
       const alert = page.getByRole("alert");
       await alert.waitFor();
-      assert.equal(await alert.innerText(), "La session vient de se terminer : elle ne prend plus ni message ni arrêt.");
+      assert.equal(
+        await alert.innerText(),
+        "La session vient de se terminer : il n’y a plus rien à arrêter, et votre message, envoyé de nouveau, la poursuit.",
+      );
       assert.deepEqual([await field.inputValue(), await field.isDisabled()], ["sans le profil", false]);
       assert.equal(await field.evaluate((element) => element === document.activeElement), true, "the field takes the focus back");
       assert.equal(await page.locator(".sent").count(), 0);
@@ -534,19 +537,26 @@ describe("what the person says to the agents while they work", () => {
     }
   });
 
-  it("is offered only while the session goes on: the composer leaves when it completes, and an ended session has none", async () => {
+  it("stays once the session ended, as what goes on with it: what the person sends then resumes it, and its new turn shows under the verdict", async () => {
     const instance = new PlayedInstance();
     const page = await app().open(1280, SESSION, instance.api);
     try {
       await fieldOf(page).waitFor();
       instance.complete();
       await page.getByText("Verdict de l’exécution : 1 test").waitFor();
-      await fieldOf(page).waitFor({ state: "detached" });
-      assert.equal(await page.locator(".composer, textarea").count(), 0);
-      await page.reload();
-      await page.getByText("Verdict de l’exécution : 1 test").waitFor();
-      assert.equal(await page.locator(".composer, textarea").count(), 0);
+      const next = page.getByRole("textbox", { name: "Dites aux agents quoi faire ensuite : corriger un test, ajouter un scénario…" });
+      await next.waitFor();
       assert.equal(await page.getByRole("button", { name: "Envoyer" }).count(), 0);
+      await page.reload();
+      await next.fill("corriger le test en échec");
+      await page.getByRole("button", { name: "Poursuivre la session" }).click();
+      await page.locator(".session-bar .badge", { hasText: "en direct" }).waitFor();
+      assert.deepEqual(instance.resumedWith, [{ text: "corriger le test en échec" }]);
+      const turns = await page.locator(".thread-item").allInnerTexts();
+      const verdict = turns.findIndex((text) => text.includes("Verdict de l’exécution"));
+      assert.ok(verdict >= 0 && turns[verdict + 1]?.includes("corriger le test en échec"), "the new turn starts under the verdict of the one before");
+      await page.getByRole("button", { name: "Envoyer" }).waitFor();
+      assert.equal(await fieldOf(page).inputValue(), "");
     } finally {
       await page.close();
     }
@@ -690,7 +700,7 @@ describe("the stop of a session, in a browser", () => {
       instance.obey();
       await page.locator(".session-bar .badge", { hasText: "interrompue" }).waitFor();
       await controlOf(page).waitFor({ state: "detached" });
-      assert.equal(await page.locator(".composer").count(), 0);
+      await page.getByRole("button", { name: "Poursuivre la session" }).waitFor();
     } finally {
       await page.close();
     }
@@ -705,7 +715,10 @@ describe("the stop of a session, in a browser", () => {
       await stop.click();
       const alert = page.locator(".session-stop").getByRole("alert");
       await alert.waitFor();
-      assert.equal(await alert.innerText(), "La session vient de se terminer : elle ne prend plus ni message ni arrêt.");
+      assert.equal(
+        await alert.innerText(),
+        "La session vient de se terminer : il n’y a plus rien à arrêter, et votre message, envoyé de nouveau, la poursuit.",
+      );
       assert.deepEqual([await stop.isDisabled(), await overflowOf(page)], [false, 0]);
       instance.deaf = false;
       await stop.click();
@@ -1006,6 +1019,10 @@ describe("the code of the console is covered in full", () => {
         await page.getByRole("link", { name: "Arrêter" }).click();
         await page.getByRole("button", { name: "Arrêter la session" }).click();
         await page.getByRole("status").filter({ hasText: "arrêt demandé…" }).waitFor();
+        instance.obey();
+        await page.getByRole("textbox", { name: "Dites aux agents quoi faire ensuite : corriger un test, ajouter un scénario…" }).fill("corriger le test");
+        await page.getByRole("button", { name: "Poursuivre la session" }).click();
+        await page.getByRole("button", { name: "Envoyer" }).waitFor();
         instance.down = true;
         await page.getByRole("alert").waitFor();
         instance.down = false;
@@ -1018,7 +1035,7 @@ describe("the code of the console is covered in full", () => {
         instance.refusal = "session_running";
         await page.getByRole("textbox", { name: "Dites aux agents quoi tester" }).fill("vérifier le changement d'adresse");
         await page.getByRole("button", { name: "Démarrer une session" }).click();
-        await page.getByText("Une session est déjà en cours").waitFor();
+        await page.getByText("La session est de nouveau en cours").waitFor();
         instance.refusal = undefined;
         await page.getByRole("button", { name: "Démarrer une session" }).click();
         await page.getByRole("heading", { level: 1, name: "vérifier le changement d'adresse" }).waitFor();

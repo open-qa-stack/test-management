@@ -43,16 +43,18 @@ function eventOf(data: string): SessionEvent | undefined {
  * the events after the last one received, so that none comes twice, and waits longer than the one before for
  * as long as nothing comes. The event that says the session no longer goes on ends the stream: the API
  * completes it there, and connecting again would only ask for nothing. A session that waits its turn goes
- * on: its stream stays open, and gives what its agents do once they start.
+ * on: its stream stays open, and gives what its agents do once they start. An end the session was resumed from
+ * ends the stream all the same: whoever follows the session opens another after it.
  *
  * @param id - The identifier of the session.
  * @param listener - What to tell.
+ * @param after - The rank of the last event already received, after which the stream starts; from the first event by default.
  * @returns What stops following the session.
  */
-export function followEvents(id: string, listener: StreamListener): () => void {
+export function followEvents(id: string, listener: StreamListener, after?: number): () => void {
   const address = `${API_BASE}/sessions/${encodeURIComponent(id)}/events`;
   let source: EventSource;
-  let last: number | undefined;
+  let last = after;
   let cuts = 0;
   let gathered: SessionEvent[] = [];
   let handing: number | undefined;

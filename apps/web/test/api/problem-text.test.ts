@@ -34,11 +34,11 @@ describe("the wording of a problem", () => {
     assert.deepEqual(wordings, [
       "Le projet ne garde aucune session de ce nom.",
       "La demande n’est pas valide : dites aux agents quoi tester.",
-      "Une session est déjà en cours : attendez qu’elle se termine pour en ouvrir une autre.",
+      "La session est de nouveau en cours : envoyez-lui votre message comme à une session qui travaille.",
       "Aucune source de sessions n’est configurée sur cette instance.",
       "La session n’a pas pu être ouverte.",
       "L’ouverture de la session a pris trop de temps : réessayez dans un instant.",
-      "La session vient de se terminer : elle ne prend plus ni message ni arrêt.",
+      "La session vient de se terminer : il n’y a plus rien à arrêter, et votre message, envoyé de nouveau, la poursuit.",
     ]);
     assert.equal(problemText("unavailable", undefined), wordings[3]);
   });

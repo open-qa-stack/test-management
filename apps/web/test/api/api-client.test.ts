@@ -114,13 +114,21 @@ describe("the client of the API", () => {
     ]);
   });
 
+  it("resumes a session that ended by posting what the person says as JSON under the identifier of the session, encoded, and gives the session", async () => {
+    const { client, calls } = clientOf(() => json(RUNNING, 202));
+    assert.deepEqual(await client.resume("a/b", { text: "corriger le test en échec" }), RUNNING);
+    assert.deepEqual(calls, [
+      ["/api/sessions/a%2Fb/resumption", { method: "POST", headers: { "content-type": "application/json" }, body: '{"text":"corriger le test en échec"}' }],
+    ]);
+  });
+
   it("asks to interrupt a session by a post without a body under its identifier, encoded, and reads nothing of the answer", async () => {
     const { client, calls } = clientOf(() => new Response(null, { status: 202 }));
     assert.equal(await client.interrupt("a/b"), undefined);
     assert.deepEqual(calls, [["/api/sessions/a%2Fb/interruption", { method: "POST" }]]);
     const ended = clientOf(() => problem("session_ended", 409));
     assert.deepEqual(await failureOf(ended.client.interrupt("oqas-1")), {
-      message: "La session vient de se terminer : elle ne prend plus ni message ni arrêt.",
+      message: "La session vient de se terminer : il n’y a plus rien à arrêter, et votre message, envoyé de nouveau, la poursuit.",
       status: 409,
       code: "session_ended",
     });
@@ -136,7 +144,7 @@ describe("the client of the API", () => {
       assert.ok(error instanceof ApiError);
       assert.deepEqual(
         [error.message, error.status, error.code],
-        ["La session vient de se terminer : elle ne prend plus ni message ni arrêt.", 409, "session_ended"],
+        ["La session vient de se terminer : il n’y a plus rien à arrêter, et votre message, envoyé de nouveau, la poursuit.", 409, "session_ended"],
       );
       return true;
     });
@@ -147,7 +155,7 @@ describe("a failure of the API", () => {
   it("carries the status and the code of the problem, worded by the console for the person", async () => {
     const { client } = clientOf(() => problem("session_running", 409));
     assert.deepEqual(await failureOf(client.open({ request: "tester" })), {
-      message: "Une session est déjà en cours : attendez qu’elle se termine pour en ouvrir une autre.",
+      message: "La session est de nouveau en cours : envoyez-lui votre message comme à une session qui travaille.",
       status: 409,
       code: "session_running",
     });
