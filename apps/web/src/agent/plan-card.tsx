@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { PlannedExpect, PlannedScenario, PlanStep } from "@open-qa-stack/domain/sessions";
+import type { PlannedExpect, PlannedScenario, PlanScenario, PlanStep } from "@open-qa-stack/domain/sessions";
 import { Badge } from "../ui/badge.tsx";
 import { counted } from "../ui/counted.ts";
 
@@ -96,30 +96,33 @@ function Expect({ expect }: { readonly expect: PlannedExpect }): ReactNode {
 /**
  * A scenario of a plan, as a cell that unfolds: its level, its title and where it applies on its line; unfolded,
  * what it verifies, every fact the plan gives, each step with what it expects, then the scenario as the event
- * told it, folded under « Détails ». A scenario of a thread written before the plan told more shows what it has.
+ * told it, folded under « Détails ». The refusals of the harness about it before the plan was accepted are counted on
+ * its line and told in full under its steps. A scenario of a thread written before the plan told more shows what it has.
  */
-function ScenarioCell({ scenario }: { readonly scenario: PlannedScenario }): ReactNode {
-  const place = placeOf(scenario);
+function ScenarioCell({ scenario }: { readonly scenario: PlanScenario }): ReactNode {
+  const { refusals, ...planned } = scenario;
+  const place = placeOf(planned);
   return (
     <details className="scenario">
       <summary className="scenario-head">
-        <Badge tone="neutral">{scenario.level}</Badge>
-        <span className="result-title">{scenario.title}</span>
+        <Badge tone="neutral">{planned.level}</Badge>
+        <span className="result-title">{planned.title}</span>
         {place !== "" && <span className="turn-role">{place}</span>}
+        {refusals.length > 0 && <Badge tone="warn">{counted(refusals.length, "refus du harnais", "refus du harnais")}</Badge>}
       </summary>
       <div className="scenario-body">
-        {scenario.intent !== undefined && <p className="scenario-intent">{scenario.intent}</p>}
+        {planned.intent !== undefined && <p className="scenario-intent">{planned.intent}</p>}
         <dl className="facts">
-          {factsOf(scenario).map(([label, value]) => (
+          {factsOf(planned).map(([label, value]) => (
             <div key={label} className="fact">
               <dt>{label}</dt>
               <dd>{value}</dd>
             </div>
           ))}
         </dl>
-        {scenario.steps !== undefined && scenario.steps.length > 0 && (
+        {planned.steps !== undefined && planned.steps.length > 0 && (
           <ol className="scenario-steps" aria-label="Étapes">
-            {scenario.steps.map((step, index) => (
+            {planned.steps.map((step, index) => (
               <li key={index}>
                 <p className="scenario-action">
                   {step.action}
@@ -141,9 +144,23 @@ function ScenarioCell({ scenario }: { readonly scenario: PlannedScenario }): Rea
             ))}
           </ol>
         )}
+        {refusals.length > 0 && (
+          <section className="scenario-refusals" aria-label="Refus du harnais avant l’acceptation du plan">
+            <p className="expect-label">Refusé par le harnais avant l’acceptation du plan</p>
+            <ol className="plain-list">
+              {refusals.map((refusal, index) => (
+                <li key={index} className="scenario-refusal">
+                  <span className="turn-at">{refusal.at}</span>
+                  {refusal.code !== undefined && <span className="verdict-code">{refusal.code}</span>}
+                  <span className="scenario-refusal-text">{refusal.reason}</span>
+                </li>
+              ))}
+            </ol>
+          </section>
+        )}
         <details className="raw">
           <summary>Détails</summary>
-          <pre>{JSON.stringify(scenario, null, 2)}</pre>
+          <pre>{JSON.stringify(planned, null, 2)}</pre>
         </details>
       </div>
     </details>

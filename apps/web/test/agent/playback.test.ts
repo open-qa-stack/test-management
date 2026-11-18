@@ -26,9 +26,9 @@ const STEPS: readonly Step[] = [
   { kind: "pass", at: "10:00:01", title: "Pass 1", summary: "The shortest path." },
   { kind: "say", from: "planner", at: "10:00:02", thinking: true, text: "12345678" },
   { kind: "tool", from: "planner", at: "10:00:03", tool: "shop_goto", title: "Opened the form", look: LOOK },
-  { kind: "verdict", at: "10:00:04", accepted: false, code: "PLAN-SHOWN", about: "The plan", text: "Never shown." },
+  { kind: "verdict", at: "10:00:04", accepted: false, code: "PLAN-SHOWN", about: "The plan", text: "Never shown.", reason: "Never shown." },
   { kind: "note", at: "10:00:05", text: "The plan was accepted." },
-  { kind: "plan", at: "10:00:06", title: "The plan", scenarios: [{ id: "a", title: "A scenario", level: "smoke", case: "nominal" }] },
+  { kind: "plan", at: "10:00:06", title: "The plan", scenarios: [{ id: "a", title: "A scenario", level: "smoke", case: "nominal", refusals: [] }] },
   { kind: "say", from: "writer", at: "10:00:07", text: "Done" },
   { kind: "tool", from: "writer", at: "10:00:08", tool: "run_test", title: "Ran the test", pending: true },
   { kind: "outcome", at: "10:00:09", title: "1 test", tests: [{ title: "A test", level: "smoke", verdict: "passed" }] },
@@ -227,13 +227,19 @@ describe("the playback of a session", () => {
     assert.deepEqual(played(SCRIPT, INITIAL_PLAYBACK, { type: "faster" }), { ...INITIAL_PLAYBACK, speed: 2 });
   });
 
-  it("skips to the next decision of the harness, a refusal then a plan, stopped there, then follows the session", () => {
+  it("skips to the next verdict, a refusal then a plan, stopped there, then follows the session", () => {
     const refusal = played(SCRIPT, at(0, { playing: true }), { type: "skip" });
     assert.deepEqual(refusal, at(STARTS[4]! + 1));
     assert.equal(frameOf(SCRIPT, refusal).shown.at(-1)!.step.kind, "verdict");
     const plan = played(SCRIPT, refusal, { type: "skip" });
     assert.deepEqual(plan, at(STARTS[6]! + 1));
     assert.deepEqual(played(SCRIPT, { ...plan, speed: 2 }, { type: "skip" }), at(STARTS[6]! + 1, { following: true, speed: 2 }));
+  });
+
+  it("skips to the verdict of a reviewer as to one of the harness", () => {
+    const review: Step = { kind: "review", from: "code_reviewer", at: "10:00:10", remarks: [], tool: "report_quality" };
+    const reviewed: SessionScript = { ...SCRIPT, steps: [STEPS[0]!, review] };
+    assert.deepEqual(played(reviewed, at(0, { playing: true }), { type: "skip" }), at(durationOf(STEPS[0]!) + PAUSE_TICKS + 1));
   });
 
   it("skips without going back, and leaves a session that is followed as it is", () => {
@@ -310,11 +316,11 @@ describe("what the thread keeps", () => {
   const kinds = (filter: Parameters<typeof shows>[1], speaker?: Parameters<typeof shows>[2]) =>
     STEPS.filter((step) => shows(step, filter, speaker)).map((step) => step.kind);
 
-  it("is everything, what is said, what is done or what the harness decides and notes, the start of a pass always", () => {
+  it("is everything, what is said — the notes of the harness included —, what is done, or the verdicts, the start of a pass always", () => {
     assert.equal(kinds("all").length, STEPS.length);
-    assert.deepEqual(kinds("talk"), ["say", "pass", "say", "say"]);
+    assert.deepEqual(kinds("talk"), ["say", "pass", "say", "note", "say"]);
     assert.deepEqual(kinds("actions"), ["pass", "tool", "plan", "tool", "outcome"]);
-    assert.deepEqual(kinds("verdicts"), ["pass", "verdict", "note"]);
+    assert.deepEqual(kinds("verdicts"), ["pass", "verdict", "plan", "outcome"]);
   });
 
   it("follows one speaker, a verdict or a note being the harness speaking, a plan and an outcome nobody", () => {
@@ -333,11 +339,11 @@ describe("what the thread keeps", () => {
     assert.deepEqual([shows(review, "all", "code_reviewer"), shows(review, "all", "harness")], [true, false]);
   });
 
-  it("keeps a row of notes alike as the harness speaking, among the verdicts", () => {
+  it("keeps a row of notes alike as the harness speaking, among what is said", () => {
     const alike: Step = { kind: "repeated", at: "10:00:10", before: "A ", after: ".", sources: ["a", "b"], notes: [] };
     assert.deepEqual(
       (["all", "talk", "actions", "verdicts"] as const).map((filter) => shows(alike, filter, "harness")),
-      [true, false, false, true],
+      [true, true, false, false],
     );
   });
 

@@ -1,4 +1,5 @@
 import type { ActionLook, AgentRole, PlannedScenario } from "../session-event.ts";
+import type { RefusalParts } from "./refusal-parts.ts";
 
 /** Who speaks or acts in a session: the person who asked, one of the agents, or the harness that holds them to the evidence. */
 export type Speaker = "user" | AgentRole | "harness";
@@ -63,15 +64,20 @@ export interface ToolStep extends StepBase {
   readonly durationMs?: number;
 }
 
-/** The harness accepts or refuses what an agent handed in, on evidence. */
-export interface VerdictStep extends StepBase {
+/**
+ * The harness accepts or refuses what an agent handed in, on evidence. Its text is read by the form the harness
+ * writes it in, so that a presentation shows its parts apart; the text itself is kept whole.
+ */
+export interface VerdictStep extends StepBase, RefusalParts {
   readonly kind: "verdict";
   readonly accepted: boolean;
   /** The code of the gate that refused, such as `PLAN-SHOWN`. */
   readonly code?: string;
-  /** What was handed in. */
+  /** The phase it came in. */
   readonly about: string;
-  /** Why, and what to do next. */
+  /** The scenario it is about, when the thread tells it. */
+  readonly scenario?: string;
+  /** What the harness said, whole. */
   readonly text: string;
 }
 
@@ -117,11 +123,16 @@ export interface ReviewStep extends StepBase {
   readonly durationMs?: number;
 }
 
+/** A scenario of an accepted plan: all the plan says of it, and the refusals of the harness about it before the plan was accepted. */
+export interface PlanScenario extends PlannedScenario {
+  readonly refusals: readonly VerdictStep[];
+}
+
 /** The plan of a pass, once the harness accepted it: every scenario, with all the plan says of it. */
 export interface PlanStep extends StepBase {
   readonly kind: "plan";
   readonly title: string;
-  readonly scenarios: readonly PlannedScenario[];
+  readonly scenarios: readonly PlanScenario[];
 }
 
 /** A pass starts: one loop of the agents for one level of the pyramid. */

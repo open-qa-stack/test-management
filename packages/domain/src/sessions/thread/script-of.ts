@@ -3,8 +3,9 @@ import type { Session } from "../session.ts";
 import type { ActionLook, AgentRole, SessionEvent } from "../session-event.ts";
 import type { ScriptWording } from "./script-wording.ts";
 import type { SessionScript, SessionStage } from "./session-script.ts";
+import { refusalParts } from "./refusal-parts.ts";
 import { remarksOf } from "./remarks-of.ts";
-import type { NoteStep, ProducedTest, RepeatedNoteStep, ReviewStep, Reviewer, Step } from "./step.ts";
+import type { NoteStep, ProducedTest, RepeatedNoteStep, ReviewStep, Reviewer, Step, VerdictStep } from "./step.ts";
 
 /** The agents a thread knows: what one it does not know says or does is left out, as any event it does not know. */
 const AGENTS: ReadonlySet<string> = new Set<AgentRole>(["cartographer", "planner", "plan_reviewer", "writer", "coherence_reviewer", "code_reviewer"]);
@@ -88,8 +89,8 @@ function stageOf(session: Session): SessionStage {
  * answered, with what the agent looked at — the file it handed the tool from the start, named after the test it
  * declares — and the verdict of each test a run ran; the call a reviewer hands its verdict in with is a review, its remarks
  * read from the arguments of the call, and what the harness answers and the word the reviewer replies with are kept
- * in it rather than told; a plan the harness accepted is told with each of its scenarios whole; a refusal is a verdict with
- * its code, a note a line of the harness. Once the session has ended it closes on the verdict of each test, or,
+ * in it rather than told; a plan the harness accepted is told with each of its scenarios whole, and the refusals about each since its plan
+ * started; a refusal is a verdict with its code, the scenario it is about and the parts of its text, a note a line of the harness. Once the session has ended it closes on the verdict of each test, or,
  * when none ran, on the scenarios the harness closed; an interruption is told. Every text is whole, as a person
  * needs it, since the end of a refusal says what to do; a title alone is put on one line.
  *
@@ -115,6 +116,8 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
   let previous: Alike | undefined;
   /** By reviewer, the rank of its verdict the harness just took, whose one-word reply is still to come. */
   const replies = new Map<string, number>();
+  /** By scenario, the refusals of the harness about it since the plan of the pass started. */
+  const refused = new Map<string, VerdictStep[]>();
   for (const event of events) {
     if (("agent" in event && !AGENTS.has(event.agent)) || ("to" in event && !AGENTS.has(event.to))) continue;
     const at = clock(event.at);
@@ -148,7 +151,10 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
         else {
           const part = event.phase === "review" || event.phase === "write";
           scenario = event.scenario;
-          if (event.phase === "plan") plan = steps.length;
+          if (event.phase === "plan") {
+            plan = steps.length;
+            refused.clear();
+          }
           steps.push({ kind: "pass", at, title: wording.phase(event.phase), summary: event.scenario ?? "", ...(part ? { minor: true } : {}) });
         }
         break;
@@ -211,18 +217,30 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
         break;
       }
       case "plan_accepted":
-        steps.push({ kind: "plan", at, title: wording.planAccepted, scenarios: event.scenarios });
-        break;
-      case "refusal":
         steps.push({
+          kind: "plan",
+          at,
+          title: wording.planAccepted,
+          scenarios: event.scenarios.map((planned) => ({ ...planned, refusals: refused.get(planned.id) ?? [] })),
+        });
+        refused.clear();
+        break;
+      case "refusal": {
+        const text = event.text.trim();
+        const verdict: VerdictStep = {
           kind: "verdict",
           at,
           accepted: false,
           ...(event.code === undefined ? {} : { code: event.code }),
           about: wording.phase(event.phase),
-          text: event.text.trim(),
-        });
+          ...(event.scenario === undefined ? {} : { scenario: event.scenario }),
+          text,
+          ...refusalParts(text),
+        };
+        if (event.scenario !== undefined) refused.set(event.scenario, [...(refused.get(event.scenario) ?? []), verdict]);
+        steps.push(verdict);
         break;
+      }
       case "note": {
         const note: NoteStep = { kind: "note", at, text: event.text.trim() };
         const alike = alikeOf(note.text, source);

@@ -189,6 +189,8 @@ export interface RefusalEvent extends EventBase {
   /** The code of the gate that refused, such as `PLAN-ELEMENT`, when one did. */
   readonly code?: string;
   readonly text: string;
+  /** The scenario it is about, when the refusal names one of the plan or a test of one was being written. */
+  readonly scenario?: string;
 }
 
 /** The harness noted something it did or saw. */

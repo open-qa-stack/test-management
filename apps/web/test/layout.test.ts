@@ -408,7 +408,7 @@ describe("the thread of a session", () => {
         assert.equal(await unfolded.getAttribute("aria-expanded"), "true");
         assert.equal(await text.evaluate((element) => element.scrollHeight <= element.clientHeight), true, `${width}: the whole text shows`);
         assert.ok((await text.evaluate((element) => element.clientHeight)) > folded[1]);
-        await page.getByText(/then propose the plan again\.$/).waitFor();
+        await text.filter({ hasText: /then propose the plan again\.$/ }).waitFor();
         await unfolded.click();
         await button.waitFor();
       } finally {
@@ -988,7 +988,7 @@ describe("the code of the console is covered in full", () => {
         await page.getByRole("button", { name: "Changer la vitesse" }).click();
         await page.getByRole("button", { name: "Pause" }).click();
         await page.getByRole("button", { name: "Reprendre" }).waitFor();
-        await page.getByRole("button", { name: "Aller à la prochaine décision du harnais" }).click();
+        await page.getByRole("button", { name: "Aller au prochain verdict" }).click();
         await page.getByText("Plan accepté par le harnais").waitFor();
         await page.getByRole("button", { name: "Revenir au direct" }).click();
         await page.getByRole("button", { name: "Rejouer" }).waitFor();

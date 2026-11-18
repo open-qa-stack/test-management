@@ -4,7 +4,7 @@ import { RelayedErrors } from "./relayed-errors.ts";
 import type { TracePhase } from "../run/trace-line.ts";
 import type { ActionFinishedEvent, ActionLook, ActionTest, AgentRole, PlannedScenario } from "../sessions/session-event.ts";
 import type { UnrankedEvent } from "../sessions/unranked-event.ts";
-import type { RunLine, RunLineEvent } from "./thread-line.ts";
+import type { CommandStep, RelayedPhase, RunLine, RunLineEvent } from "./thread-line.ts";
 
 /**
  * Longest text an event holds, in characters: a message, a note, a refusal, the answer of a tool, a text of its
@@ -29,6 +29,8 @@ const OPENED = /^The scenario (\S+) was opened(?:; its test is (\S+)\.)?/;
 const CLOSED = /^The scenario (\S+) was closed: (passed|failed)/;
 const ACCEPTED = /^The plan was accepted: (.+)\.$/;
 const CODED = /^\[([A-Z-]+)\] ([^]*)$/;
+/** A scenario a text names by its identifier. */
+const NAMED = /\bscenario ([a-z0-9]+(?:-[a-z0-9]+)*)/g;
 const LEVEL = /\bof the level ([a-z-]+) alone/;
 const FAILED = /^(?:Refused|Warning) \(|: failed\./;
 const PASSED = /^The plan was accepted|: passed\./;
@@ -213,8 +215,18 @@ export class RunThread {
     }
     if (!failed) return [{ at, type: "note", phase, text: bounded(message) }];
     const coded = CODED.exec(message);
-    if (coded === null) return [{ at, type: "refusal", phase, text: bounded(message) }];
-    return [{ at, type: "refusal", phase, code: textOf(coded[1]), text: bounded(textOf(coded[2])) }];
+    if (coded === null) return [this.#refusal(at, phase, message)];
+    return [{ ...this.#refusal(at, phase, textOf(coded[2])), code: textOf(coded[1]) }];
+  }
+
+  /**
+   * A refusal, with the scenario it is about: the first the text names that the plan being built holds, or, while
+   * the test of a scenario is written or reviewed, that one.
+   */
+  #refusal(at: string, phase: TracePhase | CommandStep | RelayedPhase, text: string): Extract<UnrankedEvent, { type: "refusal" }> {
+    const named = [...text.matchAll(NAMED)].map(([, id]) => textOf(id)).find((id) => this.#proposed.has(id) || id === this.#scenario);
+    const scenario = named ?? (phase === "write" || phase === "review" ? this.#scenario : undefined);
+    return { at, type: "refusal", phase, text: bounded(text), ...(scenario === undefined ? {} : { scenario }) };
   }
 
   #asked(at: string, phase: TracePhase, text: string): UnrankedEvent[] {
@@ -255,7 +267,7 @@ export class RunThread {
 
   /** The refusal a task that stopped or failed gives: what the run says of it under a key, or all it says. */
   #stopped(at: string, phase: TracePhase, why: unknown, key: string): UnrankedEvent {
-    return { at, type: "refusal", phase, text: bounded(textOf(isRecord(why) ? why[key] : why)) };
+    return this.#refusal(at, phase, textOf(isRecord(why) ? why[key] : why));
   }
 
   #called(at: string, agent: AgentRole, event: RunLineEvent): UnrankedEvent[] {

@@ -121,7 +121,7 @@ Every event has an `id`, its rank in the session from 1, the date `at` it happen
 | `action_started` | An agent called a `tool` with `arguments`; `action` identifies the call. The `look` of the file the agent handed the tool, such as the test it runs, when it handed one: it can be read while the tool works. |
 | `action_finished` | The tool answered: the `action`, its `outcome` (`passed`, `failed`, or `done` when the answer says neither), the `result`, `durationMs`, the `look` of the page it rendered, and the `tests` a run of a file of tests ran, each with its `id` and its `verdict`. A session told before the start of an action carried its file tells that file here. |
 | `plan_accepted` | The harness accepted a plan: its `scenarios`, [each whole](#the-scenarios-of-a-plan). |
-| `refusal` | The harness refused what an agent handed in, or the work hit an error: `phase`, `text`, and the `code` of the gate when one refused. |
+| `refusal` | The harness refused what an agent handed in, or the work hit an error: `phase`, `text`, the `code` of the gate when one refused, and the `scenario` it is about when the thread knows it. |
 | `note` | The harness noted something it did or saw: `phase`, `text`. |
 | `scenario_closed` | The harness closed a `scenario` with a `verdict`, at the `level` of its plan when known. |
 | `state_changed` | The session changed `state`: `running` once it started, then `completed` or `interrupted`. |
@@ -318,6 +318,8 @@ An instance [starts all the same](running.md#startup) when its database cannot b
 What a run says — the entries of its journal and the lines of the traces of its agents — and how it reads as the events of a session are declared in `@open-qa-stack/domain`: `RunThread` writes the thread, the same for every host of the engine. The operations give it each entry and each line as the run tells it, and append what comes out; the store tells itself what the person says, and the delivery of each message.
 
 What the agents do comes from the traces, and what the run does around them from its journal. The journal also relays, once a step is over, what the harness journaled in the traces of the cartography and of the design: those entries are left out, but the errors no trace tells, which are what the run says itself — why a design stopped before any agent worked, for one. Such an error is a `refusal`, under the phase `survey` for the cartography and `plan` for the design, since the journal names the step and not the phase. An error is the same as one a trace tells when it bears the same message, after the name of its source when the trace gives one; the same message journaled twice is two errors.
+
+The `scenario` of a `refusal` is the first scenario its text names that the plan being built holds, as `scenario search` in a refusal of the plan; while the test of a scenario is written or reviewed, a refusal that names none is about that one.
 
 An agent builds its plan over several calls of `propose_plan`, and closes it with a call that proposes nothing: the call the harness accepts does not carry the plan. The `scenarios` of a `plan_accepted` are those the agent proposed since its plan phase started, a later one replacing an earlier one of the same identifier. When the harness journals which scenarios it accepted, `The plan was accepted: a, b.`, they are those it names, in that order: it may have refused or set aside others in between.
 

@@ -105,18 +105,26 @@ describe("the script of a session", () => {
       kind: "plan",
       at: "14:44:16",
       title: "Plan accepté par le harnais",
-      scenarios: [{ id: "search", title: "Search a customer", level: "smoke", application: "customer-management", case: "nominal" }],
+      scenarios: [{ id: "search", title: "Search a customer", level: "smoke", application: "customer-management", case: "nominal", refusals: [] }],
     });
   });
 
-  it("tells a refusal as a verdict of the harness about its phase, with the code of the gate", () => {
+  it("tells a refusal as a verdict of the harness about its phase and its scenario, with the code of the gate and the parts of its text", () => {
     assert.deepEqual(steps[9], {
       kind: "verdict",
       at: "14:44:17",
       accepted: false,
       code: "PLAN-ELEMENT",
       about: "Plan",
+      scenario: "search",
       text: REFUSAL,
+      subject: "The plan was refused by the harness",
+      reason: `${REFUSAL.slice(REFUSAL.indexOf("scenario search"), REFUSAL.indexOf("\n\nThe page"))}\n\nName the element each step acts on, as the page shows it, then propose the plan again.`,
+      page: {
+        kind: "page",
+        name: "http://localhost:3020/",
+        lines: ['- heading "Customers"', '- textbox "Search..."', '- button "Search"', '- table "Customers"'],
+      },
     });
   });
 
@@ -263,7 +271,14 @@ describe("the actions of a script", () => {
 describe("the decisions of the harness in a script", () => {
   it("tell a refusal no gate gave without a code", () => {
     const step = only([{ type: "refusal", phase: "write", text: "The model answered with status 503." }]);
-    assert.deepEqual(step, { kind: "verdict", at: "14:44:06", accepted: false, about: "Écriture d’un test", text: "The model answered with status 503." });
+    assert.deepEqual(step, {
+      kind: "verdict",
+      at: "14:44:06",
+      accepted: false,
+      about: "Écriture d’un test",
+      text: "The model answered with status 503.",
+      reason: "The model answered with status 503.",
+    });
   });
 
   it("read a phase this console does not know as a step of the work, when it starts and when it refuses", () => {
@@ -273,7 +288,7 @@ describe("the decisions of the harness in a script", () => {
     ]);
     assert.deepEqual(steps, [
       { kind: "pass", at: "14:44:06", title: "Étape", summary: "" },
-      { kind: "verdict", at: "14:44:07", accepted: false, about: "Étape", text: "Nothing to triage." },
+      { kind: "verdict", at: "14:44:07", accepted: false, about: "Étape", text: "Nothing to triage.", reason: "Nothing to triage." },
     ]);
   });
 

@@ -4,9 +4,9 @@ import { Marked } from "./marked.ts";
 import type { Theme, Tone } from "./palette.ts";
 import type { Block } from "./thread-blocks.ts";
 
-/** What a decision of the harness needs. */
-export interface CardBlockProps {
-  readonly block: Extract<Block, { kind: "verdict" | "outcome" }>;
+/** What the outcome of a session needs. */
+export interface OutcomeBlockProps {
+  readonly block: Extract<Block, { kind: "outcome" }>;
   readonly theme: Theme;
 }
 
@@ -17,43 +17,14 @@ function verdictMark(verdict: string, theme: Theme): readonly [string, Tone] {
 }
 
 /**
- * A decision of the harness, set apart from the turns of the agents: a refusal, marked as one, with the code
- * of its gate, the phase it is about, and under them what it says to do — or, when no gate gave it, the error
- * the work hit; or what the session produced, the verdict of each test, with why when it did not pass.
+ * What the session produced, set apart from the turns of the agents: the verdict of each test, with why when it
+ * did not pass.
  *
  * @param props - The block and the theme.
  * @returns The lines.
  */
-export function CardBlock({ block, theme }: CardBlockProps): ReactNode {
-  const { glyphs } = theme;
+export function OutcomeBlock({ block, theme }: OutcomeBlockProps): ReactNode {
   const muted = theme.ink("muted");
-  const between = ` ${glyphs.separator} `;
-  if (block.kind === "verdict") {
-    const { step } = block;
-    const ko = theme.ink("ko");
-    return h(
-      Box,
-      { flexDirection: "column", marginTop: 1 },
-      h(
-        Marked,
-        { mark: glyphs.failed, style: ko },
-        h(
-          Text,
-          null,
-          h(Text, { ...ko, bold: true }, step.code === undefined ? "Error" : "Refused by the harness"),
-          h(
-            Text,
-            muted,
-            [step.code, step.about]
-              .filter((part) => part !== undefined)
-              .map((part) => `${between}${part}`)
-              .join(""),
-          ),
-        ),
-        h(Text, null, step.text),
-      ),
-    );
-  }
   const { step } = block;
   return h(
     Box,

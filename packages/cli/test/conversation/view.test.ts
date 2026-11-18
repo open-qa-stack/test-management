@@ -77,9 +77,10 @@ describe("the thread of a session that goes on", () => {
         "  ✗ Proposed a plan of 1 scenario · 40 ms",
         "    The plan names no element of the page.",
       ]);
-      // A refusal of the harness, marked, with the code of its gate and what to do.
-      assert.equal(from(thread, "✗ Refused")[0], "✗ Refused by the harness · PLAN-ELEMENT · Plan");
-      assert.match(from(thread, "✗ Refused")[1]!, /^ {2}The plan was refused: name the element each step acts on,/);
+      // A refusal of the harness, as every verdict: its author, the kind of judge it is, the code of its gate, what was refused and what to do.
+      assert.equal(from(thread, "■ Harness · automatic")[0], "■ Harness · automatic check · refused · PLAN-ELEMENT · Plan");
+      assert.equal(from(thread, "■ Harness · automatic")[1], "  The plan was refused");
+      assert.match(from(thread, "■ Harness · automatic")[2]!, /^ {2}name the element each step acts on,/);
       // The plan the harness accepted, as a short list.
       assert.deepEqual(from(thread, "✓ Plan accepted").slice(0, 3), [
         "✓ Plan accepted by the harness · 2 scenarios",
@@ -225,17 +226,17 @@ describe("the thread of a session that goes on", () => {
     );
     fits(lines, 60);
     const text = lines.join("\n");
-    assert.match(text, /□ Code reviewer · reviewed the test of search: 2\s+remarks/);
+    assert.match(text, /□ Code reviewer · agent · reviewed the test of search: 2\s+remarks/);
     assert.match(
       text.replace(/\s+/g, " "),
       /- Step 1 \(PW-DATA-01\) \[plan\]: The asserted total of 50 customers is environment data that can change, so the test breaks when a customer is added\. - No screenshot\./,
     );
-    assert.match(text.replace(/\s+/g, " "), /Plan reviewer · reviewed the plan: 1 duplicate, not taken by the harness - b repeats a\.spec\.ts: Same\./);
-    assert.match(text.replace(/\s+/g, " "), /Coherence reviewer · reviewed the test of search: no remark, handing it in/);
+    assert.match(text.replace(/\s+/g, " "), /Plan reviewer · agent · reviewed the plan: 1 duplicate, not taken by the harness - b repeats a\.spec\.ts: Same\./);
+    assert.match(text.replace(/\s+/g, " "), /Coherence reviewer · agent · reviewed the test of search: no remark, handing it in/);
     assert.doesNotMatch(text, /Recorded|Done/);
   });
 
-  it("names the message of the person delivered once an agent took it, the notes of the harness under one mark, and an error no gate gave as one", () => {
+  it("names the message of the person delivered once an agent took it, the notes of the harness under one mark, and an error no gate gave as an error of the harness", () => {
     const lines = screenOf(
       showing([
         ...THREAD,
@@ -248,7 +249,25 @@ describe("the thread of a session that goes on", () => {
     );
     assert.equal(from(lines, "› You · message 1")[2], "  delivered to the plan reviewer");
     assert.deepEqual(from(lines, "■ The scenario search").slice(0, 2), ["■ The scenario search was opened.", "  Its test is tests/search.spec.ts."]);
-    assert.deepEqual(from(lines, "✗ Error").slice(0, 2), ["✗ Error · Writing a test", "  The design stopped: the run was asked to stop."]);
+    assert.deepEqual(from(lines, "■ Harness · automatic check · error").slice(0, 3), [
+      "■ Harness · automatic check · error · Writing a test",
+      "  The design stopped",
+      "  the run was asked to stop.",
+    ]);
+  });
+});
+
+describe("a verdict of the harness", () => {
+  it("names the scenario and the tool it is about, and writes the page it quotes in full, under what to do", () => {
+    const text = 'shop_click: The button matches two elements.\n\nThe page is now at http://localhost:3000/:\n- heading "Orders"\n  - button "Search"';
+    const lines = screenOf(showing([{ type: "refusal", phase: "write", scenario: "search", text }]), 100);
+    assert.deepEqual(from(lines, "■ Harness · automatic").slice(0, 5), [
+      "■ Harness · automatic check · error · Writing a test · scenario search · tool shop_click",
+      "  The button matches two elements.",
+      "  The page was at http://localhost:3000/:",
+      '  - heading "Orders"',
+      '    - button "Search"',
+    ]);
   });
 });
 
@@ -394,7 +413,7 @@ describe("a terminal that draws ASCII alone, without colour", () => {
       lines.find((line) => line.startsWith("-- Configuration")),
       `-- Configuration ${"-".repeat(43)}`,
     );
-    assert.ok(lines.includes("x Refused by the harness - PLAN-ELEMENT - Plan"));
+    assert.ok(lines.includes("| Harness - automatic check - refused - PLAN-ELEMENT - Plan"));
     assert.ok(lines.includes("+ Plan accepted by the harness - 2 scenarios"));
     assert.ok(lines.includes("  x Proposed a plan of 1 scenario - 40 ms"));
     assert.ok(lines.includes("  + Proposed a plan of 2 scenarios - 35 ms"));

@@ -29,7 +29,7 @@ const FILTERS: readonly (readonly [ThreadFilter, string])[] = [
   ["all", "Tout"],
   ["talk", "Échanges"],
   ["actions", "Actions"],
-  ["verdicts", "Verdicts du harnais"],
+  ["verdicts", "Verdicts"],
 ];
 
 /** The facts of a session, in a line: when it was opened, what it waits for, how long it took, what its agents read and did, what it cost, where its tests are. */
@@ -93,9 +93,9 @@ function ReplayBar({ live }: { readonly live: LiveSession }): ReactNode {
         <Icon name={playback.playing ? "pause" : "play"} />
         <span className="btn-label">{playback.playing ? "Pause" : "Reprendre"}</span>
       </button>
-      <button type="button" className="btn ghost sm" onClick={controls.skip} aria-label="Aller à la prochaine décision du harnais">
+      <button type="button" className="btn ghost sm" onClick={controls.skip} aria-label="Aller au prochain verdict">
         <Icon name="forward" />
-        <span className="btn-label">Décision suivante</span>
+        <span className="btn-label">Verdict suivant</span>
       </button>
       <button type="button" className="btn ghost sm playback-speed" onClick={controls.faster} aria-label="Changer la vitesse">
         × {playback.speed}

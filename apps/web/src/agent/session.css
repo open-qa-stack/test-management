@@ -944,28 +944,37 @@
   white-space: pre-wrap;
 }
 
-.review-call {
-  margin-top: var(--gap-row);
+/* What a verdict is about, on the line under who gave it; what was refused, then why. */
+.verdict-about {
+  margin: var(--gap-line) 0 0;
   color: var(--text-2);
   font-size: var(--type-small);
   line-height: var(--leading-small);
+  overflow-wrap: anywhere;
 }
 
-.review-call summary {
-  display: flex;
-  align-items: center;
-  min-height: var(--tap);
-  cursor: pointer;
+.verdict-subject {
+  margin: var(--gap-row) 0 0;
+  font-weight: var(--weight-medium);
+  overflow-wrap: anywhere;
 }
 
-.review-call dl {
+.verdict-subject + .verdict-text {
+  margin-top: var(--gap-line);
+}
+
+.verdict .raw {
+  margin-top: var(--gap-row);
+}
+
+.raw dl {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: var(--gap-line) var(--space-3);
   margin: 0 0 var(--gap-line);
 }
 
-.review-call dd {
+.raw dd {
   margin: 0;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
@@ -1138,6 +1147,38 @@
   font-family: var(--font-mono);
   font-size: var(--type-caption);
   line-height: var(--leading-caption);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* The refusals of the harness about a scenario before its plan was accepted: a row each, its time, its gate, its reason. */
+.scenario-refusals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-line);
+}
+
+.scenario-refusals ol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-row);
+}
+
+.scenario-refusal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--gap-line) var(--space-2);
+}
+
+.scenario-refusal .turn-at {
+  margin-left: 0;
+}
+
+.scenario-refusal-text {
+  flex-basis: 100%;
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }

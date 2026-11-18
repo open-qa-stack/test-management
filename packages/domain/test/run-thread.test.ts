@@ -606,6 +606,36 @@ describe("the thread of a run", () => {
     );
   });
 
+  it("names the scenario a refusal is about: one of the plan being built the text names, or the one whose test is written or reviewed", () => {
+    const refused = (seconds: number, phase: "plan" | "write" | "review", message: string) =>
+      traced(seconds, phase, "harness", { type: "journal", level: "error", message });
+    const events = threadOf([
+      traced(1, "plan", "harness", { type: "started" }),
+      traced(1, "plan", "agent", { type: "tool-call", callId: "p", tool: "propose_plan", arguments: { scenarios: [{ id: "search", level: "smoke" }] } }),
+      refused(2, "plan", "[PLAN-LEVEL] The plan was refused by the harness: scenario search is of the level smoke."),
+      refused(3, "plan", "[PLAN-START] The plan was refused by the harness: scenario browse opens no address, unlike scenario search."),
+      refused(4, "plan", "The design failed: one test per scenario of the plan."),
+      traced(5, "write", "harness", { type: "journal", level: "info", message: "The scenario open-shop was opened." }),
+      refused(6, "write", "[TEST-CHECK] The test could not be run."),
+      refused(7, "review", "The review could not be read."),
+      traced(8, "write", "agent", { type: "stopped", reason: { limit: "actions" } }),
+      traced(9, "write", "harness", { type: "journal", level: "info", message: "The scenario open-shop was closed: passed." }),
+      refused(10, "write", "The design failed."),
+    ]);
+    assert.deepEqual(
+      ofType(events, "refusal").map(({ code, scenario }) => [code, scenario]),
+      [
+        ["PLAN-LEVEL", "search"],
+        ["PLAN-START", "search"],
+        [undefined, undefined],
+        ["TEST-CHECK", "open-shop"],
+        [undefined, "open-shop"],
+        [undefined, "open-shop"],
+        [undefined, undefined],
+      ],
+    );
+  });
+
   it("makes a refusal of a task the harness stopped, with the limit it reached, and of an error of the session of an agent", () => {
     const events = threadOf([
       traced(1, "write", "agent", { type: "stopped", reason: { limit: "actions", counters: { actions: 40 } } }),
