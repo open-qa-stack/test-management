@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Code } from "../ui/code.tsx";
 import type { Look } from "./look.ts";
 
 /**
@@ -12,13 +13,7 @@ export function LookView({ look, caption }: { readonly look: Look; readonly capt
     <div className="look">
       <div className="look-frame">
         {look.kind === "code" ? (
-          <pre className="look-code mono">
-            {look.lines.map((line, index) => (
-              <span key={index} className="look-line">
-                {line === "" ? " " : line}
-              </span>
-            ))}
-          </pre>
+          <Code lines={look.lines} className="look-code" />
         ) : (
           <ul className="look-document">
             {look.excerpt.map((line, index) => (

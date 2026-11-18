@@ -1414,10 +1414,8 @@ html:has(.look-panel) {
   line-height: var(--leading-caption);
 }
 
-.look-line {
-  display: block;
+.look-code .code-line {
   padding: 0 var(--space-3);
-  white-space: pre;
 }
 
 .look-document {
