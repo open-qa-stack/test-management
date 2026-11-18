@@ -1,4 +1,5 @@
 import { isRecord, textOf } from "../json.ts";
+import { plannedScenarioOf } from "./planned-scenario.ts";
 import { RelayedErrors } from "./relayed-errors.ts";
 import type { TracePhase } from "../run/trace-line.ts";
 import type { ActionFinishedEvent, ActionLook, ActionTest, AgentRole, PlannedScenario } from "../sessions/session-event.ts";
@@ -261,9 +262,10 @@ export class RunThread {
     const { callId: action, tool } = event;
     if (typeof action !== "string" || typeof tool !== "string") return [];
     this.#calls.set(action, { at, tool, arguments: event["arguments"] });
-    if (tool === "propose_plan") for (const scenario of this.#scenarios(event["arguments"])) this.#proposed.set(scenario.id, scenario);
+    const args = boundedArguments(event["arguments"]);
+    if (tool === "propose_plan") for (const scenario of this.#scenarios(args)) this.#proposed.set(scenario.id, scenario);
     const look = this.#handed(tool, event["arguments"]);
-    return [{ at, type: "action_started", action, agent, tool, arguments: boundedArguments(event["arguments"]), ...(look === undefined ? {} : { look }) }];
+    return [{ at, type: "action_started", action, agent, tool, arguments: args, ...(look === undefined ? {} : { look }) }];
   }
 
   #answered(at: string, action: unknown, result: unknown, failed: boolean): UnrankedEvent[] {
@@ -296,27 +298,10 @@ export class RunThread {
     return typeof content === "string" ? { kind: "file", name: this.#file ?? tool, lines: linesOf(content) } : undefined;
   }
 
-  /**
-   * The scenarios of the plan a call proposed: those that bear an identifier and have a level, their own or
-   * that of the pass when they name none.
-   */
+  /** The scenarios of the plan a call proposed: those that bear an identifier and have a level, their own or that of the pass when they name none. */
   #scenarios(proposed: unknown): PlannedScenario[] {
     const scenarios = isRecord(proposed) ? proposed["scenarios"] : undefined;
     if (!Array.isArray(scenarios)) return [];
-    return scenarios.flatMap((scenario: unknown) => {
-      if (!isRecord(scenario)) return [];
-      const { id, title, application, case: verified } = scenario;
-      const level = typeof scenario["level"] === "string" ? scenario["level"] : this.#level;
-      if (typeof id !== "string" || level === undefined) return [];
-      return [
-        {
-          id,
-          title: typeof title === "string" ? title : id,
-          level,
-          ...(typeof application === "string" ? { application } : {}),
-          ...(typeof verified === "string" ? { case: verified } : {}),
-        },
-      ];
-    });
+    return scenarios.flatMap((scenario: unknown) => plannedScenarioOf(scenario, this.#level) ?? []);
   }
 }

@@ -49,8 +49,8 @@ const REVIEWED: readonly Step[] = [
     at: "09:00:03",
     title: "Plan accepté par le harnais",
     scenarios: [
-      { priority: "P0", title: "Search a customer", source: "smoke · /customers" },
-      { priority: "P1", title: "Open a customer", source: "smoke · /customers/1" },
+      { id: "search", title: "Search a customer", level: "smoke", application: "shop" },
+      { id: "open", title: "Open a customer", level: "smoke" },
     ],
   },
   { kind: "tool", from: "writer", at: "09:00:04", tool: "run_test", title: "A joué le test", detail: "1 failed", outcome: "failed" },
@@ -682,21 +682,68 @@ describe("the thread of a session", () => {
     assert.match(thread(liveWith([pending])), /<span class="badge ok">aucune remarque<\/span>/);
   });
 
-  it("lists the scenarios of an accepted plan under their count", () => {
+  it("lists the scenarios of an accepted plan under their count, each a cell folded to its level, its title, its case and its application", () => {
     assert.match(textOf(thread()), /Plan accepté par le harnais 1 scénario 14:44:16 smoke Search a customer nominal · customer-management/);
     const html = thread(liveWith(REVIEWED));
+    assert.match(textOf(html), /Plan accepté par le harnais 2 scénarios 09:00:03 smoke Search a customer shop .*smoke Open a customer Identifiant open/);
     assert.match(
-      textOf(html),
-      /Plan accepté par le harnais 2 scénarios 09:00:03 P0 Search a customer smoke · \/customers P1 Open a customer smoke · \/customers\/1/,
+      html,
+      /<section class="result-card plan"><header><div class="lead"><span class="act-state ok" aria-hidden="true"><\/span><b>Plan accepté par le harnais<\/b>/,
     );
     assert.match(
       html,
-      /<section class="result-card"><header><div class="lead"><span class="act-state ok" aria-hidden="true"><\/span><b>Plan accepté par le harnais<\/b>/,
+      /<details class="scenario"><summary class="scenario-head"><span class="badge neutral">smoke<\/span><span class="result-title">Search a customer<\/span><span class="turn-role">shop<\/span><\/summary>/,
     );
+    assert.match(html, /<span class="result-title">Open a customer<\/span><\/summary>/);
+  });
+
+  it("unfolds a scenario on all the plan says of it — its intent, its facts, its steps and what each expects — then the scenario as told, under Détails", () => {
+    const scenario = {
+      id: "search",
+      title: "Search a customer",
+      level: "functional",
+      case: "negative",
+      application: "shop",
+      intent: "Finds no customer for an unknown name.",
+      kind: "visual",
+      effect: "write",
+      domain: "customers",
+      feature: "customer-search",
+      sources: [{ source: "specs", item: "Search" }, { source: "shop" }],
+      data: [
+        { value: "Zed", from: "made-up" },
+        { value: "Ada", from: "shop" },
+      ],
+      steps: [
+        {
+          action: "Search Zed.",
+          expects: [
+            { result: "Nothing is listed.", shows: ["No customer"], absent: ["Ada"] },
+            { result: "The field keeps it.", shows: [], absent: [] },
+          ],
+        },
+        { action: "Clear the search.", expects: [], restores: true },
+      ],
+    };
+    const plan: Step = {
+      kind: "plan",
+      at: "09:00:03",
+      title: "Plan accepté par le harnais",
+      scenarios: [scenario, { id: "other", title: "Other", level: "custom", kind: "probe", data: [] }],
+    };
+    const html = thread(liveWith([plan]));
+    const text = textOf(html);
+    assert.match(text, /functional Search a customer négatif · shop Finds no customer for an unknown name\./);
     assert.match(
-      html,
-      /<div class="result-row"><span class="badge neutral">P0<\/span><span class="result-title">Search a customer<\/span><span class="turn-role">smoke · \/customers<\/span><\/div>/,
+      text,
+      /Identifiant search Niveau functional Cas négatif Effet écrit des données Nature visuel Application shop Domaine customers · customer-search Sources specs Search shop Données Zed inventée Ada shop/,
     );
+    assert.match(text, /Search Zed\. Nothing is listed\. Affiche No customer N’affiche plus Ada The field keeps it\. Clear the search\. remet en état Détails/);
+    assert.match(html, /<ol class="scenario-steps" aria-label="Étapes">/);
+    assert.match(html, /<code class="shown-text">No customer<\/code>/);
+    assert.match(html, /<details class="raw"><summary>Détails<\/summary><pre>\{\n {2}&quot;id&quot;: &quot;search&quot;,/);
+    assert.match(text, /custom Other Identifiant other Niveau custom Nature probe Données aucune saisie Détails/);
+    assert.doesNotMatch(html.slice(html.indexOf("Other")), /scenario-steps|scenario-intent/);
   });
 
   it("opens a pass with what it makes of the request when it says it, a part of a pass marked apart", () => {

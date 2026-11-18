@@ -10,7 +10,44 @@ export type AgentRole = "cartographer" | "planner" | "plan_reviewer" | "writer" 
 export type SessionPhase =
   "configuration" | "prerequisites" | "survey" | "card" | "consolidation" | "index" | "plan" | "review" | "write" | "execution" | "summary";
 
-/** A scenario of a plan. */
+/** A source a scenario relies on, and the element of it the plan names. */
+export interface PlannedSource {
+  /** The identifier of a knowledge source, or of an application for its screens. */
+  readonly source: string;
+  /** The element of the source, such as a section of a document or the address of a screen. */
+  readonly item?: string;
+}
+
+/** A value the test of a scenario enters, with what showed it. */
+export interface PlannedValue {
+  readonly value: string;
+  /** The source or the application whose tool showed it, or `made-up` for a value the test invents. */
+  readonly from: string;
+}
+
+/** A result a step of a scenario expects after its action. */
+export interface PlannedExpect {
+  /** The result, in a sentence. */
+  readonly result: string;
+  /** The texts the screen then displays. */
+  readonly shows: readonly string[];
+  /** The texts the screen no longer displays. */
+  readonly absent: readonly string[];
+}
+
+/** A step of a scenario: one action of the user, and what it should produce. */
+export interface PlannedStep {
+  /** What the user does, in a sentence. */
+  readonly action: string;
+  readonly expects: readonly PlannedExpect[];
+  /** Whether it is the step that puts back what the scenario changed. */
+  readonly restores?: boolean;
+}
+
+/**
+ * A scenario of a plan. Its identifier, title and level are always told; the rest is told as the plan gave it,
+ * and is absent from the events of a thread written before it was.
+ */
 export interface PlannedScenario {
   readonly id: string;
   readonly title: string;
@@ -20,6 +57,21 @@ export interface PlannedScenario {
   readonly application?: string;
   /** The case it verifies, such as `nominal`, when the plan says it. */
   readonly case?: string;
+  /** What it verifies, and why. */
+  readonly intent?: string;
+  /** What it checks: `functional`, `visual`, `accessibility`… */
+  readonly kind?: string;
+  /** Whether its test only reads the data of the environment, `read`, or changes some, `write`. */
+  readonly effect?: string;
+  /** The domain of the index it comes from. */
+  readonly domain?: string;
+  /** The functionality of that domain it verifies. */
+  readonly feature?: string;
+  readonly sources?: readonly PlannedSource[];
+  /** The values its test enters. */
+  readonly data?: readonly PlannedValue[];
+  /** Its steps, in the order the user does them. */
+  readonly steps?: readonly PlannedStep[];
 }
 
 /** What an agent had before its eyes in an action: the file it handed a tool, or the page a browser tool rendered. */

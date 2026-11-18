@@ -12,7 +12,6 @@ import {
   type NoteStep,
   type OutcomeStep,
   type PassStep,
-  type PlanStep,
   type Remark,
   type RepeatedNoteStep,
   type ReviewStep,
@@ -23,6 +22,7 @@ import {
   type Turn,
   type VerdictStep,
 } from "@open-qa-stack/domain/sessions";
+import { PlanCard } from "./plan-card.tsx";
 import { SpeakerMark } from "./speaker-mark.tsx";
 import { iconOf } from "./tool-icon.ts";
 import { counted } from "../ui/counted.ts";
@@ -437,29 +437,6 @@ function Review({ step, running }: { readonly step: ReviewStep; readonly running
   );
 }
 
-/** The plan of a pass, once accepted: its scenarios. */
-function Plan({ step }: { readonly step: PlanStep }): ReactNode {
-  return (
-    <section className="result-card">
-      <header>
-        <div className="lead">
-          <span className="act-state ok" aria-hidden="true" />
-          <b>{step.title}</b>
-          <span className="turn-role">{counted(step.scenarios.length, "scénario", "scénarios")}</span>
-        </div>
-        <span className="turn-at">{step.at}</span>
-      </header>
-      {step.scenarios.map((scenario, index) => (
-        <div key={index} className="result-row">
-          <Badge tone="neutral">{scenario.priority}</Badge>
-          <span className="result-title">{scenario.title}</span>
-          <span className="turn-role">{scenario.source}</span>
-        </div>
-      ))}
-    </section>
-  );
-}
-
 /** The start of a pass: the level of the pyramid the agents now work on. */
 function Pass({ step }: { readonly step: PassStep }): ReactNode {
   return (
@@ -528,7 +505,7 @@ function TurnView({ turn, back }: { readonly turn: Turn<ShownStep>; readonly bac
   const { step } = turn.shown;
   if (step.kind === "review") return <Review step={step} running={turn.shown.running} />;
   if (step.kind === "verdict") return <Verdict step={step} index={turn.shown.index} back={back} />;
-  if (step.kind === "plan") return <Plan step={step} />;
+  if (step.kind === "plan") return <PlanCard step={step} />;
   if (step.kind === "pass") return <Pass step={step} />;
   return <Outcome step={step as OutcomeStep} />;
 }

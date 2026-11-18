@@ -1017,6 +1017,159 @@
   overflow-wrap: anywhere;
 }
 
+/* A plan: a cell for each scenario, folded to its line under a hairline, which unfolds on all the plan says of it. */
+.result-card.plan .scenario {
+  grid-column: 1 / -1;
+  border-top: var(--hairline) solid var(--line-soft);
+}
+
+.scenario-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gap-line) var(--space-2);
+  min-height: var(--tap);
+  padding: var(--space-3) var(--inset);
+  cursor: pointer;
+}
+
+.scenario-head .turn-role {
+  overflow-wrap: anywhere;
+}
+
+.scenario[open] > .scenario-head {
+  background: var(--surface-soft);
+}
+
+.scenario-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-row);
+  padding: 0 var(--inset) var(--space-3);
+  background: var(--surface-soft);
+}
+
+.scenario-intent {
+  max-inline-size: var(--measure);
+  margin: 0;
+  font-size: var(--type-reading);
+  line-height: var(--leading-reading);
+  overflow-wrap: anywhere;
+}
+
+/* The facts of a scenario or of a scope: a label in capitals over its value, as many in a row as the width holds. */
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 11em), 1fr));
+  gap: var(--gap-row) var(--space-4);
+  margin: 0;
+}
+
+.fact dt {
+  color: var(--text-3);
+  font-size: var(--type-caption);
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-caption);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.fact dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.plain-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The steps of a scenario, numbered, each with what it expects under it. */
+.scenario-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-row);
+  margin: 0;
+  padding-left: var(--space-6);
+}
+
+.scenario-action {
+  margin: 0;
+  font-weight: var(--weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.expects {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-line);
+  margin: var(--gap-line) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.expect-result {
+  margin: 0;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+
+.expect-texts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gap-line) var(--space-2);
+  margin-top: var(--gap-line);
+}
+
+.expect-label {
+  color: var(--text-3);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+}
+
+/* A text as the screen shows it, exactly: set in its own face, on a light frame. */
+.shown-text {
+  padding: 0 var(--space-1);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-inner);
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: var(--type-caption);
+  line-height: var(--leading-caption);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* What an event told, as it told it: folded at the end of what reads it. */
+.raw {
+  color: var(--text-2);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+}
+
+.raw summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+  cursor: pointer;
+}
+
+.raw pre {
+  max-height: calc(var(--row) * 8);
+  margin: 0;
+  padding: var(--space-2);
+  overflow: auto;
+  border-radius: var(--radius-inner);
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: var(--type-caption);
+  line-height: var(--leading-caption);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 /* The start of a pass: a label between two hairlines; a part of a pass, a small label. */
 .pass {
   display: flex;

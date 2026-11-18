@@ -396,6 +396,64 @@ describe("the thread of a run", () => {
     );
   });
 
+  it("tells each scenario of an accepted plan with all the plan says of it a person reads, and leaves out what it cannot read", () => {
+    const scenario = {
+      id: "search",
+      title: "Search a customer",
+      intent: "Finds a customer by name.",
+      kind: "functional",
+      level: "functional",
+      case: "nominal",
+      effect: "write",
+      application: "shop",
+      domain: "customers",
+      feature: "customer-search",
+      sources: [{ source: "specs", item: "Search" }, { source: "shop" }, { item: "no source" }, "specs"],
+      data: [{ value: "Ada", from: "made-up" }, { value: "Ada" }, { from: "shop" }],
+      steps: [
+        {
+          action: "Search Ada.",
+          actions: [3, 4],
+          expects: [{ result: "Ada is listed.", shows: ["Ada", 7], absent: ["Bob"] }, { result: "No text." }, { shows: ["x"] }],
+        },
+        { action: "Put back the customer.", actions: [5], restores: true, expects: "none" },
+        { action: "Look again.", restores: "yes", expects: [] },
+        { expects: [] },
+      ],
+    };
+    const events = threadOf([
+      ...propose(1, "p1", [scenario, { title: "No identifier", level: "smoke" }, "search", { id: "bare", level: "smoke", sources: "specs" }], ACCEPTED),
+    ]);
+    assert.deepEqual(ofType(events, "plan_accepted")[0]?.scenarios, [
+      {
+        id: "search",
+        title: "Search a customer",
+        level: "functional",
+        application: "shop",
+        case: "nominal",
+        intent: "Finds a customer by name.",
+        kind: "functional",
+        effect: "write",
+        domain: "customers",
+        feature: "customer-search",
+        sources: [{ source: "specs", item: "Search" }, { source: "shop" }],
+        data: [{ value: "Ada", from: "made-up" }],
+        steps: [
+          {
+            action: "Search Ada.",
+            expects: [
+              { result: "Ada is listed.", shows: ["Ada"], absent: ["Bob"] },
+              { result: "No text.", shows: [], absent: [] },
+            ],
+          },
+          { action: "Put back the customer.", expects: [], restores: true },
+          { action: "Look again.", expects: [] },
+        ],
+      },
+      { id: "bare", title: "bare", level: "smoke" },
+    ]);
+  });
+
   it("gives an accepted plan the scenarios the harness names when it journals the acceptance, in that order, and no other", () => {
     assert.deepEqual(
       planned([

@@ -193,8 +193,8 @@ describe("the script of a session", () => {
           at: "14:44:06",
           title: "plan accepted",
           scenarios: [
-            { priority: "smoke", title: "Search a customer", source: "nominal · shop" },
-            { priority: "functional", title: "Open a customer", source: "" },
+            { id: "search", title: "Search a customer", level: "smoke", case: "nominal", application: "shop" },
+            { id: "open", title: "Open a customer", level: "functional" },
           ],
         },
         { kind: "verdict", at: "14:44:07", accepted: false, code: "PLAN-ELEMENT", about: "phase plan", text: "Name an element." },

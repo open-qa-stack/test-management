@@ -120,7 +120,7 @@ Every event has an `id`, its rank in the session from 1, the date `at` it happen
 | `phase_started` | A `phase` of the work started, on a knowledge `source` or for the test of a `scenario` when it has one. |
 | `action_started` | An agent called a `tool` with `arguments`; `action` identifies the call. The `look` of the file the agent handed the tool, such as the test it runs, when it handed one: it can be read while the tool works. |
 | `action_finished` | The tool answered: the `action`, its `outcome` (`passed`, `failed`, or `done` when the answer says neither), the `result`, `durationMs`, the `look` of the page it rendered, and the `tests` a run of a file of tests ran, each with its `id` and its `verdict`. A session told before the start of an action carried its file tells that file here. |
-| `plan_accepted` | The harness accepted a plan: its `scenarios`. |
+| `plan_accepted` | The harness accepted a plan: its `scenarios`, [each whole](#the-scenarios-of-a-plan). |
 | `refusal` | The harness refused what an agent handed in, or the work hit an error: `phase`, `text`, and the `code` of the gate when one refused. |
 | `note` | The harness noted something it did or saw: `phase`, `text`. |
 | `scenario_closed` | The harness closed a `scenario` with a `verdict`, at the `level` of its plan when known. |
@@ -131,6 +131,23 @@ The agents are `cartographer`, `planner`, `plan_reviewer`, `writer`, `coherence_
 A client ignores an event whose type it does not know, and reads a value it does not know — a phase, an agent, an outcome — as it would an absent one.
 
 The texts of the events are those the agents and the harness wrote, never reworded, and whole: a message, a note, a refusal, every text the `arguments` of an action hold, its `result`, every line of its `look`. A person reads them to the end, and the end of a refusal says what to do. Only a runaway is cut, such as a tool that answers with a dump, so that an event every follower receives stays of a reasonable size: a text longer than 1 048 576 characters keeps that many, and ends on `…`.
+
+### The scenarios of a plan
+
+A scenario of a `plan_accepted` always has its `id`, its `title` and its `level`. The rest is what the plan said of it, each field present when the plan gave it, absent from a thread told before it was:
+
+| Field | Meaning |
+|---|---|
+| `application`, `case` | The application it tests; `nominal`, or `negative` when the input matches nothing, is wrong or is forbidden. |
+| `intent` | What it verifies, and why, in a sentence. |
+| `kind` | What it checks: `functional`, `visual`, `accessibility` or `other`. |
+| `effect` | `read` when its test only reads the data of the environment, `write` when it changes some. |
+| `domain`, `feature` | The domain of the index it comes from, and the functionality of that domain it verifies. |
+| `sources` | The sources it relies on: each a `source`, and the `item` of it the plan names. |
+| `data` | The values its test enters: each a `value`, and `from`, the source or application that showed it, or `made-up`. |
+| `steps` | Its steps, in order: each an `action` of the user, the `expects` it is checked by — a `result`, the texts the screen `shows` and those it no longer shows, `absent` — and `restores`, true for the step that puts back what the scenario changed. |
+
+The numbers of the browser actions a step cites are left out: the harness alone reads them.
 
 ### Following and resuming
 

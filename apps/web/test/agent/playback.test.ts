@@ -28,7 +28,7 @@ const STEPS: readonly Step[] = [
   { kind: "tool", from: "planner", at: "10:00:03", tool: "shop_goto", title: "Opened the form", look: LOOK },
   { kind: "verdict", at: "10:00:04", accepted: false, code: "PLAN-SHOWN", about: "The plan", text: "Never shown." },
   { kind: "note", at: "10:00:05", text: "The plan was accepted." },
-  { kind: "plan", at: "10:00:06", title: "The plan", scenarios: [{ priority: "smoke", title: "A scenario", source: "nominal" }] },
+  { kind: "plan", at: "10:00:06", title: "The plan", scenarios: [{ id: "a", title: "A scenario", level: "smoke", case: "nominal" }] },
   { kind: "say", from: "writer", at: "10:00:07", text: "Done" },
   { kind: "tool", from: "writer", at: "10:00:08", tool: "run_test", title: "Ran the test", pending: true },
   { kind: "outcome", at: "10:00:09", title: "1 test", tests: [{ title: "A test", level: "smoke", verdict: "passed" }] },

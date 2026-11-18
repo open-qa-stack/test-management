@@ -76,7 +76,7 @@ Type what to test and press Enter: a session opens, against the environment `--e
 - **Who speaks.** You, the cartographer, the planner, the writer, the reviewers and the harness each have a mark and a name, written once for what they say and do in a row.
 - **The phases**, each as a rule across the terminal: the configuration, the cartography, each plan with its level, the writing of each test, the run of the tests, the summary.
 - **What an agent does**, a line per action: a spinner while its tool has not answered, then whether it passed, failed or simply ended, and how long it took. An action that failed says why on a second line. A long line is cut, with an ellipsis.
-- **What the harness decides.** A refusal is marked as one, with the code of its gate and what to do next; a plan it accepted is listed, a scenario a line; its notes are muted lines.
+- **What the harness decides.** A refusal is marked as one, with the code of its gate and what to do next; a plan it accepted is written in full, each scenario with what it verifies, its facts, its sources, its data and each step with the texts it expects the screen to show or no longer show; its notes are muted lines.
 - **The end**: the verdict of each test, then how the session ended, how long it took, how many requests it sent to the model, how many tests passed and the branch they were written on.
 
 What is finished goes to the scrollback of the terminal, which scrolls and searches it as any other output; only what may still change — an action that goes on, a message no agent took yet — is redrawn, above the input.

@@ -100,12 +100,12 @@ describe("the script of a session", () => {
     assert.deepEqual(steps[12], { kind: "tool", from: "writer", at: "14:44:20", tool: "run_test", title: "A joué le test", pending: true });
   });
 
-  it("lists the scenarios of a plan the harness accepted, each with its level, its case and its application", () => {
+  it("tells a plan the harness accepted with each of its scenarios as the event gives it", () => {
     assert.deepEqual(steps[8], {
       kind: "plan",
       at: "14:44:16",
       title: "Plan accepté par le harnais",
-      scenarios: [{ priority: "smoke", title: "Search a customer", source: "nominal · customer-management" }],
+      scenarios: [{ id: "search", title: "Search a customer", level: "smoke", application: "customer-management", case: "nominal" }],
     });
   });
 
@@ -264,24 +264,6 @@ describe("the decisions of the harness in a script", () => {
   it("tell a refusal no gate gave without a code", () => {
     const step = only([{ type: "refusal", phase: "write", text: "The model answered with status 503." }]);
     assert.deepEqual(step, { kind: "verdict", at: "14:44:06", accepted: false, about: "Écriture d’un test", text: "The model answered with status 503." });
-  });
-
-  it("give a scenario of a plan the case or the application it has, nothing when it has neither", () => {
-    const step = only([
-      {
-        type: "plan_accepted",
-        scenarios: [
-          { id: "a", title: "A", level: "smoke", case: "nominal" },
-          { id: "b", title: "B", level: "functional", application: "shop" },
-          { id: "c", title: "C", level: "e2e" },
-        ],
-      },
-    ]);
-    assert.deepEqual(step.kind === "plan" && step.scenarios, [
-      { priority: "smoke", title: "A", source: "nominal" },
-      { priority: "functional", title: "B", source: "shop" },
-      { priority: "e2e", title: "C", source: "" },
-    ]);
   });
 
   it("read a phase this console does not know as a step of the work, when it starts and when it refuses", () => {

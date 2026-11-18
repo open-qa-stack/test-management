@@ -88,7 +88,7 @@ function stageOf(session: Session): SessionStage {
  * answered, with what the agent looked at — the file it handed the tool from the start, named after the test it
  * declares — and the verdict of each test a run ran; the call a reviewer hands its verdict in with is a review, its remarks
  * read from the arguments of the call, and what the harness answers and the word the reviewer replies with are kept
- * in it rather than told; a plan the harness accepted is listed; a refusal is a verdict with
+ * in it rather than told; a plan the harness accepted is told with each of its scenarios whole; a refusal is a verdict with
  * its code, a note a line of the harness. Once the session has ended it closes on the verdict of each test, or,
  * when none ran, on the scenarios the harness closed; an interruption is told. Every text is whole, as a person
  * needs it, since the end of a refusal says what to do; a title alone is put on one line.
@@ -211,16 +211,7 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
         break;
       }
       case "plan_accepted":
-        steps.push({
-          kind: "plan",
-          at,
-          title: wording.planAccepted,
-          scenarios: event.scenarios.map((scenario) => ({
-            priority: scenario.level,
-            title: scenario.title,
-            source: [scenario.case, scenario.application].filter((part) => part !== undefined).join(" · "),
-          })),
-        });
+        steps.push({ kind: "plan", at, title: wording.planAccepted, scenarios: event.scenarios });
         break;
       case "refusal":
         steps.push({

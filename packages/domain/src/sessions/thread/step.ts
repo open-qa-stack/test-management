@@ -1,4 +1,4 @@
-import type { ActionLook, AgentRole } from "../session-event.ts";
+import type { ActionLook, AgentRole, PlannedScenario } from "../session-event.ts";
 
 /** Who speaks or acts in a session: the person who asked, one of the agents, or the harness that holds them to the evidence. */
 export type Speaker = "user" | AgentRole | "harness";
@@ -117,20 +117,11 @@ export interface ReviewStep extends StepBase {
   readonly durationMs?: number;
 }
 
-/** A scenario of a plan, as a thread lists it. */
-export interface ListedScenario {
-  /** Its priority, such as `P0`, or its level when the plan gives no priority. */
-  readonly priority: string;
-  readonly title: string;
-  /** Its case and the application it tests, when the plan says them. */
-  readonly source: string;
-}
-
-/** The plan of a pass, once the harness accepted it. */
+/** The plan of a pass, once the harness accepted it: every scenario, with all the plan says of it. */
 export interface PlanStep extends StepBase {
   readonly kind: "plan";
   readonly title: string;
-  readonly scenarios: readonly ListedScenario[];
+  readonly scenarios: readonly PlannedScenario[];
 }
 
 /** A pass starts: one loop of the agents for one level of the pyramid. */

@@ -105,12 +105,11 @@ describe("the thread of a session that goes on", () => {
     assert.equal(screenOf(showing([]), 100).at(-3), "⠋ queued · 0 s");
   });
 
-  it("cuts to the line what must stay on one: an action, its failure, a scenario of a plan", () => {
+  it("cuts to the line what must stay on one: an action and its failure", () => {
     const long = "customers ".repeat(12);
     const events: readonly EventBody[] = [
       { type: "action_started", action: "a", agent: "planner", tool: "shop_goto", arguments: { url: `/${long}` } },
       { type: "action_finished", action: "a", outcome: "failed", result: `No page at ${long}`, durationMs: 1200 },
-      { type: "plan_accepted", scenarios: [{ id: "s", title: `Search ${long}`, level: "smoke" }] },
       { type: "agent_message", agent: "planner", text: `Thinking of ${long}${long}`, reasoning: true },
       { type: "harness_message", to: "writer", text: `Write ${long}${long}${long}` },
     ];
@@ -124,12 +123,65 @@ describe("the thread of a session that goes on", () => {
       lines.find((line) => line.includes("No page at"))!,
       /^ {4}No page at customers .*…$/,
     );
-    assert.match(
-      lines.find((line) => line.includes("1. smoke"))!,
-      /^ {2}1\. smoke Search customers .*…$/,
-    );
     // A reasoning and a request of the harness are cut to a length, then wrap.
-    assert.equal(lines.filter((line) => line.includes("…")).length, 5);
+    assert.equal(lines.filter((line) => line.includes("…")).length, 4);
+  });
+
+  it("writes each scenario of a plan in full, wrapped: its line, its intent, its facts, its sources, its data and each step with what it expects", () => {
+    const events: readonly EventBody[] = [
+      {
+        type: "plan_accepted",
+        scenarios: [
+          {
+            id: "search",
+            title: `Search ${"customers ".repeat(6)}by name`,
+            level: "functional",
+            case: "negative",
+            application: "shop",
+            intent: "Finds no customer for an unknown name.",
+            kind: "functional",
+            effect: "write",
+            domain: "customers",
+            feature: "customer-search",
+            sources: [{ source: "specs", item: "Search" }, { source: "shop" }],
+            data: [{ value: "Zed", from: "made-up" }],
+            steps: [
+              {
+                action: "Search Zed.",
+                expects: [
+                  { result: "Nothing is listed.", shows: ["No customer"], absent: ["Ada"] },
+                  { result: "It stays.", shows: [], absent: [] },
+                ],
+              },
+              { action: "Clear the search.", expects: [], restores: true },
+            ],
+          },
+          { id: "open", title: "Open a customer", level: "smoke", kind: "functional", data: [] },
+        ],
+      },
+    ];
+    const lines = screenOf(showing(events), 60);
+    fits(lines, 60);
+    assert.deepEqual(from(lines, "✓ Plan accepted").slice(0, 16), [
+      "✓ Plan accepted by the harness · 2 scenarios",
+      "  1. functional Search customers customers customers",
+      "  customers customers customers by name · negative · shop",
+      "    Finds no customer for an unknown name.",
+      "    search · functional · write · customers/customer-search",
+      "    Sources: specs Search, shop",
+      '    Data: "Zed" (made-up)',
+      "    Step 1. Search Zed.",
+      "    → Nothing is listed.",
+      '      shows: "No customer"',
+      '      no longer shows: "Ada"',
+      "    → It stays.",
+      "    Step 2. Clear the search. (restores)",
+      "  2. smoke Open a customer",
+      "    open · functional",
+      "    Data: none entered",
+    ]);
+    const one = screenOf(showing([{ type: "plan_accepted", scenarios: [{ id: "open", title: "Open a customer", level: "smoke" }] }]), 60);
+    assert.deepEqual(from(one, "✓ Plan accepted").slice(0, 2), ["✓ Plan accepted by the harness · 1 scenario", "  1. smoke Open a customer"]);
   });
 
   it("writes a row of notes alike on one line, with how many sources, then the sources", () => {
