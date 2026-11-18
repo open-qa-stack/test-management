@@ -62,6 +62,8 @@ function shopTools(): ToolDefinition[] {
       return { code: CLICKED };
     }),
     tool("fill", ({ value = "zzqx" }) => {
+      // The reference of an account is typed from the environment, as the real tool types it.
+      if (typeof value !== "string") return { code: 'await page.getByRole("textbox", { name: "Password", exact: true }).fill(process.env.SHOP_PASSWORD!);' };
       page = `${page}\n- textbox "Search orders": ${value} → page.getByRole("textbox", { name: "Search orders", exact: true })`;
       return { code: `await page.getByRole("textbox", { name: "Search orders", exact: true }).fill(${JSON.stringify(value)});` };
     }),
@@ -1190,6 +1192,31 @@ describe("the actions a plan cites", () => {
       scenarios: ["a", "b", "c"].map((id) => scenario(id, { steps: [{ action: "Open the orders", actions: [2], expects: [shown("Orders")] }] })),
     };
     assert.equal(await submit(again, fixed), ACCEPTED);
+  });
+
+  it("are refused when they act on an application after the agent signed in to it and cite none of the actions that did, which they name", async () => {
+    const { proposal: made, screens } = await proposal({}, true);
+    const password = { value: { account: "demo", field: "password" } };
+    // 1 opens the orders, 2 clicks, 3 and 4 type the credentials, 5 sends them; 6 opens the orders again, 7 types, 8 sends, 9 clicks.
+    for (const [action, args] of [["click"], ["fill", password], ["fill", password], ["click"], ["goto"], ["fill", password], ["click"], ["click"]] as const)
+      await act(screens, action, args);
+    const steps = (a: number[], b: number[]) => ({
+      scenarios: [
+        scenario("a", { steps: [{ action: "Open the orders", actions: a, expects: [shown("Orders")] }] }),
+        scenario("b", { steps: [{ action: "Open the orders", actions: b, expects: [shown("Orders")] }] }),
+        scenario("c", { steps: [{ action: "Open the orders", actions: [1], expects: [shown("Orders")] }] }),
+      ],
+    });
+    const refused = ((await submit(made, steps([1, 5], [6, 9]))) as { error: string }).error.split("\n");
+    assert.deepEqual(
+      refused.filter((line) => line.includes("PLAN-SIGNIN")),
+      [
+        "Refused (PLAN-SIGNIN): scenario a acts on shop after the actions 3, 4 signed in to it, and none of its steps cites them: a test starts signed out. Cite 3, 4 first in the actions of the first step that acts on shop; or, for a scenario that verifies what a person who is not signed in sees, do its steps again signed out and cite those actions.",
+        "Refused (PLAN-SIGNIN): scenario b acts on shop after the actions 6, 7, 8 signed in to it, and none of its steps cites them: a test starts signed out. Cite 6, 7, 8 first in the actions of the first step that acts on shop; or, for a scenario that verifies what a person who is not signed in sees, do its steps again signed out and cite those actions.",
+      ],
+    );
+    // A scenario whose actions all came before any sign-in, as c, is held to nothing; one that cites the sign-in is accepted.
+    assert.equal(await submit(made, steps([1], [6, 7, 8, 9])), ACCEPTED);
   });
 
   it("start, for each scenario, with one that opens an address: its test starts on an empty page", async () => {

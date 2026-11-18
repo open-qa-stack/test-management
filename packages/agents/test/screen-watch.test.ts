@@ -542,6 +542,21 @@ describe("the screens the designer watches", () => {
     );
   });
 
+  it("gives no element of its own to a part of the text of an element, which a test finds by the text", async () => {
+    const asked: CheckedTarget[] = [];
+    const matches: TargetMatcher = async (_application, targets) =>
+      targets.map((target) => (asked.push(target), { code: "<counted>", count: 0, visible: false }));
+    const shown = ["- paragraph:", "  - text: Lakeside Mutual has not yet responded to this request.", '  - button "Respond"'].join("\n");
+    const watch = new ScreenWatch(["shop"], page([shown]).tools, matches);
+    await run(watch, "goto");
+    // A locator by its exact text designates no element: the paragraph also holds the name of the button.
+    assert.equal(watch.locatorOf("shop", "Lakeside Mutual has not yet responded to this request.", false), undefined);
+    assert.deepEqual(
+      asked.map((target) => ("text" in target ? target.text : target.name)),
+      ["Respond"],
+    );
+  });
+
   it("gives an element whose locator designates it alone first, else one several share, else the field, else one the page did not show", async () => {
     const field = '- textbox "Search": Ghost → page.getByRole("textbox", { name: "Search", exact: true })';
     const matches: TargetMatcher = async (_application, targets) =>
