@@ -414,7 +414,7 @@ describe("the thread of a session", () => {
     assert.match(
       html,
       new RegExp(
-        `<div class="act"><details><summary class="act-line"><span class="act-state" aria-hidden="true"></span><svg [^>]*>.*?</svg><span class="act-title">A ouvert / dans customer-management</span></summary><pre class="act-result">\\{&quot;url&quot;:&quot;http://localhost:3020/&quot;\\}</pre></details><a id="look-eye-${PAGE_TOOL}" class="act-look" href="${ADDRESS}\\?look=${PAGE_TOOL}" aria-label="A ouvert / dans customer-management — voir la page consultée"><svg [^>]*>.*?</svg></a><span class="act-time">900 ms</span></div>`,
+        `<div class="act"><details><summary class="act-line"><span class="act-state" aria-hidden="true"></span><svg [^>]*>.*?</svg><span class="act-title">A ouvert / dans customer-management</span></summary><pre class="act-result">\\{&quot;url&quot;:&quot;http://localhost:3020/&quot;\\}</pre></details><a id="look-eye-${PAGE_TOOL}" class="act-look" href="${ADDRESS}\\?look=${PAGE_TOOL}" aria-label="A ouvert / dans customer-management — voir la page consultée"><svg [^>]*>.*?</svg></a><span class="act-time">900\u202fms</span></div>`,
       ),
     );
     assert.deepEqual(linksOf(html), [`${ADDRESS}?agent=planner`, `${ADDRESS}?look=${PAGE_TOOL}`, `${ADDRESS}?agent=writer`]);
@@ -436,7 +436,7 @@ describe("the thread of a session", () => {
   it("marks an action that passed, and gives no link to one that looked at nothing", () => {
     assert.match(
       thread(),
-      /<div class="act"><details><summary class="act-line"><span class="act-state ok" role="img" aria-label="réussi"><\/span><svg [^>]*>.*?<\/svg><span class="act-title">A proposé un plan de 1 scénario<\/span><\/summary><pre class="act-result">The plan was accepted: search\.<\/pre><\/details><span class="act-time">40 ms<\/span><\/div>/,
+      /<div class="act"><details><summary class="act-line"><span class="act-state ok" role="img" aria-label="réussi"><\/span><svg [^>]*>.*?<\/svg><span class="act-title">A proposé un plan de 1 scénario<\/span><\/summary><pre class="act-result">The plan was accepted: search\.<\/pre><\/details><span class="act-time">40\u202fms<\/span><\/div>/,
     );
   });
 
@@ -529,7 +529,7 @@ describe("the thread of a session", () => {
       ok,
       /<\/summary><ul class="act-tests"><li><span class="badge ok">réussi<\/span><span>a<\/span><\/li><\/ul><pre class="act-code code mono"><span class="code-line">test\(\);<\/span><\/pre><\/details>/,
     );
-    assert.match(ok, /<span class="act-time">2,4 s<\/span>/);
+    assert.match(ok, /<span class="act-time">2,4\u202fs<\/span>/);
     const ko = thread(liveWith([failed]));
     assert.match(ko, /<span class="act-title">A joué « a » : échoué<\/span>/);
     assert.match(
@@ -940,7 +940,7 @@ describe("the composer of a session", () => {
     const html = composer({ state: "idle" }, true);
     assert.match(
       html,
-      /<label class="sr-only" for="composer-message">Dites aux agents quoi faire ensuite : corriger un test, ajouter un scénario…<\/label><textarea id="composer-message" name="message" rows="2" placeholder="Dites aux agents quoi faire ensuite : corriger un test, ajouter un scénario……">/,
+      /<label class="sr-only" for="composer-message">Dites aux agents quoi faire ensuite : corriger un test, ajouter un scénario…<\/label><textarea id="composer-message" name="message" rows="2" placeholder="Dites aux agents quoi faire ensuite : corriger un test, ajouter un scénario…">/,
     );
     assert.match(html, /<span class="btn-label">Poursuivre la session<\/span>/);
   });
@@ -1015,7 +1015,7 @@ describe("the stop of a session", () => {
         html,
         /<span id="session-stop" class="session-stopping" role="status" tabindex="-1">arrêt demandé…<\/span><button type="button" class="btn ghost sm">/,
       );
-      assert.match(textOf(html), /en direct 2026-11-15 · 14:44:06 UTC · 2 actions arrêt demandé… Rejouer/);
+      assert.match(textOf(html), /en direct 15 nov. 2026, 14:44:06 UTC · 2 actions arrêt demandé… Rejouer/);
       assert.doesNotMatch(html, /class="session-stop"|Arrêter/);
     }
     assert.doesNotMatch(stoppedWith({ state: "asked" }, "", INTERRUPTED), /arrêt demandé|session-stop/);
@@ -1056,9 +1056,9 @@ describe("the screen of a session", () => {
     const html = screen();
     assert.match(
       html,
-      /<div class="session-bar"><span class="badge info">en direct<\/span><span class="session-facts">2026-11-15 · 14:44:06 UTC · 2 actions<\/span><a id="session-stop" class="btn ghost sm" href="#\/agent\/sessions\/[^"?]+\?stop=ask"><svg [^>]*><rect [^>]*\/><\/svg> Arrêter<\/a><button type="button" class="btn ghost sm"><svg [^>]*>.*?<\/svg> Rejouer<\/button><\/div>/,
+      /<div class="session-bar"><span class="badge info">en direct<\/span><span class="session-facts">15 nov. 2026, 14:44:06 UTC · 2 actions<\/span><a id="session-stop" class="btn ghost sm" href="#\/agent\/sessions\/[^"?]+\?stop=ask"><svg [^>]*><rect [^>]*\/><\/svg> Arrêter<\/a><button type="button" class="btn ghost sm"><svg [^>]*>.*?<\/svg> Rejouer<\/button><\/div>/,
     );
-    assert.match(textOf(html), /en direct 2026-11-15 · 14:44:06 UTC · 2 actions Arrêter Rejouer ✓ Configuration/);
+    assert.match(textOf(html), /en direct 15 nov. 2026, 14:44:06 UTC · 2 actions Arrêter Rejouer ✓ Configuration/);
     assert.match(html, /<div class="content"><div class="session"><div class="session-bar">/);
     assert.doesNotMatch(html, /disabled|role="progressbar"|session-bar replay/);
     assert.deepEqual(pressed(), ["restart"]);
@@ -1077,25 +1077,25 @@ describe("the screen of a session", () => {
   it("adds what an ended session knows: its duration, its model requests and its branch", () => {
     assert.match(
       textOf(screen("", liveOf(COMPLETED))),
-      /tests réussis 2026-11-15 · 14:44:06 UTC · 1 min 54 s · 3 actions · 50 requêtes au modèle · oqas\/design-20261115T144408Z Rejouer/,
+      /tests réussis 15 nov. 2026, 14:44:06 UTC · 1 min 54 s · 3 actions · 50 requêtes au modèle · oqas\/design-20261115T144408Z Rejouer/,
     );
-    assert.match(textOf(screen("", liveOf(STOPPED))), /arrêtée avant la fin 2026-11-15 · 14:44:06 UTC · 42 s · 3 actions · 3 requêtes au modèle Rejouer/);
+    assert.match(textOf(screen("", liveOf(STOPPED))), /arrêtée avant la fin 15 nov. 2026, 14:44:06 UTC · 42 s · 3 actions · 3 requêtes au modèle Rejouer/);
   });
 
   it("tells only the opening and the actions of a session that has no result", () => {
     const interrupted = screen("", liveOf(INTERRUPTED));
-    assert.match(textOf(interrupted), /interrompue 2026-11-15 · 14:44:06 UTC · 3 actions Rejouer/);
+    assert.match(textOf(interrupted), /interrompue 15 nov. 2026, 14:44:06 UTC · 3 actions Rejouer/);
     assert.match(interrupted, /<div class="session-bar"><span class="badge warn">interrompue<\/span>/);
     const untold = screen("", liveOf({ ...RUNNING, state: "completed" }));
     assert.match(
       untold,
-      /<div class="session-bar"><span class="badge neutral">terminée<\/span><span class="session-facts">2026-11-15 · 14:44:06 UTC · 3 actions<\/span>/,
+      /<div class="session-bar"><span class="badge neutral">terminée<\/span><span class="session-facts">15 nov. 2026, 14:44:06 UTC · 3 actions<\/span>/,
     );
   });
 
   it("counts the knowledge sources the agents read, each once, among the facts of a session that read some", () => {
     const written = liveWith([{ kind: "say", from: "cartographer", at: "09:00:00", text: "Je lis les sources." }], INTERRUPTED, ["specification", "tickets"]);
-    assert.match(textOf(screen("", written)), /interrompue 2026-11-15 · 14:44:06 UTC · 2 sources de connaissance lues · 0 action Rejouer/);
+    assert.match(textOf(screen("", written)), /interrompue 15 nov. 2026, 14:44:06 UTC · 2 sources de connaissance lues · 0 action Rejouer/);
     const events = numbered([
       { type: "phase_started", phase: "survey" },
       { type: "phase_started", phase: "card", source: "orders-db" },
@@ -1135,7 +1135,7 @@ describe("the screen of a session", () => {
   it("says in its bar that a queued session waits for an agent, and names nobody at work under what was asked", () => {
     const html = screen("", liveOf(QUEUED, {}, ASKED));
     assert.match(html, /<span class="badge outline">en file<\/span>/);
-    assert.match(textOf(html), /en file 2026-11-15 · 14:44:06 UTC · en attente d’un agent · 0 action Arrêter Rejouer /);
+    assert.match(textOf(html), /en file 15 nov. 2026, 14:44:06 UTC · en attente d’un agent · 0 action Arrêter Rejouer /);
     assert.doesNotMatch(html, /class="working"|travaille/);
     assert.match(textOf(screen("", liveOf(QUEUED, { following: false, tick: 30 }, ASKED))), /× 1 Tout afficher/);
   });

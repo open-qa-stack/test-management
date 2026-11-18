@@ -1,3 +1,4 @@
+import type { Words } from "../i18n/i18n.ts";
 import type { IconName } from "../ui/icon.tsx";
 
 /** The path of the screen the home of the console opens: the entry of the agent. */
@@ -7,16 +8,16 @@ export const HOME_PATH = "/agent";
 export interface NavigationEntry {
   /** Its icon. */
   readonly icon: IconName;
-  /** Its label. */
-  readonly label: string;
+  /** What it opens, which names its label in the resources. */
+  readonly key: keyof Words["shell"]["entries"];
   /** The path of the screen it opens; none for a part of the console that does not exist yet. */
   readonly path?: string;
 }
 
 /** A group of entries of the navigation, under a heading. */
 export interface NavigationGroup {
-  /** Its heading. */
-  readonly label: string;
+  /** What it holds, which names its heading in the resources. */
+  readonly key: keyof Words["shell"]["groups"];
   /** Its entries. */
   readonly entries: readonly NavigationEntry[];
 }
@@ -26,22 +27,22 @@ export interface NavigationGroup {
  * of tests and of their runs, named so that a person sees what is coming, and the configuration of the project.
  */
 export const NAVIGATION: readonly NavigationGroup[] = [
-  { label: "Travail", entries: [{ icon: "agent", label: "Agent", path: "/agent" }] },
+  { key: "work", entries: [{ icon: "agent", key: "agent", path: "/agent" }] },
   {
-    label: "Référentiel",
+    key: "repository",
     entries: [
-      { icon: "discovery", label: "Découverte" },
-      { icon: "review", label: "À relire" },
-      { icon: "tests", label: "Tests" },
-      { icon: "check", label: "Couverture" },
+      { icon: "discovery", key: "discovery" },
+      { icon: "review", key: "review" },
+      { icon: "tests", key: "tests" },
+      { icon: "check", key: "coverage" },
     ],
   },
   {
-    label: "Exécution",
+    key: "execution",
     entries: [
-      { icon: "campaign", label: "Campagnes" },
-      { icon: "warning", label: "Anomalies" },
+      { icon: "campaign", key: "campaigns" },
+      { icon: "warning", key: "defects" },
     ],
   },
-  { label: "Projet", entries: [{ icon: "settings", label: "Configuration", path: "/configuration" }] },
+  { key: "project", entries: [{ icon: "settings", key: "configuration", path: "/configuration" }] },
 ];

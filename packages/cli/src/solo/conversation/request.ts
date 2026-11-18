@@ -2,6 +2,7 @@ import { hasEnded, type Session } from "@open-qa-stack/domain/sessions";
 import { UI_PORT } from "../arguments.ts";
 import { hintedCommands } from "./slash-commands.ts";
 import type { ConversationState } from "./conversation-state.ts";
+import { t } from "./i18n/i18n.ts";
 
 /** A port `/ui` may be given: an integer from 0 to 65535. */
 const PORT = /^[0-9]{1,5}$/;
@@ -31,22 +32,18 @@ function commandOf(state: ConversationState, line: string): Request {
   const [word = "", ...rest] = line.split(/\s+/);
   const named = hintedCommands(word);
   const [command] = named.filter(({ name }) => named.length === 1 || name === word.slice(1));
-  if (command === undefined) return { kind: "refused", why: `Unknown command ${word}; /help lists the commands.` };
+  if (command === undefined) return { kind: "refused", why: t("requests.unknown", { word }) };
   const [value, ...more] = rest;
   if (value !== undefined && (command.name !== "ui" || more.length > 0))
-    return { kind: "refused", why: `/${command.name} takes ${command.takes ?? "nothing after it"}.` };
+    return { kind: "refused", why: t("requests.takes", { name: command.name, what: command.takes ?? t("requests.nothingAfter") }) };
   switch (command.name) {
     case "stop": {
       const session = state.shown?.session;
-      return session === undefined || hasEnded(session.state)
-        ? { kind: "refused", why: "No session goes on here: there is nothing to stop." }
-        : { kind: "stop", session: session.id };
+      return session === undefined || hasEnded(session.state) ? { kind: "refused", why: t("requests.nothingToStop") } : { kind: "stop", session: session.id };
     }
     case "ui":
       if (value === undefined) return { kind: "ui", port: UI_PORT };
-      return PORT.test(value) && Number(value) <= 65535
-        ? { kind: "ui", port: Number(value) }
-        : { kind: "refused", why: "/ui takes a port from 0 to 65535, 0 for any free one." };
+      return PORT.test(value) && Number(value) <= 65535 ? { kind: "ui", port: Number(value) } : { kind: "refused", why: t("requests.port") };
     default:
       return { kind: command.name };
   }

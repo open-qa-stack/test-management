@@ -7,6 +7,7 @@ import { configError as error, pointer, structureError } from "./errors.ts";
 import { isRecord, parseJson } from "../json.ts";
 import { SHARED_FOLDER } from "../test-repository/application-pages.ts";
 import { STATE_DIR_NAME } from "./file-names.ts";
+import { DEFAULT_LANGUAGE } from "./language.ts";
 import { configSchema } from "./schema.ts";
 import type { Attachment, ConfigError, OqasConfig, Repository, ResolvedConfig, ValidationResult } from "./types.ts";
 
@@ -82,6 +83,7 @@ export function validateConfig(content: string, env: EnvironmentVariables): Vali
 export function resolvedConfig(data: OqasConfig): ResolvedConfig {
   return {
     formatVersion: data.formatVersion,
+    language: data.language ?? DEFAULT_LANGUAGE,
     applications: data.applications,
     knowledge: data.knowledge,
     repository: { ...DEFAULT_REPOSITORY, ...data.repository },
@@ -97,6 +99,7 @@ export function resolvedConfig(data: OqasConfig): ResolvedConfig {
       architecture: data.design?.architecture ?? "page-objects",
       fixturesFile: data.design?.fixturesFile ?? `${data.repository?.appsDir ?? DEFAULT_REPOSITORY.appsDir}/${SHARED_FOLDER}/fixtures.ts`,
       levels: data.design?.levels ?? ["smoke", "functional", "business"],
+      testLanguage: data.design?.testLanguage ?? DEFAULT_LANGUAGE,
     },
     model: data.model,
     autonomy: { level: (data.autonomy ?? DEFAULT_AUTONOMY).level, limits: resolveLimits(data.autonomy ?? DEFAULT_AUTONOMY) },

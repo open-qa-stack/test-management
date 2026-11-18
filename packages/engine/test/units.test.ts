@@ -15,7 +15,7 @@ import {
   type SessionOptions,
 } from "@open-qa-stack/domain";
 import { answer, scriptedServer, toolCalls } from "@open-qa-stack/testing";
-import type { DesignedTest } from "@open-qa-stack/agents";
+import { languageRule, type DesignedTest } from "@open-qa-stack/agents";
 import { liveRuntime } from "../src/index.ts";
 import { exitCodeOf } from "../src/run/exit-code.ts";
 import { missingPrerequisites } from "../src/run/prerequisites.ts";
@@ -23,6 +23,7 @@ import { RunJournal } from "../src/run/run-journal.ts";
 import { runnableTests } from "../src/run/runnable-tests.ts";
 import { CountedRuntime } from "../src/runtime/counted-runtime.ts";
 import { GuardedRuntime } from "../src/runtime/guarded-runtime.ts";
+import { SpokenRuntime } from "../src/runtime/spoken-runtime.ts";
 
 const workspace = mkdtempSync(join(tmpdir(), "oqas-engine-units-"));
 afterAll(() => rmSync(workspace, { recursive: true, force: true }));
@@ -320,6 +321,26 @@ describe("the guardrail of a run", () => {
         { maxIterations: null, maxDurationMs: 0, maxActions: null },
       ],
     );
+    await runtime.close();
+    assert.equal(closed, true);
+  });
+});
+
+describe("the language of the person in a run", () => {
+  it("ends the instructions of each session with its rule, keeps the rest of its options, and closes the runtime it wraps", async () => {
+    const opened: SessionOptions[] = [];
+    let closed = false;
+    const inner: AgentRuntime = {
+      openSession: async (options) => {
+        opened.push(options);
+        return { send: async function* () {}, close: async () => undefined };
+      },
+      close: async () => void (closed = true),
+    };
+    const runtime = new SpokenRuntime(inner, "fr");
+    const limits = { maxIterations: 4, maxDurationMs: null, maxActions: null };
+    await runtime.openSession({ instructions: "Plan the tests.", tools: [], limits });
+    assert.deepEqual(opened, [{ instructions: `Plan the tests.\n\n${languageRule("fr")}`, tools: [], limits }]);
     await runtime.close();
     assert.equal(closed, true);
   });

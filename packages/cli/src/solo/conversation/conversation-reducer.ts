@@ -3,8 +3,9 @@ import { PICKED_SESSIONS, RECENT_SESSIONS, type ConversationState, type Printed,
 import { interruptionOf } from "./interruption.ts";
 import { hintedCommands } from "./slash-commands.ts";
 import { blocksOf, settledCount } from "./thread-blocks.ts";
-import { WORDING } from "./wording.ts";
+import { wording } from "./wording.ts";
 import type { Request } from "./request.ts";
+import { t } from "./i18n/i18n.ts";
 
 /** What changes the conversation: a key of the person, or what the operations on sessions answered. */
 export type ConversationAction =
@@ -39,10 +40,6 @@ export type ConversationAction =
   /** The clock moved. */
   | { readonly type: "ticked"; readonly now: number };
 
-const CTRL_C_LEAVES = "Press Ctrl-C again to quit.";
-const CTRL_C_STOPS = "The session is asked to stop, and ends soon. Ctrl-C again leaves at once, without waiting for it.";
-const STOP_ASKED = "The session is asked to stop: its agents stop as soon as they hand over.";
-
 /** The conversation without what the last key told, and with Ctrl-C disarmed: what a key, or the end of a session, leaves of it whatever comes next. */
 function afterKey(state: ConversationState): ConversationState {
   const { notice: _told, ...rest } = state;
@@ -73,7 +70,7 @@ function printing(state: ConversationState, ...printed: readonly Printed[]): Con
  * @returns The conversation with that thread, the blocks that will not change any more written to the scrollback.
  */
 function settling(state: ConversationState, shown: ShownThread): ConversationState {
-  const script = scriptOf(shown.session, shown.events, WORDING);
+  const script = scriptOf(shown.session, shown.events, wording());
   const blocks = blocksOf(script.steps);
   const settled = Math.max(shown.settled, settledCount(blocks, script.stage !== "ended"));
   return {
@@ -94,7 +91,7 @@ function submitted(state: ConversationState, request: Request): ConversationStat
     case "stop":
       return { ...cleared, overlay: { kind: "stop", session: request.session } };
     case "confirm-stop":
-      return { ...withoutOverlay(cleared), notice: STOP_ASKED };
+      return { ...withoutOverlay(cleared), notice: t("notices.stopAsked") };
     case "pick":
       return withoutOverlay(cleared);
     case "help":
@@ -118,9 +115,9 @@ function interrupted(state: ConversationState): ConversationState {
     case "leave":
       return { ...state, leaving: { atOnce: true } };
     case "stop":
-      return { ...state, armed: true, notice: CTRL_C_STOPS };
+      return { ...state, armed: true, notice: t("notices.ctrlCStops") };
     case "arm":
-      return { ...state, armed: true, notice: CTRL_C_LEAVES };
+      return { ...state, armed: true, notice: t("notices.ctrlCLeaves") };
   }
 }
 
@@ -189,14 +186,14 @@ export function conversationReducer(state: ConversationState, action: Conversati
     }
     case "listed":
       return action.sessions.length === 0
-        ? { ...state, notice: "No session yet: say what to test to open the first." }
+        ? { ...state, notice: t("notices.noSession") }
         : { ...state, overlay: { kind: "picker", sessions: action.sessions.slice(0, PICKED_SESSIONS), selected: 0 } };
     case "restarted": {
       const { shown: _left, ...rest } = state;
       return printing(rest, { kind: "recent", sessions: action.sessions.slice(0, RECENT_SESSIONS) });
     }
     case "served":
-      return printing(state, { kind: "notice", tone: "info", text: `The web console is served at ${action.url} until you leave.` });
+      return printing(state, { kind: "notice", tone: "info", text: t("notices.served", { url: action.url }) });
     case "failed":
       return printing(state, { kind: "notice", tone: "error", text: action.why });
     case "ticked":

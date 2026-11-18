@@ -1,5 +1,16 @@
-import type { AgentRole, Problem, ProblemCode, Session, SessionEvent, SessionList, SessionMessage, SessionOpening } from "@open-qa-stack/domain/sessions";
+import type {
+  AgentRole,
+  Language,
+  Problem,
+  ProblemCode,
+  Session,
+  SessionEvent,
+  SessionList,
+  SessionMessage,
+  SessionOpening,
+} from "@open-qa-stack/domain/sessions";
 import { COMPLETED, EVENTS, RUNNING, SESSION_ID, type EventBody } from "./agent/session-fixture.ts";
+import { VIEW } from "./configuration/configuration-fixture.ts";
 import { UNREACHABLE, type Api, type ApiAnswer } from "./built-console.ts";
 
 /** The identifier of the session the played instance opens on request. */
@@ -25,6 +36,8 @@ function problem(code: ProblemCode, status: number, detail: string): ApiAnswer {
 export class PlayedInstance {
   /** The session, as the API tells it now. */
   public session: Session = RUNNING;
+  /** The language of its configuration: French, the language the tests of the console were written in. */
+  public language: Language = "fr";
   /** How many events of the fixtures the session has so far. */
   public happened = EVENTS.length;
   /** Whether the instance cannot be reached. */
@@ -94,6 +107,8 @@ export class PlayedInstance {
   /** What the API does with a request. */
   public readonly api: Api = async ({ path, method, after, body }) => {
     if (this.down) return UNREACHABLE;
+    if (path === "/api/configuration")
+      return { body: JSON.stringify({ ...VIEW, revision: { ...VIEW.revision!, document: { ...VIEW.revision!.document, language: this.language } } }) };
     if (path === "/api/project")
       return { body: JSON.stringify({ name: "lakeside", applications: [{ id: "customer-management", name: "Customer Management" }] }) };
     if (path === "/api/sessions" && method === "POST") {

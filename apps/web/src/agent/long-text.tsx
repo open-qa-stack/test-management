@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { t } from "../i18n/i18n.ts";
 
 /** How many lines a long text shows before it is unfolded. */
 const FOLDED_LINES = 6;
@@ -34,7 +35,7 @@ export function LongText({ id, text, className, open, onUnfold }: LongTextProps)
       </p>
       {long && (
         <button type="button" className="btn ghost sm read-more" aria-expanded={open} aria-controls={id} onClick={onUnfold}>
-          {open ? "Replier" : "Lire la suite"}
+          {t(open ? "longText.fold" : "longText.more")}
         </button>
       )}
     </>

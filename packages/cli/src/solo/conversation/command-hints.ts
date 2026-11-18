@@ -1,5 +1,6 @@
 import { Box, Text } from "ink";
 import { createElement as h, type ReactNode } from "react";
+import { t } from "./i18n/i18n.ts";
 import { Marked } from "./marked.ts";
 import type { Theme } from "./palette.ts";
 import type { SlashCommand } from "./slash-commands.ts";
@@ -26,7 +27,7 @@ export function CommandHints({ commands, theme }: CommandHintsProps): ReactNode 
   return h(
     Box,
     { flexDirection: "column" },
-    ...commands.map(({ name, takes, does }, index) =>
+    ...commands.map(({ name, takes }, index) =>
       h(
         Marked,
         { key: name, mark: index === 0 ? theme.glyphs.pointer : "", style: accent },
@@ -34,7 +35,7 @@ export function CommandHints({ commands, theme }: CommandHintsProps): ReactNode 
           Text,
           { wrap: "truncate-end" },
           h(Text, accent, `/${name}${takes === undefined ? "" : ` ${takes}`}`.padEnd(NAMES)),
-          h(Text, theme.ink("muted"), does),
+          h(Text, theme.ink("muted"), t(`commands.${name}`)),
         ),
       ),
     ),

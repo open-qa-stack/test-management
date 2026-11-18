@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import type { ScopeStep } from "@open-qa-stack/domain/sessions";
+import { Trans } from "react-i18next/TransWithoutContext";
+import { i18n, t } from "../i18n/i18n.ts";
 import { Badge } from "../ui/badge.tsx";
 
 /**
@@ -20,7 +22,7 @@ export function ScopeCard({ step }: { readonly step: ScopeStep }): ReactNode {
       </header>
       <dl className="facts scope-facts">
         <div className="fact">
-          <dt>Niveaux demandés</dt>
+          <dt>{t("scope.levels")}</dt>
           <dd className="badges">
             {step.levels.map((level) => (
               <Badge key={level} tone="info">
@@ -30,16 +32,16 @@ export function ScopeCard({ step }: { readonly step: ScopeStep }): ReactNode {
           </dd>
         </div>
         <div className="fact">
-          <dt>Applications</dt>
+          <dt>{t("scope.applications")}</dt>
           <dd>{step.applications.join(", ")}</dd>
         </div>
         <div className="fact">
-          <dt>Environnement</dt>
+          <dt>{t("scope.environment")}</dt>
           <dd>{step.environment}</dd>
         </div>
       </dl>
       <p className="scope-note">
-        Seuls ces niveaux sont conçus ; <span className="mono">design.levels</span> dans <span className="mono">oqas.json</span> les fixe.
+        <Trans i18n={i18n} i18nKey="scope.note" components={{ code: <span className="mono" /> }} />
       </p>
     </section>
   );

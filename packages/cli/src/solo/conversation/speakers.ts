@@ -1,4 +1,5 @@
 import type { Speaker } from "@open-qa-stack/domain/sessions";
+import { t } from "./i18n/i18n.ts";
 import type { Tone } from "./palette.ts";
 
 /** How the conversation shows who speaks: a name, a mark that tells it from the others without colour, and a tone. */
@@ -12,14 +13,24 @@ export interface Identity {
   readonly tone: Tone;
 }
 
-/** The identity of everyone a session shows. The three reviewers share a tone, and are told apart by their mark and their name. */
-export const IDENTITIES: Readonly<Record<Speaker, Identity>> = {
-  user: { name: "You", mark: "›", ascii: ">", tone: "person" },
-  cartographer: { name: "Cartographer", mark: "◇", ascii: "~", tone: "cartographer" },
-  planner: { name: "Planner", mark: "◆", ascii: "*", tone: "planner" },
-  plan_reviewer: { name: "Plan reviewer", mark: "▽", ascii: "?", tone: "reviewer" },
-  writer: { name: "Writer", mark: "●", ascii: "+", tone: "writer" },
-  coherence_reviewer: { name: "Coherence reviewer", mark: "△", ascii: "=", tone: "reviewer" },
-  code_reviewer: { name: "Code reviewer", mark: "□", ascii: "#", tone: "reviewer" },
-  harness: { name: "Harness", mark: "■", ascii: "|", tone: "harness" },
+/** The marks and the tone of everyone a session shows. The three reviewers share a tone, and are told apart by their mark and their name. */
+const MARKS: Readonly<Record<Speaker, Omit<Identity, "name">>> = {
+  user: { mark: "›", ascii: ">", tone: "person" },
+  cartographer: { mark: "◇", ascii: "~", tone: "cartographer" },
+  planner: { mark: "◆", ascii: "*", tone: "planner" },
+  plan_reviewer: { mark: "▽", ascii: "?", tone: "reviewer" },
+  writer: { mark: "●", ascii: "+", tone: "writer" },
+  coherence_reviewer: { mark: "△", ascii: "=", tone: "reviewer" },
+  code_reviewer: { mark: "□", ascii: "#", tone: "reviewer" },
+  harness: { mark: "■", ascii: "|", tone: "harness" },
 };
+
+/**
+ * Tells who speaks in a session.
+ *
+ * @param speaker - The person, an agent or the harness.
+ * @returns Its identity, its name in the language of the conversation.
+ */
+export function identityOf(speaker: Speaker): Identity {
+  return { name: t(`speakers.${speaker}`), ...MARKS[speaker] };
+}

@@ -1,18 +1,15 @@
 import type { ReactNode } from "react";
-import type { OqasConfig, TestLevel } from "@open-qa-stack/domain/sessions";
+import { DEFAULT_LANGUAGE, LANGUAGES, type OqasConfig, type TestLevel } from "@open-qa-stack/domain/sessions";
+import { LANGUAGE_NAMES, t } from "../i18n/i18n.ts";
 import { Card } from "../ui/card.tsx";
 import { CheckField, ChoiceField, InputField, PlaceErrors } from "./configuration-fields.tsx";
-import { LEVELS } from "./configuration-words.ts";
+import { LEVELS, levelText } from "./configuration-words.ts";
 
 /** The levels a plan is asked for when the configuration names none. */
 const DEFAULT_LEVELS: readonly TestLevel[] = ["smoke", "functional", "business"];
 
-const PROVIDERS = [{ value: "openai", label: "Serveur compatible OpenAI" }];
-
-const AUTONOMIES = [
-  { value: "autonomous", label: "Autonome : aucune limite par tâche" },
-  { value: "bounded", label: "Bornée : des limites pour chaque tâche" },
-];
+/** The languages the configuration may name, each by its own name. */
+const LANGUAGE_CHOICES = LANGUAGES.map((language) => ({ value: language, label: LANGUAGE_NAMES[language] }));
 
 /**
  * The model the agents call: its server, its name, the variable that holds its key, what it can do and how much
@@ -23,27 +20,32 @@ const AUTONOMIES = [
  */
 export function ModelCard({ model }: { readonly model: OqasConfig["model"] }): ReactNode {
   return (
-    <Card title="Modèle" hint="le serveur que les agents appellent">
+    <Card title={t("configuration.settings.model.title")} hint={t("configuration.settings.model.hint")}>
       <div className="config-body config-fields">
-        <ChoiceField pointer="/model/provider" label="Fournisseur" value={model.provider} options={PROVIDERS} />
-        <InputField pointer="/model/baseUrl" label="Adresse du serveur" value={model.baseUrl} code placeholder="https://" />
-        <InputField pointer="/model/model" label="Modèle" value={model.model} code />
+        <ChoiceField
+          pointer="/model/provider"
+          label={t("configuration.settings.model.provider")}
+          value={model.provider}
+          options={[{ value: "openai", label: t("configuration.settings.openai") }]}
+        />
+        <InputField pointer="/model/baseUrl" label={t("configuration.settings.model.baseUrl")} value={model.baseUrl} code placeholder="https://" />
+        <InputField pointer="/model/model" label={t("configuration.settings.model.model")} value={model.model} code />
         <InputField
           pointer="/model/apiKeyEnv"
-          label="Variable de la clé"
+          label={t("configuration.settings.model.apiKeyEnv")}
           value={model.apiKeyEnv}
           code
-          hint="Le nom de la variable d’environnement qui tient la clé ; la clé n’est jamais écrite ici."
+          hint={t("configuration.settings.model.apiKeyEnvHint")}
         />
         <InputField
           pointer="/model/reasoningEffort"
-          label="Effort de raisonnement"
+          label={t("configuration.settings.model.reasoningEffort")}
           value={model.reasoningEffort}
-          hint="Un mot du serveur, tel que low ou high ; rien n’est envoyé sans."
+          hint={t("configuration.settings.model.reasoningEffortHint")}
         />
         <InputField
           pointer="/model/requestTimeoutSeconds"
-          label="Attente d’une réponse, en secondes"
+          label={t("configuration.settings.model.timeout")}
           value={model.requestTimeoutSeconds}
           numeric
           placeholder="120"
@@ -51,8 +53,8 @@ export function ModelCard({ model }: { readonly model: OqasConfig["model"] }): R
         <CheckField
           pointer="/model/capabilities"
           member="vision"
-          label="Lit les images"
-          hint="les agents voient les captures des écrans"
+          label={t("configuration.settings.model.vision")}
+          hint={t("configuration.settings.model.visionHint")}
           checked={model.capabilities?.includes("vision") === true}
         />
       </div>
@@ -68,22 +70,36 @@ export function ModelCard({ model }: { readonly model: OqasConfig["model"] }): R
  */
 export function AutonomyCard({ autonomy = { level: "autonomous" } }: { readonly autonomy?: OqasConfig["autonomy"] }): ReactNode {
   return (
-    <Card title="Autonomie" hint="jusqu’où vont les agents seuls">
+    <Card title={t("configuration.settings.autonomy.title")} hint={t("configuration.settings.autonomy.hint")}>
       <div className="config-body config-fields">
-        <ChoiceField pointer="/autonomy/level" kind="level" label="Niveau" value={autonomy.level} options={AUTONOMIES} />
+        <ChoiceField
+          pointer="/autonomy/level"
+          kind="level"
+          label={t("configuration.settings.autonomy.level")}
+          value={autonomy.level}
+          options={[
+            { value: "autonomous", label: t("configuration.settings.autonomous") },
+            { value: "bounded", label: t("configuration.settings.bounded") },
+          ]}
+        />
         <InputField
           pointer="/autonomy/guardrailMinutes"
-          label="Garde-fou d’un run, en minutes"
+          label={t("configuration.settings.autonomy.guardrail")}
           value={autonomy.guardrailMinutes}
           numeric
-          placeholder={autonomy.level === "autonomous" ? "120" : "aucun"}
-          hint="Au-delà, les tâches des agents s’arrêtent."
+          placeholder={autonomy.level === "autonomous" ? "120" : t("configuration.settings.autonomy.none")}
+          hint={t("configuration.settings.autonomy.guardrailHint")}
         />
         {autonomy.level === "bounded" && (
           <>
-            <InputField pointer="/autonomy/task/maxMinutes" label="Minutes par tâche" value={autonomy.task.maxMinutes} numeric />
-            <InputField pointer="/autonomy/task/maxIterations" label="Appels au modèle par tâche" value={autonomy.task.maxIterations} numeric />
-            <InputField pointer="/autonomy/task/maxActions" label="Actions du navigateur par tâche" value={autonomy.task.maxActions} numeric />
+            <InputField pointer="/autonomy/task/maxMinutes" label={t("configuration.settings.autonomy.maxMinutes")} value={autonomy.task.maxMinutes} numeric />
+            <InputField
+              pointer="/autonomy/task/maxIterations"
+              label={t("configuration.settings.autonomy.maxIterations")}
+              value={autonomy.task.maxIterations}
+              numeric
+            />
+            <InputField pointer="/autonomy/task/maxActions" label={t("configuration.settings.autonomy.maxActions")} value={autonomy.task.maxActions} numeric />
             <PlaceErrors pointer="/autonomy/task" />
           </>
         )}
@@ -101,22 +117,44 @@ export function AutonomyCard({ autonomy = { level: "autonomous" } }: { readonly 
 export function DesignCard({ design }: { readonly design: OqasConfig["design"] }): ReactNode {
   const levels = design?.levels ?? DEFAULT_LEVELS;
   return (
-    <Card title="Niveaux de conception" hint="de la base de la pyramide à son sommet">
+    <Card title={t("configuration.settings.design.title")} hint={t("configuration.settings.design.hint")}>
       <fieldset className="config-body config-group">
-        <legend className="sr-only">Niveaux de tests demandés à un plan</legend>
-        {LEVELS.map(({ level, label, hint }) => (
-          <CheckField
-            key={level}
-            pointer="/design/levels"
-            member={level}
-            defaults={DEFAULT_LEVELS}
-            label={label}
-            hint={hint}
-            checked={levels.includes(level)}
-          />
+        <legend className="sr-only">{t("configuration.settings.design.legend")}</legend>
+        {LEVELS.map((level) => (
+          <CheckField key={level} pointer="/design/levels" member={level} defaults={DEFAULT_LEVELS} {...levelText(level)} checked={levels.includes(level)} />
         ))}
         <PlaceErrors pointer="/design/levels" />
       </fieldset>
+    </Card>
+  );
+}
+
+/**
+ * The languages of the product: the one it speaks to the person in, the console and the agents alike, and the one
+ * of what the tests say.
+ *
+ * @param props - The configuration of the draft; English where it names none.
+ * @returns Its card.
+ */
+export function LanguageCard({ config }: { readonly config: OqasConfig }): ReactNode {
+  return (
+    <Card title={t("configuration.settings.languages.title")} hint={t("configuration.settings.languages.hint")}>
+      <div className="config-body config-fields">
+        <ChoiceField
+          pointer="/language"
+          label={t("configuration.settings.languages.language")}
+          hint={t("configuration.settings.languages.languageHint")}
+          value={config.language ?? DEFAULT_LANGUAGE}
+          options={LANGUAGE_CHOICES}
+        />
+        <ChoiceField
+          pointer="/design/testLanguage"
+          label={t("configuration.settings.languages.testLanguage")}
+          hint={t("configuration.settings.languages.testLanguageHint")}
+          value={config.design?.testLanguage ?? DEFAULT_LANGUAGE}
+          options={LANGUAGE_CHOICES}
+        />
+      </div>
     </Card>
   );
 }
@@ -129,13 +167,37 @@ export function DesignCard({ design }: { readonly design: OqasConfig["design"] }
  */
 export function RepositoryCard({ repository = {} }: { readonly repository?: OqasConfig["repository"] }): ReactNode {
   return (
-    <Card title="Organisation du dépôt" hint="chaque dossier relatif à la racine du dépôt de tests">
+    <Card title={t("configuration.settings.repository.title")} hint={t("configuration.settings.repository.hint")}>
       <div className="config-body config-fields">
-        <InputField pointer="/repository/appsDir" label="Dossier des applications" value={repository.appsDir} code placeholder="apps" />
-        <InputField pointer="/repository/blocksDir" label="Dossier des blocs" value={repository.blocksDir} code placeholder="blocs" />
-        <InputField pointer="/repository/journeysDir" label="Dossier des parcours" value={repository.journeysDir} code placeholder="parcours" />
-        <InputField pointer="/repository/stateDir" label="Dossier d’état" value={repository.stateDir} code placeholder=".oqas" />
-        <InputField pointer="/repository/indexDir" label="Dossier de l’index" value={repository.indexDir} code placeholder=".oqas/index" />
+        <InputField pointer="/repository/appsDir" label={t("configuration.settings.repository.appsDir")} value={repository.appsDir} code placeholder="apps" />
+        <InputField
+          pointer="/repository/blocksDir"
+          label={t("configuration.settings.repository.blocksDir")}
+          value={repository.blocksDir}
+          code
+          placeholder="blocs"
+        />
+        <InputField
+          pointer="/repository/journeysDir"
+          label={t("configuration.settings.repository.journeysDir")}
+          value={repository.journeysDir}
+          code
+          placeholder="parcours"
+        />
+        <InputField
+          pointer="/repository/stateDir"
+          label={t("configuration.settings.repository.stateDir")}
+          value={repository.stateDir}
+          code
+          placeholder=".oqas"
+        />
+        <InputField
+          pointer="/repository/indexDir"
+          label={t("configuration.settings.repository.indexDir")}
+          value={repository.indexDir}
+          code
+          placeholder=".oqas/index"
+        />
       </div>
     </Card>
   );

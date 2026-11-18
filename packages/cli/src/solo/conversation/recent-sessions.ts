@@ -3,6 +3,7 @@ import { createElement as h, type ReactNode } from "react";
 import type { Session } from "@open-qa-stack/domain/sessions";
 import { SessionLine } from "./session-line.ts";
 import type { Theme } from "./palette.ts";
+import { t } from "./i18n/i18n.ts";
 
 /** What the latest sessions need. */
 export interface RecentSessionsProps {
@@ -21,7 +22,7 @@ export function RecentSessions({ sessions, theme }: RecentSessionsProps): ReactN
   return h(
     Box,
     { flexDirection: "column", marginTop: 1 },
-    h(Text, muted, sessions.length === 0 ? "No session yet." : "Latest sessions"),
+    h(Text, muted, t(sessions.length === 0 ? "recent.none" : "recent.latest")),
     ...sessions.map((session) => h(SessionLine, { key: session.id, session, theme })),
   );
 }

@@ -4,9 +4,10 @@ import type { AgentRole } from "@open-qa-stack/domain/sessions";
 import { shortened } from "../event-line.ts";
 import { Marked } from "./marked.ts";
 import { SpeakerHead } from "./speaker-head.ts";
-import { IDENTITIES } from "./speakers.ts";
+import { identityOf } from "./speakers.ts";
 import type { Theme } from "./palette.ts";
 import type { Block } from "./thread-blocks.ts";
+import { t } from "./i18n/i18n.ts";
 
 /** What something said needs. */
 export interface SaidBlockProps {
@@ -16,7 +17,7 @@ export interface SaidBlockProps {
 
 /** Where a message the person sent during the session is. */
 function delivery(deliveredTo: AgentRole | undefined): string {
-  return deliveredTo === undefined ? "waiting for an agent" : `delivered to the ${IDENTITIES[deliveredTo].name.toLowerCase()}`;
+  return deliveredTo === undefined ? t("said.waiting") : t("said.deliveredTo", { name: identityOf(deliveredTo).name.toLowerCase() });
 }
 
 /**
@@ -38,14 +39,14 @@ export function SaidBlock({ block, theme }: SaidBlockProps): ReactNode {
       return h(
         Box,
         { flexDirection: "column", marginTop: 1 },
-        h(SpeakerHead, { speaker: "user", after: `${theme.glyphs.separator} message ${step.number}`, theme }),
+        h(SpeakerHead, { speaker: "user", after: `${theme.glyphs.separator} ${t("said.message", { number: step.number })}`, theme }),
         h(Marked, null, h(Text, null, step.text), h(Text, muted, delivery(block.deliveredTo))),
       );
     case "brief":
       return h(
         Box,
         { flexDirection: "column", marginTop: 1 },
-        h(SpeakerHead, { speaker: "harness", after: `${theme.glyphs.arrow} ${IDENTITIES[step.to!].name}`, theme }),
+        h(SpeakerHead, { speaker: "harness", after: `${theme.glyphs.arrow} ${identityOf(step.to!).name}`, theme }),
         h(Marked, null, h(Text, muted, shortened(step.text))),
       );
     case "speech":
@@ -53,7 +54,11 @@ export function SaidBlock({ block, theme }: SaidBlockProps): ReactNode {
         Box,
         { flexDirection: "column", marginTop: block.heads ? 1 : 0 },
         block.heads ? h(SpeakerHead, { speaker: block.agent, theme }) : null,
-        h(Marked, null, step.thinking === true ? h(Text, { ...muted, italic: true }, `thinks: ${shortened(step.text)}`) : h(Text, null, step.text)),
+        h(
+          Marked,
+          null,
+          step.thinking === true ? h(Text, { ...muted, italic: true }, t("said.thinks", { text: shortened(step.text) })) : h(Text, null, step.text),
+        ),
       );
   }
 }

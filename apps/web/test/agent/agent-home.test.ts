@@ -107,12 +107,12 @@ describe("the entry of the agent", () => {
 
   it("lists a session per row, with what was asked, its facts and its state", () => {
     const text = textOf(home([RUNNING, COMPLETED, INTERRUPTED]));
-    assert.match(text, /Sessions · 1 en direct tester la recherche d'un client 2026-11-15 · 14:44:06 UTC en direct /);
+    assert.match(text, /Sessions · 1 en direct tester la recherche d'un client 15 nov. 2026, 14:44:06 UTC en direct /);
     assert.match(
       text,
-      /tester la recherche d'un client 2026-11-15 · 14:44:06 UTC · local · 1 min 54 s · 50 requêtes au modèle · 1 \/ 1 test réussi tests réussis /,
+      /tester la recherche d'un client 15 nov. 2026, 14:44:06 UTC · local · 1 min 54 s · 50 requêtes au modèle · 1 \/ 1 test réussi tests réussis /,
     );
-    assert.match(text, /Session sans demande 2026-11-14 · 09:12:00 UTC interrompue$/);
+    assert.match(text, /Session sans demande 14 nov. 2026, 09:12:00 UTC interrompue$/);
     assert.doesNotMatch(text, /Lecture des sessions|Aucune session/);
   });
 
@@ -120,22 +120,22 @@ describe("the entry of the agent", () => {
     const html = home([QUEUED, COMPLETED]);
     assert.match(
       textOf(html),
-      /Sessions · chaque demande ouvre une session tester la recherche d'un client 2026-11-15 · 14:44:06 UTC · en attente d’un agent en file /,
+      /Sessions · chaque demande ouvre une session tester la recherche d'un client 15 nov. 2026, 14:44:06 UTC · en attente d’un agent en file /,
     );
     assert.match(html, new RegExp(`<a class="row run-row" href="#/agent/sessions/${SESSION_ID}">`));
     assert.match(html, /<span class="badge outline">en file<\/span>/);
-    assert.match(textOf(home([{ ...UNASKED, state: "queued" }])), /Session sans demande 2026-11-16 · 08:00:00 UTC · en attente d’un agent en file$/);
+    assert.match(textOf(home([{ ...UNASKED, state: "queued" }])), /Session sans demande 16 nov. 2026, 08:00:00 UTC · en attente d’un agent en file$/);
   });
 
   it("names a session nothing was asked of by whether its agents still work", () => {
     const text = textOf(home([UNASKED, { ...UNASKED, state: "completed" }]));
-    assert.match(text, /Session en cours 2026-11-16 · 08:00:00 UTC en direct Session sans demande 2026-11-16 · 08:00:00 UTC terminée$/);
+    assert.match(text, /Session en cours 16 nov. 2026, 08:00:00 UTC en direct Session sans demande 16 nov. 2026, 08:00:00 UTC terminée$/);
   });
 
   it("tells the facts of a result even when it holds no test, and how each session stands", () => {
     const stopped: Session = { ...COMPLETED, result: { outcome: "stopped", durationMs: 42_000, modelRequests: 3, tests: [] } };
     const html = home([stopped, { ...RUNNING, state: "interrupted" }]);
-    assert.match(textOf(html), /2026-11-15 · 14:44:06 UTC · local · 42 s · 3 requêtes au modèle arrêtée avant la fin /);
+    assert.match(textOf(html), /15 nov. 2026, 14:44:06 UTC · local · 42 s · 3 requêtes au modèle arrêtée avant la fin /);
     assert.match(html, /<span class="badge neutral">arrêtée avant la fin<\/span>/);
     assert.match(html, /<span class="badge warn">interrompue<\/span>/);
   });

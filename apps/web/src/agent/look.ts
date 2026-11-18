@@ -1,4 +1,5 @@
 import type { ActionLook } from "@open-qa-stack/domain/sessions";
+import { t } from "../i18n/i18n.ts";
 import { applicationOf } from "./browser-tool.ts";
 
 /** A file an agent handed a tool: its path and its lines. */
@@ -41,10 +42,10 @@ export function lookOf(look: ActionLook, tool: string): Look {
  * Titles a look by what it shows, as its panel heads it.
  *
  * @param look - The look.
- * @returns Its title — « Fichier de test » or « Page consultée » — and what it is: the path of the file, or the
+ * @returns Its title — “Test file” or “Page looked at” — and what it is: the path of the file, or the
  * application and the address of the page.
  */
 export function lookTitleOf(look: Look): readonly [title: string, subtitle: string] {
-  if (look.kind === "code") return ["Fichier de test", look.file];
-  return ["Page consultée", look.application === undefined ? look.source : `${look.application} · ${look.source}`];
+  if (look.kind === "code") return [t("look.file"), look.file];
+  return [t("look.page"), look.application === undefined ? look.source : `${look.application} · ${look.source}`];
 }

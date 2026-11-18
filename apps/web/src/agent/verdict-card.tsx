@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import type { Remark, ReviewStep, Speaker, VerdictStep } from "@open-qa-stack/domain/sessions";
 import { Badge, type BadgeTone } from "../ui/badge.tsx";
-import { counted } from "../ui/counted.ts";
-import { IDENTITIES } from "./agents.ts";
+import { Trans } from "react-i18next/TransWithoutContext";
+import { i18n, t } from "../i18n/i18n.ts";
+import { identityOf } from "./agents.ts";
 import { LongText } from "./long-text.tsx";
 import { SpeakerMark } from "./speaker-mark.tsx";
 
@@ -23,13 +24,13 @@ interface VerdictCardProps {
   readonly at: string;
   /** What the verdict says. */
   readonly children: ReactNode;
-  /** What it was told with, folded under « Détails ». */
+  /** What it was told with, folded under “Details”. */
   readonly details: ReactNode;
 }
 
 /** How each author of a verdict is said to judge: the harness by a check that gives the same answer every time, an agent by reading. */
 function judgeOf(author: Speaker): readonly [BadgeTone, string] {
-  return author === "harness" ? ["outline", "contrôle automatique"] : ["ai", "agent relecteur"];
+  return author === "harness" ? ["outline", t("verdict.automatic")] : ["ai", t("verdict.reviewer")];
 }
 
 /**
@@ -44,7 +45,7 @@ function VerdictCard({ author, active, verdict, state, code, about, at, children
       <header className="verdict-head">
         <div className="lead">
           <SpeakerMark speaker={author} size="sm" active={active} />
-          <b>{IDENTITIES[author].name}</b>
+          <b>{identityOf(author).name}</b>
           <Badge tone={judgeTone}>{judge}</Badge>
           <Badge tone={verdict[0]}>{verdict[1]}</Badge>
           {code !== undefined && <span className="verdict-code">{code}</span>}
@@ -54,7 +55,7 @@ function VerdictCard({ author, active, verdict, state, code, about, at, children
       <p className="verdict-about">{about.join(" · ")}</p>
       {children}
       <details className="raw">
-        <summary>Détails</summary>
+        <summary>{t("verdict.details")}</summary>
         {details}
       </details>
     </article>
@@ -63,7 +64,11 @@ function VerdictCard({ author, active, verdict, state, code, about, at, children
 
 /** What a verdict of the harness is about: its phase, the scenario and the tool it names. */
 function aboutOf(step: VerdictStep): string[] {
-  return [step.about, ...(step.scenario === undefined ? [] : [`scénario ${step.scenario}`]), ...(step.tool === undefined ? [] : [`outil ${step.tool}`])];
+  return [
+    step.about,
+    ...(step.scenario === undefined ? [] : [t("verdict.scenario", { id: step.scenario })]),
+    ...(step.tool === undefined ? [] : [t("verdict.tool", { name: step.tool })]),
+  ];
 }
 
 /** What a verdict of the harness needs. */
@@ -80,13 +85,15 @@ export interface HarnessVerdictProps {
 /**
  * A verdict of the harness: accepted on evidence, or refused with the gate that refused, the scenario and the tool
  * it is about, what was refused, then why and what to do, in full; the page it quotes folded under its address, and
- * its text as the harness wrote it under « Détails ».
+ * its text as the harness wrote it under “Details”.
  *
  * @param props - The step, its rank, and whether its reason is unfolded.
  * @returns The card.
  */
 export function HarnessVerdict({ step, index, open, onUnfold }: HarnessVerdictProps): ReactNode {
-  const verdict: readonly [BadgeTone, string] = step.accepted ? ["ok", "accepté"] : ["ko", step.code === undefined ? "erreur" : "refusé"];
+  const verdict: readonly [BadgeTone, string] = step.accepted
+    ? ["ok", t("verdict.accepted")]
+    : ["ko", t(step.code === undefined ? "verdict.error" : "verdict.refused")];
   return (
     <VerdictCard
       author="harness"
@@ -103,7 +110,7 @@ export function HarnessVerdict({ step, index, open, onUnfold }: HarnessVerdictPr
       {step.page !== undefined && (
         <details className="raw">
           <summary>
-            Page à ce moment <span className="mono">{step.page.name}</span>
+            {t("verdict.page")} <span className="mono">{step.page.name}</span>
           </summary>
           <pre>{step.page.lines.join("\n")}</pre>
         </details>
@@ -114,16 +121,16 @@ export function HarnessVerdict({ step, index, open, onUnfold }: HarnessVerdictPr
 
 /** What a reviewer reviewed. */
 function reviewedOf(step: ReviewStep): string {
-  return step.scenario === undefined ? "relecture du plan" : `relecture du test de ${step.scenario}`;
+  return step.scenario === undefined ? t("verdict.planReview") : t("verdict.testReview", { scenario: step.scenario });
 }
 
 /** The verdict of a reviewer in a few words, and its colour: none found is a pass; a call the harness refused or has not answered yet is no verdict. */
 function reviewVerdictOf(step: ReviewStep, running: boolean): readonly [BadgeTone, string] {
-  if (step.refused === true) return ["ko", "non retenu par le harnais"];
-  if (running) return ["neutral", "en cours"];
+  if (step.refused === true) return ["ko", t("verdict.notKept")];
+  if (running) return ["neutral", t("verdict.running")];
   const count = step.remarks.length;
-  if (step.from === "plan_reviewer") return count === 0 ? ["ok", "aucun doublon"] : ["warn", counted(count, "doublon", "doublons")];
-  return count === 0 ? ["ok", "aucune remarque"] : ["warn", counted(count, "remarque", "remarques")];
+  if (step.from === "plan_reviewer") return count === 0 ? ["ok", t("verdict.noDuplicate")] : ["warn", t("count.duplicates", { count })];
+  return count === 0 ? ["ok", t("verdict.noRemark")] : ["warn", t("count.remarks", { count })];
 }
 
 /** A remark of a reviewer, in full: the scenario a duplicate is and what it repeats, where it is and by which rule, then what it says. */
@@ -135,12 +142,17 @@ function RemarkView({ remark }: { readonly remark: Remark }): ReactNode {
         <div className="remark-head">
           {remark.duplicate !== undefined && (
             <span>
-              <b>{remark.duplicate.scenario}</b> double <span className="mono">{remark.duplicate.of}</span>
+              <Trans
+                i18n={i18n}
+                i18nKey="verdict.duplicates"
+                values={{ scenario: remark.duplicate.scenario, of: remark.duplicate.of }}
+                components={{ b: <b />, code: <span className="mono" /> }}
+              />
             </span>
           )}
           {remark.where !== undefined && <b>{remark.where}</b>}
           {remark.rule !== undefined && <span className="verdict-code">{remark.rule}</span>}
-          {remark.concerns === "plan" && <Badge tone="neutral">porte sur le plan</Badge>}
+          {remark.concerns === "plan" && <Badge tone="neutral">{t("verdict.aboutPlan")}</Badge>}
         </div>
       )}
       <p className="remark-text">{remark.text}</p>
@@ -151,7 +163,7 @@ function RemarkView({ remark }: { readonly remark: Remark }): ReactNode {
 /**
  * The verdict of a reviewer, in the form of every verdict: who reviewed what, what it came to, and each of its
  * remarks in full. The call it was handed in with — the tool, what the harness answered, the word the reviewer
- * replied — is under « Détails », for whoever looks into the working of the review.
+ * replied — is under “Details”, for whoever looks into the working of the review.
  *
  * @param props - The step, and whether the reviewer is handing it in.
  * @returns The card.
@@ -163,21 +175,21 @@ export function ReviewVerdict({ step, running }: { readonly step: ReviewStep; re
       active={running}
       verdict={reviewVerdictOf(step, running)}
       state="review"
-      about={[reviewedOf(step), IDENTITIES[step.from].role]}
+      about={[reviewedOf(step), identityOf(step.from).role]}
       at={step.at}
       details={
         <dl>
-          <dt>Outil</dt>
+          <dt>{t("verdict.toolLabel")}</dt>
           <dd className="mono">{step.tool}</dd>
           {step.answer !== undefined && (
             <>
-              <dt>Réponse du harnais</dt>
+              <dt>{t("verdict.harnessAnswer")}</dt>
               <dd>{step.answer}</dd>
             </>
           )}
           {step.reply !== undefined && (
             <>
-              <dt>Réponse du relecteur</dt>
+              <dt>{t("verdict.reviewerAnswer")}</dt>
               <dd>{step.reply}</dd>
             </>
           )}

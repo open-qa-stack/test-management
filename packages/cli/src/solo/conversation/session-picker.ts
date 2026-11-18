@@ -3,6 +3,7 @@ import { createElement as h, type ReactNode } from "react";
 import { SessionLine } from "./session-line.ts";
 import type { Overlay } from "./conversation-state.ts";
 import type { Theme } from "./palette.ts";
+import { t } from "./i18n/i18n.ts";
 
 /** What the picker of a session needs. */
 export interface SessionPickerProps {
@@ -20,7 +21,7 @@ export function SessionPicker({ picker, theme }: SessionPickerProps): ReactNode 
   return h(
     Box,
     { flexDirection: "column", marginTop: 1 },
-    h(Text, { bold: true }, "Reopen a session"),
+    h(Text, { bold: true }, t("picker.title")),
     ...picker.sessions.map((session, index) => h(SessionLine, { key: session.id, session, selected: index === picker.selected, theme })),
   );
 }

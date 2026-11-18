@@ -1,5 +1,6 @@
 import { Box, Text } from "ink";
 import { createElement as h, type ReactNode } from "react";
+import { t } from "./i18n/i18n.ts";
 import type { Theme } from "./palette.ts";
 
 /** What the confirmation of a stop needs. */
@@ -19,7 +20,7 @@ export function StopConfirmation({ session, theme }: StopConfirmationProps): Rea
   return h(
     Box,
     { flexDirection: "column", marginTop: 1 },
-    h(Text, { ...theme.ink("warn"), bold: true }, `Stop the session ${session}?`),
-    h(Text, null, "Its agents stop as soon as they hand over, and the session does not resume. What they wrote stays in the test repository."),
+    h(Text, { ...theme.ink("warn"), bold: true }, t("stop.question", { session })),
+    h(Text, null, t("stop.note")),
   );
 }

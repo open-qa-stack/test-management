@@ -3,6 +3,7 @@ import { createElement as h, type ReactNode } from "react";
 import { Marked } from "./marked.ts";
 import type { Theme } from "./palette.ts";
 import type { Block } from "./thread-blocks.ts";
+import { t } from "./i18n/i18n.ts";
 
 /** What the scope of a session needs. */
 export interface ScopeBlockProps {
@@ -28,10 +29,10 @@ export function ScopeBlock({ block, theme }: ScopeBlockProps): ReactNode {
       Marked,
       null,
       h(Text, { bold: true }, step.title),
-      fact("Levels asked", step.levels.join(", ")),
-      fact("Applications", step.applications.join(", ")),
-      fact("Environment", step.environment),
-      h(Text, muted, "Only these levels are designed: design.levels in oqas.json sets them."),
+      fact(t("scope.levels"), step.levels.join(", ")),
+      fact(t("scope.applications"), step.applications.join(", ")),
+      fact(t("scope.environment"), step.environment),
+      h(Text, muted, t("scope.note")),
     ),
   );
 }

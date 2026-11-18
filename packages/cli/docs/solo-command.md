@@ -74,6 +74,8 @@ Latest sessions
   Enter open a session · / commands · Ctrl-C quit
 ```
 
+It speaks the language of the configuration in force, `language` of `oqas.json`, English by default, as the console does: its words are those of [i18next](https://www.i18next.com), one JSON file per language under `src/solo/conversation/i18n/`, with the same keys in each. What the agents and the harness wrote is shown as they wrote it.
+
 Type what to test and press Enter: a session opens, against the environment `--environment` names or the only one declared, and runs in this process, as with `--brief`. Its thread is written as it goes:
 
 - **Who speaks.** You, the cartographer, the planner, the writer, the reviewers and the harness each have a mark and a name, written once for what they say and do in a row.
@@ -351,7 +353,7 @@ The command holds no rule of a session: it reads its arguments, assembles the da
 | `oqas config` | On the `Configuration` of the engine: `view` for `show`; `synchronise`, then `view`, for `import`; `restore`, then `view`, for `export`. |
 | `oqas --init` | `synchronise` on the `Configuration` of the engine. |
 
-`oqas`, `oqas --brief`, `oqas say` and `oqas --ui` are the commands that host — `say` only the session it resumes: each gives the operations its test repository, and stops them, within ten seconds, before it leaves. `oqas --ui` says no operation itself: it starts the REST presentation of `@open-qa-stack/api` in its process, whose routes say them, and loads that package only then — no other command pays for an HTTP server. The conversation is drawn with [Ink](https://github.com/vadimdemedes/ink) and React, which are loaded when it opens and by no other command; its screen is a function of a state that one reducer gives, in `src/solo/conversation/`, and what it reads of a thread — the steps and their turns — is the code the console reads it with, in `@open-qa-stack/domain/sessions`.
+`oqas`, `oqas --brief`, `oqas say` and `oqas --ui` are the commands that host — `say` only the session it resumes: each gives the operations its test repository, and stops them, within ten seconds, before it leaves. `oqas --ui` says no operation itself: it starts the REST presentation of `@open-qa-stack/api` in its process, whose routes say them, and loads that package only then — no other command pays for an HTTP server. The conversation is drawn with [Ink](https://github.com/vadimdemedes/ink) and React, which are loaded when it opens and by no other command; its screen is a function of a state that one reducer gives, in `src/solo/conversation/`, in the words of i18next, and what it reads of a thread — the steps and their turns — is the code the console reads it with, in `@open-qa-stack/domain/sessions`.
 
 ## What it never does
 

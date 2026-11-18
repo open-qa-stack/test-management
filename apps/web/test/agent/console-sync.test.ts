@@ -6,6 +6,7 @@ import { ConsoleSync, PAUSE_MS } from "../../src/agent/console-sync.ts";
 import { ApiClient } from "../../src/api/api-client.ts";
 import { FakeDocument } from "../api/fake-document.ts";
 import { FakeEventSource } from "../api/fake-event-source.ts";
+import { BARE, VIEW } from "../configuration/configuration-fixture.ts";
 import { COMPLETED, EVENTS, numbered, QUEUED, RUNNING, SESSION_ID } from "./session-fixture.ts";
 
 const PROJECT: Project = { name: "Demo", applications: [] };
@@ -105,6 +106,43 @@ describe("what keeps the console in step with its instance", () => {
       await paused();
       assert.deepEqual(api.told.at(-1), { type: "project", project: PROJECT });
       assert.equal(api.calls.length, 3);
+      stop();
+    });
+  });
+
+  describe("reading the language of the configuration", () => {
+    it("reads it once, English when the configuration names none or there is none", async () => {
+      api.answer("GET /api/configuration", json(VIEW));
+      api.sync.language();
+      await vi.advanceTimersByTimeAsync(10 * PAUSE_MS);
+      assert.deepEqual(api.told, [{ type: "language", language: "fr" }]);
+      assert.deepEqual(api.calls, ["GET /api/configuration"]);
+      api.answer("GET /api/configuration", json({ file: "missing" }));
+      api.sync.language();
+      await settled();
+      assert.deepEqual(api.told.at(-1), { type: "language", language: "en" });
+    });
+
+    it("is read again with the project once the configuration was saved", async () => {
+      api.answer("GET /api/project", json(PROJECT));
+      api.answer("GET /api/configuration", json(VIEW));
+      const stop = api.sync.configured();
+      await settled();
+      assert.deepEqual(api.told, [
+        { type: "project", project: PROJECT },
+        { type: "language", language: "fr" },
+      ]);
+      stop();
+    });
+
+    it("asks again while the API fails, saying the instance unreachable only when it is", async () => {
+      api.answer("GET /api/configuration", unreachable);
+      const stop = api.sync.language();
+      await settled();
+      assert.deepEqual(api.told, [{ type: "unreachable" }]);
+      api.answer("GET /api/configuration", json({ ...VIEW, revision: { ...VIEW.revision!, document: BARE } }));
+      await paused();
+      assert.deepEqual(api.told.at(-1), { type: "language", language: "en" });
       stop();
     });
   });

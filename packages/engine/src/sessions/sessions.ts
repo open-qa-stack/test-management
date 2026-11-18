@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { setTimeout as pause } from "node:timers/promises";
-import { InvalidConfigurationError, NoConfigurationError, UnknownSessionError, type ConfigurationRevision } from "@open-qa-stack/domain";
+import { UnknownSessionError } from "@open-qa-stack/domain";
 import type { MessageReceipt, Project, Session, SessionEvent, SessionMessage, SessionOpening } from "@open-qa-stack/domain/sessions";
 import { EventNotifications } from "./event-notifications.ts";
 import { NoRepositoryError } from "./no-repository-error.ts";
@@ -263,25 +263,9 @@ export class Sessions {
    */
   async #recover(): Promise<void> {
     const { store, repository } = this.#host;
-    if (repository !== undefined) await store.saveProject(repositoryProject(repository, (await this.#synchronised())?.document));
+    if (repository !== undefined) await store.saveProject(repositoryProject(repository, (await this.#host.configuration.inStep())?.document));
     await this.#tidy();
     this.#beats = this.#beat();
-  }
-
-  /**
-   * Brings the configuration in step with the file of the test repository.
-   *
-   * @returns The revision in force; `undefined` when there is none. A file the configuration refuses leaves the
-   * revision in force as it is: the runs tell what is wrong with it.
-   */
-  async #synchronised(): Promise<ConfigurationRevision | undefined> {
-    const { configuration } = this.#host;
-    try {
-      return await configuration.synchronise();
-    } catch (error) {
-      if (!(error instanceof NoConfigurationError || error instanceof InvalidConfigurationError)) throw error;
-      return (await configuration.view()).revision;
-    }
   }
 
   /**
