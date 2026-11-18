@@ -471,7 +471,7 @@ describe("the thread of a session", () => {
     assert.match(
       html,
       new RegExp(
-        `<div class="act"><details><summary class="act-line"><span class="act-state" aria-hidden="true"></span><svg [^>]*>.*?</svg><span class="act-text"><span class="act-title">A remis le test</span><span class="act-path">search-customer.spec.ts</span></span></summary><pre class="act-code">test\\(&#x27;search&#x27;, async \\(\\) =&gt; \\{\\}\\);</pre></details><a id="look-eye-5" class="act-look" href="${ADDRESS}\\?look=5" aria-label="A remis le test — voir le fichier de test">`,
+        `<div class="act"><details><summary class="act-line"><span class="act-state" aria-hidden="true"></span><svg [^>]*>.*?</svg><span class="act-text"><span class="act-title">A remis le test</span><span class="act-path">search-customer.spec.ts</span></span></summary><pre class="act-code code mono"><span class="code-line">test\\(&#x27;search&#x27;, async \\(\\) =&gt; \\{\\}\\);</span></pre></details><a id="look-eye-5" class="act-look" href="${ADDRESS}\\?look=5" aria-label="A remis le test — voir le fichier de test">`,
       ),
     );
     assert.deepEqual(linksOf(html), [`${ADDRESS}?agent=planner`, `${ADDRESS}?agent=writer`, `${ADDRESS}?look=5`]);
@@ -493,7 +493,7 @@ describe("the thread of a session", () => {
     const html = thread(liveWith([running], RUNNING));
     assert.match(
       html,
-      /<div class="act"><details><summary class="act-line"><span class="spinner" role="img" aria-label="en cours"><\/span><svg [^>]*>.*?<\/svg><span class="act-text"><span class="act-title">A joué « Display the policies list »<\/span><span class="act-path">apps\/shop\/tests\/policies-list\.spec\.ts<\/span><\/span><\/summary><pre class="act-code">test\(&quot;Display the policies list&quot;, async \(\) =&gt; \{\n\}\);<\/pre><\/details><a id="look-eye-0" class="act-look"/,
+      /<div class="act"><details><summary class="act-line"><span class="spinner" role="img" aria-label="en cours"><\/span><svg [^>]*>.*?<\/svg><span class="act-text"><span class="act-title">A joué « Display the policies list »<\/span><span class="act-path">apps\/shop\/tests\/policies-list\.spec\.ts<\/span><\/span><\/summary><pre class="act-code code mono"><span class="code-line">test\(&quot;Display the policies list&quot;, async \(\) =&gt; \{<\/span><span class="code-line">\}\);<\/span><\/pre><\/details><a id="look-eye-0" class="act-look"/,
     );
     assert.doesNotMatch(html, /act-time|act-tests|act-result/);
   });
@@ -526,14 +526,14 @@ describe("the thread of a session", () => {
     assert.match(ok, /<span class="act-title">A joué « a » : réussi<\/span>/);
     assert.match(
       ok,
-      /<\/summary><ul class="act-tests"><li><span class="badge ok">réussi<\/span><span>a<\/span><\/li><\/ul><pre class="act-code">test\(\);<\/pre><\/details>/,
+      /<\/summary><ul class="act-tests"><li><span class="badge ok">réussi<\/span><span>a<\/span><\/li><\/ul><pre class="act-code code mono"><span class="code-line">test\(\);<\/span><\/pre><\/details>/,
     );
     assert.match(ok, /<span class="act-time">2,4 s<\/span>/);
     const ko = thread(liveWith([failed]));
     assert.match(ko, /<span class="act-title">A joué « a » : échoué<\/span>/);
     assert.match(
       ko,
-      /<ul class="act-tests"><li><span class="badge ko">échoué<\/span><span>a<\/span><\/li><li><span class="badge warn">timedOut<\/span><span>b<\/span><\/li><\/ul><pre class="act-result">Run of the file: failed\.\n {2}Error: no heading<\/pre><pre class="act-code">/,
+      /<ul class="act-tests"><li><span class="badge ko">échoué<\/span><span>a<\/span><\/li><li><span class="badge warn">timedOut<\/span><span>b<\/span><\/li><\/ul><pre class="act-result">Run of the file: failed\.\n {2}Error: no heading<\/pre><pre class="act-code code mono">/,
     );
   });
 
@@ -875,7 +875,10 @@ describe("the thread of a session", () => {
 describe("what an agent looked at", () => {
   it("is a file with its lines, an empty one kept as a line, or a text with its excerpt", () => {
     const code = render(createElement(LookView, { look: { kind: "code", file: "a.spec.ts", lines: ["one", "", "three"] }, caption: "A joué « a »" }));
-    assert.match(code, /<span class="look-line">one<\/span><span class="look-line"> <\/span><span class="look-line">three<\/span>/);
+    assert.match(
+      code,
+      /<pre class="look-code code mono"><span class="code-line">one<\/span><span class="code-line"> <\/span><span class="code-line">three<\/span><\/pre>/,
+    );
     const document = render(
       createElement(LookView, { look: { kind: "document", source: "http://localhost/", excerpt: ["A rule."] }, caption: "A regardé la page de shop" }),
     );

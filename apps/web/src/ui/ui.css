@@ -308,3 +308,13 @@ a.row:hover {
     padding-top: var(--space-2);
   }
 }
+
+/* A block of code, a line under a line, in the colours the tokens give what a token is, a keyword or a string. */
+.code {
+  color: var(--code-foreground);
+}
+
+.code-line {
+  display: block;
+  white-space: pre;
+}
