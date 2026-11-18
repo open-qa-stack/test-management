@@ -9,7 +9,8 @@ import { SHARED_FOLDER } from "../test-repository/application-pages.ts";
 import { STATE_DIR_NAME } from "./file-names.ts";
 import { DEFAULT_LANGUAGE } from "./language.ts";
 import { configSchema } from "./schema.ts";
-import type { Attachment, ConfigError, OqasConfig, Repository, ResolvedConfig, ValidationResult } from "./types.ts";
+import { isStoredDocuments, storedDocumentsPath } from "../knowledge-documents/stored-documents-path.ts";
+import type { Attachment, ConfigError, Knowledge, OqasConfig, ReachableKnowledge, Repository, ResolvedConfig, ValidationResult } from "./types.ts";
 
 /** Environment the configuration is validated against, usually `process.env`. */
 export type EnvironmentVariables = Readonly<Record<string, string | undefined>>;
@@ -23,12 +24,12 @@ export const DEFAULT_REPOSITORY: Readonly<Required<Repository>> = Object.freeze(
   indexDir: `${STATE_DIR_NAME}/index`,
 });
 
-// `strictRequired` is relaxed because the alternatives of the OpenAPI and log sources require keys that
+// `strictRequired` is relaxed because the alternatives of the OpenAPI, document and log sources require keys that
 // only their enclosing branch defines.
 const ajv = new Ajv2020({ allErrors: true, strict: true, strictRequired: false, discriminator: true });
 const validateShape = ajv.compile<OqasConfig>(configSchema);
 
-/** Errors raised inside the alternatives of the OpenAPI source are summarised by their parent `oneOf`. */
+/** Errors raised inside the alternatives of a knowledge source are summarised by their parent `oneOf`. */
 const NESTED_ALTERNATIVE = /\/oneOf\/\d+\/oneOf\/\d+\//;
 
 /**
@@ -75,18 +76,20 @@ export function validateConfig(content: string, env: EnvironmentVariables): Vali
 }
 
 /**
- * Gives a valid configuration with every default applied.
+ * Gives a valid configuration with every default applied, and each source of documents the instance keeps given
+ * the folder of the state folder a run writes them to.
  *
  * @param data - A configuration the schema and the rules that span the document accept, such as the document of a revision.
  * @returns The configuration, resolved.
  */
 export function resolvedConfig(data: OqasConfig): ResolvedConfig {
+  const repository = { ...DEFAULT_REPOSITORY, ...data.repository };
   return {
     formatVersion: data.formatVersion,
     language: data.language ?? DEFAULT_LANGUAGE,
     applications: data.applications,
-    knowledge: data.knowledge,
-    repository: { ...DEFAULT_REPOSITORY, ...data.repository },
+    knowledge: data.knowledge.map((source) => reachable(source, repository.stateDir)),
+    repository,
     charter: { disable: data.charter?.disable ?? [], add: data.charter?.add ?? [] },
     cartography: { concurrency: data.cartography?.concurrency ?? 1 },
     design: {
@@ -121,6 +124,13 @@ export function declaredStateDir(content: string): string {
   const declared = isRecord(repository) ? repository["stateDir"] : undefined;
   const usable = typeof declared === "string" && declared !== "" && pathErrors("/repository/stateDir", declared).length === 0;
   return usable ? declared : DEFAULT_REPOSITORY.stateDir;
+}
+
+/** A knowledge source as a run reaches it: the documents an instance keeps, in the folder a run writes them to. */
+function reachable(source: Knowledge, stateDir: string): ReachableKnowledge {
+  if (!isStoredDocuments(source)) return source;
+  const { stored: _, ...declared } = source;
+  return { ...declared, path: storedDocumentsPath(stateDir, source.id) };
 }
 
 /** The error of a level of an earlier format version, which names the one to write instead; none for any other. */

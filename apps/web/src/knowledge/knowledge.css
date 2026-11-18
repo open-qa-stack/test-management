@@ -1,0 +1,39 @@
+/* The knowledge: the sources of each application, a row each, then the documents of a source, the confirmation of a removal and the form of an upload. */
+
+.knowledge-row {
+  flex-wrap: wrap;
+}
+
+.knowledge-row .grow,
+.knowledge-document .grow {
+  min-width: 0;
+}
+
+.knowledge-row .mono,
+.knowledge-name {
+  overflow-wrap: anywhere;
+}
+
+/* The name of a document opens it: it takes the room a finger needs. */
+.knowledge-name {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  color: var(--primary);
+}
+
+.knowledge-confirm {
+  margin: var(--inset);
+}
+
+.knowledge-text {
+  max-height: calc(24 * var(--leading-body));
+  margin: 0;
+  padding: var(--inset);
+  overflow: auto;
+  background: var(--surface-soft);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

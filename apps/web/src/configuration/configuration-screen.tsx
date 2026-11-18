@@ -9,7 +9,8 @@ import { EditContext, type ConfigurationEdit } from "./configuration-edit.ts";
 import { AddButton, PlaceErrors } from "./configuration-fields.tsx";
 import { isChanged, type ConfigurationState } from "./configuration-state.ts";
 import { errorText } from "./configuration-words.ts";
-import { HistoryCard, JsonCard, KnowledgeCard } from "./record-cards.tsx";
+import { AddSourceButtons, KnowledgeCard } from "./knowledge-card.tsx";
+import { HistoryCard, JsonCard } from "./record-cards.tsx";
 import { AutonomyCard, DesignCard, LanguageCard, ModelCard, RepositoryCard } from "./settings-cards.tsx";
 
 /** The form of the configuration, which the buttons of the head of the page submit. */
@@ -98,8 +99,8 @@ function Notes({ state, controls }: { readonly state: ConfigurationState; readon
 
 /**
  * The configuration of the instance: what the person changes — the applications and their environments, the
- * model, the autonomy, the levels of design, the layout of the repository — then saves; what is read only — the
- * knowledge sources, the JSON — and the history of the revisions.
+ * knowledge sources and their attachments, the model, the autonomy, the levels of design, the layout of the
+ * repository — then saves; what is read only — the JSON — and the history of the revisions.
  *
  * @param props - The project, the state of the screen and what the person does on it.
  * @returns The screen.
@@ -159,6 +160,15 @@ export function ConfigurationScreen({ project, state, controls }: ConfigurationS
               </AddButton>
             </div>
           </section>
+          <section className="config-section" aria-labelledby="config-knowledge">
+            <h2 id="config-knowledge">{t("configuration.screen.knowledge")}</h2>
+            <p className="small muted">{t("configuration.screen.knowledgeNote")}</p>
+            {draft.knowledge.length === 0 && <EmptyState title={t("configuration.screen.noKnowledge")} />}
+            {draft.knowledge.map((source, index) => (
+              <KnowledgeCard key={index} source={source} rank={index} applications={draft.applications} />
+            ))}
+            <AddSourceButtons />
+          </section>
           <section className="config-section" aria-labelledby="config-agents">
             <h2 id="config-agents">{t("configuration.screen.agents")}</h2>
             <ModelCard model={draft.model} />
@@ -169,7 +179,6 @@ export function ConfigurationScreen({ project, state, controls }: ConfigurationS
           <section className="config-section" aria-labelledby="config-repository">
             <h2 id="config-repository">{t("configuration.screen.repository")}</h2>
             <RepositoryCard {...(draft.repository === undefined ? {} : { repository: draft.repository })} />
-            <KnowledgeCard knowledge={draft.knowledge} />
           </section>
         </form>
       </EditContext.Provider>

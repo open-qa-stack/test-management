@@ -2,6 +2,7 @@ import type {
   ConfigError,
   ConfigurationCheck,
   ConfigurationView,
+  DocumentList,
   MessageReceipt,
   OqasConfig,
   Problem,
@@ -13,6 +14,8 @@ import type {
   SessionList,
   SessionMessage,
   SessionOpening,
+  StoredDocument,
+  StoredDocumentSummary,
 } from "@open-qa-stack/domain/sessions";
 import { ApiError } from "./api-error.ts";
 import { t } from "../i18n/i18n.ts";
@@ -27,6 +30,11 @@ export type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
 /** What a call that posts a JSON body is made with. */
 function posting(body: unknown): RequestInit {
   return { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) };
+}
+
+/** The path of the documents of a knowledge source. */
+function documentsPath(source: string): string {
+  return `/knowledge/${encodeURIComponent(source)}/documents`;
 }
 
 /** The error an answer that is not a success stands for: its problem when it carries one, worded for the person. */
@@ -154,6 +162,53 @@ export class ApiClient {
    */
   public synchronise(): Promise<ConfigurationView> {
     return this.#ask<ConfigurationView>("/configuration/synchronisation", { method: "POST" });
+  }
+
+  /**
+   * Lists the documents of a knowledge source the instance keeps.
+   *
+   * @param source - The identifier of the source.
+   * @returns Its documents, without their texts, in the order of their names; the failure carries the code
+   * `unknown_document_source` when the configuration in force declares no such source.
+   */
+  public async documents(source: string): Promise<readonly StoredDocumentSummary[]> {
+    return (await this.#ask<DocumentList>(documentsPath(source))).items;
+  }
+
+  /**
+   * Reads a document of a knowledge source.
+   *
+   * @param source - The identifier of the source.
+   * @param name - The file name of the document.
+   * @returns The document, with its text; the failure carries the code `unknown_document` when the source holds none of that name.
+   */
+  public document(source: string, name: string): Promise<StoredDocument> {
+    return this.#ask<StoredDocument>(`${documentsPath(source)}/${encodeURIComponent(name)}`);
+  }
+
+  /**
+   * Uploads files as documents of a knowledge source, all of them or none.
+   *
+   * @param source - The identifier of the source.
+   * @param files - The files, each named as its document.
+   * @returns The documents of the source as they are now; the failure carries the code `invalid_documents` with its
+   * errors, each at its file, when the instance refuses them.
+   */
+  public async upload(source: string, files: readonly File[]): Promise<readonly StoredDocumentSummary[]> {
+    const body = new FormData();
+    for (const file of files) body.append("documents", file, file.name);
+    return (await this.#ask<DocumentList>(documentsPath(source), { method: "POST", body })).items;
+  }
+
+  /**
+   * Removes a document of a knowledge source.
+   *
+   * @param source - The identifier of the source.
+   * @param name - The file name of the document.
+   * @returns Once it is removed; the failure carries the code `unknown_document` when the source no longer holds it.
+   */
+  public async removeDocument(source: string, name: string): Promise<void> {
+    await this.#answer(`${documentsPath(source)}/${encodeURIComponent(name)}`, { method: "DELETE" });
   }
 
   /** The answer of the instance to a call, once it is a success. */

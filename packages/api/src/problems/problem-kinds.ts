@@ -20,6 +20,9 @@ const KINDS: Readonly<Record<ProblemCode, ProblemKind>> = {
   configuration_conflict: { status: HttpStatus.CONFLICT, title: "Configuration conflict" },
   invalid_configuration: { status: HttpStatus.UNPROCESSABLE_ENTITY, title: "Invalid configuration" },
   no_configuration: { status: HttpStatus.NOT_FOUND, title: "No configuration" },
+  unknown_document_source: { status: HttpStatus.NOT_FOUND, title: "Unknown source of documents" },
+  unknown_document: { status: HttpStatus.NOT_FOUND, title: "Unknown document" },
+  invalid_documents: { status: HttpStatus.UNPROCESSABLE_ENTITY, title: "Invalid documents" },
   error: { status: HttpStatus.INTERNAL_SERVER_ERROR, title: "Request not answered" },
 };
 

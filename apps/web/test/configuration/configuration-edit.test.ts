@@ -47,6 +47,16 @@ describe("what the person presses", () => {
       pointer: "/applications/0/environments",
       item: NEW_ITEMS.environment,
     });
+    assert.deepEqual(pressOf({ add: "/knowledge", item: "stored" }), {
+      type: "add",
+      pointer: "/knowledge",
+      item: { id: "", type: "document", stored: true, attachments: [{ application: "" }] },
+    });
+    assert.deepEqual(pressOf({ add: "/knowledge/0/attachments", item: "attachment" }), {
+      type: "add",
+      pointer: "/knowledge/0/attachments",
+      item: { application: "" },
+    });
     assert.deepEqual(pressOf({ remove: "/applications/1" }), { type: "remove", pointer: "/applications/1" });
     for (const button of [{}, { add: "/applications" }, { add: "/applications", item: "toString" }]) assert.equal(pressOf(button), undefined);
   });

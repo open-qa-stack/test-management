@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { dateText, durationText, elapsedText, momentText } from "../../src/i18n/formats.ts";
+import { dateText, durationText, elapsedText, momentText, sizeText } from "../../src/i18n/formats.ts";
 import { speaking } from "./in-language.ts";
 
 /** A text with its spaces folded, the no-break ones a language writes between a number and its unit included. */
@@ -51,5 +51,14 @@ describe("a date of the configuration", () => {
     assert.match(dateText("2026-11-18T09:12:00.000Z"), /^18\/11\/2026 \d\d:\d\d$/);
     await inEnglish();
     assert.match(folded(dateText("2026-11-18T09:12:00.000Z")), /^11\/18\/26, \d{1,2}:\d\d [AP]M$/);
+  });
+});
+
+describe("a size", () => {
+  it("is written in bytes under a thousand, in kilobytes under a million, in megabytes beyond, to a decimal at most", () => {
+    assert.deepEqual(
+      [0, 999, 1000, 1250, 999_949, 1_000_000, 2_340_000].map((bytes) => folded(sizeText(bytes))),
+      ["0 octet", "999 octets", "1 ko", "1,3 ko", "999,9 ko", "1 Mo", "2,3 Mo"],
+    );
   });
 });

@@ -48,10 +48,11 @@ describe("applying the migrations", () => {
 
   it("applies the versioned migrations of the package when no series is named", () =>
     onFresh(async (database, url) => {
-      assert.deepEqual(Object.keys(MIGRATIONS), ["0001_sessions", "0002_session_hosts", "0003_configuration_revisions"]);
-      assert.equal(await migrate(url), "Applied 3 migrations.");
+      assert.deepEqual(Object.keys(MIGRATIONS), ["0001_sessions", "0002_session_hosts", "0003_configuration_revisions", "0004_knowledge_documents"]);
+      assert.equal(await migrate(url), "Applied 4 migrations.");
       assert.deepEqual(await tables(database), [
         "configuration_revisions",
+        "knowledge_documents",
         "kysely_migration",
         "kysely_migration_lock",
         "project",

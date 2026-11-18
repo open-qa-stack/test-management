@@ -16,7 +16,8 @@
     "measuredInBrowser": [
       "src/main.tsx",
       "src/app.tsx",
-      "src/configuration/configuration-page.tsx"
+      "src/configuration/configuration-page.tsx",
+      "src/knowledge/knowledge-page.tsx"
     ]
   },
   "dependencies": {

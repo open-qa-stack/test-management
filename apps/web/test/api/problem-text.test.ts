@@ -16,6 +16,9 @@ const WORDED: readonly ProblemCode[] = [
   "configuration_conflict",
   "invalid_configuration",
   "no_configuration",
+  "unknown_document_source",
+  "unknown_document",
+  "invalid_documents",
 ];
 
 describe("the code of a problem", () => {
@@ -47,6 +50,9 @@ describe("the wording of a problem", () => {
       "oqas.json a changé depuis la dernière synchronisation : gardez le fichier, ou gardez vos modifications.",
       "La configuration n’est pas valide : corrigez les champs signalés.",
       "L’instance n’a pas encore de configuration.",
+      "La configuration en vigueur ne déclare aucune source de documents déposés de ce nom : enregistrez d’abord la configuration.",
+      "La source ne contient plus ce document.",
+      "Les documents sont refusés, et aucun n’a été gardé : corrigez les fichiers signalés.",
     ]);
     assert.equal(problemText("unavailable", undefined), wordings[3]);
   });

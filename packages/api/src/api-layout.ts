@@ -1,3 +1,4 @@
+import multipart from "@fastify/multipart";
 import { serveConsole } from "./console/serve-console.ts";
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 
@@ -5,8 +6,9 @@ import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 export const REST_PREFIX = "/api";
 
 /**
- * Lays out what an application answers, before it listens: its routes under {@link REST_PREFIX}, and the
- * console everywhere else when the API was given one. The address is laid out the same wherever the API runs,
+ * Lays out what an application answers, before it listens: its routes under {@link REST_PREFIX}, which read the
+ * multipart bodies of the uploads with the plugin of Fastify that parses them, and the console everywhere else when
+ * the API was given one. The address is laid out the same wherever the API runs,
  * behind a proxy or in the process of a command: what is under the prefix is REST, and nothing else is.
  *
  * @param app - The application, not yet initialised.
@@ -14,5 +16,7 @@ export const REST_PREFIX = "/api";
  */
 export async function layOut(app: NestFastifyApplication, console: string | undefined): Promise<void> {
   app.setGlobalPrefix(REST_PREFIX);
+  // The limits of an upload are those of the route that reads it.
+  await app.register(multipart);
   if (console !== undefined) await serveConsole(app, console, REST_PREFIX);
 }

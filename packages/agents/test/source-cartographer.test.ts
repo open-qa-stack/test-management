@@ -8,7 +8,7 @@ import {
   validateSourceCard,
   validateSourceManifest,
   type AgentRuntime,
-  type Knowledge,
+  type ReachableKnowledge,
   type MappedKnowledge,
   type ResolvedConfig,
   type SourceCardSubmission,
@@ -1334,7 +1334,7 @@ describe("how mapSources runs the tasks", () => {
       writeFileSync(join(root, name, "notes.txt"), "No document.\n");
     }
     const unused: AgentRuntime = { openSession: () => Promise.reject(new Error("no session expected")), close: async () => undefined };
-    const documents = ["a", "b"].map((id): Knowledge => ({ id, type: "document", path: id, attachments: [{ application: "shop" }] }));
+    const documents = ["a", "b"].map((id): ReachableKnowledge => ({ id, type: "document", path: id, attachments: [{ application: "shop" }] }));
     const config = { ...configFor("http://127.0.0.1:1"), knowledge: documents };
     const run = (concurrency?: number) =>
       mapSources({ config, environment: "local", repositoryRoot: root, env: {}, runtime: unused, ...(concurrency === undefined ? {} : { concurrency }) });
@@ -1354,7 +1354,7 @@ describe("how mapSources runs the tasks", () => {
     }
     mkdirSync(join(root, ".oqas", "index", "sources", "a.json"), { recursive: true });
     const unused: AgentRuntime = { openSession: () => Promise.reject(new Error("no session expected")), close: async () => undefined };
-    const documents = ["a", "b"].map((id): Knowledge => ({ id, type: "document", path: id, attachments: [{ application: "shop" }] }));
+    const documents = ["a", "b"].map((id): ReachableKnowledge => ({ id, type: "document", path: id, attachments: [{ application: "shop" }] }));
     await assert.rejects(
       mapSources({
         config: { ...configFor("http://127.0.0.1:1"), knowledge: documents },
@@ -1377,7 +1377,7 @@ describe("what no index is made of", () => {
     const unused: AgentRuntime = { openSession: () => Promise.reject(new Error("no session expected")), close: async () => undefined };
     const config = {
       ...configFor("http://127.0.0.1:1"),
-      knowledge: [{ id: "notes", type: "document", path: "notes", attachments: [{ application: "shop" }] } as Knowledge],
+      knowledge: [{ id: "notes", type: "document", path: "notes", attachments: [{ application: "shop" }] } as ReachableKnowledge],
     };
     const outcome = await new Cartographer({ config, environment: "local", repositoryRoot: root, env: {}, runtime: unused }).run();
     assert.equal(outcome.index, undefined);

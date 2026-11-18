@@ -108,3 +108,20 @@ export { InvalidConfigurationError } from "./configuration-life/invalid-configur
 export { NoConfigurationError } from "./configuration-life/no-configuration-error.ts";
 export { revisionDocument, type RevisionDocument } from "./configuration-life/revision-document.ts";
 export { StaleRevisionError } from "./configuration-life/stale-revision-error.ts";
+export type { DocumentStorePort } from "./knowledge-documents/document-store-port.ts";
+export { InvalidDocumentsError } from "./knowledge-documents/invalid-documents-error.ts";
+export type { DocumentEntry, DocumentList, StoredDocument, StoredDocumentSummary } from "./knowledge-documents/stored-document.ts";
+export { isStoredDocuments, STORED_DOCUMENTS_FOLDER, storedDocumentSources, storedDocumentsPath } from "./knowledge-documents/stored-documents-path.ts";
+export { UnknownDocumentError } from "./knowledge-documents/unknown-document-error.ts";
+export { UnknownDocumentSourceError } from "./knowledge-documents/unknown-document-source-error.ts";
+export {
+  DOCUMENT_EXTENSIONS,
+  MAX_DOCUMENT_BYTES,
+  MAX_DOCUMENT_NAME_LENGTH,
+  MAX_DOCUMENTS_PER_UPLOAD,
+  readUpload,
+  uploadErrors,
+  type ReceivedFile,
+  type UploadedFile,
+  type UploadReading,
+} from "./knowledge-documents/uploaded-documents.ts";

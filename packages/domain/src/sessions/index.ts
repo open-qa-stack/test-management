@@ -34,3 +34,12 @@ export type { ConfigurationCheck, RevisionChange, RevisionList } from "../config
 export type { ConfigurationRevision, RevisionOrigin, RevisionSummary } from "../configuration-life/configuration-revision.ts";
 export type { ConfigurationView } from "../configuration-life/configuration-view.ts";
 export type { FileState } from "../configuration-life/file-state.ts";
+export type { DocumentList, StoredDocument, StoredDocumentSummary } from "../knowledge-documents/stored-document.ts";
+export { isStoredDocuments } from "../knowledge-documents/stored-documents-path.ts";
+export {
+  DOCUMENT_EXTENSIONS,
+  MAX_DOCUMENT_BYTES,
+  MAX_DOCUMENTS_PER_UPLOAD,
+  uploadErrors,
+  type UploadedFile,
+} from "../knowledge-documents/uploaded-documents.ts";

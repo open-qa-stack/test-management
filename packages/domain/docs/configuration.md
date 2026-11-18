@@ -27,6 +27,8 @@ Each error has a `kind`, a `path` (a JSON Pointer to the offending location, `""
 
 An instance keeps its configuration in its database, as revisions: each holds the whole document as this file holds it, its date, its origin — `file`, `console` or `command` — and the SHA-256 digest of the file it was read from or wrote, which tells whether the file changed since. The types and the port of the store that keeps them are in `src/configuration-life/`; the operations that keep them in step with the file are in [the engine](../../engine/docs/engine.md#the-operations-on-the-configuration).
 
+The documents of the sources declared `stored` are kept in the same database, apart from the revisions: a revision declares a source, and its documents are uploaded to it. Their types, the rules of an upload, the refusals and the port of the store that keeps them are in `src/knowledge-documents/`.
+
 - `revisionDocument(content)` reads a file that would become a revision, validated as above but for the environment: a revision names the variables its runs read, and the run tells whether they are set.
 - `configurationText(document)` writes a configuration as a change of it rewrites this file: its keys in the order the schema declares them, indented by two spaces, with a final newline. The same document is always the same text, so that the diff of the file shows what changed.
 - `fileStateOf(revision, digest)` tells how the file stands to the revision in force: `in_step`, `changed` or `missing`.
@@ -106,12 +108,15 @@ Every knowledge source has an `id`, a `type`, `attachments`, and the keys its ty
 | `attachments` | array of [attachments](#attachment), at least one | yes | `[{ "application": "policy-management" }]` |
 | `url` | URL, for `openapi`; exactly one of `url` and `path` | see type | `"http://localhost:8090/v3/api-docs"` |
 | `path` | path, for `openapi`, `document`, `source-code` and `logs` | see type | `"contracts/policy-management.json"`, `"specs/quotes.md"`, `"../policy-management"` |
+| `stored` | `true`, for `document`; exactly one of `path` and `stored` | see type | `true` |
 | `connectionStringEnv` | variable, for `postgresql` | see type | `"POLICY_MANAGEMENT_DB_URL"` |
 | `commands` | `none`, `git` or `shell`, for `source-code` | no, `git` by default | `"none"` |
 | `container` | container name, for `logs`; exactly one of `path` and `container` | see type | `"policy-management-backend"` |
 | `engine` | `podman` or `docker`, for `logs` with a `container` | with `container` | `"podman"` |
 
-The path of a contract or a document stays inside the test repository. A `document` path is one file, read as Markdown, or a folder, whose Markdown files are all read: `"specs"`. The path of a `source-code` folder, or of a log file, may lead outside it, since the code of an application often lives in another repository: `"../policy-management"`. The agents' reading and git tools never leave that folder.
+The path of a contract or a document stays inside the test repository. A `document` path is one file, read as Markdown, or a folder, whose Markdown files are all read: `"specs"`.
+
+A `document` source declared `"stored": true` holds documents uploaded to the instance rather than files of the test repository: the database of the instance keeps them, and only it. Each is a Markdown file of 1,000,000 bytes at most, text in UTF-8, named once in its source; an upload holds 20 at most, and is kept whole or not at all. When a run starts, it writes the documents of each such source to `<stateDir>/documents/<id>/`, which it empties first, and its agents read them there as they read a folder of the repository; `resolvedConfig` gives the source that folder as its `path`. The folder is a copy for the run, not a second place to write them: what is written there is replaced by the next run. The documents stay with the identifier of their source: a source removed from the configuration, then declared again under the same identifier, finds them again. The path of a `source-code` folder, or of a log file, may lead outside it, since the code of an application often lives in another repository: `"../policy-management"`. The agents' reading and git tools never leave that folder.
 
 A `logs` source gives the agents the lines a service writes: those of a file, `{ "path": "../policy-management/logs/service.log" }`, or those of a container, `{ "container": "policy-management-backend", "engine": "podman" }`, read with `podman logs` or `docker logs`. Attach it to the environment the service runs in. The agents read it after an action, to see what the service did; the cartography does not map it. It is meant for the solo mode, where the service runs on the same machine as the agents: a worker that does not run the application cannot reach its file or its container.
 

@@ -45,6 +45,7 @@ const BY_PATTERN: Readonly<Record<string, readonly [rule: string, message: strin
 /** The knowledge sources whose keys are alternatives, and what their error says. */
 const SOURCE_ALTERNATIVES: Readonly<Record<string, readonly [rule: string, message: string]>> = {
   openapi: ["openapi-source", 'Declare exactly one of "url" or "path".'],
+  document: ["document-source", 'Declare exactly one of "path" or "stored".'],
   logs: ["logs-source", 'Declare either "path", or "container" and "engine".'],
 };
 

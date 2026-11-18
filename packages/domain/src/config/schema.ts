@@ -150,8 +150,14 @@ export const configSchema = {
         {
           type: "object",
           additionalProperties: false,
-          required: ["id", "type", "attachments", "path"],
-          properties: { ...knowledgeCommon, type: { const: "document" }, path: relativePath },
+          required: ["id", "type", "attachments"],
+          properties: {
+            ...knowledgeCommon,
+            type: { const: "document" },
+            path: { ...relativePath, description: "A document of the test repository, or a folder of them, relative to its root, which it may not leave." },
+            stored: { enum: [true], description: "The documents are uploaded to the instance, which keeps them in its database." },
+          },
+          oneOf: [{ required: ["path"] }, { required: ["stored"] }],
         },
         {
           type: "object",

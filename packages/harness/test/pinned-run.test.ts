@@ -458,7 +458,10 @@ describe("criterion 12 — the base of the test repository", () => {
       "tests",
       "playwright.config.ts",
     ]);
-    assert.equal(text(".gitignore"), "node_modules/\n.oqas/test-results/\n.oqas/report/\n.oqas/junit.xml\n.oqas/runs/\n.oqas/traces/\n.oqas/oqas.db*\n");
+    assert.equal(
+      text(".gitignore"),
+      "node_modules/\n.oqas/test-results/\n.oqas/report/\n.oqas/junit.xml\n.oqas/runs/\n.oqas/traces/\n.oqas/documents/\n.oqas/oqas.db*\n",
+    );
     for (const said of [
       "| `tests/shop/tests/` | The tests of Shop: a folder per domain, then one per functionality. |",
       "| `tests/back-office/tests/` | The tests of Back Office: a folder per domain, then one per functionality. |",

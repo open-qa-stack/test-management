@@ -4,6 +4,7 @@ import { Configuration, liveRuntime, Run, type RunOptions } from "../src/index.t
 import { MemoryJournal } from "./memory-journal.ts";
 import { MemoryRunStore } from "./memory-run-store.ts";
 import { MemoryConfigurationStore } from "./support/memory-configuration-store.ts";
+import { MemoryDocumentStore } from "./support/memory-document-store.ts";
 import { configText, FakeRunner, FIRST_RUN, repository, WITNESS, type Script } from "@open-qa-stack/testing/test-repository";
 
 export * from "@open-qa-stack/testing/test-repository";
@@ -12,6 +13,8 @@ export * from "@open-qa-stack/testing/test-repository";
 interface MemoryHost {
   readonly store: MemoryRunStore;
   readonly configuration: Configuration;
+  /** The documents of the knowledge sources the instance keeps. */
+  readonly documents: MemoryDocumentStore;
   readonly journals: Map<string, RunEntry[]>;
 }
 
@@ -22,6 +25,7 @@ export function hostOf(root: string): MemoryHost {
   const host = hosts.get(root) ?? {
     store: new MemoryRunStore(),
     configuration: new Configuration(new MemoryConfigurationStore(), root),
+    documents: new MemoryDocumentStore(),
     journals: new Map<string, RunEntry[]>(),
   };
   hosts.set(root, host);
@@ -30,7 +34,7 @@ export function hostOf(root: string): MemoryHost {
 
 /** The ports of one run, and what the run told through them. */
 export interface Plugged {
-  readonly ports: Pick<RunOptions, "configuration" | "journal" | "openInbox" | "store">;
+  readonly ports: Pick<RunOptions, "configuration" | "documents" | "journal" | "openInbox" | "store">;
   /** The journal, as a person reads it. */
   readonly err: string;
 }
@@ -45,6 +49,7 @@ export function plugged(root: string): Plugged {
   return {
     ports: {
       configuration: host.configuration,
+      documents: host.documents,
       journal,
       openInbox: () => ({ pending: () => [], heard: () => [], delivered: () => undefined }),
       store: host.store,

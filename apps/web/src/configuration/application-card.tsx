@@ -2,36 +2,7 @@ import type { ReactNode } from "react";
 import type { ConfiguredApplication, Environment } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
 import { Card } from "../ui/card.tsx";
-import { AddButton, ChoiceField, InputField, PlaceErrors, RemoveButton } from "./configuration-fields.tsx";
-
-/** The choices of a list, each its value and its label. */
-function choices<const V extends string>(values: readonly V[], label: (value: V) => string): { readonly value: V; readonly label: string }[] {
-  return values.map((value) => ({ value, label: label(value) }));
-}
-
-/**
- * The name of an item of a list, or its rank when it has none yet.
- *
- * @param name - The name of the item.
- * @param rank - Its rank in the list.
- * @returns The name, or the rank from one.
- */
-const nameOf = (name: string, rank: number): string => (name === "" ? String(rank + 1) : name);
-
-/**
- * The head of an item of a list: what it is, and the button that removes it, which names it.
- *
- * @param props - What the item is called, and where it is.
- * @returns The head.
- */
-function ItemHead({ title, pointer, removal }: { readonly title: string; readonly pointer: string; readonly removal: string }): ReactNode {
-  return (
-    <div className="config-item-head">
-      <span>{title}</span>
-      <RemoveButton pointer={pointer} label={removal} />
-    </div>
-  );
-}
+import { AddButton, choices, ChoiceField, InputField, ItemHead, nameOf, PlaceErrors, RemoveButton } from "./configuration-fields.tsx";
 
 /** An environment of an application: its addresses, its named APIs and what its exploration may do. */
 function EnvironmentFields({

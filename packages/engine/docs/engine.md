@@ -24,7 +24,7 @@ Each step starts only when the one before succeeded; once the prerequisites pass
 
 1. **Configuration.** The revision in force of the configuration is read through the `configuration` port, once it is in step with `oqas.json` at the root of the test repository; it is validated against the environment, the environment to run against is chosen, and the test charter is resolved.
 2. **Prerequisites.** The folder is the root of a git repository with a commit, the model server answers, `npm` can be run, and the repository is a Playwright project.
-3. **Cartography.** The sources without an up-to-date card are mapped, then consolidated into the domain index, by the cartographer of `@open-qa-stack/agents`.
+3. **Cartography.** The documents of the sources the instance keeps are written to the state folder, where the agents read them; then the sources without an up-to-date card are mapped, then consolidated into the domain index, by the cartographer of `@open-qa-stack/agents`.
 4. **Design.** The dependencies of the test repository are installed, then the tests are designed in passes on a new local branch, by the designer of `@open-qa-stack/agents`, each test checked against the charter and run against the application before it is kept. A run given the `branch` of an earlier one goes on with it instead: the design checks it out, reads the tests it holds as those of the repository, and commits its own on it.
 5. **Execution.** The tests designed run together, and the harness pronounces a verdict per test.
 6. **Summary.** The messages no agent received are told, the runtime of the agents is closed, and the state of the run is written.
@@ -247,6 +247,7 @@ A host gives `Sessions` a `SessionsHost`:
 | --- | --- |
 | `store` | The `SessionStorePort` of `@open-qa-stack/domain`: where the sessions are kept. `@open-qa-stack/store` implements it on the database of the instance, a SQLite file or a PostgreSQL server. |
 | `configuration` | The [`Configuration`](#the-operations-on-the-configuration) of the instance, on the same test repository: the runs read the revision in force through it, and the host synchronises it when it starts. |
+| `documents` | The `DocumentStorePort` of `@open-qa-stack/domain`: where the documents of the knowledge sources the instance keeps are, which the runs write to the state folder. |
 | `repository` | The absolute path of the test repository the sessions run in, a folder that holds `oqas.json`; `undefined` for a host that only serves what the store keeps. |
 | `takesOver` | Whether the host stays to run whatever waits, as a server does, and so takes over the sessions that wait for a host that died; `false` for a host that runs the session it opens and leaves. |
 | `env` | The environment of the runs: the variables the configuration of the repository names — the key of the model, the test accounts. |
@@ -257,7 +258,7 @@ A host gives `Sessions` a `SessionsHost`:
 | `writerPace`, optional | How a write the store failed to take is made again: 250 milliseconds at first, 10 seconds at most, by default. |
 | `pace`, optional | The paces of the process among the others that reach the store: `DEFAULT_PACE` by default. |
 
-A host calls `start()` when it starts, or lets `open()` do it: the configuration is synchronised with its file, a file that changed and is not valid reported and the revision in force kept, and the project the store keeps is named after the test repository, with the applications of the revision in force. It calls `stop(withinMs)` before it closes its store. The two presentations: [the API](../../api/docs/sessions.md) starts with its server and stays; [`oqas --brief`](../../cli/docs/solo-command.md) hosts the session it opens. Both are given the stores of the sessions and of the configuration by `InstanceDatabase` of [`@open-qa-stack/store`](../../store/docs/database.md#the-database-of-an-instance-assembled), which assembles the database of an instance once for every process.
+A host calls `start()` when it starts, or lets `open()` do it: the configuration is synchronised with its file, a file that changed and is not valid reported and the revision in force kept, and the project the store keeps is named after the test repository, with the applications of the revision in force. It calls `stop(withinMs)` before it closes its store. The two presentations: [the API](../../api/docs/sessions.md) starts with its server and stays; [`oqas --brief`](../../cli/docs/solo-command.md) hosts the session it opens. Both are given the stores of the sessions, of the configuration and of the documents by `InstanceDatabase` of [`@open-qa-stack/store`](../../store/docs/database.md#the-database-of-an-instance-assembled), which assembles the database of an instance once for every process.
 
 ## The operations on the configuration
 
@@ -288,6 +289,30 @@ Their rules:
 - **The file a change writes** is the document in the order the schema declares its keys, indented by two spaces: the same document is always the same text, and the diff of the file shows what changed. It is written in the transaction that records the revision: when it cannot be written, nothing is recorded.
 - **Validation is that of the file**: the schema of `oqas.json` and the rules that span the document, the environment left out. Whether a variable the configuration names is set is told by the run, on the machine that runs it. A revision holds no secret, as the file holds none: only the names of the variables.
 - **A host without a test repository** reads the revisions and changes none: `save` and `restore` raise `NoRepositoryError`. With neither a revision nor a file, `synchronise` and `restore` raise `NoConfigurationError`.
+
+## The operations on documents
+
+A knowledge source of `type` `document` declared `"stored": true` holds documents uploaded to the instance rather than files of the test repository: its database keeps them, and only it. `KnowledgeDocuments` holds the operations on them, on the `DocumentStorePort` of `@open-qa-stack/domain`, which `@open-qa-stack/store` implements, and on the revisions of the configuration, which declare the sources:
+
+```ts
+import { KnowledgeDocuments } from "@open-qa-stack/engine";
+
+const documents = new KnowledgeDocuments(instance.documents, instance.configuration);
+await documents.upload("specs", [{ name: "quotes.md", bytes: content.length, content }]);
+```
+
+| Operation | What it does |
+| --- | --- |
+| `list(source)` | The documents of a source, without their texts, in the order of their names. |
+| `read(source, name)` | A document, with its text. |
+| `upload(source, files)` | Keeps the files of an upload as documents of the source, all of them or none: a document of a name the source holds replaces it. |
+| `remove(source, name)` | Removes a document of the source. |
+
+Their rules:
+
+- **A source takes documents once the revision in force declares it `stored`.** Any other identifier — no source, or one of another type, or documents of the repository — is refused with `UnknownDocumentSourceError`: a revision declares a source, then documents are uploaded to it. A document the source does not hold is refused with `UnknownDocumentError`.
+- **An upload is checked whole before anything is kept**, by `readUpload` of `@open-qa-stack/domain`: one document at least and 20 at most, each a Markdown file of 1,000,000 bytes at most — the largest file the tools of the agents read — text in UTF-8, its name given once, without a slash, a control character or a leading dot. An upload that breaks a rule is refused with `InvalidDocumentsError`, which holds every error, each at its document.
+- **A run reads them from the state folder.** When its cartography starts, it writes the documents of each such source to `<stateDir>/documents/<id>/`, which it empties first, and the agents read that folder as a source of documents of the repository. The folder is a copy for the run: nothing reads it back, and the next run replaces it.
 
 ## Tests
 

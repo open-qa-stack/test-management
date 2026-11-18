@@ -210,6 +210,9 @@ describe("a problem", () => {
     ["configuration_conflict", 409, "/problems/configuration-conflict", "Configuration conflict"],
     ["invalid_configuration", 422, "/problems/invalid-configuration", "Invalid configuration"],
     ["no_configuration", 404, "/problems/no-configuration", "No configuration"],
+    ["unknown_document_source", 404, "/problems/unknown-document-source", "Unknown source of documents"],
+    ["unknown_document", 404, "/problems/unknown-document", "Unknown document"],
+    ["invalid_documents", 422, "/problems/invalid-documents", "Invalid documents"],
     ["error", 500, "/problems/error", "Request not answered"],
   ] as const satisfies readonly (readonly [ProblemCode, number, string, string])[]) {
     it(`of the code ${code} has the status ${status}, and a type and a title of its own`, () => {
