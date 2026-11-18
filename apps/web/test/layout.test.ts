@@ -552,6 +552,8 @@ describe("what the person says to the agents while they work", () => {
       await page.getByRole("button", { name: "Poursuivre la session" }).click();
       await page.locator(".session-bar .badge", { hasText: "en direct" }).waitFor();
       assert.deepEqual(instance.resumedWith, [{ text: "corriger le test en échec" }]);
+      // The session is live again before its stream told the request of the new turn: the thread is read once it did.
+      await page.locator(".thread-item", { hasText: "corriger le test en échec" }).waitFor();
       const turns = await page.locator(".thread-item").allInnerTexts();
       const verdict = turns.findIndex((text) => text.includes("Verdict de l’exécution"));
       assert.ok(verdict >= 0 && turns[verdict + 1]?.includes("corriger le test en échec"), "the new turn starts under the verdict of the one before");
