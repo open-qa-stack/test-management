@@ -187,7 +187,10 @@ describe("oqas, without a command, in a terminal", () => {
     const unbuilt = mkdtempSync(join(workspace, "unbuilt-"));
     const { screen, ended } = await conversing(undefined, { io: { console: unbuilt } });
     await screen.enter("/ui 0");
-    await screen.sees(/✗ The console is not built:\s[\s\S]*holds no\s+index\.html\.\s+Run pnpm build at the root of the\s+workspace, then oqas --ui again\./);
+    // The path of the folder is as long as the temporary folder of the machine: the message wraps anywhere.
+    await screen.sees(
+      /✗ The console is not built:\s[\s\S]*holds\s+no\s+index\.html\.\s+Run\s+pnpm\s+build\s+at\s+the\s+root\s+of\s+the\s+workspace,\s+then\s+oqas\s+--ui\s+again\./,
+    );
     mkdirSync(unbuilt, { recursive: true });
     writeFileSync(join(unbuilt, "index.html"), "<!doctype html>");
     await screen.enter("/ui 0");
