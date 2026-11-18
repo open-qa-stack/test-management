@@ -152,6 +152,7 @@ The columns that keep a date, a JSON value or a boolean are kept [as each databa
 | `start(id, host)` | The host, when the turn of the session comes | The session becomes `running`, and a `state_changed` tells it; whoever starts it is its host from then on. Answers the session. |
 | `append(id, events)` | The run of the session | Appends the events the run tells, at the ranks that follow the last event of the session, and dates the session by the last of them. |
 | `say(id, text)` | A person who speaks to a session | Takes a message of the person: a row of `session_messages` under the number that follows the last, and a `user_message` with that number. Answers the number. |
+| `resume(id, text, host)` | A person who says more to a session that ended, through the process that will host it | The session becomes `queued` again for a new turn: a `user_message` without a number tells what the person asks of it, then a `state_changed` the change; the session no longer holds the result of the turn before, which the completion of that turn told, and forgets an interruption asked while it ran. The process that resumes it is its host, with a first beat. Answers the session. |
 | `deliver(id, number, agent)` | The run of the session | Marks a pending message as received by an agent, which a `message_delivered` tells. `pendingMessages(id)` reads those still to deliver, in the order of their numbers. |
 | `complete(id, result)` | The run of the session | Ends the session with its result: it becomes `completed`, and a `state_changed` tells it with that result. |
 | `interrupt(id)` | The host of a session, which stops it | Ends the session without a result: it becomes `interrupted`, and a `state_changed` tells it. |
@@ -169,20 +170,21 @@ Which states a command is for, and the state it leaves the session in, are state
 | `append`, `deliver` | `running` | as it was |
 | `complete` | `running` | `completed` |
 | `say` | `queued` or `running` | as it was |
+| `resume` | `completed` or `interrupted` | `queued` |
 | `interrupt` | `queued` or `running` | `interrupted` |
 | `beat`, the rule of `beat` and `release` | `queued` or `running` | as it was |
 | `takeOver` | `queued` | as it was |
 | `abandon`, the rule of `abandonSilent` | `running` | `interrupted` |
 
-`ask` opens a session `queued`, and nothing leaves `completed` nor `interrupted`. The store reads its decisions from that table — the state a session is asked in, the state `start` sets, the states `beat`, `takeOver` and `abandonSilent` select and the one the last sets, the refusal of a command — and holds them with its statements. `requestInterruption` is an interruption asked from elsewhere, judged as `interrupt` is: the store carries it out itself, or leaves it to the host.
+`ask` opens a session `queued`, and nothing but `resume` leaves `completed` or `interrupted`. The store reads its decisions from that table — the state a session is asked in, the state `start` sets, the states `beat`, `takeOver` and `abandonSilent` select and the one the last sets, the refusal of a command — and holds them with its statements. `requestInterruption` is an interruption asked from elsewhere, judged as `interrupt` is: the store carries it out itself, or leaves it to the host.
 
 A command that names a session is refused, and writes nothing, with one of the errors of `@open-qa-stack/domain`:
 
 | Error | When |
 |---|---|
 | `UnknownSessionError` | The identifier names no session. |
-| `SessionEndedError` | The session is `completed` or `interrupted`. |
-| `SessionStateError` | The session goes on in a state the command is not for: it still waits and is told an event, a delivery or its result, or it runs and is started again. |
+| `SessionEndedError` | The session is `completed` or `interrupted`, and the command is not `resume`. |
+| `SessionStateError` | The session goes on in a state the command is not for: it still waits and is told an event, a delivery or its result, it runs and is started again, or it is resumed while it goes on. |
 | `MessageNotPendingError` | `deliver` names a message the session does not hold, or that an agent already received: a message is delivered once. |
 
 A run whose session was ended under it learns so from the next thing it writes, and stops.
@@ -191,7 +193,7 @@ What these guarantee, when two commands reach a session at the same moment — a
 
 - **A rank and a number are given once, without a gap.** Every command on a session starts by writing to the row of the session — the state it already has, which it reads back: the database holds the row for the transaction from then on, and two commands on the same session run one after the other. The second reads the last rank, and the last number, once the first has committed. The statement is the same on both databases; on SQLite, where one process writes at a time, it is what takes the turn to write from the first statement on.
 - **A command is judged on the state it finds when it writes.** The state it reads back is the one no other command can change before it ends.
-- **A session is started once.** Of two that start the same session, one is refused.
+- **A session is started once, and resumed once from an end.** Of two that start the same session, or that resume it from the same end, one is refused.
 - **A session and the event that tells its state change together.** A session that reads as ended always holds the `state_changed` that ends its streams.
 
 The identifier `ask` gives is `session-`, the date to the millisecond, and eight random hexadecimal characters, such as `session-2026-11-16T08-12-45-120Z-9f3a1c2b`: identifiers sort in the order the sessions were asked for, and two sessions asked for in the same millisecond differ. A client reads nothing in it. What the store dates — a session it opens, the events it tells itself, a message, a delivery — it dates by the clock of the process that runs the command; the events a run appends bear the dates the run gave them.

@@ -88,6 +88,22 @@ export interface SessionCommands {
   say(id: string, text: string): Promise<MessageReceipt>;
 
   /**
+   * Resumes a session that ended with what a person says more to it: it waits, `queued`, for its host to start
+   * a new turn of work on that message, which an event tells as what was asked of the turn, without a number,
+   * then another the change of state. The process that resumes it is its host from then on; the result of the
+   * turn before is no longer the result of the session, which its completion told, and an interruption asked
+   * while that turn ran is forgotten.
+   *
+   * @param id - The identifier of the session.
+   * @param text - What the person asks of the new turn.
+   * @param host - What names the process that resumes it.
+   * @returns The session, now waiting.
+   * @throws `UnknownSessionError` when there is no such session.
+   * @throws `SessionStateError` when the session goes on: it takes a message instead.
+   */
+  resume(id: string, text: string, host: string): Promise<Session>;
+
+  /**
    * Marks a pending message of a session that runs as handed to an agent, which an event tells. A message is
    * delivered once.
    *

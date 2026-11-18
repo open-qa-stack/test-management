@@ -130,6 +130,24 @@ export class MemorySessionStore implements SessionStorePort {
     return { number };
   }
 
+  async resume(id: string, text: string, host: string): Promise<Session> {
+    await this.#answer("resume", id);
+    const kept = this.#taking("resume", id);
+    const at = this.#now();
+    const { result: _before, ...session } = kept.session;
+    kept.session = session;
+    Object.assign(kept, { host, seen: this.#clock().getTime(), asked: false });
+    this.#tell(
+      kept,
+      [
+        { at, type: "user_message", text },
+        { at, type: "state_changed", state: SESSION_LIFE.resume.to },
+      ],
+      { state: SESSION_LIFE.resume.to },
+    );
+    return kept.session;
+  }
+
   async deliver(id: string, number: number, agent: AgentRole): Promise<void> {
     await this.#answer("deliver", id);
     const kept = this.#taking("deliver", id);

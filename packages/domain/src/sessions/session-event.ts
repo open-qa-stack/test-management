@@ -99,11 +99,11 @@ interface EventBase {
   readonly at: string;
 }
 
-/** The person said something: what opened the session, or a message sent while it was going on. */
+/** The person said something: what opened the session or resumed it once it had ended, or a message sent while it was going on. */
 export interface UserMessageEvent extends EventBase {
   readonly type: "user_message";
   readonly text: string;
-  /** The number of a message sent while the session was going on, from 1; left out for what opened it. */
+  /** The number of a message sent while the session was going on, from 1; left out for what opened or resumed it. */
   readonly number?: number;
 }
 

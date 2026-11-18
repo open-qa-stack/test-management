@@ -82,7 +82,8 @@ function stageOf(session: Session): SessionStage {
  * Reads the events of a session as the steps its thread shows, in the words of a presentation.
  *
  * @remarks
- * What the session works on is a step of its own, which a presentation shows at the head of the thread. A phase starts a pass, a part of one when it reviews or writes a test, and none when it works on one source; a plan pass is
+ * What the session works on is a step of its own, which a presentation shows at the head of the thread; a later turn
+ * that works on the same tells it no more, and one that works on another tells it again. A phase starts a pass, a part of one when it reviews or writes a test, and none when it works on one source; a plan pass is
  * named after the level its request asks for. A message of the harness to an agent, of an agent, or of the
  * person is something said, and the delivery of a message the person sent during the session a step of its
  * own, so that a replay tells it when it happened; an action and its end are one step, worded as a sentence, pending until the tool
@@ -118,6 +119,8 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
   let previous: Alike | undefined;
   /** By reviewer, the rank of its verdict the harness just took, whose one-word reply is still to come. */
   const replies = new Map<string, number>();
+  /** The scope last told, as a text that compares it with the next. */
+  let scope: string | undefined;
   /** By scenario, the refusals of the harness about it since the plan of the pass started. */
   const refused = new Map<string, VerdictStep[]>();
   for (const event of events) {
@@ -218,9 +221,14 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
         };
         break;
       }
-      case "scope_resolved":
+      case "scope_resolved": {
+        // Each turn resolves its scope again: one that the turn before already told adds nothing, and one that changed is told where it did.
+        const told = JSON.stringify([event.environment, event.applications, event.levels]);
+        if (told === scope) break;
+        scope = told;
         steps.push({ kind: "scope", at, title: wording.scope, environment: event.environment, applications: event.applications, levels: event.levels });
         break;
+      }
       case "plan_accepted":
         steps.push({
           kind: "plan",

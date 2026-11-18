@@ -214,6 +214,22 @@ describe("the script of a session", () => {
     ]);
   });
 
+  it("tells the scope of a later turn only when it differs from the one told before", () => {
+    const scope = { type: "scope_resolved", environment: "local", applications: ["shop"], levels: ["functional"] } as const;
+    const steps = stepsOf([
+      scope,
+      { type: "state_changed", state: "interrupted" },
+      { type: "user_message", text: "Go on." },
+      scope,
+      { type: "user_message", text: "And the business level." },
+      { ...scope, levels: ["functional", "business"] },
+    ]);
+    assert.deepEqual(
+      steps.map((step) => (step.kind === "scope" ? step.levels.join("+") : step.kind)),
+      ["functional", "note", "say", "say", "functional+business"],
+    );
+  });
+
   it("reads a refusal by its form — the tool or what was refused it opens on, its reason, the page it quotes — and keeps its text whole", () => {
     const page = '\n\nThe page is now at http://localhost:3000/orders:\n- heading "Orders"\n  - button "Search"';
     const texts = [
