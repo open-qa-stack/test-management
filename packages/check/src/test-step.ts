@@ -1,7 +1,7 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, relative } from "node:path";
-import { readCoverageReport, type FileCoverage } from "./coverage-report.ts";
+import { dirname, join, relative } from "node:path";
+import { readCoverageReport, rebasedCoverageReport, type FileCoverage } from "./coverage-report.ts";
 import { declaresTypesOnly } from "./types-only.ts";
 import { ScriptStep } from "./script-step.ts";
 import type { Step } from "./step.ts";
@@ -28,6 +28,9 @@ export const COVERAGE_DIRECTORY = "OQAS_COVERAGE_DIRECTORY";
 /** The report the tests of the workspace write in that folder, in the LCOV format. */
 const WORKSPACE_REPORT = "lcov.info";
 
+/** The variable that names a file in which the check keeps the coverage of the whole workspace, for a tool that reads it. */
+export const COVERAGE_REPORT = "OQAS_COVERAGE_REPORT";
+
 /**
  * Runs the tests of the workspace and requires them to cover all the lines, branches and functions of every
  * file of code under the `src` folder of each package, those no test loads included.
@@ -45,22 +48,30 @@ const WORKSPACE_REPORT = "lcov.info";
  * stay out of the measure; so do the modules a package lists as measured in a browser by its own tests and,
  * for a package the root tests, the entry points it lists as run as programs. The output of a run is written
  * in one piece once it has ended, so that runs at the same time do not mix their lines.
+ *
+ * The reports are removed once read, unless the step is given a file to keep them in: it then writes there the
+ * reports of every run as one, in the LCOV format, each path relative to the root of the workspace.
  */
 export class TestStep implements Step {
   public readonly name = "tests and coverage";
   private readonly root: string;
   private readonly packages: readonly WorkspacePackage[];
   private readonly write: (output: string) => void;
+  private readonly keep: string | undefined;
+  /** The reports read during a run, each path relative to the root. */
+  private readonly read: string[] = [];
 
   /**
    * @param root - The root of the workspace.
    * @param packages - The packages of the workspace.
    * @param write - Writes the output of the tests of a package to the output of the check.
+   * @param keep - The file to keep the coverage of the whole workspace in, relative to the root; none to keep nothing.
    */
-  public constructor(root: string, packages: readonly WorkspacePackage[], write: (output: string) => void) {
+  public constructor(root: string, packages: readonly WorkspacePackage[], write: (output: string) => void, keep?: string) {
     this.root = root;
     this.packages = packages;
     this.write = write;
+    this.keep = keep === undefined ? undefined : join(root, keep);
   }
 
   public async run(): Promise<readonly string[]> {
@@ -78,6 +89,10 @@ export class TestStep implements Step {
         ...own.map((workspacePackage, index) => () => this.test(workspacePackage, typesOnly, join(reports, `${index}.info`))),
       ];
       const findings = await eachOf(runs, PACKAGES_AT_ONCE, (run) => run());
+      if (this.keep !== undefined) {
+        await mkdir(dirname(this.keep), { recursive: true });
+        await writeFile(this.keep, this.read.join(""));
+      }
       return findings.flat();
     } finally {
       await rm(reports, { recursive: true, force: true });
@@ -87,7 +102,7 @@ export class TestStep implements Step {
   /** Runs the test script of the root, and reads from its report what it covered of the packages it tests. */
   private async testTogether(shared: readonly WorkspacePackage[], typesOnly: ReadonlySet<string>, folder: string): Promise<string[]> {
     const failures = await new ScriptStep(this.name, this.root, "test", { ...process.env, [COVERAGE_DIRECTORY]: folder }, this.write).run();
-    const covered = readCoverageReport(await readFile(join(folder, WORKSPACE_REPORT), "utf8").catch(() => ""), this.root);
+    const covered = await this.report(join(folder, WORKSPACE_REPORT), this.root);
     return [
       ...failures,
       ...shared.flatMap((workspacePackage) =>
@@ -111,11 +126,18 @@ export class TestStep implements Step {
     ];
     const env = { ...process.env, NODE_OPTIONS: options.filter((option) => option !== undefined).join(" ") };
     const failures = await new ScriptStep(this.name, workspacePackage.path, "test", env, this.write).run();
-    const covered = readCoverageReport(await readFile(report, "utf8").catch(() => ""), workspacePackage.path);
+    const covered = await this.report(report, workspacePackage.path);
     const code = codeOf(workspacePackage, typesOnly);
     return [...failures, ...code.flatMap((file) => coverageFindings(relative(workspacePackage.path, file), covered.get(file)))].map(
       (finding) => `${workspacePackage.name}: ${finding}`,
     );
+  }
+
+  /** Reads what a report says was covered, and holds it for the file the coverage is kept in. */
+  private async report(file: string, base: string): Promise<Map<string, FileCoverage>> {
+    const text = await readFile(file, "utf8").catch(() => "");
+    this.read.push(rebasedCoverageReport(text, base, this.root));
+    return readCoverageReport(text, base);
   }
 }
 

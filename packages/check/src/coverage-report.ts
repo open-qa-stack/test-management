@@ -1,4 +1,4 @@
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
 
 /** What the tests covered of a file: for lines, branches and functions, how many were found and how many were run. */
 export interface FileCoverage {
@@ -34,4 +34,17 @@ export function readCoverageReport(text: string, root: string): Map<string, File
     files.set(resolve(root, file), { lines: counts("LF", "LH"), branches: counts("BRF", "BRH"), functions: counts("FNF", "FNH") });
   }
   return files;
+}
+
+/**
+ * Writes the paths of a coverage report in the LCOV format from another folder, so that reports written from the
+ * folders of several packages read as one report of the workspace.
+ *
+ * @param text - The report.
+ * @param from - The folder its relative paths start from.
+ * @param to - The folder the paths of the report it gives start from.
+ * @returns The same report, each of its paths relative to `to`, with `/` between the folders.
+ */
+export function rebasedCoverageReport(text: string, from: string, to: string): string {
+  return text.replace(/^SF:(.*)$/gm, (_line, file: string) => `SF:${relative(to, resolve(from, file.trim())).split("\\").join("/")}`);
 }
