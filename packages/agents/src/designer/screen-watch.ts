@@ -626,8 +626,9 @@ export class ScreenWatch {
   }
 
   /**
-   * Whether the page of an application shows texts beside its fields, now, once an address is opened again:
-   * the harness looks by itself, and its look is none of the agent's — neither an action nor a screen it saw.
+   * Whether the page of an application shows texts, now, once an address is opened again: the harness looks by
+   * itself, and its look is none of the agent's — neither an action nor a screen it saw. A text is looked for in
+   * every line, those of the fields as the others: the page is opened afresh, and the agent typed nothing in it.
    *
    * @param application - Identifier of the application.
    * @param address - The address to open, as the agent gave it to its tool.
@@ -641,7 +642,7 @@ export class ScreenWatch {
       const shown = (await this.given.get(scopedToolName(application, "snapshot"))!.execute({})) as { page: string };
       // The page of the agent moved: its next action is compared with what the page shows then.
       this.seen.get(application)!.last = undefined;
-      const lines = besideFields(pageLines(shown.page));
+      const lines = pageLines(shown.page);
       return texts.filter((text) => !observed(text, lines));
     } catch {
       return undefined;

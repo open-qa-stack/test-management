@@ -1315,16 +1315,27 @@ export class PlanProposal {
 
   /**
    * What the gates refuse in what a step that restores leaves: a text the scenario wrote itself, which a step
-   * between its start and that one expects shown and its start did not. Such a step puts back nothing: the
-   * next run would not find what the first step expects.
+   * between its start and that one expects shown, its start did not, and no screen showed before the first action
+   * of the scenario that writes. Such a step puts back nothing: the next run would not find what the first step
+   * expects. What the step that restores leaves is what its last expect finds, and what the steps after it find:
+   * it may find what the scenario changed before it puts it back.
    */
   private putBackErrors(scenario: SubmittedScenario, started: number): Refusal[] {
     const at = scenario.steps.findIndex((step) => step.restores === true);
     if (at === -1) return [];
     const shows = (steps: readonly SubmittedStep[]) => steps.flatMap((step) => step.expects.flatMap((expect) => expect.shows)).filter(checkable);
     const found = shows(scenario.steps.slice(0, started));
-    const written = shows(scenario.steps.slice(started, at)).filter((text) => !found.some((other) => sameText(other, text)));
-    const kept = shows(scenario.steps.slice(at)).find((text) => written.some((other) => sameText(other, text)));
+    const writing = scenario.steps
+      .slice(started)
+      .flatMap((step) => this.cited(scenario, step.actions))
+      .find((action) => action.changes !== undefined);
+    // A text a screen showed before the scenario wrote anything is one the environment held, even when no step of its start expects it whole.
+    const before = (text: string) =>
+      writing !== undefined && this.rules.screens.shownAfter(this.scope(scenario), text).some((number) => number < writing.number);
+    const written = shows(scenario.steps.slice(started, at)).filter((text) => !found.some((other) => sameText(other, text)) && !before(text));
+    const restoring = scenario.steps[at]!;
+    const left = [...restoring.expects.slice(-1).flatMap((expect) => expect.shows), ...shows(scenario.steps.slice(at + 1))];
+    const kept = left.find((text) => written.some((other) => sameText(other, text)));
     if (kept === undefined) return [];
     const start = found.length === 0 ? "" : ` What it starts from: ${found.map((text) => JSON.stringify(text)).join(", ")}.`;
     return [
