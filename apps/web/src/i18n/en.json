@@ -20,6 +20,7 @@
       "coverage": "Coverage",
       "campaigns": "Campaigns",
       "defects": "Defects",
+      "knowledge": "Knowledge",
       "configuration": "Configuration"
     }
   },
@@ -29,6 +30,7 @@
     "titles": {
       "entry": "Agent",
       "configuration": "Configuration",
+      "knowledge": "Knowledge",
       "opening": "Opening the session…",
       "no_session": "Session not found",
       "nowhere": "Page not found"
@@ -359,7 +361,7 @@
     "no_configuration": "The instance has no configuration yet.",
     "unknown_document_source": "The configuration in force declares no such source of uploaded documents: save the configuration first.",
     "unknown_document": "The source no longer holds this document.",
-    "invalid_documents": "The documents are refused, and none was kept: correct the files it points out.",
+    "invalid_documents": "The documents are refused, and none was kept: correct the files pointed out.",
     "unexplained": "The instance ran into an error.",
     "unreachable": "The instance does not answer.",
     "unreadable": "The answer of the instance cannot be read."
@@ -394,7 +396,13 @@
       "openapi-source": "Either an address, or a file of the repository: exactly one.",
       "document-source": "Either a path, or uploaded documents: exactly one.",
       "logs-source": "Either a log file, or a container and its engine.",
-      "container-name": "Name of a container expected: letters, digits, underscores, dots and hyphens."
+      "container-name": "Name of a container expected: letters, digits, underscores, dots and hyphens.",
+      "no-documents": "Choose one file at least.",
+      "too-many-documents": "Too many files at once.",
+      "document-name": "File name not taken: no leading dot, no slash and no control character, 200 characters at most.",
+      "document-format": "Only Markdown is read: a file ending with .md or .markdown.",
+      "document-size": "Too large: a document holds 1 MB at most.",
+      "document-encoding": "Not a text in UTF-8."
     },
     "origins": {
       "file": "File oqas.json",
@@ -571,7 +579,8 @@
       "anyEnvironment": "Every environment",
       "api": "API",
       "anyApi": "Every API",
-      "addAttachment": "Add an attachment"
+      "addAttachment": "Add an attachment",
+      "openKnowledge": "Open its documents"
     },
     "remove": "Remove",
     "records": {
@@ -615,5 +624,48 @@
       "knowledgeNote": "What the agents read about the applications. Each source names where it is read — never a secret — and the applications it belongs to.",
       "noKnowledge": "No knowledge source"
     }
+  },
+  "knowledge": {
+    "title": "Knowledge",
+    "configure": "Declare in the configuration",
+    "reading": "Reading the knowledge",
+    "readingNote": "It shows as soon as the instance answered.",
+    "none": "No knowledge source",
+    "noneNote": "Declare the contracts, the databases, the documents, the code and the logs the agents read in the configuration.",
+    "lead": "The sources of each application, and where each is read from. The domains the cartography maps them into come in a later version.",
+    "noSource": "No source is attached to this application",
+    "variable": "variable {{name}}",
+    "container": "container {{name}}",
+    "documentCount_one": "{{count}} document",
+    "documentCount_other": "{{count}} documents",
+    "unknown": "No source of that name",
+    "unknownNote": "The configuration in force declares none: it may have been renamed or removed.",
+    "back": "Back to the knowledge",
+    "storedNote": "Its documents are kept by the instance: a session writes them where its agents read them. Only Markdown is read.",
+    "readThere": "The agents read this source where it is: nothing is uploaded to it.",
+    "everywhere": "every environment",
+    "documents": "Documents",
+    "documentsHint": "in the order of their names",
+    "listing": "Listing the documents",
+    "noDocument": "No document yet",
+    "noDocumentNote": "Upload the first ones below.",
+    "remove": "Remove",
+    "removeNamed": "Remove {{name}}",
+    "confirmTitle": "Remove {{name}}?",
+    "confirmNote": "The document is deleted from the instance, and the next sessions no longer read it. This cannot be undone.",
+    "cancel": "Cancel",
+    "confirmRemove": "Remove the document",
+    "upload": "Upload documents",
+    "files": "Markdown files",
+    "filesHint": "{{size}} at most each, {{count}} at most at once. A document of the same name is replaced.",
+    "send": "Upload",
+    "sending": "Sending…",
+    "uploaded_one": "{{count}} document uploaded: the next sessions read it.",
+    "uploaded_other": "{{count}} documents uploaded: the next sessions read them.",
+    "removed": "Document removed.",
+    "readOnly": "as the instance keeps it",
+    "close": "Close",
+    "opening": "Reading the document",
+    "openingNote": "It shows as soon as the instance answered."
   }
 }

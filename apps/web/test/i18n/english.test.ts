@@ -6,6 +6,9 @@ import { SessionScreen } from "../../src/agent/session-screen.tsx";
 import { ConfigurationScreen, type ConfigurationControls } from "../../src/configuration/configuration-screen.tsx";
 import { configurationAfter, INITIAL_CONFIGURATION } from "../../src/configuration/configuration-state.ts";
 import { Console } from "../../src/console.tsx";
+import { KnowledgeScreen } from "../../src/knowledge/knowledge-screen.tsx";
+import { INITIAL_KNOWLEDGE, knowledgeAfter } from "../../src/knowledge/knowledge-state.ts";
+import { parseRoute } from "../../src/routing/route.ts";
 import { RESOURCES } from "../../src/i18n/i18n.ts";
 import { COMPLETED, liveOf, RUNNING } from "../agent/session-fixture.ts";
 import { DOCUMENT, REVISIONS, VIEW } from "../configuration/configuration-fixture.ts";
@@ -91,5 +94,35 @@ describe("the console in English", () => {
       /<select id="config-language" name="\/language" data-kind="choice"[^>]*><option value="en">English<\/option><option value="fr" selected="">Français<\/option>/,
     );
     assert.match(html, /<select id="config-design-testLanguage" name="\/design\/testLanguage"[^>]*><option value="en" selected="">English<\/option>/);
+  });
+
+  it("shows the knowledge, its sources and the documents of one, with the errors of an upload", async () => {
+    await inEnglish();
+    const state = [
+      { type: "read", view: VIEW } as const,
+      { type: "listed", source: "manuals", items: [{ name: "quotes.md", bytes: 1200, uploadedAt: "2026-11-18T09:00:00.000Z" }] } as const,
+      {
+        type: "refused",
+        source: "manuals",
+        refusal: {
+          code: "invalid_documents",
+          text: "Refused.",
+          names: ["quotes.pdf"],
+          errors: [{ kind: "structure", path: "/documents/0", rule: "document-format", message: "Markdown only." }],
+        },
+      } as const,
+    ].reduce(knowledgeAfter, INITIAL_KNOWLEDGE);
+    const controls = { upload: IGNORED, remove: IGNORED };
+    const overview = english(createElement(KnowledgeScreen, { project: "p", route: parseRoute("#/knowledge"), state, controls }));
+    assert.match(overview, /Knowledge Declare in the configuration The sources of each application, and where each is read from\./);
+    assert.match(overview, /manuals Uploaded documents 1 document/);
+    const source = english(
+      createElement(KnowledgeScreen, { project: "p", route: parseRoute("#/knowledge/manuals?remove=quotes.md&document=quotes.md"), state, controls }),
+    );
+    assert.match(source, /quotes\.md 1\.2 kB · .* Remove Remove quotes\.md\? The document is deleted from the instance/);
+    assert.match(
+      source,
+      /quotes\.pdf Only Markdown is read: a file ending with \.md or \.markdown\. Upload documents Markdown files 1 MB at most each, 20 at most at once\./,
+    );
   });
 });

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { isStoredDocuments, type Attachment, type ConfiguredApplication, type Knowledge } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
+import { hrefTo } from "../routing/route.ts";
 import { Card } from "../ui/card.tsx";
 import { AddButton, choices, ChoiceField, InputField, ItemHead, PlaceErrors, RemoveButton } from "./configuration-fields.tsx";
 import type { NewItem } from "./configuration-edit.ts";
@@ -116,7 +117,16 @@ function WhereFields({ at, source }: { readonly at: string; readonly source: Kno
       );
     case "document":
       return source.stored === true ? (
-        <p className="field-hint">{t("configuration.knowledge.storedNote")}</p>
+        <div className="config-field">
+          <p className="field-hint">{t("configuration.knowledge.storedNote")}</p>
+          {source.id !== "" && (
+            <div className="config-actions">
+              <a className="btn sm" href={hrefTo(`/knowledge/${source.id}`)}>
+                {t("configuration.knowledge.openKnowledge")}
+              </a>
+            </div>
+          )}
+        </div>
       ) : (
         <InputField
           pointer={`${at}/path`}

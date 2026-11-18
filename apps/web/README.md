@@ -63,6 +63,16 @@ Every failure of the API is an `ApiError` with the `code` of the problem the API
 
 The state of the screen is a reducer of its own, `src/configuration/configuration-state.ts`, and `src/configuration/configuration-sync.ts` keeps it in step with the instance, reading the configuration and its revisions every two seconds. Its fields are named after the JSON Pointer of what they hold, which the reducer changes and the errors of the instance name; `src/configuration/configuration-page.tsx` holds that state in a browser, as `src/app.tsx` does for the sessions, and is measured there.
 
+### The knowledge
+
+`#/knowledge` shows the knowledge sources the configuration in force declares, application after application — a source attached to several is listed under each — each with its kind, where it is read from, never a secret, the environment and the API it is narrowed to, and how many documents the instance keeps of it. Each leads to its own screen, `#/knowledge/<id>`, which says what it is attached to. For a source declared `stored`, that screen lists its documents, by their names, each with its size and the date it was uploaded:
+
+- **Reading**: the name of a document opens its text under the list, at `?document=<name>`, an address like any other state of the console.
+- **Uploading**: a form takes one or more Markdown files. The console checks them first by the rules of an upload of `@open-qa-stack/domain/sessions` — their count, their names, their formats, their sizes — and sends nothing that breaks one; the instance then checks them again, their encoding with them (`POST /knowledge/:source/documents`). Each error stands under the field, which it describes for a screen reader, beside the file it is about; once the instance took them, the field is emptied and the screen says how many were uploaded.
+- **Removing** is never one press: “Remove” is a link to `?remove=<name>`, which opens a confirmation that says it cannot be undone; its button alone asks the instance (`DELETE /knowledge/:source/documents/:name`), and the confirmation closes once it was taken.
+
+The sources are declared, changed and removed in the configuration, whose card of a source declared `stored` leads here. The state of the screens is a reducer of its own, `src/knowledge/knowledge-state.ts`; `src/knowledge/knowledge-sync.ts` keeps it in step with the instance, reading the configuration in force and the documents of its stored sources every two seconds; `src/knowledge/knowledge-page.tsx` holds that state in a browser, and is measured there.
+
 ### Languages
 
 The console speaks the language the configuration in force names, `language` of `oqas.json`, English by default: it reads it from the instance (`GET /configuration`) when it opens, and again once a change of the configuration was saved, then switches every screen at once. Until it read it, it speaks the language of the browser when it has its words, English otherwise. There is no other setting: one place decides, for the console, the conversation of the command line and the agents alike.

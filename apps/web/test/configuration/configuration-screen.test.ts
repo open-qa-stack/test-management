@@ -148,6 +148,7 @@ describe("the screen of the configuration", () => {
     assert.match(text, /Son nom seulement : la chaîne de connexion reste sur la machine qui mène les sessions\./);
     assert.ok(bears(html, "/knowledge/3/path", 'value="specs/orders.md"'));
     assert.deepEqual(fieldsNamed(html, "/knowledge/4/path"), []);
+    assert.match(html, /<a class="btn sm" href="#\/knowledge\/manuals">Ouvrir ses documents<\/a>/);
     assert.match(text, /Ses documents sont gardés par l’instance, et s’y déposent une fois la configuration enregistrée\./);
     assert.ok(bears(html, "/knowledge/5/commands", 'data-kind="choice"'));
     assert.match(
@@ -188,6 +189,7 @@ describe("the screen of the configuration", () => {
     assert.match(html, /<option value="" selected="">Choisir une application<\/option>/);
     assert.match(html, /<option value="gone" selected="">gone<\/option>/);
     assert.match(html, /<option value="old" selected="">old<\/option>/);
+    assert.doesNotMatch(html, /href="#\/knowledge\/"/);
   });
 
   it("says when the configuration declares no knowledge source", () => {

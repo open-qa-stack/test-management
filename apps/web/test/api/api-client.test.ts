@@ -118,6 +118,41 @@ describe("the client of the API, for the configuration", () => {
   });
 });
 
+describe("the client of the API, for the documents of the knowledge sources", () => {
+  const SUMMARY = { name: "quotes é.md", bytes: 9, uploadedAt: "2026-11-18T09:00:00.000Z" };
+
+  it("lists the documents of a source out of the envelope the API answers, and reads one, each name encoded", async () => {
+    const listed = clientOf(() => json({ items: [SUMMARY] }));
+    assert.deepEqual(await listed.client.documents("user guides"), [SUMMARY]);
+    const read = clientOf(() => json({ ...SUMMARY, text: "# Quotes\n" }));
+    assert.deepEqual(await read.client.document("manuals", "quotes é.md"), { ...SUMMARY, text: "# Quotes\n" });
+    assert.deepEqual(
+      [...listed.calls, ...read.calls],
+      [
+        ["/api/knowledge/user%20guides/documents", undefined],
+        ["/api/knowledge/manuals/documents/quotes%20%C3%A9.md", undefined],
+      ],
+    );
+  });
+
+  it("uploads files as the parts of a form, each under its name, and removes a document without reading the answer", async () => {
+    const uploaded = clientOf(() => json({ items: [SUMMARY] }, 201));
+    const files = [new File(["# Quotes\n"], "quotes é.md"), new File(["# Claims\n"], "claims.md")];
+    assert.deepEqual(await uploaded.client.upload("manuals", files), [SUMMARY]);
+    const [[path, init]] = uploaded.calls as [Call];
+    assert.equal(path, "/api/knowledge/manuals/documents");
+    assert.equal(init?.method, "POST");
+    const body = init?.body as FormData;
+    assert.deepEqual(
+      body.getAll("documents").map((part) => (part as File).name),
+      ["quotes é.md", "claims.md"],
+    );
+    const removed = clientOf(() => new Response(null, { status: 204 }));
+    assert.equal(await removed.client.removeDocument("manuals", "quotes é.md"), undefined);
+    assert.deepEqual(removed.calls, [["/api/knowledge/manuals/documents/quotes%20%C3%A9.md", { method: "DELETE" }]]);
+  });
+});
+
 describe("the client of the API", () => {
   it("reaches the API under the path of the instance", () => {
     assert.equal(API_BASE, "/api");

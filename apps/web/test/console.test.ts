@@ -159,6 +159,19 @@ describe("the console", () => {
     );
   });
 
+  it("shows the knowledge and its sources at their addresses, which read them from the instance", () => {
+    assert.equal(
+      pageOf(consoleAt("#/knowledge", { project: PROJECT })),
+      "lakeside-tests / Connaissances Connaissances Déclarer dans la configuration Lecture des connaissances Elles apparaissent dès que l’instance a répondu.",
+    );
+    assert.match(
+      pageOf(consoleAt("#/knowledge/manuals", { project: PROJECT })),
+      /^lakeside-tests \/ Connaissances \/ manuals manuals Lecture des connaissances/,
+    );
+    assert.equal(documentTitleOf({ route: at("#/knowledge/manuals") }), "Connaissances · Open QA Stack");
+    assert.match(pageOf(consoleAt("#/knowledge/manuals/more")), /Page introuvable/);
+  });
+
   it("shows the configuration at its address, which reads it from the instance", () => {
     const html = consoleAt("#/configuration", { project: PROJECT });
     assert.equal(pageOf(html), "lakeside-tests / Configuration Configuration Lecture de la configuration Elle apparaît dès que l’instance a répondu.");

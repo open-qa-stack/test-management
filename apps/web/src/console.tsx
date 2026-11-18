@@ -5,6 +5,7 @@ import type { Opening } from "./agent/console-state.ts";
 import type { LiveSession } from "./agent/live-session.ts";
 import { SessionScreen } from "./agent/session-screen.tsx";
 import { ConfigurationPage } from "./configuration/configuration-page.tsx";
+import { KnowledgePage } from "./knowledge/knowledge-page.tsx";
 import { hrefTo, type Route } from "./routing/route.ts";
 import { t } from "./i18n/i18n.ts";
 import { Shell } from "./shell/shell.tsx";
@@ -40,7 +41,7 @@ export interface ConsoleProps {
  * that says the instance keeps no such session, or that the address leads nowhere.
  */
 type Shown =
-  | { readonly screen: "entry" | "configuration" | "no_session" | "nowhere" }
+  | { readonly screen: "entry" | "configuration" | "knowledge" | "no_session" | "nowhere" }
   | { readonly screen: "session"; readonly live: LiveSession }
   | { readonly screen: "opening"; readonly id: string };
 
@@ -77,6 +78,7 @@ export function isEntry(route: Route): boolean {
 function shownOf({ route, live, missing = false }: ConsoleProps): Shown {
   if (isEntry(route)) return { screen: "entry" };
   if (route.path.length === 1 && route.path[0] === "configuration") return { screen: "configuration" };
+  if (route.path[0] === "knowledge" && route.path.length <= 2) return { screen: "knowledge" };
   const id = sessionAt(route);
   if (id === undefined) return { screen: "nowhere" };
   if (live?.script.id === id) return { screen: "session", live };
@@ -94,7 +96,7 @@ export function documentTitleOf(props: ConsoleProps): string {
   return `${shown.screen === "session" ? shown.live.script.title : titleOf(shown.screen)} · Open QA Stack`;
 }
 
-/** The screen of a route: the entry of the agent, a session, the configuration, or a page that says where the address leads. */
+/** The screen of a route: the entry of the agent, a session, the configuration, the knowledge, or a page that says where the address leads. */
 function Screen(props: ConsoleProps): ReactNode {
   const { route, project, sessions, unlisted, opening = { state: "idle" }, onOpen, onConfigured } = props;
   const name = project?.name ?? t("console.project");
@@ -115,6 +117,8 @@ function Screen(props: ConsoleProps): ReactNode {
       return <SessionScreen route={route} live={shown.live} project={name} />;
     case "configuration":
       return <ConfigurationPage project={name} {...(onConfigured === undefined ? {} : { onSaved: onConfigured })} />;
+    case "knowledge":
+      return <KnowledgePage project={name} route={route} />;
     case "opening":
     case "no_session":
     case "nowhere": {

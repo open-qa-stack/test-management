@@ -5,6 +5,7 @@ import { EVENTS, SESSION_ID } from "./agent/session-fixture.ts";
 import type { Locator, Page } from "playwright-core";
 import { BuiltConsole } from "./built-console.ts";
 import { ConfiguredInstance } from "./configuration/configured-instance.ts";
+import { DocumentedInstance } from "./knowledge/documented-instance.ts";
 import { OPENED_ID, PlayedInstance } from "./played-instance.ts";
 
 let built: BuiltConsole | undefined;
@@ -1090,6 +1091,75 @@ describe("the configuration in a browser", () => {
   });
 });
 
+describe("the knowledge in a browser", () => {
+  /** The documents of the source the instance keeps, listed. */
+  async function documentsAt(width: number, instance = new DocumentedInstance(), hash = "#/knowledge/manuals"): Promise<Page> {
+    const page = await app().open(width, hash, instance.api);
+    await page.getByRole("heading", { name: "manuals" }).waitFor();
+    await page.getByRole("link", { name: "quotes.md", exact: true }).waitFor();
+    return page;
+  }
+
+  it("fits a phone and a wide screen, the sources, the documents, a removal asked and a document read, every link and button a finger can press", async () => {
+    for (const width of [390, 1440]) {
+      const page = await app().open(width, "#/knowledge", new DocumentedInstance().api);
+      try {
+        await page.getByText("manuals").first().waitFor();
+        await page.getByText("1 document", { exact: true }).waitFor();
+        assert.equal(await overflowOf(page), 0, `overview at ${width}`);
+        if (width < 1100) assert.deepEqual(await tooSmallOf(page), [], `overview at ${width}`);
+        await page.goto(`http://console.test/#/knowledge/manuals?remove=quotes.md&document=quotes.md`);
+        await page.getByRole("button", { name: "Retirer le document" }).waitFor();
+        await page.getByText("A quote is priced.").waitFor();
+        assert.equal(await overflowOf(page), 0, `source at ${width}`);
+        if (width < 1100) assert.deepEqual(await tooSmallOf(page), [], `source at ${width}`);
+      } finally {
+        await page.close();
+      }
+    }
+  });
+
+  it("uploads the files chosen, which the list then shows, and refuses beside the field a file it does not read", async () => {
+    const instance = new DocumentedInstance();
+    const page = await documentsAt(390, instance);
+    try {
+      const field = page.getByLabel("Fichiers Markdown");
+      await field.setInputFiles([
+        { name: "claims.md", mimeType: "text/markdown", buffer: Buffer.from("# Claims\n") },
+        { name: "manual.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF") },
+      ]);
+      await page.getByRole("button", { name: "Déposer", exact: true }).click();
+      const refused = page.getByRole("alert").filter({ hasText: "manual.pdf Seul le Markdown est lu" });
+      await refused.waitFor();
+      assert.equal(await field.getAttribute("aria-invalid"), "true");
+      assert.equal(instance.documents.size, 1);
+      await field.setInputFiles([{ name: "claims.md", mimeType: "text/markdown", buffer: Buffer.from("# Claims\n") }]);
+      await page.getByRole("button", { name: "Déposer", exact: true }).click();
+      await page.getByRole("status").filter({ hasText: "1 document déposé" }).waitFor();
+      await page.getByRole("link", { name: "claims.md", exact: true }).waitFor();
+      assert.equal(await field.evaluate((input: HTMLInputElement) => input.files?.length), 0);
+      assert.equal(instance.documents.get("claims.md")?.text, "# Claims\n");
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("removes a document once the person confirmed it, and closes the confirmation", async () => {
+    const instance = new DocumentedInstance();
+    const page = await documentsAt(1440, instance);
+    try {
+      await page.getByRole("link", { name: "Retirer quotes.md" }).click();
+      await page.getByRole("button", { name: "Retirer le document" }).click();
+      await page.getByRole("status").filter({ hasText: "Document retiré." }).waitFor();
+      await page.getByText("Aucun document pour l’instant").waitFor();
+      assert.equal(new URL(page.url()).hash, "#/knowledge/manuals");
+      assert.equal(instance.documents.size, 0);
+    } finally {
+      await page.close();
+    }
+  });
+});
+
 describe("the code of the console is covered in full", () => {
   it("runs every line of the entry point and of the application when the console is used in the browser", async () => {
     const source = (await readFile(new URL("../src/main.tsx", import.meta.url), "utf8")).split("\n");
@@ -1165,6 +1235,27 @@ describe("the code of the console is covered in full", () => {
     assert.deepEqual(main!.uncovered, []);
     assert.ok(application!.lines.length > 20, "the application is in the build");
     assert.deepEqual(application!.uncovered, []);
+  });
+
+  it("runs every line of the screens of the knowledge when they are used in the browser", async () => {
+    const instance = new DocumentedInstance();
+    const [screen] = await app().measure(
+      ["src/knowledge/knowledge-page.tsx"],
+      async (page) => {
+        await page.goto("http://console.test/#/knowledge/manuals?document=quotes.md");
+        await page.getByText("A quote is priced.").waitFor();
+        await page.getByLabel("Fichiers Markdown").setInputFiles([{ name: "claims.md", mimeType: "text/markdown", buffer: Buffer.from("# Claims\n") }]);
+        await page.getByRole("button", { name: "Déposer", exact: true }).click();
+        await page.getByRole("status").filter({ hasText: "1 document déposé" }).waitFor();
+        await page.getByRole("link", { name: "Retirer claims.md" }).click();
+        await page.getByRole("button", { name: "Retirer le document" }).click();
+        await page.getByRole("status").filter({ hasText: "Document retiré." }).waitFor();
+        await page.waitForURL(/#\/knowledge\/manuals$/);
+      },
+      instance.api,
+    );
+    assert.ok(screen!.lines.length > 10, "the screen is in the build");
+    assert.deepEqual(screen!.uncovered, []);
   });
 
   it("runs every line of the screen of the configuration when it is used in the browser", async () => {

@@ -20,6 +20,7 @@
       "coverage": "Couverture",
       "campaigns": "Campagnes",
       "defects": "Anomalies",
+      "knowledge": "Connaissances",
       "configuration": "Configuration"
     }
   },
@@ -29,6 +30,7 @@
     "titles": {
       "entry": "Agent",
       "configuration": "Configuration",
+      "knowledge": "Connaissances",
       "opening": "Ouverture de la session…",
       "no_session": "Session introuvable",
       "nowhere": "Page introuvable"
@@ -394,7 +396,13 @@
       "openapi-source": "Soit une adresse, soit un fichier du dépôt : exactement l’un des deux.",
       "document-source": "Soit un chemin, soit des documents déposés : exactement l’un des deux.",
       "logs-source": "Soit un fichier de journal, soit un conteneur et son moteur.",
-      "container-name": "Nom de conteneur attendu : lettres, chiffres, tirets bas, points et tirets."
+      "container-name": "Nom de conteneur attendu : lettres, chiffres, tirets bas, points et tirets.",
+      "no-documents": "Choisissez au moins un fichier.",
+      "too-many-documents": "Trop de fichiers à la fois.",
+      "document-name": "Nom de fichier refusé : ni point au début, ni barre oblique, ni caractère de contrôle, 200 caractères au plus.",
+      "document-format": "Seul le Markdown est lu : un fichier qui finit par .md ou .markdown.",
+      "document-size": "Trop lourd : un document fait 1 Mo au plus.",
+      "document-encoding": "Ce n’est pas un texte en UTF-8."
     },
     "origins": {
       "file": "Fichier oqas.json",
@@ -571,7 +579,8 @@
       "anyEnvironment": "Tous les environnements",
       "api": "API",
       "anyApi": "Toutes les API",
-      "addAttachment": "Ajouter un rattachement"
+      "addAttachment": "Ajouter un rattachement",
+      "openKnowledge": "Ouvrir ses documents"
     },
     "remove": "Retirer",
     "records": {
@@ -615,5 +624,48 @@
       "knowledgeNote": "Ce que les agents lisent des applications. Chaque source dit où elle se lit — jamais un secret — et les applications auxquelles elle se rattache.",
       "noKnowledge": "Aucune source de connaissance"
     }
+  },
+  "knowledge": {
+    "title": "Connaissances",
+    "configure": "Déclarer dans la configuration",
+    "reading": "Lecture des connaissances",
+    "readingNote": "Elles apparaissent dès que l’instance a répondu.",
+    "none": "Aucune source de connaissance",
+    "noneNote": "Déclarez dans la configuration les contrats, les bases, les documents, le code et les journaux que lisent les agents.",
+    "lead": "Les sources de chaque application, et où chacune se lit. Les domaines qu’en tire la cartographie viendront dans une prochaine version.",
+    "noSource": "Aucune source n’est rattachée à cette application",
+    "variable": "variable {{name}}",
+    "container": "conteneur {{name}}",
+    "documentCount_one": "{{count}} document",
+    "documentCount_other": "{{count}} documents",
+    "unknown": "Aucune source de ce nom",
+    "unknownNote": "La configuration en vigueur n’en déclare aucune : elle a pu être renommée ou retirée.",
+    "back": "Revenir aux connaissances",
+    "storedNote": "Ses documents sont gardés par l’instance : une session les écrit là où ses agents les lisent. Seul le Markdown est lu.",
+    "readThere": "Les agents lisent cette source là où elle est : rien ne s’y dépose.",
+    "everywhere": "tous les environnements",
+    "documents": "Documents",
+    "documentsHint": "dans l’ordre de leurs noms",
+    "listing": "Liste des documents",
+    "noDocument": "Aucun document pour l’instant",
+    "noDocumentNote": "Déposez les premiers ci-dessous.",
+    "remove": "Retirer",
+    "removeNamed": "Retirer {{name}}",
+    "confirmTitle": "Retirer {{name}} ?",
+    "confirmNote": "Le document est supprimé de l’instance, et les prochaines sessions ne le lisent plus. C’est définitif.",
+    "cancel": "Annuler",
+    "confirmRemove": "Retirer le document",
+    "upload": "Déposer des documents",
+    "files": "Fichiers Markdown",
+    "filesHint": "{{size}} au plus chacun, {{count}} au plus à la fois. Un document du même nom est remplacé.",
+    "send": "Déposer",
+    "sending": "Envoi…",
+    "uploaded_one": "{{count}} document déposé : les prochaines sessions le lisent.",
+    "uploaded_other": "{{count}} documents déposés : les prochaines sessions les lisent.",
+    "removed": "Document retiré.",
+    "readOnly": "tel que l’instance le garde",
+    "close": "Fermer",
+    "opening": "Lecture du document",
+    "openingNote": "Il apparaît dès que l’instance a répondu."
   }
 }
