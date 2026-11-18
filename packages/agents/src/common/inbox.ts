@@ -2,7 +2,7 @@ import type { PersonMessage } from "@open-qa-stack/domain";
 
 /**
  * The messages a person sends to a run while it is going, as its sessions take them: whoever hosts the run
- * says where they come from, a file a person appends to or the conversation of an instance.
+ * says where they come from, such as the conversation of an instance.
  *
  * @remarks
  * The messages are numbered from 1 in the order they were sent, and a number always names the same message.

@@ -4,7 +4,7 @@ import { briefOf } from "./run-lines.ts";
 import type { TracePhase } from "../run/trace-line.ts";
 import type { ActionFinishedEvent, ActionLook, AgentRole, PlannedScenario } from "../sessions/session-event.ts";
 import type { UnrankedEvent } from "../sessions/unranked-event.ts";
-import type { PersonLine, RunLine, RunLineEvent, ThreadLine } from "./thread-line.ts";
+import type { RunLine, RunLineEvent } from "./thread-line.ts";
 
 /** Longest text of a message, of a note or of a refusal; a longer one is cut. */
 const MAX_TEXT = 2000;
@@ -87,13 +87,12 @@ function outcomeOf(result: unknown): ActionFinishedEvent["outcome"] {
 }
 
 /**
- * The thread of a session, written from the lines of a run and from those of its inbox, read in the order of
- * their dates: what a run says, as the events of the contract of sessions, without their ranks, which whoever
- * keeps the thread gives.
+ * The thread of a session, written from the lines of a run, read in the order of their dates: what a run
+ * says, as the events of the contract of sessions, without their ranks, which whoever keeps the thread gives.
  *
  * @remarks
- * A message a person sent to the run is a `user_message` that bears its number, and the line the harness
- * traces when it hands that message to the session of a phase a `message_delivered` to the agent of the phase.
+ * The line the harness traces when it hands a message of the person to the session of a phase is a
+ * `message_delivered` to the agent of the phase; the message itself is told by whoever took it from the person.
  * A phase that starts is a `phase_started`, the writing of a test with the scenario the harness opened before.
  * What the harness sent an agent is a `harness_message` to the agent of the phase, the three reviewers told
  * apart by what the harness asks them; the first request that quotes the brief of the person is preceded by a
@@ -132,8 +131,7 @@ export class RunThread {
    * @param line - The line; lines are given in the order of their dates.
    * @returns The events it adds to the thread, in order; none for a line the thread does not tell.
    */
-  add(line: ThreadLine): UnrankedEvent[] {
-    if (line.actor === "person") return [this.#said(line)];
+  add(line: RunLine): UnrankedEvent[] {
     const { at, event } = line;
     if (line.actor === "agent") return this.#acted(at, line.phase, event);
     if (event.type === "started") return [this.#started(line)];
@@ -144,10 +142,6 @@ export class RunThread {
 
   #agent(phase: TracePhase): AgentRole {
     return phase === "review" ? this.#reviewer : AGENTS[phase];
-  }
-
-  #said({ at, number, text }: PersonLine): UnrankedEvent {
-    return { at, type: "user_message", text: cut(text, MAX_TEXT), number };
   }
 
   /** The delivery of a message of the person to the agent of a phase; nothing when the line does not number the message. */

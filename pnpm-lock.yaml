@@ -121,9 +121,6 @@ importers:
 
   packages/cli:
     dependencies:
-      '@open-qa-stack/agents':
-        specifier: workspace:*
-        version: link:../agents
       '@open-qa-stack/domain':
         specifier: workspace:*
         version: link:../domain
@@ -133,6 +130,9 @@ importers:
       '@open-qa-stack/harness':
         specifier: workspace:*
         version: link:../harness
+      '@open-qa-stack/store':
+        specifier: workspace:*
+        version: link:../store
       '@open-qa-stack/tools':
         specifier: workspace:*
         version: link:../tools

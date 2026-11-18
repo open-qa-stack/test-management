@@ -44,6 +44,11 @@ export class RunningExecutions {
     return this.#executions.get(session);
   }
 
+  /** @returns Every execution that runs, under the identifier of its session, in the order they were added. */
+  entries(): readonly (readonly [session: string, execution: RunningExecution])[] {
+    return [...this.#executions.entries()];
+  }
+
   /** @returns Every execution that runs, in the order they were added. */
   all(): readonly RunningExecution[] {
     return [...this.#executions.values()];

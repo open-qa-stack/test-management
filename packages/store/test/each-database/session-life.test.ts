@@ -8,6 +8,9 @@ import { at } from "../support/at.ts";
 import { engineUnderTest } from "../support/database-engine.ts";
 import { SessionDatabase } from "../support/session-database.ts";
 
+/** What names the process the tests host their sessions as. */
+const HOST = "host-under-test";
+
 const RESULT: SessionResult = { outcome: "passed", durationMs: 30_000, modelRequests: 3, tests: [{ id: "profile", verdict: "passed", reason: "Passed." }] };
 
 const noted = (seconds: number, text: string): UnrankedEvent => ({ at: at(seconds), type: "note", phase: "plan", text });
@@ -29,13 +32,13 @@ afterAll(() => sessions.drop());
 /** Asks for a session at a given second. */
 function asked(seconds: number, request = "cover the profile"): Promise<Session> {
   now = seconds;
-  return store.ask({ request });
+  return store.ask({ request }, HOST);
 }
 
 /** Asks for a session, which its host starts at once. */
 async function started(): Promise<Session> {
   const { id } = await asked(now);
-  return store.start(id);
+  return store.start(id, HOST);
 }
 
 /** The events of a session as their rank and their type, in order. */
@@ -69,7 +72,7 @@ async function refused(command: () => Promise<unknown>, error: new (...parameter
 describe("a session that is asked for", () => {
   it("waits under an identifier of its own, with what the person asked as its first event", async () => {
     now = 45.12;
-    const session = await store.ask({ request: "cover the profile", environment: "local" });
+    const session = await store.ask({ request: "cover the profile", environment: "local" }, HOST);
     assert.match(session.id, /^session-2026-11-14T09-00-45-120Z-[0-9a-f]{8}$/);
     assert.deepEqual(session, {
       id: session.id,
@@ -87,7 +90,7 @@ describe("a session that is asked for", () => {
   });
 
   it("names no environment when the person named none", async () => {
-    const session = await store.ask({ request: "cover the profile" });
+    const session = await store.ask({ request: "cover the profile" }, HOST);
     assert.equal("environment" in session, false);
     assert.deepEqual(await store.session(session.id), session);
   });
@@ -102,7 +105,7 @@ describe("a session that is asked for", () => {
 
   it("is dated by the clock of the machine when the store is given none", async () => {
     const before = Date.now();
-    const session = await sessions.store.ask({ request: "cover the profile" });
+    const session = await sessions.store.ask({ request: "cover the profile" }, HOST);
     const opened = Date.parse(session.openedAt);
     assert.ok(opened >= before && opened <= Date.now(), session.openedAt);
   });
@@ -112,7 +115,7 @@ describe("a session its host starts", () => {
   it("runs from then on, which an event tells", async () => {
     const waiting = await asked(1);
     now = 10;
-    const running = await store.start(waiting.id);
+    const running = await store.start(waiting.id, HOST);
     assert.deepEqual(running, { ...waiting, state: "running", lastEventAt: at(10) });
     assert.deepEqual(await store.session(waiting.id), running);
     assert.deepEqual(await store.eventsAfter(waiting.id, 1), [{ id: 2, at: at(10), type: "state_changed", state: "running" }]);
@@ -120,16 +123,16 @@ describe("a session its host starts", () => {
 
   it("is started once: one that runs already is refused, as are one that ended and one that does not exist", async () => {
     const { id } = await started();
-    await refused(() => store.start(id), SessionStateError, id);
-    await assert.rejects(store.start(id), { message: `The session ${id} takes no start while it is running.` });
+    await refused(() => store.start(id, HOST), SessionStateError, id);
+    await assert.rejects(store.start(id, HOST), { message: `The session ${id} takes no start while it is running.` });
     await store.interrupt(id);
-    await refused(() => store.start(id), SessionEndedError, id);
-    await refused(() => store.start("unknown"), UnknownSessionError, "unknown");
+    await refused(() => store.start(id, HOST), SessionEndedError, id);
+    await refused(() => store.start("unknown", HOST), UnknownSessionError, "unknown");
   });
 
   it("is started by one of two that start it at the same time", async () => {
     const { id } = await asked(0);
-    const starts = await Promise.allSettled([store.start(id), store.start(id)]);
+    const starts = await Promise.allSettled([store.start(id, HOST), store.start(id, HOST)]);
     assert.deepEqual(starts.map(({ status }) => status).sort(), ["fulfilled", "rejected"]);
     assert.deepEqual(await told(id), [
       [1, "user_message"],
@@ -193,7 +196,7 @@ describe("a session that ends", () => {
     const { id } = await asked(0);
     await store.interrupt(id);
     assert.equal((await store.session(id))?.state, "interrupted");
-    await refused(() => store.start(id), SessionEndedError, id);
+    await refused(() => store.start(id, HOST), SessionEndedError, id);
   });
 
   it("is completed while it runs alone: the end of a session that still waits is refused", async () => {
@@ -345,18 +348,85 @@ describe("the messages a session holds for its agents", () => {
   });
 });
 
-describe("the sessions a process that died left running", () => {
+/** What names another process that hosts sessions on the same database. */
+const OTHER = "host-other";
+
+/** How long without a beat tells the tests that a host died, in milliseconds. */
+const SILENCE_MS = 15_000;
+
+/** The host of a session and its last beat, as the database keeps them, with the interruption another process asked for. */
+async function hosting(id: string): Promise<{ host: string | null; seen: string | null; asked: string | null }> {
+  const row = await sessions.database.kysely
+    .selectFrom("sessions")
+    .select(["host", "host_seen_at", "interruption_requested_at"])
+    .where("id", "=", id)
+    .executeTakeFirstOrThrow();
+  const dated = (date: Date | string | null): string | null => (date === null ? null : instant(date));
+  return { host: row.host, seen: dated(row.host_seen_at), asked: dated(row.interruption_requested_at) };
+}
+
+describe("the host of a session", () => {
+  it("is the process that asked for it, then the one that starts it, each dated as its first beat", async () => {
+    const { id } = await asked(3);
+    assert.deepEqual(await hosting(id), { host: HOST, seen: at(3), asked: null });
+    now = 5;
+    await store.start(id, OTHER);
+    assert.deepEqual(await hosting(id), { host: OTHER, seen: at(5), asked: null });
+  });
+
+  it("beats on the sessions it hosts that go on, and on no other", async () => {
+    const waiting = await asked(0);
+    const running = await started();
+    const ended = await started();
+    await store.interrupt(ended.id);
+    const elsewhere = await store.ask({ request: "cover the orders" }, OTHER);
+    now = 9;
+    await store.beat(HOST);
+    assert.deepEqual(
+      (await Promise.all([waiting, running, ended, elsewhere].map(({ id }) => hosting(id)))).map(({ seen }) => seen),
+      [at(9), at(9), at(0), at(0)],
+    );
+    assert.deepEqual((await store.session(running.id))?.lastEventAt, at(0), "a beat is no event");
+  });
+
+  it("withdraws its beats when it stops: its sessions that go on read as left at once", async () => {
+    const waiting = await asked(0);
+    const running = await started();
+    const elsewhere = await store.ask({ request: "cover the orders" }, OTHER);
+    await store.release(HOST);
+    assert.deepEqual(
+      (await Promise.all([waiting, running, elsewhere].map(({ id }) => hosting(id)))).map(({ seen }) => seen),
+      [null, null, at(0)],
+    );
+    assert.deepEqual(await store.abandonSilent(SILENCE_MS), [running.id]);
+    assert.deepEqual(await store.takeOver(OTHER, SILENCE_MS), [waiting.id]);
+  });
+});
+
+describe("the sessions a host that went silent left running", () => {
   it("are interrupted, which an event tells, and named", async () => {
     const left = await started();
     const alsoLeft = await started();
-    now = 601;
-    assert.deepEqual((await store.abandonRunning()).sort(), [left.id, alsoLeft.id].sort());
+    now = 15.001;
+    assert.deepEqual((await store.abandonSilent(SILENCE_MS)).sort(), [left.id, alsoLeft.id].sort());
     for (const { id } of [left, alsoLeft]) {
-      assert.deepEqual(await store.session(id), { id, request: "cover the profile", openedAt: at(0), lastEventAt: at(601), state: "interrupted" });
-      assert.deepEqual((await store.eventsAfter(id, 0)).at(-1), { id: 3, at: at(601), type: "state_changed", state: "interrupted" });
+      assert.deepEqual(await store.session(id), { id, request: "cover the profile", openedAt: at(0), lastEventAt: at(15.001), state: "interrupted" });
+      assert.deepEqual((await store.eventsAfter(id, 0)).at(-1), { id: 3, at: at(15.001), type: "state_changed", state: "interrupted" });
     }
-    await refused(() => store.append(left.id, [noted(602, "Too late.")]), SessionEndedError, left.id);
-    assert.deepEqual(await store.abandonRunning(), []);
+    await refused(() => store.append(left.id, [noted(16, "Too late.")]), SessionEndedError, left.id);
+    assert.deepEqual(await store.abandonSilent(SILENCE_MS), []);
+  });
+
+  it("are those whose host did not beat for longer than the silence allowed: one whose host beats is left to it", async () => {
+    const silent = await started();
+    const alive = await store.start((await store.ask({ request: "cover the orders" }, OTHER)).id, OTHER);
+    now = 15;
+    assert.deepEqual(await store.abandonSilent(SILENCE_MS), [], "a beat as old as the silence allowed is still a beat");
+    now = 20;
+    await store.beat(OTHER);
+    now = 30;
+    assert.deepEqual(await store.abandonSilent(SILENCE_MS), [silent.id]);
+    assert.equal((await store.session(alive.id))?.state, "running");
   });
 
   it("are those that run alone: one that waits and one that ended are left as they are", async () => {
@@ -365,7 +435,80 @@ describe("the sessions a process that died left running", () => {
     await asked(0);
     const states = await store.sessions();
     now = 601;
-    assert.deepEqual(await store.abandonRunning(), []);
+    assert.deepEqual(await store.abandonSilent(SILENCE_MS), []);
     assert.deepEqual(await store.sessions(), states);
+  });
+
+  it("are also those that bear no host: a session an earlier version of the schema left running", async () => {
+    const stamp = at(0);
+    await sessions.database.kysely.insertInto("sessions").values({ id: "earlier", opened_at: stamp, last_event_at: stamp, state: "running" }).execute();
+    assert.deepEqual(await store.abandonSilent(SILENCE_MS), ["earlier"]);
+  });
+});
+
+describe("the sessions a host that went silent left waiting", () => {
+  it("are taken over by a host that stays, in the order they were asked for, and wait for it from then on", async () => {
+    const second = await asked(2);
+    const first = await asked(1);
+    const running = await started();
+    const alive = await store.ask({ request: "cover the orders" }, OTHER);
+    now = 20;
+    await store.beat(OTHER);
+    now = 30;
+    assert.deepEqual(await store.takeOver("host-that-stays", SILENCE_MS), [first.id, second.id]);
+    for (const { id } of [first, second]) assert.deepEqual(await hosting(id), { host: "host-that-stays", seen: at(30), asked: null });
+    assert.equal((await hosting(running.id)).host, HOST, "a session that runs is not taken over: it is abandoned");
+    assert.equal((await hosting(alive.id)).host, OTHER, "a session whose host beats is left to it");
+    assert.deepEqual(await store.takeOver(OTHER, SILENCE_MS), [], "a session is taken over once");
+    assert.deepEqual((await store.sessions()).map(({ state }) => state).sort(), ["queued", "queued", "queued", "running"]);
+  });
+
+  it("are taken in the order of their identifiers when they were asked for in the same millisecond", async () => {
+    const twins = await Promise.all([asked(1), asked(1), asked(1)]);
+    now = 30;
+    assert.deepEqual(await store.takeOver(OTHER, SILENCE_MS), twins.map(({ id }) => id).sort());
+  });
+});
+
+describe("an interruption another process asks for", () => {
+  it("is kept for the host of a session that runs, which reads it among those of its sessions", async () => {
+    const running = await started();
+    const untouched = await started();
+    now = 4;
+    await store.requestInterruption(running.id, SILENCE_MS);
+    assert.deepEqual(await hosting(running.id), { host: HOST, seen: at(0), asked: at(4) });
+    assert.equal((await store.session(running.id))?.state, "running", "its host stops the run, then interrupts it");
+    assert.deepEqual(await store.interruptionRequests(HOST), [running.id]);
+    assert.deepEqual(await store.interruptionRequests(OTHER), []);
+    assert.equal((await hosting(untouched.id)).asked, null);
+    await store.interrupt(running.id);
+    assert.deepEqual(await store.interruptionRequests(HOST), [], "a session that ended is asked nothing more");
+  });
+
+  it("interrupts at once a session that waits, and one whose host went silent: nobody would do it", async () => {
+    const waiting = await asked(0);
+    const left = await started();
+    now = 1;
+    await store.requestInterruption(waiting.id, SILENCE_MS);
+    now = 16;
+    await store.requestInterruption(left.id, SILENCE_MS);
+    for (const { id } of [waiting, left]) assert.equal((await store.session(id))?.state, "interrupted");
+    assert.deepEqual((await store.eventsAfter(waiting.id, 0)).at(-1), { id: 2, at: at(1), type: "state_changed", state: "interrupted" });
+    assert.deepEqual((await store.eventsAfter(left.id, 0)).at(-1), { id: 3, at: at(16), type: "state_changed", state: "interrupted" });
+    assert.deepEqual(await store.interruptionRequests(HOST), []);
+  });
+
+  it("interrupts at once a session whose host withdrew its beats", async () => {
+    const left = await started();
+    await store.release(HOST);
+    await store.requestInterruption(left.id, SILENCE_MS);
+    assert.equal((await store.session(left.id))?.state, "interrupted");
+  });
+
+  it("is refused for a session that ended, and for one that does not exist", async () => {
+    const { id } = await started();
+    await store.complete(id, RESULT);
+    await refused(() => store.requestInterruption(id, SILENCE_MS), SessionEndedError, id);
+    await refused(() => store.requestInterruption("unknown", SILENCE_MS), UnknownSessionError, "unknown");
   });
 });

@@ -35,7 +35,7 @@ export const nonEmptyText: ValueType<string> = {
 
 /** The connection URL of a database the store supports: a PostgreSQL server, or a SQLite file. */
 export const databaseUrl: ValueType<DatabaseUrl> = {
-  rule: "a database URL: postgres:// or postgresql:// with a host name for a PostgreSQL server, or sqlite: followed by the path of a file",
+  rule: DatabaseUrl.rule,
   parse(raw) {
     const value = DatabaseUrl.parse(raw);
     return value === undefined ? { ok: false } : { ok: true, value };

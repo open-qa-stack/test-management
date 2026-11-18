@@ -2,6 +2,7 @@ import type { CommandRunner, ResolvedConfig, SessionStorePort } from "@open-qa-s
 import type { OpenRuntime } from "../ports/open-runtime.ts";
 import type { SessionsLogger } from "./sessions-logger.ts";
 import type { WriterPace } from "./session-writer.ts";
+import type { SessionsPace } from "./sessions-pace.ts";
 
 /** What whoever hosts the operations on sessions gives them: where the sessions are kept, and what their runs work with. */
 export interface SessionsHost {
@@ -12,6 +13,12 @@ export interface SessionsHost {
    * a host that has none, which serves what the store keeps and opens no session.
    */
   readonly repository: string | undefined;
+  /**
+   * Whether the host stays to run whatever waits, as a server does: it then takes over the sessions that wait
+   * for a host that died. A host that runs the session it opens and leaves, a command in a terminal, takes
+   * none over: they wait for a host that stays.
+   */
+  readonly takesOver: boolean;
   /** The environment of the runs: the secrets and the accounts the configuration of the repository names. */
   readonly env: Readonly<Record<string, string | undefined>>;
   /** Where the operations report what happens to a session, and what goes wrong around it. */
@@ -24,4 +31,6 @@ export interface SessionsHost {
   readonly now?: () => Date;
   /** How a write to the store that failed is made again; the pace of the writer by default. */
   readonly writerPace?: WriterPace;
+  /** The paces of the process among the others that reach the store; `DEFAULT_PACE` by default. */
+  readonly pace?: SessionsPace;
 }

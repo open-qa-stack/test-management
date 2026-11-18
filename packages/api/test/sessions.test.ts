@@ -415,7 +415,7 @@ describe("the operations on sessions, started and stopped with the API", () => {
     const failed = await lived(() => Promise.reject(new Error("The database is unreachable.")), false);
     assert.deepEqual(failed.lines, [
       "warn The sessions are not started, and will be when one is next opened: The database is unreachable.",
-      "warn The session under way did not end in time: it stays running in the database until the API starts again, and interrupts it.",
+      "warn The session under way did not end in time: it stays running in the database until a process that hosts sessions interrupts it.",
     ]);
     assert.deepEqual((await lived(() => Promise.reject("lost"), true)).lines, ["warn The sessions are not started, and will be when one is next opened: lost"]);
   });

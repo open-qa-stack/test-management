@@ -1,12 +1,4 @@
-import { appendFileSync, mkdirSync } from "node:fs";
-import { dirname } from "node:path";
 import type { AgentEvent, AgentRuntime, AgentSession, SessionOptions, TerminalEvent } from "@open-qa-stack/domain";
-
-/** Appends a message of the person to the inbox of a run, as whoever speaks to the run does. */
-export function say(inbox: string, text: string): void {
-  mkdirSync(dirname(inbox), { recursive: true });
-  appendFileSync(inbox, `${JSON.stringify({ at: "2026-11-13T10:00:00.000Z", text })}\n`);
-}
 
 export const END: TerminalEvent = { type: "end", counters: { iterations: 1, actions: 0, elapsedMs: 1 } };
 

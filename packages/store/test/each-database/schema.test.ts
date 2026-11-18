@@ -37,6 +37,9 @@ const DECLARED: { readonly [Table in keyof StoreSchema]: { readonly [Column in k
     last_event_at: "instant",
     state: "text",
     result: "json, or nothing",
+    host: "text, or nothing",
+    host_seen_at: "instant, or nothing",
+    interruption_requested_at: "instant, or nothing",
   },
   session_events: { session_id: "text", id: "integer", at: "instant", type: "text", payload: "json" },
   session_messages: {

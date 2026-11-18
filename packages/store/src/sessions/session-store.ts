@@ -6,14 +6,14 @@ import {
   SessionEndedError,
   SessionStateError,
   UnknownSessionError,
+  type AddressedCommand,
   type PendingMessage,
-  type SessionCommand,
   type SessionStorePort,
 } from "@open-qa-stack/domain";
 import { instant, jsonOf, storedJson } from "../database/stored-values.ts";
 import { newSessionId } from "./session-id.ts";
 import type { AgentRole, MessageReceipt, Project, Session, SessionEvent, SessionOpening, SessionResult, UnrankedEvent } from "@open-qa-stack/domain/sessions";
-import type { Kysely, Selectable, Updateable } from "kysely";
+import type { ExpressionBuilder, Kysely, Selectable, Updateable } from "kysely";
 import type { Database } from "../database/database.ts";
 import type { SessionsTable, StoreSchema } from "../database/schema.ts";
 
@@ -24,10 +24,7 @@ type Statements = Kysely<StoreSchema>;
 type SessionRow = Selectable<SessionsTable>;
 
 /** What a command changes of the row of a session, besides the date of its last event. */
-type SessionChange = Pick<Updateable<SessionsTable>, "state" | "result">;
-
-/** A command that names its session: every one but those that pick the sessions they are for. */
-type AddressedCommand = Exclude<SessionCommand, "abandon">;
+type SessionChange = Pick<Updateable<SessionsTable>, "state" | "result" | "host" | "host_seen_at">;
 
 /** A row of the sessions as the session it holds: what is absent is left out, dates are ISO 8601. */
 function sessionOf({ id, request, environment, opened_at, last_event_at, state, result }: SessionRow): Session {
@@ -55,6 +52,11 @@ function sessionOf({ id, request, environment, opened_at, last_event_at, state, 
  * follows the last, without a gap nor a rank given twice. The statements are the same on every database the
  * store supports. The store notifies no one: whoever sends a command knows what it changed. What the store
  * dates, it dates by the clock of the process that runs the command.
+ *
+ * Several processes may reach the same database, each with a store of its own. A session bears its host, the
+ * process that asked for it or took it over, and the date of the last beat of that host: a host is silent
+ * when its beat is empty or older than the time the command that asks is given, by the clock of the process
+ * that asks.
  */
 export class SessionStore implements SessionStorePort {
   readonly #database: Kysely<StoreSchema>;
@@ -149,17 +151,35 @@ export class SessionStore implements SessionStorePort {
   }
 
   /**
+   * @param host - What names a process that hosts sessions.
+   * @returns The identifiers of the sessions it hosts that go on and whose interruption another process asked for.
+   */
+  async interruptionRequests(host: string): Promise<string[]> {
+    const rows = await this.#database
+      .selectFrom("sessions")
+      .select("id")
+      .where("host", "=", host)
+      .where("state", "in", [...SESSION_LIFE.beat.from])
+      .where("interruption_requested_at", "is not", null)
+      .orderBy("id")
+      .execute();
+    return rows.map(({ id }) => id);
+  }
+
+  /**
    * Asks for a session: it waits, `queued`, until its host starts it, and its first event is what the person
    * asked.
    *
    * @param opening - What to test, and where.
+   * @param host - What names the process that asks: the host of the session, which this is its first beat on.
    * @returns The session, under the identifier it was given.
    */
-  async ask(opening: SessionOpening): Promise<Session> {
+  async ask(opening: SessionOpening, host: string): Promise<Session> {
     const now = this.#clock();
     const at = instant(now);
     const { request, environment = null } = opening;
-    const row = { id: newSessionId(now), request, environment, opened_at: at, last_event_at: at, state: ASKED_STATE, result: null };
+    const asked = { id: newSessionId(now), request, environment, opened_at: at, last_event_at: at, state: ASKED_STATE, result: null };
+    const row = { ...asked, host, host_seen_at: at, interruption_requested_at: null };
     await this.#database.transaction().execute(async (transaction) => {
       await transaction.insertInto("sessions").values(row).execute();
       await this.#rank(transaction, row.id, [{ at, type: "user_message", text: request }]);
@@ -168,19 +188,21 @@ export class SessionStore implements SessionStorePort {
   }
 
   /**
-   * Starts a session that waits: it becomes `running`, and an event tells so.
+   * Starts a session that waits: it becomes `running`, and an event tells so. Whoever starts it is its host
+   * from then on.
    *
    * @param id - The identifier of the session.
+   * @param host - What names the process that starts it.
    * @returns The session, now running.
    * @throws {@link UnknownSessionError} when there is no such session.
    * @throws {@link SessionEndedError} when the session no longer goes on.
    * @throws {@link SessionStateError} when the session runs already.
    */
-  start(id: string): Promise<Session> {
+  start(id: string, host: string): Promise<Session> {
     const at = instant(this.#clock());
     const state = SESSION_LIFE.start.to;
     return this.#advance(id, "start", async (transaction, found) => {
-      await this.#tell(transaction, id, [{ at, type: "state_changed", state }], { state });
+      await this.#tell(transaction, id, [{ at, type: "state_changed", state }], { state, host, host_seen_at: at });
       return sessionOf({ ...found, state, last_event_at: at });
     });
   }
@@ -278,24 +300,116 @@ export class SessionStore implements SessionStorePort {
   }
 
   /**
-   * Ends the sessions a process that died left: every `running` session becomes `interrupted`, and an event
-   * tells so. A session that waits is left to wait.
+   * Asks, from a process that may not be the one that runs it, that a session that goes on be interrupted. One
+   * that waits is interrupted at once, and so is one whose host went silent: nobody would do it. For one that
+   * runs under a host that beats, the request is kept: its host reads it, stops the run and interrupts the session.
    *
+   * @param id - The identifier of the session.
+   * @param silentForMs - How long without a beat tells that a host died, in milliseconds.
+   * @throws {@link UnknownSessionError} when there is no such session.
+   * @throws {@link SessionEndedError} when the session had already ended.
+   */
+  async requestInterruption(id: string, silentForMs: number): Promise<void> {
+    const now = this.#clock();
+    const silentSince = this.#silentSince(now, silentForMs);
+    await this.#advance(id, "interrupt", async (transaction, { state, host_seen_at: seen }) => {
+      const hosted = state === SESSION_LIFE.start.to && seen !== null && instant(seen) >= silentSince;
+      if (!hosted) return this.#end(transaction, id, SESSION_LIFE.interrupt.to);
+      await transaction
+        .updateTable("sessions")
+        .set({ interruption_requested_at: instant(now) })
+        .where("id", "=", id)
+        .execute();
+    });
+  }
+
+  /**
+   * Tells that a host is alive: each session it hosts that goes on bears the date of this beat.
+   *
+   * @param host - What names the process.
+   */
+  async beat(host: string): Promise<void> {
+    await this.#seen(host, instant(this.#clock()));
+  }
+
+  /**
+   * Withdraws the beats of a host that stops: the sessions it still hosts read as left by a silent host at
+   * once, without waiting for the time a silence takes.
+   *
+   * @param host - What names the process.
+   */
+  async release(host: string): Promise<void> {
+    await this.#seen(host, null);
+  }
+
+  /**
+   * Gives a host that stays the sessions that wait for a host that went silent: they wait for it from then on.
+   *
+   * @param host - What names the process that takes them over.
+   * @param silentForMs - How long without a beat tells that a host died, in milliseconds.
+   * @returns The identifiers of the sessions taken over, in the order they were asked for.
+   */
+  async takeOver(host: string, silentForMs: number): Promise<string[]> {
+    const now = this.#clock();
+    const taken = await this.#database
+      .updateTable("sessions")
+      .set({ host, host_seen_at: instant(now) })
+      .where("state", "in", [...SESSION_LIFE.takeOver.from])
+      .where(this.#silent(now, silentForMs))
+      .returning(["id", "opened_at"])
+      .execute();
+    // The database answers the rows in the order it changed them: the sessions are started in the order they were asked for.
+    return taken
+      .map(({ id, opened_at: opened }) => ({ id, opened: instant(opened) }))
+      .sort((one, other) => one.opened.localeCompare(other.opened) || one.id.localeCompare(other.id))
+      .map(({ id }) => id);
+  }
+
+  /**
+   * Ends the sessions a host that died left: every `running` session whose host went silent becomes
+   * `interrupted`, and an event tells so. A session whose host beats is left to it, and one that waits is left
+   * to wait.
+   *
+   * @param silentForMs - How long without a beat tells that a host died, in milliseconds.
    * @returns The identifiers of the sessions that were interrupted.
    */
-  abandonRunning(): Promise<string[]> {
-    const at = instant(this.#clock());
+  abandonSilent(silentForMs: number): Promise<string[]> {
+    const now = this.#clock();
+    const at = instant(now);
     const { from, to: state } = SESSION_LIFE.abandon;
     return this.#database.transaction().execute(async (transaction) => {
       const left = await transaction
         .updateTable("sessions")
         .set({ state, last_event_at: at })
         .where("state", "in", [...from])
+        .where(this.#silent(now, silentForMs))
         .returning("id")
         .execute();
       for (const { id } of left) await this.#rank(transaction, id, [{ at, type: "state_changed", state }]);
       return left.map(({ id }) => id);
     });
+  }
+
+  /** The date a beat must bear, or a later one, for its host not to be silent. */
+  #silentSince(now: Date, silentForMs: number): string {
+    return instant(new Date(now.getTime() - silentForMs));
+  }
+
+  /** What selects the sessions whose host went silent: its beat is empty, or older than the silence allows. */
+  #silent(now: Date, silentForMs: number) {
+    const silentSince = this.#silentSince(now, silentForMs);
+    return (session: ExpressionBuilder<StoreSchema, "sessions">) =>
+      session.or([session("host_seen_at", "is", null), session("host_seen_at", "<", silentSince)]);
+  }
+
+  /** Dates the last beat of a host on each session it hosts that goes on; an empty date withdraws it. */
+  async #seen(host: string, at: string | null): Promise<void> {
+    await this.#database
+      .updateTable("sessions")
+      .set({ host_seen_at: at })
+      .where("host", "=", host)
+      .where("state", "in", [...SESSION_LIFE.beat.from])
+      .execute();
   }
 
   /**

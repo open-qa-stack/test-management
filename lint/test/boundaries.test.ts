@@ -34,8 +34,8 @@ const ALLOWED: readonly (readonly [Short, Short])[] = [
   ["engine", "tools"],
   ["engine", "domain"],
   ["cli", "engine"],
+  ["cli", "store"],
   ["cli", "harness"],
-  ["cli", "agents"],
   ["cli", "tools"],
   ["cli", "domain"],
   ["web", "domain"],
@@ -227,7 +227,7 @@ describe("criterion 7 — the SDK of the agents is imported by the implementatio
 describe("criterion 8 — the connected mode of the command line imports only the domain", () => {
   const connected = (file: string): string => `packages/cli/src/connected/${file}`;
   const solo = (file: string): string => `packages/cli/src/solo/${file}`;
-  const refused = ["harness", "agents", "tools"] as const;
+  const refused = ["harness", "store", "tools"] as const;
   const of = linted({
     ...Object.fromEntries(refused.map((target) => [connected(`${target}.ts`), byName(name(target))])),
     [connected("sdk.ts")]: 'import { CopilotClient } from "@github/copilot-sdk";\nexport const client = CopilotClient;\n',

@@ -43,7 +43,7 @@ export function plugged(root: string): Plugged {
     ports: {
       journal,
       print: (line) => (out += line),
-      openInbox: () => ({ pending: () => [], heard: () => [], delivered: () => undefined, unreadable: undefined }),
+      openInbox: () => ({ pending: () => [], heard: () => [], delivered: () => undefined }),
       store: host.store,
     },
     get err() {

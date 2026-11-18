@@ -5,7 +5,7 @@ import { describe, it } from "vitest";
 import type { PlanReview, TraceLine } from "@open-qa-stack/domain";
 import type { ScriptedServer } from "@open-qa-stack/testing";
 import { PERSON_RULE, PERSON_SAID_EARLIER, PERSON_SPOKE } from "../src/common/person-message.ts";
-import { PersonInbox, type DesignOutcome } from "../src/index.ts";
+import type { DesignOutcome } from "../src/index.ts";
 import {
   asked,
   COVERED,
@@ -24,7 +24,7 @@ import {
   valid,
   workspace,
 } from "./designer-support.ts";
-import { say } from "./person-support.ts";
+import { say, SpokenInbox } from "./spoken-inbox.ts";
 
 let runs = 0;
 const inboxPath = () => join(workspace, `inbox-${++runs}.jsonl`);
@@ -52,7 +52,7 @@ describe("a person who speaks while the agent that plans explores", () => {
     let spoken = false;
     const { outcome, server } = await design(replies([[OPEN], [SEARCH], [PLAN], DONE, ...valid(3)]), {
       plan: false,
-      inbox: new PersonInbox(path),
+      inbox: new SpokenInbox(path),
       // The person writes once the request is sent: the exploration is under way.
       observe: (line) => {
         if (spoken || !ofThePlan(line, "message")) return;
@@ -96,7 +96,7 @@ describe("a person who speaks once the plan is accepted", () => {
     const { outcome, server } = await design(replies([[OPEN], [PLAN], [COVERED], DONE, ...valid(3)]), {
       plan: false,
       planReview,
-      inbox: new PersonInbox(path),
+      inbox: new SpokenInbox(path),
     });
     assert.equal(outcome.ok, true, messages(outcome));
     assert.match(toolResult(server, "covered"), /The plan was accepted/);
@@ -121,7 +121,7 @@ describe("a person who speaks while an agent reviews for the one that plans", ()
     const { outcome, server } = await design(replies([[OPEN], [plan], [report], DONE, DONE]), {
       plan: false,
       reviewPlan: true,
-      inbox: new PersonInbox(path),
+      inbox: new SpokenInbox(path),
       observe: (line) => {
         if (line.phase === "review" && line.event.type === "message") say(path, "Plan the returns too.");
       },
@@ -138,7 +138,7 @@ describe("a person who speaks while an agent reviews for the one that plans", ()
 describe("a person who spoke during a pass of a design", () => {
   it("is recalled to the agent that plans the next pass, which no line of its trace delivers again, and never to the agent that reviews its plan", async () => {
     const path = inboxPath();
-    const inbox = new PersonInbox(path);
+    const inbox = new SpokenInbox(path);
     say(path, "Keep the plan to the search that finds no customer.");
     const first = await design(replies(valid(3)), { inbox });
     assert.equal(first.outcome.ok, true, messages(first.outcome));

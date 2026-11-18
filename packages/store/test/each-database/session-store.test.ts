@@ -9,6 +9,9 @@ import { engineUnderTest } from "../support/database-engine.ts";
 import { RecordingLogger } from "../support/recording-logger.ts";
 import { SessionDatabase } from "../support/session-database.ts";
 
+/** What names the process the tests host their sessions as. */
+const HOST = "host-under-test";
+
 const RESULT: SessionResult = {
   outcome: "passed",
   durationMs: 30_000,
@@ -38,8 +41,8 @@ afterAll(() => sessions.drop());
 /** Asks for a session at a given second, which its host starts at once. */
 async function running(seconds: number): Promise<Session> {
   now = seconds;
-  const { id } = await store.ask({ request: "cover the profile", environment: "local" });
-  return store.start(id);
+  const { id } = await store.ask({ request: "cover the profile", environment: "local" }, HOST);
+  return store.start(id, HOST);
 }
 
 describe("the project the store keeps", () => {
@@ -155,7 +158,7 @@ describe("a store whose database fails", () => {
     const empty = await engine.create();
     const database = new Database(DatabaseUrl.parse(empty.url) as DatabaseUrl, new RecordingLogger());
     try {
-      await assert.rejects(new SessionStore(database).ask({ request: "witness-4b1d" }), (error: Error) => {
+      await assert.rejects(new SessionStore(database).ask({ request: "witness-4b1d" }, HOST), (error: Error) => {
         assert.match(error.message, /^(relation "sessions" does not exist|no such table: sessions)$/);
         assert.ok(!String(error.stack).includes("witness-4b1d"));
         return true;

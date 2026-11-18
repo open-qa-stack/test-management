@@ -9,8 +9,8 @@ export class Database {
   /** What builds and runs the statements, checked against the schema. */
   readonly kysely: Kysely<StoreSchema>;
   /**
-   * Whether the database is a file of this machine, which the process that opens it has to itself: there is
-   * then no one else to warn before its schema changes.
+   * Whether the database is a file of this machine, which the processes of one instance on it have to
+   * themselves: there is then no one else to warn before its schema changes.
    */
   readonly local: boolean;
 

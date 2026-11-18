@@ -16,7 +16,7 @@ import {
   type TestVerdict,
   type TraceLine,
 } from "@open-qa-stack/domain";
-import { Cartographer, Designer, DesignPasses, type JournalEntry } from "@open-qa-stack/agents";
+import { Cartographer, Designer, DesignPasses, type Inbox, type JournalEntry } from "@open-qa-stack/agents";
 import {
   CharterCheck,
   reviewerInstructions,
@@ -29,7 +29,6 @@ import {
 } from "@open-qa-stack/harness";
 import type { JournalOutput } from "../ports/journal-output.ts";
 import type { OpenRuntime } from "../ports/open-runtime.ts";
-import type { RunInbox } from "../ports/run-inbox.ts";
 import type { RunReference } from "../ports/run-reference.ts";
 import type { RunStore } from "../ports/run-store.ts";
 import { CountedRuntime } from "../runtime/counted-runtime.ts";
@@ -64,8 +63,8 @@ export interface RunOptions {
   readonly follow?: (line: TraceLine) => void;
   /** Receives the summary, a line at a time. */
   readonly print: (line: string) => void;
-  /** Opens the inbox of the run, which a person speaks to its agents through. */
-  readonly openInbox: (run: RunReference) => RunInbox;
+  /** Opens the inbox of the run, which a person speaks to its agents through: the messages they send while it is going, wherever the host takes them from. */
+  readonly openInbox: (run: RunReference) => Inbox;
   /** Keeps the state of the run, and finds that of the run to resume. */
   readonly store: RunStore;
   /** Opens the runtime of the agents on the model of the configuration. */
@@ -197,12 +196,10 @@ export class Run {
     const finish = async (exitCode: ExitCodeValue): Promise<ExitCodeValue> => {
       const written: RunState = { ...state, ...found, exitCode, steps, durationMs: now().getTime() - started.getTime() };
       await timed("summary", async () => {
-        if (written.stoppedBy !== undefined) journal.record("summary", "info", resumeHint(written));
+        if (written.stoppedBy !== undefined) journal.record("summary", "info", stoppedByLimit(written));
         // A message that came once no session would open any more was read by no one: the person is told which.
         for (const { number } of inbox.pending())
           journal.record("summary", "info", `The message ${number} of the person was not delivered: no agent was at work to receive it.`);
-        if (inbox.unreadable !== undefined)
-          journal.record("summary", "error", `The inbox of the run could not be read, and no message of it was delivered: ${inbox.unreadable}`);
         // A runtime that cannot be closed is told, and the state is written all the same.
         await open?.close().catch((error: unknown) => journal.record("summary", "error", `The runtime of the agents could not be closed: ${messageOf(error)}`));
         await this.options.store.write(reference, written);
@@ -441,17 +438,17 @@ export class Run {
       ...(state.branch === undefined ? [] : [`Tests written on the branch ${state.branch}.`]),
       ...state.tests.map((test) => `${test.verdict.padEnd(13)} ${test.id}`),
       ...(state.uncovered ?? []).map(({ asked, reason }) => `Not covered: ${asked} ${reason}`),
-      ...(state.stoppedBy === undefined ? [] : [resumeHint(state)]),
+      ...(state.stoppedBy === undefined ? [] : [stoppedByLimit(state)]),
       `State: ${kept}`,
     ];
     for (const line of lines) this.options.print(`${line}\n`);
   }
 }
 
-/** How to resume a run a limit stopped. */
-function resumeHint(state: RunState): string {
+/** What the summary of a run a limit stopped says of it. */
+function stoppedByLimit(state: RunState): string {
   const { step, limit } = state.stoppedBy!;
-  return `The ${step} was stopped by its ${limit} limit; resume the run with: oqas --resume ${state.runId}`;
+  return `The ${step} was stopped by its ${limit} limit: what it produced is kept in the test repository.`;
 }
 
 /** The message of an error, or the value thrown. */
