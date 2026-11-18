@@ -18,7 +18,7 @@ export const MODEL_TIMEOUT_MS = 5000;
 export async function missingPrerequisites(config: ResolvedConfig, repositoryRoot: string, runner: CommandRunner): Promise<string[]> {
   const [repository, model, npm, project] = await Promise.all([
     gitRoot(repositoryRoot),
-    answers(new URL("models", `${config.model.baseUrl.replace(/\/+$/, "")}/`).href),
+    answers(new URL("models", `${config.model.baseUrl.replace(/(?<!\/)\/+$/, "")}/`).href),
     runner.run({ command: ["npm", "--version"], timeoutMs: 30_000 }).then(
       (outcome) => outcome.exitCode === 0,
       () => false,

@@ -15,8 +15,11 @@ import { RunStoppedError } from "./run-stopped-error.ts";
 export class StoppableRuntime implements AgentRuntime {
   private readonly inner: AgentRuntime;
   private readonly stop: AbortSignal;
-  /** Rejects when the stop is asked, and never settles otherwise: what every turn under way waits against. */
-  private readonly asked: Promise<never>;
+  /**
+   * Rejects when the stop is asked, and never settles otherwise: what every turn under way waits against. Made
+   * by the first turn, so that a stop asked of a run that had none is a refusal nobody has to hear.
+   */
+  private asked: Promise<never> | undefined;
 
   /**
    * @param inner - The runtime the sessions are opened on.
@@ -25,12 +28,6 @@ export class StoppableRuntime implements AgentRuntime {
   public constructor(inner: AgentRuntime, stop: AbortSignal) {
     this.inner = inner;
     this.stop = stop;
-    this.asked = new Promise<never>((_resolve, reject) => {
-      if (stop.aborted) reject(new RunStoppedError());
-      else stop.addEventListener("abort", () => reject(new RunStoppedError()), { once: true });
-    });
-    // A run that has no turn under way when the stop is asked leaves the refusal unheard, which is no failure.
-    this.asked.catch(() => undefined);
   }
 
   /**
@@ -52,6 +49,10 @@ export class StoppableRuntime implements AgentRuntime {
   /** The events of a turn, until the turn ends or the stop is asked, whichever comes first. */
   private async *turn(events: AsyncIterable<AgentEvent>): AsyncIterable<AgentEvent> {
     const turn = events[Symbol.asyncIterator]();
+    this.asked ??= new Promise<never>((_resolve, reject) => {
+      if (this.stop.aborted) reject(new RunStoppedError());
+      else this.stop.addEventListener("abort", () => reject(new RunStoppedError()), { once: true });
+    });
     for (;;) {
       const next = await Promise.race([turn.next(), this.asked]);
       if (next.done === true) return;

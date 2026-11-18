@@ -110,7 +110,7 @@ function verifiedOf(scenario: PlannedScenario): Verified | undefined {
  */
 export async function coveringTests(repositoryRoot: string, stateDir: string, present: readonly string[]): Promise<CoveringTest[]> {
   const folder = join(repositoryRoot, stateDir, DESIGNS_FOLDER);
-  const states = (await readdir(folder).catch(() => [])).filter((name) => name.endsWith(".json")).toSorted();
+  const states = (await readdir(folder).catch(() => [])).filter((name) => name.endsWith(".json")).toSorted((a, b) => a.localeCompare(b));
   const covering: CoveringTest[] = [];
   for (const name of states) {
     const state = JSON.parse(await readFile(join(folder, name), "utf8")) as Partial<DesignState>;

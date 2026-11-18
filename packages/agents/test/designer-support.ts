@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, beforeAll } from "vitest";
+import { afterAll } from "vitest";
 import { CopilotAgentRuntime, ModelGateway, resolveCharter, writerInstructions } from "@open-qa-stack/harness";
 import {
   validateConfig,
@@ -35,18 +35,15 @@ export const DB_URL = "postgresql://shop:s3cret-db-pass@127.0.0.1:5999/shop";
 
 export const ENV = { SHOP_USERNAME: USERNAME, SHOP_PASSWORD: PASSWORD, SHOP_DB_URL: DB_URL };
 
-export let site: TestSite;
+// The orders page shows an order once it is searched for.
+const ORDERS = `<h1>Orders</h1><input aria-label="Search orders"><button onclick="document.getElementById('found').hidden = false">Search</button><p id="found" hidden>Order 42 of Ada</p>`;
 
-export let workspace: string;
+// The pairs page shows two headings nothing tells apart, and two that their regions do.
+const PAIRS = `<h2>Open</h2><h2>Open</h2><section aria-label="Late orders"><h3>Due</h3></section><section aria-label="Lost orders"><h3>Due</h3></section>`;
 
-beforeAll(async () => {
-  // The orders page shows an order once it is searched for.
-  const orders = `<h1>Orders</h1><input aria-label="Search orders"><button onclick="document.getElementById('found').hidden = false">Search</button><p id="found" hidden>Order 42 of Ada</p>`;
-  // The pairs page shows two headings nothing tells apart, and two that their regions do.
-  const pairs = `<h2>Open</h2><h2>Open</h2><section aria-label="Late orders"><h3>Due</h3></section><section aria-label="Lost orders"><h3>Due</h3></section>`;
-  site = await testSite({ "/": "<h1>Shop</h1>", "/orders": orders, "/pairs": pairs });
-  workspace = mkdtempSync(join(tmpdir(), "oqas-designer-"));
-});
+export const site: TestSite = await testSite({ "/": "<h1>Shop</h1>", "/orders": ORDERS, "/pairs": PAIRS });
+
+export const workspace = mkdtempSync(join(tmpdir(), "oqas-designer-"));
 
 afterAll(async () => {
   await site.close();
@@ -57,7 +54,10 @@ export function git(cwd: string, ...args: string[]): string {
   return execFileSync("git", args, { cwd, encoding: "utf8", stdio: "pipe" }).trim();
 }
 
-export function configFor(modelUrl: string, limits = { maxIterations: 20, maxMinutes: 10, maxActions: 200 }): ResolvedConfig {
+/** The limits of the tasks of a design a test does not set. */
+const LIMITS = { maxIterations: 20, maxMinutes: 10, maxActions: 200 };
+
+export function configFor(modelUrl: string, limits = LIMITS): ResolvedConfig {
   const text = JSON.stringify({
     formatVersion: 1,
     applications: [

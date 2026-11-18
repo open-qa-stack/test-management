@@ -9,6 +9,7 @@ export { SessionClosedError } from "./agent/errors/session-closed-error.ts";
 export type { StopReason, TaskCounters, TaskLimits } from "./agent/task-limits.ts";
 export type { JsonSchema, ToolDefinition } from "./agent/tool-definition.ts";
 export { isRecord, parseJson, textOf } from "./json.ts";
+export { byCodeUnits } from "./text-order.ts";
 export { imageTokens, PIXELS_PER_TOKEN } from "./image/image-tokens.ts";
 export { ImageToolResult } from "./image/image-tool-result.ts";
 export { pngSize, type ImageSize } from "./image/png-size.ts";

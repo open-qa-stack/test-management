@@ -204,7 +204,7 @@ function routeCall(node: Node): OutlineSymbol | undefined {
   if (!CALLS.has(node.type) || node.parent?.type === "decorator") return undefined;
   // Every grammar names the callee of its calls, by one of these fields.
   const callee = (node.childForFieldName("function") ?? node.childForFieldName("name") ?? node.childForFieldName("method"))!;
-  const verb = /(\w*)\W*$/.exec(callee.text)![1]!;
+  const verb = callee.text.match(/\w+/g)!.at(-1)!;
   const args = node.childForFieldName("arguments");
   const argument = args?.firstNamedChild;
   const first = argument?.type === "argument" ? argument.firstNamedChild : argument;

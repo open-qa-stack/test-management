@@ -33,7 +33,7 @@ export function declaredAddresses(config: ResolvedConfig): string[] {
     ),
     ...config.knowledge.flatMap((source) => (source.type === "openapi" && source.url !== undefined ? [source.url] : [])),
   ];
-  return [...new Set(urls.flatMap((url) => [url.replace(/\/+$/, ""), new URL(url).host]))];
+  return [...new Set(urls.flatMap((url) => [url.replace(/(?<!\/)\/+$/, ""), new URL(url).host]))];
 }
 
 /**

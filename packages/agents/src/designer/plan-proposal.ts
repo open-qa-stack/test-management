@@ -55,8 +55,10 @@ const MAX_TOLD_TEXT = 200;
 /** What the agent is told of the actions of a step. */
 const ACTIONS_FIELD =
   'The numbers of the actions that did this step when you explored, in the order a test does them, as the results of the browser tools gave them in "action", such as [3, 4] for a step done by the actions 3 and 4. The first action of a scenario opens an address; scenarios may cite the same actions, such as those that sign in. Empty for an application without screens.';
-/** The words of the action of a step that types a value in a field; the key Enter pressed types none. */
-const TYPING = /\b(?:types?|(?<!\bpress(?:es)?\s+(?:the\s+)?)enters?|fill(?:s|\s+in)?|inputs?|search(?:es)?\s+for)\b/i;
+/** The words of the action of a step that types a value in a field. */
+const TYPING = /\b(?:types?|enters?|fill(?:s|\s+in)?|inputs?|search(?:es)?\s+for)\b/i;
+/** The key Enter pressed, which types no value. */
+const PRESSING_ENTER = /\bpress(?:es)?\s+(?:the\s+)?enters?\b/gi;
 /** The words of the action of a step that opens an address. */
 const NAVIGATING = /\b(?:navigates?\s+to|go(?:es)?\s+to|visits?)\b/i;
 /** The words of the action of a step that clicks an element. */
@@ -65,6 +67,16 @@ const CLICKING = /\b(?:clicks?|press(?:es)?|opens?|taps?)\b/i;
 const MAX_LISTED_ACTIONS = 10;
 /** The words that join another action to the one that types, such as the click that sends a form: the step does more than type. */
 const JOINED = /\b(?:and|then)\b/i;
+
+/**
+ * Whether the action of a step types a value in a field.
+ *
+ * @param action - The action of the step.
+ * @returns Whether it names typing, the key Enter pressed aside.
+ */
+function typesAValue(action: string): boolean {
+  return TYPING.test(action.replace(PRESSING_ENTER, ""));
+}
 
 /** A result a step expects, as the agent submits it: the harness adds the elements. */
 type SubmittedExpect = Omit<PlannedExpect, "elements">;
@@ -691,7 +703,7 @@ export class PlanProposal {
       if (scenario.kind !== "functional" || !screens.watches(this.scope(scenario))) return scenario;
       const echoed = (text: string) => scenario.data.some((entry) => sameText(entry.value, text)) && !screens.showsBesideFields(this.scope(scenario), text);
       const steps = scenario.steps.map((step, at) => {
-        if (at === scenario.steps.length - 1 || !TYPING.test(step.action) || JOINED.test(step.action)) return step;
+        if (at === scenario.steps.length - 1 || !typesAValue(step.action) || JOINED.test(step.action)) return step;
         const expects = step.expects.map((expect, k) => {
           if (!expect.shows.some(echoed)) return expect;
           for (const text of expect.shows.filter(echoed))
@@ -839,7 +851,7 @@ export class PlanProposal {
     );
     // The tool that does the step, as its action reads: the one that types, opens an address or clicks; the browser tools otherwise, such as for a step that selects.
     const doing = (action: string) => {
-      const tool = TYPING.test(action) ? "fill" : NAVIGATING.test(action) ? "goto" : CLICKING.test(action) ? "click" : undefined;
+      const tool = typesAValue(action) ? "fill" : NAVIGATING.test(action) ? "goto" : CLICKING.test(action) ? "click" : undefined;
       return tool === undefined ? "the browser tools" : scopedToolName(scenario.application, tool);
     };
     const unseen = texts.map(({ number, step, action, text, shown }) =>
@@ -879,7 +891,7 @@ export class PlanProposal {
     const values = scenario.data.map((entry) => entry.value).filter(checkable);
     const typed = values.filter((value) => screens.typed(this.scope(scenario), value));
     // What the steps type: the values their actions name, or, when they name none, every value a field held.
-    const typing = scenario.steps.filter((step) => TYPING.test(step.action)).map((step) => step.action);
+    const typing = scenario.steps.filter((step) => typesAValue(step.action)).map((step) => step.action);
     const named = values.filter((value) => observed(value, typing));
     const entered = typing.length === 0 ? [] : named.length > 0 ? named : typed;
     const fill = scopedToolName(application, "fill");
@@ -945,7 +957,7 @@ export class PlanProposal {
         ? []
         : scenario.steps
             .map((step, at) => ({ action: step.action, number: at + 1 }))
-            .filter(({ action }) => TYPING.test(action))
+            .filter(({ action }) => typesAValue(action))
             .map(({ action, number }) => ({
               code: "PLAN-INPUT",
               message: `scenario ${scenario.id}, step ${number}, "${action}", types a value, and the scenario has no data: its test may type only values of its data. Put the value the step types in data, with from "${application}" for one a screen of ${application} showed, or from "${MADE_UP}" for one the test invents, such as { "value": "zqxw", "from": "${MADE_UP}" }. A step that types nothing, such as one that leaves a field empty, says what it clicks instead.`,

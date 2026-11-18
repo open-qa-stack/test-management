@@ -7,7 +7,10 @@ export interface DocumentSection {
   readonly text: string;
 }
 
-const HEADING = /^ {0,3}(#{1,6})\s+(.+?)(?:\s+#+)?\s*$/;
+/** A heading of the ATX kind, its level in the first group and its text in the second. */
+const HEADING = /^ {0,3}(#{1,6})\s+(\S.*)/;
+/** The closing sequence of a heading, which follows a space. */
+const CLOSING = /\s#+$/;
 const FENCE = /^ {0,3}(```|~~~)/;
 
 /**
@@ -27,7 +30,7 @@ export function documentSections(markdown: string): DocumentSection[] {
   lines.forEach((line, index) => {
     if (FENCE.test(line)) fenced = !fenced;
     const heading = fenced ? null : HEADING.exec(line);
-    if (heading !== null) headings.push({ line: index, level: heading[1]!.length, title: heading[2]! });
+    if (heading !== null) headings.push({ line: index, level: heading[1]!.length, title: heading[2]!.trimEnd().replace(CLOSING, "").trimEnd() });
   });
   return headings.map((heading, i) => {
     const next = headings.slice(i + 1).find((h) => h.level <= heading.level);

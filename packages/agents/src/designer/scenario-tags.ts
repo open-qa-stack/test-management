@@ -1,7 +1,7 @@
 import type { PlannedScenario } from "@open-qa-stack/domain";
 
 /** The option of a test that holds its tags, as the harness writes it after the title. */
-const TAGS = /(\btest\s*\(\s*(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)\s*,\s*)(?:\{\s*tag:\s*\[[^\]]*\]\s*,?\s*\}\s*,\s*)?/;
+const TAGS = /(\btest\s*\(\s*(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)\s*,\s*)(?:\{\s*tag:\s*\[[^\]]*\]\s*(?:,\s*)?\}\s*,\s*)?/;
 
 /** What of a scenario its tags are made of. */
 export type TaggedScenario = Pick<PlannedScenario, "level" | "domain" | "feature" | "application" | "applications" | "kind" | "case" | "effect">;

@@ -38,6 +38,9 @@ export interface WriterPace {
   readonly maxRetryMs: number;
 }
 
+/** The pace of a writer a host does not set: 250 milliseconds at first, 10 seconds at most. */
+const DEFAULT_PACE: WriterPace = { firstRetryMs: 250, maxRetryMs: 10_000 };
+
 /**
  * Writes what a run tells of its session to the store, in the order it was told, one write at a time.
  *
@@ -81,14 +84,7 @@ export class SessionWriter {
    * @param abandoned - Aborted by a host that stops without waiting any longer: a write that fails is then given up.
    * @param pace - How a failed write is paced; 250 milliseconds at first, 10 seconds at most, by default.
    */
-  constructor(
-    store: WriterStore,
-    session: string,
-    logger: SessionsLogger,
-    signals: WriterSignals,
-    abandoned: AbortSignal,
-    pace: WriterPace = { firstRetryMs: 250, maxRetryMs: 10_000 },
-  ) {
+  constructor(store: WriterStore, session: string, logger: SessionsLogger, signals: WriterSignals, abandoned: AbortSignal, pace: WriterPace = DEFAULT_PACE) {
     this.#store = store;
     this.#session = session;
     this.#logger = logger;
