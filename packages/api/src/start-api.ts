@@ -21,7 +21,7 @@ export interface StartOptions {
  * @param options - How the API is started.
  * @returns The application, listening.
  * @throws {@link ConfigurationError} before anything starts, when the configuration is invalid.
- * @throws {@link PendingMigrationsError} before anything listens, when the database answers but has not
+ * @throws `PendingMigrationsError` before anything listens, when the database answers but has not
  * applied every versioned migration.
  */
 export async function startApi(env: Environment, options: StartOptions = {}): Promise<NestFastifyApplication> {

@@ -4,11 +4,12 @@ import { join } from "node:path";
 import { describe, it } from "vitest";
 import { scriptedServer } from "@open-qa-stack/testing";
 import type { PersonMessage, TraceLine } from "@open-qa-stack/domain";
-import { liveRuntime, Run, type RunInbox } from "../src/index.ts";
+import type { Inbox } from "@open-qa-stack/agents";
+import { liveRuntime, Run } from "../src/index.ts";
 import { chain, configText, FakeRunner, journalOf, plugged, repository, WITNESS } from "./run-support.ts";
 
 /** An inbox a test speaks to, and what its sessions received. */
-function inboxOf(unreadable?: string): RunInbox & { say(text: string): void } {
+function inboxOf(): Inbox & { say(text: string): void } {
   const sent: PersonMessage[] = [];
   let received = 0;
   return {
@@ -16,12 +17,11 @@ function inboxOf(unreadable?: string): RunInbox & { say(text: string): void } {
     pending: () => sent.slice(received),
     heard: () => sent.slice(0, received),
     delivered: (through) => void (received = through),
-    unreadable,
   };
 }
 
 /** Runs the whole chain in a new test repository with the inbox given; the tests run at the end call `atExecution`. */
-async function spoken(inbox: RunInbox, atExecution: () => void = () => undefined) {
+async function spoken(inbox: Inbox, atExecution: () => void = () => undefined) {
   const server = await scriptedServer(chain());
   const root = repository(configText(server.baseUrl));
   const host = plugged(root);
@@ -83,17 +83,5 @@ describe("a person who speaks to a run, through the inbox its host opens", () =>
     );
     assert.match(run.err, /\[summary\] The message 2 of the person was not delivered/);
     assert.doesNotMatch(run.out, /person/);
-  });
-});
-
-describe("a run whose inbox cannot be read", () => {
-  it("goes to its end without it, and says so once, in the journal of its summary", async () => {
-    const run = await spoken(inboxOf("the conversation is closed"));
-    assert.equal(run.code, 0, run.err);
-    const told = journalOf(run.root).filter((entry) => entry.message.includes("inbox"));
-    assert.deepEqual(
-      told.map((entry) => [entry.step, entry.event, entry.message]),
-      [["summary", "error", "The inbox of the run could not be read, and no message of it was delivered: the conversation is closed"]],
-    );
   });
 });

@@ -18,7 +18,10 @@ export interface ProjectTable {
  *
  * @remarks
  * The state is a text: states are added over time, and a client reads one it does not know. The result is
- * served whole and never filtered on: it is kept as JSON.
+ * served whole and never filtered on: it is kept as JSON. The host is the process that asked for the session
+ * or took it over, as that process names itself, with the date of its last beat: a host whose beat is empty
+ * or old is silent, and its sessions are left to others. An interruption another process asked for waits
+ * there, dated, for the host to read it.
  */
 export interface SessionsTable {
   id: string;
@@ -28,6 +31,9 @@ export interface SessionsTable {
   last_event_at: StoredInstant;
   state: SessionState;
   result: StoredJson<SessionResult> | null;
+  host: string | null;
+  host_seen_at: StoredInstant | null;
+  interruption_requested_at: StoredInstant | null;
 }
 
 /**

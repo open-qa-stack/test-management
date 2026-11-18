@@ -1,6 +1,5 @@
 import { API_VARIABLES } from "./api-variables.ts";
-import { instanceDatabase } from "./instance-database.ts";
-import type { DatabaseUrl } from "@open-qa-stack/store";
+import { instanceDatabaseUrl, type DatabaseUrl } from "@open-qa-stack/store";
 import type { Environment } from "./environment-variable.ts";
 import { readVariables, type VariableValues } from "./read-variables.ts";
 
@@ -18,7 +17,7 @@ export class ApiConfiguration {
   private constructor(values: VariableValues<typeof API_VARIABLES>) {
     this.host = values.host;
     this.port = values.port;
-    this.database = instanceDatabase(values.database, values.repository);
+    this.database = instanceDatabaseUrl(values.database, values.repository);
     this.repository = values.repository;
     Object.freeze(this);
   }

@@ -48,8 +48,8 @@ describe("applying the migrations", () => {
 
   it("applies the versioned migrations of the package when no series is named", () =>
     onFresh(async (database, url) => {
-      assert.deepEqual(Object.keys(MIGRATIONS), ["0001_sessions"]);
-      assert.equal(await migrate(url), "Applied 1 migration.");
+      assert.deepEqual(Object.keys(MIGRATIONS), ["0001_sessions", "0002_session_hosts"]);
+      assert.equal(await migrate(url), "Applied 2 migrations.");
       assert.deepEqual(await tables(database), ["kysely_migration", "kysely_migration_lock", "project", "session_events", "session_messages", "sessions"]);
       assert.equal(await migrate(url), "The database schema is up to date: no migration to apply.");
     }));

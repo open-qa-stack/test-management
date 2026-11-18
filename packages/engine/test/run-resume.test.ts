@@ -33,7 +33,7 @@ describe("autonomy, criterion 4 — a design stopped by maxIterations after a pl
       assert.equal(first.code, 5, first.err);
       assert.equal(server.requests.length, 1 + 5 + 3 + 3 + 5);
       assert.match(first.err, /The task reached its iterations limit; no test was written for the scenario under way\./);
-      assert.match(first.out, new RegExp(`The design was stopped by its iterations limit; resume the run with: oqas --resume ${FIRST_RUN}\n`));
+      assert.match(first.out, new RegExp(`The design was stopped by its iterations limit: what it produced is kept in the test repository\\.\n`));
       const stopped = stateOf(first.root);
       assert.deepEqual(stopped.stoppedBy, { step: "design", limit: "iterations" });
       assert.deepEqual(stopped.designed, ["apps/shop/tests/orders/listing/test-1.spec.ts"]);
@@ -141,7 +141,7 @@ describe("autonomy, criterion 4 — a design stopped by maxIterations after a pl
       const stopped = stateOf(first.root);
       // Three tests are kept on the branch, and none runs yet: the plan has a fourth scenario.
       assert.deepEqual([stopped.stoppedBy, stopped.designed.length, stopped.tests.length], [{ step: "design", limit: "iterations" }, 3, 0]);
-      assert.match(first.out, new RegExp(`The design was stopped by its iterations limit; resume the run with: oqas --resume ${FIRST_RUN}\n`));
+      assert.match(first.out, new RegExp(`The design was stopped by its iterations limit: what it produced is kept in the test repository\\.\n`));
       const resumed = await ran([], { root: () => first.root, modelUrl: server.baseUrl, config: boundedTo(4), resume: FIRST_RUN, now: later(13) });
       assert.equal(resumed.code, 0, resumed.err);
       assert.deepEqual(tried(resumed.runner), ["apps/shop/tests/orders/listing/test-4.spec.ts"]);

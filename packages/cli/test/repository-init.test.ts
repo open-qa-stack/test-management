@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, it } from "vitest";
-import { parseArguments, soloCommand } from "../src/index.ts";
+import { soloCommand } from "../src/index.ts";
 import { RepositoryInit } from "../src/solo/repository-init.ts";
 
 const workspace = mkdtempSync(join(tmpdir(), "repository-init-"));
@@ -110,24 +110,6 @@ describe("the initialisation of a test repository as a Playwright project", () =
 });
 
 describe("the option --init of the command", () => {
-  it("is read alone or with the repository, and refused with anything of a run", () => {
-    const read = parseArguments(["--repository", "tests", "--init"]);
-    assert.ok(read.ok && read.arguments.init && read.arguments.repository === "tests");
-    for (const other of [
-      ["--brief", "Test the orders."],
-      ["--environment", "local"],
-      ["--resume", "oqas-2026-11-13T12-00-00-000Z"],
-      ["--force-cartography"],
-      ["--follow"],
-    ])
-      assert.deepEqual(parseArguments(["--init", ...other]), {
-        ok: false,
-        error: "--init writes the files of the test repository and runs nothing: it takes --repository alone.",
-      });
-    const run = parseArguments([]);
-    assert.ok(run.ok && !run.arguments.init);
-  });
-
   it("initialises the repository at the version of Playwright of the product, and runs nothing", async () => {
     const root = mkdtempSync(join(workspace, "repo-"));
     mkdirSync(join(root, "sub"));

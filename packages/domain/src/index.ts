@@ -72,33 +72,20 @@ export { applicationVariable, camelName, className } from "./test-repository/app
 export { appsFrom, sharedFixtures } from "./test-repository/shared-fixtures.ts";
 export { tabVariable } from "./test-repository/tab-variable.ts";
 export { ExitCode, type ExitCodeValue } from "./run/exit-code.ts";
-export { inboxLineOf, inboxMessage, type InboxMessage } from "./run/inbox-line.ts";
 export type { ModelUsage } from "./run/model-usage.ts";
 export { PERSON_TAG, personTags, type PersonMessage } from "./run/person-message.ts";
 export { entryLine, type RunEntry, type Step } from "./run/run-entry.ts";
 export { isRunState, type RunState } from "./run/run-state.ts";
-export {
-  journaledRun,
-  runIdAt,
-  runInboxFile,
-  runJournalFile,
-  RUNS_FOLDER,
-  runStamp,
-  runStartedAt,
-  runStateFile,
-  traceFile,
-  TRACES_FOLDER,
-  traceStamp,
-} from "./run/state-folder.ts";
+export { runIdAt, RUNS_FOLDER, traceFile, TRACES_FOLDER } from "./run/state-folder.ts";
 export { withoutClosing } from "./run/tag-closing.ts";
 export type { HarnessEvent, PhaseOutcome, TracedAgentEvent, TraceLine, TracePhase } from "./run/trace-line.ts";
-export { briefOf, inboxLine, journalLine, traceLine } from "./run-thread/run-lines.ts";
+export { briefOf, journalLine, traceLine } from "./run-thread/run-lines.ts";
 export { sessionResultOf } from "./run-thread/run-result.ts";
 export { RunThread } from "./run-thread/run-thread.ts";
-export type { CommandStep, PersonLine, RelayedPhase, RunLine, RunLineEvent, ThreadLine } from "./run-thread/thread-line.ts";
+export type { CommandStep, RelayedPhase, RunLine, RunLineEvent } from "./run-thread/thread-line.ts";
 export { MessageNotPendingError } from "./session-life/message-not-pending-error.ts";
 export type { PendingMessage } from "./session-life/pending-message.ts";
-export type { SessionCommand } from "./session-life/session-command.ts";
+export type { AddressedCommand, SessionCommand } from "./session-life/session-command.ts";
 export type { SessionCommands } from "./session-life/session-commands.ts";
 export { SessionEndedError } from "./session-life/session-ended-error.ts";
 export { accepts, ASKED_STATE, isTerminal, nextState, refusalOf, SESSION_LIFE } from "./session-life/session-life.ts";

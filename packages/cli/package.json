@@ -17,10 +17,10 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@open-qa-stack/agents": "workspace:*",
     "@open-qa-stack/domain": "workspace:*",
     "@open-qa-stack/engine": "workspace:*",
     "@open-qa-stack/harness": "workspace:*",
+    "@open-qa-stack/store": "workspace:*",
     "@open-qa-stack/tools": "workspace:*"
   },
   "devDependencies": {

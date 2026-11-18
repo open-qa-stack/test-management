@@ -6,8 +6,8 @@ import {
   SessionEndedError,
   SessionStateError,
   UnknownSessionError,
+  type AddressedCommand,
   type PendingMessage,
-  type SessionCommand,
   type SessionStorePort,
 } from "@open-qa-stack/domain";
 import type { AgentRole, MessageReceipt, Project, Session, SessionEvent, SessionOpening, SessionResult, UnrankedEvent } from "@open-qa-stack/domain/sessions";
@@ -17,6 +17,11 @@ interface Kept {
   session: Session;
   readonly events: SessionEvent[];
   readonly messages: (PendingMessage & { deliveredTo?: AgentRole })[];
+  /** The process that hosts the session, and when it last beat, in milliseconds; `undefined` once its beat was withdrawn. */
+  host: string;
+  seen: number | undefined;
+  /** Whether another process asked that the session be interrupted. */
+  asked: boolean;
 }
 
 /**
@@ -48,7 +53,7 @@ export class MemorySessionStore implements SessionStorePort {
   }
 
   /** The session a command is for, once the life of a session lets the command through. */
-  #taking(command: Exclude<SessionCommand, "abandon">, id: string): Kept {
+  #taking(command: AddressedCommand, id: string): Kept {
     const kept = this.#kept.get(id);
     const refusal = refusalOf(command, kept?.session.state);
     if (kept === undefined) throw new UnknownSessionError(id);
@@ -66,23 +71,36 @@ export class MemorySessionStore implements SessionStorePort {
     return this.#clock().toISOString();
   }
 
+  /** Whether the host of a session went silent: its beat was withdrawn, or is older than the silence allows. */
+  #silent({ seen }: Kept, silentForMs: number): boolean {
+    return seen === undefined || seen < this.#clock().getTime() - silentForMs;
+  }
+
+  /** The sessions in one state, in the order they were asked for. */
+  #in(state: Session["state"]): Kept[] {
+    return [...this.#kept.values()].filter((kept) => kept.session.state === state);
+  }
+
   async saveProject(saved: Project): Promise<void> {
     await this.#answer("saveProject");
     this.#project = saved;
   }
 
-  async ask(opening: SessionOpening): Promise<Session> {
+  async ask(opening: SessionOpening, host: string): Promise<Session> {
     await this.#answer("ask");
     const at = this.#now();
     this.#asked += 1;
     const session: Session = { id: `session-${this.#asked}`, ...opening, openedAt: at, lastEventAt: at, state: ASKED_STATE };
-    this.#kept.set(session.id, { session, events: [{ id: 1, at, type: "user_message", text: opening.request }], messages: [] });
+    const events: SessionEvent[] = [{ id: 1, at, type: "user_message", text: opening.request }];
+    this.#kept.set(session.id, { session, events, messages: [], host, seen: this.#clock().getTime(), asked: false });
     return session;
   }
 
-  async start(id: string): Promise<Session> {
+  async start(id: string, host: string): Promise<Session> {
     await this.#answer("start", id);
     const kept = this.#taking("start", id);
+    kept.host = host;
+    kept.seen = this.#clock().getTime();
     this.#tell(kept, [{ at: this.#now(), type: "state_changed", state: SESSION_LIFE.start.to }], { state: SESSION_LIFE.start.to });
     return kept.session;
   }
@@ -121,9 +139,33 @@ export class MemorySessionStore implements SessionStorePort {
     this.#tell(kept, [{ at: this.#now(), type: "message_delivered", message: number, agent }]);
   }
 
-  async abandonRunning(): Promise<string[]> {
-    await this.#answer("abandonRunning");
-    const left = [...this.#kept.values()].filter((kept) => kept.session.state === "running");
+  async requestInterruption(id: string, silentForMs: number): Promise<void> {
+    await this.#answer("requestInterruption", id);
+    const kept = this.#taking("interrupt", id);
+    if (kept.session.state === "running" && !this.#silent(kept, silentForMs)) kept.asked = true;
+    else this.#tell(kept, [{ at: this.#now(), type: "state_changed", state: "interrupted" }], { state: "interrupted" });
+  }
+
+  async beat(host: string): Promise<void> {
+    await this.#answer("beat");
+    for (const kept of [...this.#in("queued"), ...this.#in("running")]) if (kept.host === host) kept.seen = this.#clock().getTime();
+  }
+
+  async release(host: string): Promise<void> {
+    await this.#answer("release");
+    for (const kept of [...this.#in("queued"), ...this.#in("running")]) if (kept.host === host) kept.seen = undefined;
+  }
+
+  async takeOver(host: string, silentForMs: number): Promise<string[]> {
+    await this.#answer("takeOver");
+    const taken = this.#in("queued").filter((kept) => this.#silent(kept, silentForMs));
+    for (const kept of taken) Object.assign(kept, { host, seen: this.#clock().getTime() });
+    return taken.map((kept) => kept.session.id);
+  }
+
+  async abandonSilent(silentForMs: number): Promise<string[]> {
+    await this.#answer("abandonSilent");
+    const left = this.#in("running").filter((kept) => this.#silent(kept, silentForMs));
     for (const kept of left) this.#tell(kept, [{ at: this.#now(), type: "state_changed", state: "interrupted" }], { state: "interrupted" });
     return left.map((kept) => kept.session.id);
   }
@@ -152,6 +194,11 @@ export class MemorySessionStore implements SessionStorePort {
     await this.#answer("eventsAfter", id);
     const events = this.#kept.get(id)?.events ?? [];
     return events.filter((event) => event.id > after || event.type === "state_changed");
+  }
+
+  async interruptionRequests(host: string): Promise<string[]> {
+    await this.#answer("interruptionRequests");
+    return [...this.#in("queued"), ...this.#in("running")].filter((kept) => kept.host === host && kept.asked).map((kept) => kept.session.id);
   }
 
   async pendingMessages(id: string): Promise<PendingMessage[]> {

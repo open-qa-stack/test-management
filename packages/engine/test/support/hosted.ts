@@ -12,6 +12,12 @@ import { RecordingLogger } from "./recording-logger.ts";
 /** The environment of the runs of the tests: the one variable the configuration of the test repository names. */
 export const ENV = { SHOP_DB_URL: WITNESS };
 
+/**
+ * The paces of a host no test waits on: it never beats by itself within a test, and takes a host that did
+ * not beat within the test for one that lives.
+ */
+export const STILL = { beatMs: 3_600_000, silentAfterMs: 3_600_000, followMs: 3_600_000 };
+
 /** How a test sets the operations it hosts. */
 export interface Setup {
   /** What the doubles of npm and Playwright answer. */
@@ -20,6 +26,8 @@ export interface Setup {
   readonly before?: (step: RanCommand) => Promise<void> | void;
   /** What the host gives besides its test repository, its store and its doubles. */
   readonly host?: Partial<SessionsHost>;
+  /** The store of the sessions, when another host of the test reaches it too; one of its own by default. */
+  readonly store?: MemorySessionStore;
 }
 
 /** A door a run waits at until a test opens it. */
@@ -55,7 +63,7 @@ export function designDoor(): Door {
  * that answers as scripted.
  */
 export class Hosted {
-  readonly store = new MemorySessionStore();
+  readonly store: MemorySessionStore;
   readonly logger = new RecordingLogger();
   readonly server: ScriptedServer;
   /** The test repository the sessions run in. */
@@ -64,6 +72,7 @@ export class Hosted {
 
   private constructor(server: ScriptedServer, setup: Setup) {
     this.server = server;
+    this.store = setup.store ?? new MemorySessionStore();
     this.root = repository(configText(server.baseUrl));
     const doubles = new FakeRunner(this.root, setup.script);
     const runner: CommandRunner = {
@@ -78,7 +87,9 @@ export class Hosted {
       env: ENV,
       logger: this.logger,
       runner,
+      takesOver: true,
       writerPace: { firstRetryMs: 5, maxRetryMs: 20 },
+      pace: STILL,
       ...setup.host,
     });
   }

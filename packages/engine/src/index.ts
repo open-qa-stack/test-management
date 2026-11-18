@@ -1,6 +1,5 @@
 export type { JournalOutput } from "./ports/journal-output.ts";
 export type { OpenRuntime } from "./ports/open-runtime.ts";
-export type { RunInbox } from "./ports/run-inbox.ts";
 export type { RunReference } from "./ports/run-reference.ts";
 export type { RunStore, StoredState } from "./ports/run-store.ts";
 export { Run, type RunOptions } from "./run/run.ts";
@@ -9,5 +8,6 @@ export { NoRepositoryError } from "./sessions/no-repository-error.ts";
 export type { EventListener, SessionEventStream } from "./sessions/session-event-stream.ts";
 export { Sessions } from "./sessions/sessions.ts";
 export type { SessionsHost } from "./sessions/sessions-host.ts";
+export { DEFAULT_PACE, type SessionsPace } from "./sessions/sessions-pace.ts";
 export type { SessionsLogger } from "./sessions/sessions-logger.ts";
 export type { WriterPace } from "./sessions/session-writer.ts";

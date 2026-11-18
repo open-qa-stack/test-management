@@ -1,41 +1,48 @@
-import { join, resolve } from "node:path";
-import { PersonInbox } from "@open-qa-stack/agents";
-import { ExitCode, runInboxFile, RUNS_FOLDER, type CommandRunner, type ExitCodeValue, type ResolvedConfig, type TraceLine } from "@open-qa-stack/domain";
-import { liveRuntime, Run, type OpenRuntime } from "@open-qa-stack/engine";
+import { resolve } from "node:path";
+import { ExitCode, SessionEndedError, UnknownSessionError, type ExitCodeValue } from "@open-qa-stack/domain";
+import { DatabaseUnavailableError, PendingMigrationsError } from "@open-qa-stack/store";
 import { playwrightVersion } from "@open-qa-stack/tools";
-import { parseArguments, USAGE } from "./arguments.ts";
-import { FileJournal } from "./file-journal.ts";
-import { FileRunStore } from "./file-run-store.ts";
-import { followedLine } from "./followed-line.ts";
+import type { Session } from "@open-qa-stack/domain/sessions";
+import type { Sessions } from "@open-qa-stack/engine";
+import { parseArguments, USAGE, type Arguments, type Command } from "./arguments.ts";
+import { eventLine, ofTheAgents } from "./event-line.ts";
+import { followSession } from "./follow-session.ts";
+import { Interruptions } from "./interruptions.ts";
+import { openOperations } from "./operations.ts";
 import { RepositoryInit } from "./repository-init.ts";
+import { exitCodeOf } from "./session-exit.ts";
+import { listedLine, summaryLines } from "./session-lines.ts";
+import { referredSession } from "./session-reference.ts";
+import { ThreadOutput } from "./thread-output.ts";
+import { UsageError } from "./usage-error.ts";
+import type { CommandIo } from "./command-io.ts";
 
-/** What the command runs with: its environment, its folder and its outputs. */
-export interface CommandIo {
-  readonly env: Readonly<Record<string, string | undefined>>;
-  /** The folder the command runs in: the test repository by default. */
-  readonly cwd: string;
-  readonly stdout: { write(text: string): unknown };
-  readonly stderr: { write(text: string): unknown };
-  /** Runs the commands of the machine and of the tests; a `LocalRunner` in the test repository by default. */
-  readonly runner?: CommandRunner;
-  /** Opens the runtime of the agents; `liveRuntime` by default. */
-  readonly connect?: (config: ResolvedConfig, env: Readonly<Record<string, string | undefined>>) => Promise<OpenRuntime>;
-  /** The clock; the system clock by default. */
-  readonly now?: () => Date;
+/** What a command on sessions is given: the operations, what it was asked, and where it writes. */
+interface Asked<Name extends Command["name"]> {
+  readonly sessions: Sessions;
+  readonly command: Extract<Command, { name: Name }>;
+  readonly options: Arguments;
+  readonly io: CommandIo;
 }
 
+/** The refusals a person can act on: what they asked cannot be done as it is asked. */
+const REFUSALS = [UsageError, UnknownSessionError, SessionEndedError, PendingMigrationsError];
+
 /**
- * Runs `oqas` with its arguments: prints the usage, refuses a wrong option, initialises the test repository, or
- * runs the solo command.
+ * Runs `oqas` with its arguments: prints the usage, refuses a wrong argument, initialises the test
+ * repository, or says one operation on the sessions of the test repository in the terminal.
  *
  * @remarks
- * A run is a run of the engine, which the command plugs into the terminal and the test repository: the
- * journal goes to the error output and to a file of the run, the summary to the standard output, the inbox
- * is a file a person appends to, and the state of each run is a file beside its journal.
+ * The command is a presentation of the operations on sessions of the engine, on the database of the instance:
+ * what it opens, a server on the same database shows, and what a server opens, it reads, follows, speaks to
+ * and interrupts. With `--brief` it opens a session, which it runs in its own process, follows it to its end
+ * and exits with the code of its run. The other commands host nothing: they read the database or post to it,
+ * and the process that runs the session does the rest.
  *
  * @param argv - The arguments, without the program.
  * @param io - The environment, the folder and the outputs.
- * @returns The exit code; `5` when the run stopped on an unexpected error, which goes to the error output.
+ * @returns The exit code: that of the session followed, `0` for a command that did what it was asked, `3`
+ * when it is refused, `5` when it fails, which goes to the error output.
  */
 export async function soloCommand(argv: readonly string[], io: CommandIo): Promise<ExitCodeValue> {
   const parsed = parseArguments(argv);
@@ -43,46 +50,148 @@ export async function soloCommand(argv: readonly string[], io: CommandIo): Promi
     io.stderr.write(`${parsed.error}\n`);
     return ExitCode.configuration;
   }
-  const { repository, environment, brief, force, follow, help, init, resume } = parsed.arguments;
-  if (help) {
+  const options = parsed.arguments;
+  const { command } = options;
+  if (command.name === "help") {
     io.stdout.write(USAGE);
     return ExitCode.passed;
   }
-  const repositoryRoot = resolve(io.cwd, repository ?? ".");
-  if (init)
+  const repository = resolve(io.cwd, options.repository ?? ".");
+  if (command.name === "init")
     return new RepositoryInit({
-      repositoryRoot,
+      repositoryRoot: repository,
       playwrightVersion: playwrightVersion(),
       write: (line) => io.stderr.write(line),
       print: (line) => io.stdout.write(line),
     }).run();
-  const connect = io.connect ?? liveRuntime;
-  const run = new Run({
-    repositoryRoot,
-    ...(environment === undefined ? {} : { environment }),
-    ...(brief === undefined ? {} : { brief }),
-    ...(resume === undefined ? {} : { resume }),
-    force,
-    env: io.env,
-    journal: new FileJournal(repositoryRoot, (line) => io.stderr.write(line)),
-    ...(follow ? { follow: (line: TraceLine) => followed(line, io.stderr) } : {}),
-    print: (line) => io.stdout.write(line),
-    openInbox: ({ runId, stateDir }) => new PersonInbox(join(repositoryRoot, stateDir, RUNS_FOLDER, runInboxFile(runId))),
-    store: new FileRunStore(repositoryRoot),
-    openRuntime: (config) => connect(config, io.env),
-    ...(io.runner === undefined ? {} : { runner: io.runner }),
-    ...(io.now === undefined ? {} : { now: io.now }),
-  });
   try {
-    return await run.run();
+    return await onSessions(command, options, repository, io);
   } catch (error) {
-    io.stderr.write(`oqas stopped on an unexpected error: ${error instanceof Error ? error.message : String(error)}\n`);
+    if (REFUSALS.some((refusal) => error instanceof refusal)) {
+      io.stderr.write(`${(error as Error).message}\n`);
+      return ExitCode.configuration;
+    }
+    const failure = error instanceof Error ? error.message : String(error);
+    io.stderr.write(error instanceof DatabaseUnavailableError ? `${failure}\n` : `oqas stopped on an unexpected error: ${failure}\n`);
     return ExitCode.interrupted;
   }
 }
 
-/** Prints a line of the trace as a person follows it, when it says something to follow. */
-function followed(line: TraceLine, output: CommandIo["stderr"]): void {
-  const text = followedLine(line);
-  if (text !== undefined) output.write(`${text}\n`);
+/** Runs a command on the sessions of a test repository, with the operations opened for it and let go of afterwards. */
+async function onSessions(command: Exclude<Command, { name: "help" | "init" }>, options: Arguments, repository: string, io: CommandIo): Promise<ExitCodeValue> {
+  if (command.name === "run") return opened({ command, options, io }, repository);
+  const { sessions, close } = await openOperations(io, repository, false);
+  try {
+    switch (command.name) {
+      case "sessions":
+        return await listed({ sessions, command, options, io });
+      case "show":
+        return await shown({ sessions, command, options, io });
+      case "attach":
+        return await attached({ sessions, command, options, io });
+      case "say":
+        return await said({ sessions, command, options, io });
+      case "stop":
+        return await stopped({ sessions, command, options, io });
+    }
+  } finally {
+    await close();
+  }
+}
+
+/** Writes a line to the standard output, as a text or as the JSON of a value. */
+function print({ options, io }: Pick<Asked<Command["name"]>, "options" | "io">, text: string, value: unknown): void {
+  io.stdout.write(`${options.output === "json" ? JSON.stringify(value) : text}\n`);
+}
+
+/** The session a command names, whatever it gave of its identifier. */
+async function named(sessions: Sessions, reference: string): Promise<Session> {
+  return referredSession(await sessions.sessions(), reference);
+}
+
+/**
+ * Follows a session to its end, then says what it came to.
+ *
+ * @returns The code of the run of the session.
+ */
+async function followed({ sessions, options, io }: Pick<Asked<Command["name"]>, "sessions" | "options" | "io">, id: string): Promise<ExitCodeValue> {
+  const json = options.output === "json";
+  // A thread a person reads goes where the journal of a run always went, and leaves the standard output to the summary.
+  const thread = new ThreadOutput(json ? io.stdout : io.stderr, options.output, options.follow);
+  await followSession(sessions, id, thread);
+  const session = await sessions.session(id);
+  if (!json) for (const line of summaryLines(session)) io.stdout.write(`${line}\n`);
+  return exitCodeOf(session, thread.lastPhase);
+}
+
+/**
+ * `oqas --brief`: opens a session, runs it in this process and follows it to its end.
+ *
+ * @remarks
+ * The person stops it with Ctrl-C: the first asks the session to stop, as `oqas stop` does, and the command
+ * goes on to the end of the session, which comes soon; a second one leaves at once, without waiting for it.
+ */
+async function opened({ command, options, io }: Omit<Asked<"run">, "sessions">, repository: string): Promise<ExitCodeValue> {
+  const { sessions, close } = await openOperations(io, repository, true);
+  let withinMs: number | undefined;
+  try {
+    const { brief: request, environment } = command;
+    const { id } = await sessions.open({ request, ...(environment === undefined ? {} : { environment }) });
+    io.stderr.write(`Session ${id}\n`);
+    const interruptions = new Interruptions(io, () => sessions.interrupt(id));
+    const ended = followed({ sessions, options, io }, id);
+    const left = interruptions.leftAtOnce.then(() => {
+      // Nothing is waited for any more: neither the session, nor what its following still raises.
+      withinMs = 0;
+      void ended.catch(() => undefined);
+      return ExitCode.interrupted;
+    });
+    return await Promise.race([ended, left]).finally(() => interruptions.end());
+  } finally {
+    await close(withinMs);
+  }
+}
+
+/** `oqas sessions`: lists the sessions, the latest first. */
+async function listed(asked: Asked<"sessions">): Promise<ExitCodeValue> {
+  for (const session of await asked.sessions.sessions()) print(asked, listedLine(session), session);
+  return ExitCode.passed;
+}
+
+/** `oqas show`: prints a session and its thread so far; as JSON Lines, its thread alone, an event a line. */
+async function shown({ sessions, command, options, io }: Asked<"show">): Promise<ExitCodeValue> {
+  const session = await named(sessions, command.session);
+  const events = await sessions.thread(session.id);
+  if (options.output === "json") for (const event of events) io.stdout.write(`${JSON.stringify(event)}\n`);
+  else {
+    const told = events.filter((event) => options.follow || !ofTheAgents(event)).map(eventLine);
+    for (const line of [...summaryLines(session), ...told]) io.stdout.write(`${line}\n`);
+  }
+  return ExitCode.passed;
+}
+
+/** `oqas attach`: follows a session another process runs, or one that ended, as the command that opened it does. */
+async function attached({ sessions, command, options, io }: Asked<"attach">): Promise<ExitCodeValue> {
+  const { id } = await named(sessions, command.session);
+  return followed({ sessions, options, io }, id);
+}
+
+/** `oqas say`: says something to a session that goes on; the process that runs it hands it to the agent at work. */
+async function said(asked: Asked<"say">): Promise<ExitCodeValue> {
+  const { sessions, command } = asked;
+  const { id } = await named(sessions, command.session);
+  const receipt = await sessions.say(id, { text: command.text });
+  print(asked, `Message ${receipt.number} is taken by the session ${id}.`, receipt);
+  return ExitCode.passed;
+}
+
+/** `oqas stop`: interrupts a session that goes on; one another process runs is interrupted by that process, soon. */
+async function stopped(asked: Asked<"stop">): Promise<ExitCodeValue> {
+  const { sessions, command } = asked;
+  const { id } = await named(sessions, command.session);
+  await sessions.interrupt(id);
+  const session = await sessions.session(id);
+  const interrupted = `The session ${id} is interrupted.`;
+  print(asked, session.state === "running" ? `The session ${id} is asked to stop: the process that runs it interrupts it.` : interrupted, session);
+  return ExitCode.passed;
 }

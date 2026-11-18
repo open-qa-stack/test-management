@@ -15,6 +15,9 @@ import { acceptConnections, isolatedDatabase, refuseConnections } from "../suppo
 import { RecordingLogger } from "../support/recording-logger.ts";
 import type { TestDatabase } from "../support/test-database.ts";
 
+/** What names the process the tests host their sessions as. */
+const HOST = "host-under-test";
+
 const urlOf = (raw: string) => DatabaseUrl.parse(raw) as DatabaseUrl;
 const DROPPED = "warn The database is unreachable: terminating connection due to administrator command";
 const WITNESS = "witness-5c0ffee1";
@@ -56,7 +59,7 @@ describe("the pool of connections to a PostgreSQL server", () => {
     const database = new Database(urlOf(await absent()), new RecordingLogger());
     await assert.rejects(sql`select 1`.execute(database.kysely), unreachable);
     await assert.rejects(new SessionStore(database).sessions(), unreachable);
-    await assert.rejects(new SessionStore(database).ask({ request: "cover the profile" }), unreachable);
+    await assert.rejects(new SessionStore(database).ask({ request: "cover the profile" }, HOST), unreachable);
     await database.close();
   });
 

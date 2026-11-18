@@ -7,8 +7,9 @@ import { ImageToolResult, type AgentEvent, type PersonMessage, type ToolDefiniti
 import { MAX_PERSON_TURNS, MAX_REMINDERS, runAgentTask, type AgentTask } from "../src/common/agent-task.ts";
 import { PersonDelivery } from "../src/common/person-delivery.ts";
 import { PERSON_RULE, PERSON_SAID_EARLIER, PERSON_SPOKE } from "../src/common/person-message.ts";
-import { PersonInbox } from "../src/index.ts";
-import { END, say, TurnsRuntime, type Turn } from "./person-support.ts";
+import type { Inbox } from "../src/index.ts";
+import { END, TurnsRuntime, type Turn } from "./person-support.ts";
+import { say, SpokenInbox } from "./spoken-inbox.ts";
 
 const workspace = mkdtempSync(join(tmpdir(), "oqas-person-"));
 afterAll(() => rmSync(workspace, { recursive: true, force: true }));
@@ -33,13 +34,13 @@ interface Setup {
   readonly hears?: boolean;
   readonly reminder?: () => string | undefined;
   /** The inbox of the run the task is of, when another task of the run read it before; a new one otherwise. */
-  readonly run?: { readonly path: string; readonly inbox: PersonInbox };
+  readonly run?: { readonly path: string; readonly inbox: Inbox };
 }
 
 /** Runs a task of the given turns, with an inbox the person may write to at any moment of them. */
 async function task(turns: (inbox: string) => readonly Turn[], setup: Setup = {}) {
   const path = setup.run?.path ?? join(mkdtempSync(join(workspace, "run-")), "inbox.jsonl");
-  const inbox = setup.run?.inbox ?? new PersonInbox(path);
+  const inbox = setup.run?.inbox ?? new SpokenInbox(path);
   const runtime = new TurnsRuntime(turns(path));
   const delivered: PersonMessage[] = [];
   const events: AgentEvent[] = [];

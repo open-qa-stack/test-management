@@ -24,20 +24,23 @@ export interface SessionCommands {
    * Asks for a session: it waits, `queued`, until its host starts it, and its first event is what the person asked.
    *
    * @param opening - What to test, and where.
+   * @param host - What names the process that asks: the host of the session, which this is its first beat on.
    * @returns The session, under the identifier it was given.
    */
-  ask(opening: SessionOpening): Promise<Session>;
+  ask(opening: SessionOpening, host: string): Promise<Session>;
 
   /**
-   * Starts a session that waits: it becomes `running`, and an event tells so.
+   * Starts a session that waits: it becomes `running`, and an event tells so. Whoever starts it is its host
+   * from then on.
    *
    * @param id - The identifier of the session.
+   * @param host - What names the process that starts it.
    * @returns The session, now running.
    * @throws `UnknownSessionError` when there is no such session.
    * @throws `SessionEndedError` when the session no longer goes on.
    * @throws `SessionStateError` when the session runs already.
    */
-  start(id: string): Promise<Session>;
+  start(id: string, host: string): Promise<Session>;
 
   /**
    * Appends to a session that runs the events its work tells, at the ranks that follow its last event.
@@ -98,11 +101,48 @@ export interface SessionCommands {
   deliver(id: string, number: number, agent: AgentRole): Promise<void>;
 
   /**
-   * Ends the sessions a process that died left: every `running` session becomes `interrupted`, and an event
-   * tells so. A session that waits is left to wait. The host of the sessions sends it when it starts, before
-   * it runs any: nothing runs then, whatever the store holds.
+   * Asks, from a process that may not be the one that runs it, that a session that goes on be interrupted. One
+   * that waits is interrupted at once, and so is one whose host went silent: nobody would do it. For one that
+   * runs under a host that beats, the request is kept: its host reads it, stops the run and interrupts the session.
    *
+   * @param id - The identifier of the session.
+   * @param silentForMs - How long without a beat tells that a host died, in milliseconds.
+   * @throws `UnknownSessionError` when there is no such session.
+   * @throws `SessionEndedError` when the session had already ended.
+   */
+  requestInterruption(id: string, silentForMs: number): Promise<void>;
+
+  /**
+   * Tells that a host is alive: each session it hosts that goes on bears the date of this beat.
+   *
+   * @param host - What names the process.
+   */
+  beat(host: string): Promise<void>;
+
+  /**
+   * Withdraws the beats of a host that stops: the sessions it still hosts read as left by a silent host at
+   * once, without waiting for the time a silence takes.
+   *
+   * @param host - What names the process.
+   */
+  release(host: string): Promise<void>;
+
+  /**
+   * Gives a host that stays the sessions that wait for a host that went silent: they wait for it from then on.
+   *
+   * @param host - What names the process that takes them over.
+   * @param silentForMs - How long without a beat tells that a host died, in milliseconds.
+   * @returns The identifiers of the sessions taken over, in the order they were asked for.
+   */
+  takeOver(host: string, silentForMs: number): Promise<string[]>;
+
+  /**
+   * Ends the sessions a host that died left: every `running` session whose host went silent becomes
+   * `interrupted`, and an event tells so. A session whose host beats is left to it, and one that waits is left
+   * to wait.
+   *
+   * @param silentForMs - How long without a beat tells that a host died, in milliseconds.
    * @returns The identifiers of the sessions that were interrupted.
    */
-  abandonRunning(): Promise<string[]>;
+  abandonSilent(silentForMs: number): Promise<string[]>;
 }

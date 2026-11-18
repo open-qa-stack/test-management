@@ -1,23 +1,122 @@
-# The solo command
+# The `oqas` command
 
-`oqas` runs Open QA Stack on a development machine, without an instance. In a test repository that holds `oqas.json`, it maps the target application, designs Playwright tests on a new local branch, runs them, and gives a verdict per test. Nothing is pushed.
+`oqas` is Open QA Stack in a terminal. In a test repository that holds `oqas.json`, it opens a session — it maps the target application, designs Playwright tests on a new local branch, runs them, and gives a verdict per test — and reads, follows, speaks to and interrupts the sessions of that repository. Nothing is pushed.
 
 ```sh
 oqas --environment local --brief "Test the search of a customer and their profile."
 ```
 
+The command is a presentation of [the operations on sessions](../../engine/docs/engine.md#the-operations-on-sessions) of the engine, on the database of the instance: the same operations [the API](../../api/docs/sessions.md) says in HTTP, on the same database. A session opened in a terminal is listed, followed, spoken to and interrupted from the console of a server started on the same test repository, and a session opened from the console is listed, followed, spoken to and interrupted from a terminal.
+
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| `oqas --brief <text>` | Opens a session, runs it in this process, follows it to its end, and exits with [the code of its run](#exit-codes). |
+| `oqas sessions` | Lists the sessions of the test repository, the latest first. |
+| `oqas show <session>` | Prints a session and its thread so far. |
+| `oqas attach <session>` | Follows a session to its end, whoever runs it, and exits with the code of its run. A session that ended is printed whole, at once. |
+| `oqas say <session> <text>` | Says something to the agents of a session that goes on: see [Speaking to a session](#speaking-to-a-session). |
+| `oqas stop <session>` | Interrupts a session that goes on: see [Stopping a session](#stopping-a-session). |
+| `oqas --init` | Makes a Playwright project of the test repository and runs nothing: see [Initialising a test repository](#initialising-a-test-repository). |
+| `oqas --help` | Prints the usage. |
+
+`<session>` is the identifier of a session, such as `session-2026-11-16T08-12-45-120Z-9f3a1c2b`, or the start or the end of it when no other session shares it: `9f3a1c2b` is enough. `oqas --brief` prints the identifier of the session it opens on its first line, on the error output, and `oqas sessions` lists them.
+
+The commands that act on a session that exists run from any terminal, and from any program: they ask nothing, read the database or write to it, and leave. They host nothing: `sessions`, `show` and `attach` only read, `say` and `stop` leave in the database what the process that runs the session then acts on.
+
 ## Options
 
-| Option                  | Default                       | What it does                                                                                                                                                                     |
-| ----------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--repository <folder>` | the current folder            | The test repository, which holds `oqas.json`.                                                                                                                                    |
-| `--environment <name>`  | the only environment declared | The environment to run against. With several declared, it must be given.                                                                                                         |
-| `--brief <text>`        | the whole domain index        | What to test, in your words: a domain, a ticket, a rule, a journey. The designer looks up what echoes it in the index, explores, and plans its tests from it.                    |
-| `--force-cartography`   | off                           | Maps every source again, even those whose card is up to date.                                                                                                                    |
-| `--follow`              | off                           | Prints what the agents do while they do it, on the error output, besides the journal: see [Following a run](#following-a-run).                                                   |
-| `--resume <run>`        |                               | Resumes a run a limit stopped, such as `oqas-2026-11-13T12-00-00-000Z`; see [Resuming a run](#resuming-a-run). It takes no `--environment`, `--brief` nor `--force-cartography`. |
-| `--init`                |                               | Makes a Playwright project of the test repository and runs nothing: see [Initialising a test repository](#initialising-a-test-repository). |
-| `--help`                |                               | Prints the usage.                                                                                                                                                                |
+| Option                  | Default                       | What it does |
+| ----------------------- | ----------------------------- | ------------ |
+| `--repository <folder>` | the current folder            | The test repository, which holds `oqas.json`. Every command takes it. |
+| `--environment <name>`  | the only environment declared | With `--brief`: the environment to run against. With several declared, it must be given. |
+| `--brief <text>`        |                               | What to test, in your words: a domain, a ticket, a rule, a journey. The designer looks up what echoes it in the index, explores, and plans its tests from it. |
+| `--follow`              | off                           | With `--brief`, `attach` and `show`: prints what the agents do besides what the harness tells of the session: see [The thread](#the-thread). |
+| `--output text\|json`   | `text`                        | How the command prints: lines a person reads, or [JSON Lines](#json-output) a program reads. Every command but `--init` takes it. |
+| `--no-input`            |                               | Never asks anything on the terminal. The command asks nothing yet, and the option changes nothing: it is accepted so that a script that sets it keeps working once a session can ask a question. |
+
+A session is always opened by a brief: `oqas` without `--brief` and without a command is refused, with `3`.
+
+## Where the sessions are kept
+
+The sessions, their events and the messages sent to them are kept in [the database of the instance](../../store/docs/database.md): a SQLite file in the state folder of the test repository, `.oqas/oqas.db` unless `oqas.json` names another state folder, which the command makes when it is missing — or the database `OQAS_DATABASE_URL` names, when the variable is set. It is the database a server started with the same settings uses, which is all it takes for the two to show the same sessions. A SQLite file is brought to the schema of the version that opens it; a PostgreSQL server is not: the command stops with `3` when migrations are pending on it, and says to apply them with [the migration command](../../store/docs/database.md#migrations).
+
+A command writes no other file of its own: no journal, no state, no inbox. What stays in the state folder beside the database is what the agents and the tests write, in every host: the cards and the domain index under `index/`, the plan and the state of each design under `designs/`, the traces of the agents under `traces/`, what Playwright wrote when each test was tried under `trials/`, and when the tests ran together under `runs/run-<date>/`. To keep the thread of a session as a file, export it:
+
+```sh
+oqas show 9f3a1c2b --output json > session.jsonl
+```
+
+## The thread
+
+`oqas --brief` and `oqas attach` print the thread of the session on the error output while it grows, and what the session came to on the standard output once it ended; `oqas show` prints both on the standard output, the session first.
+
+What the harness tells of a phase is always printed, as `[phase]` then what happened; what a person and the harness do to the session is printed after its time:
+
+```text
+Session session-2026-11-16T08-12-45-120Z-9f3a1c2b
+08:12:45 person: Test the search of a customer and their profile.
+08:12:45 session running
+[configuration] started
+[configuration] The configuration is valid; the run targets the environment local.
+[prerequisites] started
+[plan] The plan was accepted: search-customer, open-profile.
+[write] started: search-customer
+08:19:02 scenario search-customer closed: passed
+[execution] passed: customer-management › search-customer.spec.ts:3 › finds a customer by last name.
+[summary] The summary succeeded.
+08:21:30 session completed
+```
+
+`[phase] error:` opens a refusal of the harness or an error of the run, with the code of the gate that refused when one did, such as `[plan] error: [PLAN-ELEMENT] …`.
+
+With `--follow`, what the agents do is printed too, each on one line cut to 160 characters; the event holds more, and `--output json` gives it:
+
+```text
+08:14:07 harness to the planner: Plan Playwright tests for the environment local. Brief of the developer, in their words: …
+08:14:20 planner -> shop_fill({"target":{"role":"textbox","name":"Search"},"value":"Mira"})
+08:14:20 <- {"url":"http://localhost:3010/orders","code":"await page.getByRole(\"textbox\", …
+08:14:22 !! The arguments do not match the schema of shop_click…
+08:14:58 planner: The plan covers the search and the profile.
+```
+
+`->` is a call of a tool by an agent with its arguments, `<-` its answer, `!!` an answer that is a failure, `planner:` what an agent wrote, `planner thinks:` what it thought when the model gives it, `harness to the writer:` what the harness asked of an agent. Times are in UTC. The secrets of the configuration are masked in every event before it is kept.
+
+Once the session ended, the standard output holds what it came to:
+
+```text
+Session session-2026-11-16T08-12-45-120Z-9f3a1c2b: completed, passed, in 512.3 s and 81 model requests.
+Tests written on the branch oqas/design-20261116T081401Z.
+passed        customer-management › search-customer.spec.ts:3 › finds a customer by last name
+passed        customer-management › open-profile.spec.ts:3 › opens the profile of a customer
+```
+
+A session that is `completed` says how — `passed`, `failed`, `inconclusive` or `stopped` — then what it took, the branch of its tests and the verdict of each. A session that was `interrupted` has no result: its thread says why.
+
+`oqas sessions` prints a line a session: its identifier, how it stands, when it was opened, and what was asked.
+
+```text
+session-2026-11-16T08-30-02-511Z-0b7e9f3a  running  2026-11-16T08:30:02.511Z  Test the returns.
+session-2026-11-16T08-12-45-120Z-9f3a1c2b  completed, passed  2026-11-16T08:12:45.120Z  Test the search of a customer and their profile.
+```
+
+## JSON output
+
+With `--output json`, the standard output holds JSON Lines and nothing else; what a person is told besides — the identifier of the session opened, a warning — goes to the error output.
+
+| Command | What each line is |
+| --- | --- |
+| `oqas --brief`, `oqas attach`, `oqas show` | An event of the thread of the session, in the order of their ranks, in the format of [the contract of sessions](../../api/docs/sessions.md): `id`, its rank from 1, `at`, `type`, then what the type carries. Every event is printed, `--follow` or not. `--brief` and `attach` print each as it is told, and end after the `state_changed` that ends the session. |
+| `oqas sessions` | A session, as the API serves it: `id`, `request`, `environment`, `openedAt`, `lastEventAt`, `state`, and `result` once it is completed. |
+| `oqas say` | The receipt of the message: `{"number":2}`. |
+| `oqas stop` | The session as it is once the interruption is asked. |
+
+```sh
+oqas --brief "Test the returns." --output json | jq -c 'select(.type == "scenario_closed")'
+```
+
+A program reads an event whose type it does not know as one to ignore: types are added over time.
 
 ## Initialising a test repository
 
@@ -43,138 +142,80 @@ npm install
 git add -A && git commit -m "chore: initialise the Playwright project"
 ```
 
-## Following a run
-
-With `--follow`, each line of the trace of the agents is printed as it is written: the time, the phase and its source, then what happened.
-
-```text
-14:07:20 plan -> shop_fill({"target":{"role":"textbox","name":"Search"},"value":"Mira"})
-14:07:20 plan <- {"url":"http://localhost:3010/orders","code":"await page.getByRole(\"textbox\", …
-14:07:22 plan !! shop_click (invalid-arguments): The arguments do not match the schema of shop_click…
-14:07:58 plan <- The plan was accepted. Next: answer with one sentence. Call no more tools.
-14:07:59 plan 18 model requests, 266128 tokens read, 228608 of them from the cache, 2221 written
-14:07:59 write harness: Write the test of this scenario for the environment local. …
-```
-
-`->` is a call of a tool with its arguments, `<-` its result, `!!` a call that gave none or an error of the session, `agent:` what the model wrote, `agent thinks:` what it thought when the model gives it, `harness:` a message the harness sent it, `person (message 2):` a message [you sent to the run](#speaking-to-a-run), when a session receives it. Each is on one line, cut to 160 characters; the trace in `<stateDir>/traces/` keeps them whole. The entries of the journal are printed by the journal, once. The secrets of the configuration are masked, as in the trace.
-
 ## Steps
 
-Each step starts only when the one before succeeded; once the prerequisites passed, the summary runs whatever the end of the others.
+The run of a session goes through six steps. Each starts only when the one before succeeded; once the prerequisites passed, the summary runs whatever the end of the others.
 
-1. **Configuration.** `oqas.json` is read and validated, the environment is chosen, and the test charter is resolved. A missing or invalid configuration stops the command before anything else: no model is called and no file of the repository is written.
+1. **Configuration.** `oqas.json` is read and validated, the environment is chosen, and the test charter is resolved. A missing or invalid configuration stops the session before anything else: no model is called, and nothing is written to the repository but the database that keeps the session.
 2. **Prerequisites.** The folder is the root of a git repository with a commit, the model server of the configuration answers, `npm` can be run, and the repository is a Playwright project: it has a `playwright.config.ts`. One that has none is [initialised](#initialising-a-test-repository) first.
 3. **Cartography.** The sources without an up-to-date card are mapped, `cartography.concurrency` of them at once, then the cards are consolidated into the domain index (see the cartographer of `@open-qa-stack/agents`).
 4. **Design.** The dependencies of the test repository and the browsers of its locked version of `@playwright/test` are installed, once for the design and the execution. The tests are then designed in passes, one after the other: one for each level of the pyramid of tests the configuration asks for, from its base to its top, then one for the visual tests. In each pass an agent plans the scenarios of that level alone, from the brief, then another writes the test of each, in a session of its own, each test run against the application before it is kept. A pass commits its tests on a new local branch `oqas/design-<date>`, made from that of the pass before, so that a level is told the tests of the levels below it and builds on them: a scenario a test already covers is set aside. A scenario whose session ends before its test is made to end keeps its last file, classed as unfinished in the design state. With `design.passes` set to `single`, every level is planned in one pass.
 5. **Execution.** The tests designed run together, on the machine, with the real runner, except those classed as unfinished or as duplicates of another, which the journal names and which stay in the test repository for a person to decide, and the harness pronounces a verdict per test from the JSON of the reporter (see `docs/pinned-run.md` of `@open-qa-stack/harness`).
-6. **Summary.** The messages [sent to the run](#speaking-to-a-run) that no agent received are told, the runtime of the agents is closed, the state of the run is written, and the verdicts are printed. When the plan says that the brief asks what the application does not allow, the summary says it after the verdicts, a line each — `Not covered: Change the address of a customer. No screen offers to edit an address.` — and the state of the run keeps it in `uncovered`: tests that pass do not mean the brief is covered.
+6. **Summary.** The messages [sent to the session](#speaking-to-a-session) that no agent received are told, the runtime of the agents is closed, and the session ends with its result: the verdict of each test, the branch, how long it took and how many requests it sent to the model. When the plan says that the brief asks what the application does not allow, the thread says it when the plan is accepted, a line each — `[plan] error: The plan does not cover what the brief asks: Change the address of a customer. No screen offers to edit an address.` — and the file of the plan keeps it under `Not covered`: tests that pass do not mean the brief is covered.
 
-The limits of the autonomy level of the configuration apply to every task. Its guardrail, counted from the start of the run, stops every task of the agents still running when it is reached, at its next call to the model or to a tool, by its duration limit; it bounds neither the installation of the dependencies nor the execution of the tests. A task stopped by a limit is journaled with the limit reached, and none of its tests is `passed`.
+The limits of the autonomy level of the configuration apply to every task. Its guardrail, counted from the start of the run, stops every task of the agents still running when it is reached, at its next call to the model or to a tool, by its duration limit; it bounds neither the installation of the dependencies nor the execution of the tests. A task stopped by a limit is told in the thread with the limit reached, and none of its tests is `passed`. A session whose cartography or design a limit stopped keeps what it produced — the cards made, the plan accepted and the tests kept, on the branch of the design — and says so; it is not resumed: the next session maps only the sources without an up-to-date card, and designs anew.
 
-## Speaking to a run
+## Speaking to a session
 
-While a run is going, you can tell its agents that they took a wrong direction. A run reads its inbox, a JSON Lines file beside its journal, `<stateDir>/runs/oqas-<date>.inbox.jsonl`: append a line to it, and the agent at work receives it. The file does not exist until someone writes to it.
+While a session is going, you can tell its agents that they took a wrong direction, from another terminal:
 
 ```sh
-echo '{"at":"2026-11-13T12:04:10Z","text":"Search by last name only: the first name is not indexed."}' >> .oqas/runs/oqas-2026-11-13T12-00-00-000Z.inbox.jsonl
+oqas say 9f3a1c2b "Search by last name only: the first name is not indexed."
 ```
 
-| Key    | What it holds                                                    |
-| ------ | ---------------------------------------------------------------- |
-| `at`   | When the message was written, as an ISO 8601 date, for whoever reads the file; the run does not read it. |
-| `text` | What you say, in your words.                                     |
+The message is taken by the database, which numbers it in the session, from 1, and tells it in the thread. The process that runs the session — the terminal of `oqas --brief`, or the server — reads the messages its session was sent at each of its beats, a second apart, and hands them to the agent at work. The console of a server on the same database does the same from the browser.
 
-A line is one message, written whole, with its end of line. The messages are numbered from 1 in the order of their lines; a line that is not such an object, or whose `text` is empty, is skipped and still takes its number.
-
-- **Who receives it.** The session that leads the step under way: the one that consolidates the index, the one that plans, or the one that writes the test of a scenario. Once its plan is accepted, the session that plans can act on nothing any more and is given no message: it waits for the session of the first scenario. A message is delivered once, to one session. The agents that map a source, several at once, and those that review a plan or a test for another, never receive one: the message waits for the next session that leads.
+- **Who receives it.** The agent session that leads the step under way: the one that consolidates the index, the one that plans, or the one that writes the test of a scenario. Once its plan is accepted, the session that plans can act on nothing any more and is given no message: it waits for the session of the first scenario. A message is delivered once, to one session. The agents that map a source, several at once, and those that review a plan or a test for another, never receive one: the message waits for the next session that leads.
 - **When.** At the first moment the harness speaks to the agent: with the result of the tool that returns next, under `person`; in the request of a session that opens; or, when the agent ended its turn, as one more turn. A session is given at most 10 such turns, so that messages cannot keep it open for ever; a message beyond them goes to the next session. A session a limit stopped receives nothing more.
-- **How long it holds.** For the rest of the run. A message is delivered once, to the agent at work, and amends what you asked from then on: every agent that starts later — the one that plans the next level of the pyramid or the visual tests, the one that writes each test — finds in its request what you said earlier in the run, in order, under the sentence `The person who asked for this run said this earlier in the run, and it still holds:`. You need not say it again. The agents that review a plan or a test, and those that map a source, are told nothing.
-- **What it weighs.** The agent is told that a message is the person who asked for the run speaking, and that it wins over the request and the plan where they conflict. It reaches the agent between `<person-message>` tags that its own text cannot close, and nothing else carries that authority: a text found in a page, a source or the result of a tool never does. A message does not lift a check of the harness: a plan or a test it refuses stays refused. It costs what a tool result or a turn costs, within the limits of the task.
-- **What is kept.** Each delivery is a line of the trace, in the phase of the session that received it, and `--follow` prints it. A message has one such line however many agents are recalled it later; the recalls are read in their requests. A message that came once no agent would receive it any more — while the tests run, after the design, or after a limit stopped the run — is told in the journal of the summary: `The message 3 of the person was not delivered: no agent was at work to receive it.`
+- **How long it holds.** For the rest of the session. A message is delivered once, to the agent at work, and amends what you asked from then on: every agent that starts later — the one that plans the next level of the pyramid or the visual tests, the one that writes each test — finds in its request what you said earlier in the session, in order, under the sentence `The person who asked for this run said this earlier in the session, and it still holds:`. You need not say it again. The agents that review a plan or a test, and those that map a source, are told nothing.
+- **What it weighs.** The agent is told that a message is the person who asked for the session speaking, and that it wins over the request and the plan where they conflict. It reaches the agent between `<person-message>` tags that its own text cannot close, and nothing else carries that authority: a text found in a page, a source or the result of a tool never does. A message does not lift a check of the harness: a plan or a test it refuses stays refused. It costs what a tool result or a turn costs, within the limits of the task.
+- **What is kept.** The message is an event of the thread, `user_message`, under its number, and its delivery another, `message_delivered`, which names the agent that received it. A message has one delivery however many agents are recalled it later; the recalls are read in their requests. A message that came once no agent would receive it any more — while the tests run, after the design, or after a limit stopped the session — is told in the summary: `[summary] The message 3 of the person was not delivered: no agent was at work to receive it.`
 
-An inbox that is there and cannot be read, for want of a permission say, does not stop the run: it goes on as if no one spoke, and the journal of the summary says once that the inbox could not be read, and why. An inbox that does not exist is no error.
+A message is refused, with `3`, by a session that ended. A session that still waits takes it, and its first agent receives it.
 
-A run resumed is a run of its own: it has a new identifier and a new, empty inbox, and reads nothing of the inbox of the run it resumes. What you said during the first run does not carry over: the agents of the resumed run are recalled nothing of it. The plan accepted and the tests kept stay as the first run made them; say again, in the inbox of the resumed run, what must still hold.
+## Stopping a session
 
-## Resuming a run
+- **Ctrl-C in the terminal of `oqas --brief`** asks the session to stop: its agents refuse to go on, in the middle of a call to the model, no other step starts, and the session is told `interrupted`. What runs outside the agents and is under way, an installation or the tests, goes to its end first. The command follows the session to that end and exits with `5`. **A second Ctrl-C** leaves at once, with `5`, without waiting: the session is left `running` in the database, marked as left, and is interrupted by the next `oqas stop` or the next process that hosts sessions.
+- **`oqas stop <session>`**, from any terminal, interrupts a session that goes on. One that waits is interrupted at once. One that another process runs is asked to stop through the database: that process reads the request at its next beat, within a second, stops the run as above and tells the session interrupted; `oqas stop` returns once the request is kept, and `oqas attach` shows the end. A session whose process died is interrupted at once.
+- **Ctrl-C in the terminal of `oqas attach`** stops following, and nothing else: the session goes on.
 
-A run whose cartography wrote no index, or whose design was cut short, because a limit stopped one of their tasks, keeps what it produced: the cards made, the plan accepted and the tests kept, on the branch of the design. Its state names the step and the limit in `stoppedBy`, and the summary says how to resume it:
+## Several processes on one test repository
 
-```text
-The design was stopped by its iterations limit; resume the run with: oqas --resume oqas-2026-11-13T12-00-00-000Z
-```
+A session is run by the process that opened it, and by no other: `oqas --brief` runs the session it opens, in its terminal; a server runs those opened through it, one at a time. Each process that runs sessions beats on them in the database, every second.
 
-`oqas --resume <run>` reads the configuration as it is now, so that its limits may be raised, then takes the environment and the brief of the run, and starts again from the step that was stopped, each task with fresh limits. A cartography resumed maps only the sources without an up-to-date card, then the design starts. A design resumed skips the cartography: it goes on from the plan accepted and the tests kept, on the same branch, with neither another plan nor a kept test made again; with no plan accepted yet, it starts anew. The chain then goes on as usual. A design cut short keeps the tests it gave on its branch, and runs none: its tests run once the resumed design gave one for each scenario of the plan. A run is resumed once: once another run resumed it, that run is the one to resume, if a limit stopped it. A run no limit stopped, a run resumed already, or one whose state cannot be read, is not resumed: the command says so and exits with `3`. The resumed run is a run of its own, with its own journal and state, which names the run it resumes in `resumes`.
+- A process that starts leaves the sessions of a process that beats alone. Starting `oqas --brief` while a server runs a session interrupts nothing, and neither does starting a server while a terminal runs one.
+- A process that has not beaten for 15 seconds died. The session it left `running` is interrupted by the next process that hosts sessions, at its next beat, or at once by `oqas stop`. The sessions it left `queued` are taken over, and run, by a server: `oqas --brief` runs the session it opens and no other, and leaves them waiting. Until then such a session reads as it was left: `oqas sessions` lists it `running` or `queued`, and `oqas attach` waits on it; `oqas stop` ends it.
+- Two processes that each run a session on the same test repository work in the same folder at the same time, each on the branch of its design: run one at a time on a repository, as a server alone does.
 
 ## Exit codes
 
+`oqas --brief` and `oqas attach` exit with the code of the run of the session, read from how the session ended:
+
 | Code | Meaning                                                                                                                                                                                                                                                                      |
 | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `0`  | The whole chain ran, and every test passed.                                                                                                                                                                                                                                  |
-| `1`  | The whole chain ran, and a test failed.                                                                                                                                                                                                                                      |
-| `2`  | The whole chain ran without a failure, but a test was `blocked`, `indeterminate`, `skipped` or `not_run`; or the design gave no test, its plan holding no scenario because no test can do what the brief asks: nothing is run, and the summary says what is not covered. Also when the design left a scenario of its plan without a test: the tests it gave are run, and the run does not end as passed. |
-| `3`  | The configuration is missing or invalid, the environment is not declared, an option is wrong, or the run to resume was not stopped by a limit, was resumed already, or cannot be read.                                                                                       |
-| `4`  | A prerequisite of the machine is missing.                                                                                                                                                                                                                                    |
-| `5`  | The chain did not go to its end: no index was written, the dependencies could not be installed, the design gave no test to run, or was cut short by a limit, a step stopped on an unexpected error, which the journal tells, or the state could not be written. |
+| `0`  | The session is completed, `passed`: the whole chain ran, and every test passed.                                                                                                                                                                                              |
+| `1`  | The session is completed, `failed`: the whole chain ran, and a test failed.                                                                                                                                                                                                  |
+| `2`  | The session is completed, `inconclusive`: the whole chain ran without a failure, but a test was `blocked`, `indeterminate`, `skipped` or `not_run`; or the design gave no test, its plan holding no scenario because no test can do what the brief asks; or the design left a scenario of its plan without a test: the tests it gave are run, and the session does not end as passed. |
+| `3`  | The session was interrupted in its configuration: `oqas.json` is missing or invalid, or the environment is not declared. Also, for every command: an argument is wrong, the session named does not exist or is named by several, the session no longer goes on and takes no message nor interruption, `OQAS_DATABASE_URL` is no database URL, or the database is on a server that has migrations pending. |
+| `4`  | The session was interrupted in its prerequisites: one of the machine is missing.                                                                                                                                                                                             |
+| `5`  | The session did not go to its end: it is completed, `stopped` — no index was written, the dependencies could not be installed, the design gave no test to run or was cut short by a limit, a step stopped on an unexpected error, which the thread tells — or it was interrupted, by Ctrl-C, by `oqas stop`, from the console, or because its process died. Also, for every command: the database cannot be reached, or the command stopped on an unexpected error, which goes to the error output. |
 
-## Journal
-
-The journal goes to the error output, a line per entry, such as `[cartography] finished: The cartography succeeded. (95.2 s, 81 model requests)`. Once the prerequisites pass, it is also written to `<stateDir>/runs/oqas-<date>.jsonl`, a JSON object per line, from the first entry of the configuration on; a run stopped by the configuration or the prerequisites writes no file:
-
-| Key                           | What it holds                                                                                                                                                                |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `at`                          | When, as an ISO 8601 date.                                                                                                                                                   |
-| `step`                        | `configuration`, `prerequisites`, `cartography`, `design`, `execution` or `summary`.                                                                                         |
-| `event`                       | `started` and `finished` frame each step; `info` and `error` tell what happened in it.                                                                                       |
-| `message`                     | What happened, in a sentence.                                                                                                                                                |
-| `durationMs`, `modelRequests` | For `finished`: how long the step took, and how many requests it sent to the model, whether it succeeded or not; a turn of an agent cut short before its end is not counted. |
-
-The standard output holds only the summary. Every value of the variables the configuration names is masked, in the journal and on both outputs.
-
-## State
-
-The state of a run is written to `<stateDir>/runs/oqas-<date>.json`:
-
-```json
-{
-  "formatVersion": 1,
-  "runId": "oqas-2026-11-13T12-00-00-000Z",
-  "environment": "local",
-  "brief": "Test the orders.",
-  "startedAt": "2026-11-13T12:00:00.000Z",
-  "durationMs": 512345,
-  "exitCode": 0,
-  "steps": [
-    { "step": "configuration", "durationMs": 12, "modelRequests": 0 },
-    { "step": "cartography", "durationMs": 95234, "modelRequests": 81 }
-  ],
-  "index": ".oqas/index/domain-index.json",
-  "branch": "oqas/design-20261113T120130Z",
-  "designed": ["apps/shop/list-orders.spec.ts"],
-  "designState": ".oqas/designs/design-20261113T120130Z.json",
-  "run": ".oqas/runs/run-2026-11-13T12-08-00-000Z.json",
-  "report": ".oqas/runs/run-2026-11-13T12-08-00-000Z/report.json",
-  "tests": [{ "id": "shop › shop/list-orders.spec.ts:3 › lists the orders", "verdict": "passed", "reason": "Every attempt passed." }],
-  "journal": ".oqas/runs/oqas-2026-11-13T12-00-00-000Z.jsonl"
-}
-```
-
-`brief` is the brief of the run, when one was given; `designState` the state the design wrote, when it wrote one, which names the file of its plan, `<design>.plan.md` beside it; `stoppedBy`, such as `{ "step": "design", "limit": "iterations" }`, the step a limit stopped and the limit, when one stopped the run; `resumes` the run it resumes, when it resumes one. `steps` lists the steps that ran before the summary, which writes the state; a step that did not succeed is listed too, with the requests it sent to the model. `index`, `branch`, `run` and `report` are present once their step produced them, as paths relative to the test repository with forward slashes. The reason of each verdict has every declared secret masked.
+`oqas sessions`, `show`, `say`, `stop`, `--init` and `--help` exit with `0` once they did what they were asked.
 
 ## The command and the engine
 
-The steps above are those of a run of [`@open-qa-stack/engine`](../../engine/docs/engine.md), which the command hosts. The command itself reads the options, prints the usage, initialises a test repository, and plugs the run into the terminal and the test repository:
+The command holds no rule of a session: it reads its arguments, assembles the database of the instance with [`InstanceDatabase`](../../store/docs/database.md#the-database-of-an-instance-assembled) of `@open-qa-stack/store` as the API does, gives its store to the `Sessions` of [`@open-qa-stack/engine`](../../engine/docs/engine.md#the-operations-on-sessions), and says one operation:
 
-| What the run needs | What the command gives it |
+| Command | Operation |
 | --- | --- |
-| Where to tell what it does | `FileJournal`: the error output, and the file of the journal. |
-| Where to print its summary | The standard output. |
-| Who follows the agents | With `--follow`, the error output, a line of the trace at a time. |
-| The inbox of the person | The file `<stateDir>/runs/oqas-<date>.inbox.jsonl`. |
-| Where the state of a run is kept and found | `FileRunStore`: the file of the state, beside the journal. |
-| The runtime of the agents | The model of the configuration, with the environment of the process. |
+| `oqas --brief` | `open`, then `events` to the end of the session, then `session`; Ctrl-C is `interrupt`. |
+| `oqas sessions` | `sessions`. |
+| `oqas show` | `session`, then `thread`. |
+| `oqas attach` | `events` to the end of the session, then `session`. |
+| `oqas say` | `say`. |
+| `oqas stop` | `interrupt`, then `session`. |
 
-The exit code of the process is the code the run ends with.
+`oqas --brief` is the one command that hosts: it gives the operations its test repository, and stops them, within ten seconds, before it leaves.
 
 ## What it never does
 

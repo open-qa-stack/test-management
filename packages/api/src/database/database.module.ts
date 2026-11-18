@@ -1,27 +1,27 @@
 import { Logger, Module, type OnApplicationShutdown } from "@nestjs/common";
-import { Database, DatabaseStatus, SchemaMigrations } from "@open-qa-stack/store";
+import { Database, DatabaseStatus, InstanceDatabase, SchemaMigrations, SessionStore } from "@open-qa-stack/store";
 import { ApiConfiguration } from "../config/api-configuration.ts";
 import { SchemaCheck } from "./schema-check.ts";
 
-/** The context the lines about the database are logged under. */
-const CONTEXT = "Database";
-
 /**
- * Provides the database of the instance, its migrations and its status, checks its schema at startup, and
- * closes its connections when the instance stops.
+ * Provides the database of the instance as the store assembles it for every process that reaches it, and
+ * each of its parts to whoever needs one — the connection, the migrations, their status, the store of the
+ * sessions; checks its schema at startup, and closes its connections when the instance stops.
  */
 @Module({
   providers: [
     {
-      provide: Database,
-      useFactory: (configuration: ApiConfiguration) => new Database(configuration.database, new Logger(CONTEXT)),
+      provide: InstanceDatabase,
+      useFactory: (configuration: ApiConfiguration) => new InstanceDatabase(configuration.database, new Logger("Database")),
       inject: [ApiConfiguration],
     },
-    { provide: SchemaMigrations, useFactory: (database: Database) => new SchemaMigrations(database), inject: [Database] },
-    { provide: DatabaseStatus, useFactory: (migrations: SchemaMigrations) => new DatabaseStatus(migrations, new Logger(CONTEXT)), inject: [SchemaMigrations] },
+    { provide: Database, useFactory: (instance: InstanceDatabase) => instance.database, inject: [InstanceDatabase] },
+    { provide: SchemaMigrations, useFactory: (instance: InstanceDatabase) => instance.migrations, inject: [InstanceDatabase] },
+    { provide: DatabaseStatus, useFactory: (instance: InstanceDatabase) => instance.status, inject: [InstanceDatabase] },
+    { provide: SessionStore, useFactory: (instance: InstanceDatabase) => instance.sessions, inject: [InstanceDatabase] },
     SchemaCheck,
   ],
-  exports: [Database, SchemaMigrations, DatabaseStatus],
+  exports: [InstanceDatabase, Database, SchemaMigrations, DatabaseStatus, SessionStore],
 })
 export class DatabaseModule implements OnApplicationShutdown {
   readonly #database: Database;
