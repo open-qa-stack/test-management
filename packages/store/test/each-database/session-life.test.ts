@@ -181,7 +181,7 @@ describe("a session that ends", () => {
     now = 30;
     await store.complete(id, RESULT);
     assert.deepEqual(await store.session(id), { id, request: "cover the profile", openedAt: at(0), lastEventAt: at(30), state: "completed", result: RESULT });
-    assert.deepEqual((await store.eventsAfter(id, 0)).at(-1), { id: 3, at: at(30), type: "state_changed", state: "completed" });
+    assert.deepEqual((await store.eventsAfter(id, 0)).at(-1), { id: 3, at: at(30), type: "state_changed", state: "completed", result: RESULT });
   });
 
   it("is interrupted without a result, which its last event tells", async () => {

@@ -6,7 +6,7 @@ import { SessionEndedError, UnknownSessionError } from "@open-qa-stack/domain";
 import type { Session } from "@open-qa-stack/domain/sessions";
 import { Conversation, type ConversationProps, type Leaving } from "../../src/solo/conversation/conversation.ts";
 import { FakeSessions } from "./fake-sessions.ts";
-import { COMPLETED, CONTEXT, FAILED, NOW, numbered, RUNNING, THREAD } from "./fixtures.ts";
+import { COMPLETED, CONTEXT, FAILED, NOW, numbered, RUNNING, THREAD, completion } from "./fixtures.ts";
 import { UNICODE, until } from "./screen.ts";
 
 const ENTER = "\r";
@@ -119,7 +119,7 @@ describe("the conversation", () => {
   it("closes the thread on what the session came to, and takes the next request as a new session", async () => {
     const stage = await staged();
     await opening(stage);
-    stage.sessions.tell(RUNNING.id, numbered(THREAD));
+    stage.sessions.tell(RUNNING.id, numbered([...THREAD, completion(COMPLETED)]));
     stage.sessions.end(COMPLETED);
     await stage.sees("Session completed · tests passed");
     await stage.sees("›  What do we test next?");

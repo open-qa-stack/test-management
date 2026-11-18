@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import type { Session } from "@open-qa-stack/domain/sessions";
 import { initialState } from "../../src/solo/conversation/conversation-state.ts";
-import { after, COMPLETED, FAILED, NOW, RUNNING, showing, THREAD, type EventBody } from "./fixtures.ts";
+import { after, COMPLETED, FAILED, NOW, RUNNING, showing, THREAD, type EventBody, endOf } from "./fixtures.ts";
 import { PLAIN, screenOf, WIDTHS, widthOf } from "./screen.ts";
 
 const HOME = after([]);
@@ -287,7 +287,7 @@ describe("a verdict of the harness", () => {
 describe("the thread of a session that ended", () => {
   for (const width of WIDTHS)
     it(`closes on the verdict of each test and on what the session came to, at ${width} columns`, () => {
-      const lines = screenOf(after([{ type: "ended", session: COMPLETED }], LIVE), width);
+      const lines = screenOf(after(endOf(COMPLETED), LIVE), width);
       fits(lines, width);
       // An action whose tool never answered is written as ended, and spins no more.
       assert.deepEqual(from(lines, "● Writer").slice(0, 2), ["● Writer", "  · Ran the test"]);
@@ -316,7 +316,7 @@ describe("the thread of a session that ended", () => {
         ],
       },
     };
-    const lines = screenOf(after([{ type: "ended", session: mixed }], LIVE), 100);
+    const lines = screenOf(after(endOf(mixed), LIVE), 100);
     assert.deepEqual(from(lines, "Verdicts of the run").slice(1, 6), [
       "✓ passed  searches",
       "✗ failed  opens",
@@ -340,12 +340,12 @@ describe("the thread of a session that ended", () => {
 
   it("gives the facts of a session that produced no test, in the singular when it has one", () => {
     const empty: Session = { ...COMPLETED, result: { outcome: "stopped", durationMs: 2000, modelRequests: 2, tests: [] } };
-    assert.deepEqual(from(screenOf(after([{ type: "ended", session: empty }], LIVE), 100), "Session completed").slice(0, 2), [
+    assert.deepEqual(from(screenOf(after(endOf(empty), LIVE), 100), "Session completed").slice(0, 2), [
       "Session completed · stopped before the end",
       "2.0 s · 2 model requests",
     ]);
     const one: Session = { ...COMPLETED, result: { ...COMPLETED.result!, tests: COMPLETED.result!.tests.slice(0, 1) } };
-    assert.match(from(screenOf(after([{ type: "ended", session: one }], LIVE), 100), "Session completed")[1]!, / · 1 of 1 test passed · /);
+    assert.match(from(screenOf(after(endOf(one), LIVE), 100), "Session completed")[1]!, / · 1 of 1 test passed · /);
   });
 });
 

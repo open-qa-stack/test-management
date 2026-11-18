@@ -3,7 +3,7 @@ import { describe, it } from "vitest";
 import type { Session } from "@open-qa-stack/domain/sessions";
 import { conversationReducer } from "../../src/solo/conversation/conversation-reducer.ts";
 import { initialState, PICKED_SESSIONS, RECENT_SESSIONS, type ConversationState, type Printed } from "../../src/solo/conversation/conversation-state.ts";
-import { after, COMPLETED, FAILED, NOW, numbered, RUNNING, showing, THREAD } from "./fixtures.ts";
+import { after, COMPLETED, FAILED, NOW, numbered, RUNNING, showing, THREAD, endOf } from "./fixtures.ts";
 
 const HOME = after([]);
 const LIVE = showing();
@@ -229,7 +229,7 @@ describe("the events of the session on screen", () => {
 
 describe("the end of the session on screen", () => {
   it("settles every block of its thread, the verdicts of its tests last, then writes what it came to", () => {
-    const ended = after([{ type: "ended", session: COMPLETED }], LIVE);
+    const ended = after(endOf(COMPLETED), LIVE);
     assert.deepEqual(printedOf(ended).slice(LIVE.printed.length), ["block:message", "block:pass", "block:action", "block:outcome", "result"]);
     assert.deepEqual(ended.printed.at(-1), { kind: "result", session: COMPLETED });
     assert.equal(ended.shown?.session, COMPLETED);

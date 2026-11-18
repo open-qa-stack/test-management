@@ -8,6 +8,7 @@ import {
   type Session,
   type SessionEvent,
   type SessionPhase,
+  type SessionResult,
   type Step,
   type UnrankedEvent,
 } from "../src/sessions/index.ts";
@@ -24,6 +25,8 @@ const RUNNING: Session = {
 };
 const UNASKED: Session = { id: "session-1", openedAt: RUNNING.openedAt, lastEventAt: RUNNING.lastEventAt, state: "running" };
 const INTERRUPTED: Session = { ...RUNNING, state: "interrupted" };
+/** The result of a turn that ran no test. */
+const EMPTY_RESULT: SessionResult = { outcome: "passed", durationMs: 10, modelRequests: 1, tests: [] };
 
 /** The words of a presentation that says each thing as what it is. */
 const WORDING: ScriptWording = {
@@ -312,39 +315,36 @@ describe("the script of a session", () => {
     );
   });
 
-  it("closes, once the session ended, on the verdict of each test of its result, named by its title alone, at the time of the last step", () => {
-    const completed: Session = {
-      ...RUNNING,
-      state: "completed",
-      result: {
-        outcome: "failed",
-        durationMs: 1000,
-        modelRequests: 3,
-        tests: [
-          { id: "shop › tests/search.spec.ts:3 › searches a customer", verdict: "passed", reason: "It passed." },
-          { id: "opens a customer", verdict: "blocked", reason: "The application did not answer." },
-        ],
-      },
+  it("closes a turn that completed on the verdict of each test of the result its completion tells, named by its title alone, at the time it completed", () => {
+    const result: SessionResult = {
+      outcome: "failed",
+      durationMs: 1000,
+      modelRequests: 3,
+      tests: [
+        { id: "shop › tests/search.spec.ts:3 › searches a customer", verdict: "passed", reason: "It passed." },
+        { id: "opens a customer", verdict: "blocked", reason: "The application did not answer." },
+      ],
     };
+    const completed: Session = { ...RUNNING, state: "completed", result };
     const events: readonly EventBody[] = [
       { type: "note", phase: "execution", text: "The tests ran." },
       { type: "scenario_closed", scenario: "search", level: "smoke", verdict: "passed" },
+      { type: "state_changed", state: "completed", result },
     ];
     assert.deepEqual(stepsOf(events, completed).at(-1), {
       kind: "outcome",
-      at: "14:44:06",
+      at: "14:44:08",
       title: "2 verdicts",
       tests: [
         { title: "searches a customer", level: "", verdict: "passed", note: "It passed." },
         { title: "opens a customer", level: "", verdict: "blocked", note: "The application did not answer." },
       ],
     });
-    // While the session goes on, or when it left no step, it closes on nothing.
-    assert.equal(stepsOf(events, { ...completed, state: "running" }).length, 1);
-    assert.deepEqual(stepsOf([], completed), []);
+    // Until its completion is told, a turn closes on nothing.
+    assert.equal(stepsOf(events.slice(0, 2), completed).length, 1);
   });
 
-  it("closes on the scenarios the harness closed when no test ran, and on nothing when none was", () => {
+  it("closes a turn on the scenarios the harness closed in it when no test ran, and on nothing when none was", () => {
     const events: readonly EventBody[] = [
       { type: "scenario_closed", scenario: "search", level: "smoke", verdict: "passed" },
       { type: "scenario_closed", scenario: "open", verdict: "failed" },
@@ -359,9 +359,39 @@ describe("the script of a session", () => {
         { title: "open", level: "", verdict: "failed" },
       ],
     });
-    assert.equal(stepsOf(events, RUNNING).length, 1);
+    assert.deepEqual(stepsOf([...events.slice(0, 2), { type: "state_changed", state: "completed", result: { ...EMPTY_RESULT } }], INTERRUPTED).at(-1), {
+      kind: "outcome",
+      at: "14:44:08",
+      title: "2 closed",
+      tests: [
+        { title: "search", level: "smoke", verdict: "passed" },
+        { title: "open", level: "", verdict: "failed" },
+      ],
+    });
+    assert.equal(stepsOf(events.slice(0, 2), RUNNING).length, 0);
     assert.equal(stepsOf(events.slice(2), INTERRUPTED).length, 1);
-    assert.deepEqual(stepsOf(events.slice(0, 2), INTERRUPTED), []);
+    assert.deepEqual(stepsOf([{ type: "state_changed", state: "completed" }], INTERRUPTED), []);
+  });
+
+  it("closes each turn of a session on what it came to, under the turns before it", () => {
+    const first: SessionResult = { ...EMPTY_RESULT, outcome: "failed", tests: [{ id: "searches a customer", verdict: "failed", reason: "No row." }] };
+    const steps = stepsOf(
+      [
+        { type: "scenario_closed", scenario: "search", verdict: "failed" },
+        { type: "state_changed", state: "completed", result: first },
+        { type: "user_message", text: "Fix the failing test." },
+        { type: "state_changed", state: "queued" },
+        { type: "scenario_closed", scenario: "search again", verdict: "passed" },
+        { type: "state_changed", state: "interrupted" },
+      ],
+      INTERRUPTED,
+    );
+    assert.deepEqual(steps, [
+      { kind: "outcome", at: "14:44:07", title: "1 verdicts", tests: [{ title: "searches a customer", level: "", verdict: "failed", note: "No row." }] },
+      { kind: "say", from: "user", at: "14:44:08", text: "Fix the failing test." },
+      { kind: "note", at: "14:44:11", text: "interrupted" },
+      { kind: "outcome", at: "14:44:11", title: "1 closed", tests: [{ title: "search again", level: "", verdict: "passed" }] },
+    ]);
   });
 });
 describe("the verdict of a reviewer", () => {

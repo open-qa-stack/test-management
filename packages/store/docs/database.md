@@ -153,7 +153,7 @@ The columns that keep a date, a JSON value or a boolean are kept [as each databa
 | `append(id, events)` | The run of the session | Appends the events the run tells, at the ranks that follow the last event of the session, and dates the session by the last of them. |
 | `say(id, text)` | A person who speaks to a session | Takes a message of the person: a row of `session_messages` under the number that follows the last, and a `user_message` with that number. Answers the number. |
 | `deliver(id, number, agent)` | The run of the session | Marks a pending message as received by an agent, which a `message_delivered` tells. `pendingMessages(id)` reads those still to deliver, in the order of their numbers. |
-| `complete(id, result)` | The run of the session | Ends the session with its result: it becomes `completed`, and a `state_changed` tells it. |
+| `complete(id, result)` | The run of the session | Ends the session with its result: it becomes `completed`, and a `state_changed` tells it with that result. |
 | `interrupt(id)` | The host of a session, which stops it | Ends the session without a result: it becomes `interrupted`, and a `state_changed` tells it. |
 | `requestInterruption(id, silentForMs)` | A process that does not run the session | Interrupts at once a session that waits, and one whose host is silent. For one that runs under a host that beats, keeps the date of the request on the session: `interruptionRequests(host)` gives a host the sessions it is asked to interrupt. |
 | `beat(host)` | A host, at each of its beats | Dates the last beat of the host on each session it hosts that goes on. |

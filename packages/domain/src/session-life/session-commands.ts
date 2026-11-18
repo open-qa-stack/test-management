@@ -54,7 +54,8 @@ export interface SessionCommands {
   append(id: string, events: readonly UnrankedEvent[]): Promise<void>;
 
   /**
-   * Ends a session whose work went to its end: it becomes `completed` with its result, and an event tells so.
+   * Ends a session whose work went to its end: it becomes `completed` with its result, and an event tells so
+   * with that result.
    *
    * @param id - The identifier of the session.
    * @param result - What the session came to.

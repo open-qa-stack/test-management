@@ -76,7 +76,7 @@ export class PlayedInstance {
   /** Completes the session the API opened: its last event says so, and the API tells what it came to. */
   public completeOpened(): void {
     this.opened = { ...this.opened!, state: "completed", result: COMPLETED.result! };
-    this.tell({ type: "state_changed", state: "completed" });
+    this.tell({ type: "state_changed", state: "completed", result: COMPLETED.result! });
   }
 
   /**
@@ -132,7 +132,10 @@ export class PlayedInstance {
     if (this.streamDown) return problem("unavailable", 503, "The stream cannot be opened.");
     if (id === SESSION_ID) this.resumed.push(after);
     // The answer ends after what the session has so far: the console connects again, and asks for what happened since.
-    const completion: SessionEvent = { ...this.next(), type: "state_changed", state: session.state === "interrupted" ? "interrupted" : "completed" };
+    const completion: SessionEvent =
+      session.state === "interrupted"
+        ? { ...this.next(), type: "state_changed", state: "interrupted" }
+        : { ...this.next(), type: "state_changed", state: "completed", ...(session.result === undefined ? {} : { result: session.result }) };
     const played = [...EVENTS.slice(0, this.happened), ...this.since, ...(session.state === "running" ? [] : [completion])];
     const events = id === SESSION_ID ? played : this.openedEvents;
     const fresh = events.filter((event) => event.id > Number(after ?? 0));

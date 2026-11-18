@@ -125,7 +125,7 @@ Every event has an `id`, its rank in the session from 1, the date `at` it happen
 | `refusal` | The harness refused what an agent handed in, or the work hit an error: `phase`, `text`, the `code` of the gate when one refused, and the `scenario` it is about when the thread knows it. |
 | `note` | The harness noted something it did or saw: `phase`, `text`. |
 | `scenario_closed` | The harness closed a `scenario` with a `verdict`, at the `level` of its plan when known. |
-| `state_changed` | The session changed `state`: `running` once it started, then `completed` or `interrupted`. |
+| `state_changed` | The session changed `state`: `running` once it started, then `completed` or `interrupted`. The change to `completed` carries the `result` of the session, which closes its thread on the verdict of each test. |
 
 The agents are `cartographer`, `planner`, `plan_reviewer`, `writer`, `coherence_reviewer` and `code_reviewer`. The phases are `configuration`, `prerequisites`, `survey`, `card`, `consolidation`, `index`, `plan`, `review`, `write`, `execution` and `summary`.
 

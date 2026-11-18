@@ -1,4 +1,4 @@
-import type { SessionState } from "./session.ts";
+import type { SessionResult, SessionState } from "./session.ts";
 
 /** An agent of a session. */
 export type AgentRole = "cartographer" | "planner" | "plan_reviewer" | "writer" | "coherence_reviewer" | "code_reviewer";
@@ -228,6 +228,8 @@ export interface ScenarioClosedEvent extends EventBase {
 export interface StateChangedEvent extends EventBase {
   readonly type: "state_changed";
   readonly state: SessionState;
+  /** What the turn of the session came to, when it is `completed`: the result the session holds until another turn starts. */
+  readonly result?: SessionResult;
 }
 
 /**

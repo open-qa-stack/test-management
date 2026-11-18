@@ -222,7 +222,8 @@ export class SessionStore implements SessionStorePort {
   }
 
   /**
-   * Ends a session whose work went to its end: it becomes `completed` with its result, and an event tells so.
+   * Ends a session whose work went to its end: it becomes `completed` with its result, and an event tells so
+   * with that result.
    *
    * @param id - The identifier of the session.
    * @param result - What the session came to.
@@ -231,7 +232,7 @@ export class SessionStore implements SessionStorePort {
    * @throws {@link SessionStateError} when the session still waits.
    */
   async complete(id: string, result: SessionResult): Promise<void> {
-    await this.#advance(id, "complete", (transaction) => this.#end(transaction, id, SESSION_LIFE.complete.to, { result: storedJson(result) }));
+    await this.#advance(id, "complete", (transaction) => this.#end(transaction, id, SESSION_LIFE.complete.to, { result: storedJson(result) }, { result }));
   }
 
   /**
@@ -435,9 +436,15 @@ export class SessionStore implements SessionStorePort {
     });
   }
 
-  /** Ends a session in the state given, with the event that tells it, dated as the session is. */
-  #end(transaction: Statements, id: string, state: "completed" | "interrupted", change: SessionChange = {}): Promise<void> {
-    return this.#tell(transaction, id, [{ at: instant(this.#clock()), type: "state_changed", state }], { ...change, state });
+  /** Ends a session in the state given, with the event that tells it and what that event carries besides, dated as the session is. */
+  #end(
+    transaction: Statements,
+    id: string,
+    state: "completed" | "interrupted",
+    change: SessionChange = {},
+    told: { result?: SessionResult } = {},
+  ): Promise<void> {
+    return this.#tell(transaction, id, [{ at: instant(this.#clock()), type: "state_changed", state, ...told }], { ...change, state });
   }
 
   /** Appends events to a session whose row the transaction holds, and dates the session by the last of them. */

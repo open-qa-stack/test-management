@@ -430,6 +430,6 @@ describe("the events of a session, followed through the operations", () => {
     const session = await hosted.ended(opened.id);
     await eventually(() => assert.equal(ended, true));
     assert.deepEqual(seen, (await hosted.events(opened.id)).slice(2));
-    assert.deepEqual(seen.at(-1), { id: seen.length + 2, at: session.lastEventAt, type: "state_changed", state: "completed" });
+    assert.deepEqual(seen.at(-1), { id: seen.length + 2, at: session.lastEventAt, type: "state_changed", state: "completed", result: session.result });
   });
 });

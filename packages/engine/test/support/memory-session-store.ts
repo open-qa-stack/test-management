@@ -112,7 +112,7 @@ export class MemorySessionStore implements SessionStorePort {
 
   async complete(id: string, result: SessionResult): Promise<void> {
     await this.#answer("complete", id);
-    this.#tell(this.#taking("complete", id), [{ at: this.#now(), type: "state_changed", state: "completed" }], { state: "completed", result });
+    this.#tell(this.#taking("complete", id), [{ at: this.#now(), type: "state_changed", state: "completed", result }], { state: "completed", result });
   }
 
   async interrupt(id: string): Promise<void> {

@@ -5,11 +5,11 @@ import { interruptionOf } from "../../src/solo/conversation/interruption.ts";
 import { requestOf } from "../../src/solo/conversation/request.ts";
 import { hintedCommands, SLASH_COMMANDS } from "../../src/solo/conversation/slash-commands.ts";
 import type { ConversationState } from "../../src/solo/conversation/conversation-state.ts";
-import { after, COMPLETED, FAILED, RUNNING, showing } from "./fixtures.ts";
+import { after, COMPLETED, FAILED, RUNNING, showing, endOf } from "./fixtures.ts";
 
 const HOME = after([]);
 const LIVE = showing();
-const ENDED = after([{ type: "ended", session: COMPLETED }], LIVE);
+const ENDED = after(endOf(COMPLETED), LIVE);
 
 /** The conversation with something typed in its input. */
 const typing = (input: string, state: ConversationState = HOME): ConversationState => after([{ type: "typed", input }], state);

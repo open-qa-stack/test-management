@@ -265,7 +265,7 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
       assert.deepEqual({ ...messages[0]?.event, at: "" }, { id: 1, at: "", type: "user_message", text: "cover the profile" });
       assert.deepEqual({ ...messages[1]?.event, at: "" }, { id: 2, at: "", type: "state_changed", state: "running" });
       assert.deepEqual({ ...messages[2]?.event, at: "" }, { id: 3, at: "", type: "note", phase: "plan", text: "Three." });
-      assert.deepEqual({ ...messages[3]?.event, at: "" }, { id: 4, at: "", type: "state_changed", state: "completed" });
+      assert.deepEqual({ ...messages[3]?.event, at: "" }, { id: 4, at: "", type: "state_changed", state: "completed", result: RESULT });
       assert.equal(await stream.next(), undefined);
     });
 

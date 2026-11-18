@@ -90,8 +90,10 @@ function stageOf(session: Session): SessionStage {
  * declares — and the verdict of each test a run ran; the call a reviewer hands its verdict in with is a review, its remarks
  * read from the arguments of the call, and what the harness answers and the word the reviewer replies with are kept
  * in it rather than told; a plan the harness accepted is told with each of its scenarios whole, and the refusals about each since its plan
- * started; a refusal is a verdict with its code, the scenario it is about and the parts of its text, a note a line of the harness. Once the session has ended it closes on the verdict of each test, or,
- * when none ran, on the scenarios the harness closed; an interruption is told. Every text is whole, as a person
+ * started; a refusal is a verdict with its code, the scenario it is about and the parts of its text, a note a line of the harness. Each
+ * turn of the session — what was asked, or what the person asked once it had ended, and the work it opened — closes with its end: on
+ * the verdict of each test of the result its completion tells, or, when none ran, on the scenarios the harness closed in the turn; an
+ * interruption is told. Every text is whole, as a person
  * needs it, since the end of a refusal says what to do; a title alone is put on one line.
  *
  * @param session - The session, as it was last told.
@@ -257,24 +259,24 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
       case "scenario_closed":
         closed.push({ title: event.scenario, level: event.level ?? "", verdict: event.verdict });
         break;
-      case "state_changed":
+      case "state_changed": {
         if (event.state === "interrupted") steps.push({ kind: "note", at, text: wording.interrupted });
+        if (event.state !== "interrupted" && event.state !== "completed") break;
+        // A turn closes on the verdict of each test of its result, or, when none ran, on the scenarios the harness closed in it.
+        const tests = event.result?.tests ?? [];
+        if (tests.length > 0)
+          steps.push({
+            kind: "outcome",
+            at,
+            title: wording.verdicts(tests.length),
+            tests: tests.map(({ id, verdict, reason }) => ({ title: testTitle(id), level: "", verdict, note: reason })),
+          });
+        else if (closed.length > 0) steps.push({ kind: "outcome", at, title: wording.closed(closed.length), tests: [...closed] });
+        closed.length = 0;
         break;
+      }
     }
   }
-  const stage = stageOf(session);
-  const last = steps.at(-1);
-  const tests = session.result?.tests ?? [];
-  if (stage === "ended" && last !== undefined && tests.length > 0) {
-    steps.push({
-      kind: "outcome",
-      at: last.at,
-      title: wording.verdicts(tests.length),
-      tests: tests.map(({ id, verdict, reason }) => ({ title: testTitle(id), level: "", verdict, note: reason })),
-    });
-  } else if (stage === "ended" && last !== undefined && closed.length > 0) {
-    steps.push({ kind: "outcome", at: last.at, title: wording.closed(closed.length), tests: closed });
-  }
   const opened = wording.opened(session.openedAt.slice(0, 10), clock(session.openedAt));
-  return { id: session.id, title: oneLine(session.request ?? asked ?? opened), sources: [...sources], stage, steps };
+  return { id: session.id, title: oneLine(session.request ?? asked ?? opened), sources: [...sources], stage: stageOf(session), steps };
 }
