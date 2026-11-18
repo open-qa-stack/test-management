@@ -27,7 +27,7 @@ const LEDGER: Application = {
 describe("the request of the session of a scenario", () => {
   it("gives how its test signs in, the packages it may import and the sheet of the scenario, and nothing else of the plan", () => {
     assert.equal(
-      writeRequest("Scenario 2 of 3.", SHOP, ["@playwright/test", "@axe-core/playwright"], "local"),
+      writeRequest("Scenario 2 of 3.", [SHOP], ["@playwright/test", "@axe-core/playwright"], "local"),
       [
         "Write the test of this scenario for the environment local.",
         "Sign-in: with the account demo; the lines of the sheet that sign in read it from process.env: keep them as they are.\nA test may import: @playwright/test, @axe-core/playwright.",
@@ -38,9 +38,18 @@ describe("the request of the session of a scenario", () => {
 
   it("names the variables a test reads without a user interface, and says when the application has no sign-in", () => {
     assert.match(
-      writeRequest("Sheet.", LEDGER, ["@playwright/test"], "local"),
+      writeRequest("Sheet.", [LEDGER], ["@playwright/test"], "local"),
       /\n\nSign-in: with the accounts clerk, auditor; a test reads process\.env\.LEDGER_USERNAME and process\.env\.LEDGER_PASSWORD, process\.env\.AUDIT_USERNAME and process\.env\.AUDIT_PASSWORD\.\nA test may import/,
     );
-    assert.match(writeRequest("Sheet.", { ...SHOP, authentication: { method: "none" } }, ["@playwright/test"], "local"), /\n\nSign-in: none\.\n/);
+    assert.match(writeRequest("Sheet.", [{ ...SHOP, authentication: { method: "none" } }], ["@playwright/test"], "local"), /\n\nSign-in: none\.\n/);
+  });
+
+  it("gives how its test signs in to each application of a scenario that acts on several, and none for one without accounts", () => {
+    const desk: Application = { ...SHOP, id: "desk", authentication: { method: "none" } };
+    assert.match(
+      writeRequest("Sheet.", [desk, SHOP], ["@playwright/test"], "local"),
+      /\n\nSign-in: on shop, with the account demo; the lines of the sheet that sign in read it from process\.env: keep them as they are\.\nA test/,
+    );
+    assert.match(writeRequest("Sheet.", [desk, desk], ["@playwright/test"], "local"), /\n\nSign-in: none\.\n/);
   });
 });

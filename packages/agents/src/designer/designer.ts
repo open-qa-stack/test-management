@@ -413,7 +413,7 @@ export class Designer {
         const tools = [...looking, ...recall, ...playwright, proposals.trialTool(), proposals.tool()];
         const request = writeRequest(
           sheet,
-          applications.find((application) => application.id === about)!,
+          [about, ...(scenario.applications ?? [])].map((id) => applications.find((application) => application.id === id)!),
           // Playwright itself is imported through the fixtures of the repository, when its tests share some.
           fixtures === undefined ? packages : [fixtures.path, ...packages.filter((name) => name !== TEST_MODULE)],
           index.environment,

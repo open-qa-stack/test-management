@@ -1,4 +1,4 @@
-import type { Application } from "@open-qa-stack/domain";
+import type { Account, Application } from "@open-qa-stack/domain";
 import { PROPOSE_TOOL, RUN_TOOL } from "./test-proposals.ts";
 
 /** A test the repository has that the session repairs: its file, and its text now. */
@@ -15,24 +15,39 @@ export interface RepairedTest {
  * repairs a test the repository has is given the text of its file first, which it runs before it changes it.
  *
  * @param sheet - The sheet of the scenario, which ends with the next call.
- * @param application - The application of the scenario.
+ * @param applications - The applications the scenario acts on, its own first: each tells how its test signs in to it.
  * @param packages - What a test may import: the fixtures of the test repository and its packages.
  * @param environment - The environment the tests run against.
  * @param repaired - The test the session repairs, when it repairs one.
  * @returns The message to send to the agent that writes the test.
  */
-export function writeRequest(sheet: string, application: Application, packages: readonly string[], environment: string, repaired?: RepairedTest): string {
+export function writeRequest(
+  sheet: string,
+  applications: readonly Application[],
+  packages: readonly string[],
+  environment: string,
+  repaired?: RepairedTest,
+): string {
   return [
     repaired === undefined ? `Write the test of this scenario for the environment ${environment}.` : repairText(repaired, environment),
-    `Sign-in: ${signIn(application, environment)}\nA test may import: ${packages.join(", ")}.`,
+    `Sign-in: ${signIns(applications, environment)}\nA test may import: ${packages.join(", ")}.`,
     sheet,
   ].join("\n\n");
 }
 
+/** How the test of a scenario signs in to the applications it acts on: to each that has accounts, named when it acts on several. */
+function signIns(applications: readonly Application[], environment: string): string {
+  const signing = applications.flatMap((application) => {
+    const accounts = application.authentication.accounts ?? [];
+    return accounts.length === 0 ? [] : [{ application, accounts }];
+  });
+  if (signing.length === 0) return "none.";
+  const told = signing.map(({ application, accounts }) => signIn(application, accounts, environment));
+  return applications.length === 1 ? told[0]! : signing.map(({ application }, at) => `on ${application.id}, ${told[at]!}`).join(" ");
+}
+
 /** How the test of an application signs in: by the lines of its sheet, which read the account from the environment, or by the variables themselves without a user interface. */
-function signIn(application: Application, environment: string): string {
-  const accounts = application.authentication.accounts ?? [];
-  if (accounts.length === 0) return "none.";
+function signIn(application: Application, accounts: readonly Account[], environment: string): string {
   const names = `${accounts.length === 1 ? "the account" : "the accounts"} ${accounts.map((account) => account.name).join(", ")}`;
   const screens = application.environments.some((candidate) => candidate.name === environment && candidate.uiUrl !== undefined);
   if (screens) return `with ${names}; the lines of the sheet that sign in read it from process.env: keep them as they are.`;

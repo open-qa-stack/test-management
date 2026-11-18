@@ -868,8 +868,12 @@ function namedTarget(line: string): { role: string; name: string } | undefined {
 
 /** The start of a line of a part of the page told by its role alone: one a page has few of, which holds what an assertion looks for. */
 const PART = /^- '?(table|dialog|alertdialog|form|navigation|main|list|region|banner|contentinfo|article|alert|status)(?: \[[^\]]+\])*:?'?$/;
-/** The line of an element without a name that shows a text: its role, then the text. */
-const TEXTED = /^- [a-z]+: (.+)$/;
+/**
+ * The line of an element without a name that shows a text: its role, then the text. A line of the role `text`
+ * is none: it is a part of the text of the element above it, such as a paragraph that also holds a button, and
+ * no element shows it whole.
+ */
+const TEXTED = /^- (?!text:)[a-z]+: (.+)$/;
 
 /** The part of the page a line starts, when it has no name: by its role alone. */
 function partOf(line: string): TargetScope | undefined {
