@@ -1386,6 +1386,12 @@ export class PlanProposal {
     const { level, id } = scenario;
     const where = `scenario ${id} is of the level ${level}`;
     const refused = (message: string): Refusal[] => [{ code: "PLAN-LEVEL", message }];
+    // A level the plan is not asked for is never suggested: the scenario is then left out, and said in uncovered.
+    const asked = (other: ScenarioLevel): boolean => this.rules.levels.includes(other);
+    const orLevel = (other: ScenarioLevel): string =>
+      asked(other)
+        ? `give it the level ${other}`
+        : `leave it out and say in uncovered that it needs a test of the level ${other}, which this plan is not asked for`;
     if (this.rules.visual === true && scenario.kind !== "visual")
       return [
         {
@@ -1407,19 +1413,19 @@ export class PlanProposal {
       return applications.length === 2
         ? []
         : refused(
-            `${where}, and ${acted}: such a test does an action in one application and checks its effect in another. Do it on both and cite the actions of each, or give it the level ${applications.length === 1 ? "business" : "end-to-end"}.`,
+            `${where}, and ${acted}: such a test does an action in one application and checks its effect in another. Do it on both and cite the actions of each, or ${orLevel(applications.length === 1 ? "business" : "end-to-end")}.`,
           );
     if (level === "end-to-end")
       return applications.length >= 3
         ? []
         : refused(
-            `${where}, and ${acted}: such a test goes through three applications or more. Do the journey through the others too, or give it the level ${applications.length === 1 ? "business" : "cross-application"}.`,
+            `${where}, and ${acted}: such a test goes through three applications or more. Do the journey through the others too, or ${orLevel(applications.length === 1 ? "business" : "cross-application")}.`,
           );
     if (level === "smoke")
       return cited.every((action) => action.tool === "goto")
         ? []
         : refused(
-            `${where}, and one of its actions does more than open an address: a smoke test checks that the application answers, nothing more. Keep the action that opens its first address and one text the page then shows, or give it the level functional.`,
+            `${where}, and one of its actions does more than open an address: a smoke test checks that the application answers, nothing more. Keep the action that opens its first address and one text the page then shows, or ${orLevel("functional")}.`,
           );
     const screens = [...new Set(cited.flatMap((action) => action.screen ?? []))];
     const went = `its actions went through ${screens.length} ${screens.length === 1 ? "screen" : "screens"} (${screens.join(", ")})`;
@@ -1429,11 +1435,11 @@ export class PlanProposal {
     ];
     if (level === "functional" && verified.length > 1)
       return refused(
-        `${where}, and its steps expect results on ${verified.length} screens (${verified.join(", ")}): a functional test verifies the behaviours of one screen. It may go through other screens to reach that one, and expects nothing there. Give it the level business when it verifies the journey through these screens; otherwise keep the expects of one screen.`,
+        `${where}, and its steps expect results on ${verified.length} screens (${verified.join(", ")}): a functional test verifies the behaviours of one screen. It may go through other screens to reach that one, and expects nothing there. ${asked("business") ? "Give it the level business when it verifies the journey through these screens; otherwise keep the expects of one screen." : "Keep the expects of one screen; when it verifies the journey through these screens, leave it out and say in uncovered that it needs a test of the level business, which this plan is not asked for."}`,
       );
     if (level === "business" && screens.length === 1)
       return refused(
-        `${where}, and ${went}: a business test follows a journey through several screens to its result. Give it the level functional, or do the whole journey on the screens and cite its actions.`,
+        `${where}, and ${went}: a business test follows a journey through several screens to its result. Do the whole journey on the screens and cite its actions, or ${orLevel("functional")}.`,
       );
     return [];
   }

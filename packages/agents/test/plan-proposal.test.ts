@@ -1575,7 +1575,27 @@ describe("the level of a scenario, held to what its actions went through", () =>
     );
     assert.match(
       await answered(await explored(), at("business", [1, 2])),
-      /^business, and its actions went through 1 screen \(\/orders\): a business test follows a journey through several screens to its result\. Give it the level functional, /,
+      /^business, and its actions went through 1 screen \(\/orders\): a business test follows a journey through several screens to its result\. Do the whole journey on the screens and cite its actions, or give it the level functional\.$/,
+    );
+  });
+
+  it("never suggests a level the plan is not asked for: the scenario is then left out, and said in uncovered", async () => {
+    const step = (actions: number[]) => ({ action: "Open the orders", actions, expects: [{ result: "The orders show", shows: ["Orders"], absent: [] }] });
+    assert.match(
+      await answered(await explored(["functional"]), scenario("a", { level: "functional", data: [], steps: [step([1]), step([3])] })),
+      /expects nothing there\. Keep the expects of one screen; when it verifies the journey through these screens, leave it out and say in uncovered that it needs a test of the level business, which this plan is not asked for\.$/,
+    );
+    assert.match(
+      await answered(await explored(["smoke"]), at("smoke", [1, 2])),
+      /, or leave it out and say in uncovered that it needs a test of the level functional, which this plan is not asked for\.$/,
+    );
+    assert.match(
+      await answered(await explored(["business"]), at("business", [1, 2])),
+      /, or leave it out and say in uncovered that it needs a test of the level functional, which this plan is not asked for\.$/,
+    );
+    assert.match(
+      await answered(await explored(["cross-application"]), at("cross-application", [1, 3])),
+      /, or leave it out and say in uncovered that it needs a test of the level business, which this plan is not asked for\.$/,
     );
   });
 
