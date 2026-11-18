@@ -170,6 +170,15 @@ describe("a runtime of the agents that can be asked to stop", () => {
     assert.equal(opened.length, 1);
   });
 
+  it("ends at once the first turn of a session the stop was asked after it was opened", async () => {
+    const stop = new AbortController();
+    const { runtime } = scripted(TURN);
+    const stoppable = new StoppableRuntime(runtime, stop.signal);
+    const session = await stoppable.openSession(OPTIONS);
+    stop.abort();
+    await assert.rejects(turn(session.send("Go on.")), (error) => error instanceof RunStoppedError);
+  });
+
   it("refuses from its first use when the stop was asked before it was made", async () => {
     const stop = new AbortController();
     stop.abort();

@@ -54,7 +54,10 @@ export function git(cwd: string, ...args: string[]): string {
   return execFileSync("git", args, { cwd, encoding: "utf8", stdio: "pipe" }).trim();
 }
 
-export function configFor(modelUrl: string, limits = { maxIterations: 20, maxMinutes: 10, maxActions: 200 }): ResolvedConfig {
+/** The limits of the tasks of a design a test does not set. */
+const LIMITS = { maxIterations: 20, maxMinutes: 10, maxActions: 200 };
+
+export function configFor(modelUrl: string, limits = LIMITS): ResolvedConfig {
   const text = JSON.stringify({
     formatVersion: 1,
     applications: [

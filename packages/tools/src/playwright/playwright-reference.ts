@@ -94,19 +94,28 @@ function membersOf(text: string): ReferenceMember[] {
   const members: ReferenceMember[] = [];
   const lines = text.split("\n");
   let holder: string | undefined;
-  for (let at = 0; at < lines.length; at += 1) {
+  // The comment and the declaration of a member are read with it: the next line read is the one after them.
+  let at = 0;
+  while (at < lines.length) {
     const line = lines[at]!;
+    at += 1;
     const opened = /^(?:export )?interface (\w+)/.exec(line);
     if (opened !== null) holder = opened[1];
     else if (line.startsWith("}")) holder = undefined;
     if (holder === undefined || line !== "  /**") continue;
     const comment: string[] = [];
-    for (at += 1; at < lines.length && lines[at] !== "   */"; at += 1) comment.push(lines[at]!.replace(/^ {3}\* ?/, ""));
+    while (at < lines.length && lines[at] !== "   */") {
+      comment.push(lines[at]!.replace(/^ {3}\* ?/, ""));
+      at += 1;
+    }
+    at += 1;
     const declared: string[] = [];
     // A member ends on the line, at its own indentation, that ends with a semicolon.
-    for (at += 1; at < lines.length; at += 1) {
-      declared.push(lines[at]!);
-      if (/^ {2}\S.*;$/.test(lines[at]!)) break;
+    while (at < lines.length) {
+      const part = lines[at]!;
+      declared.push(part);
+      at += 1;
+      if (/^ {2}\S.*;$/.test(part)) break;
     }
     const name = /^ {2}(?:readonly )?(\w+)/.exec(declared[0] ?? "")?.[1];
     if (name !== undefined)

@@ -53,7 +53,7 @@ export function planFileText(record: PlanRecord): string {
     "",
     "The harness wrote this file from the plan it accepted, and reads its last part again. Edit neither part by hand: a file whose two parts differ is not read.",
     "",
-    ...record.scenarios.flatMap(scenarioLines),
+    ...record.scenarios.flatMap((scenario, at) => scenarioLines(scenario, at)),
     ...uncoveredLines(record.uncovered ?? []),
     ...setAsideLines(record.setAside ?? []),
     `${RECORD_START.trim()}\n${JSON.stringify(record, null, 2)}${RECORD_END}`,
@@ -91,7 +91,7 @@ function scenarioLines(scenario: PlannedScenario, at: number): string[] {
     `- Sources: ${sources.join("; ")}`,
     `- Data: ${data.length === 0 ? "none" : data.join("; ")}`,
     "",
-    ...scenario.steps.flatMap(stepLines),
+    ...scenario.steps.flatMap((step, at) => stepLines(step, at)),
   ];
 }
 

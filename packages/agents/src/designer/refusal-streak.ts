@@ -32,7 +32,8 @@ export class RefusalStreak {
    * @returns Its code and how many times it was refused, the first code of the call when several tie.
    */
   public repeated(refusals: readonly Refusal[]): { readonly code: string; readonly times: number } {
-    return refusals.map(({ code }) => ({ code, times: this.#counts.get(code)! })).reduce((most, other) => (other.times > most.times ? other : most));
+    const counted = refusals.map(({ code }) => ({ code, times: this.#counts.get(code)! }));
+    return counted.reduce((most, other) => (other.times > most.times ? other : most), counted[0]!);
   }
 
   /** Forgets every refusal: the agent made progress. */

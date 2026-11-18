@@ -20,7 +20,9 @@ export function duplicateKeyPaths(text: string): string[] {
     return parent.kind === "object" ? pointer(parent.path, parent.key) : pointer(parent.path, parent.index);
   };
 
-  for (let i = 0; i < text.length; i++) {
+  // A string is read whole, so that the brackets and commas it holds are taken for none.
+  let i = 0;
+  while (i < text.length) {
     const c = text[i];
     if (c === '"') {
       let end = i + 1;
@@ -46,6 +48,7 @@ export function duplicateKeyPaths(text: string): string[] {
       if (parent.kind === "object") parent.expectKey = true;
       else parent.index++;
     }
+    i++;
   }
   return found;
 }

@@ -47,7 +47,7 @@ function within(scope: string, application: string): boolean {
 }
 
 /** The site an address without one is read on: only its route is kept. */
-const LOCAL = "http://screen.local";
+const LOCAL = "https://screen.local";
 /** How a snapshot ends the line of an element several elements share the locator of: their number, then the locator. */
 const SHARED = / → no unique locator: (\d+) elements match (page\..+)$/;
 /** Most lines told as the closest to a locator no screen showed. */
