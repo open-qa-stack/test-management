@@ -1,3 +1,4 @@
+export { ConfigurationStore } from "./configuration/configuration-store.ts";
 export { Database } from "./database/database.ts";
 export type { DatabaseState } from "./database/database-state.ts";
 export { DatabaseStatus } from "./database/database-status.ts";
