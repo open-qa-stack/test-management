@@ -40,11 +40,14 @@ export async function moduleSyntax(text: string): Promise<ModuleSyntax> {
   }
 }
 
-/** The first node, in the order of the file, that is an error or a missing token. */
+/**
+ * The first node, in the order of the file, that is an error or a missing token, the deepest: an error may span the
+ * whole file, such as a string left open, and the place it starts at is that of the node inside it that went wrong.
+ */
 function firstError(node: Node): Node {
-  if (node.isError || node.isMissing) return node;
-  // A node with an error that is neither one has a child with an error.
-  return firstError(node.children.find((child) => child!.hasError)!);
+  const inner = node.children.find((child) => child!.hasError);
+  // A node with an error and no child with one is itself the error, or a missing token.
+  return inner ? firstError(inner) : node;
 }
 
 function describeError(node: Node): string {

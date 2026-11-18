@@ -101,6 +101,45 @@ async function secondRun(
 const advice = (told: unknown) =>
   /Refused \(TEST-LOOK\): look before you run again\. (.*)\n/.exec(typeof told === "object" && told !== null && "error" in told ? String(told.error) : "")?.[1];
 
+describe("a run that failed on a page that asks to sign in", () => {
+  /** A runner whose every test fails at its first step, on the page given. */
+  const failingOn = (page: string): TestRunner => ({
+    run: async (test) => ({
+      startedAt: STARTED,
+      tests: [{ id: test.path, verdict: "failed", reason: "Error: expect(locator).toBeVisible() failed", failedStep: "1. Open the ledger", page }],
+    }),
+  });
+  const login = '- heading "Log in"\n- textbox "Email"\n- textbox "Password"\n- button "Log in"';
+  const told = async (page: string, signs: boolean) => {
+    const screens = new ScreenWatch(["shop"], shopTools());
+    const planned = scenario("shop", []);
+    const proposals = new TestProposals(rules(failingOn(page)), new Journal(), { scenarios: [planned] });
+    proposals.begin({ screens, reads: new SourceWatch([], [], []) });
+    await screens
+      .tools()
+      .find((tool) => tool.name === "shop_snapshot")!
+      .execute({});
+    const content = acted(skeleton(planned, false));
+    // A test that signs in types the credential from the environment, here on an element the screens showed.
+    const signed = signs
+      ? content.replace(
+          'await page.goto("/ledger");',
+          'await page.getByRole("heading", { name: "Ledger" }).fill(process.env.SHOP_PASSWORD!);\n    await page.goto("/ledger");',
+        )
+      : content;
+    const answer = (await proposals.trialTool().execute({ content: signed })) as string | { error: string };
+    return typeof answer === "string" ? answer : answer.error;
+  };
+
+  it("says the test starts signed out when it signs in nowhere, and nothing of it otherwise", async () => {
+    assert.match(await told(login, false), /The page at the failure asks to sign in: the test starts signed out, and signs in nowhere\./);
+    const signedIn = await told(login, true);
+    assert.match(signedIn, /^Run of the file: failed/);
+    assert.doesNotMatch(signedIn, /asks to sign in/);
+    assert.doesNotMatch(await told('- heading "Ledger"', false), /asks to sign in/);
+  });
+});
+
 describe("how the agent is told to look at what a failed run did", () => {
   const logs = { id: "ledger-logs", type: "logs" as const };
   const code = { id: "ledger-code", type: "source-code" as const };

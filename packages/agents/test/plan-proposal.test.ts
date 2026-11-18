@@ -865,6 +865,13 @@ describe("the gates of a plan", () => {
       steps: [{ action: "Search zzqx", expects: [{ result: "Another order shows", shows: ["ORD-1042"], absent: ["ORD-1057"] }] }],
     });
     assert.equal(await submit(made, { scenarios: [fixed, lena([found, cancelled]), ledger] }), ACCEPTED);
+    // A scenario that writes makes go what it changes: that it is gone is what it verifies.
+    const again = await proposal();
+    await again.reads.tools()[0]!.execute({});
+    await act(again.screens, "fill");
+    await act(again.screens, "fill", { value: "Lena Brook" });
+    await act(again.screens, "click");
+    assert.equal(await submit(again.proposal, { scenarios: [fixed, { ...lena([cancelled]), effect: "write" }, ledger] }), ACCEPTED);
   });
 
   it("refuse a step that types in a scenario without data, and a text only the name of a field or a value typed in it showed", async () => {
@@ -1246,6 +1253,14 @@ describe("the actions a plan cites", () => {
     };
     assert.equal(await submit(made, opened), ACCEPTED);
     assert.deepEqual(made.accepted!.scenarios[0]!.steps[0]!.code, [OPENED, CLICKED]);
+    // The example is the address opened last before the first action, not one opened after it.
+    const { proposal: later, screens: seen } = await proposal();
+    await act(seen, "click");
+    await act(seen, "goto");
+    const fromClick = {
+      scenarios: ["a", "b", "c"].map((id) => scenario(id, { steps: [{ action: "Open the orders", actions: [2], expects: [shown("Orders")] }] })),
+    };
+    assert.match(((await submit(later, fromClick)) as { error: string }).error, /starts with the action 2 [^\n]*, such as the action 1 \(/);
   });
 
   it("typed only values of the data of their scenario, a part of one, nothing, or the credential of an account", async () => {

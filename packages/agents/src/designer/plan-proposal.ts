@@ -908,7 +908,8 @@ export class PlanProposal {
         message: `scenario ${scenario.id} is nominal, and the screens of ${application} found nothing with "${value}": a nominal scenario finds what it searches. Replace "${value}" in data, and in the step that types it, by a part of it, such as a first or a last name, that you searched with ${fill} and found, and expect what it found; or make the scenario negative.`,
         remedy: `Replace "${value}" in data of scenario ${scenario.id}, and in the step that types it, by a part of it that ${fill} found, such as a first or a last name; or make scenario ${scenario.id} negative.`,
       }));
-    const expected = scenario.steps.flatMap((step, at) => {
+    // A scenario that writes makes go what it changes, such as the phone number it replaces: that it is gone is what it verifies.
+    const expected = (scenario.effect === "write" ? [] : scenario.steps).flatMap((step, at) => {
       const shownBefore = scenario.steps.slice(0, at).flatMap((earlier) => earlier.expects.flatMap((expect) => expect.shows));
       return step.expects.flatMap((expect, k) =>
         expect.absent
@@ -1259,7 +1260,8 @@ export class PlanProposal {
     }
     const first = this.cited(scenario, scenario.steps[0]!.actions)[0];
     if (first === undefined || first.tool === "goto") return refusals;
-    const opened = done.findLast((action) => action.tool === "goto");
+    // The address opened last before the first action: the page that action was done on, not one opened after it, such as after a sign-in.
+    const opened = done.findLast((action) => action.tool === "goto" && action.number < first.number) ?? done.findLast((action) => action.tool === "goto");
     const example = opened === undefined ? "" : `, such as the action ${opened.number} (${opened.code})`;
     return [
       ...refusals,
