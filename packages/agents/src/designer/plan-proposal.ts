@@ -1272,9 +1272,9 @@ export class PlanProposal {
   }
 
   /**
-   * What the gates refuse in the effect of a scenario: one said to only read, while an action it cites
-   * clicked an element whose name says it creates, changes or removes data. It is a guess from the words of
-   * the name, as the one that guards an exploration.
+   * What the gates refuse in the effect of a scenario: one said to only read, while an action it cites is a
+   * click that writes — after which the page sent a request that creates, changes or removes data, or, for an
+   * application whose requests cannot be read, on an element whose name says it does.
    */
   private effectErrors(scenario: SubmittedScenario): Refusal[] {
     if (scenario.effect === "write") return this.replayErrors(scenario);
