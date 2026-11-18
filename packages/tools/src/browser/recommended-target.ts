@@ -1,4 +1,4 @@
-import type { ElementHandle, Page } from "playwright-core";
+import type { ElementHandle, Locator, Page } from "playwright-core";
 import { readFacts, sameElement, type ElementFacts } from "./element-facts.ts";
 import { readScope } from "./element-scope.ts";
 import { locate, type Target } from "./target.ts";
@@ -34,8 +34,36 @@ export async function recommendTarget(page: Page, ref: string, role: string, nam
     .elementHandles()
     .catch((): ElementHandle[] => []);
   if (element === undefined) return { kind: "changed" };
-  const ownCandidates: Target[] = role === "generic" ? [] : [name === "" ? { role } : { role, name }];
-  const recommendation = await element
+  const recommendation = await recommendElement(page, element, role === "generic" ? [] : [name === "" ? { role } : { role, name }]);
+  await element.dispose();
+  return recommendation;
+}
+
+/**
+ * Whether a locator permitted by the test charter tells apart each element a locator matches several of: for
+ * one of them at least, a candidate of `recommendTarget` designates it alone. When none does, the page gives
+ * them no label of their own, no test id and no part that holds one alone.
+ *
+ * @param page - The page.
+ * @param target - The target that matched several elements.
+ * @param found - The locator of that target.
+ * @returns `true` when one of the elements has a locator of its own.
+ */
+export async function distinguishable(page: Page, target: Target, found: Locator): Promise<boolean> {
+  const own = { ...target };
+  delete (own as { within?: unknown }).within;
+  const elements = await found.elementHandles();
+  let told = false;
+  for (const element of elements) {
+    if (!told) told = (await recommendElement(page, element, [own])).kind === "unique";
+    await element.dispose();
+  }
+  return told;
+}
+
+/** The locator recommended for an element: its own candidates, then those of its facts, alone then inside its part. */
+async function recommendElement(page: Page, element: ElementHandle, ownCandidates: readonly Target[]): Promise<Recommendation> {
+  return element
     .evaluate(readFacts)
     .then(async (facts) => {
       const candidates = [...ownCandidates, ...factTargets(facts)];
@@ -51,8 +79,6 @@ export async function recommendTarget(page: Page, ref: string, role: string, nam
       return scoped.kind === "unique" ? scoped : found;
     })
     .catch((): Recommendation => ({ kind: "changed" }));
-  await element.dispose();
-  return recommendation;
 }
 
 /** The first candidate that locates this element and no other, else the first that matches several. */

@@ -69,7 +69,8 @@ describe("criterion 3 — actions use the recommended locators, and a failed act
       );
       await reject(
         tool("shop_click").execute({ target: { text: "Again" } }),
-        /^page\.getByText\("Again", \{ exact: true \}\) matches more than one element; use a locator that matches one\.\n\nThe page is now at/,
+        // Two buttons that nothing tells apart: the page lacks what a test needs, not the agent.
+        /^page\.getByText\("Again", \{ exact: true \}\) matches 2 elements, and no locator the test charter allows tells them apart: the page gives them no label of their own, no test id, and no row or dialog that holds one alone\. This is a defect of testability of the application, not of the test\. Leave out what needs one of them, and say why, naming them: the application should give each its own label or a test id\.\n\nThe page is now at/,
       );
       await reject(
         tool("shop_fill").execute({ target: { role: "button", name: "Sign in" }, value: "x" }),
