@@ -42,6 +42,7 @@ Types used below: a *slug* matches `^[a-z0-9]+(-[a-z0-9]+)*$`; a *variable* is t
 |---|---|---|---|
 | `$schema` | string: a relative path, or a URL | no | `"./node_modules/@open-qa-stack/domain/schema/oqas.schema.json"` |
 | `formatVersion` | `1` | yes | `1` |
+| `language` | `en` or `fr` | no, `en` by default | `"fr"` |
 | `applications` | array of [applications](#application), at least one | yes | see below |
 | `knowledge` | array of [knowledge sources](#knowledge), possibly empty | yes | `[]` |
 | `repository` | [repository layout](#repository) | no | `{ "journeysDir": "journeys" }` |
@@ -52,6 +53,8 @@ Types used below: a *slug* matches `^[a-z0-9]+(-[a-z0-9]+)*$`; a *variable* is t
 | `autonomy` | [autonomy level](#autonomy) | no, `autonomous` by default | `{ "level": "autonomous" }` |
 
 `formatVersion` is the version of the file format, independent of the product version.
+
+`language` is the language the product speaks to the person in, as a BCP 47 tag: the console, the conversation of the command line, and what the agents say — their messages, the reasons they give, the remarks of the reviewers. The instructions the agents are given, and the notes and refusals of the harness, stay in English. The language of the tests is set apart, by [`testLanguage`](#design).
 
 ### Application
 
@@ -175,6 +178,7 @@ A rule identifier is made of upper case words and digits separated by hyphens, s
 | `fixturesFile` | path relative to the test repository | `fixtures.ts` in the folder `shared` of the applications | `support/test.ts` |
 | `visualTests` | boolean | `true` | `false` |
 | `visualTolerance` | number from 0 to 1 | `0.01` | `0.05` |
+| `testLanguage` | `en` or `fr` | `en` | `"fr"` |
 
 The agent that plans submits its scenarios in several calls, and the harness sets aside each one another already covers. It first compares them by their code: the same steps, the same values, no text expected that the other does not expect. With `reviewPlan`, an agent of its own then reviews the scenarios the code let through, in sessions of the model of their own; `false` keeps the comparison by the code alone, and spares those sessions.
 
@@ -203,6 +207,8 @@ The agent that plans submits its scenarios in several calls, and the harness set
 | `standalone` | It imports Playwright itself, and nothing is written beside it: for a repository with an architecture of its own. |
 
 `fixturesFile` names the file of those fixtures. A file already there is kept as it is, and written when the repository has none.
+
+`testLanguage` is the language of what the tests say, as a BCP 47 tag: their titles, their steps and the intents written in their code. The code itself, its names included, stays in English.
 
 `visualTests` adds a last pass, of visual tests: an agent plans the states of the screens worth comparing — a screen as it opens, a dialog open, a page a click leads to — and each test compares the whole page with a reference made at its first run and committed with it. `visualTolerance` is the share of the pixels that may differ. A reference is that of one browser on one machine.
 

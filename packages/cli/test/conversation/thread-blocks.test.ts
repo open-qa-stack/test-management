@@ -3,11 +3,11 @@ import { describe, it } from "vitest";
 import { scriptOf, type Step } from "@open-qa-stack/domain/sessions";
 import { blocksOf, MAX_LIVE_BLOCKS, settledCount, type Block } from "../../src/solo/conversation/thread-blocks.ts";
 import { progressOf } from "../../src/solo/conversation/thread-progress.ts";
-import { WORDING } from "../../src/solo/conversation/wording.ts";
+import { wording } from "../../src/solo/conversation/wording.ts";
 import { COMPLETED, numbered, RUNNING, THREAD, type EventBody, completion } from "./fixtures.ts";
 
 /** The steps a thread shows of events. */
-const stepsOf = (bodies: readonly EventBody[]): readonly Step[] => scriptOf(RUNNING, numbered(bodies), WORDING).steps;
+const stepsOf = (bodies: readonly EventBody[]): readonly Step[] => scriptOf(RUNNING, numbered(bodies), wording()).steps;
 
 /** Sums a block up as its kind, with a star when it heads a turn. */
 const summaryOf = (block: Block): string => `${block.kind}${"heads" in block && block.heads ? "*" : ""}`;
@@ -54,7 +54,7 @@ describe("the blocks of a thread", () => {
   });
 
   it("close on what the session produced, once it ended", () => {
-    const steps = scriptOf(COMPLETED, numbered([...THREAD, completion(COMPLETED)]), WORDING).steps;
+    const steps = scriptOf(COMPLETED, numbered([...THREAD, completion(COMPLETED)]), wording()).steps;
     assert.equal(blocksOf(steps).at(-1)?.kind, "outcome");
   });
 });
@@ -85,15 +85,15 @@ describe("the blocks of a thread that are settled", () => {
 
 describe("where the work of a session is", () => {
   it("is the last pass that started, with its scenario, and the agent that last spoke or acted", () => {
-    assert.deepEqual(progressOf(scriptOf(RUNNING, numbered(THREAD), WORDING)), { pass: "Writing a test", scenario: "search", agent: "writer" });
-    assert.deepEqual(progressOf(scriptOf(RUNNING, numbered(THREAD.slice(0, 7)), WORDING)), { pass: "Plan · smoke", agent: "planner" });
+    assert.deepEqual(progressOf(scriptOf(RUNNING, numbered(THREAD), wording())), { pass: "Writing a test", scenario: "search", agent: "writer" });
+    assert.deepEqual(progressOf(scriptOf(RUNNING, numbered(THREAD.slice(0, 7)), wording())), { pass: "Plan · smoke", agent: "planner" });
   });
 
   it("names no agent when the thread ends on what the person or the harness said, or on a card, and nothing before the first step", () => {
-    assert.deepEqual(progressOf(scriptOf(RUNNING, numbered(THREAD.slice(0, 6)), WORDING)), { pass: "Plan · smoke" });
-    assert.deepEqual(progressOf(scriptOf(RUNNING, numbered(THREAD.slice(0, 17)), WORDING)), { pass: "Plan · smoke" });
-    assert.deepEqual(progressOf(scriptOf(RUNNING, numbered(THREAD.slice(0, 1)), WORDING)), {});
-    assert.deepEqual(progressOf(scriptOf(RUNNING, numbered(THREAD.slice(0, 5)), WORDING)), { pass: "Plan" });
-    assert.deepEqual(progressOf(scriptOf(RUNNING, [], WORDING)), {});
+    assert.deepEqual(progressOf(scriptOf(RUNNING, numbered(THREAD.slice(0, 6)), wording())), { pass: "Plan · smoke" });
+    assert.deepEqual(progressOf(scriptOf(RUNNING, numbered(THREAD.slice(0, 17)), wording())), { pass: "Plan · smoke" });
+    assert.deepEqual(progressOf(scriptOf(RUNNING, numbered(THREAD.slice(0, 1)), wording())), {});
+    assert.deepEqual(progressOf(scriptOf(RUNNING, numbered(THREAD.slice(0, 5)), wording())), { pass: "Plan" });
+    assert.deepEqual(progressOf(scriptOf(RUNNING, [], wording())), {});
   });
 });

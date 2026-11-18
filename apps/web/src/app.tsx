@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useReducer, useRef, useSyncExternalStore, type FormEvent, type KeyboardEvent as FieldKeyboardEvent, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { consoleAfter, INITIAL_STATE, playbackOf } from "./agent/console-state.ts";
 import { ConsoleSync } from "./agent/console-sync.ts";
 import type { LiveSession, SessionControls } from "./agent/live-session.ts";
@@ -7,6 +8,7 @@ import { frameOf, type PlaybackAction } from "./agent/playback.ts";
 import { scriptOf } from "./agent/session-steps.ts";
 import { asksToStop, focusAfterStop, withoutStop } from "./agent/stop-request.ts";
 import { api } from "./api/instance-api.ts";
+import { i18n } from "./i18n/i18n.ts";
 import { Console, documentTitleOf, isEntry, sessionAt, type ConsoleProps } from "./console.tsx";
 import { hrefTo, parseRoute } from "./routing/route.ts";
 
@@ -46,9 +48,20 @@ export function App(): ReactNode {
   const followed = state.followed?.id === id ? state.followed : undefined;
   const session = followed?.session;
   const events = followed?.events;
-  const script = useMemo(() => (session === undefined || events === undefined ? undefined : scriptOf(session, events)), [session, events]);
+  // The console speaks the language of the configuration in force, once the instance told it: everything it draws follows.
+  const { language } = state;
+  const spoken = useTranslation().i18n.resolvedLanguage;
+  useEffect(() => {
+    if (language !== undefined) void i18n.changeLanguage(language);
+  }, [language]);
+  useEffect(() => {
+    if (spoken !== undefined) document.documentElement.lang = spoken;
+  }, [spoken]);
+  // The words of a thread are those of the language it is read in: it is read again in another.
+  const script = useMemo(() => (session === undefined || events === undefined ? undefined : scriptOf(session, events)), [session, events, spoken]);
 
   useEffect(() => sync.project(), [sync]);
+  useEffect(() => sync.language(), [sync]);
   useEffect(() => sync.sessions(), [sync]);
   useEffect(() => (id === undefined ? undefined : sync.follow(id)), [sync, id]);
 
@@ -60,8 +73,8 @@ export function App(): ReactNode {
     return () => window.clearInterval(beat);
   }, [replaying, script]);
 
-  // The configuration names the applications of the project: once it is saved, the project is read again.
-  const configured = useMemo(() => sync.project.bind(sync), [sync]);
+  // The configuration names the applications of the project and its language: once it is saved, both are read again.
+  const configured = useMemo(() => sync.configured.bind(sync), [sync]);
 
   const open = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();

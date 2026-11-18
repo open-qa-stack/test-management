@@ -27,6 +27,7 @@ import { agentNotes, agentRecall } from "../common/agent-notes.ts";
 import { runAgentTask, taskEnd, taskLimits, type AgentTask } from "../common/agent-task.ts";
 import { usageOf } from "../common/model-usage.ts";
 import { Journal, type JournalEntry } from "../common/journal.ts";
+import { testLanguageRule } from "../common/language-rules.ts";
 import { PersonDelivery } from "../common/person-delivery.ts";
 import type { Inbox } from "../common/inbox.ts";
 import { runTrace } from "../common/run-trace.ts";
@@ -320,7 +321,9 @@ export class Designer {
       const request = planRequest(brief, index.environment, map.domains(), applications, levels, this.options.visual === true);
       const notes = agentNotes(config, repositoryRoot, env, { role: "planner", task: id, now });
       const tools = [...map.toolset(), ...existingTestTools(present), ...offered, ...notes, plan.tool()].map((tool) => endedWithPlan(tool, plan));
-      const task = { instructions: PLANNER_INSTRUCTIONS, tools, request, reminder: () => plan.reminder() };
+      // What the plan says of each scenario, its title and its steps, is what its test says: it is written in the language of the tests.
+      const testLanguage = testLanguageRule(config.design.testLanguage);
+      const task = { instructions: `${PLANNER_INSTRUCTIONS}\n\n${testLanguage}`, tools, request, reminder: () => plan.reminder() };
       // Once its plan is accepted or refused, the session that plans can act on nothing: a message then waits for the agent that writes.
       const open = () => plan.accepted === undefined && plan.refused === undefined;
       const last = await sessionOf("plan", session, task, () => plan.accepted !== undefined || plan.drafted, open);
@@ -395,7 +398,7 @@ export class Designer {
           fixtures === undefined ? packages : [fixtures.path, ...packages.filter((name) => name !== TEST_MODULE)],
           index.environment,
         );
-        const task = { instructions: this.options.writerInstructions, tools, request, reminder: () => proposals.reminder() };
+        const task = { instructions: `${this.options.writerInstructions}\n\n${testLanguage}`, tools, request, reminder: () => proposals.reminder() };
         const last = await sessionOf("write", session, task, () => !proposals.writing);
         beyond.close();
         // A limit that cuts a scenario short stops the design; so does a session that failed.

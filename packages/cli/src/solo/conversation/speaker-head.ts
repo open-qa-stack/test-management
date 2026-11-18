@@ -2,7 +2,7 @@ import { Text } from "ink";
 import { createElement as h, type ReactNode } from "react";
 import type { Speaker } from "@open-qa-stack/domain/sessions";
 import { Marked } from "./marked.ts";
-import { IDENTITIES } from "./speakers.ts";
+import { identityOf } from "./speakers.ts";
 import type { Theme } from "./palette.ts";
 
 /** What the head of a speaker needs. */
@@ -20,7 +20,7 @@ export interface SpeakerHeadProps {
  * @returns The line.
  */
 export function SpeakerHead({ speaker, after, theme }: SpeakerHeadProps): ReactNode {
-  const { name, mark, ascii, tone } = IDENTITIES[speaker];
+  const { name, mark, ascii, tone } = identityOf(speaker);
   const style = theme.ink(tone);
   return h(
     Marked,

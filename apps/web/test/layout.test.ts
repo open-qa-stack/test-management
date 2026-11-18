@@ -830,6 +830,32 @@ describe("the console in a browser", () => {
     }
   });
 
+  it("speaks the language of the configuration in force, which the page declares, and holds a phone in English as in French", async () => {
+    const instance = new PlayedInstance();
+    instance.language = "en";
+    const page = await app().open(360, "#/agent", instance.api);
+    try {
+      await page.getByRole("heading", { name: "What do we test?" }).waitFor();
+      assert.equal(await page.evaluate(() => document.documentElement.lang), "en");
+      assert.equal(await overflowOf(page), 0, "the entry in English");
+      await page.goto(`http://console.test/${SESSION}`);
+      await page.getByRole("button", { name: "Replay" }).waitFor();
+      assert.equal(await overflowOf(page), 0, "a session in English");
+      await page.goto(`http://console.test/${LOOKED}`);
+      await page.getByRole("dialog", { name: /^Page looked at/ }).waitFor();
+      assert.equal(await overflowOf(page), 0, "a look in English");
+    } finally {
+      await page.close();
+    }
+    const french = await app().open(360, "#/agent", new PlayedInstance().api);
+    try {
+      await french.getByRole("heading", { name: "Qu’est-ce qu’on teste ?" }).waitFor();
+      assert.equal(await french.evaluate(() => document.documentElement.lang), "fr");
+    } finally {
+      await french.close();
+    }
+  });
+
   it("names the page after the screen, and moves the focus to its heading, as the person goes from one to another", async () => {
     const page = await app().open(1280, "#/agent", new PlayedInstance().api);
     const focused = (): Promise<string> => focusedOf(page);

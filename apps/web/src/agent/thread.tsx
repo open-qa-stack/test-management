@@ -1,13 +1,15 @@
 import type { ReactNode } from "react";
+import { Trans } from "react-i18next/TransWithoutContext";
+import { elapsedText } from "../i18n/formats.ts";
+import { i18n, t } from "../i18n/i18n.ts";
 import { hrefTo } from "../routing/route.ts";
 import { Badge } from "../ui/badge.tsx";
 import { Code } from "../ui/code.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Icon } from "../ui/icon.tsx";
-import { IDENTITIES } from "./agents.ts";
+import { identityOf } from "./agents.ts";
 import { eyeIdOf } from "./opened-look.ts";
 import { shows, type Frame, type ShownStep, type ThreadFilter } from "./playback.ts";
-import { elapsedText } from "./session-facts.ts";
 import {
   turnsOf,
   type NoteStep,
@@ -25,7 +27,6 @@ import { ScopeCard } from "./scope-card.tsx";
 import { SpeakerMark } from "./speaker-mark.tsx";
 import { HarnessVerdict, ReviewVerdict } from "./verdict-card.tsx";
 import { iconOf } from "./tool-icon.ts";
-import { counted } from "../ui/counted.ts";
 
 /** What the thread of a session needs. */
 export interface ThreadProps {
@@ -60,19 +61,18 @@ interface Back {
   readonly onUnfold: (index: number) => void;
 }
 
-/** What an empty thread says, by where its session is: its title, then what comes next. */
-const EMPTY: Readonly<Record<SessionStage, readonly [string, string]>> = {
-  queued: ["La session attend d’être prise par un agent", "Le fil se remplira dès qu’elle démarrera ; un message envoyé d’ici là sera remis à ses agents."],
-  live: ["Les agents n’ont encore rien écrit", "Le fil se remplira dès leur premier événement."],
-  ended: ["Cette session n’a laissé aucun événement", "Elle s’est arrêtée avant que ses agents ne commencent."],
+/** The colour family of each verdict of a test the console words; any other reads as it is. */
+const VERDICTS: Readonly<Record<string, readonly ["ok" | "ko" | "warn", "passed" | "failed" | "blocked"]>> = {
+  passed: ["ok", "passed"],
+  failed: ["ko", "failed"],
+  blocked: ["warn", "blocked"],
 };
 
-/** How each verdict of a test reads, and its colour family; any other reads as it is. */
-const VERDICTS: Readonly<Record<string, readonly ["ok" | "ko" | "warn", string]>> = {
-  passed: ["ok", "réussi"],
-  failed: ["ko", "échoué"],
-  blocked: ["warn", "bloqué"],
-};
+/** How a verdict of a test reads, and its colour family: as the console words it, or as it is. */
+function verdictOf(verdict: string): readonly ["ok" | "ko" | "warn", string] {
+  const known = VERDICTS[verdict];
+  return known === undefined ? ["warn", verdict] : [known[0], t(`thread.verdicts.${known[1]}`)];
+}
 
 /** A reasoning of an agent: folded to its first line once written, open while it is being written. */
 function Thinking({ step, shown }: { readonly step: SayStep; readonly shown: ShownStep }): ReactNode {
@@ -80,7 +80,7 @@ function Thinking({ step, shown }: { readonly step: SayStep; readonly shown: Sho
     <details className="thinking" open={shown.running}>
       <summary>
         <Icon name="thought" />
-        <span className="thinking-label">Réflexion</span>
+        <span className="thinking-label">{t("thread.thinking")}</span>
         <span className="thinking-preview" aria-hidden="true">
           {step.text}
         </span>
@@ -95,9 +95,9 @@ function Thinking({ step, shown }: { readonly step: SayStep; readonly shown: Sho
 
 /** How an action ended, as a mark before its sentence. */
 function ActionState({ step, running }: { readonly step: ToolStep; readonly running: boolean }): ReactNode {
-  if (running) return <span className="spinner" role="img" aria-label="en cours" />;
-  if (step.outcome === "failed") return <span className="act-state ko" role="img" aria-label="échec" />;
-  if (step.outcome === "passed") return <span className="act-state ok" role="img" aria-label="réussi" />;
+  if (running) return <span className="spinner" role="img" aria-label={t("thread.running")} />;
+  if (step.outcome === "failed") return <span className="act-state ko" role="img" aria-label={t("thread.failure")} />;
+  if (step.outcome === "passed") return <span className="act-state ok" role="img" aria-label={t("thread.verdicts.passed")} />;
   return <span className="act-state" aria-hidden="true" />;
 }
 
@@ -106,7 +106,7 @@ function RanTests({ step }: { readonly step: ToolStep }): ReactNode {
   return (
     <ul className="act-tests">
       {step.tests!.map((test, index) => {
-        const [tone, label] = VERDICTS[test.verdict] ?? (["warn", test.verdict] as const);
+        const [tone, label] = verdictOf(test.verdict);
         return (
           <li key={index}>
             <Badge tone={tone}>{label}</Badge>
@@ -127,8 +127,8 @@ function RanTests({ step }: { readonly step: ToolStep }): ReactNode {
  */
 function Action({ step, shown, back }: { readonly step: ToolStep; readonly shown: ShownStep; readonly back: Back }): ReactNode {
   const file = step.look?.kind === "file" ? step.look : undefined;
-  const ran = !shown.running && step.tests !== undefined && step.outcome !== undefined ? ` : ${VERDICTS[step.outcome]![1]}` : "";
-  const title = <span className="act-title">{`${step.title}${ran}`}</span>;
+  const ran = !shown.running && step.tests !== undefined && step.outcome !== undefined;
+  const title = <span className="act-title">{ran ? t("thread.ran", { title: step.title, verdict: verdictOf(step.outcome!)[1] }) : step.title}</span>;
   const line = (
     <>
       <ActionState step={step} running={shown.running} />
@@ -152,7 +152,7 @@ function Action({ step, shown, back }: { readonly step: ToolStep; readonly shown
       className="act-look"
       href={hrefTo(back.path, { ...back.query, look: String(shown.index) })}
       aria-current={selected ? "true" : undefined}
-      aria-label={`${step.title} — voir ${step.look.kind === "file" ? "le fichier de test" : "la page consultée"}`}
+      aria-label={t(step.look.kind === "file" ? "thread.lookFile" : "thread.lookPage", { title: step.title })}
     >
       <Icon name="eye" />
     </a>
@@ -180,7 +180,7 @@ function Action({ step, shown, back }: { readonly step: ToolStep; readonly shown
  * agent alone in the thread, or brings the others back when the thread already follows it.
  */
 function AgentTurn({ turn, back }: { readonly turn: Extract<Turn<ShownStep>, { kind: "agent" }>; readonly back: Back }): ReactNode {
-  const { name, role } = IDENTITIES[turn.agent];
+  const { name, role } = identityOf(turn.agent);
   const active = turn.items.some(({ running }) => running);
   const follows = back.followed === turn.agent;
   const { agent: _followed, ...others } = back.query;
@@ -192,7 +192,7 @@ function AgentTurn({ turn, back }: { readonly turn: Extract<Turn<ShownStep>, { k
           <a
             className="turn-agent"
             href={hrefTo(back.path, follows ? others : { ...others, agent: turn.agent })}
-            aria-label={`${name} : ${follows ? "voir tous les agents" : "ne voir que cet agent"}`}
+            aria-label={t(follows ? "thread.followAll" : "thread.followOne", { name })}
           >
             {name}
           </a>
@@ -224,7 +224,7 @@ function Brief({ shown }: { readonly shown: ShownStep }): ReactNode {
       <summary>
         <SpeakerMark speaker="harness" size="sm" />
         <span>
-          <b>{IDENTITIES.harness.name}</b> passe la main à <b>{IDENTITIES[step.to!].name}</b>
+          <Trans i18n={i18n} i18nKey="thread.brief" values={{ from: identityOf("harness").name, to: identityOf(step.to!).name }} components={{ b: <b /> }} />
         </span>
         <span className="turn-at">{step.at}</span>
       </summary>
@@ -245,7 +245,7 @@ function RepeatedNotes({ step }: { readonly step: RepeatedNoteStep }): ReactNode
       <summary>
         <Icon name="shield" />
         <span>{noteTextOf(step)}</span>
-        <span className="note-count">{counted(step.sources.length, "source", "sources")}</span>
+        <span className="note-count">{t("count.sources", { count: step.sources.length })}</span>
       </summary>
       <ul>
         {step.notes.map((note, index) => (
@@ -275,7 +275,7 @@ function Notes({ items }: { readonly items: readonly ShownStep[] }): ReactNode {
     <details className="notes">
       <summary>
         <Icon name="shield" />
-        <span>{steps.length} notes du harnais</span>
+        <span>{t("thread.notes", { count: steps.length })}</span>
         <span className="note-preview" aria-hidden="true">
           {noteTextOf(steps.at(-1)!)}
         </span>
@@ -319,7 +319,7 @@ function Outcome({ step }: { readonly step: OutcomeStep }): ReactNode {
         <b>{step.title}</b>
       </header>
       {step.tests.map((test, index) => {
-        const [tone, label] = VERDICTS[test.verdict] ?? (["warn", test.verdict] as const);
+        const [tone, label] = verdictOf(test.verdict);
         return (
           <div key={index} className="result-row">
             <Badge tone={tone}>{label}</Badge>
@@ -340,10 +340,12 @@ function Message({ turn }: { readonly turn: Extract<Turn<ShownStep>, { kind: "me
   return (
     <div className="sent">
       <div className="request">
-        <span className="sr-only">Votre message : </span>
+        <span className="sr-only">{t("thread.yourMessage")}</span>
         {turn.shown.written}
       </div>
-      <span className="sent-status">{turn.deliveredTo === undefined ? "en attente d’un agent" : `remis à ${IDENTITIES[turn.deliveredTo].name}`}</span>
+      <span className="sent-status">
+        {turn.deliveredTo === undefined ? t("facts.waiting") : t("thread.deliveredTo", { name: identityOf(turn.deliveredTo).name })}
+      </span>
     </div>
   );
 }
@@ -353,7 +355,7 @@ function TurnView({ turn, back }: { readonly turn: Turn<ShownStep>; readonly bac
   if (turn.kind === "request") {
     return (
       <div className="request">
-        <span className="sr-only">Votre demande : </span>
+        <span className="sr-only">{t("thread.yourRequest")}</span>
         {turn.shown.written}
       </div>
     );
@@ -387,8 +389,8 @@ export function Thread({ path, frame, lookIndex, filter = "all", followed, query
   const back: Back = { path, query, lookIndex, followed, unfolded, onUnfold };
   const working = frame.speaking === undefined || frame.speaking === "user" ? undefined : frame.speaking;
   return (
-    <section className="thread" aria-label="Fil de la session">
-      {frame.shown.length === 0 && <EmptyState title={EMPTY[stage][0]}>{EMPTY[stage][1]}</EmptyState>}
+    <section className="thread" aria-label={t("thread.label")}>
+      {frame.shown.length === 0 && <EmptyState title={t(`thread.empty.${stage}.title`)}>{t(`thread.empty.${stage}.body`)}</EmptyState>}
       {turns.map((turn, index) => (
         <div key={index} className="thread-item">
           <TurnView turn={turn} back={back} />
@@ -397,7 +399,7 @@ export function Thread({ path, frame, lookIndex, filter = "all", followed, query
       {stage === "live" && frame.shown.length > 0 && (
         <div className="working" role="status">
           {working !== undefined && <SpeakerMark speaker={working} size="sm" active />}
-          <span>{working === undefined ? "Les agents travaillent" : `${IDENTITIES[working].name} travaille`}</span>
+          <span>{working === undefined ? t("thread.agentsWork") : t("thread.agentWorks", { name: identityOf(working).name })}</span>
           <span className="dots" aria-hidden="true">
             <i />
             <i />

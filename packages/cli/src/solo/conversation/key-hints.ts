@@ -1,5 +1,6 @@
 import { hasEnded } from "@open-qa-stack/domain/sessions";
 import type { ConversationState } from "./conversation-state.ts";
+import { t } from "./i18n/i18n.ts";
 
 /** What the input asks for, by where the conversation is, and the keys that matter there. */
 export interface KeyHints {
@@ -20,12 +21,12 @@ export interface KeyHints {
  */
 export function hintsOf(state: ConversationState): KeyHints {
   const { overlay, shown } = state;
-  if (overlay?.kind === "picker") return { placeholder: "", keys: ["Up/Down select", "Enter open", "Esc close"] };
-  if (overlay?.kind === "stop") return { placeholder: "", keys: ["Enter stop it", "Esc keep it going"] };
+  if (overlay?.kind === "picker") return { placeholder: "", keys: [t("hints.picker.move"), t("hints.picker.open"), t("hints.close")] };
+  if (overlay?.kind === "stop") return { placeholder: "", keys: [t("hints.stop.confirm"), t("hints.stop.keep")] };
   if (shown !== undefined && !hasEnded(shown.session.state)) {
     const stops = state.hosted.includes(shown.session.id);
-    return { placeholder: "Say something to the agents", keys: ["Enter send", "/ commands", stops ? "Ctrl-C stop" : "Ctrl-C quit"] };
+    return { placeholder: t("hints.say"), keys: [t("hints.send"), t("hints.commands"), t(stops ? "hints.ctrlCStop" : "hints.ctrlCQuit")] };
   }
-  if (shown !== undefined) return { placeholder: "What do the agents do next?", keys: ["Enter go on", "/new another session", "Ctrl-C quit"] };
-  return { placeholder: "What do we test?", keys: ["Enter open a session", "/ commands", "Ctrl-C quit"] };
+  if (shown !== undefined) return { placeholder: t("hints.next"), keys: [t("hints.goOn"), t("hints.another"), t("hints.ctrlCQuit")] };
+  return { placeholder: t("hints.what"), keys: [t("hints.open"), t("hints.commands"), t("hints.ctrlCQuit")] };
 }

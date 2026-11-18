@@ -24,6 +24,7 @@
     "@open-qa-stack/store": "workspace:*",
     "@open-qa-stack/tools": "workspace:*",
     "@open-qa-stack/web": "workspace:*",
+    "i18next": "26.7.1",
     "ink": "8.0.0",
     "ink-spinner": "5.0.0",
     "ink-text-input": "6.0.0",

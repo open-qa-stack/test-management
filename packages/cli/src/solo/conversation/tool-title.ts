@@ -1,4 +1,5 @@
 import { isRecord } from "@open-qa-stack/domain";
+import { t } from "./i18n/i18n.ts";
 
 /** Reads a field of the arguments of a tool call as a text; empty when it has none. */
 function argument(args: unknown, name: string): string {
@@ -11,56 +12,55 @@ function argument(args: unknown, name: string): string {
 function target(args: unknown): string {
   const named = isRecord(args) && isRecord(args["target"]) ? args["target"] : {};
   const { name, text } = named;
-  return typeof name === "string" ? name : typeof text === "string" ? text : "an element";
+  return typeof name === "string" ? name : typeof text === "string" ? text : t("tools.anElement");
 }
 
 /** What a browser tool types: a text, or a field of a test account, which is never shown. */
 function typed(args: unknown): string {
   const value = isRecord(args) ? args["value"] : undefined;
-  if (typeof value === "string") return `"${value}"`;
-  if (!isRecord(value)) return "a value";
-  return `the ${String(value["field"])} of the account ${String(value["account"])}`;
+  if (typeof value === "string") return t("tools.typedText", { value });
+  if (!isRecord(value)) return t("tools.aValue");
+  return t("tools.typedAccount", { part: String(value["field"]), account: String(value["account"]) });
 }
 
-/** How many items a list of the arguments holds, with what they are. */
-function counted(args: unknown, name: string, one: string): string {
+/** How many items a list of the arguments holds. */
+function count(args: unknown, name: string): number {
   const list = isRecord(args) ? args[name] : undefined;
-  const count = Array.isArray(list) ? list.length : 0;
-  return `${count} ${one}${count === 1 ? "" : "s"}`;
+  return Array.isArray(list) ? list.length : 0;
 }
 
 /** How a tool call reads, by the end of the name of the tool; `source` is what the name starts with, `subject` the test the call is about. */
 const TITLES: readonly (readonly [RegExp, (source: string, args: unknown, subject: string | undefined) => string])[] = [
-  [/_goto$/, (source, args) => `Opened ${argument(args, "url")} in ${source}`],
-  [/_click$/, (source, args) => `Clicked "${target(args)}" in ${source}`],
-  [/_fill$/, (_source, args) => `Typed ${typed(args)} in "${target(args)}"`],
-  [/_select_option$/, (_source, args) => `Chose "${argument(args, "option")}"`],
-  [/_check$/, (_source, args) => `Checked "${target(args)}"`],
-  [/_snapshot$/, (source) => `Looked at the page of ${source}`],
-  [/_screenshot$/, (source) => `Captured the screen of ${source}`],
-  [/_db_list_tables$/, (source) => `Listed the tables of ${source}`],
-  [/_db_describe_table$/, (_source, args) => `Described the table ${argument(args, "table")}`],
-  [/_db_sample_rows$/, (_source, args) => `Read rows of the table ${argument(args, "table")}`],
-  [/_api_list_operations$/, (source) => `Listed the operations of the API of ${source}`],
-  [/_api_read_operation$/, (_source, args) => `Read the operation ${argument(args, "method")} ${argument(args, "path")}`],
-  [/_list_files$/, (source) => `Listed the files of ${source}`],
-  [/_read_file$/, (source, args) => `Read ${argument(args, "path") || `a file of ${source}`}`],
-  [/_read_section$/, (source, args) => `Read section ${argument(args, "number")} of ${argument(args, "file") || source}`],
-  [/^knowledge_domain$/, (_source, args) => `Read the domain ${argument(args, "domain")}`],
-  [/^knowledge_list$/, (_source, args) => `Searched the knowledge: ${argument(args, "words")}`],
-  [/^knowledge_read$/, (_source, args) => `Read ${argument(args, "item")}`],
-  [/^tests_list$/, () => "Looked for the existing tests"],
-  [/^tests_read$/, (_source, args) => `Read the test ${argument(args, "path")}`],
-  [/^propose_plan$/, (_source, args) => `Proposed a plan of ${counted(args, "scenarios", "scenario")}`],
-  [/^run_test$/, (_source, _args, subject) => (subject === undefined ? "Ran the test" : `Ran "${subject}"`)],
-  [/^propose_test$/, (_source, _args, subject) => (subject === undefined ? "Handed in the test" : `Handed in "${subject}"`)],
-  [/^report_duplicates$/, (_source, args) => `Reported ${counted(args, "duplicates", "duplicate")}`],
-  [/^report_findings$/, (_source, args) => `Reported ${counted(args, "findings", "coherence finding")}`],
-  [/^report_quality$/, (_source, args) => `Reported ${counted(args, "findings", "remark")} on the code`],
-  [/^remember$/, () => "Noted something for later"],
-  [/^recall$/, () => "Read what was noted"],
-  [/^write_domain$/, (_source, args) => `Wrote the domain ${argument(args, "id")}`],
-  [/^submit_index$/, (_source, args) => `Handed in an index of ${counted(args, "domains", "domain")}`],
+  [/_goto$/, (source, args) => t("tools.goto", { url: argument(args, "url"), source })],
+  [/_click$/, (source, args) => t("tools.click", { target: target(args), source })],
+  [/_fill$/, (_source, args) => t("tools.fill", { value: typed(args), target: target(args) })],
+  [/_select_option$/, (_source, args) => t("tools.selectOption", { option: argument(args, "option") })],
+  [/_check$/, (_source, args) => t("tools.check", { target: target(args) })],
+  [/_snapshot$/, (source) => t("tools.snapshot", { source })],
+  [/_screenshot$/, (source) => t("tools.screenshot", { source })],
+  [/_db_list_tables$/, (source) => t("tools.listTables", { source })],
+  [/_db_describe_table$/, (_source, args) => t("tools.describeTable", { table: argument(args, "table") })],
+  [/_db_sample_rows$/, (_source, args) => t("tools.sampleRows", { table: argument(args, "table") })],
+  [/_api_list_operations$/, (source) => t("tools.listOperations", { source })],
+  [/_api_read_operation$/, (_source, args) => t("tools.readOperation", { method: argument(args, "method"), path: argument(args, "path") })],
+  [/_list_files$/, (source) => t("tools.listFiles", { source })],
+  [/_read_file$/, (source, args) => t("tools.readFile", { path: argument(args, "path") || t("tools.aFileOf", { source }) })],
+  [/_read_section$/, (source, args) => t("tools.readSection", { number: argument(args, "number"), file: argument(args, "file") || source })],
+  [/^knowledge_domain$/, (_source, args) => t("tools.knowledgeDomain", { domain: argument(args, "domain") })],
+  [/^knowledge_list$/, (_source, args) => t("tools.knowledgeList", { words: argument(args, "words") })],
+  [/^knowledge_read$/, (_source, args) => t("tools.knowledgeRead", { item: argument(args, "item") })],
+  [/^tests_list$/, () => t("tools.testsList")],
+  [/^tests_read$/, (_source, args) => t("tools.testsRead", { path: argument(args, "path") })],
+  [/^propose_plan$/, (_source, args) => t("tools.proposePlan", { count: count(args, "scenarios") })],
+  [/^run_test$/, (_source, _args, subject) => (subject === undefined ? t("tools.runTest") : t("tools.runNamedTest", { subject }))],
+  [/^propose_test$/, (_source, _args, subject) => (subject === undefined ? t("tools.proposeTest") : t("tools.proposeNamedTest", { subject }))],
+  [/^report_duplicates$/, (_source, args) => t("tools.reportDuplicates", { count: count(args, "duplicates") })],
+  [/^report_findings$/, (_source, args) => t("tools.reportFindings", { count: count(args, "findings") })],
+  [/^report_quality$/, (_source, args) => t("tools.reportQuality", { count: count(args, "findings") })],
+  [/^remember$/, () => t("tools.remember")],
+  [/^recall$/, () => t("tools.recall")],
+  [/^write_domain$/, (_source, args) => t("tools.writeDomain", { id: argument(args, "id") })],
+  [/^submit_index$/, (_source, args) => t("tools.submitIndex", { count: count(args, "domains") })],
 ];
 
 /**

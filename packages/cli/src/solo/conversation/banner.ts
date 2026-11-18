@@ -1,6 +1,7 @@
 import { Box, Text } from "ink";
 import { createElement as h, type ReactNode } from "react";
 import type { ConversationContext } from "./conversation-state.ts";
+import { t } from "./i18n/i18n.ts";
 import type { Theme } from "./palette.ts";
 
 /** What the banner needs. */
@@ -24,6 +25,10 @@ export function Banner({ context, theme }: BannerProps): ReactNode {
     { flexDirection: "column" },
     h(Text, null, h(Text, { ...theme.ink("accent"), bold: true }, "Open QA Stack"), h(Text, muted, between), h(Text, { bold: true }, context.project)),
     h(Text, { ...muted, wrap: "truncate-start" }, context.repository),
-    h(Text, muted, `environment ${context.environment ?? "the only one declared"}${between}database ${context.database}`),
+    h(
+      Text,
+      muted,
+      `${t("banner.environment", { name: context.environment ?? t("banner.onlyEnvironment") })}${between}${t("banner.database", { name: context.database })}`,
+    ),
   );
 }

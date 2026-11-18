@@ -111,6 +111,10 @@ interface RunStore {
 
 `write` is called once, in the summary, with the `RunState` of the run: what it targeted, each step with its duration and its requests to the model, what the cartography and the design produced, the verdict of each test, and the step a limit stopped when one did. A store that cannot write rejects, and `run()` rejects with it. A run a limit stopped is not resumed: what it produced stays in the test repository, and the next run maps only the sources without an up-to-date card, and designs anew.
 
+## The language of the person
+
+The runtime of the agents is wrapped in a `SpokenRuntime`, so that every session of a run, those of the cartography, of the design and of the reviews alike, ends its instructions with `languageRule` of `@open-qa-stack/agents` for the `language` of the configuration, English by default: what an agent says to the person, the reasons it gives and the findings it reports are written in it. The instructions themselves, and the messages of the harness to the agents, stay in English.
+
 ## Stopping a run
 
 A host stops a run by aborting the `AbortSignal` it gave as `stop`. Nothing is killed: the run stops itself, where it already holds its guards.

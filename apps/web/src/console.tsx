@@ -6,6 +6,7 @@ import type { LiveSession } from "./agent/live-session.ts";
 import { SessionScreen } from "./agent/session-screen.tsx";
 import { ConfigurationPage } from "./configuration/configuration-page.tsx";
 import { hrefTo, type Route } from "./routing/route.ts";
+import { t } from "./i18n/i18n.ts";
 import { Shell } from "./shell/shell.tsx";
 import { EmptyState } from "./ui/empty-state.tsx";
 import { Page } from "./ui/page.tsx";
@@ -43,14 +44,10 @@ type Shown =
   | { readonly screen: "session"; readonly live: LiveSession }
   | { readonly screen: "opening"; readonly id: string };
 
-/** The title of each screen that has one of its own; a session is titled by what was asked. */
-const TITLES: Readonly<Record<Exclude<Shown["screen"], "session">, string>> = {
-  entry: "Agent",
-  configuration: "Configuration",
-  opening: "Ouverture de la session…",
-  no_session: "Session introuvable",
-  nowhere: "Page introuvable",
-};
+/** The title of a screen that has one of its own; a session is titled by what was asked. */
+function titleOf(screen: Exclude<Shown["screen"], "session">): string {
+  return t(`console.titles.${screen}`);
+}
 
 /**
  * The session a route opens.
@@ -91,15 +88,15 @@ function shownOf({ route, live, missing = false }: ConsoleProps): Shown {
  */
 export function documentTitleOf(props: ConsoleProps): string {
   const shown = shownOf(props);
-  return `${shown.screen === "session" ? shown.live.script.title : TITLES[shown.screen]} · Open QA Stack`;
+  return `${shown.screen === "session" ? shown.live.script.title : titleOf(shown.screen)} · Open QA Stack`;
 }
 
 /** The screen of a route: the entry of the agent, a session, the configuration, or a page that says where the address leads. */
 function Screen(props: ConsoleProps): ReactNode {
   const { route, project, sessions, unlisted, opening = { state: "idle" }, onOpen, onConfigured } = props;
-  const name = project?.name ?? "Projet";
+  const name = project?.name ?? t("console.project");
   const shown = shownOf(props);
-  const back = <a href={hrefTo("/agent")}>Revenir aux sessions</a>;
+  const back = <a href={hrefTo("/agent")}>{t("console.back")}</a>;
   switch (shown.screen) {
     case "entry":
       return (
@@ -117,25 +114,25 @@ function Screen(props: ConsoleProps): ReactNode {
       return <ConfigurationPage project={name} {...(onConfigured === undefined ? {} : { onSaved: onConfigured })} />;
     case "opening":
       return (
-        <Page crumbs={[{ label: name }, { label: "Agent", href: hrefTo("/agent") }, { label: shown.id }]} title={TITLES.opening}>
-          <EmptyState title="Lecture de la session" action={back}>
-            Son fil apparaît dès que l’instance a répondu.
+        <Page crumbs={[{ label: name }, { label: t("console.titles.entry"), href: hrefTo("/agent") }, { label: shown.id }]} title={titleOf("opening")}>
+          <EmptyState title={t("console.opening.title")} action={back}>
+            {t("console.opening.body")}
           </EmptyState>
         </Page>
       );
     case "no_session":
       return (
-        <Page crumbs={[{ label: name }, { label: TITLES.no_session }]} title={TITLES.no_session}>
-          <EmptyState title="Le projet ne garde aucune session de ce nom" action={back}>
-            Elle a peut-être été supprimée.
+        <Page crumbs={[{ label: name }, { label: titleOf("no_session") }]} title={titleOf("no_session")}>
+          <EmptyState title={t("console.noSession.title")} action={back}>
+            {t("console.noSession.body")}
           </EmptyState>
         </Page>
       );
     case "nowhere":
       return (
-        <Page crumbs={[{ label: name }, { label: TITLES.nowhere }]} title={TITLES.nowhere}>
-          <EmptyState title="Cette adresse ne mène à aucun écran" action={back}>
-            Le lien est peut-être ancien, ou l’écran n’existe pas encore.
+        <Page crumbs={[{ label: name }, { label: titleOf("nowhere") }]} title={titleOf("nowhere")}>
+          <EmptyState title={t("console.nowhere.title")} action={back}>
+            {t("console.nowhere.body")}
           </EmptyState>
         </Page>
       );

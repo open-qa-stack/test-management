@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Icon } from "../ui/icon.tsx";
-import { IDENTITIES } from "./agents.ts";
+import { identityOf } from "./agents.ts";
 import type { Speaker } from "@open-qa-stack/domain/sessions";
 
 /** What the mark of a speaker needs. */
@@ -22,7 +22,7 @@ const ICONS = { sm: 12, md: 16, lg: 24 } as const;
  * @returns The mark.
  */
 export function SpeakerMark({ speaker, active = false, size = "md" }: SpeakerMarkProps): ReactNode {
-  const { icon, tone } = IDENTITIES[speaker];
+  const { icon, tone } = identityOf(speaker);
   return (
     <span className={`speaker-mark ${size} tone-${tone}${active ? " active" : ""}`} aria-hidden="true">
       <Icon name={icon} size={ICONS[size]} />

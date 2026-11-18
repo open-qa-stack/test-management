@@ -1,0 +1,561 @@
+{
+  "shell": {
+    "offline": "Offline",
+    "offlineDetail": "— the instance no longer answers; the page picks up by itself once it is back",
+    "navigation": "Main navigation",
+    "soon": "soon",
+    "applications_one": "{{count}} application · project",
+    "applications_other": "{{count}} applications · project",
+    "groups": {
+      "work": "Work",
+      "repository": "Repository",
+      "execution": "Execution",
+      "project": "Project"
+    },
+    "entries": {
+      "agent": "Agent",
+      "discovery": "Discovery",
+      "review": "To review",
+      "tests": "Tests",
+      "coverage": "Coverage",
+      "campaigns": "Campaigns",
+      "defects": "Defects",
+      "configuration": "Configuration"
+    }
+  },
+  "console": {
+    "project": "Project",
+    "back": "Back to the sessions",
+    "titles": {
+      "entry": "Agent",
+      "configuration": "Configuration",
+      "opening": "Opening the session…",
+      "no_session": "Session not found",
+      "nowhere": "Page not found"
+    },
+    "opening": {
+      "title": "Reading the session",
+      "body": "Its thread shows as soon as the instance answered."
+    },
+    "noSession": {
+      "title": "The project keeps no session of that name",
+      "body": "It may have been deleted."
+    },
+    "nowhere": {
+      "title": "This address leads to no screen",
+      "body": "The link may be old, or the screen does not exist yet."
+    }
+  },
+  "facts": {
+    "states": {
+      "queued": "queued",
+      "running": "live",
+      "interrupted": "interrupted",
+      "ended": "ended"
+    },
+    "outcomes": {
+      "passed": "tests passed",
+      "failed": "test failed",
+      "inconclusive": "test without a verdict",
+      "stopped": "stopped before the end"
+    },
+    "waiting": "waiting for an agent",
+    "testsPassed_one": "{{passed}} / {{count}} test passed",
+    "testsPassed_other": "{{passed}} / {{count}} tests passed",
+    "sourcesRead_one": "{{count}} knowledge source read",
+    "sourcesRead_other": "{{count}} knowledge sources read",
+    "actions_one": "{{count}} action",
+    "actions_other": "{{count}} actions",
+    "modelRequests_one": "{{count}} request to the model",
+    "modelRequests_other": "{{count}} requests to the model"
+  },
+  "home": {
+    "title": "What do we test?",
+    "requestLabel": "Tell the agents what to test",
+    "requestPlaceholder": "A rule, a ticket, a screen, a journey…",
+    "sending": "Opening…",
+    "start": "Start a session",
+    "sessions": "Sessions",
+    "live": "{{count}} live",
+    "hint": "each request opens a session",
+    "reading": "Reading the sessions…",
+    "emptyTitle": "No session yet",
+    "emptyBody": "The first one will show here as soon as a request is made.",
+    "running": "Session in progress",
+    "unasked": "Session without a request"
+  },
+  "session": {
+    "filters": {
+      "all": "All",
+      "talk": "Exchanges",
+      "actions": "Actions",
+      "verdicts": "Verdicts"
+    },
+    "stopAsked": "stop asked…",
+    "stop": "Stop",
+    "reconnecting": "connection to the stream lost, trying again…",
+    "replay": "Replay",
+    "pause": "Pause",
+    "resume": "Resume",
+    "nextVerdict": "Go to the next verdict",
+    "nextVerdictShort": "Next verdict",
+    "speed": "Change the speed",
+    "progress": "Progress of the replay",
+    "backToLive": "Back to live",
+    "showAll": "Show everything",
+    "passes": "Passes of the session",
+    "unfollow": "Stop following {{name}}"
+  },
+  "speakers": {
+    "user": {
+      "name": "You",
+      "role": "QA lead"
+    },
+    "cartographer": {
+      "name": "Cartographer",
+      "role": "lists the sources and sorts them by domain"
+    },
+    "planner": {
+      "name": "Planner",
+      "role": "explores the application and proposes the plan"
+    },
+    "writer": {
+      "name": "Writer",
+      "role": "writes and runs the Playwright tests"
+    },
+    "plan_reviewer": {
+      "name": "Plan reviewer",
+      "role": "looks for duplicates of the existing tests"
+    },
+    "coherence_reviewer": {
+      "name": "Coherence reviewer",
+      "role": "compares each test with its scenario"
+    },
+    "code_reviewer": {
+      "name": "Code reviewer",
+      "role": "judges the quality of the Playwright code"
+    },
+    "harness": {
+      "name": "Harness",
+      "role": "accepts on evidence, refuses the rest"
+    }
+  },
+  "thread": {
+    "label": "Thread of the session",
+    "empty": {
+      "queued": {
+        "title": "The session waits for an agent to take it",
+        "body": "The thread fills as soon as it starts; a message sent until then is delivered to its agents."
+      },
+      "live": {
+        "title": "The agents have written nothing yet",
+        "body": "The thread fills with their first event."
+      },
+      "ended": {
+        "title": "This session left no event",
+        "body": "It stopped before its agents started."
+      }
+    },
+    "verdicts": {
+      "passed": "passed",
+      "failed": "failed",
+      "blocked": "blocked"
+    },
+    "thinking": "Reasoning",
+    "running": "in progress",
+    "failure": "failure",
+    "ran": "{{title}}: {{verdict}}",
+    "lookFile": "{{title}} — see the file of the test",
+    "lookPage": "{{title}} — see the page looked at",
+    "followAll": "{{name}}: see every agent",
+    "followOne": "{{name}}: see this agent alone",
+    "brief": "<b>{{from}}</b> hands over to <b>{{to}}</b>",
+    "notes_one": "{{count}} note of the harness",
+    "notes_other": "{{count}} notes of the harness",
+    "yourMessage": "Your message: ",
+    "yourRequest": "Your request: ",
+    "deliveredTo": "delivered to {{name}}",
+    "agentsWork": "The agents are working",
+    "agentWorks": "{{name}} is working"
+  },
+  "count": {
+    "sources_one": "{{count}} source",
+    "sources_other": "{{count}} sources",
+    "scenarios_one": "{{count}} scenario",
+    "scenarios_other": "{{count}} scenarios",
+    "refusals_one": "{{count}} refusal of the harness",
+    "refusals_other": "{{count}} refusals of the harness",
+    "duplicates_one": "{{count}} duplicate",
+    "duplicates_other": "{{count}} duplicates",
+    "remarks_one": "{{count}} remark",
+    "remarks_other": "{{count}} remarks"
+  },
+  "plan": {
+    "words": {
+      "nominal": "nominal",
+      "negative": "negative",
+      "read": "read only",
+      "write": "writes data",
+      "functional": "functional",
+      "visual": "visual",
+      "accessibility": "accessibility",
+      "other": "other",
+      "made-up": "made up"
+    },
+    "facts": {
+      "id": "Identifier",
+      "level": "Level",
+      "case": "Case",
+      "effect": "Effect",
+      "kind": "Kind",
+      "application": "Application",
+      "domain": "Domain",
+      "sources": "Sources",
+      "data": "Data"
+    },
+    "noInput": "no input",
+    "shows": "Shows",
+    "absent": "No longer shows",
+    "steps": "Steps",
+    "restores": "restores the state",
+    "refusalsLabel": "Refusals of the harness before the plan was accepted",
+    "refusalsTitle": "Refused by the harness before the plan was accepted",
+    "details": "Details"
+  },
+  "verdict": {
+    "automatic": "automatic check",
+    "reviewer": "reviewing agent",
+    "details": "Details",
+    "scenario": "scenario {{id}}",
+    "tool": "tool {{name}}",
+    "accepted": "accepted",
+    "error": "error",
+    "refused": "refused",
+    "page": "Page at that moment",
+    "planReview": "review of the plan",
+    "testReview": "review of the test of {{scenario}}",
+    "notKept": "not kept by the harness",
+    "running": "in progress",
+    "noDuplicate": "no duplicate",
+    "noRemark": "no remark",
+    "duplicates": "<b>{{scenario}}</b> duplicates <code>{{of}}</code>",
+    "aboutPlan": "is about the plan",
+    "toolLabel": "Tool",
+    "harnessAnswer": "Answer of the harness",
+    "reviewerAnswer": "Answer of the reviewer"
+  },
+  "scope": {
+    "levels": "Levels asked",
+    "applications": "Applications",
+    "environment": "Environment",
+    "note": "Only these levels are designed; <code>design.levels</code> in <code>oqas.json</code> sets them."
+  },
+  "composer": {
+    "going": {
+      "asks": "Tell the agents what to correct",
+      "sends": "Send",
+      "placeholder": "Tell the agents what to correct…"
+    },
+    "ended": {
+      "asks": "Tell the agents what to do next: correct a test, add a scenario…",
+      "sends": "Go on with the session",
+      "placeholder": "Tell the agents what to do next: correct a test, add a scenario…"
+    }
+  },
+  "stop": {
+    "title": "Stop this session?",
+    "note": "Its agents stop as soon as they hand over, and the session does not resume. What they wrote stays in the test repository.",
+    "cancel": "Cancel",
+    "confirm": "Stop the session"
+  },
+  "look": {
+    "close": "Close",
+    "file": "Test file",
+    "page": "Page looked at"
+  },
+  "longText": {
+    "fold": "Fold",
+    "more": "Read more"
+  },
+  "steps": {
+    "phases": {
+      "configuration": "Configuration",
+      "prerequisites": "Prerequisites",
+      "survey": "Cartography · sources",
+      "card": "Cartography · card",
+      "consolidation": "Cartography · domains",
+      "index": "Cartography · index",
+      "plan": "Plan",
+      "review": "Plan review",
+      "write": "Writing a test",
+      "execution": "Running the tests",
+      "summary": "Summary"
+    },
+    "step": "Step",
+    "planAccepted": "Plan accepted by the harness",
+    "scope": "Scope of the session",
+    "interrupted": "The session stopped without going to its end.",
+    "verdicts_one": "Verdict of the run: {{count}} test",
+    "verdicts_other": "Verdict of the run: {{count}} tests",
+    "closed_one": "{{count}} test closed by the harness",
+    "closed_other": "{{count}} tests closed by the harness",
+    "opened": "Session of {{moment}}"
+  },
+  "tools": {
+    "anElement": "an element",
+    "typedText": "“{{value}}”",
+    "aValue": "a value",
+    "typedAccount": "the {{part}} of the account {{account}}",
+    "goto": "Opened {{url}} in {{source}}",
+    "click": "Clicked “{{target}}” in {{source}}",
+    "fill": "Typed {{value}} in “{{target}}”",
+    "selectOption": "Chose “{{option}}”",
+    "check": "Checked “{{target}}”",
+    "snapshot": "Looked at the page of {{source}}",
+    "screenshot": "Captured the screen of {{source}}",
+    "listTables": "Listed the tables of {{source}}",
+    "describeTable": "Described the table {{table}}",
+    "sampleRows": "Read rows of the table {{table}}",
+    "listOperations": "Listed the operations of the API of {{source}}",
+    "readOperation": "Read the operation {{method}} {{path}}",
+    "listFiles": "Listed the files of {{source}}",
+    "readFile": "Read {{path}}",
+    "readSection": "Read {{file}} § {{number}}",
+    "knowledgeDomain": "Read the domain {{domain}}",
+    "knowledgeList": "Searched the knowledge: {{words}}",
+    "knowledgeRead": "Read {{item}}",
+    "testsList": "Looked for the existing tests",
+    "testsRead": "Read the test {{path}}",
+    "proposePlan": "Proposed a plan of {{scenarios}}",
+    "runTest": "Ran the test",
+    "runNamedTest": "Ran “{{subject}}”",
+    "proposeTest": "Handed in the test",
+    "proposeNamedTest": "Handed in “{{subject}}”",
+    "reportDuplicates": "Reported {{duplicates}}",
+    "reportFindings_one": "Reported {{count}} coherence finding",
+    "reportFindings_other": "Reported {{count}} coherence findings",
+    "reportQuality": "Reported {{remarks}} on the code",
+    "remember": "Noted something for later"
+  },
+  "problems": {
+    "unknown_session": "The project keeps no session of that name.",
+    "invalid_request": "The request is not valid: tell the agents what to test.",
+    "session_running": "The session is running again: send it your message as to a session at work.",
+    "session_ended": "The session just ended: there is nothing left to stop, and your message, sent again, goes on with it.",
+    "unavailable": "No source of sessions is configured on this instance.",
+    "not_opened": "The session could not be opened.",
+    "opening_timed_out": "Opening the session took too long: try again in a moment.",
+    "stale_revision": "The configuration changed since you opened it: read it again, then make your change again.",
+    "configuration_conflict": "oqas.json changed since the last synchronisation: keep the file, or keep your changes.",
+    "invalid_configuration": "The configuration is not valid: correct the fields it points out.",
+    "no_configuration": "The instance has no configuration yet.",
+    "unexplained": "The instance ran into an error.",
+    "unreachable": "The instance does not answer.",
+    "unreadable": "The answer of the instance cannot be read."
+  },
+  "configuration": {
+    "rules": {
+      "wrong-type": "Unexpected type of value.",
+      "unknown-variant": "Value not supported.",
+      "too-few-items": "One at least is needed.",
+      "too-few-keys": "Fill in one value at least.",
+      "empty-value": "This field cannot be empty.",
+      "below-minimum": "Value too small.",
+      "maximum": "Value too large.",
+      "uniqueItems": "Each value appears once only.",
+      "env-var-name": "Name of an environment variable expected: capitals, digits and underscores, never the value.",
+      "slug": "Lower case letters and digits, separated by hyphens.",
+      "required": "Required field.",
+      "unknown-key": "Unknown key.",
+      "duplicate-key": "Repeated key.",
+      "duplicate": "This value is already used.",
+      "ui-url-required": "A web application needs the address of its interface.",
+      "url-absolute": "Absolute address expected, such as https://example.test.",
+      "url-scheme": "http or https address expected.",
+      "url-credentials": "An address holds neither a user name nor a password.",
+      "unknown-reference": "Nothing of that name is declared.",
+      "api-without-environment": "An API is named within an environment.",
+      "path-absolute": "Path relative to the root of the test repository expected.",
+      "path-outside-root": "The path leaves the test repository.",
+      "path-invalid": "The path holds control characters.",
+      "format-version": "Format version not supported: 1 is expected.",
+      "json": "The file is not valid JSON."
+    },
+    "origins": {
+      "file": "File oqas.json",
+      "console": "Console",
+      "command": "Command oqas config export"
+    },
+    "levels": {
+      "smoke": {
+        "label": "Smoke",
+        "hint": "the application answers"
+      },
+      "functional": {
+        "label": "Functional",
+        "hint": "one behaviour of one screen"
+      },
+      "business": {
+        "label": "Business",
+        "hint": "a journey through several screens"
+      },
+      "cross-application": {
+        "label": "Cross-application",
+        "hint": "an action and its effect in another application"
+      },
+      "end-to-end": {
+        "label": "End to end",
+        "hint": "a journey through three applications or more"
+      }
+    },
+    "settings": {
+      "openai": "OpenAI-compatible server",
+      "autonomous": "Autonomous: no limit per task",
+      "bounded": "Bounded: limits for each task",
+      "model": {
+        "title": "Model",
+        "hint": "the server the agents call",
+        "provider": "Provider",
+        "baseUrl": "Address of the server",
+        "model": "Model",
+        "apiKeyEnv": "Variable of the key",
+        "apiKeyEnvHint": "The name of the environment variable that holds the key; the key is never written here.",
+        "reasoningEffort": "Reasoning effort",
+        "reasoningEffortHint": "A word of the server, such as low or high; nothing is sent without one.",
+        "timeout": "Wait for an answer, in seconds",
+        "vision": "Reads images",
+        "visionHint": "the agents see the captures of the screens"
+      },
+      "autonomy": {
+        "title": "Autonomy",
+        "hint": "how far the agents go on their own",
+        "level": "Level",
+        "guardrail": "Guardrail of a run, in minutes",
+        "none": "none",
+        "guardrailHint": "Beyond it, the tasks of the agents stop.",
+        "maxMinutes": "Minutes per task",
+        "maxIterations": "Calls to the model per task",
+        "maxActions": "Browser actions per task"
+      },
+      "design": {
+        "title": "Design levels",
+        "hint": "from the base of the pyramid to its top",
+        "legend": "Levels of tests asked of a plan"
+      },
+      "languages": {
+        "title": "Languages",
+        "hint": "what the product says, and what the tests say",
+        "language": "Language of the console and of the agents",
+        "languageHint": "The console, the conversation of the terminal and what the agents say to you.",
+        "testLanguage": "Language of the tests",
+        "testLanguageHint": "The titles, the steps and the intents of the tests written; their code stays in English."
+      },
+      "repository": {
+        "title": "Layout of the repository",
+        "hint": "each folder relative to the root of the test repository",
+        "appsDir": "Folder of the applications",
+        "blocksDir": "Folder of the blocks",
+        "journeysDir": "Folder of the journeys",
+        "stateDir": "Folder of the state",
+        "indexDir": "Folder of the index"
+      }
+    },
+    "application": {
+      "types": {
+        "web": "Web interface",
+        "api": "API",
+        "web-and-api": "Web interface and API"
+      },
+      "methods": {
+        "none": "None",
+        "form": "Sign-in form"
+      },
+      "explorations": {
+        "read-only": "Read only: changes no data",
+        "read-write": "Read and write: may create or change, never remove"
+      },
+      "explorationDefault": "Read only (default)",
+      "environment": "Environment {{name}}",
+      "theEnvironment": "the environment {{name}}",
+      "api": "API {{name}}",
+      "theApi": "the API {{name}}",
+      "account": "Account {{name}}",
+      "theAccount": "the account {{name}}",
+      "removeFrom": "Remove {{item}} from {{owner}}",
+      "removeApplication": "Remove the application {{name}}",
+      "untitled": "Application {{rank}}",
+      "noId": "without an identifier",
+      "name": "Name",
+      "environmentNameHint": "As the sessions name it, such as local or staging.",
+      "uiUrl": "Address of the interface",
+      "exploration": "Exploration of the interface",
+      "explorationHint": "What the agent that explores the interface may do with the data of this environment.",
+      "apiName": "Name of the API",
+      "baseUrl": "Base address",
+      "addApi": "Add an API",
+      "id": "Identifier",
+      "idHint": "Lower case letters and digits separated by hyphens.",
+      "type": "What it exposes",
+      "method": "Sign-in of the users",
+      "accounts": "Test accounts",
+      "accountsHint": "Only the names of the environment variables are kept: the credentials stay on the machine that runs the sessions.",
+      "accountName": "Name of the account",
+      "usernameEnv": "Variable of the user name",
+      "passwordEnv": "Variable of the password",
+      "addAccount": "Add an account",
+      "addEnvironment": "Add an environment"
+    },
+    "remove": "Remove",
+    "records": {
+      "kinds": {
+        "openapi": "OpenAPI contract",
+        "postgresql": "PostgreSQL database",
+        "document": "Document",
+        "source-code": "Source code",
+        "logs": "Logs"
+      },
+      "variable": "variable {{name}}",
+      "container": "container {{name}}",
+      "knowledge": "Knowledge",
+      "readOnly": "read only",
+      "soon": "soon editable",
+      "knowledgeNote": "Their edition in the console comes in a later version; until then, they are declared in oqas.json, and the console takes them up.",
+      "noKnowledge": "No knowledge source",
+      "history": "History of the revisions",
+      "latestFirst": "the latest first",
+      "revision": "Revision {{number}}",
+      "inForce": "in force",
+      "json": "JSON",
+      "seeJson": "See the configuration as JSON"
+    },
+    "screen": {
+      "errors_one": "{{count}} error to correct before saving",
+      "errors_other": "{{count}} errors to correct before saving",
+      "conflict": "oqas.json changed since the last synchronisation",
+      "conflictNote": "Your changes would write over it. Nothing is merged: choose what is kept.",
+      "keepFile": "Keep the file",
+      "keepChange": "Keep my changes",
+      "fileChanged": "oqas.json changed since the revision in force",
+      "fileChangedNote": "It is taken when the next session starts, or now.",
+      "takeFile": "Take oqas.json",
+      "fileMissing": "oqas.json is not in the test repository: the next save writes it.",
+      "saved": "Revision {{number}} saved: oqas.json is written again, and the next session reads it.",
+      "title": "Configuration",
+      "reading": "Reading the configuration",
+      "readingNote": "It shows as soon as the instance answered.",
+      "none": "The instance has no configuration yet",
+      "noneNote": "Write oqas.json at the root of the test repository: the console takes it up.",
+      "saving": "Saving…",
+      "unsaved": "Changes not saved",
+      "inForce": "Revision {{number}} in force",
+      "discard": "Discard the changes",
+      "save": "Save",
+      "applications": "Applications and environments",
+      "addApplication": "Add an application",
+      "agents": "Agents",
+      "repository": "Test repository",
+      "history": "History",
+      "secrets": "No secret is kept: neither in oqas.json, nor in the database. The configuration names the environment variables that hold them, on the machine that runs the sessions."
+    }
+  }
+}

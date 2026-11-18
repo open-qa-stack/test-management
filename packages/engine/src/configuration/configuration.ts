@@ -118,6 +118,22 @@ export class Configuration implements ConfigurationSource {
   }
 
   /**
+   * Brings the revision in force in step with the configuration file as {@link Configuration.synchronise} does, and
+   * gives it, as a host does when it starts: a file the configuration refuses, or no file and no revision, leaves
+   * the revision in force as it is, and the runs tell what is wrong.
+   *
+   * @returns The revision in force; `undefined` when there is none.
+   */
+  async inStep(): Promise<ConfigurationRevision | undefined> {
+    try {
+      return await this.synchronise();
+    } catch (error) {
+      if (!(error instanceof NoConfigurationError || error instanceof InvalidConfigurationError)) throw error;
+      return (await this.view()).revision;
+    }
+  }
+
+  /**
    * Saves a change of the configuration made in the console: it becomes a revision of origin `console`, and the
    * configuration file is rewritten with it.
    *

@@ -9,6 +9,7 @@ import { CopilotAgentRuntime, ModelGateway, resolveCharter, writerInstructions }
 import {
   validateConfig,
   type DomainIndex,
+  type Language,
   type PlanReview,
   type ProposedTest,
   type ResolvedConfig,
@@ -334,6 +335,8 @@ export interface Setup {
   readonly inbox?: Inbox;
   /** Whether the configuration declares that the model reads images. */
   readonly vision?: boolean;
+  /** The language of the tests, when it is not as the configuration says by default. */
+  readonly testLanguage?: Language;
 }
 
 export interface Run {
@@ -355,7 +358,7 @@ export async function design(script: readonly { status?: number; body: unknown }
     const declared = configFor(server.baseUrl, setup.limits);
     const seeing: ResolvedConfig = setup.vision === true ? { ...declared, model: { ...declared.model, capabilities: ["vision"] } } : declared;
     const built: ResolvedConfig = setup.architecture === undefined ? seeing : { ...seeing, design: { ...seeing.design, architecture: setup.architecture } };
-    const config: ResolvedConfig = built;
+    const config: ResolvedConfig = setup.testLanguage === undefined ? built : { ...built, design: { ...built.design, testLanguage: setup.testLanguage } };
     const charter = resolveCharter(config.charter);
     assert.ok(charter.ok);
     const designer = new Designer({

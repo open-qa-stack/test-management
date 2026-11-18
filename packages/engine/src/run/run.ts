@@ -35,6 +35,7 @@ import type { RunStore } from "../ports/run-store.ts";
 import { CountedRuntime } from "../runtime/counted-runtime.ts";
 import { GuardedRuntime } from "../runtime/guarded-runtime.ts";
 import { RunStoppedError } from "../runtime/run-stopped-error.ts";
+import { SpokenRuntime } from "../runtime/spoken-runtime.ts";
 import { StoppableRuntime } from "../runtime/stoppable-runtime.ts";
 import { exitCodeOf } from "./exit-code.ts";
 import { missingPrerequisites } from "./prerequisites.ts";
@@ -211,7 +212,9 @@ export class Run {
       if (counted === undefined) {
         open = await this.options.openRuntime(config);
         const { guardrailMinutes } = config.autonomy.limits;
-        const stoppable = this.options.stop === undefined ? open.runtime : new StoppableRuntime(open.runtime, this.options.stop);
+        // Every session of the run speaks to the person in their language.
+        const spoken = new SpokenRuntime(open.runtime, config.language);
+        const stoppable = this.options.stop === undefined ? spoken : new StoppableRuntime(spoken, this.options.stop);
         counted = new CountedRuntime(
           guardrailMinutes === null ? stoppable : new GuardedRuntime(stoppable, started.getTime() + guardrailMinutes * 60_000, () => now().getTime()),
         );

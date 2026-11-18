@@ -52,7 +52,7 @@ export default defineConfig({
       project("packages/agents", { setupFiles: [LOOPBACK_ONLY] }),
       project("packages/engine", { setupFiles: [LOOPBACK_ONLY] }),
       project("packages/cli", { setupFiles: [LOOPBACK_ONLY] }),
-      project("apps/web"),
+      project("apps/web", { setupFiles: ["./test/in-french.ts"] }),
       project("lint"),
     ],
     coverage: {

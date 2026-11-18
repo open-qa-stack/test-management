@@ -1,0 +1,228 @@
+{
+  "tools": {
+    "anElement": "un élément",
+    "typedText": "« {{value}} »",
+    "aValue": "une valeur",
+    "typedAccount": "le champ {{part}} du compte {{account}}",
+    "goto": "A ouvert {{url}} dans {{source}}",
+    "click": "A cliqué sur « {{target}} » dans {{source}}",
+    "fill": "A saisi {{value}} dans « {{target}} »",
+    "selectOption": "A choisi « {{option}} »",
+    "check": "A coché « {{target}} »",
+    "snapshot": "A regardé la page de {{source}}",
+    "screenshot": "A capturé l’écran de {{source}}",
+    "listTables": "A listé les tables de {{source}}",
+    "describeTable": "A décrit la table {{table}}",
+    "sampleRows": "A lu des lignes de la table {{table}}",
+    "listOperations": "A listé les opérations de l’API de {{source}}",
+    "readOperation": "A lu l’opération {{method}} {{path}}",
+    "listFiles": "A listé les fichiers de {{source}}",
+    "readFile": "A lu {{path}}",
+    "aFileOf": "un fichier de {{source}}",
+    "readSection": "A lu la section {{number}} de {{file}}",
+    "knowledgeDomain": "A lu le domaine {{domain}}",
+    "knowledgeList": "A cherché dans les connaissances : {{words}}",
+    "knowledgeRead": "A lu {{item}}",
+    "testsList": "A cherché les tests existants",
+    "testsRead": "A lu le test {{path}}",
+    "proposePlan_one": "A proposé un plan de {{count}} scénario",
+    "proposePlan_other": "A proposé un plan de {{count}} scénarios",
+    "runTest": "A joué le test",
+    "runNamedTest": "A joué « {{subject}} »",
+    "proposeTest": "A remis le test",
+    "proposeNamedTest": "A remis « {{subject}} »",
+    "reportDuplicates_one": "A signalé {{count}} doublon",
+    "reportDuplicates_other": "A signalé {{count}} doublons",
+    "reportFindings_one": "A rendu {{count}} constat de cohérence",
+    "reportFindings_other": "A rendu {{count}} constats de cohérence",
+    "reportQuality_one": "A rendu {{count}} remarque sur le code",
+    "reportQuality_other": "A rendu {{count}} remarques sur le code",
+    "remember": "A noté quelque chose pour la suite",
+    "recall": "A lu ce qui était noté",
+    "writeDomain": "A écrit le domaine {{id}}",
+    "submitIndex_one": "A remis un index de {{count}} domaine",
+    "submitIndex_other": "A remis un index de {{count}} domaines"
+  },
+  "steps": {
+    "phases": {
+      "configuration": "Configuration",
+      "prerequisites": "Prérequis",
+      "survey": "Cartographie · sources",
+      "card": "Cartographie · fiche",
+      "consolidation": "Cartographie · domaines",
+      "index": "Cartographie · index",
+      "plan": "Plan",
+      "review": "Relecture du plan",
+      "write": "Écriture d’un test",
+      "execution": "Exécution des tests",
+      "summary": "Bilan"
+    },
+    "step": "Étape",
+    "planAccepted": "Plan accepté par le harnais",
+    "scope": "Portée de la session",
+    "interrupted": "La session s’est arrêtée sans aller à son terme.",
+    "verdicts_one": "Verdicts de l’exécution : {{count}} test",
+    "verdicts_other": "Verdicts de l’exécution : {{count}} tests",
+    "closed_one": "{{count}} test clos par le harnais",
+    "closed_other": "{{count}} tests clos par le harnais",
+    "opened": "Session du {{day}} à {{time}} UTC"
+  },
+  "facts": {
+    "outcomes": {
+      "passed": "tests réussis",
+      "failed": "un test en échec",
+      "inconclusive": "un test sans verdict",
+      "stopped": "arrêtée avant la fin"
+    },
+    "states": {
+      "queued": "en file",
+      "running": "en cours",
+      "interrupted": "interrompue",
+      "completed": "terminée",
+      "ended": "terminée"
+    }
+  },
+  "speakers": {
+    "user": "Vous",
+    "cartographer": "Cartographe",
+    "planner": "Planificateur",
+    "plan_reviewer": "Relecteur du plan",
+    "writer": "Rédacteur",
+    "coherence_reviewer": "Relecteur de cohérence",
+    "code_reviewer": "Relecteur de code",
+    "harness": "Harnais"
+  },
+  "help": {
+    "commands": "Commandes",
+    "keys": "Touches",
+    "enter": "Ouvrir une session avec ce que vous avez écrit, le dire aux agents de la session en cours, ou poursuivre la session terminée",
+    "tab": "Compléter la commande en cours de saisie",
+    "upDown": "Se déplacer dans une liste",
+    "esc": "Fermer une liste ou une confirmation",
+    "ctrlC": "Vider la saisie ; puis arrêter la session que ce terminal fait tourner ; deux fois, quitter",
+    "keyUpDown": "Haut, Bas"
+  },
+  "commands": {
+    "sessions": "Choisir une session et rouvrir son fil ; une session en cours est suivie",
+    "new": "Revenir au début, pour ouvrir une autre session",
+    "stop": "Arrêter la session à l’écran, après confirmation",
+    "ui": "Servir la console web depuis ce processus et écrire son adresse",
+    "help": "Lister les commandes et les touches",
+    "quit": "Quitter la conversation"
+  },
+  "hints": {
+    "picker": {
+      "move": "Haut/Bas choisir",
+      "open": "Entrée ouvrir"
+    },
+    "close": "Échap fermer",
+    "stop": {
+      "confirm": "Entrée l’arrêter",
+      "keep": "Échap la laisser continuer"
+    },
+    "say": "Dites quelque chose aux agents",
+    "send": "Entrée envoyer",
+    "commands": "/ commandes",
+    "ctrlCStop": "Ctrl-C arrêter",
+    "ctrlCQuit": "Ctrl-C quitter",
+    "next": "Que font les agents ensuite ?",
+    "goOn": "Entrée poursuivre",
+    "another": "/new une autre session",
+    "what": "Qu’est-ce qu’on teste ?",
+    "open": "Entrée ouvrir une session"
+  },
+  "stop": {
+    "question": "Arrêter la session {{session}} ?",
+    "note": "Ses agents s’arrêtent dès qu’ils rendent la main, et la session ne reprend pas. Ce qu’ils ont écrit reste dans le dépôt de tests."
+  },
+  "banner": {
+    "environment": "environnement {{name}}",
+    "onlyEnvironment": "le seul déclaré",
+    "database": "base {{name}}"
+  },
+  "notices": {
+    "ctrlCLeaves": "Appuyez de nouveau sur Ctrl-C pour quitter.",
+    "ctrlCStops": "La session est priée de s’arrêter, et finit bientôt. Ctrl-C de nouveau quitte aussitôt, sans l’attendre.",
+    "stopAsked": "La session est priée de s’arrêter : ses agents s’arrêtent dès qu’ils rendent la main.",
+    "noSession": "Aucune session pour l’instant : dites quoi tester pour ouvrir la première.",
+    "served": "La console web est servie à {{url}} jusqu’à votre départ.",
+    "unexpected": "Erreur inattendue : {{message}}"
+  },
+  "requests": {
+    "unknown": "Commande inconnue {{word}} ; /help liste les commandes.",
+    "takes": "/{{name}} prend {{what}}.",
+    "nothingAfter": "rien après lui",
+    "nothingToStop": "Aucune session ne tourne ici : il n’y a rien à arrêter.",
+    "port": "/ui prend un port de 0 à 65535, 0 pour n’importe quel port libre."
+  },
+  "recent": {
+    "none": "Aucune session pour l’instant.",
+    "latest": "Dernières sessions"
+  },
+  "picker": {
+    "title": "Rouvrir une session"
+  },
+  "scope": {
+    "levels": "Niveaux demandés",
+    "applications": "Applications",
+    "environment": "Environnement",
+    "note": "Seuls ces niveaux sont conçus : design.levels dans oqas.json les fixe."
+  },
+  "said": {
+    "waiting": "en attente d’un agent",
+    "deliveredTo": "remis au {{name}}",
+    "message": "message {{number}}",
+    "thinks": "réfléchit : {{text}}"
+  },
+  "plan": {
+    "sources": "Sources",
+    "data": "Données",
+    "noData": "aucune saisie",
+    "step": "Étape {{number}}. ",
+    "restores": " (remet en état)",
+    "shows": "affiche",
+    "absent": "n’affiche plus",
+    "scenarios_one": "{{count}} scénario",
+    "scenarios_other": "{{count}} scénarios"
+  },
+  "summary": {
+    "modelRequests_one": "{{count}} requête au modèle",
+    "modelRequests_other": "{{count}} requêtes au modèle",
+    "testsPassed_one": "{{passed}} sur {{count}} test réussi",
+    "testsPassed_other": "{{passed}} sur {{count}} tests réussis",
+    "branch": "branche {{name}}",
+    "session": "Session {{state}}"
+  },
+  "verdict": {
+    "error": "erreur",
+    "refused": "refusé",
+    "scenario": "scénario {{id}}",
+    "tool": "outil {{name}}",
+    "reviewedPlan": "a relu le plan",
+    "reviewedTest": "a relu le test de {{scenario}}",
+    "duplicates_zero": "aucun doublon",
+    "duplicates_one": "{{count}} doublon",
+    "duplicates_other": "{{count}} doublons",
+    "remarks_zero": "aucune remarque",
+    "remarks_one": "{{count}} remarque",
+    "remarks_other": "{{count}} remarques",
+    "notTaken": ", non retenu par le harnais",
+    "handingIn": ", en cours de remise",
+    "review": "{{reviewed}} : {{verdict}}{{state}}",
+    "repeats": "{{scenario}} double {{of}}",
+    "plan": "[plan]",
+    "pageAt": "La page était à {{name}} :",
+    "automatic": "contrôle automatique",
+    "agent": "agent"
+  },
+  "heading": {
+    "session": "Session {{id}}",
+    "opened": "ouverte le {{day}} à {{time}} UTC"
+  },
+  "verdicts": {
+    "passed": "réussi",
+    "failed": "échoué",
+    "blocked": "bloqué",
+    "not_run": "non joué"
+  }
+}

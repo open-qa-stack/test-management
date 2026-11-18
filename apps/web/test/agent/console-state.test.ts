@@ -33,9 +33,9 @@ describe("the state of a console", () => {
     assert.deepEqual(INITIAL_STATE, { openedAt: 0, unreachable: false, opening: { state: "idle" }, playbacks: {} });
   });
 
-  it("keeps the project and the sessions the API told", () => {
-    const state = after([{ type: "project", project: PROJECT }, listing([RUNNING, EARLIER])]);
-    assert.deepEqual(state, { ...INITIAL_STATE, project: PROJECT, sessions: [RUNNING, EARLIER] });
+  it("keeps the project, the language of its configuration and the sessions the API told", () => {
+    const state = after([{ type: "project", project: PROJECT }, { type: "language", language: "fr" }, listing([RUNNING, EARLIER])]);
+    assert.deepEqual(state, { ...INITIAL_STATE, project: PROJECT, language: "fr", sessions: [RUNNING, EARLIER] });
   });
 
   it("says the instance unreachable when it could not be reached, until the API answers again", () => {
@@ -45,6 +45,7 @@ describe("the state of a console", () => {
     const answers: readonly ConsoleAction[] = [
       listing([RUNNING]),
       { type: "project", project: PROJECT },
+      { type: "language", language: "en" },
       { type: "unlisted", message: "The folder of the sessions cannot be read." },
       { type: "opened", session: EARLIER, answeredAt: 2 },
     ];

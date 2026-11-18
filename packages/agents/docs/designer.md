@@ -20,6 +20,8 @@ const outcome = await new Designer({
 
 Two agents share a design, each with its own system instructions, its own tools and its own sessions: one **plans**, with `PLANNER_INSTRUCTIONS`, which hold its method, each step with what ends it, and the rules that cause most refusals of a plan, and nothing of the charter; the other **writes** each test from the sheet of its scenario, with `writerInstructions`, which hold its method and the charter. They may be given different models once the runtime allows it: each session is opened on its own.
 
+The instructions of both end with the language of the tests, `design.testLanguage` of the configuration, English by default: the titles of the scenarios and of the tests, their steps and the intents written in their code are written in it, by `testLanguageRule`. The code, its names included, stays in English, and a text the application shows is quoted as it shows it. The agents that review are not told it: they write no test.
+
 ## A run
 
 1. **Test repository.** The path must be the root of a git repository with a commit. No tracked file may be changed, no untracked file may lie outside the state folder (`repository.stateDir`) and the index folder (`repository.indexDir`), and the branch to create must not exist. Otherwise the journal names each problem, no session starts, and nothing is written. The untracked index the cartographer leaves does not stop the run.

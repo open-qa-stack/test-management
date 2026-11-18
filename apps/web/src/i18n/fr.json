@@ -1,0 +1,561 @@
+{
+  "shell": {
+    "offline": "Hors ligne",
+    "offlineDetail": "— l’instance ne répond plus ; la page reprendra seule dès son retour",
+    "navigation": "Navigation principale",
+    "soon": "bientôt",
+    "applications_one": "{{count}} application · projet",
+    "applications_other": "{{count}} applications · projet",
+    "groups": {
+      "work": "Travail",
+      "repository": "Référentiel",
+      "execution": "Exécution",
+      "project": "Projet"
+    },
+    "entries": {
+      "agent": "Agent",
+      "discovery": "Découverte",
+      "review": "À relire",
+      "tests": "Tests",
+      "coverage": "Couverture",
+      "campaigns": "Campagnes",
+      "defects": "Anomalies",
+      "configuration": "Configuration"
+    }
+  },
+  "console": {
+    "project": "Projet",
+    "back": "Revenir aux sessions",
+    "titles": {
+      "entry": "Agent",
+      "configuration": "Configuration",
+      "opening": "Ouverture de la session…",
+      "no_session": "Session introuvable",
+      "nowhere": "Page introuvable"
+    },
+    "opening": {
+      "title": "Lecture de la session",
+      "body": "Son fil apparaît dès que l’instance a répondu."
+    },
+    "noSession": {
+      "title": "Le projet ne garde aucune session de ce nom",
+      "body": "Elle a peut-être été supprimée."
+    },
+    "nowhere": {
+      "title": "Cette adresse ne mène à aucun écran",
+      "body": "Le lien est peut-être ancien, ou l’écran n’existe pas encore."
+    }
+  },
+  "facts": {
+    "states": {
+      "queued": "en file",
+      "running": "en direct",
+      "interrupted": "interrompue",
+      "ended": "terminée"
+    },
+    "outcomes": {
+      "passed": "tests réussis",
+      "failed": "test en échec",
+      "inconclusive": "test sans verdict",
+      "stopped": "arrêtée avant la fin"
+    },
+    "waiting": "en attente d’un agent",
+    "testsPassed_one": "{{passed}} / {{count}} test réussi",
+    "testsPassed_other": "{{passed}} / {{count}} tests réussis",
+    "sourcesRead_one": "{{count}} source de connaissance lue",
+    "sourcesRead_other": "{{count}} sources de connaissance lues",
+    "actions_one": "{{count}} action",
+    "actions_other": "{{count}} actions",
+    "modelRequests_one": "{{count}} requête au modèle",
+    "modelRequests_other": "{{count}} requêtes au modèle"
+  },
+  "home": {
+    "title": "Qu’est-ce qu’on teste ?",
+    "requestLabel": "Dites aux agents quoi tester",
+    "requestPlaceholder": "Une règle, un ticket, un écran, un parcours…",
+    "sending": "Ouverture…",
+    "start": "Démarrer une session",
+    "sessions": "Sessions",
+    "live": "{{count}} en direct",
+    "hint": "chaque demande ouvre une session",
+    "reading": "Lecture des sessions…",
+    "emptyTitle": "Aucune session pour l’instant",
+    "emptyBody": "La première apparaîtra ici dès qu’une demande sera faite.",
+    "running": "Session en cours",
+    "unasked": "Session sans demande"
+  },
+  "session": {
+    "filters": {
+      "all": "Tout",
+      "talk": "Échanges",
+      "actions": "Actions",
+      "verdicts": "Verdicts"
+    },
+    "stopAsked": "arrêt demandé…",
+    "stop": "Arrêter",
+    "reconnecting": "connexion au flux interrompue, nouvelle tentative…",
+    "replay": "Rejouer",
+    "pause": "Pause",
+    "resume": "Reprendre",
+    "nextVerdict": "Aller au prochain verdict",
+    "nextVerdictShort": "Verdict suivant",
+    "speed": "Changer la vitesse",
+    "progress": "Avancement de la relecture",
+    "backToLive": "Revenir au direct",
+    "showAll": "Tout afficher",
+    "passes": "Passes de la session",
+    "unfollow": "Ne plus suivre {{name}}"
+  },
+  "speakers": {
+    "user": {
+      "name": "Vous",
+      "role": "Responsable QA"
+    },
+    "cartographer": {
+      "name": "Cartographe",
+      "role": "inventorie les sources et les range par domaine"
+    },
+    "planner": {
+      "name": "Planificateur",
+      "role": "explore l’application et propose le plan"
+    },
+    "writer": {
+      "name": "Rédacteur",
+      "role": "écrit et joue les tests Playwright"
+    },
+    "plan_reviewer": {
+      "name": "Relecteur du plan",
+      "role": "cherche les doublons avec l’existant"
+    },
+    "coherence_reviewer": {
+      "name": "Relecteur de cohérence",
+      "role": "compare chaque test à son scénario"
+    },
+    "code_reviewer": {
+      "name": "Relecteur de code",
+      "role": "juge la qualité du code Playwright"
+    },
+    "harness": {
+      "name": "Harnais",
+      "role": "accepte sur preuve, refuse le reste"
+    }
+  },
+  "thread": {
+    "label": "Fil de la session",
+    "empty": {
+      "queued": {
+        "title": "La session attend d’être prise par un agent",
+        "body": "Le fil se remplira dès qu’elle démarrera ; un message envoyé d’ici là sera remis à ses agents."
+      },
+      "live": {
+        "title": "Les agents n’ont encore rien écrit",
+        "body": "Le fil se remplira dès leur premier événement."
+      },
+      "ended": {
+        "title": "Cette session n’a laissé aucun événement",
+        "body": "Elle s’est arrêtée avant que ses agents ne commencent."
+      }
+    },
+    "verdicts": {
+      "passed": "réussi",
+      "failed": "échoué",
+      "blocked": "bloqué"
+    },
+    "thinking": "Réflexion",
+    "running": "en cours",
+    "failure": "échec",
+    "ran": "{{title}} : {{verdict}}",
+    "lookFile": "{{title}} — voir le fichier de test",
+    "lookPage": "{{title}} — voir la page consultée",
+    "followAll": "{{name}} : voir tous les agents",
+    "followOne": "{{name}} : ne voir que cet agent",
+    "brief": "<b>{{from}}</b> passe la main à <b>{{to}}</b>",
+    "notes_one": "{{count}} note du harnais",
+    "notes_other": "{{count}} notes du harnais",
+    "yourMessage": "Votre message : ",
+    "yourRequest": "Votre demande : ",
+    "deliveredTo": "remis à {{name}}",
+    "agentsWork": "Les agents travaillent",
+    "agentWorks": "{{name}} travaille"
+  },
+  "count": {
+    "sources_one": "{{count}} source",
+    "sources_other": "{{count}} sources",
+    "scenarios_one": "{{count}} scénario",
+    "scenarios_other": "{{count}} scénarios",
+    "refusals_one": "{{count}} refus du harnais",
+    "refusals_other": "{{count}} refus du harnais",
+    "duplicates_one": "{{count}} doublon",
+    "duplicates_other": "{{count}} doublons",
+    "remarks_one": "{{count}} remarque",
+    "remarks_other": "{{count}} remarques"
+  },
+  "plan": {
+    "words": {
+      "nominal": "nominal",
+      "negative": "négatif",
+      "read": "lecture seule",
+      "write": "écrit des données",
+      "functional": "fonctionnel",
+      "visual": "visuel",
+      "accessibility": "accessibilité",
+      "other": "autre",
+      "made-up": "inventée"
+    },
+    "facts": {
+      "id": "Identifiant",
+      "level": "Niveau",
+      "case": "Cas",
+      "effect": "Effet",
+      "kind": "Nature",
+      "application": "Application",
+      "domain": "Domaine",
+      "sources": "Sources",
+      "data": "Données"
+    },
+    "noInput": "aucune saisie",
+    "shows": "Affiche",
+    "absent": "N’affiche plus",
+    "steps": "Étapes",
+    "restores": "remet en état",
+    "refusalsLabel": "Refus du harnais avant l’acceptation du plan",
+    "refusalsTitle": "Refusé par le harnais avant l’acceptation du plan",
+    "details": "Détails"
+  },
+  "verdict": {
+    "automatic": "contrôle automatique",
+    "reviewer": "agent relecteur",
+    "details": "Détails",
+    "scenario": "scénario {{id}}",
+    "tool": "outil {{name}}",
+    "accepted": "accepté",
+    "error": "erreur",
+    "refused": "refusé",
+    "page": "Page à ce moment",
+    "planReview": "relecture du plan",
+    "testReview": "relecture du test de {{scenario}}",
+    "notKept": "non retenu par le harnais",
+    "running": "en cours",
+    "noDuplicate": "aucun doublon",
+    "noRemark": "aucune remarque",
+    "duplicates": "<b>{{scenario}}</b> double <code>{{of}}</code>",
+    "aboutPlan": "porte sur le plan",
+    "toolLabel": "Outil",
+    "harnessAnswer": "Réponse du harnais",
+    "reviewerAnswer": "Réponse du relecteur"
+  },
+  "scope": {
+    "levels": "Niveaux demandés",
+    "applications": "Applications",
+    "environment": "Environnement",
+    "note": "Seuls ces niveaux sont conçus ; <code>design.levels</code> dans <code>oqas.json</code> les fixe."
+  },
+  "composer": {
+    "going": {
+      "asks": "Dites aux agents ce qu’il faut corriger",
+      "sends": "Envoyer",
+      "placeholder": "Dites aux agents ce qu’il faut corriger…"
+    },
+    "ended": {
+      "asks": "Dites aux agents quoi faire ensuite : corriger un test, ajouter un scénario…",
+      "sends": "Poursuivre la session",
+      "placeholder": "Dites aux agents quoi faire ensuite : corriger un test, ajouter un scénario…"
+    }
+  },
+  "stop": {
+    "title": "Arrêter cette session ?",
+    "note": "Ses agents s’arrêtent dès qu’ils rendent la main, et la session ne reprend pas. Ce qu’ils ont écrit reste dans le dépôt de tests.",
+    "cancel": "Annuler",
+    "confirm": "Arrêter la session"
+  },
+  "look": {
+    "close": "Fermer",
+    "file": "Fichier de test",
+    "page": "Page consultée"
+  },
+  "longText": {
+    "fold": "Replier",
+    "more": "Lire la suite"
+  },
+  "steps": {
+    "phases": {
+      "configuration": "Configuration",
+      "prerequisites": "Prérequis",
+      "survey": "Cartographie · sources",
+      "card": "Cartographie · fiche",
+      "consolidation": "Cartographie · domaines",
+      "index": "Cartographie · index",
+      "plan": "Plan",
+      "review": "Relecture du plan",
+      "write": "Écriture d’un test",
+      "execution": "Exécution des tests",
+      "summary": "Bilan"
+    },
+    "step": "Étape",
+    "planAccepted": "Plan accepté par le harnais",
+    "scope": "Portée de la session",
+    "interrupted": "La session s’est arrêtée sans aller à son terme.",
+    "verdicts_one": "Verdict de l’exécution : {{count}} test",
+    "verdicts_other": "Verdict de l’exécution : {{count}} tests",
+    "closed_one": "{{count}} test clos par le harnais",
+    "closed_other": "{{count}} tests clos par le harnais",
+    "opened": "Session du {{moment}}"
+  },
+  "tools": {
+    "anElement": "un élément",
+    "typedText": "« {{value}} »",
+    "aValue": "une valeur",
+    "typedAccount": "le champ {{part}} du compte {{account}}",
+    "goto": "A ouvert {{url}} dans {{source}}",
+    "click": "A cliqué sur « {{target}} » dans {{source}}",
+    "fill": "A saisi {{value}} dans « {{target}} »",
+    "selectOption": "A choisi « {{option}} »",
+    "check": "A coché « {{target}} »",
+    "snapshot": "A regardé la page de {{source}}",
+    "screenshot": "A capturé l’écran de {{source}}",
+    "listTables": "A listé les tables de {{source}}",
+    "describeTable": "A décrit la table {{table}}",
+    "sampleRows": "A lu des lignes de la table {{table}}",
+    "listOperations": "A listé les opérations de l’API de {{source}}",
+    "readOperation": "A lu l’opération {{method}} {{path}}",
+    "listFiles": "A listé les fichiers de {{source}}",
+    "readFile": "A lu {{path}}",
+    "readSection": "A lu {{file}} § {{number}}",
+    "knowledgeDomain": "A lu le domaine {{domain}}",
+    "knowledgeList": "A cherché dans les connaissances : {{words}}",
+    "knowledgeRead": "A lu {{item}}",
+    "testsList": "A cherché les tests existants",
+    "testsRead": "A lu le test {{path}}",
+    "proposePlan": "A proposé un plan de {{scenarios}}",
+    "runTest": "A joué le test",
+    "runNamedTest": "A joué « {{subject}} »",
+    "proposeTest": "A remis le test",
+    "proposeNamedTest": "A remis « {{subject}} »",
+    "reportDuplicates": "A signalé {{duplicates}}",
+    "reportFindings_one": "A rendu {{count}} constat de cohérence",
+    "reportFindings_other": "A rendu {{count}} constats de cohérence",
+    "reportQuality": "A rendu {{remarks}} sur le code",
+    "remember": "A noté quelque chose pour la suite"
+  },
+  "problems": {
+    "unknown_session": "Le projet ne garde aucune session de ce nom.",
+    "invalid_request": "La demande n’est pas valide : dites aux agents quoi tester.",
+    "session_running": "La session est de nouveau en cours : envoyez-lui votre message comme à une session qui travaille.",
+    "session_ended": "La session vient de se terminer : il n’y a plus rien à arrêter, et votre message, envoyé de nouveau, la poursuit.",
+    "unavailable": "Aucune source de sessions n’est configurée sur cette instance.",
+    "not_opened": "La session n’a pas pu être ouverte.",
+    "opening_timed_out": "L’ouverture de la session a pris trop de temps : réessayez dans un instant.",
+    "stale_revision": "La configuration a changé depuis que vous l’avez ouverte : relisez-la, puis refaites votre modification.",
+    "configuration_conflict": "oqas.json a changé depuis la dernière synchronisation : gardez le fichier, ou gardez vos modifications.",
+    "invalid_configuration": "La configuration n’est pas valide : corrigez les champs signalés.",
+    "no_configuration": "L’instance n’a pas encore de configuration.",
+    "unexplained": "L’instance a rencontré une erreur.",
+    "unreachable": "L’instance ne répond pas.",
+    "unreadable": "La réponse de l’instance est illisible."
+  },
+  "configuration": {
+    "rules": {
+      "wrong-type": "Type de valeur inattendu.",
+      "unknown-variant": "Valeur non prise en charge.",
+      "too-few-items": "Il en faut au moins un.",
+      "too-few-keys": "Renseignez au moins une valeur.",
+      "empty-value": "Ce champ ne peut pas être vide.",
+      "below-minimum": "Valeur trop petite.",
+      "maximum": "Valeur trop grande.",
+      "uniqueItems": "Chaque valeur ne figure qu’une fois.",
+      "env-var-name": "Nom de variable d’environnement attendu : majuscules, chiffres et tirets bas, jamais la valeur.",
+      "slug": "Minuscules et chiffres, séparés par des tirets.",
+      "required": "Champ obligatoire.",
+      "unknown-key": "Clé inconnue.",
+      "duplicate-key": "Clé répétée.",
+      "duplicate": "Cette valeur est déjà utilisée.",
+      "ui-url-required": "Une application web a besoin de l’adresse de son interface.",
+      "url-absolute": "Adresse absolue attendue, comme https://exemple.test.",
+      "url-scheme": "Adresse http ou https attendue.",
+      "url-credentials": "Une adresse ne contient ni identifiant ni mot de passe.",
+      "unknown-reference": "Rien de ce nom n’est déclaré.",
+      "api-without-environment": "Une API se désigne dans un environnement.",
+      "path-absolute": "Chemin relatif à la racine du dépôt de tests attendu.",
+      "path-outside-root": "Le chemin sort du dépôt de tests.",
+      "path-invalid": "Le chemin contient des caractères de contrôle.",
+      "format-version": "Version de format non prise en charge : 1 est attendu.",
+      "json": "Le fichier n’est pas du JSON valide."
+    },
+    "origins": {
+      "file": "Fichier oqas.json",
+      "console": "Console",
+      "command": "Commande oqas config export"
+    },
+    "levels": {
+      "smoke": {
+        "label": "Fumée",
+        "hint": "l’application répond"
+      },
+      "functional": {
+        "label": "Fonctionnel",
+        "hint": "un comportement d’un écran"
+      },
+      "business": {
+        "label": "Métier",
+        "hint": "un parcours sur plusieurs écrans"
+      },
+      "cross-application": {
+        "label": "Inter-applications",
+        "hint": "une action et son effet dans une autre application"
+      },
+      "end-to-end": {
+        "label": "De bout en bout",
+        "hint": "un parcours sur trois applications ou plus"
+      }
+    },
+    "settings": {
+      "openai": "Serveur compatible OpenAI",
+      "autonomous": "Autonome : aucune limite par tâche",
+      "bounded": "Bornée : des limites pour chaque tâche",
+      "model": {
+        "title": "Modèle",
+        "hint": "le serveur que les agents appellent",
+        "provider": "Fournisseur",
+        "baseUrl": "Adresse du serveur",
+        "model": "Modèle",
+        "apiKeyEnv": "Variable de la clé",
+        "apiKeyEnvHint": "Le nom de la variable d’environnement qui tient la clé ; la clé n’est jamais écrite ici.",
+        "reasoningEffort": "Effort de raisonnement",
+        "reasoningEffortHint": "Un mot du serveur, tel que low ou high ; rien n’est envoyé sans.",
+        "timeout": "Attente d’une réponse, en secondes",
+        "vision": "Lit les images",
+        "visionHint": "les agents voient les captures des écrans"
+      },
+      "autonomy": {
+        "title": "Autonomie",
+        "hint": "jusqu’où vont les agents seuls",
+        "level": "Niveau",
+        "guardrail": "Garde-fou d’un run, en minutes",
+        "none": "aucun",
+        "guardrailHint": "Au-delà, les tâches des agents s’arrêtent.",
+        "maxMinutes": "Minutes par tâche",
+        "maxIterations": "Appels au modèle par tâche",
+        "maxActions": "Actions du navigateur par tâche"
+      },
+      "design": {
+        "title": "Niveaux de conception",
+        "hint": "de la base de la pyramide à son sommet",
+        "legend": "Niveaux de tests demandés à un plan"
+      },
+      "languages": {
+        "title": "Langues",
+        "hint": "ce que dit le produit, et ce que disent les tests",
+        "language": "Langue de la console et des agents",
+        "languageHint": "La console, la conversation du terminal et ce que les agents vous disent.",
+        "testLanguage": "Langue des tests",
+        "testLanguageHint": "Les titres, les étapes et les intentions des tests écrits ; leur code reste en anglais."
+      },
+      "repository": {
+        "title": "Organisation du dépôt",
+        "hint": "chaque dossier relatif à la racine du dépôt de tests",
+        "appsDir": "Dossier des applications",
+        "blocksDir": "Dossier des blocs",
+        "journeysDir": "Dossier des parcours",
+        "stateDir": "Dossier d’état",
+        "indexDir": "Dossier de l’index"
+      }
+    },
+    "application": {
+      "types": {
+        "web": "Interface web",
+        "api": "API",
+        "web-and-api": "Interface web et API"
+      },
+      "methods": {
+        "none": "Aucune",
+        "form": "Formulaire de connexion"
+      },
+      "explorations": {
+        "read-only": "Lecture seule : ne change aucune donnée",
+        "read-write": "Lecture et écriture : peut créer ou modifier, jamais supprimer"
+      },
+      "explorationDefault": "Lecture seule (par défaut)",
+      "environment": "Environnement {{name}}",
+      "theEnvironment": "l’environnement {{name}}",
+      "api": "API {{name}}",
+      "theApi": "l’API {{name}}",
+      "account": "Compte {{name}}",
+      "theAccount": "le compte {{name}}",
+      "removeFrom": "Retirer {{item}} de {{owner}}",
+      "removeApplication": "Retirer l’application {{name}}",
+      "untitled": "Application {{rank}}",
+      "noId": "sans identifiant",
+      "name": "Nom",
+      "environmentNameHint": "Comme les sessions le nomment, tel que local ou recette.",
+      "uiUrl": "Adresse de l’interface",
+      "exploration": "Exploration de l’interface",
+      "explorationHint": "Ce que l’agent qui explore l’interface peut faire des données de cet environnement.",
+      "apiName": "Nom de l’API",
+      "baseUrl": "Adresse de base",
+      "addApi": "Ajouter une API",
+      "id": "Identifiant",
+      "idHint": "Minuscules et chiffres séparés par des tirets.",
+      "type": "Ce qu’elle expose",
+      "method": "Connexion des utilisateurs",
+      "accounts": "Comptes de test",
+      "accountsHint": "Seuls les noms des variables d’environnement sont gardés : les identifiants restent sur la machine qui lance les sessions.",
+      "accountName": "Nom du compte",
+      "usernameEnv": "Variable de l’identifiant",
+      "passwordEnv": "Variable du mot de passe",
+      "addAccount": "Ajouter un compte",
+      "addEnvironment": "Ajouter un environnement"
+    },
+    "remove": "Retirer",
+    "records": {
+      "kinds": {
+        "openapi": "Contrat OpenAPI",
+        "postgresql": "Base PostgreSQL",
+        "document": "Document",
+        "source-code": "Code source",
+        "logs": "Journaux"
+      },
+      "variable": "variable {{name}}",
+      "container": "conteneur {{name}}",
+      "knowledge": "Connaissances",
+      "readOnly": "en lecture seule",
+      "soon": "bientôt modifiables",
+      "knowledgeNote": "Leur édition dans la console arrive dans un prochain lot ; d’ici là, elles se déclarent dans oqas.json, et la console les reprend.",
+      "noKnowledge": "Aucune source de connaissance",
+      "history": "Historique des révisions",
+      "latestFirst": "la plus récente d’abord",
+      "revision": "Révision {{number}}",
+      "inForce": "en vigueur",
+      "json": "JSON",
+      "seeJson": "Voir la configuration en JSON"
+    },
+    "screen": {
+      "errors_one": "{{count}} erreur à corriger avant d’enregistrer",
+      "errors_other": "{{count}} erreurs à corriger avant d’enregistrer",
+      "conflict": "oqas.json a changé depuis la dernière synchronisation",
+      "conflictNote": "Vos modifications le réécriraient. Rien n’est fusionné : choisissez ce qui est gardé.",
+      "keepFile": "Garder le fichier",
+      "keepChange": "Garder mes modifications",
+      "fileChanged": "oqas.json a changé depuis la révision en vigueur",
+      "fileChangedNote": "Il sera pris au démarrage de la prochaine session, ou maintenant.",
+      "takeFile": "Prendre oqas.json",
+      "fileMissing": "oqas.json est introuvable dans le dépôt de tests : le prochain enregistrement l’écrira.",
+      "saved": "Révision {{number}} enregistrée : oqas.json est réécrit, et la prochaine session la lit.",
+      "title": "Configuration",
+      "reading": "Lecture de la configuration",
+      "readingNote": "Elle apparaît dès que l’instance a répondu.",
+      "none": "L’instance n’a pas encore de configuration",
+      "noneNote": "Écrivez oqas.json à la racine du dépôt de tests : la console le reprend.",
+      "saving": "Enregistrement…",
+      "unsaved": "Modifications non enregistrées",
+      "inForce": "Révision {{number}} en vigueur",
+      "discard": "Annuler les modifications",
+      "save": "Enregistrer",
+      "applications": "Applications et environnements",
+      "addApplication": "Ajouter une application",
+      "agents": "Agents",
+      "repository": "Dépôt de tests",
+      "history": "Historique",
+      "secrets": "Aucun secret n’est gardé : ni dans oqas.json, ni dans la base. La configuration nomme les variables d’environnement qui les tiennent, sur la machine qui lance les sessions."
+    }
+  }
+}

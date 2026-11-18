@@ -1,8 +1,9 @@
 import type { ConfigurationView, OqasConfig, RevisionSummary } from "@open-qa-stack/domain/sessions";
 
-/** A configuration of one web application with an account and an API, a source of each kind, and a bounded autonomy. */
+/** A configuration in French of one web application with an account and an API, a source of each kind, and a bounded autonomy. */
 export const DOCUMENT: OqasConfig = {
   formatVersion: 1,
+  language: "fr",
   applications: [
     {
       id: "shop",

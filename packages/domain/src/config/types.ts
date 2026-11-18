@@ -167,10 +167,15 @@ export interface TaskCriteria {
  */
 export type Autonomy = { level: "autonomous"; guardrailMinutes?: number } | { level: "bounded"; task: TaskCriteria; guardrailMinutes?: number };
 
+/** A language the product speaks, as a BCP 47 tag: English or French. */
+export type Language = "en" | "fr";
+
 /** The configuration file as written by the user, once it matches the schema. */
 export interface OqasConfig {
   $schema?: string;
   formatVersion: FormatVersion;
+  /** The language the console, the conversation of the command line and the agents speak to the person in; `en` when absent. */
+  language?: Language;
   applications: Application[];
   knowledge: Knowledge[];
   repository?: Repository;
@@ -218,6 +223,8 @@ export interface DesignSettings {
   reviewCode?: boolean;
   /** The levels of the pyramid of tests a plan is asked for; `smoke`, `functional` and `business` by default. */
   levels?: TestLevel[];
+  /** The language of what the tests say: their titles, their steps and the intents written in their code; `en` by default. */
+  testLanguage?: Language;
 }
 
 /** A level of the pyramid of tests, from its base to its top. */
@@ -233,6 +240,7 @@ export interface ResolvedLimits {
 /** The configuration once validated, with every default applied. */
 export interface ResolvedConfig {
   formatVersion: FormatVersion;
+  language: Language;
   applications: Application[];
   knowledge: Knowledge[];
   repository: Required<Repository>;

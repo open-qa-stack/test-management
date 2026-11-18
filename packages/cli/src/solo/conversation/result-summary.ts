@@ -1,9 +1,10 @@
 import { Box, Text } from "ink";
 import { createElement as h, type ReactNode } from "react";
 import type { Session } from "@open-qa-stack/domain/sessions";
-import { elapsedText, standing } from "./session-facts.ts";
+import { elapsedText, standing, stateText } from "./session-facts.ts";
 import { standingTone } from "./session-line.ts";
 import type { Theme } from "./palette.ts";
+import { t } from "./i18n/i18n.ts";
 
 /** What the summary of a session needs. */
 export interface ResultSummaryProps {
@@ -27,11 +28,11 @@ export function ResultSummary({ session, theme }: ResultSummaryProps): ReactNode
       ? []
       : [
           elapsedText(result.durationMs),
-          `${result.modelRequests} model request${result.modelRequests === 1 ? "" : "s"}`,
+          t("summary.modelRequests", { count: result.modelRequests }),
           ...(tests.length === 0
             ? []
-            : [`${tests.filter(({ verdict }) => verdict === "passed").length} of ${tests.length} test${tests.length === 1 ? "" : "s"} passed`]),
-          ...(result.branch === undefined ? [] : [`branch ${result.branch}`]),
+            : [t("summary.testsPassed", { passed: tests.filter(({ verdict }) => verdict === "passed").length, count: tests.length })]),
+          ...(result.branch === undefined ? [] : [t("summary.branch", { name: result.branch })]),
         ];
   return h(
     Box,
@@ -39,7 +40,9 @@ export function ResultSummary({ session, theme }: ResultSummaryProps): ReactNode
     h(
       Text,
       { ...theme.ink(standingTone(session)), bold: true },
-      `Session ${result === undefined ? session.state : `${session.state} ${theme.glyphs.separator} ${standing(session)}`}`,
+      t("summary.session", {
+        state: result === undefined ? stateText(session.state) : `${stateText(session.state)} ${theme.glyphs.separator} ${standing(session)}`,
+      }),
     ),
     facts.length === 0 ? null : h(Text, theme.ink("muted"), facts.join(` ${theme.glyphs.separator} `)),
   );

@@ -1,12 +1,21 @@
 import type { Session } from "@open-qa-stack/domain/sessions";
+import { i18n, t } from "./i18n/i18n.ts";
 
-/** How each way a session ended reads; a later version of the contract may tell another. */
-const OUTCOMES: Readonly<Record<string, string>> = {
-  passed: "tests passed",
-  failed: "a test failed",
-  inconclusive: "a test has no verdict",
-  stopped: "stopped before the end",
-};
+/** The ways a session ended the terminal words; a later version of the contract may tell another. */
+const OUTCOMES = new Set(["passed", "failed", "inconclusive", "stopped"]);
+
+/** The states of a session the terminal words; a later version of the contract may tell another. */
+const STATES = new Set(["queued", "running", "interrupted", "completed"]);
+
+/**
+ * Says the state of a session in a word.
+ *
+ * @param state - The state, as the contract names it.
+ * @returns It in the words of the conversation; a state the command does not know as it is.
+ */
+export function stateText(state: string): string {
+  return STATES.has(state) ? t(`facts.states.${state as "queued" | "running" | "interrupted" | "completed"}`) : state;
+}
 
 /**
  * Says how a session stands, in a word or two.
@@ -17,19 +26,24 @@ const OUTCOMES: Readonly<Record<string, string>> = {
  * is one of a session that no longer goes on.
  */
 export function standing(session: Session): string {
-  if (session.state === "queued" || session.state === "running" || session.state === "interrupted") return session.state;
-  return (session.result === undefined ? undefined : OUTCOMES[session.result.outcome]) ?? "ended";
+  if (session.state === "queued" || session.state === "running" || session.state === "interrupted") return stateText(session.state);
+  const outcome = session.result?.outcome;
+  return outcome !== undefined && OUTCOMES.has(outcome)
+    ? t(`facts.outcomes.${outcome as "passed" | "failed" | "inconclusive" | "stopped"}`)
+    : t("facts.states.ended");
 }
 
 /**
  * Writes a duration as a person reads it.
  *
  * @param milliseconds - The duration.
- * @returns It in milliseconds under a second, in seconds with a decimal under a minute, in minutes and seconds beyond.
+ * @returns It in milliseconds under a second, in seconds with a decimal under a minute — written as the language of
+ * the conversation writes it —, in minutes and seconds beyond.
  */
 export function elapsedText(milliseconds: number): string {
   if (milliseconds < 1000) return `${Math.round(milliseconds)} ms`;
-  return milliseconds < 60_000 ? `${(milliseconds / 1000).toFixed(1)} s` : sinceText(milliseconds);
+  if (milliseconds >= 60_000) return sinceText(milliseconds);
+  return `${new Intl.NumberFormat(i18n.resolvedLanguage, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(milliseconds / 1000)} s`;
 }
 
 /**
