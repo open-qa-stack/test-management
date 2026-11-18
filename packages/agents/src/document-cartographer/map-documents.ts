@@ -1,8 +1,8 @@
 import type { AgentEvent, AgentRuntime, SourceManifest, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
 import { documentTools, type DocumentSet } from "@open-qa-stack/tools";
-import { runAgentTask } from "../common/agent-task.ts";
 import type { Journal } from "../common/journal.ts";
-import { sessionUse, type SessionsUse } from "../source-workflow/group-elements.ts";
+import type { SessionsUse } from "../source-workflow/group-elements.ts";
+import { runMapSession } from "../source-workflow/map-session.ts";
 import type { SourceFolder } from "../source-workflow/source-folder.ts";
 import { writeMap } from "../source-workflow/written-map.ts";
 import { documentCartographerInstructions, documentMapRequest } from "./document-cartographer-prompt.ts";
@@ -54,21 +54,15 @@ export async function mapDocuments(options: MapDocumentsOptions): Promise<Sessio
   const watch = new DocumentWatch(listing.files.map((file) => file.path));
   const sections = new Map(await Promise.all(listing.files.map(async ({ path }) => [path, await documents.sections(path)] as const)));
   const map = new DocumentMap({ sourceId: source.id, documents, files: listing.files, sections, watch, secrets: options.secrets, journal });
-  const events: AgentEvent[] = [];
   const task = {
     instructions: documentCartographerInstructions(source.id),
     tools: [...watch.watched(documentTools(source.id, documents)), ...options.notes, ...map.tools()],
     request: documentMapRequest(source.id, listing.files),
-    events,
     reminder: () => map.reminder(),
     sent: options.sent,
     received: options.received,
   };
-  await runAgentTask(options.runtime, task, options.limits);
-  const used = sessionUse(events);
-  const last = events.at(-1)!;
-  if (last.type === "stopped") journal.record("error", `The session that maps ${source.id} reached its ${last.reason.limit} limit.`, source.id);
-  if (last.type === "error") journal.record("error", `The session that maps ${source.id} failed: ${last.error.message}`, source.id);
+  const used = await runMapSession({ runtime: options.runtime, task, limits: options.limits, journal, sourceId: source.id, doing: "maps" });
   const manifest = await writeMap({ source, folder, result: await map.result(), partial: listing.truncated, journal, now });
   return { ...used, manifest };
 }

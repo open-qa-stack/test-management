@@ -1,7 +1,7 @@
 import type { AgentEvent, AgentRuntime, SourceManifest, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
-import { runAgentTask } from "../common/agent-task.ts";
 import type { Journal } from "../common/journal.ts";
-import { sessionUse, type SessionsUse } from "../source-workflow/group-elements.ts";
+import type { SessionsUse } from "../source-workflow/group-elements.ts";
+import { runMapSession } from "../source-workflow/map-session.ts";
 import type { SourceFolder } from "../source-workflow/source-folder.ts";
 import { writeMap } from "../source-workflow/written-map.ts";
 import { applicationExplorerInstructions, explorationRequest } from "./application-explorer-prompt.ts";
@@ -58,21 +58,15 @@ export async function mapApplication(options: MapApplicationOptions): Promise<Se
   const { source, folder, journal, now } = options;
   const trail = new ScreenTrail(source.id, options.uiUrl, options.mode);
   const map = new ApplicationMap({ sourceId: source.id, trail, secrets: options.secrets, journal });
-  const events: AgentEvent[] = [];
   const task = {
     instructions: applicationExplorerInstructions(source.id, options.mode),
     tools: [...trail.watched(options.browser), ...options.notes, ...map.tools()],
     request: explorationRequest(source.id, options.environment, options.uiUrl),
-    events,
     reminder: () => map.reminder(),
     sent: options.sent,
     received: options.received,
   };
-  await runAgentTask(options.runtime, task, options.limits);
-  const used = sessionUse(events);
-  const last = events.at(-1)!;
-  if (last.type === "stopped") journal.record("error", `The session that explores ${source.id} reached its ${last.reason.limit} limit.`, source.id);
-  if (last.type === "error") journal.record("error", `The session that explores ${source.id} failed: ${last.error.message}`, source.id);
+  const used = await runMapSession({ runtime: options.runtime, task, limits: options.limits, journal, sourceId: source.id, doing: "explores" });
   const manifest = await writeMap({ source, folder, result: await map.result(), partial: false, journal, now });
   return { ...used, manifest };
 }
