@@ -55,10 +55,9 @@ describe("the script of a session", () => {
     assert.equal(scriptOf(RUNNING, [], WORDING).id, "session-1");
   });
 
-  it("is titled after what the session was asked, on one line and cut; after the first message of the person; or after its opening", () => {
+  it("is titled after what the session was asked, on one line and whole; after the first message of the person; or after its opening", () => {
     assert.equal(scriptOf({ ...RUNNING, request: "  test\n  the search " }, [], WORDING).title, "test the search");
-    assert.equal(scriptOf({ ...RUNNING, request: "r".repeat(121) }, [], WORDING).title, `${"r".repeat(120)}…`);
-    assert.equal(scriptOf({ ...RUNNING, request: "r".repeat(120) }, [], WORDING).title, "r".repeat(120));
+    assert.equal(scriptOf({ ...RUNNING, request: "r".repeat(4000) }, [], WORDING).title, "r".repeat(4000));
     const said = numbered([
       { type: "user_message", text: "a correction", number: 1 },
       { type: "user_message", text: "the request" },
@@ -148,7 +147,7 @@ describe("the script of a session", () => {
           at: "14:44:07",
           tool: "propose_plan",
           title: "propose_plan {}",
-          detail: "Refused: name an element.",
+          detail: "Refused:\n name an element.",
           durationMs: 40,
           outcome: "failed",
         },
@@ -200,26 +199,29 @@ describe("the script of a session", () => {
         },
         { kind: "verdict", at: "14:44:07", accepted: false, code: "PLAN-ELEMENT", about: "phase plan", text: "Name an element." },
         { kind: "verdict", at: "14:44:08", accepted: false, about: "phase write", text: "The run failed." },
-        { kind: "note", at: "14:44:09", text: "The plan was accepted." },
+        { kind: "note", at: "14:44:09", text: "The plan\n was accepted." },
       ],
     );
   });
 
-  it("cuts the long texts: a message of the harness, a refusal and a note at one length, a message of an agent at twice, the title and the answer of an action each at theirs", () => {
-    const long = "x".repeat(2000);
+  it("keeps every text whole, with its lines: a message, a refusal, a note, the title and the answer of an action", () => {
+    const long = Array.from({ length: 300 }, (_, rank) => `line ${rank} ${"x".repeat(80)}`).join("\n");
     const steps = stepsOf([
       { type: "harness_message", to: "planner", text: long },
       { type: "refusal", phase: "plan", text: long },
       { type: "note", phase: "plan", text: long },
-      { type: "agent_message", agent: "planner", text: `line\n${long}`, reasoning: false },
+      { type: "agent_message", agent: "planner", text: long, reasoning: false },
       { type: "action_started", action: "a", agent: "planner", tool: "t", arguments: long },
       { type: "action_finished", action: "a", outcome: "done", result: long, durationMs: 1 },
     ]);
-    const lengths = steps.map((step) => ("text" in step ? step.text.length : step.kind === "tool" ? [step.title.length, step.detail?.length] : 0));
-    assert.deepEqual(lengths, [421, 421, 421, 841, [97, 601]]);
-    assert.ok(steps.every((step) => ("text" in step ? step.text : (step as { title: string }).title).endsWith("…")));
-    // A message keeps its lines; a note and an action are put on one.
-    assert.ok((steps[3] as { text: string }).text.startsWith("line\n"));
+    assert.deepEqual(
+      steps.slice(0, 4).map((step) => "text" in step && step.text),
+      [long, long, long, long],
+    );
+    const action = steps[4];
+    assert.ok(action?.kind === "tool");
+    assert.equal(action.detail, long);
+    assert.equal(action.title, `t ${JSON.stringify(long)}`);
   });
 
   it("tells an interruption, and no other change of state", () => {

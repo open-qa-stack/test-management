@@ -13,9 +13,12 @@ import { SessionScreen } from "../../src/agent/session-screen.tsx";
 import { SpeakerMark } from "../../src/agent/speaker-mark.tsx";
 import { Thread } from "../../src/agent/thread.tsx";
 import { at, elementsOf, linksOf, render, textOf } from "../render.ts";
-import { COMPLETED, EVENTS, fixtureScript, liveOf, NO_CONTROLS, numbered, QUEUED, RUNNING, SESSION_ID } from "./session-fixture.ts";
+import { COMPLETED, EVENTS, fixtureScript, liveOf, NO_CONTROLS, numbered, QUEUED, REFUSAL, RUNNING, SESSION_ID } from "./session-fixture.ts";
 
 const PATH = `/agent/sessions/${SESSION_ID}`;
+
+/** What a thread needs of a person who unfolded no long text. */
+const UNREAD = { unfolded: [], onUnfold: NO_CONTROLS.unfold } as const;
 const ADDRESS = `#${PATH}`;
 
 /** The rank, in the session of the fixtures, of what the harness asks of the planner. */
@@ -93,6 +96,7 @@ function liveWith(steps: readonly Step[], session: Session = INTERRUPTED, source
     frame: frameOf(script, playback),
     saying: { state: "idle" },
     stopping: { state: "idle" },
+    unfolded: [],
     controls: NO_CONTROLS,
   };
 }
@@ -171,7 +175,9 @@ function countOf(html: string, pattern: RegExp): number {
  * @returns Its HTML.
  */
 function thread(live: LiveSession = liveOf(), lookIndex?: number): string {
-  return render(createElement(Thread, { path: PATH, frame: live.frame, lookIndex, stage: live.script.stage }));
+  return render(
+    createElement(Thread, { path: PATH, frame: live.frame, lookIndex, stage: live.script.stage, unfolded: live.unfolded, onUnfold: NO_CONTROLS.unfold }),
+  );
 }
 
 /**
@@ -316,6 +322,7 @@ describe("the thread of a session", () => {
       textOf(
         render(
           createElement(Thread, {
+            ...UNREAD,
             path: PATH,
             frame: live.frame,
             lookIndex: undefined,
@@ -350,7 +357,7 @@ describe("the thread of a session", () => {
       new RegExp(`<a class="turn-agent" href="${ADDRESS}\\?agent=planner" aria-label="Planificateur : ne voir que cet agent">Planificateur</a>`),
     );
     const { frame } = liveOf();
-    const talk = render(createElement(Thread, { path: PATH, frame, lookIndex: undefined, filter: "talk", query: { show: "talk" }, stage: "live" }));
+    const talk = render(createElement(Thread, { ...UNREAD, path: PATH, frame, lookIndex: undefined, filter: "talk", query: { show: "talk" }, stage: "live" }));
     assert.deepEqual(linksOf(talk), [`${ADDRESS}?show=talk&agent=planner`, `${ADDRESS}?show=talk&agent=writer`]);
   });
 
@@ -358,6 +365,7 @@ describe("the thread of a session", () => {
     const { frame } = liveOf();
     const followed = render(
       createElement(Thread, {
+        ...UNREAD,
         path: PATH,
         frame,
         lookIndex: undefined,
@@ -499,11 +507,35 @@ describe("the thread of a session", () => {
     assert.match(textOf(html), /Harnais refusé PLAN-ELEMENT Plan 14:44:17 The plan was refused by the harness: name an element\./);
     assert.match(
       html,
-      /<article class="verdict refused"><header class="verdict-head"><div class="lead"><span class="speaker-mark sm tone-neutral" aria-hidden="true">.*?<\/span><b>Harnais<\/b><span class="badge ko">refusé<\/span><span class="verdict-code">PLAN-ELEMENT<\/span><span class="turn-role">Plan<\/span><\/div><span class="turn-at">14:44:17<\/span><\/header><p class="verdict-text">/,
+      /<article class="verdict refused"><header class="verdict-head"><div class="lead"><span class="speaker-mark sm tone-neutral" aria-hidden="true">.*?<\/span><b>Harnais<\/b><span class="badge ko">refusé<\/span><span class="verdict-code">PLAN-ELEMENT<\/span><span class="turn-role">Plan<\/span><\/div><span class="turn-at">14:44:17<\/span><\/header><p id="verdict-text-9" class="verdict-text/,
     );
     const accepted = thread(liveWith(REVIEWED));
     assert.match(accepted, /<article class="verdict accepted">.{0,600}<span class="badge ok">accepté<\/span><span class="turn-role">Plan<\/span>/);
     assert.doesNotMatch(accepted, /verdict-code/);
+  });
+
+  it("writes a short verdict whole, and folds a long one to its first lines over a button that unfolds it in place", () => {
+    assert.match(thread(liveWith(REVIEWED)), /<p id="verdict-text-2" class="verdict-text">Le plan tient sur ce que l’agent a vu\.<\/p><\/article>/);
+    const folded = thread();
+    assert.ok(folded.includes(`<p id="verdict-text-9" class="verdict-text folded">${REFUSAL.replaceAll('"', "&quot;")}</p>`));
+    assert.match(folded, /<button type="button" class="btn ghost sm read-more" aria-expanded="false" aria-controls="verdict-text-9">Lire la suite<\/button>/);
+    const unfolded = thread({ ...liveOf(), unfolded: [9] });
+    assert.match(unfolded, /<p id="verdict-text-9" class="verdict-text">/);
+    assert.match(unfolded, /<button type="button" class="btn ghost sm read-more" aria-expanded="true" aria-controls="verdict-text-9">Replier<\/button>/);
+    const pressed: number[] = [];
+    const [button] = elementsOf(
+      createElement(Thread, { path: PATH, frame: liveOf().frame, lookIndex: undefined, stage: "live", unfolded: [], onUnfold: (index) => pressed.push(index) }),
+      "button",
+    );
+    (button!["onClick"] as () => void)();
+    assert.deepEqual(pressed, [9]);
+  });
+
+  it("folds a verdict of many short lines too, and one of a single long line", () => {
+    const lines = { kind: "verdict", at: "09:00:00", accepted: false, about: "Plan", text: "a\nb\nc\nd\ne\nf\ng" } as const;
+    const line = { ...lines, text: "x".repeat(481) };
+    for (const step of [lines, line]) assert.match(thread(liveWith([step])), /class="verdict-text folded"/);
+    assert.doesNotMatch(thread(liveWith([{ ...lines, text: "a\nb\nc\nd\ne\nf" }])), /folded|read-more/);
   });
 
   it("lists the scenarios of an accepted plan under their count", () => {
@@ -556,6 +588,7 @@ describe("the thread of a session", () => {
     const { frame } = liveOf();
     const kept = render(
       createElement(Thread, {
+        ...UNREAD,
         path: PATH,
         frame,
         lookIndex: undefined,
@@ -575,7 +608,7 @@ describe("the thread of a session", () => {
     const steps: readonly Step[] = [REVIEWED[4]!, note("The test ran.", 5), REVIEWED[5]!];
     const { frame } = liveWith(steps);
     assert.equal(countOf(thread(liveWith(steps)), /<article class="turn">/g), 2);
-    const kept = render(createElement(Thread, { path: PATH, frame, lookIndex: undefined, filter: "actions", stage: "ended" }));
+    const kept = render(createElement(Thread, { ...UNREAD, path: PATH, frame, lookIndex: undefined, filter: "actions", stage: "ended" }));
     assert.equal(countOf(kept, /<article class="turn">/g), 1);
   });
 });

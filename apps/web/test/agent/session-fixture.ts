@@ -12,6 +12,7 @@ export const NO_CONTROLS: SessionControls = {
   follow: () => {},
   say: () => {},
   stop: () => {},
+  unfold: () => {},
   sayOnEnter: () => {},
 };
 
@@ -57,6 +58,19 @@ export function numbered(bodies: readonly EventBody[]): SessionEvent[] {
   return bodies.map((body, index) => ({ ...body, id: index + 1, at: `2026-11-15T14:44:${String(6 + index).padStart(2, "0")}.000Z` }) as SessionEvent);
 }
 
+/** What the harness says when it refuses the plan of the fixtures: a page it quotes, then what to do, at its end. */
+export const REFUSAL = [
+  "The plan was refused by the harness: name an element.",
+  "",
+  "The page is now at http://localhost:3020/:",
+  '- heading "Customers"',
+  '- textbox "Search..."',
+  '- button "Search"',
+  '- table "Customers"',
+  "",
+  "Name the element each step acts on, as the page shows it, then propose the plan again.",
+].join("\n");
+
 /**
  * A short session: a configuration, a plan asked at the level smoke, a reasoning, a browser action with its
  * page, a plan accepted, a refusal with its code, then the writing of a test whose run has not answered.
@@ -80,7 +94,7 @@ export const EVENTS: readonly SessionEvent[] = numbered([
   { type: "action_started", action: "c2", agent: "planner", tool: "propose_plan", arguments: { scenarios: [{ id: "search" }] } },
   { type: "action_finished", action: "c2", outcome: "passed", result: "The plan was accepted: search.", durationMs: 40 },
   { type: "plan_accepted", scenarios: [{ id: "search", title: "Search a customer", level: "smoke", application: "customer-management", case: "nominal" }] },
-  { type: "refusal", phase: "plan", code: "PLAN-ELEMENT", text: "The plan was refused by the harness: name an element." },
+  { type: "refusal", phase: "plan", code: "PLAN-ELEMENT", text: REFUSAL },
   { type: "phase_started", phase: "write", scenario: "search" },
   { type: "agent_message", agent: "writer", text: "I write the test now.", reasoning: false },
   { type: "action_started", action: "c3", agent: "writer", tool: "run_test", arguments: { file: "search-customer.spec.ts" } },
@@ -116,6 +130,7 @@ export function liveOf(session: Session = RUNNING, changes: Partial<Playback> = 
     frame: frameOf(script, playback),
     saying: { state: "idle" },
     stopping: { state: "idle" },
+    unfolded: [],
     controls: NO_CONTROLS,
   };
 }

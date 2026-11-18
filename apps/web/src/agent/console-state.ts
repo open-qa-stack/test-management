@@ -18,6 +18,8 @@ export interface Followed {
   readonly saying: Sending;
   /** Where the request of the person to stop it is. */
   readonly stopping: Stopping;
+  /** The ranks, in its script, of the long texts the person unfolded to read them to the end. */
+  readonly unfolded: readonly number[];
 }
 
 /** Where something the person sends to the instance is: nothing sent, sent and not answered yet, or the error the API answered. */
@@ -92,6 +94,8 @@ export type ConsoleAction =
   | { readonly type: "stop_asked"; readonly id: string }
   /** The API refused to stop a session. */
   | { readonly type: "unstopped"; readonly id: string; readonly message: string }
+  /** The person unfolded a long text of a session to read it to the end, or folded it again. */
+  | { readonly type: "unfold"; readonly id: string; readonly index: number }
   /** The person acted on the playback of a session. */
   | { readonly type: "playback"; readonly script: SessionScript; readonly action: PlaybackAction };
 
@@ -136,7 +140,8 @@ function listed(before: readonly Session[] | undefined, now: readonly Session[])
  * session the console no longer follows changes nothing; an event already received is not kept twice; a session
  * that did not change keeps its object; an answer of the API says the instance is reachable again; a session
  * the API just opened is listed first, and a list asked before it was opened, which may lack it, is ignored;
- * the message a person sends and their request to stop belong to the session followed, and are forgotten with it.
+ * the message a person sends, their request to stop and the long texts they unfolded belong to the session followed, and
+ * are forgotten with it.
  */
 export function consoleAfter(state: ConsoleState, action: ConsoleAction): ConsoleState {
   switch (action.type) {
@@ -164,6 +169,7 @@ export function consoleAfter(state: ConsoleState, action: ConsoleAction): Consol
           events: [],
           saying: IDLE,
           stopping: IDLE,
+          unfolded: [],
           ...(session === undefined ? {} : { session }),
         },
       };
@@ -214,6 +220,14 @@ export function consoleAfter(state: ConsoleState, action: ConsoleAction): Consol
       return withSent(state, action.id, { stopping: { state: "asked" } });
     case "unstopped":
       return withSent(state, action.id, { stopping: { state: "refused", message: action.message } });
+    case "unfold": {
+      const { followed } = state;
+      if (followed?.id !== action.id) return state;
+      const unfolded = followed.unfolded.includes(action.index)
+        ? followed.unfolded.filter((index) => index !== action.index)
+        : [...followed.unfolded, action.index];
+      return { ...state, followed: { ...followed, unfolded } };
+    }
     case "playback": {
       const { script } = action;
       return { ...state, playbacks: { ...state.playbacks, [script.id]: played(script, playbackOf(state, script.id), action.action) } };

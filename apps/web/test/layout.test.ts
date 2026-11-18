@@ -392,6 +392,31 @@ describe("the thread of a session", () => {
     }
   });
 
+  it("folds a long refusal to its first lines, and unfolds it in place to its end, which says what to do, from a button a finger can press", async () => {
+    for (const width of [390, 1440]) {
+      const page = await app().open(width, SESSION, new PlayedInstance().api);
+      try {
+        const text = page.locator(".verdict-text");
+        const button = page.getByRole("button", { name: "Lire la suite" });
+        await button.waitFor();
+        const folded = await text.evaluate((element) => [element.scrollHeight > element.clientHeight, element.clientHeight] as const);
+        assert.equal(folded[0], true, `${width}: the end is hidden while folded`);
+        assert.equal(await button.getAttribute("aria-expanded"), "false");
+        if (width < 1100) assert.deepEqual(await tooSmallOf(page), []);
+        await button.click();
+        const unfolded = page.getByRole("button", { name: "Replier" });
+        assert.equal(await unfolded.getAttribute("aria-expanded"), "true");
+        assert.equal(await text.evaluate((element) => element.scrollHeight <= element.clientHeight), true, `${width}: the whole text shows`);
+        assert.ok((await text.evaluate((element) => element.clientHeight)) > folded[1]);
+        await page.getByText(/then propose the plan again\.$/).waitFor();
+        await unfolded.click();
+        await button.waitFor();
+      } finally {
+        await page.close();
+      }
+    }
+  });
+
   it("keeps the passes of a session on one line on a phone", async () => {
     const page = await app().open(360, SESSION, new PlayedInstance().api);
     try {
@@ -955,6 +980,8 @@ describe("the code of the console is covered in full", () => {
         await page.keyboard.press("Tab");
         await page.keyboard.press("Escape");
         await page.getByRole("dialog").waitFor({ state: "detached" });
+        await page.getByRole("button", { name: "Lire la suite" }).click();
+        await page.getByRole("button", { name: "Replier" }).waitFor();
         await page.getByRole("button", { name: "Rejouer" }).click();
         await page.getByRole("button", { name: "Pause" }).waitFor();
         await page.waitForFunction(() => Number(document.querySelector(".playback-progress")?.getAttribute("aria-valuenow")) > 0);

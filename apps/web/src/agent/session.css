@@ -479,9 +479,6 @@
 
 .turn-head .turn-role {
   display: none;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* A time: on the line of the text it stands beside. */
@@ -637,21 +634,23 @@
   min-height: var(--row-line);
 }
 
-/* What an action did is read in full once unfolded; folded, it keeps to two lines, to one on a desktop. */
+/*
+ * What an action did is read in full: folded under a line that unfolds it, it keeps to two lines, to one on a
+ * desktop; an action with nothing to unfold shows it whole.
+ */
 .act-title {
   flex: 1;
-  display: -webkit-box;
   min-width: 0;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
   color: var(--text);
   overflow-wrap: anywhere;
 }
 
-.act details[open] .act-title {
-  display: block;
+.act details:not([open]) .act-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 /* The times of the actions are figures in a column: each ends at the right, and leaves the eyes before it in a column too. */
@@ -835,16 +834,24 @@
   line-height: var(--leading-caption);
 }
 
-/* A refusal that quotes a whole page keeps to its first lines. */
+/* What a verdict says is read in full, with its lines: a refusal that quotes a whole page shows its first ones until it is unfolded. */
 .verdict-text {
-  display: -webkit-box;
   margin: var(--gap-row) 0 0;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
   font-size: var(--type-reading);
   line-height: var(--leading-reading);
+  white-space: pre-wrap;
+}
+
+.verdict-text.folded {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
+}
+
+.read-more {
+  margin-top: var(--gap-line);
 }
 
 /* A plan the harness accepted, and what the session produced: a card whose rows share their columns. */
@@ -1117,9 +1124,6 @@ html:has(.look-panel) {
     flex: 1;
     min-width: 0;
     padding: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .btn-label {
@@ -1187,14 +1191,10 @@ html:has(.look-panel) {
     box-shadow: var(--elevation-raised);
   }
 
-  .act-title {
+  .act details:not([open]) .act-title {
     display: block;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  .act details[open] .act-title {
-    white-space: normal;
   }
 }
 

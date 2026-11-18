@@ -3,7 +3,7 @@ import type { ActionFinishedEvent, Session, SessionPhase, SessionScript, Step } 
 import { describe, it } from "vitest";
 import { scriptOf } from "../../src/agent/session-steps.ts";
 import { iconOf } from "../../src/agent/tool-icon.ts";
-import { COMPLETED, fixtureScript, numbered, QUEUED, RUNNING, SESSION_ID, type EventBody } from "./session-fixture.ts";
+import { COMPLETED, fixtureScript, numbered, QUEUED, REFUSAL, RUNNING, SESSION_ID, type EventBody } from "./session-fixture.ts";
 
 /** A session nobody asked anything in, whose agents are working. */
 const UNASKED: Session = { id: SESSION_ID, openedAt: RUNNING.openedAt, lastEventAt: RUNNING.lastEventAt, state: "running" };
@@ -116,7 +116,7 @@ describe("the script of a session", () => {
       accepted: false,
       code: "PLAN-ELEMENT",
       about: "Plan",
-      text: "The plan was refused by the harness: name an element.",
+      text: REFUSAL,
     });
   });
 
@@ -414,41 +414,22 @@ describe("the title of a script", () => {
 });
 
 describe("the long texts of a script", () => {
-  it("are cut: the title, a message of the harness, a refusal, a note, and a message of an agent at twice their length", () => {
-    assert.equal(scriptOf({ ...RUNNING, request: "r".repeat(121) }, []).title, `${"r".repeat(120)}…`);
-    assert.equal(scriptOf({ ...RUNNING, request: "r".repeat(120) }, []).title, "r".repeat(120));
+  it("are whole, with their lines; the title of an action alone is put on one line", () => {
+    const long = Array.from({ length: 40 }, (_, rank) => `line ${rank} ${"x".repeat(80)}`).join("\n");
     const { steps } = scriptWith([
-      { type: "harness_message", to: "planner", text: "h".repeat(421) },
-      { type: "refusal", phase: "plan", text: "f".repeat(421) },
-      { type: "note", phase: "plan", text: "n".repeat(421) },
-      { type: "agent_message", agent: "planner", text: "a".repeat(841), reasoning: false },
-      { type: "agent_message", agent: "planner", text: "a".repeat(840), reasoning: false },
-    ]);
-    assert.deepEqual(
-      steps.map((step) => "text" in step && step.text),
-      [`${"h".repeat(420)}…`, `${"f".repeat(420)}…`, `${"n".repeat(420)}…`, `${"a".repeat(840)}…`, "a".repeat(840)],
-    );
-  });
-
-  it("keep the lines of a message, and put a note on one", () => {
-    const { steps } = scriptWith([
-      { type: "agent_message", agent: "writer", text: "  First.\nThen.  ", reasoning: false },
+      { type: "refusal", phase: "plan", text: long },
       { type: "note", phase: "write", text: " The test ran:\n  passed. " },
+      { type: "action_started", action: "g", agent: "planner", tool: "shop_goto", arguments: { url: `/a\n  b/${"u".repeat(200)}` } },
+      { type: "action_finished", action: "g", outcome: "done", result: long, durationMs: 5 },
     ]);
     assert.deepEqual(
-      steps.map((step) => "text" in step && step.text),
-      ["First.\nThen.", "The test ran: passed."],
+      steps.slice(0, 2).map((step) => "text" in step && step.text),
+      [long, "The test ran:\n  passed."],
     );
-  });
-
-  it("cut the title of an action and the answer of its tool, each on one line", () => {
-    const step = only([
-      { type: "action_started", action: "g", agent: "planner", tool: "shop_goto", arguments: { url: `/a\n  b/${"u".repeat(200)}` } },
-      { type: "action_finished", action: "g", outcome: "done", result: `Opened\n  the page. ${"d".repeat(700)}`, durationMs: 5 },
-    ]);
-    assert.ok(step.kind === "tool" && step.detail !== undefined);
-    assert.equal(step.title, `A ouvert /a b/${"u".repeat(82)}…`);
-    assert.equal(step.detail, `Opened the page. ${"d".repeat(583)}…`);
+    const action = steps[2];
+    assert.ok(action?.kind === "tool");
+    assert.equal(action.title, `A ouvert /a b/${"u".repeat(200)} dans shop`);
+    assert.equal(action.detail, long);
   });
 });
 

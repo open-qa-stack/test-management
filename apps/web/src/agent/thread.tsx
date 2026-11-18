@@ -39,6 +39,10 @@ export interface ThreadProps {
   readonly query?: Readonly<Record<string, string>>;
   /** Where the session is: an empty thread says what it waits for, or that nothing will come. */
   readonly stage: SessionStage;
+  /** The ranks of the long texts the person unfolded. */
+  readonly unfolded: readonly number[];
+  /** Unfolds a long text, by the rank of its step, or folds it again. */
+  readonly onUnfold: (index: number) => void;
 }
 
 /** What the links of a thread need to come back to it. */
@@ -48,7 +52,15 @@ interface Back {
   readonly lookIndex: number | undefined;
   /** The only speaker the thread follows, if any. */
   readonly followed: Speaker | undefined;
+  readonly unfolded: readonly number[];
+  readonly onUnfold: (index: number) => void;
 }
+
+/** How many lines a long text shows before it is unfolded. */
+const FOLDED_LINES = 6;
+
+/** How many characters a text holds at most to be shown whole at once: about the room of its folded lines. */
+const FOLDED_LENGTH = 480;
 
 /** What an empty thread says, by where its session is: its title, then what comes next. */
 const EMPTY: Readonly<Record<SessionStage, readonly [string, string]>> = {
@@ -220,8 +232,41 @@ function Notes({ items }: { readonly items: readonly ShownStep[] }): ReactNode {
   );
 }
 
-/** A verdict of the harness: accepted on evidence, or refused with the gate that refused. */
-function Verdict({ step }: { readonly step: VerdictStep }): ReactNode {
+/**
+ * A text read at length, whole: one that would not hold in a few lines shows its first ones, and a button under
+ * it unfolds the rest in place, then folds it again. The end of a refusal says what to do: it is one press away.
+ */
+function LongText({
+  id,
+  text,
+  className,
+  index,
+  back,
+}: {
+  readonly id: string;
+  readonly text: string;
+  readonly className: string;
+  readonly index: number;
+  readonly back: Back;
+}): ReactNode {
+  const long = text.length > FOLDED_LENGTH || text.split("\n").length > FOLDED_LINES;
+  const open = back.unfolded.includes(index);
+  return (
+    <>
+      <p id={id} className={long && !open ? `${className} folded` : className}>
+        {text}
+      </p>
+      {long && (
+        <button type="button" className="btn ghost sm read-more" aria-expanded={open} aria-controls={id} onClick={() => back.onUnfold(index)}>
+          {open ? "Replier" : "Lire la suite"}
+        </button>
+      )}
+    </>
+  );
+}
+
+/** A verdict of the harness: accepted on evidence, or refused with the gate that refused, and what it says in full. */
+function Verdict({ step, index, back }: { readonly step: VerdictStep; readonly index: number; readonly back: Back }): ReactNode {
   return (
     <article className={step.accepted ? "verdict accepted" : "verdict refused"}>
       <header className="verdict-head">
@@ -234,7 +279,7 @@ function Verdict({ step }: { readonly step: VerdictStep }): ReactNode {
         </div>
         <span className="turn-at">{step.at}</span>
       </header>
-      <p className="verdict-text">{step.text}</p>
+      <LongText id={`verdict-text-${index}`} className="verdict-text" text={step.text} index={index} back={back} />
     </article>
   );
 }
@@ -328,7 +373,7 @@ function TurnView({ turn, back }: { readonly turn: Turn<ShownStep>; readonly bac
   if (turn.kind === "brief") return <Brief shown={turn.shown} />;
   if (turn.kind === "notes") return <Notes items={turn.items} />;
   const { step } = turn.shown;
-  if (step.kind === "verdict") return <Verdict step={step} />;
+  if (step.kind === "verdict") return <Verdict step={step} index={turn.shown.index} back={back} />;
   if (step.kind === "plan") return <Plan step={step} />;
   if (step.kind === "pass") return <Pass step={step} />;
   return <Outcome step={step as OutcomeStep} />;
@@ -342,9 +387,9 @@ function TurnView({ turn, back }: { readonly turn: Turn<ShownStep>; readonly bac
  * @param props - The session at this moment.
  * @returns The thread.
  */
-export function Thread({ path, frame, lookIndex, filter = "all", followed, query = {}, stage }: ThreadProps): ReactNode {
+export function Thread({ path, frame, lookIndex, filter = "all", followed, query = {}, stage, unfolded, onUnfold }: ThreadProps): ReactNode {
   const turns = turnsOf(frame.shown.filter(({ step }) => shows(step, filter, followed)));
-  const back: Back = { path, query, lookIndex, followed };
+  const back: Back = { path, query, lookIndex, followed, unfolded, onUnfold };
   const working = frame.speaking === undefined || frame.speaking === "user" ? undefined : frame.speaking;
   return (
     <section className="thread" aria-label="Fil de la session">

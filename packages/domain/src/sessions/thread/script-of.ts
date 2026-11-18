@@ -5,25 +5,12 @@ import type { ScriptWording } from "./script-wording.ts";
 import type { SessionScript, SessionStage } from "./session-script.ts";
 import type { ProducedTest, Step } from "./step.ts";
 
-/** Longest text of a message of the harness a thread shows as it is; an agent gets twice as much. */
-const MAX_TEXT = 420;
-
-/** Longest title of an action, arguments included. */
-const MAX_TITLE = 96;
-
-/** Longest answer of a tool a thread shows under its action. */
-const MAX_DETAIL = 600;
-
-/** Longest title of a session. */
-const MAX_SESSION_TITLE = 120;
-
 /** The agents a thread knows: what one it does not know says or does is left out, as any event it does not know. */
 const AGENTS: ReadonlySet<string> = new Set<AgentRole>(["cartographer", "planner", "plan_reviewer", "writer", "coherence_reviewer", "code_reviewer"]);
 
-/** Cuts a text to a length, on one line when asked. */
-function cut(text: string, length: number, oneLine = false): string {
-  const kept = oneLine ? text.replace(/\s+/g, " ").trim() : text.trim();
-  return kept.length > length ? `${kept.slice(0, length)}…` : kept;
+/** A text on one line, for what a presentation draws as a title. */
+function oneLine(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
 }
 
 /** The time of an event, as a thread shows it. */
@@ -52,7 +39,8 @@ function stageOf(session: Session): SessionStage {
  * own, so that a replay tells it when it happened; an action and its end are one step, worded as a sentence, pending until the tool
  * answered, with what the agent looked at; a plan the harness accepted is listed; a refusal is a verdict with
  * its code, a note a line of the harness. Once the session has ended it closes on the verdict of each test, or,
- * when none ran, on the scenarios the harness closed; an interruption is told. Long texts are cut.
+ * when none ran, on the scenarios the harness closed; an interruption is told. Every text is whole, as a person
+ * needs it, since the end of a refusal says what to do; a title alone is put on one line.
  *
  * @param session - The session, as it was last told.
  * @param events - Its events, in order.
@@ -79,11 +67,11 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
         steps.push({ kind: "delivery", at, message: event.message, to: event.agent });
         break;
       case "agent_message":
-        steps.push({ kind: "say", from: event.agent, at, text: cut(event.text, MAX_TEXT * 2), ...(event.reasoning ? { thinking: true } : {}) });
+        steps.push({ kind: "say", from: event.agent, at, text: event.text.trim(), ...(event.reasoning ? { thinking: true } : {}) });
         break;
       case "harness_message":
         if (event.level !== undefined && plan !== undefined) steps[plan] = { ...steps[plan]!, title: `${wording.phase("plan")} · ${event.level}` } as Step;
-        steps.push({ kind: "say", from: "harness", to: event.to, at, text: cut(event.text, MAX_TEXT) });
+        steps.push({ kind: "say", from: "harness", to: event.to, at, text: event.text.trim() });
         break;
       case "phase_started":
         // The work on one source is told by the notes of the harness, which name it: it starts no pass of its own.
@@ -101,7 +89,7 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
           from: event.agent,
           at,
           tool: event.tool,
-          title: cut(wording.tool(event.tool, event.arguments), MAX_TITLE, true),
+          title: oneLine(wording.tool(event.tool, event.arguments)),
           pending: true,
         });
         break;
@@ -112,7 +100,7 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
         const { pending: _answered, ...answered } = started;
         steps[index] = {
           ...answered,
-          detail: cut(event.result, MAX_DETAIL, true),
+          detail: event.result.trim(),
           durationMs: event.durationMs,
           ...(event.outcome === "passed" || event.outcome === "failed" ? { outcome: event.outcome } : {}),
           ...(event.look === undefined ? {} : { look: event.look }),
@@ -138,11 +126,11 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
           accepted: false,
           ...(event.code === undefined ? {} : { code: event.code }),
           about: wording.phase(event.phase),
-          text: cut(event.text, MAX_TEXT),
+          text: event.text.trim(),
         });
         break;
       case "note":
-        steps.push({ kind: "note", at, text: cut(event.text, MAX_TEXT, true) });
+        steps.push({ kind: "note", at, text: event.text.trim() });
         break;
       case "scenario_closed":
         closed.push({ title: event.scenario, level: event.level ?? "", verdict: event.verdict });
@@ -166,5 +154,5 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
     steps.push({ kind: "outcome", at: last.at, title: wording.closed(closed.length), tests: closed });
   }
   const opened = wording.opened(session.openedAt.slice(0, 10), clock(session.openedAt));
-  return { id: session.id, title: cut(session.request ?? asked ?? opened, MAX_SESSION_TITLE, true), sources: [...sources], stage, steps };
+  return { id: session.id, title: oneLine(session.request ?? asked ?? opened), sources: [...sources], stage, steps };
 }

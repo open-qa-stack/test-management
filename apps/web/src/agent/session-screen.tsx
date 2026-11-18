@@ -178,6 +178,8 @@ export function SessionScreen({ route, live, project }: SessionScreenProps): Rea
           lookIndex={opened?.index}
           filter={filter}
           query={kept}
+          unfolded={live.unfolded}
+          onUnfold={live.controls.unfold}
           {...(followed === undefined ? {} : { followed })}
         />
         {script.stage !== "ended" && <Composer saying={live.saying} onSay={live.controls.say} onKey={live.controls.sayOnEnter} />}
