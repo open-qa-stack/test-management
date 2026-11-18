@@ -1,15 +1,17 @@
 import { join } from "node:path";
 import { CONFIG_FILE_NAME } from "@open-qa-stack/domain";
-import { Configuration, liveRuntime, Sessions, type SessionsHost } from "@open-qa-stack/engine";
+import { Configuration, KnowledgeDocuments, liveRuntime, Sessions, type SessionsHost } from "@open-qa-stack/engine";
 import { DATABASE_URL_VARIABLE, DatabaseUrl, InstanceDatabase, instanceDatabaseUrl } from "@open-qa-stack/store";
 import { UsageError } from "./usage-error.ts";
 import type { CommandIo } from "./command-io.ts";
 
-/** The operations on the sessions and on the configuration of a test repository, as a command has them, and how to let go of them. */
+/** The operations on the sessions, on the configuration and on the documents of a test repository, as a command has them, and how to let go of them. */
 export interface Operations {
   readonly sessions: Sessions;
   /** The operations on the configuration of the test repository. */
   readonly configuration: Configuration;
+  /** The operations on the documents of the knowledge sources the instance keeps. */
+  readonly documents: KnowledgeDocuments;
   /**
    * Stops hosting, when the command hosted a session, and closes the database.
    *
@@ -63,7 +65,7 @@ export async function openOperations(io: CommandIo, repository: string, hosts: b
     await instance.close();
     throw error;
   }
-  return { sessions, configuration, close };
+  return { sessions, configuration, documents: new KnowledgeDocuments(instance.documents, instance.configuration), close };
 }
 
 /**

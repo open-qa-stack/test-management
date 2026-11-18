@@ -1,14 +1,15 @@
 import { resolve } from "node:path";
-import { configurationText, ExitCode, type ConfigurationView, type ExitCodeValue } from "@open-qa-stack/domain";
+import { configurationText, ExitCode, isStoredDocuments, type ConfigurationView, type ExitCodeValue } from "@open-qa-stack/domain";
 import { playwrightVersion } from "@open-qa-stack/tools";
 import { hasEnded, type Session } from "@open-qa-stack/domain/sessions";
-import type { Configuration, Sessions } from "@open-qa-stack/engine";
+import type { Configuration, KnowledgeDocuments, Sessions } from "@open-qa-stack/engine";
 import { parseArguments, USAGE, type Arguments, type Command } from "./arguments.ts";
 import { fileLine, revisionLine } from "./configuration-lines.ts";
 import { eventLine, ofTheAgents } from "./event-line.ts";
 import { failureOf } from "./failure.ts";
 import { followSession } from "./follow-session.ts";
 import { Interruptions } from "./interruptions.ts";
+import { documentLine, documentsRefusal, receivedFiles, sourceLine } from "./knowledge-lines.ts";
 import { openOperations } from "./operations.ts";
 import { RepositoryInit } from "./repository-init.ts";
 import { servedConsole } from "./served-console.ts";
@@ -81,7 +82,7 @@ async function onSessions(command: Exclude<Command, { name: "help" }>, options: 
     const { converse } = await import("./conversation/converse.ts");
     return converse({ repository, terminal: io.terminal, io, ...(command.environment === undefined ? {} : { environment: command.environment }) });
   }
-  const { sessions, configuration, close } = await openOperations(io, repository, false);
+  const { sessions, configuration, documents, close } = await openOperations(io, repository, false);
   try {
     switch (command.name) {
       case "init":
@@ -94,6 +95,8 @@ async function onSessions(command: Exclude<Command, { name: "help" }>, options: 
         }).run();
       case "config":
         return await configured({ configuration, command, options, io });
+      case "knowledge":
+        return await known({ configuration, documents, command, options, io });
       case "sessions":
         return await listed({ sessions, command, options, io });
       case "show":
@@ -126,6 +129,44 @@ async function configured({
   const lines = [revision === undefined ? "The instance keeps no revision of the configuration." : revisionLine(revision), fileLine(file)];
   const document = command.action === "show" && revision !== undefined ? `\n${configurationText(revision.document).trimEnd()}` : "";
   print({ options, io }, `${lines.join("\n")}${document}`, view);
+  return ExitCode.passed;
+}
+
+/**
+ * `oqas knowledge`: lists the knowledge sources of the configuration in force, each with the documents the instance
+ * keeps of it when it is declared stored; with `add-document`, uploads files to such a source first, then lists it.
+ */
+async function known({
+  configuration,
+  documents,
+  command,
+  options,
+  io,
+}: Omit<Asked<"knowledge">, "sessions"> & { configuration: Configuration; documents: KnowledgeDocuments }): Promise<ExitCodeValue> {
+  if (command.action === "add-document") {
+    const files = await receivedFiles(io.cwd, command.files);
+    try {
+      await documents.upload(command.source, files);
+    } catch (error) {
+      const refusal = documentsRefusal(error, command.files);
+      throw refusal === undefined ? error : new UsageError(refusal);
+    }
+    const kept = await documents.list(command.source);
+    const lines = [`${files.length === 1 ? "1 document was" : `${files.length} documents were`} uploaded to ${command.source}.`, ...kept.map(documentLine)];
+    print({ options, io }, lines.join("\n"), { source: command.source, documents: kept });
+    return ExitCode.passed;
+  }
+  const sources = (await configuration.view()).revision?.document.knowledge ?? [];
+  if (sources.length === 0) {
+    print({ options, io }, "The configuration in force declares no knowledge source.", { sources: [] });
+    return ExitCode.passed;
+  }
+  const listed = await Promise.all(sources.map(async (source) => ({ source, kept: isStoredDocuments(source) ? await documents.list(source.id) : undefined })));
+  const lines = listed.flatMap(({ source, kept }) => [
+    sourceLine(source),
+    ...(kept === undefined ? [] : kept.length === 0 ? ["  no document yet"] : kept.map(documentLine)),
+  ]);
+  print({ options, io }, lines.join("\n"), { sources: listed.map(({ source, kept }) => (kept === undefined ? source : { ...source, documents: kept })) });
   return ExitCode.passed;
 }
 
