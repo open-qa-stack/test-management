@@ -5,7 +5,7 @@ import type { Theme } from "./palette.ts";
 
 /** The keys of the conversation, and what each does. */
 const KEYS: readonly (readonly [string, string])[] = [
-  ["Enter", "Open a session with what you typed, or say it to the agents of the session that goes on"],
+  ["Enter", "Open a session with what you typed, say it to the agents of the session that goes on, or go on with the session that ended"],
   ["Tab", "Complete the command you are typing"],
   ["Up, Down", "Move in a list"],
   ["Esc", "Close a list or a confirmation"],

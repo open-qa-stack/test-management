@@ -15,7 +15,8 @@ export interface KeyHints {
  * @param state - The conversation.
  * @returns What the input asks for and the keys that matter: those of the list or the confirmation that stands
  * over it; while the session on screen goes on, that Enter speaks to its agents, and that Ctrl-C stops it when
- * this process runs it; otherwise that Enter opens a session.
+ * this process runs it; once it ended, that Enter goes on with it, and `/new` opens another; otherwise that Enter
+ * opens a session.
  */
 export function hintsOf(state: ConversationState): KeyHints {
   const { overlay, shown } = state;
@@ -25,5 +26,6 @@ export function hintsOf(state: ConversationState): KeyHints {
     const stops = state.hosted.includes(shown.session.id);
     return { placeholder: "Say something to the agents", keys: ["Enter send", "/ commands", stops ? "Ctrl-C stop" : "Ctrl-C quit"] };
   }
-  return { placeholder: shown === undefined ? "What do we test?" : "What do we test next?", keys: ["Enter open a session", "/ commands", "Ctrl-C quit"] };
+  if (shown !== undefined) return { placeholder: "What do the agents do next?", keys: ["Enter go on", "/new another session", "Ctrl-C quit"] };
+  return { placeholder: "What do we test?", keys: ["Enter open a session", "/ commands", "Ctrl-C quit"] };
 }

@@ -138,11 +138,30 @@ describe("oqas say", () => {
     );
   });
 
-  it("is refused with 3 by a session that ended, by a name no session bears, and by one several share", async () => {
+  it("resumes a session that ended with what it says, runs its new turn in this command, prints its thread from the message on, and exits with its code", async () => {
+    terminal = await Terminal.open([]);
+    const id = sessionOf((await terminal.oqas(STOPPED_AT_ONCE)).err);
+    const before = (await terminal.thread(id)).length;
+    const resumed = await terminal.oqas(["say", id, "Go on.", "--output", "json"]);
+    assert.deepEqual([resumed.code, resumed.err], [3, `Session ${id}\n`]);
+    const told = lines<SessionEvent>(resumed);
+    assert.deepEqual(told, (await terminal.thread(id)).slice(before));
+    assert.deepEqual(
+      told.slice(0, 3).map((event) => (event.type === "user_message" ? event.text : event.type === "state_changed" ? event.state : event.type)),
+      ["Go on.", "queued", "running"],
+    );
+    const text = await terminal.oqas(["say", id.slice(-8), "Once more."]);
+    assert.equal(text.code, 3);
+    assert.match(text.out, new RegExp(`^Session ${id}: interrupted`));
+    assert.match(text.err, /Once more\./);
+    assert.doesNotMatch(text.err, /Go on\./, "the thread of the turns before is not printed again");
+  });
+
+  it("is refused with 3 by a name no session bears, and by one several share; stop is refused by a session that ended", async () => {
     terminal = await Terminal.open([]);
     const first = sessionOf((await terminal.oqas(STOPPED_AT_ONCE)).err);
     const second = sessionOf((await terminal.oqas(STOPPED_AT_ONCE)).err);
-    assert.deepEqual(await terminal.oqas(["say", first, "Go on."]), { code: 3, out: "", err: `The session ${first} no longer goes on.\n` });
+    assert.deepEqual(await terminal.oqas(["say", "session-0000", "Go on."]), { code: 3, out: "", err: "No session session-0000; oqas sessions lists them.\n" });
     assert.deepEqual(await terminal.oqas(["stop", first]), { code: 3, out: "", err: `The session ${first} no longer goes on.\n` });
     assert.deepEqual(await terminal.oqas(["show", "session-0000"]), { code: 3, out: "", err: "No session session-0000; oqas sessions lists them.\n" });
     assert.deepEqual(await terminal.oqas(["attach", "session-"]), {

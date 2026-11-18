@@ -299,7 +299,7 @@ describe("the thread of a session that ended", () => {
       const summary = from(lines, "Session completed");
       assert.equal(summary[0], "Session completed · tests passed");
       assert.match(summary.slice(1, 3).join(" "), /^1 min 12 s · 17 model requests · 2 of 2 tests passed · branch oqas\/design-20261113T144405Z/);
-      assert.deepEqual(lines.slice(-3), ["", "›  What do we test next?", "  Enter open a session · / commands · Ctrl-C quit"]);
+      assert.deepEqual(lines.slice(-3), ["", "›  What do the agents do next?", "  Enter go on · /new another session · Ctrl-C quit"]);
     });
 
   it("says why a test did not pass, marks a verdict that is neither a success nor a failure, and counts what passed", () => {

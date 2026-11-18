@@ -29,7 +29,7 @@ The command is a presentation of [the operations on sessions](../../engine/docs/
 | `oqas sessions` | Lists the sessions of the test repository, the latest first. |
 | `oqas show <session>` | Prints a session and its thread so far. |
 | `oqas attach <session>` | Follows a session to its end, whoever runs it, and exits with the code of its run. A session that ended is printed whole, at once. |
-| `oqas say <session> <text>` | Says something to the agents of a session that goes on: see [Speaking to a session](#speaking-to-a-session). |
+| `oqas say <session> <text>` | Says something to the agents of a session that goes on: see [Speaking to a session](#speaking-to-a-session). Goes on with a session that ended: see [Going on with a session that ended](#going-on-with-a-session-that-ended). |
 | `oqas stop <session>` | Interrupts a session that goes on: see [Stopping a session](#stopping-a-session). |
 | `oqas --ui` | Serves the console of the test repository in a browser, and runs the sessions opened in it, until Ctrl-C: see [The console](#the-console). |
 | `oqas --init` | Makes a Playwright project of the test repository and runs nothing: see [Initialising a test repository](#initialising-a-test-repository). |
@@ -37,7 +37,7 @@ The command is a presentation of [the operations on sessions](../../engine/docs/
 
 `<session>` is the identifier of a session, such as `session-2026-11-16T08-12-45-120Z-9f3a1c2b`, or the start or the end of it when no other session shares it: `9f3a1c2b` is enough. `oqas --brief` prints the identifier of the session it opens on its first line, on the error output, and `oqas sessions` lists them.
 
-The commands that act on a session that exists run from any terminal, and from any program: they ask nothing, read the database or write to it, and leave. They host nothing: `sessions`, `show` and `attach` only read, `say` and `stop` leave in the database what the process that runs the session then acts on.
+The commands that act on a session that exists run from any terminal, and from any program: they ask nothing, read the database or write to it, and leave. They host nothing: `sessions`, `show` and `attach` only read, `say` and `stop` leave in the database what the process that runs the session then acts on. `say` to a session that ended is the one exception: it resumes the session, and runs its new turn itself.
 
 ## Options
 
@@ -83,7 +83,7 @@ Type what to test and press Enter: a session opens, against the environment `--e
 
 What is finished goes to the scrollback of the terminal, which scrolls and searches it as any other output; only what may still change — an action that goes on, a message no agent took yet — is redrawn, above the input.
 
-While the session goes on, what you type is said to its agents, as [`oqas say`](#speaking-to-a-session) does: the message is shown with its number, `waiting for an agent`, then `delivered to` the agent that took it. Above the input, a line says how the session stands, the phase it is in, the agent at work and how long ago it was opened. Once it ended, what you type opens the next session.
+While the session goes on, what you type is said to its agents, as [`oqas say`](#speaking-to-a-session) does: the message is shown with its number, `waiting for an agent`, then `delivered to` the agent that took it. Above the input, a line says how the session stands, the phase it is in, the agent at work and how long ago it was opened. Once it ended, what you type goes on with it, as [`oqas say`](#going-on-with-a-session-that-ended) does: a new turn starts on your words, in this terminal, and its thread follows under the end of the turn before. `/new` goes back to the start, where what you type opens another session.
 
 | Command | What it does |
 | --- | --- |
@@ -98,7 +98,7 @@ A slash lists the commands as you type; Tab completes the first of them, and the
 
 | Key | What it does |
 | --- | --- |
-| Enter | Opens a session with what you typed, or says it to the agents of the session that goes on. |
+| Enter | Opens a session with what you typed, says it to the agents of the session that goes on, or goes on with the session on screen once it ended. |
 | Tab | Completes the command you are typing. |
 | Up, Down | Move in the list of the sessions. |
 | Esc | Closes the list of the sessions, or the confirmation of a stop. |
@@ -184,7 +184,7 @@ With `--output json`, the standard output holds JSON Lines and nothing else; wha
 | --- | --- |
 | `oqas --brief`, `oqas attach`, `oqas show` | An event of the thread of the session, in the order of their ranks, in the format of [the contract of sessions](../../api/docs/sessions.md): `id`, its rank from 1, `at`, `type`, then what the type carries. Every event is printed, `--follow` or not. `--brief` and `attach` print each as it is told, and end after the `state_changed` that ends the session. |
 | `oqas sessions` | A session, as the API serves it: `id`, `request`, `environment`, `openedAt`, `lastEventAt`, `state`, and `result` once it is completed. |
-| `oqas say` | The receipt of the message: `{"number":2}`. |
+| `oqas say` | The receipt of the message: `{"number":2}`; for a session that ended, the events of its new turn, as `--brief` prints them. |
 | `oqas stop` | The session as it is once the interruption is asked. |
 
 ```sh
@@ -246,7 +246,19 @@ The message is taken by the database, which numbers it in the session, from 1, a
 - **What it weighs.** The agent is told that a message is the person who asked for the session speaking, and that it wins over the request and the plan where they conflict. It reaches the agent between `<person-message>` tags that its own text cannot close, and nothing else carries that authority: a text found in a page, a source or the result of a tool never does. A message does not lift a check of the harness: a plan or a test it refuses stays refused. It costs what a tool result or a turn costs, within the limits of the task.
 - **What is kept.** The message is an event of the thread, `user_message`, under its number, and its delivery another, `message_delivered`, which names the agent that received it. A message has one delivery however many agents are recalled it later; the recalls are read in their requests. A message that came once no agent would receive it any more — while the tests run, after the design, or after a limit stopped the session — is told in the summary: `[summary] The message 3 of the person was not delivered: no agent was at work to receive it.`
 
-A message is refused, with `3`, by a session that ended. A session that still waits takes it, and its first agent receives it.
+A session that still waits takes a message, and its first agent receives it. A session that ended takes none: what you say to it [goes on with it](#going-on-with-a-session-that-ended).
+
+## Going on with a session that ended
+
+A session that ended — one test of eleven failed, a scenario is missing, it was stopped too soon — is not over for good. Say what is to be done next, and the session goes on with a new turn:
+
+```sh
+oqas say 9f3a1c2b "Fix the test that failed."
+```
+
+The session is resumed with your words: the thread tells them as a new request, under the verdict of the turn before, and the session waits its turn, then runs in this terminal, as a session `oqas --brief` opens. The command prints the thread of the new turn alone, from your words on, follows it to its end, and exits with [the code](#exit-codes) of its run; Ctrl-C stops it as it stops `oqas --brief`. In the conversation, what you type once the session on screen ended does the same, and the console has its `Poursuivre la session`.
+
+The run of the new turn is told what the agents need of the turns before: what the session was asked first and since, the messages that reached an agent, and the verdict of each test of the last turn that completed. It goes on with the branch the tests of the turns before are on: the design checks it out, reads those tests as the tests of the repository, sets aside what they already cover, and commits its own tests on the same branch. The agents write new tests: a test of an earlier turn is not edited in place, and one that failed stays beside the test that replaces it.
 
 ## Stopping a session
 
@@ -287,7 +299,7 @@ A session is run by the process that opened it, and by no other: `oqas --brief` 
 
 ## Exit codes
 
-`oqas --brief` and `oqas attach` exit with the code of the run of the session, read from how the session ended, and so does the conversation for the last session it opened:
+`oqas --brief`, `oqas attach` and `oqas say` to a session that ended exit with the code of the run of the session, read from how the session ended, and so does the conversation for the last session it opened:
 
 | Code | Meaning                                                                                                                                                                                                                                                                      |
 | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -298,7 +310,7 @@ A session is run by the process that opened it, and by no other: `oqas --brief` 
 | `4`  | The session was interrupted in its prerequisites: one of the machine is missing.                                                                                                                                                                                             |
 | `5`  | The session did not go to its end: it is completed, `stopped` — no index was written, the dependencies could not be installed, the design gave no test to run or was cut short by a limit, a step stopped on an unexpected error, which the thread tells — or it was interrupted, by Ctrl-C, by `oqas stop`, from the console, or because its process died. Also, for every command: the database cannot be reached, or the command stopped on an unexpected error, which goes to the error output. |
 
-`oqas sessions`, `show`, `say`, `stop`, `--init` and `--help` exit with `0` once they did what they were asked, and so does a conversation that opened no session. A conversation left while the last session it opened still went on exits with `5`. `oqas --ui` exits with `0` once it was stopped, with `5` when it was left at once or could not start, and with `3` when its port is taken or the console is not built.
+`oqas sessions`, `show`, `say` to a session that goes on, `stop`, `--init` and `--help` exit with `0` once they did what they were asked, and so does a conversation that opened no session. A conversation left while the last session it opened still went on exits with `5`. `oqas --ui` exits with `0` once it was stopped, with `5` when it was left at once or could not start, and with `3` when its port is taken or the console is not built.
 
 ## The command and the engine
 
@@ -306,15 +318,15 @@ The command holds no rule of a session: it reads its arguments, assembles the da
 
 | Command | Operation |
 | --- | --- |
-| `oqas` | In the conversation: `sessions` at the start and for `/sessions`; `open` for a request, `say` for what is typed while a session goes on, `events` and then `session` for the thread on screen; `/stop` and Ctrl-C are `interrupt`. |
+| `oqas` | In the conversation: `sessions` at the start and for `/sessions`; `open` for a request, `say` for what is typed while a session goes on, `resume` for what is typed once it ended, `events` and then `session` for the thread on screen; `/stop` and Ctrl-C are `interrupt`. |
 | `oqas --brief` | `open`, then `events` to the end of the session, then `session`; Ctrl-C is `interrupt`. |
 | `oqas sessions` | `sessions`. |
 | `oqas show` | `session`, then `thread`. |
 | `oqas attach` | `events` to the end of the session, then `session`. |
-| `oqas say` | `say`. |
+| `oqas say` | `say`, or `resume` for a session that ended, then `events` and `session`. |
 | `oqas stop` | `interrupt`, then `session`. |
 
-`oqas`, `oqas --brief` and `oqas --ui` are the commands that host: each gives the operations its test repository, and stops them, within ten seconds, before it leaves. `oqas --ui` says no operation itself: it starts the REST presentation of `@open-qa-stack/api` in its process, whose routes say them, and loads that package only then — no other command pays for an HTTP server. The conversation is drawn with [Ink](https://github.com/vadimdemedes/ink) and React, which are loaded when it opens and by no other command; its screen is a function of a state that one reducer gives, in `src/solo/conversation/`, and what it reads of a thread — the steps and their turns — is the code the console reads it with, in `@open-qa-stack/domain/sessions`.
+`oqas`, `oqas --brief`, `oqas say` and `oqas --ui` are the commands that host — `say` only the session it resumes: each gives the operations its test repository, and stops them, within ten seconds, before it leaves. `oqas --ui` says no operation itself: it starts the REST presentation of `@open-qa-stack/api` in its process, whose routes say them, and loads that package only then — no other command pays for an HTTP server. The conversation is drawn with [Ink](https://github.com/vadimdemedes/ink) and React, which are loaded when it opens and by no other command; its screen is a function of a state that one reducer gives, in `src/solo/conversation/`, and what it reads of a thread — the steps and their turns — is the code the console reads it with, in `@open-qa-stack/domain/sessions`.
 
 ## What it never does
 

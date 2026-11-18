@@ -144,7 +144,7 @@ describe("a thread that comes on screen", () => {
   it("is headed by its session, starts empty, and is of a session this process runs when it opened it", () => {
     const opened = after([{ type: "opened", session: RUNNING, hosted: true }]);
     assert.deepEqual(opened.printed.at(-1), { kind: "heading", session: RUNNING });
-    assert.deepEqual([opened.shown, opened.hosted], [{ session: RUNNING, events: [], settled: 0 }, [RUNNING.id]]);
+    assert.deepEqual([opened.shown, opened.hosted], [{ session: RUNNING, events: [], settled: 0, resumed: 0 }, [RUNNING.id]]);
     assert.deepEqual(after([{ type: "opened", session: FAILED, hosted: false }]).hosted, []);
   });
 
@@ -244,6 +244,22 @@ describe("the end of the session on screen", () => {
   it("is ignored when it is of another session than the one on screen, or when none is", () => {
     assert.equal(conversationReducer(LIVE, { type: "ended", session: FAILED }), LIVE);
     assert.equal(conversationReducer(HOME, { type: "ended", session: COMPLETED }), HOME);
+  });
+});
+
+describe("the session on screen once it is resumed", () => {
+  it("goes on with its thread for a new turn, which this process runs, and is followed anew", () => {
+    const picked = after([{ type: "opened", session: FAILED, hosted: false }, ...endOf(FAILED)]);
+    const resumed = after([{ type: "resumed", session: { ...FAILED, state: "running" } }], picked);
+    assert.deepEqual([resumed.shown?.session.state, resumed.shown?.resumed, resumed.shown?.events], ["running", 1, picked.shown?.events]);
+    assert.deepEqual(resumed.hosted, [FAILED.id]);
+    const again = after([...endOf({ ...FAILED, state: "interrupted" }), { type: "resumed", session: { ...FAILED, state: "queued" } }], resumed);
+    assert.deepEqual([again.shown?.resumed, again.hosted], [2, [FAILED.id]]);
+  });
+
+  it("is ignored when it is of another session than the one on screen, or when none is", () => {
+    assert.equal(conversationReducer(LIVE, { type: "resumed", session: FAILED }), LIVE);
+    assert.equal(conversationReducer(HOME, { type: "resumed", session: COMPLETED }), HOME);
   });
 });
 
