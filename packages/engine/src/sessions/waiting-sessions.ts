@@ -19,6 +19,14 @@ export class WaitingSessions {
   }
 
   /**
+   * @param session - The identifier of a session.
+   * @returns Whether the session waits in this process.
+   */
+  has(session: string): boolean {
+    return this.#waiting.includes(session);
+  }
+
+  /**
    * Takes the session that waited the longest out of the line.
    *
    * @returns Its identifier; `undefined` when no session waits.

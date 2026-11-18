@@ -18,9 +18,10 @@ export class SessionsLifecycle implements OnApplicationBootstrap, OnModuleDestro
   }
 
   /**
-   * Has the operations put the database in order — the project saved, the sessions an earlier process left
-   * running interrupted — and start the sessions that wait. A database that does not answer does not stop
-   * the startup: it is logged, and the operations start when a session is next opened.
+   * Has the operations put the database in order — the project saved, the sessions a process that died left
+   * running interrupted, those it left waiting taken over — and start the sessions that wait. The sessions of
+   * a process that still beats are left to it. A database that does not answer does not stop the startup: it
+   * is logged, and the operations start when a session is next opened.
    */
   async onApplicationBootstrap(): Promise<void> {
     try {
@@ -33,6 +34,6 @@ export class SessionsLifecycle implements OnApplicationBootstrap, OnModuleDestro
   /** Asks the session that runs to stop, and waits for its end before the database closes; one that did not end in time is logged. */
   async onModuleDestroy(): Promise<void> {
     if (await this.#sessions.stop(this.#environment.stopWithinMs)) return;
-    this.#logger.warn("The session under way did not end in time: it stays running in the database until the API starts again, and interrupts it.");
+    this.#logger.warn("The session under way did not end in time: it stays running in the database until a process that hosts sessions interrupts it.");
   }
 }

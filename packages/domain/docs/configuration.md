@@ -244,7 +244,7 @@ How far the agents may go on their own. Without `autonomy`, the level is `autono
 }
 ```
 
-The guardrail bounds the tasks of the agents, not the installation of the dependencies nor the execution of the tests: a task still running when it is reached stops at its next call to the model or to a tool, and is journaled as stopped by its duration limit. A run whose task a limit or the guardrail stopped can be resumed from what it kept: see the `--resume` option of the solo command. A level of an earlier version of the format is refused with the rule `retired-level`, whose message names the level to write instead.
+The guardrail bounds the tasks of the agents, not the installation of the dependencies nor the execution of the tests: a task still running when it is reached stops at its next call to the model or to a tool, and is journaled as stopped by its duration limit. A run whose task a limit or the guardrail stopped keeps what it produced in the test repository: the cards made, the plan accepted and the tests kept, on the branch of the design. A level of an earlier version of the format is refused with the rule `retired-level`, whose message names the level to write instead.
 
 ## Example
 

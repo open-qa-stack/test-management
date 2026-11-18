@@ -17,6 +17,8 @@ function fileOf(raw: string): string | undefined {
  * about to be shown.
  */
 export class DatabaseUrl {
+  /** The rule a text follows to be one, phrased to complete "must be": whoever refuses a setting says it. */
+  static readonly rule = "a database URL: postgres:// or postgresql:// with a host name for a PostgreSQL server, or sqlite: followed by the path of a file";
   /** The file of a SQLite database, `:memory:` for one kept in memory; `undefined` for a server. */
   readonly file: string | undefined;
   readonly #value: string;

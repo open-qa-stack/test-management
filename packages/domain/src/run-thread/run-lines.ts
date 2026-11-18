@@ -1,9 +1,8 @@
 import { isRecord, parseJson, textOf } from "../json.ts";
-import { inboxMessage } from "../run/inbox-line.ts";
 import { PERSON_TAG } from "../run/person-message.ts";
 import type { Step } from "../run/run-entry.ts";
 import type { TracePhase } from "../run/trace-line.ts";
-import type { CommandStep, PersonLine, RelayedPhase, RunLine } from "./thread-line.ts";
+import type { CommandStep, RelayedPhase, RunLine } from "./thread-line.ts";
 
 const TRACED: readonly TracePhase[] = ["survey", "card", "consolidation", "index", "plan", "review", "write"];
 
@@ -67,24 +66,6 @@ export function journalLine(text: string): RunLine | undefined {
   if (phase === undefined) return undefined;
   if (event === "started") return { at, phase, actor: "command", event: { type: "started" } };
   return { at, phase, actor: "command", event: { type: "journal", level, message } };
-}
-
-/**
- * Reads a line of the inbox of a run.
- *
- * @remarks
- * A run reads the text of a line alone, and numbers every line, a message or not. The date is read here
- * besides, to place the message in the thread: a line without one is not told, though the run may deliver it.
- *
- * @param text - The line, as it was appended.
- * @param number - The rank of the line in the inbox, from 1.
- * @returns The message; `undefined` for a line a run takes for no message — a text that is no JSON object, or
- * one that says nothing — and for one that bears no date.
- */
-export function inboxLine(text: string, number: number): PersonLine | undefined {
-  const message = inboxMessage(text);
-  const at = dateOf(message?.at);
-  return message === undefined || at === undefined ? undefined : { at, actor: "person", number, text: message.text };
 }
 
 /**

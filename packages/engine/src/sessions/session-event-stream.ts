@@ -17,28 +17,34 @@ export interface EventListener {
  * the session ended.
  *
  * @remarks
- * The events are read when they are subscribed to, then each time the session is notified: the store is
- * never polled. A reading starts after the last event told, so that one that finds nothing new tells no
- * event twice. Nothing follows the end of a session: the events end with the one that tells it — at once
- * when it is at or before the rank given.
+ * The events are read when they are subscribed to, then each time the session is notified. A session this
+ * process hosts is notified in its memory, and the store is never polled for it. A session another process
+ * hosts is notified by no one: the store is then read again at a pace, as long as the session is followed. A
+ * reading starts after the last event told, so that one that finds nothing new tells no event twice. Nothing
+ * follows the end of a session: the events end with the one that tells it — at once when it is at or before
+ * the rank given.
  */
 export class SessionEventStream {
   readonly #store: Pick<SessionQueries, "eventsAfter">;
   readonly #notifications: EventNotifications;
   readonly #session: string;
   readonly #after: number;
+  readonly #everyMs: number | undefined;
 
   /**
    * @param store - Where the events are kept.
    * @param notifications - What tells that the session gained events.
    * @param session - The identifier of a session that exists.
    * @param after - The rank of the last event already known; 0 for every event.
+   * @param everyMs - How often the store is read again, in milliseconds, for a session no notification tells
+   * of; `undefined` for a session this process hosts.
    */
-  constructor(store: Pick<SessionQueries, "eventsAfter">, notifications: EventNotifications, session: string, after: number) {
+  constructor(store: Pick<SessionQueries, "eventsAfter">, notifications: EventNotifications, session: string, after: number, everyMs?: number) {
     this.#store = store;
     this.#notifications = notifications;
     this.#session = session;
     this.#after = after;
+    this.#everyMs = everyMs;
   }
 
   /**
@@ -54,9 +60,11 @@ export class SessionEventStream {
     let woken = false;
     let left = false;
     const leave = this.#notifications.follow(this.#session, () => void read());
+    const again = this.#everyMs === undefined ? undefined : setInterval(() => void read(), this.#everyMs);
     const close = (): void => {
       left = true;
       leave();
+      clearInterval(again);
     };
     const read = async (): Promise<void> => {
       woken = true;

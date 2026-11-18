@@ -12,6 +12,9 @@ import { SchemaMigrations } from "../src/database/schema-migrations.ts";
 import { SessionStore } from "../src/sessions/session-store.ts";
 import { RecordingLogger } from "./support/recording-logger.ts";
 
+/** What names the process the tests host their sessions as. */
+const HOST = "host-under-test";
+
 let folder: string;
 /** The databases a test opened, closed after it. */
 let opened: Database[];
@@ -36,7 +39,7 @@ describe("a database that is a SQLite file", () => {
   it("is kept in a folder made when needed, with a write-ahead log, and holds what was written when the file is opened again", async () => {
     const file = join(folder, "state", "deeper", "oqas.db");
     const first = await open(DatabaseUrl.ofFile(file));
-    const asked = await new SessionStore(first).ask({ request: "cover the profile" });
+    const asked = await new SessionStore(first).ask({ request: "cover the profile" }, HOST);
     assert.deepEqual(
       (await sql<{ journal_mode: string }>`pragma journal_mode`.execute(first.kysely)).rows.map((row) => row.journal_mode),
       ["wal"],

@@ -16,7 +16,7 @@ import {
 import type { SessionState } from "../src/sessions/index.ts";
 
 const STATES: readonly SessionState[] = ["queued", "running", "completed", "interrupted"];
-const COMMANDS: readonly SessionCommand[] = ["start", "append", "say", "deliver", "complete", "interrupt", "abandon"];
+const COMMANDS: readonly SessionCommand[] = ["start", "append", "say", "deliver", "complete", "interrupt", "beat", "takeOver", "abandon"];
 /** The commands that tell the work of a session, which runs. */
 const OF_THE_WORK = ["append", "deliver", "complete"] as const;
 /** The commands a session that goes on takes, whether it waits or runs. */
@@ -60,6 +60,11 @@ describe("the life of a session", () => {
 
   it("abandons a session that runs alone: one that waits is left to wait", () => {
     assert.deepEqual(transitions("abandon"), [undefined, "interrupted", undefined, undefined]);
+  });
+
+  it("takes the beat of its host as long as it goes on, and is taken over by another only while it waits, neither of which changes its state", () => {
+    assert.deepEqual(transitions("beat"), ["queued", "running", undefined, undefined]);
+    assert.deepEqual(transitions("takeOver"), ["queued", undefined, undefined, undefined]);
   });
 
   it("ends once: no command is for a session that ended, and none leaves an end", () => {

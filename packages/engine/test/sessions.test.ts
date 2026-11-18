@@ -26,6 +26,9 @@ const secondRun = () => [{ body: { data: [] } }, read(), planned, ended, ended];
 /** A session whose run the configuration stops at once: it names an environment the test repository does not declare. */
 const STOPPED_AT_ONCE = { request: REQUEST, environment: "nowhere" };
 
+/** What names a process that hosted sessions on the store of a test, and stopped. */
+const GONE = "host-gone";
+
 /** What an event says, as its type then what tells it from the others of its type. */
 const said = (event: SessionEvent): unknown[] => [event.type, "text" in event ? event.text : "state" in event ? event.state : "phase" in event && event.phase];
 
@@ -120,9 +123,10 @@ describe("a session that is opened", () => {
   it("runs with what the machine gives when its host gives no more than a store and a test repository, whatever it leaves unsaid", async () => {
     hosted = await Hosted.create([]);
     const store = new MemorySessionStore();
-    // A session the store holds without a request nor an environment: one that was asked of an earlier version.
-    const unsaid = await store.ask({} as SessionOpening);
-    const sessions = new Sessions({ store, repository: hosted.root, env: ENV, logger: new RecordingLogger() });
+    // A session the store holds without a request nor an environment, asked by a process that stopped since.
+    const unsaid = await store.ask({} as SessionOpening, GONE);
+    await store.release(GONE);
+    const sessions = new Sessions({ store, repository: hosted.root, takesOver: true, env: ENV, logger: new RecordingLogger() });
     await sessions.start();
     await eventually(async () => assert.equal((await sessions.session(unsaid.id)).state, "interrupted"));
     assert.deepEqual((await store.eventsAfter(unsaid.id, 2)).map(said), [
@@ -136,9 +140,10 @@ describe("a session that is opened", () => {
 
   it("is refused by a host that has no test repository, which serves what its store keeps", async () => {
     const store = new MemorySessionStore();
-    const kept = await store.ask({ request: REQUEST });
+    const kept = await store.ask({ request: REQUEST }, GONE);
+    await store.release(GONE);
     hosted = await Hosted.create([]);
-    const reading = new Sessions({ store, repository: undefined, env: ENV, logger: new RecordingLogger() });
+    const reading = new Sessions({ store, repository: undefined, takesOver: true, env: ENV, logger: new RecordingLogger() });
     await reading.start();
     await assert.rejects(
       reading.open({ request: REQUEST }),
@@ -303,8 +308,9 @@ describe("a failure around the run of a session", () => {
     const opened = await hosted.sessions.open({ request: REQUEST, environment: "local" });
     const next = await hosted.sessions.open(STOPPED_AT_ONCE);
     await door.reached;
-    // Another process that starts on the same store takes the session for one that was left.
-    assert.deepEqual(await hosted.store.abandonRunning(), [opened.id]);
+    // Another process on the same store, which allows a host no silence at all, takes the session for one that was left.
+    await pause(2);
+    assert.deepEqual(await hosted.store.abandonSilent(1), [opened.id]);
     const events = await hosted.events(opened.id);
     door.open();
     await hosted.ended(next.id);
@@ -319,13 +325,14 @@ describe("a failure around the run of a session", () => {
 describe("a host that starts", () => {
   it("interrupts the sessions a process that stopped left running, then runs those that waited, in the order they were asked for", async () => {
     hosted = await Hosted.create([]);
-    const left = await hosted.store.ask({ request: "left running" });
-    await hosted.store.start(left.id);
-    const first = await hosted.store.ask(STOPPED_AT_ONCE);
-    const second = await hosted.store.ask(STOPPED_AT_ONCE);
+    const left = await hosted.store.ask({ request: "left running" }, GONE);
+    await hosted.store.start(left.id, GONE);
+    const first = await hosted.store.ask(STOPPED_AT_ONCE, GONE);
+    const second = await hosted.store.ask(STOPPED_AT_ONCE, GONE);
+    await hosted.store.release(GONE);
     await hosted.sessions.start();
     await hosted.sessions.start();
-    assert.equal(hosted.store.answered.get("abandonRunning"), 1, "the startup is done once");
+    assert.equal(hosted.store.answered.get("abandonSilent"), 1, "the startup is done once");
     assert.equal((await hosted.sessions.session(left.id)).state, "interrupted");
     assert.deepEqual((await hosted.events(left.id)).map(said).at(-1), ["state_changed", "interrupted"]);
     await hosted.ended(first.id);
@@ -343,10 +350,11 @@ describe("a host that starts", () => {
 
   it("starts again when its store did not answer the first time: opening a session does it", async () => {
     hosted = await Hosted.create([]);
-    for (const request of ["left running", "left running too"]) await hosted.store.start((await hosted.store.ask({ request })).id);
+    for (const request of ["left running", "left running too"]) await hosted.store.start((await hosted.store.ask({ request }, GONE)).id, GONE);
+    await hosted.store.release(GONE);
     let down = true;
     hosted.store.before = (command) => {
-      if (command === "abandonRunning" && down) throw new Error("The database is unreachable.");
+      if (command === "abandonSilent" && down) throw new Error("The database is unreachable.");
     };
     await assert.rejects(hosted.sessions.start(), { message: "The database is unreachable." });
     await assert.rejects(hosted.sessions.open(STOPPED_AT_ONCE), { message: "The database is unreachable." });

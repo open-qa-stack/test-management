@@ -31,17 +31,6 @@ export function entry(seconds: number, step: string, event: string, message: str
 }
 
 /**
- * Writes a line of the inbox of a run.
- *
- * @param seconds - When, in seconds after the start of the first run.
- * @param text - What the person says.
- * @returns The line, as the instance appends it, with its end.
- */
-export function sent(seconds: number, text: string): string {
-  return `${JSON.stringify({ at: at(seconds), text })}\n`;
-}
-
-/**
  * Writes the line the harness traces when it delivers a message of the person to the session of a phase.
  *
  * @param seconds - When, in seconds after the start of the first run.

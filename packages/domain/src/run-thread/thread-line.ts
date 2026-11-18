@@ -18,8 +18,8 @@ export type RunLineEvent = { readonly type: string } & Readonly<Record<string, u
  * an entry of the journal about a step of the run.
  *
  * @remarks
- * It is what was read from a file anyone may have written to: its event is held to a type and nothing else,
- * where a `TraceLine` is what the harness writes. A line of a trace carries the event the harness or the agent
+ * It is read back from the text a run writes of it: its event is held to a type and nothing else, where a
+ * `TraceLine` is what the harness writes. A line of a trace carries the event the harness or the agent
  * session reported: `started`, `finished`, `journal`, `message`, `person` and counts from the harness; `text`,
  * `reasoning`, `tool-call`, `tool-result`, `tool-error`, `end`, `stopped` and `error` from an agent. An entry
  * of the journal is read as `started` when it opens a step, and as `journal`, with its `level` and its
@@ -33,16 +33,3 @@ export type RunLine = {
   readonly source?: string;
   readonly event: RunLineEvent;
 } & ({ readonly actor: "command"; readonly phase: CommandStep | RelayedPhase } | { readonly actor: "harness" | "agent"; readonly phase: TracePhase });
-
-/** A message a person sent to a run while it was going, as a line of the inbox of the run holds it. */
-export interface PersonLine {
-  /** When it was sent, as an ISO 8601 date in UTC. */
-  readonly at: string;
-  readonly actor: "person";
-  /** The rank of its line in the inbox, from 1: the run names the message by it when it delivers it. */
-  readonly number: number;
-  readonly text: string;
-}
-
-/** A line the thread of a session is written from: one the run wrote, or one a person sent it. */
-export type ThreadLine = RunLine | PersonLine;

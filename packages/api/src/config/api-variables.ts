@@ -1,5 +1,5 @@
 import { databaseUrl, nonEmptyText, portNumber, testRepository } from "./value-type.ts";
-import type { DatabaseUrl } from "@open-qa-stack/store";
+import { DATABASE_URL_VARIABLE, type DatabaseUrl } from "@open-qa-stack/store";
 import type { EnvironmentVariable } from "./environment-variable.ts";
 
 const REPOSITORY = "OQAS_REPOSITORY";
@@ -10,7 +10,7 @@ const REPOSITORY = "OQAS_REPOSITORY";
  */
 export const DATABASE_VARIABLES = {
   database: {
-    name: "OQAS_DATABASE_URL",
+    name: DATABASE_URL_VARIABLE,
     description:
       "The connection URL of the database of the instance, to keep it elsewhere than in the test repository. Without it, the database is a SQLite file in the state folder of the test repository.",
     type: databaseUrl,

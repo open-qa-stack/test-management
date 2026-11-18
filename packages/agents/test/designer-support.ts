@@ -20,7 +20,7 @@ import {
   type TraceLine,
 } from "@open-qa-stack/domain";
 import { answer, scriptedServer, testSite, toolCalls, type ScriptedServer, type TestSite } from "@open-qa-stack/testing";
-import { Designer, readPlanFile, type DesignOutcome, type DesignState, type PersonInbox, type PlanRecord } from "../src/index.ts";
+import { Designer, readPlanFile, type DesignOutcome, type DesignState, type Inbox, type PlanRecord } from "../src/index.ts";
 
 export const MODEL = "test-model";
 
@@ -329,7 +329,7 @@ export interface Setup {
   readonly levels?: readonly ScenarioLevel[] | "default";
   readonly observe?: (line: TraceLine) => void;
   /** The inbox of the run the design is of, when a person may speak to it. */
-  readonly inbox?: PersonInbox;
+  readonly inbox?: Inbox;
   readonly resume?: { readonly state: string; readonly branch?: string };
   /** Whether the configuration declares that the model reads images. */
   readonly vision?: boolean;

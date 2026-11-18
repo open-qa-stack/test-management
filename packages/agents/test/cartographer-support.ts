@@ -16,7 +16,7 @@ import {
 } from "@open-qa-stack/domain";
 import { answer, scriptedServer, testSite, toolCalls, type ScriptedServer, type TestSite } from "@open-qa-stack/testing";
 import { fingerprintOf, knowledgeInventory, type SqlClient } from "@open-qa-stack/tools";
-import { Cartographer, INDEX_FILE_NAME, type CartographyOutcome, type PersonInbox } from "../src/index.ts";
+import { Cartographer, INDEX_FILE_NAME, type CartographyOutcome, type Inbox } from "../src/index.ts";
 
 export const MODEL = "test-model";
 
@@ -122,7 +122,7 @@ export interface Setup {
   /** Changes the repository once its cards are written, before the run. */
   readonly prepare?: (root: string) => void;
   /** The inbox of the run the cartography is of, when a person may speak to it. */
-  readonly inbox?: PersonInbox;
+  readonly inbox?: Inbox;
 }
 
 export function configFor(modelUrl: string, setup: Setup = {}): ResolvedConfig {

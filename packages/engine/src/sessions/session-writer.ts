@@ -56,8 +56,8 @@ export interface WriterPace {
  * then made no more, and what waited is dropped. The session is left as the store holds it, for the host that
  * starts next.
  *
- * A session that ended under its execution — another process that started on the same store took it for one
- * that was left — takes nothing more: the first refusal of that kind is reported and signalled, what waited
+ * A session that ended under its execution — its host went silent for longer than the other processes on the
+ * same store allow, and one of them took it for one that was left — takes nothing more: the first refusal of that kind is reported and signalled, what waited
  * is dropped, and what the run still tells is ignored.
  */
 export class SessionWriter {

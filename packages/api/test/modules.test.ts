@@ -4,7 +4,7 @@ import { HttpStatus } from "@nestjs/common";
 import { HttpAdapterHost } from "@nestjs/core";
 import { Test } from "@nestjs/testing";
 import { Sessions } from "@open-qa-stack/engine";
-import { Database, type DatabaseState, DatabaseStatus, SchemaMigrations, SessionStore } from "@open-qa-stack/store";
+import { Database, type DatabaseState, DatabaseStatus, InstanceDatabase, SchemaMigrations, SessionStore } from "@open-qa-stack/store";
 import { AppModule } from "../src/app.module.ts";
 import { ApiConfiguration } from "../src/config/api-configuration.ts";
 import { SchemaCheck } from "../src/database/schema-check.ts";
@@ -28,6 +28,7 @@ describe("the root module", () => {
     const status: HealthStatus = { status: "ok" };
     const doubles = new Map<unknown, object>([
       [ApiConfiguration, { host: "configuration double", port: 1 }],
+      [InstanceDatabase, { prepare: async () => {} }],
       [Database, { close: async () => {} }],
       [SchemaMigrations, { pending: async () => 0 }],
       [DatabaseStatus, { check: async () => ({ check: "up" }) }],
@@ -53,7 +54,9 @@ describe("the root module", () => {
     const module = await Test.createTestingModule({ imports: [AppModule.forRoot(configuration)] }).compile();
     try {
       assert.equal(module.get(ApiConfiguration), configuration);
-      assert.ok(module.get(Database) instanceof Database);
+      assert.ok(module.get(InstanceDatabase) instanceof InstanceDatabase);
+      assert.equal(module.get(Database), module.get(InstanceDatabase).database);
+      assert.equal(module.get(SessionStore), module.get(InstanceDatabase).sessions);
       assert.ok(module.get(SchemaMigrations) instanceof SchemaMigrations);
       assert.ok(module.get(DatabaseStatus) instanceof DatabaseStatus);
       assert.ok(module.get(SchemaCheck) instanceof SchemaCheck);

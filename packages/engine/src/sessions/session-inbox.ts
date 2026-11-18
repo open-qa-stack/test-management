@@ -1,5 +1,5 @@
 import type { PersonMessage } from "@open-qa-stack/domain";
-import type { RunInbox } from "../ports/run-inbox.ts";
+import type { Inbox } from "@open-qa-stack/agents";
 
 /**
  * The inbox of the execution of a session, kept in memory: what a person said to the session, as the agents
@@ -8,13 +8,12 @@ import type { RunInbox } from "../ports/run-inbox.ts";
  * @remarks
  * The store of the sessions numbers a message when it takes it; the inbox is then dropped the message, and
  * holds it until an agent received it. An execution that starts is dropped the messages its session was
- * sent while it waited, as the store kept them. A message may so be dropped twice — once by whoever said
- * it, once among those the store kept — and enters once: its number tells it from the others. The agents
+ * sent while it waited, as the store kept them, and at each beat of its host those the store took since,
+ * which is how what another process said reaches it. A message may so be dropped more than once — by
+ * whoever said it, and among those the store kept — and enters once: its number tells it from the others. The agents
  * read the messages in the order of their numbers, whatever the order they were dropped in.
  */
-export class SessionInbox implements RunInbox {
-  /** {@inheritDoc RunInbox.unreadable} */
-  readonly unreadable = undefined;
+export class SessionInbox implements Inbox {
   readonly #known = new Set<number>();
   readonly #waiting: PersonMessage[] = [];
   readonly #received: PersonMessage[] = [];

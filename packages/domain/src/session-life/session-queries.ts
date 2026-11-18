@@ -39,4 +39,10 @@ export interface SessionQueries {
    * session does not exist.
    */
   pendingMessages(id: string): Promise<PendingMessage[]>;
+
+  /**
+   * @param host - What names a process that hosts sessions.
+   * @returns The identifiers of the sessions it hosts that go on and whose interruption another process asked for.
+   */
+  interruptionRequests(host: string): Promise<string[]>;
 }

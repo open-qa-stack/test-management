@@ -2,9 +2,8 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 import { describe, it } from "vitest";
 import { PERSON_SPOKE } from "../src/common/person-message.ts";
-import { PersonInbox } from "../src/index.ts";
 import { cartography, mappingTheBase, messages, traceOf, workspace } from "./cartographer-support.ts";
-import { say } from "./person-support.ts";
+import { say, SpokenInbox } from "./spoken-inbox.ts";
 
 const tag = (number: number, text: string) => `<person-message number="${number}">${text}</person-message>`;
 
@@ -18,7 +17,7 @@ describe("a person who speaks during a cartography", () => {
     say(path, "The orders and the invoices are one domain.");
     const { outcome, server } = await cartography(mappingTheBase(), {
       cards: ["shop-api", "order-specs", "shop"],
-      inbox: new PersonInbox(path),
+      inbox: new SpokenInbox(path),
       // The person writes again once the consolidation is asked: its session is open.
       observe: (line) => {
         if (line.phase === "consolidation" && line.event.type === "message") say(path, "Name the domains in English.");

@@ -121,9 +121,9 @@ describe("the state of a run, as its session keeps it", () => {
 });
 
 describe("the inbox of the execution of a session", () => {
-  it("holds the messages it was dropped until an agent received them, and never calls itself unreadable", () => {
+  it("holds the messages it was dropped until an agent received them", () => {
     const inbox = new SessionInbox();
-    assert.deepEqual([inbox.pending(), inbox.heard(), inbox.unreadable], [[], [], undefined]);
+    assert.deepEqual([inbox.pending(), inbox.heard()], [[], []]);
     inbox.drop({ number: 1, text: "One." });
     inbox.drop({ number: 2, text: "Two." });
     inbox.drop({ number: 3, text: "Three." });
@@ -170,6 +170,17 @@ describe("the registry of the executions that run", () => {
     assert.deepEqual([registry.find("s1"), registry.all()], [undefined, [second]]);
   });
 
+  it("gives every execution under the identifier of its session, in the order they were added", () => {
+    const registry = new RunningExecutions();
+    const [one, other] = [execution(), execution()];
+    registry.add("s2", one);
+    registry.add("s1", other);
+    assert.deepEqual(registry.entries(), [
+      ["s2", one],
+      ["s1", other],
+    ]);
+  });
+
   it("holds one execution per session: a session that runs is not added again", () => {
     const registry = new RunningExecutions();
     const first = execution();
@@ -197,7 +208,9 @@ describe("the sessions that wait their turn", () => {
     for (const id of ["s1", "s2", "s3"]) waiting.add(id);
     waiting.remove("s2");
     waiting.remove("unknown");
+    assert.deepEqual([waiting.has("s1"), waiting.has("s2"), waiting.has("unknown")], [true, false, false]);
     assert.deepEqual([waiting.next(), waiting.next(), waiting.next()], ["s1", "s3", undefined]);
+    assert.equal(waiting.has("s1"), false);
   });
 });
 
@@ -240,8 +253,8 @@ describe("the events of a session, from a rank on", () => {
   /** A store that holds one session, which runs. */
   async function running(): Promise<{ store: MemorySessionStore; notifications: EventNotifications; id: string }> {
     const store = new MemorySessionStore();
-    const { id } = await store.ask({ request: "cover the profile" });
-    await store.start(id);
+    const { id } = await store.ask({ request: "cover the profile" }, "host");
+    await store.start(id, "host");
     return { store, notifications: new EventNotifications(), id };
   }
   const note = (text: string) => ({ at: "2026-11-16T08:00:00.000Z", type: "note", phase: "plan", text }) as const;

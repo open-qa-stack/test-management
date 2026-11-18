@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { Database, DatabaseStatus, DatabaseUrl, SchemaMigrations } from "@open-qa-stack/store";
+import { Database, DatabaseStatus, DatabaseUrl, InstanceDatabase, PendingMigrationsError, SchemaMigrations } from "@open-qa-stack/store";
 import { FIXTURE_MIGRATIONS, firstFixtureMigrations, POSTGRES, SQLITE } from "@open-qa-stack/store/testing";
 import { closedPort } from "@open-qa-stack/testing";
 import { Logger } from "@nestjs/common";
@@ -13,7 +13,6 @@ import { Test } from "@nestjs/testing";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
 import { AppModule } from "../src/app.module.ts";
 import { ApiConfiguration } from "../src/config/api-configuration.ts";
-import { PendingMigrationsError } from "../src/database/pending-migrations-error.ts";
 import { HealthService } from "../src/health/health.service.ts";
 import { startApi } from "../src/start-api.ts";
 import { CapturedLogger } from "./support/captured-logger.ts";
@@ -50,14 +49,12 @@ async function tables(url: string): Promise<string[]> {
 }
 
 /** Starts an API whose versioned migrations are those of the fixture, on a port nothing listens on yet. */
-async function fixtureApi(url: string, db: Database): Promise<{ app: NestFastifyApplication; port: number }> {
+async function fixtureApi(url: string): Promise<{ app: NestFastifyApplication; port: number }> {
   const port = await closedPort();
   const configuration = ApiConfiguration.read({ OQAS_PORT: String(port), OQAS_DATABASE_URL: url });
   const module = await Test.createTestingModule({ imports: [AppModule.forRoot(configuration)] })
-    .overrideProvider(Database)
-    .useValue(db)
-    .overrideProvider(SchemaMigrations)
-    .useValue(new SchemaMigrations(db, FIXTURE_MIGRATIONS))
+    .overrideProvider(InstanceDatabase)
+    .useValue(new InstanceDatabase(configuration.database, new Logger("Database"), FIXTURE_MIGRATIONS))
     .compile();
   return { app: module.createNestApplication<NestFastifyApplication>(new FastifyAdapter(), { logger: false }), port };
 }
@@ -68,7 +65,7 @@ describe("the migration command", () => {
       const fresh = await engine.create();
       try {
         const first = await program(MIGRATE, { OQAS_DATABASE_URL: fresh.url });
-        assert.deepEqual(first, { code: 0, out: "Applied 1 migration.\n", err: "" });
+        assert.deepEqual(first, { code: 0, out: "Applied 2 migrations.\n", err: "" });
         assert.deepEqual(await tables(fresh.url), TABLES);
         const second = await program(MIGRATE, { OQAS_DATABASE_URL: fresh.url });
         assert.deepEqual(second, { code: 0, out: "The database schema is up to date: no migration to apply.\n", err: "" });
@@ -83,7 +80,7 @@ describe("the migration command", () => {
     const repository = mkdtempSync(join(tmpdir(), "oqas-api-migrate-"));
     try {
       writeFileSync(join(repository, "oqas.json"), "{}");
-      assert.deepEqual(await program(MIGRATE, { OQAS_REPOSITORY: repository }), { code: 0, out: "Applied 1 migration.\n", err: "" });
+      assert.deepEqual(await program(MIGRATE, { OQAS_REPOSITORY: repository }), { code: 0, out: "Applied 2 migrations.\n", err: "" });
       assert.deepEqual(await tables(`sqlite:${join(repository, ".oqas", "oqas.db")}`), TABLES);
     } finally {
       rmSync(repository, { recursive: true, force: true });
@@ -131,17 +128,17 @@ describe("pending migrations", () => {
     const db = databaseOf(fresh.url);
     try {
       await new SchemaMigrations(db, firstFixtureMigrations(1)).apply();
-      const { app, port } = await fixtureApi(fresh.url, db);
+      const { app, port } = await fixtureApi(fresh.url);
       await assert.rejects(app.listen(port, "127.0.0.1"), {
         name: "PendingMigrationsError",
         pending: 1,
-        message: "The database schema is not up to date: 1 migration is pending. Apply them with the migration command, then start the API again.",
+        message: "The database schema is not up to date: 1 migration is pending. Apply them with the migration command, then start again.",
       });
       await app.close();
       await assert.rejects(fetch(`http://127.0.0.1:${port}/health`));
       assert.equal(
         new PendingMigrationsError(2).message,
-        "The database schema is not up to date: 2 migrations are pending. Apply them with the migration command, then start the API again.",
+        "The database schema is not up to date: 2 migrations are pending. Apply them with the migration command, then start again.",
       );
     } finally {
       await fresh.drop();
@@ -153,7 +150,7 @@ describe("pending migrations", () => {
     const db = databaseOf(fresh.url);
     try {
       await new SchemaMigrations(db, firstFixtureMigrations(1)).apply();
-      const { app, port } = await fixtureApi(fresh.url, db);
+      const { app, port } = await fixtureApi(fresh.url);
       await app.listen(port, "127.0.0.1");
       try {
         const ready = await fetch(`http://127.0.0.1:${port}/health/ready`);

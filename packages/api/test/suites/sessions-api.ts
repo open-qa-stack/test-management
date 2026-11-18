@@ -16,6 +16,9 @@ import { eventually } from "../support/eventually.ts";
 import { sessionsApi, type TestApi } from "../support/sessions-api.ts";
 import { TestRepository } from "../support/test-repository.ts";
 
+/** What names a process that hosted sessions on the database of the tests, other than the API under test. */
+const GONE = "host-gone";
+
 const JSON_TYPE = "application/json; charset=utf-8";
 const PROBLEM_TYPE = "application/problem+json; charset=utf-8";
 const RESULT: SessionResult = { outcome: "passed", durationMs: 2000, modelRequests: 3, tests: [] };
@@ -127,8 +130,8 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
 
   /** A session the database holds as running, which no run of this API tells: for the routes that only read and write it. */
   async function kept(request = "cover the profile"): Promise<Session> {
-    const { id } = await store.ask({ request });
-    return store.start(id);
+    const { id } = await store.ask({ request }, GONE);
+    return store.start(id, GONE);
   }
 
   /** A note the database holds of a session. */
@@ -154,7 +157,7 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
     it("list the sessions as the items of a list, the latest first, and give one by its identifier, which no cache may keep", async () => {
       const first = await kept();
       await store.complete(first.id, RESULT);
-      const second = await store.ask({ request: "cover the orders", environment: "local" });
+      const second = await store.ask({ request: "cover the orders", environment: "local" }, GONE);
       const listed = await fetch(`${api.url}/sessions`);
       assert.equal(listed.headers.get("cache-control"), "no-store");
       const { status, body } = await answerOf(listed);
@@ -438,7 +441,7 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
     });
 
     it("is refused with 503 by an API that was started without a test repository, which says what to set and serves what the database holds", async () => {
-      const { id } = await store.ask({ request: "asked of another host" });
+      const { id } = await store.ask({ request: "asked of another host" }, GONE);
       const reading = await sessionsApi({ database: sessions.url });
       try {
         assert.deepEqual(
@@ -478,7 +481,8 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
     it("interrupts the sessions an earlier process left running, which it logs, and runs those that waited", async () => {
       await api.close();
       const left = await kept("left running");
-      const waiting = await store.ask({ request: "cover the profile", environment: "nowhere" });
+      const waiting = await store.ask({ request: "cover the profile", environment: "nowhere" }, GONE);
+      await store.release(GONE);
       api = await hosted(quiet);
       assert.equal((await store.session(left.id))?.state, "interrupted");
       assert.equal((await ended(waiting.id)).state, "interrupted");
@@ -557,7 +561,7 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
     });
 
     it("is taken by a session that still waits", async () => {
-      const { id } = await store.ask({ request: "cover the profile" });
+      const { id } = await store.ask({ request: "cover the profile" }, GONE);
       assert.deepEqual((await answerOf(await say(id, '{"text":"not that page"}'))).body, { number: 1 });
       assert.equal((await store.session(id))?.state, "queued");
     });
@@ -614,6 +618,83 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
     });
   });
 
+  describe("an API among the other processes that reach its database", () => {
+    /** The paces of an API a test does not wait on: a beat and a reading every few milliseconds. */
+    const QUICK = { beatMs: 15, silentAfterMs: 15_000, followMs: 15 };
+
+    /** Starts an API at the paces of the tests, on a test repository of its own whose model answers the whole chain. */
+    async function quick(): Promise<{ repository: TestRepository; api: TestApi }> {
+      await api.close();
+      const repository = await TestRepository.create(chain());
+      const own = await sessionsApi({ database: sessions.url, repository: repository.root, environment: { ...repository.environment, pace: QUICK }, logger });
+      started.push(repository, own);
+      return { repository, api: own };
+    }
+
+    it("serves a session another process runs: its stream follows what that process tells, a message and an interruption wait for it in the database", async () => {
+      const { api: own } = await quick();
+      const elsewhere = await kept();
+      const stream = await EventStream.open(`${own.url}/sessions/${elsewhere.id}/events`);
+      assert.deepEqual(
+        (await stream.take(2)).map((event) => event.type),
+        ["user_message", "state_changed"],
+      );
+      await tell(elsewhere.id, "Told by the process that runs it.");
+      assert.deepEqual(
+        (await stream.take(1)).map((event) => event.type === "note" && event.text),
+        ["Told by the process that runs it."],
+      );
+      assert.deepEqual((await answerOf(await say(elsewhere.id, '{"text":"not that page"}', own))).body, { number: 1 });
+      assert.equal((await interrupt(elsewhere.id, own)).status, 202);
+      assert.equal((await store.session(elsewhere.id))?.state, "running", "the process that runs it interrupts it");
+      assert.deepEqual(await store.interruptionRequests(GONE), [elsewhere.id]);
+      assert.deepEqual(
+        (await store.pendingMessages(elsewhere.id)).map(({ number }) => number),
+        [1],
+      );
+      await store.interrupt(elsewhere.id);
+      let last: SessionEvent | undefined;
+      for (let message = await stream.next(); message !== undefined; message = await stream.next()) last = message.event;
+      assert.deepEqual(last?.type === "state_changed" && last.state, "interrupted");
+    });
+
+    it("obeys what another process asks of a session it runs: a message reaches its agents, an interruption ends it soon", async () => {
+      const { repository, api: own } = await quick();
+      const door = repository.designDoor();
+      const session = await opened(WHOLE_CHAIN, own);
+      await door.reached;
+      await store.say(session.id, "Only what a customer sees.");
+      await store.requestInterruption(session.id, QUICK.silentAfterMs);
+      // The API beats many times meanwhile: it holds the message and the interruption by now.
+      await pause(QUICK.beatMs * 10);
+      door.open();
+      const interrupted = await ended(session.id, own);
+      assert.deepEqual([interrupted.state, interrupted.result], ["interrupted", undefined]);
+      assert.ok(repository.model.requests.length < chain().length, "the run stopped instead of going to its end");
+    });
+
+    it("leaves the sessions of a process that beats to it when it starts: it interrupts none, and takes none over", async () => {
+      await api.close();
+      const running = await kept("run elsewhere");
+      const waiting = await store.ask({ request: "asked elsewhere", environment: "nowhere" }, GONE);
+      api = await sessionsApi({ database: sessions.url, repository: quiet.root, environment: { ...quiet.environment, pace: QUICK }, logger });
+      await pause(QUICK.beatMs * 10);
+      assert.deepEqual([(await store.session(running.id))?.state, (await store.session(waiting.id))?.state], ["running", "queued"]);
+      assert.deepEqual(
+        logger.lines.filter((line) => line.startsWith("warn ")),
+        [],
+      );
+      // Once that process withdrew its beats, the API sees to what it left at its next beat.
+      await store.release(GONE);
+      assert.equal((await ended(running.id)).state, "interrupted");
+      assert.equal((await ended(waiting.id)).state, "interrupted");
+      assert.ok(
+        (await store.eventsAfter(waiting.id, 0)).some((event) => event.type === "phase_started"),
+        "the session that waited ran here",
+      );
+    });
+  });
+
   describe("an API that stops while a session runs", () => {
     it("asks the session to stop, and closes once it is told interrupted: nothing is left running in the database", async () => {
       const { repository, api: own } = await chained();
@@ -646,7 +727,7 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
       await own.close();
       assert.ok(
         logger.lines.includes(
-          "warn The session under way did not end in time: it stays running in the database until the API starts again, and interrupts it. Sessions",
+          "warn The session under way did not end in time: it stays running in the database until a process that hosts sessions interrupts it. Sessions",
         ),
         logger.lines.join("\n"),
       );

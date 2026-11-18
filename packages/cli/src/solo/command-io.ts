@@ -1,0 +1,31 @@
+import type { CommandRunner, ResolvedConfig } from "@open-qa-stack/domain";
+import type { OpenRuntime, SessionsPace } from "@open-qa-stack/engine";
+
+/** Where a command writes: an output of the process. */
+export interface CommandOutput {
+  write(text: string): unknown;
+}
+
+/** What the command runs with: its environment, its folder and its outputs. */
+export interface CommandIo {
+  readonly env: Readonly<Record<string, string | undefined>>;
+  /** The folder the command runs in: the test repository by default. */
+  readonly cwd: string;
+  readonly stdout: CommandOutput;
+  readonly stderr: CommandOutput;
+  /**
+   * Listens to the person who asks the command to stop, Ctrl-C in a terminal: the listener is called each
+   * time they do.
+   *
+   * @returns What stops listening. Nobody is listened to without it.
+   */
+  readonly onInterrupt?: (listener: () => void) => () => void;
+  /** Runs the commands of the machine and of the tests; a `LocalRunner` in the test repository by default. */
+  readonly runner?: CommandRunner;
+  /** Opens the runtime of the agents; `liveRuntime` by default. */
+  readonly connect?: (config: ResolvedConfig, env: Readonly<Record<string, string | undefined>>) => Promise<OpenRuntime>;
+  /** The clock of the runs; the system clock by default. */
+  readonly now?: () => Date;
+  /** The paces of the command among the processes that reach the same database; those of the engine by default. */
+  readonly pace?: SessionsPace;
+}

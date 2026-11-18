@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { at, delivered, entry, sent, traced } from "@open-qa-stack/testing";
+import { at, delivered, entry, traced } from "@open-qa-stack/testing";
 import { describe, it } from "vitest";
-import { briefOf, CONFIG_FILE_NAME, inboxLine, journalLine, RunThread, traceLine, type ThreadLine } from "../src/index.ts";
+import { briefOf, CONFIG_FILE_NAME, journalLine, RunThread, traceLine, type RunLine } from "../src/index.ts";
 import type { SessionEvent } from "../src/sessions/index.ts";
 
 /** A thread whose events are ranked from 1 in the order it tells them, as whoever keeps a thread ranks them. */
@@ -9,7 +9,7 @@ class RankedThread {
   readonly #thread = new RunThread();
   #last = 0;
 
-  add(line: ThreadLine): SessionEvent[] {
+  add(line: RunLine): SessionEvent[] {
     return this.#thread.add(line).map((event) => ({ id: ++this.#last, ...event }));
   }
 }
@@ -158,29 +158,6 @@ describe("the brief a line quotes", () => {
   });
 });
 
-describe("a line of the inbox of a run", () => {
-  it("is read with its date, written in the one form dates are compared in, the number it is given and what the person says", () => {
-    assert.deepEqual(inboxLine(sent(5, " not that page\nthe other "), 3), { at: at(5), actor: "person", number: 3, text: " not that page\nthe other " });
-    assert.equal(inboxLine('{"at":"2026-11-14T10:00:05+01:00","text":"go on","by":"someone"}', 1)?.at, at(5));
-  });
-
-  it("is nothing when the command line takes it for no message, and when it bears no date", () => {
-    for (const text of [
-      "",
-      "not json",
-      "[]",
-      '"not that page"',
-      JSON.stringify({ at: at(1) }),
-      JSON.stringify({ at: at(1), text: 3 }),
-      JSON.stringify({ at: at(1), text: " \n" }),
-      JSON.stringify({ text: "not that page" }),
-      JSON.stringify({ at: "soon", text: "not that page" }),
-    ]) {
-      assert.equal(inboxLine(text, 1), undefined, text);
-    }
-  });
-});
-
 describe("the thread of a run", () => {
   it("tells its events in the order the lines are read, each dated as its line", () => {
     const events = threadOf([
@@ -231,24 +208,6 @@ describe("the thread of a run", () => {
       { id: 4, at: at(3), type: "harness_message", to: "cartographer", text: "Describe the source." },
       { id: 5, at: at(4), type: "harness_message", to: "writer", text: "" },
     ]);
-  });
-
-  it("tells a message the person sent while the run was going under its number, apart from the brief, which bears none", () => {
-    const thread = new RankedThread();
-    const lines = [
-      traceLine(traced(1, "plan", "harness", { type: "message", text: REQUEST })),
-      inboxLine(sent(2, "not that page"), 1),
-      inboxLine(sent(3, "x".repeat(2001)), 4),
-    ];
-    assert.deepEqual(
-      lines.flatMap((line) => (line === undefined ? [] : thread.add(line))),
-      [
-        { id: 1, at: at(1), type: "user_message", text: "cover the profile" },
-        { id: 2, at: at(1), type: "harness_message", to: "planner", text: REQUEST },
-        { id: 3, at: at(2), type: "user_message", text: "not that page", number: 1 },
-        { id: 4, at: at(3), type: "user_message", text: `${"x".repeat(2000)}…`, number: 4 },
-      ],
-    );
   });
 
   it("tells the delivery of a message of the person to the agent of the phase whose session received it, the reviewer the harness last addressed included", () => {

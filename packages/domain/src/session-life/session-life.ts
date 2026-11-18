@@ -1,5 +1,5 @@
 import type { SessionState } from "../sessions/session.ts";
-import type { SessionCommand } from "./session-command.ts";
+import type { AddressedCommand, SessionCommand } from "./session-command.ts";
 import type { SessionRefusal } from "./session-refusal.ts";
 
 /** The state a session is in once it is asked for. */
@@ -7,6 +7,9 @@ export const ASKED_STATE: SessionState = "queued";
 
 /** The states a session goes on in: it has not ended. */
 const GOING = ["queued", "running"] as const satisfies readonly SessionState[];
+
+/** The state a session waits in. */
+const WAITING = ["queued"] as const satisfies readonly SessionState[];
 
 /** The state a session is worked on in. */
 const RUNNING = ["running"] as const satisfies readonly SessionState[];
@@ -27,13 +30,14 @@ interface CommandRule {
  * A session is asked for `queued`, becomes `running` when its host starts it, and ends `completed` or
  * `interrupted`; nothing leaves these two. What is told of the work of a session — its events, the delivery
  * of a message, its result — is taken while it runs; a person speaks to a session, and whoever stops it
- * interrupts it, as long as it goes on. One process hosts the sessions of an instance: when it starts, the
- * sessions the store still holds as running were left by a process that died, and are abandoned. Whoever
- * keeps the sessions enforces this table; the table says what its guards mean.
+ * interrupts it, as long as it goes on. A session has one host, the process that asked for it or took it
+ * over, which beats on it as long as it goes on. A host that went silent died: a session it left running is
+ * abandoned, and one it left waiting is taken over by a host that stays. Whoever keeps the sessions enforces
+ * this table; the table says what its guards mean.
  */
 export const SESSION_LIFE = {
   /** The host starts a session that waits. */
-  start: { from: ["queued"], to: "running" },
+  start: { from: WAITING, to: "running" },
   /** The events the work of a session tells. */
   append: { from: RUNNING },
   /** The delivery of a pending message to an agent. */
@@ -44,7 +48,11 @@ export const SESSION_LIFE = {
   say: { from: GOING },
   /** The end of a session whose work stopped, one that still waited included. */
   interrupt: { from: GOING, to: "interrupted" },
-  /** The end of a session a process that died left running; one that waits is left to wait. */
+  /** The sign of life of a host, on each session it hosts that goes on. */
+  beat: { from: GOING },
+  /** A host that stays takes a session that waits for a host that went silent: it waits for that host from then on. */
+  takeOver: { from: WAITING },
+  /** The end of a session a host that went silent left running; one that waits is left to wait. */
   abandon: { from: RUNNING, to: "interrupted" },
 } as const satisfies Readonly<Record<SessionCommand, CommandRule>>;
 
@@ -87,12 +95,12 @@ export function nextState(command: SessionCommand, state: SessionState): Session
 /**
  * Tells why a command that names its session is refused.
  *
- * @param command - The command; `abandon` names no session, and picks those it is for.
+ * @param command - The command; those of a host name no session, and pick those they are for.
  * @param state - The state of the session; `undefined` when there is no such session.
  * @returns `unknown_session`, `session_ended` for a session that is completed or interrupted, `wrong_state`
  * for a session that goes on in a state the command is not for; `undefined` when the session takes the command.
  */
-export function refusalOf(command: Exclude<SessionCommand, "abandon">, state: string | undefined): Exclude<SessionRefusal, "message_not_pending"> | undefined {
+export function refusalOf(command: AddressedCommand, state: string | undefined): Exclude<SessionRefusal, "message_not_pending"> | undefined {
   if (state === undefined) return "unknown_session";
   if (isTerminal(state)) return "session_ended";
   return accepts(command, state) ? undefined : "wrong_state";
