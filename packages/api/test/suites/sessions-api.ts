@@ -289,6 +289,17 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
       await both.close();
     });
 
+    it("carries an event whole, however long: a megabyte of text over many lines, as one message", async () => {
+      const { id } = await kept();
+      const long = Array.from({ length: 4096 }, (_, rank) => `ligne ${rank} — ${"é".repeat(250)}`).join("\n");
+      await tell(id, long);
+      const stream = await EventStream.open(`${api.url}/sessions/${id}/events?after=2`);
+      const message = await stream.next();
+      assert.equal(message?.id, "3");
+      assert.equal(message.event.type === "note" && message.event.text, long);
+      await stream.close();
+    });
+
     it("ends at once, without an event, for a client that already got the end of the session", async () => {
       const { id } = await kept();
       await store.interrupt(id);

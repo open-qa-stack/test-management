@@ -636,52 +636,50 @@ describe("the thread of a design that plans level by level", () => {
 });
 
 describe("the texts of a thread", () => {
-  it("are cut when they are long: a message, a note, a refusal, the answer of a tool, and every text its arguments hold, however deep", () => {
+  /** A text far longer than a thread ever cut, on several lines. */
+  const LONG = Array.from({ length: 400 }, (_, rank) => `line ${rank} ${"x".repeat(240)}`).join("\n");
+
+  it("are whole: a message, a note, a refusal, the answer of a tool, and every text its arguments hold, however deep", () => {
     const [said, sent, noted, refused, called, answered] = threadOf([
-      traced(1, "plan", "agent", { type: "text", text: "a".repeat(3000) }),
-      traced(2, "plan", "harness", { type: "message", text: "b".repeat(3000) }),
-      traced(3, "plan", "harness", { type: "journal", level: "info", message: "c".repeat(3000) }),
-      traced(4, "plan", "harness", { type: "journal", level: "error", message: `[CODE] ${"d".repeat(3000)}` }),
+      traced(1, "plan", "agent", { type: "text", text: LONG }),
+      traced(2, "plan", "harness", { type: "message", text: LONG }),
+      traced(3, "plan", "harness", { type: "journal", level: "info", message: LONG }),
+      traced(4, "plan", "harness", { type: "journal", level: "error", message: `[CODE] ${LONG}` }),
       traced(5, "plan", "agent", {
         type: "tool-call",
         callId: "c",
         tool: "t",
-        arguments: { text: "e".repeat(3000), files: [{ content: "g".repeat(2001) }, "h".repeat(2000), 7, null], deep: { deeper: { short: "kept", on: true } } },
+        arguments: { text: LONG, files: [{ content: LONG }, 7, null], deep: { deeper: { short: "kept", on: true } } },
       }),
-      traced(6, "plan", "agent", { type: "tool-result", callId: "c", result: "f".repeat(3000) }),
+      traced(6, "plan", "agent", { type: "tool-result", callId: "c", result: LONG }),
     ]);
-    for (const event of [said, sent, noted, refused]) {
-      assert.ok(event !== undefined && "text" in event && event.text.length === 2001 && event.text.endsWith("…"), event?.type);
-    }
-    assert.ok(answered?.type === "action_finished" && answered.result.length === 1001 && answered.result.endsWith("…"));
+    for (const event of [said, sent, noted, refused]) assert.ok(event !== undefined && "text" in event && event.text === LONG, event?.type);
+    assert.ok(answered?.type === "action_finished" && answered.result === LONG);
     assert.ok(called?.type === "action_started");
-    assert.deepEqual(called.arguments, {
-      text: `${"e".repeat(2000)}…`,
-      files: [{ content: `${"g".repeat(2000)}…` }, "h".repeat(2000), 7, null],
-      deep: { deeper: { short: "kept", on: true } },
-    });
+    assert.deepEqual(called.arguments, { text: LONG, files: [{ content: LONG }, 7, null], deep: { deeper: { short: "kept", on: true } } });
   });
 
-  it("keep whole the file an agent handed in for what the action shows of it, whatever its arguments were cut to", () => {
-    const [, finished] = threadOf([
-      traced(1, "write", "agent", { type: "tool-call", callId: "c", tool: "run_test", arguments: { content: `${"a".repeat(2100)}\nsecond line` } }),
-      traced(2, "write", "agent", { type: "tool-result", callId: "c", result: "Kept." }),
+  it("cut a runaway of more than a megabyte, and mark the cut, wherever it is", () => {
+    const runaway = "r".repeat(1_048_577);
+    const [said, called, answered] = threadOf([
+      traced(1, "plan", "agent", { type: "text", text: runaway }),
+      traced(2, "plan", "agent", { type: "tool-call", callId: "c", tool: "t", arguments: { deep: [runaway] } }),
+      traced(3, "plan", "agent", { type: "tool-result", callId: "c", result: runaway }),
     ]);
-    assert.ok(finished?.type === "action_finished");
-    assert.deepEqual(finished.look?.lines, [`${"a".repeat(240)}…`, "second line"]);
+    const kept = `${"r".repeat(1_048_576)}…`;
+    assert.ok(said?.type === "agent_message" && said.text === kept);
+    assert.ok(called?.type === "action_started");
+    assert.deepEqual(called.arguments, { deep: [kept] });
+    assert.ok(answered?.type === "action_finished" && answered.result === kept);
   });
 
-  it("show the first lines of a long page or of a long file only, each cut when it is long", () => {
-    const long = Array.from({ length: 40 }, (_, rank) => (rank === 0 ? "l".repeat(241) : `line ${rank}`)).join("\n");
+  it("show every line of a page or of a file an action looked at, whole", () => {
     const [, page, , file] = threadOf([
       traced(1, "plan", "agent", { type: "tool-call", callId: "a", tool: "shop_snapshot" }),
-      traced(2, "plan", "agent", { type: "tool-result", callId: "a", result: { page: long } }),
-      traced(3, "write", "agent", { type: "tool-call", callId: "b", tool: "run_test", arguments: { content: long } }),
+      traced(2, "plan", "agent", { type: "tool-result", callId: "a", result: { page: LONG } }),
+      traced(3, "write", "agent", { type: "tool-call", callId: "b", tool: "run_test", arguments: { content: LONG } }),
       traced(4, "write", "agent", { type: "tool-result", callId: "b", result: "Kept." }),
     ]);
-    for (const event of [page, file]) {
-      assert.ok(event?.type === "action_finished" && event.look?.lines.length === 28 && event.look.lines.at(-1) === "line 27");
-      assert.equal(event.look.lines[0], `${"l".repeat(240)}…`);
-    }
+    for (const event of [page, file]) assert.ok(event?.type === "action_finished" && event.look?.lines.join("\n") === LONG);
   });
 });

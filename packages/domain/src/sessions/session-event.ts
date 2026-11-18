@@ -27,7 +27,7 @@ export interface ActionLook {
   readonly kind: "page" | "file";
   /** The address of the page, or the name of the file. */
   readonly name: string;
-  /** Its first lines. */
+  /** Its lines, all of them. */
   readonly lines: readonly string[];
 }
 
@@ -91,7 +91,7 @@ export interface ActionStartedEvent extends EventBase {
   readonly action: string;
   readonly agent: AgentRole;
   readonly tool: string;
-  /** The arguments of the call, their long texts cut. */
+  /** The arguments of the call, whole. */
   readonly arguments: unknown;
 }
 
@@ -101,7 +101,7 @@ export interface ActionFinishedEvent extends EventBase {
   readonly action: string;
   /** `passed` or `failed` when the answer says so — a test that ran, a submission accepted or refused; `done` otherwise. */
   readonly outcome: "passed" | "failed" | "done";
-  /** What the tool answered, cut when long. */
+  /** What the tool answered, whole. */
   readonly result: string;
   /** How long the action took, in milliseconds. */
   readonly durationMs: number;
@@ -146,8 +146,10 @@ export interface StateChangedEvent extends EventBase {
 }
 
 /**
- * An event of the thread of a session. Types are added over time: a client ignores an event whose type it
- * does not know, and reads a value it does not know — a phase, an outcome — as it would an absent one.
+ * An event of the thread of a session. Its texts are whole: a client shows them as they are, and a person reads
+ * them to the end; only a runaway of a megabyte or more is cut, the cut marked by an ellipsis. Types are added
+ * over time: a client ignores an event whose type it does not know, and reads a value it does not know — a
+ * phase, an outcome — as it would an absent one.
  */
 export type SessionEvent =
   | UserMessageEvent

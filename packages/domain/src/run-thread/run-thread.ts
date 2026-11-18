@@ -5,17 +5,14 @@ import type { ActionFinishedEvent, ActionLook, AgentRole, PlannedScenario } from
 import type { UnrankedEvent } from "../sessions/unranked-event.ts";
 import type { RunLine, RunLineEvent } from "./thread-line.ts";
 
-/** Longest text of a message, of a note or of a refusal; a longer one is cut. */
-const MAX_TEXT = 2000;
-
-/** Longest answer of a tool; a longer one is cut. */
-const MAX_RESULT = 1000;
-
-/** Most lines of a page or of a file an action shows. */
-const MAX_LOOK_LINES = 28;
-
-/** Longest line of a page or of a file an action shows; a longer one is cut. */
-const MAX_LOOK_LINE = 240;
+/**
+ * Longest text an event holds, in characters: a message, a note, a refusal, the answer of a tool, a text of its
+ * arguments, a page or a file it looked at. A thread is read by a person who needs it whole — the end of a
+ * refusal says what to do — so this bound is no limit of what is shown: it only keeps a runaway, such as a
+ * tool that answers with a whole dump, from making an event of many megabytes that every client that follows the
+ * session receives. A longer text is cut, and the cut marked.
+ */
+const MAX_EVENT_TEXT = 1_048_576;
 
 /** The agent that works in each phase but the review, which three agents share. */
 const AGENTS: Readonly<Record<Exclude<TracePhase, "review">, AgentRole>> = {
@@ -42,27 +39,21 @@ interface PendingCall {
   readonly arguments: unknown;
 }
 
-/** Cuts a text that is longer than a length, and marks the cut. */
-function cut(text: string, length: number): string {
-  return text.length > length ? `${text.slice(0, length)}…` : text;
+/** A text within {@link MAX_EVENT_TEXT}, whole when it is, its cut marked otherwise. */
+function bounded(text: string): string {
+  return text.length > MAX_EVENT_TEXT ? `${text.slice(0, MAX_EVENT_TEXT)}…` : text;
 }
 
-/**
- * Bounds the arguments of a tool call: every text they hold, however deep, is cut as a message is. An agent
- * hands whole files to its tools, and an event is sent to every client that follows the session.
- */
-function bounded(value: unknown): unknown {
-  if (typeof value === "string") return cut(value, MAX_TEXT);
-  if (Array.isArray(value)) return value.map(bounded);
-  return isRecord(value) ? Object.fromEntries(Object.entries(value).map(([key, held]) => [key, bounded(held)])) : value;
+/** The arguments of a tool call, every text they hold, however deep, within {@link MAX_EVENT_TEXT}. */
+function boundedArguments(value: unknown): unknown {
+  if (typeof value === "string") return bounded(value);
+  if (Array.isArray(value)) return value.map(boundedArguments);
+  return isRecord(value) ? Object.fromEntries(Object.entries(value).map(([key, held]) => [key, boundedArguments(held)])) : value;
 }
 
-/** The first lines of a page or of a file, each cut when long. */
-function firstLines(text: string): string[] {
-  return text
-    .split("\n")
-    .slice(0, MAX_LOOK_LINES)
-    .map((line) => cut(line, MAX_LOOK_LINE));
+/** The lines of a page or of a file, all of them. */
+function linesOf(text: string): string[] {
+  return bounded(text).split("\n");
 }
 
 /** The reviewer the harness addresses, told by what it asks: a test to read, a scenario to compare, or a plan. */
@@ -100,7 +91,8 @@ function outcomeOf(result: unknown): ActionFinishedEvent["outcome"] {
  * scenario; an error the harness traced and the command relayed in its journal is told once. What the model wrote or thought is an `agent_message`. A tool call is an `action_started` and its
  * answer the `action_finished` of the same action, with what the agent looked at when the tool rendered a page
  * or took a file; a plan the harness accepted is followed by a `plan_accepted`. A task the harness stopped and
- * an error of an agent session are refusals. Nothing is worded here: every text is one the run wrote, cut when long.
+ * an error of an agent session are refusals. Nothing is worded here: every text is one the run wrote, whole, within
+ * {@link MAX_EVENT_TEXT}.
  *
  * An agent builds a plan over several calls, and closes it with one that proposes nothing: the call the
  * harness accepts does not carry the plan. The scenarios of a `plan_accepted` are therefore those the agent
@@ -201,10 +193,10 @@ export class RunThread {
         },
       ];
     }
-    if (!failed) return [{ at, type: "note", phase, text: cut(message, MAX_TEXT) }];
+    if (!failed) return [{ at, type: "note", phase, text: bounded(message) }];
     const coded = CODED.exec(message);
-    if (coded === null) return [{ at, type: "refusal", phase, text: cut(message, MAX_TEXT) }];
-    return [{ at, type: "refusal", phase, code: textOf(coded[1]), text: cut(textOf(coded[2]), MAX_TEXT) }];
+    if (coded === null) return [{ at, type: "refusal", phase, text: bounded(message) }];
+    return [{ at, type: "refusal", phase, code: textOf(coded[1]), text: bounded(textOf(coded[2])) }];
   }
 
   #asked(at: string, phase: TracePhase, text: string): UnrankedEvent[] {
@@ -216,7 +208,7 @@ export class RunThread {
       at,
       type: "harness_message",
       to: this.#agent(phase),
-      text: cut(text, MAX_TEXT),
+      text: bounded(text),
       ...(level === undefined ? {} : { level }),
     });
     return events;
@@ -227,7 +219,7 @@ export class RunThread {
     switch (event.type) {
       case "text":
       case "reasoning":
-        return [{ at, type: "agent_message", agent, text: cut(textOf(event["text"]), MAX_TEXT), reasoning: event.type === "reasoning" }];
+        return [{ at, type: "agent_message", agent, text: bounded(textOf(event["text"])), reasoning: event.type === "reasoning" }];
       case "tool-call":
         return this.#called(at, agent, event);
       case "tool-result":
@@ -245,7 +237,7 @@ export class RunThread {
 
   /** The refusal a task that stopped or failed gives: what the run says of it under a key, or all it says. */
   #stopped(at: string, phase: TracePhase, why: unknown, key: string): UnrankedEvent {
-    return { at, type: "refusal", phase, text: cut(textOf(isRecord(why) ? why[key] : why), MAX_TEXT) };
+    return { at, type: "refusal", phase, text: bounded(textOf(isRecord(why) ? why[key] : why)) };
   }
 
   #called(at: string, agent: AgentRole, event: RunLineEvent): UnrankedEvent[] {
@@ -253,7 +245,7 @@ export class RunThread {
     if (typeof action !== "string" || typeof tool !== "string") return [];
     this.#calls.set(action, { at, tool, arguments: event["arguments"] });
     if (tool === "propose_plan") for (const scenario of this.#scenarios(event["arguments"])) this.#proposed.set(scenario.id, scenario);
-    return [{ at, type: "action_started", action, agent, tool, arguments: bounded(event["arguments"]) }];
+    return [{ at, type: "action_started", action, agent, tool, arguments: boundedArguments(event["arguments"]) }];
   }
 
   #answered(at: string, action: unknown, result: unknown, failed: boolean): UnrankedEvent[] {
@@ -267,7 +259,7 @@ export class RunThread {
       type: "action_finished",
       action,
       outcome,
-      result: cut(answerOf(result), MAX_RESULT),
+      result: bounded(answerOf(result)),
       durationMs: Date.parse(at) - Date.parse(call.at),
       ...(look === undefined ? {} : { look }),
     };
@@ -280,11 +272,11 @@ export class RunThread {
   /** What the agent had before its eyes: the file it handed in, named after the test being written, or the page the tool rendered. */
   #look(call: PendingCall, result: unknown): ActionLook | undefined {
     const content = isRecord(call.arguments) ? call.arguments["content"] : undefined;
-    if (typeof content === "string") return { kind: "file", name: this.#file ?? call.tool, lines: firstLines(content) };
+    if (typeof content === "string") return { kind: "file", name: this.#file ?? call.tool, lines: linesOf(content) };
     const page = isRecord(result) ? result["page"] : undefined;
     if (!isRecord(result) || typeof page !== "string") return undefined;
     const { url } = result;
-    return { kind: "page", name: typeof url === "string" ? url : call.tool, lines: firstLines(page) };
+    return { kind: "page", name: typeof url === "string" ? url : call.tool, lines: linesOf(page) };
   }
 
   /**
