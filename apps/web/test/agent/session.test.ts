@@ -455,7 +455,7 @@ describe("the thread of a session", () => {
     );
   });
 
-  it("marks an action that failed, and links a file an agent handed in even when its tool answered nothing", () => {
+  it("marks an action that failed, and links a file an agent handed in even when its tool answered nothing, the file folded under its path", () => {
     const html = thread(liveWith(REVIEWED));
     assert.match(
       html,
@@ -464,11 +464,70 @@ describe("the thread of a session", () => {
     assert.match(
       html,
       new RegExp(
-        `<div class="act"><div class="act-line"><span class="act-state" aria-hidden="true"></span><svg [^>]*>.*?</svg><span class="act-title">A remis le test</span></div><a id="look-eye-5" class="act-look" href="${ADDRESS}\\?look=5" aria-label="A remis le test — voir ce que l’agent avait sous les yeux">`,
+        `<div class="act"><details><summary class="act-line"><span class="act-state" aria-hidden="true"></span><svg [^>]*>.*?</svg><span class="act-text"><span class="act-title">A remis le test</span><span class="act-path">search-customer.spec.ts</span></span></summary><pre class="act-code">test\\(&#x27;search&#x27;, async \\(\\) =&gt; \\{\\}\\);</pre></details><a id="look-eye-5" class="act-look" href="${ADDRESS}\\?look=5" aria-label="A remis le test — voir ce que l’agent avait sous les yeux">`,
       ),
     );
     assert.deepEqual(linksOf(html), [`${ADDRESS}?agent=planner`, `${ADDRESS}?agent=writer`, `${ADDRESS}?look=5`]);
     assert.doesNotMatch(html, /act-time/);
+  });
+
+  it("names the test a run plays, with the path of its file, and lets its code be read while it runs", () => {
+    const file = { kind: "file", name: "apps/shop/tests/policies-list.spec.ts", lines: ['test("Display the policies list", async () => {', "});"] } as const;
+    const running: Step = {
+      kind: "tool",
+      from: "writer",
+      at: "09:00:01",
+      tool: "run_test",
+      title: "A joué « Display the policies list »",
+      look: file,
+      subject: "Display the policies list",
+      pending: true,
+    };
+    const html = thread(liveWith([running], RUNNING));
+    assert.match(
+      html,
+      /<div class="act"><details><summary class="act-line"><span class="spinner" role="img" aria-label="en cours"><\/span><svg [^>]*>.*?<\/svg><span class="act-text"><span class="act-title">A joué « Display the policies list »<\/span><span class="act-path">apps\/shop\/tests\/policies-list\.spec\.ts<\/span><\/span><\/summary><pre class="act-code">test\(&quot;Display the policies list&quot;, async \(\) =&gt; \{\n\}\);<\/pre><\/details><a id="look-eye-0" class="act-look"/,
+    );
+    assert.doesNotMatch(html, /act-time|act-tests|act-result/);
+  });
+
+  it("says how a run ended on its line, and unfolds it on the verdict of each test, the answer of the tool when it did not pass, and the code", () => {
+    const file = { kind: "file", name: "a.spec.ts", lines: ["test();"] } as const;
+    const passed: Step = {
+      kind: "tool",
+      from: "writer",
+      at: "09:00:01",
+      tool: "run_test",
+      title: "A joué « a »",
+      look: file,
+      subject: "a",
+      detail: "Run of the file: passed.",
+      durationMs: 2400,
+      outcome: "passed",
+      tests: [{ title: "a", verdict: "passed" }],
+    };
+    const failed: Step = {
+      ...passed,
+      detail: "Run of the file: failed.\n  Error: no heading",
+      outcome: "failed",
+      tests: [
+        { title: "a", verdict: "failed" },
+        { title: "b", verdict: "timedOut" },
+      ],
+    };
+    const ok = thread(liveWith([passed]));
+    assert.match(ok, /<span class="act-title">A joué « a » : réussi<\/span>/);
+    assert.match(
+      ok,
+      /<\/summary><ul class="act-tests"><li><span class="badge ok">réussi<\/span><span>a<\/span><\/li><\/ul><pre class="act-code">test\(\);<\/pre><\/details>/,
+    );
+    assert.match(ok, /<span class="act-time">2,4 s<\/span>/);
+    const ko = thread(liveWith([failed]));
+    assert.match(ko, /<span class="act-title">A joué « a » : échoué<\/span>/);
+    assert.match(
+      ko,
+      /<ul class="act-tests"><li><span class="badge ko">échoué<\/span><span>a<\/span><\/li><li><span class="badge warn">timedOut<\/span><span>b<\/span><\/li><\/ul><pre class="act-result">Run of the file: failed\.\n {2}Error: no heading<\/pre><pre class="act-code">/,
+    );
   });
 
   it("tells whom the harness hands the work to, its request folded under it, open while it is written", () => {

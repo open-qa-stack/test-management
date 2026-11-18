@@ -290,7 +290,7 @@ describe("the thread of a run", () => {
     );
   });
 
-  it("shows the file an agent handed in, named after the test of the scenario the harness opened, and how its run ended", () => {
+  it("shows the file an agent hands in from the start of its action, named after the test of the scenario the harness opened, then each test its run ran", () => {
     const events = threadOf([
       traced(1, "write", "agent", { type: "tool-call", callId: "c0", tool: "run_test", arguments: { content: "early();" } }),
       traced(2, "write", "agent", { type: "tool-result", callId: "c0", tool: "run_test", result: null }),
@@ -301,26 +301,41 @@ describe("the thread of a run", () => {
         type: "tool-result",
         callId: "c1",
         tool: "run_test",
-        result: "Run of the file: failed.\n- shop › a.spec.ts:3 › a: failed.",
+        result: "Run of the file: failed.\n- shop › a.spec.ts:3 › a: failed.\n  Error: expected\n- shop › a.spec.ts:9 › b: passed.\nNext: fix it.",
       }),
       traced(7, "write", "agent", { type: "tool-call", callId: "c2", tool: "run_test", arguments: { content: "test();" } }),
       traced(8, "write", "agent", {
         type: "tool-result",
         callId: "c2",
         tool: "run_test",
-        result: "Run of the file: passed.\n- shop › a.spec.ts:3 › a: passed.",
+        result: "Run of the file: it could not run: no browser.\n- shop › a.spec.ts:3 › a: passed.",
       }),
+      traced(9, "write", "agent", { type: "tool-call", callId: "c3", tool: "tests_read", arguments: { path: "a.spec.ts" } }),
+      traced(10, "write", "agent", { type: "tool-result", callId: "c3", tool: "tests_read", result: "- shop › a.spec.ts:3 › a: passed." }),
     ]);
     assert.deepEqual(
-      ofType(events, "action_finished").map(({ outcome, result, look }) => [outcome, result, look]),
+      ofType(events, "action_started").map(({ look }) => look),
       [
-        ["done", "null", { kind: "file", name: "run_test", lines: ["early();"] }],
+        { kind: "file", name: "run_test", lines: ["early();"] },
+        { kind: "file", name: "apps/shop/tests/a.spec.ts", lines: ['test("a", async () => {});', "// end"] },
+        { kind: "file", name: "apps/shop/tests/a.spec.ts", lines: ["test();"] },
+        undefined,
+      ],
+    );
+    assert.deepEqual(
+      ofType(events, "action_finished").map(({ outcome, look, tests }) => [outcome, look, tests]),
+      [
+        ["done", undefined, undefined],
         [
           "failed",
-          "Run of the file: failed.\n- shop › a.spec.ts:3 › a: failed.",
-          { kind: "file", name: "apps/shop/tests/a.spec.ts", lines: ['test("a", async () => {});', "// end"] },
+          undefined,
+          [
+            { id: "shop › a.spec.ts:3 › a", verdict: "failed" },
+            { id: "shop › a.spec.ts:9 › b", verdict: "passed" },
+          ],
         ],
-        ["passed", "Run of the file: passed.\n- shop › a.spec.ts:3 › a: passed.", { kind: "file", name: "apps/shop/tests/a.spec.ts", lines: ["test();"] }],
+        ["passed", undefined, [{ id: "shop › a.spec.ts:3 › a", verdict: "passed" }]],
+        ["passed", undefined, undefined],
       ],
     );
     assert.deepEqual(ofType(events, "phase_started"), [{ id: 4, at: at(4), type: "phase_started", phase: "write", scenario: "a" }]);
@@ -631,7 +646,7 @@ describe("the thread of a design that plans level by level", () => {
   });
 
   it("names a file after the tool when the harness opened its scenario without saying where its test is", () => {
-    assert.deepEqual(ofType(events, "action_finished").at(-1)?.look, { kind: "file", name: "run_test", lines: ["test();"] });
+    assert.deepEqual(ofType(events, "action_started").at(-1)?.look, { kind: "file", name: "run_test", lines: ["test();"] });
   });
 });
 
@@ -674,12 +689,13 @@ describe("the texts of a thread", () => {
   });
 
   it("show every line of a page or of a file an action looked at, whole", () => {
-    const [, page, , file] = threadOf([
+    const [, page, file] = threadOf([
       traced(1, "plan", "agent", { type: "tool-call", callId: "a", tool: "shop_snapshot" }),
       traced(2, "plan", "agent", { type: "tool-result", callId: "a", result: { page: LONG } }),
       traced(3, "write", "agent", { type: "tool-call", callId: "b", tool: "run_test", arguments: { content: LONG } }),
       traced(4, "write", "agent", { type: "tool-result", callId: "b", result: "Kept." }),
     ]);
-    for (const event of [page, file]) assert.ok(event?.type === "action_finished" && event.look?.lines.join("\n") === LONG);
+    assert.ok(page?.type === "action_finished" && page.look?.lines.join("\n") === LONG);
+    assert.ok(file?.type === "action_started" && file.look?.lines.join("\n") === LONG);
   });
 });

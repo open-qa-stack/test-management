@@ -43,6 +43,13 @@ describe("the title of a tool call", () => {
     for (const [tool, args, title] of cases) assert.equal(toolTitle(tool, args), title, tool);
   });
 
+  it("names the test a run or a handing in is about, when the agent handed the file of one", () => {
+    assert.deepEqual(
+      [toolTitle("run_test", {}, "Display the policies list"), toolTitle("propose_test", {}, "Display the policies list")],
+      ["A joué « Display the policies list »", "A remis « Display the policies list »"],
+    );
+  });
+
   it("names what is typed from a test account, and never shows it", () => {
     assert.equal(
       toolTitle("shop_fill", { target: { name: "Email" }, value: { account: "demo", field: "username" } }),

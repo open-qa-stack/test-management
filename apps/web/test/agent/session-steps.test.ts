@@ -195,7 +195,7 @@ describe("the passes of a script", () => {
 });
 
 describe("the actions of a script", () => {
-  it("keep the file an agent handed in, and say when its submission failed", () => {
+  it("keep the file an agent handed in, named after the test it declares, and say when its submission failed", () => {
     const step = only([
       { type: "action_started", action: "t1", agent: "writer", tool: "propose_test", arguments: {} },
       {
@@ -212,7 +212,8 @@ describe("the actions of a script", () => {
       from: "writer",
       at: "14:44:06",
       tool: "propose_test",
-      title: "A remis le test",
+      title: "A remis « search »",
+      subject: "search",
       detail: "Refused.",
       durationMs: 12,
       outcome: "failed",

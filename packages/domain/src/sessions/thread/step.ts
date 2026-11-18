@@ -31,6 +31,14 @@ export interface DeliveryStep extends StepBase {
   readonly to: AgentRole;
 }
 
+/** A test an action ran, with its verdict. */
+export interface RanTest {
+  /** Its title, the project and the file its runner prefixes it with left out. */
+  readonly title: string;
+  /** Its verdict, as the runner gave it: `passed`, `failed`… */
+  readonly verdict: string;
+}
+
 /** An agent uses a tool: it reads, it opens a screen, it writes or runs a test. */
 export interface ToolStep extends StepBase {
   readonly kind: "tool";
@@ -43,8 +51,12 @@ export interface ToolStep extends StepBase {
   readonly detail?: string;
   /** How it ended, when the answer of the tool says so. */
   readonly outcome?: "passed" | "failed";
-  /** What the agent had before its eyes when the tool answered. */
+  /** What the agent had before its eyes: the file it handed the tool, from the start, or the page the tool rendered. */
   readonly look?: ActionLook;
+  /** The test the action is about, when the agent handed the tool the file of one: the title the file gives its test, or the name of the file. */
+  readonly subject?: string;
+  /** The tests the tool ran, each with its verdict, once it ran a file of tests. */
+  readonly tests?: readonly RanTest[];
   /** Whether the tool has not answered yet. */
   readonly pending?: boolean;
   /** How long the tool took to answer, in milliseconds, once it did. */

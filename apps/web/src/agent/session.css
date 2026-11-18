@@ -725,6 +725,52 @@
   white-space: pre-wrap;
 }
 
+/* An action on the file of a test: the test it names, the path of the file under it; unfolded, a test a row, then the code. */
+.act-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.act-path {
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: var(--type-caption);
+  line-height: var(--leading-caption);
+  overflow-wrap: anywhere;
+}
+
+.act-tests {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-line);
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+
+.act-tests li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.act-code {
+  max-height: calc(24 * var(--leading-caption));
+  margin: 0 0 var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  overflow: auto;
+  border-radius: var(--radius-inner);
+  background: var(--surface-soft);
+  font-family: var(--font-mono);
+  font-size: var(--type-caption);
+  line-height: var(--leading-caption);
+  white-space: pre;
+}
+
 /* The harness hands the work to an agent: a line, its request folded. */
 .brief,
 .notes {

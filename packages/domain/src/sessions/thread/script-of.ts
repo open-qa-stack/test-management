@@ -1,6 +1,6 @@
 import { hasEnded } from "../session-state.ts";
 import type { Session } from "../session.ts";
-import type { AgentRole, SessionEvent } from "../session-event.ts";
+import type { ActionLook, AgentRole, SessionEvent } from "../session-event.ts";
 import type { ScriptWording } from "./script-wording.ts";
 import type { SessionScript, SessionStage } from "./session-script.ts";
 import { remarksOf } from "./remarks-of.ts";
@@ -18,6 +18,20 @@ const WORD = /^\S+$/;
 /** A text on one line, for what a presentation draws as a title. */
 function oneLine(text: string): string {
   return text.replace(/\s+/g, " ").trim();
+}
+
+/** The title a file of tests gives each of its tests: `test("Search a customer", …)`. */
+const DECLARED = /\btest\(\s*(["'`])((?:(?!\1).)+)\1/g;
+
+/** The test a file is about: the title of the one test it declares, or the name of the file when it declares none or several. */
+function subjectOf(file: ActionLook): string {
+  const titles = [...file.lines.join("\n").matchAll(DECLARED)].map((declared) => declared[2]!);
+  return titles.length === 1 ? titles[0]! : file.name.split("/").at(-1)!;
+}
+
+/** The test an action is about: that of the file it looked at, when it was one. */
+function subjectIn(look: ActionLook | undefined): string | undefined {
+  return look?.kind === "file" ? subjectOf(look) : undefined;
 }
 
 /** The time of an event, as a thread shows it. */
@@ -44,7 +58,8 @@ function stageOf(session: Session): SessionStage {
  * named after the level its request asks for. A message of the harness to an agent, of an agent, or of the
  * person is something said, and the delivery of a message the person sent during the session a step of its
  * own, so that a replay tells it when it happened; an action and its end are one step, worded as a sentence, pending until the tool
- * answered, with what the agent looked at; the call a reviewer hands its verdict in with is a review, its remarks
+ * answered, with what the agent looked at — the file it handed the tool from the start, named after the test it
+ * declares — and the verdict of each test a run ran; the call a reviewer hands its verdict in with is a review, its remarks
  * read from the arguments of the call, and what the harness answers and the word the reviewer replies with are kept
  * in it rather than told; a plan the harness accepted is listed; a refusal is a verdict with
  * its code, a note a line of the harness. Once the session has ended it closes on the verdict of each test, or,
@@ -59,6 +74,8 @@ function stageOf(session: Session): SessionStage {
 export function scriptOf(session: Session, events: readonly SessionEvent[], wording: ScriptWording): SessionScript {
   const steps: Step[] = [];
   const actions = new Map<string, number>();
+  /** The arguments of each action, by its identifier, which its title is worded from again once its end names its test. */
+  const calls = new Map<string, unknown>();
   const sources = new Set<string>();
   const closed: ProducedTest[] = [];
   let asked: string | undefined;
@@ -119,12 +136,16 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
           });
           break;
         }
+        calls.set(event.action, event.arguments);
+        const subject = subjectIn(event.look);
         steps.push({
           kind: "tool",
           from: event.agent,
           at,
           tool: event.tool,
-          title: oneLine(wording.tool(event.tool, event.arguments)),
+          title: oneLine(wording.tool(event.tool, event.arguments, subject)),
+          ...(event.look === undefined ? {} : { look: event.look }),
+          ...(subject === undefined ? {} : { subject }),
           pending: true,
         });
         break;
@@ -141,12 +162,19 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
         }
         if (index === undefined || started?.kind !== "tool") break;
         const { pending: _answered, ...answered } = started;
+        const look = event.look ?? answered.look;
+        // A thread written before the start of an action showed its file tells it here only: the test is named now.
+        const subject = answered.subject ?? subjectIn(look);
         steps[index] = {
           ...answered,
+          ...(subject === undefined || subject === answered.subject
+            ? {}
+            : { title: oneLine(wording.tool(answered.tool, calls.get(event.action), subject)), subject }),
           detail: event.result.trim(),
           durationMs: event.durationMs,
           ...(event.outcome === "passed" || event.outcome === "failed" ? { outcome: event.outcome } : {}),
-          ...(event.look === undefined ? {} : { look: event.look }),
+          ...(look === undefined ? {} : { look }),
+          ...(event.tests === undefined ? {} : { tests: event.tests.map(({ id, verdict }) => ({ title: testTitle(id), verdict })) }),
         };
         break;
       }

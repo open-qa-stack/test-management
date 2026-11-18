@@ -106,20 +106,52 @@ function ActionState({ step, running }: { readonly step: ToolStep; readonly runn
   return <span className="act-state" aria-hidden="true" />;
 }
 
+/** What a run of a file of tests ran, a test a row: its verdict, then its title. */
+function RanTests({ step }: { readonly step: ToolStep }): ReactNode {
+  return (
+    <ul className="act-tests">
+      {step.tests!.map((test, index) => {
+        const [tone, label] = VERDICTS[test.verdict] ?? (["warn", test.verdict] as const);
+        return (
+          <li key={index}>
+            <Badge tone={tone}>{label}</Badge>
+            <span>{test.title}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 /**
- * An action of an agent, in a row: what it did and how it ended, on a line the answer of the tool unfolds under;
- * then its eye, which opens what the agent had before its eyes, and the time it took, which ends the row.
+ * An action of an agent, in a row: what it did and how it ended, on a line what it gave unfolds under; then its
+ * eye, which opens what the agent had before its eyes, and the time it took, which ends the row. An action on the
+ * file of a test names the test, says how its run ended and where the file is, and can be unfolded and looked
+ * into from its start: under it, the verdict of each test the run ran, what the tool answered when the run did
+ * not pass, and the code.
  */
 function Action({ step, shown, back }: { readonly step: ToolStep; readonly shown: ShownStep; readonly back: Back }): ReactNode {
+  const file = step.look?.kind === "file" ? step.look : undefined;
+  const ran = !shown.running && step.tests !== undefined && step.outcome !== undefined ? ` : ${VERDICTS[step.outcome]![1]}` : "";
+  const title = <span className="act-title">{`${step.title}${ran}`}</span>;
   const line = (
     <>
       <ActionState step={step} running={shown.running} />
       <Icon name={iconOf(step.tool)} />
-      <span className="act-title">{step.title}</span>
+      {file === undefined ? (
+        title
+      ) : (
+        <span className="act-text">
+          {title}
+          <span className="act-path">{file.name}</span>
+        </span>
+      )}
     </>
   );
+  const answered = !shown.running && step.detail !== undefined;
+  const told = answered && !(step.tests !== undefined && step.outcome === "passed");
   const selected = back.lookIndex === shown.index;
-  const look = step.look !== undefined && !shown.running && (
+  const look = step.look !== undefined && (!shown.running || file !== undefined) && (
     <a
       id={eyeIdOf(shown.index)}
       className="act-look"
@@ -132,12 +164,14 @@ function Action({ step, shown, back }: { readonly step: ToolStep; readonly shown
   );
   return (
     <div className={selected ? "act selected" : "act"}>
-      {shown.running || step.detail === undefined ? (
+      {!answered && file === undefined ? (
         <div className="act-line">{line}</div>
       ) : (
         <details>
           <summary className="act-line">{line}</summary>
-          <pre className="act-result">{step.detail}</pre>
+          {!shown.running && step.tests !== undefined && <RanTests step={step} />}
+          {told && <pre className="act-result">{step.detail}</pre>}
+          {file !== undefined && <pre className="act-code">{file.lines.join("\n")}</pre>}
         </details>
       )}
       {look}

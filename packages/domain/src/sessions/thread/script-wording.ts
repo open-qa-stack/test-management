@@ -13,9 +13,10 @@ export interface ScriptWording {
   /**
    * @param tool - The name of a tool.
    * @param args - The arguments of its call.
+   * @param subject - The test the call is about, when the agent handed the tool the file of one.
    * @returns What the call did, as a sentence.
    */
-  readonly tool: (tool: string, args: unknown) => string;
+  readonly tool: (tool: string, args: unknown, subject?: string) => string;
   /** The title of a plan the harness accepted. */
   readonly planAccepted: string;
   /** What the thread notes when the session stopped without ending. */

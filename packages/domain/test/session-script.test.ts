@@ -411,3 +411,78 @@ describe("the verdict of a reviewer", () => {
     );
   });
 });
+
+describe("the run of a test", () => {
+  const FILE = {
+    kind: "file",
+    name: "apps/shop/tests/search.spec.ts",
+    lines: ['import { test } from "./fixtures.ts";', "", 'test("Search a customer", async () => {', "});"],
+  } as const;
+  const SAYS: ScriptWording = { ...WORDING, tool: (tool, _args, subject) => `${tool} ${subject ?? "-"}` };
+  const run = (bodies: readonly EventBody[]): readonly Step[] => scriptOf(RUNNING, numbered(bodies), SAYS).steps;
+
+  it("shows the file from the start of the action, named after the test it declares, then each test its run ran", () => {
+    const steps = run([
+      { type: "action_started", action: "r", agent: "writer", tool: "run_test", arguments: { content: "…" }, look: FILE },
+      {
+        type: "action_finished",
+        action: "r",
+        outcome: "passed",
+        result: "Run of the file: passed.",
+        durationMs: 2400,
+        tests: [{ id: "shop › search.spec.ts:3 › Search a customer", verdict: "passed" }],
+      },
+    ]);
+    assert.deepEqual(run([{ type: "action_started", action: "r", agent: "writer", tool: "run_test", arguments: {}, look: FILE }]), [
+      {
+        kind: "tool",
+        from: "writer",
+        at: "14:44:06",
+        tool: "run_test",
+        title: "run_test Search a customer",
+        look: FILE,
+        subject: "Search a customer",
+        pending: true,
+      },
+    ]);
+    assert.deepEqual(steps, [
+      {
+        kind: "tool",
+        from: "writer",
+        at: "14:44:06",
+        tool: "run_test",
+        title: "run_test Search a customer",
+        look: FILE,
+        subject: "Search a customer",
+        detail: "Run of the file: passed.",
+        durationMs: 2400,
+        outcome: "passed",
+        tests: [{ title: "Search a customer", verdict: "passed" }],
+      },
+    ]);
+  });
+
+  it("names a file that declares no test, or several, after its name, and names nothing for a page", () => {
+    const several = { ...FILE, lines: ['test("a", () => {});', "test('b', () => {});"] };
+    const none = { ...FILE, name: "notes.md", lines: ["test.step"] };
+    const page = { kind: "page", name: "http://localhost/", lines: ["- heading"] } as const;
+    const subjects = [several, none, page].map((look) => run([{ type: "action_started", action: "a", agent: "writer", tool: "t", arguments: {}, look }])[0]);
+    assert.deepEqual(
+      subjects.map((step) => step?.kind === "tool" && [step.title, step.subject]),
+      [
+        ["t search.spec.ts", "search.spec.ts"],
+        ["t notes.md", "notes.md"],
+        ["t -", undefined],
+      ],
+    );
+  });
+
+  it("names the test once its end shows the file, for a thread that told the file only there", () => {
+    const [step] = run([
+      { type: "action_started", action: "r", agent: "writer", tool: "run_test", arguments: { content: "…" } },
+      { type: "action_finished", action: "r", outcome: "failed", result: "Run of the file: failed.", durationMs: 10, look: FILE },
+    ]);
+    assert.ok(step?.kind === "tool");
+    assert.deepEqual([step.title, step.subject, step.look, step.tests], ["run_test Search a customer", "Search a customer", FILE, undefined]);
+  });
+});

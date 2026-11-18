@@ -29,8 +29,8 @@ function counted(args: unknown, name: string, one: string): string {
   return `${count} ${one}${count === 1 ? "" : "s"}`;
 }
 
-/** How a tool call reads, by the end of the name of the tool; `source` is what the name starts with. */
-const TITLES: readonly (readonly [RegExp, (source: string, args: unknown) => string])[] = [
+/** How a tool call reads, by the end of the name of the tool; `source` is what the name starts with, `subject` the test the call is about. */
+const TITLES: readonly (readonly [RegExp, (source: string, args: unknown, subject: string | undefined) => string])[] = [
   [/_goto$/, (source, args) => `Opened ${argument(args, "url")} in ${source}`],
   [/_click$/, (source, args) => `Clicked "${target(args)}" in ${source}`],
   [/_fill$/, (_source, args) => `Typed ${typed(args)} in "${target(args)}"`],
@@ -52,8 +52,8 @@ const TITLES: readonly (readonly [RegExp, (source: string, args: unknown) => str
   [/^tests_list$/, () => "Looked for the existing tests"],
   [/^tests_read$/, (_source, args) => `Read the test ${argument(args, "path")}`],
   [/^propose_plan$/, (_source, args) => `Proposed a plan of ${counted(args, "scenarios", "scenario")}`],
-  [/^run_test$/, () => "Ran the test"],
-  [/^propose_test$/, () => "Handed in the test"],
+  [/^run_test$/, (_source, _args, subject) => (subject === undefined ? "Ran the test" : `Ran "${subject}"`)],
+  [/^propose_test$/, (_source, _args, subject) => (subject === undefined ? "Handed in the test" : `Handed in "${subject}"`)],
   [/^report_duplicates$/, (_source, args) => `Reported ${counted(args, "duplicates", "duplicate")}`],
   [/^report_findings$/, (_source, args) => `Reported ${counted(args, "findings", "coherence finding")}`],
   [/^report_quality$/, (_source, args) => `Reported ${counted(args, "findings", "remark")} on the code`],
@@ -68,13 +68,14 @@ const TITLES: readonly (readonly [RegExp, (source: string, args: unknown) => str
  *
  * @param tool - The name of the tool, such as `customer_self_service_click`.
  * @param args - Its arguments.
+ * @param subject - The test the call is about, when the agent handed the tool the file of one.
  * @returns A sentence in the past tense, such as `Clicked "Log in" in customer-self-service`; the name of the
  * tool and its arguments for a tool the command does not know. A value typed from a test account is named,
  * never shown.
  */
-export function toolTitle(tool: string, args: unknown): string {
+export function toolTitle(tool: string, args: unknown, subject?: string): string {
   const known = TITLES.find(([end]) => end.test(tool));
   if (known === undefined) return `${tool} ${JSON.stringify(args ?? {})}`;
   const [end, title] = known;
-  return title(tool.replace(end, "").replace(/_/g, "-"), args);
+  return title(tool.replace(end, "").replace(/_/g, "-"), args, subject);
 }

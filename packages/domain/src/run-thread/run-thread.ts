@@ -1,7 +1,7 @@
 import { isRecord, textOf } from "../json.ts";
 import { RelayedErrors } from "./relayed-errors.ts";
 import type { TracePhase } from "../run/trace-line.ts";
-import type { ActionFinishedEvent, ActionLook, AgentRole, PlannedScenario } from "../sessions/session-event.ts";
+import type { ActionFinishedEvent, ActionLook, ActionTest, AgentRole, PlannedScenario } from "../sessions/session-event.ts";
 import type { UnrankedEvent } from "../sessions/unranked-event.ts";
 import type { RunLine, RunLineEvent } from "./thread-line.ts";
 
@@ -31,6 +31,9 @@ const CODED = /^\[([A-Z-]+)\] ([^]*)$/;
 const LEVEL = /\bof the level ([a-z-]+) alone/;
 const FAILED = /^(?:Refused|Warning) \(|: failed\./;
 const PASSED = /^The plan was accepted|: passed\./;
+/** The answer of a run of a file of tests, then the line of each test it ran: `- <project › file:line › title>: <verdict>.` */
+const RAN = /^Run of the file: /;
+const TEST = /^- (.+ › .+): ([a-z_]+)\.$/gm;
 
 /** A tool call whose answer has not been read yet. */
 interface PendingCall {
@@ -56,6 +59,14 @@ function linesOf(text: string): string[] {
   return bounded(text).split("\n");
 }
 
+/** The page a tool rendered for the agent, named after its address, or after the tool when it gives none. */
+function pageOf(tool: string, result: unknown): ActionLook | undefined {
+  const page = isRecord(result) ? result["page"] : undefined;
+  if (!isRecord(result) || typeof page !== "string") return undefined;
+  const { url } = result;
+  return { kind: "page", name: typeof url === "string" ? url : tool, lines: linesOf(page) };
+}
+
 /** The reviewer the harness addresses, told by what it asks: a test to read, a scenario to compare, or a plan. */
 function reviewerOf(request: string): AgentRole {
   if (request.startsWith("The test:")) return "code_reviewer";
@@ -67,6 +78,11 @@ function answerOf(result: unknown): string {
   if (!isRecord(result)) return textOf(result);
   const { error, code } = result;
   return typeof error === "string" ? error : textOf(code ?? result);
+}
+
+/** The tests a run of a file of tests ran, each with its verdict; none for an answer that is no run. */
+function testsOf(answer: string): ActionTest[] {
+  return RAN.test(answer) ? [...answer.matchAll(TEST)].map(([, id, verdict]) => ({ id: textOf(id), verdict: textOf(verdict) })) : [];
 }
 
 /** How an action ended, when its answer says it. */
@@ -89,8 +105,9 @@ function outcomeOf(result: unknown): ActionFinishedEvent["outcome"] {
  * person asked is no event of the run: whoever took it from the person told it. What the harness or the command
  * journaled is a `note`, a `refusal` with its code for an error, and a `scenario_closed` when it closes a
  * scenario; an error the harness traced and the command relayed in its journal is told once. What the model wrote or thought is an `agent_message`. A tool call is an `action_started` and its
- * answer the `action_finished` of the same action, with what the agent looked at when the tool rendered a page
- * or took a file; a plan the harness accepted is followed by a `plan_accepted`. A task the harness stopped and
+ * answer the `action_finished` of the same action: the start shows the file the agent hands the tool, which can
+ * be read while the tool works, and the end the page the tool rendered and, for a run of a file of tests, the
+ * verdict of each test it ran; a plan the harness accepted is followed by a `plan_accepted`. A task the harness stopped and
  * an error of an agent session are refusals. Nothing is worded here: every text is one the run wrote, whole, within
  * {@link MAX_EVENT_TEXT}.
  *
@@ -245,7 +262,8 @@ export class RunThread {
     if (typeof action !== "string" || typeof tool !== "string") return [];
     this.#calls.set(action, { at, tool, arguments: event["arguments"] });
     if (tool === "propose_plan") for (const scenario of this.#scenarios(event["arguments"])) this.#proposed.set(scenario.id, scenario);
-    return [{ at, type: "action_started", action, agent, tool, arguments: boundedArguments(event["arguments"]) }];
+    const look = this.#handed(tool, event["arguments"]);
+    return [{ at, type: "action_started", action, agent, tool, arguments: boundedArguments(event["arguments"]), ...(look === undefined ? {} : { look }) }];
   }
 
   #answered(at: string, action: unknown, result: unknown, failed: boolean): UnrankedEvent[] {
@@ -253,15 +271,18 @@ export class RunThread {
     if (typeof action !== "string" || call === undefined) return [];
     this.#calls.delete(action);
     const outcome = failed ? "failed" : outcomeOf(result);
-    const look = failed ? undefined : this.#look(call, result);
+    const look = failed ? undefined : pageOf(call.tool, result);
+    const answer = bounded(answerOf(result));
+    const tests = testsOf(answer);
     const finished: UnrankedEvent = {
       at,
       type: "action_finished",
       action,
       outcome,
-      result: bounded(answerOf(result)),
+      result: answer,
       durationMs: Date.parse(at) - Date.parse(call.at),
       ...(look === undefined ? {} : { look }),
+      ...(tests.length === 0 ? {} : { tests }),
     };
     if (call.tool !== "propose_plan" || outcome !== "passed") return [finished];
     const scenarios = this.#accepted?.flatMap((id) => this.#proposed.get(id) ?? []) ?? [...this.#proposed.values()];
@@ -269,14 +290,10 @@ export class RunThread {
     return [finished, { at, type: "plan_accepted", scenarios }];
   }
 
-  /** What the agent had before its eyes: the file it handed in, named after the test being written, or the page the tool rendered. */
-  #look(call: PendingCall, result: unknown): ActionLook | undefined {
-    const content = isRecord(call.arguments) ? call.arguments["content"] : undefined;
-    if (typeof content === "string") return { kind: "file", name: this.#file ?? call.tool, lines: linesOf(content) };
-    const page = isRecord(result) ? result["page"] : undefined;
-    if (!isRecord(result) || typeof page !== "string") return undefined;
-    const { url } = result;
-    return { kind: "page", name: typeof url === "string" ? url : call.tool, lines: linesOf(page) };
+  /** The file an agent hands a tool, named after the test being written, or after the tool when none is. */
+  #handed(tool: string, args: unknown): ActionLook | undefined {
+    const content = isRecord(args) ? args["content"] : undefined;
+    return typeof content === "string" ? { kind: "file", name: this.#file ?? tool, lines: linesOf(content) } : undefined;
   }
 
   /**
