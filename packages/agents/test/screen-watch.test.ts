@@ -838,13 +838,13 @@ describe("a page the harness looks at by itself", () => {
     return { state, watch: new ScreenWatch(["shop"], tools) };
   };
 
-  it("says which texts the page no longer shows beside its fields, without the look counting as one of the agent", async () => {
+  it("says which texts the page no longer shows, the names of its fields among them, without the look counting as one of the agent", async () => {
     const { state, watch } = shop();
     assert.deepEqual(await watch.missingAt("shop", "/orders", ["ORD-1042", "Shop"]), []);
-    // What a field holds is no text the page shows.
-    assert.deepEqual(await watch.missingAt("shop", "/orders", ["Veldane", "ORD-1042"]), []);
+    // The page is opened afresh: the name of a field, which the start of a scenario may expect, is looked for as any text.
+    assert.deepEqual(await watch.missingAt("shop", "/orders", ["Veldane", "ORD-1042", "Search"]), []);
     state.gone = true;
-    assert.deepEqual(await watch.missingAt("shop", "/orders", ["ORD-1042", "Shop"]), ["ORD-1042"]);
+    assert.deepEqual(await watch.missingAt("shop", "/orders", ["ORD-1042", "Shop", "Search"]), ["ORD-1042", "Search"]);
     assert.deepEqual(
       [state.opened, watch.actions("shop"), watch.looks("shop"), watch.shows("shop", "Shop")],
       [["/orders", "/orders", "/orders"], [], 0, false],

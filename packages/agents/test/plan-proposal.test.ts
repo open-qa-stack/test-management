@@ -1812,6 +1812,31 @@ describe("the effect of a scenario on the data of the environment", () => {
       /Refused \(PLAN-RESTORE\): step 3 of scenario a restores, and expects "Order saved", which the scenario wrote itself after it started: it puts nothing back, and the next run would not find what step 1 expects\. Put back on the screens what the scenario starts from, and expect that in the step\. What it starts from: "Orders"\.\n/,
     );
     assert.match(await keeping([]), /and expect that in the step\.\n/);
+    const restores = async (scenarios: Scenario[]) => String(((await (await saved()).tool().execute({ scenarios })) as { error?: string }).error);
+    // A text a screen showed before the scenario wrote anything is no text it wrote, though its start does not expect it.
+    const shownBefore = scenario("a", {
+      effect: "write",
+      data: [],
+      steps: [step("Open the orders", [1], []), step("Rename the list", [2], ["Orders"]), { ...step("Put it back", [1, 3], ["Orders"]), restores: true }],
+    });
+    assert.doesNotMatch(await restores([shownBefore]), /PLAN-RESTORE/);
+    // The step that restores may find what the scenario wrote before it puts it back: what it leaves is what its last expect finds.
+    const checkedFirst = {
+      ...kept(["Orders"]),
+      steps: [
+        ...kept(["Orders"]).steps.slice(0, 2),
+        {
+          action: "Put it back",
+          actions: [1, 3],
+          restores: true,
+          expects: [
+            { result: "The new name shows", shows: ["Order saved"], absent: [] },
+            { result: "The name is back", shows: ["Orders"], absent: [] },
+          ],
+        },
+      ],
+    };
+    assert.doesNotMatch(await restores([checkedFirst]), /PLAN-RESTORE/);
     // A scenario that writes and leaves what it starts from as it is has nothing to put back.
     const adding = scenario("a", { effect: "write", data: [], steps: [step("Open the orders", [1], ["Orders"]), step("Save an order", [2], ["Orders"])] });
     assert.equal(typeof (await (await saved()).tool().execute({ scenarios: [adding] })), "string");
