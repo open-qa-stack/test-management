@@ -1,5 +1,6 @@
 import { hrefTo, type Route } from "../routing/route.ts";
-import type { Look, SessionScript } from "./session-script.ts";
+import type { SessionScript } from "@open-qa-stack/domain/sessions";
+import { lookOf, type Look } from "./look.ts";
 
 /** The identifier of the title of the panel of a look, which names the panel and takes the focus when it opens. */
 export const LOOK_TITLE_ID = "look-panel-title";
@@ -26,7 +27,7 @@ export function openedLookOf(route: Route, script: SessionScript): OpenedLook | 
   const asked = route.query["look"];
   const index = script.steps.findIndex((_, rank) => String(rank) === asked);
   const step = script.steps[index];
-  return step?.kind === "tool" && step.look !== undefined ? { index, action: step.title, look: step.look } : undefined;
+  return step?.kind === "tool" && step.look !== undefined ? { index, action: step.title, look: lookOf(step.look) } : undefined;
 }
 
 /**

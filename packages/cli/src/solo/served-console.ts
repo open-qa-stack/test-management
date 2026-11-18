@@ -21,27 +21,31 @@ export function servedNotice(host: string, repository: string): string {
   return `${exposed}The console of ${repository} is served at the address below. Ctrl-C stops it.\n`;
 }
 
+/** The console, once it is served. */
+export interface StartedConsole {
+  /** Its address. */
+  readonly url: string;
+  /** Stops it: the session it runs is asked to stop and awaited for a time. */
+  readonly close: () => Promise<void>;
+}
+
 /**
- * `oqas --ui`: serves the console of the test repository in this process, with the operations on sessions in
- * REST under it, prints its address, and stays until the person stops it.
+ * Starts the console of the test repository in this process, with the operations on sessions in REST under it.
  *
  * @remarks
- * It is another presentation of the same operations, on the database the other commands reach, and not a
- * server of its own: the application is the one the API package starts, given what the command resolved from
- * its arguments — the repository, the database, where to listen, the built console. The sessions opened in
- * the console run in this process, one at a time; those another terminal runs are shown and followed in it.
  * The package of the API is loaded here and nowhere else, so that no other command pays for an HTTP server.
  *
- * Ctrl-C closes it: the session it runs is asked to stop and awaited for a time, and its beats are withdrawn.
- * A second Ctrl-C leaves at once.
- *
- * @param command - Where to listen.
+ * @param where - Where to listen.
  * @param repository - Absolute path of the test repository.
  * @param io - The environment and the outputs of the command.
- * @returns `0` once it stopped; `5` when the person left without waiting for it.
+ * @returns The console, listening.
  * @throws {@link UsageError} when the console is not built, the database cannot be told, or the port is taken.
  */
-export async function servedConsole({ host, port }: Extract<Command, { name: "ui" }>, repository: string, io: CommandIo): Promise<ExitCodeValue> {
+export async function startConsole(
+  { host, port }: Pick<Extract<Command, { name: "ui" }>, "host" | "port">,
+  repository: string,
+  io: CommandIo,
+): Promise<StartedConsole> {
   const settings = {
     host,
     port,
@@ -52,11 +56,34 @@ export async function servedConsole({ host, port }: Extract<Command, { name: "ui
     logger: commandLogger(io),
   };
   const { startApi } = await import("@open-qa-stack/api");
-  const api = await startApi(settings).catch((error: unknown) => {
+  return startApi(settings).catch((error: unknown) => {
     if (!isRecord(error) || error["code"] !== "EADDRINUSE") throw error;
     throw new UsageError(`The port ${port} of ${host} is taken, by another oqas --ui maybe: give another with --port, or --port 0 for any free one.`);
   });
-  io.stderr.write(servedNotice(host, repository));
+}
+
+/**
+ * `oqas --ui`: serves the console of the test repository in this process, with the operations on sessions in
+ * REST under it, prints its address, and stays until the person stops it.
+ *
+ * @remarks
+ * It is another presentation of the same operations, on the database the other commands reach, and not a
+ * server of its own: the application is the one the API package starts, given what the command resolved from
+ * its arguments — the repository, the database, where to listen, the built console. The sessions opened in
+ * the console run in this process, one at a time; those another terminal runs are shown and followed in it.
+ *
+ * Ctrl-C closes it: the session it runs is asked to stop and awaited for a time, and its beats are withdrawn.
+ * A second Ctrl-C leaves at once.
+ *
+ * @param command - Where to listen.
+ * @param repository - Absolute path of the test repository.
+ * @param io - The environment and the outputs of the command.
+ * @returns `0` once it stopped; `5` when the person left without waiting for it.
+ * @throws {@link UsageError} when the console is not built, the database cannot be told, or the port is taken.
+ */
+export async function servedConsole(command: Extract<Command, { name: "ui" }>, repository: string, io: CommandIo): Promise<ExitCodeValue> {
+  const api = await startConsole(command, repository, io);
+  io.stderr.write(servedNotice(command.host, repository));
   io.stdout.write(`${api.url}\n`);
   return new Promise<ExitCodeValue>((exit) => {
     const leave = (code: ExitCodeValue): void => {

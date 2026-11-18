@@ -1,4 +1,4 @@
-import type { SessionScript, Speaker, Step } from "./session-script.ts";
+import type { SessionScript, Speaker, Step } from "@open-qa-stack/domain/sessions";
 
 /** How many characters of a message appear at each tick. */
 export const CHARACTERS_PER_TICK = 4;

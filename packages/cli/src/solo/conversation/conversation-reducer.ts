@@ -1,0 +1,193 @@
+import { hasEnded, scriptOf, type Session, type SessionEvent } from "@open-qa-stack/domain/sessions";
+import { PICKED_SESSIONS, RECENT_SESSIONS, type ConversationState, type Printed, type ShownThread } from "./conversation-state.ts";
+import { interruptionOf } from "./interruption.ts";
+import { hintedCommands } from "./slash-commands.ts";
+import { blocksOf, settledCount } from "./thread-blocks.ts";
+import { WORDING } from "./wording.ts";
+import type { Request } from "./request.ts";
+
+/** What changes the conversation: a key of the person, or what the operations on sessions answered. */
+export type ConversationAction =
+  /** The person typed in the input, which now holds this. */
+  | { readonly type: "typed"; readonly input: string }
+  /** The person pressed Tab: the command they are typing is completed. */
+  | { readonly type: "completed" }
+  /** The person pressed an arrow: the selection of the picker moves. */
+  | { readonly type: "moved"; readonly by: 1 | -1 }
+  /** The person pressed Esc: what stands over the input closes. */
+  | { readonly type: "dismissed" }
+  /** The person pressed Ctrl-C. */
+  | { readonly type: "interrupted" }
+  /** The person pressed Enter, which asked this. */
+  | { readonly type: "submitted"; readonly request: Request }
+  /** A thread comes on screen: that of a session just opened here, which this process runs, or of one picked. */
+  | { readonly type: "opened"; readonly session: Session; readonly hosted: boolean }
+  /** The session on screen told events. */
+  | { readonly type: "told"; readonly session: string; readonly events: readonly SessionEvent[] }
+  /** The session on screen ended: this is what it came to. */
+  | { readonly type: "ended"; readonly session: Session }
+  /** The sessions were listed, to pick one from. */
+  | { readonly type: "listed"; readonly sessions: readonly Session[] }
+  /** The person went back to the start, where these are the latest sessions. */
+  | { readonly type: "restarted"; readonly sessions: readonly Session[] }
+  /** The web console is served at this address. */
+  | { readonly type: "served"; readonly url: string }
+  /** Something the person asked failed, or was refused: this says why, and what to do. */
+  | { readonly type: "failed"; readonly why: string }
+  /** The clock moved. */
+  | { readonly type: "ticked"; readonly now: number };
+
+const CTRL_C_LEAVES = "Press Ctrl-C again to quit.";
+const CTRL_C_STOPS = "The session is asked to stop, and ends soon. Ctrl-C again leaves at once, without waiting for it.";
+const STOP_ASKED = "The session is asked to stop: its agents stop as soon as they hand over.";
+
+/** The conversation without what the last key told, and with Ctrl-C disarmed: what a key, or the end of a session, leaves of it whatever comes next. */
+function afterKey(state: ConversationState): ConversationState {
+  const { notice: _told, ...rest } = state;
+  return { ...rest, armed: false };
+}
+
+/** The conversation without what stood over its input. */
+function withoutOverlay(state: ConversationState): ConversationState {
+  const { overlay: _closed, ...rest } = state;
+  return rest;
+}
+
+/** The conversation with its input set by something else than the keys typed in it. */
+function withInput(state: ConversationState, input: string): ConversationState {
+  return { ...state, input, inputEpoch: state.inputEpoch + 1 };
+}
+
+/** The conversation with something written to its scrollback. */
+function printing(state: ConversationState, ...printed: readonly Printed[]): ConversationState {
+  return { ...state, printed: [...state.printed, ...printed] };
+}
+
+/**
+ * Writes for good the blocks of the thread on screen that have settled since the last time.
+ *
+ * @param state - The conversation.
+ * @param shown - Its thread, as it is now.
+ * @returns The conversation with that thread, the blocks that will not change any more written to the scrollback.
+ */
+function settling(state: ConversationState, shown: ShownThread): ConversationState {
+  const script = scriptOf(shown.session, shown.events, WORDING);
+  const blocks = blocksOf(script.steps);
+  const settled = Math.max(shown.settled, settledCount(blocks, script.stage !== "ended"));
+  return {
+    ...printing(state, ...blocks.slice(shown.settled, settled).map((block): Printed => ({ kind: "block", block }))),
+    shown: { ...shown, settled },
+  };
+}
+
+/** The session on screen as its events tell it: `running` once they say it started. How it ended is told by the session itself, with its result. */
+function sessionAfter(session: Session, events: readonly SessionEvent[]): Session {
+  return events.reduce((told, event) => (event.type === "state_changed" && !hasEnded(event.state) ? { ...told, state: event.state } : told), session);
+}
+
+/** What pressing Enter does to the conversation itself; what it asks of the operations on sessions is done beside. */
+function submitted(state: ConversationState, request: Request): ConversationState {
+  const cleared = request.kind === "nothing" ? state : withInput(state, "");
+  switch (request.kind) {
+    case "stop":
+      return { ...cleared, overlay: { kind: "stop", session: request.session } };
+    case "confirm-stop":
+      return { ...withoutOverlay(cleared), notice: STOP_ASKED };
+    case "pick":
+      return withoutOverlay(cleared);
+    case "help":
+      return printing(cleared, { kind: "help" });
+    case "quit":
+      return { ...cleared, leaving: { atOnce: false } };
+    case "refused":
+      return { ...cleared, notice: request.why };
+    default:
+      return cleared;
+  }
+}
+
+/** What Ctrl-C does to the conversation itself; the stop it may ask of a session is asked beside. */
+function interrupted(state: ConversationState): ConversationState {
+  switch (interruptionOf(state).kind) {
+    case "dismiss":
+      return withoutOverlay(state);
+    case "clear":
+      return withInput(state, "");
+    case "leave":
+      return { ...state, leaving: { atOnce: true } };
+    case "stop":
+      return { ...state, armed: true, notice: CTRL_C_STOPS };
+    case "arm":
+      return { ...state, armed: true, notice: CTRL_C_LEAVES };
+  }
+}
+
+/**
+ * Gives the conversation after something happened.
+ *
+ * @remarks
+ * The reducer is the whole behaviour of the screen, and does nothing else: it calls no operation and reads no
+ * clock. Whoever dispatches an action does what the action asks of the world — open, say, interrupt — and
+ * comes back with what the world answered, as another action.
+ *
+ * The scrollback only grows: a block of the thread is written to it once it will not change, and what may
+ * still change — an action whose tool has not answered, a message no agent took yet — stays on the live part
+ * of the screen until it settles.
+ *
+ * @param state - The conversation.
+ * @param action - What happened.
+ * @returns The conversation after it.
+ */
+export function conversationReducer(state: ConversationState, action: ConversationAction): ConversationState {
+  switch (action.type) {
+    case "typed":
+      return { ...afterKey(state), input: action.input };
+    case "completed": {
+      const [command] = hintedCommands(state.input);
+      return command === undefined ? state : withInput(afterKey(state), `/${command.name}${command.takes === undefined ? "" : " "}`);
+    }
+    case "moved": {
+      const { overlay } = state;
+      if (overlay?.kind !== "picker") return state;
+      const selected = (overlay.selected + action.by + overlay.sessions.length) % overlay.sessions.length;
+      return { ...state, overlay: { ...overlay, selected } };
+    }
+    case "dismissed":
+      return withoutOverlay(afterKey(state));
+    case "interrupted":
+      return interrupted(state);
+    case "submitted":
+      return submitted(afterKey(state), action.request);
+    case "opened": {
+      // A thread that is on screen already stays as it is, and goes on being followed.
+      if (state.shown?.session.id === action.session.id) return state;
+      const hosted = action.hosted ? [...state.hosted, action.session.id] : state.hosted;
+      return { ...printing(state, { kind: "heading", session: action.session }), hosted, shown: { session: action.session, events: [], settled: 0 } };
+    }
+    case "told": {
+      const { shown } = state;
+      if (shown === undefined || shown.session.id !== action.session) return state;
+      return settling(state, { ...shown, session: sessionAfter(shown.session, action.events), events: [...shown.events, ...action.events] });
+    }
+    case "ended": {
+      const { shown } = state;
+      if (shown === undefined || shown.session.id !== action.session.id) return state;
+      // What a key said of the session — that it was asked to stop — no longer holds once it ended.
+      return printing(settling(afterKey(state), { ...shown, session: action.session }), { kind: "result", session: action.session });
+    }
+    case "listed":
+      return action.sessions.length === 0
+        ? { ...state, notice: "No session yet: say what to test to open the first." }
+        : { ...state, overlay: { kind: "picker", sessions: action.sessions.slice(0, PICKED_SESSIONS), selected: 0 } };
+    case "restarted": {
+      const { shown: _left, ...rest } = state;
+      return printing(rest, { kind: "recent", sessions: action.sessions.slice(0, RECENT_SESSIONS) });
+    }
+    case "served":
+      return printing(state, { kind: "notice", tone: "info", text: `The web console is served at ${action.url} until you leave.` });
+    case "failed":
+      return printing(state, { kind: "notice", tone: "error", text: action.why });
+    case "ticked":
+      return { ...state, now: action.now };
+  }
+}

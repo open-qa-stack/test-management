@@ -1,7 +1,6 @@
-import type { Project, Session, SessionEvent } from "@open-qa-stack/domain/sessions";
+import type { Project, Session, SessionEvent, SessionScript } from "@open-qa-stack/domain/sessions";
 import type { StreamState } from "../api/event-stream.ts";
 import { INITIAL_PLAYBACK, played, type Playback, type PlaybackAction } from "./playback.ts";
-import type { SessionScript } from "./session-script.ts";
 
 /** The session the address opens: what the API told of it, and what its stream gave so far. */
 export interface Followed {

@@ -1,7 +1,6 @@
-import type { Session, SessionEvent } from "@open-qa-stack/domain/sessions";
+import type { Session, SessionEvent, SessionScript } from "@open-qa-stack/domain/sessions";
 import type { LiveSession, SessionControls } from "../../src/agent/live-session.ts";
 import { frameOf, INITIAL_PLAYBACK, type Playback } from "../../src/agent/playback.ts";
-import type { SessionScript } from "../../src/agent/session-script.ts";
 import { scriptOf } from "../../src/agent/session-steps.ts";
 
 /** Controls that do nothing: a rendering in a test listens to none of them. */

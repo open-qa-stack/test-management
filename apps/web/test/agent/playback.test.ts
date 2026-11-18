@@ -13,9 +13,9 @@ import {
   TOOL_TICKS,
   type Playback,
 } from "../../src/agent/playback.ts";
-import type { SessionScript, SessionStage, Step } from "../../src/agent/session-script.ts";
+import type { SessionScript, SessionStage, Step } from "@open-qa-stack/domain/sessions";
 
-const LOOK = { kind: "document", source: "card", excerpt: ["a rule"], caption: "The card." } as const;
+const LOOK = { kind: "page", name: "card", lines: ["a rule"] } as const;
 
 /**
  * A short session: a request, a pass, a reasoning, a tool with a look, a refusal, a note, a plan, a message, a
@@ -25,12 +25,12 @@ const STEPS: readonly Step[] = [
   { kind: "say", from: "user", at: "10:00:00", text: "Cover the quotes." },
   { kind: "pass", at: "10:00:01", title: "Pass 1", summary: "The shortest path." },
   { kind: "say", from: "planner", at: "10:00:02", thinking: true, text: "12345678" },
-  { kind: "tool", from: "planner", at: "10:00:03", icon: "web", title: "Opened the form", look: LOOK },
+  { kind: "tool", from: "planner", at: "10:00:03", tool: "shop_goto", title: "Opened the form", look: LOOK },
   { kind: "verdict", at: "10:00:04", accepted: false, code: "PLAN-SHOWN", about: "The plan", text: "Never shown." },
   { kind: "note", at: "10:00:05", text: "The plan was accepted." },
   { kind: "plan", at: "10:00:06", title: "The plan", scenarios: [{ priority: "smoke", title: "A scenario", source: "nominal" }] },
   { kind: "say", from: "writer", at: "10:00:07", text: "Done" },
-  { kind: "tool", from: "writer", at: "10:00:08", icon: "play", title: "Ran the test", pending: true },
+  { kind: "tool", from: "writer", at: "10:00:08", tool: "run_test", title: "Ran the test", pending: true },
   { kind: "outcome", at: "10:00:09", title: "1 test", tests: [{ title: "A test", level: "smoke", verdict: "passed" }] },
 ];
 

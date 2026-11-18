@@ -7,9 +7,21 @@ import { IDENTITIES } from "./agents.ts";
 import { eyeIdOf } from "./opened-look.ts";
 import { shows, type Frame, type ShownStep, type ThreadFilter } from "./playback.ts";
 import { elapsedText } from "./session-facts.ts";
-import type { NoteStep, OutcomeStep, PassStep, PlanStep, SayStep, SessionStage, Speaker, ToolStep, VerdictStep } from "./session-script.ts";
+import {
+  turnsOf,
+  type NoteStep,
+  type OutcomeStep,
+  type PassStep,
+  type PlanStep,
+  type SayStep,
+  type SessionStage,
+  type Speaker,
+  type ToolStep,
+  type Turn,
+  type VerdictStep,
+} from "@open-qa-stack/domain/sessions";
 import { SpeakerMark } from "./speaker-mark.tsx";
-import { turnsOf, type Turn } from "./turns.ts";
+import { iconOf } from "./tool-icon.ts";
 
 /** What the thread of a session needs. */
 export interface ThreadProps {
@@ -87,7 +99,7 @@ function Action({ step, shown, back }: { readonly step: ToolStep; readonly shown
   const line = (
     <>
       <ActionState step={step} running={shown.running} />
-      <Icon name={step.icon} />
+      <Icon name={iconOf(step.tool)} />
       <span className="act-title">{step.title}</span>
     </>
   );
@@ -123,7 +135,7 @@ function Action({ step, shown, back }: { readonly step: ToolStep; readonly shown
  * What one agent thought, said and did in a row, under its name. The name follows the agent: it leaves that
  * agent alone in the thread, or brings the others back when the thread already follows it.
  */
-function AgentTurn({ turn, back }: { readonly turn: Extract<Turn, { kind: "agent" }>; readonly back: Back }): ReactNode {
+function AgentTurn({ turn, back }: { readonly turn: Extract<Turn<ShownStep>, { kind: "agent" }>; readonly back: Back }): ReactNode {
   const { name, role } = IDENTITIES[turn.agent];
   const active = turn.items.some(({ running }) => running);
   const follows = back.followed === turn.agent;
@@ -289,7 +301,7 @@ function Outcome({ step }: { readonly step: OutcomeStep }): ReactNode {
  * What the person said to the agents while they worked: a bubble as the request, and under it where the
  * message is — waiting for an agent to take it, or with the agent that did.
  */
-function Message({ turn }: { readonly turn: Extract<Turn, { kind: "message" }> }): ReactNode {
+function Message({ turn }: { readonly turn: Extract<Turn<ShownStep>, { kind: "message" }> }): ReactNode {
   return (
     <div className="sent">
       <div className="request">
@@ -302,7 +314,7 @@ function Message({ turn }: { readonly turn: Extract<Turn, { kind: "message" }> }
 }
 
 /** One turn of the thread, as its kind shows it. */
-function TurnView({ turn, back }: { readonly turn: Turn; readonly back: Back }): ReactNode {
+function TurnView({ turn, back }: { readonly turn: Turn<ShownStep>; readonly back: Back }): ReactNode {
   if (turn.kind === "request") {
     return (
       <div className="request">
