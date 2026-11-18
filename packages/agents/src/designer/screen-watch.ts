@@ -3,7 +3,7 @@ import { changingName, destructiveName, scopedToolName, type SpecLocator, type T
 import { screenRoute } from "../application-explorer/screen-trail.ts";
 import { toolsBySource } from "./index-map.ts";
 import { nextMoment } from "./moments.ts";
-import { checkable, observed, sameText } from "./observed.ts";
+import { checkable, observed, observedWhole, sameText } from "./observed.ts";
 
 /** The browser tools that change the page of an application. */
 const ACTIONS = ["click", "fill", "select_option", "check"];
@@ -111,7 +111,10 @@ export interface WatchedAction {
   readonly typed?: string;
   /** The screen the page was on once it was done, by its route, when its tool said where the page was. */
   readonly screen?: string;
-  /** The name of the element it clicked, when that name says the click creates, changes or removes data of the application. */
+  /**
+   * The name of the element it clicked, when the click creates, changes or removes data of the application: the page
+   * sent a request that writes, by its network tool, or, without one to read, the name of the element says so.
+   */
   readonly changes?: string;
   /** The address it opened, as the agent gave it, when it opened one. */
   readonly opened?: string;
@@ -260,10 +263,13 @@ export class ScreenWatch {
             const { value, option } = args as { value?: unknown; option?: unknown };
             if (action === "fill" && typeof value === "string") seen.filled.add(value);
             const typed = [value, option].find((given): given is string => typeof given === "string");
-            // A click on an element whose name says it creates, changes or removes data: the scenario that cites it writes.
             const { target } = args as { target?: Target };
-            const changes = action !== "click" || target === undefined ? undefined : (changingName(target) ?? destructiveName(target));
-            const state = numbered(action, (await tool.execute(args)) as { code?: unknown; url?: unknown }, typed, changes);
+            const clicked = action === "click" && target !== undefined ? target : undefined;
+            const sent = clicked === undefined ? undefined : await this.requests(application);
+            const result = (await tool.execute(args)) as { code?: unknown; url?: unknown };
+            // A click that sent a request that writes: the scenario that cites it writes.
+            const changes = clicked === undefined ? undefined : writingClick(clicked, sent, await this.requests(application));
+            const state = numbered(action, result, typed, changes);
             // Where a click led is what the application answered, such as the address of the record it opened.
             if (typeof state.url === "string") seen.reached.add(state.url);
             const current = (await read()).lines;
@@ -294,6 +300,13 @@ export class ScreenWatch {
     }
     this.watched = tools.map((tool) => owned.get(tool.name) ?? tool);
     this.given = new Map(tools.map((tool) => [tool.name, tool]));
+  }
+
+  /** The requests the page of an application sent last, by its own network tool; none without one, or when it cannot be read. */
+  private async requests(application: string): Promise<readonly SentRequest[] | undefined> {
+    const network = this.given.get(scopedToolName(application, "network"));
+    const sent = await network?.execute({ limit: WATCHED_REQUESTS }).catch(() => undefined);
+    return Array.isArray(sent) ? (sent as SentRequest[]) : undefined;
   }
 
   /**
@@ -466,7 +479,8 @@ export class ScreenWatch {
    * without a user interface.
    */
   public showsBeforeTyped(application: string, text: string): boolean {
-    const first = [...(this.view(application)?.lines ?? [])].find((line) => observed(text, [fieldValue(line) ?? line]));
+    // A value is read whole: 300 is not read in 3000 Bern.
+    const first = [...(this.view(application)?.lines ?? [])].find((line) => observedWhole(text, [fieldValue(line) ?? line]));
     return first !== undefined && fieldValue(first) === undefined;
   }
 
@@ -968,4 +982,39 @@ function normalized(line: string): string {
 function compact<T extends { page: string }>(snapshot: T): T {
   const lines = snapshot.page.split("\n").filter((line) => !/^\s*- \/url:/.test(line));
   return { ...snapshot, page: lines.map((line) => line.replace(/ \[(?:ref=[^\]]+|cursor=pointer)\]/g, "")).join("\n") };
+}
+
+/** A request the page sent, as the network tool of an application gives it. */
+interface SentRequest {
+  readonly method: string;
+  readonly url: string;
+}
+
+/** Most requests read around a click: every one the network tool keeps. */
+const WATCHED_REQUESTS = 50;
+
+/** The methods of a request that creates, changes or removes data. */
+const WRITING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+/**
+ * The name of the element a click clicked, when the click creates, changes or removes data: when the page sent a request
+ * that writes, from what its network tool gave before the click and after it; else, without them, when its name says so.
+ */
+function writingClick(target: Target, before: readonly SentRequest[] | undefined, after: readonly SentRequest[] | undefined): string | undefined {
+  const named = changingName(target) ?? destructiveName(target);
+  if (before === undefined || after === undefined) return named;
+  const key = (request: SentRequest) => `${request.method} ${request.url}`;
+  const left = new Map<string, number>();
+  for (const request of before) left.set(key(request), (left.get(key(request)) ?? 0) + 1);
+  const wrote = after.some((request) => {
+    const kept = left.get(key(request)) ?? 0;
+    left.set(key(request), kept - 1);
+    return kept === 0 && WRITING.has(request.method.toUpperCase());
+  });
+  return wrote ? (named ?? targetName(target)) : undefined;
+}
+
+/** The name a person reads of an element, or its test id. */
+function targetName(target: Target): string {
+  return "role" in target ? (target.name ?? target.role) : "label" in target ? target.label : "text" in target ? target.text : target.testId;
 }
