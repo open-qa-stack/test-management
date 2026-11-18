@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import type { ActionFinishedEvent, Session, SessionPhase } from "@open-qa-stack/domain/sessions";
+import type { ActionFinishedEvent, Session, SessionPhase, SessionScript, Step } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
-import type { SessionScript, Step } from "../../src/agent/session-script.ts";
 import { scriptOf } from "../../src/agent/session-steps.ts";
+import { iconOf } from "../../src/agent/tool-icon.ts";
 import { COMPLETED, fixtureScript, numbered, QUEUED, RUNNING, SESSION_ID, type EventBody } from "./session-fixture.ts";
 
 /** A session nobody asked anything in, whose agents are working. */
@@ -70,21 +70,16 @@ describe("the script of a session", () => {
     assert.deepEqual(steps[11], { kind: "say", from: "writer", at: "14:44:19", text: "I write the test now." });
   });
 
-  it("makes one step of an action and its end, with what the tool answered, how long it took and the page the agent looked at", () => {
+  it("makes one step of an action and its end, with its tool, what it answered, how long it took and the page the agent looked at", () => {
     assert.deepEqual(steps[6], {
       kind: "tool",
       from: "planner",
       at: "14:44:12",
-      icon: "web",
+      tool: "customer_management_goto",
       title: "A ouvert / dans customer-management",
       detail: '{"url":"http://localhost:3020/"}',
       durationMs: 900,
-      look: {
-        kind: "document",
-        source: "http://localhost:3020/",
-        excerpt: ['- heading "Customers"', '- textbox "Search..."'],
-        caption: "La page, telle que l’outil l’a rendue à l’agent.",
-      },
+      look: { kind: "page", name: "http://localhost:3020/", lines: ['- heading "Customers"', '- textbox "Search..."'] },
     });
   });
 
@@ -93,7 +88,7 @@ describe("the script of a session", () => {
       kind: "tool",
       from: "planner",
       at: "14:44:14",
-      icon: "layers",
+      tool: "propose_plan",
       title: "A proposé un plan de 1 scénario(s)",
       detail: "The plan was accepted: search.",
       durationMs: 40,
@@ -102,7 +97,7 @@ describe("the script of a session", () => {
   });
 
   it("leaves an action pending until its tool answered", () => {
-    assert.deepEqual(steps[12], { kind: "tool", from: "writer", at: "14:44:20", icon: "play", title: "A joué le test", pending: true });
+    assert.deepEqual(steps[12], { kind: "tool", from: "writer", at: "14:44:20", tool: "run_test", title: "A joué le test", pending: true });
   });
 
   it("lists the scenarios of a plan the harness accepted, each with its level, its case and its application", () => {
@@ -200,7 +195,7 @@ describe("the passes of a script", () => {
 });
 
 describe("the actions of a script", () => {
-  it("show the file an agent handed in as code, and say when its submission failed", () => {
+  it("keep the file an agent handed in, and say when its submission failed", () => {
     const step = only([
       { type: "action_started", action: "t1", agent: "writer", tool: "propose_test", arguments: {} },
       {
@@ -216,12 +211,12 @@ describe("the actions of a script", () => {
       kind: "tool",
       from: "writer",
       at: "14:44:06",
-      icon: "pen",
+      tool: "propose_test",
       title: "A remis le test",
       detail: "Refused.",
       durationMs: 12,
       outcome: "failed",
-      look: { kind: "code", file: "search-customer.spec.ts", lines: ['test("search", async () => {});'], caption: "Le test que l’agent a remis." },
+      look: { kind: "file", name: "search-customer.spec.ts", lines: ['test("search", async () => {});'] },
     });
   });
 
@@ -232,8 +227,8 @@ describe("the actions of a script", () => {
       { type: "action_finished", action: "b", outcome: "done", result: "No test yet.", durationMs: 3 },
     ]);
     assert.deepEqual(steps, [
-      { kind: "tool", from: "planner", at: "14:44:06", icon: "document", title: "A lu le domaine customers", pending: true },
-      { kind: "tool", from: "planner", at: "14:44:07", icon: "layers", title: "A cherché les tests existants", detail: "No test yet.", durationMs: 3 },
+      { kind: "tool", from: "planner", at: "14:44:06", tool: "knowledge_domain", title: "A lu le domaine customers", pending: true },
+      { kind: "tool", from: "planner", at: "14:44:07", tool: "tests_list", title: "A cherché les tests existants", detail: "No test yet.", durationMs: 3 },
     ]);
   });
 
@@ -259,11 +254,8 @@ describe("the actions of a script", () => {
       "something_else",
     ];
     const { steps } = scriptWith(tools.map((tool, index) => ({ type: "action_started", action: `a${index}`, agent: "planner", tool, arguments: {} })));
-    assert.deepEqual(
-      steps.map((step) => (step.kind === "tool" ? step.icon : undefined)),
-      ["play", "layers", "pen", "web", "web", "database", "document", "document", "code", "code"],
-    );
-    assert.deepEqual(steps.at(-1), { kind: "tool", from: "planner", at: "14:44:15", icon: "code", title: "something_else {}", pending: true });
+    assert.deepEqual(tools.map(iconOf), ["play", "layers", "pen", "web", "web", "database", "document", "document", "code", "code"]);
+    assert.deepEqual(steps.at(-1), { kind: "tool", from: "planner", at: "14:44:15", tool: "something_else", title: "something_else {}", pending: true });
   });
 });
 
@@ -312,7 +304,7 @@ describe("the decisions of the harness in a script", () => {
       { type: "action_started", action: "c1", agent: "writer", tool: "run_test", arguments: {} },
       { type: "action_finished", action: "c1", outcome: "flaky" as ActionFinishedEvent["outcome"], result: "1 flaky", durationMs: 10 },
     ]);
-    assert.deepEqual(step, { kind: "tool", from: "writer", at: "14:44:06", icon: "play", title: "A joué le test", detail: "1 flaky", durationMs: 10 });
+    assert.deepEqual(step, { kind: "tool", from: "writer", at: "14:44:06", tool: "run_test", title: "A joué le test", detail: "1 flaky", durationMs: 10 });
   });
 
   it("tell an interruption, and no other change of state", () => {

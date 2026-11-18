@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Look } from "./session-script.ts";
+import type { Look } from "./look.ts";
 
 /**
  * What an agent looked at: a file, or a text such as the page a browser tool rendered for it.

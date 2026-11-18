@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createElement, type ReactNode } from "react";
-import type { Session, SessionEvent } from "@open-qa-stack/domain/sessions";
+import type { Session, SessionEvent, SessionScript, Step } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
 import { Composer } from "../../src/agent/composer.tsx";
 import type { Sending } from "../../src/agent/console-state.ts";
@@ -8,7 +8,6 @@ import type { LiveSession, SessionControls } from "../../src/agent/live-session.
 import { LookPanel } from "../../src/agent/look-panel.tsx";
 import { LookView } from "../../src/agent/look-view.tsx";
 import { endOf, frameOf, INITIAL_PLAYBACK, type Playback } from "../../src/agent/playback.ts";
-import type { SessionScript, Step } from "../../src/agent/session-script.ts";
 import { scriptOf } from "../../src/agent/session-steps.ts";
 import { SessionScreen } from "../../src/agent/session-screen.tsx";
 import { SpeakerMark } from "../../src/agent/speaker-mark.tsx";
@@ -51,14 +50,14 @@ const REVIEWED: readonly Step[] = [
       { priority: "P1", title: "Open a customer", source: "smoke · /customers/1" },
     ],
   },
-  { kind: "tool", from: "writer", at: "09:00:04", icon: "play", title: "A joué le test", detail: "1 failed", outcome: "failed" },
+  { kind: "tool", from: "writer", at: "09:00:04", tool: "run_test", title: "A joué le test", detail: "1 failed", outcome: "failed" },
   {
     kind: "tool",
     from: "writer",
     at: "09:00:05",
-    icon: "pen",
+    tool: "propose_test",
     title: "A remis le test",
-    look: { kind: "code", file: "search-customer.spec.ts", lines: ["test('search', async () => {});"], caption: "Le test que l’agent a remis." },
+    look: { kind: "file", name: "search-customer.spec.ts", lines: ["test('search', async () => {});"] },
   },
   {
     kind: "outcome",

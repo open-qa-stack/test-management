@@ -1,10 +1,15 @@
-import type { ShownStep } from "./playback.ts";
-import type { AgentRole } from "@open-qa-stack/domain/sessions";
+import type { AgentRole } from "../session-event.ts";
+import type { Step } from "./step.ts";
+
+/** A step as a thread shows it: a presentation adds what it shows of it — its rank, how much of it is written. */
+interface Shown {
+  readonly step: Step;
+}
 
 /** A message the person sent during the session, and the rank of its turn. */
-interface Sent {
+interface Sent<Item> {
   readonly rank: number;
-  readonly shown: ShownStep;
+  readonly shown: Item;
 }
 
 /**
@@ -12,13 +17,13 @@ interface Sent {
  * an agent, what one agent thought, said and did in a row,
  * what the harness asked of an agent, what it noted in a row, or one of its cards.
  */
-export type Turn =
-  | { readonly kind: "request"; readonly shown: ShownStep }
-  | { readonly kind: "message"; readonly shown: ShownStep; readonly deliveredTo?: AgentRole }
-  | { readonly kind: "agent"; readonly agent: AgentRole; readonly items: readonly ShownStep[] }
-  | { readonly kind: "brief"; readonly shown: ShownStep }
-  | { readonly kind: "notes"; readonly items: readonly ShownStep[] }
-  | { readonly kind: "card"; readonly shown: ShownStep };
+export type Turn<Item extends Shown> =
+  | { readonly kind: "request"; readonly shown: Item }
+  | { readonly kind: "message"; readonly shown: Item; readonly deliveredTo?: AgentRole }
+  | { readonly kind: "agent"; readonly agent: AgentRole; readonly items: readonly Item[] }
+  | { readonly kind: "brief"; readonly shown: Item }
+  | { readonly kind: "notes"; readonly items: readonly Item[] }
+  | { readonly kind: "card"; readonly shown: Item };
 
 /**
  * Groups the steps a thread shows into turns, so that an agent is named once for everything it does in a row
@@ -30,9 +35,9 @@ export type Turn =
  * message of the harness to an agent; the notes of the harness that follow one another; and, each alone, the
  * start of a pass, a verdict, a plan and the outcome.
  */
-export function turnsOf(shown: readonly ShownStep[]): Turn[] {
-  const turns: Turn[] = [];
-  const sent = new Map<number, Sent>();
+export function turnsOf<Item extends Shown>(shown: readonly Item[]): Turn<Item>[] {
+  const turns: Turn<Item>[] = [];
+  const sent = new Map<number, Sent<Item>>();
   for (const item of shown) {
     const { step } = item;
     const last = turns.at(-1);

@@ -1,9 +1,8 @@
 import type { FormEvent, KeyboardEvent } from "react";
-import type { Session } from "@open-qa-stack/domain/sessions";
+import type { Session, SessionScript } from "@open-qa-stack/domain/sessions";
 import type { StreamState } from "../api/event-stream.ts";
 import type { Sending, Stopping } from "./console-state.ts";
 import type { Frame, Playback } from "./playback.ts";
-import type { SessionScript } from "./session-script.ts";
 
 /** What the person may do to the session they read. */
 export interface SessionControls {

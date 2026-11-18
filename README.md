@@ -64,12 +64,12 @@ Nothing an agent produces is taken on trust, and nothing is thrown away. A scena
 ```sh
 vim oqas.json                                            # declare your applications, what you know of them, your model
 oqas --init                                              # make your test repository a Playwright project
-oqas --brief "search a customer and open their profile"  # ask for tests, in your words
+oqas                                                     # ask for tests, in your words
 ```
 
-Three steps, and the first one is yours: `oqas.json` is where you say what to test and what is known of it. Open QA Stack is run from a clone of this repository, against a test environment, with a model you bring. [Get started](docs/getting-started.md) takes you from an empty folder to tests on a branch, and [the configuration](packages/domain/docs/configuration.md) says what goes in the file.
+Three steps, and the first one is yours: `oqas.json` is where you say what to test and what is known of it. The last opens a conversation in your terminal: you type what you want tested — `search a customer and open their profile` — and watch the agents work. Open QA Stack is run from a clone of this repository, against a test environment, with a model you bring. [Get started](docs/getting-started.md) takes you from an empty folder to tests on a branch, and [the configuration](packages/domain/docs/configuration.md) says what goes in the file.
 
-To watch the agents rather than read their lines, run `oqas --ui` in your test repository and open the address it prints: [the console](apps/web/README.md), served by the command itself, with no database to install and no server to start — [Get started](docs/getting-started.md#watch-the-agents-work). An instance to share is a server that stays, and can keep its database on a PostgreSQL server.
+To watch the agents in a browser, run `oqas --ui` in your test repository and open the address it prints: [the console](apps/web/README.md), served by the command itself, with no database to install and no server to start — [Get started](docs/getting-started.md#watch-the-agents-work). An instance to share is a server that stays, and can keep its database on a PostgreSQL server.
 
 ## Contributing
 

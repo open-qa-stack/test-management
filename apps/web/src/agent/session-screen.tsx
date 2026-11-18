@@ -10,7 +10,7 @@ import { LookPanel } from "./look-panel.tsx";
 import { openedLookOf, withoutLook } from "./opened-look.ts";
 import { durationText, openingText, stateOf, waitText } from "./session-facts.ts";
 import { passesOf, type ThreadFilter } from "./playback.ts";
-import type { Speaker } from "./session-script.ts";
+import type { Speaker } from "@open-qa-stack/domain/sessions";
 import { StopConfirmation } from "./stop-confirmation.tsx";
 import { asksToStop, STOP_CONTROL_ID, withoutStop, withStop } from "./stop-request.ts";
 import { Thread } from "./thread.tsx";

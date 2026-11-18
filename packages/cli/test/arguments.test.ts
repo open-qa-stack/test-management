@@ -65,9 +65,20 @@ describe("the arguments of the command", () => {
     assert.deepEqual(parseArguments(["--brief", "Orders.", "--output", "yaml"]), refused("--output needs text or json."));
   });
 
-  it("are refused when they say neither what to test nor what to do, or name a command that is none", () => {
-    assert.deepEqual(parseArguments([]), refused("Say what to test with --brief, or name a command; see oqas --help."));
-    assert.deepEqual(parseArguments(["--environment", "local"]), refused("Say what to test with --brief, or name a command; see oqas --help."));
+  it("open the conversation when they name nothing to do, in the repository and against the environment they give", () => {
+    assert.deepEqual(parseArguments([]), { ok: true, arguments: { output: "text", follow: false, command: { name: "converse" } } });
+    assert.deepEqual(parseArguments(["--repository", "tests", "--environment", "local"]), {
+      ok: true,
+      arguments: { repository: "tests", output: "text", follow: false, command: { name: "converse", environment: "local" } },
+    });
+  });
+
+  it("are refused when they name nothing to do and the conversation may not be opened: nothing is to be asked, or lines are to be printed", () => {
+    for (const argv of [["--no-input"], ["--follow"], ["--output", "json"], ["--output", "text"], ["--environment", "local", "--no-input"]])
+      assert.deepEqual(parseArguments(argv), refused("Say what to test with --brief, or name a command; see oqas --help."), argv.join(" "));
+  });
+
+  it("are refused when they name a command that is none", () => {
     assert.deepEqual(parseArguments(["resume", "9f3a1c2b"]), refused("Unknown command resume; see oqas --help."));
     assert.deepEqual(parseArguments(["toString"]), refused("Unknown command toString; see oqas --help."));
   });
@@ -94,6 +105,10 @@ describe("the arguments of the command", () => {
       assert.ok(USAGE.includes(`  ${word} `), word);
     for (const option of ["--repository", "--environment", "--brief", "--follow", "--output", "--no-input", "--init", "--help"])
       assert.ok(USAGE.includes(`  ${option}`), option);
-    assert.match(USAGE, /Exit codes of a session followed to its end: 0 every test passed, 1 a test failed/);
+    assert.match(USAGE, /^Usage: oqas \[--repository <folder>\] \[--environment <name>\]\n/);
+    assert.match(
+      USAGE,
+      /Exit codes of a session followed to its end, and of the conversation for the last session it opened: 0 every test passed, 1 a test failed/,
+    );
   });
 });

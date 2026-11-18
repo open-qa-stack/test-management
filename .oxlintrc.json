@@ -12,7 +12,17 @@
         "allowForKnownSafeCalls": [{ "from": "package", "package": "node:test", "name": ["describe", "it", "suite", "test"] }]
       }
     ],
-    "open-qa-stack/confined-imports": ["error", { "modules": { "@github/copilot-sdk": "packages/harness/src/copilot" } }]
+    "open-qa-stack/confined-imports": [
+      "error",
+      {
+        "modules": {
+          "@github/copilot-sdk": "packages/harness/src/copilot",
+          "ink": "packages/cli/src/solo/conversation",
+          "ink-spinner": "packages/cli/src/solo/conversation",
+          "ink-text-input": "packages/cli/src/solo/conversation"
+        }
+      }
+    ]
   },
   "overrides": [
     {

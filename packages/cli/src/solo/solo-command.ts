@@ -1,11 +1,11 @@
 import { resolve } from "node:path";
-import { ExitCode, SessionEndedError, UnknownSessionError, type ExitCodeValue } from "@open-qa-stack/domain";
-import { DatabaseUnavailableError, PendingMigrationsError } from "@open-qa-stack/store";
+import { ExitCode, type ExitCodeValue } from "@open-qa-stack/domain";
 import { playwrightVersion } from "@open-qa-stack/tools";
 import type { Session } from "@open-qa-stack/domain/sessions";
 import type { Sessions } from "@open-qa-stack/engine";
 import { parseArguments, USAGE, type Arguments, type Command } from "./arguments.ts";
 import { eventLine, ofTheAgents } from "./event-line.ts";
+import { failureOf } from "./failure.ts";
 import { followSession } from "./follow-session.ts";
 import { Interruptions } from "./interruptions.ts";
 import { openOperations } from "./operations.ts";
@@ -26,8 +26,8 @@ interface Asked<Name extends Command["name"]> {
   readonly io: CommandIo;
 }
 
-/** The refusals a person can act on: what they asked cannot be done as it is asked. */
-const REFUSALS = [UsageError, UnknownSessionError, SessionEndedError, PendingMigrationsError];
+/** What `oqas` without a command is told where it cannot open its conversation. */
+const NO_TERMINAL = "oqas opens its conversation in a terminal, and this is not one: say what to test with --brief, or name a command; see oqas --help.";
 
 /**
  * Runs `oqas` with its arguments: prints the usage, refuses a wrong argument, initialises the test
@@ -36,7 +36,8 @@ const REFUSALS = [UsageError, UnknownSessionError, SessionEndedError, PendingMig
  * @remarks
  * The command is a presentation of the operations on sessions of the engine, on the database of the instance:
  * what it opens, a server on the same database shows, and what a server opens, it reads, follows, speaks to
- * and interrupts. With `--brief` it opens a session, which it runs in its own process, follows it to its end
+ * and interrupts. Without a command, in a terminal, it opens a conversation, where the sessions are opened,
+ * followed, spoken to and stopped. With `--brief` it opens a session, which it runs in its own process, follows it to its end
  * and exits with the code of its run. With `--ui` it serves the console, and runs the sessions opened in it
  * until it is stopped. The other commands host nothing: they read the database or post to it, and the process
  * that runs the session does the rest.
@@ -69,13 +70,9 @@ export async function soloCommand(argv: readonly string[], io: CommandIo): Promi
   try {
     return await onSessions(command, options, repository, io);
   } catch (error) {
-    if (REFUSALS.some((refusal) => error instanceof refusal)) {
-      io.stderr.write(`${(error as Error).message}\n`);
-      return ExitCode.configuration;
-    }
-    const failure = error instanceof Error ? error.message : String(error);
-    io.stderr.write(error instanceof DatabaseUnavailableError ? `${failure}\n` : `oqas stopped on an unexpected error: ${failure}\n`);
-    return ExitCode.interrupted;
+    const { kind, message } = failureOf(error);
+    io.stderr.write(kind === "unexpected" ? `oqas stopped on an unexpected error: ${message}\n` : `${message}\n`);
+    return kind === "refused" ? ExitCode.configuration : ExitCode.interrupted;
   }
 }
 
@@ -83,6 +80,12 @@ export async function soloCommand(argv: readonly string[], io: CommandIo): Promi
 async function onSessions(command: Exclude<Command, { name: "help" | "init" }>, options: Arguments, repository: string, io: CommandIo): Promise<ExitCodeValue> {
   if (command.name === "run") return opened({ command, options, io }, repository);
   if (command.name === "ui") return servedConsole(command, repository, io);
+  if (command.name === "converse") {
+    if (io.terminal === undefined) throw new UsageError(NO_TERMINAL);
+    // The conversation and what draws it are loaded here and nowhere else, so that no other command pays for them.
+    const { converse } = await import("./conversation/converse.ts");
+    return converse({ repository, terminal: io.terminal, io, ...(command.environment === undefined ? {} : { environment: command.environment }) });
+  }
   const { sessions, close } = await openOperations(io, repository, false);
   try {
     switch (command.name) {
