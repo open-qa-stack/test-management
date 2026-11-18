@@ -5,6 +5,8 @@ const WORDS = new RegExp(NAME, "g");
 const DOTTED = new RegExp(`${NAME}(?:\\.${NAME})+`, "g");
 /** A lone name of several words joined by underscores, as columns and tables are often named. */
 const SNAKE = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)+$/;
+/** A fenced block of code, its text in the first group; the info string of a fence holds no backtick. */
+const FENCED = /```[^`\n]*\n([\s\S]*?)```/g;
 
 /** What the export of a source names, to tell a name a domain file cites from one it invents. */
 export interface ExportVocabulary {
@@ -94,8 +96,8 @@ export function citedNameProblems(body: string, vocabulary: ExportVocabulary): {
   const errors = new Set<string>();
   const doubtful = new Map<string, string>();
   const { sourceId, schemas, words, dotted, columns, elements } = vocabulary;
-  const fenced = [...body.matchAll(/```[^\n]*\n([\s\S]*?)```/g)].map((match) => match[1]!);
-  const inline = [...body.replace(/```[^\n]*\n[\s\S]*?```/g, "").matchAll(/`([^`\n]+)`/g)].map((match) => match[1]!);
+  const fenced = [...body.matchAll(FENCED)].map((match) => match[1]!);
+  const inline = [...body.replace(FENCED, "").matchAll(/`([^`\n]+)`/g)].map((match) => match[1]!);
   for (const code of [...fenced, ...inline]) {
     for (const written of code.replaceAll('"', "").match(DOTTED) ?? []) {
       const parts = plain(written).split(".");

@@ -42,7 +42,7 @@ export function documentTools(knowledgeId: string, documents: DocumentSet): Tool
         additionalProperties: false,
       },
       execute: async (args) => {
-        const folder = ((args as { folder?: string }).folder ?? "").replace(/^\.?\/+|\/+$/g, "");
+        const folder = ((args as { folder?: string }).folder ?? "").replace(/^\.?\/+|(?<!\/)\/+$/g, "");
         const listing = await documents.list();
         const prefix = folder === "" ? "" : `${folder}/`;
         const under = (path: string) => path.startsWith(prefix);
