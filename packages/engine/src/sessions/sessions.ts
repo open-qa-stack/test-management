@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { setTimeout as pause } from "node:timers/promises";
-import { UnknownSessionError } from "@open-qa-stack/domain";
+import { InvalidConfigurationError, NoConfigurationError, UnknownSessionError, type ConfigurationRevision } from "@open-qa-stack/domain";
 import type { MessageReceipt, Project, Session, SessionEvent, SessionMessage, SessionOpening } from "@open-qa-stack/domain/sessions";
 import { EventNotifications } from "./event-notifications.ts";
 import { NoRepositoryError } from "./no-repository-error.ts";
@@ -68,7 +68,8 @@ export class Sessions {
   }
 
   /**
-   * Starts hosting sessions: the project of the test repository is saved to the store, the sessions a host
+   * Starts hosting sessions: the configuration is brought in step with the file of the test repository, the
+   * project it names is saved to the store, the sessions a host
    * that died left running are interrupted, those it left waiting are taken over when this host stays, and
    * started in the order they were asked for, one at a time. The process beats from then on.
    *
@@ -114,9 +115,15 @@ export class Sessions {
     return inTime;
   }
 
-  /** @returns The project of the instance, as the store keeps it. */
-  project(): Promise<Project> {
-    return this.#host.store.project();
+  /**
+   * @returns The project of the instance: for a host that has a test repository, named after it with the
+   * applications of the revision in force, so that a change of the configuration names them at once; for one
+   * that has none, as the store keeps it.
+   */
+  async project(): Promise<Project> {
+    const { repository, configuration, store } = this.#host;
+    if (repository === undefined) return store.project();
+    return repositoryProject(repository, (await configuration.view()).revision?.document);
   }
 
   /** @returns Every session, the latest opened first. */
@@ -250,12 +257,31 @@ export class Sessions {
     return started?.id === asked.id ? started : asked;
   }
 
-  /** Puts the store in order after whatever hosts died, starts the first session that waits, and beats from then on. */
+  /**
+   * Brings the configuration in step with the file of the test repository, saves the project it names, puts the
+   * store in order after whatever hosts died, starts the first session that waits, and beats from then on.
+   */
   async #recover(): Promise<void> {
     const { store, repository } = this.#host;
-    if (repository !== undefined) await store.saveProject(await repositoryProject(repository));
+    if (repository !== undefined) await store.saveProject(repositoryProject(repository, (await this.#synchronised())?.document));
     await this.#tidy();
     this.#beats = this.#beat();
+  }
+
+  /**
+   * Brings the configuration in step with the file of the test repository.
+   *
+   * @returns The revision in force; `undefined` when there is none. A file the configuration refuses leaves the
+   * revision in force as it is: the runs tell what is wrong with it.
+   */
+  async #synchronised(): Promise<ConfigurationRevision | undefined> {
+    const { configuration } = this.#host;
+    try {
+      return await configuration.synchronise();
+    } catch (error) {
+      if (!(error instanceof NoConfigurationError || error instanceof InvalidConfigurationError)) throw error;
+      return (await configuration.view()).revision;
+    }
   }
 
   /**

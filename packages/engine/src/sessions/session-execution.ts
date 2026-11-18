@@ -79,6 +79,7 @@ export class SessionExecution {
       const { brief, branch } = sessionTurn(request, await store.eventsAfter(id, 0));
       await new Run({
         repositoryRoot: repository,
+        configuration: this.#host.configuration,
         ...(brief === undefined ? {} : { brief }),
         ...(branch === undefined ? {} : { branch }),
         ...(environment === undefined ? {} : { environment }),

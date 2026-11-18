@@ -1,8 +1,9 @@
 import { scriptedServer, type ScriptedServer } from "@open-qa-stack/testing";
 import type { RunEntry, RunState, TraceLine } from "@open-qa-stack/domain";
-import { liveRuntime, Run, type RunOptions } from "../src/index.ts";
+import { Configuration, liveRuntime, Run, type RunOptions } from "../src/index.ts";
 import { MemoryJournal } from "./memory-journal.ts";
 import { MemoryRunStore } from "./memory-run-store.ts";
+import { MemoryConfigurationStore } from "./support/memory-configuration-store.ts";
 import { configText, FakeRunner, FIRST_RUN, repository, WITNESS, type Script } from "@open-qa-stack/testing/test-repository";
 
 export * from "@open-qa-stack/testing/test-repository";
@@ -10,6 +11,7 @@ export * from "@open-qa-stack/testing/test-repository";
 /** What a host that keeps everything in memory holds of the runs of a test repository. */
 interface MemoryHost {
   readonly store: MemoryRunStore;
+  readonly configuration: Configuration;
   readonly journals: Map<string, RunEntry[]>;
 }
 
@@ -17,27 +19,32 @@ const hosts = new Map<string, MemoryHost>();
 
 /** The host of a test repository, the same from a run to the next. */
 export function hostOf(root: string): MemoryHost {
-  const host = hosts.get(root) ?? { store: new MemoryRunStore(), journals: new Map<string, RunEntry[]>() };
+  const host = hosts.get(root) ?? {
+    store: new MemoryRunStore(),
+    configuration: new Configuration(new MemoryConfigurationStore(), root),
+    journals: new Map<string, RunEntry[]>(),
+  };
   hosts.set(root, host);
   return host;
 }
 
 /** The ports of one run, and what the run told through them. */
 export interface Plugged {
-  readonly ports: Pick<RunOptions, "journal" | "openInbox" | "store">;
+  readonly ports: Pick<RunOptions, "configuration" | "journal" | "openInbox" | "store">;
   /** The journal, as a person reads it. */
   readonly err: string;
 }
 
 /**
- * Plugs a run of a test repository into memory: its journal and its state are kept by the host of the
- * repository, and no one speaks to it.
+ * Plugs a run of a test repository into memory: its configuration, its journal and its state are kept by the
+ * host of the repository, and no one speaks to it.
  */
 export function plugged(root: string): Plugged {
   const host = hostOf(root);
   const journal = new MemoryJournal(host.journals);
   return {
     ports: {
+      configuration: host.configuration,
       journal,
       openInbox: () => ({ pending: () => [], heard: () => [], delivered: () => undefined }),
       store: host.store,

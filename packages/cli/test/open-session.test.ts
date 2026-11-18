@@ -173,7 +173,7 @@ describe("oqas --brief in a folder it cannot keep its sessions in", () => {
     const env = { OQAS_DATABASE_URL: `sqlite:${file}` };
     const run = await terminal.oqas(["--brief", "Orders."], { env });
     assert.equal(run.code, 3);
-    assert.match(run.err, /^\[configuration\] error: .*oqas\.json cannot be read; /m);
+    assert.match(run.err, /^\[configuration\] error: .*oqas\.json cannot be read, and the instance keeps no revision of the configuration\. /m);
     assert.ok(existsSync(file) && !existsSync(join(terminal.root, ".oqas")));
     assert.match((await terminal.oqas(["sessions"], { env })).out, /^session-\S+  interrupted  \S+  Orders\.\n$/);
   });
