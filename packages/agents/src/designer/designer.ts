@@ -48,14 +48,15 @@ import { PLANNER_INSTRUCTIONS, planRequest } from "./planner-prompt.ts";
 import { sessionTools, type SessionTools } from "./session-tools.ts";
 import { declaredAddresses, declaredSecrets, TEST_MODULE, testPackages } from "./spec-rules.ts";
 import { PageObjects } from "./page-objects.ts";
-import { coveringTests, existingTestTools, existingTests } from "./existing-tests.ts";
+import { coveringTests, existingTestTools, existingTests, plannedTests, type ExistingTest } from "./existing-tests.ts";
 import { ensureFixtures } from "./test-fixtures.ts";
 import { uncomparedScreens, withComparisons } from "./visual-scenarios.ts";
 import { WrittenFiles } from "./written-files.ts";
 import { SESSION_END, TestProposals, type AcceptedTest } from "./test-proposals.ts";
+import { TestRepairs, type TestRepair } from "./test-repairs.ts";
 import { TestRepository } from "./test-repository.ts";
 import { SheetWatch } from "./sheet-watch.ts";
-import { writeRequest } from "./writer-prompt.ts";
+import { writeRequest, type RepairedTest } from "./writer-prompt.ts";
 
 /** Prefix of the branches the designer creates. */
 export const BRANCH_PREFIX = "oqas/";
@@ -136,6 +137,8 @@ export interface DesignOutcome {
   readonly stoppedBy?: StopReason["limit"];
   /** Whether the design stopped before its first session, on the test repository or the index: another pass would stop on them too. */
   readonly unstarted?: true;
+  /** Whether the design repaired tests the repository has instead of planning new ones: the repair is the whole design. */
+  readonly repaired?: true;
 }
 
 /** The types of the sources that tell why a run failed, which the session of every scenario may read. */
@@ -304,6 +307,8 @@ export class Designer {
       const present = await existingTests(repositoryRoot, config.repository.appsDir);
       const paths = present.map((test) => test.path);
       const existing = await coveringTests(repositoryRoot, config.repository.stateDir, paths);
+      // A brief that asks to fix tests the repository has is a repair, which the agent asks for instead of a plan.
+      const repairs = new TestRepairs(await plannedTests(repositoryRoot, config.repository.stateDir, paths), paths, () => plan.drafted, journal);
       const plan = new PlanProposal(
         {
           sources: owners,
@@ -326,24 +331,31 @@ export class Designer {
       const map = new IndexMap(index, await this.cards(index), offered, owners, await this.written(index));
       const request = planRequest(brief, index.environment, map.domains(), applications, levels, this.options.visual === true);
       const notes = agentNotes(config, repositoryRoot, env, { role: "planner", task: id, now });
-      const tools = [...map.toolset(), ...existingTestTools(present), ...offered, ...notes, plan.tool()].map((tool) => endedWithPlan(tool, plan));
+      const tools = [...map.toolset(), ...existingTestTools(present), ...offered, ...notes, repairs.tool(), plan.tool()].map((tool) =>
+        endedWithPlan(tool, plan, repairs),
+      );
       // What the plan says of each scenario, its title and its steps, is what its test says: it is written in the language of the tests.
       const testLanguage = testLanguageRule(config.design.testLanguage);
-      const task = { instructions: `${PLANNER_INSTRUCTIONS}\n\n${testLanguage}`, tools, request, reminder: () => plan.reminder() };
-      // Once its plan is accepted or refused, the session that plans can act on nothing: a message then waits for the agent that writes.
-      const open = () => plan.accepted === undefined && plan.refused === undefined;
-      const last = await sessionOf("plan", session, task, () => plan.accepted !== undefined || plan.drafted, open);
+      const reminder = () => (repairs.chosen === undefined ? plan.reminder() : undefined);
+      const task = { instructions: `${PLANNER_INSTRUCTIONS}\n\n${testLanguage}`, tools, request, reminder };
+      // Once its plan is accepted or refused, or a repair asked, the session that plans can act on nothing: a message then waits for the agent that writes.
+      const open = () => plan.accepted === undefined && plan.refused === undefined && repairs.chosen === undefined;
+      const settled = () => plan.accepted !== undefined || plan.drafted || repairs.chosen !== undefined;
+      const last = await sessionOf("plan", session, task, settled, open);
       // A session that ends once scenarios are kept closes the plan with them: none is lost.
       await plan.close();
       if (plan.refused !== undefined) return failed(`No test was written: the plan was refused: ${plan.refused}`);
-      const accepted = plan.accepted;
+      // The scenarios of a repair are those of the plans that wrote its tests, as they were accepted then.
+      const repairing = repairs.chosen;
+      const accepted = repairing === undefined ? plan.accepted : { scenarios: repairing.map((repair) => repair.scenario) };
       if (accepted === undefined)
         return failed(
           `No test was written: ${obtained(0)}, one per scenario of the plan is expected.`,
           last.type === "stopped" ? last.reason.limit : undefined,
         );
       // The visual scenarios the agent planned end with the comparison of their screen with its reference.
-      let planned: TestPlan = { ...accepted, scenarios: withComparisons(accepted.scenarios, config.design.visualTolerance) };
+      let planned: TestPlan =
+        repairing === undefined ? { ...accepted, scenarios: withComparisons(accepted.scenarios, config.design.visualTolerance) } : accepted;
       // The agents that write and review code read the API of Playwright at the version the test repository installs.
       const playwright = playwrightTools(await PlaywrightReference.load(repositoryRoot));
       // How the tests are built is a matter of the configuration. Unless each test stands alone, they import their test from the
@@ -356,7 +368,7 @@ export class Designer {
       // the page object of that screen, added to as needed.
       const given = config.applications.filter((application) => fixtures?.applications.includes(application.id));
       const pages = new PageObjects({ repositoryRoot, appsDir, applications: given });
-      if (architecture === "page-objects") planned = { ...planned, scenarios: await pages.apply(planned.scenarios) };
+      if (architecture === "page-objects" && repairing === undefined) planned = { ...planned, scenarios: await pages.apply(planned.scenarios) };
       for (const file of await pages.files()) await written.write(file.path, file.content);
       const proposals = new TestProposals(
         {
@@ -374,6 +386,7 @@ export class Designer {
           ...(fixtures === undefined ? {} : { fixtures }),
           screenshots: this.options.screenshots ?? false,
           now,
+          ...(repairing === undefined ? {} : { repairs: new Map(repairing.map((repair) => [repair.scenario.id, repair.path])) }),
         },
         journal,
         planned,
@@ -403,6 +416,7 @@ export class Designer {
           // Playwright itself is imported through the fixtures of the repository, when its tests share some.
           fixtures === undefined ? packages : [fixtures.path, ...packages.filter((name) => name !== TEST_MODULE)],
           index.environment,
+          repairedTest(repairing, scenario.id, present),
         );
         const task = { instructions: `${this.options.writerInstructions}\n\n${testLanguage}`, tools, request, reminder: () => proposals.reminder() };
         const last = await sessionOf("write", session, task, () => !proposals.writing);
@@ -471,6 +485,7 @@ export class Designer {
         journal: journal.entries(),
         tracePath: opened.path,
         ...(stoppedBy === undefined ? {} : { stoppedBy }),
+        ...(repairing === undefined ? {} : { repaired: true }),
       };
     } finally {
       phases.close();
@@ -578,9 +593,10 @@ async function readText(path: string): Promise<string | undefined> {
   return readFile(path, "utf8").catch(() => undefined);
 }
 
-/** A tool that refuses every call once the plan is refused, the design being stopped, or accepted, the session that plans being over. */
-function endedWithPlan(tool: ToolDefinition, plan: PlanProposal): ToolDefinition {
-  const ended = () => (plan.refused !== undefined ? plan.blocked() : plan.accepted !== undefined ? plan.closed() : undefined);
+/** A tool that refuses every call once the plan is refused, the design being stopped, or accepted or a repair asked, the session that plans being over. */
+function endedWithPlan(tool: ToolDefinition, plan: PlanProposal, repairs: TestRepairs): ToolDefinition {
+  const ended = () =>
+    plan.refused !== undefined ? plan.blocked() : plan.accepted !== undefined ? plan.closed() : repairs.chosen !== undefined ? repairs.closed() : undefined;
   return {
     ...tool,
     execute: async (args) => {
@@ -588,6 +604,13 @@ function endedWithPlan(tool: ToolDefinition, plan: PlanProposal): ToolDefinition
       return told === undefined ? tool.execute(args) : { error: told };
     },
   };
+}
+
+/** The test the session of a scenario repairs, with its text now; none for a scenario of a plan. */
+function repairedTest(repairing: readonly TestRepair[] | undefined, scenario: string, present: readonly ExistingTest[]): RepairedTest | undefined {
+  const path = repairing?.find((repair) => repair.scenario.id === scenario)?.path;
+  const test = present.find((candidate) => candidate.path === path);
+  return test === undefined ? undefined : { path: test.path, content: test.content };
 }
 
 /** Where a test kept failing failed, in words: the number of its step, when the title of the step gives it. */

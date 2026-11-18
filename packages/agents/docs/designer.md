@@ -306,6 +306,12 @@ A test whose last run passed is kept as passed, whatever the diagnosis says. One
 
 Every value of the variables the configuration names is masked in the journal and in what the agent is told.
 
+## Repairing tests
+
+A brief that asks to fix tests the repository has is a repair, not a plan. The agent that plans calls `repair_tests` with their paths instead of `propose_plan`, and its session is over. Only a test a design wrote can be repaired: the plan of that design gives the scenario its repair keeps to. The harness refuses a path that is no test of the repository (`REPAIR-UNKNOWN`), a test no plan records, such as one written by hand (`REPAIR-UNPLANNED`), two tests of scenarios of the same name from different plans (`REPAIR-SAME-SCENARIO`), and a repair once scenarios of a plan were submitted (`REPAIR-PLANNED`): a design plans new tests or repairs those that exist, not both.
+
+Each test is then written as the test of a scenario is, in a session of its own, with one difference: its file is the one it has, and the session is first given its text, to run as it is before it changes anything. The gates, the runs, the diagnosis and the verdict are those of any test; the test is committed on the branch in its own file, and the state of the design records it. A repair is the whole design: no pass follows it, visual or of another level.
+
 ## Design state
 
 The state is written to `<stateDir>/designs/design-<date>.json`, and committed with the tests unless git ignores it. It holds the brief, when one was given, the path of the file of the plan accepted, and the test of each scenario closed, in the order of the plan, with the scenario it carries out, the `verdict` of the run of its text — `not_run` for an unfinished test whose text gave no verdict — and each of its runs, with its verdict and, for one that failed, its class and its step. `closedBy` gives the check the harness closed its scenario on, when it did: the code that refused it five times, `TEST-STOP`, or `SESSION-END`. The application, the domain and the reason of a test are those of its scenario.

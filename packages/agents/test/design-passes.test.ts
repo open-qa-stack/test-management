@@ -73,6 +73,16 @@ describe("the passes of a design", () => {
     assert.deepEqual([outcome.ok, outcome.branch, outcome.statePath, outcome.stoppedBy, outcome.uncovered], [false, "oqas/a", "a.json", "duration", undefined]);
   });
 
+  it("stop at a pass that repaired tests: the repair is the whole design", async () => {
+    const asked: [readonly string[] | undefined, boolean | undefined][] = [];
+    const outcome = await new DesignPasses(options({ levels: ["smoke", "functional"] }), "by-level", true, async (pass) => {
+      asked.push([pass.levels, pass.visual]);
+      return { ok: true, branch: "oqas/a", tests: [test("smoke.spec.ts")], journal: [], repaired: true };
+    }).run();
+    assert.deepEqual(asked, [[["smoke"], undefined]]);
+    assert.deepEqual([outcome.ok, outcome.branch, outcome.repaired], [true, "oqas/a", true]);
+  });
+
   it("stop at a pass that could not start, which every pass after it would meet too", async () => {
     const asked: [readonly string[] | undefined, boolean | undefined][] = [];
     const refused = { level: "error" as const, message: "Tracked files are changed: specs/orders.md." };

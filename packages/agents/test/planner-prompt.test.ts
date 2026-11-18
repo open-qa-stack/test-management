@@ -39,6 +39,7 @@ describe("the instructions of the agent that plans", () => {
         "Data. A scenario says whether it only reads the data of the environment or writes some. Every test and every user share that data, and a test that writes is run twice in a row: it must pass both times. So enter data of your own, such as a made-up name, or put back what you changed, in a step that says it restores and starts by opening an address, and on the screens too — what you change while you explore stays changed. A test runs the step that restores even when an earlier step failed.",
         "Three rules cause most refusals",
         'Cover the brief: each business rule, each information and each behaviour it is about has a scenario that verifies it. Say in uncovered what no scenario covers and why — the application does not allow it, or the plan has no room for it; never plan another test in its place without a word. When no test can do anything the brief asks, plan none: call propose_plan with "scenarios": [] and uncovered, which says what the brief asks and why.',
+        "Repairs. To fix tests the repository has, plan none: call repair_tests with their paths.",
         "Keep with remember a fact the agents after you should know, such as a rule or a pitfall of the application.",
       ],
     );
