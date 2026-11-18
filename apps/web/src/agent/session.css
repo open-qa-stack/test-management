@@ -807,6 +807,16 @@
   width: var(--picture-sm);
 }
 
+.note-count {
+  flex: none;
+  color: var(--text-3);
+}
+
+.notes li > .notes {
+  flex: 1;
+  min-width: 0;
+}
+
 .notes ul {
   display: flex;
   flex-direction: column;

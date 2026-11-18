@@ -89,7 +89,7 @@ export function endOf(script: SessionScript): number {
 
 /** Who a step comes from: its speaker, or the harness for what it decides and notes; nobody for the start of a pass, a card or the delivery of a message. */
 function fromOf(step: Step): Speaker | undefined {
-  if (step.kind === "verdict" || step.kind === "note") return "harness";
+  if (step.kind === "verdict" || step.kind === "note" || step.kind === "repeated") return "harness";
   return "from" in step ? step.from : undefined;
 }
 
@@ -232,6 +232,6 @@ export function shows(step: Step, filter: ThreadFilter, speaker?: Speaker): bool
   if (speaker !== undefined && fromOf(step) !== speaker) return false;
   if (filter === "talk") return step.kind === "say";
   if (filter === "actions") return step.kind === "tool" || step.kind === "plan" || step.kind === "outcome";
-  if (filter === "verdicts") return step.kind === "verdict" || step.kind === "review" || step.kind === "note";
+  if (filter === "verdicts") return step.kind === "verdict" || step.kind === "review" || step.kind === "note" || step.kind === "repeated";
   return true;
 }

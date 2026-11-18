@@ -333,6 +333,14 @@ describe("what the thread keeps", () => {
     assert.deepEqual([shows(review, "all", "code_reviewer"), shows(review, "all", "harness")], [true, false]);
   });
 
+  it("keeps a row of notes alike as the harness speaking, among the verdicts", () => {
+    const alike: Step = { kind: "repeated", at: "10:00:10", before: "A ", after: ".", sources: ["a", "b"], notes: [] };
+    assert.deepEqual(
+      (["all", "talk", "actions", "verdicts"] as const).map((filter) => shows(alike, filter, "harness")),
+      [true, false, false, true],
+    );
+  });
+
   it("keeps the delivery of a message whatever else it keeps: it only says where a message the thread shows is", () => {
     const delivery: Step = { kind: "delivery", at: "10:00:10", message: 1, to: "planner" };
     assert.deepEqual(

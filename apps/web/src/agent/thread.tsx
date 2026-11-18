@@ -14,6 +14,7 @@ import {
   type PassStep,
   type PlanStep,
   type Remark,
+  type RepeatedNoteStep,
   type ReviewStep,
   type SayStep,
   type SessionStage,
@@ -238,14 +239,41 @@ function Brief({ shown }: { readonly shown: ShownStep }): ReactNode {
   );
 }
 
-/** The notes of the harness that follow one another: one in a line, several folded under their count. */
+/** What a note says, on its line: its text, or for a row of notes alike what they say around their sources. */
+function noteTextOf(step: NoteStep | RepeatedNoteStep): string {
+  return step.kind === "note" ? step.text : `${step.before}…${step.after}`;
+}
+
+/** A row of notes alike: one line, what they say around the name of a source and how many sources, which unfolds on each note. */
+function RepeatedNotes({ step }: { readonly step: RepeatedNoteStep }): ReactNode {
+  return (
+    <details className="notes">
+      <summary>
+        <Icon name="shield" />
+        <span>{noteTextOf(step)}</span>
+        <span className="note-count">{counted(step.sources.length, "source", "sources")}</span>
+      </summary>
+      <ul>
+        {step.notes.map((note, index) => (
+          <li key={index}>
+            <span className="turn-at">{note.at}</span> {note.text}
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+/** The notes of the harness that follow one another: one in a line, a row of notes alike folded under its count of sources, several folded under their count. */
 function Notes({ items }: { readonly items: readonly ShownStep[] }): ReactNode {
-  const texts = items.map(({ step }) => step as NoteStep);
-  if (texts.length === 1) {
+  const steps = items.map(({ step }) => step as NoteStep | RepeatedNoteStep);
+  const [first] = steps;
+  if (steps.length === 1 && first!.kind === "repeated") return <RepeatedNotes step={first!} />;
+  if (steps.length === 1) {
     return (
       <div className="notes single">
         <Icon name="shield" />
-        <span className="note-text">{texts[0]!.text}</span>
+        <span className="note-text">{noteTextOf(first!)}</span>
       </div>
     );
   }
@@ -253,17 +281,23 @@ function Notes({ items }: { readonly items: readonly ShownStep[] }): ReactNode {
     <details className="notes">
       <summary>
         <Icon name="shield" />
-        <span>{texts.length} notes du harnais</span>
+        <span>{steps.length} notes du harnais</span>
         <span className="note-preview" aria-hidden="true">
-          {texts.at(-1)!.text}
+          {noteTextOf(steps.at(-1)!)}
         </span>
       </summary>
       <ul>
-        {texts.map((note, index) => (
-          <li key={index}>
-            <span className="turn-at">{note.at}</span> {note.text}
-          </li>
-        ))}
+        {steps.map((step, index) =>
+          step.kind === "repeated" ? (
+            <li key={index}>
+              <RepeatedNotes step={step} />
+            </li>
+          ) : (
+            <li key={index}>
+              <span className="turn-at">{step.at}</span> {step.text}
+            </li>
+          ),
+        )}
       </ul>
     </details>
   );

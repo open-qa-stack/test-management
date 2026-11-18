@@ -132,6 +132,19 @@ describe("the thread of a session that goes on", () => {
     assert.equal(lines.filter((line) => line.includes("…")).length, 5);
   });
 
+  it("writes a row of notes alike on one line, with how many sources, then the sources", () => {
+    const kept = (source: string): readonly EventBody[] => [
+      { type: "phase_started", phase: "card", source },
+      { type: "note", phase: "card", text: `The card of ${source} is up to date; it was kept.` },
+    ];
+    const lines = screenOf(showing([...kept("orders-api"), ...kept("orders-db"), ...kept("orders-specs")]), 100);
+    fits(lines, 100);
+    assert.deepEqual(from(lines, "The card of").slice(0, 2), [
+      "■ The card of … is up to date; it was kept. · 3 sources",
+      "  orders-api, orders-db, orders-specs",
+    ]);
+  });
+
   it("writes the verdict of a reviewer under its name, each remark in full, without the call nor the word it replied", () => {
     const remark = "The asserted total of 50 customers is environment data that can change, so the test breaks when a customer is added.";
     const lines = screenOf(

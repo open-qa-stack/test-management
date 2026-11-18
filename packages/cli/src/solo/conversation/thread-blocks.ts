@@ -5,6 +5,7 @@ import {
   type OutcomeStep,
   type PassStep,
   type PlanStep,
+  type RepeatedNoteStep,
   type ReviewStep,
   type SayStep,
   type Step,
@@ -26,7 +27,7 @@ export type Block =
   | { readonly kind: "speech"; readonly agent: AgentRole; readonly heads: boolean; readonly step: SayStep }
   | { readonly kind: "action"; readonly agent: AgentRole; readonly heads: boolean; readonly step: ToolStep }
   | { readonly kind: "brief"; readonly step: SayStep }
-  | { readonly kind: "note"; readonly heads: boolean; readonly step: NoteStep }
+  | { readonly kind: "note"; readonly heads: boolean; readonly step: NoteStep | RepeatedNoteStep }
   | { readonly kind: "pass"; readonly step: PassStep }
   | { readonly kind: "review"; readonly step: ReviewStep }
   | { readonly kind: "verdict"; readonly step: VerdictStep }
@@ -58,7 +59,7 @@ export function blocksOf(steps: readonly Step[]): Block[] {
             : { kind: "speech", agent: turn.agent, heads: index === 0, step: step as SayStep },
         );
       case "notes":
-        return turn.items.map(({ step }, index) => ({ kind: "note", heads: index === 0, step: step as NoteStep }));
+        return turn.items.map(({ step }, index) => ({ kind: "note", heads: index === 0, step: step as NoteStep | RepeatedNoteStep }));
       case "card": {
         const step = turn.shown.step as Card;
         return [{ kind: step.kind, step } as Block];

@@ -4,7 +4,7 @@ import type { ActionLook, AgentRole, SessionEvent } from "../session-event.ts";
 import type { ScriptWording } from "./script-wording.ts";
 import type { SessionScript, SessionStage } from "./session-script.ts";
 import { remarksOf } from "./remarks-of.ts";
-import type { ProducedTest, ReviewStep, Reviewer, Step } from "./step.ts";
+import type { NoteStep, ProducedTest, RepeatedNoteStep, ReviewStep, Reviewer, Step } from "./step.ts";
 
 /** The agents a thread knows: what one it does not know says or does is left out, as any event it does not know. */
 const AGENTS: ReadonlySet<string> = new Set<AgentRole>(["cartographer", "planner", "plan_reviewer", "writer", "coherence_reviewer", "code_reviewer"]);
@@ -32,6 +32,33 @@ function subjectOf(file: ActionLook): string {
 /** The test an action is about: that of the file it looked at, when it was one. */
 function subjectIn(look: ActionLook | undefined): string | undefined {
   return look?.kind === "file" ? subjectOf(look) : undefined;
+}
+
+/** A note about a source, around the name of that source: what tells it alike another about another source. */
+interface Alike {
+  readonly before: string;
+  readonly after: string;
+  readonly source: string;
+}
+
+/** A note as what it says around the name of a source, when it names it. */
+function alikeOf(text: string, source: string | undefined): Alike | undefined {
+  if (source === undefined) return undefined;
+  // The name as a word of its own, not a piece of another: `api` is not in `apis`, nor `a` in `card`.
+  const named = new RegExp(`(?<![\\w-])${source.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`).exec(text);
+  return named === null ? undefined : { before: text.slice(0, named.index), after: text.slice(named.index + source.length), source };
+}
+
+/**
+ * The step a note makes of the last one, the note before it: a row of notes alike, the same around the name of
+ * their source, grows by it.
+ */
+function noted(last: Step, previous: Alike, note: NoteStep, alike: Alike | undefined): RepeatedNoteStep | undefined {
+  if (alike === undefined || alike.before !== previous.before || alike.after !== previous.after) return undefined;
+  if (last.kind === "repeated") return { ...last, sources: [...last.sources, alike.source], notes: [...last.notes, note] };
+  return last.kind === "note"
+    ? { kind: "repeated", at: last.at, before: alike.before, after: alike.after, sources: [previous.source, alike.source], notes: [last, note] }
+    : undefined;
 }
 
 /** The time of an event, as a thread shows it. */
@@ -82,6 +109,10 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
   let plan: number | undefined;
   /** The scenario whose test is being written, which a reviewer of a test reviews. */
   let scenario: string | undefined;
+  /** The knowledge source the work is on, when it is on one. */
+  let source: string | undefined;
+  /** The last note, around the name of its source, while it is the last step. */
+  let previous: Alike | undefined;
   /** By reviewer, the rank of its verdict the harness just took, whose one-word reply is still to come. */
   const replies = new Map<string, number>();
   for (const event of events) {
@@ -112,6 +143,7 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
         break;
       case "phase_started":
         // The work on one source is told by the notes of the harness, which name it: it starts no pass of its own.
+        source = event.source;
         if (event.source !== undefined) sources.add(event.source);
         else {
           const part = event.phase === "review" || event.phase === "write";
@@ -200,9 +232,16 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
           text: event.text.trim(),
         });
         break;
-      case "note":
-        steps.push({ kind: "note", at, text: event.text.trim() });
+      case "note": {
+        const note: NoteStep = { kind: "note", at, text: event.text.trim() };
+        const alike = alikeOf(note.text, source);
+        // A note came before this one: the thread holds a step.
+        const row = previous === undefined ? undefined : noted(steps.at(-1)!, previous, note, alike);
+        if (row === undefined) steps.push(note);
+        else steps[steps.length - 1] = row;
+        previous = alike;
         break;
+      }
       case "scenario_closed":
         closed.push({ title: event.scenario, level: event.level ?? "", verdict: event.verdict });
         break;

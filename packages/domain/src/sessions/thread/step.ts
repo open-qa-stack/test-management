@@ -168,5 +168,21 @@ export interface NoteStep extends StepBase {
   readonly text: string;
 }
 
+/**
+ * The harness noted the same thing of several sources in a row, such as a card it kept because it was up to
+ * date: one line for them all, each note kept.
+ */
+export interface RepeatedNoteStep extends StepBase {
+  readonly kind: "repeated";
+  /** What the notes say before the name of their source. */
+  readonly before: string;
+  /** What the notes say after the name of their source. */
+  readonly after: string;
+  /** The sources, in order: two or more. */
+  readonly sources: readonly string[];
+  /** Each note, in full. */
+  readonly notes: readonly NoteStep[];
+}
+
 /** A step of a session, as its thread tells it. */
-export type Step = SayStep | DeliveryStep | ToolStep | ReviewStep | VerdictStep | PlanStep | PassStep | OutcomeStep | NoteStep;
+export type Step = SayStep | DeliveryStep | ToolStep | ReviewStep | VerdictStep | PlanStep | PassStep | OutcomeStep | NoteStep | RepeatedNoteStep;

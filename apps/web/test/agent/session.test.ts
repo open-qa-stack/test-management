@@ -561,6 +561,28 @@ describe("the thread of a session", () => {
     assert.doesNotMatch(apart, /notes du harnais/);
   });
 
+  it("folds a row of notes alike under one line, what they say around the source and how many sources, alone or among other notes", () => {
+    const alike: Step = {
+      kind: "repeated",
+      at: "09:00:01",
+      before: "The card of ",
+      after: " is up to date; it was kept.",
+      sources: ["orders-api", "orders-db"],
+      notes: [
+        { kind: "note", at: "09:00:01", text: "The card of orders-api is up to date; it was kept." },
+        { kind: "note", at: "09:00:02", text: "The card of orders-db is up to date; it was kept." },
+      ],
+    };
+    const alone = thread(liveWith([alike]));
+    assert.match(
+      alone,
+      /<details class="notes"><summary><svg [^>]*>.*?<\/svg><span>The card of … is up to date; it was kept\.<\/span><span class="note-count">2 sources<\/span><\/summary><ul><li><span class="turn-at">09:00:01<\/span> The card of orders-api is up to date; it was kept\.<\/li><li><span class="turn-at">09:00:02<\/span> The card of orders-db is up to date; it was kept\.<\/li><\/ul><\/details>/,
+    );
+    const among = thread(liveWith([note("The index is ready.", 3), alike]));
+    assert.match(among, /<span>2 notes du harnais<\/span><span class="note-preview" aria-hidden="true">The card of … is up to date; it was kept\.<\/span>/);
+    assert.match(among, /<li><span class="turn-at">09:00:03<\/span> The index is ready\.<\/li><li><details class="notes">/);
+  });
+
   it("shows a verdict of the harness with the gate that refused, and an accepted one without", () => {
     const html = thread();
     assert.match(textOf(html), /Harnais refusé PLAN-ELEMENT Plan 14:44:17 The plan was refused by the harness: name an element\./);

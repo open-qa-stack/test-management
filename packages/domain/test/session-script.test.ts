@@ -486,3 +486,71 @@ describe("the run of a test", () => {
     assert.deepEqual([step.title, step.subject, step.look, step.tests], ["run_test Search a customer", "Search a customer", FILE, undefined]);
   });
 });
+
+describe("the notes of the harness about each source", () => {
+  const kept = (source: string): readonly EventBody[] => [
+    { type: "phase_started", phase: "card", source },
+    { type: "note", phase: "card", text: `The card of ${source} is up to date; it was kept.` },
+  ];
+
+  it("are one step when they say the same of each source in a row, each note kept, whatever starts between them", () => {
+    const steps = stepsOf([{ type: "phase_started", phase: "card" }, ...kept("orders-api"), ...kept("orders-db"), ...kept("orders-specs")]);
+    assert.deepEqual(steps.slice(1), [
+      {
+        kind: "repeated",
+        at: "14:44:08",
+        before: "The card of ",
+        after: " is up to date; it was kept.",
+        sources: ["orders-api", "orders-db", "orders-specs"],
+        notes: [
+          { kind: "note", at: "14:44:08", text: "The card of orders-api is up to date; it was kept." },
+          { kind: "note", at: "14:44:10", text: "The card of orders-db is up to date; it was kept." },
+          { kind: "note", at: "14:44:12", text: "The card of orders-specs is up to date; it was kept." },
+        ],
+      },
+    ]);
+  });
+
+  it("find the name of a source as a word of its own, whatever it holds", () => {
+    const steps = stepsOf([
+      { type: "phase_started", phase: "card", source: "api" },
+      { type: "note", phase: "card", text: "The apis of api are read." },
+      { type: "phase_started", phase: "card", source: "shop.v2" },
+      { type: "note", phase: "card", text: "The apis of shop.v2 are read." },
+    ]);
+    assert.deepEqual(
+      steps.map((step) => step.kind === "repeated" && [step.before, step.after, step.sources]),
+      [["The apis of ", " are read.", ["api", "shop.v2"]]],
+    );
+  });
+
+  it("stay apart when they say something else, name no source, come one alone, or something comes between them", () => {
+    const kinds = (bodies: readonly EventBody[]): string[] => stepsOf(bodies).map((step) => step.kind);
+    assert.deepEqual(
+      kinds([...kept("a"), { type: "phase_started", phase: "card", source: "b" }, { type: "note", phase: "card", text: "The card of b was written." }]),
+      ["note", "note"],
+    );
+    assert.deepEqual(
+      kinds([...kept("a"), { type: "phase_started", phase: "index" }, { type: "note", phase: "index", text: "The card of a is up to date; it was kept." }]),
+      ["note", "pass", "note"],
+    );
+    assert.deepEqual(kinds([...kept("a"), { type: "phase_started", phase: "card", source: "b" }, { type: "note", phase: "card", text: "Nothing of it." }]), [
+      "note",
+      "note",
+    ]);
+    assert.deepEqual(kinds([...kept("a"), { type: "agent_message", agent: "cartographer", text: "Next.", reasoning: false }, ...kept("b")]), [
+      "note",
+      "say",
+      "note",
+    ]);
+    assert.deepEqual(
+      kinds([
+        ...kept("a"),
+        { type: "phase_started", phase: "card", source: "b" },
+        { type: "note", phase: "card", text: "Kept: b is up to date; it was kept." },
+      ]),
+      ["note", "note"],
+    );
+    assert.deepEqual(kinds(kept("a")), ["note"]);
+  });
+});
