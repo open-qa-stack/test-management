@@ -7,12 +7,12 @@ import { dateText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
 import { originText } from "./configuration-words.ts";
 
-/** Where a source is read from: its address, its file, its container or the variable of its connection, never a secret. */
+/** Where a source is read from: its address, its file, its container, the variable of its connection or the instance, never a secret. */
 function whereOf(source: Knowledge): string {
   if (source.type === "postgresql") return t("configuration.records.variable", { name: source.connectionStringEnv });
   if (source.type === "openapi") return source.url ?? source.path;
   if (source.type === "logs") return source.path ?? t("configuration.records.container", { name: source.container });
-  return source.path;
+  return source.path ?? t("configuration.records.stored");
 }
 
 /**

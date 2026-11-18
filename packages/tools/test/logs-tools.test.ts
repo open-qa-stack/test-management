@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, beforeEach, describe, it } from "vitest";
-import type { ContainerEngine, Knowledge, ToolDefinition } from "@open-qa-stack/domain";
+import type { ContainerEngine, ReachableKnowledge, ToolDefinition } from "@open-qa-stack/domain";
 import { ContainerLogs } from "../src/logs/container-logs.ts";
 import { lineInstant, parseInstant } from "../src/logs/log-instant.ts";
 import { MAX_LOG_CHARACTERS, MAX_LOG_LINE_LENGTH } from "../src/logs/log-reading.ts";
@@ -13,8 +13,8 @@ import { knowledgeTools, type KnowledgeAccess } from "../src/index.ts";
 
 const FIXTURES = fileURLToPath(new URL("./fixtures/", import.meta.url));
 const attachments = [{ application: "policy-management" }];
-const FILE: Knowledge = { id: "policy-logs", type: "logs", path: "logs/service.log", attachments };
-const CONTAINER: Knowledge = { id: "policy-backend", type: "logs", container: "policy-backend", engine: "podman", attachments };
+const FILE: ReachableKnowledge = { id: "policy-logs", type: "logs", path: "logs/service.log", attachments };
+const CONTAINER: ReachableKnowledge = { id: "policy-backend", type: "logs", container: "policy-backend", engine: "podman", attachments };
 const TASK_START = new Date("2026-11-13T10:05:00.000Z");
 const PASSWORD = "s3cr3t pass/word";
 const CONNECTION = "postgresql://policy:pw@127.0.0.1:5432/policy";
@@ -30,7 +30,7 @@ let doubles: string;
 let path: string | undefined;
 
 /** The one tool of a log source. */
-function readLogs(source: Knowledge, access: Partial<KnowledgeAccess> = {}): ToolDefinition {
+function readLogs(source: ReachableKnowledge, access: Partial<KnowledgeAccess> = {}): ToolDefinition {
   const tools = knowledgeTools([source], { repositoryRoot: FIXTURES, env: {}, taskStart: TASK_START, ...access });
   assert.equal(tools.length, 1);
   return tools[0]!;

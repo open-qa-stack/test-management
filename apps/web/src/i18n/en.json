@@ -357,6 +357,9 @@
     "configuration_conflict": "oqas.json changed since the last synchronisation: keep the file, or keep your changes.",
     "invalid_configuration": "The configuration is not valid: correct the fields it points out.",
     "no_configuration": "The instance has no configuration yet.",
+    "unknown_document_source": "The configuration in force declares no such source of uploaded documents: save the configuration first.",
+    "unknown_document": "The source no longer holds this document.",
+    "invalid_documents": "The documents are refused, and none was kept: correct the files it points out.",
     "unexplained": "The instance ran into an error.",
     "unreachable": "The instance does not answer.",
     "unreadable": "The answer of the instance cannot be read."
@@ -524,6 +527,7 @@
       },
       "variable": "variable {{name}}",
       "container": "container {{name}}",
+      "stored": "uploaded to the instance",
       "knowledge": "Knowledge",
       "readOnly": "read only",
       "soon": "soon editable",

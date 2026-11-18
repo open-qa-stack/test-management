@@ -135,6 +135,7 @@ describe("the screen of the configuration", () => {
       "local-contract Contrat OpenAPI · specs/openapi.yaml shop",
       "orders Base PostgreSQL · variable SHOP_DB_URL shop",
       "specs Document · specs/orders.md shop",
+      "manuals Document · déposés sur l’instance shop",
       "code Code source · ../shop shop",
       "server-log Journaux · logs/server.log shop",
       "container-log Journaux · conteneur shop shop",

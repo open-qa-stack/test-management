@@ -357,6 +357,9 @@
     "configuration_conflict": "oqas.json a changé depuis la dernière synchronisation : gardez le fichier, ou gardez vos modifications.",
     "invalid_configuration": "La configuration n’est pas valide : corrigez les champs signalés.",
     "no_configuration": "L’instance n’a pas encore de configuration.",
+    "unknown_document_source": "La configuration en vigueur ne déclare aucune source de documents déposés de ce nom : enregistrez d’abord la configuration.",
+    "unknown_document": "La source ne contient plus ce document.",
+    "invalid_documents": "Les documents sont refusés, et aucun n’a été gardé : corrigez les fichiers signalés.",
     "unexplained": "L’instance a rencontré une erreur.",
     "unreachable": "L’instance ne répond pas.",
     "unreadable": "La réponse de l’instance est illisible."
@@ -524,6 +527,7 @@
       },
       "variable": "variable {{name}}",
       "container": "conteneur {{name}}",
+      "stored": "déposés sur l’instance",
       "knowledge": "Connaissances",
       "readOnly": "en lecture seule",
       "soon": "bientôt modifiables",

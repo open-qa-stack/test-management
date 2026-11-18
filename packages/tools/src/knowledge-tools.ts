@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import type { Knowledge, ToolDefinition } from "@open-qa-stack/domain";
+import type { ReachableKnowledge, ToolDefinition } from "@open-qa-stack/domain";
 import { DatabaseCatalog } from "./postgresql/database-catalog.ts";
 import { DatabaseData } from "./postgresql/database-data.ts";
 import { databaseTools } from "./postgresql/database-tools.ts";
@@ -45,7 +45,7 @@ export interface KnowledgeAccess {
  * @param access - How to reach them.
  * @returns The tools, source after source.
  */
-export function knowledgeTools(knowledge: readonly Knowledge[], access: KnowledgeAccess): ToolDefinition[] {
+export function knowledgeTools(knowledge: readonly ReachableKnowledge[], access: KnowledgeAccess): ToolDefinition[] {
   const taskStart = access.taskStart ?? new Date();
   return knowledge.flatMap((source) => {
     switch (source.type) {

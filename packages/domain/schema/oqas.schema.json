@@ -293,8 +293,7 @@
           "required": [
             "id",
             "type",
-            "attachments",
-            "path"
+            "attachments"
           ],
           "properties": {
             "id": {
@@ -314,9 +313,27 @@
             "path": {
               "type": "string",
               "minLength": 1,
-              "description": "Path relative to the test repository root, which it may not leave."
+              "description": "A document of the test repository, or a folder of them, relative to its root, which it may not leave."
+            },
+            "stored": {
+              "enum": [
+                true
+              ],
+              "description": "The documents are uploaded to the instance, which keeps them in its database."
             }
-          }
+          },
+          "oneOf": [
+            {
+              "required": [
+                "path"
+              ]
+            },
+            {
+              "required": [
+                "stored"
+              ]
+            }
+          ]
         },
         {
           "type": "object",
