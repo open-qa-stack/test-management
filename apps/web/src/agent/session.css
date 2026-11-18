@@ -1069,7 +1069,7 @@
 /* The facts of a scenario or of a scope: a label in capitals over its value, as many in a row as the width holds. */
 .facts {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 11em), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 8em), 1fr));
   gap: var(--gap-row) var(--space-4);
   margin: 0;
 }
@@ -1151,6 +1151,28 @@
   white-space: pre-wrap;
 }
 
+/* What the session works on: its facts in a row under its title, then where the levels are asked. */
+.result-card.scope .facts {
+  grid-column: 1 / -1;
+  padding: 0 var(--inset);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-line);
+}
+
+.scope-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: var(--gap-row) var(--inset) var(--space-3);
+  color: var(--text-2);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+  overflow-wrap: anywhere;
+}
+
 /* The refusals of the harness about a scenario before its plan was accepted: a row each, its time, its gate, its reason. */
 .scenario-refusals {
   display: flex;
@@ -1192,9 +1214,16 @@
 
 .raw summary {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  gap: 0 var(--space-2);
   min-height: var(--tap);
   cursor: pointer;
+}
+
+.raw summary .mono {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .raw pre {

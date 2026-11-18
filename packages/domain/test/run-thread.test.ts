@@ -100,6 +100,21 @@ describe("an entry of the journal of a run", () => {
     }
   });
 
+  it("tells what the run works on when it says it in its form, as the configuration that finished does, and makes a thread start with it", () => {
+    const scope = { environment: "local", applications: ["shop", "back-office"], levels: ["functional"] };
+    const finished = (value: unknown) =>
+      `${JSON.stringify({ at: at(1), step: "configuration", event: "finished", message: "The configuration is valid.", scope: value })}\n`;
+    assert.deepEqual(journalLine(finished(scope))?.event, { type: "journal", level: "info", message: "The configuration is valid.", scope });
+    for (const malformed of [undefined, "local", { ...scope, environment: 3 }, { ...scope, applications: "shop" }, { ...scope, levels: [1] }]) {
+      assert.deepEqual(journalLine(finished(malformed))?.event, { type: "journal", level: "info", message: "The configuration is valid." });
+    }
+    const thread = new RankedThread();
+    assert.deepEqual(thread.add(journalLine(finished(scope))!), [
+      { id: 1, at: at(1), type: "scope_resolved", ...scope },
+      { id: 2, at: at(1), type: "note", phase: "configuration", text: "The configuration is valid." },
+    ]);
+  });
+
   it("is read, for an error of the cartography or of the design, under the first phase of the step", () => {
     assert.deepEqual(journalLine(entry(1, "design", "error", CHANGED)), {
       at: at(1),

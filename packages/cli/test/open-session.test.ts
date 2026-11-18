@@ -20,8 +20,9 @@ describe("oqas --brief", () => {
     const lines = run.err.split("\n");
     assert.equal(lines[0], `Session ${id}`);
     assert.match(String(lines[1]), /^\d\d:\d\d:\d\d person: tester la recherche d'un client$/);
-    assert.deepEqual(lines.slice(2, 5), [lines[2]?.replace(/.*/, `${lines[2].slice(0, 8)} session running`), "[configuration] started", lines[4]]);
-    assert.match(String(lines[4]), /^\[configuration\] The configuration is valid; the run targets the environment local\.$/);
+    assert.deepEqual(lines.slice(2, 6), [lines[2]?.replace(/.*/, `${lines[2].slice(0, 8)} session running`), "[configuration] started", lines[4], lines[5]]);
+    assert.match(String(lines[4]), /^\[configuration\] scope: environment local; applications [a-z-]+(, [a-z-]+)*; levels [a-z-]+(, [a-z-]+)*$/);
+    assert.match(String(lines[5]), /^\[configuration\] The configuration is valid; the run targets the environment local\.$/);
     assert.match(run.err, /^\[plan\] The plan was accepted: test-1, test-2, test-3\.$/m);
     assert.match(run.err, /^\d\d:\d\d:\d\d scenario test-1 closed: passed$/m);
     assert.match(String(lines.at(-2)), /^\d\d:\d\d:\d\d session completed$/);

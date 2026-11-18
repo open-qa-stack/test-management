@@ -224,13 +224,13 @@ export type ThreadFilter = "all" | "talk" | "actions" | "verdicts";
  * @param step - The step.
  * @param filter - What the thread keeps.
  * @param speaker - The only speaker the thread follows, if any.
- * @returns Whether the step shows. The start of a pass always does, and the delivery of a message, which only
- * says where a message shown is. What is said is what the person, the agents and the harness say, its notes
+ * @returns Whether the step shows. The start of a pass always does, what the session works on, and the delivery
+ * of a message, which only says where a message shown is. What is said is what the person, the agents and the harness say, its notes
  * included; a verdict is one of the harness or one of a reviewer alike, and so are the plan it accepted and the
  * verdicts of the tests.
  */
 export function shows(step: Step, filter: ThreadFilter, speaker?: Speaker): boolean {
-  if (step.kind === "pass" || step.kind === "delivery") return true;
+  if (step.kind === "pass" || step.kind === "delivery" || step.kind === "scope") return true;
   if (speaker !== undefined && fromOf(step) !== speaker) return false;
   if (filter === "talk") return step.kind === "say" || step.kind === "note" || step.kind === "repeated";
   if (filter === "actions") return step.kind === "tool" || step.kind === "plan" || step.kind === "outcome";

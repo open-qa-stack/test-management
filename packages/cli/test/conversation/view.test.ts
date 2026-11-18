@@ -257,6 +257,19 @@ describe("the thread of a session that goes on", () => {
   });
 });
 
+describe("the scope of a session", () => {
+  it("writes the levels asked, the applications and the environment, then where the levels are asked", () => {
+    const lines = screenOf(showing([{ type: "scope_resolved", environment: "local", applications: ["shop", "back-office"], levels: ["functional"] }]), 100);
+    assert.deepEqual(from(lines, "Scope of the session").slice(0, 5), [
+      "  Scope of the session",
+      "  Levels asked: functional",
+      "  Applications: shop, back-office",
+      "  Environment: local",
+      "  Only these levels are designed: design.levels in oqas.json sets them.",
+    ]);
+  });
+});
+
 describe("a verdict of the harness", () => {
   it("names the scenario and the tool it is about, and writes the page it quotes in full, under what to do", () => {
     const text = 'shop_click: The button matches two elements.\n\nThe page is now at http://localhost:3000/:\n- heading "Orders"\n  - button "Search"';

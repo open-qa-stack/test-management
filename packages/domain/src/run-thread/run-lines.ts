@@ -1,5 +1,5 @@
 import { isRecord, parseJson } from "../json.ts";
-import type { Step } from "../run/run-entry.ts";
+import type { RunScope, Step } from "../run/run-entry.ts";
 import type { TracePhase } from "../run/trace-line.ts";
 import type { CommandStep, RelayedPhase, RunLine } from "./thread-line.ts";
 
@@ -37,6 +37,20 @@ export function traceLine(text: string): RunLine | undefined {
   return { at, phase, actor, event: { ...event, type }, ...(typeof source === "string" ? { source } : {}) };
 }
 
+/** The texts of a list, when it is one of texts alone. */
+function textsOf(value: unknown): string[] | undefined {
+  return Array.isArray(value) && value.every((item: unknown) => typeof item === "string") ? value : undefined;
+}
+
+/** What a run works on, as an entry tells it; `undefined` when the entry tells none, or not in its form. */
+function scopeOf(value: unknown): RunScope | undefined {
+  if (!isRecord(value)) return undefined;
+  const { environment } = value;
+  const applications = textsOf(value["applications"]);
+  const levels = textsOf(value["levels"]);
+  return typeof environment === "string" && applications !== undefined && levels !== undefined ? { environment, applications, levels } : undefined;
+}
+
 /**
  * Reads an entry of the journal of a run.
  *
@@ -46,8 +60,8 @@ export function traceLine(text: string): RunLine | undefined {
  * stopped the design before a session started, for one. The thread leaves out those a trace told already.
  *
  * @param text - The entry, as the run wrote it.
- * @returns The entry as a line; `undefined` for a text that is no entry, and for an entry of the cartography or
- * of the design that is no error.
+ * @returns The entry as a line, with what the run works on when the entry tells it; `undefined` for a text that
+ * is no entry, and for an entry of the cartography or of the design that is no error.
  */
 export function journalLine(text: string): RunLine | undefined {
   const entry = parseJson(text);
@@ -59,5 +73,6 @@ export function journalLine(text: string): RunLine | undefined {
   const phase = STEPS.find((known) => known === step) ?? (level === "error" ? RELAYED.get(step) : undefined);
   if (phase === undefined) return undefined;
   if (event === "started") return { at, phase, actor: "command", event: { type: "started" } };
-  return { at, phase, actor: "command", event: { type: "journal", level, message } };
+  const scope = scopeOf(entry["scope"]);
+  return { at, phase, actor: "command", event: { type: "journal", level, message, ...(scope === undefined ? {} : { scope }) } };
 }

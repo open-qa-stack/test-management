@@ -50,6 +50,8 @@ export function eventLine(event: SessionEvent): string {
       return `${time} ${named(event.agent)} -> ${event.tool}(${shortened(event.arguments)})`;
     case "action_finished":
       return `${time} ${event.outcome === "failed" ? "!!" : "<-"} ${shortened(event.result)}`;
+    case "scope_resolved":
+      return `[configuration] scope: environment ${event.environment}; applications ${event.applications.join(", ")}; levels ${event.levels.join(", ")}`;
     case "plan_accepted":
       return `${time} plan accepted: ${event.scenarios.map((scenario) => scenario.id).join(", ") || "no scenario"}`;
     case "scenario_closed":

@@ -116,6 +116,7 @@ Every event has an `id`, its rank in the session from 1, the date `at` it happen
 | `user_message` | The person said something: `text`. What opened the session, its first event, has no `number`; a message sent while it went on has its `number`, from 1. |
 | `message_delivered` | A message sent while the session was going on reached an `agent`: `message` is the number of the message. |
 | `agent_message` | An agent wrote something, or reasoned when `reasoning` is true: `agent`, `text`. |
+| `scope_resolved` | The configuration of the run was resolved: what the session works on, its `environment`, the identifiers of its `applications`, and the `levels` of the pyramid of tests its design is asked for, from the base. No other level is designed. A thread told before it existed has none. |
 | `harness_message` | The harness asked something of an agent, `to`: its request, then each reminder; `level` when it asks for the plan of one level of the test pyramid. |
 | `phase_started` | A `phase` of the work started, on a knowledge `source` or for the test of a `scenario` when it has one. |
 | `action_started` | An agent called a `tool` with `arguments`; `action` identifies the call. The `look` of the file the agent handed the tool, such as the test it runs, when it handed one: it can be read while the tool works. |

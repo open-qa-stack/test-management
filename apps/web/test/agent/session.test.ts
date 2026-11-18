@@ -714,6 +714,24 @@ describe("the thread of a session", () => {
     assert.match(thread(liveWith([pending])), /<span class="badge ok">aucune remarque<\/span>/);
   });
 
+  it("shows what the session works on at the head of its thread: the levels asked, the applications, the environment, and where the levels are asked", () => {
+    const scope: Step = {
+      kind: "scope",
+      at: "09:00:00",
+      title: "Portée de la session",
+      environment: "local",
+      applications: ["shop", "back-office"],
+      levels: ["smoke", "functional"],
+    };
+    const html = thread(liveWith([scope]));
+    assert.match(
+      textOf(html),
+      /^Portée de la session 09:00:00 Niveaux demandés smoke functional Applications shop, back-office Environnement local Seuls ces niveaux sont conçus ; design\.levels dans oqas\.json les fixe\.$/,
+    );
+    assert.match(html, /<section class="result-card scope" aria-label="Portée de la session">/);
+    assert.match(html, /<dd class="badges"><span class="badge info">smoke<\/span><span class="badge info">functional<\/span><\/dd>/);
+  });
+
   it("lists the scenarios of an accepted plan under their count, each a cell folded to its level, its title, its case and its application", () => {
     assert.match(textOf(thread()), /Plan accepté par le harnais 1 scénario 14:44:16 smoke Search a customer nominal · customer-management/);
     const html = thread(liveWith(REVIEWED));

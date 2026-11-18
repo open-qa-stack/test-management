@@ -1,6 +1,7 @@
 import { isRecord, textOf } from "../json.ts";
 import { plannedScenarioOf } from "./planned-scenario.ts";
 import { RelayedErrors } from "./relayed-errors.ts";
+import type { RunScope } from "../run/run-entry.ts";
 import type { TracePhase } from "../run/trace-line.ts";
 import type { ActionFinishedEvent, ActionLook, ActionTest, AgentRole, PlannedScenario } from "../sessions/session-event.ts";
 import type { UnrankedEvent } from "../sessions/unranked-event.ts";
@@ -106,7 +107,7 @@ function outcomeOf(result: unknown): ActionFinishedEvent["outcome"] {
  * What the harness sent an agent is a `harness_message` to the agent of the phase, the three reviewers told
  * apart by what the harness asks them, and the request of a plan gives the level it is asked for. What the
  * person asked is no event of the run: whoever took it from the person told it. What the harness or the command
- * journaled is a `note`, a `refusal` with its code for an error, and a `scenario_closed` when it closes a
+ * journaled is a `note`, preceded by a `scope_resolved` for the entry that tells what the run works on, a `refusal` with its code for an error, and a `scenario_closed` when it closes a
  * scenario; an error the harness traced and the command relayed in its journal is told once. What the model wrote or thought is an `agent_message`. A tool call is an `action_started` and its
  * answer the `action_finished` of the same action: the start shows the file the agent hands the tool, which can
  * be read while the tool works, and the end the page the tool rendered and, for a run of a file of tests, the
@@ -213,6 +214,13 @@ export class RunThread {
         },
       ];
     }
+    // What the run works on is read, in its form, from the entry of the journal that tells it.
+    const scope = event["scope"] as RunScope | undefined;
+    if (scope !== undefined)
+      return [
+        { at, type: "scope_resolved", ...scope },
+        { at, type: "note", phase, text: bounded(message) },
+      ];
     if (!failed) return [{ at, type: "note", phase, text: bounded(message) }];
     const coded = CODED.exec(message);
     if (coded === null) return [this.#refusal(at, phase, message)];

@@ -85,6 +85,10 @@ describe("an event of a session, as a person reads it in a terminal", () => {
     const scenario = (id: string) => ({ id, title: id, level: "functional" });
     assert.equal(eventLine(told({ type: "plan_accepted", scenarios: [scenario("test-1"), scenario("test-2")] })), "12:34:56 plan accepted: test-1, test-2");
     assert.equal(eventLine(told({ type: "plan_accepted", scenarios: [] })), "12:34:56 plan accepted: no scenario");
+    assert.equal(
+      eventLine(told({ type: "scope_resolved", environment: "local", applications: ["shop", "back-office"], levels: ["smoke", "functional"] })),
+      "[configuration] scope: environment local; applications shop, back-office; levels smoke, functional",
+    );
     assert.equal(eventLine(told({ type: "scenario_closed", scenario: "test-1", verdict: "passed" })), "12:34:56 scenario test-1 closed: passed");
     assert.equal(eventLine(told({ type: "state_changed", state: "completed" })), "12:34:56 session completed");
   });

@@ -5,6 +5,7 @@ import { OutcomeBlock } from "./outcome-block.ts";
 import { PassRule } from "./pass-rule.ts";
 import { PlanBlock } from "./plan-block.ts";
 import { SaidBlock } from "./said-block.ts";
+import { ScopeBlock } from "./scope-block.ts";
 import { VerdictBlock } from "./verdict-block.ts";
 import type { Theme } from "./palette.ts";
 import type { Block } from "./thread-blocks.ts";
@@ -38,6 +39,8 @@ export function BlockView({ block, live, theme, width }: BlockViewProps): ReactN
       return h(VerdictBlock, { block, theme });
     case "plan":
       return h(PlanBlock, { block, theme });
+    case "scope":
+      return h(ScopeBlock, { block, theme });
     case "outcome":
       return h(OutcomeBlock, { block, theme });
     default:

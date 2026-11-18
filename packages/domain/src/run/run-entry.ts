@@ -1,6 +1,16 @@
 /** A step of a run, in the order they run. */
 export type Step = "configuration" | "prerequisites" | "cartography" | "design" | "execution" | "summary";
 
+/** What a run works on, as its configuration resolved it. */
+export interface RunScope {
+  /** The environment it targets. */
+  readonly environment: string;
+  /** The identifiers of the applications the configuration declares. */
+  readonly applications: readonly string[];
+  /** The levels of the pyramid of tests its design is asked for, from the base. */
+  readonly levels: readonly string[];
+}
+
 /** An entry of the journal of a run. */
 export interface RunEntry {
   /** When it happened, as an ISO 8601 date. */
@@ -13,6 +23,8 @@ export interface RunEntry {
   readonly durationMs?: number;
   /** For `finished`: how many requests the step sent to the model. */
   readonly modelRequests?: number;
+  /** For the `finished` of the configuration: what the run works on. */
+  readonly scope?: RunScope;
 }
 
 /**

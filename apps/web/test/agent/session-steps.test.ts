@@ -281,6 +281,18 @@ describe("the decisions of the harness in a script", () => {
     });
   });
 
+  it("title what the session works on in the words of the console", () => {
+    const step = only([{ type: "scope_resolved", environment: "local", applications: ["shop"], levels: ["functional"] }]);
+    assert.deepEqual(step, {
+      kind: "scope",
+      at: "14:44:06",
+      title: "Portée de la session",
+      environment: "local",
+      applications: ["shop"],
+      levels: ["functional"],
+    });
+  });
+
   it("read a phase this console does not know as a step of the work, when it starts and when it refuses", () => {
     const { steps } = scriptWith([
       { type: "phase_started", phase: "triage" as SessionPhase },

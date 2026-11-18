@@ -1,4 +1,4 @@
-import type { ActionLook, AgentRole, PlannedScenario } from "../session-event.ts";
+import type { ActionLook, AgentRole, PlannedScenario, SessionScope } from "../session-event.ts";
 import type { RefusalParts } from "./refusal-parts.ts";
 
 /** Who speaks or acts in a session: the person who asked, one of the agents, or the harness that holds them to the evidence. */
@@ -135,6 +135,12 @@ export interface PlanStep extends StepBase {
   readonly scenarios: readonly PlanScenario[];
 }
 
+/** What the session works on, once the configuration of its run is resolved: told at the head of its thread. */
+export interface ScopeStep extends StepBase, SessionScope {
+  readonly kind: "scope";
+  readonly title: string;
+}
+
 /** A pass starts: one loop of the agents for one level of the pyramid. */
 export interface PassStep extends StepBase {
   readonly kind: "pass";
@@ -187,4 +193,4 @@ export interface RepeatedNoteStep extends StepBase {
 }
 
 /** A step of a session, as its thread tells it. */
-export type Step = SayStep | DeliveryStep | ToolStep | ReviewStep | VerdictStep | PlanStep | PassStep | OutcomeStep | NoteStep | RepeatedNoteStep;
+export type Step = SayStep | DeliveryStep | ToolStep | ReviewStep | VerdictStep | PlanStep | ScopeStep | PassStep | OutcomeStep | NoteStep | RepeatedNoteStep;

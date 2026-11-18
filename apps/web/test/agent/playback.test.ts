@@ -347,6 +347,14 @@ describe("what the thread keeps", () => {
     );
   });
 
+  it("keeps what the session works on whatever else it keeps, whoever it follows", () => {
+    const scope: Step = { kind: "scope", at: "10:00:10", title: "Portée", environment: "local", applications: ["shop"], levels: ["smoke"] };
+    assert.deepEqual(
+      (["all", "talk", "actions", "verdicts"] as const).map((filter) => shows(scope, filter, "writer")),
+      [true, true, true, true],
+    );
+  });
+
   it("keeps the delivery of a message whatever else it keeps: it only says where a message the thread shows is", () => {
     const delivery: Step = { kind: "delivery", at: "10:00:10", message: 1, to: "planner" };
     assert.deepEqual(

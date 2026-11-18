@@ -30,6 +30,7 @@ const WORDING: ScriptWording = {
   phase: (phase) => `phase ${phase}`,
   tool: (tool, args) => `${tool} ${JSON.stringify(args)}`,
   planAccepted: "plan accepted",
+  scope: "scope",
   interrupted: "interrupted",
   verdicts: (tests) => `${tests} verdicts`,
   closed: (scenarios) => `${scenarios} closed`,
@@ -202,6 +203,12 @@ describe("the script of a session", () => {
         { kind: "note", at: "14:44:09", text: "The plan\n was accepted." },
       ],
     );
+  });
+
+  it("tells what the session works on as a step of its own: its environment, its applications and the levels asked", () => {
+    assert.deepEqual(stepsOf([{ type: "scope_resolved", environment: "local", applications: ["shop"], levels: ["functional"] }]), [
+      { kind: "scope", at: "14:44:06", title: "scope", environment: "local", applications: ["shop"], levels: ["functional"] },
+    ]);
   });
 
   it("reads a refusal by its form — the tool or what was refused it opens on, its reason, the page it quotes — and keeps its text whole", () => {

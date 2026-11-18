@@ -20,6 +20,7 @@ import {
   type Turn,
 } from "@open-qa-stack/domain/sessions";
 import { PlanCard } from "./plan-card.tsx";
+import { ScopeCard } from "./scope-card.tsx";
 import { SpeakerMark } from "./speaker-mark.tsx";
 import { HarnessVerdict, ReviewVerdict } from "./verdict-card.tsx";
 import { iconOf } from "./tool-icon.ts";
@@ -367,6 +368,7 @@ function TurnView({ turn, back }: { readonly turn: Turn<ShownStep>; readonly bac
     return <HarnessVerdict step={step} index={index} open={back.unfolded.includes(index)} onUnfold={() => back.onUnfold(index)} />;
   }
   if (step.kind === "plan") return <PlanCard step={step} />;
+  if (step.kind === "scope") return <ScopeCard step={step} />;
   if (step.kind === "pass") return <Pass step={step} />;
   return <Outcome step={step as OutcomeStep} />;
 }
