@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, beforeAll } from "vitest";
+import { afterAll } from "vitest";
 import { CopilotAgentRuntime, ModelGateway } from "@open-qa-stack/harness";
 import {
   validateConfig,
@@ -53,17 +53,14 @@ export class CatalogDouble implements SqlClient {
   }
 }
 
-export let site: TestSite;
+export const elsewhere: TestSite = await testSite({ "/": "<p>Elsewhere</p>" });
 
-export let elsewhere: TestSite;
+export const site: TestSite = await testSite(
+  { "/": '<h1>Shop</h1><a href="/orders">Orders</a>', "/orders": "<h1>Orders</h1>" },
+  { "/broken": { status: 500, location: "/" } },
+);
 
-export let workspace: string;
-
-beforeAll(async () => {
-  elsewhere = await testSite({ "/": "<p>Elsewhere</p>" });
-  site = await testSite({ "/": '<h1>Shop</h1><a href="/orders">Orders</a>', "/orders": "<h1>Orders</h1>" }, { "/broken": { status: 500, location: "/" } });
-  workspace = mkdtempSync(join(tmpdir(), "oqas-cartographer-"));
-});
+export const workspace = mkdtempSync(join(tmpdir(), "oqas-cartographer-"));
 
 afterAll(async () => {
   await site.close();

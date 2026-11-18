@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, beforeAll } from "vitest";
+import { afterAll } from "vitest";
 import type { Application, ToolDefinition } from "@open-qa-stack/domain";
 import { LOG_CAPACITY } from "../src/browser/application-page.ts";
 import { MAX_ANNOTATED_ELEMENTS } from "../src/browser/page-snapshot.ts";
@@ -40,54 +40,46 @@ export const HOME = `
 <a id="away" href="#">Elsewhere</a>
 `;
 
-export let site: TestSite;
+export const downPort: number = await closedPort();
 
-export let elsewhere: TestSite;
+export const elsewhere: TestSite = await testSite({ "/": "<p>Elsewhere</p>", "/x": "<p>X</p>" });
 
 /** The API of the back office, on an origin of its own. */
-export let api: TestSite;
+export const api: TestSite = await testSite({ "/x": "<p>X</p>" });
 
-export let screenshots: string;
-
-export let downPort: number;
-
-beforeAll(async () => {
-  downPort = await closedPort();
-  elsewhere = await testSite({ "/": "<p>Elsewhere</p>", "/x": "<p>X</p>" });
-  api = await testSite({ "/x": "<p>X</p>" });
-  site = await testSite(
-    {
-      "/": HOME.replace('href="#"', `href="${elsewhere.origin}/x"`),
-      "/second": "<h2>Second page</h2>",
-      // A page with a button that removes an order.
-      "/removes": `<p id="order">Order 42</p><button onclick="order.remove()">Delete order</button><button onclick="order.textContent = 'Order 42, kept'">Keep</button>`,
-      // Elements repeated from one row or dialog to the next, from one list item to the next, which no locator names, and on rows of the same name.
-      "/rows": `<table><tr><td></td><td>Lena Veldane</td><td><button onclick="out.textContent = 'Managing Lena'">Manage</button></td></tr><tr><td>Tom Arvel</td><td><button>Manage</button></td></tr></table>
+export const site: TestSite = await testSite(
+  {
+    "/": HOME.replace('href="#"', `href="${elsewhere.origin}/x"`),
+    "/second": "<h2>Second page</h2>",
+    // A page with a button that removes an order.
+    "/removes": `<p id="order">Order 42</p><button onclick="order.remove()">Delete order</button><button onclick="order.textContent = 'Order 42, kept'">Keep</button>`,
+    // Elements repeated from one row or dialog to the next, from one list item to the next, which no locator names, and on rows of the same name.
+    "/rows": `<table><tr><td></td><td>Lena Veldane</td><td><button onclick="out.textContent = 'Managing Lena'">Manage</button></td></tr><tr><td>Tom Arvel</td><td><button>Manage</button></td></tr></table>
 <ul><li><span>Lena Veldane</span><button>Open</button></li><li><span>Tom Arvel</span><button>Open</button></li></ul>
 <table><tr><td>Same</td><td><button>Edit</button></td></tr><tr><td>Same</td><td><button>Edit</button></td></tr></table>
 <dialog open><button>Close</button></dialog><button>Close</button><p id="out"></p>`,
-      // A page that loads its data from another local service, at once and on demand, as an interface does from its API.
-      "/loads": `<p id="data">loading</p><button onclick="fetch('/api/ping').then(() => { document.getElementById('more').hidden = false; })">More</button><p id="more" hidden>More data</p><script>fetch("${elsewhere.origin}/api/ping").then((r) => r.json()).then((body) => { document.getElementById("data").textContent = "pong " + body.pong; }, () => { document.getElementById("data").textContent = "refused"; });</script>`,
-      "/hangs": '<p id="data">waiting</p><script>fetch("/api/hang").then(() => { document.getElementById("data").textContent = "answered"; });</script>',
-      "/form": '<form method="post" action="/submit"><button>Send</button></form><form method="post" action="/keep"><button>Keep</button></form>',
-      "/login": '<form method="get" action="/second"><input name="p" aria-label="Password" type="password"><button>Go</button></form>',
-      "/broken": `<img alt="Logo" src="http://127.0.0.1:${downPort}/logo.png">`,
-      "/chatty": `<script>for (let i = 0; i < ${LOG_CAPACITY + 10}; i++) console.log("line " + i);</script>`,
-      "/many": Array.from({ length: MAX_ANNOTATED_ELEMENTS + 5 }, (_, i) => `<button>B${i}</button>`).join(""),
-      "/text": Array.from({ length: 400 }, (_, i) => `<p>Paragraph ${i} with enough words to fill a line of the snapshot.</p>`).join(""),
-    },
-    {
-      "/go": { status: 302, location: `${elsewhere.origin}/x` },
-      "/hop": { status: 302, location: "/second" },
-      "/hop2": { status: 301, location: "/hop3" },
-      "/hop3": { status: 307, location: `${elsewhere.origin}/` },
-      "/loop": { status: 302, location: "/loop" },
-      "/submit": { status: 303, location: "/second" },
-      "/keep": { status: 307, location: "/second" },
-    },
-  );
-  screenshots = mkdtempSync(join(tmpdir(), "oqas-shots-"));
-});
+    // A page that loads its data from another local service, at once and on demand, as an interface does from its API.
+    "/loads": `<p id="data">loading</p><button onclick="fetch('/api/ping').then(() => { document.getElementById('more').hidden = false; })">More</button><p id="more" hidden>More data</p><script>fetch("${elsewhere.origin}/api/ping").then((r) => r.json()).then((body) => { document.getElementById("data").textContent = "pong " + body.pong; }, () => { document.getElementById("data").textContent = "refused"; });</script>`,
+    "/hangs": '<p id="data">waiting</p><script>fetch("/api/hang").then(() => { document.getElementById("data").textContent = "answered"; });</script>',
+    "/form": '<form method="post" action="/submit"><button>Send</button></form><form method="post" action="/keep"><button>Keep</button></form>',
+    "/login": '<form method="get" action="/second"><input name="p" aria-label="Password" type="password"><button>Go</button></form>',
+    "/broken": `<img alt="Logo" src="http://127.0.0.1:${downPort}/logo.png">`,
+    "/chatty": `<script>for (let i = 0; i < ${LOG_CAPACITY + 10}; i++) console.log("line " + i);</script>`,
+    "/many": Array.from({ length: MAX_ANNOTATED_ELEMENTS + 5 }, (_, i) => `<button>B${i}</button>`).join(""),
+    "/text": Array.from({ length: 400 }, (_, i) => `<p>Paragraph ${i} with enough words to fill a line of the snapshot.</p>`).join(""),
+  },
+  {
+    "/go": { status: 302, location: `${elsewhere.origin}/x` },
+    "/hop": { status: 302, location: "/second" },
+    "/hop2": { status: 301, location: "/hop3" },
+    "/hop3": { status: 307, location: `${elsewhere.origin}/` },
+    "/loop": { status: 302, location: "/loop" },
+    "/submit": { status: 303, location: "/second" },
+    "/keep": { status: 307, location: "/second" },
+  },
+);
+
+export const screenshots = mkdtempSync(join(tmpdir(), "oqas-shots-"));
 
 afterAll(async () => {
   await site.close();
