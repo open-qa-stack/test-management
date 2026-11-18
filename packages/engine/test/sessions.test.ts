@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { basename } from "node:path";
 import { setTimeout as pause } from "node:timers/promises";
-import { SessionEndedError, UnknownSessionError } from "@open-qa-stack/domain";
+import { SessionEndedError, SessionStateError, UnknownSessionError } from "@open-qa-stack/domain";
 import type { SessionEvent, SessionOpening } from "@open-qa-stack/domain/sessions";
-import { chain, ended, planned, read } from "@open-qa-stack/testing/test-repository";
+import { chain, ended, git, planned, read } from "@open-qa-stack/testing/test-repository";
 import { afterEach, describe, it } from "vitest";
 import { NoRepositoryError, Sessions } from "../src/index.ts";
 import { eventually } from "./support/eventually.ts";
@@ -198,6 +198,69 @@ describe("a message a person says to a session", () => {
     await assert.rejects(hosted.sessions.say("unknown", { text: "To no one." }), (error) => error instanceof UnknownSessionError);
     await assert.rejects(hosted.sessions.session("unknown"), (error) => error instanceof UnknownSessionError);
     await assert.rejects(hosted.sessions.events("unknown", 0), (error) => error instanceof UnknownSessionError);
+  });
+});
+
+describe("a session a person resumes once it ended", () => {
+  it("runs a new turn on what the person says, told what the turn before did, on the branch of its tests, and ends with the result of that turn", async () => {
+    hosted = await Hosted.create([...chain().slice(0, FIRST_RUN_REPLIES), ...secondRun()]);
+    const opened = await hosted.sessions.open({ request: REQUEST, environment: "local" });
+    const first = await hosted.ended(opened.id);
+    const branch = first.result?.branch;
+    assert.match(String(branch), /^oqas\/design-/);
+    const before = (await hosted.events(opened.id)).length;
+    const resumed = await hosted.sessions.resume(opened.id, { text: "Add a scenario for the export." });
+    assert.deepEqual([resumed.state, resumed.result], ["running", undefined]);
+    const second = await hosted.ended(opened.id);
+    // The tests of the first turn already cover what the second one plans: it writes none, and its result names the branch it went on with.
+    assert.deepEqual([second.state, second.result?.tests, second.result?.branch], ["completed", [], branch]);
+    assert.deepEqual(
+      git(hosted.root, "branch", "--format=%(refname:short)")
+        .split("\n")
+        .filter((name) => name.startsWith("oqas/")),
+      [branch],
+    );
+    const events = await hosted.events(opened.id);
+    assert.deepEqual(events.slice(before, before + 3).map(said), [
+      ["user_message", "Add a scenario for the export."],
+      ["state_changed", "queued"],
+      ["state_changed", "running"],
+    ]);
+    assert.equal(events.filter((event) => event.type === "user_message").length, 2, "what is asked of a turn is told once, by the store");
+    const asked = hosted.server.requests.filter((request) =>
+      (JSON.stringify(request.body) ?? "").includes("What the person asks of this turn:\\nAdd a scenario for the export."),
+    );
+    assert.ok(asked.length > 0, "the planner of the turn is asked what the person says now");
+    assert.match(JSON.stringify(asked[0]!.body), /What the session was asked first:\\nTest the listing of the orders\.[^"]*passed/);
+    await eventually(() => assert.equal(hosted.logger.lines.filter((line) => line === `log The session ${opened.id} is over.`).length, 2));
+  });
+
+  it("waits its turn behind a session that runs, and is refused by one that goes on, by one that does not exist, and by a host without a test repository", async () => {
+    const door = designDoor();
+    hosted = await Hosted.create(chain(), { before: door.hold });
+    const stopped = await hosted.sessions.open(STOPPED_AT_ONCE);
+    await hosted.ended(stopped.id);
+    const running = await hosted.sessions.open({ request: REQUEST, environment: "local" });
+    await door.reached;
+    await assert.rejects(hosted.sessions.resume(running.id, { text: "More." }), (error) => error instanceof SessionStateError);
+    await assert.rejects(hosted.sessions.resume("unknown", { text: "Go on." }), (error) => error instanceof UnknownSessionError);
+    assert.equal((await hosted.sessions.resume(stopped.id, { text: "Go on." })).state, "queued");
+    door.open();
+    await hosted.ended(running.id);
+    const again = await hosted.ended(stopped.id);
+    assert.equal(again.state, "interrupted");
+    assert.ok(
+      (await hosted.events(stopped.id)).findLast((event) => event.type === "state_changed" && event.state === "running")!.at >=
+        (await hosted.store.session(running.id))!.lastEventAt,
+      "one turn at a time",
+    );
+
+    const store = new MemorySessionStore();
+    const kept = await store.ask({ request: REQUEST }, GONE);
+    await store.interrupt(kept.id);
+    const reading = new Sessions({ store, repository: undefined, takesOver: true, env: ENV, logger: new RecordingLogger() });
+    await assert.rejects(reading.resume(kept.id, { text: "Go on." }), (error) => error instanceof NoRepositoryError);
+    assert.equal(await reading.stop(10), true);
   });
 });
 

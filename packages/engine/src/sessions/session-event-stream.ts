@@ -22,7 +22,7 @@ export interface EventListener {
  * hosts is notified by no one: the store is then read again at a pace, as long as the session is followed. A
  * reading starts after the last event told, so that one that finds nothing new tells no event twice. Nothing
  * follows the end of a session: the events end with the one that tells it — at once when it is at or before
- * the rank given.
+ * the rank given. An end a person resumed the session from is not its end: the events go on through it.
  */
 export class SessionEventStream {
   readonly #store: Pick<SessionQueries, "eventsAfter">;
@@ -74,15 +74,19 @@ export class SessionEventStream {
       try {
         while (woken && !left) {
           woken = false;
-          for (const event of await this.#store.eventsAfter(this.#session, last)) {
+          const events = await this.#store.eventsAfter(this.#session, last);
+          // The changes of state told before the last event known are read again, to learn of an end told already. A
+          // session a person resumed went on after its end: only the last change of state tells whether it ended.
+          const change = events.findLast((event) => event.type === "state_changed");
+          for (const event of events) {
             if (left) return;
-            // The changes of state told before the last event known are read again, to learn of an end told already.
             if (event.id > last) listener.event(event);
             last = Math.max(last, event.id);
-            if (event.type === "state_changed" && isTerminal(event.state)) {
-              close();
-              return listener.ended();
-            }
+          }
+          if (left) return;
+          if (change !== undefined && isTerminal(change.state)) {
+            close();
+            return listener.ended();
           }
         }
       } catch (error) {

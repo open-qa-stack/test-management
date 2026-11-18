@@ -34,6 +34,8 @@ Two agents share a design, each with its own system instructions, its own tools 
 
 The branch is `oqas/design-<date>` by default, such as `oqas/design-20261113T100000Z`; `branch` gives another name.
 
+A design that goes on with an earlier one, such as the next turn of a session, is given its branch as `continuedBranch`: that branch must exist, and no other is created. The design checks it out before it reads anything, when it is not checked out already, so that the agent that plans finds the tests it holds among those of the repository and sets aside what they cover; its tests are then committed on that branch.
+
 ## The index as a map
 
 The index tells where to look, without limiting where the agent may look:
