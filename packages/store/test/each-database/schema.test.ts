@@ -51,6 +51,7 @@ const DECLARED: { readonly [Table in keyof StoreSchema]: { readonly [Column in k
     delivered_at: "instant, or nothing",
   },
   configuration_revisions: { number: "integer", recorded_at: "instant", origin: "text", file_digest: "text", document: "json" },
+  knowledge_documents: { source: "text", name: "text", uploaded_at: "instant", bytes: "integer", text: "text" },
 };
 
 /** The type each database gives a column for what it keeps, as its catalog names it. */
@@ -122,5 +123,16 @@ describe("a database the migrations brought to the last of them", () => {
         .execute(),
       /foreign key/i,
     );
+  });
+
+  it("keeps a document once under its source and its name", async () => {
+    const { kysely } = sessions.database;
+    const document = { source: "specs", name: "quotes.md", uploaded_at: "2026-11-18T09:00:00.000Z", bytes: 1, text: "#" };
+    await kysely.insertInto("knowledge_documents").values(document).execute();
+    await kysely
+      .insertInto("knowledge_documents")
+      .values({ ...document, source: "notes" })
+      .execute();
+    await assert.rejects(kysely.insertInto("knowledge_documents").values(document).execute(), /knowledge_documents/);
   });
 });

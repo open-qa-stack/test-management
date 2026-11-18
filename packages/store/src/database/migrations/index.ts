@@ -1,6 +1,7 @@
 import { sessions } from "./0001-sessions.ts";
 import { sessionHosts } from "./0002-session-hosts.ts";
 import { configurationRevisions } from "./0003-configuration-revisions.ts";
+import { knowledgeDocuments } from "./0004-knowledge-documents.ts";
 import type { Migration } from "kysely/migration";
 
 /**
@@ -11,4 +12,5 @@ export const MIGRATIONS: Readonly<Record<string, Migration>> = {
   "0001_sessions": sessions,
   "0002_session_hosts": sessionHosts,
   "0003_configuration_revisions": configurationRevisions,
+  "0004_knowledge_documents": knowledgeDocuments,
 };

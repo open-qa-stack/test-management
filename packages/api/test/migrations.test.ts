@@ -22,7 +22,16 @@ import { childEnvironment } from "./support/environment.ts";
 const MIGRATE = fileURLToPath(new URL("../src/migrate.js", import.meta.url));
 
 /** The tables of an instance, with those that record its migrations. */
-const TABLES = ["configuration_revisions", "kysely_migration", "kysely_migration_lock", "project", "session_events", "session_messages", "sessions"];
+const TABLES = [
+  "configuration_revisions",
+  "knowledge_documents",
+  "kysely_migration",
+  "kysely_migration_lock",
+  "project",
+  "session_events",
+  "session_messages",
+  "sessions",
+];
 
 /** Runs a program of the package with the given variables only. */
 function program(path: string, variables: Record<string, string>): Promise<{ code: number | null; out: string; err: string }> {
@@ -68,7 +77,7 @@ describe("the migration command", () => {
       const fresh = await engine.create();
       try {
         const first = await program(MIGRATE, { OQAS_DATABASE_URL: fresh.url });
-        assert.deepEqual(first, { code: 0, out: "Applied 3 migrations.\n", err: "" });
+        assert.deepEqual(first, { code: 0, out: "Applied 4 migrations.\n", err: "" });
         assert.deepEqual(await tables(fresh.url), TABLES);
         const second = await program(MIGRATE, { OQAS_DATABASE_URL: fresh.url });
         assert.deepEqual(second, { code: 0, out: "The database schema is up to date: no migration to apply.\n", err: "" });
@@ -83,7 +92,7 @@ describe("the migration command", () => {
     const repository = mkdtempSync(join(tmpdir(), "oqas-api-migrate-"));
     try {
       writeFileSync(join(repository, "oqas.json"), "{}");
-      assert.deepEqual(await program(MIGRATE, { OQAS_REPOSITORY: repository }), { code: 0, out: "Applied 3 migrations.\n", err: "" });
+      assert.deepEqual(await program(MIGRATE, { OQAS_REPOSITORY: repository }), { code: 0, out: "Applied 4 migrations.\n", err: "" });
       assert.deepEqual(await tables(`sqlite:${join(repository, ".oqas", "oqas.db")}`), TABLES);
     } finally {
       rmSync(repository, { recursive: true, force: true });
