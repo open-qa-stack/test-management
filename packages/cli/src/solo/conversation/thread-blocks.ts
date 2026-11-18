@@ -8,6 +8,7 @@ import {
   type RepeatedNoteStep,
   type ReviewStep,
   type SayStep,
+  type ScopeStep,
   type Step,
   type ToolStep,
   type VerdictStep,
@@ -32,10 +33,11 @@ export type Block =
   | { readonly kind: "review"; readonly step: ReviewStep }
   | { readonly kind: "verdict"; readonly step: VerdictStep }
   | { readonly kind: "plan"; readonly step: PlanStep }
+  | { readonly kind: "scope"; readonly step: ScopeStep }
   | { readonly kind: "outcome"; readonly step: OutcomeStep };
 
-/** A card of a thread: the start of a pass, the verdict of a reviewer or of the harness, a plan or the outcome. */
-type Card = PassStep | ReviewStep | VerdictStep | PlanStep | OutcomeStep;
+/** A card of a thread: the start of a pass, what the session works on, the verdict of a reviewer or of the harness, a plan or the outcome. */
+type Card = PassStep | ScopeStep | ReviewStep | VerdictStep | PlanStep | OutcomeStep;
 
 /**
  * Reads the steps of a thread as the blocks a terminal writes, grouped as every presentation groups them.

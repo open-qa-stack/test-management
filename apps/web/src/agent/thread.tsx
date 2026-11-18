@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { hrefTo } from "../routing/route.ts";
-import { Badge, type BadgeTone } from "../ui/badge.tsx";
+import { Badge } from "../ui/badge.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Icon } from "../ui/icon.tsx";
 import { IDENTITIES } from "./agents.ts";
@@ -12,18 +12,17 @@ import {
   type NoteStep,
   type OutcomeStep,
   type PassStep,
-  type PlanStep,
-  type Remark,
   type RepeatedNoteStep,
-  type ReviewStep,
   type SayStep,
   type SessionStage,
   type Speaker,
   type ToolStep,
   type Turn,
-  type VerdictStep,
 } from "@open-qa-stack/domain/sessions";
+import { PlanCard } from "./plan-card.tsx";
+import { ScopeCard } from "./scope-card.tsx";
 import { SpeakerMark } from "./speaker-mark.tsx";
+import { HarnessVerdict, ReviewVerdict } from "./verdict-card.tsx";
 import { iconOf } from "./tool-icon.ts";
 import { counted } from "../ui/counted.ts";
 
@@ -59,12 +58,6 @@ interface Back {
   readonly unfolded: readonly number[];
   readonly onUnfold: (index: number) => void;
 }
-
-/** How many lines a long text shows before it is unfolded. */
-const FOLDED_LINES = 6;
-
-/** How many characters a text holds at most to be shown whole at once: about the room of its folded lines. */
-const FOLDED_LENGTH = 480;
 
 /** What an empty thread says, by where its session is: its title, then what comes next. */
 const EMPTY: Readonly<Record<SessionStage, readonly [string, string]>> = {
@@ -303,163 +296,6 @@ function Notes({ items }: { readonly items: readonly ShownStep[] }): ReactNode {
   );
 }
 
-/**
- * A text read at length, whole: one that would not hold in a few lines shows its first ones, and a button under
- * it unfolds the rest in place, then folds it again. The end of a refusal says what to do: it is one press away.
- */
-function LongText({
-  id,
-  text,
-  className,
-  index,
-  back,
-}: {
-  readonly id: string;
-  readonly text: string;
-  readonly className: string;
-  readonly index: number;
-  readonly back: Back;
-}): ReactNode {
-  const long = text.length > FOLDED_LENGTH || text.split("\n").length > FOLDED_LINES;
-  const open = back.unfolded.includes(index);
-  return (
-    <>
-      <p id={id} className={long && !open ? `${className} folded` : className}>
-        {text}
-      </p>
-      {long && (
-        <button type="button" className="btn ghost sm read-more" aria-expanded={open} aria-controls={id} onClick={() => back.onUnfold(index)}>
-          {open ? "Replier" : "Lire la suite"}
-        </button>
-      )}
-    </>
-  );
-}
-
-/** A verdict of the harness: accepted on evidence, or refused with the gate that refused, and what it says in full. */
-function Verdict({ step, index, back }: { readonly step: VerdictStep; readonly index: number; readonly back: Back }): ReactNode {
-  return (
-    <article className={step.accepted ? "verdict accepted" : "verdict refused"}>
-      <header className="verdict-head">
-        <div className="lead">
-          <SpeakerMark speaker="harness" size="sm" />
-          <b>{IDENTITIES.harness.name}</b>
-          <Badge tone={step.accepted ? "ok" : "ko"}>{step.accepted ? "accepté" : "refusé"}</Badge>
-          {step.code !== undefined && <span className="verdict-code">{step.code}</span>}
-          <span className="turn-role">{step.about}</span>
-        </div>
-        <span className="turn-at">{step.at}</span>
-      </header>
-      <LongText id={`verdict-text-${index}`} className="verdict-text" text={step.text} index={index} back={back} />
-    </article>
-  );
-}
-
-/** What a reviewer reviewed, as its card says it. */
-function reviewedOf(step: ReviewStep): string {
-  return step.scenario === undefined ? "a relu le plan" : `a relu le test de ${step.scenario}`;
-}
-
-/** The verdict of a reviewer in a few words, and its colour: none found is a pass; a call the harness refused or has not answered yet is no verdict. */
-function reviewVerdictOf(step: ReviewStep, running: boolean): readonly [BadgeTone, string] {
-  if (step.refused === true) return ["ko", "non retenu par le harnais"];
-  if (running) return ["neutral", "en cours"];
-  const count = step.remarks.length;
-  if (step.from === "plan_reviewer") return count === 0 ? ["ok", "aucun doublon"] : ["warn", counted(count, "doublon", "doublons")];
-  return count === 0 ? ["ok", "aucune remarque"] : ["warn", counted(count, "remarque", "remarques")];
-}
-
-/** A remark of a reviewer, in full: the scenario a duplicate is and what it repeats, where it is and by which rule, then what it says. */
-function RemarkView({ remark }: { readonly remark: Remark }): ReactNode {
-  const placed = remark.duplicate !== undefined || remark.where !== undefined || remark.rule !== undefined || remark.concerns === "plan";
-  return (
-    <li className="remark">
-      {placed && (
-        <div className="remark-head">
-          {remark.duplicate !== undefined && (
-            <span>
-              <b>{remark.duplicate.scenario}</b> double <span className="mono">{remark.duplicate.of}</span>
-            </span>
-          )}
-          {remark.where !== undefined && <b>{remark.where}</b>}
-          {remark.rule !== undefined && <span className="verdict-code">{remark.rule}</span>}
-          {remark.concerns === "plan" && <Badge tone="neutral">porte sur le plan</Badge>}
-        </div>
-      )}
-      <p className="remark-text">{remark.text}</p>
-    </li>
-  );
-}
-
-/**
- * The verdict of a reviewer: who reviewed what, what it came to, and each of its remarks in full. The call it
- * was handed in with — the tool, what the harness answered, the word the reviewer replied — is folded under it,
- * for whoever looks into the working of the review.
- */
-function Review({ step, running }: { readonly step: ReviewStep; readonly running: boolean }): ReactNode {
-  const [tone, verdict] = reviewVerdictOf(step, running);
-  return (
-    <article className="verdict review">
-      <header className="verdict-head">
-        <div className="lead">
-          <SpeakerMark speaker={step.from} size="sm" active={running} />
-          <b>{IDENTITIES[step.from].name}</b>
-          <span className="turn-role">{reviewedOf(step)}</span>
-          <Badge tone={tone}>{verdict}</Badge>
-        </div>
-        <span className="turn-at">{step.at}</span>
-      </header>
-      {step.remarks.length > 0 && (
-        <ol className="remarks">
-          {step.remarks.map((remark, index) => (
-            <RemarkView key={index} remark={remark} />
-          ))}
-        </ol>
-      )}
-      {step.answer !== undefined && (
-        <details className="review-call">
-          <summary>Détails de l’appel</summary>
-          <dl>
-            <dt>Outil</dt>
-            <dd className="mono">{step.tool}</dd>
-            <dt>Réponse du harnais</dt>
-            <dd>{step.answer}</dd>
-            {step.reply !== undefined && (
-              <>
-                <dt>Réponse du relecteur</dt>
-                <dd>{step.reply}</dd>
-              </>
-            )}
-          </dl>
-        </details>
-      )}
-    </article>
-  );
-}
-
-/** The plan of a pass, once accepted: its scenarios. */
-function Plan({ step }: { readonly step: PlanStep }): ReactNode {
-  return (
-    <section className="result-card">
-      <header>
-        <div className="lead">
-          <span className="act-state ok" aria-hidden="true" />
-          <b>{step.title}</b>
-          <span className="turn-role">{counted(step.scenarios.length, "scénario", "scénarios")}</span>
-        </div>
-        <span className="turn-at">{step.at}</span>
-      </header>
-      {step.scenarios.map((scenario, index) => (
-        <div key={index} className="result-row">
-          <Badge tone="neutral">{scenario.priority}</Badge>
-          <span className="result-title">{scenario.title}</span>
-          <span className="turn-role">{scenario.source}</span>
-        </div>
-      ))}
-    </section>
-  );
-}
-
 /** The start of a pass: the level of the pyramid the agents now work on. */
 function Pass({ step }: { readonly step: PassStep }): ReactNode {
   return (
@@ -526,9 +362,13 @@ function TurnView({ turn, back }: { readonly turn: Turn<ShownStep>; readonly bac
   if (turn.kind === "brief") return <Brief shown={turn.shown} />;
   if (turn.kind === "notes") return <Notes items={turn.items} />;
   const { step } = turn.shown;
-  if (step.kind === "review") return <Review step={step} running={turn.shown.running} />;
-  if (step.kind === "verdict") return <Verdict step={step} index={turn.shown.index} back={back} />;
-  if (step.kind === "plan") return <Plan step={step} />;
+  if (step.kind === "review") return <ReviewVerdict step={step} running={turn.shown.running} />;
+  if (step.kind === "verdict") {
+    const { index } = turn.shown;
+    return <HarnessVerdict step={step} index={index} open={back.unfolded.includes(index)} onUnfold={() => back.onUnfold(index)} />;
+  }
+  if (step.kind === "plan") return <PlanCard step={step} />;
+  if (step.kind === "scope") return <ScopeCard step={step} />;
   if (step.kind === "pass") return <Pass step={step} />;
   return <Outcome step={step as OutcomeStep} />;
 }

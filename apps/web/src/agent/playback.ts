@@ -179,12 +179,13 @@ export function played(script: SessionScript, playback: Playback, action: Playba
   }
 }
 
-/** Moves a replay to the next decision of the harness it has not shown — a verdict, a plan it accepted — stopped there, or follows the session when none is left. */
+/** Moves a replay to the next verdict it has not shown — of the harness or of a reviewer, a plan the harness accepted — stopped there, or follows the session when none is left. */
 function skipped(script: SessionScript, playback: Playback): Playback {
   let start = 0;
   for (const step of script.steps) {
     const shown = start + durationOf(step);
-    if ((step.kind === "verdict" || step.kind === "plan") && shown > playback.tick) return { ...playback, tick: shown, playing: false };
+    if ((step.kind === "verdict" || step.kind === "review" || step.kind === "plan") && shown > playback.tick)
+      return { ...playback, tick: shown, playing: false };
     start = shown + PAUSE_TICKS;
   }
   return { ...playback, following: true, playing: false };
@@ -214,7 +215,7 @@ export function passesOf(script: SessionScript, frame: Frame): PassProgress[] {
   }));
 }
 
-/** What the thread of a session keeps: everything, what is said, what is done, or what the harness decides. */
+/** What the thread of a session keeps: everything, what is said, what is done, or the verdicts, of the harness and of the reviewers alike. */
 export type ThreadFilter = "all" | "talk" | "actions" | "verdicts";
 
 /**
@@ -223,15 +224,16 @@ export type ThreadFilter = "all" | "talk" | "actions" | "verdicts";
  * @param step - The step.
  * @param filter - What the thread keeps.
  * @param speaker - The only speaker the thread follows, if any.
- * @returns Whether the step shows. The start of a pass always does, and the delivery of a message, which only
- * says where a message shown is; a verdict or a note is the harness speaking, and the verdict of a reviewer is
- * one of the verdicts too.
+ * @returns Whether the step shows. The start of a pass always does, what the session works on, and the delivery
+ * of a message, which only says where a message shown is. What is said is what the person, the agents and the harness say, its notes
+ * included; a verdict is one of the harness or one of a reviewer alike, and so are the plan it accepted and the
+ * verdicts of the tests.
  */
 export function shows(step: Step, filter: ThreadFilter, speaker?: Speaker): boolean {
-  if (step.kind === "pass" || step.kind === "delivery") return true;
+  if (step.kind === "pass" || step.kind === "delivery" || step.kind === "scope") return true;
   if (speaker !== undefined && fromOf(step) !== speaker) return false;
-  if (filter === "talk") return step.kind === "say";
+  if (filter === "talk") return step.kind === "say" || step.kind === "note" || step.kind === "repeated";
   if (filter === "actions") return step.kind === "tool" || step.kind === "plan" || step.kind === "outcome";
-  if (filter === "verdicts") return step.kind === "verdict" || step.kind === "review" || step.kind === "note" || step.kind === "repeated";
+  if (filter === "verdicts") return step.kind === "verdict" || step.kind === "review" || step.kind === "plan" || step.kind === "outcome";
   return true;
 }

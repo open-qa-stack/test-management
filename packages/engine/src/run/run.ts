@@ -371,6 +371,7 @@ export class Run {
     journal.record("configuration", "finished", `The configuration is valid; the run targets the environment ${environment}.`, {
       durationMs,
       modelRequests: 0,
+      scope: { environment, applications: result.config.applications.map((application) => application.id), levels: result.config.design.levels },
     });
     return { config: result.config, environment, rules: charter.rules, durationMs };
   }

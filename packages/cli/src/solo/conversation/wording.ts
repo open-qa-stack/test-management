@@ -21,6 +21,7 @@ export const WORDING: ScriptWording = {
   phase: (phase) => PHASES[phase] ?? "Step",
   tool: toolTitle,
   planAccepted: "Plan accepted by the harness",
+  scope: "Scope of the session",
   interrupted: "The session stopped without going to its end.",
   verdicts: (tests) => `Verdicts of the run: ${tests} test${tests === 1 ? "" : "s"}`,
   closed: (scenarios) => `${scenarios} test${scenarios === 1 ? "" : "s"} closed by the harness`,

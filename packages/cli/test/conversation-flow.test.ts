@@ -111,7 +111,7 @@ describe("oqas, without a command, in a terminal", () => {
     await screen.sees("The session is asked to stop: its agents stop as soon as they hand over.");
     door.open();
     await screen.sees("Session interrupted");
-    assert.match(screen.text, /✗ Error · [^\n]+\n {2}[^\n]*the run was asked to stop\./);
+    assert.match(screen.text, /■ Harness · automatic check · error · [^\n]+\n(?: {2}[^\n]*\n)? {2}[^\n]*the run was asked to stop\./);
     await screen.enter("/quit");
     assert.equal((await ended).code, 0);
     assert.equal((await other).code, 5);
@@ -152,7 +152,10 @@ describe("oqas, without a command, in a terminal", () => {
     const { screen, ended } = await conversing(["--environment", "nowhere"], { io: { now: () => new Date() } });
     await screen.enter(REQUEST);
     await screen.sees("Session interrupted");
-    assert.match(screen.text, /✗ Error · Configuration\n {2}The environment nowhere is not declared; the configuration declares local, staging\./);
+    assert.match(
+      screen.text,
+      /■ Harness · automatic check · error · Configuration\n {2}The environment nowhere is not declared; the configuration declares local, staging\./,
+    );
     screen.resize(60);
     await screen.enter("/help");
     await screen.sees(/Keys\n[\s\S]*What do we test next\?/);

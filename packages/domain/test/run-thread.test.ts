@@ -100,6 +100,21 @@ describe("an entry of the journal of a run", () => {
     }
   });
 
+  it("tells what the run works on when it says it in its form, as the configuration that finished does, and makes a thread start with it", () => {
+    const scope = { environment: "local", applications: ["shop", "back-office"], levels: ["functional"] };
+    const finished = (value: unknown) =>
+      `${JSON.stringify({ at: at(1), step: "configuration", event: "finished", message: "The configuration is valid.", scope: value })}\n`;
+    assert.deepEqual(journalLine(finished(scope))?.event, { type: "journal", level: "info", message: "The configuration is valid.", scope });
+    for (const malformed of [undefined, "local", { ...scope, environment: 3 }, { ...scope, applications: "shop" }, { ...scope, levels: [1] }]) {
+      assert.deepEqual(journalLine(finished(malformed))?.event, { type: "journal", level: "info", message: "The configuration is valid." });
+    }
+    const thread = new RankedThread();
+    assert.deepEqual(thread.add(journalLine(finished(scope))!), [
+      { id: 1, at: at(1), type: "scope_resolved", ...scope },
+      { id: 2, at: at(1), type: "note", phase: "configuration", text: "The configuration is valid." },
+    ]);
+  });
+
   it("is read, for an error of the cartography or of the design, under the first phase of the step", () => {
     assert.deepEqual(journalLine(entry(1, "design", "error", CHANGED)), {
       at: at(1),
@@ -396,6 +411,64 @@ describe("the thread of a run", () => {
     );
   });
 
+  it("tells each scenario of an accepted plan with all the plan says of it a person reads, and leaves out what it cannot read", () => {
+    const scenario = {
+      id: "search",
+      title: "Search a customer",
+      intent: "Finds a customer by name.",
+      kind: "functional",
+      level: "functional",
+      case: "nominal",
+      effect: "write",
+      application: "shop",
+      domain: "customers",
+      feature: "customer-search",
+      sources: [{ source: "specs", item: "Search" }, { source: "shop" }, { item: "no source" }, "specs"],
+      data: [{ value: "Ada", from: "made-up" }, { value: "Ada" }, { from: "shop" }],
+      steps: [
+        {
+          action: "Search Ada.",
+          actions: [3, 4],
+          expects: [{ result: "Ada is listed.", shows: ["Ada", 7], absent: ["Bob"] }, { result: "No text." }, { shows: ["x"] }],
+        },
+        { action: "Put back the customer.", actions: [5], restores: true, expects: "none" },
+        { action: "Look again.", restores: "yes", expects: [] },
+        { expects: [] },
+      ],
+    };
+    const events = threadOf([
+      ...propose(1, "p1", [scenario, { title: "No identifier", level: "smoke" }, "search", { id: "bare", level: "smoke", sources: "specs" }], ACCEPTED),
+    ]);
+    assert.deepEqual(ofType(events, "plan_accepted")[0]?.scenarios, [
+      {
+        id: "search",
+        title: "Search a customer",
+        level: "functional",
+        application: "shop",
+        case: "nominal",
+        intent: "Finds a customer by name.",
+        kind: "functional",
+        effect: "write",
+        domain: "customers",
+        feature: "customer-search",
+        sources: [{ source: "specs", item: "Search" }, { source: "shop" }],
+        data: [{ value: "Ada", from: "made-up" }],
+        steps: [
+          {
+            action: "Search Ada.",
+            expects: [
+              { result: "Ada is listed.", shows: ["Ada"], absent: ["Bob"] },
+              { result: "No text.", shows: [], absent: [] },
+            ],
+          },
+          { action: "Put back the customer.", expects: [], restores: true },
+          { action: "Look again.", expects: [] },
+        ],
+      },
+      { id: "bare", title: "bare", level: "smoke" },
+    ]);
+  });
+
   it("gives an accepted plan the scenarios the harness names when it journals the acceptance, in that order, and no other", () => {
     assert.deepEqual(
       planned([
@@ -544,6 +617,36 @@ describe("the thread of a run", () => {
         { id: 2, at: at(2), type: "refusal", phase: "plan", text: CHANGED },
         { id: 3, at: at(2), type: "refusal", phase: "plan", text: "No branch was created and no file was written." },
         { id: 4, at: at(2), type: "refusal", phase: "plan", text: CHANGED },
+      ],
+    );
+  });
+
+  it("names the scenario a refusal is about: one of the plan being built the text names, or the one whose test is written or reviewed", () => {
+    const refused = (seconds: number, phase: "plan" | "write" | "review", message: string) =>
+      traced(seconds, phase, "harness", { type: "journal", level: "error", message });
+    const events = threadOf([
+      traced(1, "plan", "harness", { type: "started" }),
+      traced(1, "plan", "agent", { type: "tool-call", callId: "p", tool: "propose_plan", arguments: { scenarios: [{ id: "search", level: "smoke" }] } }),
+      refused(2, "plan", "[PLAN-LEVEL] The plan was refused by the harness: scenario search is of the level smoke."),
+      refused(3, "plan", "[PLAN-START] The plan was refused by the harness: scenario browse opens no address, unlike scenario search."),
+      refused(4, "plan", "The design failed: one test per scenario of the plan."),
+      traced(5, "write", "harness", { type: "journal", level: "info", message: "The scenario open-shop was opened." }),
+      refused(6, "write", "[TEST-CHECK] The test could not be run."),
+      refused(7, "review", "The review could not be read."),
+      traced(8, "write", "agent", { type: "stopped", reason: { limit: "actions" } }),
+      traced(9, "write", "harness", { type: "journal", level: "info", message: "The scenario open-shop was closed: passed." }),
+      refused(10, "write", "The design failed."),
+    ]);
+    assert.deepEqual(
+      ofType(events, "refusal").map(({ code, scenario }) => [code, scenario]),
+      [
+        ["PLAN-LEVEL", "search"],
+        ["PLAN-START", "search"],
+        [undefined, undefined],
+        ["TEST-CHECK", "open-shop"],
+        [undefined, "open-shop"],
+        [undefined, "open-shop"],
+        [undefined, undefined],
       ],
     );
   });

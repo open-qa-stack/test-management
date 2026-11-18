@@ -944,28 +944,37 @@
   white-space: pre-wrap;
 }
 
-.review-call {
-  margin-top: var(--gap-row);
+/* What a verdict is about, on the line under who gave it; what was refused, then why. */
+.verdict-about {
+  margin: var(--gap-line) 0 0;
   color: var(--text-2);
   font-size: var(--type-small);
   line-height: var(--leading-small);
+  overflow-wrap: anywhere;
 }
 
-.review-call summary {
-  display: flex;
-  align-items: center;
-  min-height: var(--tap);
-  cursor: pointer;
+.verdict-subject {
+  margin: var(--gap-row) 0 0;
+  font-weight: var(--weight-medium);
+  overflow-wrap: anywhere;
 }
 
-.review-call dl {
+.verdict-subject + .verdict-text {
+  margin-top: var(--gap-line);
+}
+
+.verdict .raw {
+  margin-top: var(--gap-row);
+}
+
+.raw dl {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: var(--gap-line) var(--space-3);
   margin: 0 0 var(--gap-line);
 }
 
-.review-call dd {
+.raw dd {
   margin: 0;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
@@ -1014,6 +1023,220 @@
 
 .result-row .turn-role {
   grid-column: 2;
+  overflow-wrap: anywhere;
+}
+
+/* A plan: a cell for each scenario, folded to its line under a hairline, which unfolds on all the plan says of it. */
+.result-card.plan .scenario {
+  grid-column: 1 / -1;
+  border-top: var(--hairline) solid var(--line-soft);
+}
+
+.scenario-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gap-line) var(--space-2);
+  min-height: var(--tap);
+  padding: var(--space-3) var(--inset);
+  cursor: pointer;
+}
+
+.scenario-head .turn-role {
+  overflow-wrap: anywhere;
+}
+
+.scenario[open] > .scenario-head {
+  background: var(--surface-soft);
+}
+
+.scenario-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-row);
+  padding: 0 var(--inset) var(--space-3);
+  background: var(--surface-soft);
+}
+
+.scenario-intent {
+  max-inline-size: var(--measure);
+  margin: 0;
+  font-size: var(--type-reading);
+  line-height: var(--leading-reading);
+  overflow-wrap: anywhere;
+}
+
+/* The facts of a scenario or of a scope: a label in capitals over its value, as many in a row as the width holds. */
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 8em), 1fr));
+  gap: var(--gap-row) var(--space-4);
+  margin: 0;
+}
+
+.fact dt {
+  color: var(--text-3);
+  font-size: var(--type-caption);
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-caption);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.fact dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.plain-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The steps of a scenario, numbered, each with what it expects under it. */
+.scenario-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-row);
+  margin: 0;
+  padding-left: var(--space-6);
+}
+
+.scenario-action {
+  margin: 0;
+  font-weight: var(--weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.expects {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-line);
+  margin: var(--gap-line) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.expect-result {
+  margin: 0;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+
+.expect-texts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gap-line) var(--space-2);
+  margin-top: var(--gap-line);
+}
+
+.expect-label {
+  color: var(--text-3);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+}
+
+/* A text as the screen shows it, exactly: set in its own face, on a light frame. */
+.shown-text {
+  padding: 0 var(--space-1);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-inner);
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: var(--type-caption);
+  line-height: var(--leading-caption);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* What the session works on: its facts in a row under its title, then where the levels are asked. */
+.result-card.scope .facts {
+  grid-column: 1 / -1;
+  padding: 0 var(--inset);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-line);
+}
+
+.scope-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: var(--gap-row) var(--inset) var(--space-3);
+  color: var(--text-2);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+  overflow-wrap: anywhere;
+}
+
+/* The refusals of the harness about a scenario before its plan was accepted: a row each, its time, its gate, its reason. */
+.scenario-refusals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-line);
+}
+
+.scenario-refusals ol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-row);
+}
+
+.scenario-refusal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--gap-line) var(--space-2);
+}
+
+.scenario-refusal .turn-at {
+  margin-left: 0;
+}
+
+.scenario-refusal-text {
+  flex-basis: 100%;
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* What an event told, as it told it: folded at the end of what reads it. */
+.raw {
+  color: var(--text-2);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+}
+
+.raw summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-2);
+  min-height: var(--tap);
+  cursor: pointer;
+}
+
+.raw summary .mono {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.raw pre {
+  max-height: calc(var(--row) * 8);
+  margin: 0;
+  padding: var(--space-2);
+  overflow: auto;
+  border-radius: var(--radius-inner);
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: var(--type-caption);
+  line-height: var(--leading-caption);
+  white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 

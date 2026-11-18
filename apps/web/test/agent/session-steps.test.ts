@@ -100,23 +100,31 @@ describe("the script of a session", () => {
     assert.deepEqual(steps[12], { kind: "tool", from: "writer", at: "14:44:20", tool: "run_test", title: "A joué le test", pending: true });
   });
 
-  it("lists the scenarios of a plan the harness accepted, each with its level, its case and its application", () => {
+  it("tells a plan the harness accepted with each of its scenarios as the event gives it", () => {
     assert.deepEqual(steps[8], {
       kind: "plan",
       at: "14:44:16",
       title: "Plan accepté par le harnais",
-      scenarios: [{ priority: "smoke", title: "Search a customer", source: "nominal · customer-management" }],
+      scenarios: [{ id: "search", title: "Search a customer", level: "smoke", application: "customer-management", case: "nominal", refusals: [] }],
     });
   });
 
-  it("tells a refusal as a verdict of the harness about its phase, with the code of the gate", () => {
+  it("tells a refusal as a verdict of the harness about its phase and its scenario, with the code of the gate and the parts of its text", () => {
     assert.deepEqual(steps[9], {
       kind: "verdict",
       at: "14:44:17",
       accepted: false,
       code: "PLAN-ELEMENT",
       about: "Plan",
+      scenario: "search",
       text: REFUSAL,
+      subject: "The plan was refused by the harness",
+      reason: `${REFUSAL.slice(REFUSAL.indexOf("scenario search"), REFUSAL.indexOf("\n\nThe page"))}\n\nName the element each step acts on, as the page shows it, then propose the plan again.`,
+      page: {
+        kind: "page",
+        name: "http://localhost:3020/",
+        lines: ['- heading "Customers"', '- textbox "Search..."', '- button "Search"', '- table "Customers"'],
+      },
     });
   });
 
@@ -263,25 +271,26 @@ describe("the actions of a script", () => {
 describe("the decisions of the harness in a script", () => {
   it("tell a refusal no gate gave without a code", () => {
     const step = only([{ type: "refusal", phase: "write", text: "The model answered with status 503." }]);
-    assert.deepEqual(step, { kind: "verdict", at: "14:44:06", accepted: false, about: "Écriture d’un test", text: "The model answered with status 503." });
+    assert.deepEqual(step, {
+      kind: "verdict",
+      at: "14:44:06",
+      accepted: false,
+      about: "Écriture d’un test",
+      text: "The model answered with status 503.",
+      reason: "The model answered with status 503.",
+    });
   });
 
-  it("give a scenario of a plan the case or the application it has, nothing when it has neither", () => {
-    const step = only([
-      {
-        type: "plan_accepted",
-        scenarios: [
-          { id: "a", title: "A", level: "smoke", case: "nominal" },
-          { id: "b", title: "B", level: "functional", application: "shop" },
-          { id: "c", title: "C", level: "e2e" },
-        ],
-      },
-    ]);
-    assert.deepEqual(step.kind === "plan" && step.scenarios, [
-      { priority: "smoke", title: "A", source: "nominal" },
-      { priority: "functional", title: "B", source: "shop" },
-      { priority: "e2e", title: "C", source: "" },
-    ]);
+  it("title what the session works on in the words of the console", () => {
+    const step = only([{ type: "scope_resolved", environment: "local", applications: ["shop"], levels: ["functional"] }]);
+    assert.deepEqual(step, {
+      kind: "scope",
+      at: "14:44:06",
+      title: "Portée de la session",
+      environment: "local",
+      applications: ["shop"],
+      levels: ["functional"],
+    });
   });
 
   it("read a phase this console does not know as a step of the work, when it starts and when it refuses", () => {
@@ -291,7 +300,7 @@ describe("the decisions of the harness in a script", () => {
     ]);
     assert.deepEqual(steps, [
       { kind: "pass", at: "14:44:06", title: "Étape", summary: "" },
-      { kind: "verdict", at: "14:44:07", accepted: false, about: "Étape", text: "Nothing to triage." },
+      { kind: "verdict", at: "14:44:07", accepted: false, about: "Étape", text: "Nothing to triage.", reason: "Nothing to triage." },
     ]);
   });
 
