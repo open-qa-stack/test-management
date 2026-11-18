@@ -26,6 +26,21 @@ export function observed(text: string, texts: Iterable<string>): boolean {
 }
 
 /**
+ * Whether a text was observed whole in what the tools returned: as `observed` says, and with no letter nor digit
+ * right before it or right after it, so that a value is not taken for part of a longer one, as 300 in 3000.
+ *
+ * @param text - The text looked for.
+ * @param texts - What the tools returned.
+ * @returns `true` when one of them holds it whole.
+ */
+export function observedWhole(text: string, texts: Iterable<string>): boolean {
+  const looked = folded(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const whole = new RegExp(`(?<![\\p{L}\\p{N}])${looked}(?![\\p{L}\\p{N}])`, "u");
+  for (const candidate of texts) if (whole.test(folded(candidate))) return true;
+  return false;
+}
+
+/**
  * Whether two texts are the same, spaces collapsed and case aside.
  *
  * @param text - A text.

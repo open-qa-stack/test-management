@@ -76,6 +76,65 @@ const run = (watch: ScreenWatch, action: string, args: object = {}) =>
     .find((tool) => tool.name === `shop_${action}`)!
     .execute(args) as Promise<Record<string, unknown>>;
 
+describe("the clicks that write", () => {
+  /** The tools of a page whose clicks send a request that writes, but a click on Respond, which only opens a dialog; its network tool gives the requests sent. */
+  function writingPage(network: (sent: readonly object[]) => unknown): ToolDefinition[] {
+    const sent: object[] = [{ method: "POST", url: "/api/earlier" }];
+    return page([LIST]).tools.map((tool) => {
+      if (tool.name === "shop_network") return { ...tool, execute: async () => network(sent) };
+      if (tool.name !== "shop_click") return tool;
+      return {
+        ...tool,
+        execute: async (args) => {
+          const { target } = args as { target: { name?: string } };
+          sent.push(target.name === "Respond" ? { method: "GET", url: "/api/quotes/1" } : { method: "post", url: "/api/quotes" });
+          return { code: "await page.getByRole('button').click();" };
+        },
+      };
+    });
+  }
+
+  it("are those after which the page sent a request that writes, named by what they clicked, whatever the words of its name", async () => {
+    const watch = new ScreenWatch(
+      ["shop"],
+      writingPage((sent) => [...sent]),
+    );
+    const targets = [
+      { role: "button", name: "Respond" },
+      { role: "button", name: "Request a Quote" },
+      { label: "Next step" },
+      { text: "Go on" },
+      { testId: "next" },
+      { role: "button" },
+    ];
+    for (const target of targets) await run(watch, "click", { target });
+    // The request sent before the first click, still listed, is none of theirs.
+    assert.deepEqual(
+      targets.map((_, at) => watch.action(at + 1)?.changes),
+      [undefined, "Request a Quote", "Next step", "Go on", "next", "button"],
+    );
+  });
+
+  it("are, without a network to read, those whose name says they create, change or remove data", async () => {
+    const unread = new ScreenWatch(
+      ["shop"],
+      writingPage(() => Promise.reject(new Error("closed"))),
+    );
+    const none = new ScreenWatch(
+      ["shop"],
+      writingPage(() => ({ error: "no page" })),
+    );
+    for (const watch of [unread, none]) {
+      await run(watch, "click", { target: { role: "button", name: "Respond" } });
+      await run(watch, "click", { target: { role: "button", name: "Request a Quote" } });
+    }
+    assert.deepEqual(
+      [unread.action(1)?.changes, unread.action(2)?.changes, none.action(1)?.changes, none.action(2)?.changes],
+      ["Respond", undefined, "Respond", undefined],
+    );
+  });
+});
+
 describe("the screens the designer watches", () => {
   it("returns the page when it is opened, and what appeared after an action, the references of the elements aside", async () => {
     const { tools, calls } = page([LIST, LIST, FOUND]);
@@ -342,6 +401,11 @@ describe("the screens the designer watches", () => {
     );
     // A field's name, and the locator a line ends with, are no value typed.
     assert.deepEqual([watch.typed("shop", "orders"), watch.typed("shop", "getByRole"), watch.typed("shop", "7")], [false, false, true]);
+    // A value is read whole: "Order 4" is no part of "Order 42 of Ada", which a screen showed; a mark of a regular expression is read as it is.
+    assert.deepEqual(
+      ["Order 42", "Order 4", "Ada (", "of Ada"].map((text) => watch.showsBeforeTyped("shop", text)),
+      [true, false, false, true],
+    );
     assert.deepEqual([watch.showsBeforeTyped("ledger", "Mira"), watch.typed("ledger", "Mira")], [false, false]);
     // A value typed is dated by the snapshot that first showed it in its field, and is no text beside the fields.
     assert.deepEqual(
