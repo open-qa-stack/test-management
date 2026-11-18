@@ -3,6 +3,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, it } from "vitest";
+import { Configuration } from "@open-qa-stack/engine";
+import { DatabaseUrl, InstanceDatabase } from "@open-qa-stack/store";
 import { soloCommand } from "../src/index.ts";
 import { RepositoryInit } from "../src/solo/repository-init.ts";
 
@@ -33,8 +35,23 @@ function repository(files: Readonly<Record<string, string>>) {
   for (const [path, content] of Object.entries(files)) writeFileSync(join(root, path), content);
   const out: string[] = [];
   const err: string[] = [];
-  const init = () =>
-    new RepositoryInit({ repositoryRoot: root, playwrightVersion: "1.64.1", write: (line) => err.push(line), print: (line) => out.push(line) }).run();
+  // The configuration is read as a command reads it: on the database of the instance, which a file of the repository holds.
+  const init = async () => {
+    const instance = new InstanceDatabase(DatabaseUrl.ofFile(join(root, ".oqas", "oqas.db")), { log() {}, warn() {} });
+    await instance.prepare();
+    try {
+      const configuration = new Configuration(instance.configuration, root);
+      return await new RepositoryInit({
+        repositoryRoot: root,
+        configuration,
+        playwrightVersion: "1.64.1",
+        write: (line) => err.push(line),
+        print: (line) => out.push(line),
+      }).run();
+    } finally {
+      await instance.close();
+    }
+  };
   return { root, out, err, init };
 }
 
@@ -95,7 +112,7 @@ describe("the initialisation of a test repository as a Playwright project", () =
     assert.deepEqual([await none.init(), none.err.length, existsSync(join(none.root, "package.json"))], [3, 1, false]);
     assert.match(
       none.err[0]!,
-      /oqas\.json cannot be read; a test repository is initialised from the oqas\.json at its root, which declares its applications\.\n$/,
+      /oqas\.json cannot be read, and the instance keeps no revision of the configuration\. Write a oqas\.json at the root of the test repository\.\n$/,
     );
     const wrong = repository({ "oqas.json": JSON.stringify({ ...CONFIG, applications: [] }) });
     assert.deepEqual([await wrong.init(), existsSync(join(wrong.root, "package.json"))], [3, false]);
@@ -105,7 +122,13 @@ describe("the initialisation of a test repository as a Playwright project", () =
     );
     // An error about the whole file is told at its root.
     const broken = repository({ "oqas.json": "not json" });
-    assert.deepEqual([await broken.init(), broken.err], [3, ["/: The file is not valid JSON.\n"]]);
+    assert.deepEqual([await broken.init(), broken.err], [3, ["/: The file is not valid JSON.\nCorrect oqas.json.\n"]]);
+  });
+
+  it("stops on what the store of the configuration raises when it is no refusal of the configuration", async () => {
+    const configuration = { synchronise: () => Promise.reject(new Error("The database is unreachable.")) };
+    const init = new RepositoryInit({ repositoryRoot: workspace, configuration, playwrightVersion: "1.64.1", write: () => undefined, print: () => undefined });
+    await assert.rejects(init.run(), { message: "The database is unreachable." });
   });
 });
 

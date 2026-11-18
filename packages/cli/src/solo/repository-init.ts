@@ -1,12 +1,16 @@
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { testRepositoryBase } from "@open-qa-stack/harness";
-import { CONFIG_FILE_NAME, ExitCode, validateConfig, type EnvironmentVariables, type ExitCodeValue } from "@open-qa-stack/domain";
+import { ExitCode, resolvedConfig, type ConfigurationRevision, type ExitCodeValue } from "@open-qa-stack/domain";
+import type { ConfigurationSource } from "@open-qa-stack/engine";
+import { configurationRefusal } from "./configuration-lines.ts";
 
 /** What the initialisation of a test repository needs. */
 export interface RepositoryInitOptions {
   /** Absolute path of the test repository. */
   readonly repositoryRoot: string;
+  /** Where the configuration is read: the revision in force, once it is in step with the configuration file. */
+  readonly configuration: ConfigurationSource;
   /** The exact version of `@playwright/test` the repository is initialised at. */
   readonly playwrightVersion: string;
   /** Writes a line of what went wrong. */
@@ -15,11 +19,9 @@ export interface RepositoryInitOptions {
   readonly print: (line: string) => void;
 }
 
-/** An environment in which every variable is set: a repository is initialised without the secrets its runs need. */
-const EVERY_VARIABLE_SET: EnvironmentVariables = new Proxy({}, { get: () => "set" });
-
 /**
- * Initialises a test repository as a Playwright project, from its configuration.
+ * Initialises a test repository as a Playwright project, from the configuration in force, once it is in step with
+ * its file: the instance takes the file as its first revision when it has none.
  *
  * @remarks
  * It is a program, not an agent: the files are those `testRepositoryBase` gives for the applications the
@@ -39,21 +41,13 @@ export class RepositoryInit {
    * Writes the files the repository lacks.
    *
    * @returns `0` once the files are there; `3` when the configuration is missing or invalid.
+   * @throws What the store of the configuration raises when it cannot be read or written.
    */
   public async run(): Promise<ExitCodeValue> {
     const { repositoryRoot, playwrightVersion, write, print } = this.options;
-    const path = join(repositoryRoot, CONFIG_FILE_NAME);
-    const text = await readFile(path, "utf8").catch(() => undefined);
-    if (text === undefined) {
-      write(`${path} cannot be read; a test repository is initialised from the ${CONFIG_FILE_NAME} at its root, which declares its applications.\n`);
-      return ExitCode.configuration;
-    }
-    const result = validateConfig(text, EVERY_VARIABLE_SET);
-    if (!result.ok) {
-      for (const error of result.errors) write(`${error.path || "/"}: ${error.message}\n`);
-      return ExitCode.configuration;
-    }
-    const { applications, repository, design } = result.config;
+    const revision = await this.options.configuration.synchronise().catch((error: unknown) => refused(write, error));
+    if (revision === undefined) return ExitCode.configuration;
+    const { applications, repository, design } = resolvedConfig(revision.document);
     const files = testRepositoryBase({
       playwrightVersion,
       applications: applications.map(({ id, name, type }) => ({ id, name, ui: type !== "api" })),
@@ -85,4 +79,17 @@ export class RepositoryInit {
     print(created.length === 0 ? "Nothing was missing.\n" : "Next: read what was created, run npm install, then commit it with the lockfile.\n");
     return ExitCode.passed;
   }
+}
+
+/**
+ * Tells why the configuration cannot be had, and what to do.
+ *
+ * @returns Nothing, once it is told.
+ * @throws The error, when it is no refusal of the configuration.
+ */
+function refused(write: (line: string) => void, error: unknown): ConfigurationRevision | undefined {
+  const told = configurationRefusal(error);
+  if (told === undefined) throw error;
+  write(`${told}\n`);
+  return undefined;
 }

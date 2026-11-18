@@ -1,5 +1,6 @@
 import { SessionEndedError, UnknownSessionError } from "@open-qa-stack/domain";
 import { DatabaseUnavailableError, PendingMigrationsError } from "@open-qa-stack/store";
+import { configurationRefusal } from "./configuration-lines.ts";
 import { UsageError } from "./usage-error.ts";
 
 /** The refusals a person can act on: what they asked cannot be done as it is asked. */
@@ -23,6 +24,8 @@ export interface Failure {
  * @returns Its kind and its message.
  */
 export function failureOf(error: unknown): Failure {
+  const refusal = configurationRefusal(error);
+  if (refusal !== undefined) return { kind: "refused", message: refusal };
   const message = error instanceof Error ? error.message : String(error);
   if (REFUSALS.some((refusal) => error instanceof refusal)) return { kind: "refused", message };
   return { kind: error instanceof DatabaseUnavailableError ? "unavailable" : "unexpected", message };

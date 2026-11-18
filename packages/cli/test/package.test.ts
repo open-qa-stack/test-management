@@ -8,7 +8,7 @@ describe("the package of the command", () => {
     readdirSync(folder, { recursive: true, encoding: "utf8" })
       .filter((file) => file.endsWith(".ts") && within(file))
       .flatMap((file) =>
-        [...readFileSync(new URL(file, folder), "utf8").matchAll(/(?:from\s+|import\s*\(?\s*)"([^"]+)"/g)].map((match) => [file, match[1]!] as const),
+        [...readFileSync(new URL(file, folder), "utf8").matchAll(/(?:from\s+|(?<!")\bimport\s*\(?\s*)"([^"]+)"/g)].map((match) => [file, match[1]!] as const),
       );
 
   const SOURCES = new URL("../src/", import.meta.url);
