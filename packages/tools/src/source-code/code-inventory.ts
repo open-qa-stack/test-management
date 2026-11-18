@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { extname, posix } from "node:path";
+import { byCodeUnits } from "@open-qa-stack/domain";
 import { fingerprintOf } from "../common/fingerprint.ts";
 import type { SourceInventory } from "../common/source-inventory.ts";
 import type { CodeFolder } from "./code-folder.ts";
@@ -47,7 +48,7 @@ export async function codeInventory(folder: CodeFolder, maxItems = MAX_CODE_ITEM
     folders.set(posix.dirname(file), facts);
   }
   while (folders.size > maxItems) mergeDeepest(folders);
-  const items = [...folders.keys()].sort();
+  const items = [...folders.keys()].sort(byCodeUnits);
   return {
     items,
     facts: new Map(items.map((item) => [item, folders.get(item)!])),

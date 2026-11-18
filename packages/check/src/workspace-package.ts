@@ -59,5 +59,6 @@ async function sourcesOf(path: string): Promise<string[]> {
   for await (const entry of glob("src/**", { cwd: path, withFileTypes: true })) {
     if (entry.isFile()) sources.push(join(entry.parentPath, entry.name));
   }
-  return sources.sort();
+  // By their code units, as git lists paths: the same order on every machine.
+  return sources.sort((a, b) => Number(a > b) - Number(a < b));
 }
