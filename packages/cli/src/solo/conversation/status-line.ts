@@ -4,7 +4,7 @@ import { createElement as h, type ReactNode } from "react";
 import type { Session } from "@open-qa-stack/domain/sessions";
 import { sinceText, standing } from "./session-facts.ts";
 import { standingTone } from "./session-line.ts";
-import { IDENTITIES } from "./speakers.ts";
+import { identityOf } from "./speakers.ts";
 import { GUTTER, type Theme } from "./palette.ts";
 import type { ThreadProgress } from "./thread-progress.ts";
 
@@ -31,7 +31,7 @@ export function StatusLine({ session, progress, now, theme }: StatusLineProps): 
   const facts = [
     progress.pass,
     progress.scenario,
-    progress.agent === undefined ? undefined : IDENTITIES[progress.agent].name,
+    progress.agent === undefined ? undefined : identityOf(progress.agent).name,
     sinceText(Math.max(0, now - Date.parse(session.openedAt))),
   ].filter((fact) => fact !== undefined);
   return h(

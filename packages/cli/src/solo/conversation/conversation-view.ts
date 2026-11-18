@@ -12,7 +12,7 @@ import { StatusLine } from "./status-line.ts";
 import { StopConfirmation } from "./stop-confirmation.ts";
 import { blocksOf } from "./thread-blocks.ts";
 import { progressOf } from "./thread-progress.ts";
-import { WORDING } from "./wording.ts";
+import { wording } from "./wording.ts";
 import type { ConversationContext, ConversationState, Printed } from "./conversation-state.ts";
 import { GUTTER, type Theme } from "./palette.ts";
 
@@ -39,7 +39,7 @@ export interface ConversationViewProps {
  */
 export function ConversationView({ state, context, theme, width, onChange, onSubmit }: ConversationViewProps): ReactNode {
   const { shown, overlay } = state;
-  const script = shown === undefined ? undefined : scriptOf(shown.session, shown.events, WORDING);
+  const script = shown === undefined ? undefined : scriptOf(shown.session, shown.events, wording());
   const live = script === undefined || shown === undefined ? [] : blocksOf(script.steps).slice(shown.settled);
   const hints = hintsOf(state);
   const commands = overlay === undefined ? hintedCommands(state.input) : [];

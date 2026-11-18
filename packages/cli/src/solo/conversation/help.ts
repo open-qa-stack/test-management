@@ -1,16 +1,19 @@
 import { Box, Text } from "ink";
 import { createElement as h, type ReactNode } from "react";
+import { t } from "./i18n/i18n.ts";
 import { SLASH_COMMANDS } from "./slash-commands.ts";
 import type { Theme } from "./palette.ts";
 
-/** The keys of the conversation, and what each does. */
-const KEYS: readonly (readonly [string, string])[] = [
-  ["Enter", "Open a session with what you typed, say it to the agents of the session that goes on, or go on with the session that ended"],
-  ["Tab", "Complete the command you are typing"],
-  ["Up, Down", "Move in a list"],
-  ["Esc", "Close a list or a confirmation"],
-  ["Ctrl-C", "Clear the input; then stop the session this terminal runs; pressed twice, quit"],
-];
+/** The keys of the conversation, and what each does, in the language of the conversation. */
+function keys(): readonly (readonly [string, string])[] {
+  return [
+    ["Enter", t("help.enter")],
+    ["Tab", t("help.tab")],
+    [t("help.keyUpDown"), t("help.upDown")],
+    ["Esc", t("help.esc")],
+    ["Ctrl-C", t("help.ctrlC")],
+  ];
+}
 
 /** The width of the column of the names, in columns. */
 const NAMES = 16;
@@ -33,9 +36,9 @@ export function Help({ theme }: HelpProps): ReactNode {
   return h(
     Box,
     { flexDirection: "column", marginTop: 1 },
-    h(Text, { bold: true }, "Commands"),
-    ...SLASH_COMMANDS.map(({ name, takes, does }) => line(`/${name}${takes === undefined ? "" : ` ${takes}`}`, does)),
-    h(Box, { marginTop: 1 }, h(Text, { bold: true }, "Keys")),
-    ...KEYS.map(([key, does]) => line(key, does)),
+    h(Text, { bold: true }, t("help.commands")),
+    ...SLASH_COMMANDS.map(({ name, takes }) => line(`/${name}${takes === undefined ? "" : ` ${takes}`}`, t(`commands.${name}`))),
+    h(Box, { marginTop: 1 }, h(Text, { bold: true }, t("help.keys"))),
+    ...keys().map(([key, does]) => line(key, does)),
   );
 }

@@ -8,6 +8,7 @@ import { SessionEndedError } from "@open-qa-stack/domain";
 import { contextOf, reasonOf } from "../src/solo/conversation/converse.ts";
 import { widthOf } from "./conversation/screen.ts";
 import { FakeTerminal } from "./support/fake-terminal.ts";
+import { configText } from "@open-qa-stack/testing/test-repository";
 import { chain, program, sessionOf, Terminal, workspace, type Ran } from "./support/terminal.ts";
 
 const REQUEST = "Test the listing of the orders.";
@@ -165,6 +166,22 @@ describe("oqas, without a command, in a terminal", () => {
       [],
     );
     assert.ok(narrow.includes("                or go on with the session that ended"));
+    await screen.enter("/quit");
+    assert.equal((await ended).code, 3);
+  });
+
+  it("speaks the language of the configuration in force, and a session of the agents in the words of that language", async () => {
+    terminal = await Terminal.open([], { config: (modelUrl) => JSON.stringify({ ...(JSON.parse(configText(modelUrl)) as object), language: "fr" }) });
+    const screen = new FakeTerminal();
+    const ended = terminal.oqas(["--environment", "nowhere"], { env: { LANG: "en_US.UTF-8" }, io: { terminal: screen, now: () => new Date() } });
+    const french = { screen, ended };
+    open.add(french);
+    void ended.finally(() => open.delete(french));
+    await screen.sees("Qu’est-ce qu’on teste ?");
+    assert.match(screen.text, /environnement nowhere · base SQLite/);
+    await screen.enter(REQUEST);
+    await screen.sees("Session interrompue");
+    assert.match(screen.text, /■ Harnais · contrôle automatique · erreur · Configuration\n {2}The environment nowhere is not declared/);
     await screen.enter("/quit");
     assert.equal((await ended).code, 3);
   });

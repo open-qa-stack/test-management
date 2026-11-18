@@ -3,7 +3,7 @@ import { describe, it } from "vitest";
 import type { Session, SessionPhase } from "@open-qa-stack/domain/sessions";
 import { elapsedText, sinceText, standing } from "../../src/solo/conversation/session-facts.ts";
 import { toolTitle } from "../../src/solo/conversation/tool-title.ts";
-import { WORDING } from "../../src/solo/conversation/wording.ts";
+import { wording } from "../../src/solo/conversation/wording.ts";
 import { COMPLETED, FAILED, RUNNING } from "./fixtures.ts";
 
 describe("what a tool call did, as the terminal words it", () => {
@@ -83,7 +83,7 @@ describe("the words of the terminal for a thread", () => {
           "summary",
           "later",
         ] as SessionPhase[]
-      ).map(WORDING.phase),
+      ).map(wording().phase),
       [
         "Configuration",
         "Prerequisites",
@@ -102,12 +102,12 @@ describe("the words of the terminal for a thread", () => {
   });
 
   it("count what a session produced, title a session nobody asked anything in, and word a tool call", () => {
-    assert.deepEqual([WORDING.verdicts(1), WORDING.verdicts(3)], ["Verdicts of the run: 1 test", "Verdicts of the run: 3 tests"]);
-    assert.deepEqual([WORDING.closed(1), WORDING.closed(2)], ["1 test closed by the harness", "2 tests closed by the harness"]);
-    assert.equal(WORDING.opened("2026-11-13", "14:44:05"), "Session of 2026-11-13 at 14:44:05 UTC");
-    assert.equal(WORDING.tool("run_test", {}), "Ran the test");
+    assert.deepEqual([wording().verdicts(1), wording().verdicts(3)], ["Verdicts of the run: 1 test", "Verdicts of the run: 3 tests"]);
+    assert.deepEqual([wording().closed(1), wording().closed(2)], ["1 test closed by the harness", "2 tests closed by the harness"]);
+    assert.equal(wording().opened("2026-11-13", "14:44:05"), "Session of 2026-11-13 at 14:44:05 UTC");
+    assert.equal(wording().tool("run_test", {}), "Ran the test");
     assert.deepEqual(
-      [WORDING.tool("run_test", {}, "Search a customer"), WORDING.tool("propose_test", {}, "Search a customer")],
+      [wording().tool("run_test", {}, "Search a customer"), wording().tool("propose_test", {}, "Search a customer")],
       ['Ran "Search a customer"', 'Handed in "Search a customer"'],
     );
   });

@@ -3,18 +3,16 @@ export interface SlashCommand {
   readonly name: "sessions" | "new" | "stop" | "ui" | "help" | "quit";
   /** What it takes after its name, when it takes something. */
   readonly takes?: string;
-  /** What it does, in a few words. */
-  readonly does: string;
 }
 
-/** The commands of the conversation, in the order the help lists them. */
+/** The commands of the conversation, in the order the help lists them; what each does is in the resources, under its name. */
 export const SLASH_COMMANDS: readonly SlashCommand[] = [
-  { name: "sessions", does: "Pick a session and reopen its thread; one that goes on is followed" },
-  { name: "new", does: "Go back to the start, to open another session" },
-  { name: "stop", does: "Stop the session on screen, after a confirmation" },
-  { name: "ui", takes: "[port]", does: "Serve the web console from this process and print its address" },
-  { name: "help", does: "List the commands and the keys" },
-  { name: "quit", does: "Leave the conversation" },
+  { name: "sessions" },
+  { name: "new" },
+  { name: "stop" },
+  { name: "ui", takes: "[port]" },
+  { name: "help" },
+  { name: "quit" },
 ];
 
 /**

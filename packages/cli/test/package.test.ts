@@ -25,9 +25,9 @@ describe("the package of the command", () => {
     assert.ok(!imported.some((module) => module.includes("copilot")));
   });
 
-  it("draws its conversation with Ink and React, which the files of the conversation alone import, and which are loaded for it alone", () => {
+  it("draws its conversation with Ink and React in the words of i18next, which the files of the conversation alone import, and which are loaded for it alone", () => {
     const drawn = importedUnder(SOURCES, (file) => file.startsWith(CONVERSATION)).map(([, module]) => module);
-    assert.deepEqual([...new Set(drawn.filter((module) => !allowed.test(module)))].sort(), ["ink", "ink-spinner", "ink-text-input", "react"]);
+    assert.deepEqual([...new Set(drawn.filter((module) => !allowed.test(module)))].sort(), ["i18next", "ink", "ink-spinner", "ink-text-input", "react"]);
     // Nothing reaches the conversation but one import, made when it is opened: no other command loads what draws it.
     const reaching = importedUnder(SOURCES, (file) => !file.startsWith(CONVERSATION)).filter(([, module]) => module.includes("/conversation/"));
     assert.deepEqual(reaching, [["solo/solo-command.ts", "./conversation/converse.ts"]]);
@@ -45,6 +45,7 @@ describe("the package of the command", () => {
       "@open-qa-stack/store",
       "@open-qa-stack/tools",
       "@open-qa-stack/web",
+      "i18next",
       "ink",
       "ink-spinner",
       "ink-text-input",

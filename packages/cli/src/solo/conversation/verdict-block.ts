@@ -5,6 +5,7 @@ import { Marked } from "./marked.ts";
 import { SpeakerHead } from "./speaker-head.ts";
 import type { Theme } from "./palette.ts";
 import type { Block } from "./thread-blocks.ts";
+import { t } from "./i18n/i18n.ts";
 
 /** What a verdict needs. */
 export interface VerdictBlockProps {
@@ -12,40 +13,34 @@ export interface VerdictBlockProps {
   readonly theme: Theme;
 }
 
-/** The plural of a count, as `2 remarks`. */
-function counted(count: number, one: string): string {
-  return `${count} ${one}${count === 1 ? "" : "s"}`;
-}
-
 /** What a verdict of the harness came to, and what it is about: its gate, its phase, its scenario, its tool. */
 function harnessSummary(step: VerdictStep, between: string): string {
   // A thread tells the refusals of the harness, and the errors the work hit: what it accepts is told by what follows.
-  const verdict = step.code === undefined ? "error" : "refused";
+  const verdict = t(step.code === undefined ? "verdict.error" : "verdict.refused");
   const about = [
     step.code,
     step.about,
-    step.scenario === undefined ? undefined : `scenario ${step.scenario}`,
-    step.tool === undefined ? undefined : `tool ${step.tool}`,
+    step.scenario === undefined ? undefined : t("verdict.scenario", { id: step.scenario }),
+    step.tool === undefined ? undefined : t("verdict.tool", { name: step.tool }),
   ];
   return [verdict, ...about.filter((part) => part !== undefined)].join(` ${between} `);
 }
 
 /** What a reviewer looked at, and what it came to: none found, a count, not taken yet, or not taken. */
 function reviewSummary(step: ReviewStep): string {
-  const reviewed = step.scenario === undefined ? "reviewed the plan" : `reviewed the test of ${step.scenario}`;
-  const found = step.from === "plan_reviewer" ? "duplicate" : "remark";
-  const verdict = step.remarks.length === 0 ? `no ${found}` : counted(step.remarks.length, found);
-  const state = step.refused === true ? ", not taken by the harness" : step.pending === true ? ", handing it in" : "";
-  return `${reviewed}: ${verdict}${state}`;
+  const reviewed = step.scenario === undefined ? t("verdict.reviewedPlan") : t("verdict.reviewedTest", { scenario: step.scenario });
+  const verdict = t(step.from === "plan_reviewer" ? "verdict.duplicates" : "verdict.remarks", { count: step.remarks.length });
+  const state = step.refused === true ? t("verdict.notTaken") : step.pending === true ? t("verdict.handingIn") : "";
+  return t("verdict.review", { reviewed, verdict, state });
 }
 
 /** Where a remark is and what it breaks, before what it says: the scenario a duplicate is and what it repeats, the place, the rule, a plan it concerns. */
 function placeOf(remark: Remark): string {
   const parts = [
-    remark.duplicate === undefined ? undefined : `${remark.duplicate.scenario} repeats ${remark.duplicate.of}`,
+    remark.duplicate === undefined ? undefined : t("verdict.repeats", { scenario: remark.duplicate.scenario, of: remark.duplicate.of }),
     remark.where,
     remark.rule === undefined ? undefined : `(${remark.rule})`,
-    remark.concerns === "plan" ? "[plan]" : undefined,
+    remark.concerns === "plan" ? t("verdict.plan") : undefined,
   ];
   return parts.filter((part) => part !== undefined).join(" ");
 }
@@ -62,7 +57,7 @@ function harnessBody(step: VerdictStep, theme: Theme): ReactNode[] {
       ...(step.page === undefined
         ? []
         : [
-            h(Text, { key: "at", ...muted }, `The page was at ${step.page.name}:`),
+            h(Text, { key: "at", ...muted }, t("verdict.pageAt", { name: step.page.name })),
             ...step.page.lines.map((line, index) => h(Text, { key: index, ...muted }, line)),
           ]),
     ),
@@ -90,8 +85,8 @@ export function VerdictBlock({ block, theme }: VerdictBlockProps): ReactNode {
   const between = theme.glyphs.separator;
   const head =
     block.kind === "verdict"
-      ? h(SpeakerHead, { speaker: "harness", after: `${between} automatic check ${between} ${harnessSummary(block.step, between)}`, theme })
-      : h(SpeakerHead, { speaker: block.step.from, after: `${between} agent ${between} ${reviewSummary(block.step)}`, theme });
+      ? h(SpeakerHead, { speaker: "harness", after: `${between} ${t("verdict.automatic")} ${between} ${harnessSummary(block.step, between)}`, theme })
+      : h(SpeakerHead, { speaker: block.step.from, after: `${between} ${t("verdict.agent")} ${between} ${reviewSummary(block.step)}`, theme });
   return h(
     Box,
     { flexDirection: "column", marginTop: 1 },

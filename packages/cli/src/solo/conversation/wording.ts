@@ -1,29 +1,25 @@
 import type { ScriptWording } from "@open-qa-stack/domain/sessions";
+import { t, type Words } from "./i18n/i18n.ts";
 import { toolTitle } from "./tool-title.ts";
 
-/** How the start of each phase reads; a later version of the contract may name another. */
-const PHASES: Readonly<Record<string, string>> = {
-  configuration: "Configuration",
-  prerequisites: "Prerequisites",
-  survey: "Cartography · sources",
-  card: "Cartography · card",
-  consolidation: "Cartography · domains",
-  index: "Cartography · index",
-  plan: "Plan",
-  review: "Plan review",
-  write: "Writing a test",
-  execution: "Running the tests",
-  summary: "Summary",
-};
+/** The phases the terminal words; a later version of the contract may name another. */
+const PHASES = new Set(["configuration", "prerequisites", "survey", "card", "consolidation", "index", "plan", "review", "write", "execution", "summary"]);
 
-/** The words of the terminal for what a thread tells; a phase it does not know reads as a step of the work, without more. */
-export const WORDING: ScriptWording = {
-  phase: (phase) => PHASES[phase] ?? "Step",
-  tool: toolTitle,
-  planAccepted: "Plan accepted by the harness",
-  scope: "Scope of the session",
-  interrupted: "The session stopped without going to its end.",
-  verdicts: (tests) => `Verdicts of the run: ${tests} test${tests === 1 ? "" : "s"}`,
-  closed: (scenarios) => `${scenarios} test${scenarios === 1 ? "" : "s"} closed by the harness`,
-  opened: (day, time) => `Session of ${day} at ${time} UTC`,
-};
+/**
+ * The words of the terminal for what a thread tells, in the language of the conversation; a phase it does not
+ * know reads as a step of the work, without more.
+ *
+ * @returns The wording.
+ */
+export function wording(): ScriptWording {
+  return {
+    phase: (phase) => (PHASES.has(phase) ? t(`steps.phases.${phase as keyof Words["steps"]["phases"]}`) : t("steps.step")),
+    tool: toolTitle,
+    planAccepted: t("steps.planAccepted"),
+    scope: t("steps.scope"),
+    interrupted: t("steps.interrupted"),
+    verdicts: (tests) => t("steps.verdicts", { count: tests }),
+    closed: (scenarios) => t("steps.closed", { count: scenarios }),
+    opened: (day, time) => t("steps.opened", { day, time }),
+  };
+}

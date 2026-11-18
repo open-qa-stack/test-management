@@ -1,7 +1,7 @@
 import { basename } from "node:path";
 import { render } from "ink";
 import { createElement } from "react";
-import { ExitCode, type ExitCodeValue } from "@open-qa-stack/domain";
+import { ExitCode, languageOf, type ExitCodeValue } from "@open-qa-stack/domain";
 import { hasEnded, type Project } from "@open-qa-stack/domain/sessions";
 import type { Sessions } from "@open-qa-stack/engine";
 import type { DatabaseUrl } from "@open-qa-stack/store";
@@ -14,6 +14,7 @@ import { Conversation, type ConversationProps, type Leaving } from "./conversati
 import { themeOf } from "./palette.ts";
 import type { CommandIo, CommandTerminal } from "../command-io.ts";
 import type { ConversationContext } from "./conversation-state.ts";
+import { i18n, t } from "./i18n/i18n.ts";
 
 /** What the conversation is opened with. */
 export interface Conversed {
@@ -54,7 +55,7 @@ export function contextOf(project: Project, repository: string, database: Databa
  */
 export function reasonOf(error: unknown): string {
   const { kind, message } = failureOf(error);
-  return kind === "unexpected" ? `Unexpected error: ${message}` : message;
+  return kind === "unexpected" ? t("notices.unexpected", { message }) : message;
 }
 
 /**
@@ -101,6 +102,9 @@ async function codeOf(sessions: Sessions, id: string): Promise<ExitCodeValue> {
  * While the screen is drawn nothing else may write to the terminal: what the operations report around the
  * sessions is kept, and goes to the error output once the screen is left.
  *
+ * The conversation speaks the language the configuration in force names, English when it names none: the
+ * configuration is brought in step with its file first, as a host does when it starts.
+ *
  * Leaving stops what this process hosts — the session it runs is asked to stop and awaited for a time, or not
  * awaited when the person left at once — and the web console when `/ui` started it.
  *
@@ -113,10 +117,13 @@ export async function converse({ repository, environment, terminal, io }: Conver
   const reported: string[] = [];
   const quiet: CommandIo = { ...io, stderr: { write: (text) => reported.push(text) } };
   try {
-    const { sessions, close } = await openOperations(quiet, repository, true);
+    const { sessions, configuration, close } = await openOperations(quiet, repository, true);
     let serving: Promise<StartedConsole> | undefined;
     let withinMs: number | undefined;
     try {
+      // The conversation speaks the language of the configuration in force, brought in step with its file as a host does when it starts.
+      await configuration.inStep();
+      await i18n.changeLanguage(languageOf(await configuration.view()));
       const [project, latest] = await Promise.all([sessions.project(), sessions.sessions()]);
       const { atOnce, hosted } = await conversation(terminal, {
         sessions,

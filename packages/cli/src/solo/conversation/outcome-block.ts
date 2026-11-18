@@ -3,6 +3,7 @@ import { createElement as h, type ReactNode } from "react";
 import { Marked } from "./marked.ts";
 import type { Theme, Tone } from "./palette.ts";
 import type { Block } from "./thread-blocks.ts";
+import { t } from "./i18n/i18n.ts";
 
 /** What the outcome of a session needs. */
 export interface OutcomeBlockProps {
@@ -14,6 +15,14 @@ export interface OutcomeBlockProps {
 function verdictMark(verdict: string, theme: Theme): readonly [string, Tone] {
   if (verdict === "passed") return [theme.glyphs.passed, "ok"];
   return verdict === "failed" ? [theme.glyphs.failed, "ko"] : ["!", "warn"];
+}
+
+/** The verdicts of a test the terminal words; a later version of the contract may tell another, written as it is. */
+const VERDICTS = new Set(["passed", "failed", "blocked", "not_run"]);
+
+/** How the verdict of a test reads. */
+function verdictText(verdict: string): string {
+  return VERDICTS.has(verdict) ? t(`verdicts.${verdict as "passed" | "failed" | "blocked" | "not_run"}`) : verdict.replaceAll("_", " ");
 }
 
 /**
@@ -35,7 +44,7 @@ export function OutcomeBlock({ block, theme }: OutcomeBlockProps): ReactNode {
       return h(
         Marked,
         { key: index, mark, style: theme.ink(tone) },
-        h(Text, { wrap: "truncate-end" }, h(Text, theme.ink(tone), test.verdict.replaceAll("_", " ")), `  ${test.title}`),
+        h(Text, { wrap: "truncate-end" }, h(Text, theme.ink(tone), verdictText(test.verdict)), `  ${test.title}`),
         test.verdict === "passed" || test.note === undefined ? null : h(Text, muted, test.note),
       );
     }),

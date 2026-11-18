@@ -4,6 +4,7 @@ import type { PlannedScenario } from "@open-qa-stack/domain/sessions";
 import { Marked } from "./marked.ts";
 import type { Theme } from "./palette.ts";
 import type { Block } from "./thread-blocks.ts";
+import { t } from "./i18n/i18n.ts";
 
 /** What the plan the harness accepted needs. */
 export interface PlanBlockProps {
@@ -55,20 +56,20 @@ function Scenario({ scenario, rank, theme }: { readonly scenario: PlannedScenari
       null,
       scenario.intent === undefined ? null : h(Text, null, scenario.intent),
       facts === "" ? null : h(Text, muted, `${scenario.id}${between}${facts}`),
-      sources.length === 0 ? null : labelled("Sources", sources.join(", "), theme),
-      scenario.data === undefined ? null : labelled("Data", data.length === 0 ? "none entered" : data.join(", "), theme),
+      sources.length === 0 ? null : labelled(t("plan.sources"), sources.join(", "), theme),
+      scenario.data === undefined ? null : labelled(t("plan.data"), data.length === 0 ? t("plan.noData") : data.join(", "), theme),
       ...(scenario.steps ?? []).map((step, index) =>
         h(
           Box,
           { key: index, flexDirection: "column" },
-          h(Text, null, h(Text, muted, `Step ${index + 1}. `), step.action, step.restores === true ? h(Text, muted, " (restores)") : null),
+          h(Text, null, h(Text, muted, t("plan.step", { number: index + 1 })), step.action, step.restores === true ? h(Text, muted, t("plan.restores")) : null),
           ...step.expects.map((expect, at) =>
             h(
               Marked,
               { key: at, mark: theme.glyphs.arrow, style: muted },
               h(Text, null, expect.result),
-              expect.shows.length === 0 ? null : labelled("shows", quoted(expect.shows), theme),
-              expect.absent.length === 0 ? null : labelled("no longer shows", quoted(expect.absent), theme),
+              expect.shows.length === 0 ? null : labelled(t("plan.shows"), quoted(expect.shows), theme),
+              expect.absent.length === 0 ? null : labelled(t("plan.absent"), quoted(expect.absent), theme),
             ),
           ),
         ),
@@ -86,7 +87,7 @@ function Scenario({ scenario, rank, theme }: { readonly scenario: PlannedScenari
  */
 export function PlanBlock({ block, theme }: PlanBlockProps): ReactNode {
   const { step } = block;
-  const count = `${step.scenarios.length} scenario${step.scenarios.length === 1 ? "" : "s"}`;
+  const count = t("plan.scenarios", { count: step.scenarios.length });
   return h(
     Box,
     { flexDirection: "column", marginTop: 1 },

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import { themeOf } from "../../src/solo/conversation/palette.ts";
-import { IDENTITIES } from "../../src/solo/conversation/speakers.ts";
+import { identityOf } from "../../src/solo/conversation/speakers.ts";
 
 const UTF8 = { LANG: "en_US.UTF-8", TERM: "xterm-256color" };
 
@@ -41,7 +41,8 @@ describe("the theme of the conversation", () => {
 
 describe("the speakers of the conversation", () => {
   it("each have a name and a mark of their own, in both sets of glyphs, so that none is told by its colour alone", () => {
-    const identities = Object.values(IDENTITIES);
+    const speakers = ["user", "cartographer", "planner", "plan_reviewer", "writer", "coherence_reviewer", "code_reviewer", "harness"] as const;
+    const identities = speakers.map(identityOf);
     for (const read of [({ name }: { name: string }) => name, ({ mark }: { mark: string }) => mark, ({ ascii }: { ascii: string }) => ascii])
       assert.equal(new Set(identities.map(read)).size, identities.length);
     assert.ok(identities.every(({ ascii }) => /^[\x21-\x7e]$/.test(ascii)));

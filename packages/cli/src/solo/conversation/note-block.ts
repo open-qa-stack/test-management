@@ -1,7 +1,7 @@
 import { Box, Text } from "ink";
 import { createElement as h, type ReactNode } from "react";
 import { Marked } from "./marked.ts";
-import { IDENTITIES } from "./speakers.ts";
+import { identityOf } from "./speakers.ts";
 import type { Theme } from "./palette.ts";
 import type { Block } from "./thread-blocks.ts";
 
@@ -20,7 +20,7 @@ export interface NoteBlockProps {
  * @returns The lines.
  */
 export function NoteBlock({ block, theme }: NoteBlockProps): ReactNode {
-  const { mark, ascii } = IDENTITIES.harness;
+  const { mark, ascii } = identityOf("harness");
   const { step } = block;
   const muted = theme.ink("muted");
   return h(
