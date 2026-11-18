@@ -28,6 +28,22 @@
   --neutral: #5b6472;
   --neutral-soft: #eef0f3;
 
+  /* The colours of the kinds of token of code, a keyword or a string, with which alone a block of code is coloured. */
+  --code-foreground: var(--text);
+  --code-background: transparent;
+  --code-token-keyword: var(--brand-violet);
+  --code-token-constant: var(--brand-amber);
+  --code-token-string: var(--ok);
+  --code-token-string-expression: var(--ok);
+  --code-token-comment: var(--text-3);
+  --code-token-function: var(--primary);
+  --code-token-parameter: var(--text-2);
+  --code-token-punctuation: var(--text-2);
+  --code-token-link: var(--primary);
+  --code-token-inserted: var(--ok);
+  --code-token-deleted: var(--ko);
+  --code-token-changed: var(--warn);
+
   /* The brand, after its mark, a deep blue and the lights that play on it, each dark enough to carry white. */
   --brand-navy: #16357f;
   --brand-violet: #5b3fd6;

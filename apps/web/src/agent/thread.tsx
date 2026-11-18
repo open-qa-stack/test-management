@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { hrefTo } from "../routing/route.ts";
 import { Badge } from "../ui/badge.tsx";
+import { Code } from "../ui/code.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Icon } from "../ui/icon.tsx";
 import { IDENTITIES } from "./agents.ts";
@@ -165,7 +166,7 @@ function Action({ step, shown, back }: { readonly step: ToolStep; readonly shown
           <summary className="act-line">{line}</summary>
           {!shown.running && step.tests !== undefined && <RanTests step={step} />}
           {told && <pre className="act-result">{step.detail}</pre>}
-          {file !== undefined && <pre className="act-code">{file.lines.join("\n")}</pre>}
+          {file !== undefined && <Code lines={file.lines} className="act-code" />}
         </details>
       )}
       {look}
