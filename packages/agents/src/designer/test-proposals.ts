@@ -18,6 +18,7 @@ import {
 } from "@open-qa-stack/domain";
 import { moduleSyntax, redactText, scopedToolName, secretForms, type SpecLocator } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
+import type { RepairedTest } from "./writer-prompt.ts";
 import { DesignCursor, MAX_FAILED_RUNS, type ScenarioRun } from "./design-cursor.ts";
 import { assertionAt, failurePageText, misplacedAtFailure, shownAtFailure } from "./failure-page.ts";
 import { errorClass, failureHint } from "./run-failure.ts";
@@ -83,8 +84,8 @@ export interface ProposalRules {
   readonly screenshots: boolean;
   /** The clock of the dates a test is classed at. */
   readonly now: () => Date;
-  /** The file of the test each scenario repairs, by the identifier of the scenario: its test is written there again. */
-  readonly repairs?: ReadonlyMap<string, string>;
+  /** The test each scenario repairs, by the identifier of the scenario: its test is written again in its file. */
+  readonly repairs?: ReadonlyMap<string, RepairedTest>;
 }
 
 /** What the agent sees and reads in the session that writes the test of one scenario. */
@@ -111,6 +112,7 @@ interface Diagnosis {
  * takes the whole text of that file, checks it, and runs it against the application. A text is refused,
  * with every reason of the first tier that refuses it and its code:
  *
+ * 0. the test a scenario repairs: its first text is the one the repository has, so that the agent sees how it fails;
  * 1. the repair: the scenario already failed three runs, this very text already failed, or the agent did
  *    not look at the application since the last failed run;
  * 2. the text: it does not parse as TypeScript, imports anything but the packages of the test repository or
@@ -161,6 +163,8 @@ export class TestProposals {
   private readonly streak = new RefusalStreak();
   /** The references a run made, by the text that ran. */
   private readonly references = new Map<string, readonly TestReference[]>();
+  /** The scenarios whose repaired test was submitted as the repository has it, which a repair starts with. */
+  private readonly runAsIs = new Set<string>();
   /** The calls that run or close a test, one after the other. */
   private queue: Promise<unknown> = Promise.resolve();
   /** The scenario whose test the agent was warned runs what another runs. */
@@ -185,7 +189,11 @@ export class TestProposals {
     this.rules = rules;
     this.journal = journal;
     this.forms = rules.secrets.flatMap((secret) => secretForms(secret.value));
-    this.cursor = new DesignCursor(plan, (scenario) => this.place(scenario));
+    this.cursor = new DesignCursor(
+      plan,
+      (scenario) => this.place(scenario),
+      (scenario) => this.rules.repairs?.has(scenario.id) === true,
+    );
   }
 
   /**
@@ -376,16 +384,20 @@ export class TestProposals {
     // The tags of a test are those of its scenario, whatever the agent wrote of them.
     const content = withTags(submitted, scenario);
     const what = `The test ${path} could not be run`;
+    const repaired = this.rules.repairs?.get(scenario.id);
+    const asIs = this.asIsErrors(scenario, repaired, content);
+    if (asIs.length > 0) return this.refuse(what, asIs);
     const repair = this.repairErrors(cursor, scenario, content);
     if (repair.length > 0) return this.refuse(what, repair);
     const refusals = await this.checked(scenario, path, content);
     if (refusals.length > 0) return this.refuse(what, refusals);
     const looks = this.looks(scenarioScope(scenario));
-    const first = await this.rules.runner.run({ path, content });
+    const proposed = { path, content, ...(repaired === undefined ? {} : { replaces: true as const }) };
+    const first = await this.rules.runner.run(proposed);
     // A test that writes is run again once it passed: it must not rely on the data its own run changed. So is a visual test: its
     // screen must look the same from one run to the next, what changes on it masked.
     const repeated = scenario.effect === "write" || scenario.kind === "visual";
-    const again = repeated && first.error === undefined && verdictOf(first) === "passed" ? await this.rules.runner.run({ path, content }) : undefined;
+    const again = repeated && first.error === undefined && verdictOf(first) === "passed" ? await this.rules.runner.run(proposed) : undefined;
     const replayed = again !== undefined && (again.error !== undefined || verdictOf(again) !== "passed");
     const trial = replayed ? again : first;
     this.streak.reset();
@@ -433,6 +445,25 @@ export class TestProposals {
   }
 
   /** What the repair contract refuses in a run: a scenario out of runs, a text that already failed, a run again without a look. */
+  /**
+   * Why the test a scenario repairs cannot be submitted yet: it is first submitted as the repository has it, so that the agent
+   * sees how it fails before it changes it. The rule holds for the first submission only, whatever that gave.
+   */
+  private asIsErrors(scenario: PlannedScenario, repaired: RepairedTest | undefined, content: string): Refusal[] {
+    if (repaired === undefined || this.runAsIs.has(scenario.id)) return [];
+    // An agent seldom writes back the blanks that end a file.
+    if (content.trimEnd() === withTags(repaired.content, scenario).trimEnd()) {
+      this.runAsIs.add(scenario.id);
+      return [];
+    }
+    return [
+      {
+        code: "REPAIR-AS-IS",
+        message: `the test this scenario repairs has not run as the repository has it. Call ${RUN_TOOL} first with its text unchanged, as the request gives it, to see how it fails; then fix what the failure names, and keep every check the scenario asks for.`,
+      },
+    ];
+  }
+
   private repairErrors(cursor: DesignCursor, scenario: PlannedScenario, content: string): Refusal[] {
     const refusals: Refusal[] = [];
     const failed = cursor.failedRuns;
@@ -723,9 +754,15 @@ export class TestProposals {
     this.journal.record("error", `The scenario ${open.scenario.id} was closed by the harness (${check}): its test is kept as unfinished: ${open.path}.`);
   }
 
-  /** Keeps the last text of a scenario closed without a test that counts, classed as given, with its runs. */
+  /**
+   * Keeps the last text of a scenario closed without a test that counts, classed as given, with its runs. A repair that did not
+   * pass keeps the test as the repository has it: what the agent tried is in its runs, not in the file.
+   */
   private setAside(open: Open, classing: Omit<Classed, "at">, closedBy: string): void {
-    const content = this.submitted ?? skeleton(open.scenario, this.rules.screenshots, fixturesFor(open.path, this.rules.fixtures));
+    const content =
+      this.rules.repairs?.get(open.scenario.id)?.content ??
+      this.submitted ??
+      skeleton(open.scenario, this.rules.screenshots, fixturesFor(open.path, this.rules.fixtures));
     const ran = open.cursor.runs.findLast((run) => run.content === content && judged(run));
     this.kept.push({
       path: open.path,
@@ -761,7 +798,7 @@ export class TestProposals {
    */
   private place(scenario: PlannedScenario): string {
     const repaired = this.rules.repairs?.get(scenario.id);
-    if (repaired !== undefined) return repaired;
+    if (repaired !== undefined) return repaired.path;
     const taken = (path: string) => this.kept.some((test) => test.path === path) || existsSync(join(this.rules.repositoryRoot, path));
     const name = (rank: number) =>
       posix.join(

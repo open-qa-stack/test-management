@@ -699,6 +699,12 @@ describe("the trial of a test file", () => {
       [refused.tests, refused.error, readFileSync(join(taken, TRIED.path), "utf8")],
       [[], "apps/shop/steps.spec.ts already exists in the test repository; give the test another file name.", "// kept\n"],
     );
+    // A test that repairs the file runs in its place, and the file is put back as it was.
+    const repaired = await trialRunner(taken, new FakeRunner(taken, { list: fixture("statuses.json"), report: { fixture: "statuses.json" } })).run({
+      ...TRIED,
+      replaces: true,
+    });
+    assert.deepEqual([repaired.error, repaired.tests.length > 0, readFileSync(join(taken, TRIED.path), "utf8")], [undefined, true, "// kept\n"]);
     const listFails = repository();
     const unlisted = await trialRunner(listFails, new FakeRunner(listFails, { listExit: 1 })).run(TRIED);
     assert.deepEqual(

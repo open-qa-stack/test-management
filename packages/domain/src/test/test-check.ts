@@ -4,6 +4,8 @@ export interface ProposedTest {
   readonly path: string;
   /** Content of the file. */
   readonly content: string;
+  /** Whether the file is a test of the repository this one repairs: it is replaced for the time of the run, then put back. */
+  readonly replaces?: true;
 }
 
 /** Where a finding points in a proposed test, both counted from 1. */

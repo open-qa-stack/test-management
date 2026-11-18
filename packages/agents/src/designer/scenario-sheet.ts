@@ -84,7 +84,8 @@ export function skeleton(scenario: PlannedScenario, screenshots: boolean, fixtur
 
 /**
  * The sheet of the scenario open: what it is and what it is meant to verify, its data, the elements of the
- * sources it cites, its file and the skeleton of its test, then the line that names the next call.
+ * sources it cites, its file and the skeleton of its test, then the line that names the next call. A scenario that repairs a
+ * test the repository has is given no skeleton: its test is that one, which the request gives.
  *
  * @param cursor - Where the design stands, with a scenario open.
  * @param screenshots - Whether each step ends with a screenshot attached to the report.
@@ -103,8 +104,7 @@ export function scenarioSheet(cursor: DesignCursor, screenshots: boolean, fixtur
     `Data: ${data}.`,
     `Cited: ${cited.join("; ")}.`,
     `File: ${cursor.path}`,
-    "",
-    skeleton(scenario, screenshots, fixturesFor(cursor.path!, fixtures)),
+    ...(cursor.repairing ? [] : ["", skeleton(scenario, screenshots, fixturesFor(cursor.path!, fixtures))]),
     cursor.next(),
   ].join("\n");
 }

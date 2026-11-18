@@ -348,6 +348,7 @@ export class Designer {
       // The scenarios of a repair are those of the plans that wrote its tests, as they were accepted then.
       const repairing = repairs.chosen;
       const accepted = repairing === undefined ? plan.accepted : { scenarios: repairing.map((repair) => repair.scenario) };
+      const repaired = repairing === undefined ? undefined : repairedTests(repairing, present);
       if (accepted === undefined)
         return failed(
           `No test was written: ${obtained(0)}, one per scenario of the plan is expected.`,
@@ -386,7 +387,7 @@ export class Designer {
           ...(fixtures === undefined ? {} : { fixtures }),
           screenshots: this.options.screenshots ?? false,
           now,
-          ...(repairing === undefined ? {} : { repairs: new Map(repairing.map((repair) => [repair.scenario.id, repair.path])) }),
+          ...(repaired === undefined ? {} : { repairs: repaired }),
         },
         journal,
         planned,
@@ -416,7 +417,7 @@ export class Designer {
           // Playwright itself is imported through the fixtures of the repository, when its tests share some.
           fixtures === undefined ? packages : [fixtures.path, ...packages.filter((name) => name !== TEST_MODULE)],
           index.environment,
-          repairedTest(repairing, scenario.id, present),
+          repaired?.get(scenario.id),
         );
         const task = { instructions: `${this.options.writerInstructions}\n\n${testLanguage}`, tools, request, reminder: () => proposals.reminder() };
         const last = await sessionOf("write", session, task, () => !proposals.writing);
@@ -606,11 +607,10 @@ function endedWithPlan(tool: ToolDefinition, plan: PlanProposal, repairs: TestRe
   };
 }
 
-/** The test the session of a scenario repairs, with its text now; none for a scenario of a plan. */
-function repairedTest(repairing: readonly TestRepair[] | undefined, scenario: string, present: readonly ExistingTest[]): RepairedTest | undefined {
-  const path = repairing?.find((repair) => repair.scenario.id === scenario)?.path;
-  const test = present.find((candidate) => candidate.path === path);
-  return test === undefined ? undefined : { path: test.path, content: test.content };
+/** The tests a design repairs, with their text now, by the identifier of their scenario. */
+function repairedTests(repairing: readonly TestRepair[], present: readonly ExistingTest[]): ReadonlyMap<string, RepairedTest> {
+  // A repair is only accepted for tests the repository has.
+  return new Map(repairing.map((repair) => [repair.scenario.id, { path: repair.path, content: present.find((test) => test.path === repair.path)!.content }]));
 }
 
 /** Where a test kept failing failed, in words: the number of its step, when the title of the step gives it. */
