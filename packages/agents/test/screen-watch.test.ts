@@ -156,7 +156,14 @@ describe("the clicks that write", () => {
       { testId: "next" },
       { role: "button" },
     ];
-    for (const target of targets) await run(watch, "click", { target });
+    const told = [];
+    for (const target of targets) told.push((await run(watch, "click", { target }))["wrote"]);
+    // The agent is told of each click that wrote, which stays for the runs after.
+    assert.deepEqual(
+      told.map((note) => note !== undefined),
+      [false, true, true, true, true, true],
+    );
+    assert.match(told[1] as string, /^The click on "Request a Quote" changed the data of the environment, and it stays changed for every run after/);
     // The request sent before the first click, still listed, is none of theirs.
     assert.deepEqual(
       targets.map((_, at) => watch.action(at + 1)?.changes),
