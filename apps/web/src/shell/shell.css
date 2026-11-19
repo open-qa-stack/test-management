@@ -238,7 +238,31 @@
   padding-bottom: var(--space-6);
 }
 
+/* On a phone the mark alone stands for the console, which its name names to a screen reader: the bar keeps the room. */
+.brand {
+  position: relative;
+  justify-content: center;
+  min-width: var(--tap);
+}
+
+.brand span {
+  position: absolute;
+  width: var(--hairline);
+  height: var(--hairline);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 @media (min-width: 720px) {
+  .brand span {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+  }
+
   .nav-label {
     position: static;
     width: auto;
