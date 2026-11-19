@@ -54,26 +54,27 @@ describe("the shell", () => {
     assert.match(html, /<a class="brand" href="#\/agent">/);
   });
 
-  it("lists the agent, the knowledge and the configuration as links, and what is coming as a name without one", () => {
+  it("lists the agent, the tests, the knowledge and the configuration as links, and what is coming as a name without one", () => {
     const html = shell("#/");
     assert.match(
       textOf(html),
-      /Travail Agent Référentiel Découverte bientôt À relire bientôt Tests bientôt Couverture bientôt Exécution Campagnes bientôt Anomalies bientôt Projet Connaissances Configuration page$/,
+      /Travail Agent Référentiel Découverte bientôt À relire bientôt Tests Couverture bientôt Exécution Campagnes bientôt Anomalies bientôt Projet Connaissances Configuration page$/,
     );
-    assert.deepEqual(linksOf(html), ["#/agent", "#/agent", "#/knowledge", "#/configuration"]);
+    assert.deepEqual(linksOf(html), ["#/agent", "#/agent", "#/tests", "#/knowledge", "#/configuration"]);
     const coming = NAVIGATION.flatMap((group) => group.entries).filter((entry) => entry.path === undefined);
     assert.equal((html.match(/<span class="nav-soon">/g) ?? []).length, coming.length);
-    assert.equal(coming.length, 6);
+    assert.equal(coming.length, 5);
   });
 
-  it("marks the agent at the home, at its entry and under it, the configuration at its own, and nowhere else", () => {
+  it("marks the agent at the home, at its entry and under it, the tests and the configuration at their own, and nowhere else", () => {
     assert.deepEqual(marked("#/"), ["#/agent"]);
     assert.deepEqual(marked("#/configuration"), ["#/configuration"]);
     assert.deepEqual(marked("#/knowledge/manuals"), ["#/knowledge"]);
     assert.deepEqual(marked("#/agent"), ["#/agent"]);
     assert.deepEqual(marked("#/agent/sessions/oqas-2026-11-15T14-44-06-348Z"), ["#/agent"]);
-    assert.deepEqual(marked("#/tests"), []);
-    assert.match(shell("#/tests"), /<a href="#\/agent"><svg /);
+    assert.deepEqual(marked("#/tests"), ["#/tests"]);
+    assert.deepEqual(marked("#/campaigns"), []);
+    assert.match(shell("#/campaigns"), /<a href="#\/agent"><svg /);
   });
 
   it("says the instance no longer answers only when it cannot be reached", () => {
@@ -106,6 +107,6 @@ describe("the shell", () => {
     await inEnglish();
     const text = textOf(shell("#/", { project: projectWith(1), unreachable: true }));
     assert.match(text, /● Offline — the instance no longer answers; the page picks up by itself once it is back/);
-    assert.match(text, /lakeside-tests 1 application · project Work Agent Repository Discovery soon To review soon Tests soon Coverage soon/);
+    assert.match(text, /lakeside-tests 1 application · project Work Agent Repository Discovery soon To review soon Tests Coverage soon/);
   });
 });

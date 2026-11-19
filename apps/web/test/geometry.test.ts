@@ -154,6 +154,7 @@ describe("the geometry of the console comes from its tokens", () => {
       "configuration/configuration.css",
       "knowledge/knowledge.css",
       "shell/shell.css",
+      "tests/tests.css",
       TOKENS,
       "ui/ui.css",
     ]);

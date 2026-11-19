@@ -1,0 +1,18 @@
+/* The screen of the tests: the search, the filter of the levels, and the rows of the tests. */
+.tests-search input {
+  width: 100%;
+}
+
+.tests-levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.tests-row .grow {
+  min-width: 0;
+}
+
+.tests-row .mono {
+  overflow-wrap: anywhere;
+}

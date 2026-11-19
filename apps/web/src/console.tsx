@@ -6,6 +6,7 @@ import type { LiveSession } from "./agent/live-session.ts";
 import { SessionScreen } from "./agent/session-screen.tsx";
 import { ConfigurationPage } from "./configuration/configuration-page.tsx";
 import { KnowledgePage } from "./knowledge/knowledge-page.tsx";
+import { TestsPage } from "./tests/tests-page.tsx";
 import { hrefTo, type Route } from "./routing/route.ts";
 import { t } from "./i18n/i18n.ts";
 import { Shell } from "./shell/shell.tsx";
@@ -41,7 +42,7 @@ export interface ConsoleProps {
  * that says the instance keeps no such session, or that the address leads nowhere.
  */
 type Shown =
-  | { readonly screen: "entry" | "configuration" | "knowledge" | "no_session" | "nowhere" }
+  | { readonly screen: "entry" | "configuration" | "knowledge" | "tests" | "no_session" | "nowhere" }
   | { readonly screen: "session"; readonly live: LiveSession }
   | { readonly screen: "opening"; readonly id: string };
 
@@ -79,6 +80,7 @@ function shownOf({ route, live, missing = false }: ConsoleProps): Shown {
   if (isEntry(route)) return { screen: "entry" };
   if (route.path.length === 1 && route.path[0] === "configuration") return { screen: "configuration" };
   if (route.path[0] === "knowledge" && route.path.length <= 2) return { screen: "knowledge" };
+  if (route.path.length === 1 && route.path[0] === "tests") return { screen: "tests" };
   const id = sessionAt(route);
   if (id === undefined) return { screen: "nowhere" };
   if (live?.script.id === id) return { screen: "session", live };
@@ -119,6 +121,8 @@ function Screen(props: ConsoleProps): ReactNode {
       return <ConfigurationPage project={name} {...(onConfigured === undefined ? {} : { onSaved: onConfigured })} />;
     case "knowledge":
       return <KnowledgePage project={name} route={route} />;
+    case "tests":
+      return <TestsPage project={name} route={route} />;
     case "opening":
     case "no_session":
     case "nowhere": {
