@@ -7,7 +7,7 @@ import { Logger } from "@nestjs/common";
 import { SessionDatabase, type DatabaseEngine } from "@open-qa-stack/store/testing";
 import { fixtureConfig } from "@open-qa-stack/testing/fixture-repository";
 import { sessionsApi, type TestApi } from "../support/sessions-api.ts";
-import type { RepositoryTestList } from "@open-qa-stack/domain/sessions";
+import type { Problem, RepositoryTestList, TestReading } from "@open-qa-stack/domain/sessions";
 
 /** A test of the shop as a design writes it: a title, tags, and two steps. */
 const SEARCH = [
@@ -71,6 +71,48 @@ export function testsApiSuite(engine: DatabaseEngine): void {
           },
         ],
       });
+    });
+
+    it("are read in steps from the latest run that ran them, each step with its capture, and say why a capture or a query is refused", async () => {
+      const path = "apps/shop/tests/orders/search/search-orders.spec.ts";
+      const reading = async (query: string) => {
+        const response = await fetch(`${api.url}/tests/reading?${query}`);
+        return { status: response.status, cache: response.headers.get("cache-control"), body: (await response.json()) as TestReading & Problem };
+      };
+      assert.deepEqual(await reading(`path=${encodeURIComponent(path)}`), { status: 200, cache: "no-store", body: { path } });
+      const run = join(repository, ".oqas", "runs", "run-2026-11-19T08-00-00-000Z");
+      mkdirSync(run, { recursive: true });
+      const spec = { title: "Search an order by its number", file: "shop/tests/orders/search/search-orders.spec.ts", line: 3 };
+      const result = {
+        status: "passed",
+        steps: [{ title: "1. Open the orders", duration: 20 }],
+        attachments: [{ name: "1", contentType: "image/png", body: Buffer.from("png").toString("base64") }],
+      };
+      writeFileSync(
+        join(run, "report.json"),
+        JSON.stringify({
+          suites: [
+            {
+              title: spec.file,
+              file: spec.file,
+              specs: [{ ...spec, tests: [{ projectName: "shop", status: "expected", expectedStatus: "passed", results: [result] }] }],
+            },
+          ],
+        }),
+      );
+      const read = await reading(`path=${encodeURIComponent(path)}`);
+      assert.deepEqual(
+        [read.body.run, read.body.view?.steps.map((step) => [step.number, step.title, step.capture?.name])],
+        ["run-2026-11-19T08-00-00-000Z", [[1, "1. Open the orders", "1"]]],
+      );
+      const capture = await fetch(`${api.url}/tests/capture?path=${encodeURIComponent(path)}&step=1`);
+      assert.deepEqual([capture.status, capture.headers.get("content-type"), Buffer.from(await capture.arrayBuffer()).toString()], [200, "image/png", "png"]);
+      const missing = await fetch(`${api.url}/tests/capture?path=${encodeURIComponent(path)}&step=2`);
+      assert.deepEqual([missing.status, ((await missing.json()) as Problem).code], [404, "unknown_capture"]);
+      for (const query of ["", "path=", `path=${encodeURIComponent(path)}&step=0`, `path=${encodeURIComponent(path)}&step=a`]) {
+        const answer = await fetch(`${api.url}/tests/${query.includes("step") ? "capture" : "reading"}?${query}`);
+        assert.deepEqual([query, answer.status, ((await answer.json()) as Problem).code], [query, 400, "invalid_request"]);
+      }
     });
   });
 }

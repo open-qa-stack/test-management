@@ -125,6 +125,8 @@ export { InvalidDocumentsError } from "./knowledge-documents/invalid-documents-e
 export type { DocumentEntry, DocumentList, StoredDocument, StoredDocumentSummary } from "./knowledge-documents/stored-document.ts";
 export type { RepositoryTest, RepositoryTestList } from "./repository-tests/repository-test.ts";
 export { testFacets, type TestFacets } from "./repository-tests/test-facets.ts";
+export type { TestReading } from "./repository-tests/test-reading.ts";
+export { UnknownCaptureError } from "./repository-tests/unknown-capture-error.ts";
 export { isStoredDocuments, STORED_DOCUMENTS_FOLDER, storedDocumentSources, storedDocumentsPath } from "./knowledge-documents/stored-documents-path.ts";
 export { UnknownDocumentError } from "./knowledge-documents/unknown-document-error.ts";
 export { UnknownDocumentSourceError } from "./knowledge-documents/unknown-document-source-error.ts";

@@ -60,6 +60,8 @@ export interface JsonStep {
 export interface ReportEntry {
   /** `<project> › <file>:<line> › <describe>… › <title>`, as the runner prints it. */
   readonly id: string;
+  /** Its file, relative to the folder the runner looks for tests in, the folder of the applications of the repository. */
+  readonly file: string;
   readonly test: JsonTest;
 }
 
@@ -84,7 +86,7 @@ export function reportEntries(json: string): ReportEntry[] | undefined {
 function walk(suite: JsonSuite, titles: readonly string[]): ReportEntry[] {
   const path = suite.file !== undefined && suite.title === suite.file ? titles : [...titles, suite.title ?? ""];
   const own = (suite.specs ?? []).flatMap((spec) =>
-    spec.tests.map((test) => ({ id: [test.projectName, `${spec.file}:${spec.line}`, ...path, spec.title].join(" › "), test })),
+    spec.tests.map((test) => ({ id: [test.projectName, `${spec.file}:${spec.line}`, ...path, spec.title].join(" › "), file: spec.file, test })),
   );
   return [...own, ...(suite.suites ?? []).flatMap((child) => walk(child, path))];
 }

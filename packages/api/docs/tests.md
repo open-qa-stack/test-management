@@ -7,8 +7,10 @@ The shape of the body is the type `RepositoryTestList` of `@open-qa-stack/domain
 | Route | Answer |
 |---|---|
 | `GET /api/tests` | The tests of the test repository, in the order of their paths. |
+| `GET /api/tests/reading?path=<path>` | A test in steps, from the latest run that ran it. |
+| `GET /api/tests/capture?path=<path>&step=<number>` | The capture that run attached for a step. |
 
-The answer is given with `cache-control: no-store`.
+`<path>` is the path of a test, relative to the root of the test repository, as `GET /api/tests` gives it. Every answer is given with `cache-control: no-store`; every answer that is not a success is a [problem](sessions.md#problems).
 
 ## The tests of the repository
 
@@ -53,3 +55,45 @@ What a test is, beyond its file, is what its tags say of it, each `@<prefix>-<va
 The first tag of a prefix counts. A test without a tag of a prefix has no such field; a test written by hand may have none of them. `tags` gives every tag as the file does, those of other prefixes too.
 
 An instance without a test repository, or before a revision of its configuration is in force, lists no test.
+
+## A test in steps
+
+```http
+GET /api/tests/reading?path=apps%2Fpolicy-management%2Ftests%2Fpolicies%2Fpolicy-detail%2Fpolicy-detail-nominal.spec.ts
+```
+
+```json
+{
+  "path": "apps/policy-management/tests/policies/policy-detail/policy-detail-nominal.spec.ts",
+  "run": "run-2026-11-19T00-29-03-488Z",
+  "view": {
+    "id": "policy-management › policy-management/tests/policies/policy-detail/policy-detail-nominal.spec.ts:3 › Display the detail of a policy",
+    "status": "unexpected",
+    "steps": [
+      { "number": 1, "title": "1. Open the policy of the customer", "state": "passed", "duration": 224, "capture": { "name": "1", "contentType": "image/png" }, "steps": [] },
+      { "number": 2, "title": "2. Read its amounts", "state": "failed", "duration": 5012, "steps": [] }
+    ],
+    "failedStep": 2,
+    "uncaptured": [2],
+    "details": { "error": "Error: expect(locator).toBeVisible() failed…", "stdout": [], "stderr": [], "trace": "/work/tests/.oqas/test-results/…/trace.zip", "screenshots": [] }
+  }
+}
+```
+
+The runs are the folders `<stateDir>/runs/run-<date>/` of the test repository, each with the report the runner wrote, `report.json`; the latest one whose report holds the test counts. `view` is that test read in steps by `qaViews` of `@open-qa-stack/domain`, which tells its rules: the `test.step` it calls, numbered, their states and durations, the capture of each step — the one the test attached under the number of the step —, the first step that failed, what the failed assertion `expected` and `received` when its message says both, and the details. A test no run kept ran has neither `run` nor `view`. `status` is the one the reporter gives; the verdict of the harness, told by the session that ran the test, is never changed by it.
+
+## The capture of a step
+
+```http
+GET /api/tests/capture?path=…&step=1
+```
+
+The answer is the capture itself, of the media type the run attached it with, such as `image/png`. A capture the report holds is served from it; one the runner wrote to a file is served from that file, only when it is in the test repository.
+
+## Problems
+
+| `code` | Status | When |
+|---|---|---|
+| `invalid_request` | `400` | `path` is missing or empty, or `step` is not a number from 1. |
+| `unknown_capture` | `404` | The latest run of the test attached no capture for the step that can be read: no run ran the test, it attached none for the step, or its file is gone or outside the repository. The detail says to read the test again, whose steps say which have a capture. |
+
