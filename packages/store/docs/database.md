@@ -67,10 +67,11 @@ The migrations so far:
 | `0002_session_hosts` | The host of a session, the date of its last beat, and the interruption another process asked for: what [several processes on one database](#several-processes-on-one-database) meet through. The three columns are empty on the sessions that were there before, which read as left by a host that died. |
 | `0003_configuration_revisions` | The table of [the revisions of the configuration](#the-revisions-of-the-configuration). An instance that had none synchronises its `oqas.json` into a first revision when a process next starts on it. |
 | `0004_knowledge_documents` | The table of [the documents of the knowledge sources](#the-documents-of-the-knowledge-sources), empty until a document is uploaded. |
+| `0005_executions` | The tables of [the executions of tests](#the-executions-of-tests) and of their results, empty until a session runs its tests. |
 
 ## The database of an instance, assembled
 
-`InstanceDatabase` is the database of an instance as a process gets it, assembled once for all of them: given the URL `instanceDatabaseUrl` resolved and the logger of the process, it holds the connection (`database`), the migrations (`migrations`), their status (`status`), the store of the sessions (`sessions`), that of the configuration (`configuration`) and that of the documents (`documents`), and opens nothing until a statement needs it. The API provides its parts to its modules; the `oqas` command hands its store to the operations.
+`InstanceDatabase` is the database of an instance as a process gets it, assembled once for all of them: given the URL `instanceDatabaseUrl` resolved and the logger of the process, it holds the connection (`database`), the migrations (`migrations`), their status (`status`), the store of the sessions (`sessions`), that of the configuration (`configuration`), that of the documents (`documents`) and that of the executions (`executions`), and opens nothing until a statement needs it. The API provides its parts to its modules; the `oqas` command hands its store to the operations.
 
 `prepare()` is the one rule that brings the schema in order before a process reads anything: on a SQLite file it applies the pending migrations; on a server it applies none, and raises `PendingMigrationsError` — `The database schema is not up to date: 2 migrations are pending. Apply them with the migration command, then start again.` — when some are pending. A server that cannot be reached is not refused there: its status reports it, and what reads the database next raises `DatabaseUnavailableError`, so that a server that starts before its database still starts.
 
@@ -161,6 +162,30 @@ The primary key of a message is its session and its number. A number is given on
 | `uploaded_at` | date | When it was uploaded last. |
 | `bytes` | `integer` | The size of its text in UTF-8, which a listing tells without reading the text. |
 | `text` | `text` | The document, whole. |
+
+### The executions of tests
+
+`executions` holds one row an execution of tests, and `execution_results` one row each test of it. `ExecutionStore` keeps an execution in one transaction, with all of its results or none, and lists them the latest first.
+
+| Column of `executions` | Type | Why |
+|---|---|---|
+| `id` | `text`, primary key | The identifier of the execution. |
+| `origin` | `text` | `design` for the tests a session of design ran. |
+| `session_id` | `text`, or nothing | The session that ran it; emptied when the session goes, and the execution stays. |
+| `ran_at` | date | When it was kept. |
+| `commit_sha` | `text`, or nothing | The commit the test repository was at. |
+| `report` | `text` | The report of the runner, relative to the test repository. |
+
+| Column of `execution_results` | Type | Why |
+|---|---|---|
+| `execution_id` | `text`, primary key with `position` | The execution; its results go with it. |
+| `position` | `integer` | The rank of the test in the report, from 0, which gives back their order. |
+| `path` | `text` | The path of the file of the test, relative to the root of the test repository: with `title`, what names the test from one execution to the next. |
+| `title` | `text` | Its titles, those of the `describe` that hold it then its own, as `<describe>… › <title>`. |
+| `project` | `text` | The project of the runner it ran in. |
+| `verdict` | `text` | `passed`, `failed`, `flaky` or `skipped`. |
+| `duration_ms` | `integer` | How long its attempts took together. |
+| `file_digest` | `text`, or nothing | The SHA-256 of its file when the execution was kept: with the commit, the version the test ran at. |
 
 The columns that keep a date, a JSON value or a boolean are kept [as each database keeps them](#how-each-type-is-kept). Nothing filters on what a JSON column holds, which is served as it was written, its fields in the order they were given: on PostgreSQL the columns are `json` and not `jsonb`, which would sort the fields.
 

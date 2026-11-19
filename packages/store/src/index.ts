@@ -1,6 +1,7 @@
 export { ConfigurationStore } from "./configuration/configuration-store.ts";
 export { Database } from "./database/database.ts";
 export { DocumentStore } from "./documents/document-store.ts";
+export { ExecutionStore } from "./executions/execution-store.ts";
 export type { DatabaseState } from "./database/database-state.ts";
 export { DatabaseStatus } from "./database/database-status.ts";
 export { DatabaseUnavailableError } from "./database/database-unavailable-error.ts";

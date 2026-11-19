@@ -230,6 +230,7 @@ A message may reach the inbox more than once — dropped by `say`, it is also am
 | What happened | How the session ends |
 | --- | --- |
 | The run went to its summary. | `completed`, with the result read from the state the run wrote: `passed`, `failed`, `inconclusive`, or `stopped` when a step did not go to its end. |
+| The run went to its summary, and ran its tests. | As above, once the execution of its tests is kept in the store of the executions, from the report of the runner. A store that refuses it is logged and told as a `refusal` event; the session keeps its result. |
 | The configuration or a prerequisite stopped the run. | `interrupted`: the entries the run wrote are told as events, since they are all that says why. |
 | The session was interrupted, or its host stopped. | `interrupted`, once the run ended by itself, whatever it wrote. |
 | The run, or a reading of the store around it, failed. | `interrupted`, after a `refusal` event that says why. The failure is logged, and the next session runs. |
@@ -258,7 +259,7 @@ A host gives `Sessions` a `SessionsHost`:
 | `writerPace`, optional | How a write the store failed to take is made again: 250 milliseconds at first, 10 seconds at most, by default. |
 | `pace`, optional | The paces of the process among the others that reach the store: `DEFAULT_PACE` by default. |
 
-A host calls `start()` when it starts, or lets `open()` do it: the configuration is synchronised with its file, a file that changed and is not valid reported and the revision in force kept, and the project the store keeps is named after the test repository, with the applications of the revision in force. It calls `stop(withinMs)` before it closes its store. The two presentations: [the API](../../api/docs/sessions.md) starts with its server and stays; [`oqas --brief`](../../cli/docs/solo-command.md) hosts the session it opens. Both are given the stores of the sessions, of the configuration and of the documents by `InstanceDatabase` of [`@open-qa-stack/store`](../../store/docs/database.md#the-database-of-an-instance-assembled), which assembles the database of an instance once for every process.
+A host calls `start()` when it starts, or lets `open()` do it: the configuration is synchronised with its file, a file that changed and is not valid reported and the revision in force kept, and the project the store keeps is named after the test repository, with the applications of the revision in force. It calls `stop(withinMs)` before it closes its store. The two presentations: [the API](../../api/docs/sessions.md) starts with its server and stays; [`oqas --brief`](../../cli/docs/solo-command.md) hosts the session it opens. Both are given the stores of the sessions, of the configuration, of the documents and of the executions by `InstanceDatabase` of [`@open-qa-stack/store`](../../store/docs/database.md#the-database-of-an-instance-assembled), which assembles the database of an instance once for every process.
 
 ## The operations on the configuration
 
@@ -329,6 +330,22 @@ const tests = await new RepositoryTests(repositoryRoot, instance.configuration).
 | `list()` | The tests of the repository, in the order of their paths, each with its title, its steps, its tags and what they say of it — its applications, level, domain, functionality, kind, case and data, by `testFacets` of `@open-qa-stack/domain`. None for a host without a repository, or before a revision is in force. |
 
 [The API](../../api/docs/tests.md) says it in HTTP.
+
+## The operations on the executions of tests
+
+`Executions` reads the executions of tests the instance keeps, from the store the host gives it. The operations on sessions keep the execution of the tests each session ran (see [the end of a session](#the-end-of-a-session)): each test is named by the path of its file and its titles, with the version it ran at, the commit of the test repository and the SHA-256 of its file.
+
+```ts
+import { Executions } from "@open-qa-stack/engine";
+
+const executions = await new Executions(instance.executions).list();
+```
+
+| Operation | What it does |
+| --- | --- |
+| `list()` | The executions, the latest first, each with what came of each of its tests. |
+
+[The API](../../api/docs/executions.md) says it in HTTP.
 
 ## Tests
 

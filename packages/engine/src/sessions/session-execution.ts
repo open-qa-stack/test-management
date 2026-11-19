@@ -2,6 +2,7 @@ import { journalLine, RunThread, traceLine, type RunLine } from "@open-qa-stack/
 import type { Session, SessionResult } from "@open-qa-stack/domain/sessions";
 import { Run } from "../run/run.ts";
 import { liveRuntime } from "../runtime/live-runtime.ts";
+import { ExecutionRecorder } from "./execution-recorder.ts";
 import { SessionJournal } from "./session-journal.ts";
 import { SessionRunStore } from "./session-run-store.ts";
 import { sessionTurn } from "./session-turn.ts";
@@ -35,7 +36,9 @@ export interface ExecutionOptions {
  * the branch they wrote their tests on, as `sessionTurn` tells it. The entries of the journal and the lines of
  * the traces become the events of the session, as `RunThread` of the domain writes them for every host, and are
  * written in the order the run told them. The inbox of the run is the inbox of
- * the execution. The state the run writes at its end gives the result the session is completed with; a run
+ * the execution. The state the run writes at its end gives the result the session is completed with, and the
+ * execution of the tests it ran is kept from the report of the runner before the session ends — a store that
+ * refuses it is told to the session as a refusal, and leaves its result as it is; a run
  * that stopped before it wrote one — on its configuration or on a prerequisite — leaves its session
  * interrupted, and so does a run that was asked to stop, whatever it wrote.
  *
@@ -100,10 +103,29 @@ export class SessionExecution {
     }
     // A run the configuration or the prerequisites stopped never had its journal kept: what it wrote is all that says why.
     journal.release();
+    const report = kept.report;
+    if (failure === undefined && result !== undefined && report !== undefined && !stop.signal.aborted) {
+      const lost = await this.#record(id, repository, report, now);
+      if (lost !== undefined) {
+        logger.warn(`The execution of the tests of the session ${id} could not be kept: ${lost}`);
+        writer.tell([{ at: now().toISOString(), type: "refusal", phase: "summary", text: `The execution of its tests could not be kept: ${lost}` }]);
+      }
+    }
     if (failure !== undefined) {
       logger.warn(`The session ${id} stopped on a failure: ${failure}`);
       writer.tell([{ at: now().toISOString(), type: "refusal", phase: "summary", text: `The session stopped on a failure, and is interrupted: ${failure}` }]);
     }
     await writer.end(stop.signal.aborted ? undefined : result);
+  }
+
+  /** Keeps the execution of the tests the session ran; @returns why it could not be kept, `undefined` once it is. */
+  async #record(id: string, repository: string, report: string, now: () => Date): Promise<string | undefined> {
+    const { configuration, executions: store } = this.#host;
+    try {
+      await new ExecutionRecorder({ repository, configuration, store, now }).record(id, report);
+      return undefined;
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
   }
 }

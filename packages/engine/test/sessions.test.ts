@@ -11,6 +11,7 @@ import { eventually } from "./support/eventually.ts";
 import { designDoor, ENV, Hosted } from "./support/hosted.ts";
 import { MemoryConfigurationStore } from "./support/memory-configuration-store.ts";
 import { MemoryDocumentStore } from "./support/memory-document-store.ts";
+import { MemoryExecutionStore } from "./support/memory-execution-store.ts";
 import { MemorySessionStore } from "./support/memory-session-store.ts";
 import { RecordingLogger } from "./support/recording-logger.ts";
 import { comparable, toldByTheEngine } from "./support/told-by-the-engine.ts";
@@ -133,6 +134,7 @@ describe("a session that is opened", () => {
       store,
       configuration: new Configuration(new MemoryConfigurationStore(), hosted.root),
       documents: new MemoryDocumentStore(),
+      executions: new MemoryExecutionStore(),
       repository: hosted.root,
       takesOver: true,
       env: ENV,
@@ -158,6 +160,7 @@ describe("a session that is opened", () => {
       store,
       configuration: new Configuration(new MemoryConfigurationStore(), undefined),
       documents: new MemoryDocumentStore(),
+      executions: new MemoryExecutionStore(),
       repository: undefined,
       takesOver: true,
       env: ENV,
@@ -281,6 +284,7 @@ describe("a session a person resumes once it ended", () => {
       store,
       configuration: new Configuration(new MemoryConfigurationStore(), undefined),
       documents: new MemoryDocumentStore(),
+      executions: new MemoryExecutionStore(),
       repository: undefined,
       takesOver: true,
       env: ENV,
@@ -561,5 +565,57 @@ describe("the events of a session, followed through the operations", () => {
     await eventually(() => assert.equal(ended, true));
     assert.deepEqual(seen, (await hosted.events(opened.id)).slice(2));
     assert.deepEqual(seen.at(-1), { id: seen.length + 2, at: session.lastEventAt, type: "state_changed", state: "completed", result: session.result });
+  });
+});
+
+describe("the execution of the tests of a session", () => {
+  it("is kept once the session ran its tests, each test named by its file and its titles, with the version it ran at", async () => {
+    hosted = await Hosted.create(chain());
+    await hosted.sessions.start();
+    const opened = await hosted.sessions.open({ request: REQUEST, environment: "local" });
+    const session = await hosted.ended(opened.id);
+    const [execution, ...others] = await hosted.executions.list();
+    assert.ok(execution !== undefined);
+    assert.deepEqual(others, []);
+    assert.deepEqual([execution.origin, execution.sessionId], ["design", session.id]);
+    assert.match(execution.report, /^\.oqas\/runs\/run-.+\/report\.json$/);
+    assert.match(String(execution.commit), /^[0-9a-f]{40}$/);
+    // The double of the runner names each file from the root of the test repository: what the digests are taken of is tested on the recorder.
+    assert.deepEqual(
+      execution.results.map(({ title, project, verdict }) => [title, project, verdict]),
+      session.result?.tests.map(() => ["the test", "shop", "passed"]),
+    );
+  });
+
+  it("refused by its store, is told to the session as a refusal, and leaves the session completed with its result", async () => {
+    hosted = await Hosted.create(chain());
+    hosted.executions.refusal = new Error("The database does not answer.");
+    await hosted.sessions.start();
+    const opened = await hosted.sessions.open({ request: REQUEST, environment: "local" });
+    const session = await hosted.ended(opened.id);
+    assert.deepEqual([session.state, session.result?.outcome], ["completed", "passed"]);
+    assert.ok(
+      (await hosted.events(opened.id)).some(
+        (event) => event.type === "refusal" && event.text === "The execution of its tests could not be kept: The database does not answer.",
+      ),
+    );
+    assert.deepEqual(await hosted.executions.list(), []);
+    assert.ok(
+      hosted.logger.lines.some((line) => line.startsWith("warn The execution of the tests of the session")),
+      JSON.stringify(hosted.logger.lines),
+    );
+  });
+
+  it("refused by its store with what is no error, tells what it was refused with", async () => {
+    hosted = await Hosted.create(chain());
+    hosted.executions.refusal = "the disk is full";
+    await hosted.sessions.start();
+    const opened = await hosted.sessions.open({ request: REQUEST, environment: "local" });
+    await hosted.ended(opened.id);
+    assert.ok(
+      (await hosted.events(opened.id)).some(
+        (event) => event.type === "refusal" && event.text === "The execution of its tests could not be kept: the disk is full",
+      ),
+    );
   });
 });

@@ -2,6 +2,7 @@ import { ConfigurationStore } from "../configuration/configuration-store.ts";
 import { Database } from "../database/database.ts";
 import { DatabaseStatus } from "../database/database-status.ts";
 import { DocumentStore } from "../documents/document-store.ts";
+import { ExecutionStore } from "../executions/execution-store.ts";
 import { SchemaMigrations } from "../database/schema-migrations.ts";
 import { SessionStore } from "../sessions/session-store.ts";
 import { MIGRATIONS } from "../database/migrations/index.ts";
@@ -13,7 +14,7 @@ import type { StoreLogger } from "../store-logger.ts";
 /**
  * The database of an instance, assembled once for whatever process reaches it — the server that hosts its
  * sessions, a terminal that opens one or reads them: the connection, the migrations, their status, the
- * store of the sessions, that of the configuration and that of the documents of its knowledge sources, with the one rule that brings the schema in order before anything is read.
+ * store of the sessions, that of the configuration, that of the documents of its knowledge sources and that of the executions of tests, with the one rule that brings the schema in order before anything is read.
  *
  * @remarks
  * Nothing is opened until a statement needs it: a process may assemble the database of a server that does not
@@ -32,6 +33,8 @@ export class InstanceDatabase {
   readonly configuration: ConfigurationStore;
   /** The store of the documents of the knowledge sources, which the operations on documents and the runs are given. */
   readonly documents: DocumentStore;
+  /** The store of the executions of tests, which the operations on sessions keep theirs in and the operations on executions read. */
+  readonly executions: ExecutionStore;
 
   /**
    * @param url - The connection URL of the database, as `instanceDatabaseUrl` resolves it.
@@ -45,6 +48,7 @@ export class InstanceDatabase {
     this.sessions = new SessionStore(this.database);
     this.configuration = new ConfigurationStore(this.database);
     this.documents = new DocumentStore(this.database);
+    this.executions = new ExecutionStore(this.database);
   }
 
   /**

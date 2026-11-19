@@ -62,6 +62,8 @@ export interface ReportEntry {
   readonly id: string;
   /** Its file, relative to the folder the runner looks for tests in, the folder of the applications of the repository. */
   readonly file: string;
+  /** Its titles, those of the `describe` that hold it then its own, as `<describe>… › <title>`: with its file, what names the test from one run to the next. */
+  readonly title: string;
   readonly test: JsonTest;
 }
 
@@ -86,7 +88,12 @@ export function reportEntries(json: string): ReportEntry[] | undefined {
 function walk(suite: JsonSuite, titles: readonly string[]): ReportEntry[] {
   const path = suite.file !== undefined && suite.title === suite.file ? titles : [...titles, suite.title ?? ""];
   const own = (suite.specs ?? []).flatMap((spec) =>
-    spec.tests.map((test) => ({ id: [test.projectName, `${spec.file}:${spec.line}`, ...path, spec.title].join(" › "), file: spec.file, test })),
+    spec.tests.map((test) => ({
+      id: [test.projectName, `${spec.file}:${spec.line}`, ...path, spec.title].join(" › "),
+      file: spec.file,
+      title: [...path, spec.title].join(" › "),
+      test,
+    })),
   );
   return [...own, ...(suite.suites ?? []).flatMap((child) => walk(child, path))];
 }

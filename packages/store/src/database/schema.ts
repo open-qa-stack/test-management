@@ -1,4 +1,4 @@
-import type { OqasConfig, RevisionOrigin } from "@open-qa-stack/domain";
+import type { ExecutionOrigin, ExecutionVerdict, OqasConfig, RevisionOrigin } from "@open-qa-stack/domain";
 import type { AgentRole, Application, SessionEvent, SessionResult, SessionState } from "@open-qa-stack/domain/sessions";
 import type { StoredBoolean, StoredInstant, StoredJson } from "./stored-values.ts";
 
@@ -103,6 +103,34 @@ export interface KnowledgeDocumentsTable {
 }
 
 /**
+ * The executions of tests, each under its identifier. The origin is a text, as the state of a session is. The session
+ * of an execution it ran is emptied when the session goes; the commit is empty for a test repository without one.
+ */
+export interface ExecutionsTable {
+  id: string;
+  origin: ExecutionOrigin;
+  session_id: string | null;
+  ran_at: StoredInstant;
+  commit_sha: string | null;
+  report: string;
+}
+
+/**
+ * What came of each test of an execution, under its rank in the report of the execution, from 0. The verdict is a
+ * text; the digest of the file is empty when the file could not be read.
+ */
+export interface ExecutionResultsTable {
+  execution_id: string;
+  position: number;
+  path: string;
+  title: string;
+  project: string;
+  verdict: ExecutionVerdict;
+  duration_ms: number;
+  file_digest: string | null;
+}
+
+/**
  * The schema of the database of an instance, on every database the store supports: the tables the migrations
  * create, and what the statements of the store are checked against.
  */
@@ -113,4 +141,6 @@ export interface StoreSchema {
   session_messages: SessionMessagesTable;
   configuration_revisions: ConfigurationRevisionsTable;
   knowledge_documents: KnowledgeDocumentsTable;
+  executions: ExecutionsTable;
+  execution_results: ExecutionResultsTable;
 }

@@ -52,6 +52,17 @@ const DECLARED: { readonly [Table in keyof StoreSchema]: { readonly [Column in k
   },
   configuration_revisions: { number: "integer", recorded_at: "instant", origin: "text", file_digest: "text", document: "json" },
   knowledge_documents: { source: "text", name: "text", uploaded_at: "instant", bytes: "integer", text: "text" },
+  executions: { id: "text", origin: "text", session_id: "text, or nothing", ran_at: "instant", commit_sha: "text, or nothing", report: "text" },
+  execution_results: {
+    execution_id: "text",
+    position: "integer",
+    path: "text",
+    title: "text",
+    project: "text",
+    verdict: "text",
+    duration_ms: "integer",
+    file_digest: "text, or nothing",
+  },
 };
 
 /** The type each database gives a column for what it keeps, as its catalog names it. */
