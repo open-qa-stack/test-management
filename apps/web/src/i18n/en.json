@@ -18,6 +18,7 @@
       "review": "To review",
       "tests": "Tests",
       "coverage": "Coverage",
+      "executions": "Executions",
       "campaigns": "Campaigns",
       "defects": "Defects",
       "knowledge": "Knowledge",
@@ -35,7 +36,8 @@
       "no_session": "Session not found",
       "nowhere": "Page not found",
       "tests": "Tests",
-      "test": "Test"
+      "test": "Test",
+      "executions": "Executions"
     },
     "opening": {
       "title": "Reading the session",
@@ -723,5 +725,36 @@
     "steps": "Steps",
     "noStep": "The run reported no step of this test.",
     "details": "Technical details"
+  },
+  "executions": {
+    "title": "Executions",
+    "reading": "Reading the executions",
+    "readingNote": "They show as soon as the instance answered.",
+    "none": "No execution yet",
+    "noneNote": "The executions of the tests show here once a session of the agent ran the tests it wrote.",
+    "lead_one": "{{count}} execution of the tests, the latest first.",
+    "lead_other": "{{count}} executions of the tests, the latest first.",
+    "origins": {
+      "design": "design"
+    },
+    "commit": "commit {{commit}}",
+    "noVersion": "version not kept",
+    "noTest": "No test ran in this execution.",
+    "verdicts": {
+      "passed": "Passed",
+      "failed": "Failed",
+      "flaky": "Flaky",
+      "skipped": "Skipped"
+    },
+    "counts": {
+      "passed_one": "{{count}} passed",
+      "passed_other": "{{count}} passed",
+      "failed_one": "{{count}} failed",
+      "failed_other": "{{count}} failed",
+      "flaky_one": "{{count}} flaky",
+      "flaky_other": "{{count}} flaky",
+      "skipped_one": "{{count}} skipped",
+      "skipped_other": "{{count}} skipped"
+    }
   }
 }

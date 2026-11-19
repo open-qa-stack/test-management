@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, afterEach, before, beforeEach, describe, it } from "node:test";
@@ -68,6 +68,25 @@ export function executionsApiSuite(engine: DatabaseEngine): void {
       await store.add(EARLIER);
       await store.add(LATER);
       assert.deepEqual((await (await fetch(`${api.url}/executions`)).json()) as ExecutionList, { items: [LATER, EARLIER] });
+    });
+
+    it("hold the runs the test repository ran before, once the API starts again", async () => {
+      const folder = join(repository, ".oqas", "runs", "run-2026-11-18T22-15-30-250Z");
+      mkdirSync(folder, { recursive: true });
+      writeFileSync(join(folder, "report.json"), JSON.stringify({ suites: [] }));
+      await api.close();
+      api = await sessionsApi({ database: database.url, repository });
+      assert.deepEqual((await (await fetch(`${api.url}/executions`)).json()) as ExecutionList, {
+        items: [
+          {
+            id: "run-2026-11-18T22-15-30-250Z",
+            origin: "design",
+            ranAt: "2026-11-18T22:15:30.250Z",
+            report: ".oqas/runs/run-2026-11-18T22-15-30-250Z/report.json",
+            results: [],
+          },
+        ],
+      });
     });
   });
 }

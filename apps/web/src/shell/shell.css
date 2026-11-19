@@ -93,12 +93,18 @@
   min-width: 0;
 }
 
+/*
+ * On a phone the entries stand side by side, each its own target a finger presses, so that all of them fit the
+ * width of a small phone; the bar scrolls when they outgrow it, and holds the labels it hides, which then cannot
+ * widen the page.
+ */
 .nav {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: 0;
   min-width: 0;
-  padding: 0 var(--gutter) 0 var(--space-1);
+  padding: 0;
   overflow-x: auto;
   scrollbar-width: none;
 }
