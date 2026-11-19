@@ -94,12 +94,11 @@ export class TestReadings {
     const file = path.slice(appsDir.length + 1);
     const runs = join(this.#repository, stateDir, RUNS_FOLDER);
     const folders = await readdir(runs, { withFileTypes: true }).catch(() => []);
-    // The folders are named after the date of their run: the latest is the last in their order.
+    // The folders are named after the date of their run: the latest comes first in reverse order.
     for (const run of folders
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
-      .sort()
-      .reverse()) {
+      .sort((left, right) => right.localeCompare(left))) {
       const report = await readFile(join(runs, run, REPORT_FILE), "utf8").catch(() => "");
       const entry = reportEntries(report)?.find((candidate) => candidate.file === file);
       if (entry !== undefined) return { run, report, id: entry.id, test: entry.test };
