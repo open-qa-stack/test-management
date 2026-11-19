@@ -56,7 +56,8 @@ const LEVEL_READINGS: Readonly<Record<ScenarioLevel, string>> = {
     "At this level, plan one scenario for each whole journey of the brief inside one application, through its screens to its result. Be exhaustive: each journey the brief makes possible, and each way it may end, has its scenario.",
   "cross-application":
     "At this level, plan the scenarios that do an action of the brief in one application and check its effect in another. Be exhaustive: each effect of the brief that crosses applications has its scenario.",
-  "end-to-end": "At this level, plan the scenarios that follow a journey of the brief through three applications or more.",
+  "end-to-end":
+    "At this level, plan the scenarios that follow a journey of the brief through three applications or more. A journey through two applications is of the level cross-application, which a pass of its own plans: when no journey of the brief goes through three, plan none here, and say in uncovered that none does.",
 };
 
 /** What a plan of visual tests alone makes of a brief. */
