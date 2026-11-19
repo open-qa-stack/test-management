@@ -290,6 +290,7 @@ export class ScreenWatch {
               ...(appeared.length > MAX_APPEARED ? { more: `${appeared.length - MAX_APPEARED} more lines appeared; take a snapshot to read them.` } : {}),
               gone: gone.length === 0 ? "Nothing went from the page." : [...gone.slice(0, MAX_GONE), ...more].join("\n"),
               ...(unmatched.length === 0 ? {} : { note: unmatched.map(unmatchedNote).join("\n") }),
+              ...(changes === undefined ? {} : { wrote: wroteNote(changes) }),
             };
           },
           `Returns what appeared, what went, the line of code that does the same in a test, and ${ACTION_NUMBER}`,
@@ -868,6 +869,11 @@ function changedBesideFields(appeared: readonly string[], gone: readonly string[
 /** The values the fields of a page hold, long enough to be checked, once each. */
 function fieldValues(lines: ReadonlySet<string>): string[] {
   return [...new Set([...lines].flatMap((line) => fieldValue(line) ?? []))].filter(checkable);
+}
+
+/** What the agent is told of a click that wrote to the environment: what it changed stays changed for the runs after. */
+function wroteNote(clicked: string): string {
+  return `The click on "${clicked}" changed the data of the environment, and it stays changed for every run after, which then no longer finds what it starts from. Once you saw what it does, put it back on the screens, or start from data of your own, such as a record you create under a made-up name.`;
 }
 
 /** What the agent is told of a value it typed that the page no longer shows beside the fields. */
