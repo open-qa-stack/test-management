@@ -34,7 +34,8 @@
       "opening": "Opening the session…",
       "no_session": "Session not found",
       "nowhere": "Page not found",
-      "tests": "Tests"
+      "tests": "Tests",
+      "test": "Test"
     },
     "opening": {
       "title": "Reading the session",
@@ -696,5 +697,31 @@
     "noApplication": "No application",
     "noMatch": "No test matches",
     "noMatchNote": "Search other words, or choose another level."
+  },
+  "test": {
+    "reading": "Reading the test",
+    "readingNote": "It shows as soon as the instance answered.",
+    "notRun": "No run of this test yet",
+    "notRunNote": "Its steps show here once a session of the agent, or a run, ran it.",
+    "lead": "Run {{run}}: {{status}}.",
+    "status": {
+      "expected": "passed",
+      "unexpected": "failed",
+      "flaky": "passed after a retry",
+      "skipped": "skipped"
+    },
+    "states": {
+      "passed": "Passed",
+      "failed": "Failed"
+    },
+    "capture": "Capture of step {{number}}",
+    "noCapture": "No capture for this step.",
+    "failedAt": "Failed at step {{number}}",
+    "expected": "Expected",
+    "received": "Received",
+    "noCompare": "The message of the failed assertion does not say what it received: the details tell it whole.",
+    "steps": "Steps",
+    "noStep": "The run reported no step of this test.",
+    "details": "Technical details"
   }
 }

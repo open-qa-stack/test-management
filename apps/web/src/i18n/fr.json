@@ -34,7 +34,8 @@
       "opening": "Ouverture de la session…",
       "no_session": "Session introuvable",
       "nowhere": "Page introuvable",
-      "tests": "Tests"
+      "tests": "Tests",
+      "test": "Test"
     },
     "opening": {
       "title": "Lecture de la session",
@@ -696,5 +697,31 @@
     "noApplication": "Sans application",
     "noMatch": "Aucun test ne correspond",
     "noMatchNote": "Cherchez d’autres mots, ou choisissez un autre niveau."
+  },
+  "test": {
+    "reading": "Lecture du test",
+    "readingNote": "Il apparaît dès que l’instance a répondu.",
+    "notRun": "Ce test n’a pas encore été exécuté",
+    "notRunNote": "Ses étapes apparaissent ici dès qu’une session de l’agent, ou une exécution, l’a joué.",
+    "lead": "Exécution {{run}} : {{status}}.",
+    "status": {
+      "expected": "réussi",
+      "unexpected": "en échec",
+      "flaky": "réussi après une nouvelle tentative",
+      "skipped": "ignoré"
+    },
+    "states": {
+      "passed": "Réussie",
+      "failed": "En échec"
+    },
+    "capture": "Capture de l’étape {{number}}",
+    "noCapture": "Aucune capture pour cette étape.",
+    "failedAt": "Échec à l’étape {{number}}",
+    "expected": "Attendu",
+    "received": "Obtenu",
+    "noCompare": "Le message de l’assertion en échec ne dit pas ce qu’elle a obtenu : les détails le donnent en entier.",
+    "steps": "Étapes",
+    "noStep": "L’exécution n’a rapporté aucune étape de ce test.",
+    "details": "Détails techniques"
   }
 }

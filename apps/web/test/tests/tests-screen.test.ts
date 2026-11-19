@@ -43,14 +43,22 @@ describe("the tests of the repository", () => {
   });
 
   it("narrows the tests to a level and to the words of a search, which the address keeps, and says when none matches", () => {
-    assert.deepEqual(linksOf(screen("#/tests?q=policy")), [
-      "#/tests?q=policy",
-      "#/tests?level=smoke&q=policy",
-      "#/tests?level=functional&q=policy",
-      "#/tests?level=business&q=policy",
-      "#/tests?level=cross-application&q=policy",
-      "#/tests?level=end-to-end&q=policy",
-    ]);
+    // Each test leads to its screen, by its path.
+    assert.deepEqual(
+      linksOf(screen("#/tests?q=detail")).filter((link) => link.startsWith("#/tests/view")),
+      ["#/tests/view?path=apps%2Fpolicy-management%2Ftests%2Fpolicies%2Fpolicy-detail%2Fpolicy-detail-nominal.spec.ts"],
+    );
+    assert.deepEqual(
+      linksOf(screen("#/tests?q=policy")).filter((link) => !link.startsWith("#/tests/view")),
+      [
+        "#/tests?q=policy",
+        "#/tests?level=smoke&q=policy",
+        "#/tests?level=functional&q=policy",
+        "#/tests?level=business&q=policy",
+        "#/tests?level=cross-application&q=policy",
+        "#/tests?level=end-to-end&q=policy",
+      ],
+    );
     const functional = textOf(screen("#/tests?level=functional"));
     assert.match(functional, /Tous les niveaux 4 Smoke 1 Fonctionnel 2 Métier 0 Entre applications 0 De bout en bout 0 policy-management · 2 tests/);
     assert.doesNotMatch(functional, /Customer Management answers/);

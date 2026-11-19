@@ -126,6 +126,9 @@ describe("the client of the API, for the documents of the knowledge sources", ()
     const listed = clientOf(() => json({ items: [test] }));
     assert.deepEqual(await listed.client.tests(), [test]);
     assert.deepEqual(listed.calls, [["/api/tests", undefined]]);
+    const read = clientOf(() => json({ path: "apps/shop/orders.spec.ts" }));
+    assert.deepEqual(await read.client.testReading("apps/shop/orders.spec.ts"), { path: "apps/shop/orders.spec.ts" });
+    assert.deepEqual(read.calls, [["/api/tests/reading?path=apps%2Fshop%2Forders.spec.ts", undefined]]);
   });
 
   it("lists the documents of a source out of the envelope the API answers, and reads one, each name encoded", async () => {

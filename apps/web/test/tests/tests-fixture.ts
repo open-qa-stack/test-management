@@ -1,4 +1,4 @@
-import type { RepositoryTest } from "@open-qa-stack/domain/sessions";
+import type { RepositoryTest, TestReading } from "@open-qa-stack/domain/sessions";
 
 /** A functional test of the policies, as a design writes it. */
 export const DETAIL: RepositoryTest = {
@@ -41,3 +41,36 @@ export const HANDMADE: RepositoryTest = { path: "apps/scratch.spec.ts", title: "
 
 /** Every test of the fixtures, in the order of their paths. */
 export const TESTS: readonly RepositoryTest[] = [SMOKE, DETAIL, SCREEN, HANDMADE].sort((left, right) => left.path.localeCompare(right.path));
+
+/** The test of the policies read in steps, from a run where its second step failed. */
+export const READING: TestReading = {
+  path: DETAIL.path,
+  run: "run-2026-11-19T00-29-03-488Z",
+  view: {
+    id: `policy-management › policy-management/tests/policies/policy-detail/policy-detail-nominal.spec.ts:3 › ${DETAIL.title}`,
+    status: "unexpected",
+    steps: [
+      {
+        number: 1,
+        title: "1. Open the policy of the customer",
+        state: "passed",
+        duration: 224,
+        capture: { name: "1", contentType: "image/png" },
+        steps: [{ title: "Fill the search", state: "passed", duration: 12, steps: [] }],
+      },
+      { number: 2, title: "2. Read its amounts", state: "failed", duration: 5012, steps: [] },
+    ],
+    failedStep: 2,
+    expected: '"1500 CHF"',
+    received: '"250 CHF"',
+    uncaptured: [2],
+    details: {
+      error: "Error: expect(locator).toHaveText()",
+      stack: "at policy-detail-nominal.spec.ts:9",
+      stdout: ["opened\n"],
+      stderr: [],
+      trace: "/work/.oqas/test-results/trace.zip",
+      screenshots: [],
+    },
+  },
+};

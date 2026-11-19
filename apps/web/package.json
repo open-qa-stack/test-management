@@ -18,7 +18,8 @@
       "src/app.tsx",
       "src/configuration/configuration-page.tsx",
       "src/knowledge/knowledge-page.tsx",
-      "src/tests/tests-page.tsx"
+      "src/tests/tests-page.tsx",
+      "src/tests/test-page.tsx"
     ]
   },
   "dependencies": {

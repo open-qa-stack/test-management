@@ -179,6 +179,13 @@ describe("the console", () => {
     );
     assert.equal(documentTitleOf({ route: at("#/tests?level=smoke") }), "Tests · Open QA Stack");
     assert.match(pageOf(consoleAt("#/tests/more")), /Page introuvable/);
+    // A test is opened by its path; without one, the address leads nowhere.
+    assert.match(
+      pageOf(consoleAt("#/tests/view?path=apps%2Fshop%2Forders.spec.ts", { project: PROJECT })),
+      /^lakeside-tests \/ Tests \/ apps\/shop\/orders\.spec\.ts .* Lecture du test/,
+    );
+    assert.equal(documentTitleOf({ route: at("#/tests/view?path=apps%2Fshop%2Forders.spec.ts") }), "Test · Open QA Stack");
+    for (const hash of ["#/tests/view", "#/tests/view?path="]) assert.match(pageOf(consoleAt(hash)), /Page introuvable/);
   });
 
   it("shows the configuration at its address, which reads it from the instance", () => {
