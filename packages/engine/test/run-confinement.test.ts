@@ -137,8 +137,11 @@ describe("what the brief asks and the plan leaves out", () => {
 describe("a brief no test can do", () => {
   it("runs nothing, says what is not covered, and exits with 2: nothing was verified", async () => {
     const uncovered = [{ asked: "Cancel an order.", reason: "No operation of the shop cancels one." }];
-    const none = submit("propose_plan", { scenarios: [], uncovered }, "plan");
-    const replies = chain().map((reply) => (reply.body === planned.body ? { body: toolCalls(MODEL, [none]) } : reply));
+    const none = (id: string) => submit("propose_plan", { scenarios: [], uncovered }, id);
+    // Asked once to plan an application at a time, the agent confirms that no test can do what the brief asks.
+    const replies = chain().flatMap((reply) =>
+      reply.body === planned.body ? [{ body: toolCalls(MODEL, [none("plan")]) }, { body: toolCalls(MODEL, [none("again")]) }] : [reply],
+    );
     const run = await ran(replies, { environment: "local", brief: "Cancel an order." });
     assert.equal(run.code, 2, run.err);
     assert.match(run.err, /\[design\] No test is run: the design gave none\./);
