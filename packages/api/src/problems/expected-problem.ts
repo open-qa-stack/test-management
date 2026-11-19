@@ -9,6 +9,7 @@ import {
   SessionEndedError,
   SessionStateError,
   StaleRevisionError,
+  UnknownCaptureError,
   UnknownDocumentError,
   UnknownDocumentSourceError,
   UnknownSessionError,
@@ -44,6 +45,9 @@ const NO_SOURCE = `Declare it in the configuration, of type document with "store
 /** What a client is told of documents that are refused. */
 const INVALID_DOCUMENTS = "Each error is in errors, at the document it is about, in the order of the upload.";
 
+/** What a client is told of a capture the latest run of a test did not attach. */
+const NO_CAPTURE = "Read the test again with GET /tests/reading: each of its steps says whether it has a capture.";
+
 /** The problem of a request the HTTP layer refused with a status: a malformed one is `invalid_request`, any other keeps its status. */
 function refusalOf(status: number, detail: string): Problem {
   return status === HttpStatus.BAD_REQUEST ? problemOf("invalid_request", detail) : problemOf("error", detail, status);
@@ -57,7 +61,7 @@ function refusalOf(status: number, detail: string): Problem {
  * the operations on sessions — a session that does not exist, one that ended, one that goes on and is resumed,
  * no test repository to run one in — and on the configuration — a stale revision, a file that changed too, a
  * configuration that is not valid, none at all — and on documents — a source that takes none, a document it does
- * not hold, an upload that is refused — a database that cannot be reached, those the framework raises for a request it refuses — an unknown
+ * not hold, an upload that is refused — and on the tests — a capture their latest run did not attach — a database that cannot be reached, those the framework raises for a request it refuses — an unknown
  * route, a method that is not allowed — and those the HTTP server raises with a client status before a route
  * is reached — a body that is not JSON, a media type it does not read. Their messages are written for the
  * client, but that of the database, which may name its host: the client is told what to do instead. Anything
@@ -80,6 +84,7 @@ export function expectedProblem(error: unknown): Problem | undefined {
   if (error instanceof UnknownDocumentSourceError) return problemOf("unknown_document_source", `${error.message} ${NO_SOURCE}`);
   if (error instanceof UnknownDocumentError) return problemOf("unknown_document", error.message);
   if (error instanceof InvalidDocumentsError) return { ...problemOf("invalid_documents", `${error.message} ${INVALID_DOCUMENTS}`), errors: error.errors };
+  if (error instanceof UnknownCaptureError) return problemOf("unknown_capture", `${error.message} ${NO_CAPTURE}`);
   if (error instanceof DatabaseUnavailableError) return problemOf("unavailable", DATABASE_UNAVAILABLE);
   if (error instanceof HttpException) return refusalOf(error.getStatus(), error.message);
   if (!isRecord(error)) return undefined;

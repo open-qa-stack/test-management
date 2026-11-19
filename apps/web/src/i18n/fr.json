@@ -363,6 +363,7 @@
     "unknown_document_source": "La configuration en vigueur ne déclare aucune source de documents déposés de ce nom : enregistrez d’abord la configuration.",
     "unknown_document": "La source ne contient plus ce document.",
     "invalid_documents": "Les documents sont refusés, et aucun n’a été gardé : corrigez les fichiers signalés.",
+    "unknown_capture": "La dernière exécution de ce test n’a joint aucune capture pour cette étape.",
     "unexplained": "L’instance a rencontré une erreur.",
     "unreachable": "L’instance ne répond pas.",
     "unreadable": "La réponse de l’instance est illisible."
