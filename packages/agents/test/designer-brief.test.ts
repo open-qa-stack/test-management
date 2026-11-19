@@ -269,17 +269,20 @@ describe("a brief no test can do", () => {
   it("keeps a plan without a scenario that says why, writes no test nor branch, and succeeds", async () => {
     const uncovered = [{ asked: "Change the address of a customer.", reason: "No screen of shop offers to edit an address." }];
     const none = { id: "plan", name: "propose_plan", arguments: { scenarios: [], uncovered } };
-    const { outcome, root, server } = await design(replies([[OPEN], [none], DONE]), { plan: false });
+    // Asked once to plan an application at a time, the agent confirms that no test can do what the brief asks.
+    const again = { ...none, id: "again" };
+    const { outcome, root, server } = await design(replies([[OPEN], [none], [again], DONE]), { plan: false });
     assert.equal(outcome.ok, true, messages(outcome));
     assert.deepEqual([outcome.tests, outcome.branch, outcome.uncovered], [[], undefined, uncovered]);
-    assert.match(told(server, "plan"), /^The plan was accepted with 0 scenarios: the agent said no test can do what the brief asks\./);
+    assert.match(told(server, "plan"), /^The plan is not closed yet\. It holds no scenario/);
+    assert.match(told(server, "again"), /^The plan was accepted with 0 scenarios: the agent said no test can do what the brief asks\./);
     assert.deepEqual([planOf(outcome).scenarios, planOf(outcome).ended], [[], "none"]);
     assert.match(readFileSync(outcome.planPath!, "utf8"), /\n## Not covered\n/);
     assert.match(messages(outcome), /No test was written: the plan holds no scenario, and says what the brief asks that no test can do\./);
     // Nothing is committed: the test repository is on the branch it was on.
     assert.equal(git(root, "symbolic-ref", "--short", "HEAD"), "main");
     // The session that plans is over once the plan is accepted: no session writes a test.
-    assert.equal(server.requests.length, 3);
+    assert.equal(server.requests.length, 4);
   });
 });
 

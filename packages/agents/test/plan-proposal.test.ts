@@ -246,9 +246,18 @@ describe("the scenarios of a plan, asked until the brief is covered", () => {
     );
   });
 
-  it("accept a plan without a scenario that says why no test can do what the brief asks, and close it at once", async () => {
+  it("accept a plan without a scenario that says why no test can do what the brief asks, once asked to plan an application at a time", async () => {
     const { proposal: made, journal } = await proposal();
     const uncovered = [{ asked: "Change the address of a customer.", reason: "No screen of shop offers to edit an address." }];
+    // The agent may have given up on a brief too broad to plan at once: it is asked, once, to plan one application first.
+    assert.equal(
+      await add(made, { scenarios: [], uncovered }),
+      [
+        "The plan is not closed yet. It holds no scenario, and says that no test can do what the brief asks.",
+        "A brief about several applications is often too broad to plan at once. Plan first the scenarios of one of them (shop, ledger), from what you explored of it, then those of the next: each call adds to the plan.",
+        "Next: call propose_plan with the scenarios of one application. If no test can do any of what the brief asks, call propose_plan with no scenario and the same uncovered again: that confirms it, and closes the plan.",
+      ].join("\n"),
+    );
     assert.equal(
       await add(made, { scenarios: [], uncovered }),
       "The plan was accepted with 0 scenarios: the agent said no test can do what the brief asks.\nNext: answer with one sentence. Call no more tools.",
@@ -257,10 +266,20 @@ describe("the scenarios of a plan, asked until the brief is covered", () => {
     assert.deepEqual(
       journal.entries().map((entry) => `${entry.level}: ${entry.message}`),
       [
+        "info: The agent closed a plan with no scenario; it was asked once to plan the applications one at a time.",
         "error: The plan does not cover what the brief asks: Change the address of a customer. No screen of shop offers to edit an address.",
         "info: The harness asked for no more scenarios: the agent said no test can do what the brief asks.",
         "info: The plan was accepted: no scenario.",
       ],
+    );
+  });
+
+  it("ask, for a plan of one application without a scenario, to plan it one screen at a time", async () => {
+    const { proposal: made } = await proposal({ applications: ["shop"] });
+    const uncovered = [{ asked: "Change the address of a customer.", reason: "No screen of shop offers to edit an address." }];
+    assert.match(
+      (await add(made, { scenarios: [], uncovered })) as string,
+      /\nPlan first the scenarios of what you explored of shop, one screen at a time: each call adds to the plan\.\n/,
     );
   });
 
@@ -269,6 +288,7 @@ describe("the scenarios of a plan, asked until the brief is covered", () => {
     assert.doesNotMatch(JSON.stringify(made.tool().parameters), /maxLength/);
     const asked = `Change the address of a customer, ${"and of each of the people insured with it, ".repeat(8)}from the profile.`;
     const uncovered = Array.from({ length: 6 }, (_, index) => ({ asked: `${asked} ${String(index)}`, reason: "No screen of shop offers to edit an address." }));
+    await add(made, { scenarios: [], uncovered });
     await add(made, { scenarios: [], uncovered });
     assert.deepEqual(made.accepted?.uncovered, uncovered);
   });

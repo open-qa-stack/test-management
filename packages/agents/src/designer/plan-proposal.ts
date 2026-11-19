@@ -228,6 +228,8 @@ export class PlanProposal {
   /** The numbers of the questions the agent accepted. */
   private readonly accepts = new Set<number>();
   private warnedNominal = false;
+  /** Whether the agent was asked, once, about a plan it closed with no scenario. */
+  private warnedEmpty = false;
   /** The calls are taken one at a time: each adds to what the one before kept. */
   private queue: Promise<unknown> = Promise.resolve();
 
@@ -498,7 +500,7 @@ export class PlanProposal {
     if (open.length > 0) return this.masked(this.ask(open));
     if (submitted.uncovered !== undefined) this.uncovered = submitted.uncovered;
     for (const number of submitted.accepts ?? []) this.accepts.add(number);
-    const alone = this.nominalAlone(submitted);
+    const alone = this.nominalAlone(submitted) ?? this.emptyAlone(submitted);
     if (alone !== undefined) return this.masked(alone);
     // A call the gates let through is progress: the refusals before it count no more.
     this.refusedPlans = 0;
@@ -590,6 +592,26 @@ export class PlanProposal {
           ]
         : []),
       `Next: do it on the screens, then call ${PLAN_TOOL} with only the scenarios to add. If the brief calls for none of this, call ${PLAN_TOOL} with "scenarios": [] again: that confirms it, and closes the plan.`,
+    ].join("\n");
+  }
+
+  /**
+   * Asks the agent, once, about a plan it closes with no scenario at all, saying what the brief asks that no test can
+   * do: a brief about several applications is often too broad to plan at once, and the agent gives up on all of it.
+   * It is told to plan the applications one at a time, and that the same call again confirms the plan, and closes it.
+   */
+  private emptyAlone(submitted: SubmittedPlan): string | undefined {
+    // A call with no scenario on a plan that holds none says what is uncovered, or PLAN-COUNT refused it.
+    if (submitted.scenarios.length > 0 || this.draft.scenarios.length > 0 || this.warnedEmpty) return undefined;
+    this.warnedEmpty = true;
+    this.journal.record("info", "The agent closed a plan with no scenario; it was asked once to plan the applications one at a time.");
+    const { applications } = this.rules;
+    return [
+      "The plan is not closed yet. It holds no scenario, and says that no test can do what the brief asks.",
+      applications.length > 1
+        ? `A brief about several applications is often too broad to plan at once. Plan first the scenarios of one of them (${applications.join(", ")}), from what you explored of it, then those of the next: each call adds to the plan.`
+        : `Plan first the scenarios of what you explored of ${applications[0]}, one screen at a time: each call adds to the plan.`,
+      `Next: call ${PLAN_TOOL} with the scenarios of one application. If no test can do any of what the brief asks, call ${PLAN_TOOL} with no scenario and the same uncovered again: that confirms it, and closes the plan.`,
     ].join("\n");
   }
 
