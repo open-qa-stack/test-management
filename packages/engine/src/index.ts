@@ -1,5 +1,6 @@
 export { Configuration } from "./configuration/configuration.ts";
 export { KnowledgeDocuments } from "./documents/knowledge-documents.ts";
+export { RepositoryTests } from "./tests/repository-tests.ts";
 export type { ConfigurationSource } from "./ports/configuration-source.ts";
 export type { JournalOutput } from "./ports/journal-output.ts";
 export type { OpenRuntime } from "./ports/open-runtime.ts";
