@@ -7,6 +7,8 @@ import type {
   OqasConfig,
   Problem,
   Project,
+  RepositoryTest,
+  RepositoryTestList,
   RevisionChange,
   RevisionList,
   RevisionSummary,
@@ -162,6 +164,15 @@ export class ApiClient {
    */
   public synchronise(): Promise<ConfigurationView> {
     return this.#ask<ConfigurationView>("/configuration/synchronisation", { method: "POST" });
+  }
+
+  /**
+   * Lists the tests of the test repository, as their files are now.
+   *
+   * @returns The tests, in the order of their paths, each with what its tags say of it.
+   */
+  public async tests(): Promise<readonly RepositoryTest[]> {
+    return (await this.#ask<RepositoryTestList>("/tests")).items;
   }
 
   /**

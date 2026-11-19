@@ -72,6 +72,7 @@ export default defineConfig({
         "**/src/app.tsx",
         "**/src/configuration/configuration-page.tsx",
         "**/src/knowledge/knowledge-page.tsx",
+        "**/src/tests/tests-page.tsx",
         "**/src/source-code/search-worker.ts",
         "**/check-manifests.ts",
       ],

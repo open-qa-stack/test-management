@@ -33,7 +33,8 @@
       "knowledge": "Connaissances",
       "opening": "Ouverture de la session…",
       "no_session": "Session introuvable",
-      "nowhere": "Page introuvable"
+      "nowhere": "Page introuvable",
+      "tests": "Tests"
     },
     "opening": {
       "title": "Lecture de la session",
@@ -667,5 +668,32 @@
     "close": "Fermer",
     "opening": "Lecture du document",
     "openingNote": "Il apparaît dès que l’instance a répondu."
+  },
+  "tests": {
+    "title": "Tests",
+    "reading": "Lecture des tests",
+    "readingNote": "Ils apparaissent dès que l’instance a répondu.",
+    "none": "Aucun test pour l’instant",
+    "noneNote": "Les tests du dépôt de tests apparaissent ici dès qu’une session de l’agent en a écrit, ou qu’une personne en a ajouté.",
+    "lead_one": "{{count}} test du dépôt de tests, tel que son fichier est maintenant.",
+    "lead_other": "{{count}} tests du dépôt de tests, tels que leurs fichiers sont maintenant.",
+    "search": "Chercher un titre, un chemin ou un tag",
+    "levelFilter": "Niveaux de la pyramide de tests",
+    "allLevels": "Tous les niveaux",
+    "levels": {
+      "smoke": "Smoke",
+      "functional": "Fonctionnel",
+      "business": "Métier",
+      "cross-application": "Entre applications",
+      "end-to-end": "De bout en bout"
+    },
+    "visual": "Visuel",
+    "steps_one": "{{count}} étape",
+    "steps_other": "{{count}} étapes",
+    "count_one": "{{count}} test",
+    "count_other": "{{count}} tests",
+    "noApplication": "Sans application",
+    "noMatch": "Aucun test ne correspond",
+    "noMatchNote": "Cherchez d’autres mots, ou choisissez un autre niveau."
   }
 }

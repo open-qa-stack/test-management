@@ -6,6 +6,7 @@ import type { Locator, Page } from "playwright-core";
 import { BuiltConsole } from "./built-console.ts";
 import { ConfiguredInstance } from "./configuration/configured-instance.ts";
 import { DocumentedInstance } from "./knowledge/documented-instance.ts";
+import { ListedInstance } from "./tests/listed-instance.ts";
 import { OPENED_ID, PlayedInstance } from "./played-instance.ts";
 
 let built: BuiltConsole | undefined;
@@ -124,7 +125,7 @@ describe("the shell on a narrow and on a wide screen", () => {
       assert.equal(sidebar.x, 0);
       assert.equal(sidebar.y, bar.y + bar.height);
       assert.equal(bar.width, 1100);
-      assert.equal(await page.getByText("bientôt").count(), 6);
+      assert.equal(await page.getByText("bientôt").count(), 5);
       assert.equal(await page.getByText("bientôt").first().isVisible(), true);
       await page.getByText("1 application · projet").waitFor();
     } finally {
@@ -1235,6 +1236,36 @@ describe("the code of the console is covered in full", () => {
     assert.deepEqual(main!.uncovered, []);
     assert.ok(application!.lines.length > 20, "the application is in the build");
     assert.deepEqual(application!.uncovered, []);
+  });
+
+  it("lets the screen of the tests, its long paths and its filter, fit the width of a small phone", async () => {
+    const page = await app().open(360, "#/tests", new ListedInstance().api);
+    try {
+      await page.locator(".tests-row").first().waitFor();
+      assert.equal(await overflowOf(page), 0);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("runs every line of the screen of the tests when it is used in the browser", async () => {
+    const instance = new ListedInstance();
+    const [screen] = await app().measure(
+      ["src/tests/tests-page.tsx"],
+      async (page) => {
+        await page.goto("http://console.test/#/tests?level=functional");
+        await page.getByText("Display the detail of a policy").waitFor();
+        await page.getByRole("searchbox", { name: "Chercher un titre, un chemin ou un tag" }).fill("  edit  ");
+        await page.getByRole("searchbox", { name: "Chercher un titre, un chemin ou un tag" }).press("Enter");
+        await page.waitForURL(/#\/tests\?level=functional&q=edit$/);
+        // The search narrows the list: the test it does not match goes, the one it matches stays.
+        await page.getByText("Display the detail of a policy").waitFor({ state: "detached" });
+        await page.getByText("Compare the edit form of a policy").waitFor();
+      },
+      instance.api,
+    );
+    assert.ok(screen!.lines.length > 10, "the screen is in the build");
+    assert.deepEqual(screen!.uncovered, []);
   });
 
   it("runs every line of the screens of the knowledge when they are used in the browser", async () => {
