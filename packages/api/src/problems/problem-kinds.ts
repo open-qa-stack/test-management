@@ -23,6 +23,7 @@ const KINDS: Readonly<Record<ProblemCode, ProblemKind>> = {
   unknown_document_source: { status: HttpStatus.NOT_FOUND, title: "Unknown source of documents" },
   unknown_document: { status: HttpStatus.NOT_FOUND, title: "Unknown document" },
   invalid_documents: { status: HttpStatus.UNPROCESSABLE_ENTITY, title: "Invalid documents" },
+  unknown_capture: { status: HttpStatus.NOT_FOUND, title: "Unknown capture" },
   error: { status: HttpStatus.INTERNAL_SERVER_ERROR, title: "Request not answered" },
 };
 

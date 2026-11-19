@@ -17,6 +17,7 @@ const WORDED: ReadonlySet<string> = new Set<Exclude<ProblemCode, "error">>([
   "unknown_document_source",
   "unknown_document",
   "invalid_documents",
+  "unknown_capture",
 ]);
 
 /**
