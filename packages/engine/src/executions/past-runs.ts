@@ -1,12 +1,9 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join, posix } from "node:path";
-import { DEFAULT_REPOSITORY, executionResults, RUNS_FOLDER, type ConfigurationQueries, type ExecutionStorePort } from "@open-qa-stack/domain";
+import { DEFAULT_REPOSITORY, executionResults, runFolderDate, RUNS_FOLDER, type ConfigurationQueries, type ExecutionStorePort } from "@open-qa-stack/domain";
 
 /** The name of the report a run writes in its folder, the JSON of the Playwright reporter. */
 const REPORT_FILE = "report.json";
-
-/** The folder of a run, named after the date it started at: `run-2026-11-19T00-29-03-488Z`. */
-const RUN_FOLDER = /^run-(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/;
 
 /**
  * Takes into the store of the executions the runs of the test repository that ran before the instance kept them:
@@ -49,13 +46,12 @@ export class PastRuns {
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
       .sort((left, right) => left.localeCompare(right))) {
-      const date = RUN_FOLDER.exec(name);
+      const ranAt = runFolderDate(name);
       const report = posix.join(stateDir, RUNS_FOLDER, name, REPORT_FILE);
-      if (date === null || kept.has(report)) continue;
+      if (ranAt === undefined || kept.has(report)) continue;
       const results = executionResults(await readFile(join(this.#repository, report), "utf8").catch(() => ""), appsDir);
       if (results === undefined) continue;
-      const [, day, hours, minutes, seconds, milliseconds] = date;
-      await this.#store.add({ id: name, origin: "design", ranAt: `${day}T${hours}:${minutes}:${seconds}.${milliseconds}Z`, report, results });
+      await this.#store.add({ id: name, origin: "design", ranAt, report, results });
       taken += 1;
     }
     return taken;

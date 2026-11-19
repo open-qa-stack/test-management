@@ -1256,7 +1256,10 @@ describe("the code of the console is covered in full", () => {
         await page.goto("http://console.test/#/tests");
         await page.getByRole("link", { name: /Display the detail of a policy/ }).click();
         await page.waitForURL(/#\/tests\/view\?path=apps%2Fpolicy-management%2F/);
-        await page.getByText("Échec à l’étape 2").waitFor();
+        await page.getByText("Échoue à l’étape 2 sur 2.").waitFor();
+        // A step chosen in the list shows its page, and the address keeps it.
+        await page.getByRole("link", { name: /Open the policy of the customer/ }).click();
+        await page.waitForURL(/&step=1$/);
         await page.getByRole("img", { name: "Capture de l’étape 1" }).waitFor({ state: "attached" });
       },
       instance.api,
@@ -1274,6 +1277,11 @@ describe("the code of the console is covered in full", () => {
     try {
       await page.locator(".test-step").first().waitFor();
       await page.getByText("Détails techniques").click();
+      assert.equal(await overflowOf(page), 0);
+      // The page at a step takes the whole width of the card.
+      await page.goto(`${page.url()}&step=1`);
+      const capture = await page.getByRole("img", { name: "Capture de l’étape 1" }).boundingBox();
+      assert.ok(capture !== null && capture.width > 300, JSON.stringify(capture));
       assert.equal(await overflowOf(page), 0);
     } finally {
       await page.close();

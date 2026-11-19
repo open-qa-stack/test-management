@@ -80,7 +80,11 @@ describe("a test of the repository read in steps", () => {
     // A run that left no report, such as one stopped before the runner wrote it, does not count either.
     mkdirSync(join(root, ".oqas", "runs", "run-2026-11-19T11-00-00-000Z"));
     const read = await (await readings(root)).read(SEARCH);
-    assert.equal(read.run, "run-2026-11-19T08-00-00-000Z");
+    assert.deepEqual([read.run, read.ranAt], ["run-2026-11-19T08-00-00-000Z", "2026-11-19T08:00:00.000Z"]);
+    // A run in a folder that bears no date, one a person made, is read all the same, undated.
+    const manual = repository({ manual: report("passed", []) });
+    const undated = await (await readings(manual)).read(SEARCH);
+    assert.deepEqual([undated.run, "ranAt" in undated], ["manual", false]);
     assert.deepEqual(
       [read.path, read.view?.id, read.view?.failedStep, read.view?.steps.map((step) => step.title)],
       [SEARCH, "shop › shop/tests/orders/search.spec.ts:3 › Search an order", 2, ["1. Open the orders", "2. Search"]],
@@ -109,8 +113,6 @@ describe("the capture of a step of a test", () => {
       report("passed", [
         { name: "1", contentType: "image/png", body: Buffer.from("in the report").toString("base64") },
         { name: "2", path: file },
-        { name: "3", contentType: "image/png", path: "/etc/hosts" },
-        { name: "4", contentType: "image/png", path: join(root, "gone.png") },
       ]),
     );
     const operations = await readings(root);
@@ -118,8 +120,30 @@ describe("the capture of a step of a test", () => {
     assert.deepEqual([first.contentType, Buffer.from(first.bytes).toString()], ["image/png", "in the report"]);
     const second = await operations.capture(SEARCH, 2);
     assert.deepEqual([second.contentType, Buffer.from(second.bytes).toString()], ["application/octet-stream", "png bytes"]);
+    // A step the test does not have has no capture.
+    await assert.rejects(operations.capture(SEARCH, 3), new UnknownCaptureError(SEARCH, 3));
     // A file outside the repository is never read, and a file that is gone is no capture.
-    for (const step of [3, 4, 5]) await assert.rejects(operations.capture(SEARCH, step), new UnknownCaptureError(SEARCH, step));
+    writeFileSync(
+      join(run, "report.json"),
+      report("passed", [
+        { name: "1", contentType: "image/png", path: "/etc/hosts" },
+        { name: "2", contentType: "image/png", path: join(root, "gone.png") },
+      ]),
+    );
+    for (const step of [1, 2]) await assert.rejects(operations.capture(SEARCH, step), new UnknownCaptureError(SEARCH, step));
     await assert.rejects(operations.capture("apps/shop/tests/other.spec.ts", 1), UnknownCaptureError);
+  });
+
+  it("is, at the step that failed with none of its own, the page the runner captured at the failure", async () => {
+    const root = repository({});
+    const shot = join(root, ".oqas", "runs", "test-failed-1.png");
+    writeFileSync(shot, "failure bytes");
+    const run = join(root, ".oqas", "runs", "run-2026-11-19T08-00-00-000Z");
+    mkdirSync(run, { recursive: true });
+    writeFileSync(join(run, "report.json"), report("failed", [{ name: "screenshot", contentType: "image/png", path: shot }]));
+    const operations = await readings(root);
+    const failed = await operations.capture(SEARCH, 2);
+    assert.deepEqual([failed.contentType, Buffer.from(failed.bytes).toString()], ["image/png", "failure bytes"]);
+    await assert.rejects(operations.capture(SEARCH, 1), new UnknownCaptureError(SEARCH, 1));
   });
 });

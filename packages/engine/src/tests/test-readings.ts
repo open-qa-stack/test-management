@@ -4,6 +4,7 @@ import {
   DEFAULT_REPOSITORY,
   qaViews,
   reportEntries,
+  runFolderDate,
   RUNS_FOLDER,
   UnknownCaptureError,
   type ConfigurationQueries,
@@ -28,6 +29,12 @@ interface RunTest {
   /** The identifier the reader of the report gives the test. */
   readonly id: string;
   readonly test: JsonTest;
+}
+
+/** The test of a run in steps, as the reader of its report gives it, under the same identifier. */
+function viewOf(found: RunTest): QaView {
+  const read = qaViews(found.report) as { readonly views: readonly QaView[] };
+  return read.views.find((candidate) => candidate.id === found.id)!;
 }
 
 /**
@@ -60,8 +67,8 @@ export class TestReadings {
     const found = await this.#latest(path);
     if (found === undefined) return { path };
     // The report held the test: the reader reads it, and gives it the same identifier.
-    const read = qaViews(found.report) as { readonly views: readonly QaView[] };
-    return { path, run: found.run, view: read.views.find((candidate) => candidate.id === found.id)! };
+    const ranAt = runFolderDate(found.run);
+    return { path, run: found.run, ...(ranAt === undefined ? {} : { ranAt }), view: viewOf(found) };
   }
 
   /**
@@ -72,7 +79,9 @@ export class TestReadings {
    */
   async capture(path: string, step: number): Promise<StepCapture> {
     const found = await this.#latest(path);
-    const attachment = found?.test.results.at(-1)?.attachments?.find((candidate) => candidate.name === String(step)) as
+    // The capture of a step is the one its view shows: attached under its number, or taken by the runner at the failure.
+    const name = found === undefined ? undefined : viewOf(found).steps.find((candidate) => candidate.number === step)?.capture?.name;
+    const attachment = found?.test.results.at(-1)?.attachments?.find((candidate) => candidate.name === name) as
       { readonly contentType?: string; readonly body?: string; readonly path?: string } | undefined;
     const contentType = attachment?.contentType ?? "application/octet-stream";
     if (attachment?.body !== undefined) return { contentType, bytes: Buffer.from(attachment.body, "base64") };

@@ -6,6 +6,8 @@ export interface TestReading {
   readonly path: string;
   /** The run that ran it last, by the name of its folder in the state folder, such as `run-2026-11-19T00-29-03-488Z`. */
   readonly run?: string;
+  /** When that run started, as an ISO 8601 date, read from the name of its folder. */
+  readonly ranAt?: string;
   /** The test in steps, as that run reported it; none when no run kept ran it. */
   readonly view?: QaView;
 }
