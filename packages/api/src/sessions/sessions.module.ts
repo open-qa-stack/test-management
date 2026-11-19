@@ -1,6 +1,6 @@
 import { Logger, Module } from "@nestjs/common";
 import { Configuration, Sessions } from "@open-qa-stack/engine";
-import { DocumentStore, SessionStore } from "@open-qa-stack/store";
+import { DocumentStore, ExecutionStore, SessionStore } from "@open-qa-stack/store";
 import { ApiConfiguration } from "../config/api-configuration.ts";
 import { DatabaseModule } from "../database/database.module.ts";
 import { RepositoryConfigurationModule } from "../repository-configuration/repository-configuration.module.ts";
@@ -26,10 +26,17 @@ import { StreamPace } from "./stream-pace.ts";
     StreamPace,
     {
       provide: Sessions,
-      inject: [SessionStore, Configuration, DocumentStore, ApiConfiguration, RunEnvironment],
-      useFactory: (store: SessionStore, configuration: Configuration, documents: DocumentStore, { repository }: ApiConfiguration, { runs }: RunEnvironment) =>
+      inject: [SessionStore, Configuration, DocumentStore, ExecutionStore, ApiConfiguration, RunEnvironment],
+      useFactory: (
+        store: SessionStore,
+        configuration: Configuration,
+        documents: DocumentStore,
+        executions: ExecutionStore,
+        { repository }: ApiConfiguration,
+        { runs }: RunEnvironment,
+      ) =>
         // The API stays: it takes over the sessions that wait for a host that died.
-        new Sessions({ ...runs, store, configuration, documents, repository, takesOver: true, logger: new Logger("Sessions") }),
+        new Sessions({ ...runs, store, configuration, documents, executions, repository, takesOver: true, logger: new Logger("Sessions") }),
     },
   ],
 })

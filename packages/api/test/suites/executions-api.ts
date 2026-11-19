@@ -1,0 +1,73 @@
+import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { after, afterEach, before, beforeEach, describe, it } from "node:test";
+import { Logger } from "@nestjs/common";
+import { ExecutionStore } from "@open-qa-stack/store";
+import { SessionDatabase, type DatabaseEngine } from "@open-qa-stack/store/testing";
+import { fixtureConfig } from "@open-qa-stack/testing/fixture-repository";
+import { sessionsApi, type TestApi } from "../support/sessions-api.ts";
+import type { Execution, ExecutionList } from "@open-qa-stack/domain/sessions";
+
+/** An execution of a session of design, with one test that passed and one that failed. */
+const EARLIER: Execution = {
+  id: "e1",
+  origin: "design",
+  ranAt: "2026-11-19T09:00:00.000Z",
+  commit: "4f2a9c01d3",
+  report: ".oqas/runs/run-2026-11-19T09-00-00-000Z/report.json",
+  results: [
+    { path: "apps/shop/tests/orders/search.spec.ts", title: "Search an order", project: "shop", verdict: "passed", durationMs: 120, fileDigest: "ab12" },
+    { path: "apps/shop/tests/orders/search.spec.ts", title: "Orders › Filter by date", project: "shop", verdict: "failed", durationMs: 300 },
+  ],
+};
+
+/** A later execution, of a test repository without a commit. */
+const LATER: Execution = {
+  id: "e2",
+  origin: "design",
+  ranAt: "2026-11-19T10:00:00.000Z",
+  report: ".oqas/runs/run-2026-11-19T10-00-00-000Z/report.json",
+  results: [],
+};
+
+/**
+ * The tests of the route of the executions of tests over a database, written once for every database the store supports.
+ *
+ * @param engine - The database to run them on.
+ */
+export function executionsApiSuite(engine: DatabaseEngine): void {
+  let database: SessionDatabase;
+  let repository: string;
+  let api: TestApi;
+  before(async () => {
+    database = await SessionDatabase.create(engine, new Logger("Database"));
+  });
+  beforeEach(async () => {
+    await database.clear();
+    repository = mkdtempSync(join(tmpdir(), "oqas-api-executions-"));
+    writeFileSync(join(repository, "oqas.json"), fixtureConfig("http://127.0.0.1:9/v1", "http://127.0.0.1:9/"));
+    api = await sessionsApi({ database: database.url, repository });
+  });
+  afterEach(async () => {
+    await api.close();
+    rmSync(repository, { recursive: true, force: true });
+  });
+  after(() => database.drop());
+
+  describe(`the executions of tests on ${engine.name}`, () => {
+    it("are none until one is kept", async () => {
+      const response = await fetch(`${api.url}/executions`);
+      assert.deepEqual([response.status, response.headers.get("cache-control")], [200, "no-store"]);
+      assert.deepEqual((await response.json()) as ExecutionList, { items: [] });
+    });
+
+    it("are served the latest first, each with what came of each of its tests and the version it ran at", async () => {
+      const store = new ExecutionStore(database.database);
+      await store.add(EARLIER);
+      await store.add(LATER);
+      assert.deepEqual((await (await fetch(`${api.url}/executions`)).json()) as ExecutionList, { items: [LATER, EARLIER] });
+    });
+  });
+}

@@ -36,6 +36,7 @@ export type { ConfigurationView } from "../configuration-life/configuration-view
 export type { FileState } from "../configuration-life/file-state.ts";
 export type { DocumentList, StoredDocument, StoredDocumentSummary } from "../knowledge-documents/stored-document.ts";
 export type { RepositoryTest, RepositoryTestList } from "../repository-tests/repository-test.ts";
+export type { Execution, ExecutionList, ExecutionOrigin, ExecutionResult, ExecutionVerdict } from "../executions/execution.ts";
 export { testFacets, type TestFacets } from "../repository-tests/test-facets.ts";
 export type { TestReading } from "../repository-tests/test-reading.ts";
 export type { QaCapture, QaDetails, QaStep, QaView } from "../report/qa-view.ts";
