@@ -6,6 +6,7 @@ import type { LiveSession } from "./agent/live-session.ts";
 import { SessionScreen } from "./agent/session-screen.tsx";
 import { ConfigurationPage } from "./configuration/configuration-page.tsx";
 import { KnowledgePage } from "./knowledge/knowledge-page.tsx";
+import { TestPage } from "./tests/test-page.tsx";
 import { TestsPage } from "./tests/tests-page.tsx";
 import { hrefTo, type Route } from "./routing/route.ts";
 import { t } from "./i18n/i18n.ts";
@@ -43,6 +44,7 @@ export interface ConsoleProps {
  */
 type Shown =
   | { readonly screen: "entry" | "configuration" | "knowledge" | "tests" | "no_session" | "nowhere" }
+  | { readonly screen: "test"; readonly path: string }
   | { readonly screen: "session"; readonly live: LiveSession }
   | { readonly screen: "opening"; readonly id: string };
 
@@ -81,6 +83,9 @@ function shownOf({ route, live, missing = false }: ConsoleProps): Shown {
   if (route.path.length === 1 && route.path[0] === "configuration") return { screen: "configuration" };
   if (route.path[0] === "knowledge" && route.path.length <= 2) return { screen: "knowledge" };
   if (route.path.length === 1 && route.path[0] === "tests") return { screen: "tests" };
+  const test = route.query["path"];
+  if (route.path.length === 2 && route.path[0] === "tests" && route.path[1] === "view" && test !== undefined && test !== "")
+    return { screen: "test", path: test };
   const id = sessionAt(route);
   if (id === undefined) return { screen: "nowhere" };
   if (live?.script.id === id) return { screen: "session", live };
@@ -123,6 +128,8 @@ function Screen(props: ConsoleProps): ReactNode {
       return <KnowledgePage project={name} route={route} />;
     case "tests":
       return <TestsPage project={name} route={route} />;
+    case "test":
+      return <TestPage project={name} path={shown.path} />;
     case "opening":
     case "no_session":
     case "nowhere": {

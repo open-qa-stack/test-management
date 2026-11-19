@@ -9,6 +9,7 @@ import type {
   Project,
   RepositoryTest,
   RepositoryTestList,
+  TestReading,
   RevisionChange,
   RevisionList,
   RevisionSummary,
@@ -173,6 +174,16 @@ export class ApiClient {
    */
   public async tests(): Promise<readonly RepositoryTest[]> {
     return (await this.#ask<RepositoryTestList>("/tests")).items;
+  }
+
+  /**
+   * Reads a test of the repository in steps, from the latest run that ran it.
+   *
+   * @param path - The path of the test, relative to the root of the test repository.
+   * @returns The test in steps; without a view when no run kept ran it.
+   */
+  public testReading(path: string): Promise<TestReading> {
+    return this.#ask<TestReading>(`/tests/reading?${new URLSearchParams({ path }).toString()}`);
   }
 
   /**

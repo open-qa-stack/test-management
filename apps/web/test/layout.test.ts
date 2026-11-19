@@ -1248,6 +1248,38 @@ describe("the code of the console is covered in full", () => {
     }
   });
 
+  it("runs every line of the screen of a test when it is used in the browser, from the list of the tests", async () => {
+    const instance = new ListedInstance();
+    const [screen] = await app().measure(
+      ["src/tests/test-page.tsx"],
+      async (page) => {
+        await page.goto("http://console.test/#/tests");
+        await page.getByRole("link", { name: /Display the detail of a policy/ }).click();
+        await page.waitForURL(/#\/tests\/view\?path=apps%2Fpolicy-management%2F/);
+        await page.getByText("Échec à l’étape 2").waitFor();
+        await page.getByRole("img", { name: "Capture de l’étape 1" }).waitFor({ state: "attached" });
+      },
+      instance.api,
+    );
+    assert.ok(screen!.lines.length > 5, "the screen is in the build");
+    assert.deepEqual(screen!.uncovered, []);
+  });
+
+  it("lets the screen of a test, its steps, its captures and its details, fit the width of a small phone", async () => {
+    const page = await app().open(
+      360,
+      "#/tests/view?path=apps%2Fpolicy-management%2Ftests%2Fpolicies%2Fpolicy-detail%2Fpolicy-detail-nominal.spec.ts",
+      new ListedInstance().api,
+    );
+    try {
+      await page.locator(".test-step").first().waitFor();
+      await page.getByText("Détails techniques").click();
+      assert.equal(await overflowOf(page), 0);
+    } finally {
+      await page.close();
+    }
+  });
+
   it("runs every line of the screen of the tests when it is used in the browser", async () => {
     const instance = new ListedInstance();
     const [screen] = await app().measure(
