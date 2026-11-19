@@ -295,7 +295,7 @@ The harness stops asking, and the plan records why in `ended`:
 | `exhausted` | Three scenarios submitted in a row were duplicates. The first is only told to the agent; at the second, the agent is reminded that it may say the brief is covered; the third closes the plan. A scenario kept in between starts the count again. |
 | `session-end` | The session of the agent ended once it was asked for more: the plan is closed with the scenarios kept. |
 | `refused` | Six calls in a row were refused by the gates while the plan held scenarios: it is closed with them, and the journal says so. A call the gates let through starts the count again. With no scenario kept, the design stops, as before. |
-| `none` | The first call gave no scenario, and said in `uncovered` why no test can do what the brief asks: the plan is closed without a scenario, no test is written, and the design succeeds. Without `uncovered`, such a call is refused with `PLAN-COUNT`. |
+| `none` | The first calls gave no scenario, and said in `uncovered` why no test can do what the brief asks. The first such call is asked, once, to plan the applications one at a time — a brief about several of them is often too broad to plan at once —, and the same call again confirms it: the plan is closed without a scenario, no test is written, and the design succeeds. Without `uncovered`, such a call is refused with `PLAN-COUNT`. |
 
 The plan closed is then inscribed and goes to the review that accepts or refuses it.
 
