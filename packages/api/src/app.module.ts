@@ -5,6 +5,7 @@ import { ConfigurationModule } from "./config/configuration.module.ts";
 import { DatabaseModule } from "./database/database.module.ts";
 import { HealthModule } from "./health/health.module.ts";
 import { KnowledgeModule } from "./knowledge/knowledge.module.ts";
+import { TestsModule } from "./tests/tests.module.ts";
 import { ProblemFilter } from "./problems/problem.filter.ts";
 import { RepositoryConfigurationModule } from "./repository-configuration/repository-configuration.module.ts";
 import { SessionsModule } from "./sessions/sessions.module.ts";
@@ -16,7 +17,15 @@ export class AppModule {
   static forRoot(configuration: ApiConfiguration): DynamicModule {
     return {
       module: AppModule,
-      imports: [ConfigurationModule.forRoot(configuration), DatabaseModule, HealthModule, KnowledgeModule, RepositoryConfigurationModule, SessionsModule],
+      imports: [
+        ConfigurationModule.forRoot(configuration),
+        DatabaseModule,
+        HealthModule,
+        KnowledgeModule,
+        RepositoryConfigurationModule,
+        SessionsModule,
+        TestsModule,
+      ],
       providers: [{ provide: APP_FILTER, useClass: ProblemFilter }],
     };
   }

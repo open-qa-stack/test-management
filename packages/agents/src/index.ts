@@ -26,3 +26,4 @@ export { PLAN_REVIEWER_INSTRUCTIONS, REPORT_TOOL } from "./plan-reviewer/plan-re
 export { PROPOSE_TOOL, RUN_TOOL } from "./designer/test-proposals.ts";
 export { DOMAIN_TOOL, LIST_TOOL, READ_TOOL } from "./designer/index-map.ts";
 export { PLAN_TOOL } from "./designer/plan-proposal.ts";
+export { existingTests, type ExistingTest } from "./designer/existing-tests.ts";

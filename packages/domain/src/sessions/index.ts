@@ -35,6 +35,8 @@ export type { ConfigurationRevision, RevisionOrigin, RevisionSummary } from "../
 export type { ConfigurationView } from "../configuration-life/configuration-view.ts";
 export type { FileState } from "../configuration-life/file-state.ts";
 export type { DocumentList, StoredDocument, StoredDocumentSummary } from "../knowledge-documents/stored-document.ts";
+export type { RepositoryTest, RepositoryTestList } from "../repository-tests/repository-test.ts";
+export { testFacets, type TestFacets } from "../repository-tests/test-facets.ts";
 export { isStoredDocuments } from "../knowledge-documents/stored-documents-path.ts";
 export {
   DOCUMENT_EXTENSIONS,
