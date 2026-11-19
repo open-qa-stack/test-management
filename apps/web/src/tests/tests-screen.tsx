@@ -6,10 +6,8 @@ import { Badge } from "../ui/badge.tsx";
 import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
+import { TESTS_PATH, testHref } from "./tests-paths.ts";
 import type { TestsState } from "./tests-state.ts";
-
-/** The address of the screen of the tests. */
-export const TESTS_PATH = "/tests";
 
 /** The levels of the pyramid of tests, from its base to its top, in which order the filter offers them. */
 const LEVELS = ["smoke", "functional", "business", "cross-application", "end-to-end"] as const;
@@ -75,11 +73,11 @@ function LevelFilter({ tests, route }: { readonly tests: readonly RepositoryTest
   );
 }
 
-/** A test in the list: its title, its path, then its level, its kind, its domain and functionality, and its steps. */
+/** A test in the list, which leads to its screen: its title, its path, then its level, its kind, its domain and functionality, and its steps. */
 function TestRow({ test }: { readonly test: RepositoryTest }): ReactNode {
   const where = [test.domain, test.feature].filter((part) => part !== undefined).join(" › ");
   return (
-    <div className="row tests-row">
+    <a className="row tests-row" href={testHref(test.path)}>
       <div className="grow">
         <b>{test.title}</b>
         <div className="small muted mono">{test.path}</div>
@@ -88,7 +86,7 @@ function TestRow({ test }: { readonly test: RepositoryTest }): ReactNode {
       {test.level !== undefined && <Badge tone="outline">{levelText(test.level)}</Badge>}
       {test.kind === "visual" && <Badge tone="outline">{t("tests.visual")}</Badge>}
       <span className="small muted">{t("tests.steps", { count: test.steps.length })}</span>
-    </div>
+    </a>
   );
 }
 

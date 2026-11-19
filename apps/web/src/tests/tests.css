@@ -16,3 +16,37 @@
 .tests-row .mono {
   overflow-wrap: anywhere;
 }
+
+.test-step.failed {
+  background: var(--ko-faint);
+}
+
+.test-capture {
+  display: block;
+  max-width: 100%;
+  margin-top: var(--space-2);
+  border-radius: var(--radius-inner);
+}
+
+.test-substeps {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-4);
+}
+
+.test-compare {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+}
+
+.test-compare dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.test-details pre {
+  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
