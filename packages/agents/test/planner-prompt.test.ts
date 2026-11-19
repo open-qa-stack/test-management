@@ -97,6 +97,11 @@ describe("the request of the session that plans", () => {
       functional,
       /take the screens the brief goes through one at a time\. For each, plan many small scenarios, one for each behaviour of that screen/,
     );
+    // A journey through two applications is of another level, which has a pass of its own.
+    assert.match(
+      planRequest("Test the search of an order.", "local", DOMAINS, [SHOP], ["end-to-end"]),
+      /A journey through two applications is of the level cross-application, which a pass of its own plans: when no journey of the brief goes through three, plan none here, and say in uncovered that none does\./,
+    );
     assert.doesNotMatch(planRequest("Test the search of an order.", "local", DOMAINS, [SHOP], ["smoke", "functional"]), /This plan is of the level/);
   });
 

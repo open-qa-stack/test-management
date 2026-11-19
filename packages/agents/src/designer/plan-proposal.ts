@@ -41,7 +41,7 @@ const LEVEL_HINTS: Readonly<Record<ScenarioLevel, string>> = {
     "one scenario for each behaviour of a screen the brief is about, such as each way to search, each rule of a form, each message — many small scenarios, each on one screen.",
   business: "one scenario for each whole journey the brief is about, through several screens to its result.",
   "cross-application": "one scenario that does an action in one application and checks its effect in another.",
-  "end-to-end": "one scenario that follows a journey through three applications or more.",
+  "end-to-end": "one scenario that follows a journey through three applications or more; one through two is of the level cross-application.",
 };
 /** The levels of a test that acts on several applications. */
 const CROSSING: ReadonlySet<ScenarioLevel> = new Set(["cross-application", "end-to-end"]);
