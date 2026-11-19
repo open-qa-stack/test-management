@@ -111,6 +111,8 @@ export { StaleRevisionError } from "./configuration-life/stale-revision-error.ts
 export type { DocumentStorePort } from "./knowledge-documents/document-store-port.ts";
 export { InvalidDocumentsError } from "./knowledge-documents/invalid-documents-error.ts";
 export type { DocumentEntry, DocumentList, StoredDocument, StoredDocumentSummary } from "./knowledge-documents/stored-document.ts";
+export type { RepositoryTest, RepositoryTestList } from "./repository-tests/repository-test.ts";
+export { testFacets, type TestFacets } from "./repository-tests/test-facets.ts";
 export { isStoredDocuments, STORED_DOCUMENTS_FOLDER, storedDocumentSources, storedDocumentsPath } from "./knowledge-documents/stored-documents-path.ts";
 export { UnknownDocumentError } from "./knowledge-documents/unknown-document-error.ts";
 export { UnknownDocumentSourceError } from "./knowledge-documents/unknown-document-source-error.ts";
