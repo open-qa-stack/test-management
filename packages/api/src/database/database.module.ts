@@ -1,12 +1,21 @@
 import { Logger, Module, type OnApplicationShutdown } from "@nestjs/common";
-import { ConfigurationStore, Database, DatabaseStatus, DocumentStore, InstanceDatabase, SchemaMigrations, SessionStore } from "@open-qa-stack/store";
+import {
+  ConfigurationStore,
+  Database,
+  DatabaseStatus,
+  DocumentStore,
+  ExecutionStore,
+  InstanceDatabase,
+  SchemaMigrations,
+  SessionStore,
+} from "@open-qa-stack/store";
 import { ApiConfiguration } from "../config/api-configuration.ts";
 import { SchemaCheck } from "./schema-check.ts";
 
 /**
  * Provides the database of the instance as the store assembles it for every process that reaches it, and
  * each of its parts to whoever needs one — the connection, the migrations, their status, the stores of the
- * sessions, of the configuration and of the documents of the knowledge sources; checks its schema at startup, and closes its connections when the instance stops.
+ * sessions, of the configuration, of the documents of the knowledge sources and of the executions of tests; checks its schema at startup, and closes its connections when the instance stops.
  */
 @Module({
   providers: [
@@ -21,9 +30,10 @@ import { SchemaCheck } from "./schema-check.ts";
     { provide: SessionStore, useFactory: (instance: InstanceDatabase) => instance.sessions, inject: [InstanceDatabase] },
     { provide: ConfigurationStore, useFactory: (instance: InstanceDatabase) => instance.configuration, inject: [InstanceDatabase] },
     { provide: DocumentStore, useFactory: (instance: InstanceDatabase) => instance.documents, inject: [InstanceDatabase] },
+    { provide: ExecutionStore, useFactory: (instance: InstanceDatabase) => instance.executions, inject: [InstanceDatabase] },
     SchemaCheck,
   ],
-  exports: [InstanceDatabase, Database, SchemaMigrations, DatabaseStatus, SessionStore, ConfigurationStore, DocumentStore],
+  exports: [InstanceDatabase, Database, SchemaMigrations, DatabaseStatus, SessionStore, ConfigurationStore, DocumentStore, ExecutionStore],
 })
 export class DatabaseModule implements OnApplicationShutdown {
   readonly #database: Database;

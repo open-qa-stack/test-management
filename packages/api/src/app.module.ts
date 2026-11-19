@@ -3,6 +3,7 @@ import { APP_FILTER } from "@nestjs/core";
 import type { ApiConfiguration } from "./config/api-configuration.ts";
 import { ConfigurationModule } from "./config/configuration.module.ts";
 import { DatabaseModule } from "./database/database.module.ts";
+import { ExecutionsModule } from "./executions/executions.module.ts";
 import { HealthModule } from "./health/health.module.ts";
 import { KnowledgeModule } from "./knowledge/knowledge.module.ts";
 import { TestsModule } from "./tests/tests.module.ts";
@@ -25,6 +26,7 @@ export class AppModule {
         RepositoryConfigurationModule,
         SessionsModule,
         TestsModule,
+        ExecutionsModule,
       ],
       providers: [{ provide: APP_FILTER, useClass: ProblemFilter }],
     };
