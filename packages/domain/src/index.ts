@@ -18,6 +18,18 @@ export type { Verdict } from "./test/verdict.ts";
 export type { CommandOutcome, CommandRunner, StepCommand } from "./test/command-runner.ts";
 export { lockedPlaywrightVersion } from "./test/playwright-version.ts";
 export type { AttemptStatus, ListedTest, ReportedAttempt, ReportedStatus, ReportedTest } from "./test/reported-test.ts";
+export {
+  reportEntries,
+  type JsonAttachment,
+  type JsonError,
+  type JsonResult,
+  type JsonSpec,
+  type JsonStep,
+  type JsonSuite,
+  type JsonTest,
+  type ReportEntry,
+} from "./report/json-report.ts";
+export { qaViews, type QaCapture, type QaDetails, type QaStep, type QaView, type QaViews } from "./report/qa-view.ts";
 export { networkFailureAddresses, testVerdicts, type RunFacts, type TestVerdict } from "./test/test-verdicts.ts";
 export type { TestReference, TestRunner, TestTrial, TriedTest } from "./test/test-runner.ts";
 export type {
