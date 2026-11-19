@@ -73,6 +73,12 @@ The state of the screen is a reducer of its own, `src/configuration/configuratio
 
 The sources are declared, changed and removed in the configuration, whose card of a source declared `stored` leads here. The state of the screens is a reducer of its own, `src/knowledge/knowledge-state.ts`; `src/knowledge/knowledge-sync.ts` keeps it in step with the instance, reading the configuration in force and the documents of its stored sources every two seconds; `src/knowledge/knowledge-page.tsx` holds that state in a browser, and is measured there.
 
+### The tests
+
+`#/tests` lists the tests of the test repository, as their files are now (`GET /tests`), application by application — a test that crosses applications is under the first it names — each with its title, its path, its level, whether it compares a screen, its domain and functionality, and how many steps it has. The tests are narrowed to a level of the pyramid, `?level=<level>`, each with how many tests it holds, and to the words of a search in their titles, paths and tags, `?q=<words>`: the address keeps both, an address like any other state of the console.
+
+The state of the screen is a reducer of its own, `src/tests/tests-state.ts`; `src/tests/tests-sync.ts` keeps it in step with the instance, listing the tests every five seconds and keeping those it listed last while the instance does not answer; `src/tests/tests-page.tsx` holds that state in a browser, and is measured there.
+
 ### Languages
 
 The console speaks the language the configuration in force names, `language` of `oqas.json`, English by default: it reads it from the instance (`GET /configuration`) when it opens, and again once a change of the configuration was saved, then switches every screen at once. Until it read it, it speaks the language of the browser when it has its words, English otherwise. There is no other setting: one place decides, for the console, the conversation of the command line and the agents alike.

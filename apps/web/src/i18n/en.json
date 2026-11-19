@@ -33,7 +33,8 @@
       "knowledge": "Knowledge",
       "opening": "Opening the session…",
       "no_session": "Session not found",
-      "nowhere": "Page not found"
+      "nowhere": "Page not found",
+      "tests": "Tests"
     },
     "opening": {
       "title": "Reading the session",
@@ -667,5 +668,32 @@
     "close": "Close",
     "opening": "Reading the document",
     "openingNote": "It shows as soon as the instance answered."
+  },
+  "tests": {
+    "title": "Tests",
+    "reading": "Reading the tests",
+    "readingNote": "They show as soon as the instance answered.",
+    "none": "No test yet",
+    "noneNote": "The tests of the test repository show here once a session of the agent wrote some, or a person added some.",
+    "lead_one": "{{count}} test of the test repository, as its file is now.",
+    "lead_other": "{{count}} tests of the test repository, as their files are now.",
+    "search": "Search a title, a path or a tag",
+    "levelFilter": "Levels of the pyramid of tests",
+    "allLevels": "All levels",
+    "levels": {
+      "smoke": "Smoke",
+      "functional": "Functional",
+      "business": "Business",
+      "cross-application": "Cross-application",
+      "end-to-end": "End-to-end"
+    },
+    "visual": "Visual",
+    "steps_one": "{{count}} step",
+    "steps_other": "{{count}} steps",
+    "count_one": "{{count}} test",
+    "count_other": "{{count}} tests",
+    "noApplication": "No application",
+    "noMatch": "No test matches",
+    "noMatchNote": "Search other words, or choose another level."
   }
 }

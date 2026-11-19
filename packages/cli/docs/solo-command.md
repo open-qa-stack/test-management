@@ -314,7 +314,7 @@ The run of the new turn is told what the agents need of the turns before: what t
 
 ## The console
 
-`oqas --ui` shows the sessions of the test repository in a browser: what each agent thinks, does and hands in, every refusal of the harness, a field to speak to the agents and a way to stop them.
+`oqas --ui` shows the sessions of the test repository in a browser: what each agent thinks, does and hands in, every refusal of the harness, a field to speak to the agents and a way to stop them. It lists the tests of the repository too, application by application, narrowed to a level of the pyramid and to the words of a search, as their files are now.
 
 ```text
 $ oqas --ui
