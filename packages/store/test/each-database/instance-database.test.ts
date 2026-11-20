@@ -31,7 +31,7 @@ describe("the database of an instance, assembled for a process", () => {
         await instance.prepare();
         assert.deepEqual(logger.lines, ["log The database is reachable and its schema is up to date."]);
       } else {
-        await assert.rejects(instance.prepare(), (error) => error instanceof PendingMigrationsError && error.pending === 7);
+        await assert.rejects(instance.prepare(), (error) => error instanceof PendingMigrationsError && error.pending === 8);
         assert.deepEqual(logger.lines, ["warn The database schema is not up to date: migrations are pending."]);
         await runMigrations(url, new RecordingLogger());
         await instance.prepare();

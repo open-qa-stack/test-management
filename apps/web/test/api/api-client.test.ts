@@ -135,6 +135,39 @@ describe("the client of the API, for the documents of the knowledge sources", ()
     assert.deepEqual(versioned.calls, [["/api/tests/versions?path=apps%2Fshop%2Forders.spec.ts", undefined]]);
   });
 
+  it("reads the campaigns and the launches, plans a campaign and changes it by posting to its routes, its identifier encoded", async () => {
+    const campaign = {
+      id: "c 1",
+      name: "Recette",
+      environment: "local",
+      scope: { tags: [] },
+      status: "planned",
+      createdAt: "2026-11-20T08:00:00.000Z",
+      tests: [],
+    };
+    const answered = clientOf(() => json(campaign));
+    const { client, calls } = answered;
+    assert.deepEqual(await client.campaigns(), campaign);
+    assert.deepEqual(await client.planCampaign({ name: "Recette", environment: "local", tags: [] }), campaign);
+    await client.campaign("c 1");
+    await client.readyCampaign("c 1");
+    await client.launchCampaign("c 1");
+    await client.closeCampaign("c 1");
+    await client.launches();
+    assert.deepEqual(
+      calls.map(([path, init]) => [path, init?.method ?? "GET", init?.body]),
+      [
+        ["/api/campaigns", "GET", undefined],
+        ["/api/campaigns", "POST", JSON.stringify({ name: "Recette", environment: "local", tags: [] })],
+        ["/api/campaigns/c%201", "GET", undefined],
+        ["/api/campaigns/c%201/readiness", "POST", undefined],
+        ["/api/campaigns/c%201/launches", "POST", undefined],
+        ["/api/campaigns/c%201/closure", "POST", undefined],
+        ["/api/launches", "GET", undefined],
+      ],
+    );
+  });
+
   it("reads the executions of the tests a page at a time, one by its identifier, and those of a file out of the envelope the API answers", async () => {
     const execution = { id: "e 1", origin: "design", ranAt: "2026-11-19T10:00:05.000Z", report: "r.json", results: [] };
     const page = { items: [execution], total: 2, start: 0, next: "e 1" };

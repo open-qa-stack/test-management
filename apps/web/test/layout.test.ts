@@ -126,7 +126,7 @@ describe("the shell on a narrow and on a wide screen", () => {
       assert.equal(sidebar.x, 0);
       assert.equal(sidebar.y, bar.y + bar.height);
       assert.equal(bar.width, 1100);
-      assert.equal(await page.getByText("bientôt").count(), 5);
+      assert.equal(await page.getByText("bientôt").count(), 4);
       assert.equal(await page.getByText("bientôt").first().isVisible(), true);
       await page.getByText("1 application · projet").waitFor();
     } finally {

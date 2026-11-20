@@ -5,7 +5,7 @@ import type { CampaignProgress } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../../src/api/polled-state.ts";
 import { CampaignScreen, type CampaignGesture, type GestureState } from "../../src/campaigns/campaign-screen.tsx";
 import { resultHref } from "../../src/executions/executions-paths.ts";
-import { render, textOf } from "../render.ts";
+import { elementsOf, render, textOf } from "../render.ts";
 import { PLANNED, POLICY, PROGRESS, QUOTE, RUNNING } from "./campaigns-fixture.ts";
 
 /** The screen of a campaign, in the state given, as HTML. */
@@ -46,6 +46,20 @@ describe("the screen of a campaign", () => {
     for (const gesture of ["launch", "close"] as CampaignGesture[]) assert.match(textOf(screen({ value: PROGRESS }, false, { pending: gesture })), /Envoi…/);
     assert.match(textOf(screen({ value: { campaign: PLANNED, results: [] } }, false, { pending: "ready" })), /Envoi…/);
     assert.match(textOf(screen({ value: PROGRESS }, false, { refusal: "Refusé." })), /Refusé\./);
+  });
+
+  it("asks the instance for the gesture a button names", () => {
+    const asked: CampaignGesture[] = [];
+    const node = createElement(CampaignScreen, {
+      project: "lakeside-tests",
+      id: "c1",
+      state: { value: PROGRESS },
+      launching: false,
+      gestures: {},
+      onGesture: (gesture: CampaignGesture) => asked.push(gesture),
+    });
+    for (const button of elementsOf(node, "button")) (button["onClick"] as () => void)();
+    assert.deepEqual(asked, ["launch", "close"]);
   });
 
   it("says it reads the campaign until the instance answered, and why it could not", () => {
