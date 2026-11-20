@@ -777,11 +777,18 @@
       "skipped_other": "{{count}} skipped"
     },
     "lead": "The executions of the tests, the latest first.",
-    "outcomeFilter": "Filter by outcome",
+    "outcomeFilter": "Outcome",
     "outcomes": {
       "all": "All",
       "failing": "With a failure",
       "passing": "Without a failure"
+    },
+    "periodFilter": "Period",
+    "periods": {
+      "all": "All dates",
+      "day": "Last 24 hours",
+      "week": "Last 7 days",
+      "month": "Last 30 days"
     },
     "columns": {
       "date": "Date",
@@ -798,8 +805,13 @@
     "newest": "The latest ones",
     "older": "Older ones",
     "pages": "Pages of the executions",
+    "range": "{{first}}–{{last}} of {{total}}",
     "noMatch": "No execution matches",
-    "noMatchNote": "No execution kept has that outcome."
+    "noMatchNote": "No execution kept matches these filters.",
+    "failure": {
+      "step": "Step {{number}} · {{title}}",
+      "expected": "Expected {{expected}}, received {{received}}"
+    }
   },
   "execution": {
     "title": "Execution of {{date}}",

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ChangeEventHandler, ReactNode } from "react";
 import type { Execution, ExecutionList, ExecutionOutcome, ExecutionResult, Session } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../api/polled-state.ts";
 import { dateText, durationText } from "../i18n/formats.ts";
@@ -7,45 +7,66 @@ import { Badge } from "../ui/badge.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
 import { contentText, executionDuration, versionText } from "./execution-text.ts";
-import { executionHref, executionsHref, resultHref } from "./executions-paths.ts";
+import { EXECUTION_PERIODS } from "./execution-period.ts";
+import { executionHref, executionsHref, resultHref, type ExecutionsFilter } from "./executions-paths.ts";
+import { FailureNote } from "./failure-note.tsx";
 import { failuresFirst, VerdictBadge, VerdictBar } from "./verdicts.tsx";
 
-/** The outcomes a person narrows the executions to, every one first. */
-const OUTCOMES: readonly (ExecutionOutcome | undefined)[] = [undefined, "failing", "passing"];
+/** The outcomes a person narrows the executions to. */
+const OUTCOMES: readonly ExecutionOutcome[] = ["failing", "passing"];
+
+/** What the person does on the screen of the executions: narrow them to an outcome, or to a period. */
+export interface ExecutionsControls {
+  readonly outcome: ChangeEventHandler<HTMLSelectElement>;
+  readonly period: ChangeEventHandler<HTMLSelectElement>;
+}
 
 /** What the screen of the executions is drawn from. */
 export interface ExecutionsScreenProps {
   /** The name of the project. */
   readonly project: string;
-  /** The outcome the address narrows the executions to. */
-  readonly outcome?: ExecutionOutcome;
+  /** What the address narrows the executions to. */
+  readonly filter: ExecutionsFilter;
   /** The execution the page starts after, as the address gives it. */
   readonly before?: string;
   /** The sessions of the project the console listed, which name what an execution ran. */
   readonly sessions: readonly Session[];
   /** What the instance told of the page. */
   readonly state: PolledState<ExecutionList>;
+  readonly controls: ExecutionsControls;
 }
 
-/** The links that narrow the executions to an outcome, the one chosen marked. */
-function OutcomeFilter({ outcome }: { readonly outcome: ExecutionOutcome | undefined }): ReactNode {
+/** The lists that narrow the executions to an outcome and to a period, every one first, the one chosen selected. */
+function Filters({ filter, controls }: { readonly filter: ExecutionsFilter; readonly controls: ExecutionsControls }): ReactNode {
   return (
-    <nav className="tests-levels" aria-label={t("executions.outcomeFilter")}>
-      {OUTCOMES.map((candidate) => (
-        <a
-          key={candidate ?? "all"}
-          className={candidate === outcome ? "chip on" : "chip"}
-          href={executionsHref(candidate)}
-          aria-current={candidate === outcome ? "page" : undefined}
-        >
-          {t(`executions.outcomes.${candidate ?? "all"}`)}
-        </a>
-      ))}
-    </nav>
+    <div className="exec-filters">
+      <label className="exec-filter small">
+        <span className="muted">{t("executions.outcomeFilter")}</span>
+        <select value={filter.outcome ?? ""} onChange={controls.outcome}>
+          <option value="">{t("executions.outcomes.all")}</option>
+          {OUTCOMES.map((outcome) => (
+            <option key={outcome} value={outcome}>
+              {t(`executions.outcomes.${outcome}`)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="exec-filter small">
+        <span className="muted">{t("executions.periodFilter")}</span>
+        <select value={filter.period ?? ""} onChange={controls.period}>
+          <option value="">{t("executions.periods.all")}</option>
+          {EXECUTION_PERIODS.map((period) => (
+            <option key={period} value={period}>
+              {t(`executions.periods.${period}`)}
+            </option>
+          ))}
+        </select>
+      </label>
+    </div>
   );
 }
 
-/** A test of an execution, which leads to what came of it there: its verdict, its title, its application, and how long it took. */
+/** A test of an execution, which leads to what came of it there: its verdict, its title, its application, where it failed, and how long it took. */
 function ResultRow({ execution, result }: { readonly execution: Execution; readonly result: ExecutionResult }): ReactNode {
   return (
     <a className="row tests-row" href={resultHref(execution.id, result.path)}>
@@ -53,6 +74,7 @@ function ResultRow({ execution, result }: { readonly execution: Execution; reado
       <div className="grow">
         <b>{result.title}</b>
         <span className="small muted"> · {result.project}</span>
+        <FailureNote failure={result.failure} />
       </div>
       <span className="small muted">{durationText(result.durationMs)}</span>
     </a>
@@ -92,15 +114,15 @@ function ExecutionRow({ execution, sessions }: { readonly execution: Execution; 
   );
 }
 
-/** The executions of the page as a table whose lines unfold, then the links to the latest ones and to the older ones. */
+/** The executions of the page as a table whose lines unfold, then which of them it shows and the links to the latest ones and to the older ones. */
 function Table({
   page,
-  outcome,
+  filter,
   before,
   sessions,
 }: {
   readonly page: ExecutionList;
-  readonly outcome: ExecutionOutcome | undefined;
+  readonly filter: ExecutionsFilter;
   readonly before: string | undefined;
   readonly sessions: readonly Session[];
 }): ReactNode {
@@ -120,50 +142,52 @@ function Table({
           <ExecutionRow key={execution.id} execution={execution} sessions={sessions} />
         ))}
       </section>
-      {(before !== undefined || page.next !== undefined) && (
-        <nav className="exec-pages" aria-label={t("executions.pages")}>
-          {before !== undefined && (
-            <a className="btn" href={executionsHref(outcome)}>
-              ← {t("executions.newest")}
-            </a>
-          )}
-          {page.next !== undefined && (
-            <a className="btn" href={executionsHref(outcome, page.next)}>
-              {t("executions.older")} →
-            </a>
-          )}
-        </nav>
-      )}
+      <nav className="exec-pages" aria-label={t("executions.pages")}>
+        <span className="exec-range small muted">
+          {t("executions.range", { first: page.start + 1, last: page.start + page.items.length, total: page.total })}
+        </span>
+        {before !== undefined && (
+          <a className="btn" href={executionsHref(filter)}>
+            ← {t("executions.newest")}
+          </a>
+        )}
+        {page.next !== undefined && (
+          <a className="btn" href={executionsHref(filter, page.next)}>
+            {t("executions.older")} →
+          </a>
+        )}
+      </nav>
     </>
   );
 }
 
 /**
  * The screen of the executions of tests the instance keeps: a page of them, the latest first, narrowed to an outcome
- * the address keeps, each a line that unfolds into its tests and leads to its screen.
+ * and a period the address keeps, each a line that unfolds into its tests and leads to its screen.
  *
- * @param props - The name of the project, the outcome and the page the address asks for, the sessions, and what the instance told.
+ * @param props - The name of the project, the filter and the page the address asks for, the sessions, what the instance told, and what the person does.
  * @returns The screen.
  */
-export function ExecutionsScreen({ project, outcome, before, sessions, state }: ExecutionsScreenProps): ReactNode {
+export function ExecutionsScreen({ project, filter, before, sessions, state, controls }: ExecutionsScreenProps): ReactNode {
   const title = t("executions.title");
   const page = state.value;
+  const narrowed = filter.outcome !== undefined || filter.period !== undefined || before !== undefined;
   return (
     <Page crumbs={[{ label: project }, { label: title }]} title={title}>
       {page === undefined ? (
         <EmptyState title={t("executions.reading")}>
           <span role="status">{state.unread ?? t("executions.readingNote")}</span>
         </EmptyState>
-      ) : page.items.length === 0 && outcome === undefined && before === undefined ? (
+      ) : page.items.length === 0 && !narrowed ? (
         <EmptyState title={t("executions.none")}>{t("executions.noneNote")}</EmptyState>
       ) : (
         <>
           <p className="small muted">{t("executions.lead")}</p>
-          <OutcomeFilter outcome={outcome} />
+          <Filters filter={filter} controls={controls} />
           {page.items.length === 0 ? (
             <EmptyState title={t("executions.noMatch")}>{t("executions.noMatchNote")}</EmptyState>
           ) : (
-            <Table page={page} outcome={outcome} before={before} sessions={sessions} />
+            <Table page={page} filter={filter} before={before} sessions={sessions} />
           )}
         </>
       )}

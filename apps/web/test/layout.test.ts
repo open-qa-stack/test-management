@@ -1352,10 +1352,20 @@ describe("the code of the console is covered in full", () => {
         await page.goto("http://console.test/#/executions/view?id=gone");
         await page.getByText("L’instance ne garde plus cette exécution.").waitFor();
         await page.goto("http://console.test/#/executions");
-        await page.getByRole("link", { name: "Avec un échec" }).click();
+        const outcome = page.getByLabel("Issue");
+        const period = page.getByLabel("Période");
+        await outcome.selectOption("failing");
         await page.waitForURL(/#\/executions\?outcome=failing$/);
+        await period.selectOption("week");
+        await page.waitForURL(/#\/executions\?outcome=failing&period=week$/);
         await page.getByRole("link", { name: /Plus anciennes/ }).click();
-        await page.waitForURL(/#\/executions\?outcome=failing&before=older$/);
+        await page.waitForURL(/#\/executions\?outcome=failing&period=week&before=older$/);
+        await page.getByRole("link", { name: /Les plus récentes/ }).waitFor();
+        // Choosing a filter opens its first page; the first choice of a list keeps every execution.
+        await outcome.selectOption("");
+        await page.waitForURL(/#\/executions\?period=week$/);
+        await period.selectOption("");
+        await page.waitForURL(/#\/executions$/);
         await page.locator(".exec-row summary").first().click();
         await page
           .getByRole("link", { name: /Ouvrir l’exécution/ })

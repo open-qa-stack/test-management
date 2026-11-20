@@ -1,11 +1,13 @@
 import type { FormEvent, ReactNode } from "react";
-import type { ExecutionOutcome, Project, Session } from "@open-qa-stack/domain/sessions";
+import type { Project, Session } from "@open-qa-stack/domain/sessions";
 import { AgentHomeScreen } from "./agent/agent-home-screen.tsx";
 import type { Opening } from "./agent/console-state.ts";
 import type { LiveSession } from "./agent/live-session.ts";
 import { SessionScreen } from "./agent/session-screen.tsx";
 import { ConfigurationPage } from "./configuration/configuration-page.tsx";
+import { isExecutionPeriod } from "./executions/execution-period.ts";
 import { ExecutionPage } from "./executions/execution-page.tsx";
+import type { ExecutionsFilter } from "./executions/executions-paths.ts";
 import { ExecutionsPage } from "./executions/executions-page.tsx";
 import { ResultPage } from "./executions/result-page.tsx";
 import { KnowledgePage } from "./knowledge/knowledge-page.tsx";
@@ -47,7 +49,7 @@ export interface ConsoleProps {
  */
 type Shown =
   | { readonly screen: "entry" | "configuration" | "knowledge" | "tests" | "no_session" | "nowhere" }
-  | { readonly screen: "executions"; readonly outcome?: ExecutionOutcome; readonly before?: string }
+  | { readonly screen: "executions"; readonly filter: ExecutionsFilter; readonly before?: string }
   | { readonly screen: "execution"; readonly id: string }
   | { readonly screen: "result"; readonly id: string; readonly path: string; readonly step?: number }
   | { readonly screen: "test"; readonly path: string }
@@ -88,9 +90,9 @@ function stepOf(step: string | undefined): { readonly step?: number } {
   return step !== undefined && /^[1-9]\d{0,3}$/.test(step) ? { step: Number(step) } : {};
 }
 
-/** The outcome a page of the executions is narrowed to, when the address names one the console knows. */
-function outcomeOf(outcome: string | undefined): { readonly outcome?: ExecutionOutcome } {
-  return outcome === "failing" || outcome === "passing" ? { outcome } : {};
+/** What a page of the executions is narrowed to, of what the address names that the console knows. */
+function filterOf({ outcome, period }: Route["query"]): ExecutionsFilter {
+  return { ...(outcome === "failing" || outcome === "passing" ? { outcome } : {}), ...(isExecutionPeriod(period) ? { period } : {}) };
 }
 
 /** A value the address gives, when it is not empty. */
@@ -101,7 +103,7 @@ function given(value: string | undefined): value is string {
 /** The screen of the executions an address under `/executions` opens: their list, one of them, or what came of a test in one. */
 function executionsShown(part: string | undefined, query: Route["query"]): Shown | undefined {
   const { id, path, before } = query;
-  if (part === undefined) return { screen: "executions", ...outcomeOf(query["outcome"]), ...(given(before) ? { before } : {}) };
+  if (part === undefined) return { screen: "executions", filter: filterOf(query), ...(given(before) ? { before } : {}) };
   if (part === "view" && given(id)) return { screen: "execution", id };
   if (part === "result" && given(id) && given(path)) return { screen: "result", id, path, ...stepOf(query["step"]) };
   return undefined;
@@ -165,10 +167,10 @@ function Screen(props: ConsoleProps): ReactNode {
     case "executions":
       return (
         <ExecutionsPage
-          key={`${shown.outcome}:${shown.before}`}
+          key={`${shown.filter.outcome}:${shown.filter.period}:${shown.before}`}
           project={name}
           sessions={listed}
-          {...(shown.outcome === undefined ? {} : { outcome: shown.outcome })}
+          filter={shown.filter}
           {...(shown.before === undefined ? {} : { before: shown.before })}
         />
       );

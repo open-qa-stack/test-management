@@ -68,6 +68,7 @@ The migrations so far:
 | `0003_configuration_revisions` | The table of [the revisions of the configuration](#the-revisions-of-the-configuration). An instance that had none synchronises its `oqas.json` into a first revision when a process next starts on it. |
 | `0004_knowledge_documents` | The table of [the documents of the knowledge sources](#the-documents-of-the-knowledge-sources), empty until a document is uploaded. |
 | `0005_executions` | The tables of [the executions of tests](#the-executions-of-tests) and of their results, empty until a session runs its tests. |
+| `0006_execution_failures` | Where each test that failed in an execution failed, and why. The results kept before stay without them. |
 
 ## The database of an instance, assembled
 
@@ -165,7 +166,7 @@ The primary key of a message is its session and its number. A number is given on
 
 ### The executions of tests
 
-`executions` holds one row an execution of tests, and `execution_results` one row each test of it. `ExecutionStore` keeps an execution in one transaction, with all of its results or none. It reads them a page at a time, the latest first — by date then identifier, a page going on after the last execution of the one before it — one by its identifier, or what came of the tests of one file in each execution, by the path of its results.
+`executions` holds one row an execution of tests, and `execution_results` one row each test of it. `ExecutionStore` keeps an execution in one transaction, with all of its results or none. It reads them a page at a time, the latest first — by date then identifier, a page going on after the last execution of the one before it — narrowed to those where a test failed or none did, and to those kept from a date on, with how many the query keeps and the rank of the first of the page among them; one by its identifier, or what came of the tests of one file in each execution, by the path of its results.
 
 | Column of `executions` | Type | Why |
 |---|---|---|
@@ -186,6 +187,11 @@ The primary key of a message is its session and its number. A number is given on
 | `verdict` | `text` | `passed`, `failed`, `flaky` or `skipped`. |
 | `duration_ms` | `integer` | How long its attempts took together. |
 | `file_digest` | `text`, or nothing | The SHA-256 of its file when the execution was kept: with the commit, the version the test ran at. |
+| `failed_step`, `failed_step_title` | `integer` and `text`, or nothing | The first `test.step` that failed, numbered from 1, and its title. |
+| `error_message` | `text`, or nothing | The first line of the message of its error, without colours. |
+| `expected`, `received` | `text`, or nothing | What the failed assertion expected and what it received, when its message says both. |
+
+Where a test failed is read from the last attempt of the report; the five columns are empty for a test that did not fail, whose report says nothing of it, or kept before `0006_execution_failures`.
 
 The columns that keep a date, a JSON value or a boolean are kept [as each database keeps them](#how-each-type-is-kept). Nothing filters on what a JSON column holds, which is served as it was written, its fields in the order they were given: on PostgreSQL the columns are `json` and not `jsonb`, which would sort the fields.
 

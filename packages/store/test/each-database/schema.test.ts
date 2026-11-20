@@ -62,6 +62,11 @@ const DECLARED: { readonly [Table in keyof StoreSchema]: { readonly [Column in k
     verdict: "text",
     duration_ms: "integer",
     file_digest: "text, or nothing",
+    failed_step: "integer, or nothing",
+    failed_step_title: "text, or nothing",
+    error_message: "text, or nothing",
+    expected: "text, or nothing",
+    received: "text, or nothing",
   },
 };
 

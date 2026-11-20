@@ -3,16 +3,22 @@ import { createElement } from "react";
 import { describe, it } from "vitest";
 import type { ExecutionList, Session } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../../src/api/polled-state.ts";
-import { ExecutionsScreen, type ExecutionsScreenProps } from "../../src/executions/executions-screen.tsx";
+import { ExecutionsScreen, type ExecutionsControls, type ExecutionsScreenProps } from "../../src/executions/executions-screen.tsx";
 import { linksOf, render, textOf } from "../render.ts";
 import { DETAIL, EXECUTIONS } from "./executions-fixture.ts";
 
 /** The session that ran the first execution. */
 const SESSION = { id: "8d3f1a52-0c4e-4b8a-9e61-7f2a5c9d0b13", request: "Test the policies", openedAt: "", lastEventAt: "", state: "completed" } as Session;
 
+/** What the person does on the screen, which drawing it never calls. */
+const CONTROLS: ExecutionsControls = { outcome: () => undefined, period: () => undefined };
+
+/** A page of the executions, the first of those the query keeps unless the page says otherwise. */
+const pageOf = (items: ExecutionList["items"], more: Partial<ExecutionList> = {}): ExecutionList => ({ items, total: items.length, start: 0, ...more });
+
 /** The screen in a state, narrowed as the address says, as HTML. */
-const screen = (state: PolledState<ExecutionList> = { value: { items: EXECUTIONS } }, more: Partial<ExecutionsScreenProps> = {}): string =>
-  render(createElement(ExecutionsScreen, { project: "lakeside-tests", sessions: [SESSION], state, ...more }));
+const screen = (state: PolledState<ExecutionList> = { value: pageOf(EXECUTIONS) }, more: Partial<ExecutionsScreenProps> = {}): string =>
+  render(createElement(ExecutionsScreen, { project: "lakeside-tests", sessions: [SESSION], state, filter: {}, controls: CONTROLS, ...more }));
 
 describe("the executions of the tests", () => {
   it("says it reads the executions until the instance listed them, and why it could not", () => {
@@ -20,26 +26,26 @@ describe("the executions of the tests", () => {
     assert.match(textOf(screen({ unread: "L’instance ne répond pas." })), /Lecture des exécutions L’instance ne répond pas\.$/);
   });
 
-  it("says the instance keeps no execution yet, and none of an outcome once narrowed to it", () => {
+  it("says the instance keeps no execution yet, and none of a filter once narrowed to it", () => {
     assert.match(
-      textOf(screen({ value: { items: [] } })),
+      textOf(screen({ value: pageOf([]) })),
       /Aucune exécution pour l’instant Les exécutions des tests apparaissent ici dès qu’une session de l’agent a lancé/,
     );
-    assert.match(
-      textOf(screen({ value: { items: [] } }, { outcome: "failing" })),
-      /Avec un échec Sans échec Aucune exécution ne correspond Aucune exécution gardée n’a cette issue\.$/,
-    );
-    assert.match(textOf(screen({ value: { items: [] } }, { before: "e1" })), /Aucune exécution ne correspond/);
+    for (const more of [{ filter: { outcome: "failing" } }, { filter: { period: "day" } }, { before: "e1" }] as const)
+      assert.match(
+        textOf(screen({ value: pageOf([]) }, more)),
+        /30 derniers jours Aucune exécution ne correspond Aucune exécution gardée ne correspond à ces filtres\.$/,
+      );
   });
 
   it("shows each execution as a line: its date, its origin, the session that ran it or how many tests, its counts, its duration and its version", () => {
     const text = textOf(screen());
     assert.match(
       text,
-      /^lakeside-tests \/ Exécutions Exécutions Les exécutions des tests, la plus récente d’abord\. Toutes Avec un échec Sans échec Date Origine Contenu Résultat Durée Version /,
+      /^lakeside-tests \/ Exécutions Exécutions Les exécutions des tests, la plus récente d’abord\. Issue Toutes Avec un échec Sans échec Période Toutes les dates Dernières 24 heures 7 derniers jours 30 derniers jours Date Origine Contenu Résultat Durée Version 19 nov\. 2026, \d\d:\d\d conception /,
     );
     assert.match(text, / conception Session « Test the policies » 1 en échec 1 instable 9 s 4f2a9c0 /);
-    assert.match(text, / conception 0 test 0 s — Aucun test n’a tourné dans cette exécution\. Ouvrir l’exécution →$/);
+    assert.match(text, / conception 0 test 0 s — Aucun test n’a tourné dans cette exécution\. Ouvrir l’exécution → 1–2 sur 2$/);
   });
 
   it("says at a glance what came of the tests of an execution: a bar of their verdicts, the failures and the retries in words, or how many passed", () => {
@@ -50,21 +56,18 @@ describe("the executions of the tests", () => {
     );
     const [latest] = EXECUTIONS;
     const passed = { ...latest!, results: latest!.results.filter((result) => result.verdict === "passed") };
-    assert.match(screen({ value: { items: [passed] } }), /<span class="verdict-words passed">2 réussis<\/span>/);
+    assert.match(screen({ value: pageOf([passed]) }), /<span class="verdict-words passed">2 réussis<\/span>/);
   });
 
-  it("unfolds an execution into its tests, the failures first, each leading to what came of it there, then leads to the execution", () => {
+  it("unfolds an execution into its tests, the failures first with where and why they failed, each leading to what came of it there, then leads to the execution", () => {
     const text = textOf(screen());
     assert.match(
       text,
-      /En échec Policies › Edit a policy · policy-management 5 s Instable Policies › Filter the policies · policy-management 1 s Réussi Display the detail of a policy · policy-management 2 s Réussi Policies › Print a policy · policy-management 1 s Ignoré Policies › Delete a policy · policy-management 0 s Ouvrir l’exécution →/,
+      /En échec Policies › Edit a policy · policy-management Étape 3 · Save the policy Attendu "Saved", obtenu "Refused" 5 s Instable Policies › Filter the policies · policy-management 1 s Réussi Display the detail of a policy · policy-management 2 s Réussi Policies › Print a policy · policy-management 1 s Ignoré Policies › Delete a policy · policy-management 0 s Ouvrir l’exécution →/,
     );
     const [first, second] = EXECUTIONS;
     const result = `#/executions/result?id=${first!.id}&path=${encodeURIComponent(DETAIL)}`;
     assert.deepEqual(linksOf(screen()), [
-      "#/executions",
-      "#/executions?outcome=failing",
-      "#/executions?outcome=passing",
       `#/executions/view?id=${first!.id}`,
       result,
       result,
@@ -77,11 +80,12 @@ describe("the executions of the tests", () => {
     ]);
   });
 
-  it("marks the outcome chosen, and leads to the older executions and back to the latest ones, keeping the outcome", () => {
-    const html = screen({ value: { items: EXECUTIONS, next: "e9" } }, { outcome: "failing", before: "e0" });
-    assert.match(html, /<a class="chip on" href="#\/executions\?outcome=failing" aria-current="page">/);
-    assert.deepEqual(linksOf(html).slice(-2), ["#/executions?outcome=failing", "#/executions?outcome=failing&before=e9"]);
-    assert.match(textOf(html), /← Les plus récentes Plus anciennes →$/);
+  it("selects the filter chosen, tells which executions the page shows, and leads to the older ones and back to the latest ones, keeping the filter", () => {
+    const html = screen({ value: pageOf(EXECUTIONS, { total: 132, start: 25, next: "e9" }) }, { filter: { outcome: "failing", period: "week" }, before: "e0" });
+    assert.match(html, /<option value="failing" selected="">Avec un échec<\/option>/);
+    assert.match(html, /<option value="week" selected="">7 derniers jours<\/option>/);
+    assert.deepEqual(linksOf(html).slice(-2), ["#/executions?outcome=failing&period=week", "#/executions?outcome=failing&period=week&before=e9"]);
+    assert.match(textOf(html), /26–27 sur 132 ← Les plus récentes Plus anciennes →$/);
     // The first page leads to no latest ones, and the last one to no older ones.
     assert.doesNotMatch(textOf(screen()), /Les plus récentes|Plus anciennes/);
   });

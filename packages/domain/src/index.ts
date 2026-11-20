@@ -126,6 +126,7 @@ export type { DocumentEntry, DocumentList, StoredDocument, StoredDocumentSummary
 export type { RepositoryTest, RepositoryTestList } from "./repository-tests/repository-test.ts";
 export type {
   Execution,
+  ExecutionFailure,
   ExecutionList,
   ExecutionOrigin,
   ExecutionOutcome,

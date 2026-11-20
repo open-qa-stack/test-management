@@ -34,7 +34,7 @@ describe("the screen of what came of a test in an execution", () => {
   it("says how the test ended and where it failed, what it expected and found, then its steps, and shows the page at the step that failed", () => {
     const html = screen({ value: RAN });
     const text = textOf(html);
-    assert.match(text, /^lakeside-tests \/ Exécutions \/ \d{2}\/\d{2}\/2026 \d{2}:\d{2} \/ Display the detail of a policy Display the detail of a policy /);
+    assert.match(text, /^lakeside-tests \/ Exécutions \/ \d+ nov\. 2026, \d\d:\d\d \/ Display the detail of a policy Display the detail of a policy /);
     assert.match(text, /en échec Échoue à l’étape 2 sur 2\. Attendu "1500 CHF" Obtenu "250 CHF"/);
     assert.match(text, /Étapes · 2 étapes 1 ✓ 1\. Open the policy of the customer Fill the search 224 ms 2 ✕ 2\. Read its amounts 5,0 s/);
     // The step that failed is shown: the run kept no capture of it.

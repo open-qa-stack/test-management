@@ -117,7 +117,8 @@ export interface ExecutionsTable {
 
 /**
  * What came of each test of an execution, under its rank in the report of the execution, from 0. The verdict is a
- * text; the digest of the file is empty when the file could not be read.
+ * text; the digest of the file is empty when the file could not be read. Where a test failed and why are empty for
+ * one that did not fail, kept before the instance kept them, or whose report does not say them.
  */
 export interface ExecutionResultsTable {
   execution_id: string;
@@ -128,6 +129,11 @@ export interface ExecutionResultsTable {
   verdict: ExecutionVerdict;
   duration_ms: number;
   file_digest: string | null;
+  failed_step: number | null;
+  failed_step_title: string | null;
+  error_message: string | null;
+  expected: string | null;
+  received: string | null;
 }
 
 /**

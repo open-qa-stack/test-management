@@ -7,6 +7,17 @@ export type ExecutionOrigin = "design";
  */
 export type ExecutionVerdict = "passed" | "failed" | "flaky" | "skipped";
 
+/** Where a test failed and why, as the report of its last attempt says it. */
+export interface ExecutionFailure {
+  /** The first `test.step` of the test that failed, numbered from 1, when one did. */
+  readonly step?: { readonly number: number; readonly title: string };
+  /** The first line of the message of its error, without colours, when it has one. */
+  readonly message?: string;
+  /** What the failed assertion expected and what it received, when its message says both. */
+  readonly expected?: string;
+  readonly received?: string;
+}
+
 /** A test as one execution ran it, named the same from one execution to the next, with the version it ran at. */
 export interface ExecutionResult {
   /** The path of its file, relative to the root of the test repository: with its title, what names the test. */
@@ -20,6 +31,8 @@ export interface ExecutionResult {
   readonly durationMs: number;
   /** The SHA-256 of its file when the execution was kept, in hexadecimal; left out when the file could not be read. */
   readonly fileDigest?: string;
+  /** Where it failed and why, for a test that failed; left out when the report says nothing of it, or for a result kept before the instance kept them. */
+  readonly failure?: ExecutionFailure;
 }
 
 /** An execution of tests, with what came of each one. */
@@ -41,6 +54,10 @@ export interface Execution {
 /** A page of the executions of tests the instance keeps, the latest first, as `GET /executions` answers. */
 export interface ExecutionList {
   readonly items: readonly Execution[];
+  /** How many executions the query keeps, every page together. */
+  readonly total: number;
+  /** The rank of the first execution of the page among them, from 0. */
+  readonly start: number;
   /** The identifier of the last execution of the page, to ask for the page after it; left out on the last page. */
   readonly next?: string;
 }
@@ -55,6 +72,8 @@ export interface ExecutionQuery {
   /** The identifier of an execution: the page starts after it. */
   readonly before?: string;
   readonly outcome?: ExecutionOutcome;
+  /** An ISO 8601 date: only the executions kept from then on. */
+  readonly since?: string;
 }
 
 /** What came of a test in one execution, with the execution it came in, but not the other tests of it. */

@@ -26,8 +26,8 @@ describe("the operations on the executions of tests", () => {
     ] as const)
       await store.add(execution(id, hour));
     const executions = new Executions(store);
-    assert.deepEqual(await executions.page({ limit: 2 }), { items: [execution("e3", 11), execution("e2", 10)], next: "e2" });
-    assert.deepEqual(await executions.page({ limit: 2, before: "e2" }), { items: [execution("e1", 9)] });
+    assert.deepEqual(await executions.page({ limit: 2 }), { items: [execution("e3", 11), execution("e2", 10)], total: 3, start: 0, next: "e2" });
+    assert.deepEqual(await executions.page({ limit: 2, before: "e2" }), { items: [execution("e1", 9)], total: 3, start: 2 });
   });
 
   it("read an execution by its identifier, and refuse one the store does not keep", async () => {
