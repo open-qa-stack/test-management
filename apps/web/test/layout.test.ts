@@ -1324,6 +1324,25 @@ describe("the code of the console is covered in full", () => {
     }
   });
 
+  it("shows the executions as a table on a wide screen, its heading on one line above the cells of each execution", async () => {
+    const page = await app().open(1280, "#/executions", new ListedInstance().api);
+    try {
+      await page.locator(".exec-row summary").first().waitFor();
+      // The cells of a line share a band: each starts above where every other ends.
+      const boxes = async (line: string) =>
+        Promise.all((await page.locator(`${line} > span, ${line} > a`).all()).map(async (cell) => (await cell.boundingBox())!));
+      for (const line of [".exec-head", "details.exec-row:first-of-type > summary"]) {
+        const cells = await boxes(line);
+        assert.ok(
+          cells.length >= 5 && Math.max(...cells.map((cell) => cell.y)) < Math.min(...cells.map((cell) => cell.y + cell.height)),
+          `${line} ${JSON.stringify(cells)}`,
+        );
+      }
+    } finally {
+      await page.close();
+    }
+  });
+
   it("runs every line of the screens of the executions when they are used in the browser, from a page to an execution and to a result", async () => {
     const [list, one, polled] = await app().measure(
       ["src/executions/executions-page.tsx", "src/executions/execution-page.tsx", "src/api/use-polled.ts"],

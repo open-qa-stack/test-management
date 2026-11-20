@@ -87,7 +87,6 @@
     grid-template-columns: 11em 8em minmax(0, 1fr) 14em 6em 6em;
   }
 
-  .exec-head,
   .exec-origin,
   .exec-content,
   .exec-duration,
@@ -96,6 +95,7 @@
   }
 
   .exec-head {
+    display: grid;
     border-bottom: var(--hairline) solid var(--line);
   }
 

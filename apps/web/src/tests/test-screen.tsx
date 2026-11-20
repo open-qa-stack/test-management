@@ -84,11 +84,11 @@ function Description({ test }: { readonly test: RepositoryTest }): ReactNode {
       {test.steps.length === 0 ? (
         <p className="test-compare small muted">{t("test.noWrittenStep")}</p>
       ) : (
-        <ol className="test-written">
+        <ul className="test-written">
           {test.steps.map((step, rank) => (
             <li key={rank}>{step}</li>
           ))}
-        </ol>
+        </ul>
       )}
     </Card>
   );
