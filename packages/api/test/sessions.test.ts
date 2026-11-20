@@ -191,7 +191,7 @@ describe("a request to launch tests", () => {
     });
   }
 
-  it("is read by the pipe of the route as it is by itself, and the controller answers what the operations answer", () => {
+  it("is read by the pipe of the route as it is by itself, and the controller answers what the operations answer", async () => {
     const pipe = new LaunchRequestPipe();
     assert.deepEqual(pipe.transform({ environment: "local" }), { environment: "local" });
     assert.equal(refusalOf(() => pipe.transform({ paths: 1 })).failure, "invalid_request");
@@ -199,9 +199,9 @@ describe("a request to launch tests", () => {
     const asked: unknown[] = [];
     const controller = new LaunchesController({
       launch: (request: unknown) => (asked.push(request), Promise.resolve(launch)),
-      launches: () => ({ running: launch }),
+      launches: () => Promise.resolve({ running: launch }),
     } as unknown as Sessions);
-    assert.deepEqual(controller.launches(), { running: launch });
+    assert.deepEqual(await controller.launches(), { running: launch });
     return controller.launch({ environment: "local" }).then((started) => {
       assert.equal(started, launch);
       assert.deepEqual(asked, [{ environment: "local" }]);

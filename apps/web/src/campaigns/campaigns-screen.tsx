@@ -1,10 +1,11 @@
 import type { FormEventHandler, ReactNode } from "react";
-import type { Campaign, CampaignList } from "@open-qa-stack/domain/sessions";
+import type { CampaignList, CampaignOverview } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../api/polled-state.ts";
 import { dateText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
+import { CampaignBar, ranOf } from "./campaign-progress.tsx";
 import { CampaignStatusBadge } from "./campaign-status.tsx";
 import { campaignHref } from "./campaigns-paths.ts";
 
@@ -67,8 +68,9 @@ function PlanForm({ environments, planning, onPlan }: Pick<CampaignsScreenProps,
   );
 }
 
-/** A campaign in the list, which opens it. */
-function CampaignRow({ campaign }: { readonly campaign: Campaign }): ReactNode {
+/** A campaign in the list, with how far it went, which opens it. */
+function CampaignRow({ campaign }: { readonly campaign: CampaignOverview }): ReactNode {
+  const total = ranOf(campaign.counts) + campaign.counts.not_run;
   const tags = campaign.scope.tags.length === 0 ? t("campaigns.everyTest") : campaign.scope.tags.join(" ");
   return (
     <a className="row campaign-row" href={campaignHref(campaign.id)}>
@@ -76,6 +78,11 @@ function CampaignRow({ campaign }: { readonly campaign: Campaign }): ReactNode {
         <b>{campaign.name}</b>
         <div className="small muted">
           {campaign.environment} · <span className="mono">{tags}</span>
+        </div>
+        <div className="campaign-row-progress small muted">
+          <CampaignBar counts={campaign.counts} />
+          {campaign.status === "planned" ? t("campaigns.taken", { count: total }) : t("campaign.ran", { ran: ranOf(campaign.counts), total })}
+          {campaign.counts.failed > 0 && <span className="verdict-words failed"> · {t("campaign.counts.failed", { count: campaign.counts.failed })}</span>}
         </div>
       </div>
       <div className="campaign-row-side">

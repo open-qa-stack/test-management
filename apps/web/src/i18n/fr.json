@@ -883,7 +883,9 @@
       "tagsHelp": "Séparés par des espaces, comme @p0 @p1. Laissez vide pour prendre tous les tests.",
       "submit": "Planifier",
       "pending": "Planification…"
-    }
+    },
+    "taken_one": "{{count}} test pris",
+    "taken_other": "{{count}} tests pris"
   },
   "campaign": {
     "reading": "Lecture de la campagne",
@@ -913,9 +915,23 @@
     "noTestNote": "Aucun test du dépôt ne porte ces tags pour l’instant.",
     "ready": "Figer les tests",
     "launch": "Lancer les tests",
-    "relaunch": "Relancer les tests",
+    "relaunch": "Tout relancer",
     "close": "Clôturer",
     "pending": "Envoi…",
-    "launching": "Les tests de la campagne tournent : les verdicts arrivent à la fin du lancement."
+    "progress": "Avancement",
+    "ran": "{{ran}} / {{total}} joués",
+    "launchPreparing": "Lancement en préparation : installation, puis vérification des adresses de l’environnement…",
+    "launchProgress": "Lancement en cours : {{finished}} / {{total}} tests finis",
+    "running": "en cours",
+    "inLaunch": "dans le lancement en cours",
+    "justNow": "à l’instant",
+    "lifecycle": "Cycle de vie de la campagne",
+    "closeQuestion": "Clôturer pour de bon ? Une campagne clôturée ne se relance plus.",
+    "confirmClose": "Clôturer la campagne",
+    "cancel": "Annuler",
+    "launchFailed_one": "Relancer l’échec",
+    "launchFailed_other": "Relancer les {{count}} échecs",
+    "launchNotRun_one": "Lancer le test non joué",
+    "launchNotRun_other": "Lancer les {{count}} non joués"
   }
 }

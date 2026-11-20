@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { CONFIG_FILE_NAME, InvalidConfigurationError, LaunchRefusedError, type EndedLaunch } from "@open-qa-stack/domain";
+import { CONFIG_FILE_NAME, InvalidConfigurationError, LaunchRefusedError, launchProgress, type EndedLaunch } from "@open-qa-stack/domain";
 import { chain } from "@open-qa-stack/testing/test-repository";
 import { afterEach, describe, it } from "vitest";
 import { Configuration, NoRepositoryError, Sessions } from "../src/index.ts";
@@ -27,8 +27,8 @@ function withTests(root: string): void {
 
 /** Waits until the launch under way ended, and gives how. */
 function lastLaunch(sessions: Sessions): Promise<EndedLaunch> {
-  return eventually(() => {
-    const { running, last } = sessions.launches();
+  return eventually(async () => {
+    const { running, last } = await sessions.launches();
     assert.ok(running === undefined && last !== undefined);
     return last;
   });
@@ -38,10 +38,10 @@ describe("tests launched as they are, with no agent", () => {
   it("run the files named in the environment the configuration declares, and keep their execution as a manual one", async () => {
     hosted = await Hosted.create([]);
     withTests(hosted.root);
-    assert.deepEqual(hosted.sessions.launches(), {});
+    assert.deepEqual(await hosted.sessions.launches(), {});
     const launch = await hosted.sessions.launch({ paths: [SEARCH], environment: "local" });
     assert.deepEqual({ ...launch, startedAt: "" }, { startedAt: "", environment: "local", paths: [SEARCH] });
-    assert.deepEqual(hosted.sessions.launches(), { running: launch });
+    assert.deepEqual(await hosted.sessions.launches(), { running: launch });
     const ended = await lastLaunch(hosted.sessions);
     const { items } = await hosted.executions.page({ limit: 10 });
     assert.equal(items.length, 1);
@@ -54,6 +54,30 @@ describe("tests launched as they are, with no agent", () => {
       [["the test", "passed"]],
     );
     assert.deepEqual(hosted.logger.lines, [], "a launch that kept its execution says nothing");
+  });
+
+  it("tell how far they went while they run: how many tests, then each one the runner finished", async () => {
+    let progress = "";
+    const door = designDoor();
+    // The run is held once the runner started, after it wrote that it runs one test, and before it finished it.
+    hosted = await Hosted.create([], {
+      before: async (step) => {
+        const file = step.env?.["OQAS_PROGRESS_FILE"];
+        if (file === undefined || step.command.includes("--list")) return;
+        progress = file;
+        writeFileSync(file, `${JSON.stringify({ total: 1 })}\n`);
+        await door.hold({ command: ["npm", "ci"] });
+      },
+    });
+    withTests(hosted.root);
+    const launch = await hosted.sessions.launch({ paths: [SEARCH], environment: "local" });
+    assert.deepEqual(await hosted.sessions.launches(), { running: launch }, "nothing is told before the runner started");
+    await door.reached;
+    assert.match(progress, /\/\.oqas\/launches\/launch-[\d-]+T[\d-]+Z\/progress\.jsonl$/);
+    assert.deepEqual(await hosted.sessions.launches(), { running: { ...launch, progress: { total: 1, finished: [] } } });
+    door.open();
+    await lastLaunch(hosted.sessions);
+    assert.deepEqual(launchProgress(readFileSync(progress, "utf8")), { total: 1, finished: [{ path: SEARCH, title: "the test", verdict: "passed" }] });
   });
 
   it("take the turn of the sessions: refused while a session runs, and a session opened while they run waits until they ended", async () => {
@@ -111,7 +135,7 @@ describe("tests launched as they are, with no agent", () => {
       takesOver: false,
     });
     await assert.rejects(none.launch({}), (error) => error instanceof NoRepositoryError);
-    assert.deepEqual(hosted.sessions.launches(), {});
+    assert.deepEqual(await hosted.sessions.launches(), {});
   });
 
   it("end with no execution, and say why, when the tests could not run: nothing to install them with, an environment that does not answer, a store that refuses", async () => {

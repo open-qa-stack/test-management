@@ -1,6 +1,6 @@
 import { byCodeUnits } from "../text-order.ts";
 import { CampaignRefusedError } from "./campaign-refused-error.ts";
-import type { CampaignResult, CampaignScope, CampaignStatus, CampaignTest } from "./campaign.ts";
+import type { CampaignCounts, CampaignResult, CampaignScope, CampaignStatus, CampaignTest } from "./campaign.ts";
 import type { Execution } from "../executions/execution.ts";
 
 /** The one change each state of a campaign takes. */
@@ -32,6 +32,12 @@ export function campaignTransition(from: CampaignStatus, to: CampaignStatus): vo
 export function scopedTests(scope: CampaignScope, tests: readonly (CampaignTest & { readonly tags: readonly string[] })[]): CampaignTest[] {
   const taken = scope.tags.length === 0 ? tests : tests.filter((test) => test.tags.some((tag) => scope.tags.includes(tag)));
   return taken.map(({ path, title }) => ({ path, title })).sort((a, b) => byCodeUnits(a.path, b.path) || byCodeUnits(a.title, b.title));
+}
+
+/** @returns How many of the results came to each verdict, and how many were not run. */
+export function campaignCounts(results: readonly CampaignResult[]): CampaignCounts {
+  const count = (verdict: CampaignResult["verdict"]): number => results.filter((result) => result.verdict === verdict).length;
+  return { passed: count("passed"), failed: count("failed"), flaky: count("flaky"), skipped: count("skipped"), not_run: count("not_run") };
 }
 
 /**

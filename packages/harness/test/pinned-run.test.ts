@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterAll, beforeAll, describe, it } from "vitest";
-import { validateConfig, type CommandOutcome, type CommandRunner, type ResolvedConfig, type StepCommand } from "@open-qa-stack/domain";
+import { launchProgress, validateConfig, type CommandOutcome, type CommandRunner, type ResolvedConfig, type StepCommand } from "@open-qa-stack/domain";
 import { closedPort } from "@open-qa-stack/testing";
 import { baseUrlVariable, listedTests, LocalRunner, PinnedRun, reportedTests, testRepositoryBase, TrialRunner, type RunOutcome } from "../src/index.ts";
 
@@ -211,6 +212,70 @@ describe("criterion 1 — the tests run at the version the lockfile installs, on
     const runner = new FakeRunner(root);
     await new PinnedRun({ config: config.config, environment: "local", repositoryRoot: root, tests: FILES, runner, now: NOW }).run();
     assert.equal(runner.commands[0]!.env![baseUrlVariable("billing")], `${siteUrl}/billing`);
+  });
+});
+
+describe("the progress of a run, written while its tests run", () => {
+  it("is written by a reporter beside the JSON one, to the file the run is given, which it names to the runner", async () => {
+    const root = repository();
+    const runner = new FakeRunner(root);
+    const file = join(root, ".oqas", "launches", "launch-1", "progress.jsonl");
+    await new PinnedRun({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, tests: FILES, runner, now: NOW, progressFile: file }).run();
+    const ran = runner.commands.find((command) => command.command[1] === "test" && !command.command.includes("--list"))!;
+    const reporter = join(dirname(file), "progress-reporter.cjs");
+    assert.ok(ran.command.includes(`--reporter=json,${reporter}`), ran.command.join(" "));
+    assert.equal(ran.env!["OQAS_PROGRESS_FILE"], file);
+    assert.ok(existsSync(reporter));
+  });
+
+  it("tells how many tests run, then each one once its last attempt ended, named from where the runner runs", async () => {
+    const root = repository();
+    const file = join(root, ".oqas", "launches", "launch-1", "progress.jsonl");
+    await new PinnedRun({
+      config: configFor(siteUrl),
+      environment: "local",
+      repositoryRoot: root,
+      tests: FILES,
+      runner: new FakeRunner(root),
+      now: NOW,
+      progressFile: file,
+    }).run();
+    // The reporter reads the file to write to when the runner loads it.
+    const before = process.env["OQAS_PROGRESS_FILE"];
+    process.env["OQAS_PROGRESS_FILE"] = file;
+    try {
+      const Progress = createRequire(import.meta.url)(join(dirname(file), "progress-reporter.cjs")) as new () => {
+        onBegin(config: unknown, suite: { allTests(): unknown[] }): void;
+        onTestEnd(test: unknown, result: unknown): void;
+        printsToStdio(): boolean;
+      };
+      const reporter = new Progress();
+      const test = (title: string, retries = 0) => ({
+        title,
+        retries,
+        location: { file: join(process.cwd(), "apps", "shop", `${title}.spec.ts`) },
+        titlePath: () => ["", "shop", `apps/shop/${title}.spec.ts`, "Orders", title],
+      });
+      reporter.onBegin({}, { allTests: () => [1, 2, 3, 4] });
+      reporter.onTestEnd(test("a"), { status: "passed", retry: 0 });
+      reporter.onTestEnd(test("b", 1), { status: "failed", retry: 0 });
+      reporter.onTestEnd(test("b", 1), { status: "passed", retry: 1 });
+      reporter.onTestEnd(test("c", 1), { status: "timedOut", retry: 1 });
+      reporter.onTestEnd(test("d"), { status: "skipped", retry: 0 });
+      assert.equal(reporter.printsToStdio(), false);
+    } finally {
+      if (before === undefined) delete process.env["OQAS_PROGRESS_FILE"];
+      else process.env["OQAS_PROGRESS_FILE"] = before;
+    }
+    assert.deepEqual(launchProgress(readFileSync(file, "utf8")), {
+      total: 4,
+      finished: [
+        { path: "apps/shop/a.spec.ts", title: "Orders › a", verdict: "passed" },
+        { path: "apps/shop/b.spec.ts", title: "Orders › b", verdict: "flaky" },
+        { path: "apps/shop/c.spec.ts", title: "Orders › c", verdict: "failed" },
+        { path: "apps/shop/d.spec.ts", title: "Orders › d", verdict: "skipped" },
+      ],
+    });
   });
 });
 

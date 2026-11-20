@@ -1,14 +1,18 @@
 import { randomUUID } from "node:crypto";
 import {
+  campaignCounts,
   campaignResults,
   campaignTransition,
   CampaignRefusedError,
   scopedTests,
   UnknownCampaignError,
   type Campaign,
+  type CampaignLaunchScope,
+  type CampaignOverview,
   type CampaignPlan,
   type CampaignProgress,
   type CampaignStorePort,
+  type CampaignTest,
   type ExecutionStorePort,
   type LaunchRequest,
   type RepositoryTest,
@@ -59,9 +63,20 @@ export class Campaigns {
     return campaign;
   }
 
-  /** @returns Every campaign, the latest planned first. */
-  list(): Promise<Campaign[]> {
-    return this.#host.store.list();
+  /** @returns Every campaign, the latest planned first, with how many of its tests came to each verdict. */
+  async list(): Promise<CampaignOverview[]> {
+    const campaigns = await this.#host.store.list();
+    // The tests of the repository are read once, for the campaigns still planned.
+    const listed = campaigns.some(({ status }) => status === "planned") ? await this.#host.tests.list() : [];
+    return Promise.all(
+      campaigns.map(async (campaign) => {
+        const results =
+          campaign.status === "planned"
+            ? campaignResults(scopedTests(campaign.scope, listed), [])
+            : campaignResults(campaign.tests, await this.#host.executions.ofCampaign(campaign.id));
+        return { ...campaign, counts: campaignCounts(results) };
+      }),
+    );
   }
 
   /**
@@ -100,15 +115,18 @@ export class Campaigns {
    * Launches the tests of a campaign that is ready, or in progress: the files of its tests run against its environment.
    * Its first launch puts it in progress.
    *
+   * @param id - The identifier of the campaign.
+   * @param only - Which of its tests: those that failed, or those no execution of it ran yet; every one when left out.
    * @returns The launch, which runs.
    * @throws `UnknownCampaignError` when the instance keeps none under the identifier.
-   * @throws `CampaignRefusedError` when it is planned or closed.
+   * @throws `CampaignRefusedError` when it is planned or closed, or when none of its tests is of those asked for.
    * @throws What the launch raises: `LaunchRefusedError` while a session or another launch runs, among others.
    */
-  async launch(id: string): Promise<TestLaunch> {
+  async launch(id: string, only?: CampaignLaunchScope): Promise<TestLaunch> {
     const campaign = await this.#campaign(id);
     if (campaign.status !== "in_progress") campaignTransition(campaign.status, "in_progress");
-    const paths = [...new Set(campaign.tests.map(({ path }) => path))];
+    const tests = only === undefined ? campaign.tests : await this.#only(campaign, only);
+    const paths = [...new Set(tests.map(({ path }) => path))];
     const launch = await this.#host.launcher.launch({ paths, environment: campaign.environment, campaign: id });
     if (campaign.status === "ready") await this.#host.store.move(id, "in_progress");
     return launch;
@@ -126,6 +144,19 @@ export class Campaigns {
     campaignTransition(campaign.status, "closed");
     await this.#host.store.move(id, "closed", this.#now().toISOString());
     return this.#campaign(id);
+  }
+
+  /** The tests of a campaign whose verdict is the one asked for; `CampaignRefusedError` when there is none. */
+  async #only(campaign: Campaign, only: CampaignLaunchScope): Promise<readonly CampaignTest[]> {
+    const results = campaignResults(campaign.tests, await this.#host.executions.ofCampaign(campaign.id));
+    const tests = results.filter(({ verdict }) => verdict === only);
+    if (tests.length === 0)
+      throw new CampaignRefusedError(
+        only === "failed"
+          ? "No test of the campaign failed: there is nothing to launch again."
+          : "Every test of the campaign ran already: launch them all again instead.",
+      );
+    return tests;
   }
 
   /** The campaign of an identifier; `UnknownCampaignError` when there is none. */

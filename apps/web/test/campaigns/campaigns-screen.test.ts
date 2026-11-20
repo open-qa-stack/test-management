@@ -6,7 +6,7 @@ import type { PolledState } from "../../src/api/polled-state.ts";
 import { campaignHref, declaredEnvironments, typedTags } from "../../src/campaigns/campaigns-paths.ts";
 import { CampaignsScreen, type PlanningState } from "../../src/campaigns/campaigns-screen.tsx";
 import { linksOf, render, textOf } from "../render.ts";
-import { PLANNED, RUNNING } from "./campaigns-fixture.ts";
+import { OVERVIEWS } from "./campaigns-fixture.ts";
 
 /** The screen of the campaigns, in the state given, as HTML. */
 const screen = (
@@ -17,9 +17,12 @@ const screen = (
 
 describe("the screen of the campaigns", () => {
   it("lists the campaigns, the latest planned first, each with its environment, its tags, its state, and a link to it", () => {
-    const html = screen({ value: { items: [PLANNED, RUNNING] } });
+    const html = screen({ value: { items: OVERVIEWS } });
     assert.match(textOf(html), /^lakeside-tests \/ Campagnes Campagnes Une campagne prend les tests/);
-    assert.match(textOf(html), /Tout le dépôt local · tous les tests planifiée .* Recette 4\.2 local · @p0 @domain-policies en cours/);
+    assert.match(
+      textOf(html),
+      /Tout le dépôt local · tous les tests 3 tests pris planifiée .* Recette 4\.2 local · @p0 @domain-policies 1 \/ 2 joués · 1 échoué en cours/,
+    );
     assert.deepEqual(linksOf(html), [campaignHref("c2"), campaignHref("c1")]);
     assert.equal(campaignHref("c1"), "#/campaigns/view?id=c1");
   });
