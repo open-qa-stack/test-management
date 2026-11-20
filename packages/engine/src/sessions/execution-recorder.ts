@@ -3,7 +3,20 @@ import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { DEFAULT_REPOSITORY, executionResults, type Execution, type ExecutionStorePort } from "@open-qa-stack/domain";
+import { testDigests } from "@open-qa-stack/tools";
 import type { Configuration } from "../configuration/configuration.ts";
+
+/** Most bytes git may write out for one file of tests. */
+const GIT_OUTPUT_LIMIT = 16 * 1024 * 1024;
+
+/** A file of tests when an execution is kept: its digest and those of its tests as they are, and as they are in the commit. */
+interface FileVersion {
+  /** Left out, as are the digests of its tests, when the file cannot be read. */
+  readonly fileDigest?: string;
+  readonly tests: ReadonlyMap<string, string>;
+  /** Left out for a test repository without a commit. */
+  readonly committed?: ReadonlyMap<string, string>;
+}
 
 /** What the recorder of the executions of a session works with. */
 export interface RecorderOptions {
@@ -20,7 +33,8 @@ export interface RecorderOptions {
 /**
  * Keeps the execution of the tests a session of design ran, from the report the runner wrote: what came of each
  * test, named by the path of its file and its titles, with the version it ran at — the commit of the test
- * repository and the SHA-256 of the file of the test, which tells a change not committed yet.
+ * repository, the SHA-256 of the file of the test, and that of the test itself without its comments nor its layout,
+ * with whether the test was the same in the commit. The store numbers the versions of each test by the latter.
  */
 export class ExecutionRecorder {
   readonly #options: RecorderOptions;
@@ -44,9 +58,9 @@ export class ExecutionRecorder {
     const { appsDir } = { ...DEFAULT_REPOSITORY, ...(await configuration.inStep())?.document.repository };
     const results = executionResults(json, appsDir);
     if (results === undefined) return undefined;
-    const digests = new Map<string, string | undefined>();
-    for (const { path } of results) if (!digests.has(path)) digests.set(path, await this.#digest(path));
     const commit = await this.#commit();
+    const files = new Map<string, FileVersion>();
+    for (const { path } of results) if (!files.has(path)) files.set(path, await this.#version(path, commit));
     const execution: Execution = {
       id: randomUUID(),
       origin: "design",
@@ -55,26 +69,42 @@ export class ExecutionRecorder {
       ...(commit === undefined ? {} : { commit }),
       report,
       results: results.map((result) => {
-        const fileDigest = digests.get(result.path);
-        return fileDigest === undefined ? result : { ...result, fileDigest };
+        const { fileDigest, tests, committed } = files.get(result.path)!;
+        const testDigest = tests.get(result.title);
+        return {
+          ...result,
+          ...(fileDigest === undefined ? {} : { fileDigest }),
+          ...(testDigest === undefined ? {} : { testDigest }),
+          ...(testDigest === undefined || committed === undefined ? {} : { committed: committed.get(result.title) === testDigest }),
+        };
       }),
     };
     await store.add(execution);
     return execution;
   }
 
-  /** The SHA-256 of a file of the test repository, in hexadecimal; `undefined` when it cannot be read. */
-  async #digest(path: string): Promise<string | undefined> {
+  /** A file of tests of the test repository as it is, and its tests as they are in the commit. */
+  async #version(path: string, commit: string | undefined): Promise<FileVersion> {
     const bytes = await readFile(join(this.#options.repository, path)).catch(() => undefined);
-    return bytes === undefined ? undefined : createHash("sha256").update(bytes).digest("hex");
+    if (bytes === undefined) return { tests: new Map() };
+    // A file the commit does not hold has no test in it.
+    const committed = commit === undefined ? undefined : await testDigests((await this.#git("show", `${commit}:./${path}`)) ?? "");
+    return {
+      fileDigest: createHash("sha256").update(bytes).digest("hex"),
+      tests: await testDigests(bytes.toString("utf8")),
+      ...(committed === undefined ? {} : { committed }),
+    };
   }
 
   /** The commit the test repository is at; `undefined` for a folder that has none. */
-  #commit(): Promise<string | undefined> {
+  async #commit(): Promise<string | undefined> {
+    return (await this.#git("rev-parse", "--verify", "HEAD"))?.trim();
+  }
+
+  /** What git writes out in the test repository; `undefined` when it fails. */
+  #git(...args: string[]): Promise<string | undefined> {
     return new Promise((resolve) =>
-      execFile("git", ["rev-parse", "--verify", "HEAD"], { cwd: this.#options.repository }, (error, stdout) =>
-        resolve(error === null ? stdout.trim() : undefined),
-      ),
+      execFile("git", args, { cwd: this.#options.repository, maxBuffer: GIT_OUTPUT_LIMIT }, (error, stdout) => resolve(error === null ? stdout : undefined)),
     );
   }
 }

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createElement } from "react";
 import { describe, it } from "vitest";
-import type { RepositoryTest, TestExecution } from "@open-qa-stack/domain/sessions";
+import type { RepositoryTest, TestExecution, TestVersion } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../../src/api/polled-state.ts";
 import { HISTORY_SIZE, TestScreen } from "../../src/tests/test-screen.tsx";
 import { linksOf, render, textOf } from "../render.ts";
@@ -19,16 +19,28 @@ const ran = (id: string, hour: number, verdict: TestExecution["result"]["verdict
 /** Its executions, the latest first: a failure, then a flaky success at a version, then a success of another of its tests. */
 const EXECUTIONS: readonly TestExecution[] = [
   ran("e3", 11, "failed"),
-  ran("e2", 10, "flaky", { commit: "4f2a9c01d3b6e8a7f5c2d1e0b9a8c7d6e5f4a3b2" }),
+  { ...ran("e2", 10, "flaky", { commit: "4f2a9c01d3b6e8a7f5c2d1e0b9a8c7d6e5f4a3b2" }), result: { ...ran("e2", 10, "flaky").result, version: 2 } },
   { ...ran("e1", 9, "passed"), result: { ...ran("e1", 9, "passed").result, title: "Policies › Edit a policy" } },
 ];
+
+/** A version of the test of the policies, first run at an hour of the morning. */
+const version = (number: number, hour: number, more: Partial<TestVersion> = {}): TestVersion => ({
+  path: DETAIL.path,
+  title: DETAIL.title,
+  number,
+  digest: `d${number}`,
+  since: `2026-11-19T${String(hour).padStart(2, "0")}:00:00.000Z`,
+  executions: 1,
+  ...more,
+});
 
 /** The card of a test of a path, in the states given, as HTML. */
 const screen = (
   executions: PolledState<readonly TestExecution[]>,
   tests: PolledState<readonly RepositoryTest[]> = { value: TESTS },
   path = DETAIL.path,
-): string => render(createElement(TestScreen, { project: "lakeside-tests", path, tests, executions }));
+  versions: PolledState<readonly TestVersion[]> = {},
+): string => render(createElement(TestScreen, { project: "lakeside-tests", path, tests, executions, versions }));
 
 describe("the card of a test", () => {
   it("says it reads the test until the instance told both the tests and its executions, and why it could not", () => {
@@ -62,7 +74,7 @@ describe("the card of a test", () => {
     assert.match(text, / En échec (Dernière exécution le \d+ nov\. 2026, \d\d:\d\d) 2 réussites sur les 3 dernières exécutions Voir le dernier résultat → /);
     assert.match(
       text,
-      /Exécutions · 3 exécutions, la plus récente d’abord En échec \d+ nov\. 2026, \d\d:\d\d conception · — 2 s Instable \d+ nov\. 2026, \d\d:\d\d conception · 4f2a9c0 2 s Réussi \d+ nov\. 2026, \d\d:\d\d · Policies › Edit a policy conception · — 2 s$/,
+      /Exécutions · 3 exécutions, la plus récente d’abord En échec \d+ nov\. 2026, \d\d:\d\d conception · — 2 s Instable \d+ nov\. 2026, \d\d:\d\d conception · v2 · 4f2a9c0 2 s Réussi \d+ nov\. 2026, \d\d:\d\d · Policies › Edit a policy conception · — 2 s$/,
     );
     // The dots tell the latest executions, the oldest on the left.
     assert.match(
@@ -86,5 +98,20 @@ describe("the card of a test", () => {
       /Ce test n’est plus dans le dépôt Son fichier a été renommé ou supprimé ; ses exécutions passées restent listées ici\. Exécutions · 3 exécutions/,
     );
     assert.doesNotMatch(text, /Description/);
+  });
+
+  it("lists its versions, the latest first, each with the commit it was first run committed at, or none", () => {
+    const versions = [
+      version(3, 11),
+      version(2, 10, { commit: "4f2a9c01d3b6e8a7f5c2d1e0b9a8c7d6e5f4a3b2", executions: 2 }),
+      version(1, 9, { title: "Policies › Edit a policy" }),
+    ];
+    const html = screen({ value: EXECUTIONS }, { value: TESTS }, DETAIL.path, { value: versions });
+    assert.match(
+      textOf(html),
+      /Versions · 3 versions, la plus récente d’abord Version 3 Depuis le \d+ nov\. 2026, \d\d:\d\d · 1 exécution Non commitée Version 2 Depuis le \d+ nov\. 2026, \d\d:\d\d · 2 exécutions 4f2a9c0 Version 1 · Policies › Edit a policy Depuis le \d+ nov\. 2026, \d\d:\d\d · 1 exécution Non commitée Exécutions/,
+    );
+    assert.match(html, /<span title="Jouée seulement avant d’être commitée, comme pendant une conception\.">/);
+    assert.doesNotMatch(textOf(screen({ value: EXECUTIONS }, { value: TESTS }, DETAIL.path, { value: [] })), /Versions/);
   });
 });

@@ -48,6 +48,7 @@ export type {
   TestExecution,
   TestExecutionList,
 } from "../executions/execution.ts";
+export type { TestVersion, TestVersionList } from "../executions/test-version.ts";
 export { testFacets, type TestFacets } from "../repository-tests/test-facets.ts";
 export type { TestReading } from "../repository-tests/test-reading.ts";
 export type { QaCapture, QaDetails, QaStep, QaView } from "../report/qa-view.ts";

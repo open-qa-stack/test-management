@@ -7,6 +7,7 @@ import { dirname, join } from "node:path";
 import { describe, it } from "vitest";
 import { CONFIG_FILE_NAME } from "@open-qa-stack/domain";
 import { configText } from "@open-qa-stack/testing/test-repository";
+import { testDigests } from "@open-qa-stack/tools";
 import { Configuration } from "../src/index.ts";
 import { ExecutionRecorder } from "../src/sessions/execution-recorder.ts";
 import { MemoryConfigurationStore } from "./support/memory-configuration-store.ts";
@@ -66,12 +67,13 @@ function recorder(root: string): { recorder: ExecutionRecorder; store: MemoryExe
 }
 
 describe("the execution of the tests of a session, as it is kept", () => {
-  it("names each test by its path in the test repository and its titles, with the commit of the repository and the digest of its file", async () => {
+  it("names each test by its path in the test repository and its titles, with the commit of the repository, the digests of its file and of itself", async () => {
     const root = repository("apps", true);
     const { recorder: kept, store } = recorder(root);
     const execution = await kept.record("s1", REPORT);
     const commit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
     const digest = createHash("sha256").update(SEARCH).digest("hex");
+    const testDigest = (await testDigests(SEARCH)).get("Search an order")!;
     assert.ok(execution !== undefined);
     assert.match(execution.id, /^[0-9a-f-]{36}$/);
     assert.deepEqual(execution, {
@@ -82,12 +84,47 @@ describe("the execution of the tests of a session, as it is kept", () => {
       commit,
       report: REPORT,
       results: [
-        { path: "apps/shop/search.spec.ts", title: "Search an order", project: "shop", verdict: "passed", durationMs: 50, fileDigest: digest },
+        {
+          path: "apps/shop/search.spec.ts",
+          title: "Search an order",
+          project: "shop",
+          verdict: "passed",
+          durationMs: 50,
+          fileDigest: digest,
+          testDigest,
+          committed: true,
+        },
         { path: "apps/shop/search.spec.ts", title: "Search nothing", project: "shop", verdict: "passed", durationMs: 50, fileDigest: digest },
         { path: "apps/shop/pay.spec.ts", title: "Pay", project: "shop", verdict: "passed", durationMs: 50 },
       ],
     });
-    assert.deepEqual(store.all(), [execution]);
+    assert.deepEqual(
+      store.all().map(({ results }) => results.map(({ version }) => version)),
+      [[1, undefined, undefined]],
+    );
+  });
+
+  it("tells whether each test is the same in the commit, whatever its comments and its layout, and keeps it under a new version once it changed", async () => {
+    const root = repository("apps", true);
+    const { recorder: kept, store } = recorder(root);
+    write(root, "apps/shop/search.spec.ts", "// Searches an order.\ntest('Search an order', async () => {\n});\n");
+    write(root, "apps/shop/pay.spec.ts", 'test("Pay", async () => {});\n');
+    const reformatted = await kept.record("s1", REPORT);
+    write(root, "apps/shop/search.spec.ts", 'test("Search an order", async () => { await Promise.resolve(); });\n');
+    const changed = await kept.record("s2", REPORT);
+    assert.deepEqual(
+      [reformatted, changed].map((execution) => [execution?.results[0]?.committed, execution?.results[2]?.committed]),
+      [
+        [true, false],
+        [false, false],
+      ],
+    );
+    assert.deepEqual(
+      store.all().map(({ results }) => results[0]?.version),
+      [2, 1],
+    );
+    const [latest] = await store.versions("apps/shop/search.spec.ts");
+    assert.ok(latest !== undefined && latest.number === 2 && !("commit" in latest));
   });
 
   it("finds the tests in the folder of the applications the configuration names, and keeps no commit for a folder that has none", async () => {
@@ -97,11 +134,11 @@ describe("the execution of the tests of a session, as it is kept", () => {
     const execution = await recorder(root).recorder.record("s1", REPORT);
     assert.ok(execution !== undefined && !("commit" in execution));
     assert.deepEqual(
-      execution.results.map(({ path, fileDigest }) => [path, fileDigest !== undefined]),
+      execution.results.map(({ path, fileDigest, testDigest, committed }) => [path, fileDigest !== undefined, testDigest !== undefined, committed]),
       [
-        ["suites/shop/search.spec.ts", true],
-        ["suites/shop/search.spec.ts", true],
-        ["suites/shop/pay.spec.ts", false],
+        ["suites/shop/search.spec.ts", true, true, undefined],
+        ["suites/shop/search.spec.ts", true, false, undefined],
+        ["suites/shop/pay.spec.ts", false, false, undefined],
       ],
     );
   });

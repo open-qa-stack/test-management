@@ -136,6 +136,7 @@ export type {
   TestExecution,
   TestExecutionList,
 } from "./executions/execution.ts";
+export { versionStep, type TestVersion, type TestVersionList, type VersionStep } from "./executions/test-version.ts";
 export { UnknownExecutionError } from "./executions/unknown-execution-error.ts";
 export { executionResults } from "./executions/execution-results.ts";
 export type { ExecutionStorePort } from "./executions/execution-store-port.ts";

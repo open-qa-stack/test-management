@@ -63,6 +63,12 @@
   align-items: start;
 }
 
+.test-column {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
 @media (min-width: 960px) {
   .test-reading {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

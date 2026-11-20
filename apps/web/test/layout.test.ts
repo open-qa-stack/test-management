@@ -1267,10 +1267,25 @@ describe("the code of the console is covered in full", () => {
     assert.deepEqual(screen!.uncovered, []);
   });
 
-  it("lets the card of a test, its tags, its steps and its executions, fit the width of a small phone", async () => {
-    const page = await app().open(360, `#/tests/view?path=${encodeURIComponent(DETAIL)}`, new ListedInstance().api);
+  it("lets the card of a test, its tags, its steps, its versions and its executions, fit the width of a small phone", async () => {
+    const instance = new ListedInstance();
+    const since = "2026-11-19T10:00:05.000Z";
+    instance.versions = [
+      { path: DETAIL, title: "Policies › Display the detail of a policy with a long title", number: 12, digest: "d12", since, executions: 140 },
+      {
+        path: DETAIL,
+        title: "Display the detail of a policy",
+        number: 11,
+        digest: "d11",
+        commit: "4f2a9c01d3b6e8a7f5c2d1e0b9a8c7d6e5f4a3b2",
+        since,
+        executions: 3,
+      },
+    ];
+    const page = await app().open(360, `#/tests/view?path=${encodeURIComponent(DETAIL)}`, instance.api);
     try {
       await page.locator(".test-written").waitFor();
+      await page.getByText("Version 12").waitFor();
       assert.equal(await overflowOf(page), 0);
     } finally {
       await page.close();

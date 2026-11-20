@@ -11,7 +11,9 @@ A test is named by the path of its file, relative to the root of the test reposi
 `describe` that hold it, then its own. Each result also keeps the version the test ran at:
 
 - the commit the test repository was at;
-- the SHA-256 of the file of the test, which tells a change that was not committed yet.
+- the SHA-256 of the file of the test, which tells a change that was not committed yet;
+- the SHA-256 of the test itself, read as code without its comments nor its layout, and whether the test was the same in the commit;
+- the [version of the test](tests.md#the-versions-of-a-test) it ran at, which the instance numbers by that digest.
 
 The shapes of the bodies are the types `ExecutionList` and `Execution` of `@open-qa-stack/domain/sessions`. A client ignores a field it does not know. What came of the tests of one file in each execution is told by [the tests](tests.md#the-executions-of-a-test).
 
@@ -80,6 +82,9 @@ A page holds `limit` executions, 25 when the query does not say, 100 at most. Th
 | `results[].verdict` | `passed`, `failed`, `flaky` when the test passed only on a retry, or `skipped`. |
 | `results[].durationMs` | How long its attempts took together. |
 | `results[].fileDigest` | The SHA-256 of its file when the execution was kept; left out when the file could not be read. |
+| `results[].testDigest` | The SHA-256 of the test itself, its call of `test` read without its comments nor its layout; left out when its file could not be read, or does not write its titles as plain texts. |
+| `results[].committed` | Whether the test was the same in the commit; left out with `testDigest`, or without a commit. |
+| `results[].version` | The [version of the test](tests.md#the-versions-of-a-test) it ran at, from 1; left out with `testDigest`. |
 | `results[].failure` | Where a test that failed failed and why, from its last attempt: its first `test.step` that failed, the first line of its error, and what its assertion expected and received when the message says both. Each part is left out when the report does not say it, and the whole for a test kept before the instance kept them. |
 
 ## One execution

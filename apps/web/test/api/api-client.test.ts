@@ -129,6 +129,10 @@ describe("the client of the API, for the documents of the knowledge sources", ()
     const read = clientOf(() => json({ path: "apps/shop/orders.spec.ts" }));
     assert.deepEqual(await read.client.testReading("apps/shop/orders.spec.ts", "e 1"), { path: "apps/shop/orders.spec.ts" });
     assert.deepEqual(read.calls, [["/api/tests/reading?path=apps%2Fshop%2Forders.spec.ts&execution=e+1", undefined]]);
+    const version = { path: "apps/shop/orders.spec.ts", title: "Orders", number: 1, digest: "d1", since: "2026-11-19T10:00:05.000Z", executions: 1 };
+    const versioned = clientOf(() => json({ items: [version] }));
+    assert.deepEqual(await versioned.client.testVersions("apps/shop/orders.spec.ts"), [version]);
+    assert.deepEqual(versioned.calls, [["/api/tests/versions?path=apps%2Fshop%2Forders.spec.ts", undefined]]);
   });
 
   it("reads the executions of the tests a page at a time, one by its identifier, and those of a file out of the envelope the API answers", async () => {
