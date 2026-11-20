@@ -705,7 +705,6 @@
     "readingNote": "Il apparaît dès que l’instance a répondu.",
     "notRun": "Ce test n’a pas encore été exécuté",
     "notRunNote": "Ses étapes apparaissent ici dès qu’une session de l’agent, ou une exécution, l’a joué.",
-    "lead": "Exécution {{run}} : {{status}}.",
     "status": {
       "expected": "réussi",
       "unexpected": "en échec",
@@ -718,13 +717,24 @@
     },
     "capture": "Capture de l’étape {{number}}",
     "noCapture": "Aucune capture pour cette étape.",
-    "failedAt": "Échec à l’étape {{number}}",
     "expected": "Attendu",
     "received": "Obtenu",
     "noCompare": "Le message de l’assertion en échec ne dit pas ce qu’elle a obtenu : les détails le donnent en entier.",
     "steps": "Étapes",
     "noStep": "L’exécution n’a rapporté aucune étape de ce test.",
-    "details": "Détails techniques"
+    "details": "Détails techniques",
+    "ranAt": "Exécution du {{date}}",
+    "ranIn": "Exécution {{run}}",
+    "summary": {
+      "failedAt": "Échoue à l’étape {{step}} sur {{count}}.",
+      "expected_one": "Réussit son étape.",
+      "expected_other": "Réussit ses {{count}} étapes.",
+      "flaky_one": "Réussit son étape après une nouvelle tentative.",
+      "flaky_other": "Réussit ses {{count}} étapes après une nouvelle tentative.",
+      "unexpected": "Échoue.",
+      "skipped": "A été ignoré."
+    },
+    "screenAt": "Écran à l’étape {{number}}"
   },
   "executions": {
     "title": "Exécutions",

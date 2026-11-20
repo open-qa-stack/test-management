@@ -705,7 +705,6 @@
     "readingNote": "It shows as soon as the instance answered.",
     "notRun": "No run of this test yet",
     "notRunNote": "Its steps show here once a session of the agent, or a run, ran it.",
-    "lead": "Run {{run}}: {{status}}.",
     "status": {
       "expected": "passed",
       "unexpected": "failed",
@@ -718,13 +717,24 @@
     },
     "capture": "Capture of step {{number}}",
     "noCapture": "No capture for this step.",
-    "failedAt": "Failed at step {{number}}",
     "expected": "Expected",
     "received": "Received",
     "noCompare": "The message of the failed assertion does not say what it received: the details tell it whole.",
     "steps": "Steps",
     "noStep": "The run reported no step of this test.",
-    "details": "Technical details"
+    "details": "Technical details",
+    "ranAt": "Run of {{date}}",
+    "ranIn": "Run {{run}}",
+    "summary": {
+      "failedAt": "Fails at step {{step}} of {{count}}.",
+      "expected_one": "Passes its {{count}} step.",
+      "expected_other": "Passes its {{count}} steps.",
+      "flaky_one": "Passes its {{count}} step after a retry.",
+      "flaky_other": "Passes its {{count}} steps after a retry.",
+      "unexpected": "Fails.",
+      "skipped": "Was skipped."
+    },
+    "screenAt": "Page at step {{number}}"
   },
   "executions": {
     "title": "Executions",

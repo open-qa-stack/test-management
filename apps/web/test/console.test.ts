@@ -185,6 +185,9 @@ describe("the console", () => {
       /^lakeside-tests \/ Tests \/ apps\/shop\/orders\.spec\.ts .* Lecture du test/,
     );
     assert.equal(documentTitleOf({ route: at("#/tests/view?path=apps%2Fshop%2Forders.spec.ts") }), "Test · Open QA Stack");
+    // The step the address names is shown when it is a number from 1; another word is no step, and the screen chooses.
+    for (const step of ["2", "0", "two"])
+      assert.match(pageOf(consoleAt(`#/tests/view?path=apps%2Fshop%2Forders.spec.ts&step=${step}`, { project: PROJECT })), /Lecture du test/);
     for (const hash of ["#/tests/view", "#/tests/view?path="]) assert.match(pageOf(consoleAt(hash)), /Page introuvable/);
   });
 

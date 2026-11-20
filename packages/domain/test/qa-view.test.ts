@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { qaViews, type JsonResult, type QaView } from "../src/index.ts";
+import { qaViews, type JsonAttachment, type JsonResult, type QaView } from "../src/index.ts";
 
 /** A report of one test of the shop, its last attempt the one given, after an attempt that failed at once. */
 function report(result: JsonResult, status = "expected"): string {
@@ -71,6 +71,28 @@ describe("a test of a report read in steps", () => {
     );
     assert.deepEqual(view.steps[1]!.capture, { name: "2", contentType: "application/octet-stream", path: "/runs/2.png" });
     assert.deepEqual(view.details.screenshots, ["/runs/end.png"]);
+  });
+
+  it("shows at the step that failed, with no capture of its own, the page the runner captured at the failure", () => {
+    const at = (attachments: readonly JsonAttachment[]) =>
+      viewOf(
+        report(
+          {
+            status: "failed",
+            steps: [step("1. Open the orders"), step("2. Read the order", { error: { message: "Error: the order" } })],
+            attachments: [capture("1"), ...attachments],
+          },
+          "unexpected",
+        ),
+      );
+    const failure = { name: "screenshot", contentType: "image/png", path: "/runs/test-failed-1.png" };
+    const view = at([failure]);
+    assert.deepEqual([view.steps[1]!.capture, view.uncaptured], [{ name: "screenshot", contentType: "image/png", path: "/runs/test-failed-1.png" }, []]);
+    // A capture of its own comes first; what is no image, or no capture at the failure, is none.
+    assert.equal(at([failure, capture("2")]).steps[1]!.capture?.name, "2");
+    assert.deepEqual(at([{ ...failure, contentType: "text/plain" }]).uncaptured, [2]);
+    assert.deepEqual(at([{ name: "screenshot", path: "/runs/test-failed-1.png" }]).uncaptured, [2]);
+    assert.deepEqual(at([]).uncaptured, [2]);
   });
 
   it("gives what the failed assertion expected and received when its message says both, and its whole message in the details", () => {
