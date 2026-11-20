@@ -1,4 +1,11 @@
-import type { Execution, ExecutionStorePort } from "@open-qa-stack/domain";
+import {
+  UnknownExecutionError,
+  type Execution,
+  type ExecutionList,
+  type ExecutionQuery,
+  type ExecutionStorePort,
+  type TestExecution,
+} from "@open-qa-stack/domain";
 
 /** The store of the executions of tests kept in memory, by the rule of the port: what the operations are tested on, without a database. */
 export class MemoryExecutionStore implements ExecutionStorePort {
@@ -13,7 +20,38 @@ export class MemoryExecutionStore implements ExecutionStorePort {
     return Promise.resolve();
   }
 
-  list(): Promise<Execution[]> {
-    return Promise.resolve([...this.#executions].reverse());
+  page({ limit, before, outcome }: ExecutionQuery): Promise<ExecutionList> {
+    const latest = this.#latest().filter(
+      ({ results }) => outcome === undefined || results.some(({ verdict }) => verdict === "failed") === (outcome === "failing"),
+    );
+    const start = before === undefined ? 0 : latest.findIndex(({ id }) => id === before) + 1;
+    if (start === 0 && before !== undefined) return Promise.reject(new UnknownExecutionError(before));
+    const items = latest.slice(start, start + limit);
+    return Promise.resolve(start + limit < latest.length ? { items, next: items.at(-1)!.id } : { items });
+  }
+
+  get(id: string): Promise<Execution | undefined> {
+    return Promise.resolve(this.#executions.find((execution) => execution.id === id));
+  }
+
+  ofFile(path: string, limit: number): Promise<TestExecution[]> {
+    const found = this.#latest().flatMap(({ report: _report, results, ...head }) =>
+      results.filter((result) => result.path === path).map((result) => ({ ...head, result })),
+    );
+    return Promise.resolve(found.slice(0, limit));
+  }
+
+  reports(): Promise<string[]> {
+    return Promise.resolve(this.#executions.map(({ report }) => report));
+  }
+
+  /** @returns Every execution it keeps, the latest kept first: what a test reads to see what was kept. */
+  all(): Execution[] {
+    return this.#latest();
+  }
+
+  /** The executions, the latest kept first. */
+  #latest(): Execution[] {
+    return [...this.#executions].reverse();
   }
 }

@@ -38,7 +38,31 @@ export interface Execution {
   readonly results: readonly ExecutionResult[];
 }
 
-/** The executions of tests the instance keeps, the latest first, as `GET /executions` answers. */
+/** A page of the executions of tests the instance keeps, the latest first, as `GET /executions` answers. */
 export interface ExecutionList {
   readonly items: readonly Execution[];
+  /** The identifier of the last execution of the page, to ask for the page after it; left out on the last page. */
+  readonly next?: string;
+}
+
+/** Which executions a page keeps by what came of their tests: `failing` when one of them failed, `passing` when none did. */
+export type ExecutionOutcome = "failing" | "passing";
+
+/** Which executions to read, the latest first. */
+export interface ExecutionQuery {
+  /** How many executions a page holds at most. */
+  readonly limit: number;
+  /** The identifier of an execution: the page starts after it. */
+  readonly before?: string;
+  readonly outcome?: ExecutionOutcome;
+}
+
+/** What came of a test in one execution, with the execution it came in, but not the other tests of it. */
+export interface TestExecution extends Omit<Execution, "report" | "results"> {
+  readonly result: ExecutionResult;
+}
+
+/** The executions of the tests of one file, the latest first, as `GET /tests/executions` answers. */
+export interface TestExecutionList {
+  readonly items: readonly TestExecution[];
 }

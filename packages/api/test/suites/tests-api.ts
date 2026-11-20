@@ -4,10 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import { Logger } from "@nestjs/common";
+import { ExecutionStore } from "@open-qa-stack/store";
 import { SessionDatabase, type DatabaseEngine } from "@open-qa-stack/store/testing";
 import { fixtureConfig } from "@open-qa-stack/testing/fixture-repository";
 import { sessionsApi, type TestApi } from "../support/sessions-api.ts";
-import type { Problem, RepositoryTestList, TestReading } from "@open-qa-stack/domain/sessions";
+import type { Problem, RepositoryTestList, TestExecutionList, TestReading } from "@open-qa-stack/domain/sessions";
 
 /** A test of the shop as a design writes it: a title, tags, and two steps. */
 const SEARCH = [
@@ -109,10 +110,41 @@ export function testsApiSuite(engine: DatabaseEngine): void {
       assert.deepEqual([capture.status, capture.headers.get("content-type"), Buffer.from(await capture.arrayBuffer()).toString()], [200, "image/png", "png"]);
       const missing = await fetch(`${api.url}/tests/capture?path=${encodeURIComponent(path)}&step=2`);
       assert.deepEqual([missing.status, ((await missing.json()) as Problem).code], [404, "unknown_capture"]);
-      for (const query of ["", "path=", `path=${encodeURIComponent(path)}&step=0`, `path=${encodeURIComponent(path)}&step=a`]) {
+      for (const query of [
+        "",
+        "path=",
+        `path=${encodeURIComponent(path)}&step=0`,
+        `path=${encodeURIComponent(path)}&step=a`,
+        `path=${encodeURIComponent(path)}&execution=`,
+      ]) {
         const answer = await fetch(`${api.url}/tests/${query.includes("step") ? "capture" : "reading"}?${query}`);
         assert.deepEqual([query, answer.status, ((await answer.json()) as Problem).code], [query, 400, "invalid_request"]);
       }
+      // A reading and a capture come from the run of an execution the query names, and none from one the instance does not keep.
+      const results = [{ path, title: spec.title, project: "shop", verdict: "passed", durationMs: 20 }] as const;
+      await new ExecutionStore(database.database).add({
+        id: "e1",
+        origin: "design",
+        ranAt: "2026-11-19T08:00:01.000Z",
+        report: ".oqas/runs/run-2026-11-19T08-00-00-000Z/report.json",
+        results,
+      });
+      const inExecution = await reading(`path=${encodeURIComponent(path)}&execution=e1`);
+      assert.deepEqual([inExecution.body.run, inExecution.body.ranAt], ["run-2026-11-19T08-00-00-000Z", "2026-11-19T08:00:01.000Z"]);
+      const kept = await fetch(`${api.url}/tests/capture?path=${encodeURIComponent(path)}&step=1&execution=e1`);
+      assert.equal(Buffer.from(await kept.arrayBuffer()).toString(), "png");
+      for (const route of ["reading", "capture"]) {
+        const answer = await fetch(`${api.url}/tests/${route}?path=${encodeURIComponent(path)}&step=1&execution=e9`);
+        assert.deepEqual([route, answer.status, ((await answer.json()) as Problem).code], [route, 404, "unknown_execution"]);
+      }
+      // The executions of the file are told the latest first, each with what came of its test.
+      const executions = await fetch(`${api.url}/tests/executions?path=${encodeURIComponent(path)}`);
+      assert.deepEqual(
+        [executions.status, executions.headers.get("cache-control"), (await executions.json()) as TestExecutionList],
+        [200, "no-store", { items: [{ id: "e1", origin: "design", ranAt: "2026-11-19T08:00:01.000Z", result: results[0] }] }],
+      );
+      const unnamed = await fetch(`${api.url}/tests/executions`);
+      assert.deepEqual([unnamed.status, ((await unnamed.json()) as Problem).code], [400, "invalid_request"]);
     });
   });
 }

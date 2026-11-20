@@ -23,5 +23,6 @@ import { ExecutionsLifecycle } from "./executions-lifecycle.ts";
     },
     ExecutionsLifecycle,
   ],
+  exports: [Executions],
 })
 export class ExecutionsModule {}

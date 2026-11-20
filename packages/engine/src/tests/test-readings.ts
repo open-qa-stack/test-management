@@ -1,5 +1,5 @@
 import { readdir, readFile } from "node:fs/promises";
-import { isAbsolute, join, relative } from "node:path";
+import { basename, dirname, isAbsolute, join, relative } from "node:path";
 import {
   DEFAULT_REPOSITORY,
   qaViews,
@@ -7,7 +7,9 @@ import {
   runFolderDate,
   RUNS_FOLDER,
   UnknownCaptureError,
+  UnknownExecutionError,
   type ConfigurationQueries,
+  type ExecutionStorePort,
   type JsonTest,
   type QaView,
   type TestReading,
@@ -25,6 +27,8 @@ export interface StepCapture {
 /** The test of a run, with the folder of that run. */
 interface RunTest {
   readonly run: string;
+  /** When the run ran, when it is known. */
+  readonly ranAt?: string;
   readonly report: string;
   /** The identifier the reader of the report gives the test. */
   readonly id: string;
@@ -38,47 +42,54 @@ function viewOf(found: RunTest): QaView {
 }
 
 /**
- * The operations that read a test of the repository in steps, from the latest run that ran it: its steps, where it
- * failed, what its failed assertion expected and received, and the capture of each step. Whatever shows them — a REST
- * API, a terminal — calls these and holds no rule of its own.
+ * The operations that read a test of the repository in steps, from the latest run that ran it or from an execution
+ * the instance keeps: its steps, where it failed, what its failed assertion expected and received, and the capture of
+ * each step. Whatever shows them — a REST API, a terminal — calls these and holds no rule of its own.
  *
  * @remarks
  * The runs are the folders `<stateDir>/runs/run-<date>/` of the test repository, each with the report the runner
- * wrote; the latest one whose report holds the test counts. Nothing is kept: the reports are read at each call.
+ * wrote; the latest one whose report holds the test counts, unless an execution is named, whose report counts.
+ * Nothing is kept: the reports are read at each call.
  */
 export class TestReadings {
   readonly #repository: string | undefined;
   readonly #configuration: ConfigurationQueries;
+  readonly #executions: ExecutionStorePort;
 
   /**
    * @param repository - Absolute path of the test repository; `undefined` for a host that has none, which reads none.
    * @param configuration - What tells the revision in force of the configuration, which names its folders.
+   * @param executions - Where the executions are kept, whose reports name their runs.
    */
-  constructor(repository: string | undefined, configuration: ConfigurationQueries) {
+  constructor(repository: string | undefined, configuration: ConfigurationQueries, executions: ExecutionStorePort) {
     this.#repository = repository;
     this.#configuration = configuration;
+    this.#executions = executions;
   }
 
   /**
    * @param path - The path of a test, relative to the root of the test repository.
-   * @returns The test in steps, from the latest run that ran it; without a view when no run kept ran it.
+   * @param execution - The identifier of an execution to read the test from; the latest run that ran it when left out.
+   * @returns The test in steps; without a view when no run kept ran it, or the report of the execution is gone or did not hold it.
+   * @throws `UnknownExecutionError` when the instance keeps no execution under the identifier.
    */
-  async read(path: string): Promise<TestReading> {
-    const found = await this.#latest(path);
+  async read(path: string, execution?: string): Promise<TestReading> {
+    const found = await this.#find(path, execution);
     if (found === undefined) return { path };
     // The report held the test: the reader reads it, and gives it the same identifier.
-    const ranAt = runFolderDate(found.run);
-    return { path, run: found.run, ...(ranAt === undefined ? {} : { ranAt }), view: viewOf(found) };
+    return { path, run: found.run, ...(found.ranAt === undefined ? {} : { ranAt: found.ranAt }), view: viewOf(found) };
   }
 
   /**
    * @param path - The path of a test, relative to the root of the test repository.
    * @param step - The number of one of its steps, from 1.
-   * @returns The capture the latest run of the test attached for the step.
-   * @throws `UnknownCaptureError` when no run ran the test, or it attached no capture for the step that can be read.
+   * @param execution - The identifier of an execution to read the capture from; the latest run that ran the test when left out.
+   * @returns The capture the run of the test attached for the step.
+   * @throws `UnknownExecutionError` when the instance keeps no execution under the identifier; `UnknownCaptureError`
+   * when no run ran the test, or it attached no capture for the step that can be read.
    */
-  async capture(path: string, step: number): Promise<StepCapture> {
-    const found = await this.#latest(path);
+  async capture(path: string, step: number, execution?: string): Promise<StepCapture> {
+    const found = await this.#find(path, execution);
     // The capture of a step is the one its view shows: attached under its number, or taken by the runner at the failure.
     const name = found === undefined ? undefined : viewOf(found).steps.find((candidate) => candidate.number === step)?.capture?.name;
     const attachment = found?.test.results.at(-1)?.attachments?.find((candidate) => candidate.name === name) as
@@ -94,13 +105,20 @@ export class TestReadings {
     }
   }
 
-  /** The latest run whose report holds the test of a path, with the test as that run reported it. */
-  async #latest(path: string): Promise<RunTest | undefined> {
+  /** The run that ran the test of a path, that of an execution or the latest one, with the test as that run reported it. */
+  async #find(path: string, execution: string | undefined): Promise<RunTest | undefined> {
+    const kept = execution === undefined ? undefined : await this.#executions.get(execution);
+    if (execution !== undefined && kept === undefined) throw new UnknownExecutionError(execution);
     const revision = await this.#configuration.inForce();
     if (this.#repository === undefined || revision === undefined) return undefined;
     const { appsDir, stateDir } = { ...DEFAULT_REPOSITORY, ...revision.document.repository };
     if (!path.startsWith(`${appsDir}/`)) return undefined;
     const file = path.slice(appsDir.length + 1);
+    if (kept !== undefined) {
+      const report = await readFile(join(this.#repository, kept.report), "utf8").catch(() => "");
+      const entry = reportEntries(report)?.find((candidate) => candidate.file === file);
+      return entry === undefined ? undefined : { run: basename(dirname(kept.report)), ranAt: kept.ranAt, report, id: entry.id, test: entry.test };
+    }
     const runs = join(this.#repository, stateDir, RUNS_FOLDER);
     const folders = await readdir(runs, { withFileTypes: true }).catch(() => []);
     // The folders are named after the date of their run: the latest comes first in reverse order.
@@ -110,7 +128,8 @@ export class TestReadings {
       .sort((left, right) => right.localeCompare(left))) {
       const report = await readFile(join(runs, run, REPORT_FILE), "utf8").catch(() => "");
       const entry = reportEntries(report)?.find((candidate) => candidate.file === file);
-      if (entry !== undefined) return { run, report, id: entry.id, test: entry.test };
+      const ranAt = runFolderDate(run);
+      if (entry !== undefined) return { run, ...(ranAt === undefined ? {} : { ranAt }), report, id: entry.id, test: entry.test };
     }
     return undefined;
   }
