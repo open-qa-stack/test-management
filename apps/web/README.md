@@ -91,6 +91,8 @@ Each test leads to its card, `#/tests/view?path=<path>`: what the test is — it
 
 `#/executions/trace?id=<id>&path=<path>` is the trace the run of that execution kept of the test, which the screen of the result leads to when it kept one (`GET /tests/reading` says so with `traced`): the trace viewer of Playwright the instance serves beside the console, `/trace-viewer/`, opened on `GET /tests/trace` over the width and the height of the window, with a link that opens it in a tab of its own and one back to the result. A run that kept no trace says so.
 
+`#/campaigns` lists the campaigns, the latest planned first, beside the form that plans one: a name, an environment the configuration declares, and the tags of the tests it takes — every test when none is given. `#/campaigns/view?id=<id>` is one campaign: where it is in its life, its environment and its tags, then each test with its verdict in the latest execution of the campaign that ran it, which leads to its result, or « non joué ». Its state allows one gesture at a time: fix its tests while it is planned, launch them once it is ready, launch them again or close it while it is in progress; the screen says while its tests run, and why the instance refused a gesture.
+
 Each of these screens asks the instance again every five seconds while it shows, by `usePolled` of `src/api/use-polled.ts`, and keeps the answer it had while the instance does not answer; the pages that hold that state in a browser, `src/tests/test-page.tsx` and the `*-page.tsx` of `src/executions/`, are measured there.
 
 ### Languages

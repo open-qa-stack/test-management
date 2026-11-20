@@ -1,0 +1,68 @@
+/* The campaigns: the form that plans one beside their list, and the screen of one. */
+.campaigns-layout {
+  display: grid;
+  gap: var(--space-4);
+}
+
+@media (min-width: 1100px) {
+  .campaigns-layout {
+    grid-template-columns: minmax(0, var(--measure)) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.campaign-plan {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.campaign-plan-title {
+  font-size: var(--type-heading);
+  margin: 0;
+}
+
+.campaign-field {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.campaign-field input,
+.campaign-field select {
+  font-size: var(--type-reading);
+  min-height: var(--tap);
+}
+
+.campaign-refusal {
+  color: var(--ko);
+}
+
+.campaign-row,
+.campaign-result {
+  min-height: var(--tap);
+}
+
+.campaign-row-side {
+  display: grid;
+  justify-items: end;
+  gap: var(--space-1);
+}
+
+.campaign-path {
+  overflow-wrap: anywhere;
+}
+
+.campaign-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+}
+
+.campaign-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.campaign-counts {
+  padding: var(--space-3) var(--inset);
+}

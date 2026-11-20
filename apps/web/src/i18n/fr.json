@@ -42,7 +42,9 @@
       "executions": "Exécutions",
       "execution": "Exécution",
       "result": "Résultat d’un test",
-      "trace": "Trace d’un test"
+      "trace": "Trace d’un test",
+      "campaigns": "Campagnes",
+      "campaign": "Campagne"
     },
     "opening": {
       "title": "Lecture de la session",
@@ -857,5 +859,63 @@
     "none": "Aucune trace de ce test",
     "noneNote": "Cette exécution ne l’a pas gardée : Playwright garde la trace d’un test selon sa configuration, souvent seulement quand il échoue.",
     "back": "Revenir au résultat"
+  },
+  "campaigns": {
+    "title": "Campagnes",
+    "lead": "Une campagne prend les tests qui portent ses tags, les fige quand elle est prête, puis suit ce qu’a donné chacun à chaque lancement.",
+    "reading": "Lecture des campagnes",
+    "readingNote": "Elles apparaissent dès que l’instance a répondu.",
+    "none": "Aucune campagne",
+    "noneNote": "Planifiez-en une : un nom, un environnement, et les tags des tests à prendre.",
+    "everyTest": "tous les tests",
+    "statuses": {
+      "planned": "planifiée",
+      "ready": "prête",
+      "in_progress": "en cours",
+      "closed": "clôturée"
+    },
+    "plan": {
+      "title": "Planifier une campagne",
+      "name": "Nom",
+      "namePlaceholder": "Recette 4.2",
+      "environment": "Environnement",
+      "tags": "Tags des tests",
+      "tagsHelp": "Séparés par des espaces, comme @p0 @p1. Laissez vide pour prendre tous les tests.",
+      "submit": "Planifier",
+      "pending": "Planification…"
+    }
+  },
+  "campaign": {
+    "reading": "Lecture de la campagne",
+    "readingNote": "Elle apparaît dès que l’instance a répondu.",
+    "environment": "Environnement",
+    "tags": "Tags",
+    "created": "Planifiée le",
+    "closed": "Clôturée le",
+    "tests": "Tests de la campagne",
+    "testCount_one": "{{count}} test",
+    "testCount_other": "{{count}} tests",
+    "counts": {
+      "failed_one": "{{count}} échoué",
+      "failed_other": "{{count}} échoués",
+      "flaky_one": "{{count}} instable",
+      "flaky_other": "{{count}} instables",
+      "passed_one": "{{count}} réussi",
+      "passed_other": "{{count}} réussis",
+      "skipped_one": "{{count}} ignoré",
+      "skipped_other": "{{count}} ignorés",
+      "not_run_one": "{{count}} non joué",
+      "not_run_other": "{{count}} non joués"
+    },
+    "notRun": "non joué",
+    "plannedNote": "Ce sont les tests que ses tags prennent aujourd’hui : ils seront figés quand la campagne sera prête.",
+    "noTest": "Aucun test",
+    "noTestNote": "Aucun test du dépôt ne porte ces tags pour l’instant.",
+    "ready": "Figer les tests",
+    "launch": "Lancer les tests",
+    "relaunch": "Relancer les tests",
+    "close": "Clôturer",
+    "pending": "Envoi…",
+    "launching": "Les tests de la campagne tournent : les verdicts arrivent à la fin du lancement."
   }
 }
