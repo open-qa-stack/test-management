@@ -10,6 +10,7 @@ The shape of the body is the type `RepositoryTestList` of `@open-qa-stack/domain
 | `GET /api/tests/reading?path=<path>[&execution=<id>]` | A test in steps, from the latest run that ran it, or from the execution named. |
 | `GET /api/tests/capture?path=<path>&step=<number>[&execution=<id>]` | The capture that run attached for a step. |
 | `GET /api/tests/executions?path=<path>` | What came of the tests of the file in its latest executions, the latest first. |
+| `GET /api/tests/versions?path=<path>` | The versions of the tests of the file, the latest first. |
 
 `<path>` is the path of a test, relative to the root of the test repository, as `GET /api/tests` gives it. Every answer is given with `cache-control: no-store`; every answer that is not a success is a [problem](sessions.md#problems).
 
@@ -116,6 +117,40 @@ GET /api/tests/executions?path=apps%2Fpolicy-management%2Ftests%2Fpolicies%2Fpol
 ```
 
 Each item is an execution that ran a test of the file, with what came of that test but not of its other tests: a file of several tests gives one item for each of them in each execution. The latest 100 are told, the latest first. The shape of the body is the type `TestExecutionList` of `@open-qa-stack/domain/sessions`.
+
+## The versions of a test
+
+```http
+GET /api/tests/versions?path=apps%2Fpolicy-management%2Ftests%2Fpolicies%2Fpolicy-detail%2Fpolicy-detail-nominal.spec.ts
+```
+
+```json
+{
+  "items": [
+    {
+      "path": "apps/policy-management/tests/policies/policy-detail/policy-detail-nominal.spec.ts",
+      "title": "Display the detail of a policy",
+      "number": 2,
+      "digest": "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+      "since": "2026-11-20T09:12:40.000Z",
+      "executions": 1
+    },
+    {
+      "path": "apps/policy-management/tests/policies/policy-detail/policy-detail-nominal.spec.ts",
+      "title": "Display the detail of a policy",
+      "number": 1,
+      "digest": "fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9",
+      "commit": "4f2a9c01d3b6e8a7f5c2d1e0b9a8c7d6e5f4a3b2",
+      "since": "2026-11-19T10:00:05.000Z",
+      "executions": 3
+    }
+  ]
+}
+```
+
+A version of a test is numbered from 1 each time an execution runs the test changed since its latest version. A test is told changed by the SHA-256 of its call of `test` — its title, its details and its body — read as code without its comments nor its layout: a comment, a formatting, or a change to another test of the file makes no new version. A test that comes back to what it was at an earlier version is still a new one. A test whose titles are no plain texts, such as one built in a loop, has no version.
+
+A version takes the commit the test repository was at when an execution first ran it committed: a version a session of design ran before it committed the test takes it at the next execution, and one never run committed has none. `since` is when an execution first ran it, `executions` how many executions ran it. The items come the latest first, then by the titles of the tests. The shape of the body is the type `TestVersionList` of `@open-qa-stack/domain/sessions`.
 
 ## Problems
 

@@ -5,6 +5,7 @@ import {
   type ExecutionQuery,
   type ExecutionStorePort,
   type TestExecution,
+  type TestVersion,
 } from "@open-qa-stack/domain";
 
 /** How many executions of the tests of a file are read at most, the latest ones. */
@@ -48,5 +49,13 @@ export class Executions {
    */
   ofFile(path: string): Promise<TestExecution[]> {
     return this.#store.ofFile(path, FILE_EXECUTIONS_LIMIT);
+  }
+
+  /**
+   * @param path - The path of a file of tests, relative to the root of the test repository.
+   * @returns The versions of its tests, the latest first, then by their titles, each with how many executions ran it.
+   */
+  versions(path: string): Promise<TestVersion[]> {
+    return this.#store.versions(path);
   }
 }

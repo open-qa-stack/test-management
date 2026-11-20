@@ -1,4 +1,4 @@
-import type { Execution, RepositoryTest, TestExecution, TestReading } from "@open-qa-stack/domain/sessions";
+import type { Execution, RepositoryTest, TestExecution, TestReading, TestVersion } from "@open-qa-stack/domain/sessions";
 import type { Api } from "../built-console.ts";
 import { ConfiguredInstance } from "../configuration/configured-instance.ts";
 import { EXECUTIONS } from "../executions/executions-fixture.ts";
@@ -19,6 +19,9 @@ export class ListedInstance {
 
   /** The execution a page of them ends with, when one comes after it. */
   public next: string | undefined = "older";
+
+  /** The versions of the tests of a file, the latest first. */
+  public versions: readonly TestVersion[] = [];
 
   /** The test of the policies read in steps, from the run of an execution. */
   public reading: TestReading = { ...READING, ranAt: "2026-11-19T10:00:05.000Z" };
@@ -42,6 +45,7 @@ export class ListedInstance {
       return execution === undefined ? { status: 404, body: JSON.stringify({ code: "unknown_execution" }) } : { status: 200, body: JSON.stringify(execution) };
     }
     if (request.path === "/api/tests/executions") return { status: 200, body: JSON.stringify({ items: this.#ofFile() }) };
+    if (request.path === "/api/tests/versions") return { status: 200, body: JSON.stringify({ items: this.versions }) };
     if (request.path === "/api/tests/capture") return { status: 200, contentType: "image/png", body: PIXEL };
     return this.configured.api(request);
   };

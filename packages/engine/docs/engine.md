@@ -333,7 +333,7 @@ const tests = await new RepositoryTests(repositoryRoot, instance.configuration).
 
 ## The operations on the executions of tests
 
-`Executions` reads the executions of tests the instance keeps, from the store the host gives it. The operations on sessions keep the execution of the tests each session ran (see [the end of a session](#the-end-of-a-session)): each test is named by the path of its file and its titles, with the version it ran at, the commit of the test repository and the SHA-256 of its file.
+`Executions` reads the executions of tests the instance keeps, from the store the host gives it. The operations on sessions keep the execution of the tests each session ran (see [the end of a session](#the-end-of-a-session)): each test is named by the path of its file and its titles, with the version it ran at: the commit of the test repository, the SHA-256 of its file, and that of the test itself without its comments nor its layout, with whether the test was the same in the commit. The store numbers the versions of each test by the latter, which `versions` reads for the tests of a file.
 
 ```ts
 import { Executions } from "@open-qa-stack/engine";

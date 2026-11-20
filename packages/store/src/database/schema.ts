@@ -118,7 +118,8 @@ export interface ExecutionsTable {
 /**
  * What came of each test of an execution, under its rank in the report of the execution, from 0. The verdict is a
  * text; the digest of the file is empty when the file could not be read. Where a test failed and why are empty for
- * one that did not fail, kept before the instance kept them, or whose report does not say them.
+ * one that did not fail, kept before the instance kept them, or whose report does not say them. The digest of the test,
+ * whether it was committed — 0 or 1 — and its version are empty for a result without a digest of its test.
  */
 export interface ExecutionResultsTable {
   execution_id: string;
@@ -134,6 +135,22 @@ export interface ExecutionResultsTable {
   error_message: string | null;
   expected: string | null;
   received: string | null;
+  test_digest: string | null;
+  committed: number | null;
+  version: number | null;
+}
+
+/**
+ * The versions of the tests, each under the path of its file, its titles and its number from 1. The commit is empty
+ * for a version never run committed.
+ */
+export interface TestVersionsTable {
+  path: string;
+  title: string;
+  number: number;
+  digest: string;
+  commit_sha: string | null;
+  since: StoredInstant;
 }
 
 /**
@@ -149,4 +166,5 @@ export interface StoreSchema {
   knowledge_documents: KnowledgeDocumentsTable;
   executions: ExecutionsTable;
   execution_results: ExecutionResultsTable;
+  test_versions: TestVersionsTable;
 }

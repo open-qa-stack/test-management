@@ -15,6 +15,8 @@ import type {
   TestExecution,
   TestExecutionList,
   TestReading,
+  TestVersion,
+  TestVersionList,
   RevisionChange,
   RevisionList,
   RevisionSummary,
@@ -210,6 +212,16 @@ export class ApiClient {
    */
   public async testExecutions(path: string): Promise<readonly TestExecution[]> {
     return (await this.#ask<TestExecutionList>(`/tests/executions?${new URLSearchParams({ path }).toString()}`)).items;
+  }
+
+  /**
+   * Reads the versions of the tests of a file.
+   *
+   * @param path - The path of the file, relative to the root of the test repository.
+   * @returns The versions of its tests, the latest first, then by their titles.
+   */
+  public async testVersions(path: string): Promise<readonly TestVersion[]> {
+    return (await this.#ask<TestVersionList>(`/tests/versions?${new URLSearchParams({ path }).toString()}`)).items;
   }
 
   /**

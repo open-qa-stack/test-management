@@ -1,5 +1,6 @@
 import {
   UnknownExecutionError,
+  versionStep,
   type Execution,
   type ExecutionFailure,
   type ExecutionList,
@@ -7,11 +8,12 @@ import {
   type ExecutionResult,
   type ExecutionStorePort,
   type TestExecution,
+  type TestVersion,
 } from "@open-qa-stack/domain";
 import { instant } from "../database/stored-values.ts";
-import type { ExpressionBuilder, Kysely, Selectable, SelectQueryBuilder } from "kysely";
+import type { ExpressionBuilder, Kysely, Selectable, SelectQueryBuilder, Transaction } from "kysely";
 import type { Database } from "../database/database.ts";
-import type { ExecutionResultsTable, ExecutionsTable, StoreSchema } from "../database/schema.ts";
+import type { ExecutionResultsTable, ExecutionsTable, StoreSchema, TestVersionsTable } from "../database/schema.ts";
 
 /** Where a test failed and why, as the columns of a row of the results keep it; `undefined` when they keep nothing of it. */
 function failureOf({ failed_step, failed_step_title, error_message, expected, received }: Selectable<ExecutionResultsTable>): ExecutionFailure | undefined {
@@ -25,7 +27,7 @@ function failureOf({ failed_step, failed_step_title, error_message, expected, re
 
 /** A row of the results as the result it holds, its empty columns left out. */
 function resultOf(row: Selectable<ExecutionResultsTable>): ExecutionResult {
-  const { path, title, project, verdict, duration_ms, file_digest } = row;
+  const { path, title, project, verdict, duration_ms, file_digest, test_digest, committed, version } = row;
   const failure = failureOf(row);
   return {
     path,
@@ -34,8 +36,24 @@ function resultOf(row: Selectable<ExecutionResultsTable>): ExecutionResult {
     verdict,
     durationMs: duration_ms,
     ...(file_digest === null ? {} : { fileDigest: file_digest }),
+    ...(test_digest === null ? {} : { testDigest: test_digest }),
+    ...(committed === null ? {} : { committed: committed === 1 }),
+    ...(version === null ? {} : { version }),
     ...(failure === undefined ? {} : { failure }),
   };
+}
+
+/** A row of the versions as the version it holds, with how many executions ran it. */
+function versionOf({
+  path,
+  title,
+  number,
+  digest,
+  commit_sha,
+  since,
+  executions,
+}: Selectable<TestVersionsTable> & { readonly executions: number | string }): TestVersion {
+  return { path, title, number, digest, ...(commit_sha === null ? {} : { commit: commit_sha }), since: instant(since), executions: Number(executions) };
 }
 
 /** A row of the executions as what it says of the execution, but its report and its results, its empty columns left out. */
@@ -69,8 +87,8 @@ function failed(builder: ExpressionBuilder<StoreSchema, "executions">) {
  * The executions of tests of the instance, as its database keeps them.
  *
  * @remarks
- * An execution is kept in one transaction, with all of its results or none; each result keeps its rank in the
- * report, which gives back their order.
+ * An execution is kept in one transaction, with all of its results or none, and the versions of their tests; each
+ * result keeps its rank in the report, which gives back their order.
  */
 export class ExecutionStore implements ExecutionStorePort {
   readonly #database: Kysely<StoreSchema>;
@@ -80,7 +98,7 @@ export class ExecutionStore implements ExecutionStorePort {
     this.#database = database.kysely;
   }
 
-  /** Keeps an execution with all of its results, or nothing of it. */
+  /** Keeps an execution with all of its results and the versions of their tests, or nothing of it. */
   async add(execution: Execution): Promise<void> {
     const { id, origin, sessionId, ranAt, commit, report, results } = execution;
     await this.#database.transaction().execute(async (transaction) => {
@@ -89,26 +107,31 @@ export class ExecutionStore implements ExecutionStorePort {
         .values({ id, origin, session_id: sessionId ?? null, ran_at: instant(ranAt), commit_sha: commit ?? null, report })
         .execute();
       if (results.length === 0) return;
-      await transaction
-        .insertInto("execution_results")
-        .values(
-          results.map(({ path, title, project, verdict, durationMs, fileDigest, failure }, position) => ({
-            execution_id: id,
-            position,
-            path,
-            title,
-            project,
-            verdict,
-            duration_ms: durationMs,
-            file_digest: fileDigest ?? null,
-            failed_step: failure?.step?.number ?? null,
-            failed_step_title: failure?.step?.title ?? null,
-            error_message: failure?.message ?? null,
-            expected: failure?.expected ?? null,
-            received: failure?.received ?? null,
-          })),
-        )
-        .execute();
+      const rows = [];
+      // One result after the other: a test the execution ran in several projects is versioned once.
+      for (const [position, result] of results.entries()) {
+        const { path, title, project, verdict, durationMs, fileDigest, testDigest, committed, failure } = result;
+        const version = testDigest === undefined ? null : await this.#version(transaction, result, testDigest, committed === true ? commit : undefined, ranAt);
+        rows.push({
+          execution_id: id,
+          position,
+          path,
+          title,
+          project,
+          verdict,
+          duration_ms: durationMs,
+          file_digest: fileDigest ?? null,
+          failed_step: failure?.step?.number ?? null,
+          failed_step_title: failure?.step?.title ?? null,
+          error_message: failure?.message ?? null,
+          expected: failure?.expected ?? null,
+          received: failure?.received ?? null,
+          test_digest: testDigest ?? null,
+          committed: committed === undefined ? null : Number(committed),
+          version,
+        });
+      }
+      await transaction.insertInto("execution_results").values(rows).execute();
     });
   }
 
@@ -172,6 +195,30 @@ export class ExecutionStore implements ExecutionStorePort {
     return rows.map((row) => ({ ...headOf(row), result: resultOf(row) }));
   }
 
+  /** @returns The versions of the tests of a file, the latest first, then by their titles, each with how many executions ran it. */
+  async versions(path: string): Promise<TestVersion[]> {
+    const rows = await this.#database
+      .selectFrom("test_versions")
+      .selectAll("test_versions")
+      .select((builder) =>
+        builder
+          .selectFrom("execution_results")
+          .select((counted) => counted.fn.count<number | string>("execution_results.execution_id").distinct().as("executions"))
+          .whereRef("execution_results.path", "=", "test_versions.path")
+          .whereRef("execution_results.title", "=", "test_versions.title")
+          .whereRef("execution_results.version", "=", "test_versions.number")
+          .$asScalar()
+          .$notNull()
+          .as("executions"),
+      )
+      .where("path", "=", path)
+      .orderBy("since", "desc")
+      .orderBy("title")
+      .orderBy("number", "desc")
+      .execute();
+    return rows.map(versionOf);
+  }
+
   /** @returns The report of each execution it keeps. */
   async reports(): Promise<string[]> {
     return (await this.#database.selectFrom("executions").select("report").execute()).map(({ report }) => report);
@@ -181,6 +228,45 @@ export class ExecutionStore implements ExecutionStorePort {
   async #count(query: SelectQueryBuilder<StoreSchema, "executions", object>): Promise<number> {
     const { count } = await query.select((builder) => builder.fn.countAll<number | string>().as("count")).executeTakeFirstOrThrow();
     return Number(count);
+  }
+
+  /**
+   * The version of the test a result ran it at, in the transaction that keeps its execution: the latest one, which
+   * takes the commit when it gets one, or a new one.
+   */
+  async #version(
+    transaction: Transaction<StoreSchema>,
+    { path, title }: ExecutionResult,
+    digest: string,
+    commit: string | undefined,
+    ranAt: string,
+  ): Promise<number> {
+    const latest = await transaction
+      .selectFrom("test_versions")
+      .select(["number", "digest", "commit_sha"])
+      .where("path", "=", path)
+      .where("title", "=", title)
+      .orderBy("number", "desc")
+      .executeTakeFirst();
+    const step = versionStep(
+      latest === undefined ? undefined : { number: latest.number, digest: latest.digest, ...(latest.commit_sha === null ? {} : { commit: latest.commit_sha }) },
+      digest,
+      commit,
+    );
+    if (step.kind === "next")
+      await transaction
+        .insertInto("test_versions")
+        .values({ path, title, number: step.number, digest, commit_sha: step.commit ?? null, since: instant(ranAt) })
+        .execute();
+    if (step.kind === "committed")
+      await transaction
+        .updateTable("test_versions")
+        .set({ commit_sha: step.commit })
+        .where("path", "=", path)
+        .where("title", "=", title)
+        .where("number", "=", step.number)
+        .execute();
+    return step.number;
   }
 
   /** The results of executions, in the order of their reports. */
