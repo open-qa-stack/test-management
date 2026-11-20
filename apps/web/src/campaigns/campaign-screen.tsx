@@ -52,8 +52,8 @@ function ResultRow({ result }: { readonly result: CampaignResult }): ReactNode {
       <div className="grow">
         <b>{result.title}</b>
         <div className="small muted mono campaign-path">{result.path}</div>
+        {result.ranAt !== undefined && <div className="small muted">{dateText(result.ranAt)}</div>}
       </div>
-      {result.ranAt !== undefined && <span className="small muted">{dateText(result.ranAt)}</span>}
     </>
   );
   return result.execution === undefined ? (
