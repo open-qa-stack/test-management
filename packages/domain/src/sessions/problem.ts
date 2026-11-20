@@ -27,6 +27,7 @@ export type ProblemCode =
   | "unknown_document"
   | "invalid_documents"
   | "unknown_capture"
+  | "unknown_trace"
   | "unknown_execution"
   | "error";
 

@@ -23,8 +23,8 @@ export class ListedInstance {
   /** The versions of the tests of a file, the latest first. */
   public versions: readonly TestVersion[] = [];
 
-  /** The test of the policies read in steps, from the run of an execution. */
-  public reading: TestReading = { ...READING, ranAt: "2026-11-19T10:00:05.000Z" };
+  /** The test of the policies read in steps, from the run of an execution, which kept a trace of it. */
+  public reading: TestReading = { ...READING, ranAt: "2026-11-19T10:00:05.000Z", traced: true };
 
   /** What came of the tests of a file in each execution, the latest first: its results in the executions. */
   #ofFile(): readonly TestExecution[] {

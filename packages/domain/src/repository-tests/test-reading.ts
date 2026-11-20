@@ -10,4 +10,6 @@ export interface TestReading {
   readonly ranAt?: string;
   /** The test in steps, as that run reported it; none when no run kept ran it. */
   readonly view?: QaView;
+  /** Whether that run kept a trace of the test, which `GET /tests/trace` serves; left out with the view. */
+  readonly traced?: boolean;
 }

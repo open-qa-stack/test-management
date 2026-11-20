@@ -10,12 +10,13 @@ import { ExecutionPage } from "./executions/execution-page.tsx";
 import type { ExecutionsFilter } from "./executions/executions-paths.ts";
 import { ExecutionsPage } from "./executions/executions-page.tsx";
 import { ResultPage } from "./executions/result-page.tsx";
+import { TracePage } from "./executions/trace-page.tsx";
 import { KnowledgePage } from "./knowledge/knowledge-page.tsx";
 import { TestPage } from "./tests/test-page.tsx";
 import { TestsPage } from "./tests/tests-page.tsx";
 import { hrefTo, type Route } from "./routing/route.ts";
 import { t } from "./i18n/i18n.ts";
-import { Shell } from "./shell/shell.tsx";
+import { Shell, type ShellMenu } from "./shell/shell.tsx";
 import { EmptyState } from "./ui/empty-state.tsx";
 import { Page } from "./ui/page.tsx";
 
@@ -41,6 +42,8 @@ export interface ConsoleProps {
   readonly onOpen?: (event: FormEvent<HTMLFormElement>) => void;
   /** Reads the project again once the configuration, which names its applications, was saved. */
   readonly onConfigured?: () => void;
+  /** The menu of a wide screen, which the person folds and unfolds. */
+  readonly menu?: ShellMenu;
 }
 
 /**
@@ -52,6 +55,7 @@ type Shown =
   | { readonly screen: "executions"; readonly filter: ExecutionsFilter; readonly before?: string }
   | { readonly screen: "execution"; readonly id: string }
   | { readonly screen: "result"; readonly id: string; readonly path: string; readonly step?: number }
+  | { readonly screen: "trace"; readonly id: string; readonly path: string }
   | { readonly screen: "test"; readonly path: string }
   | { readonly screen: "session"; readonly live: LiveSession }
   | { readonly screen: "opening"; readonly id: string };
@@ -100,12 +104,23 @@ function given(value: string | undefined): value is string {
   return value !== undefined && value !== "";
 }
 
-/** The screen of the executions an address under `/executions` opens: their list, one of them, or what came of a test in one. */
+/**
+ * Tells whether a route opens the trace of a test, which the menu gives the whole width to.
+ *
+ * @param route - The route.
+ * @returns Whether it is the address of the screen of a trace.
+ */
+export function isTrace(route: Route): boolean {
+  return route.path.length === 2 && route.path[0] === "executions" && route.path[1] === "trace";
+}
+
+/** The screen of the executions an address under `/executions` opens: their list, one of them, what came of a test in one, or its trace. */
 function executionsShown(part: string | undefined, query: Route["query"]): Shown | undefined {
   const { id, path, before } = query;
   if (part === undefined) return { screen: "executions", filter: filterOf(query), ...(given(before) ? { before } : {}) };
   if (part === "view" && given(id)) return { screen: "execution", id };
   if (part === "result" && given(id) && given(path)) return { screen: "result", id, path, ...stepOf(query["step"]) };
+  if (part === "trace" && given(id) && given(path)) return { screen: "trace", id, path };
   return undefined;
 }
 
@@ -186,6 +201,8 @@ function Screen(props: ConsoleProps): ReactNode {
           {...(shown.step === undefined ? {} : { step: shown.step })}
         />
       );
+    case "trace":
+      return <TracePage key={`${shown.id}:${shown.path}`} project={name} id={shown.id} path={shown.path} />;
     case "opening":
     case "no_session":
     case "nowhere": {
@@ -212,9 +229,9 @@ function Screen(props: ConsoleProps): ReactNode {
  * @returns The console.
  */
 export function Console(props: ConsoleProps): ReactNode {
-  const { route, project, unreachable = false } = props;
+  const { route, project, unreachable = false, menu } = props;
   return (
-    <Shell route={route} unreachable={unreachable} {...(project === undefined ? {} : { project })}>
+    <Shell route={route} unreachable={unreachable} {...(project === undefined ? {} : { project })} {...(menu === undefined ? {} : { menu })}>
       <Screen {...props} />
     </Shell>
   );

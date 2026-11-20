@@ -49,6 +49,13 @@ describe("the screen of what came of a test in an execution", () => {
     );
   });
 
+  it("leads to the trace of the test, only when its run kept one", () => {
+    const trace = "#/executions/trace?id=e1&path=apps%2Fpolicy-management%2F";
+    assert.match(textOf(screen({ value: { ...RAN, traced: true } })), /Fiche du test → · Voir la trace →/);
+    assert.ok(linksOf(screen({ value: { ...RAN, traced: true } })).some((link) => link.startsWith(trace)));
+    assert.ok(!linksOf(screen({ value: { ...RAN, traced: false } })).some((link) => link.startsWith(trace)));
+  });
+
   it("shows the page at the step the address asks for, whole width, from the run of the execution", () => {
     const html = screen({ value: RAN }, 1);
     assert.match(textOf(html), /Écran à l’étape 1 Détails/);

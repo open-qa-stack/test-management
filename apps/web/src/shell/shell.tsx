@@ -5,6 +5,14 @@ import { t } from "../i18n/i18n.ts";
 import { Icon } from "../ui/icon.tsx";
 import { HOME_PATH, NAVIGATION, type NavigationEntry } from "./navigation.ts";
 
+/** The menu of a wide screen, which the person folds to its icons and unfolds. */
+export interface ShellMenu {
+  /** Whether it shows its icons alone. */
+  readonly folded: boolean;
+  /** Folds or unfolds it. */
+  readonly toggle: () => void;
+}
+
 /** What the shell frames. */
 export interface ShellProps {
   /** Where the console is, which tells the entry of the navigation to mark. */
@@ -13,6 +21,8 @@ export interface ShellProps {
   readonly project?: Project;
   /** Whether the instance could not be reached when last called. */
   readonly unreachable?: boolean;
+  /** The menu of a wide screen, unfolded and without a way to fold it when none is given. */
+  readonly menu?: ShellMenu;
   /** The page shown in the main area. */
   readonly children?: ReactNode;
 }
@@ -40,21 +50,36 @@ function NavigationItem({ entry, route }: { readonly entry: NavigationEntry; rea
 
 /**
  * The frame of every screen: a band when the instance cannot be reached, the top bar, the navigation — beside
- * the mark on a narrow screen, a sidebar on a wide one — and the page. A project that has no name yet is not named.
+ * the mark on a narrow screen, a sidebar on a wide one, which a button of the bar folds to its icons — and the page.
+ * A project that has no name yet is not named.
  *
  * @param props - The route, the project and the page to frame.
  * @returns The shell.
  */
-export function Shell({ route, project, unreachable = false, children }: ShellProps): ReactNode {
+export function Shell({ route, project, unreachable = false, menu, children }: ShellProps): ReactNode {
   const name = project?.name;
+  const folded = menu?.folded === true;
   return (
-    <div className="shell">
+    <div className={folded ? "shell folded" : "shell"}>
       {unreachable && (
         <div className="env" role="alert">
           ● {t("shell.offline")} <span className="n">{t("shell.offlineDetail")}</span>
         </div>
       )}
       <header className="top">
+        {menu !== undefined && (
+          <button
+            type="button"
+            className="menu-toggle"
+            aria-controls="shell-sidebar"
+            aria-expanded={!folded}
+            aria-label={t(folded ? "shell.unfold" : "shell.fold")}
+            title={t(folded ? "shell.unfold" : "shell.fold")}
+            onClick={menu.toggle}
+          >
+            <Icon name="collapse" />
+          </button>
+        )}
         <a className="brand" href={hrefTo(HOME_PATH)}>
           <i>✓</i>
           <span>Open QA Stack</span>
@@ -67,7 +92,7 @@ export function Shell({ route, project, unreachable = false, children }: ShellPr
           )}
         </div>
       </header>
-      <aside className="shell-sidebar">
+      <aside id="shell-sidebar" className="shell-sidebar">
         <nav className="nav" aria-label={t("shell.navigation")}>
           {project !== undefined && name !== undefined && (
             <div className="proj">

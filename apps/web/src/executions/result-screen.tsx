@@ -10,7 +10,7 @@ import { Badge } from "../ui/badge.tsx";
 import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
-import { EXECUTIONS_PATH, executionHref, resultHref } from "./executions-paths.ts";
+import { EXECUTIONS_PATH, executionHref, resultHref, traceHref } from "./executions-paths.ts";
 
 /** The address of the capture of a step in the run of an execution, as the instance serves it. */
 function captureSrc(id: string, path: string, step: number): string {
@@ -175,7 +175,7 @@ function Reading({ place, view, asked }: { readonly place: Place; readonly view:
 /**
  * The screen of what came of a test in an execution, read as a person checks it: how it ended and where it failed,
  * what it expected and what it found, its steps, and the page at one of them, the one that failed by default; the
- * mechanics folded. It leads to the card of the test, and back to the execution.
+ * mechanics folded. It leads to the card of the test, to its trace when its run kept one, and back to the execution.
  *
  * @param props - The name of the project, the execution and the path of the test, the step the address asks to show, and what the instance told.
  * @returns The screen.
@@ -192,6 +192,12 @@ export function ResultScreen({ project, id, path, step, state }: ResultScreenPro
       <p className="small muted mono">{path}</p>
       <p className="small">
         <a href={testHref(path)}>{t("result.card")} →</a>
+        {reading?.traced === true && (
+          <>
+            {" · "}
+            <a href={traceHref(id, path)}>{t("trace.open")} →</a>
+          </>
+        )}
       </p>
       {reading === undefined ? (
         <EmptyState title={t("test.reading")}>

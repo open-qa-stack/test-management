@@ -3,6 +3,8 @@
     "offline": "Offline",
     "offlineDetail": "— the instance no longer answers; the page picks up by itself once it is back",
     "navigation": "Main navigation",
+    "fold": "Fold the menu",
+    "unfold": "Unfold the menu",
     "soon": "soon",
     "applications_one": "{{count}} application · project",
     "applications_other": "{{count}} applications · project",
@@ -39,7 +41,8 @@
       "test": "Test",
       "executions": "Executions",
       "execution": "Execution",
-      "result": "Result of a test"
+      "result": "Result of a test",
+      "trace": "Trace of a test"
     },
     "opening": {
       "title": "Reading the session",
@@ -368,6 +371,7 @@
     "unknown_document_source": "The configuration in force declares no such source of uploaded documents: save the configuration first.",
     "unknown_document": "The source no longer holds this document.",
     "invalid_documents": "The documents are refused, and none was kept: correct the files pointed out.",
+    "unknown_trace": "This run of the test kept no trace.",
     "unknown_capture": "This run of the test attached no capture for this step.",
     "unknown_execution": "The instance no longer keeps this execution.",
     "unexplained": "The instance ran into an error.",
@@ -839,5 +843,14 @@
     "card": "Card of the test",
     "gone": "The detail of this execution is no longer available",
     "goneNote": "Its report was removed, or does not hold this test."
+  },
+  "trace": {
+    "title": "Trace",
+    "open": "View the trace",
+    "newTab": "Open in a tab",
+    "frame": "Trace of “{{title}}”",
+    "none": "No trace of this test",
+    "noneNote": "This execution did not keep it: Playwright keeps the trace of a test as its configuration says, often only when it fails.",
+    "back": "Back to the result"
   }
 }

@@ -408,7 +408,7 @@ describe("the thread of a session", () => {
         assert.equal(await button.getAttribute("aria-expanded"), "false");
         if (width < 1100) assert.deepEqual(await tooSmallOf(page), []);
         await button.click();
-        const unfolded = page.getByRole("button", { name: "Replier" });
+        const unfolded = page.getByRole("button", { name: "Replier", exact: true });
         assert.equal(await unfolded.getAttribute("aria-expanded"), "true");
         assert.equal(await text.evaluate((element) => element.scrollHeight <= element.clientHeight), true, `${width}: the whole text shows`);
         assert.ok((await text.evaluate((element) => element.clientHeight)) > folded[1]);
@@ -1185,7 +1185,7 @@ describe("the code of the console is covered in full", () => {
         await page.keyboard.press("Escape");
         await page.getByRole("dialog").waitFor({ state: "detached" });
         await page.getByRole("button", { name: "Lire la suite" }).click();
-        await page.getByRole("button", { name: "Replier" }).waitFor();
+        await page.getByRole("button", { name: "Replier", exact: true }).waitFor();
         await page.getByRole("button", { name: "Rejouer" }).click();
         await page.getByRole("button", { name: "Pause" }).waitFor();
         await page.waitForFunction(() => Number(document.querySelector(".playback-progress")?.getAttribute("aria-valuenow")) > 0);
@@ -1230,6 +1230,15 @@ describe("the code of the console is covered in full", () => {
         instance.refusal = undefined;
         await page.getByRole("button", { name: "Démarrer une session" }).click();
         await page.getByRole("heading", { level: 1, name: "vérifier le changement d'adresse" }).waitFor();
+        // The menu folds as the person asks, and stays so at the next visit; a trace opens with it folded, whatever is kept.
+        await page.getByRole("button", { name: "Replier le menu" }).click();
+        assert.equal(await page.evaluate(() => window.localStorage.getItem("oqas.navigation")), "folded");
+        await page.getByRole("button", { name: "Déplier le menu" }).click();
+        await page.goto("http://console.test/#/executions/trace?id=e1&path=a.spec.ts");
+        await page.getByRole("button", { name: "Déplier le menu" }).click();
+        await page.getByRole("button", { name: "Replier le menu" }).waitFor();
+        await page.goto("http://console.test/#/agent");
+        await page.getByRole("button", { name: "Replier le menu" }).waitFor();
       },
       instance.api,
     );
@@ -1265,6 +1274,32 @@ describe("the code of the console is covered in full", () => {
     );
     assert.ok(screen!.lines.length > 0, "the screen is in the build");
     assert.deepEqual(screen!.uncovered, []);
+  });
+
+  it("runs every line of the screen of a trace when it is used in the browser, from the result of a test, the menu folded", async () => {
+    const [screen] = await app().measure(
+      ["src/executions/trace-page.tsx"],
+      async (page) => {
+        await page.goto(`http://console.test/#/executions/result?id=${EXECUTIONS[0]!.id}&path=${encodeURIComponent(DETAIL)}`);
+        await page.getByRole("link", { name: /Voir la trace/ }).click();
+        await page.waitForURL(/#\/executions\/trace\?id=/);
+        await page.locator("iframe.trace-frame").waitFor();
+        await page.locator(".shell.folded").waitFor();
+      },
+      new ListedInstance().api,
+    );
+    assert.ok(screen!.lines.length > 0, "the screen is in the build");
+    assert.deepEqual(screen!.uncovered, []);
+  });
+
+  it("lets the screen of a trace fit the width of a small phone", async () => {
+    const page = await app().open(360, `#/executions/trace?id=${EXECUTIONS[0]!.id}&path=${encodeURIComponent(DETAIL)}`, new ListedInstance().api);
+    try {
+      await page.locator("iframe.trace-frame").waitFor();
+      assert.equal(await overflowOf(page), 0);
+    } finally {
+      await page.close();
+    }
   });
 
   it("lets the card of a test, its tags, its steps, its versions and its executions, fit the width of a small phone", async () => {
