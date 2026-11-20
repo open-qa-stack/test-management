@@ -177,17 +177,19 @@ export interface ActionFinishedEvent extends EventBase {
 }
 
 /** What a session works on, as the configuration of its run resolved it. */
-export interface SessionScope {
+export interface ResolvedScope {
   /** The environment it targets. */
   readonly environment: string;
   /** The identifiers of the applications of the project. */
   readonly applications: readonly string[];
   /** The levels of the pyramid of tests its design is asked for, from the base: no other level is designed. */
   readonly levels: readonly string[];
+  /** The domains of the knowledge its design is kept to; left out for every domain. */
+  readonly domains?: readonly string[];
 }
 
 /** The configuration of the run was resolved: what the session works on. */
-export interface ScopeResolvedEvent extends EventBase, SessionScope {
+export interface ScopeResolvedEvent extends EventBase, ResolvedScope {
   readonly type: "scope_resolved";
 }
 

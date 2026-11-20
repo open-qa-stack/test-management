@@ -33,6 +33,7 @@ const DECLARED: { readonly [Table in keyof StoreSchema]: { readonly [Column in k
     id: "text",
     request: "text, or nothing",
     environment: "text, or nothing",
+    scope: "json, or nothing",
     opened_at: "instant",
     last_event_at: "instant",
     state: "text",

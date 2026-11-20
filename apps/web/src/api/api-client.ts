@@ -10,6 +10,8 @@ import type {
   Execution,
   ExecutionList,
   ExecutionQuery,
+  KnowledgeDomain,
+  KnowledgeDomainList,
   LaunchState,
   MessageReceipt,
   OqasConfig,
@@ -333,6 +335,11 @@ export class ApiClient {
   /** @returns The launch of tests that runs in the instance, and the last one that ended. */
   public launches(): Promise<LaunchState> {
     return this.#ask<LaunchState>("/launches");
+  }
+
+  /** @returns The domains of the knowledge of the project, as the cartography named them; none before it. */
+  public async domains(): Promise<readonly KnowledgeDomain[]> {
+    return (await this.#ask<KnowledgeDomainList>("/knowledge/domains")).items;
   }
 
   /** The answer of the instance to a call, once it is a success. */

@@ -1,4 +1,4 @@
-import { hasEnded, languageOf, type Session } from "@open-qa-stack/domain/sessions";
+import { hasEnded, languageOf, type Session, type SessionOpening } from "@open-qa-stack/domain/sessions";
 import type { ApiClient } from "../api/api-client.ts";
 import type { ApiError } from "../api/api-error.ts";
 import { followEvents } from "../api/event-stream.ts";
@@ -159,12 +159,12 @@ export class ConsoleSync {
   /**
    * Opens a session.
    *
-   * @param request - What to test, in the words of the person.
+   * @param opening - What to test, in the words of the person, where, and what of the project to keep the work to.
    * @param opened - What to do once the API opened it.
    */
-  public open(request: string, opened: (session: Session) => void): void {
+  public open(opening: SessionOpening, opened: (session: Session) => void): void {
     this.#dispatch({ type: "opening" });
-    this.#api.open({ request }).then(
+    this.#api.open(opening).then(
       (session) => {
         this.#calls += 1;
         this.#dispatch({ type: "opened", session, answeredAt: this.#calls });

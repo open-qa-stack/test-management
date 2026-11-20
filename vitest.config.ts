@@ -78,6 +78,8 @@ export default defineConfig({
         "**/src/executions/execution-page.tsx",
         "**/src/executions/result-page.tsx",
         "**/src/executions/trace-page.tsx",
+        "**/src/agent/agent-home-page.tsx",
+        "**/src/agent/scope-picker.tsx",
         "**/src/campaigns/campaigns-page.tsx",
         "**/src/campaigns/campaign-page.tsx",
         "**/src/api/use-polled.ts",

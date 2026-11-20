@@ -105,6 +105,14 @@ describe("an entry of the journal of a run", () => {
     const finished = (value: unknown) =>
       `${JSON.stringify({ at: at(1), step: "configuration", event: "finished", message: "The configuration is valid.", scope: value })}\n`;
     assert.deepEqual(journalLine(finished(scope))?.event, { type: "journal", level: "info", message: "The configuration is valid.", scope });
+    const kept = { ...scope, domains: ["orders"] };
+    assert.deepEqual(journalLine(finished(kept))?.event, { type: "journal", level: "info", message: "The configuration is valid.", scope: kept });
+    assert.deepEqual(journalLine(finished({ ...scope, domains: "orders" }))?.event, {
+      type: "journal",
+      level: "info",
+      message: "The configuration is valid.",
+      scope,
+    });
     for (const malformed of [undefined, "local", { ...scope, environment: 3 }, { ...scope, applications: "shop" }, { ...scope, levels: [1] }]) {
       assert.deepEqual(journalLine(finished(malformed))?.event, { type: "journal", level: "info", message: "The configuration is valid." });
     }

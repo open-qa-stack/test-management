@@ -897,7 +897,7 @@ describe("the console in a browser", () => {
       await page.getByRole("button", { name: "Démarrer une session" }).click();
       await page.getByRole("heading", { level: 1, name: "vérifier le changement d'adresse" }).waitFor();
       assert.equal(new URL(page.url()).hash, `#/agent/sessions/${OPENED_ID}`);
-      assert.deepEqual(instance.asked, [{ request: "vérifier le changement d'adresse" }]);
+      assert.deepEqual(instance.asked, [{ environment: "local", request: "vérifier le changement d'adresse" }]);
       await page.locator(".thread .request", { hasText: "vérifier le changement d'adresse" }).waitFor();
       assert.equal(await page.locator(".session-bar .badge").innerText(), "en file");
       assert.equal(await page.getByRole("status").filter({ hasText: "travaille" }).count(), 0);
@@ -1246,6 +1246,52 @@ describe("the code of the console is covered in full", () => {
     assert.deepEqual(main!.uncovered, []);
     assert.ok(application!.lines.length > 20, "the application is in the build");
     assert.deepEqual(application!.uncovered, []);
+  });
+
+  it("runs every line of the scope of a session when it is chosen in the browser, and opens the session kept to it", async () => {
+    const instance = new PlayedInstance();
+    const domains = [
+      { id: "quotes", label: "Devis", description: "Les demandes de devis." },
+      { id: "policies", label: "Polices", description: "Les contrats." },
+      { id: "customers", label: "Clients", description: "Les clients." },
+    ];
+    const [entry, picker] = await app().measure(
+      ["src/agent/agent-home-page.tsx", "src/agent/scope-picker.tsx"],
+      async (page) => {
+        // Before a cartography, no domain is named; one environment goes with the request as it is.
+        await page.goto("http://console.test/#/agent");
+        await page.getByText("Domaines : pas encore cartographiés").waitFor();
+        await page.getByText("Environnement : local").waitFor();
+        instance.domains = domains;
+        instance.staging = true;
+        await page.goto("http://console.test/#/tests");
+        await page.goto("http://console.test/#/agent");
+        await page.getByLabel("Environnement :").selectOption("staging");
+        await page.getByText("Domaines : tous").click();
+        for (const label of ["Devis", "Polices", "Clients"]) await page.getByRole("checkbox", { name: new RegExp(`^${label}`) }).check();
+        await page.getByText("Domaines : 3 choisis").waitFor();
+        await page.getByRole("checkbox", { name: /^Clients/ }).uncheck();
+        await page.getByText("Domaines : Devis, Polices").waitFor();
+        await page.getByRole("button", { name: "tous" }).first().click();
+        await page.getByText("Domaines : tous").waitFor();
+        await page.getByRole("checkbox", { name: /^Devis/ }).check();
+        await page.getByText("Niveaux : tous").click();
+        await page.getByRole("checkbox", { name: "métier" }).check();
+        await page.getByRole("textbox", { name: "Dites aux agents quoi tester" }).fill("couvrir les devis");
+        await page.getByRole("button", { name: "Démarrer une session" }).click();
+        await page.waitForURL(/#\/agent\/sessions\//);
+        // Without a configuration, the request goes alone.
+        instance.unconfigured = true;
+        await page.goto("http://console.test/#/agent");
+        await page.getByRole("heading", { name: "Qu’est-ce qu’on teste ?" }).waitFor();
+        await page.waitForTimeout(200);
+        assert.equal(await page.locator(".scope-picker").count(), 0);
+      },
+      instance.api,
+    );
+    assert.deepEqual(instance.asked.at(-1), { request: "couvrir les devis", environment: "staging", scope: { domains: ["quotes"], levels: ["business"] } });
+    assert.ok(entry!.lines.length > 0 && picker!.lines.length > 0, "the entry and the picker are in the build");
+    assert.deepEqual([entry!.uncovered, picker!.uncovered], [[], []]);
   });
 
   it("lets the screen of the tests, its long paths and its filter, fit the width of a small phone", async () => {

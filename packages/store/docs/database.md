@@ -71,6 +71,7 @@ The migrations so far:
 | `0006_execution_failures` | Where each test that failed in an execution failed, and why. The results kept before stay without them. |
 | `0007_test_versions` | The table of [the versions of the tests](#the-versions-of-the-tests), and the digest of the test, whether it was committed and its version in each result. The results kept before stay without them. |
 | `0008_campaigns` | The tables of [the campaigns](#the-campaigns) and of the tests each one fixed, and the campaign of an execution. The executions kept before belong to none. |
+| `0009_session_scopes` | The scope of a session: what of the project it keeps its work to. The sessions asked for before keep the whole project. |
 
 ## The database of an instance, assembled
 
@@ -112,6 +113,7 @@ The database keeps the project of the instance, its sessions, the events of each
 |---|---|---|
 | `id` | `text`, primary key | The identifier the store gave the session when it was [asked for](#the-life-of-a-session). Nothing is read in it. |
 | `request`, `environment` | `text`, nullable | What the person asked, and where; the environment is left out of a session that names none. |
+| `scope` | JSON, nullable | What of the project the session keeps its work to: some applications, domains and levels; empty for the whole project. |
 | `opened_at`, `last_event_at` | date | Dates are served to the millisecond; the sessions are listed by the first, the latest first. |
 | `state` | `text` | `queued`, `running`, `completed` or `interrupted`. States are added over time, and a client reads one it does not know: an enumerated type would need a migration for each. |
 | `result` | JSON, nullable | Present once the session is completed: served whole, never filtered on. |

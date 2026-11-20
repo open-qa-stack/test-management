@@ -124,6 +124,31 @@ describe("a session that is opened", () => {
     ]);
   });
 
+  it("keeps its run to its scope, and is interrupted with why when the scope names what the configuration does not declare", async () => {
+    hosted = await Hosted.create([]);
+    const opened = await hosted.sessions.open({ request: REQUEST, environment: "local", scope: { applications: ["billing"], levels: ["end-to-end"] } });
+    assert.deepEqual(opened.scope, { applications: ["billing"], levels: ["end-to-end"] });
+    const session = await hosted.ended(opened.id);
+    assert.equal(session.state, "interrupted");
+    assert.deepEqual((await hosted.events(opened.id)).filter((event) => event.type === "refusal").map(said), [
+      ["refusal", "The application billing is not declared: the configuration declares shop."],
+      ["refusal", "The level end-to-end is not asked for: the configuration asks for functional."],
+    ]);
+  });
+
+  it("gives the domains of its scope to the design, which designs nothing for a domain the knowledge does not have", async () => {
+    hosted = await Hosted.create(chain());
+    const opened = await hosted.sessions.open({ request: REQUEST, environment: "local", scope: { domains: ["billing"] } });
+    await hosted.ended(opened.id);
+    const events = await hosted.events(opened.id);
+    assert.deepEqual(
+      events.flatMap((event) => (event.type === "scope_resolved" ? [event.domains] : [])),
+      [["billing"]],
+      "the thread tells the domains of the scope",
+    );
+    assert.match(JSON.stringify(events), /No test was designed: the knowledge has no domain billing; its domains are orders\./);
+  });
+
   it("runs with what the machine gives when its host gives no more than a store and a test repository, whatever it leaves unsaid", async () => {
     hosted = await Hosted.create([]);
     const store = new MemorySessionStore();

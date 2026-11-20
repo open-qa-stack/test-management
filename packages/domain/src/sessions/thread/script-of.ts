@@ -223,10 +223,18 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
       }
       case "scope_resolved": {
         // Each turn resolves its scope again: one that the turn before already told adds nothing, and one that changed is told where it did.
-        const told = JSON.stringify([event.environment, event.applications, event.levels]);
+        const told = JSON.stringify([event.environment, event.applications, event.levels, event.domains]);
         if (told === scope) break;
         scope = told;
-        steps.push({ kind: "scope", at, title: wording.scope, environment: event.environment, applications: event.applications, levels: event.levels });
+        steps.push({
+          kind: "scope",
+          at,
+          title: wording.scope,
+          environment: event.environment,
+          applications: event.applications,
+          levels: event.levels,
+          ...(event.domains === undefined ? {} : { domains: event.domains }),
+        });
         break;
       }
       case "plan_accepted":

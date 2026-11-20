@@ -92,6 +92,11 @@ export interface DesignerOptions {
   /** The levels of the pyramid of tests the plan is asked for; `smoke`, `functional` and `business` by default. */
   readonly levels?: readonly ScenarioLevel[];
   /**
+   * The domains of the knowledge the plan is kept to, by their identifiers: the agent that plans is told those alone, and a
+   * scenario of another domain is refused; every domain of the index when left out or empty.
+   */
+  readonly domains?: readonly string[];
+  /**
    * Whether the plan is of visual tests alone: the agent that plans says which states of the screens to compare, and the harness adds
    * the comparison of each with its reference.
    */
@@ -542,15 +547,20 @@ export class Designer {
     journal.record("info", `The tests were committed on ${state.branch}; the active branch of the test repository is ${await repository.branch()}.`);
   }
 
-  /** The domain index, or why it cannot be read. */
+  /** The domain index, kept to the domains the design is asked for, or why it cannot be read. */
   private async index(): Promise<DomainIndex | string> {
     const path = join(this.options.repositoryRoot, this.options.config.repository.indexDir, INDEX_FILE_NAME);
     const content = await readJson(path);
     if (content === undefined) return `the domain index ${path} cannot be read.`;
     const validation = validateDomainIndex(content);
-    return validation.ok
-      ? validation.value
-      : `the domain index ${path} does not match its schema: ${validation.errors.map((error) => error.message).join(" ")}`;
+    if (!validation.ok) return `the domain index ${path} does not match its schema: ${validation.errors.map((error) => error.message).join(" ")}`;
+    const index = validation.value;
+    const asked = this.options.domains ?? [];
+    if (asked.length === 0) return index;
+    const known = index.domains.map((domain) => domain.id);
+    const unknown = asked.filter((domain) => !known.includes(domain));
+    if (unknown.length > 0) return `the knowledge has no domain ${unknown.join(", ")}; its domains are ${known.join(", ")}.`;
+    return { ...index, domains: index.domains.filter((domain) => asked.includes(domain.id)) };
   }
 
   /** The cards of the sources of the index that have a readable one. */

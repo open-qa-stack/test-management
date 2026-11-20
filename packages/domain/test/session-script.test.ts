@@ -212,6 +212,9 @@ describe("the script of a session", () => {
     assert.deepEqual(stepsOf([{ type: "scope_resolved", environment: "local", applications: ["shop"], levels: ["functional"] }]), [
       { kind: "scope", at: "14:44:06", title: "scope", environment: "local", applications: ["shop"], levels: ["functional"] },
     ]);
+    assert.deepEqual(stepsOf([{ type: "scope_resolved", environment: "local", applications: ["shop"], levels: ["functional"], domains: ["orders"] }]), [
+      { kind: "scope", at: "14:44:06", title: "scope", environment: "local", applications: ["shop"], levels: ["functional"], domains: ["orders"] },
+    ]);
   });
 
   it("tells the scope of a later turn only when it differs from the one told before", () => {

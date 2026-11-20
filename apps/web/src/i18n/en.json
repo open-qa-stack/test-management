@@ -80,7 +80,8 @@
     "actions_one": "{{count}} action",
     "actions_other": "{{count}} actions",
     "modelRequests_one": "{{count}} request to the model",
-    "modelRequests_other": "{{count}} requests to the model"
+    "modelRequests_other": "{{count}} requests to the model",
+    "scope": "kept to {{scope}}"
   },
   "home": {
     "title": "What do we test?",
@@ -260,6 +261,7 @@
   "scope": {
     "levels": "Levels asked",
     "applications": "Applications",
+    "domains": "Domains",
     "environment": "Environment",
     "note": "Only these levels are designed; <code>design.levels</code> in <code>oqas.json</code> sets them."
   },
@@ -932,6 +934,29 @@
     "launchFailed_one": "Launch the failure again",
     "launchFailed_other": "Launch the {{count}} failures again",
     "launchNotRun_one": "Launch the test not run",
-    "launchNotRun_other": "Launch the {{count}} not run"
+    "launchNotRun_other": "Launch the {{count}} not run",
+    "launching": "The tests of the campaign run: the verdicts come at the end of the launch."
+  },
+  "sessionScope": {
+    "label": "Scope of the session",
+    "environment": "Environment",
+    "applications": "Applications",
+    "domains": "Domains",
+    "levels": "Levels",
+    "everyApplication": "all",
+    "everyDomain": "all",
+    "everyLevel": "all",
+    "noApplication": "none declared",
+    "noDomain": "not mapped yet",
+    "noLevel": "none asked for",
+    "chosen_one": "{{count}} chosen",
+    "chosen_other": "{{count}} chosen",
+    "levelNames": {
+      "smoke": "smoke",
+      "functional": "functional",
+      "business": "business",
+      "cross-application": "cross-application",
+      "end-to-end": "end-to-end"
+    }
   }
 }

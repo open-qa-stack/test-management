@@ -2,7 +2,18 @@ export type { Problem, ProblemCode } from "./problem.ts";
 export type { Application, Project } from "./project.ts";
 export type * from "./session-event.ts";
 export type { UnrankedEvent } from "./unranked-event.ts";
-export type { MessageReceipt, Session, SessionList, SessionMessage, SessionOpening, SessionResult, SessionState, SessionTest, TestVerdict } from "./session.ts";
+export type {
+  MessageReceipt,
+  Session,
+  SessionList,
+  SessionMessage,
+  SessionOpening,
+  SessionResult,
+  SessionScope,
+  SessionState,
+  SessionTest,
+  TestVerdict,
+} from "./session.ts";
 export { hasEnded } from "./session-state.ts";
 export { scriptOf } from "./thread/script-of.ts";
 export type { ScriptWording } from "./thread/script-wording.ts";
@@ -75,3 +86,4 @@ export {
   uploadErrors,
   type UploadedFile,
 } from "../knowledge-documents/uploaded-documents.ts";
+export type { KnowledgeDomain, KnowledgeDomainList } from "../domain-index/knowledge-domain.ts";

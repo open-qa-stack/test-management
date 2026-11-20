@@ -58,6 +58,22 @@ describe("the entry of the agent", () => {
     assert.doesNotMatch(html, /role="alert"|disabled|Ouverture…/);
   });
 
+  it("asks under the request what of the project to keep the session to, once the configuration was read", () => {
+    assert.doesNotMatch(home([]), /scope-picker/);
+    const choices = {
+      environments: ["local"],
+      applications: [{ id: "shop", name: "Shop" }],
+      domains: [{ id: "quotes", label: "Devis", description: "Les demandes de devis." }],
+      levels: ["functional" as const],
+    };
+    const html = home([], { choices });
+    assert.match(
+      textOf(html),
+      /Environnement : local Applications : toutes toutes Shop Domaines : tous tous Devis — Les demandes de devis\. Niveaux : tous tous fonctionnel/,
+    );
+    assert.match(html, /<input type="hidden" name="environment" value="local"\/>/);
+  });
+
   it("hands the form to whoever opens the session when it is sent", () => {
     const sent: FormEvent<HTMLFormElement>[] = [];
     const [form] = elementsOf(entry({ onOpen: (event) => sent.push(event) }), "form");

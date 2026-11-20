@@ -1,3 +1,5 @@
+import type { TestLevel } from "../config/types.ts";
+
 /**
  * Where a session is: `queued` once it is asked for, while it waits its turn, `running` while its agents
  * work, `completed` once the work ended, and `interrupted` when it stopped without ending. A client reads a
@@ -41,6 +43,8 @@ export interface Session {
   readonly request?: string;
   /** The environment the work targets, once it is known. */
   readonly environment?: string;
+  /** What of the project the work is kept to; the whole project when left out. */
+  readonly scope?: SessionScope;
   /** When the session was opened, as an ISO 8601 date. */
   readonly openedAt: string;
   /** When its last event happened, as an ISO 8601 date. */
@@ -61,6 +65,21 @@ export interface SessionOpening {
   readonly request: string;
   /** The environment to work against; the only one the project declares when left out. */
   readonly environment?: string;
+  /** What of the project to keep the work to; the whole project when left out. */
+  readonly scope?: SessionScope;
+}
+
+/**
+ * What of the project a session keeps its work to: some of its applications, some domains of its knowledge, some levels
+ * of the pyramid of tests. Each list left out, or empty, takes every one.
+ */
+export interface SessionScope {
+  /** The identifiers of the applications the configuration declares. */
+  readonly applications?: readonly string[];
+  /** The identifiers of the domains of the knowledge, as the cartography names them. */
+  readonly domains?: readonly string[];
+  /** The levels of the pyramid of tests, among those the configuration asks for. */
+  readonly levels?: readonly TestLevel[];
 }
 
 /** What a person sends to a session that is going on, to correct its direction. */

@@ -19,7 +19,7 @@ import { EventStreams } from "../src/sessions/event-streams.ts";
 import { ProjectController } from "../src/sessions/project.controller.ts";
 import { RunEnvironment } from "../src/sessions/run-environment.ts";
 import { SessionError } from "../src/sessions/session-error.ts";
-import { MAX_REQUEST_LENGTH, sessionOpeningOf } from "../src/sessions/session-opening.ts";
+import { MAX_REQUEST_LENGTH, MAX_SCOPE_ITEMS, sessionOpeningOf } from "../src/sessions/session-opening.ts";
 import { MAX_MESSAGE_LENGTH, sessionMessageOf } from "../src/sessions/session-message.ts";
 import { SessionMessagePipe } from "../src/sessions/session-message.pipe.ts";
 import { SessionOpeningPipe } from "../src/sessions/session-opening.pipe.ts";
@@ -145,6 +145,41 @@ describe("a request to open a session", () => {
     it(`is refused, naming what is at fault, when it is ${JSON.stringify(body)?.slice(0, 60)}`, () => {
       const refusal = refusalOf(() => sessionOpeningOf(body));
       assert.deepEqual([refusal.failure, refusal.message, refusal.name], ["invalid_request", message, "SessionError"]);
+    });
+  }
+
+  it("keeps the work to a scope when it names one: each list once, an empty one left out", () => {
+    assert.deepEqual(
+      sessionOpeningOf({
+        request: "cover",
+        scope: { applications: ["policy-management", "policy-management"], domains: ["insurance-quotes"], levels: ["functional"] },
+      }),
+      { request: "cover", scope: { applications: ["policy-management"], domains: ["insurance-quotes"], levels: ["functional"] } },
+    );
+    assert.deepEqual(sessionOpeningOf({ request: "cover", environment: "local", scope: { applications: [], levels: [] } }), {
+      request: "cover",
+      environment: "local",
+      scope: {},
+    });
+  });
+
+  for (const [scope, message] of [
+    ["all", "The body must be a JSON object."],
+    [{ teams: ["a"] }, "teams is not a field of a scope."],
+    [{ applications: "policies" }, `scope.applications must be a list of at most ${MAX_SCOPE_ITEMS} identifiers.`],
+    [{ domains: ["Insurance Quotes"] }, `scope.domains must be a list of at most ${MAX_SCOPE_ITEMS} identifiers.`],
+    [
+      { domains: Array.from({ length: MAX_SCOPE_ITEMS + 1 }, (_, index) => `d${index}`) },
+      `scope.domains must be a list of at most ${MAX_SCOPE_ITEMS} identifiers.`,
+    ],
+    [
+      { levels: ["unit"] },
+      `scope.levels must be a list of at most ${MAX_SCOPE_ITEMS} levels among smoke, functional, business, cross-application, end-to-end.`,
+    ],
+  ] as const) {
+    it(`is refused, naming what is at fault, when its scope is ${JSON.stringify(scope).slice(0, 60)}`, () => {
+      const refusal = refusalOf(() => sessionOpeningOf({ request: "cover", scope }));
+      assert.deepEqual([refusal.failure, refusal.message], ["invalid_request", message]);
     });
   }
 

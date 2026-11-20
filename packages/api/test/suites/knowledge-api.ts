@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, afterEach, before, beforeEach, describe, it } from "node:test";
@@ -8,7 +8,7 @@ import { MAX_DOCUMENT_BYTES, MAX_DOCUMENTS_PER_UPLOAD } from "@open-qa-stack/dom
 import { SessionDatabase, type DatabaseEngine } from "@open-qa-stack/store/testing";
 import { fixtureConfig } from "@open-qa-stack/testing/fixture-repository";
 import { sessionsApi, type TestApi } from "../support/sessions-api.ts";
-import type { DocumentList, Problem, StoredDocument } from "@open-qa-stack/domain/sessions";
+import type { DocumentList, KnowledgeDomainList, Problem, StoredDocument } from "@open-qa-stack/domain/sessions";
 
 /** The configuration of the test repository: a source of documents the instance keeps, `manuals`, and one of documents of the repository, `order-specs`. */
 const TEXT = fixtureConfig("http://127.0.0.1:9/v1", "http://127.0.0.1:9/", {
@@ -74,6 +74,32 @@ export function knowledgeApiSuite(engine: DatabaseEngine): void {
   const remove = async (path: string) => answerOf(await fetch(path, { method: "DELETE" }));
   const problemCode = (answer: Answer) => `${answer.status} ${(answer.body as Problem).code}`;
   const placed = (answer: Answer) => (answer.body as Problem).errors?.map(({ path, rule }) => `${path} ${rule}`);
+
+  describe(`the domains of the knowledge on ${engine.name}`, () => {
+    it("are none before the cartography, then those of the index it wrote, which no cache may keep", async () => {
+      await fetch(`${api.url}/project`);
+      const domains = async () => {
+        const response = await fetch(`${api.url}/knowledge/domains`);
+        assert.equal(response.headers.get("cache-control"), "no-store");
+        return ((await response.json()) as KnowledgeDomainList).items;
+      };
+      assert.deepEqual(await domains(), []);
+      const index = {
+        formatVersion: 1,
+        producedAt: "2026-11-20T09:00:00.000Z",
+        environment: "local",
+        model: { provider: "openai", baseUrl: "http://127.0.0.1:9/v1", model: "test-model" },
+        run: { iterations: 1, actions: 0, durationMs: 1 },
+        status: "complete",
+        sources: [{ id: "shop", type: "web", state: "read" }],
+        domains: [{ id: "orders", label: "Commandes", description: "Passer une commande.", references: [{ source: "shop", items: ["/orders"] }] }],
+        unassigned: [],
+      };
+      mkdirSync(join(repository, ".oqas", "index"), { recursive: true });
+      writeFileSync(join(repository, ".oqas", "index", "domain-index.json"), JSON.stringify(index));
+      assert.deepEqual(await domains(), [{ id: "orders", label: "Commandes", description: "Passer une commande." }]);
+    });
+  });
 
   describe(`the documents of a knowledge source on ${engine.name}`, () => {
     it("are none until some are uploaded, then listed by their names without their texts, and read one by one", async () => {

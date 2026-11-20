@@ -160,6 +160,28 @@ describe("the request of a brief", () => {
   });
 });
 
+describe("the domains a design is kept to", () => {
+  it("are the only ones the agent that plans is told, and the only ones a scenario may come from", async () => {
+    const { server } = await design(replies(valid(3)), { domains: ["customers"] });
+    const request = requestText(server);
+    assert.match(request, /Knowledge of the applications, by domain:\\n- customers \(Customers\)/);
+    assert.ok(!request.includes("- orders (Orders)"), request);
+    const plan = server.requests[0]!.body as { tools?: { function: { name: string; parameters: unknown } }[] };
+    const proposal = JSON.stringify(plan.tools?.find((tool) => tool.function.name === "propose_plan")?.function.parameters);
+    assert.ok(proposal.includes('"enum":["customers"]'), proposal);
+  });
+
+  it("are every domain of the knowledge when none is named", async () => {
+    assert.match(requestText((await design(replies(valid(3)), { domains: [] })).server), /- orders \(Orders\).*- customers \(Customers\)/s);
+  });
+
+  it("design nothing, and say which, when one is not in the knowledge", async () => {
+    const { outcome, server } = await design(replies(valid(3)), { domains: ["orders", "billing"] });
+    assert.equal(messages(outcome), "No test was designed: the knowledge has no domain billing; its domains are orders, customers.");
+    assert.equal(server.requests.length, 0);
+  });
+});
+
 describe("brief, criterion 2 — without an accepted plan, no test is run: the session that plans has neither run_test nor propose_test", () => {
   it("runs nothing, keeps nothing, and reminds the agent to submit the plan", async () => {
     const runner = new FakeTestRunner();
