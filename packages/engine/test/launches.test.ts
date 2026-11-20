@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { InvalidConfigurationError, LaunchRefusedError, type EndedLaunch } from "@open-qa-stack/domain";
+import { CONFIG_FILE_NAME, InvalidConfigurationError, LaunchRefusedError, type EndedLaunch } from "@open-qa-stack/domain";
 import { chain } from "@open-qa-stack/testing/test-repository";
 import { afterEach, describe, it } from "vitest";
 import { Configuration, NoRepositoryError, Sessions } from "../src/index.ts";
@@ -117,6 +117,14 @@ describe("tests launched as they are, with no agent", () => {
   it("end with no execution, and say why, when the tests could not run: nothing to install them with, an environment that does not answer, a store that refuses", async () => {
     hosted = await Hosted.create([]);
     rmSync(join(hosted.root, "package-lock.json"), { force: true });
+    // A configuration of one environment: the launch need not name it.
+    const config = JSON.parse(readFileSync(join(hosted.root, CONFIG_FILE_NAME), "utf8")) as {
+      applications: { environments: { name: string }[] }[];
+      knowledge: { attachments: { environment: string }[] }[];
+    };
+    for (const application of config.applications) application.environments = application.environments.filter(({ name }) => name === "local");
+    config.knowledge = config.knowledge.filter(({ attachments }) => attachments.every(({ environment }) => environment === "local"));
+    writeFileSync(join(hosted.root, CONFIG_FILE_NAME), JSON.stringify(config));
     // With no runner of its own, the host runs the commands in the test repository: none runs without a lockfile.
     const logger = new RecordingLogger();
     const local = new Sessions({
@@ -129,7 +137,8 @@ describe("tests launched as they are, with no agent", () => {
       logger,
       takesOver: false,
     });
-    const launch = await local.launch({ environment: "local" });
+    const launch = await local.launch({});
+    assert.equal(launch.environment, "local");
     const unprepared = await lastLaunch(local);
     assert.deepEqual(unprepared, {
       ...launch,
@@ -151,11 +160,15 @@ describe("tests launched as they are, with no agent", () => {
     }
 
     const store = new MemoryExecutionStore();
-    const refusing = await Hosted.create([], { host: { executions: Object.assign(store, { add: () => Promise.reject(new Error("The store is full.")) }) } });
+    const refusing = await Hosted.create([], { host: { executions: store } });
     try {
       withTests(refusing.root);
+      store.refusal = new Error("The store is full.");
       await refusing.sessions.launch({ paths: [SEARCH], environment: "local" });
       assert.equal((await lastLaunch(refusing.sessions)).failure, "The store is full.");
+      store.refusal = "full";
+      await refusing.sessions.launch({ paths: [SEARCH], environment: "local" });
+      assert.equal((await lastLaunch(refusing.sessions)).failure, "full");
     } finally {
       await refusing.close();
     }
@@ -172,5 +185,9 @@ describe("tests launched as they are, with no agent", () => {
     door.open();
     assert.equal(await stopped, true);
     assert.equal((await lastLaunch(hosted.sessions)).execution !== undefined, true);
+    await assert.rejects(
+      hosted.sessions.launch({ environment: "local" }),
+      (error) => error instanceof LaunchRefusedError && /The instance stops/.test(error.message),
+    );
   });
 });
