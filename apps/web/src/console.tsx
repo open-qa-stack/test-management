@@ -45,7 +45,7 @@ export interface ConsoleProps {
  */
 type Shown =
   | { readonly screen: "entry" | "configuration" | "knowledge" | "tests" | "executions" | "no_session" | "nowhere" }
-  | { readonly screen: "test"; readonly path: string }
+  | { readonly screen: "test"; readonly path: string; readonly step?: number }
   | { readonly screen: "session"; readonly live: LiveSession }
   | { readonly screen: "opening"; readonly id: string };
 
@@ -78,6 +78,11 @@ export function isEntry(route: Route): boolean {
   return route.path.length === 0 || (route.path.length === 1 && route.path[0] === "agent");
 }
 
+/** The step of a test an address asks to show, when it names one by its number, from 1. */
+function stepOf(step: string | undefined): { readonly step?: number } {
+  return step !== undefined && /^[1-9]\d{0,3}$/.test(step) ? { step: Number(step) } : {};
+}
+
 /** What the console shows: a session once the API told the one the route opens, a wait until it did or said it keeps none. */
 function shownOf({ route, live, missing = false }: ConsoleProps): Shown {
   if (isEntry(route)) return { screen: "entry" };
@@ -87,7 +92,7 @@ function shownOf({ route, live, missing = false }: ConsoleProps): Shown {
   if (route.path.length === 1 && route.path[0] === "executions") return { screen: "executions" };
   const test = route.query["path"];
   if (route.path.length === 2 && route.path[0] === "tests" && route.path[1] === "view" && test !== undefined && test !== "")
-    return { screen: "test", path: test };
+    return { screen: "test", path: test, ...stepOf(route.query["step"]) };
   const id = sessionAt(route);
   if (id === undefined) return { screen: "nowhere" };
   if (live?.script.id === id) return { screen: "session", live };
@@ -131,7 +136,7 @@ function Screen(props: ConsoleProps): ReactNode {
     case "tests":
       return <TestsPage project={name} route={route} />;
     case "test":
-      return <TestPage project={name} path={shown.path} />;
+      return <TestPage project={name} path={shown.path} {...(shown.step === undefined ? {} : { step: shown.step })} />;
     case "executions":
       return <ExecutionsPage project={name} />;
     case "opening":

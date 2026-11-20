@@ -66,6 +66,7 @@ GET /api/tests/reading?path=apps%2Fpolicy-management%2Ftests%2Fpolicies%2Fpolicy
 {
   "path": "apps/policy-management/tests/policies/policy-detail/policy-detail-nominal.spec.ts",
   "run": "run-2026-11-19T00-29-03-488Z",
+  "ranAt": "2026-11-19T00:29:03.488Z",
   "view": {
     "id": "policy-management › policy-management/tests/policies/policy-detail/policy-detail-nominal.spec.ts:3 › Display the detail of a policy",
     "status": "unexpected",
@@ -80,7 +81,7 @@ GET /api/tests/reading?path=apps%2Fpolicy-management%2Ftests%2Fpolicies%2Fpolicy
 }
 ```
 
-The runs are the folders `<stateDir>/runs/run-<date>/` of the test repository, each with the report the runner wrote, `report.json`; the latest one whose report holds the test counts. `view` is that test read in steps by `qaViews` of `@open-qa-stack/domain`, which tells its rules: the `test.step` it calls, numbered, their states and durations, the capture of each step — the one the test attached under the number of the step —, the first step that failed, what the failed assertion `expected` and `received` when its message says both, and the details. A test no run kept ran has neither `run` nor `view`. `status` is the one the reporter gives; the verdict of the harness, told by the session that ran the test, is never changed by it.
+The runs are the folders `<stateDir>/runs/run-<date>/` of the test repository, each with the report the runner wrote, `report.json`; the latest one whose report holds the test counts. `view` is that test read in steps by `qaViews` of `@open-qa-stack/domain`, which tells its rules: the `test.step` it calls, numbered, their states and durations, the capture of each step — the one the test attached under the number of the step, or, at the step that failed with none of its own, the page the runner captured at the failure —, the first step that failed, what the failed assertion `expected` and `received` when its message says both, and the details. `ranAt` is the date that run started, read from the name of its folder. A test no run kept ran has neither `run`, `ranAt` nor `view`. `status` is the one the reporter gives; the verdict of the harness, told by the session that ran the test, is never changed by it.
 
 ## The capture of a step
 

@@ -7,12 +7,12 @@ import { TestSync } from "./test-sync.ts";
 /**
  * The screen of a test in a browser: it keeps the test in steps in step with the instance, again for each path.
  *
- * @param props - The name of the project, and the path of the test.
+ * @param props - The name of the project, the path of the test, and the step whose page the address asks to show.
  * @returns The screen.
  */
-export function TestPage({ project, path }: { readonly project: string; readonly path: string }): ReactNode {
+export function TestPage({ project, path, step }: { readonly project: string; readonly path: string; readonly step?: number }): ReactNode {
   const [state, dispatch] = useReducer(testAfter, INITIAL_TEST);
   const sync = useMemo(() => new TestSync(api, dispatch), []);
   useEffect(() => sync.read(path), [sync, path]);
-  return <TestScreen project={project} path={path} state={state} />;
+  return <TestScreen project={project} path={path} state={state} {...(step === undefined ? {} : { step })} />;
 }

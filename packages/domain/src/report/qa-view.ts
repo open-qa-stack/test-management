@@ -69,7 +69,8 @@ const COLOURS = /\u001b\[[0-9;]*m/g;
  *
  * @remarks
  * It reads the report alone: no trace, no page, no model. A capture is that of a step when the test attached it under
- * the number of the step, as the tests the harness writes do; a step with none is told among `uncaptured`. The
+ * the number of the step, as the tests the harness writes do; the step that failed, with none of its own, takes the
+ * capture the runner took at the failure, its `screenshot`; a step with none is told among `uncaptured`. The
  * expected and the received values come from the message of the error when it gives both, as `Expected: …` and
  * `Received: …` lines; otherwise neither is given, and the whole message stays in the details. Steps the test did not
  * reach are not in the report, and are not made up.
@@ -86,8 +87,10 @@ export function qaViews(json: string): QaViews {
 /** A test in steps, from its last attempt; none of its steps when it made no attempt. */
 function viewOf(id: string, status: ReportedStatus, result: JsonResult | undefined): QaView {
   const attachments = result?.attachments ?? [];
-  const steps = (result?.steps ?? []).map((step, at) => stepOf(step, attachments, at + 1));
-  const failed = steps.find((step) => step.state === "failed")?.number;
+  const failed = (result?.steps ?? []).findIndex((step) => step.error !== undefined) + 1 || undefined;
+  // The step that failed, with no capture of its own, shows the page the runner captured at the failure.
+  const atFailure = attachments.find((attachment) => attachment.name === "screenshot" && attachment.contentType?.startsWith("image/") === true);
+  const steps = (result?.steps ?? []).map((step, at) => stepOf(step, attachments, at + 1, at + 1 === failed ? atFailure : undefined));
   const [error] = result?.errors ?? [];
   const message = error?.message?.replace(COLOURS, "");
   const expected = message === undefined ? undefined : /^Expected[^:\n]*: (.*)$/m.exec(message)?.[1];
@@ -114,9 +117,12 @@ function viewOf(id: string, status: ReportedStatus, result: JsonResult | undefin
   };
 }
 
-/** A step, numbered when it is one the test calls, with the capture attached under its number and the steps it holds. */
-function stepOf(step: JsonStep, attachments: readonly JsonAttachment[], number?: number): QaStep {
-  const attached = number === undefined ? undefined : attachments.find((attachment) => attachment.name === String(number));
+/**
+ * A step, numbered when it is one the test calls, with the capture attached under its number — or, for want of one,
+ * the capture given — and the steps it holds.
+ */
+function stepOf(step: JsonStep, attachments: readonly JsonAttachment[], number?: number, otherwise?: JsonAttachment): QaStep {
+  const attached = (number === undefined ? undefined : attachments.find((attachment) => attachment.name === String(number))) ?? otherwise;
   return {
     ...(number === undefined ? {} : { number }),
     title: step.title,

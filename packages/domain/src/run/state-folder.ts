@@ -38,3 +38,19 @@ export function runIdAt(started: Date): string {
 export function traceFile(name: string, started: Date): string {
   return `${name}-${fileStamp(started)}.jsonl`;
 }
+
+/** The folder of a run of the tests, named after the date it started, as `run-2026-11-19T00-29-03-488Z`. */
+const RUN_FOLDER = /^run-(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/;
+
+/**
+ * The date a run of the tests started, read from the name of its folder.
+ *
+ * @param folder - The name of the folder, as `run-2026-11-19T00-29-03-488Z`.
+ * @returns The date in ISO 8601, as `2026-11-19T00:29:03.488Z`; `undefined` for a name that is no run.
+ */
+export function runFolderDate(folder: string): string | undefined {
+  const date = RUN_FOLDER.exec(folder);
+  if (date === null) return undefined;
+  const [, day, hours, minutes, seconds, milliseconds] = date;
+  return `${day}T${hours}:${minutes}:${seconds}.${milliseconds}Z`;
+}
