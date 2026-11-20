@@ -67,7 +67,11 @@ const DECLARED: { readonly [Table in keyof StoreSchema]: { readonly [Column in k
     error_message: "text, or nothing",
     expected: "text, or nothing",
     received: "text, or nothing",
+    test_digest: "text, or nothing",
+    committed: "integer, or nothing",
+    version: "integer, or nothing",
   },
+  test_versions: { path: "text", title: "text", number: "integer", digest: "text", commit_sha: "text, or nothing", since: "instant" },
 };
 
 /** The type each database gives a column for what it keeps, as its catalog names it. */

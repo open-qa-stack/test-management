@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { RepositoryTest, TestExecution } from "@open-qa-stack/domain/sessions";
+import type { RepositoryTest, TestExecution, TestVersion } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../api/polled-state.ts";
 import { resultHref } from "../executions/executions-paths.ts";
 import { versionText } from "../executions/execution-text.ts";
@@ -27,6 +27,8 @@ export interface TestScreenProps {
   readonly tests: PolledState<readonly RepositoryTest[]>;
   /** What the instance told of the executions of the test, the latest first. */
   readonly executions: PolledState<readonly TestExecution[]>;
+  /** What the instance told of the versions of the test, the latest first. */
+  readonly versions: PolledState<readonly TestVersion[]>;
 }
 
 /** What the tags of the test say of it: its level, its domain and functionality, its applications. */
@@ -94,7 +96,10 @@ function Description({ test }: { readonly test: RepositoryTest }): ReactNode {
   );
 }
 
-/** The executions of the test, the latest first, each leading to what came of the test there. */
+/**
+ * The executions of the test, the latest first, each with the version of the test and the commit it ran at — said not
+ * committed when the test differed from it —, leading to what came of the test there.
+ */
 function History({ path, title, executions }: { readonly path: string; readonly title: string; readonly executions: readonly TestExecution[] }): ReactNode {
   if (executions.length === 0) return null;
   return (
@@ -106,7 +111,10 @@ function History({ path, title, executions }: { readonly path: string; readonly 
             <b>{dateText(execution.ranAt)}</b>
             {execution.result.title !== title && <span className="small"> · {execution.result.title}</span>}
             <div className="small muted">
-              {t(`executions.origins.${execution.origin}`)} · <span className="mono">{versionText(execution)}</span>
+              {t(`executions.origins.${execution.origin}`)} ·{" "}
+              {execution.result.version !== undefined && <>{t("test.versionShort", { number: execution.result.version })} · </>}
+              {execution.result.committed === false && <>{t("test.uncommittedOn")} </>}
+              <span className="mono">{versionText(execution)}</span>
             </div>
           </div>
           <span className="small muted">{durationText(execution.result.durationMs)}</span>
@@ -116,15 +124,40 @@ function History({ path, title, executions }: { readonly path: string; readonly 
   );
 }
 
+/** The versions of the test, the latest first, each with the commit it was first run committed at, when it was. */
+function Versions({ title, versions }: { readonly title: string; readonly versions: readonly TestVersion[] }): ReactNode {
+  if (versions.length === 0) return null;
+  return (
+    <Card title={t("test.versions")} hint={t("test.versionsHint", { count: versions.length })}>
+      {versions.map((version) => (
+        <div key={`${version.title}-${version.number}`} className="row tests-row">
+          <div className="grow">
+            <b>{t("test.version", { number: version.number })}</b>
+            {version.title !== title && <span className="small"> · {version.title}</span>}
+            <div className="small muted">{t("test.versionSince", { date: dateText(version.since), count: version.executions })}</div>
+          </div>
+          {version.commit === undefined ? (
+            <span title={t("test.uncommittedNote")}>
+              <Badge tone="outline">{t("test.uncommitted")}</Badge>
+            </span>
+          ) : (
+            <span className="small muted mono">{version.commit.slice(0, 7)}</span>
+          )}
+        </div>
+      ))}
+    </Card>
+  );
+}
+
 /**
- * The card of a test: what it is — its title, its path, what its tags say, its steps as written — and what came of
- * it lately — its latest verdict, how many of its latest executions passed, and each of them, leading to what came
- * of it there.
+ * The card of a test: what it is — its title, its path, what its tags say, its steps as written, its versions — and
+ * what came of it lately — its latest verdict, how many of its latest executions passed, and each of them, at the
+ * version it ran, leading to what came of it there.
  *
  * @param props - The name of the project, the path of the test, and what the instance told.
  * @returns The screen.
  */
-export function TestScreen({ project, path, tests, executions }: TestScreenProps): ReactNode {
+export function TestScreen({ project, path, tests, executions, versions }: TestScreenProps): ReactNode {
   const test = tests.value?.find((candidate) => candidate.path === path);
   const title = test?.title ?? path;
   const ran = executions.value;
@@ -141,7 +174,10 @@ export function TestScreen({ project, path, tests, executions }: TestScreenProps
           <Summary path={path} executions={ran} />
           {test === undefined && <EmptyState title={t("test.unknown")}>{t("test.unknownNote")}</EmptyState>}
           <div className="test-reading">
-            {test !== undefined && <Description test={test} />}
+            <div className="test-column">
+              {test !== undefined && <Description test={test} />}
+              <Versions title={title} versions={versions.value ?? []} />
+            </div>
             <History path={path} title={title} executions={ran} />
           </div>
         </>

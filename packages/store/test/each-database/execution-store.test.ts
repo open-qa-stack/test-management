@@ -39,9 +39,10 @@ const execution = (id: string, seconds: number, extra: Partial<Execution> = {}):
 
 describe("the executions of tests the store keeps", () => {
   it("are none until one is kept", async () => {
+    const path = "apps/shop/tests/orders/search.spec.ts";
     assert.deepEqual(
-      [await store.page({ limit: 25 }), await store.get("e1"), await store.ofFile("apps/shop/tests/orders/search.spec.ts", 10), await store.reports()],
-      [{ items: [], total: 0, start: 0 }, undefined, [], []],
+      [await store.page({ limit: 25 }), await store.get("e1"), await store.ofFile(path, 10), await store.versions(path), await store.reports()],
+      [{ items: [], total: 0, start: 0 }, undefined, [], [], []],
     );
   });
 
@@ -156,5 +157,44 @@ describe("the executions of tests the store keeps", () => {
     await store.add(execution("e1", 10, { sessionId: "s1", results: [result("Search an order")] }));
     await kysely.deleteFrom("sessions").execute();
     assert.deepEqual(await store.get("e1"), execution("e1", 10, { results: [result("Search an order")] }));
+  });
+
+  it("number the versions of a test by its digest, each taking the commit of the first execution that ran it committed", async () => {
+    const search = (digest: string, committed?: boolean, extra: Partial<ExecutionResult> = {}) =>
+      result("Search an order", { testDigest: digest, ...(committed === undefined ? {} : { committed }), ...extra });
+    await store.add(
+      execution("e1", 10, {
+        commit: "c1",
+        results: [
+          search("d1", false),
+          search("d1", false, { project: "mobile" }),
+          result("Filter", { testDigest: "d9" }),
+          result("Pay", { path: "apps/shop/tests/orders/pay.spec.ts", testDigest: "d1" }),
+          result("Sort"),
+        ],
+      }),
+    );
+    await store.add(execution("e2", 20, { commit: "c2", results: [search("d1", true)] }));
+    await store.add(execution("e3", 30, { commit: "c3", results: [search("d2", false)] }));
+    await store.add(execution("e4", 40, { commit: "c4", results: [search("d2", true)] }));
+    await store.add(execution("e5", 50, { commit: "c5", results: [search("d1", true)] }));
+    await store.add(execution("e6", 60, { commit: "c6", results: [search("d1", true)] }));
+    assert.deepEqual(
+      (await store.get("e1"))?.results.map(({ title, project, version }) => [title, project, version]),
+      [
+        ["Search an order", "shop", 1],
+        ["Search an order", "mobile", 1],
+        ["Filter", "shop", 1],
+        ["Pay", "shop", 1],
+        ["Sort", "shop", undefined],
+      ],
+    );
+    assert.deepEqual((await store.get("e4"))?.results, [search("d2", true, { version: 2 })]);
+    assert.deepEqual(await store.versions("apps/shop/tests/orders/search.spec.ts"), [
+      { path: "apps/shop/tests/orders/search.spec.ts", title: "Search an order", number: 3, digest: "d1", commit: "c5", since: at(50), executions: 2 },
+      { path: "apps/shop/tests/orders/search.spec.ts", title: "Search an order", number: 2, digest: "d2", commit: "c4", since: at(30), executions: 2 },
+      { path: "apps/shop/tests/orders/search.spec.ts", title: "Filter", number: 1, digest: "d9", since: at(10), executions: 1 },
+      { path: "apps/shop/tests/orders/search.spec.ts", title: "Search an order", number: 1, digest: "d1", commit: "c2", since: at(10), executions: 2 },
+    ]);
   });
 });

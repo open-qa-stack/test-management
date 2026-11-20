@@ -4,6 +4,7 @@ import { configurationRevisions } from "./0003-configuration-revisions.ts";
 import { knowledgeDocuments } from "./0004-knowledge-documents.ts";
 import { executions } from "./0005-executions.ts";
 import { executionFailures } from "./0006-execution-failures.ts";
+import { testVersions } from "./0007-test-versions.ts";
 import type { Migration } from "kysely/migration";
 
 /**
@@ -17,4 +18,5 @@ export const MIGRATIONS: Readonly<Record<string, Migration>> = {
   "0004_knowledge_documents": knowledgeDocuments,
   "0005_executions": executions,
   "0006_execution_failures": executionFailures,
+  "0007_test_versions": testVersions,
 };

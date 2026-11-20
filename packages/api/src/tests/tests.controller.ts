@@ -1,9 +1,9 @@
 import { BadRequestException, Controller, Get, Header, Query, StreamableFile } from "@nestjs/common";
 import { Executions, RepositoryTests, TestReadings } from "@open-qa-stack/engine";
-import type { RepositoryTestList, TestExecutionList, TestReading } from "@open-qa-stack/domain/sessions";
+import type { RepositoryTestList, TestExecutionList, TestReading, TestVersionList } from "@open-qa-stack/domain/sessions";
 
 /**
- * `GET /tests`, `GET /tests/reading`, `GET /tests/capture` and `GET /tests/executions`: the operations on the tests of
+ * `GET /tests`, `GET /tests/reading`, `GET /tests/capture`, `GET /tests/executions` and `GET /tests/versions`: the operations on the tests of
  * the test repository, said in HTTP. A test is named by its path, relative to the root of the repository, in the
  * query; a reading and a capture come from the latest run of the test, or from the execution the query names.
  */
@@ -48,6 +48,13 @@ export class TestsController {
   @Header("Cache-Control", "no-store")
   async executions(@Query("path") path: unknown): Promise<TestExecutionList> {
     return { items: await this.#executions.ofFile(pathOf(path)) };
+  }
+
+  /** @returns The versions of the tests of the file of the path, the latest first, which no cache may keep. */
+  @Get("versions")
+  @Header("Cache-Control", "no-store")
+  async versions(@Query("path") path: unknown): Promise<TestVersionList> {
+    return { items: await this.#executions.versions(pathOf(path)) };
   }
 }
 

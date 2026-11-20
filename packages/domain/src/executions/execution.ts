@@ -31,6 +31,16 @@ export interface ExecutionResult {
   readonly durationMs: number;
   /** The SHA-256 of its file when the execution was kept, in hexadecimal; left out when the file could not be read. */
   readonly fileDigest?: string;
+  /**
+   * The SHA-256 of the test itself when the execution was kept, in hexadecimal: of its call in its file, without its
+   * comments nor its layout, so that another test of the file, a comment or a formatting changes nothing of it. Left
+   * out when its file could not be read, or does not write its call with its titles as plain texts.
+   */
+  readonly testDigest?: string;
+  /** Whether the test was the same in the commit the execution ran at; left out with its digest, or without a commit. */
+  readonly committed?: boolean;
+  /** The version of the test it ran at, from 1, which the instance numbers when it keeps the execution; left out without a digest of the test. */
+  readonly version?: number;
   /** Where it failed and why, for a test that failed; left out when the report says nothing of it, or for a result kept before the instance kept them. */
   readonly failure?: ExecutionFailure;
 }

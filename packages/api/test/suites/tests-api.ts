@@ -8,7 +8,7 @@ import { ExecutionStore } from "@open-qa-stack/store";
 import { SessionDatabase, type DatabaseEngine } from "@open-qa-stack/store/testing";
 import { fixtureConfig } from "@open-qa-stack/testing/fixture-repository";
 import { sessionsApi, type TestApi } from "../support/sessions-api.ts";
-import type { Problem, RepositoryTestList, TestExecutionList, TestReading } from "@open-qa-stack/domain/sessions";
+import type { Problem, RepositoryTestList, TestExecutionList, TestVersionList, TestReading } from "@open-qa-stack/domain/sessions";
 
 /** A test of the shop as a design writes it: a title, tags, and two steps. */
 const SEARCH = [
@@ -143,8 +143,28 @@ export function testsApiSuite(engine: DatabaseEngine): void {
         [executions.status, executions.headers.get("cache-control"), (await executions.json()) as TestExecutionList],
         [200, "no-store", { items: [{ id: "e1", origin: "design", ranAt: "2026-11-19T08:00:01.000Z", result: results[0] }] }],
       );
-      const unnamed = await fetch(`${api.url}/tests/executions`);
-      assert.deepEqual([unnamed.status, ((await unnamed.json()) as Problem).code], [400, "invalid_request"]);
+      // The versions of the tests of the file are told the latest first, numbered by the digest of each test.
+      await new ExecutionStore(database.database).add({
+        id: "e2",
+        origin: "design",
+        ranAt: "2026-11-19T09:00:00.000Z",
+        commit: "4f2a9c0",
+        report: ".oqas/runs/run-2026-11-19T09-00-00-000Z/report.json",
+        results: [{ ...results[0], testDigest: "d1", committed: true }],
+      });
+      const versions = await fetch(`${api.url}/tests/versions?path=${encodeURIComponent(path)}`);
+      assert.deepEqual(
+        [versions.status, versions.headers.get("cache-control"), (await versions.json()) as TestVersionList],
+        [
+          200,
+          "no-store",
+          { items: [{ path, title: spec.title, number: 1, digest: "d1", commit: "4f2a9c0", since: "2026-11-19T09:00:00.000Z", executions: 1 }] },
+        ],
+      );
+      for (const route of ["executions", "versions"]) {
+        const unnamed = await fetch(`${api.url}/tests/${route}`);
+        assert.deepEqual([route, unnamed.status, ((await unnamed.json()) as Problem).code], [route, 400, "invalid_request"]);
+      }
     });
   });
 }

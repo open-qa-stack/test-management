@@ -69,6 +69,7 @@ The migrations so far:
 | `0004_knowledge_documents` | The table of [the documents of the knowledge sources](#the-documents-of-the-knowledge-sources), empty until a document is uploaded. |
 | `0005_executions` | The tables of [the executions of tests](#the-executions-of-tests) and of their results, empty until a session runs its tests. |
 | `0006_execution_failures` | Where each test that failed in an execution failed, and why. The results kept before stay without them. |
+| `0007_test_versions` | The table of [the versions of the tests](#the-versions-of-the-tests), and the digest of the test, whether it was committed and its version in each result. The results kept before stay without them. |
 
 ## The database of an instance, assembled
 
@@ -166,7 +167,7 @@ The primary key of a message is its session and its number. A number is given on
 
 ### The executions of tests
 
-`executions` holds one row an execution of tests, and `execution_results` one row each test of it. `ExecutionStore` keeps an execution in one transaction, with all of its results or none. It reads them a page at a time, the latest first — by date then identifier, a page going on after the last execution of the one before it — narrowed to those where a test failed or none did, and to those kept from a date on, with how many the query keeps and the rank of the first of the page among them; one by its identifier, or what came of the tests of one file in each execution, by the path of its results.
+`executions` holds one row an execution of tests, and `execution_results` one row each test of it. `ExecutionStore` keeps an execution in one transaction, with all of its results or none. It reads them a page at a time, the latest first — by date then identifier, a page going on after the last execution of the one before it — narrowed to those where a test failed or none did, and to those kept from a date on, with how many the query keeps and the rank of the first of the page among them; one by its identifier, or what came of the tests of one file in each execution, by the path of its results, each with the version of its test.
 
 | Column of `executions` | Type | Why |
 |---|---|---|
@@ -190,8 +191,23 @@ The primary key of a message is its session and its number. A number is given on
 | `failed_step`, `failed_step_title` | `integer` and `text`, or nothing | The first `test.step` that failed, numbered from 1, and its title. |
 | `error_message` | `text`, or nothing | The first line of the message of its error, without colours. |
 | `expected`, `received` | `text`, or nothing | What the failed assertion expected and what it received, when its message says both. |
+| `test_digest` | `text`, or nothing | The SHA-256 of the test itself, read as code without its comments nor its layout. |
+| `committed` | `integer`, or nothing | 1 when the test was the same in the commit, 0 when it was not; empty without a commit. |
+| `version` | `integer`, or nothing | The number of the version of the test it ran at. |
 
-Where a test failed is read from the last attempt of the report; the five columns are empty for a test that did not fail, whose report says nothing of it, or kept before `0006_execution_failures`.
+Where a test failed is read from the last attempt of the report; the five columns are empty for a test that did not fail, whose report says nothing of it, or kept before `0006_execution_failures`. The last three are empty for a test without a digest — its file could not be read, or does not write its titles as plain texts — or kept before `0007_test_versions`.
+
+### The versions of the tests
+
+`test_versions` holds one row each version of a test. In the transaction that keeps an execution, each result with a digest of its test is compared with the latest version of the test: the same digest keeps it, which takes the commit of the execution when the test was the same in it and the version had none; another digest makes a new version, numbered after it. `ExecutionStore` reads the versions of the tests of one file, the latest first, then by their titles, each with how many executions ran it.
+
+| Column of `test_versions` | Type | Why |
+|---|---|---|
+| `path`, `title` | `text`, primary key with `number` | The test, named as in `execution_results`. |
+| `number` | `integer` | Its number among the versions of the test, from 1. |
+| `digest` | `text` | The SHA-256 of the test at this version. |
+| `commit_sha` | `text`, or nothing | The commit the test repository was at when an execution first ran this version committed. |
+| `since` | date | When an execution first ran it. |
 
 The columns that keep a date, a JSON value or a boolean are kept [as each database keeps them](#how-each-type-is-kept). Nothing filters on what a JSON column holds, which is served as it was written, its fields in the order they were given: on PostgreSQL the columns are `json` and not `jsonb`, which would sort the fields.
 

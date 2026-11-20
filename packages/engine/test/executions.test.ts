@@ -45,4 +45,20 @@ describe("the operations on the executions of tests", () => {
     const read = await new Executions(store).ofFile(search.path);
     assert.deepEqual([read.length, read[0]?.id, read[0]?.result], [FILE_EXECUTIONS_LIMIT, `e${FILE_EXECUTIONS_LIMIT}`, search]);
   });
+
+  it("read the versions of the tests of a file, numbered by the digest of each test, the latest first", async () => {
+    const store = new MemoryExecutionStore();
+    await store.add(
+      execution("e1", 9, [
+        { ...search, testDigest: "d1" },
+        { ...search, path: "apps/shop/tests/orders/pay.spec.ts", testDigest: "d1" },
+      ]),
+    );
+    await store.add({ ...execution("e2", 10, [{ ...search, testDigest: "d1", committed: true }]), commit: "c2" });
+    await store.add(execution("e3", 11, [{ ...search, testDigest: "d2", committed: false }]));
+    assert.deepEqual(await new Executions(store).versions(search.path), [
+      { path: search.path, title: search.title, number: 2, digest: "d2", since: "2026-11-19T11:00:00.000Z", executions: 1 },
+      { path: search.path, title: search.title, number: 1, digest: "d1", commit: "c2", since: "2026-11-19T09:00:00.000Z", executions: 2 },
+    ]);
+  });
 });
