@@ -1,6 +1,7 @@
 import { type DynamicModule, Module } from "@nestjs/common";
 import { APP_FILTER } from "@nestjs/core";
 import type { ApiConfiguration } from "./config/api-configuration.ts";
+import { CampaignsModule } from "./campaigns/campaigns.module.ts";
 import { ConfigurationModule } from "./config/configuration.module.ts";
 import { DatabaseModule } from "./database/database.module.ts";
 import { ExecutionsModule } from "./executions/executions.module.ts";
@@ -27,6 +28,7 @@ export class AppModule {
         SessionsModule,
         TestsModule,
         ExecutionsModule,
+        CampaignsModule,
       ],
       providers: [{ provide: APP_FILTER, useClass: ProblemFilter }],
     };

@@ -208,6 +208,21 @@ describe("the console", () => {
       assert.match(pageOf(consoleAt(hash)), /Page introuvable/, hash);
   });
 
+  it("shows the campaigns and one campaign at their addresses, which read them from the instance", () => {
+    assert.match(
+      pageOf(consoleAt("#/campaigns", { project: PROJECT })),
+      /^lakeside-tests \/ Campagnes Campagnes .* Planifier une campagne .* Lecture des campagnes/,
+    );
+    assert.equal(documentTitleOf({ route: at("#/campaigns") }), "Campagnes · Open QA Stack");
+    assert.equal(
+      pageOf(consoleAt("#/campaigns/view?id=c1", { project: PROJECT })),
+      "lakeside-tests / Campagnes / c1 c1 Lecture de la campagne Elle apparaît dès que l’instance a répondu.",
+    );
+    assert.equal(documentTitleOf({ route: at("#/campaigns/view?id=c1") }), "Campagne · Open QA Stack");
+    for (const hash of ["#/campaigns/view", "#/campaigns/view?id=", "#/campaigns/c1", "#/campaigns/view/c1"])
+      assert.match(pageOf(consoleAt(hash)), /Page introuvable/, hash);
+  });
+
   it("shows an execution, and what came of a test in it, at their addresses", () => {
     assert.equal(
       pageOf(consoleAt("#/executions/view?id=e1", { project: PROJECT })),

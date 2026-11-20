@@ -79,6 +79,10 @@ export class MemoryExecutionStore implements ExecutionStorePort {
     );
   }
 
+  ofCampaign(campaignId: string): Promise<Execution[]> {
+    return Promise.resolve(this.#executions.filter((execution) => execution.campaignId === campaignId));
+  }
+
   reports(): Promise<string[]> {
     return Promise.resolve(this.#executions.map(({ report }) => report));
   }

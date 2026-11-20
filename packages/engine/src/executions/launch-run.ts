@@ -32,7 +32,7 @@ export interface LaunchHost {
 /**
  * One launch of tests of the repository, as they are, with no agent: the runner runs them at the version the
  * lockfile installs, against an environment the configuration declares, and their execution is kept with the
- * origin `manual`, as that of a session is.
+ * origin `manual`, or `campaign` for the tests of a campaign, as that of a session is.
  *
  * @remarks
  * The launch is made ready before it runs, so that what refuses it is told at once: a configuration that is
@@ -71,7 +71,12 @@ export class LaunchRun {
       throw new LaunchRefusedError(`Several environments are declared (${declared.join(", ")}): name the one the tests run against.`);
     if (!declared.includes(environment))
       throw new LaunchRefusedError(`The environment ${environment} is not declared: the configuration declares ${declared.join(", ")}.`);
-    const launch: TestLaunch = { startedAt: host.now().toISOString(), environment, paths: [...(request.paths ?? [])] };
+    const launch: TestLaunch = {
+      startedAt: host.now().toISOString(),
+      environment,
+      paths: [...(request.paths ?? [])],
+      ...(request.campaign === undefined ? {} : { campaign: request.campaign }),
+    };
     return new LaunchRun(host, result.config, launch);
   }
 
@@ -82,7 +87,7 @@ export class LaunchRun {
    */
   async run(): Promise<EndedLaunch> {
     const { repository, configuration, store, env, runner, now } = this.#host;
-    const { environment, paths } = this.launch;
+    const { environment, paths, campaign } = this.launch;
     const ended = (end: Pick<EndedLaunch, "execution" | "failure">): EndedLaunch => ({ ...this.launch, endedAt: now().toISOString(), ...end });
     try {
       const pinned = new PinnedRun({
@@ -99,7 +104,10 @@ export class LaunchRun {
       if (!prepared.ok) return ended({ failure: prepared.reason });
       const { result } = await pinned.run();
       if (result.report === undefined) return ended({ failure: result.tests[0]?.reason ?? "The runner wrote no report." });
-      const execution = await new ExecutionRecorder({ repository, configuration, store, now }).record(result.report, { origin: "manual" });
+      const execution = await new ExecutionRecorder({ repository, configuration, store, now }).record(
+        result.report,
+        campaign === undefined ? { origin: "manual" } : { origin: "campaign", campaignId: campaign },
+      );
       // The run read the report it wrote: the recorder reads it as well.
       return ended({ execution: execution!.id });
     } catch (error) {

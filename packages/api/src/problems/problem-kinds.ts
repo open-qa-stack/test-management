@@ -27,6 +27,8 @@ const KINDS: Readonly<Record<ProblemCode, ProblemKind>> = {
   unknown_trace: { status: HttpStatus.NOT_FOUND, title: "Unknown trace" },
   unknown_execution: { status: HttpStatus.NOT_FOUND, title: "Unknown execution" },
   launch_refused: { status: HttpStatus.CONFLICT, title: "Launch refused" },
+  unknown_campaign: { status: HttpStatus.NOT_FOUND, title: "Unknown campaign" },
+  campaign_refused: { status: HttpStatus.CONFLICT, title: "Campaign refused" },
   error: { status: HttpStatus.INTERNAL_SERVER_ERROR, title: "Request not answered" },
 };
 

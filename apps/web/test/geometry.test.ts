@@ -151,6 +151,7 @@ describe("the geometry of the console comes from its tokens", () => {
       "agent/agent-home.css",
       "agent/session.css",
       "base.css",
+      "campaigns/campaigns.css",
       "configuration/configuration.css",
       "executions/executions.css",
       "knowledge/knowledge.css",

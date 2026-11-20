@@ -70,6 +70,7 @@ The migrations so far:
 | `0005_executions` | The tables of [the executions of tests](#the-executions-of-tests) and of their results, empty until a session runs its tests. |
 | `0006_execution_failures` | Where each test that failed in an execution failed, and why. The results kept before stay without them. |
 | `0007_test_versions` | The table of [the versions of the tests](#the-versions-of-the-tests), and the digest of the test, whether it was committed and its version in each result. The results kept before stay without them. |
+| `0008_campaigns` | The tables of [the campaigns](#the-campaigns) and of the tests each one fixed, and the campaign of an execution. The executions kept before belong to none. |
 
 ## The database of an instance, assembled
 
@@ -172,8 +173,9 @@ The primary key of a message is its session and its number. A number is given on
 | Column of `executions` | Type | Why |
 |---|---|---|
 | `id` | `text`, primary key | The identifier of the execution. |
-| `origin` | `text` | `design` for the tests a session of design ran. |
+| `origin` | `text` | `design` for the tests a session of design ran, `manual` for tests a person launched, `campaign` for the tests of a campaign. |
 | `session_id` | `text`, or nothing | The session that ran it; emptied when the session goes, and the execution stays. |
+| `campaign_id` | `text`, or nothing | The campaign it was launched for. |
 | `ran_at` | date | When it was kept. |
 | `commit_sha` | `text`, or nothing | The commit the test repository was at. |
 | `report` | `text` | The report of the runner, relative to the test repository. |
@@ -208,6 +210,24 @@ Where a test failed is read from the last attempt of the report; the five column
 | `digest` | `text` | The SHA-256 of the test at this version. |
 | `commit_sha` | `text`, or nothing | The commit the test repository was at when an execution first ran this version committed. |
 | `since` | date | When an execution first ran it. |
+
+### The campaigns
+
+`campaigns` holds one row each campaign; `campaign_tests` the tests a campaign fixed when it became ready, which are not read from the test repository again. What came of a test in a campaign is not kept: it is read from the executions of the campaign, the latest that ran its file.
+
+| Column of `campaigns` | Type | Why |
+|---|---|---|
+| `id` | `text`, primary key | The identifier of the campaign. |
+| `name` | `text` | What a person calls it. |
+| `environment` | `text` | The environment its tests run against. |
+| `tags` | JSON | The tags of its scope: a test that bears one of them is taken; every test when the list is empty. |
+| `status` | `text` | `planned`, `ready`, `in_progress` or `closed`. |
+| `created_at` | date | When it was planned. |
+| `ready_at`, `closed_at` | date, or nothing | When its tests were fixed, and when it was closed. |
+
+| Column of `campaign_tests` | Type | Why |
+|---|---|---|
+| `campaign_id`, `path`, `title` | `text`, primary key | The campaign, which its tests go with, and a test it fixed, named as in `execution_results`. |
 
 The columns that keep a date, a JSON value or a boolean are kept [as each database keeps them](#how-each-type-is-kept). Nothing filters on what a JSON column holds, which is served as it was written, its fields in the order they were given: on PostgreSQL the columns are `json` and not `jsonb`, which would sort the fields.
 

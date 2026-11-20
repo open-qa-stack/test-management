@@ -1,5 +1,6 @@
 import { Logger, Module, type OnApplicationShutdown } from "@nestjs/common";
 import {
+  CampaignStore,
   ConfigurationStore,
   Database,
   DatabaseStatus,
@@ -31,9 +32,10 @@ import { SchemaCheck } from "./schema-check.ts";
     { provide: ConfigurationStore, useFactory: (instance: InstanceDatabase) => instance.configuration, inject: [InstanceDatabase] },
     { provide: DocumentStore, useFactory: (instance: InstanceDatabase) => instance.documents, inject: [InstanceDatabase] },
     { provide: ExecutionStore, useFactory: (instance: InstanceDatabase) => instance.executions, inject: [InstanceDatabase] },
+    { provide: CampaignStore, useFactory: (instance: InstanceDatabase) => instance.campaigns, inject: [InstanceDatabase] },
     SchemaCheck,
   ],
-  exports: [InstanceDatabase, Database, SchemaMigrations, DatabaseStatus, SessionStore, ConfigurationStore, DocumentStore, ExecutionStore],
+  exports: [InstanceDatabase, Database, SchemaMigrations, DatabaseStatus, SessionStore, ConfigurationStore, DocumentStore, ExecutionStore, CampaignStore],
 })
 export class DatabaseModule implements OnApplicationShutdown {
   readonly #database: Database;

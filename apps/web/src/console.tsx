@@ -4,6 +4,8 @@ import { AgentHomeScreen } from "./agent/agent-home-screen.tsx";
 import type { Opening } from "./agent/console-state.ts";
 import type { LiveSession } from "./agent/live-session.ts";
 import { SessionScreen } from "./agent/session-screen.tsx";
+import { CampaignPage } from "./campaigns/campaign-page.tsx";
+import { CampaignsPage } from "./campaigns/campaigns-page.tsx";
 import { ConfigurationPage } from "./configuration/configuration-page.tsx";
 import { isExecutionPeriod } from "./executions/execution-period.ts";
 import { ExecutionPage } from "./executions/execution-page.tsx";
@@ -51,7 +53,8 @@ export interface ConsoleProps {
  * that says the instance keeps no such session, or that the address leads nowhere.
  */
 type Shown =
-  | { readonly screen: "entry" | "configuration" | "knowledge" | "tests" | "no_session" | "nowhere" }
+  | { readonly screen: "entry" | "configuration" | "knowledge" | "tests" | "campaigns" | "no_session" | "nowhere" }
+  | { readonly screen: "campaign"; readonly id: string }
   | { readonly screen: "executions"; readonly filter: ExecutionsFilter; readonly before?: string }
   | { readonly screen: "execution"; readonly id: string }
   | { readonly screen: "result"; readonly id: string; readonly path: string; readonly step?: number }
@@ -130,6 +133,9 @@ function shownOf({ route, live, missing = false }: ConsoleProps): Shown {
   if (route.path.length === 1 && route.path[0] === "configuration") return { screen: "configuration" };
   if (route.path[0] === "knowledge" && route.path.length <= 2) return { screen: "knowledge" };
   if (route.path.length === 1 && route.path[0] === "tests") return { screen: "tests" };
+  if (route.path.length === 1 && route.path[0] === "campaigns") return { screen: "campaigns" };
+  const campaign = route.query["id"];
+  if (route.path.length === 2 && route.path[0] === "campaigns" && route.path[1] === "view" && given(campaign)) return { screen: "campaign", id: campaign };
   const executions = route.path[0] === "executions" && route.path.length <= 2 ? executionsShown(route.path[1], route.query) : undefined;
   if (executions !== undefined) return executions;
   const test = route.query["path"];
@@ -179,6 +185,10 @@ function Screen(props: ConsoleProps): ReactNode {
       return <TestsPage project={name} route={route} />;
     case "test":
       return <TestPage key={shown.path} project={name} path={shown.path} />;
+    case "campaigns":
+      return <CampaignsPage project={name} />;
+    case "campaign":
+      return <CampaignPage key={shown.id} project={name} id={shown.id} />;
     case "executions":
       return (
         <ExecutionsPage

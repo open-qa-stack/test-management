@@ -41,5 +41,6 @@ import { StreamPace } from "./stream-pace.ts";
         new Sessions({ ...runs, store, configuration, documents, executions, repository, takesOver: true, logger: new Logger("Sessions") }),
     },
   ],
+  exports: [Sessions],
 })
 export class SessionsModule {}

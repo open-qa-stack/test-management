@@ -54,19 +54,19 @@ describe("the shell", () => {
     assert.match(html, /<a class="brand" href="#\/agent">/);
   });
 
-  it("lists the agent, the tests, the executions, the knowledge and the configuration as links, and what is coming as a name without one", () => {
+  it("lists the agent, the tests, the executions, the campaigns, the knowledge and the configuration as links, and what is coming as a name without one", () => {
     const html = shell("#/");
     assert.match(
       textOf(html),
-      /Travail Agent Référentiel Découverte bientôt À relire bientôt Tests Couverture bientôt Exécution Exécutions Campagnes bientôt Anomalies bientôt Projet Connaissances Configuration page$/,
+      /Travail Agent Référentiel Découverte bientôt À relire bientôt Tests Couverture bientôt Exécution Exécutions Campagnes Anomalies bientôt Projet Connaissances Configuration page$/,
     );
-    assert.deepEqual(linksOf(html), ["#/agent", "#/agent", "#/tests", "#/executions", "#/knowledge", "#/configuration"]);
+    assert.deepEqual(linksOf(html), ["#/agent", "#/agent", "#/tests", "#/executions", "#/campaigns", "#/knowledge", "#/configuration"]);
     const coming = NAVIGATION.flatMap((group) => group.entries).filter((entry) => entry.path === undefined);
     assert.equal((html.match(/<span class="nav-soon">/g) ?? []).length, coming.length);
-    assert.equal(coming.length, 5);
+    assert.equal(coming.length, 4);
   });
 
-  it("marks the agent at the home, at its entry and under it, the tests, the executions and the configuration at their own, and nowhere else", () => {
+  it("marks the agent at the home, at its entry and under it, the tests, the executions, the campaigns and the configuration at their own, and nowhere else", () => {
     assert.deepEqual(marked("#/"), ["#/agent"]);
     assert.deepEqual(marked("#/configuration"), ["#/configuration"]);
     assert.deepEqual(marked("#/knowledge/manuals"), ["#/knowledge"]);
@@ -74,8 +74,9 @@ describe("the shell", () => {
     assert.deepEqual(marked("#/agent/sessions/oqas-2026-11-15T14-44-06-348Z"), ["#/agent"]);
     assert.deepEqual(marked("#/tests"), ["#/tests"]);
     assert.deepEqual(marked("#/executions"), ["#/executions"]);
-    assert.deepEqual(marked("#/campaigns"), []);
-    assert.match(shell("#/campaigns"), /<a href="#\/agent"><svg /);
+    assert.deepEqual(marked("#/campaigns/view?id=c1"), ["#/campaigns"]);
+    assert.deepEqual(marked("#/coverage"), []);
+    assert.match(shell("#/coverage"), /<a href="#\/agent"><svg /);
   });
 
   it("has a button that folds the menu to its icons and unfolds it, when it is given one, and none otherwise", () => {
