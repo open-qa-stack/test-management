@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import type { Session, SessionResult, SessionTest } from "@open-qa-stack/domain/sessions";
+import type { Session, SessionResult } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
-import { scopeText, stateOf, testsText, waitText } from "../../src/agent/session-facts.ts";
+import { scopeText, stateOf, waitText } from "../../src/agent/session-facts.ts";
 import { COMPLETED, QUEUED, RUNNING } from "./session-fixture.ts";
 
 /**
@@ -47,23 +47,6 @@ describe("what a session waits for", () => {
   it("is an agent while it is queued, and nothing in any other state", () => {
     assert.equal(waitText(QUEUED), "en attente d’un agent");
     assert.deepEqual([RUNNING, COMPLETED, { ...RUNNING, state: "archived" as Session["state"] }].map(waitText), [undefined, undefined, undefined]);
-  });
-});
-
-describe("the tests of a session", () => {
-  it("are counted as how many passed out of how many", () => {
-    assert.equal(testsText(COMPLETED), "1 / 1 test réussi");
-    const tests: SessionTest[] = [
-      { id: "a", verdict: "passed", reason: "" },
-      { id: "b", verdict: "failed", reason: "" },
-      { id: "c", verdict: "blocked", reason: "" },
-    ];
-    assert.equal(testsText(endedWith({ outcome: "failed", tests })), "1 / 3 tests réussis");
-  });
-
-  it("are not counted when the session has no result, or a result without a test", () => {
-    assert.equal(testsText(RUNNING), undefined);
-    assert.equal(testsText(endedWith({ outcome: "stopped", tests: [] })), undefined);
   });
 });
 

@@ -10,7 +10,8 @@ import { Page } from "../ui/page.tsx";
 import type { Opening } from "./console-state.ts";
 import type { ScopeChoices } from "./scope-choices.ts";
 import { ScopePicker } from "./scope-picker.tsx";
-import { scopeText, stateOf, testsText, waitText } from "./session-facts.ts";
+import { SessionBar } from "./session-bar.tsx";
+import { scopeText, stateOf, waitText } from "./session-facts.ts";
 
 /** What the entry of the agent needs. */
 export interface AgentHomeScreenProps {
@@ -39,7 +40,6 @@ function SessionRow({ session }: { readonly session: Session }): ReactNode {
     waitText(session),
     session.result === undefined ? undefined : durationText(session.result.durationMs),
     session.result === undefined ? undefined : t("facts.modelRequests", { count: session.result.modelRequests }),
-    testsText(session),
   ].filter((fact) => fact !== undefined);
   return (
     <a className={live ? "row run-row live" : "row run-row"} href={hrefTo(`/agent/sessions/${session.id}`)}>
@@ -47,7 +47,10 @@ function SessionRow({ session }: { readonly session: Session }): ReactNode {
         <div className="agent-home-session">{session.request ?? t(live ? "home.running" : "home.unasked")}</div>
         <div className="small muted">{facts.join(" · ")}</div>
       </div>
-      <Badge tone={state.tone}>{state.label}</Badge>
+      <span className="run-row-side">
+        <SessionBar session={session} />
+        <Badge tone={state.tone}>{state.label}</Badge>
+      </span>
     </a>
   );
 }

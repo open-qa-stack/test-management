@@ -170,12 +170,28 @@
   background: var(--ko);
 }
 
+.verdict-part.blocked {
+  background: var(--warn);
+}
+
+.verdict-part.indeterminate {
+  background: var(--ai);
+}
+
 .verdict-words.passed {
   color: var(--ok);
 }
 
 .verdict-words.flaky {
   color: var(--warn);
+}
+
+.verdict-words.blocked {
+  color: var(--warn);
+}
+
+.verdict-words.indeterminate {
+  color: var(--ai);
 }
 
 .verdict-words.failed {

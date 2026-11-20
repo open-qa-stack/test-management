@@ -73,7 +73,7 @@ describe("the console in English", () => {
     await inEnglish();
     const home = english(createElement(AgentHomeScreen, { project: "p", sessions: [RUNNING, COMPLETED], opening: { state: "idle" } }));
     assert.match(home, /^p \/ Agent What do we test\? Tell the agents what to test Start a session Sessions · 1 live /);
-    assert.match(home, / · local · 1 min 54 sec · 50 requests to the model · 1 \/ 1 test passed tests passed$/);
+    assert.match(home, / · local · 1 min 54 sec · 50 requests to the model 1 \/ 1 test passed tests passed$/);
     assert.match(english(createElement(Console, { route: at("#/nowhere") })), /Page not found This address leads to no screen .* Back to the sessions$/);
   });
 
