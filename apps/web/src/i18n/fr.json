@@ -3,6 +3,8 @@
     "offline": "Hors ligne",
     "offlineDetail": "— l’instance ne répond plus ; la page reprendra seule dès son retour",
     "navigation": "Navigation principale",
+    "fold": "Replier le menu",
+    "unfold": "Déplier le menu",
     "soon": "bientôt",
     "applications_one": "{{count}} application · projet",
     "applications_other": "{{count}} applications · projet",
@@ -39,7 +41,8 @@
       "test": "Test",
       "executions": "Exécutions",
       "execution": "Exécution",
-      "result": "Résultat d’un test"
+      "result": "Résultat d’un test",
+      "trace": "Trace d’un test"
     },
     "opening": {
       "title": "Lecture de la session",
@@ -368,6 +371,7 @@
     "unknown_document_source": "La configuration en vigueur ne déclare aucune source de documents déposés de ce nom : enregistrez d’abord la configuration.",
     "unknown_document": "La source ne contient plus ce document.",
     "invalid_documents": "Les documents sont refusés, et aucun n’a été gardé : corrigez les fichiers signalés.",
+    "unknown_trace": "Cette exécution du test n’a gardé aucune trace.",
     "unknown_capture": "Cette exécution du test n’a joint aucune capture pour cette étape.",
     "unknown_execution": "L’instance ne garde plus cette exécution.",
     "unexplained": "L’instance a rencontré une erreur.",
@@ -839,5 +843,14 @@
     "card": "Fiche du test",
     "gone": "Le détail de cette exécution n’est plus disponible",
     "goneNote": "Son rapport a été supprimé, ou ne contient pas ce test."
+  },
+  "trace": {
+    "title": "Trace",
+    "open": "Voir la trace",
+    "newTab": "Ouvrir dans un onglet",
+    "frame": "Trace de « {{title}} »",
+    "none": "Aucune trace de ce test",
+    "noneNote": "Cette exécution ne l’a pas gardée : Playwright garde la trace d’un test selon sa configuration, souvent seulement quand il échoue.",
+    "back": "Revenir au résultat"
   }
 }

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createElement, type FormEvent } from "react";
 import type { Project } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
-import { Console, documentTitleOf, isEntry, sessionAt, type ConsoleProps } from "../src/console.tsx";
+import { Console, documentTitleOf, isEntry, isTrace, sessionAt, type ConsoleProps } from "../src/console.tsx";
 import { COMPLETED, liveOf, RUNNING, SESSION_ID } from "./agent/session-fixture.ts";
 import { at, elementsOf, linksOf, render, textOf } from "./render.ts";
 
@@ -219,8 +219,25 @@ describe("the console", () => {
       /^lakeside-tests \/ Exécutions \/ e1 \/ apps\/shop\/orders\.spec\.ts .* Lecture du test/,
     );
     assert.equal(documentTitleOf({ route: at("#/executions/result?id=e1&path=a.spec.ts") }), "Résultat d’un test · Open QA Stack");
+    // The trace of a test in an execution has its own screen; an address that does not name both leads nowhere.
+    assert.match(
+      pageOf(consoleAt("#/executions/trace?id=e1&path=apps%2Fshop%2Forders.spec.ts", { project: PROJECT })),
+      /^lakeside-tests \/ Exécutions \/ e1 \/ Trace Trace ← apps\/shop\/orders\.spec\.ts Lecture du test/,
+    );
+    assert.equal(documentTitleOf({ route: at("#/executions/trace?id=e1&path=a.spec.ts") }), "Trace d’un test · Open QA Stack");
+    for (const hash of ["#/executions/trace?id=e1", "#/executions/trace?path=a.spec.ts"]) assert.match(pageOf(consoleAt(hash)), /Page introuvable/, hash);
+    assert.deepEqual(
+      ["#/executions/trace?id=e1&path=a", "#/executions/trace", "#/executions/result?id=e1&path=a", "#/executions/trace/more", "#/tests/trace"].map((hash) =>
+        isTrace(at(hash)),
+      ),
+      [true, true, false, false, false],
+    );
     // The step the address names is shown when it is a number from 1; another word is no step, and the screen chooses.
     for (const step of ["2", "0", "two"]) assert.match(pageOf(consoleAt(`#/executions/result?id=e1&path=a.spec.ts&step=${step}`)), /Lecture du test/);
+  });
+
+  it("frames every screen with the menu it is given, which the shell folds", () => {
+    assert.match(consoleAt("#/executions", { menu: { folded: true, toggle: () => undefined } }), /^<div class="shell folded">/);
   });
 
   it("shows the configuration at its address, which reads it from the instance", () => {

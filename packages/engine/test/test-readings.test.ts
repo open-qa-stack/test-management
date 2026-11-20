@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "vitest";
-import { UnknownCaptureError, UnknownExecutionError, type OqasConfig } from "@open-qa-stack/domain";
+import { UnknownCaptureError, UnknownExecutionError, UnknownTraceError, type OqasConfig } from "@open-qa-stack/domain";
 import { TestReadings } from "../src/index.ts";
 import { MemoryConfigurationStore } from "./support/memory-configuration-store.ts";
 import { MemoryExecutionStore } from "./support/memory-execution-store.ts";
@@ -94,8 +94,8 @@ describe("a test of the repository read in steps", () => {
     const undated = await (await readings(manual)).read(SEARCH);
     assert.deepEqual([undated.run, "ranAt" in undated], ["manual", false]);
     assert.deepEqual(
-      [read.path, read.view?.id, read.view?.failedStep, read.view?.steps.map((step) => step.title)],
-      [SEARCH, "shop › shop/tests/orders/search.spec.ts:3 › Search an order", 2, ["1. Open the orders", "2. Search"]],
+      [read.path, read.view?.id, read.view?.failedStep, read.view?.steps.map((step) => step.title), read.traced],
+      [SEARCH, "shop › shop/tests/orders/search.spec.ts:3 › Search an order", 2, ["1. Open the orders", "2. Search"], false],
     );
   });
 
@@ -175,5 +175,47 @@ describe("the capture of a step of a test", () => {
     const operations = await readings(root, await keeping("run-2026-11-19T08-00-00-000Z"));
     assert.equal(Buffer.from((await operations.capture(SEARCH, 1, "e1")).bytes).toString(), "then");
     await assert.rejects(operations.capture(SEARCH, 1, "e2"), new UnknownExecutionError("e2"));
+  });
+});
+
+/** A report of the test of the shop whose attempts kept the attachments given, the first attempt first. */
+function attempts(...attached: readonly (readonly object[])[]): string {
+  const text = JSON.parse(report("failed", [])) as { suites: [{ specs: [{ tests: [{ results: object[] }] }] }] };
+  text.suites[0].specs[0].tests[0].results = attached.map((attachments) => ({ status: "failed", attachments }));
+  return JSON.stringify(text);
+}
+
+describe("the trace of a test", () => {
+  it("is the archive the latest attempt that kept one wrote in the repository, which the reading says it has", async () => {
+    const root = repository({});
+    const run = join(root, ".oqas", "runs", "run-2026-11-19T08-00-00-000Z");
+    mkdirSync(run, { recursive: true });
+    for (const name of ["first.zip", "retry.zip"]) writeFileSync(join(run, name), name);
+    const trace = (name: string) => ({ name: "trace", contentType: "application/zip", path: join(run, name) });
+    // The second attempt kept a trace, the third none: the trace is that of the second.
+    writeFileSync(join(run, "report.json"), attempts([trace("first.zip")], [trace("retry.zip"), { name: "trace", body: "aW4gdGhlIHJlcG9ydA==" }], []));
+    const operations = await readings(root);
+    assert.equal(Buffer.from(await operations.trace(SEARCH)).toString(), "retry.zip");
+    assert.equal((await operations.read(SEARCH)).traced, true);
+  });
+
+  it("is none for a test without one, outside the repository, gone, or that no run ran, and is read from an execution named", async () => {
+    const root = repository({});
+    const run = join(root, ".oqas", "runs", "run-2026-11-19T08-00-00-000Z");
+    mkdirSync(run, { recursive: true });
+    const operations = await readings(root);
+    for (const attached of [[], [{ name: "trace", path: "/etc/hosts" }], [{ name: "trace", path: join(run, "gone.zip") }]]) {
+      writeFileSync(join(run, "report.json"), attempts(attached));
+      await assert.rejects(operations.trace(SEARCH), new UnknownTraceError(SEARCH));
+    }
+    assert.equal((await operations.read(SEARCH)).traced, true);
+    writeFileSync(join(run, "report.json"), attempts([{ name: "trace", path: "/etc/hosts" }]));
+    assert.equal((await operations.read(SEARCH)).traced, false);
+    await assert.rejects(operations.trace("apps/shop/tests/other.spec.ts"), new UnknownTraceError("apps/shop/tests/other.spec.ts"));
+    writeFileSync(join(run, "then.zip"), "then");
+    writeFileSync(join(run, "report.json"), attempts([{ name: "trace", path: join(run, "then.zip") }]));
+    const kept = await readings(root, await keeping("run-2026-11-19T08-00-00-000Z"));
+    assert.equal(Buffer.from(await kept.trace(SEARCH, "e1")).toString(), "then");
+    await assert.rejects(kept.trace(SEARCH, "e2"), new UnknownExecutionError("e2"));
   });
 });

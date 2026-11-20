@@ -347,7 +347,7 @@ const page = await new Executions(instance.executions).page({ limit: 25 });
 | `get(id)` | One execution, with what came of each of its tests; `UnknownExecutionError` when the store keeps none under the identifier. |
 | `ofFile(path)` | What came of the tests of a file in the latest 100 executions that ran them, the latest first, each with its execution. |
 
-`TestReadings` reads a test in steps from the latest run that ran it, or from the run of an execution the store keeps when it is named: `read(path, execution?)` and `capture(path, step, execution?)`.
+`TestReadings` reads a test in steps from the latest run that ran it, or from the run of an execution the store keeps when it is named: `read(path, execution?)`, `capture(path, step, execution?)` and `trace(path, execution?)`, the archive the latest attempt of the test that kept a trace wrote in the test repository, which the reading says it has with `traced`.
 
 `PastRuns` takes into the store the runs the test repository ran before the instance kept its executions: `take()` keeps each folder `<stateDir>/runs/run-<date>/` whose report the store does not hold, the earliest first, dated by the start of its run, without a session nor a version, and says how many. The API calls it when it starts.
 

@@ -143,6 +143,7 @@ export type { ExecutionStorePort } from "./executions/execution-store-port.ts";
 export { testFacets, type TestFacets } from "./repository-tests/test-facets.ts";
 export type { TestReading } from "./repository-tests/test-reading.ts";
 export { UnknownCaptureError } from "./repository-tests/unknown-capture-error.ts";
+export { UnknownTraceError } from "./repository-tests/unknown-trace-error.ts";
 export { isStoredDocuments, STORED_DOCUMENTS_FOLDER, storedDocumentSources, storedDocumentsPath } from "./knowledge-documents/stored-documents-path.ts";
 export { UnknownDocumentError } from "./knowledge-documents/unknown-document-error.ts";
 export { UnknownDocumentSourceError } from "./knowledge-documents/unknown-document-source-error.ts";

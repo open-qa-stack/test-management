@@ -3,9 +3,9 @@ import { Executions, RepositoryTests, TestReadings } from "@open-qa-stack/engine
 import type { RepositoryTestList, TestExecutionList, TestReading, TestVersionList } from "@open-qa-stack/domain/sessions";
 
 /**
- * `GET /tests`, `GET /tests/reading`, `GET /tests/capture`, `GET /tests/executions` and `GET /tests/versions`: the operations on the tests of
+ * `GET /tests`, `GET /tests/reading`, `GET /tests/capture`, `GET /tests/trace`, `GET /tests/executions` and `GET /tests/versions`: the operations on the tests of
  * the test repository, said in HTTP. A test is named by its path, relative to the root of the repository, in the
- * query; a reading and a capture come from the latest run of the test, or from the execution the query names.
+ * query; a reading, a capture and a trace come from the latest run of the test, or from the execution the query names.
  */
 @Controller("tests")
 export class TestsController {
@@ -41,6 +41,13 @@ export class TestsController {
     if (number === undefined) throw new BadRequestException("step is the number of a step of the test, from 1.");
     const { contentType, bytes } = await this.#readings.capture(pathOf(path), number, executionOf(execution));
     return new StreamableFile(bytes, { type: contentType });
+  }
+
+  /** @returns The trace the run of the test kept, that of the execution named or the latest, as an archive the trace viewer of Playwright opens. */
+  @Get("trace")
+  @Header("Cache-Control", "no-store")
+  async trace(@Query("path") path: unknown, @Query("execution") execution: unknown): Promise<StreamableFile> {
+    return new StreamableFile(await this.#readings.trace(pathOf(path), executionOf(execution)), { type: "application/zip" });
   }
 
   /** @returns What came of the tests of the file of the path in its latest executions, the latest first, which no cache may keep. */

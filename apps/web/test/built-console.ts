@@ -132,6 +132,8 @@ export class BuiltConsole {
   async #load(page: Page, hash: string, api: Api): Promise<void> {
     await page.route("**/*", async (route) => {
       const { pathname, searchParams } = new URL(route.request().url());
+      // The trace viewer is the one of Playwright, which the instance serves beside the console, not the build of the console.
+      if (pathname.startsWith("/trace-viewer/")) return route.fulfill({ contentType: "text/html", body: "<!doctype html><title>Trace viewer</title>" });
       if (!pathname.startsWith("/api/")) return route.fulfill({ path: this.#file(route.request().url()) });
       const request = route.request();
       const after = searchParams.get("after");

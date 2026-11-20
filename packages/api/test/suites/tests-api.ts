@@ -87,8 +87,12 @@ export function testsApiSuite(engine: DatabaseEngine): void {
       const result = {
         status: "passed",
         steps: [{ title: "1. Open the orders", duration: 20 }],
-        attachments: [{ name: "1", contentType: "image/png", body: Buffer.from("png").toString("base64") }],
+        attachments: [
+          { name: "1", contentType: "image/png", body: Buffer.from("png").toString("base64") },
+          { name: "trace", contentType: "application/zip", path: join(run, "trace.zip") },
+        ],
       };
+      writeFileSync(join(run, "trace.zip"), "zip");
       writeFileSync(
         join(run, "report.json"),
         JSON.stringify({
@@ -108,6 +112,20 @@ export function testsApiSuite(engine: DatabaseEngine): void {
       );
       const capture = await fetch(`${api.url}/tests/capture?path=${encodeURIComponent(path)}&step=1`);
       assert.deepEqual([capture.status, capture.headers.get("content-type"), Buffer.from(await capture.arrayBuffer()).toString()], [200, "image/png", "png"]);
+      // The trace the run kept of the test is served as an archive, and none of a test it did not run.
+      const trace = await fetch(`${api.url}/tests/trace?path=${encodeURIComponent(path)}`);
+      assert.deepEqual(
+        [
+          trace.status,
+          trace.headers.get("content-type"),
+          trace.headers.get("cache-control"),
+          Buffer.from(await trace.arrayBuffer()).toString(),
+          read.body.traced,
+        ],
+        [200, "application/zip", "no-store", "zip", true],
+      );
+      const untraced = await fetch(`${api.url}/tests/trace?path=${encodeURIComponent("apps/shop/tests/other.spec.ts")}`);
+      assert.deepEqual([untraced.status, ((await untraced.json()) as Problem).code], [404, "unknown_trace"]);
       const missing = await fetch(`${api.url}/tests/capture?path=${encodeURIComponent(path)}&step=2`);
       assert.deepEqual([missing.status, ((await missing.json()) as Problem).code], [404, "unknown_capture"]);
       for (const query of [
