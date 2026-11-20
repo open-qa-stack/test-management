@@ -345,6 +345,8 @@ const executions = await new Executions(instance.executions).list();
 | --- | --- |
 | `list()` | The executions, the latest first, each with what came of each of its tests. |
 
+`PastRuns` takes into the store the runs the test repository ran before the instance kept its executions: `take()` keeps each folder `<stateDir>/runs/run-<date>/` whose report the store does not hold, the earliest first, dated by the start of its run, without a session nor a version, and says how many. The API calls it when it starts.
+
 [The API](../../api/docs/executions.md) says it in HTTP.
 
 ## Tests

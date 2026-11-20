@@ -23,8 +23,8 @@ export interface NavigationGroup {
 }
 
 /**
- * The navigation of the console: the agents, which it shows at work, then what it will show of the repository
- * of tests and of their runs, named so that a person sees what is coming, and the knowledge and the configuration of
+ * The navigation of the console: the agents, which it shows at work, then the repository of tests and the
+ * executions of its tests, with what is coming of them, named so that a person sees what is coming, and the knowledge and the configuration of
  * the project.
  */
 export const NAVIGATION: readonly NavigationGroup[] = [
@@ -41,6 +41,7 @@ export const NAVIGATION: readonly NavigationGroup[] = [
   {
     key: "execution",
     entries: [
+      { icon: "play", key: "executions", path: "/executions" },
       { icon: "campaign", key: "campaigns" },
       { icon: "warning", key: "defects" },
     ],

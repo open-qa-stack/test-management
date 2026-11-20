@@ -18,6 +18,7 @@
       "review": "À relire",
       "tests": "Tests",
       "coverage": "Couverture",
+      "executions": "Exécutions",
       "campaigns": "Campagnes",
       "defects": "Anomalies",
       "knowledge": "Connaissances",
@@ -35,7 +36,8 @@
       "no_session": "Session introuvable",
       "nowhere": "Page introuvable",
       "tests": "Tests",
-      "test": "Test"
+      "test": "Test",
+      "executions": "Exécutions"
     },
     "opening": {
       "title": "Lecture de la session",
@@ -723,5 +725,36 @@
     "steps": "Étapes",
     "noStep": "L’exécution n’a rapporté aucune étape de ce test.",
     "details": "Détails techniques"
+  },
+  "executions": {
+    "title": "Exécutions",
+    "reading": "Lecture des exécutions",
+    "readingNote": "Elles apparaissent dès que l’instance a répondu.",
+    "none": "Aucune exécution pour l’instant",
+    "noneNote": "Les exécutions des tests apparaissent ici dès qu’une session de l’agent a lancé les tests qu’elle a écrits.",
+    "lead_one": "{{count}} exécution des tests, la plus récente d’abord.",
+    "lead_other": "{{count}} exécutions des tests, la plus récente d’abord.",
+    "origins": {
+      "design": "conception"
+    },
+    "commit": "commit {{commit}}",
+    "noVersion": "version non conservée",
+    "noTest": "Aucun test n’a tourné dans cette exécution.",
+    "verdicts": {
+      "passed": "Réussi",
+      "failed": "En échec",
+      "flaky": "Instable",
+      "skipped": "Ignoré"
+    },
+    "counts": {
+      "passed_one": "{{count}} réussi",
+      "passed_other": "{{count}} réussis",
+      "failed_one": "{{count}} en échec",
+      "failed_other": "{{count}} en échec",
+      "flaky_one": "{{count}} instable",
+      "flaky_other": "{{count}} instables",
+      "skipped_one": "{{count}} ignoré",
+      "skipped_other": "{{count}} ignorés"
+    }
   }
 }

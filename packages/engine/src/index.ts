@@ -1,5 +1,6 @@
 export { Configuration } from "./configuration/configuration.ts";
 export { Executions } from "./executions/executions.ts";
+export { PastRuns } from "./executions/past-runs.ts";
 export { KnowledgeDocuments } from "./documents/knowledge-documents.ts";
 export { RepositoryTests } from "./tests/repository-tests.ts";
 export { TestReadings, type StepCapture } from "./tests/test-readings.ts";
