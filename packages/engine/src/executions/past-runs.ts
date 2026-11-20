@@ -39,7 +39,7 @@ export class PastRuns {
     const revision = await this.#configuration.inForce();
     if (this.#repository === undefined || revision === undefined) return 0;
     const { appsDir, stateDir } = { ...DEFAULT_REPOSITORY, ...revision.document.repository };
-    const kept = new Set((await this.#store.list()).map(({ report }) => report));
+    const kept = new Set(await this.#store.reports());
     const folders = await readdir(join(this.#repository, stateDir, RUNS_FOLDER), { withFileTypes: true }).catch(() => []);
     let taken = 0;
     for (const name of folders

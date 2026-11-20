@@ -87,7 +87,7 @@ describe("the execution of the tests of a session, as it is kept", () => {
         { path: "apps/shop/pay.spec.ts", title: "Pay", project: "shop", verdict: "passed", durationMs: 50 },
       ],
     });
-    assert.deepEqual(await store.list(), [execution]);
+    assert.deepEqual(store.all(), [execution]);
   });
 
   it("finds the tests in the folder of the applications the configuration names, and keeps no commit for a folder that has none", async () => {
@@ -110,6 +110,6 @@ describe("the execution of the tests of a session, as it is kept", () => {
     const root = repository("apps", false);
     const { recorder: kept, store } = recorder(root);
     assert.equal(await kept.record("s1", ".oqas/runs/none/report.json"), undefined);
-    assert.deepEqual(await store.list(), []);
+    assert.deepEqual(store.all(), []);
   });
 });

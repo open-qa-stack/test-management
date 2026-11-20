@@ -574,7 +574,7 @@ describe("the execution of the tests of a session", () => {
     await hosted.sessions.start();
     const opened = await hosted.sessions.open({ request: REQUEST, environment: "local" });
     const session = await hosted.ended(opened.id);
-    const [execution, ...others] = await hosted.executions.list();
+    const [execution, ...others] = hosted.executions.all();
     assert.ok(execution !== undefined);
     assert.deepEqual(others, []);
     assert.deepEqual([execution.origin, execution.sessionId], ["design", session.id]);
@@ -599,7 +599,7 @@ describe("the execution of the tests of a session", () => {
         (event) => event.type === "refusal" && event.text === "The execution of its tests could not be kept: The database does not answer.",
       ),
     );
-    assert.deepEqual(await hosted.executions.list(), []);
+    assert.deepEqual(hosted.executions.all(), []);
     assert.ok(
       hosted.logger.lines.some((line) => line.startsWith("warn The execution of the tests of the session")),
       JSON.stringify(hosted.logger.lines),

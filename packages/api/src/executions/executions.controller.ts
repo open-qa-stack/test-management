@@ -1,8 +1,16 @@
-import { Controller, Get, Header } from "@nestjs/common";
+import { BadRequestException, Controller, Get, Header, Param, Query } from "@nestjs/common";
 import { Executions } from "@open-qa-stack/engine";
-import type { ExecutionList } from "@open-qa-stack/domain/sessions";
+import type { Execution, ExecutionList, ExecutionOutcome } from "@open-qa-stack/domain/sessions";
 
-/** `GET /executions`: the operations on the executions of tests the instance keeps, said in HTTP. */
+/** How many executions a page holds when the query does not say. */
+export const DEFAULT_PAGE_SIZE = 25;
+/** How many executions a page holds at most. */
+export const MAX_PAGE_SIZE = 100;
+
+/** What the outcomes of a query may be. */
+const OUTCOMES: readonly ExecutionOutcome[] = ["failing", "passing"];
+
+/** `GET /executions` and `GET /executions/:id`: the operations on the executions of tests the instance keeps, said in HTTP. */
 @Controller("executions")
 export class ExecutionsController {
   readonly #executions: Executions;
@@ -11,10 +19,29 @@ export class ExecutionsController {
     this.#executions = executions;
   }
 
-  /** @returns The executions, the latest first, each with what came of each of its tests, which no cache may keep. */
+  /**
+   * @returns A page of the executions, the latest first, each with what came of each of its tests, which no cache may
+   * keep; `next` names the last one, to ask for the page after it with `before`.
+   */
   @Get()
   @Header("Cache-Control", "no-store")
-  async list(): Promise<ExecutionList> {
-    return { items: await this.#executions.list() };
+  page(@Query("limit") limit: unknown, @Query("before") before: unknown, @Query("outcome") outcome: unknown): Promise<ExecutionList> {
+    const size = limit === undefined ? DEFAULT_PAGE_SIZE : typeof limit === "string" && /^[1-9]\d{0,2}$/.test(limit) ? Number(limit) : 0;
+    if (size < 1 || size > MAX_PAGE_SIZE) throw new BadRequestException(`limit is how many executions a page holds, from 1 to ${MAX_PAGE_SIZE}.`);
+    if (before !== undefined && (typeof before !== "string" || before === ""))
+      throw new BadRequestException("before is the identifier of an execution: the next of a page.");
+    if (outcome !== undefined && !OUTCOMES.includes(outcome as ExecutionOutcome)) throw new BadRequestException(`outcome is one of ${OUTCOMES.join(", ")}.`);
+    return this.#executions.page({
+      limit: size,
+      ...(before === undefined ? {} : { before }),
+      ...(outcome === undefined ? {} : { outcome: outcome as ExecutionOutcome }),
+    });
+  }
+
+  /** @returns The execution of the identifier, with what came of each of its tests, which no cache may keep. */
+  @Get(":id")
+  @Header("Cache-Control", "no-store")
+  get(@Param("id") id: string): Promise<Execution> {
+    return this.#executions.get(id);
   }
 }

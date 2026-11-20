@@ -8,7 +8,7 @@ import { ExecutionStore } from "@open-qa-stack/store";
 import { SessionDatabase, type DatabaseEngine } from "@open-qa-stack/store/testing";
 import { fixtureConfig } from "@open-qa-stack/testing/fixture-repository";
 import { sessionsApi, type TestApi } from "../support/sessions-api.ts";
-import type { Execution, ExecutionList } from "@open-qa-stack/domain/sessions";
+import type { Execution, ExecutionList, Problem } from "@open-qa-stack/domain/sessions";
 
 /** An execution of a session of design, with one test that passed and one that failed. */
 const EARLIER: Execution = {
@@ -68,6 +68,35 @@ export function executionsApiSuite(engine: DatabaseEngine): void {
       await store.add(EARLIER);
       await store.add(LATER);
       assert.deepEqual((await (await fetch(`${api.url}/executions`)).json()) as ExecutionList, { items: [LATER, EARLIER] });
+    });
+
+    it("are served a page at a time, and by what came of their tests", async () => {
+      const store = new ExecutionStore(database.database);
+      await store.add(EARLIER);
+      await store.add(LATER);
+      const read = async (query: string) => (await (await fetch(`${api.url}/executions?${query}`)).json()) as ExecutionList;
+      assert.deepEqual(
+        [await read("limit=1"), await read("limit=1&before=e2"), await read("outcome=failing"), await read("outcome=passing")],
+        [{ items: [LATER], next: "e2" }, { items: [EARLIER] }, { items: [EARLIER] }, { items: [LATER] }],
+      );
+    });
+
+    it("are served one by its identifier, and say why a query is refused", async () => {
+      await new ExecutionStore(database.database).add(EARLIER);
+      const one = await fetch(`${api.url}/executions/e1`);
+      assert.deepEqual([one.status, one.headers.get("cache-control"), await one.json()], [200, "no-store", EARLIER]);
+      for (const [query, status, code] of [
+        ["/e9", 404, "unknown_execution"],
+        ["?before=e9", 404, "unknown_execution"],
+        ["?before=", 400, "invalid_request"],
+        ["?limit=0", 400, "invalid_request"],
+        ["?limit=101", 400, "invalid_request"],
+        ["?limit=a", 400, "invalid_request"],
+        ["?outcome=flaky", 400, "invalid_request"],
+      ] as const) {
+        const answer = await fetch(`${api.url}/executions${query}`);
+        assert.deepEqual([query, answer.status, ((await answer.json()) as Problem).code], [query, status, code]);
+      }
     });
 
     it("hold the runs the test repository ran before, once the API starts again", async () => {

@@ -1,5 +1,5 @@
 export { Configuration } from "./configuration/configuration.ts";
-export { Executions } from "./executions/executions.ts";
+export { Executions, FILE_EXECUTIONS_LIMIT } from "./executions/executions.ts";
 export { PastRuns } from "./executions/past-runs.ts";
 export { KnowledgeDocuments } from "./documents/knowledge-documents.ts";
 export { RepositoryTests } from "./tests/repository-tests.ts";

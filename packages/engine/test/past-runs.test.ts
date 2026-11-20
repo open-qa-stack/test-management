@@ -67,7 +67,7 @@ describe("the runs of the test repository before the instance kept its execution
     const past = new PastRuns(root, await inForce(), store);
     assert.equal(await past.take(), 2);
     const result = (verdict: string) => ({ path: "apps/shop/search.spec.ts", title: "Search an order", project: "shop", verdict, durationMs: 80 });
-    assert.deepEqual(await store.list(), [
+    assert.deepEqual(store.all(), [
       {
         id: "run-2026-11-19T08-00-00-000Z",
         origin: "design",
@@ -84,7 +84,7 @@ describe("the runs of the test repository before the instance kept its execution
       },
     ]);
     assert.equal(await past.take(), 0);
-    assert.equal((await store.list()).length, 2);
+    assert.equal(store.all().length, 2);
   });
 
   it("are none for a host without a test repository, before a revision is in force, or when the repository ran none", async () => {
@@ -92,6 +92,6 @@ describe("the runs of the test repository before the instance kept its execution
     assert.equal(await new PastRuns(undefined, await inForce(), store).take(), 0);
     assert.equal(await new PastRuns(repository({ "run-2026-11-19T08-00-00-000Z": report("expected") }), new MemoryConfigurationStore(), store).take(), 0);
     assert.equal(await new PastRuns(mkdtempSync(join(tmpdir(), "oqas-past-runs-")), await inForce(), store).take(), 0);
-    assert.deepEqual(await store.list(), []);
+    assert.deepEqual(store.all(), []);
   });
 });
