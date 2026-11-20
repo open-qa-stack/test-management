@@ -6,6 +6,7 @@ import type { Locator, Page } from "playwright-core";
 import { BuiltConsole } from "./built-console.ts";
 import { ConfiguredInstance } from "./configuration/configured-instance.ts";
 import { DocumentedInstance } from "./knowledge/documented-instance.ts";
+import { DETAIL, EXECUTIONS } from "./executions/executions-fixture.ts";
 import { ListedInstance } from "./tests/listed-instance.ts";
 import { OPENED_ID, PlayedInstance } from "./played-instance.ts";
 
@@ -1248,7 +1249,7 @@ describe("the code of the console is covered in full", () => {
     }
   });
 
-  it("runs every line of the screen of a test when it is used in the browser, from the list of the tests", async () => {
+  it("runs every line of the card of a test when it is used in the browser, from the list of the tests, and leads to its latest result", async () => {
     const instance = new ListedInstance();
     const [screen] = await app().measure(
       ["src/tests/test-page.tsx"],
@@ -1256,24 +1257,45 @@ describe("the code of the console is covered in full", () => {
         await page.goto("http://console.test/#/tests");
         await page.getByRole("link", { name: /Display the detail of a policy/ }).click();
         await page.waitForURL(/#\/tests\/view\?path=apps%2Fpolicy-management%2F/);
+        await page.getByText("1. Open the policy of the customer").waitFor();
+        await page.getByRole("link", { name: /Voir le dernier résultat/ }).click();
+        await page.waitForURL(/#\/executions\/result\?id=/);
+      },
+      instance.api,
+    );
+    assert.ok(screen!.lines.length > 0, "the screen is in the build");
+    assert.deepEqual(screen!.uncovered, []);
+  });
+
+  it("lets the card of a test, its tags, its steps and its executions, fit the width of a small phone", async () => {
+    const page = await app().open(360, `#/tests/view?path=${encodeURIComponent(DETAIL)}`, new ListedInstance().api);
+    try {
+      await page.locator(".test-written").waitFor();
+      assert.equal(await overflowOf(page), 0);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("runs every line of the screen of a result when it is used in the browser, and shows the page at the step chosen", async () => {
+    const [screen] = await app().measure(
+      ["src/executions/result-page.tsx"],
+      async (page) => {
+        await page.goto(`http://console.test/#/executions/result?id=${EXECUTIONS[0]!.id}&path=${encodeURIComponent(DETAIL)}`);
         await page.getByText("Échoue à l’étape 2 sur 2.").waitFor();
         // A step chosen in the list shows its page, and the address keeps it.
         await page.getByRole("link", { name: /Open the policy of the customer/ }).click();
         await page.waitForURL(/&step=1$/);
         await page.getByRole("img", { name: "Capture de l’étape 1" }).waitFor({ state: "attached" });
       },
-      instance.api,
+      new ListedInstance().api,
     );
     assert.ok(screen!.lines.length > 5, "the screen is in the build");
     assert.deepEqual(screen!.uncovered, []);
   });
 
-  it("lets the screen of a test, its steps, its captures and its details, fit the width of a small phone", async () => {
-    const page = await app().open(
-      360,
-      "#/tests/view?path=apps%2Fpolicy-management%2Ftests%2Fpolicies%2Fpolicy-detail%2Fpolicy-detail-nominal.spec.ts",
-      new ListedInstance().api,
-    );
+  it("lets the screen of a result, its steps, its captures and its details, fit the width of a small phone", async () => {
+    const page = await app().open(360, `#/executions/result?id=${EXECUTIONS[0]!.id}&path=${encodeURIComponent(DETAIL)}`, new ListedInstance().api);
     try {
       await page.locator(".test-step").first().waitFor();
       await page.getByText("Détails techniques").click();
@@ -1288,9 +1310,13 @@ describe("the code of the console is covered in full", () => {
     }
   });
 
-  it("lets the screen of the executions, its long paths and its counts, fit the width of a small phone", async () => {
+  it("lets the executions, a line unfolded into its tests, and the screen of one, fit the width of a small phone", async () => {
     const page = await app().open(360, "#/executions", new ListedInstance().api);
     try {
+      await page.locator(".exec-row summary").first().click();
+      await page.locator(".exec-tests .tests-row").first().waitFor();
+      assert.equal(await overflowOf(page), 0);
+      await page.goto(`http://console.test/#/executions/view?id=${EXECUTIONS[0]!.id}`);
       await page.locator(".tests-row").first().waitFor();
       assert.equal(await overflowOf(page), 0);
     } finally {
@@ -1298,18 +1324,53 @@ describe("the code of the console is covered in full", () => {
     }
   });
 
-  it("runs every line of the screen of the executions when it is used in the browser, and leads from a test to its screen", async () => {
-    const [screen] = await app().measure(
-      ["src/executions/executions-page.tsx"],
+  it("shows the executions as a table on a wide screen, its heading on one line above the cells of each execution", async () => {
+    const page = await app().open(1280, "#/executions", new ListedInstance().api);
+    try {
+      await page.locator(".exec-row summary").first().waitFor();
+      // The cells of a line share a band: each starts above where every other ends.
+      const boxes = async (line: string) =>
+        Promise.all((await page.locator(`${line} > span, ${line} > a`).all()).map(async (cell) => (await cell.boundingBox())!));
+      for (const line of [".exec-head", "details.exec-row:first-of-type > summary"]) {
+        // The room of the toggle in the heading holds nothing, and has no height.
+        const cells = (await boxes(line)).filter((cell) => cell.height > 0);
+        assert.ok(
+          cells.length >= 5 && Math.max(...cells.map((cell) => cell.y)) < Math.min(...cells.map((cell) => cell.y + cell.height)),
+          `${line} ${JSON.stringify(cells)}`,
+        );
+      }
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("runs every line of the screens of the executions when they are used in the browser, from a page to an execution and to a result", async () => {
+    const [list, one, polled] = await app().measure(
+      ["src/executions/executions-page.tsx", "src/executions/execution-page.tsx", "src/api/use-polled.ts"],
       async (page) => {
+        // An execution the instance does not keep is said so, in the words of the console.
+        await page.goto("http://console.test/#/executions/view?id=gone");
+        await page.getByText("L’instance ne garde plus cette exécution.").waitFor();
         await page.goto("http://console.test/#/executions");
+        await page.getByRole("link", { name: "Avec un échec" }).click();
+        await page.waitForURL(/#\/executions\?outcome=failing$/);
+        await page.getByRole("link", { name: /Plus anciennes/ }).click();
+        await page.waitForURL(/#\/executions\?outcome=failing&before=older$/);
+        await page.locator(".exec-row summary").first().click();
+        await page
+          .getByRole("link", { name: /Ouvrir l’exécution/ })
+          .first()
+          .click();
+        await page.waitForURL(/#\/executions\/view\?id=/);
         await page.getByRole("link", { name: /Policies › Edit a policy/ }).click();
-        await page.waitForURL(/#\/tests\/view\?path=apps%2Fpolicy-management%2F/);
+        await page.waitForURL(/#\/executions\/result\?id=/);
       },
       new ListedInstance().api,
     );
-    assert.ok(screen!.lines.length > 5, "the screen is in the build");
-    assert.deepEqual(screen!.uncovered, []);
+    for (const measured of [list, one, polled]) {
+      assert.ok(measured!.lines.length > 0, "the module is in the build");
+      assert.deepEqual(measured!.uncovered, []);
+    }
   });
 
   it("runs every line of the screen of the tests when it is used in the browser", async () => {

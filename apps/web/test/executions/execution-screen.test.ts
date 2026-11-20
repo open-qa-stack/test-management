@@ -1,0 +1,47 @@
+import assert from "node:assert/strict";
+import { createElement } from "react";
+import { describe, it } from "vitest";
+import type { Execution, Session } from "@open-qa-stack/domain/sessions";
+import type { PolledState } from "../../src/api/polled-state.ts";
+import { ExecutionScreen } from "../../src/executions/execution-screen.tsx";
+import { linksOf, render, textOf } from "../render.ts";
+import { DETAIL, EXECUTIONS } from "./executions-fixture.ts";
+
+const [LATEST, PAST] = EXECUTIONS as [Execution, Execution];
+
+/** The session that ran the latest execution. */
+const SESSION = { id: LATEST.sessionId, request: "Test the policies", openedAt: "", lastEventAt: "", state: "completed" } as Session;
+
+/** The screen of an execution in a state, with the sessions the console knows, as HTML. */
+const screen = (state: PolledState<Execution>, sessions: readonly Session[] = [SESSION], id = LATEST.id): string =>
+  render(createElement(ExecutionScreen, { project: "lakeside-tests", id, sessions, state }));
+
+describe("the screen of an execution", () => {
+  it("says it reads the execution until the instance read it, and why it could not", () => {
+    assert.equal(textOf(screen({}, [], "e9")), "lakeside-tests / Exécutions / e9 e9 Lecture de l’exécution Elle apparaît dès que l’instance a répondu.");
+    assert.match(textOf(screen({ unread: "L’instance ne garde plus cette exécution." })), /Lecture de l’exécution L’instance ne garde plus cette exécution\.$/);
+  });
+
+  it("says what came of its tests, how long they took, the session that ran it and the version, then its tests by application, the failures first", () => {
+    const text = textOf(screen({ value: LATEST }));
+    assert.match(
+      text,
+      /^lakeside-tests \/ Exécutions \/ (\S+ \S+) Exécution du \1 1 en échec 1 instable 2 réussis 1 ignoré Durée 9 s Lancée par la session « Test the policies » Dépôt de tests au commit 4f2a9c0 /,
+    );
+    assert.match(
+      text,
+      /policy-management · 5 tests En échec Policies › Edit a policy \S+ 5 s Instable Policies › Filter the policies \S+ 1 s Réussi Display the detail/,
+    );
+    const result = `#/executions/result?id=${LATEST.id}&path=${encodeURIComponent(DETAIL)}`;
+    assert.deepEqual(linksOf(screen({ value: LATEST })), ["#/executions", `#/agent/sessions/${LATEST.sessionId}`, result, result, result, result, result]);
+    // A session the console did not list is named as a session of design all the same.
+    assert.match(textOf(screen({ value: LATEST }, [])), /Lancée par une session de conception /);
+  });
+
+  it("says a past run belongs to no session it keeps, kept no version, and ran no test", () => {
+    assert.match(
+      textOf(screen({ value: PAST })),
+      /Durée 0 s La session qui l’a lancée n’est plus gardée\. Version du dépôt de tests non conservée\. Aucun test n’a tourné dans cette exécution\.$/,
+    );
+  });
+});

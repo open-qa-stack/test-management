@@ -37,7 +37,9 @@
       "nowhere": "Page not found",
       "tests": "Tests",
       "test": "Test",
-      "executions": "Executions"
+      "executions": "Executions",
+      "execution": "Execution",
+      "result": "Result of a test"
     },
     "opening": {
       "title": "Reading the session",
@@ -704,8 +706,6 @@
   "test": {
     "reading": "Reading the test",
     "readingNote": "It shows as soon as the instance answered.",
-    "notRun": "No run of this test yet",
-    "notRunNote": "Its steps show here once a session of the agent, or a run, ran it.",
     "status": {
       "expected": "passed",
       "unexpected": "failed",
@@ -724,8 +724,6 @@
     "steps": "Steps",
     "noStep": "The run reported no step of this test.",
     "details": "Technical details",
-    "ranAt": "Run of {{date}}",
-    "ranIn": "Run {{run}}",
     "summary": {
       "failedAt": "Fails at step {{step}} of {{count}}.",
       "expected_one": "Passes its {{count}} step.",
@@ -735,7 +733,23 @@
       "unexpected": "Fails.",
       "skipped": "Was skipped."
     },
-    "screenAt": "Page at step {{number}}"
+    "screenAt": "Page at step {{number}}",
+    "lastRun": "Last run on {{date}}",
+    "rate_one": "{{passed}} success in the last execution",
+    "rate_other": "{{passed}} successes in the last {{count}} executions",
+    "history": "The latest executions, the oldest on the left",
+    "lastResult": "See the latest result",
+    "neverRun": "Not run yet",
+    "neverRunNote": "Its executions show here as soon as a session of the agent, or an execution, ran it.",
+    "description": "Description",
+    "written_one": "{{count}} step, as written",
+    "written_other": "{{count}} steps, as written",
+    "noWrittenStep": "The file declares no step.",
+    "executions": "Executions",
+    "executionsHint_one": "{{count}} execution",
+    "executionsHint_other": "{{count}} executions, the latest first",
+    "unknown": "This test is no longer in the repository",
+    "unknownNote": "Its file was renamed or removed; its past executions stay listed here."
   },
   "executions": {
     "title": "Executions",
@@ -743,14 +757,9 @@
     "readingNote": "They show as soon as the instance answered.",
     "none": "No execution yet",
     "noneNote": "The executions of the tests show here once a session of the agent ran the tests it wrote.",
-    "lead_one": "{{count}} execution of the tests, the latest first.",
-    "lead_other": "{{count}} executions of the tests, the latest first.",
     "origins": {
       "design": "design"
     },
-    "commit": "commit {{commit}}",
-    "noVersion": "version not kept",
-    "noTest": "No test ran in this execution.",
     "verdicts": {
       "passed": "Passed",
       "failed": "Failed",
@@ -766,6 +775,47 @@
       "flaky_other": "{{count}} flaky",
       "skipped_one": "{{count}} skipped",
       "skipped_other": "{{count}} skipped"
-    }
+    },
+    "lead": "The executions of the tests, the latest first.",
+    "outcomeFilter": "Filter by outcome",
+    "outcomes": {
+      "all": "All",
+      "failing": "With a failure",
+      "passing": "Without a failure"
+    },
+    "columns": {
+      "date": "Date",
+      "origin": "Origin",
+      "content": "Content",
+      "result": "Result",
+      "duration": "Duration",
+      "version": "Version"
+    },
+    "session": "Session “{{request}}”",
+    "tests_one": "{{count}} test",
+    "tests_other": "{{count}} tests",
+    "open": "Open the execution",
+    "newest": "The latest ones",
+    "older": "Older ones",
+    "pages": "Pages of the executions",
+    "noMatch": "No execution matches",
+    "noMatchNote": "No execution kept has that outcome."
+  },
+  "execution": {
+    "title": "Execution of {{date}}",
+    "reading": "Reading the execution",
+    "readingNote": "It shows as soon as the instance answers.",
+    "duration": "Duration {{duration}}",
+    "launchedBy": "Run by the session “{{request}}”",
+    "bySession": "Run by a design session",
+    "noSession": "The session that ran it is no longer kept.",
+    "version": "Test repository at commit {{commit}}",
+    "noVersion": "Version of the test repository not kept.",
+    "noTest": "No test ran in this execution."
+  },
+  "result": {
+    "card": "Card of the test",
+    "gone": "The detail of this execution is no longer available",
+    "goneNote": "Its report was removed, or does not hold this test."
   }
 }

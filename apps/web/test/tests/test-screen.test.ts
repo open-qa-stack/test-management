@@ -1,93 +1,90 @@
 import assert from "node:assert/strict";
 import { createElement } from "react";
 import { describe, it } from "vitest";
-import { TestScreen } from "../../src/tests/test-screen.tsx";
-import { INITIAL_TEST, type TestState } from "../../src/tests/test-state.ts";
+import type { RepositoryTest, TestExecution } from "@open-qa-stack/domain/sessions";
+import type { PolledState } from "../../src/api/polled-state.ts";
+import { HISTORY_SIZE, TestScreen } from "../../src/tests/test-screen.tsx";
 import { linksOf, render, textOf } from "../render.ts";
-import { DETAIL, READING } from "./tests-fixture.ts";
+import { DETAIL, HANDMADE, TESTS } from "./tests-fixture.ts";
 
-/** The screen of the test of the policies in a state, as HTML. */
-const screen = (state: TestState): string => render(createElement(TestScreen, { project: "lakeside-tests", path: DETAIL.path, state }));
+/** What came of the test of the policies in an execution, at an hour of the morning. */
+const ran = (id: string, hour: number, verdict: TestExecution["result"]["verdict"], more: Partial<TestExecution> = {}): TestExecution => ({
+  id,
+  origin: "design",
+  ranAt: `2026-11-19T${String(hour).padStart(2, "0")}:00:00.000Z`,
+  result: { path: DETAIL.path, title: DETAIL.title, project: "policy-management", verdict, durationMs: 2140 },
+  ...more,
+});
 
-describe("the screen of a test", () => {
-  it("says it reads the test until the instance read it, and why it could not, under the path of the test", () => {
+/** Its executions, the latest first: a failure, then a flaky success at a version, then a success of another of its tests. */
+const EXECUTIONS: readonly TestExecution[] = [
+  ran("e3", 11, "failed"),
+  ran("e2", 10, "flaky", { commit: "4f2a9c01d3b6e8a7f5c2d1e0b9a8c7d6e5f4a3b2" }),
+  { ...ran("e1", 9, "passed"), result: { ...ran("e1", 9, "passed").result, title: "Policies › Edit a policy" } },
+];
+
+/** The card of a test of a path, in the states given, as HTML. */
+const screen = (
+  executions: PolledState<readonly TestExecution[]>,
+  tests: PolledState<readonly RepositoryTest[]> = { value: TESTS },
+  path = DETAIL.path,
+): string => render(createElement(TestScreen, { project: "lakeside-tests", path, tests, executions }));
+
+describe("the card of a test", () => {
+  it("says it reads the test until the instance told both the tests and its executions, and why it could not", () => {
     assert.equal(
-      textOf(screen(INITIAL_TEST)),
+      textOf(screen({}, {})),
       `lakeside-tests / Tests / ${DETAIL.path} ${DETAIL.path} ${DETAIL.path} Lecture du test Il apparaît dès que l’instance a répondu.`,
     );
-    assert.match(textOf(screen({ unread: "L’instance ne répond pas." })), /Lecture du test L’instance ne répond pas\.$/);
-    assert.deepEqual(linksOf(screen(INITIAL_TEST)), ["#/tests"]);
+    assert.match(textOf(screen({}, { unread: "L’instance ne répond pas." })), /Lecture du test L’instance ne répond pas\.$/);
+    assert.match(textOf(screen({ unread: "Down." })), /Lecture du test Down\.$/);
   });
 
-  it("says no run ran the test yet", () => {
-    assert.match(
-      textOf(screen({ reading: { path: DETAIL.path } })),
-      /Ce test n’a pas encore été exécuté Ses étapes apparaissent ici dès qu’une session de l’agent, ou une exécution, l’a joué\.$/,
-    );
-  });
-
-  it("says how its latest run ended and where it failed, what it expected and found, then its steps, and shows the page at the step that failed", () => {
-    const html = screen({ reading: READING });
-    const text = textOf(html);
-    assert.match(text, /^lakeside-tests \/ Tests \/ Display the detail of a policy Display the detail of a policy /);
-    assert.match(text, /en échec Échoue à l’étape 2 sur 2\. Exécution run-2026-11-19T00-29-03-488Z Attendu "1500 CHF" Obtenu "250 CHF"/);
-    assert.match(text, /Étapes · 2 étapes 1 ✓ 1\. Open the policy of the customer Fill the search 224 ms 2 ✕ 2\. Read its amounts 5,0 s/);
-    // The step that failed is shown: the run kept no capture of it.
-    assert.match(text, /Écran à l’étape 2 Aucune capture pour cette étape\. Détails techniques/);
-    assert.match(html, /<a class="row test-step failed on" href="#\/tests\/view\?path=apps%2Fpolicy-management%2F[^"]*&amp;step=2" aria-current="step">/);
+  it("says what the test is, by its tags and its steps as written, and that it never ran", () => {
+    const text = textOf(screen({ value: [] }));
     assert.match(
       text,
-      /Détails techniques Error: expect\(locator\)\.toHaveText\(\) at policy-detail-nominal\.spec\.ts:9 opened \/work\/\.oqas\/test-results\/trace\.zip$/,
+      /^lakeside-tests \/ Tests \/ Display the detail of a policy Display the detail of a policy apps\/\S+ Fonctionnel policies › policy-detail policy-management /,
+    );
+    assert.match(
+      text,
+      /Pas encore exécuté Ses exécutions apparaissent ici dès qu’une session de l’agent, ou une exécution, l’a joué\. Description · 2 étapes, telles qu’écrites 1\. Open the policy of the customer 2\. Read its amounts$/,
+    );
+    assert.match(
+      textOf(screen({ value: [] }, { value: TESTS }, HANDMADE.path)),
+      /Description · 0 étape, telle qu’écrite Le fichier ne déclare aucune étape\.$/,
     );
   });
 
-  it("dates the run that ran it, and shows the page at the step the address asks for, whole width", () => {
-    const html = render(
-      createElement(TestScreen, {
-        project: "lakeside-tests",
-        path: DETAIL.path,
-        step: 1,
-        state: { reading: { ...READING, ranAt: "2026-11-19T00:29:03.488Z" } },
-      }),
-    );
-    assert.match(textOf(html), /Échoue à l’étape 2 sur 2\. Exécution du \d{2}\/\d{2}\/2026 \d{2}:\d{2} /);
-    assert.match(textOf(html), /Écran à l’étape 1 Détails/);
-    assert.match(html, /<img class="test-capture" src="\/api\/tests\/capture\?path=apps%2Fpolicy-management%2F[^"]*&amp;step=1" alt="Capture de l’étape 1"\/>/);
-    assert.match(html, /<a class="row test-step on" href="[^"]*&amp;step=1" aria-current="step">/);
-    // A step the test does not have is no step to show: the one that failed is.
-    assert.match(textOf(screen({ reading: READING })), /Écran à l’étape 2/);
+  it("says what came of it lately, then lists its executions, each leading to what came of it there", () => {
+    const html = screen({ value: EXECUTIONS });
+    const text = textOf(html);
+    assert.match(text, / En échec (Dernière exécution le \S+ \S+) 2 réussites sur les 3 dernières exécutions Voir le dernier résultat → /);
     assert.match(
-      textOf(render(createElement(TestScreen, { project: "lakeside-tests", path: DETAIL.path, step: 9, state: { reading: READING } }))),
-      /Écran à l’étape 2/,
+      text,
+      /Exécutions · 3 exécutions, la plus récente d’abord En échec \S+ \S+ conception · — 2 s Instable \S+ \S+ conception · 4f2a9c0 2 s Réussi \S+ \S+ · Policies › Edit a policy conception · — 2 s$/,
     );
+    // The dots tell the latest executions, the oldest on the left.
+    assert.match(
+      html,
+      /<span class="test-dots" role="img" aria-label="Les dernières exécutions, la plus ancienne à gauche"><span class="test-dot passed" title="Réussi"><\/span><span class="test-dot flaky" title="Instable"><\/span><span class="test-dot failed" title="En échec"><\/span><\/span>/,
+    );
+    const result = (id: string) => `#/executions/result?id=${id}&path=${encodeURIComponent(DETAIL.path)}`;
+    assert.deepEqual(linksOf(html), ["#/tests", result("e3"), result("e3"), result("e2"), result("e1")]);
+    assert.match(textOf(screen({ value: EXECUTIONS.slice(0, 1) })), /0 réussite sur la dernière exécution/);
   });
 
-  it("says how a run that did not fail went, and shows the page at the last step it captured", () => {
-    const { failedStep: _, expected: __, received: ___, ...rest } = READING.view!;
-    const steps = rest.steps.map((step) => ({ ...step, state: "passed" as const }));
-    const read = (status: "expected" | "flaky" | "skipped", shown = steps) =>
-      textOf(screen({ reading: { ...READING, view: { ...rest, steps: shown, status } } }));
-    assert.match(read("expected"), /réussi Réussit ses 2 étapes\. .* Écran à l’étape 1 /);
-    assert.match(read("flaky", steps.slice(0, 1)), /réussi après une nouvelle tentative Réussit son étape après une nouvelle tentative\./);
-    // Without any capture, the page shown is that of the first step.
-    assert.match(
-      read(
-        "expected",
-        steps.map(({ capture: _capture, ...step }) => step),
-      ),
-      /Écran à l’étape 1 Aucune capture pour cette étape\./,
-    );
-    assert.match(read("skipped", []), /ignoré A été ignoré\. .*Étapes · 0 étape L’exécution n’a rapporté aucune étape de ce test\. Détails techniques /);
+  it(`counts no more than the latest ${HISTORY_SIZE} executions`, () => {
+    const many = Array.from({ length: HISTORY_SIZE + 2 }, (_, rank) => ran(`e${rank}`, rank, "passed"));
+    assert.match(textOf(screen({ value: many })), new RegExp(`${HISTORY_SIZE} réussites sur les ${HISTORY_SIZE} dernières exécutions`));
   });
 
-  it("says when the failed assertion does not say what it received", () => {
-    const { expected: _, received: __, ...view } = READING.view!;
+  it("says a test no longer in the repository is gone, and still lists its executions", () => {
+    const text = textOf(screen({ value: EXECUTIONS }, { value: [] }));
     assert.match(
-      textOf(screen({ reading: { ...READING, view } })),
-      /Échoue à l’étape 2 sur 2\. Exécution \S+ Le message de l’assertion en échec ne dit pas ce qu’elle a obtenu/,
+      text,
+      /Ce test n’est plus dans le dépôt Son fichier a été renommé ou supprimé ; ses exécutions passées restent listées ici\. Exécutions · 3 exécutions/,
     );
-    // A failure the report tells without a step that failed is told as such.
-    const { failedStep: ___, ...unplaced } = view;
-    assert.match(textOf(screen({ reading: { ...READING, view: unplaced } })), /en échec Échoue\. Exécution/);
+    assert.doesNotMatch(text, /Description/);
   });
 });

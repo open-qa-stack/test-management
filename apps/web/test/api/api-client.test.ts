@@ -127,15 +127,28 @@ describe("the client of the API, for the documents of the knowledge sources", ()
     assert.deepEqual(await listed.client.tests(), [test]);
     assert.deepEqual(listed.calls, [["/api/tests", undefined]]);
     const read = clientOf(() => json({ path: "apps/shop/orders.spec.ts" }));
-    assert.deepEqual(await read.client.testReading("apps/shop/orders.spec.ts"), { path: "apps/shop/orders.spec.ts" });
-    assert.deepEqual(read.calls, [["/api/tests/reading?path=apps%2Fshop%2Forders.spec.ts", undefined]]);
+    assert.deepEqual(await read.client.testReading("apps/shop/orders.spec.ts", "e 1"), { path: "apps/shop/orders.spec.ts" });
+    assert.deepEqual(read.calls, [["/api/tests/reading?path=apps%2Fshop%2Forders.spec.ts&execution=e+1", undefined]]);
   });
 
-  it("lists the executions of the tests out of the envelope the API answers", async () => {
-    const execution = { id: "e1", origin: "design", ranAt: "2026-11-19T10:00:05.000Z", report: "r.json", results: [] };
-    const listed = clientOf(() => json({ items: [execution] }));
-    assert.deepEqual(await listed.client.executions(), [execution]);
-    assert.deepEqual(listed.calls, [["/api/executions", undefined]]);
+  it("reads the executions of the tests a page at a time, one by its identifier, and those of a file out of the envelope the API answers", async () => {
+    const execution = { id: "e 1", origin: "design", ranAt: "2026-11-19T10:00:05.000Z", report: "r.json", results: [] };
+    const paged = clientOf(() => json({ items: [execution], next: "e 1" }));
+    assert.deepEqual(await paged.client.executionPage(), { items: [execution], next: "e 1" });
+    await paged.client.executionPage("failing", "e 1");
+    const one = clientOf(() => json(execution));
+    assert.deepEqual(await one.client.execution("e 1"), execution);
+    const ofFile = clientOf(() => json({ items: [{ ...execution, result: {} }] }));
+    assert.deepEqual(await ofFile.client.testExecutions("apps/shop/orders.spec.ts"), [{ ...execution, result: {} }]);
+    assert.deepEqual(
+      [...paged.calls, ...one.calls, ...ofFile.calls],
+      [
+        ["/api/executions", undefined],
+        ["/api/executions?outcome=failing&before=e+1", undefined],
+        ["/api/executions/e%201", undefined],
+        ["/api/tests/executions?path=apps%2Fshop%2Forders.spec.ts", undefined],
+      ],
+    );
   });
 
   it("lists the documents of a source out of the envelope the API answers, and reads one, each name encoded", async () => {
