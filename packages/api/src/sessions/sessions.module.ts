@@ -5,6 +5,7 @@ import { ApiConfiguration } from "../config/api-configuration.ts";
 import { DatabaseModule } from "../database/database.module.ts";
 import { RepositoryConfigurationModule } from "../repository-configuration/repository-configuration.module.ts";
 import { EventStreams } from "./event-streams.ts";
+import { LaunchesController } from "./launches.controller.ts";
 import { ProjectController } from "./project.controller.ts";
 import { RunEnvironment } from "./run-environment.ts";
 import { SessionsController } from "./sessions.controller.ts";
@@ -14,11 +15,12 @@ import { StreamPace } from "./stream-pace.ts";
 /**
  * The routes of the project and of the sessions, over the operations of the engine, which this process
  * hosts: the operations keep the sessions in the database of the instance, and run those opened here in the
- * test repository the API was given. The routes hold no rule of the sessions: each calls one operation.
+ * test repository the API was given, and so do the launches of tests, which take their turn. The routes hold no
+ * rule of the sessions: each calls one operation.
  */
 @Module({
   imports: [DatabaseModule, RepositoryConfigurationModule],
-  controllers: [ProjectController, SessionsController],
+  controllers: [LaunchesController, ProjectController, SessionsController],
   providers: [
     EventStreams,
     RunEnvironment,

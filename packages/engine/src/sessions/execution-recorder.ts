@@ -18,9 +18,9 @@ interface FileVersion {
   readonly committed?: ReadonlyMap<string, string>;
 }
 
-/** What the recorder of the executions of a session works with. */
+/** What the recorder of the executions works with. */
 export interface RecorderOptions {
-  /** Absolute path of the test repository the session ran its tests in. */
+  /** Absolute path of the test repository the tests ran in. */
   readonly repository: string;
   /** The operations on the configuration, whose revision in step names the folder of the applications. */
   readonly configuration: Configuration;
@@ -31,7 +31,7 @@ export interface RecorderOptions {
 }
 
 /**
- * Keeps the execution of the tests a session of design ran, from the report the runner wrote: what came of each
+ * Keeps an execution of tests — those a session of design ran, or those a person launched — from the report the runner wrote: what came of each
  * test, named by the path of its file and its titles, with the version it ran at — the commit of the test
  * repository, the SHA-256 of the file of the test, and that of the test itself without its comments nor its layout,
  * with whether the test was the same in the commit. The store numbers the versions of each test by the latter.
@@ -45,14 +45,14 @@ export class ExecutionRecorder {
   }
 
   /**
-   * Keeps the execution of a session.
+   * Keeps an execution of tests.
    *
-   * @param sessionId - The session that ran the tests.
    * @param report - The report of the runner, relative to the test repository.
+   * @param source - Where the execution comes from: its origin, and the session that ran the tests, for one a session ran.
    * @returns The execution kept; `undefined` when the report cannot be read, and nothing is kept.
    * @throws When the store refuses the execution.
    */
-  async record(sessionId: string, report: string): Promise<Execution | undefined> {
+  async record(report: string, source: Pick<Execution, "origin" | "sessionId">): Promise<Execution | undefined> {
     const { repository, configuration, store, now } = this.#options;
     const json = await readFile(join(repository, report), "utf8").catch(() => "");
     const { appsDir } = { ...DEFAULT_REPOSITORY, ...(await configuration.inStep())?.document.repository };
@@ -63,8 +63,7 @@ export class ExecutionRecorder {
     for (const { path } of results) if (!files.has(path)) files.set(path, await this.#version(path, commit));
     const execution: Execution = {
       id: randomUUID(),
-      origin: "design",
-      sessionId,
+      ...source,
       ranAt: now().toISOString(),
       ...(commit === undefined ? {} : { commit }),
       report,

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { BadRequestException, Logger, type MessageEvent, NotFoundException } from "@nestjs/common";
 import type { HttpAdapterHost } from "@nestjs/core";
-import { SessionEndedError, SessionStateError, UnknownSessionError } from "@open-qa-stack/domain";
+import { LaunchRefusedError, SessionEndedError, SessionStateError, UnknownSessionError } from "@open-qa-stack/domain";
 import type { MessageReceipt, Problem, ProblemCode, Project, Session, SessionEvent, SessionMessage, SessionOpening } from "@open-qa-stack/domain/sessions";
 import { type EventListener, NoRepositoryError, type SessionEventStream, type Sessions } from "@open-qa-stack/engine";
 import { DatabaseUnavailableError } from "@open-qa-stack/store";
@@ -12,6 +12,9 @@ import { environmentSettings } from "../src/config/environment-settings.ts";
 import { expectedProblem } from "../src/problems/expected-problem.ts";
 import { problemOf } from "../src/problems/problem-kinds.ts";
 import { eventIdOf } from "../src/sessions/event-id.ts";
+import { launchRequestOf, MAX_LAUNCH_PATHS } from "../src/sessions/launch-request.ts";
+import { LaunchRequestPipe } from "../src/sessions/launch-request.pipe.ts";
+import { LaunchesController } from "../src/sessions/launches.controller.ts";
 import { EventStreams } from "../src/sessions/event-streams.ts";
 import { ProjectController } from "../src/sessions/project.controller.ts";
 import { RunEnvironment } from "../src/sessions/run-environment.ts";
@@ -149,6 +152,67 @@ describe("a request to open a session", () => {
     const pipe = new SessionOpeningPipe();
     assert.deepEqual(pipe.transform({ request: "cover the profile" }), { request: "cover the profile" });
     assert.equal(refusalOf(() => pipe.transform({})).failure, "invalid_request");
+  });
+});
+
+describe("a request to launch tests", () => {
+  it("names the files of tests and the environment, each when it is given", () => {
+    assert.deepEqual(launchRequestOf({}), {});
+    assert.deepEqual(launchRequestOf({ paths: ["apps/shop/tests/search.spec.ts", "a b/c.spec.ts"], environment: "local" }), {
+      paths: ["apps/shop/tests/search.spec.ts", "a b/c.spec.ts"],
+      environment: "local",
+    });
+    assert.equal(launchRequestOf({ paths: Array.from({ length: MAX_LAUNCH_PATHS }, (_, index) => `t${index}.spec.ts`) }).paths?.length, MAX_LAUNCH_PATHS);
+  });
+
+  const PATHS = `paths must be a list of at most ${MAX_LAUNCH_PATHS} files of tests, relative to the test repository and inside it; leave it out to launch every test.`;
+  const ENVIRONMENT = "environment must be a text that is not empty and does not start with -- when it is given.";
+  for (const [body, message] of [
+    [null, "The body must be a JSON object."],
+    [{ paths: "a.spec.ts" }, PATHS],
+    [{ paths: [3] }, PATHS],
+    [{ paths: [""] }, PATHS],
+    [{ paths: ["--grep=x"] }, PATHS],
+    [{ paths: ["/etc/passwd"] }, PATHS],
+    [{ paths: ["\\server\\a.spec.ts"] }, PATHS],
+    [{ paths: ["C:a.spec.ts"] }, PATHS],
+    [{ paths: ["../a.spec.ts"] }, PATHS],
+    [{ paths: ["apps/../../a.spec.ts"] }, PATHS],
+    [{ paths: ["apps/.."] }, PATHS],
+    [{ paths: Array.from({ length: MAX_LAUNCH_PATHS + 1 }, () => "a.spec.ts") }, PATHS],
+    [{ environment: "" }, ENVIRONMENT],
+    [{ environment: 3 }, ENVIRONMENT],
+    [{ environment: "--x" }, ENVIRONMENT],
+    [{ request: "cover" }, "request is not a field of a request to launch tests."],
+  ] as const) {
+    it(`is refused, naming what is at fault, when it is ${JSON.stringify(body)?.slice(0, 60)}`, () => {
+      const refusal = refusalOf(() => launchRequestOf(body));
+      assert.deepEqual([refusal.failure, refusal.message], ["invalid_request", message]);
+    });
+  }
+
+  it("is read by the pipe of the route as it is by itself, and the controller answers what the operations answer", () => {
+    const pipe = new LaunchRequestPipe();
+    assert.deepEqual(pipe.transform({ environment: "local" }), { environment: "local" });
+    assert.equal(refusalOf(() => pipe.transform({ paths: 1 })).failure, "invalid_request");
+    const launch = { startedAt: "2026-11-20T10:00:00.000Z", environment: "local", paths: [] };
+    const asked: unknown[] = [];
+    const controller = new LaunchesController({
+      launch: (request: unknown) => (asked.push(request), Promise.resolve(launch)),
+      launches: () => ({ running: launch }),
+    } as unknown as Sessions);
+    assert.deepEqual(controller.launches(), { running: launch });
+    return controller.launch({ environment: "local" }).then((started) => {
+      assert.equal(started, launch);
+      assert.deepEqual(asked, [{ environment: "local" }]);
+    });
+  });
+
+  it("is told launch_refused, with what to do, when it cannot be launched now", () => {
+    assert.deepEqual(expectedProblem(new LaunchRefusedError("A session runs its tests: launch these once it ended.")), {
+      ...problemOf("launch_refused", "A session runs its tests: launch these once it ended."),
+      status: 409,
+    });
   });
 });
 

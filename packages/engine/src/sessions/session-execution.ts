@@ -122,7 +122,7 @@ export class SessionExecution {
   async #record(id: string, repository: string, report: string, now: () => Date): Promise<string | undefined> {
     const { configuration, executions: store } = this.#host;
     try {
-      await new ExecutionRecorder({ repository, configuration, store, now }).record(id, report);
+      await new ExecutionRecorder({ repository, configuration, store, now }).record(report, { origin: "design", sessionId: id });
       return undefined;
     } catch (error) {
       return error instanceof Error ? error.message : String(error);

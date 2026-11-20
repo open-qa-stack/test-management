@@ -374,6 +374,7 @@
     "unknown_trace": "Cette exécution du test n’a gardé aucune trace.",
     "unknown_capture": "Cette exécution du test n’a joint aucune capture pour cette étape.",
     "unknown_execution": "L’instance ne garde plus cette exécution.",
+    "launch_refused": "Les tests ne peuvent pas être lancés maintenant : une session ou un autre lancement tourne, ou l’environnement demandé n’est pas déclaré.",
     "unexplained": "L’instance a rencontré une erreur.",
     "unreachable": "L’instance ne répond pas.",
     "unreadable": "La réponse de l’instance est illisible."
@@ -772,7 +773,8 @@
     "none": "Aucune exécution pour l’instant",
     "noneNote": "Les exécutions des tests apparaissent ici dès qu’une session de l’agent a lancé les tests qu’elle a écrits.",
     "origins": {
-      "design": "conception"
+      "design": "conception",
+      "manual": "lancement manuel"
     },
     "verdicts": {
       "passed": "Réussi",
