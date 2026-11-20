@@ -126,7 +126,7 @@ describe("the entry of the agent", () => {
     assert.match(text, /Sessions · 1 en direct tester la recherche d'un client 15 nov. 2026, 14:44:06 UTC en direct /);
     assert.match(
       text,
-      /tester la recherche d'un client 15 nov. 2026, 14:44:06 UTC · local · 1 min 54 s · 50 requêtes au modèle · 1 \/ 1 test réussi tests réussis /,
+      /tester la recherche d'un client 15 nov. 2026, 14:44:06 UTC · local · 1 min 54 s · 50 requêtes au modèle 1 \/ 1 test réussi tests réussis /,
     );
     assert.match(text, /Session sans demande 14 nov. 2026, 09:12:00 UTC interrompue$/);
     assert.doesNotMatch(text, /Lecture des sessions|Aucune session/);

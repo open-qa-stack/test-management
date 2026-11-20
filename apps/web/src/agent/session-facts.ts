@@ -44,18 +44,6 @@ export function waitText(session: Session): string | undefined {
 }
 
 /**
- * Counts the tests of a session by verdict.
- *
- * @param session - The session.
- * @returns How many passed out of how many, or nothing when it has none.
- */
-export function testsText(session: Session): string | undefined {
-  const tests = session.result?.tests ?? [];
-  if (tests.length === 0) return undefined;
-  return t("facts.testsPassed", { passed: tests.filter(({ verdict }) => verdict === "passed").length, count: tests.length });
-}
-
-/**
  * Says what of the project a session keeps its work to: its applications, its domains and its levels, those it names.
  *
  * @param session - The session.
