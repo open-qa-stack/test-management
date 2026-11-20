@@ -37,7 +37,9 @@
       "nowhere": "Page introuvable",
       "tests": "Tests",
       "test": "Test",
-      "executions": "Exécutions"
+      "executions": "Exécutions",
+      "execution": "Exécution",
+      "result": "Résultat d’un test"
     },
     "opening": {
       "title": "Lecture de la session",
@@ -704,8 +706,6 @@
   "test": {
     "reading": "Lecture du test",
     "readingNote": "Il apparaît dès que l’instance a répondu.",
-    "notRun": "Ce test n’a pas encore été exécuté",
-    "notRunNote": "Ses étapes apparaissent ici dès qu’une session de l’agent, ou une exécution, l’a joué.",
     "status": {
       "expected": "réussi",
       "unexpected": "en échec",
@@ -724,8 +724,6 @@
     "steps": "Étapes",
     "noStep": "L’exécution n’a rapporté aucune étape de ce test.",
     "details": "Détails techniques",
-    "ranAt": "Exécution du {{date}}",
-    "ranIn": "Exécution {{run}}",
     "summary": {
       "failedAt": "Échoue à l’étape {{step}} sur {{count}}.",
       "expected_one": "Réussit son étape.",
@@ -735,7 +733,23 @@
       "unexpected": "Échoue.",
       "skipped": "A été ignoré."
     },
-    "screenAt": "Écran à l’étape {{number}}"
+    "screenAt": "Écran à l’étape {{number}}",
+    "lastRun": "Dernière exécution le {{date}}",
+    "rate_one": "{{passed}} réussite sur la dernière exécution",
+    "rate_other": "{{passed}} réussites sur les {{count}} dernières exécutions",
+    "history": "Les dernières exécutions, la plus ancienne à gauche",
+    "lastResult": "Voir le dernier résultat",
+    "neverRun": "Pas encore exécuté",
+    "neverRunNote": "Ses exécutions apparaissent ici dès qu’une session de l’agent, ou une exécution, l’a joué.",
+    "description": "Description",
+    "written_one": "{{count}} étape, telle qu’écrite",
+    "written_other": "{{count}} étapes, telles qu’écrites",
+    "noWrittenStep": "Le fichier ne déclare aucune étape.",
+    "executions": "Exécutions",
+    "executionsHint_one": "{{count}} exécution",
+    "executionsHint_other": "{{count}} exécutions, la plus récente d’abord",
+    "unknown": "Ce test n’est plus dans le dépôt",
+    "unknownNote": "Son fichier a été renommé ou supprimé ; ses exécutions passées restent listées ici."
   },
   "executions": {
     "title": "Exécutions",
@@ -743,14 +757,9 @@
     "readingNote": "Elles apparaissent dès que l’instance a répondu.",
     "none": "Aucune exécution pour l’instant",
     "noneNote": "Les exécutions des tests apparaissent ici dès qu’une session de l’agent a lancé les tests qu’elle a écrits.",
-    "lead_one": "{{count}} exécution des tests, la plus récente d’abord.",
-    "lead_other": "{{count}} exécutions des tests, la plus récente d’abord.",
     "origins": {
       "design": "conception"
     },
-    "commit": "commit {{commit}}",
-    "noVersion": "version non conservée",
-    "noTest": "Aucun test n’a tourné dans cette exécution.",
     "verdicts": {
       "passed": "Réussi",
       "failed": "En échec",
@@ -766,6 +775,47 @@
       "flaky_other": "{{count}} instables",
       "skipped_one": "{{count}} ignoré",
       "skipped_other": "{{count}} ignorés"
-    }
+    },
+    "lead": "Les exécutions des tests, la plus récente d’abord.",
+    "outcomeFilter": "Filtrer par issue",
+    "outcomes": {
+      "all": "Toutes",
+      "failing": "Avec un échec",
+      "passing": "Sans échec"
+    },
+    "columns": {
+      "date": "Date",
+      "origin": "Origine",
+      "content": "Contenu",
+      "result": "Résultat",
+      "duration": "Durée",
+      "version": "Version"
+    },
+    "session": "Session « {{request}} »",
+    "tests_one": "{{count}} test",
+    "tests_other": "{{count}} tests",
+    "open": "Ouvrir l’exécution",
+    "newest": "Les plus récentes",
+    "older": "Plus anciennes",
+    "pages": "Pages des exécutions",
+    "noMatch": "Aucune exécution ne correspond",
+    "noMatchNote": "Aucune exécution gardée n’a cette issue."
+  },
+  "execution": {
+    "title": "Exécution du {{date}}",
+    "reading": "Lecture de l’exécution",
+    "readingNote": "Elle apparaît dès que l’instance a répondu.",
+    "duration": "Durée {{duration}}",
+    "launchedBy": "Lancée par la session « {{request}} »",
+    "bySession": "Lancée par une session de conception",
+    "noSession": "La session qui l’a lancée n’est plus gardée.",
+    "version": "Dépôt de tests au commit {{commit}}",
+    "noVersion": "Version du dépôt de tests non conservée.",
+    "noTest": "Aucun test n’a tourné dans cette exécution."
+  },
+  "result": {
+    "card": "Fiche du test",
+    "gone": "Le détail de cette exécution n’est plus disponible",
+    "goneNote": "Son rapport a été supprimé, ou ne contient pas ce test."
   }
 }

@@ -38,8 +38,13 @@ function matches(test: RepositoryTest, search: string): boolean {
     .every((word) => text.includes(word));
 }
 
-/** The level of a test in the words of the person; its tag as it is for a level the console does not know. */
-function levelText(level: string): string {
+/**
+ * The level of a test in the words of the person.
+ *
+ * @param level - The level its tag gives.
+ * @returns Its words; the tag as it is for a level the console does not know.
+ */
+export function levelText(level: string): string {
   return (LEVELS as readonly string[]).includes(level) ? t(`tests.levels.${level as (typeof LEVELS)[number]}`) : level;
 }
 

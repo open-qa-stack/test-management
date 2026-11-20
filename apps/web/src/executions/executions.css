@@ -1,0 +1,109 @@
+/* The screen of the executions: a table whose lines unfold into their tests, then the links between its pages. */
+.exec-table {
+  overflow: hidden;
+}
+
+.exec-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-3);
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+}
+
+.exec-head,
+.exec-origin,
+.exec-content,
+.exec-duration,
+.exec-version {
+  display: none;
+}
+
+.exec-row {
+  border-top: var(--hairline) solid var(--line);
+}
+
+.exec-row > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.exec-row > summary::-webkit-details-marker {
+  display: none;
+}
+
+.exec-row > summary::before {
+  content: "▸";
+  position: absolute;
+  margin-left: calc(-1 * var(--space-3));
+  color: var(--neutral);
+}
+
+.exec-row[open] > summary::before {
+  content: "▾";
+}
+
+.exec-row[open] > summary {
+  background: var(--surface-soft);
+}
+
+.exec-date {
+  font-weight: var(--weight-strong);
+  color: inherit;
+}
+
+.exec-result {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  justify-content: flex-end;
+}
+
+.exec-tests {
+  padding: 0 var(--space-4) var(--space-3);
+  background: var(--surface-soft);
+}
+
+.exec-pages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.exec-summary {
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-6);
+}
+
+.exec-counts {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+@media (min-width: 960px) {
+  .exec-line {
+    grid-template-columns: 11em 8em minmax(0, 1fr) 14em 6em 6em;
+  }
+
+  .exec-head,
+  .exec-origin,
+  .exec-content,
+  .exec-duration,
+  .exec-version {
+    display: block;
+  }
+
+  .exec-head {
+    border-bottom: var(--hairline) solid var(--line);
+  }
+
+  .exec-result {
+    justify-content: flex-start;
+  }
+
+  .exec-duration {
+    text-align: right;
+  }
+}

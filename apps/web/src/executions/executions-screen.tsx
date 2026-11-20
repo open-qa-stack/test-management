@@ -1,98 +1,168 @@
 import type { ReactNode } from "react";
-import type { Execution, ExecutionResult, ExecutionVerdict } from "@open-qa-stack/domain/sessions";
+import type { Execution, ExecutionList, ExecutionOutcome, ExecutionResult, Session } from "@open-qa-stack/domain/sessions";
+import type { PolledState } from "../api/polled-state.ts";
 import { dateText, durationText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
-import { testHref } from "../tests/tests-paths.ts";
-import { Badge, type BadgeTone } from "../ui/badge.tsx";
-import { Card } from "../ui/card.tsx";
+import { Badge } from "../ui/badge.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
-import type { ExecutionsState } from "./executions-state.ts";
+import { contentText, executionDuration, versionText } from "./execution-text.ts";
+import { executionHref, executionsHref, resultHref } from "./executions-paths.ts";
+import { failuresFirst, VerdictBadge, VerdictCounts } from "./verdicts.tsx";
 
-/** The verdicts, in the order the summary of an execution counts them, each with the tone of its badge. */
-const VERDICTS: readonly (readonly [ExecutionVerdict, BadgeTone])[] = [
-  ["passed", "ok"],
-  ["failed", "ko"],
-  ["flaky", "warn"],
-  ["skipped", "neutral"],
-];
-
-/** The tone of the badge of a verdict. */
-const toneOf = (verdict: ExecutionVerdict): BadgeTone => VERDICTS.find(([known]) => known === verdict)![1];
+/** The outcomes a person narrows the executions to, every one first. */
+const OUTCOMES: readonly (ExecutionOutcome | undefined)[] = [undefined, "failing", "passing"];
 
 /** What the screen of the executions is drawn from. */
 export interface ExecutionsScreenProps {
   /** The name of the project. */
   readonly project: string;
-  readonly state: ExecutionsState;
+  /** The outcome the address narrows the executions to. */
+  readonly outcome?: ExecutionOutcome;
+  /** The execution the page starts after, as the address gives it. */
+  readonly before?: string;
+  /** The sessions of the project the console listed, which name what an execution ran. */
+  readonly sessions: readonly Session[];
+  /** What the instance told of the page. */
+  readonly state: PolledState<ExecutionList>;
 }
 
-/** A test of an execution, which leads to the screen of the test: its verdict, its title, its path, and how long it took. */
-function ResultRow({ result }: { readonly result: ExecutionResult }): ReactNode {
+/** The links that narrow the executions to an outcome, the one chosen marked. */
+function OutcomeFilter({ outcome }: { readonly outcome: ExecutionOutcome | undefined }): ReactNode {
   return (
-    <a className="row tests-row" href={testHref(result.path)}>
-      <Badge tone={toneOf(result.verdict)}>{t(`executions.verdicts.${result.verdict}`)}</Badge>
+    <nav className="tests-levels" aria-label={t("executions.outcomeFilter")}>
+      {OUTCOMES.map((candidate) => (
+        <a
+          key={candidate ?? "all"}
+          className={candidate === outcome ? "chip on" : "chip"}
+          href={executionsHref(candidate)}
+          aria-current={candidate === outcome ? "page" : undefined}
+        >
+          {t(`executions.outcomes.${candidate ?? "all"}`)}
+        </a>
+      ))}
+    </nav>
+  );
+}
+
+/** A test of an execution, which leads to what came of it there: its verdict, its title, its application, and how long it took. */
+function ResultRow({ execution, result }: { readonly execution: Execution; readonly result: ExecutionResult }): ReactNode {
+  return (
+    <a className="row tests-row" href={resultHref(execution.id, result.path)}>
+      <VerdictBadge verdict={result.verdict} />
       <div className="grow">
         <b>{result.title}</b>
-        <div className="small muted mono">{result.path}</div>
+        <span className="small muted"> · {result.project}</span>
       </div>
       <span className="small muted">{durationText(result.durationMs)}</span>
     </a>
   );
 }
 
-/** How many tests of an execution came to each verdict, those none came to left out. */
-function Summary({ results }: { readonly results: readonly ExecutionResult[] }): ReactNode {
-  return VERDICTS.map(([verdict, tone]) => [verdict, tone, results.filter((result) => result.verdict === verdict).length] as const)
-    .filter(([, , count]) => count > 0)
-    .map(([verdict, tone, count]) => (
-      <Badge key={verdict} tone={tone}>
-        {t(`executions.counts.${verdict}`, { count })}
-      </Badge>
-    ));
+/** An execution, as a line that unfolds into its tests: when it ran, where from, what it ran, what came of it, how long, at which version. */
+function ExecutionRow({ execution, sessions }: { readonly execution: Execution; readonly sessions: readonly Session[] }): ReactNode {
+  return (
+    <details className="exec-row">
+      <summary className="exec-line">
+        <a className="exec-date" href={executionHref(execution.id)}>
+          {dateText(execution.ranAt)}
+        </a>
+        <span className="exec-origin">
+          <Badge tone="neutral">{t(`executions.origins.${execution.origin}`)}</Badge>
+        </span>
+        <span className="exec-content small">{contentText(execution, sessions)}</span>
+        <span className="exec-result">
+          <VerdictCounts results={execution.results} />
+        </span>
+        <span className="exec-duration small muted">{executionDuration(execution)}</span>
+        <span className="exec-version small muted mono">{versionText(execution)}</span>
+      </summary>
+      <div className="exec-tests">
+        {execution.results.length === 0 ? (
+          <p className="small muted">{t("execution.noTest")}</p>
+        ) : (
+          failuresFirst(execution.results).map((result, rank) => <ResultRow key={rank} execution={execution} result={result} />)
+        )}
+        <a className="small" href={executionHref(execution.id)}>
+          {t("executions.open")} →
+        </a>
+      </div>
+    </details>
+  );
 }
 
-/** An execution: when it ran, where it comes from, the version of the repository, then each of its tests. */
-function ExecutionCard({ execution }: { readonly execution: Execution }): ReactNode {
-  const hint = [
-    t(`executions.origins.${execution.origin}`),
-    execution.commit === undefined ? t("executions.noVersion") : t("executions.commit", { commit: execution.commit.slice(0, 7) }),
-  ].join(" · ");
+/** The executions of the page as a table whose lines unfold, then the links to the latest ones and to the older ones. */
+function Table({
+  page,
+  outcome,
+  before,
+  sessions,
+}: {
+  readonly page: ExecutionList;
+  readonly outcome: ExecutionOutcome | undefined;
+  readonly before: string | undefined;
+  readonly sessions: readonly Session[];
+}): ReactNode {
   return (
-    <Card title={dateText(execution.ranAt)} hint={hint} aside={<Summary results={execution.results} />}>
-      {execution.results.length === 0 ? (
-        <p className="small muted">{t("executions.noTest")}</p>
-      ) : (
-        execution.results.map((result, rank) => <ResultRow key={rank} result={result} />)
+    <>
+      <section className="card exec-table">
+        <div className="exec-line exec-head small muted" aria-hidden="true">
+          <span className="exec-date">{t("executions.columns.date")}</span>
+          <span className="exec-origin">{t("executions.columns.origin")}</span>
+          <span className="exec-content">{t("executions.columns.content")}</span>
+          <span className="exec-result">{t("executions.columns.result")}</span>
+          <span className="exec-duration">{t("executions.columns.duration")}</span>
+          <span className="exec-version">{t("executions.columns.version")}</span>
+        </div>
+        {page.items.map((execution) => (
+          <ExecutionRow key={execution.id} execution={execution} sessions={sessions} />
+        ))}
+      </section>
+      {(before !== undefined || page.next !== undefined) && (
+        <nav className="exec-pages" aria-label={t("executions.pages")}>
+          {before !== undefined && (
+            <a className="btn" href={executionsHref(outcome)}>
+              ← {t("executions.newest")}
+            </a>
+          )}
+          {page.next !== undefined && (
+            <a className="btn" href={executionsHref(outcome, page.next)}>
+              {t("executions.older")} →
+            </a>
+          )}
+        </nav>
       )}
-    </Card>
+    </>
   );
 }
 
 /**
- * The screen of the executions of tests the instance keeps: each execution, the latest first, with what came of each
- * of its tests, each leading to the screen of the test.
+ * The screen of the executions of tests the instance keeps: a page of them, the latest first, narrowed to an outcome
+ * the address keeps, each a line that unfolds into its tests and leads to its screen.
  *
- * @param props - The name of the project, and what the instance told.
+ * @param props - The name of the project, the outcome and the page the address asks for, the sessions, and what the instance told.
  * @returns The screen.
  */
-export function ExecutionsScreen({ project, state }: ExecutionsScreenProps): ReactNode {
+export function ExecutionsScreen({ project, outcome, before, sessions, state }: ExecutionsScreenProps): ReactNode {
   const title = t("executions.title");
-  const { executions } = state;
+  const page = state.value;
   return (
     <Page crumbs={[{ label: project }, { label: title }]} title={title}>
-      {executions === undefined ? (
+      {page === undefined ? (
         <EmptyState title={t("executions.reading")}>
           <span role="status">{state.unread ?? t("executions.readingNote")}</span>
         </EmptyState>
-      ) : executions.length === 0 ? (
+      ) : page.items.length === 0 && outcome === undefined && before === undefined ? (
         <EmptyState title={t("executions.none")}>{t("executions.noneNote")}</EmptyState>
       ) : (
         <>
-          <p className="small muted">{t("executions.lead", { count: executions.length })}</p>
-          {executions.map((execution) => (
-            <ExecutionCard key={execution.id} execution={execution} />
-          ))}
+          <p className="small muted">{t("executions.lead")}</p>
+          <OutcomeFilter outcome={outcome} />
+          {page.items.length === 0 ? (
+            <EmptyState title={t("executions.noMatch")}>{t("executions.noMatchNote")}</EmptyState>
+          ) : (
+            <Table page={page} outcome={outcome} before={before} sessions={sessions} />
+          )}
         </>
       )}
     </Page>

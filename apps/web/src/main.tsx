@@ -11,6 +11,7 @@ import "./agent/agent-home.css";
 import "./configuration/configuration.css";
 import "./knowledge/knowledge.css";
 import "./tests/tests.css";
+import "./executions/executions.css";
 
 // Until the instance tells the language of its configuration, the console speaks that of the browser, when it has its words.
 void i18n.changeLanguage(navigator.language);
