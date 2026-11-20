@@ -49,6 +49,12 @@ describe("the screen of an execution", () => {
     assert.match(told(), /\.spec\.ts 5 s$/);
   });
 
+  it("says an execution was launched by hand, or for a campaign, which it leads to", () => {
+    assert.match(textOf(screen({ value: { ...PAST, origin: "manual" } })), /Lancée à la main, sans agent\./);
+    const html = screen({ value: { ...PAST, origin: "campaign", campaignId: "c1" } });
+    assert.match(html, /<a href="#\/campaigns\/view\?id=c1">Lancée pour une campagne →<\/a>/);
+  });
+
   it("says a past run belongs to no session it keeps, kept no version, and ran no test", () => {
     assert.match(
       textOf(screen({ value: PAST })),

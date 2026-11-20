@@ -12,6 +12,7 @@ import type {
   ExecutionQuery,
   KnowledgeDomain,
   KnowledgeDomainList,
+  LaunchRequest,
   LaunchState,
   MessageReceipt,
   OqasConfig,
@@ -330,6 +331,15 @@ export class ApiClient {
   /** Closes a campaign in progress, for good. */
   public closeCampaign(id: string): Promise<Campaign> {
     return this.#ask<Campaign>(`/campaigns/${encodeURIComponent(id)}/closure`, { method: "POST" });
+  }
+
+  /**
+   * Launches tests of the repository as they are, with no agent.
+   *
+   * @returns The launch, which runs; the failure carries the code `launch_refused` while a session or another launch runs.
+   */
+  public launch(request: LaunchRequest): Promise<TestLaunch> {
+    return this.#ask<TestLaunch>("/launches", posting(request));
   }
 
   /** @returns The launch of tests that runs in the instance, and the last one that ended. */
