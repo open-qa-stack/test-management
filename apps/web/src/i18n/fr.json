@@ -969,5 +969,13 @@
     "running": "Relance en cours : installation, puis exécution…",
     "finished": "Test joué, son résultat arrive…",
     "environment": "Environnement de la relance"
+  },
+  "sessionBar": {
+    "failed_one": "{{count}} en échec",
+    "failed_other": "{{count}} en échec",
+    "blocked_one": "{{count}} bloqué",
+    "blocked_other": "{{count}} bloqués",
+    "indeterminate_one": "{{count}} indéterminé",
+    "indeterminate_other": "{{count}} indéterminés"
   }
 }

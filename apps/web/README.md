@@ -52,7 +52,7 @@ Every failure of the API is an `ApiError` with the `code` of the problem the API
 
 ### The entry of the agent
 
-`#/agent` asks what to test, then what of the project to keep the session to, as chips under the request: the environment — chosen among those the configuration declares when it declares several — then the applications, the domains of the knowledge (`GET /knowledge/domains`, none before a cartography) and the levels, each every one until some are ticked. A chip opens on its list in the page, under the chips, and says what it takes: every one, the names ticked, or how many. The session is opened with them (`scope` of `POST /sessions`), and its facts say what it is kept to.
+`#/agent` asks what to test, then what of the project to keep the session to, as chips under the request: the environment — chosen among those the configuration declares when it declares several — then the applications, the domains of the knowledge (`GET /knowledge/domains`, none before a cartography) and the levels, each every one until some are ticked. A chip opens on its list in the page, under the chips, and says what it takes: every one, the names ticked, or how many. The session is opened with them (`scope` of `POST /sessions`), and its facts say what it is kept to. Each session of the list then says what came of its tests as the executions do: the bar of their verdicts — passed, skipped, blocked, without a verdict, failed, not run left empty — the failures, the tests blocked and those without a verdict in words, and how many passed out of how many.
 
 ### The configuration
 

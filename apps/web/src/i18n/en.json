@@ -969,5 +969,13 @@
     "running": "Running again: installing, then running…",
     "finished": "Test run, its result is coming…",
     "environment": "Environment of the run"
+  },
+  "sessionBar": {
+    "failed_one": "{{count}} failed",
+    "failed_other": "{{count}} failed",
+    "blocked_one": "{{count}} blocked",
+    "blocked_other": "{{count}} blocked",
+    "indeterminate_one": "{{count}} indeterminate",
+    "indeterminate_other": "{{count}} indeterminate"
   }
 }
