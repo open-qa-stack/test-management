@@ -834,7 +834,9 @@
     "failure": {
       "step": "Étape {{number}} · {{title}}",
       "expected": "Attendu {{expected}}, obtenu {{received}}"
-    }
+    },
+    "campaign_one": "{{count}} test d’une campagne",
+    "campaign_other": "{{count}} tests d’une campagne"
   },
   "execution": {
     "title": "Exécution du {{date}}",
@@ -846,7 +848,9 @@
     "noSession": "La session qui l’a lancée n’est plus gardée.",
     "version": "Dépôt de tests au commit {{commit}}",
     "noVersion": "Version du dépôt de tests non conservée.",
-    "noTest": "Aucun test n’a tourné dans cette exécution."
+    "noTest": "Aucun test n’a tourné dans cette exécution.",
+    "forCampaign": "Lancée pour une campagne →",
+    "manual": "Lancée à la main, sans agent."
   },
   "result": {
     "card": "Fiche du test",
@@ -958,5 +962,12 @@
       "cross-application": "inter-applications",
       "end-to-end": "bout en bout"
     }
+  },
+  "relaunch": {
+    "button": "Relancer ce test",
+    "pending": "Envoi…",
+    "running": "Relance en cours : installation, puis exécution…",
+    "finished": "Test joué, son résultat arrive…",
+    "environment": "Environnement de la relance"
   }
 }

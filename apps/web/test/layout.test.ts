@@ -1313,6 +1313,19 @@ describe("the code of the console is covered in full", () => {
         await page.getByRole("link", { name: /Display the detail of a policy/ }).click();
         await page.waitForURL(/#\/tests\/view\?path=apps%2Fpolicy-management%2F/);
         await page.getByText("1. Open the policy of the customer").waitFor();
+        instance.refusal = "launch_refused";
+        await page.getByRole("button", { name: "Relancer ce test" }).click();
+        await page.getByText("Les tests ne peuvent pas être lancés maintenant").waitFor();
+        await page.getByRole("button", { name: "Relancer ce test" }).click();
+        await page.getByText("Relance en cours").waitFor();
+        instance.launches = { last: { ...instance.launches.running!, endedAt: "2026-11-20T10:02:00.000Z", execution: "e1" } };
+        await page.getByRole("button", { name: "Relancer ce test" }).and(page.locator(":enabled")).waitFor();
+        // Without a configuration, the test runs again in the environment of the project.
+        instance.unconfigured = true;
+        await page.goto("http://console.test/#/tests");
+        await page.goBack();
+        await page.getByRole("button", { name: "Relancer ce test" }).waitFor();
+        instance.unconfigured = false;
         await page.getByRole("link", { name: /Voir le dernier résultat/ }).click();
         await page.waitForURL(/#\/executions\/result\?id=/);
       },

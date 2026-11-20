@@ -62,6 +62,14 @@ export class ListedInstance {
 
   /** What the API answers of the campaigns and the launches; `undefined` for any other path. */
   #campaignsApi(path: string, method: string, body: string | undefined): { status: number; body: string } | undefined {
+    if (path === "/api/launches" && method === "POST") {
+      const refusal = this.refusal;
+      this.refusal = undefined;
+      if (refusal !== undefined) return { status: 409, body: JSON.stringify({ code: refusal, detail: "No." }) };
+      const request = JSON.parse(body!) as { paths: string[]; environment?: string };
+      this.launches = { running: { startedAt: "2026-11-20T10:01:00.000Z", environment: request.environment ?? "local", paths: request.paths } };
+      return { status: 202, body: JSON.stringify(this.launches.running) };
+    }
     if (path === "/api/launches") return { status: 200, body: JSON.stringify(this.launches) };
     if (path === "/api/campaigns" && method === "POST") {
       const refusal = this.refusal;

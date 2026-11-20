@@ -162,6 +162,7 @@ describe("the client of the API, for the documents of the knowledge sources", ()
     await client.launchCampaign("c 1", "failed");
     await client.closeCampaign("c 1");
     await client.launches();
+    await client.launch({ paths: ["apps/shop/orders.spec.ts"], environment: "local" });
     assert.deepEqual(
       calls.map(([path, init]) => [path, init?.method ?? "GET", init?.body]),
       [
@@ -173,6 +174,7 @@ describe("the client of the API, for the documents of the knowledge sources", ()
         ["/api/campaigns/c%201/launches", "POST", JSON.stringify({ only: "failed" })],
         ["/api/campaigns/c%201/closure", "POST", undefined],
         ["/api/launches", "GET", undefined],
+        ["/api/launches", "POST", JSON.stringify({ paths: ["apps/shop/orders.spec.ts"], environment: "local" })],
       ],
     );
   });

@@ -11,6 +11,7 @@ import { executionDuration, requestOf } from "./execution-text.ts";
 import { EXECUTIONS_PATH, resultHref } from "./executions-paths.ts";
 import { FailureNote } from "./failure-note.tsx";
 import { failuresFirst, VerdictBadge, VerdictCounts } from "./verdicts.tsx";
+import { campaignHref } from "../campaigns/campaigns-paths.ts";
 
 /** What the screen of an execution is drawn from. */
 export interface ExecutionScreenProps {
@@ -29,7 +30,11 @@ function Origin({ execution, sessions }: { readonly execution: Execution; readon
   const request = requestOf(execution, sessions);
   return (
     <div className="grow small muted">
-      {execution.sessionId === undefined ? (
+      {execution.campaignId !== undefined ? (
+        <a href={campaignHref(execution.campaignId)}>{t("execution.forCampaign")}</a>
+      ) : execution.origin === "manual" ? (
+        <div>{t("execution.manual")}</div>
+      ) : execution.sessionId === undefined ? (
         <div>{t("execution.noSession")}</div>
       ) : (
         <a href={hrefTo(`/agent/sessions/${execution.sessionId}`)}>

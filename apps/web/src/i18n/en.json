@@ -834,7 +834,9 @@
     "failure": {
       "step": "Step {{number}} · {{title}}",
       "expected": "Expected {{expected}}, received {{received}}"
-    }
+    },
+    "campaign_one": "{{count}} test of a campaign",
+    "campaign_other": "{{count}} tests of a campaign"
   },
   "execution": {
     "title": "Execution of {{date}}",
@@ -846,7 +848,9 @@
     "noSession": "The session that ran it is no longer kept.",
     "version": "Test repository at commit {{commit}}",
     "noVersion": "Version of the test repository not kept.",
-    "noTest": "No test ran in this execution."
+    "noTest": "No test ran in this execution.",
+    "forCampaign": "Launched for a campaign →",
+    "manual": "Launched by hand, with no agent."
   },
   "result": {
     "card": "Card of the test",
@@ -958,5 +962,12 @@
       "cross-application": "cross-application",
       "end-to-end": "end-to-end"
     }
+  },
+  "relaunch": {
+    "button": "Run this test again",
+    "pending": "Sending…",
+    "running": "Running again: installing, then running…",
+    "finished": "Test run, its result is coming…",
+    "environment": "Environment of the run"
   }
 }
