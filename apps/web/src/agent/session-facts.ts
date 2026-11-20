@@ -54,3 +54,15 @@ export function testsText(session: Session): string | undefined {
   if (tests.length === 0) return undefined;
   return t("facts.testsPassed", { passed: tests.filter(({ verdict }) => verdict === "passed").length, count: tests.length });
 }
+
+/**
+ * Says what of the project a session keeps its work to: its applications, its domains and its levels, those it names.
+ *
+ * @param session - The session.
+ * @returns The scope in a few words; nothing for a session of the whole project.
+ */
+export function scopeText(session: Session): string | undefined {
+  const { applications = [], domains = [], levels = [] } = session.scope ?? {};
+  const words = [...applications, ...domains, ...levels.map((level) => t(`sessionScope.levelNames.${level}`))];
+  return words.length === 0 ? undefined : t("facts.scope", { scope: words.join(", ") });
+}

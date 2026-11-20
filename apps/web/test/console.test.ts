@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createElement, type FormEvent } from "react";
 import type { Project } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
+import { AgentHomeScreen } from "../src/agent/agent-home-screen.tsx";
 import { Console, documentTitleOf, isEntry, isTrace, sessionAt, type ConsoleProps } from "../src/console.tsx";
 import { COMPLETED, liveOf, RUNNING, SESSION_ID } from "./agent/session-fixture.ts";
 import { at, elementsOf, linksOf, render, textOf } from "./render.ts";
@@ -106,7 +107,9 @@ describe("the console", () => {
     assert.match(consoleAt("#/agent", { opening: { state: "sending" } }), /<button type="submit" class="btn primary" disabled="">Ouverture…<\/button>/);
     assert.match(consoleAt("#/", { opening: { state: "refused", message: "Demande vide." } }), /role="alert">Demande vide\.<\/span>/);
     const sent: FormEvent<HTMLFormElement>[] = [];
-    const [form] = elementsOf(createElement(Console, { route: at("#/agent"), onOpen: (event) => sent.push(event) }), "form");
+    assert.match(consoleAt("#/agent", { onOpen: () => undefined }), /<form class="agent-home-prompt">/);
+    // The entry reads what a session may be kept to as it shows: its form is that of the screen it gives what opens a session.
+    const [form] = elementsOf(createElement(AgentHomeScreen, { project: "lakeside", opening: { state: "idle" }, onOpen: (event) => sent.push(event) }), "form");
     const event = {} as FormEvent<HTMLFormElement>;
     (form!["onSubmit"] as (event: FormEvent<HTMLFormElement>) => void)(event);
     assert.equal(sent.length, 1);

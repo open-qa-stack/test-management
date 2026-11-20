@@ -199,10 +199,11 @@ location: sessions/session-2026-11-16T08-12-45-120Z-4be07d1a
 |---|---|
 | `request` | What to test, in the words of the person: a text that is not empty, of 4000 characters at most, that does not start with `--`. |
 | `environment` | The environment to work against: a text that is not empty and does not start with `--` when given; the only one the project declares when left out. |
+| `scope` | What of the project to keep the work to, when given: `applications`, `domains` and `levels`, each a list of at most 50 — identifiers of the applications of the configuration and of [the domains of the knowledge](knowledge.md#the-domains-of-the-knowledge), and levels among `smoke`, `functional`, `business`, `cross-application`, `end-to-end`. A list left out or empty takes every one; the session keeps its scope for each of its turns. |
 
 The answer is the session: `running` when it started at once, `queued` when another session runs and it waits its turn. `Location` is where to read it, as a reference relative to the address of the request: it resolves to the session behind a proxy that serves the API under a prefix. Any other field is refused.
 
-The API takes every session it is asked for, whatever runs already: one session runs at a time, in the test repository the API was started with, and the next starts when it ended, in the order they were asked for. A request the run cannot go through — an environment the project does not declare, a prerequisite the machine lacks — is taken all the same: its session tells why in its events, and ends `interrupted`.
+The API takes every session it is asked for, whatever runs already: one session runs at a time, in the test repository the API was started with, and the next starts when it ended, in the order they were asked for. The run of a session with a scope works on the applications and the levels it names alone, as if the configuration declared no other, and its plan may hold scenarios of the domains it names alone: the agent that plans is told those, and the harness refuses a scenario of another. A request the run cannot go through — an environment the project does not declare, an application or a level of the scope the configuration does not declare, a domain the knowledge does not have, a prerequisite the machine lacks — is taken all the same: its session tells why in its events, and ends `interrupted`.
 
 | Status | Code | When |
 |---|---|---|

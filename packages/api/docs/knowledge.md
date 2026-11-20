@@ -10,8 +10,17 @@ The shapes of every body are the types of `@open-qa-stack/domain/sessions`. A cl
 | `POST /api/knowledge/:source/documents` | Uploads documents to the source. |
 | `GET /api/knowledge/:source/documents/:name` | A document, with its text. |
 | `DELETE /api/knowledge/:source/documents/:name` | Removes a document. |
+| `GET /api/knowledge/domains` | [The domains of the knowledge](#the-domains-of-the-knowledge), as the cartography named them. |
 
 `:source` is the identifier of the source in the configuration in force, and `:name` the file name of a document, both encoded as a path segment. The two reads are answered with `cache-control: no-store`. Every answer that is not a success is a [problem](sessions.md#problems).
+
+## The domains of the knowledge
+
+```http
+GET /api/knowledge/domains
+```
+
+The answer lists the domains of the index the last cartography wrote in the test repository, in its order, each with its `id`, its `label` and its `description`: what [a session may be kept to](sessions.md#opening-a-session). It lists none before a cartography, without a test repository, or when the index cannot be read. It is answered with `cache-control: no-store`.
 
 ## A source of documents
 

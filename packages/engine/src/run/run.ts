@@ -7,6 +7,7 @@ import {
   ExitCode,
   InvalidConfigurationError,
   NoConfigurationError,
+  scopedConfig,
   validateConfig,
   type ConfigurationRevision,
   type CommandRunner,
@@ -29,6 +30,7 @@ import {
   TrialRunner,
   type ActiveRule,
 } from "@open-qa-stack/harness";
+import type { SessionScope } from "@open-qa-stack/domain/sessions";
 import type { ConfigurationSource } from "../ports/configuration-source.ts";
 import type { JournalOutput } from "../ports/journal-output.ts";
 import type { OpenRuntime } from "../ports/open-runtime.ts";
@@ -63,6 +65,11 @@ export interface RunOptions {
   readonly branch?: string;
   /** Where the configuration is read: the revision in force, once it is in step with the configuration file. */
   readonly configuration: ConfigurationSource;
+  /**
+   * What of the project the run keeps its work to: the configuration is kept to its applications and levels, and the
+   * design to its domains; the whole project when left out.
+   */
+  readonly scope?: SessionScope;
   /** Where the documents of the knowledge sources the instance keeps are read, which the cartography writes to the state folder first. */
   readonly documents: Pick<DocumentStorePort, "documents">;
   /** The environment of the process: the secrets and the accounts the configuration names. */
@@ -274,6 +281,7 @@ export class Run {
             reviewCode: config.design.reviewCode,
             reviewerInstructions: reviewerInstructions(rules, config.repository, config.design.architecture),
             levels: config.design.levels,
+            ...(this.options.scope?.domains === undefined ? {} : { domains: this.options.scope.domains }),
             ...observed,
             ...(brief === undefined ? {} : { brief }),
             ...(this.options.branch === undefined ? {} : { continuedBranch: this.options.branch }),
@@ -383,7 +391,13 @@ export class Run {
       journal.record("configuration", "error", `The environment ${environment} is not declared; the configuration declares ${declared.join(", ")}.`);
       return ExitCode.configuration;
     }
-    const charter = resolveCharter(result.config.charter);
+    const scoped = scopedConfig(result.config, this.options.scope);
+    if (!scoped.ok) {
+      for (const error of scoped.errors) journal.record("configuration", "error", error);
+      return ExitCode.configuration;
+    }
+    const config = scoped.config;
+    const charter = resolveCharter(config.charter);
     if (!charter.ok) {
       for (const error of charter.errors) journal.record("configuration", "error", `${error.path}: ${error.message}`);
       return ExitCode.configuration;
@@ -392,9 +406,14 @@ export class Run {
     journal.record("configuration", "finished", `The configuration is valid; the run targets the environment ${environment}.`, {
       durationMs,
       modelRequests: 0,
-      scope: { environment, applications: result.config.applications.map((application) => application.id), levels: result.config.design.levels },
+      scope: {
+        environment,
+        applications: config.applications.map((application) => application.id),
+        levels: config.design.levels,
+        ...(this.options.scope?.domains === undefined ? {} : { domains: this.options.scope.domains }),
+      },
     });
-    return { config: result.config, environment, rules: charter.rules, stored: storedDocumentSources(revision.document), durationMs };
+    return { config, environment, rules: charter.rules, stored: storedDocumentSources(revision.document), durationMs };
   }
 
   /** Writes the entries of the journal of a role to the journal of the run. */

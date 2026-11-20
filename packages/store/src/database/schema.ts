@@ -1,5 +1,5 @@
 import type { CampaignStatus, ExecutionOrigin, ExecutionVerdict, OqasConfig, RevisionOrigin } from "@open-qa-stack/domain";
-import type { AgentRole, Application, SessionEvent, SessionResult, SessionState } from "@open-qa-stack/domain/sessions";
+import type { AgentRole, Application, SessionEvent, SessionResult, SessionScope, SessionState } from "@open-qa-stack/domain/sessions";
 import type { StoredBoolean, StoredInstant, StoredJson } from "./stored-values.ts";
 
 /**
@@ -28,6 +28,7 @@ export interface SessionsTable {
   id: string;
   request: string | null;
   environment: string | null;
+  scope: StoredJson<SessionScope> | null;
   opened_at: StoredInstant;
   last_event_at: StoredInstant;
   state: SessionState;

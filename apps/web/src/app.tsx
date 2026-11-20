@@ -16,6 +16,7 @@ import type { LiveSession, SessionControls } from "./agent/live-session.ts";
 import { focusAfterLook, openedLookOf, withoutLook } from "./agent/opened-look.ts";
 import { frameOf, type PlaybackAction } from "./agent/playback.ts";
 import { scriptOf } from "./agent/session-steps.ts";
+import { openingOf } from "./agent/scope-choices.ts";
 import { asksToStop, focusAfterStop, withoutStop } from "./agent/stop-request.ts";
 import { api } from "./api/instance-api.ts";
 import { i18n } from "./i18n/i18n.ts";
@@ -115,9 +116,9 @@ export function App(): ReactNode {
 
   const open = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
-    const request = (event.currentTarget.elements.namedItem("request") as HTMLTextAreaElement).value.trim();
-    if (request === "") return;
-    sync.open(request, (opened) => {
+    const opening = openingOf(new FormData(event.currentTarget));
+    if (opening === undefined) return;
+    sync.open(opening, (opened) => {
       // A person who left the entry while the session opened is not taken away from where they went.
       if (isEntry(parseRoute(currentHash()))) window.location.hash = hrefTo(`/agent/sessions/${opened.id}`);
     });

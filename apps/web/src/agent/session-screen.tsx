@@ -10,7 +10,7 @@ import { Composer } from "./composer.tsx";
 import type { LiveSession } from "./live-session.ts";
 import { LookPanel } from "./look-panel.tsx";
 import { openedLookOf, withoutLook } from "./opened-look.ts";
-import { stateOf, waitText } from "./session-facts.ts";
+import { scopeText, stateOf, waitText } from "./session-facts.ts";
 import { passesOf, type ThreadFilter } from "./playback.ts";
 import type { Speaker } from "@open-qa-stack/domain/sessions";
 import { StopConfirmation } from "./stop-confirmation.tsx";
@@ -33,8 +33,10 @@ function factsOf(live: LiveSession): string[] {
   const { session, frame, script } = live;
   const { result } = session;
   const waiting = waitText(session);
+  const scope = scopeText(session);
   return [
     momentText(session.openedAt),
+    ...(scope === undefined ? [] : [scope]),
     ...(waiting === undefined ? [] : [waiting]),
     ...(result === undefined ? [] : [durationText(result.durationMs)]),
     ...(script.sources.length === 0 ? [] : [t("facts.sourcesRead", { count: script.sources.length })]),

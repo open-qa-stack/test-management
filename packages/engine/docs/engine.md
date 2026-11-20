@@ -115,6 +115,10 @@ interface RunStore {
 
 The runtime of the agents is wrapped in a `SpokenRuntime`, so that every session of a run, those of the cartography, of the design and of the reviews alike, ends its instructions with `languageRule` of `@open-qa-stack/agents` for the `language` of the configuration, English by default: what an agent says to the person, the reasons it gives and the findings it reports are written in it. The instructions themselves, and the messages of the harness to the agents, stay in English.
 
+## The scope of a run
+
+A run may be given a scope, as a session keeps it: some applications, some domains of the knowledge, some levels. The configuration is kept to it first, by `scopedConfig` of the domain: the run works on the applications and the levels it names alone, as if the configuration declared no other, and stops at its configuration on an application or a level the configuration does not declare. Its domains go to the design: the index the agent that plans is told holds those alone, and the plan may only cite them; a domain the knowledge does not have designs nothing, and says which. The journal tells the scope at the end of the configuration.
+
 ## Stopping a run
 
 A host stops a run by aborting the `AbortSignal` it gave as `stop`. Nothing is killed: the run stops itself, where it already holds its guards.
