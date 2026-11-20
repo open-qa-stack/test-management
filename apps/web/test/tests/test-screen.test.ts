@@ -59,10 +59,10 @@ describe("the card of a test", () => {
   it("says what came of it lately, then lists its executions, each leading to what came of it there", () => {
     const html = screen({ value: EXECUTIONS });
     const text = textOf(html);
-    assert.match(text, / En échec (Dernière exécution le \S+ \S+) 2 réussites sur les 3 dernières exécutions Voir le dernier résultat → /);
+    assert.match(text, / En échec (Dernière exécution le \d+ nov\. 2026, \d\d:\d\d) 2 réussites sur les 3 dernières exécutions Voir le dernier résultat → /);
     assert.match(
       text,
-      /Exécutions · 3 exécutions, la plus récente d’abord En échec \S+ \S+ conception · — 2 s Instable \S+ \S+ conception · 4f2a9c0 2 s Réussi \S+ \S+ · Policies › Edit a policy conception · — 2 s$/,
+      /Exécutions · 3 exécutions, la plus récente d’abord En échec \d+ nov\. 2026, \d\d:\d\d conception · — 2 s Instable \d+ nov\. 2026, \d\d:\d\d conception · 4f2a9c0 2 s Réussi \d+ nov\. 2026, \d\d:\d\d · Policies › Edit a policy conception · — 2 s$/,
     );
     // The dots tell the latest executions, the oldest on the left.
     assert.match(

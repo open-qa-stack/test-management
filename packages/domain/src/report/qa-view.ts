@@ -84,17 +84,44 @@ export function qaViews(json: string): QaViews {
   return { views: entries.map(({ id, test }) => viewOf(id, test.status, test.results.at(-1))) };
 }
 
+/** Where an attempt of a test failed and why, as its report says it. */
+export interface AttemptFailure {
+  /** The number of its first step that failed, from 1, when one did. */
+  readonly failedStep?: number;
+  /** The whole message of its first error, without colours, when it has one. */
+  readonly message?: string;
+  /** What the failed assertion expected and what it received, when the message says both. */
+  readonly expected?: string;
+  readonly received?: string;
+}
+
+/**
+ * Where an attempt of a test failed and why: its first step that failed, the message of its first error, and what the
+ * assertion expected and received when the message gives both, as `Expected: …` and `Received: …` lines.
+ *
+ * @param result - The attempt, as the report holds it; none for a test that made no attempt.
+ * @returns What its report says of its failure; nothing of it for an attempt that did not fail.
+ */
+export function attemptFailure(result: JsonResult | undefined): AttemptFailure {
+  const failedStep = (result?.steps ?? []).findIndex((step) => step.error !== undefined) + 1 || undefined;
+  const message = result?.errors?.[0]?.message?.replace(COLOURS, "");
+  const expected = message === undefined ? undefined : /^Expected[^:\n]*: (.*)$/m.exec(message)?.[1];
+  const received = message === undefined ? undefined : /^Received[^:\n]*: (.*)$/m.exec(message)?.[1];
+  return {
+    ...(failedStep === undefined ? {} : { failedStep }),
+    ...(message === undefined ? {} : { message }),
+    ...(expected === undefined || received === undefined ? {} : { expected, received }),
+  };
+}
+
 /** A test in steps, from its last attempt; none of its steps when it made no attempt. */
 function viewOf(id: string, status: ReportedStatus, result: JsonResult | undefined): QaView {
   const attachments = result?.attachments ?? [];
-  const failed = (result?.steps ?? []).findIndex((step) => step.error !== undefined) + 1 || undefined;
+  const { failedStep: failed, message, expected, received } = attemptFailure(result);
   // The step that failed, with no capture of its own, shows the page the runner captured at the failure.
   const atFailure = attachments.find((attachment) => attachment.name === "screenshot" && attachment.contentType?.startsWith("image/") === true);
   const steps = (result?.steps ?? []).map((step, at) => stepOf(step, attachments, at + 1, at + 1 === failed ? atFailure : undefined));
   const [error] = result?.errors ?? [];
-  const message = error?.message?.replace(COLOURS, "");
-  const expected = message === undefined ? undefined : /^Expected[^:\n]*: (.*)$/m.exec(message)?.[1];
-  const received = message === undefined ? undefined : /^Received[^:\n]*: (.*)$/m.exec(message)?.[1];
   const kept = (name: string) => attachments.find((attachment) => attachment.name === name)?.path;
   const trace = kept("trace");
   const errorContext = kept("error-context");

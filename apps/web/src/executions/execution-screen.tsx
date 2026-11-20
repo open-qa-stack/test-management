@@ -9,6 +9,7 @@ import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
 import { executionDuration, requestOf } from "./execution-text.ts";
 import { EXECUTIONS_PATH, resultHref } from "./executions-paths.ts";
+import { FailureNote } from "./failure-note.tsx";
 import { failuresFirst, VerdictBadge, VerdictCounts } from "./verdicts.tsx";
 
 /** What the screen of an execution is drawn from. */
@@ -40,7 +41,7 @@ function Origin({ execution, sessions }: { readonly execution: Execution; readon
   );
 }
 
-/** A test of the execution, which leads to what came of it: its verdict, its title, its path, and how long it took. */
+/** A test of the execution, which leads to what came of it: its verdict, its title, its path, where it failed, and how long it took. */
 function ResultRow({ execution, result }: { readonly execution: Execution; readonly result: ExecutionResult }): ReactNode {
   return (
     <a className="row tests-row" href={resultHref(execution.id, result.path)}>
@@ -48,6 +49,7 @@ function ResultRow({ execution, result }: { readonly execution: Execution; reado
       <div className="grow">
         <b>{result.title}</b>
         <div className="small muted mono">{result.path}</div>
+        <FailureNote failure={result.failure} />
       </div>
       <span className="small muted">{durationText(result.durationMs)}</span>
     </a>

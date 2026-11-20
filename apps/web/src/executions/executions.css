@@ -83,7 +83,54 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+  align-items: center;
   justify-content: flex-end;
+}
+
+/* Which executions the page shows, on the left of the links between the pages. */
+.exec-range {
+  margin-right: auto;
+}
+
+/* The lists that narrow the executions, side by side, each under its name. */
+.exec-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.exec-filter {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.exec-filter select {
+  min-height: var(--control);
+  padding: 0 var(--space-3);
+  border: var(--hairline) solid var(--field-line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.exec-filter select:focus {
+  border-color: var(--primary);
+  box-shadow: var(--halo);
+  outline: 0;
+}
+
+/* Where a test failed and why, under its title. */
+.exec-failure {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-2);
+  color: var(--text-2);
+}
+
+.exec-failure-step {
+  color: var(--ko);
+  font-weight: var(--weight-strong);
 }
 
 .exec-summary {

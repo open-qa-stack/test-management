@@ -17,7 +17,7 @@ The shapes of the bodies are the types `ExecutionList` and `Execution` of `@open
 
 | Route | Answer |
 |---|---|
-| `GET /api/executions[?limit=<n>&before=<id>&outcome=<outcome>]` | A page of the executions, the latest first, each with what came of each of its tests. |
+| `GET /api/executions[?limit=<n>&before=<id>&outcome=<outcome>&since=<date>]` | A page of the executions, the latest first, each with what came of each of its tests. |
 | `GET /api/executions/<id>` | One execution, with what came of each of its tests. |
 
 Every answer is given with `cache-control: no-store`; every answer that is not a success is a [problem](sessions.md#problems).
@@ -46,15 +46,30 @@ GET /api/executions?limit=25
           "verdict": "passed",
           "durationMs": 2140,
           "fileDigest": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+        },
+        {
+          "path": "apps/policy-management/tests/policies/policy-list/policy-list-nominal.spec.ts",
+          "title": "List the policies of a customer",
+          "project": "policy-management",
+          "verdict": "failed",
+          "durationMs": 5320,
+          "failure": {
+            "step": { "number": 3, "title": "Filter the policies by state" },
+            "message": "Error: expect(locator).toHaveCount(expected) failed",
+            "expected": "2",
+            "received": "0"
+          }
         }
       ]
     }
   ],
+  "total": 132,
+  "start": 0,
   "next": "5b0c8f2e-6a51-4d1e-9a3f-2c7d1e0b9a44"
 }
 ```
 
-A page holds `limit` executions, 25 when the query does not say, 100 at most. The executions are ordered by date, then by identifier for the same date; `next` names the last one of a page, and the page after it is asked with `before=<next>`: a page starts after that execution, whatever was kept since, so that no execution is told twice nor skipped. The last page has no `next`. `outcome=failing` keeps the executions where a test failed, `outcome=passing` those where none did.
+A page holds `limit` executions, 25 when the query does not say, 100 at most. The executions are ordered by date, then by identifier for the same date; `next` names the last one of a page, and the page after it is asked with `before=<next>`: a page starts after that execution, whatever was kept since, so that no execution is told twice nor skipped. The last page has no `next`. `outcome=failing` keeps the executions where a test failed, `outcome=passing` those where none did; `since=<date>`, an ISO 8601 date such as `2026-11-20` or `2026-11-20T08:00:00Z`, those kept from then on. `total` tells how many executions the query keeps, every page together, and `start` the rank of the first one of the page among them, from 0: a page shows its executions `start + 1` to `start + items.length` of `total`.
 
 | Field | What it says |
 |---|---|
@@ -65,6 +80,7 @@ A page holds `limit` executions, 25 when the query does not say, 100 at most. Th
 | `results[].verdict` | `passed`, `failed`, `flaky` when the test passed only on a retry, or `skipped`. |
 | `results[].durationMs` | How long its attempts took together. |
 | `results[].fileDigest` | The SHA-256 of its file when the execution was kept; left out when the file could not be read. |
+| `results[].failure` | Where a test that failed failed and why, from its last attempt: its first `test.step` that failed, the first line of its error, and what its assertion expected and received when the message says both. Each part is left out when the report does not say it, and the whole for a test kept before the instance kept them. |
 
 ## One execution
 
@@ -78,5 +94,5 @@ The answer is the execution, as a page tells it.
 
 | `code` | Status | When |
 |---|---|---|
-| `invalid_request` | `400` | `limit` is not a number from 1 to 100, `before` is empty, or `outcome` is neither `failing` nor `passing`. |
+| `invalid_request` | `400` | `limit` is not a number from 1 to 100, `before` is empty, `outcome` is neither `failing` nor `passing`, or `since` is no ISO 8601 date. |
 | `unknown_execution` | `404` | The execution of the route, or the one `before` names, is not kept by the instance. |

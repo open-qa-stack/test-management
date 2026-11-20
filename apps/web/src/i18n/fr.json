@@ -777,11 +777,18 @@
       "skipped_other": "{{count}} ignorés"
     },
     "lead": "Les exécutions des tests, la plus récente d’abord.",
-    "outcomeFilter": "Filtrer par issue",
+    "outcomeFilter": "Issue",
     "outcomes": {
       "all": "Toutes",
       "failing": "Avec un échec",
       "passing": "Sans échec"
+    },
+    "periodFilter": "Période",
+    "periods": {
+      "all": "Toutes les dates",
+      "day": "Dernières 24 heures",
+      "week": "7 derniers jours",
+      "month": "30 derniers jours"
     },
     "columns": {
       "date": "Date",
@@ -798,8 +805,13 @@
     "newest": "Les plus récentes",
     "older": "Plus anciennes",
     "pages": "Pages des exécutions",
+    "range": "{{first}}–{{last}} sur {{total}}",
     "noMatch": "Aucune exécution ne correspond",
-    "noMatchNote": "Aucune exécution gardée n’a cette issue."
+    "noMatchNote": "Aucune exécution gardée ne correspond à ces filtres.",
+    "failure": {
+      "step": "Étape {{number}} · {{title}}",
+      "expected": "Attendu {{expected}}, obtenu {{received}}"
+    }
   },
   "execution": {
     "title": "Exécution du {{date}}",

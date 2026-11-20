@@ -5,7 +5,7 @@ import type {
   DocumentList,
   Execution,
   ExecutionList,
-  ExecutionOutcome,
+  ExecutionQuery,
   MessageReceipt,
   OqasConfig,
   Problem,
@@ -184,13 +184,12 @@ export class ApiClient {
   /**
    * Reads a page of the executions of tests the instance keeps.
    *
-   * @param outcome - Which executions it keeps by what came of their tests; all of them when none is given.
-   * @param before - The execution the page starts after; the latest ones when none is given.
-   * @returns The executions of the page, the latest first, each with what came of each of its tests, and the last one when a page comes after it.
+   * @param query - What came of their tests, the date they are kept from, and the execution the page starts after; the latest of all when it says nothing.
+   * @returns The executions of the page, the latest first, each with what came of each of its tests, how many the query keeps, the rank of the first of the page, and the last one when a page comes after it.
    */
-  public executionPage(outcome?: ExecutionOutcome, before?: string): Promise<ExecutionList> {
-    const query = new URLSearchParams({ ...(outcome === undefined ? {} : { outcome }), ...(before === undefined ? {} : { before }) }).toString();
-    return this.#ask<ExecutionList>(query === "" ? "/executions" : `/executions?${query}`);
+  public executionPage(query: Omit<ExecutionQuery, "limit"> = {}): Promise<ExecutionList> {
+    const parameters = new URLSearchParams(Object.entries(query).filter((entry): entry is [string, string] => entry[1] !== undefined)).toString();
+    return this.#ask<ExecutionList>(parameters === "" ? "/executions" : `/executions?${parameters}`);
   }
 
   /**

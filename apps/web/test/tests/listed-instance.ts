@@ -33,7 +33,10 @@ export class ListedInstance {
     if (request.path === "/api/tests") return { status: 200, body: JSON.stringify({ items: this.tests }) };
     if (request.path === "/api/tests/reading") return { status: 200, body: JSON.stringify(this.reading) };
     if (request.path === "/api/executions")
-      return { status: 200, body: JSON.stringify({ items: this.executions, ...(this.next === undefined ? {} : { next: this.next }) }) };
+      return {
+        status: 200,
+        body: JSON.stringify({ items: this.executions, total: this.executions.length, start: 0, ...(this.next === undefined ? {} : { next: this.next }) }),
+      };
     if (request.path.startsWith("/api/executions/")) {
       const execution = this.executions.find(({ id }) => request.path === `/api/executions/${id}`);
       return execution === undefined ? { status: 404, body: JSON.stringify({ code: "unknown_execution" }) } : { status: 200, body: JSON.stringify(execution) };

@@ -38,9 +38,11 @@ export type { DocumentList, StoredDocument, StoredDocumentSummary } from "../kno
 export type { RepositoryTest, RepositoryTestList } from "../repository-tests/repository-test.ts";
 export type {
   Execution,
+  ExecutionFailure,
   ExecutionList,
   ExecutionOrigin,
   ExecutionOutcome,
+  ExecutionQuery,
   ExecutionResult,
   ExecutionVerdict,
   TestExecution,

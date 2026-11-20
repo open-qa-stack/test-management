@@ -19,7 +19,14 @@ const EARLIER: Execution = {
   report: ".oqas/runs/run-2026-11-19T09-00-00-000Z/report.json",
   results: [
     { path: "apps/shop/tests/orders/search.spec.ts", title: "Search an order", project: "shop", verdict: "passed", durationMs: 120, fileDigest: "ab12" },
-    { path: "apps/shop/tests/orders/search.spec.ts", title: "Orders › Filter by date", project: "shop", verdict: "failed", durationMs: 300 },
+    {
+      path: "apps/shop/tests/orders/search.spec.ts",
+      title: "Orders › Filter by date",
+      project: "shop",
+      verdict: "failed",
+      durationMs: 300,
+      failure: { step: { number: 2, title: "Filter by date" }, message: "Error: expect(locator).toHaveText(expected) failed", expected: "3", received: "0" },
+    },
   ],
 };
 
@@ -60,14 +67,14 @@ export function executionsApiSuite(engine: DatabaseEngine): void {
     it("are none until one is kept", async () => {
       const response = await fetch(`${api.url}/executions`);
       assert.deepEqual([response.status, response.headers.get("cache-control")], [200, "no-store"]);
-      assert.deepEqual((await response.json()) as ExecutionList, { items: [] });
+      assert.deepEqual((await response.json()) as ExecutionList, { items: [], total: 0, start: 0 });
     });
 
     it("are served the latest first, each with what came of each of its tests and the version it ran at", async () => {
       const store = new ExecutionStore(database.database);
       await store.add(EARLIER);
       await store.add(LATER);
-      assert.deepEqual((await (await fetch(`${api.url}/executions`)).json()) as ExecutionList, { items: [LATER, EARLIER] });
+      assert.deepEqual((await (await fetch(`${api.url}/executions`)).json()) as ExecutionList, { items: [LATER, EARLIER], total: 2, start: 0 });
     });
 
     it("are served a page at a time, and by what came of their tests", async () => {
@@ -76,8 +83,22 @@ export function executionsApiSuite(engine: DatabaseEngine): void {
       await store.add(LATER);
       const read = async (query: string) => (await (await fetch(`${api.url}/executions?${query}`)).json()) as ExecutionList;
       assert.deepEqual(
-        [await read("limit=1"), await read("limit=1&before=e2"), await read("outcome=failing"), await read("outcome=passing")],
-        [{ items: [LATER], next: "e2" }, { items: [EARLIER] }, { items: [EARLIER] }, { items: [LATER] }],
+        [
+          await read("limit=1"),
+          await read("limit=1&before=e2"),
+          await read("outcome=failing"),
+          await read("outcome=passing"),
+          await read("since=2026-11-19T09:30:00%2B00:00"),
+          await read("since=2026-11-19"),
+        ],
+        [
+          { items: [LATER], total: 2, start: 0, next: "e2" },
+          { items: [EARLIER], total: 2, start: 1 },
+          { items: [EARLIER], total: 1, start: 0 },
+          { items: [LATER], total: 1, start: 0 },
+          { items: [LATER], total: 1, start: 0 },
+          { items: [LATER, EARLIER], total: 2, start: 0 },
+        ],
       );
     });
 
@@ -93,6 +114,8 @@ export function executionsApiSuite(engine: DatabaseEngine): void {
         ["?limit=101", 400, "invalid_request"],
         ["?limit=a", 400, "invalid_request"],
         ["?outcome=flaky", 400, "invalid_request"],
+        ["?since=yesterday", 400, "invalid_request"],
+        ["?since=2026-13-40", 400, "invalid_request"],
       ] as const) {
         const answer = await fetch(`${api.url}/executions${query}`);
         assert.deepEqual([query, answer.status, ((await answer.json()) as Problem).code], [query, status, code]);
@@ -115,6 +138,8 @@ export function executionsApiSuite(engine: DatabaseEngine): void {
             results: [],
           },
         ],
+        total: 1,
+        start: 0,
       });
     });
   });

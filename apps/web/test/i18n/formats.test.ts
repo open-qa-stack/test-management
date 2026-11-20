@@ -46,11 +46,11 @@ describe("a moment of a session", () => {
   });
 });
 
-describe("a date of the configuration", () => {
-  it("is written to the minute, as each language writes it", async () => {
-    assert.match(dateText("2026-11-18T09:12:00.000Z"), /^18\/11\/2026 \d\d:\d\d$/);
+describe("a date of the console", () => {
+  it("is written to the minute, its month abbreviated, as each language writes it", async () => {
+    assert.match(folded(dateText("2026-11-18T09:12:00.000Z")), /^18 nov\. 2026, \d\d:\d\d$/);
     await inEnglish();
-    assert.match(folded(dateText("2026-11-18T09:12:00.000Z")), /^11\/18\/26, \d{1,2}:\d\d [AP]M$/);
+    assert.match(folded(dateText("2026-11-18T09:12:00.000Z")), /^Nov 18, 2026, \d{1,2}:\d\d [AP]M$/);
   });
 });
 
