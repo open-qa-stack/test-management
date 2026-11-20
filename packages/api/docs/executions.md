@@ -1,9 +1,10 @@
 # Executions
 
 An execution is a run of the Playwright tests of the test repository, with what came of each test. The instance keeps
-them in its database. For now each execution comes from a session of design: once a session runs the tests it wrote,
-the execution is kept from the report of the runner, before the session ends. The route is the operation of the engine
-that reads them, said in HTTP.
+them in its database. An execution comes from a session of design — once a session runs the tests it wrote, the execution
+is kept from the report of the runner, before the session ends — or from a [launch of tests](#launching-tests): tests of the
+repository a person runs again as they are, with no agent. Its `origin` says which: `design` or `manual`. The routes are the
+operations of the engine, said in HTTP.
 
 The runs the test repository ran before the instance kept its executions, the folders `<stateDir>/runs/run-<date>/`, are taken when the API starts, once each: they are dated by the start of their run, belong to no session, and keep no version, since the commit and the files of then are gone.
 
@@ -21,6 +22,8 @@ The shapes of the bodies are the types `ExecutionList` and `Execution` of `@open
 |---|---|
 | `GET /api/executions[?limit=<n>&before=<id>&outcome=<outcome>&since=<date>]` | A page of the executions, the latest first, each with what came of each of its tests. |
 | `GET /api/executions/<id>` | One execution, with what came of each of its tests. |
+| `POST /api/launches` | Launches tests of the repository as they are; `202` with the launch, which runs. |
+| `GET /api/launches` | The launch that runs, and the last one that ended, with the execution it kept. |
 
 Every answer is given with `cache-control: no-store`; every answer that is not a success is a [problem](sessions.md#problems).
 
@@ -95,9 +98,45 @@ GET /api/executions/5b0c8f2e-6a51-4d1e-9a3f-2c7d1e0b9a44
 
 The answer is the execution, as a page tells it.
 
+## Launching tests
+
+```http
+POST /api/launches
+content-type: application/json
+
+{ "paths": ["apps/shop/tests/search.spec.ts"], "environment": "local" }
+```
+
+A launch runs tests of the repository as they are, with no agent and no model: the runner of the test repository, at the
+version its lockfile installs, runs them against an environment the configuration declares, after it checked that its
+addresses answer, as the end of a session does. Its execution is kept with the origin `manual`, and no session.
+
+| Field | |
+|---|---|
+| `paths` | The files of tests, relative to the root of the test repository and inside it; at most 500. Every test of the repository when left out or empty. |
+| `environment` | The environment the tests run against; may be left out when the configuration declares only one. |
+
+The answer, `202`, is the launch as it started: `startedAt`, `environment` and `paths`. It runs in the process of the API,
+which hosts the sessions, and takes their turn: it is refused while a session runs, and a session opened while it runs
+waits until it ended. Every test of a file runs, so a file of several tests keeps them all.
+
+```http
+GET /api/launches
+```
+
+The answer tells the launch that `running`, and the `last` one that ended in this process, with `endedAt` and either the
+identifier of the `execution` it kept, or the `failure` that says why it kept none: the dependencies or the browsers could
+not be installed, an address of the environment did not answer, the runner wrote no report, or the database refused the
+execution. Neither is kept: the API forgets them when it stops, and the execution stays.
+
+The shapes of the bodies are the types `LaunchRequest`, `TestLaunch` and `LaunchState` of `@open-qa-stack/domain/sessions`.
+
 ## Problems
 
 | `code` | Status | When |
 |---|---|---|
-| `invalid_request` | `400` | `limit` is not a number from 1 to 100, `before` is empty, `outcome` is neither `failing` nor `passing`, or `since` is no ISO 8601 date. |
+| `invalid_request` | `400` | `limit` is not a number from 1 to 100, `before` is empty, `outcome` is neither `failing` nor `passing`, or `since` is no ISO 8601 date; for a launch, `paths` is not a list of at most 500 files inside the test repository, or `environment` is not a text. |
 | `unknown_execution` | `404` | The execution of the route, or the one `before` names, is not kept by the instance. |
+| `launch_refused` | `409` | Tests cannot be launched now: a session or another launch runs, the instance stops, or the environment is not one the configuration declares, or is left out while it declares several. The detail says which, and what to do. |
+| `invalid_configuration`, `no_configuration` | `422`, `404` | The configuration in force is not valid, or there is none: see [the configuration](configuration.md#problems). |
+| `unavailable` | `503` | The API was started without a test repository: it launches no test. |

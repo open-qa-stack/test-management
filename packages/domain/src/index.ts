@@ -138,6 +138,8 @@ export type {
 } from "./executions/execution.ts";
 export { versionStep, type TestVersion, type TestVersionList, type VersionStep } from "./executions/test-version.ts";
 export { UnknownExecutionError } from "./executions/unknown-execution-error.ts";
+export type { EndedLaunch, LaunchRequest, LaunchState, TestLaunch } from "./executions/test-launch.ts";
+export { LaunchRefusedError } from "./executions/launch-refused-error.ts";
 export { executionResults } from "./executions/execution-results.ts";
 export type { ExecutionStorePort } from "./executions/execution-store-port.ts";
 export { testFacets, type TestFacets } from "./repository-tests/test-facets.ts";

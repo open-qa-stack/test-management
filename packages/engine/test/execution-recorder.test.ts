@@ -70,7 +70,7 @@ describe("the execution of the tests of a session, as it is kept", () => {
   it("names each test by its path in the test repository and its titles, with the commit of the repository, the digests of its file and of itself", async () => {
     const root = repository("apps", true);
     const { recorder: kept, store } = recorder(root);
-    const execution = await kept.record("s1", REPORT);
+    const execution = await kept.record(REPORT, { origin: "design", sessionId: "s1" });
     const commit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
     const digest = createHash("sha256").update(SEARCH).digest("hex");
     const testDigest = (await testDigests(SEARCH)).get("Search an order")!;
@@ -109,9 +109,9 @@ describe("the execution of the tests of a session, as it is kept", () => {
     const { recorder: kept, store } = recorder(root);
     write(root, "apps/shop/search.spec.ts", "// Searches an order.\ntest('Search an order', async () => {\n});\n");
     write(root, "apps/shop/pay.spec.ts", 'test("Pay", async () => {});\n');
-    const reformatted = await kept.record("s1", REPORT);
+    const reformatted = await kept.record(REPORT, { origin: "design", sessionId: "s1" });
     write(root, "apps/shop/search.spec.ts", 'test("Search an order", async () => { await Promise.resolve(); });\n');
-    const changed = await kept.record("s2", REPORT);
+    const changed = await kept.record(REPORT, { origin: "design", sessionId: "s2" });
     assert.deepEqual(
       [reformatted, changed].map((execution) => [execution?.results[0]?.committed, execution?.results[2]?.committed]),
       [
@@ -131,7 +131,7 @@ describe("the execution of the tests of a session, as it is kept", () => {
     const root = repository("suites", false);
     const document = { ...(JSON.parse(configText("http://127.0.0.1:9/v1")) as object), repository: { appsDir: "suites" } };
     writeFileSync(join(root, CONFIG_FILE_NAME), JSON.stringify(document));
-    const execution = await recorder(root).recorder.record("s1", REPORT);
+    const execution = await recorder(root).recorder.record(REPORT, { origin: "design", sessionId: "s1" });
     assert.ok(execution !== undefined && !("commit" in execution));
     assert.deepEqual(
       execution.results.map(({ path, fileDigest, testDigest, committed }) => [path, fileDigest !== undefined, testDigest !== undefined, committed]),
@@ -146,7 +146,7 @@ describe("the execution of the tests of a session, as it is kept", () => {
   it("keeps nothing of a report that cannot be read", async () => {
     const root = repository("apps", false);
     const { recorder: kept, store } = recorder(root);
-    assert.equal(await kept.record("s1", ".oqas/runs/none/report.json"), undefined);
+    assert.equal(await kept.record(".oqas/runs/none/report.json", { origin: "design", sessionId: "s1" }), undefined);
     assert.deepEqual(store.all(), []);
   });
 });

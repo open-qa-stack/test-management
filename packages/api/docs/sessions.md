@@ -322,6 +322,7 @@ content-type: application/problem+json; charset=utf-8
 | `unknown_capture` | `404` | `/problems/unknown-capture` | A capture the run of a test that was read did not attach: see [the tests](tests.md#problems). |
 | `unknown_trace` | `404` | `/problems/unknown-trace` | A trace the run of a test that was read did not keep: see [the tests](tests.md#problems). |
 | `unknown_execution` | `404` | `/problems/unknown-execution` | An execution the instance does not keep: see [the executions](executions.md#problems). |
+| `launch_refused` | `409` | `/problems/launch-refused` | Tests that cannot be launched now: see [launching tests](executions.md#launching-tests). |
 | `error` | any other | `/problems/error` | Anything else: a route that does not exist (`404`), a media type the API does not read (`415`), or a failure of the API (`500`). |
 
 A failure of the API is logged on the instance and answered `500` with a detail that says nothing of it: the message of such an error may name a file or an address of the machine.
