@@ -9,6 +9,7 @@ The shape of the body is the type `RepositoryTestList` of `@open-qa-stack/domain
 | `GET /api/tests` | The tests of the test repository, in the order of their paths. |
 | `GET /api/tests/reading?path=<path>[&execution=<id>]` | A test in steps, from the latest run that ran it, or from the execution named. |
 | `GET /api/tests/capture?path=<path>&step=<number>[&execution=<id>]` | The capture that run attached for a step. |
+| `GET /api/tests/trace?path=<path>[&execution=<id>]` | The trace that run kept of the test. |
 | `GET /api/tests/executions?path=<path>` | What came of the tests of the file in its latest executions, the latest first. |
 | `GET /api/tests/versions?path=<path>` | The versions of the tests of the file, the latest first. |
 
@@ -79,11 +80,12 @@ GET /api/tests/reading?path=apps%2Fpolicy-management%2Ftests%2Fpolicies%2Fpolicy
     "failedStep": 2,
     "uncaptured": [2],
     "details": { "error": "Error: expect(locator).toBeVisible() failed…", "stdout": [], "stderr": [], "trace": "/work/tests/.oqas/test-results/…/trace.zip", "screenshots": [] }
-  }
+  },
+  "traced": true
 }
 ```
 
-The runs are the folders `<stateDir>/runs/run-<date>/` of the test repository, each with the report the runner wrote, `report.json`; the latest one whose report holds the test counts. `view` is that test read in steps by `qaViews` of `@open-qa-stack/domain`, which tells its rules: the `test.step` it calls, numbered, their states and durations, the capture of each step — the one the test attached under the number of the step, or, at the step that failed with none of its own, the page the runner captured at the failure —, the first step that failed, what the failed assertion `expected` and `received` when its message says both, and the details. `ranAt` is the date that run started, read from the name of its folder. A test no run kept ran has neither `run`, `ranAt` nor `view`.
+The runs are the folders `<stateDir>/runs/run-<date>/` of the test repository, each with the report the runner wrote, `report.json`; the latest one whose report holds the test counts. `view` is that test read in steps by `qaViews` of `@open-qa-stack/domain`, which tells its rules: the `test.step` it calls, numbered, their states and durations, the capture of each step — the one the test attached under the number of the step, or, at the step that failed with none of its own, the page the runner captured at the failure —, the first step that failed, what the failed assertion `expected` and `received` when its message says both, and the details. `ranAt` is the date that run started, read from the name of its folder. `traced` says whether that run kept a trace of the test in the test repository, which [its trace](#the-trace-of-a-test) serves. A test no run kept ran has neither `run`, `ranAt`, `view` nor `traced`.
 
 With `execution`, the test is read from the run of that [execution](executions.md) instead, whatever ran later: `run` is the folder of its report, `ranAt` the date of the execution. An execution whose report is gone, or did not hold the test, gives none of them; one the instance does not keep is refused. `status` is the one the reporter gives; the verdict of the harness, told by the session that ran the test, is never changed by it.
 
@@ -94,6 +96,16 @@ GET /api/tests/capture?path=…&step=1
 ```
 
 The answer is the capture itself, of the media type the run attached it with, such as `image/png`. A capture the report holds is served from it; one the runner wrote to a file is served from that file, only when it is in the test repository.
+
+## The trace of a test
+
+```http
+GET /api/tests/trace?path=…&execution=5b0c8f2e-6a51-4d1e-9a3f-2c7d1e0b9a44
+```
+
+The answer is the archive the runner wrote, `application/zip`: the trace of the latest attempt of the test that kept one, as the configuration of Playwright of the test repository asks (`trace: "retain-on-failure"`, for instance). It is served only when its file is in the test repository. A trace holds what the test typed and the pages it saw, the test values it signed in with included: it is served by the instance alone, as the rest of the API.
+
+Where the API serves the console, it also serves beside it the trace viewer of Playwright, as `playwright-core` builds it, under `/trace-viewer/`: `/trace-viewer/index.html?trace=<address of a trace>` opens a trace on the same origin, which its service worker asks for. A viewer older than the Playwright of the test repository may refuse a trace that version recorded.
 
 ## The executions of a test
 
@@ -159,4 +171,5 @@ A version takes the commit the test repository was at when an execution first ra
 | `invalid_request` | `400` | `path` is missing or empty, `step` is not a number from 1, or `execution` is empty. |
 | `unknown_execution` | `404` | The query names an execution the instance does not keep. |
 | `unknown_capture` | `404` | The run of the test that was read attached no capture for the step that can be read: no run ran the test, it attached none for the step, or its file is gone or outside the repository. The detail says to read the test again, whose steps say which have a capture. |
+| `unknown_trace` | `404` | The run of the test that was read kept no trace of it that can be read: no run ran the test, it kept none, or its file is gone or outside the repository. |
 

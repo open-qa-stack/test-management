@@ -3,7 +3,7 @@ import { createElement } from "react";
 import type { Project } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
 import { NAVIGATION } from "../src/shell/navigation.ts";
-import { Shell } from "../src/shell/shell.tsx";
+import { Shell, type ShellMenu } from "../src/shell/shell.tsx";
 import { at, linksOf, render, textOf } from "./render.ts";
 import { speaking } from "./i18n/in-language.ts";
 
@@ -29,7 +29,7 @@ function projectWith(applications: number): Project {
  * @param props - The project, and whether the instance no longer answers.
  * @returns Its HTML.
  */
-function shell(hash: string, props: { readonly project?: Project; readonly unreachable?: boolean } = {}): string {
+function shell(hash: string, props: { readonly project?: Project; readonly unreachable?: boolean; readonly menu?: ShellMenu } = {}): string {
   return render(createElement(Shell, { route: at(hash), ...props }, createElement("p", null, "page")));
 }
 
@@ -49,7 +49,7 @@ describe("the shell", () => {
     assert.match(textOf(html), /^✓ Open QA Stack Travail Agent /);
     assert.match(
       html,
-      /<aside class="shell-sidebar"><nav class="nav" aria-label="Navigation principale">.*<\/aside><main class="shell-page"><p>page<\/p><\/main><\/div>$/,
+      /<aside id="shell-sidebar" class="shell-sidebar"><nav class="nav" aria-label="Navigation principale">.*<\/aside><main class="shell-page"><p>page<\/p><\/main><\/div>$/,
     );
     assert.match(html, /<a class="brand" href="#\/agent">/);
   });
@@ -76,6 +76,18 @@ describe("the shell", () => {
     assert.deepEqual(marked("#/executions"), ["#/executions"]);
     assert.deepEqual(marked("#/campaigns"), []);
     assert.match(shell("#/campaigns"), /<a href="#\/agent"><svg /);
+  });
+
+  it("has a button that folds the menu to its icons and unfolds it, when it is given one, and none otherwise", () => {
+    const toggle = (): void => undefined;
+    const unfolded = shell("#/", { menu: { folded: false, toggle } });
+    assert.match(
+      unfolded,
+      /^<div class="shell"><header class="top"><button type="button" class="menu-toggle" aria-controls="shell-sidebar" aria-expanded="true" aria-label="Replier le menu" title="Replier le menu">/,
+    );
+    const folded = shell("#/", { menu: { folded: true, toggle } });
+    assert.match(folded, /^<div class="shell folded"><header class="top"><button [^>]*aria-expanded="false" aria-label="Déplier le menu"/);
+    assert.doesNotMatch(shell("#/"), /menu-toggle/);
   });
 
   it("says the instance no longer answers only when it cannot be reached", () => {

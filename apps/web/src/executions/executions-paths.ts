@@ -1,4 +1,5 @@
 import type { ExecutionOutcome } from "@open-qa-stack/domain/sessions";
+import { API_BASE } from "../api/api-client.ts";
 import { hrefTo } from "../routing/route.ts";
 import type { ExecutionPeriod } from "./execution-period.ts";
 
@@ -16,6 +17,12 @@ export const EXECUTION_PATH = `${EXECUTIONS_PATH}/view`;
 
 /** The address of the screen of what came of a test in an execution, whose identifier and path the query give. */
 export const RESULT_PATH = `${EXECUTIONS_PATH}/result`;
+
+/** The address of the screen of the trace of a test in an execution, whose identifier and path the query give. */
+export const TRACE_PATH = `${EXECUTIONS_PATH}/trace`;
+
+/** Where the instance serves the trace viewer of Playwright, beside the console. */
+export const TRACE_VIEWER = "/trace-viewer/index.html";
 
 /**
  * The link to a page of the executions.
@@ -52,4 +59,27 @@ export function executionHref(id: string): string {
  */
 export function resultHref(id: string, path: string, step?: number): string {
   return hrefTo(RESULT_PATH, { id, path, ...(step === undefined ? {} : { step: String(step) }) });
+}
+
+/**
+ * The link to the screen of the trace of a test in an execution.
+ *
+ * @param id - The identifier of the execution.
+ * @param path - The path of the test, relative to the root of the test repository.
+ * @returns The fragment to put in an `href`.
+ */
+export function traceHref(id: string, path: string): string {
+  return hrefTo(TRACE_PATH, { id, path });
+}
+
+/**
+ * The address of the trace viewer of Playwright opened on the trace of a test in an execution, as the instance serves both.
+ *
+ * @param id - The identifier of the execution.
+ * @param path - The path of the test, relative to the root of the test repository.
+ * @returns The address, on the origin of the console.
+ */
+export function traceViewerSrc(id: string, path: string): string {
+  const trace = `${API_BASE}/tests/trace?${new URLSearchParams({ path, execution: id }).toString()}`;
+  return `${TRACE_VIEWER}?${new URLSearchParams({ trace }).toString()}`;
 }

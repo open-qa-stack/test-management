@@ -81,6 +81,30 @@
   font-style: normal;
 }
 
+/* The button that folds the menu: the sidebar it folds exists only on a wide screen. */
+.menu-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--control);
+  height: var(--control);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.menu-toggle:hover {
+  background: var(--neutral-soft);
+}
+
+/* Folded, its arrow points to where the menu unfolds. */
+.folded .menu-toggle svg {
+  transform: scaleX(-1);
+}
+
 .top-tools {
   display: none;
   align-items: center;
@@ -329,5 +353,43 @@
 
   .shell-page {
     grid-area: 3 / 2;
+  }
+
+  .menu-toggle {
+    display: inline-flex;
+    margin-left: calc(var(--space-2) * -1);
+  }
+
+  /*
+   * Folded, the sidebar keeps an icon for each entry, which its label names to a screen reader as on a phone, and
+   * leaves the page the rest of the width.
+   */
+  .shell.folded {
+    grid-template-columns: var(--rail) minmax(0, 1fr);
+  }
+
+  .folded .nav-label {
+    position: absolute;
+    width: var(--hairline);
+    height: var(--hairline);
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .folded .proj,
+  .folded .grp,
+  .folded .nav-soon {
+    display: none;
+  }
+
+  .folded .nav a {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .folded .nav-group + .nav-group {
+    margin-top: var(--space-2);
+    padding-top: var(--space-2);
+    border-top: var(--hairline) solid var(--line);
   }
 }

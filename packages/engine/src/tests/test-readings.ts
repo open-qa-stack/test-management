@@ -8,6 +8,7 @@ import {
   RUNS_FOLDER,
   UnknownCaptureError,
   UnknownExecutionError,
+  UnknownTraceError,
   type ConfigurationQueries,
   type ExecutionStorePort,
   type JsonTest,
@@ -35,6 +36,27 @@ interface RunTest {
   readonly test: JsonTest;
 }
 
+/** The name of the attachment the runner keeps the trace of a test under. */
+const TRACE = "trace";
+
+/** An attachment of an attempt, as the report writes it. */
+interface Attachment {
+  readonly name?: string;
+  readonly contentType?: string;
+  readonly body?: string;
+  readonly path?: string;
+}
+
+/** The trace the runner kept of a test, that of its latest attempt that kept one, written to a file. */
+function traceOf(found: RunTest): string | undefined {
+  const attempts = found.test.results.toReversed() as readonly { readonly attachments?: readonly Attachment[] }[];
+  for (const attempt of attempts) {
+    const trace = attempt.attachments?.find((attachment) => attachment.name === TRACE && attachment.path !== undefined);
+    if (trace !== undefined) return trace.path;
+  }
+  return undefined;
+}
+
 /** The test of a run in steps, as the reader of its report gives it, under the same identifier. */
 function viewOf(found: RunTest): QaView {
   const read = qaViews(found.report) as { readonly views: readonly QaView[] };
@@ -43,8 +65,8 @@ function viewOf(found: RunTest): QaView {
 
 /**
  * The operations that read a test of the repository in steps, from the latest run that ran it or from an execution
- * the instance keeps: its steps, where it failed, what its failed assertion expected and received, and the capture of
- * each step. Whatever shows them — a REST API, a terminal — calls these and holds no rule of its own.
+ * the instance keeps: its steps, where it failed, what its failed assertion expected and received, the capture of
+ * each step, and the trace the runner kept of it. Whatever shows them — a REST API, a terminal — calls these and holds no rule of its own.
  *
  * @remarks
  * The runs are the folders `<stateDir>/runs/run-<date>/` of the test repository, each with the report the runner
@@ -77,7 +99,33 @@ export class TestReadings {
     const found = await this.#find(path, execution);
     if (found === undefined) return { path };
     // The report held the test: the reader reads it, and gives it the same identifier.
-    return { path, run: found.run, ...(found.ranAt === undefined ? {} : { ranAt: found.ranAt }), view: viewOf(found) };
+    const trace = traceOf(found);
+    return {
+      path,
+      run: found.run,
+      ...(found.ranAt === undefined ? {} : { ranAt: found.ranAt }),
+      view: viewOf(found),
+      traced: trace !== undefined && this.#within(trace),
+    };
+  }
+
+  /**
+   * @param path - The path of a test, relative to the root of the test repository.
+   * @param execution - The identifier of an execution to read the trace from; the latest run that ran the test when left out.
+   * @returns The trace the run kept of the test, the archive its latest attempt that kept one wrote, which the trace viewer of Playwright opens.
+   * @throws `UnknownExecutionError` when the instance keeps no execution under the identifier; `UnknownTraceError`
+   * when no run ran the test, or it kept no trace of it that can be read in the test repository.
+   */
+  async trace(path: string, execution?: string): Promise<Uint8Array> {
+    const found = await this.#find(path, execution);
+    const trace = found === undefined ? undefined : traceOf(found);
+    // A trace is read only when the file the runner wrote is in the test repository.
+    if (trace === undefined || !this.#within(trace)) throw new UnknownTraceError(path);
+    try {
+      return await readFile(trace);
+    } catch {
+      throw new UnknownTraceError(path);
+    }
   }
 
   /**

@@ -77,6 +77,7 @@ export default defineConfig({
         "**/src/executions/executions-page.tsx",
         "**/src/executions/execution-page.tsx",
         "**/src/executions/result-page.tsx",
+        "**/src/executions/trace-page.tsx",
         "**/src/api/use-polled.ts",
         "**/src/source-code/search-worker.ts",
         "**/check-manifests.ts",

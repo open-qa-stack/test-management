@@ -212,3 +212,14 @@
     text-align: right;
   }
 }
+
+/* The trace viewer of Playwright takes the width of the page and the height of the window under its header. */
+.trace-frame {
+  display: block;
+  width: 100%;
+  height: calc(100dvh - var(--trace-header));
+  min-height: 480px;
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}

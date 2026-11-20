@@ -1,4 +1,14 @@
-import { useEffect, useMemo, useReducer, useRef, useSyncExternalStore, type FormEvent, type KeyboardEvent as FieldKeyboardEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type FormEvent,
+  type KeyboardEvent as FieldKeyboardEvent,
+  type ReactNode,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { consoleAfter, INITIAL_STATE, playbackOf } from "./agent/console-state.ts";
 import { ConsoleSync } from "./agent/console-sync.ts";
@@ -9,7 +19,8 @@ import { scriptOf } from "./agent/session-steps.ts";
 import { asksToStop, focusAfterStop, withoutStop } from "./agent/stop-request.ts";
 import { api } from "./api/instance-api.ts";
 import { i18n } from "./i18n/i18n.ts";
-import { Console, documentTitleOf, isEntry, sessionAt, type ConsoleProps } from "./console.tsx";
+import { Console, documentTitleOf, isEntry, isTrace, sessionAt, type ConsoleProps } from "./console.tsx";
+import { keepMenuFold, readMenuFold } from "./shell/menu-fold.ts";
 import { hrefTo, parseRoute } from "./routing/route.ts";
 
 /** How long a beat of a replay lasts, in milliseconds. */
@@ -24,6 +35,11 @@ function onAddressChange(changed: () => void): () => void {
   return () => window.removeEventListener("hashchange", changed);
 }
 
+/** The storage of the browser, which keeps whether the person folded the menu. */
+function storage(): Storage {
+  return window.localStorage;
+}
+
 /** The fragment of the address. */
 function currentHash(): string {
   return window.location.hash;
@@ -35,7 +51,9 @@ function currentHash(): string {
  * the person says to the agents of a session — or resumes it with that, once it ended — and empties its field
  * once the instance took it, asks the
  * instance to stop a session once the person confirmed it, takes the
- * keyboard into the look a person opens and back to its action when it closes, and beats the clock of a replay.
+ * keyboard into the look a person opens and back to its action when it closes, beats the clock of a replay, and
+ * folds the menu as the person asks, keeping it for the next visit — and of itself while a trace is shown, which a
+ * person unfolds for that trace alone.
  *
  * @returns The console at the address of the page.
  */
@@ -43,6 +61,25 @@ export function App(): ReactNode {
   const hash = useSyncExternalStore(onAddressChange, currentHash);
   const route = useMemo(() => parseRoute(hash), [hash]);
   const [state, dispatch] = useReducer(consoleAfter, INITIAL_STATE);
+  const [folded, setFolded] = useState(() => readMenuFold(storage));
+  const tracing = isTrace(route);
+  // A trace opens with the menu folded, whatever the person keeps; unfolded over the traces, it is folded again once they are left.
+  const [traceUnfolded, setTraceUnfolded] = useState(false);
+  const [tracedBefore, setTracedBefore] = useState(tracing);
+  if (tracedBefore !== tracing) {
+    setTracedBefore(tracing);
+    setTraceUnfolded(false);
+  }
+  const menu = {
+    folded: tracing ? !traceUnfolded : folded,
+    toggle: (): void => {
+      if (tracing) setTraceUnfolded(!traceUnfolded);
+      else {
+        keepMenuFold(storage, !folded);
+        setFolded(!folded);
+      }
+    },
+  };
   const sync = useMemo(() => new ConsoleSync(api, dispatch), []);
   const id = sessionAt(route);
   const followed = state.followed?.id === id ? state.followed : undefined;
@@ -133,6 +170,7 @@ export function App(): ReactNode {
     opening: state.opening,
     onOpen: open,
     onConfigured: configured,
+    menu,
     ...(state.project === undefined ? {} : { project: state.project }),
     ...(state.sessions === undefined ? {} : { sessions: state.sessions }),
     ...(state.unlisted === undefined ? {} : { unlisted: state.unlisted }),

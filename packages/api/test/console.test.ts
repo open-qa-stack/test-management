@@ -102,6 +102,17 @@ describe("an API given a built console", () => {
     assert.deepEqual([posted.status, posted.headers.get("content-type")], [404, PROBLEM]);
   });
 
+  it("serves beside it the trace viewer of Playwright, as playwright-core builds it, asked again at each visit", async () => {
+    const page = await fetch(`${api.origin}/trace-viewer/index.html?trace=%2Fapi%2Ftests%2Ftrace`);
+    const [status, type, cache, body] = await answered(page);
+    assert.deepEqual([status, type, cache, page.headers.get("x-content-type-options")], [200, HTML, REVALIDATED, "nosniff"]);
+    assert.match(body, /<title>Playwright Trace Viewer<\/title>/);
+    const worker = await fetch(`${api.origin}/trace-viewer/sw.bundle.js`);
+    assert.deepEqual([worker.status, worker.headers.get("content-type")], [200, SCRIPT_TYPE]);
+    const missing = await fetch(`${api.origin}/trace-viewer/missing.js`);
+    assert.deepEqual([missing.status, missing.headers.get("content-type")], [404, PROBLEM]);
+  });
+
   it("serves nothing out of its folder nor a hidden file of it, however the path is written", async () => {
     const paths = [
       "/../secret.txt",
@@ -114,6 +125,8 @@ describe("an API given a built console", () => {
       "/.env",
       "/%2eenv",
       "/index.html%00.txt",
+      "/trace-viewer/../secret.txt",
+      "/trace-viewer/%2e%2e/%2e%2e/package.json",
     ];
     for (const path of paths) {
       const [status, body] = await raw(api.origin, path);
@@ -124,11 +137,13 @@ describe("an API given a built console", () => {
 });
 
 describe("an API given no console", () => {
-  it("serves its routes alone: its root is a route that does not exist", async () => {
+  it("serves its routes alone: its root and the trace viewer are routes that do not exist", async () => {
     const api = await sessionsApi({ operations: {} });
     try {
-      const root = await fetch(`${api.origin}/`);
-      assert.deepEqual([root.status, root.headers.get("content-type")], [404, PROBLEM]);
+      for (const path of ["/", "/trace-viewer/index.html"]) {
+        const answer = await fetch(`${api.origin}${path}`);
+        assert.deepEqual([path, answer.status, answer.headers.get("content-type")], [path, 404, PROBLEM]);
+      }
     } finally {
       await api.close();
     }

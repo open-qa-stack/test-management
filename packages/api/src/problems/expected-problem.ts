@@ -10,6 +10,7 @@ import {
   SessionStateError,
   StaleRevisionError,
   UnknownCaptureError,
+  UnknownTraceError,
   UnknownDocumentError,
   UnknownDocumentSourceError,
   UnknownExecutionError,
@@ -48,6 +49,10 @@ const INVALID_DOCUMENTS = "Each error is in errors, at the document it is about,
 
 /** What a client is told of a capture the run of a test it read did not attach. */
 const NO_CAPTURE = "Read the test again with GET /tests/reading: each of its steps says whether it has a capture.";
+
+/** What a client is told of a trace the run read did not keep. */
+const NO_TRACE =
+  "Read the test again with GET /tests/reading, which says whether that run kept one; a run keeps the trace of a test as its configuration of Playwright asks.";
 
 /** What a client is told of an execution the instance does not keep. */
 const NO_EXECUTION = "List the executions it keeps with GET /executions.";
@@ -90,6 +95,7 @@ export function expectedProblem(error: unknown): Problem | undefined {
   if (error instanceof UnknownDocumentError) return problemOf("unknown_document", error.message);
   if (error instanceof InvalidDocumentsError) return { ...problemOf("invalid_documents", `${error.message} ${INVALID_DOCUMENTS}`), errors: error.errors };
   if (error instanceof UnknownCaptureError) return problemOf("unknown_capture", `${error.message} ${NO_CAPTURE}`);
+  if (error instanceof UnknownTraceError) return problemOf("unknown_trace", `${error.message} ${NO_TRACE}`);
   if (error instanceof UnknownExecutionError) return problemOf("unknown_execution", `${error.message} ${NO_EXECUTION}`);
   if (error instanceof DatabaseUnavailableError) return problemOf("unavailable", DATABASE_UNAVAILABLE);
   if (error instanceof HttpException) return refusalOf(error.getStatus(), error.message);

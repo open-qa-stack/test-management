@@ -96,6 +96,10 @@
 
   /* The columns, which are the sidebar, the thread, the entry, the drawer of a look, and the longest line that reads well. */
   --sidebar: 224px;
+  /* The sidebar folded to its icons. */
+  --rail: 56px;
+  /* What stands above the trace viewer in the window, the bar, the breadcrumb, the title and the margins of the page. */
+  --trace-header: 200px;
   --column: 848px;
   --column-narrow: 768px;
   --drawer: clamp(420px, 38vw, 560px);
