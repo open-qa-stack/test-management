@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { setTimeout as pause } from "node:timers/promises";
-import { UnknownSessionError } from "@open-qa-stack/domain";
+import { LaunchRefusedError, UnknownSessionError, type LaunchRequest, type LaunchState, type TestLaunch } from "@open-qa-stack/domain";
 import type { MessageReceipt, Project, Session, SessionEvent, SessionMessage, SessionOpening } from "@open-qa-stack/domain/sessions";
+import { LaunchRun } from "../executions/launch-run.ts";
 import { EventNotifications } from "./event-notifications.ts";
 import { NoRepositoryError } from "./no-repository-error.ts";
 import { repositoryProject } from "./repository-project.ts";
@@ -25,7 +26,8 @@ import type { SessionsHost } from "./sessions-host.ts";
  * run, and the notifications that wake whoever follows a session once the store took what it gained.
  *
  * One session runs at a time in a process, in the order they were asked for: the next starts when the one
- * that runs ends.
+ * that runs ends. A launch of tests, which runs tests of the repository as they are with no agent, takes the
+ * same turn: it starts only when no session runs, and the sessions that wait start once it ended.
  *
  * Several processes may reach the same store, a server and commands in terminals: the store is where they
  * meet. A process hosts the sessions it opened, and those alone; it has a name of its own, and beats on its
@@ -49,6 +51,10 @@ export class Sessions {
   readonly #waiting = new WaitingSessions();
   readonly #executions = new RunningExecutions();
   readonly #notifications = new EventNotifications();
+  /** The launch of tests that runs in this process, with what settles once it ended; `undefined` when none runs. */
+  #launching: { readonly launch: TestLaunch; readonly ended: Promise<void> } | undefined;
+  /** The last launch of tests that ended in this process; `undefined` until one did. */
+  #launched: LaunchState["last"];
   /** The startup under way or done; `undefined` until it is asked for, and again when it failed. */
   #started: Promise<void> | undefined;
   #stopping = false;
@@ -104,7 +110,8 @@ export class Sessions {
     this.#beating.abort();
     const running = this.#executions.all();
     for (const { stop } of running) stop.abort();
-    const ended = Promise.all(running.map((execution) => execution.ended)).then(() => true);
+    // A launch of tests is not stopped: it is waited for as an execution is.
+    const ended = Promise.all([...running.map((execution) => execution.ended), this.#launching?.ended]).then(() => true);
     const bound = new AbortController();
     const late = pause(withinMs, false, { signal: bound.signal }).catch(() => false);
     const inTime = await Promise.race([ended, late]);
@@ -124,6 +131,46 @@ export class Sessions {
     const { repository, configuration, store } = this.#host;
     if (repository === undefined) return store.project();
     return repositoryProject(repository, (await configuration.view()).revision?.document);
+  }
+
+  /**
+   * Launches tests of the repository as they are, with no agent: they run in this process, when no session runs.
+   *
+   * @param request - The files of tests, and the environment they run against.
+   * @returns The launch, which runs; its execution is kept once it ended, as {@link launches} then says.
+   * @throws {@link NoRepositoryError} when the host has no test repository to run them in.
+   * @throws `LaunchRefusedError` when a session or another launch runs, when the host stops, or when the environment is not one the configuration declares.
+   * @throws `NoConfigurationError` or `InvalidConfigurationError` when the configuration in force is missing or not valid.
+   */
+  async launch(request: LaunchRequest): Promise<TestLaunch> {
+    const { repository, configuration, executions, env, runner, now = () => new Date() } = this.#host;
+    if (repository === undefined) throw new NoRepositoryError();
+    const busy = (): void => {
+      if (this.#launching !== undefined) throw new LaunchRefusedError("Tests launched already run: launch these once they ended.");
+      if (this.#executions.all().length > 0) throw new LaunchRefusedError("A session runs its tests: launch these once it ended.");
+      if (this.#stopping) throw new LaunchRefusedError("The instance stops: launch the tests once it started again.");
+    };
+    busy();
+    const ready = await LaunchRun.ready({ repository, configuration, store: executions, env, now, ...(runner === undefined ? {} : { runner }) }, request);
+    // Something may have started while the configuration was read.
+    busy();
+    const ended = ready
+      .run()
+      .then((end) => {
+        this.#launched = end;
+        if (end.failure !== undefined) this.#host.logger.warn(`The tests launched at ${end.startedAt} kept no execution: ${end.failure}`);
+      })
+      .finally(() => {
+        this.#launching = undefined;
+        void this.#startNext(repository);
+      });
+    this.#launching = { launch: ready.launch, ended };
+    return ready.launch;
+  }
+
+  /** @returns The launch of tests that runs in this process, and the last one that ended in it. */
+  launches(): LaunchState {
+    return { ...(this.#launching === undefined ? {} : { running: this.#launching.launch }), ...(this.#launched === undefined ? {} : { last: this.#launched }) };
   }
 
   /** @returns Every session, the latest opened first. */
@@ -338,10 +385,10 @@ export class Sessions {
    * session runs. It leaves the registry when it ended, and the next session then starts.
    *
    * @param repository - The test repository the session runs in.
-   * @returns The session started; `undefined` when none was: one runs already, none waits, or the store refused.
+   * @returns The session started; `undefined` when none was: one runs already, tests launched run, none waits, or the store refused.
    */
   #startNext(repository: string): Promise<Session | undefined> {
-    const id = this.#stopping || this.#executions.all().length > 0 ? undefined : this.#waiting.next();
+    const id = this.#stopping || this.#executions.all().length > 0 || this.#launching !== undefined ? undefined : this.#waiting.next();
     if (id === undefined) return Promise.resolve(undefined);
     const inbox = new SessionInbox();
     const stop = new AbortController();

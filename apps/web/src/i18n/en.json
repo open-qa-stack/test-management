@@ -374,6 +374,7 @@
     "unknown_trace": "This run of the test kept no trace.",
     "unknown_capture": "This run of the test attached no capture for this step.",
     "unknown_execution": "The instance no longer keeps this execution.",
+    "launch_refused": "The tests cannot be launched now: a session or another launch is running, or the environment asked for is not declared.",
     "unexplained": "The instance ran into an error.",
     "unreachable": "The instance does not answer.",
     "unreadable": "The answer of the instance cannot be read."
@@ -772,7 +773,8 @@
     "none": "No execution yet",
     "noneNote": "The executions of the tests show here once a session of the agent ran the tests it wrote.",
     "origins": {
-      "design": "design"
+      "design": "design",
+      "manual": "manual launch"
     },
     "verdicts": {
       "passed": "Passed",

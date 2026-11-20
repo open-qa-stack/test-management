@@ -9,7 +9,7 @@ import type { ConfigError } from "../config/types.ts";
  * valid, or an instance that has none; for the documents of the knowledge sources, a source the configuration in force
  * does not declare as one whose documents the instance keeps, a document the source does not hold, or documents an
  * upload brought that are refused; for the tests of the repository, a capture a run of a test did not attach; for
- * the executions, one the instance does not keep; `error` for anything else.
+ * the executions, one the instance does not keep, or tests that cannot be launched now; `error` for anything else.
  */
 export type ProblemCode =
   | "unknown_session"
@@ -29,6 +29,7 @@ export type ProblemCode =
   | "unknown_capture"
   | "unknown_trace"
   | "unknown_execution"
+  | "launch_refused"
   | "error";
 
 /**

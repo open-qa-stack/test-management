@@ -1,10 +1,21 @@
 import assert from "node:assert/strict";
 import { after, afterEach, before, beforeEach, describe, it } from "node:test";
-import { basename } from "node:path";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { basename, join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { setTimeout as pause } from "node:timers/promises";
 import { Logger } from "@nestjs/common";
-import type { MessageReceipt, Problem, Session, SessionEvent, SessionList, SessionResult } from "@open-qa-stack/domain/sessions";
+import type {
+  Execution,
+  LaunchState,
+  MessageReceipt,
+  Problem,
+  Session,
+  SessionEvent,
+  SessionList,
+  SessionResult,
+  TestLaunch,
+} from "@open-qa-stack/domain/sessions";
 import type { EventListener } from "@open-qa-stack/engine";
 import type { SessionStore } from "@open-qa-stack/store";
 import { acceptConnections, listeningConnections, refuseConnections, SessionDatabase, type DatabaseEngine } from "@open-qa-stack/store/testing";
@@ -399,6 +410,54 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
       } finally {
         await left.close();
       }
+    });
+  });
+
+  describe("the launches of tests", () => {
+    /** Launches tests, as a client does. */
+    function launch(body: string, to = api): Promise<Response> {
+      return fetch(`${to.url}/launches`, { method: "POST", headers: { "content-type": "application/json" }, body });
+    }
+
+    /** What the API says of its launches. */
+    async function launches(to = api): Promise<LaunchState> {
+      const { status, body } = await answerOf(await fetch(`${to.url}/launches`));
+      assert.equal(status, 200);
+      return body as LaunchState;
+    }
+
+    it("answer 202 with the launch, which runs, then tell how it ended and the execution it kept, a manual one, which no cache may keep", async () => {
+      const { repository, api: own } = await chained();
+      mkdirSync(join(repository.root, "apps/shop/tests"), { recursive: true });
+      writeFileSync(join(repository.root, "apps/shop/tests/search.spec.ts"), 'test("the test", async () => {});\n');
+      const door = repository.designDoor();
+      const response = await launch(JSON.stringify({ paths: ["apps/shop/tests/search.spec.ts"], environment: "local" }), own);
+      const { status, type, body } = await answerOf(response);
+      const started = body as TestLaunch;
+      assert.deepEqual([status, type, started.environment, started.paths], [202, JSON_TYPE, "local", ["apps/shop/tests/search.spec.ts"]]);
+      await door.reached;
+      assert.deepEqual(await launches(own), { running: started });
+      assert.equal((await fetch(`${own.url}/launches`)).headers.get("cache-control"), "no-store");
+      door.open();
+      const last = await eventually(async () => (await launches(own)).last);
+      assert.ok(last.execution !== undefined, JSON.stringify(last));
+      const execution = (await answerOf(await fetch(`${own.url}/executions/${last.execution}`))).body as Execution;
+      assert.deepEqual([execution.origin, execution.sessionId, execution.results.map(({ title }) => title)], ["manual", undefined, ["the test"]]);
+    });
+
+    it("answer 409 launch_refused while a session runs, and 400 for a body that is not a launch", async () => {
+      const { repository, api: own } = await chained();
+      const door = repository.designDoor();
+      const session = await opened(WHOLE_CHAIN, own);
+      await door.reached;
+      assert.deepEqual(
+        await problemOf(await launch(JSON.stringify({ environment: "local" }), own)),
+        problem(409, "launch_refused", "A session runs its tests: launch these once it ended."),
+      );
+      assert.equal((await problemOf(await launch(JSON.stringify({ paths: ["../x.spec.ts"] }), own))).body.code, "invalid_request");
+      door.open();
+      await ended(session.id, own);
+      assert.deepEqual(await launches(own), {});
     });
   });
 

@@ -20,6 +20,7 @@ const WORDED: ReadonlySet<string> = new Set<Exclude<ProblemCode, "error">>([
   "unknown_capture",
   "unknown_trace",
   "unknown_execution",
+  "launch_refused",
 ]);
 
 /**

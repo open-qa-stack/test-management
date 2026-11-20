@@ -1,5 +1,8 @@
-/** Where an execution of tests comes from: `design` for the run of the tests a session of design wrote. */
-export type ExecutionOrigin = "design";
+/**
+ * Where an execution of tests comes from: `design` for the run of the tests a session of design wrote, `manual` for
+ * tests of the repository a person launched as they are, with no agent.
+ */
+export type ExecutionOrigin = "design" | "manual";
 
 /**
  * What came of a test in an execution, as the runner reported it: `passed` when it went as expected, `failed` when it

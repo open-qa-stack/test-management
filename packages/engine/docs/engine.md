@@ -349,6 +349,8 @@ const page = await new Executions(instance.executions).page({ limit: 25 });
 
 `TestReadings` reads a test in steps from the latest run that ran it, or from the run of an execution the store keeps when it is named: `read(path, execution?)`, `capture(path, step, execution?)` and `trace(path, execution?)`, the archive the latest attempt of the test that kept a trace wrote in the test repository, which the reading says it has with `traced`.
 
+`Sessions` also launches tests of the repository as they are, with no agent: `launch(request)` runs the files it names, or every test, against an environment the configuration declares, and keeps their execution with the origin `manual`; `launches()` tells the launch that runs and the last one that ended. A launch takes the turn of the sessions: it is refused with `LaunchRefusedError` while a session or another launch runs, or while the host stops, which waits for it as for an execution; a session opened meanwhile waits until it ended. The launch is made ready before it runs — a configuration that is missing or not valid, or an environment it does not declare, refuses it at once — and, once ready, `LaunchRun` never fails: what the runner could not do and a store that refuses the execution end it with no execution, and say why. The launch that runs and the last one are kept in the memory of the process.
+
 `PastRuns` takes into the store the runs the test repository ran before the instance kept its executions: `take()` keeps each folder `<stateDir>/runs/run-<date>/` whose report the store does not hold, the earliest first, dated by the start of its run, without a session nor a version, and says how many. The API calls it when it starts.
 
 [The API](../../api/docs/executions.md) says it in HTTP.
