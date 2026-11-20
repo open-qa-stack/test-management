@@ -1266,7 +1266,9 @@ describe("the code of the console is covered in full", () => {
         instance.staging = true;
         await page.goto("http://console.test/#/tests");
         await page.goto("http://console.test/#/agent");
-        await page.getByLabel("Environnement :").selectOption("staging");
+        // The entry reads the configuration and the domains again: the choice of the environment shows once it did.
+        await page.getByText("Domaines : tous").waitFor();
+        await page.getByLabel("Environnement :").selectOption("staging", { timeout: 60_000 });
         await page.getByText("Domaines : tous").click();
         for (const label of ["Devis", "Polices", "Clients"]) await page.getByRole("checkbox", { name: new RegExp(`^${label}`) }).check();
         await page.getByText("Domaines : 3 choisis").waitFor();
@@ -1364,21 +1366,32 @@ describe("the code of the console is covered in full", () => {
         await page.getByRole("link", { name: /Recette 4\.2/ }).waitFor();
         await page.getByRole("textbox", { name: "Nom" }).fill("Recette 4.3");
         await page.getByRole("textbox", { name: "Environnement" }).fill("local");
-        await page.getByRole("textbox", { name: "Tags des tests" }).fill("p0, @p1");
         instance.refusal = "invalid_request";
         await page.getByRole("button", { name: "Planifier" }).click();
         await page.getByRole("alert").waitFor();
         await page.getByRole("button", { name: "Planifier" }).click();
         await page.waitForURL(/#\/campaigns\/view\?id=c2/);
+        // Its tests are chosen among those of the repository, narrowed, then kept: once refused, then taken.
+        await page.getByRole("searchbox", { name: "Filtrer par mots" }).fill("zzz");
+        await page.getByText("Aucun test ne correspond à ces filtres.").waitFor();
+        await page.getByRole("searchbox", { name: "Filtrer par mots" }).fill("");
+        await page.getByRole("button", { name: "Cocher les tests affichés", exact: true }).click();
+        await page.getByRole("checkbox", { name: /Display the detail of a policy/ }).uncheck();
+        await page.getByRole("checkbox", { name: /Display the detail of a policy/ }).check();
+        instance.refusal = "campaign_refused";
+        await page.getByRole("button", { name: /^Enregistrer la sélection/ }).click();
+        await page.getByText("La campagne refuse ce changement").waitFor();
+        await page.getByRole("button", { name: /^Enregistrer la sélection/ }).click();
+        await page.getByText("Sélection enregistrée.").waitFor();
         await page.getByRole("button", { name: "Figer les tests" }).click();
         await page.getByRole("button", { name: "Lancer les tests" }).click();
-        await page.getByText("Lancement en cours : 1 / 2 tests finis").waitFor();
+        await page.getByText(/Lancement en cours : 1 \/ \d+ tests finis/).waitFor();
         // The launch ends: the campaign is read again.
         instance.launches = { last: { ...instance.launches.running!, endedAt: "2026-11-20T10:02:00.000Z", execution: "e1" } };
         await page.getByRole("button", { name: "Clôturer", exact: true }).click();
         await page.getByRole("button", { name: "Annuler" }).click();
         await page.getByRole("button", { name: "Tout relancer" }).click();
-        await page.getByText("Lancement en cours : 1 / 2 tests finis").waitFor();
+        await page.getByText(/Lancement en cours : 1 \/ \d+ tests finis/).waitFor();
         instance.launches = {};
         await page.getByRole("button", { name: "Clôturer", exact: true }).click();
         instance.refusal = "campaign_refused";

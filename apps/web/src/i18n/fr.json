@@ -868,12 +868,11 @@
   },
   "campaigns": {
     "title": "Campagnes",
-    "lead": "Une campagne prend les tests qui portent ses tags, les fige quand elle est prête, puis suit ce qu’a donné chacun à chaque lancement.",
+    "lead": "Une campagne est faite des tests que vous choisissez, figés quand elle est prête, puis suit ce qu’a donné chacun à chaque lancement.",
     "reading": "Lecture des campagnes",
     "readingNote": "Elles apparaissent dès que l’instance a répondu.",
     "none": "Aucune campagne",
-    "noneNote": "Planifiez-en une : un nom, un environnement, et les tags des tests à prendre.",
-    "everyTest": "tous les tests",
+    "noneNote": "Planifiez-en une : un nom et un environnement, puis choisissez ses tests.",
     "statuses": {
       "planned": "planifiée",
       "ready": "prête",
@@ -885,19 +884,16 @@
       "name": "Nom",
       "namePlaceholder": "Recette 4.2",
       "environment": "Environnement",
-      "tags": "Tags des tests",
-      "tagsHelp": "Séparés par des espaces, comme @p0 @p1. Laissez vide pour prendre tous les tests.",
       "submit": "Planifier",
       "pending": "Planification…"
     },
-    "taken_one": "{{count}} test pris",
-    "taken_other": "{{count}} tests pris"
+    "chosen_one": "{{count}} test choisi",
+    "chosen_other": "{{count}} tests choisis"
   },
   "campaign": {
     "reading": "Lecture de la campagne",
     "readingNote": "Elle apparaît dès que l’instance a répondu.",
     "environment": "Environnement",
-    "tags": "Tags",
     "created": "Planifiée le",
     "closed": "Clôturée le",
     "tests": "Tests de la campagne",
@@ -916,9 +912,9 @@
       "not_run_other": "{{count}} non joués"
     },
     "notRun": "non joué",
-    "plannedNote": "Ce sont les tests que ses tags prennent aujourd’hui : ils seront figés quand la campagne sera prête.",
+    "plannedNote": "Choisissez ses tests ci-dessous : ils restent modifiables jusqu’à ce que vous les figiez.",
     "noTest": "Aucun test",
-    "noTestNote": "Aucun test du dépôt ne porte ces tags pour l’instant.",
+    "noTestNote": "Aucun test n’est choisi pour cette campagne.",
     "ready": "Figer les tests",
     "launch": "Lancer les tests",
     "relaunch": "Tout relancer",
@@ -977,5 +973,31 @@
     "blocked_other": "{{count}} bloqués",
     "indeterminate_one": "{{count}} indéterminé",
     "indeterminate_other": "{{count}} indéterminés"
+  },
+  "campaignComposer": {
+    "title": "Tests de la campagne",
+    "reading": "Lecture des tests du dépôt",
+    "readingNote": "Ils apparaissent dès que l’instance a répondu.",
+    "none": "Aucun test dans le dépôt",
+    "noneNote": "Les agents en écrivent dans les sessions de conception.",
+    "chosen": "{{count}} choisis sur {{total}}",
+    "search": "Filtrer par mots",
+    "searchPlaceholder": "Titre ou chemin",
+    "level": "Niveau",
+    "domain": "Domaine",
+    "application": "Application",
+    "tag": "Tag",
+    "every": "tous",
+    "chosenOnly": "Seulement la sélection",
+    "shown_one": "{{count}} test affiché",
+    "shown_other": "{{count}} tests affichés",
+    "tickShown": "Cocher les tests affichés",
+    "untickShown": "Décocher les tests affichés",
+    "noMatch": "Aucun test ne correspond à ces filtres.",
+    "unsaved": "Sélection modifiée, pas encore enregistrée.",
+    "saved": "Sélection enregistrée.",
+    "save_one": "Enregistrer la sélection ({{count}} test)",
+    "save_other": "Enregistrer la sélection ({{count}} tests)",
+    "saving": "Enregistrement…"
   }
 }

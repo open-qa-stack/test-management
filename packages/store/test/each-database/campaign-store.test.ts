@@ -20,11 +20,10 @@ beforeAll(async () => {
 beforeEach(() => database.clear());
 afterAll(() => database.drop());
 
-const planned = (id: string, seconds: number, tags: readonly string[] = ["@p0", "@domain-quotes"]): Campaign => ({
+const planned = (id: string, seconds: number): Campaign => ({
   id,
   name: `Recette ${id}`,
   environment: "local",
-  scope: { tags },
   status: "planned",
   createdAt: at(seconds),
   tests: [],
@@ -33,20 +32,22 @@ const planned = (id: string, seconds: number, tags: readonly string[] = ["@p0", 
 describe("the campaigns the store keeps", () => {
   it("gives back a campaign as it was planned, the latest planned first, and none for an identifier it does not keep", async () => {
     await store.add(planned("c1", 1));
-    await store.add(planned("c2", 2, []));
+    await store.add(planned("c2", 2));
     assert.deepEqual(await store.get("c1"), planned("c1", 1));
-    assert.deepEqual(await store.list(), [planned("c2", 2, []), planned("c1", 1)]);
+    assert.deepEqual(await store.list(), [planned("c2", 2), planned("c1", 1)]);
     assert.equal(await store.get("c3"), undefined);
   });
 
-  it("fixes the tests of a campaign that becomes ready, in the order of their paths then their titles, then moves it on to closed", async () => {
+  it("keeps the tests chosen for a campaign in the order of their paths then their titles, replaces them, fixes them as it becomes ready, then moves it on to closed", async () => {
     await store.add(planned("c1", 1));
+    await store.choose("c1", [{ path: "apps/old.spec.ts", title: "Old" }]);
     const tests = [
       { path: "apps/b.spec.ts", title: "B" },
       { path: "apps/a.spec.ts", title: "Z" },
       { path: "apps/a.spec.ts", title: "A" },
     ];
-    await store.ready("c1", tests, at(5));
+    await store.choose("c1", tests);
+    await store.ready("c1", at(5));
     assert.deepEqual(await store.get("c1"), {
       ...planned("c1", 1),
       status: "ready",
@@ -60,10 +61,11 @@ describe("the campaigns the store keeps", () => {
     assert.deepEqual([closed?.status, closed?.closedAt, closed?.tests.length], ["closed", at(9), 3]);
   });
 
-  it("becomes ready with no test when its scope takes none", async () => {
+  it("keeps no test when none is chosen", async () => {
     await store.add(planned("c1", 1));
-    await store.ready("c1", [], at(5));
-    assert.deepEqual(await store.get("c1"), { ...planned("c1", 1), status: "ready", readyAt: at(5) });
+    await store.choose("c1", [{ path: "apps/a.spec.ts", title: "A" }]);
+    await store.choose("c1", []);
+    assert.deepEqual(await store.get("c1"), planned("c1", 1));
   });
 
   it("keeps with an execution the campaign it was launched for, and gives back the executions of a campaign, the latest first", async () => {

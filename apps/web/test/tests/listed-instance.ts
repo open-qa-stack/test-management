@@ -75,17 +75,16 @@ export class ListedInstance {
       const refusal = this.refusal;
       this.refusal = undefined;
       if (refusal !== undefined) return { status: 400, body: JSON.stringify({ code: refusal, detail: "No." }) };
-      const plan = JSON.parse(body!) as { name: string; environment: string; tags: string[] };
+      const plan = JSON.parse(body!) as { name: string; environment: string };
       const campaign: Campaign = {
         id: `c${this.campaigns.length + 1}`,
         name: plan.name,
         environment: plan.environment,
-        scope: { tags: plan.tags },
         status: "planned",
         createdAt: "2026-11-20T10:00:00.000Z",
         tests: [],
       };
-      this.campaigns.unshift({ campaign, results: PROGRESS.results.map(({ path, title }) => ({ path, title, verdict: "not_run" })) });
+      this.campaigns.unshift({ campaign, results: [] });
       return { status: 201, body: JSON.stringify(campaign) };
     }
     if (path === "/api/campaigns")
@@ -97,8 +96,14 @@ export class ListedInstance {
     if (id === undefined) return undefined;
     const found = this.campaigns.find(({ campaign }) => campaign.id === id);
     if (found === undefined) return { status: 404, body: JSON.stringify({ code: "unknown_campaign" }) };
-    if (gesture === "readiness")
-      return this.#change(id, (campaign) => ({ ...campaign, status: "ready", tests: found.results.map(({ path, title }) => ({ path, title })) }));
+    if (gesture === "tests") {
+      const { tests } = JSON.parse(body!) as { tests: { path: string; title: string }[] };
+      const answer = this.#change(id, (campaign) => ({ ...campaign, tests }));
+      const at = this.campaigns.findIndex(({ campaign }) => campaign.id === id);
+      if (answer.status === 200) this.campaigns[at] = { ...this.campaigns[at]!, results: tests.map((test) => ({ ...test, verdict: "not_run" })) };
+      return answer;
+    }
+    if (gesture === "readiness") return this.#change(id, (campaign) => ({ ...campaign, status: "ready" }));
     if (gesture === "launches") {
       const answer = this.#change(id, (campaign) => ({ ...campaign, status: "in_progress" }));
       const paths = found.results.map(({ path }) => path);

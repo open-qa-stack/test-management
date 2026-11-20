@@ -12,13 +12,20 @@ export interface CampaignStorePort {
   list(): Promise<Campaign[]>;
 
   /**
+   * Replaces the tests chosen for a planned campaign.
+   *
+   * @param id - The identifier of the campaign.
+   * @param tests - Its tests, each once.
+   */
+  choose(id: string, tests: readonly CampaignTest[]): Promise<void>;
+
+  /**
    * Fixes the tests of a planned campaign, which becomes ready.
    *
    * @param id - The identifier of the campaign.
-   * @param tests - Its tests.
    * @param at - When, as an ISO 8601 date.
    */
-  ready(id: string, tests: readonly CampaignTest[], at: string): Promise<void>;
+  ready(id: string, at: string): Promise<void>;
 
   /**
    * Changes the state of a campaign: to `in_progress`, or to `closed` with when.

@@ -1,6 +1,6 @@
 import { byCodeUnits } from "../text-order.ts";
 import { CampaignRefusedError } from "./campaign-refused-error.ts";
-import type { CampaignCounts, CampaignResult, CampaignScope, CampaignStatus, CampaignTest } from "./campaign.ts";
+import type { CampaignCounts, CampaignResult, CampaignStatus, CampaignTest } from "./campaign.ts";
 import type { Execution } from "../executions/execution.ts";
 
 /** The one change each state of a campaign takes. */
@@ -12,6 +12,16 @@ const NEXT: Readonly<Record<CampaignStatus, CampaignStatus | undefined>> = {
 };
 
 /**
+ * Puts the tests chosen for a campaign in order: by their paths then their titles, each once.
+ *
+ * @param tests - The tests chosen, in any order.
+ */
+export function chosenTests(tests: readonly CampaignTest[]): CampaignTest[] {
+  const unique = new Map(tests.map(({ path, title }) => [`${path}\n${title}`, { path, title }]));
+  return [...unique.values()].sort((a, b) => byCodeUnits(a.path, b.path) || byCodeUnits(a.title, b.title));
+}
+
+/**
  * Checks that a campaign may go from one state to another: from planned to ready, then in_progress, then closed,
  * which is final.
  *
@@ -20,18 +30,6 @@ const NEXT: Readonly<Record<CampaignStatus, CampaignStatus | undefined>> = {
 export function campaignTransition(from: CampaignStatus, to: CampaignStatus): void {
   if (NEXT[from] !== to)
     throw new CampaignRefusedError(`A campaign ${from} cannot become ${to}: a campaign goes from planned to ready, then in_progress, then closed.`);
-}
-
-/**
- * The tests of the repository a scope takes: those that bear at least one of its tags, every test when it names
- * none, in the order of their paths then their titles.
- *
- * @param scope - The scope of a campaign.
- * @param tests - The tests of the repository, each with its tags.
- */
-export function scopedTests(scope: CampaignScope, tests: readonly (CampaignTest & { readonly tags: readonly string[] })[]): CampaignTest[] {
-  const taken = scope.tags.length === 0 ? tests : tests.filter((test) => test.tags.some((tag) => scope.tags.includes(tag)));
-  return taken.map(({ path, title }) => ({ path, title })).sort((a, b) => byCodeUnits(a.path, b.path) || byCodeUnits(a.title, b.title));
 }
 
 /** @returns How many of the results came to each verdict, and how many were not run. */

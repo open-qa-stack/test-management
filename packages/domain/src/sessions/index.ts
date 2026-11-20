@@ -70,7 +70,6 @@ export type {
   CampaignPlan,
   CampaignProgress,
   CampaignResult,
-  CampaignScope,
   CampaignStatus,
   CampaignTest,
 } from "../campaigns/campaign.ts";

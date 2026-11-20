@@ -26,7 +26,7 @@ export interface CampaignsScreenProps {
   readonly onPlan: FormEventHandler<HTMLFormElement>;
 }
 
-/** The form that plans a campaign: its name, its environment, and the tags of its scope. */
+/** The form that plans a campaign: its name and its environment, its tests chosen next. */
 function PlanForm({ environments, planning, onPlan }: Pick<CampaignsScreenProps, "environments" | "planning" | "onPlan">): ReactNode {
   return (
     <form className="card campaign-plan" onSubmit={onPlan}>
@@ -49,13 +49,6 @@ function PlanForm({ environments, planning, onPlan }: Pick<CampaignsScreenProps,
           </select>
         )}
       </label>
-      <label className="campaign-field">
-        <span>{t("campaigns.plan.tags")}</span>
-        <input name="tags" placeholder="@p0 @p1" aria-describedby="campaign-tags-help" />
-        <small id="campaign-tags-help" className="muted">
-          {t("campaigns.plan.tagsHelp")}
-        </small>
-      </label>
       {planning.refusal !== undefined && (
         <p className="small campaign-refusal" role="alert">
           {planning.refusal}
@@ -71,17 +64,14 @@ function PlanForm({ environments, planning, onPlan }: Pick<CampaignsScreenProps,
 /** A campaign in the list, with how far it went, which opens it. */
 function CampaignRow({ campaign }: { readonly campaign: CampaignOverview }): ReactNode {
   const total = ranOf(campaign.counts) + campaign.counts.not_run;
-  const tags = campaign.scope.tags.length === 0 ? t("campaigns.everyTest") : campaign.scope.tags.join(" ");
   return (
     <a className="row campaign-row" href={campaignHref(campaign.id)}>
       <div className="grow">
         <b>{campaign.name}</b>
-        <div className="small muted">
-          {campaign.environment} · <span className="mono">{tags}</span>
-        </div>
+        <div className="small muted">{campaign.environment}</div>
         <div className="campaign-row-progress small muted">
           <CampaignBar counts={campaign.counts} />
-          {campaign.status === "planned" ? t("campaigns.taken", { count: total }) : t("campaign.ran", { ran: ranOf(campaign.counts), total })}
+          {campaign.status === "planned" ? t("campaigns.chosen", { count: total }) : t("campaign.ran", { ran: ranOf(campaign.counts), total })}
           {campaign.counts.failed > 0 && <span className="verdict-words failed"> · {t("campaign.counts.failed", { count: campaign.counts.failed })}</span>}
         </div>
       </div>

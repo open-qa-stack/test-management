@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { CampaignRefusedError, UnknownCampaignError } from "@open-qa-stack/domain";
-import { campaignPlanOf, MAX_CAMPAIGN_NAME_LENGTH, MAX_CAMPAIGN_TAGS } from "../src/campaigns/campaign-plan.ts";
+import { campaignPlanOf, MAX_CAMPAIGN_NAME_LENGTH } from "../src/campaigns/campaign-plan.ts";
+import { campaignTestsOf, MAX_CAMPAIGN_TESTS } from "../src/campaigns/campaign-tests.ts";
+import { CampaignTestsPipe } from "../src/campaigns/campaign-tests.pipe.ts";
 import { CampaignLaunchPipe } from "../src/campaigns/campaign-launch.pipe.ts";
 import { CampaignPlanPipe } from "../src/campaigns/campaign-plan.pipe.ts";
 import { expectedProblem } from "../src/problems/expected-problem.ts";
@@ -19,15 +21,13 @@ function refusalOf(action: () => unknown): SessionError {
 }
 
 describe("a plan of a campaign", () => {
-  it("names the campaign, its environment, and the tags of its scope once each, none for every test", () => {
-    assert.deepEqual(campaignPlanOf({ name: " Recette ", environment: "local" }), { name: "Recette", environment: "local", scope: { tags: [] } });
-    assert.deepEqual(campaignPlanOf({ name: "R", environment: "local", tags: ["@p0", "@p1", "@p0"] }).scope, { tags: ["@p0", "@p1"] });
+  it("names the campaign and its environment", () => {
+    assert.deepEqual(campaignPlanOf({ name: " Recette ", environment: "local" }), { name: "Recette", environment: "local" });
     assert.equal(campaignPlanOf({ name: "x".repeat(MAX_CAMPAIGN_NAME_LENGTH), environment: "local" }).name.length, MAX_CAMPAIGN_NAME_LENGTH);
   });
 
   const NAME = `name must be a text that is not empty, does not start with -- and is at most ${MAX_CAMPAIGN_NAME_LENGTH} characters long.`;
   const ENVIRONMENT = "environment must be a text that is not empty and does not start with --.";
-  const TAGS = `tags must be a list of at most ${MAX_CAMPAIGN_TAGS} tags, each @ then no space, such as @p0; leave it out to take every test.`;
   for (const [body, message] of [
     [[], "The body must be a JSON object."],
     [{ environment: "local" }, NAME],
@@ -36,12 +36,7 @@ describe("a plan of a campaign", () => {
     [{ name: "x".repeat(MAX_CAMPAIGN_NAME_LENGTH + 1), environment: "local" }, NAME],
     [{ name: "R" }, ENVIRONMENT],
     [{ name: "R", environment: "--x" }, ENVIRONMENT],
-    [{ name: "R", environment: "local", tags: "@p0" }, TAGS],
-    [{ name: "R", environment: "local", tags: ["p0"] }, TAGS],
-    [{ name: "R", environment: "local", tags: ["@p 0"] }, TAGS],
-    [{ name: "R", environment: "local", tags: [0] }, TAGS],
-    [{ name: "R", environment: "local", tags: Array.from({ length: MAX_CAMPAIGN_TAGS + 1 }, (_, index) => `@t${index}`) }, TAGS],
-    [{ name: "R", environment: "local", scope: {} }, "scope is not a field of a plan of a campaign."],
+    [{ name: "R", environment: "local", tags: ["@p0"] }, "tags is not a field of a plan of a campaign."],
   ] as const) {
     it(`is refused, naming what is at fault, when it is ${JSON.stringify(body).slice(0, 60)}`, () => {
       const refusal = refusalOf(() => campaignPlanOf(body));
@@ -50,8 +45,36 @@ describe("a plan of a campaign", () => {
   }
 
   it("is read by the pipe of the route as it is by itself", () => {
-    assert.deepEqual(new CampaignPlanPipe().transform({ name: "R", environment: "local" }).scope, { tags: [] });
+    assert.deepEqual(new CampaignPlanPipe().transform({ name: "R", environment: "local" }), { name: "R", environment: "local" });
   });
+});
+
+describe("a choice of the tests of a campaign", () => {
+  it("names each test by the path of its file and its title", () => {
+    const tests = [{ path: "apps/a.spec.ts", title: "A" }];
+    assert.deepEqual(campaignTestsOf({ tests }), tests);
+    assert.deepEqual(new CampaignTestsPipe().transform({ tests: [] }), []);
+    assert.equal(campaignTestsOf({ tests: Array.from({ length: MAX_CAMPAIGN_TESTS }, () => tests[0]) }).length, MAX_CAMPAIGN_TESTS);
+  });
+
+  const TESTS = `tests must be a list of at most ${MAX_CAMPAIGN_TESTS} tests, each a path and a title as the repository lists them.`;
+  for (const [body, message] of [
+    [{}, TESTS],
+    [{ tests: "apps/a.spec.ts" }, TESTS],
+    [{ tests: ["apps/a.spec.ts"] }, TESTS],
+    [{ tests: [null] }, TESTS],
+    [{ tests: [[]] }, TESTS],
+    [{ tests: [{ path: "apps/a.spec.ts" }] }, TESTS],
+    [{ tests: [{ path: "", title: "A" }] }, TESTS],
+    [{ tests: [{ path: "apps/a.spec.ts", title: "" }] }, TESTS],
+    [{ tests: [{ path: "apps/a.spec.ts", title: "A", tags: [] }] }, TESTS],
+    [{ tests: Array.from({ length: MAX_CAMPAIGN_TESTS + 1 }, () => ({ path: "a", title: "A" })) }, TESTS],
+    [{ tests: [], tags: [] }, "tags is not a field of a choice of the tests of a campaign."],
+  ] as const) {
+    it(`is refused, naming what is at fault, when it is ${JSON.stringify(body).slice(0, 60)}`, () => {
+      assert.deepEqual(refusalOf(() => campaignTestsOf(body)).message, message);
+    });
+  }
 });
 
 describe("a launch of a campaign", () => {

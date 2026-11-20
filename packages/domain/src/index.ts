@@ -151,11 +151,10 @@ export type {
   CampaignPlan,
   CampaignProgress,
   CampaignResult,
-  CampaignScope,
   CampaignStatus,
   CampaignTest,
 } from "./campaigns/campaign.ts";
-export { campaignCounts, campaignResults, campaignTransition, scopedTests } from "./campaigns/campaign-rules.ts";
+export { campaignCounts, campaignResults, campaignTransition, chosenTests } from "./campaigns/campaign-rules.ts";
 export { CampaignRefusedError } from "./campaigns/campaign-refused-error.ts";
 export { UnknownCampaignError } from "./campaigns/unknown-campaign-error.ts";
 export type { CampaignStorePort } from "./campaigns/campaign-store-port.ts";

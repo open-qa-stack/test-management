@@ -7,6 +7,7 @@ import { executionFailures } from "./0006-execution-failures.ts";
 import { testVersions } from "./0007-test-versions.ts";
 import { campaigns } from "./0008-campaigns.ts";
 import { sessionScopes } from "./0009-session-scopes.ts";
+import { campaignSelections } from "./0010-campaign-selections.ts";
 import type { Migration } from "kysely/migration";
 
 /**
@@ -23,4 +24,5 @@ export const MIGRATIONS: Readonly<Record<string, Migration>> = {
   "0007_test_versions": testVersions,
   "0008_campaigns": campaigns,
   "0009_session_scopes": sessionScopes,
+  "0010_campaign_selections": campaignSelections,
 };

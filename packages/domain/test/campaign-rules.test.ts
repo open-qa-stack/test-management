@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { campaignCounts, campaignResults, campaignTransition, CampaignRefusedError, scopedTests, type CampaignStatus, type Execution } from "../src/index.ts";
+import { campaignCounts, campaignResults, campaignTransition, CampaignRefusedError, chosenTests, type CampaignStatus, type Execution } from "../src/index.ts";
 
 const STATES: readonly CampaignStatus[] = ["planned", "ready", "in_progress", "closed"];
 
@@ -21,25 +21,20 @@ describe("the life of a campaign", () => {
   });
 });
 
-describe("the tests a scope takes", () => {
-  const tests = [
-    { path: "b.spec.ts", title: "B", tags: ["@p1"] },
-    { path: "a.spec.ts", title: "A", tags: ["@p0", "@domain-quotes"] },
-    { path: "a.spec.ts", title: "0", tags: [] },
-  ];
-
-  it("are those that bear one of its tags, in the order of their paths then their titles, without their tags", () => {
-    assert.deepEqual(scopedTests({ tags: ["@domain-quotes", "@p1"] }, tests), [
-      { path: "a.spec.ts", title: "A" },
-      { path: "b.spec.ts", title: "B" },
-    ]);
-    assert.deepEqual(scopedTests({ tags: ["@p3"] }, tests), []);
-  });
-
-  it("are every test when it names no tag", () => {
+describe("the tests chosen for a campaign", () => {
+  it("are put in the order of their paths then their titles, each once", () => {
     assert.deepEqual(
-      scopedTests({ tags: [] }, tests).map(({ title }) => title),
-      ["0", "A", "B"],
+      chosenTests([
+        { path: "b.spec.ts", title: "B" },
+        { path: "a.spec.ts", title: "Z" },
+        { path: "a.spec.ts", title: "A" },
+        { path: "b.spec.ts", title: "B" },
+      ]),
+      [
+        { path: "a.spec.ts", title: "A" },
+        { path: "a.spec.ts", title: "Z" },
+        { path: "b.spec.ts", title: "B" },
+      ],
     );
   });
 });

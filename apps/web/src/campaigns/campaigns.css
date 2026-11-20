@@ -212,3 +212,104 @@
   align-items: center;
   gap: var(--space-2);
 }
+
+/* The choice of the tests of a planned campaign: the filters, what is shown ticked at once, the tests, then the choice kept. */
+.campaign-composer {
+  display: grid;
+}
+
+.campaign-composer-head,
+.campaign-composer-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--inset);
+}
+
+.campaign-composer-foot {
+  position: sticky;
+  bottom: 0;
+  border-top: var(--hairline) solid var(--line);
+  background: var(--surface);
+}
+
+.campaign-composer-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2) var(--space-3);
+  padding: 0 var(--inset) var(--space-3);
+}
+
+.campaign-composer-criterion {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.campaign-composer-words {
+  flex: 1 1 var(--measure);
+}
+
+.campaign-composer-criterion input,
+.campaign-composer-criterion select {
+  min-height: var(--tap);
+  padding: 0 var(--space-2);
+  border: var(--hairline) solid var(--field-line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--type-reading);
+}
+
+.campaign-composer-bulk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--inset);
+  border-top: var(--hairline) solid var(--line);
+  border-bottom: var(--hairline) solid var(--line);
+  background: var(--surface-soft);
+}
+
+.campaign-composer-bulk .muted {
+  margin-right: auto;
+}
+
+.campaign-composer-list {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.campaign-composer-test {
+  align-items: flex-start;
+  min-height: var(--tap);
+  cursor: pointer;
+}
+
+.campaign-composer-test input {
+  margin-top: var(--space-1);
+}
+
+.campaign-composer-test .grow {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.campaign-composer-test.ticked {
+  background: var(--primary-faint);
+}
+
+.campaign-composer-facets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.campaign-composer-empty {
+  padding: var(--space-4) var(--inset);
+}
