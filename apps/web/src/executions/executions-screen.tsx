@@ -8,7 +8,7 @@ import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
 import { contentText, executionDuration, versionText } from "./execution-text.ts";
 import { executionHref, executionsHref, resultHref } from "./executions-paths.ts";
-import { failuresFirst, VerdictBadge, VerdictCounts } from "./verdicts.tsx";
+import { failuresFirst, VerdictBadge, VerdictBar } from "./verdicts.tsx";
 
 /** The outcomes a person narrows the executions to, every one first. */
 const OUTCOMES: readonly (ExecutionOutcome | undefined)[] = [undefined, "failing", "passing"];
@@ -64,6 +64,7 @@ function ExecutionRow({ execution, sessions }: { readonly execution: Execution; 
   return (
     <details className="exec-row">
       <summary className="exec-line">
+        <span className="exec-toggle" aria-hidden="true" />
         <a className="exec-date" href={executionHref(execution.id)}>
           {dateText(execution.ranAt)}
         </a>
@@ -71,8 +72,8 @@ function ExecutionRow({ execution, sessions }: { readonly execution: Execution; 
           <Badge tone="neutral">{t(`executions.origins.${execution.origin}`)}</Badge>
         </span>
         <span className="exec-content small">{contentText(execution, sessions)}</span>
-        <span className="exec-result">
-          <VerdictCounts results={execution.results} />
+        <span className="exec-result small">
+          <VerdictBar results={execution.results} />
         </span>
         <span className="exec-duration small muted">{executionDuration(execution)}</span>
         <span className="exec-version small muted mono">{versionText(execution)}</span>
@@ -106,13 +107,14 @@ function Table({
   return (
     <>
       <section className="card exec-table">
-        <div className="exec-line exec-head small muted" aria-hidden="true">
-          <span className="exec-date">{t("executions.columns.date")}</span>
-          <span className="exec-origin">{t("executions.columns.origin")}</span>
-          <span className="exec-content">{t("executions.columns.content")}</span>
-          <span className="exec-result">{t("executions.columns.result")}</span>
-          <span className="exec-duration">{t("executions.columns.duration")}</span>
-          <span className="exec-version">{t("executions.columns.version")}</span>
+        <div className="exec-line exec-head muted" aria-hidden="true">
+          <span className="exec-toggle-room" />
+          <span className="exec-date small">{t("executions.columns.date")}</span>
+          <span className="exec-origin small">{t("executions.columns.origin")}</span>
+          <span className="exec-content small">{t("executions.columns.content")}</span>
+          <span className="exec-result small">{t("executions.columns.result")}</span>
+          <span className="exec-duration small">{t("executions.columns.duration")}</span>
+          <span className="exec-version small">{t("executions.columns.version")}</span>
         </div>
         {page.items.map((execution) => (
           <ExecutionRow key={execution.id} execution={execution} sessions={sessions} />

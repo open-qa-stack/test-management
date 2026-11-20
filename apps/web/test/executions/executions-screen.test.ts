@@ -38,8 +38,19 @@ describe("the executions of the tests", () => {
       text,
       /^lakeside-tests \/ Exécutions Exécutions Les exécutions des tests, la plus récente d’abord\. Toutes Avec un échec Sans échec Date Origine Contenu Résultat Durée Version /,
     );
-    assert.match(text, / conception Session « Test the policies » 1 en échec 1 instable 2 réussis 1 ignoré 9 s 4f2a9c0 /);
+    assert.match(text, / conception Session « Test the policies » 1 en échec 1 instable 9 s 4f2a9c0 /);
     assert.match(text, / conception 0 test 0 s — Aucun test n’a tourné dans cette exécution\. Ouvrir l’exécution →$/);
+  });
+
+  it("says at a glance what came of the tests of an execution: a bar of their verdicts, the failures and the retries in words, or how many passed", () => {
+    const html = screen();
+    assert.match(
+      html,
+      /<span class="verdict-bar" aria-hidden="true"><span class="verdict-part passed" style="flex-grow:2"><\/span><span class="verdict-part flaky" style="flex-grow:1"><\/span><span class="verdict-part skipped" style="flex-grow:1"><\/span><span class="verdict-part failed" style="flex-grow:1"><\/span><\/span><span class="verdict-words failed">1 en échec<\/span><span class="verdict-words flaky">1 instable<\/span>/,
+    );
+    const [latest] = EXECUTIONS;
+    const passed = { ...latest!, results: latest!.results.filter((result) => result.verdict === "passed") };
+    assert.match(screen({ value: { items: [passed] } }), /<span class="verdict-words passed">2 réussis<\/span>/);
   });
 
   it("unfolds an execution into its tests, the failures first, each leading to what came of it there, then leads to the execution", () => {

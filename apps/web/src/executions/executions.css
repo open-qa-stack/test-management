@@ -3,9 +3,10 @@
   overflow: hidden;
 }
 
+/* On a phone a line keeps its toggle, its date and what came of it. */
 .exec-line {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: var(--space-6) minmax(0, 1fr) auto;
   gap: var(--space-1) var(--space-3);
   align-items: center;
   padding: var(--space-3) var(--space-4);
@@ -32,14 +33,22 @@
   display: none;
 }
 
-.exec-row > summary::before {
-  content: "▸";
-  position: absolute;
-  margin-left: calc(-1 * var(--space-3));
+.exec-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: var(--space-6);
+  height: var(--space-6);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-inner);
+  background: var(--surface);
   color: var(--neutral);
 }
 
-.exec-row[open] > summary::before {
+.exec-toggle::before {
+  content: "▸";
+}
+
+.exec-row[open] .exec-toggle::before {
   content: "▾";
 }
 
@@ -50,17 +59,23 @@
 .exec-date {
   font-weight: var(--weight-strong);
   color: inherit;
+  text-decoration: none;
+}
+
+.exec-date:hover {
+  text-decoration: underline;
 }
 
 .exec-result {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: var(--space-1);
+  gap: var(--space-1) var(--space-2);
+  align-items: center;
   justify-content: flex-end;
 }
 
 .exec-tests {
-  padding: 0 var(--space-4) var(--space-3);
+  padding: 0 var(--space-4) var(--space-3) calc(var(--space-6) + var(--space-6) + var(--space-1));
   background: var(--surface-soft);
 }
 
@@ -82,9 +97,48 @@
   gap: var(--space-1);
 }
 
+/* What came of the tests of an execution, at a glance: the bar of their verdicts, then a few words. */
+.verdict-bar {
+  display: inline-flex;
+  width: var(--space-8);
+  height: var(--space-2);
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--neutral-soft);
+}
+
+.verdict-part.passed {
+  background: var(--ok);
+}
+
+.verdict-part.flaky {
+  background: var(--warn);
+}
+
+.verdict-part.skipped {
+  background: var(--neutral);
+}
+
+.verdict-part.failed {
+  background: var(--ko);
+}
+
+.verdict-words.passed {
+  color: var(--ok);
+}
+
+.verdict-words.flaky {
+  color: var(--warn);
+}
+
+.verdict-words.failed {
+  color: var(--ko);
+  font-weight: var(--weight-strong);
+}
+
 @media (min-width: 960px) {
   .exec-line {
-    grid-template-columns: 11em 8em minmax(0, 1fr) 14em 6em 6em;
+    grid-template-columns: var(--space-6) 11em 8em minmax(0, 1fr) 14em 6em 6em;
   }
 
   .exec-origin,
@@ -101,6 +155,10 @@
 
   .exec-result {
     justify-content: flex-start;
+  }
+
+  .verdict-bar {
+    width: calc(var(--space-8) + var(--space-8));
   }
 
   .exec-duration {

@@ -1332,7 +1332,8 @@ describe("the code of the console is covered in full", () => {
       const boxes = async (line: string) =>
         Promise.all((await page.locator(`${line} > span, ${line} > a`).all()).map(async (cell) => (await cell.boundingBox())!));
       for (const line of [".exec-head", "details.exec-row:first-of-type > summary"]) {
-        const cells = await boxes(line);
+        // The room of the toggle in the heading holds nothing, and has no height.
+        const cells = (await boxes(line)).filter((cell) => cell.height > 0);
         assert.ok(
           cells.length >= 5 && Math.max(...cells.map((cell) => cell.y)) < Math.min(...cells.map((cell) => cell.y + cell.height)),
           `${line} ${JSON.stringify(cells)}`,
