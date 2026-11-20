@@ -1,4 +1,4 @@
-import type { ExecutionOrigin, ExecutionVerdict, OqasConfig, RevisionOrigin } from "@open-qa-stack/domain";
+import type { CampaignStatus, ExecutionOrigin, ExecutionVerdict, OqasConfig, RevisionOrigin } from "@open-qa-stack/domain";
 import type { AgentRole, Application, SessionEvent, SessionResult, SessionState } from "@open-qa-stack/domain/sessions";
 import type { StoredBoolean, StoredInstant, StoredJson } from "./stored-values.ts";
 
@@ -103,13 +103,37 @@ export interface KnowledgeDocumentsTable {
 }
 
 /**
+ * The campaigns, each under its identifier. The tags of its scope are a list of texts; the state is a text, as
+ * that of a session is. When it became ready and when it was closed are empty until then.
+ */
+export interface CampaignsTable {
+  id: string;
+  name: string;
+  environment: string;
+  tags: StoredJson<readonly string[]>;
+  status: CampaignStatus;
+  created_at: StoredInstant;
+  ready_at: StoredInstant | null;
+  closed_at: StoredInstant | null;
+}
+
+/** The tests a campaign fixed when it became ready, each named by the path of its file and its title. */
+export interface CampaignTestsTable {
+  campaign_id: string;
+  path: string;
+  title: string;
+}
+
+/**
  * The executions of tests, each under its identifier. The origin is a text, as the state of a session is. The session
- * of an execution it ran is emptied when the session goes; the commit is empty for a test repository without one.
+ * of an execution it ran is emptied when the session goes; the commit is empty for a test repository without one; the
+ * campaign is empty for an execution launched for none.
  */
 export interface ExecutionsTable {
   id: string;
   origin: ExecutionOrigin;
   session_id: string | null;
+  campaign_id: string | null;
   ran_at: StoredInstant;
   commit_sha: string | null;
   report: string;
@@ -164,6 +188,8 @@ export interface StoreSchema {
   session_messages: SessionMessagesTable;
   configuration_revisions: ConfigurationRevisionsTable;
   knowledge_documents: KnowledgeDocumentsTable;
+  campaigns: CampaignsTable;
+  campaign_tests: CampaignTestsTable;
   executions: ExecutionsTable;
   execution_results: ExecutionResultsTable;
   test_versions: TestVersionsTable;

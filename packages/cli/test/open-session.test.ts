@@ -33,7 +33,7 @@ describe("oqas --brief", () => {
     assert.match(String(summary[1]), /^Tests written on the branch oqas\/design-\d{8}T\d{6}Z\.$/);
     assert.deepEqual(
       summary.slice(2),
-      ["test-1", "test-2", "test-3"].map((test) => `passed        shop › apps/shop/tests/orders/listing/${test}.spec.ts:3 › the test`).concat(""),
+      ["test-1", "test-2", "test-3"].map((test) => `passed        shop › shop/tests/orders/listing/${test}.spec.ts:3 › the test`).concat(""),
     );
     // The brief went to the agent that plans.
     assert.ok(
@@ -121,7 +121,7 @@ describe("the exit code of oqas --brief", () => {
     const failed = await terminal.oqas(BRIEF);
     assert.equal(failed.code, 1, failed.err);
     assert.match(failed.out, /^Session \S+: completed, failed, /);
-    assert.match(failed.out, /^failed        shop › apps\/shop\/tests\/orders\/listing\/test-2\.spec\.ts:3 › the test$/m);
+    assert.match(failed.out, /^failed        shop › shop\/tests\/orders\/listing\/test-2\.spec\.ts:3 › the test$/m);
     await terminal.close();
     terminal = await Terminal.open(chain(), { script: { final: () => "skipped" } });
     const skipped = await terminal.oqas(BRIEF);

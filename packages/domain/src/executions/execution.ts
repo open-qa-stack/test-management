@@ -1,8 +1,9 @@
 /**
  * Where an execution of tests comes from: `design` for the run of the tests a session of design wrote, `manual` for
- * tests of the repository a person launched as they are, with no agent.
+ * tests of the repository a person launched as they are, with no agent, `campaign` for the tests of a campaign
+ * launched so.
  */
-export type ExecutionOrigin = "design" | "manual";
+export type ExecutionOrigin = "design" | "manual" | "campaign";
 
 /**
  * What came of a test in an execution, as the runner reported it: `passed` when it went as expected, `failed` when it
@@ -54,6 +55,8 @@ export interface Execution {
   readonly origin: ExecutionOrigin;
   /** The session the execution belongs to, for one a session ran. */
   readonly sessionId?: string;
+  /** The campaign the execution belongs to, for one launched for a campaign. */
+  readonly campaignId?: string;
   /** When the execution was kept, as an ISO 8601 date. */
   readonly ranAt: string;
   /** The commit the test repository was at, when it had one. */

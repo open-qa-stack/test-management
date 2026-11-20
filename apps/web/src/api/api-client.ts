@@ -1,4 +1,7 @@
 import type {
+  Campaign,
+  CampaignList,
+  CampaignProgress,
   ConfigError,
   ConfigurationCheck,
   ConfigurationView,
@@ -6,6 +9,7 @@ import type {
   Execution,
   ExecutionList,
   ExecutionQuery,
+  LaunchState,
   MessageReceipt,
   OqasConfig,
   Problem,
@@ -14,6 +18,7 @@ import type {
   RepositoryTestList,
   TestExecution,
   TestExecutionList,
+  TestLaunch,
   TestReading,
   TestVersion,
   TestVersionList,
@@ -280,6 +285,49 @@ export class ApiClient {
    */
   public async removeDocument(source: string, name: string): Promise<void> {
     await this.#answer(`${documentsPath(source)}/${encodeURIComponent(name)}`, { method: "DELETE" });
+  }
+
+  /** @returns Every campaign of the instance, the latest planned first. */
+  public async campaigns(): Promise<CampaignList> {
+    return this.#ask<CampaignList>("/campaigns");
+  }
+
+  /**
+   * Plans a campaign.
+   *
+   * @param plan - Its name, its environment, and the tags of its scope.
+   * @returns The campaign, planned; the failure carries the code `invalid_request` for a plan that is not one.
+   */
+  public planCampaign(plan: { readonly name: string; readonly environment: string; readonly tags: readonly string[] }): Promise<Campaign> {
+    return this.#ask<Campaign>("/campaigns", posting(plan));
+  }
+
+  /**
+   * @param id - The identifier of a campaign.
+   * @returns The campaign with what came of each of its tests; the failure carries the code `unknown_campaign` when the instance keeps none under it.
+   */
+  public campaign(id: string): Promise<CampaignProgress> {
+    return this.#ask<CampaignProgress>(`/campaigns/${encodeURIComponent(id)}`);
+  }
+
+  /** Fixes the tests of a planned campaign; the failure carries the code `campaign_refused` when its state does not allow it, or its scope takes no test. */
+  public readyCampaign(id: string): Promise<Campaign> {
+    return this.#ask<Campaign>(`/campaigns/${encodeURIComponent(id)}/readiness`, { method: "POST" });
+  }
+
+  /** Launches the tests of a campaign; the failure carries the code `launch_refused` while a session or another launch runs. */
+  public launchCampaign(id: string): Promise<TestLaunch> {
+    return this.#ask<TestLaunch>(`/campaigns/${encodeURIComponent(id)}/launches`, { method: "POST" });
+  }
+
+  /** Closes a campaign in progress, for good. */
+  public closeCampaign(id: string): Promise<Campaign> {
+    return this.#ask<Campaign>(`/campaigns/${encodeURIComponent(id)}/closure`, { method: "POST" });
+  }
+
+  /** @returns The launch of tests that runs in the instance, and the last one that ended. */
+  public launches(): Promise<LaunchState> {
+    return this.#ask<LaunchState>("/launches");
   }
 
   /** The answer of the instance to a call, once it is a success. */

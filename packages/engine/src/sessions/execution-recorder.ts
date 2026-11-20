@@ -48,11 +48,11 @@ export class ExecutionRecorder {
    * Keeps an execution of tests.
    *
    * @param report - The report of the runner, relative to the test repository.
-   * @param source - Where the execution comes from: its origin, and the session that ran the tests, for one a session ran.
+   * @param source - Where the execution comes from: its origin, and the session that ran the tests or the campaign they were launched for.
    * @returns The execution kept; `undefined` when the report cannot be read, and nothing is kept.
    * @throws When the store refuses the execution.
    */
-  async record(report: string, source: Pick<Execution, "origin" | "sessionId">): Promise<Execution | undefined> {
+  async record(report: string, source: Pick<Execution, "origin" | "sessionId" | "campaignId">): Promise<Execution | undefined> {
     const { repository, configuration, store, now } = this.#options;
     const json = await readFile(join(repository, report), "utf8").catch(() => "");
     const { appsDir } = { ...DEFAULT_REPOSITORY, ...(await configuration.inStep())?.document.repository };

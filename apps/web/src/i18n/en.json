@@ -42,7 +42,9 @@
       "executions": "Executions",
       "execution": "Execution",
       "result": "Result of a test",
-      "trace": "Trace of a test"
+      "trace": "Trace of a test",
+      "campaigns": "Campaigns",
+      "campaign": "Campaign"
     },
     "opening": {
       "title": "Reading the session",
@@ -375,6 +377,8 @@
     "unknown_capture": "This run of the test attached no capture for this step.",
     "unknown_execution": "The instance no longer keeps this execution.",
     "launch_refused": "The tests cannot be launched now: a session or another launch is running, or the environment asked for is not declared.",
+    "unknown_campaign": "The instance does not keep this campaign.",
+    "campaign_refused": "The campaign refuses this change: its state does not allow it, or no test of the repository bears its tags.",
     "unexplained": "The instance ran into an error.",
     "unreachable": "The instance does not answer.",
     "unreadable": "The answer of the instance cannot be read."
@@ -774,7 +778,8 @@
     "noneNote": "The executions of the tests show here once a session of the agent ran the tests it wrote.",
     "origins": {
       "design": "design",
-      "manual": "manual launch"
+      "manual": "manual launch",
+      "campaign": "campaign"
     },
     "verdicts": {
       "passed": "Passed",
@@ -854,5 +859,63 @@
     "none": "No trace of this test",
     "noneNote": "This execution did not keep it: Playwright keeps the trace of a test as its configuration says, often only when it fails.",
     "back": "Back to the result"
+  },
+  "campaigns": {
+    "title": "Campaigns",
+    "lead": "A campaign takes the tests that bear its tags, fixes them once it is ready, then follows what came of each at every launch.",
+    "reading": "Reading the campaigns",
+    "readingNote": "They show as soon as the instance answered.",
+    "none": "No campaign",
+    "noneNote": "Plan one: a name, an environment, and the tags of the tests to take.",
+    "everyTest": "every test",
+    "statuses": {
+      "planned": "planned",
+      "ready": "ready",
+      "in_progress": "in progress",
+      "closed": "closed"
+    },
+    "plan": {
+      "title": "Plan a campaign",
+      "name": "Name",
+      "namePlaceholder": "Release 4.2",
+      "environment": "Environment",
+      "tags": "Tags of the tests",
+      "tagsHelp": "Separated by spaces, such as @p0 @p1. Leave empty to take every test.",
+      "submit": "Plan",
+      "pending": "Planning…"
+    }
+  },
+  "campaign": {
+    "reading": "Reading the campaign",
+    "readingNote": "It shows as soon as the instance answered.",
+    "environment": "Environment",
+    "tags": "Tags",
+    "created": "Planned on",
+    "closed": "Closed on",
+    "tests": "Tests of the campaign",
+    "testCount_one": "{{count}} test",
+    "testCount_other": "{{count}} tests",
+    "counts": {
+      "failed_one": "{{count}} failed",
+      "failed_other": "{{count}} failed",
+      "flaky_one": "{{count}} flaky",
+      "flaky_other": "{{count}} flaky",
+      "passed_one": "{{count}} passed",
+      "passed_other": "{{count}} passed",
+      "skipped_one": "{{count}} skipped",
+      "skipped_other": "{{count}} skipped",
+      "not_run_one": "{{count}} not run",
+      "not_run_other": "{{count}} not run"
+    },
+    "notRun": "not run",
+    "plannedNote": "These are the tests its tags take today: they are fixed once the campaign is ready.",
+    "noTest": "No test",
+    "noTestNote": "No test of the repository bears these tags yet.",
+    "ready": "Fix the tests",
+    "launch": "Launch the tests",
+    "relaunch": "Launch the tests again",
+    "close": "Close",
+    "pending": "Sending…",
+    "launching": "The tests of the campaign run: the verdicts come at the end of the launch."
   }
 }

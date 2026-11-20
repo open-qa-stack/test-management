@@ -126,7 +126,7 @@ describe("the shell on a narrow and on a wide screen", () => {
       assert.equal(sidebar.x, 0);
       assert.equal(sidebar.y, bar.y + bar.height);
       assert.equal(bar.width, 1100);
-      assert.equal(await page.getByText("bientôt").count(), 5);
+      assert.equal(await page.getByText("bientôt").count(), 4);
       assert.equal(await page.getByText("bientôt").first().isVisible(), true);
       await page.getByText("1 application · projet").waitFor();
     } finally {
@@ -1290,6 +1290,57 @@ describe("the code of the console is covered in full", () => {
     );
     assert.ok(screen!.lines.length > 0, "the screen is in the build");
     assert.deepEqual(screen!.uncovered, []);
+  });
+
+  it("runs every line of the pages of the campaigns when they are used in the browser: plan one, fix its tests, launch them, close it", async () => {
+    const instance = new ListedInstance();
+    const [list, one] = await app().measure(
+      ["src/campaigns/campaigns-page.tsx", "src/campaigns/campaign-page.tsx"],
+      async (page) => {
+        // The console speaks the language of the configuration it read first; the page of the campaigns then reads none.
+        await page.goto("http://console.test/#/agent");
+        await page.getByRole("heading", { name: "Qu’est-ce qu’on teste ?" }).waitFor();
+        instance.unconfigured = true;
+        await page.evaluate(() => (window.location.hash = "#/campaigns"));
+        await page.getByRole("link", { name: /Recette 4\.2/ }).waitFor();
+        await page.getByRole("textbox", { name: "Nom" }).fill("Recette 4.3");
+        await page.getByRole("textbox", { name: "Environnement" }).fill("local");
+        await page.getByRole("textbox", { name: "Tags des tests" }).fill("p0, @p1");
+        instance.refusal = "invalid_request";
+        await page.getByRole("button", { name: "Planifier" }).click();
+        await page.getByRole("alert").waitFor();
+        await page.getByRole("button", { name: "Planifier" }).click();
+        await page.waitForURL(/#\/campaigns\/view\?id=c2/);
+        await page.getByRole("button", { name: "Figer les tests" }).click();
+        await page.getByRole("button", { name: "Lancer les tests" }).click();
+        await page.getByText("Les tests de la campagne tournent").waitFor();
+        instance.launches = {};
+        instance.refusal = "campaign_refused";
+        await page.getByRole("button", { name: "Clôturer" }).click();
+        await page.getByText("La campagne refuse ce changement").waitFor();
+        await page.getByRole("button", { name: "Clôturer" }).click();
+        await page.getByText("Clôturée le").waitFor();
+        // Once the configuration is read again, the form offers the environments it declares.
+        instance.unconfigured = false;
+        await page.evaluate(() => (window.location.hash = "#/campaigns"));
+        await page.locator('select[name="environment"]').waitFor();
+      },
+      instance.api,
+    );
+    assert.ok(list!.lines.length > 0 && one!.lines.length > 0, "the pages are in the build");
+    assert.deepEqual([list!.uncovered, one!.uncovered], [[], []]);
+  });
+
+  it("lets the screens of the campaigns fit the width of a small phone", async () => {
+    for (const hash of ["#/campaigns", "#/campaigns/view?id=c1"]) {
+      const page = await app().open(360, hash, new ListedInstance().api);
+      try {
+        await page.locator(".campaign-row, .campaign-result").first().waitFor();
+        assert.equal(await overflowOf(page), 0, hash);
+      } finally {
+        await page.close();
+      }
+    }
   });
 
   it("lets the screen of a trace fit the width of a small phone", async () => {

@@ -57,11 +57,12 @@ function versionOf({
 }
 
 /** A row of the executions as what it says of the execution, but its report and its results, its empty columns left out. */
-function headOf({ id, origin, session_id, ran_at, commit_sha }: Selectable<ExecutionsTable>): Omit<Execution, "report" | "results"> {
+function headOf({ id, origin, session_id, campaign_id, ran_at, commit_sha }: Selectable<ExecutionsTable>): Omit<Execution, "report" | "results"> {
   return {
     id,
     origin,
     ...(session_id === null ? {} : { sessionId: session_id }),
+    ...(campaign_id === null ? {} : { campaignId: campaign_id }),
     ranAt: instant(ran_at),
     ...(commit_sha === null ? {} : { commit: commit_sha }),
   };
@@ -100,11 +101,11 @@ export class ExecutionStore implements ExecutionStorePort {
 
   /** Keeps an execution with all of its results and the versions of their tests, or nothing of it. */
   async add(execution: Execution): Promise<void> {
-    const { id, origin, sessionId, ranAt, commit, report, results } = execution;
+    const { id, origin, sessionId, campaignId, ranAt, commit, report, results } = execution;
     await this.#database.transaction().execute(async (transaction) => {
       await transaction
         .insertInto("executions")
-        .values({ id, origin, session_id: sessionId ?? null, ran_at: instant(ranAt), commit_sha: commit ?? null, report })
+        .values({ id, origin, session_id: sessionId ?? null, campaign_id: campaignId ?? null, ran_at: instant(ranAt), commit_sha: commit ?? null, report })
         .execute();
       if (results.length === 0) return;
       const rows = [];
@@ -185,7 +186,15 @@ export class ExecutionStore implements ExecutionStorePort {
       .selectFrom("execution_results")
       .innerJoin("executions", "executions.id", "execution_results.execution_id")
       .selectAll("execution_results")
-      .select(["executions.id", "executions.origin", "executions.session_id", "executions.ran_at", "executions.commit_sha", "executions.report"])
+      .select([
+        "executions.id",
+        "executions.origin",
+        "executions.session_id",
+        "executions.campaign_id",
+        "executions.ran_at",
+        "executions.commit_sha",
+        "executions.report",
+      ])
       .where("execution_results.path", "=", path)
       .orderBy("executions.ran_at", "desc")
       .orderBy("executions.id", "desc")
@@ -217,6 +226,19 @@ export class ExecutionStore implements ExecutionStorePort {
       .orderBy("number", "desc")
       .execute();
     return rows.map(versionOf);
+  }
+
+  /** @returns The executions of a campaign, each with its results in the order of its report, the latest first. */
+  async ofCampaign(campaignId: string): Promise<Execution[]> {
+    const rows = await this.#database
+      .selectFrom("executions")
+      .selectAll()
+      .where("campaign_id", "=", campaignId)
+      .orderBy("ran_at", "desc")
+      .orderBy("id", "desc")
+      .execute();
+    const results = await this.#resultsOf(rows.map(({ id }) => id));
+    return rows.map((row) => executionOf(row, results.filter((result) => result.execution_id === row.id).map(resultOf)));
   }
 
   /** @returns The report of each execution it keeps. */
