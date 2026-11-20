@@ -48,6 +48,12 @@ describe("the executions of the tests", () => {
     assert.match(text, / conception 0 test 0 s — Aucun test n’a tourné dans cette exécution\. Ouvrir l’exécution → 1–2 sur 2$/);
   });
 
+  it("says an execution of a campaign is one, whatever session the console lists", () => {
+    const [latest] = EXECUTIONS;
+    const launched = { ...latest!, origin: "campaign" as const, campaignId: "c1" };
+    assert.match(textOf(screen({ value: pageOf([launched]) })), / campagne 5 tests d’une campagne /);
+  });
+
   it("says at a glance what came of the tests of an execution: a bar of their verdicts, the failures and the retries in words, or how many passed", () => {
     const html = screen();
     assert.match(

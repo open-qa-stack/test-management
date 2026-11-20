@@ -42,5 +42,6 @@ export function requestOf(execution: Pick<Execution, "sessionId">, sessions: rea
  */
 export function contentText(execution: Execution, sessions: readonly Session[]): string {
   const request = requestOf(execution, sessions);
+  if (execution.campaignId !== undefined) return t("executions.campaign", { count: execution.results.length });
   return request === undefined ? t("executions.tests", { count: execution.results.length }) : t("executions.session", { request });
 }

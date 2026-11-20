@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { RepositoryTest, TestExecution, TestVersion } from "@open-qa-stack/domain/sessions";
+import type { LaunchRequest, RepositoryTest, TestExecution, TestVersion } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../api/polled-state.ts";
 import { resultHref } from "../executions/executions-paths.ts";
 import { versionText } from "../executions/execution-text.ts";
@@ -13,6 +13,7 @@ import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
 import { TESTS_PATH } from "./tests-paths.ts";
 import { levelText } from "./tests-screen.tsx";
+import { TestRelaunch, type RelaunchState } from "./test-relaunch.tsx";
 
 /** How many of the latest executions the summary of a test counts. */
 export const HISTORY_SIZE = 10;
@@ -29,6 +30,10 @@ export interface TestScreenProps {
   readonly executions: PolledState<readonly TestExecution[]>;
   /** What the instance told of the versions of the test, the latest first. */
   readonly versions: PolledState<readonly TestVersion[]>;
+  /** Where its relaunch stands; none offers it. */
+  readonly relaunch?: RelaunchState;
+  /** Runs it again, against the environment chosen, if any. */
+  readonly onRelaunch?: (where: Pick<LaunchRequest, "environment">) => void;
 }
 
 /** What the tags of the test say of it: its level, its domain and functionality, its applications. */
@@ -157,12 +162,16 @@ function Versions({ title, versions }: { readonly title: string; readonly versio
  * @param props - The name of the project, the path of the test, and what the instance told.
  * @returns The screen.
  */
-export function TestScreen({ project, path, tests, executions, versions }: TestScreenProps): ReactNode {
+export function TestScreen({ project, path, tests, executions, versions, relaunch, onRelaunch }: TestScreenProps): ReactNode {
   const test = tests.value?.find((candidate) => candidate.path === path);
   const title = test?.title ?? path;
   const ran = executions.value;
   return (
-    <Page crumbs={[{ label: project }, { label: t("tests.title"), href: hrefTo(TESTS_PATH) }, { label: title }]} title={title}>
+    <Page
+      crumbs={[{ label: project }, { label: t("tests.title"), href: hrefTo(TESTS_PATH) }, { label: title }]}
+      title={title}
+      {...(relaunch === undefined || onRelaunch === undefined ? {} : { actions: <TestRelaunch state={relaunch} onLaunch={onRelaunch} /> })}
+    >
       <p className="small muted mono">{path}</p>
       {test !== undefined && <Tags test={test} />}
       {tests.value === undefined || ran === undefined ? (
