@@ -97,3 +97,73 @@
     gap: var(--space-3);
   }
 }
+
+/* What of the project a session is kept to: a chip each, which opens on a list to tick. */
+.scope-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* An open menu takes the whole line under the chips, and covers nothing. */
+.scope-menu[open] {
+  flex-basis: 100%;
+}
+
+.scope-menu > summary {
+  display: inline-flex;
+  list-style: none;
+  cursor: pointer;
+}
+
+.scope-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.scope-menu > summary::after {
+  content: " ▾";
+  color: var(--text-3);
+}
+
+.scope-chip {
+  min-height: var(--tap);
+}
+
+.scope-chip.chosen {
+  border-color: var(--primary-line);
+  background: var(--primary-faint);
+  color: var(--primary);
+}
+
+.scope-chip select {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: var(--weight-strong);
+}
+
+.scope-panel {
+  display: grid;
+  gap: var(--space-1);
+  max-height: 40vh;
+  overflow-y: auto;
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface-soft);
+}
+
+.scope-panel .btn {
+  justify-self: start;
+}
+
+/* A choice reads from its first line: the box stands beside its name, its description under. */
+.scope-option {
+  align-items: flex-start;
+}
+
+.scope-option input {
+  margin-top: var(--space-1);
+}

@@ -135,6 +135,13 @@ describe("the client of the API, for the documents of the knowledge sources", ()
     assert.deepEqual(versioned.calls, [["/api/tests/versions?path=apps%2Fshop%2Forders.spec.ts", undefined]]);
   });
 
+  it("reads the domains of the knowledge out of the envelope the API answers", async () => {
+    const domain = { id: "quotes", label: "Devis", description: "Les demandes de devis." };
+    const listed = clientOf(() => json({ items: [domain] }));
+    assert.deepEqual(await listed.client.domains(), [domain]);
+    assert.deepEqual(listed.calls, [["/api/knowledge/domains", undefined]]);
+  });
+
   it("reads the campaigns and the launches, plans a campaign and changes it by posting to its routes, its identifier encoded", async () => {
     const campaign = {
       id: "c 1",

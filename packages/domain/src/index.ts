@@ -141,6 +141,7 @@ export { UnknownExecutionError } from "./executions/unknown-execution-error.ts";
 export type { EndedLaunch, FinishedTest, LaunchProgress, LaunchRequest, LaunchState, TestLaunch } from "./executions/test-launch.ts";
 export { LaunchRefusedError } from "./executions/launch-refused-error.ts";
 export { launchProgress } from "./executions/launch-progress.ts";
+export { scopedConfig, type ScopedConfig } from "./sessions/scoped-config.ts";
 export type {
   Campaign,
   CampaignCounts,
@@ -178,3 +179,4 @@ export {
   type UploadedFile,
   type UploadReading,
 } from "./knowledge-documents/uploaded-documents.ts";
+export type { KnowledgeDomain, KnowledgeDomainList } from "./domain-index/knowledge-domain.ts";

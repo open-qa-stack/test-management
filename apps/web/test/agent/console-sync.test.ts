@@ -181,7 +181,7 @@ describe("what keeps the console in step with its instance", () => {
       api.answer("POST /api/sessions", json(RUNNING, 201));
       const stop = api.sync.sessions();
       const opened: Session[] = [];
-      api.sync.open("tester la recherche d'un client", (session) => opened.push(session));
+      api.sync.open({ request: "tester la recherche d'un client", scope: { domains: ["customers"] } }, (session) => opened.push(session));
       assert.deepEqual(api.told, [{ type: "opening" }]);
       await settled();
       // The list asked first is answered last: its rank tells the state it was asked before the session opened.
@@ -198,7 +198,7 @@ describe("what keeps the console in step with its instance", () => {
     it("says why the API refused, in the words of the console, and hands nothing over", async () => {
       api.answer("POST /api/sessions", problem("session_running", 409));
       const opened: Session[] = [];
-      api.sync.open("tester", (session) => opened.push(session));
+      api.sync.open({ request: "tester" }, (session) => opened.push(session));
       await settled();
       assert.deepEqual(api.told, [
         { type: "opening" },

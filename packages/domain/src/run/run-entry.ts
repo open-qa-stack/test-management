@@ -9,6 +9,8 @@ export interface RunScope {
   readonly applications: readonly string[];
   /** The levels of the pyramid of tests its design is asked for, from the base. */
   readonly levels: readonly string[];
+  /** The domains of the knowledge its design is kept to; left out for every domain. */
+  readonly domains?: readonly string[];
 }
 
 /** An entry of the journal of a run. */

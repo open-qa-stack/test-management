@@ -35,6 +35,12 @@ export function ScopeCard({ step }: { readonly step: ScopeStep }): ReactNode {
           <dt>{t("scope.applications")}</dt>
           <dd>{step.applications.join(", ")}</dd>
         </div>
+        {step.domains !== undefined && (
+          <div className="fact">
+            <dt>{t("scope.domains")}</dt>
+            <dd>{step.domains.join(", ")}</dd>
+          </div>
+        )}
         <div className="fact">
           <dt>{t("scope.environment")}</dt>
           <dd>{step.environment}</dd>

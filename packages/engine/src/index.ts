@@ -1,6 +1,7 @@
 export { Configuration } from "./configuration/configuration.ts";
 export { Campaigns, type CampaignsHost } from "./campaigns/campaigns.ts";
 export { Executions, FILE_EXECUTIONS_LIMIT } from "./executions/executions.ts";
+export { KnowledgeDomains } from "./knowledge/knowledge-domains.ts";
 export { PastRuns } from "./executions/past-runs.ts";
 export { KnowledgeDocuments } from "./documents/knowledge-documents.ts";
 export { RepositoryTests } from "./tests/repository-tests.ts";

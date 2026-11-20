@@ -8,7 +8,9 @@ import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
 import type { Opening } from "./console-state.ts";
-import { stateOf, testsText, waitText } from "./session-facts.ts";
+import type { ScopeChoices } from "./scope-choices.ts";
+import { ScopePicker } from "./scope-picker.tsx";
+import { scopeText, stateOf, testsText, waitText } from "./session-facts.ts";
 
 /** What the entry of the agent needs. */
 export interface AgentHomeScreenProps {
@@ -22,6 +24,8 @@ export interface AgentHomeScreenProps {
   readonly opening: Opening;
   /** Opens the session the form asks for. */
   readonly onOpen?: (event: FormEvent<HTMLFormElement>) => void;
+  /** What a session may be kept to; none until the configuration was read. */
+  readonly choices?: ScopeChoices;
 }
 
 /** A session of the list: what was asked, when, what it waits for or how it went, and the link to its thread. */
@@ -31,6 +35,7 @@ function SessionRow({ session }: { readonly session: Session }): ReactNode {
   const facts = [
     momentText(session.openedAt),
     session.environment,
+    scopeText(session),
     waitText(session),
     session.result === undefined ? undefined : durationText(session.result.durationMs),
     session.result === undefined ? undefined : t("facts.modelRequests", { count: session.result.modelRequests }),
@@ -53,7 +58,7 @@ function SessionRow({ session }: { readonly session: Session }): ReactNode {
  * @param props - The project, its sessions, and the opening of a session.
  * @returns The screen.
  */
-export function AgentHomeScreen({ project, sessions, unlisted, opening, onOpen }: AgentHomeScreenProps): ReactNode {
+export function AgentHomeScreen({ project, sessions, unlisted, opening, onOpen, choices }: AgentHomeScreenProps): ReactNode {
   const live = sessions?.filter(({ state }) => state === "running") ?? [];
   const sending = opening.state === "sending";
   return (
@@ -67,6 +72,7 @@ export function AgentHomeScreen({ project, sessions, unlisted, opening, onOpen }
             {t("home.requestLabel")}
           </label>
           <textarea id="agent-home-request" name="request" required disabled={sending} placeholder={t("home.requestPlaceholder")} />
+          {choices !== undefined && <ScopePicker choices={choices} disabled={sending} />}
           <div className="agent-home-actions">
             {opening.state === "refused" && (
               <span className="small agent-home-refused" role="alert">

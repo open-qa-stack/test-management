@@ -27,11 +27,12 @@ type SessionRow = Selectable<SessionsTable>;
 type SessionChange = Pick<Updateable<SessionsTable>, "state" | "result" | "host" | "host_seen_at" | "interruption_requested_at">;
 
 /** A row of the sessions as the session it holds: what is absent is left out, dates are ISO 8601. */
-function sessionOf({ id, request, environment, opened_at, last_event_at, state, result }: SessionRow): Session {
+function sessionOf({ id, request, environment, scope, opened_at, last_event_at, state, result }: SessionRow): Session {
   return {
     id,
     ...(request === null ? {} : { request }),
     ...(environment === null ? {} : { environment }),
+    ...(scope === null ? {} : { scope: jsonOf(scope) }),
     openedAt: instant(opened_at),
     lastEventAt: instant(last_event_at),
     state,
@@ -177,9 +178,9 @@ export class SessionStore implements SessionStorePort {
   async ask(opening: SessionOpening, host: string): Promise<Session> {
     const now = this.#clock();
     const at = instant(now);
-    const { request, environment = null } = opening;
+    const { request, environment = null, scope } = opening;
     const asked = { id: newSessionId(now), request, environment, opened_at: at, last_event_at: at, state: ASKED_STATE, result: null };
-    const row = { ...asked, host, host_seen_at: at, interruption_requested_at: null };
+    const row = { ...asked, scope: scope === undefined ? null : storedJson(scope), host, host_seen_at: at, interruption_requested_at: null };
     await this.#database.transaction().execute(async (transaction) => {
       await transaction.insertInto("sessions").values(row).execute();
       await this.#rank(transaction, row.id, [{ at, type: "user_message", text: request }]);

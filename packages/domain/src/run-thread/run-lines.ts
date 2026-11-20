@@ -48,7 +48,9 @@ function scopeOf(value: unknown): RunScope | undefined {
   const { environment } = value;
   const applications = textsOf(value["applications"]);
   const levels = textsOf(value["levels"]);
-  return typeof environment === "string" && applications !== undefined && levels !== undefined ? { environment, applications, levels } : undefined;
+  const domains = textsOf(value["domains"]);
+  if (typeof environment !== "string" || applications === undefined || levels === undefined) return undefined;
+  return { environment, applications, levels, ...(domains === undefined ? {} : { domains }) };
 }
 
 /**

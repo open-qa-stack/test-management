@@ -1,5 +1,6 @@
 import type {
   AgentRole,
+  KnowledgeDomain,
   Language,
   Problem,
   ProblemCode,
@@ -38,6 +39,12 @@ export class PlayedInstance {
   public session: Session = RUNNING;
   /** The language of its configuration: French, the language the tests of the console were written in. */
   public language: Language = "fr";
+  /** The domains of its knowledge; none is served, as before a cartography, when left out. */
+  public domains: readonly KnowledgeDomain[] | undefined;
+  /** Whether its application has a second environment, `staging`. */
+  public staging = false;
+  /** Whether its configuration cannot be read. */
+  public unconfigured = false;
   /** How many events of the fixtures the session has so far. */
   public happened = EVENTS.length;
   /** Whether the instance cannot be reached. */
@@ -107,8 +114,20 @@ export class PlayedInstance {
   /** What the API does with a request. */
   public readonly api: Api = async ({ path, method, after, body }) => {
     if (this.down) return UNREACHABLE;
-    if (path === "/api/configuration")
-      return { body: JSON.stringify({ ...VIEW, revision: { ...VIEW.revision!, document: { ...VIEW.revision!.document, language: this.language } } }) };
+    if (path === "/api/configuration") {
+      if (this.unconfigured) return problem("error", 500, "The configuration cannot be read.");
+      const document = VIEW.revision!.document;
+      // A second environment of the application, when the test asks for one.
+      const applications = this.staging
+        ? document.applications.map((application) => ({
+            ...application,
+            environments: [...application.environments, { name: "staging", uiUrl: "http://127.0.0.1:4000" }],
+          }))
+        : document.applications;
+      return { body: JSON.stringify({ ...VIEW, revision: { ...VIEW.revision!, document: { ...document, applications, language: this.language } } }) };
+    }
+    if (path === "/api/knowledge/domains")
+      return this.domains === undefined ? problem("error", 404, "No such route.") : { body: JSON.stringify({ items: this.domains }) };
     if (path === "/api/project")
       return { body: JSON.stringify({ name: "lakeside", applications: [{ id: "customer-management", name: "Customer Management" }] }) };
     if (path === "/api/sessions" && method === "POST") {

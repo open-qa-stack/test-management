@@ -80,7 +80,8 @@
     "actions_one": "{{count}} action",
     "actions_other": "{{count}} actions",
     "modelRequests_one": "{{count}} requête au modèle",
-    "modelRequests_other": "{{count}} requêtes au modèle"
+    "modelRequests_other": "{{count}} requêtes au modèle",
+    "scope": "limitée à {{scope}}"
   },
   "home": {
     "title": "Qu’est-ce qu’on teste ?",
@@ -260,6 +261,7 @@
   "scope": {
     "levels": "Niveaux demandés",
     "applications": "Applications",
+    "domains": "Domaines",
     "environment": "Environnement",
     "note": "Seuls ces niveaux sont conçus ; <code>design.levels</code> dans <code>oqas.json</code> les fixe."
   },
@@ -932,6 +934,29 @@
     "launchFailed_one": "Relancer l’échec",
     "launchFailed_other": "Relancer les {{count}} échecs",
     "launchNotRun_one": "Lancer le test non joué",
-    "launchNotRun_other": "Lancer les {{count}} non joués"
+    "launchNotRun_other": "Lancer les {{count}} non joués",
+    "launching": "Les tests de la campagne tournent : les verdicts arrivent à la fin du lancement."
+  },
+  "sessionScope": {
+    "label": "Périmètre de la session",
+    "environment": "Environnement",
+    "applications": "Applications",
+    "domains": "Domaines",
+    "levels": "Niveaux",
+    "everyApplication": "toutes",
+    "everyDomain": "tous",
+    "everyLevel": "tous",
+    "noApplication": "aucune déclarée",
+    "noDomain": "pas encore cartographiés",
+    "noLevel": "aucun demandé",
+    "chosen_one": "{{count}} choisi",
+    "chosen_other": "{{count}} choisis",
+    "levelNames": {
+      "smoke": "fumée",
+      "functional": "fonctionnel",
+      "business": "métier",
+      "cross-application": "inter-applications",
+      "end-to-end": "bout en bout"
+    }
   }
 }

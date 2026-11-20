@@ -77,6 +77,13 @@ describe("a session the store keeps", () => {
     assert.equal(JSON.stringify(await store.session(session.id)), JSON.stringify(completed));
   });
 
+  it("keeps what of the project it keeps its work to, as it was asked", async () => {
+    const scope = { applications: ["policy-management"], domains: ["insurance-quotes", "policies"], levels: ["functional" as const] };
+    const asked = await store.ask({ request: "cover the quotes", environment: "local", scope }, "host");
+    assert.deepEqual(asked.scope, scope);
+    assert.equal(JSON.stringify((await store.session(asked.id))?.scope), JSON.stringify(scope));
+  });
+
   it("is read without what its row lacks: a request, an environment, a result", async () => {
     await sessions.database.kysely
       .insertInto("sessions")

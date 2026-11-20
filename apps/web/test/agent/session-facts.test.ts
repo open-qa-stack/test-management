@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import type { Session, SessionResult, SessionTest } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
-import { stateOf, testsText, waitText } from "../../src/agent/session-facts.ts";
+import { scopeText, stateOf, testsText, waitText } from "../../src/agent/session-facts.ts";
 import { COMPLETED, QUEUED, RUNNING } from "./session-fixture.ts";
 
 /**
@@ -64,5 +64,16 @@ describe("the tests of a session", () => {
   it("are not counted when the session has no result, or a result without a test", () => {
     assert.equal(testsText(RUNNING), undefined);
     assert.equal(testsText(endedWith({ outcome: "stopped", tests: [] })), undefined);
+  });
+});
+
+describe("the scope of a session, in a few words", () => {
+  it("names its applications, its domains and its levels, and nothing for a session of the whole project", () => {
+    assert.equal(
+      scopeText({ ...COMPLETED, scope: { applications: ["policies"], domains: ["quotes"], levels: ["business", "smoke"] } }),
+      "limitée à policies, quotes, métier, fumée",
+    );
+    assert.equal(scopeText({ ...COMPLETED, scope: {} }), undefined);
+    assert.equal(scopeText(COMPLETED), undefined);
   });
 });

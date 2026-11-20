@@ -1,4 +1,4 @@
-import type { ActionLook, AgentRole, PlannedScenario, SessionScope } from "../session-event.ts";
+import type { ActionLook, AgentRole, PlannedScenario, ResolvedScope } from "../session-event.ts";
 import type { RefusalParts } from "./refusal-parts.ts";
 
 /** Who speaks or acts in a session: the person who asked, one of the agents, or the harness that holds them to the evidence. */
@@ -136,7 +136,7 @@ export interface PlanStep extends StepBase {
 }
 
 /** What the session works on, once the configuration of its run is resolved: told at the head of its thread. */
-export interface ScopeStep extends StepBase, SessionScope {
+export interface ScopeStep extends StepBase, ResolvedScope {
   readonly kind: "scope";
   readonly title: string;
 }

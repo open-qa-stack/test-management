@@ -731,6 +731,10 @@ describe("the thread of a session", () => {
     );
     assert.match(html, /<section class="result-card scope" aria-label="Portée de la session">/);
     assert.match(html, /<dd class="badges"><span class="badge info">smoke<\/span><span class="badge info">functional<\/span><\/dd>/);
+    assert.match(
+      textOf(thread(liveWith([{ ...scope, domains: ["quotes", "policies"] }]))),
+      /Applications shop, back-office Domaines quotes, policies Environnement local/,
+    );
   });
 
   it("lists the scenarios of an accepted plan under their count, each a cell folded to its level, its title, its case and its application", () => {
@@ -1050,6 +1054,11 @@ describe("the screen of a session", () => {
     const html = screen();
     assert.match(textOf(html), /^lakeside-tests \/ Agent \/ tester la recherche d'un client tester la recherche d'un client /);
     assert.equal(linksOf(html)[0], "#/agent");
+  });
+
+  it("says in its facts what the session is kept to", () => {
+    const html = screen("", liveOf({ ...RUNNING, scope: { domains: ["quotes"], levels: ["business"] } }));
+    assert.match(html, /<span class="session-facts">15 nov. 2026, 14:44:06 UTC · limitée à quotes, métier · 2 actions<\/span>/);
   });
 
   it("follows a session whose agents work: its state, its facts in a line, and the offer to replay it", () => {

@@ -322,6 +322,8 @@ export interface Setup {
   /** Whether the plan is submitted before the script; it is by default. */
   readonly plan?: boolean;
   readonly brief?: string;
+  /** The domains of the knowledge the plan is kept to. */
+  readonly domains?: readonly string[];
   readonly planReview?: PlanReview;
   /** Whether the agent that reviews plans is asked about duplicates. */
   readonly reviewPlan?: boolean;
@@ -373,6 +375,7 @@ export async function design(script: readonly { status?: number; body: unknown }
       ...(setup.check === undefined ? {} : { check: setup.check }),
       runner: setup.runner ?? new FakeTestRunner(),
       ...(setup.brief === undefined ? {} : { brief: setup.brief }),
+      ...(setup.domains === undefined ? {} : { domains: setup.domains }),
       ...(setup.planReview === undefined ? {} : { planReview: setup.planReview }),
       ...(setup.reviewPlan === undefined ? {} : { reviewPlan: setup.reviewPlan }),
       ...(setup.reviewTests === undefined ? {} : { reviewTests: setup.reviewTests }),

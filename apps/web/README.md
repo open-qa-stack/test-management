@@ -50,6 +50,10 @@ A session that did not change keeps the object the state already holds, so that 
 
 Every failure of the API is an `ApiError` with the `code` of the problem the API answered, `error` when it gave none, or `unreachable` when no answer came. The console decides on that code alone: it words the codes it knows in its own words (`src/api/problem-text.ts`), shows the `detail` of the API otherwise, and says “Offline” only for `unreachable`. A value the console does not know — a state, a phase, an outcome, a type of event — reads as a neutral one, or is ignored: a later version of the API does not break an earlier console. One predicate, `hasEnded` of `@open-qa-stack/domain/sessions`, tells whether a session no longer goes on, for the console as for the conversation of the command line: it has not while it is `queued` or `running`, and has in any other state, one the console does not know included.
 
+### The entry of the agent
+
+`#/agent` asks what to test, then what of the project to keep the session to, as chips under the request: the environment — chosen among those the configuration declares when it declares several — then the applications, the domains of the knowledge (`GET /knowledge/domains`, none before a cartography) and the levels, each every one until some are ticked. A chip opens on its list in the page, under the chips, and says what it takes: every one, the names ticked, or how many. The session is opened with them (`scope` of `POST /sessions`), and its facts say what it is kept to.
+
 ### The configuration
 
 `#/configuration` shows the configuration in force — what `oqas.json` holds, kept by the instance as revisions — in a form the person changes, then saves:
