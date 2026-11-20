@@ -3,6 +3,8 @@ import type {
   ConfigurationCheck,
   ConfigurationView,
   DocumentList,
+  Execution,
+  ExecutionList,
   MessageReceipt,
   OqasConfig,
   Problem,
@@ -174,6 +176,15 @@ export class ApiClient {
    */
   public async tests(): Promise<readonly RepositoryTest[]> {
     return (await this.#ask<RepositoryTestList>("/tests")).items;
+  }
+
+  /**
+   * Lists the executions of tests the instance keeps.
+   *
+   * @returns The executions, the latest first, each with what came of each of its tests.
+   */
+  public async executions(): Promise<readonly Execution[]> {
+    return (await this.#ask<ExecutionList>("/executions")).items;
   }
 
   /**

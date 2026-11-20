@@ -81,6 +81,10 @@ The state of the screen is a reducer of its own, `src/tests/tests-state.ts`; `sr
 
 Each test leads to its own screen, `#/tests/view?path=<path>`, which reads it in steps from the latest run that ran it (`GET /tests/reading`), as a person checks it: how that run ended, the step that failed with what its assertion expected and received when its message says both, then each step with its state, its duration, the steps it holds and its capture (`GET /tests/capture`), and, folded, the technical details — the whole error, the stack, the outputs and the files the runner kept. A test no run ran yet says so. `src/tests/test-state.ts`, `src/tests/test-sync.ts` and `src/tests/test-page.tsx` are to it what their namesakes are to the list.
 
+### The executions
+
+`#/executions` lists the executions of the tests the instance keeps (`GET /executions`), the latest first: when each ran, where it comes from — `design` for the tests a session ran —, the commit of the test repository it ran at, or that its version was not kept, and how many of its tests passed, failed, passed only on a retry or were skipped; then each of its tests with its verdict, its title, its path and its duration, leading to the screen of the test. `src/executions/` holds its state, its synchronisation and its page, as `src/tests/` does for the tests.
+
 ### Languages
 
 The console speaks the language the configuration in force names, `language` of `oqas.json`, English by default: it reads it from the instance (`GET /configuration`) when it opens, and again once a change of the configuration was saved, then switches every screen at once. Until it read it, it speaks the language of the browser when it has its words, English otherwise. There is no other setting: one place decides, for the console, the conversation of the command line and the agents alike.

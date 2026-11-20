@@ -5,6 +5,7 @@ import type { Opening } from "./agent/console-state.ts";
 import type { LiveSession } from "./agent/live-session.ts";
 import { SessionScreen } from "./agent/session-screen.tsx";
 import { ConfigurationPage } from "./configuration/configuration-page.tsx";
+import { ExecutionsPage } from "./executions/executions-page.tsx";
 import { KnowledgePage } from "./knowledge/knowledge-page.tsx";
 import { TestPage } from "./tests/test-page.tsx";
 import { TestsPage } from "./tests/tests-page.tsx";
@@ -43,7 +44,7 @@ export interface ConsoleProps {
  * that says the instance keeps no such session, or that the address leads nowhere.
  */
 type Shown =
-  | { readonly screen: "entry" | "configuration" | "knowledge" | "tests" | "no_session" | "nowhere" }
+  | { readonly screen: "entry" | "configuration" | "knowledge" | "tests" | "executions" | "no_session" | "nowhere" }
   | { readonly screen: "test"; readonly path: string }
   | { readonly screen: "session"; readonly live: LiveSession }
   | { readonly screen: "opening"; readonly id: string };
@@ -83,6 +84,7 @@ function shownOf({ route, live, missing = false }: ConsoleProps): Shown {
   if (route.path.length === 1 && route.path[0] === "configuration") return { screen: "configuration" };
   if (route.path[0] === "knowledge" && route.path.length <= 2) return { screen: "knowledge" };
   if (route.path.length === 1 && route.path[0] === "tests") return { screen: "tests" };
+  if (route.path.length === 1 && route.path[0] === "executions") return { screen: "executions" };
   const test = route.query["path"];
   if (route.path.length === 2 && route.path[0] === "tests" && route.path[1] === "view" && test !== undefined && test !== "")
     return { screen: "test", path: test };
@@ -130,6 +132,8 @@ function Screen(props: ConsoleProps): ReactNode {
       return <TestsPage project={name} route={route} />;
     case "test":
       return <TestPage project={name} path={shown.path} />;
+    case "executions":
+      return <ExecutionsPage project={name} />;
     case "opening":
     case "no_session":
     case "nowhere": {

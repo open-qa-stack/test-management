@@ -5,6 +5,8 @@ them in its database. For now each execution comes from a session of design: onc
 the execution is kept from the report of the runner, before the session ends. The route is the operation of the engine
 that reads them, said in HTTP.
 
+The runs the test repository ran before the instance kept its executions, the folders `<stateDir>/runs/run-<date>/`, are taken when the API starts, once each: they are dated by the start of their run, belong to no session, and keep no version, since the commit and the files of then are gone.
+
 A test is named by the path of its file, relative to the root of the test repository, and by its titles: those of the
 `describe` that hold it, then its own. Each result also keeps the version the test ran at:
 

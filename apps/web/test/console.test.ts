@@ -188,6 +188,15 @@ describe("the console", () => {
     for (const hash of ["#/tests/view", "#/tests/view?path="]) assert.match(pageOf(consoleAt(hash)), /Page introuvable/);
   });
 
+  it("shows the executions at their address, which lists them from the instance", () => {
+    assert.equal(
+      pageOf(consoleAt("#/executions", { project: PROJECT })),
+      "lakeside-tests / Exécutions Exécutions Lecture des exécutions Elles apparaissent dès que l’instance a répondu.",
+    );
+    assert.equal(documentTitleOf({ route: at("#/executions") }), "Exécutions · Open QA Stack");
+    assert.match(pageOf(consoleAt("#/executions/more")), /Page introuvable/);
+  });
+
   it("shows the configuration at its address, which reads it from the instance", () => {
     const html = consoleAt("#/configuration", { project: PROJECT });
     assert.equal(pageOf(html), "lakeside-tests / Configuration Configuration Lecture de la configuration Elle apparaît dès que l’instance a répondu.");

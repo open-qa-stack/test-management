@@ -1280,6 +1280,30 @@ describe("the code of the console is covered in full", () => {
     }
   });
 
+  it("lets the screen of the executions, its long paths and its counts, fit the width of a small phone", async () => {
+    const page = await app().open(360, "#/executions", new ListedInstance().api);
+    try {
+      await page.locator(".tests-row").first().waitFor();
+      assert.equal(await overflowOf(page), 0);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("runs every line of the screen of the executions when it is used in the browser, and leads from a test to its screen", async () => {
+    const [screen] = await app().measure(
+      ["src/executions/executions-page.tsx"],
+      async (page) => {
+        await page.goto("http://console.test/#/executions");
+        await page.getByRole("link", { name: /Policies › Edit a policy/ }).click();
+        await page.waitForURL(/#\/tests\/view\?path=apps%2Fpolicy-management%2F/);
+      },
+      new ListedInstance().api,
+    );
+    assert.ok(screen!.lines.length > 5, "the screen is in the build");
+    assert.deepEqual(screen!.uncovered, []);
+  });
+
   it("runs every line of the screen of the tests when it is used in the browser", async () => {
     const instance = new ListedInstance();
     const [screen] = await app().measure(
