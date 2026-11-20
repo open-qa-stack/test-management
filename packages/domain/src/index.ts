@@ -124,7 +124,18 @@ export type { DocumentStorePort } from "./knowledge-documents/document-store-por
 export { InvalidDocumentsError } from "./knowledge-documents/invalid-documents-error.ts";
 export type { DocumentEntry, DocumentList, StoredDocument, StoredDocumentSummary } from "./knowledge-documents/stored-document.ts";
 export type { RepositoryTest, RepositoryTestList } from "./repository-tests/repository-test.ts";
-export type { Execution, ExecutionList, ExecutionOrigin, ExecutionResult, ExecutionVerdict } from "./executions/execution.ts";
+export type {
+  Execution,
+  ExecutionList,
+  ExecutionOrigin,
+  ExecutionOutcome,
+  ExecutionQuery,
+  ExecutionResult,
+  ExecutionVerdict,
+  TestExecution,
+  TestExecutionList,
+} from "./executions/execution.ts";
+export { UnknownExecutionError } from "./executions/unknown-execution-error.ts";
 export { executionResults } from "./executions/execution-results.ts";
 export type { ExecutionStorePort } from "./executions/execution-store-port.ts";
 export { testFacets, type TestFacets } from "./repository-tests/test-facets.ts";

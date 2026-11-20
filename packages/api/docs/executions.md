@@ -13,18 +13,19 @@ A test is named by the path of its file, relative to the root of the test reposi
 - the commit the test repository was at;
 - the SHA-256 of the file of the test, which tells a change that was not committed yet.
 
-The shape of the body is the type `ExecutionList` of `@open-qa-stack/domain/sessions`. A client ignores a field it does not know.
+The shapes of the bodies are the types `ExecutionList` and `Execution` of `@open-qa-stack/domain/sessions`. A client ignores a field it does not know. What came of the tests of one file in each execution is told by [the tests](tests.md#the-executions-of-a-test).
 
 | Route | Answer |
 |---|---|
-| `GET /api/executions` | The executions, the latest first, each with what came of each of its tests. |
+| `GET /api/executions[?limit=<n>&before=<id>&outcome=<outcome>]` | A page of the executions, the latest first, each with what came of each of its tests. |
+| `GET /api/executions/<id>` | One execution, with what came of each of its tests. |
 
 Every answer is given with `cache-control: no-store`; every answer that is not a success is a [problem](sessions.md#problems).
 
 ## The executions
 
 ```http
-GET /api/executions
+GET /api/executions?limit=25
 ```
 
 ```json
@@ -48,9 +49,12 @@ GET /api/executions
         }
       ]
     }
-  ]
+  ],
+  "next": "5b0c8f2e-6a51-4d1e-9a3f-2c7d1e0b9a44"
 }
 ```
+
+A page holds `limit` executions, 25 when the query does not say, 100 at most. The executions are ordered by date, then by identifier for the same date; `next` names the last one of a page, and the page after it is asked with `before=<next>`: a page starts after that execution, whatever was kept since, so that no execution is told twice nor skipped. The last page has no `next`. `outcome=failing` keeps the executions where a test failed, `outcome=passing` those where none did.
 
 | Field | What it says |
 |---|---|
@@ -61,3 +65,18 @@ GET /api/executions
 | `results[].verdict` | `passed`, `failed`, `flaky` when the test passed only on a retry, or `skipped`. |
 | `results[].durationMs` | How long its attempts took together. |
 | `results[].fileDigest` | The SHA-256 of its file when the execution was kept; left out when the file could not be read. |
+
+## One execution
+
+```http
+GET /api/executions/5b0c8f2e-6a51-4d1e-9a3f-2c7d1e0b9a44
+```
+
+The answer is the execution, as a page tells it.
+
+## Problems
+
+| `code` | Status | When |
+|---|---|---|
+| `invalid_request` | `400` | `limit` is not a number from 1 to 100, `before` is empty, or `outcome` is neither `failing` nor `passing`. |
+| `unknown_execution` | `404` | The execution of the route, or the one `before` names, is not kept by the instance. |

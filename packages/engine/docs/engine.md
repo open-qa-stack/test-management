@@ -338,12 +338,16 @@ const tests = await new RepositoryTests(repositoryRoot, instance.configuration).
 ```ts
 import { Executions } from "@open-qa-stack/engine";
 
-const executions = await new Executions(instance.executions).list();
+const page = await new Executions(instance.executions).page({ limit: 25 });
 ```
 
 | Operation | What it does |
 | --- | --- |
-| `list()` | The executions, the latest first, each with what came of each of its tests. |
+| `page(query)` | A page of the executions, the latest first, each with what came of each of its tests: at most `limit`, after the execution `before` names, and only those where a test failed, or none did, by `outcome`. `next` names the last one when a page comes after it. |
+| `get(id)` | One execution, with what came of each of its tests; `UnknownExecutionError` when the store keeps none under the identifier. |
+| `ofFile(path)` | What came of the tests of a file in the latest 100 executions that ran them, the latest first, each with its execution. |
+
+`TestReadings` reads a test in steps from the latest run that ran it, or from the run of an execution the store keeps when it is named: `read(path, execution?)` and `capture(path, step, execution?)`.
 
 `PastRuns` takes into the store the runs the test repository ran before the instance kept its executions: `take()` keeps each folder `<stateDir>/runs/run-<date>/` whose report the store does not hold, the earliest first, dated by the start of its run, without a session nor a version, and says how many. The API calls it when it starts.
 

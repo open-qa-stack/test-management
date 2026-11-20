@@ -3,9 +3,10 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "vitest";
-import { UnknownCaptureError, type OqasConfig } from "@open-qa-stack/domain";
+import { UnknownCaptureError, UnknownExecutionError, type OqasConfig } from "@open-qa-stack/domain";
 import { TestReadings } from "../src/index.ts";
 import { MemoryConfigurationStore } from "./support/memory-configuration-store.ts";
+import { MemoryExecutionStore } from "./support/memory-execution-store.ts";
 
 /** A configuration whose applications are in `apps`, and whose state is in `.oqas`. */
 const DOCUMENT = {
@@ -61,11 +62,18 @@ function repository(runs: Readonly<Record<string, string>>): string {
   return root;
 }
 
-/** The operations on a repository, once the configuration is in force. */
-async function readings(root: string | undefined): Promise<TestReadings> {
+/** The operations on a repository, once the configuration is in force, with the executions given kept. */
+async function readings(root: string | undefined, executions = new MemoryExecutionStore()): Promise<TestReadings> {
   const configuration = new MemoryConfigurationStore();
   await configuration.record({ origin: "file", fileDigest: "a1", document: DOCUMENT }, 0);
-  return new TestReadings(root, configuration);
+  return new TestReadings(root, configuration, executions);
+}
+
+/** The store of the executions, keeping one of the run of a folder, at a date that is not that of its folder. */
+async function keeping(run: string): Promise<MemoryExecutionStore> {
+  const store = new MemoryExecutionStore();
+  await store.add({ id: "e1", origin: "design", ranAt: "2026-11-19T08:00:05.000Z", report: `.oqas/runs/${run}/report.json`, results: [] });
+  return store;
 }
 
 describe("a test of the repository read in steps", () => {
@@ -97,7 +105,19 @@ describe("a test of the repository read in steps", () => {
     assert.deepEqual(await (await readings(root)).read("shop/tests/orders/search.spec.ts"), { path: "shop/tests/orders/search.spec.ts" });
     assert.deepEqual(await (await readings(mkdtempSync(join(tmpdir(), "oqas-no-runs-")))).read(SEARCH), { path: SEARCH });
     assert.deepEqual(await (await readings(undefined)).read(SEARCH), { path: SEARCH });
-    assert.deepEqual(await new TestReadings(root, new MemoryConfigurationStore()).read(SEARCH), { path: SEARCH });
+    assert.deepEqual(await new TestReadings(root, new MemoryConfigurationStore(), new MemoryExecutionStore()).read(SEARCH), { path: SEARCH });
+  });
+
+  it("is read from the run of an execution the instance keeps, at the date of the execution, even when a later run ran it", async () => {
+    const root = repository({ "run-2026-11-19T08-00-00-000Z": report("failed", []), "run-2026-11-19T09-00-00-000Z": report("passed", []) });
+    const read = await (await readings(root, await keeping("run-2026-11-19T08-00-00-000Z"))).read(SEARCH, "e1");
+    assert.deepEqual([read.run, read.ranAt, read.view?.failedStep], ["run-2026-11-19T08-00-00-000Z", "2026-11-19T08:00:05.000Z", 2]);
+    // An execution whose report is gone, or did not hold the test, has no view of it; one the instance does not keep is refused.
+    assert.deepEqual(await (await readings(root, await keeping("run-gone"))).read(SEARCH, "e1"), { path: SEARCH });
+    assert.deepEqual(await (await readings(root, await keeping("run-2026-11-19T08-00-00-000Z"))).read("apps/shop/tests/other.spec.ts", "e1"), {
+      path: "apps/shop/tests/other.spec.ts",
+    });
+    await assert.rejects((await readings(root)).read(SEARCH, "e1"), new UnknownExecutionError("e1"));
   });
 });
 
@@ -145,5 +165,15 @@ describe("the capture of a step of a test", () => {
     const failed = await operations.capture(SEARCH, 2);
     assert.deepEqual([failed.contentType, Buffer.from(failed.bytes).toString()], ["image/png", "failure bytes"]);
     await assert.rejects(operations.capture(SEARCH, 1), new UnknownCaptureError(SEARCH, 1));
+  });
+
+  it("is read from the run of an execution the instance keeps, when one is named", async () => {
+    const root = repository({
+      "run-2026-11-19T08-00-00-000Z": report("passed", [{ name: "1", contentType: "image/png", body: Buffer.from("then").toString("base64") }]),
+      "run-2026-11-19T09-00-00-000Z": report("passed", [{ name: "1", contentType: "image/png", body: Buffer.from("later").toString("base64") }]),
+    });
+    const operations = await readings(root, await keeping("run-2026-11-19T08-00-00-000Z"));
+    assert.equal(Buffer.from((await operations.capture(SEARCH, 1, "e1")).bytes).toString(), "then");
+    await assert.rejects(operations.capture(SEARCH, 1, "e2"), new UnknownExecutionError("e2"));
   });
 });

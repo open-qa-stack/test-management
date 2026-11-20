@@ -165,7 +165,7 @@ The primary key of a message is its session and its number. A number is given on
 
 ### The executions of tests
 
-`executions` holds one row an execution of tests, and `execution_results` one row each test of it. `ExecutionStore` keeps an execution in one transaction, with all of its results or none, and lists them the latest first.
+`executions` holds one row an execution of tests, and `execution_results` one row each test of it. `ExecutionStore` keeps an execution in one transaction, with all of its results or none. It reads them a page at a time, the latest first — by date then identifier, a page going on after the last execution of the one before it — one by its identifier, or what came of the tests of one file in each execution, by the path of its results.
 
 | Column of `executions` | Type | Why |
 |---|---|---|
