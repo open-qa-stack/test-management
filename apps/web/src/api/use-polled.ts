@@ -13,7 +13,7 @@ export const POLL_PAUSE_MS = 5000;
  * that the answer to the former one is not shown.
  * @returns The latest answer, and why the instance could not answer.
  */
-export function usePolled<T>(ask: () => Promise<T>, key: string): PolledState<T> {
+export function usePolled<T>(ask: () => Promise<T>, key: string, pauseMs: number = POLL_PAUSE_MS): PolledState<T> {
   const [state, dispatch] = useReducer(polledAfter<T>, {});
   const asked = useRef(ask);
   asked.current = ask;
@@ -25,9 +25,9 @@ export function usePolled<T>(ask: () => Promise<T>, key: string): PolledState<T>
           told: (value) => dispatch({ type: "read", value } as PolledAction<T>),
           failed: (error) => dispatch({ type: "unread", message: error.message }),
         },
-        POLL_PAUSE_MS,
+        pauseMs,
       ),
-    [key],
+    [key, pauseMs],
   );
   return state;
 }

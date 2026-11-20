@@ -1,3 +1,4 @@
+import { campaignCounts } from "@open-qa-stack/domain/sessions";
 import type {
   Campaign,
   CampaignProgress,
@@ -79,7 +80,11 @@ export class ListedInstance {
       this.campaigns.unshift({ campaign, results: PROGRESS.results.map(({ path, title }) => ({ path, title, verdict: "not_run" })) });
       return { status: 201, body: JSON.stringify(campaign) };
     }
-    if (path === "/api/campaigns") return { status: 200, body: JSON.stringify({ items: this.campaigns.map(({ campaign }) => campaign) }) };
+    if (path === "/api/campaigns")
+      return {
+        status: 200,
+        body: JSON.stringify({ items: this.campaigns.map(({ campaign, results }) => ({ ...campaign, counts: campaignCounts(results) })) }),
+      };
     const [, id, gesture] = /^\/api\/campaigns\/([^/]+)(?:\/(\w+))?$/.exec(path) ?? [];
     if (id === undefined) return undefined;
     const found = this.campaigns.find(({ campaign }) => campaign.id === id);
@@ -88,8 +93,11 @@ export class ListedInstance {
       return this.#change(id, (campaign) => ({ ...campaign, status: "ready", tests: found.results.map(({ path, title }) => ({ path, title })) }));
     if (gesture === "launches") {
       const answer = this.#change(id, (campaign) => ({ ...campaign, status: "in_progress" }));
+      const paths = found.results.map(({ path }) => path);
+      // The launch that runs has finished its first test.
+      const progress = { total: paths.length, finished: [{ path: paths[0]!, title: found.results[0]!.title, verdict: "passed" as const }] };
       if (answer.status === 200)
-        this.launches = { running: { startedAt: "2026-11-20T10:01:00.000Z", environment: found.campaign.environment, paths: [], campaign: id } };
+        this.launches = { running: { startedAt: "2026-11-20T10:01:00.000Z", environment: found.campaign.environment, paths, campaign: id, progress } };
       return answer.status === 200 ? { status: 202, body: JSON.stringify(this.launches.running) } : answer;
     }
     if (gesture === "closure") return this.#change(id, (campaign) => ({ ...campaign, status: "closed", closedAt: "2026-11-20T11:00:00.000Z" }));

@@ -138,11 +138,15 @@ export type {
 } from "./executions/execution.ts";
 export { versionStep, type TestVersion, type TestVersionList, type VersionStep } from "./executions/test-version.ts";
 export { UnknownExecutionError } from "./executions/unknown-execution-error.ts";
-export type { EndedLaunch, LaunchRequest, LaunchState, TestLaunch } from "./executions/test-launch.ts";
+export type { EndedLaunch, FinishedTest, LaunchProgress, LaunchRequest, LaunchState, TestLaunch } from "./executions/test-launch.ts";
 export { LaunchRefusedError } from "./executions/launch-refused-error.ts";
+export { launchProgress } from "./executions/launch-progress.ts";
 export type {
   Campaign,
+  CampaignCounts,
+  CampaignLaunchScope,
   CampaignList,
+  CampaignOverview,
   CampaignPlan,
   CampaignProgress,
   CampaignResult,
@@ -150,7 +154,7 @@ export type {
   CampaignStatus,
   CampaignTest,
 } from "./campaigns/campaign.ts";
-export { campaignResults, campaignTransition, scopedTests } from "./campaigns/campaign-rules.ts";
+export { campaignCounts, campaignResults, campaignTransition, scopedTests } from "./campaigns/campaign-rules.ts";
 export { CampaignRefusedError } from "./campaigns/campaign-refused-error.ts";
 export { UnknownCampaignError } from "./campaigns/unknown-campaign-error.ts";
 export type { CampaignStorePort } from "./campaigns/campaign-store-port.ts";

@@ -1,4 +1,4 @@
-import type { Campaign, CampaignProgress } from "@open-qa-stack/domain/sessions";
+import type { Campaign, CampaignOverview, CampaignProgress } from "@open-qa-stack/domain/sessions";
 
 /** A test of the policies, as a campaign fixes it. */
 export const POLICY = { path: "apps/policy-management/tests/policies/policy-detail.spec.ts", title: "Display the detail of a policy" };
@@ -37,3 +37,9 @@ export const PROGRESS: CampaignProgress = {
     { ...POLICY, verdict: "not_run" },
   ],
 };
+
+/** The campaigns as their list gives them: the one planned, which takes three tests, then the one that runs. */
+export const OVERVIEWS: readonly CampaignOverview[] = [
+  { ...PLANNED, counts: { passed: 0, failed: 0, flaky: 0, skipped: 0, not_run: 3 } },
+  { ...RUNNING, counts: { passed: 0, failed: 1, flaky: 0, skipped: 0, not_run: 1 } },
+];

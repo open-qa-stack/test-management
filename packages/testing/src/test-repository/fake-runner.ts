@@ -2,6 +2,9 @@ import { execFile } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
+/** The verdict of the progress of a run for each status of the report of the runner. */
+const VERDICTS = { expected: "passed", unexpected: "failed", skipped: "skipped" } as const;
+
 /** A command a run has its host run, as far as the doubles read it. */
 export interface RanCommand {
   /** The program and its arguments. */
@@ -94,8 +97,19 @@ export class FakeRunner {
     if (args.includes("--list")) return ok(report(files));
     const trial = args.includes("--update-snapshots=missing");
     const out = step.env!["PLAYWRIGHT_JSON_OUTPUT_FILE"]!;
+    const status = trial ? () => "expected" as const : (this.script.final ?? (() => "expected" as const));
     mkdirSync(join(this.root, out, ".."), { recursive: true });
-    writeFileSync(join(this.root, out), report(files, trial ? () => "expected" : (this.script.final ?? (() => "expected")), this.script.finalError));
+    writeFileSync(join(this.root, out), report(files, status, this.script.finalError));
+    // The reporter of the progress names each test from the test repository, once it finished.
+    const progress = step.env!["OQAS_PROGRESS_FILE"];
+    if (progress !== undefined) {
+      const finished = files.map((file) => ({
+        path: `apps/${file}`,
+        title: "the test",
+        verdict: VERDICTS[status(file)],
+      }));
+      writeFileSync(progress, [{ total: files.length }, ...finished].map((line) => JSON.stringify(line)).join("\n") + "\n");
+    }
     return { exitCode: 0, stdout: "", stderr: "" };
   }
 

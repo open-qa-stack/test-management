@@ -1,7 +1,8 @@
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Post } from "@nestjs/common";
 import { Campaigns } from "@open-qa-stack/engine";
+import { CampaignLaunchPipe } from "./campaign-launch.pipe.ts";
 import { CampaignPlanPipe } from "./campaign-plan.pipe.ts";
-import type { Campaign, CampaignList, CampaignPlan, CampaignProgress, TestLaunch } from "@open-qa-stack/domain/sessions";
+import type { Campaign, CampaignLaunchScope, CampaignList, CampaignPlan, CampaignProgress, TestLaunch } from "@open-qa-stack/domain/sessions";
 
 /** The operations on the campaigns of the instance, said in HTTP: each route calls one operation, and holds no rule of its own. */
 @Controller("campaigns")
@@ -39,11 +40,15 @@ export class CampaignsController {
     return this.#campaigns.ready(id);
   }
 
-  /** @returns The launch of its tests, which runs, answered with `202`. */
+  /**
+   * @param only - The `only` field of the body, when it is given: `failed` or `not_run`, the tests of the campaign to
+   * launch; every one without it.
+   * @returns The launch of its tests, which runs, answered with `202`.
+   */
   @Post(":id/launches")
   @HttpCode(HttpStatus.ACCEPTED)
-  launch(@Param("id") id: string): Promise<TestLaunch> {
-    return this.#campaigns.launch(id);
+  launch(@Param("id") id: string, @Body(CampaignLaunchPipe) only: CampaignLaunchScope | undefined): Promise<TestLaunch> {
+    return this.#campaigns.launch(id, only);
   }
 
   /** @returns The campaign, closed. */

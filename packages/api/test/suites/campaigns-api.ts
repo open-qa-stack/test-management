@@ -64,6 +64,18 @@ export function campaignsApiSuite(engine: DatabaseEngine): void {
       // The test repository installs nothing: the launch ends at once, and says why.
       const last = await eventually(async () => ((await call("/launches")).body as LaunchState).last);
       assert.match(String(last.failure), /package-lock\.json/);
+      // The launch ended without a verdict: no test failed, every one is still to run.
+      assert.deepEqual(
+        [
+          (await call(`/campaigns/${campaign.id}/launches`, "POST", { only: "failed" })).status,
+          (await call(`/campaigns/${campaign.id}/launches`, "POST", { only: "nothing" })).status,
+        ],
+        [409, 400],
+      );
+      const notRun = await call(`/campaigns/${campaign.id}/launches`, "POST", { only: "not_run" });
+      assert.deepEqual([notRun.status, (notRun.body as TestLaunch).paths], [202, [QUOTES]]);
+      await eventually(async () => ((await call("/launches")).body as LaunchState).running === undefined);
+      assert.deepEqual(((await call("/campaigns")).body as CampaignList).items[0]?.counts, { passed: 0, failed: 0, flaky: 0, skipped: 0, not_run: 1 });
       const closed = await call(`/campaigns/${campaign.id}/closure`, "POST");
       assert.deepEqual([closed.status, (closed.body as Campaign).status], [200, "closed"]);
       assert.deepEqual(

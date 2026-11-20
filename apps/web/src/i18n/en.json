@@ -883,7 +883,9 @@
       "tagsHelp": "Separated by spaces, such as @p0 @p1. Leave empty to take every test.",
       "submit": "Plan",
       "pending": "Planning…"
-    }
+    },
+    "taken_one": "{{count}} test taken",
+    "taken_other": "{{count}} tests taken"
   },
   "campaign": {
     "reading": "Reading the campaign",
@@ -913,9 +915,23 @@
     "noTestNote": "No test of the repository bears these tags yet.",
     "ready": "Fix the tests",
     "launch": "Launch the tests",
-    "relaunch": "Launch the tests again",
+    "relaunch": "Launch all again",
     "close": "Close",
     "pending": "Sending…",
-    "launching": "The tests of the campaign run: the verdicts come at the end of the launch."
+    "progress": "Progress",
+    "ran": "{{ran}} / {{total}} run",
+    "launchPreparing": "Launch being prepared: installing, then checking the addresses of the environment…",
+    "launchProgress": "Launch running: {{finished}} / {{total}} tests finished",
+    "running": "running",
+    "inLaunch": "in the launch that runs",
+    "justNow": "just now",
+    "lifecycle": "Life of the campaign",
+    "closeQuestion": "Close it for good? A closed campaign is not launched again.",
+    "confirmClose": "Close the campaign",
+    "cancel": "Cancel",
+    "launchFailed_one": "Launch the failure again",
+    "launchFailed_other": "Launch the {{count}} failures again",
+    "launchNotRun_one": "Launch the test not run",
+    "launchNotRun_other": "Launch the {{count}} not run"
   }
 }

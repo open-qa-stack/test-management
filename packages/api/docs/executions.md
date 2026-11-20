@@ -124,7 +124,10 @@ waits until it ended. Every test of a file runs, so a file of several tests keep
 GET /api/launches
 ```
 
-The answer tells the launch that `running`, and the `last` one that ended in this process, with `endedAt` and either the
+The answer tells the launch that `running`, with its `progress` once the runner started: the `total` of the tests it
+runs once the runner listed them, then each test it `finished` — `path`, `title`, `verdict` — in the order they finished,
+which a reporter the instance gives the runner writes to `<stateDir>/launches/launch-<date>/progress.jsonl`. It tells the
+`last` one that ended in this process, with `endedAt` and either the
 identifier of the `execution` it kept, or the `failure` that says why it kept none: the dependencies or the browsers could
 not be installed, an address of the environment did not answer, the runner wrote no report, or the database refused the
 execution. Neither is kept: the API forgets them when it stops, and the execution stays.

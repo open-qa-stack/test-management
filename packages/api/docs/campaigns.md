@@ -7,11 +7,11 @@ in a campaign is not kept apart: it is read from the executions of the campaign.
 
 | Route | Answer |
 |---|---|
-| `GET /api/campaigns` | Every campaign, the latest planned first. |
+| `GET /api/campaigns` | Every campaign, the latest planned first, with how many of its tests came to each verdict. |
 | `POST /api/campaigns` | Plans a campaign; `201` with it. |
 | `GET /api/campaigns/<id>` | The campaign, with what came of each of its tests. |
 | `POST /api/campaigns/<id>/readiness` | Fixes its tests: it becomes `ready`. |
-| `POST /api/campaigns/<id>/launches` | Launches its tests; `202` with the launch. Its first launch puts it `in_progress`. |
+| `POST /api/campaigns/<id>/launches` | Launches its tests — every one, or only those that failed or were not run; `202` with the launch. Its first launch puts it `in_progress`. |
 | `POST /api/campaigns/<id>/closure` | Closes it, for good. |
 
 Every reading is given with `cache-control: no-store`; every answer that is not a success is a [problem](sessions.md#problems).
@@ -61,6 +61,24 @@ GET /api/campaigns/5b0c8f2e-6a51-4d1e-9a3f-2c7d1e0b9a44
 A launch runs the files of the tests of the campaign, as [launching tests](executions.md#launching-tests) does, in the turn
 of the sessions; its execution has the origin `campaign` and names the campaign. A test is found in an execution by the
 path of its file: the tests of the repository are listed one per file.
+
+## Launching its tests
+
+```http
+POST /api/campaigns/5b0c8f2e-6a51-4d1e-9a3f-2c7d1e0b9a44/launches
+content-type: application/json
+
+{ "only": "failed" }
+```
+
+Without a body, or with `{}`, every test of the campaign runs. `only` limits the launch to the tests whose verdict in the
+campaign is `failed`, or `not_run`; a launch that would run none is refused with `campaign_refused`. While it runs,
+[`GET /api/launches`](executions.md#launching-tests) tells how far it went, test by test.
+
+## The list of the campaigns
+
+Each item of `GET /api/campaigns` is a campaign with `counts`: how many of its tests are `passed`, `failed`, `flaky`,
+`skipped` or `not_run` — for a campaign still planned, the tests its scope takes now, none run.
 
 ## Problems
 

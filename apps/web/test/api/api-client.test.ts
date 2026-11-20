@@ -152,6 +152,7 @@ describe("the client of the API, for the documents of the knowledge sources", ()
     await client.campaign("c 1");
     await client.readyCampaign("c 1");
     await client.launchCampaign("c 1");
+    await client.launchCampaign("c 1", "failed");
     await client.closeCampaign("c 1");
     await client.launches();
     assert.deepEqual(
@@ -161,7 +162,8 @@ describe("the client of the API, for the documents of the knowledge sources", ()
         ["/api/campaigns", "POST", JSON.stringify({ name: "Recette", environment: "local", tags: [] })],
         ["/api/campaigns/c%201", "GET", undefined],
         ["/api/campaigns/c%201/readiness", "POST", undefined],
-        ["/api/campaigns/c%201/launches", "POST", undefined],
+        ["/api/campaigns/c%201/launches", "POST", "{}"],
+        ["/api/campaigns/c%201/launches", "POST", JSON.stringify({ only: "failed" })],
         ["/api/campaigns/c%201/closure", "POST", undefined],
         ["/api/launches", "GET", undefined],
       ],

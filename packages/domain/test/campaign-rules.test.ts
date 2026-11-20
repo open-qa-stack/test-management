@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { campaignResults, campaignTransition, CampaignRefusedError, scopedTests, type CampaignStatus, type Execution } from "../src/index.ts";
+import { campaignCounts, campaignResults, campaignTransition, CampaignRefusedError, scopedTests, type CampaignStatus, type Execution } from "../src/index.ts";
 
 const STATES: readonly CampaignStatus[] = ["planned", "ready", "in_progress", "closed"];
 
@@ -71,6 +71,21 @@ describe("what came of each test of a campaign", () => {
         { path: "b.spec.ts", title: "B", verdict: "failed", execution: "e1", ranAt: first.ranAt },
         { path: "c.spec.ts", title: "C", verdict: "not_run" },
       ],
+    );
+  });
+});
+
+describe("the counts of a campaign", () => {
+  it("tell how many of its tests came to each verdict, and how many were not run", () => {
+    const test = { path: "a.spec.ts", title: "A" };
+    assert.deepEqual(
+      campaignCounts([
+        { ...test, verdict: "passed" },
+        { ...test, verdict: "passed" },
+        { ...test, verdict: "flaky" },
+        { ...test, verdict: "not_run" },
+      ]),
+      { passed: 2, failed: 0, flaky: 1, skipped: 0, not_run: 1 },
     );
   });
 });
