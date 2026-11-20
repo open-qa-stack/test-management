@@ -60,6 +60,48 @@ describe("what came of each test of an execution, from the report of the runner"
     );
   });
 
+  it("tells where a test that failed failed and why, from its last attempt: its step, the first line of its error, what it expected and received", () => {
+    const failing = (attempts: readonly object[]) =>
+      JSON.stringify({
+        suites: [
+          {
+            title: "orders/pay.spec.ts",
+            file: "orders/pay.spec.ts",
+            specs: [
+              {
+                title: "Pay",
+                file: "orders/pay.spec.ts",
+                line: 3,
+                tests: [{ projectName: "shop", status: "unexpected", expectedStatus: "passed", results: attempts }],
+              },
+            ],
+          },
+        ],
+      });
+    const assertion = {
+      message: '\u001b[31m\nError: expect(locator).toHaveText(expected) failed\n\nExpected: "Paid"\nReceived: "Refused"\n',
+    };
+    const steps = [{ title: "Open the order" }, { title: "Pay the order", error: assertion }];
+    assert.deepEqual(
+      [
+        failing([
+          { status: "failed", errors: [{ message: "first attempt" }] },
+          { status: "failed", errors: [assertion], steps },
+        ]),
+        failing([{ status: "timedOut", errors: [{ message: "Test timeout of 30000ms exceeded." }] }]),
+      ].map((json) => executionResults(json, "apps")?.[0]?.failure),
+      [
+        {
+          step: { number: 2, title: "Pay the order" },
+          message: "Error: expect(locator).toHaveText(expected) failed",
+          expected: '"Paid"',
+          received: '"Refused"',
+        },
+        { message: "Test timeout of 30000ms exceeded." },
+      ],
+    );
+  });
+
   it("reads nothing from a text that is not a report", () => {
     assert.equal(executionResults("not json", "apps"), undefined);
   });

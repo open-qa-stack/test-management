@@ -42,10 +42,10 @@ export function momentText(iso: string): string {
  * Writes a date for the person, to the minute, in the time zone of the browser.
  *
  * @param iso - The date, in ISO 8601.
- * @returns Its day and its time.
+ * @returns Its day, its month abbreviated, its year and its time, such as `19 nov. 2026, 02:16`.
  */
 export function dateText(iso: string): string {
-  return new Intl.DateTimeFormat(locale(), { dateStyle: "short", timeStyle: "short" }).format(new Date(iso));
+  return new Intl.DateTimeFormat(locale(), { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 }
 
 /**

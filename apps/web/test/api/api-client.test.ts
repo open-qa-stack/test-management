@@ -133,9 +133,10 @@ describe("the client of the API, for the documents of the knowledge sources", ()
 
   it("reads the executions of the tests a page at a time, one by its identifier, and those of a file out of the envelope the API answers", async () => {
     const execution = { id: "e 1", origin: "design", ranAt: "2026-11-19T10:00:05.000Z", report: "r.json", results: [] };
-    const paged = clientOf(() => json({ items: [execution], next: "e 1" }));
-    assert.deepEqual(await paged.client.executionPage(), { items: [execution], next: "e 1" });
-    await paged.client.executionPage("failing", "e 1");
+    const page = { items: [execution], total: 2, start: 0, next: "e 1" };
+    const paged = clientOf(() => json(page));
+    assert.deepEqual(await paged.client.executionPage(), page);
+    await paged.client.executionPage({ outcome: "failing", since: "2026-11-19T00:00:00.000Z", before: "e 1" });
     const one = clientOf(() => json(execution));
     assert.deepEqual(await one.client.execution("e 1"), execution);
     const ofFile = clientOf(() => json({ items: [{ ...execution, result: {} }] }));
@@ -144,7 +145,7 @@ describe("the client of the API, for the documents of the knowledge sources", ()
       [...paged.calls, ...one.calls, ...ofFile.calls],
       [
         ["/api/executions", undefined],
-        ["/api/executions?outcome=failing&before=e+1", undefined],
+        ["/api/executions?outcome=failing&since=2026-11-19T00%3A00%3A00.000Z&before=e+1", undefined],
         ["/api/executions/e%201", undefined],
         ["/api/tests/executions?path=apps%2Fshop%2Forders.spec.ts", undefined],
       ],

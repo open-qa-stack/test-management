@@ -1,5 +1,12 @@
 import type { ExecutionOutcome } from "@open-qa-stack/domain/sessions";
 import { hrefTo } from "../routing/route.ts";
+import type { ExecutionPeriod } from "./execution-period.ts";
+
+/** What a page of the executions is narrowed to: what came of their tests, how far back they go. */
+export interface ExecutionsFilter {
+  readonly outcome?: ExecutionOutcome;
+  readonly period?: ExecutionPeriod;
+}
 
 /** The address of the screen of the executions. */
 export const EXECUTIONS_PATH = "/executions";
@@ -13,12 +20,16 @@ export const RESULT_PATH = `${EXECUTIONS_PATH}/result`;
 /**
  * The link to a page of the executions.
  *
- * @param outcome - Which executions it keeps by what came of their tests; all of them when none is given.
+ * @param filter - What the executions are narrowed to; all of them when it names nothing.
  * @param before - The execution the page starts after; the latest ones when none is given.
  * @returns The fragment to put in an `href`.
  */
-export function executionsHref(outcome?: ExecutionOutcome, before?: string): string {
-  return hrefTo(EXECUTIONS_PATH, { ...(outcome === undefined ? {} : { outcome }), ...(before === undefined ? {} : { before }) });
+export function executionsHref({ outcome, period }: ExecutionsFilter = {}, before?: string): string {
+  return hrefTo(EXECUTIONS_PATH, {
+    ...(outcome === undefined ? {} : { outcome }),
+    ...(period === undefined ? {} : { period }),
+    ...(before === undefined ? {} : { before }),
+  });
 }
 
 /**

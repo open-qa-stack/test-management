@@ -31,7 +31,7 @@ describe("the database of an instance, assembled for a process", () => {
         await instance.prepare();
         assert.deepEqual(logger.lines, ["log The database is reachable and its schema is up to date."]);
       } else {
-        await assert.rejects(instance.prepare(), (error) => error instanceof PendingMigrationsError && error.pending === 5);
+        await assert.rejects(instance.prepare(), (error) => error instanceof PendingMigrationsError && error.pending === 6);
         assert.deepEqual(logger.lines, ["warn The database schema is not up to date: migrations are pending."]);
         await runMigrations(url, new RecordingLogger());
         await instance.prepare();
@@ -51,7 +51,7 @@ describe("the database of an instance, assembled for a process", () => {
   it("opens nothing until it is prepared, and gives the parts a process is made of on one connection", () =>
     onFresh(async (instance) => {
       assert.equal(instance.database.local, engine.name === "sqlite");
-      assert.equal(await instance.migrations.pending(), 5);
+      assert.equal(await instance.migrations.pending(), 6);
     }));
 });
 

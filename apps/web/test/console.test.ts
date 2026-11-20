@@ -194,8 +194,8 @@ describe("the console", () => {
       "lakeside-tests / Exécutions Exécutions Lecture des exécutions Elles apparaissent dès que l’instance a répondu.",
     );
     assert.equal(documentTitleOf({ route: at("#/executions") }), "Exécutions · Open QA Stack");
-    // A page is narrowed to an outcome the console knows, and starts after the execution the address names.
-    for (const query of ["outcome=failing", "outcome=passing", "outcome=other", "before=e1", "before="])
+    // A page is narrowed to an outcome and a period the console knows, and starts after the execution the address names.
+    for (const query of ["outcome=failing", "outcome=passing", "outcome=other", "period=week", "period=year", "before=e1", "before="])
       assert.match(pageOf(consoleAt(`#/executions?${query}`)), /Lecture des exécutions/);
     for (const hash of [
       "#/executions/more",

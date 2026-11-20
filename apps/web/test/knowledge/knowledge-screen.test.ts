@@ -120,7 +120,7 @@ describe("a source of the knowledge", () => {
       text,
       /manuals Documents déposés Ses documents sont gardés par l’instance : une session les écrit là où ses agents les lisent\. Seul le Markdown est lu\. shop tous les environnements/,
     );
-    assert.match(text, /Documents · dans l’ordre de leurs noms quotes\.md 1,2 ko · 18\/11\/2026 \d\d:00 Retirer/);
+    assert.match(text, /Documents · dans l’ordre de leurs noms quotes\.md 1,2 ko · 18 nov\. 2026, \d\d:00 Retirer/);
     assert.ok(linksOf(html).includes("#/knowledge/manuals?document=quotes.md"));
     assert.match(html, /<a class="btn sm ghost" href="#\/knowledge\/manuals\?remove=quotes.md" aria-label="Retirer quotes.md">Retirer<\/a>/);
     assert.match(text, /Déposer des documents Fichiers Markdown 1 Mo au plus chacun, 20 au plus à la fois\. Un document du même nom est remplacé\. Déposer$/);

@@ -14,7 +14,19 @@ export const EXECUTIONS: readonly Execution[] = [
     report: ".oqas/runs/run-2026-11-19T10-00-00-000Z/report.json",
     results: [
       { path: DETAIL, title: "Display the detail of a policy", project: "policy-management", verdict: "passed", durationMs: 2140, fileDigest: "9f86d0" },
-      { path: DETAIL, title: "Policies › Edit a policy", project: "policy-management", verdict: "failed", durationMs: 5300 },
+      {
+        path: DETAIL,
+        title: "Policies › Edit a policy",
+        project: "policy-management",
+        verdict: "failed",
+        durationMs: 5300,
+        failure: {
+          step: { number: 3, title: "Save the policy" },
+          message: "Error: expect(locator).toHaveText(expected) failed",
+          expected: '"Saved"',
+          received: '"Refused"',
+        },
+      },
       { path: DETAIL, title: "Policies › Filter the policies", project: "policy-management", verdict: "flaky", durationMs: 800 },
       { path: DETAIL, title: "Policies › Delete a policy", project: "policy-management", verdict: "skipped", durationMs: 0 },
       { path: DETAIL, title: "Policies › Print a policy", project: "policy-management", verdict: "passed", durationMs: 1000 },

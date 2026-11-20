@@ -20,14 +20,16 @@ export class MemoryExecutionStore implements ExecutionStorePort {
     return Promise.resolve();
   }
 
-  page({ limit, before, outcome }: ExecutionQuery): Promise<ExecutionList> {
+  page({ limit, before, outcome, since }: ExecutionQuery): Promise<ExecutionList> {
     const latest = this.#latest().filter(
-      ({ results }) => outcome === undefined || results.some(({ verdict }) => verdict === "failed") === (outcome === "failing"),
+      ({ results, ranAt }) =>
+        (outcome === undefined || results.some(({ verdict }) => verdict === "failed") === (outcome === "failing")) && (since === undefined || ranAt >= since),
     );
     const start = before === undefined ? 0 : latest.findIndex(({ id }) => id === before) + 1;
     if (start === 0 && before !== undefined) return Promise.reject(new UnknownExecutionError(before));
     const items = latest.slice(start, start + limit);
-    return Promise.resolve(start + limit < latest.length ? { items, next: items.at(-1)!.id } : { items });
+    const page = { items, total: latest.length, start };
+    return Promise.resolve(start + limit < latest.length ? { ...page, next: items.at(-1)!.id } : page);
   }
 
   get(id: string): Promise<Execution | undefined> {
