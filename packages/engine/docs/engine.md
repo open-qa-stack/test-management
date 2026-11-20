@@ -355,6 +355,23 @@ const page = await new Executions(instance.executions).page({ limit: 25 });
 
 [The API](../../api/docs/executions.md) says it in HTTP.
 
+## The operations on campaigns
+
+`Campaigns` plans the campaigns of the instance and follows them, over the store of the campaigns, that of the executions, the tests of the repository and what launches tests — the operations on sessions, whose turn a launch takes.
+
+| Operation | What it does |
+| --- | --- |
+| `plan(plan)` | Keeps a campaign `planned`, under a new identifier. |
+| `list()` | Every campaign, the latest planned first. |
+| `progress(id)` | The campaign with what came of each of its tests: for one planned, the tests its scope takes now, none run; for the others, the verdict of each fixed test in the latest execution of the campaign that ran its file, or `not_run`. |
+| `ready(id)` | Fixes the tests its scope takes — those that bear one of its tags, every test when it names none — and makes it `ready`; refused when it is not planned, or takes no test. |
+| `launch(id)` | Launches the files of its tests against its environment, for the campaign; its first launch makes it `in_progress`. Refused when it is planned or closed. |
+| `close(id)` | Makes a campaign in progress `closed`, for good. |
+
+The rules — the changes a state allows, the tests a scope takes, what came of each test — are functions of the domain: `campaignTransition`, `scopedTests` and `campaignResults`. A refusal is `CampaignRefusedError`, a campaign the store does not keep `UnknownCampaignError`.
+
+[The API](../../api/docs/campaigns.md) says it in HTTP.
+
 ## Tests
 
 The tests of the operations run the engine in a test repository made for each of them, with a store kept in memory, a model server that answers as scripted and doubles of npm and Playwright: no test calls a model. Those of several processes put two hosts on one store, whose clock the test holds, so that a silence lasts exactly as long as the test says. `pnpm exec vitest run --project engine` runs them alone.

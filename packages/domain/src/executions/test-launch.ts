@@ -4,6 +4,8 @@ export interface LaunchRequest {
   readonly paths?: readonly string[];
   /** The environment the tests run against; the one the configuration declares when it declares only one. */
   readonly environment?: string;
+  /** The campaign the tests are launched for: their execution belongs to it. */
+  readonly campaign?: string;
 }
 
 /** A launch of tests that started: the tests it runs, and where. */
@@ -13,6 +15,8 @@ export interface TestLaunch {
   readonly environment: string;
   /** The files of tests it runs; none for every test of the repository. */
   readonly paths: readonly string[];
+  /** The campaign it runs the tests of, for one launched for a campaign. */
+  readonly campaign?: string;
 }
 
 /** A launch of tests that ended: the execution it kept, or why it kept none. */

@@ -89,7 +89,8 @@ export class FakeRunner {
       );
     }
     if (args[0] === "install") return ok();
-    const files = args.filter((arg) => arg.endsWith(".spec.ts"));
+    // The runner names a file from the folder of the tests, as the configuration of Playwright of the repository sets it.
+    const files = args.filter((arg) => arg.endsWith(".spec.ts")).map((file) => file.replace(/^apps\//, ""));
     if (args.includes("--list")) return ok(report(files));
     const trial = args.includes("--update-snapshots=missing");
     const out = step.env!["PLAYWRIGHT_JSON_OUTPUT_FILE"]!;

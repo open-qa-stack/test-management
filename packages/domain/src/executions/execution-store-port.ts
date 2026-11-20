@@ -34,6 +34,9 @@ export interface ExecutionStorePort {
    */
   versions(path: string): Promise<TestVersion[]>;
 
+  /** @returns The executions of a campaign, each with its results, in any order. */
+  ofCampaign(campaignId: string): Promise<Execution[]>;
+
   /** @returns The report of each execution it keeps, relative to the test repository. */
   reports(): Promise<string[]>;
 }

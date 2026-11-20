@@ -1,3 +1,4 @@
+export { CampaignStore } from "./campaigns/campaign-store.ts";
 export { ConfigurationStore } from "./configuration/configuration-store.ts";
 export { Database } from "./database/database.ts";
 export { DocumentStore } from "./documents/document-store.ts";

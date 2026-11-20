@@ -50,6 +50,16 @@ export type {
 } from "../executions/execution.ts";
 export type { TestVersion, TestVersionList } from "../executions/test-version.ts";
 export type { EndedLaunch, LaunchRequest, LaunchState, TestLaunch } from "../executions/test-launch.ts";
+export type {
+  Campaign,
+  CampaignList,
+  CampaignPlan,
+  CampaignProgress,
+  CampaignResult,
+  CampaignScope,
+  CampaignStatus,
+  CampaignTest,
+} from "../campaigns/campaign.ts";
 export { testFacets, type TestFacets } from "../repository-tests/test-facets.ts";
 export type { TestReading } from "../repository-tests/test-reading.ts";
 export type { QaCapture, QaDetails, QaStep, QaView } from "../report/qa-view.ts";

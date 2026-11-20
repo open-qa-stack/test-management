@@ -2,6 +2,7 @@ import { ConfigurationStore } from "../configuration/configuration-store.ts";
 import { Database } from "../database/database.ts";
 import { DatabaseStatus } from "../database/database-status.ts";
 import { DocumentStore } from "../documents/document-store.ts";
+import { CampaignStore } from "../campaigns/campaign-store.ts";
 import { ExecutionStore } from "../executions/execution-store.ts";
 import { SchemaMigrations } from "../database/schema-migrations.ts";
 import { SessionStore } from "../sessions/session-store.ts";
@@ -35,6 +36,8 @@ export class InstanceDatabase {
   readonly documents: DocumentStore;
   /** The store of the executions of tests, which the operations on sessions keep theirs in and the operations on executions read. */
   readonly executions: ExecutionStore;
+  /** The store of the campaigns, which the operations on campaigns are given. */
+  readonly campaigns: CampaignStore;
 
   /**
    * @param url - The connection URL of the database, as `instanceDatabaseUrl` resolves it.
@@ -49,6 +52,7 @@ export class InstanceDatabase {
     this.configuration = new ConfigurationStore(this.database);
     this.documents = new DocumentStore(this.database);
     this.executions = new ExecutionStore(this.database);
+    this.campaigns = new CampaignStore(this.database);
   }
 
   /**

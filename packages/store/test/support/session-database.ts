@@ -46,6 +46,7 @@ export class SessionDatabase {
     await this.database.kysely.deleteFrom("execution_results").execute();
     await this.database.kysely.deleteFrom("test_versions").execute();
     await this.database.kysely.deleteFrom("executions").execute();
+    await this.database.kysely.deleteFrom("campaigns").execute();
     await this.database.kysely.deleteFrom("knowledge_documents").execute();
     await this.database.kysely.deleteFrom("sessions").execute();
     await this.database.kysely.deleteFrom("configuration_revisions").execute();

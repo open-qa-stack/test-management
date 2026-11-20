@@ -375,6 +375,8 @@
     "unknown_capture": "Cette exécution du test n’a joint aucune capture pour cette étape.",
     "unknown_execution": "L’instance ne garde plus cette exécution.",
     "launch_refused": "Les tests ne peuvent pas être lancés maintenant : une session ou un autre lancement tourne, ou l’environnement demandé n’est pas déclaré.",
+    "unknown_campaign": "L’instance ne garde pas cette campagne.",
+    "campaign_refused": "La campagne refuse ce changement : son état ne le permet pas, ou aucun test du dépôt ne porte ses tags.",
     "unexplained": "L’instance a rencontré une erreur.",
     "unreachable": "L’instance ne répond pas.",
     "unreadable": "La réponse de l’instance est illisible."
@@ -774,7 +776,8 @@
     "noneNote": "Les exécutions des tests apparaissent ici dès qu’une session de l’agent a lancé les tests qu’elle a écrits.",
     "origins": {
       "design": "conception",
-      "manual": "lancement manuel"
+      "manual": "lancement manuel",
+      "campaign": "campagne"
     },
     "verdicts": {
       "passed": "Réussi",

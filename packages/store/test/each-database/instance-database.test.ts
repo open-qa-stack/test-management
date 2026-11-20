@@ -51,7 +51,7 @@ describe("the database of an instance, assembled for a process", () => {
   it("opens nothing until it is prepared, and gives the parts a process is made of on one connection", () =>
     onFresh(async (instance) => {
       assert.equal(instance.database.local, engine.name === "sqlite");
-      assert.equal(await instance.migrations.pending(), 7);
+      assert.equal(await instance.migrations.pending(), 8);
     }));
 });
 
