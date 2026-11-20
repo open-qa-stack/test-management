@@ -757,6 +757,7 @@
     "versionSince_other": "Depuis le {{date}} · {{count}} exécutions",
     "uncommitted": "Non commitée",
     "uncommittedNote": "Jouée seulement avant d’être commitée, comme pendant une conception.",
+    "uncommittedOn": "non commitée, sur",
     "unknown": "Ce test n’est plus dans le dépôt",
     "unknownNote": "Son fichier a été renommé ou supprimé ; ses exécutions passées restent listées ici."
   },

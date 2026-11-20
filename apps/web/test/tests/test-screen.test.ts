@@ -16,9 +16,12 @@ const ran = (id: string, hour: number, verdict: TestExecution["result"]["verdict
   ...more,
 });
 
-/** Its executions, the latest first: a failure, then a flaky success at a version, then a success of another of its tests. */
+/** Its executions, the latest first: a failure at a version not committed, then a flaky success at a version, then a success of another of its tests. */
 const EXECUTIONS: readonly TestExecution[] = [
-  ran("e3", 11, "failed"),
+  {
+    ...ran("e3", 11, "failed", { commit: "4f2a9c01d3b6e8a7f5c2d1e0b9a8c7d6e5f4a3b2" }),
+    result: { ...ran("e3", 11, "failed").result, version: 3, committed: false },
+  },
   { ...ran("e2", 10, "flaky", { commit: "4f2a9c01d3b6e8a7f5c2d1e0b9a8c7d6e5f4a3b2" }), result: { ...ran("e2", 10, "flaky").result, version: 2 } },
   { ...ran("e1", 9, "passed"), result: { ...ran("e1", 9, "passed").result, title: "Policies › Edit a policy" } },
 ];
@@ -74,7 +77,7 @@ describe("the card of a test", () => {
     assert.match(text, / En échec (Dernière exécution le \d+ nov\. 2026, \d\d:\d\d) 2 réussites sur les 3 dernières exécutions Voir le dernier résultat → /);
     assert.match(
       text,
-      /Exécutions · 3 exécutions, la plus récente d’abord En échec \d+ nov\. 2026, \d\d:\d\d conception · — 2 s Instable \d+ nov\. 2026, \d\d:\d\d conception · v2 · 4f2a9c0 2 s Réussi \d+ nov\. 2026, \d\d:\d\d · Policies › Edit a policy conception · — 2 s$/,
+      /Exécutions · 3 exécutions, la plus récente d’abord En échec \d+ nov\. 2026, \d\d:\d\d conception · v3 · non commitée, sur 4f2a9c0 2 s Instable \d+ nov\. 2026, \d\d:\d\d conception · v2 · 4f2a9c0 2 s Réussi \d+ nov\. 2026, \d\d:\d\d · Policies › Edit a policy conception · — 2 s$/,
     );
     // The dots tell the latest executions, the oldest on the left.
     assert.match(

@@ -96,7 +96,10 @@ function Description({ test }: { readonly test: RepositoryTest }): ReactNode {
   );
 }
 
-/** The executions of the test, the latest first, each leading to what came of the test there. */
+/**
+ * The executions of the test, the latest first, each with the version of the test and the commit it ran at — said not
+ * committed when the test differed from it —, leading to what came of the test there.
+ */
 function History({ path, title, executions }: { readonly path: string; readonly title: string; readonly executions: readonly TestExecution[] }): ReactNode {
   if (executions.length === 0) return null;
   return (
@@ -110,6 +113,7 @@ function History({ path, title, executions }: { readonly path: string; readonly 
             <div className="small muted">
               {t(`executions.origins.${execution.origin}`)} ·{" "}
               {execution.result.version !== undefined && <>{t("test.versionShort", { number: execution.result.version })} · </>}
+              {execution.result.committed === false && <>{t("test.uncommittedOn")} </>}
               <span className="mono">{versionText(execution)}</span>
             </div>
           </div>
