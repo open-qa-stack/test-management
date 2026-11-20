@@ -1,11 +1,15 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import {
   CONFIG_FILE_NAME,
   InvalidConfigurationError,
   LaunchRefusedError,
+  launchProgress,
   validateConfig,
   type CommandRunner,
   type EndedLaunch,
   type ExecutionStorePort,
+  type LaunchProgress,
   type LaunchRequest,
   type ResolvedConfig,
   type TestLaunch,
@@ -13,6 +17,9 @@ import {
 import { PinnedRun } from "@open-qa-stack/harness";
 import type { Configuration } from "../configuration/configuration.ts";
 import { ExecutionRecorder } from "../sessions/execution-recorder.ts";
+
+/** The folder of the launches, in the state folder of the test repository: each writes the progress of its run there. */
+export const LAUNCHES_FOLDER = "launches";
 
 /** What a launch of tests works with. */
 export interface LaunchHost {
@@ -45,11 +52,21 @@ export class LaunchRun {
   readonly launch: TestLaunch;
   readonly #host: LaunchHost;
   readonly #config: ResolvedConfig;
+  /** Absolute path of the file the runner writes the progress of the run to. */
+  readonly #progressFile: string;
 
   private constructor(host: LaunchHost, config: ResolvedConfig, launch: TestLaunch) {
     this.#host = host;
     this.#config = config;
     this.launch = launch;
+    const folder = `launch-${launch.startedAt.replace(/[:.]/g, "-")}`;
+    this.#progressFile = join(host.repository, config.repository.stateDir, LAUNCHES_FOLDER, folder, "progress.jsonl");
+  }
+
+  /** @returns How far the run went; `undefined` until the runner started. */
+  async progress(): Promise<LaunchProgress | undefined> {
+    const text = await readFile(this.#progressFile, "utf8").catch(() => undefined);
+    return text === undefined ? undefined : launchProgress(text);
   }
 
   /**
@@ -97,6 +114,7 @@ export class LaunchRun {
         tests: paths,
         env,
         now,
+        progressFile: this.#progressFile,
         ...(runner === undefined ? {} : { runner }),
       });
       // A launch of every test names none: what stops the preparation is told before the run, which would say it of no test.

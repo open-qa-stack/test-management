@@ -25,7 +25,7 @@ export class LaunchesController {
   /** @returns The launch that runs, and the last one that ended, which no cache may keep. */
   @Get()
   @Header("Cache-Control", "no-store")
-  launches(): LaunchState {
+  launches(): Promise<LaunchState> {
     return this.#sessions.launches();
   }
 }

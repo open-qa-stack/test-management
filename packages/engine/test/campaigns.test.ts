@@ -19,8 +19,11 @@ let hosted: Hosted;
 afterEach(() => hosted.close());
 
 /** The operations on campaigns over a test repository whose tests the listing gives, launched by its sessions. */
-async function campaignsOf(tests: RepositoryTest[]): Promise<{ campaigns: Campaigns; store: MemoryCampaignStore }> {
-  hosted = await Hosted.create([]);
+async function campaignsOf(
+  tests: RepositoryTest[],
+  setup: Parameters<typeof Hosted.create>[1] = {},
+): Promise<{ campaigns: Campaigns; store: MemoryCampaignStore }> {
+  hosted = await Hosted.create([], setup);
   mkdirSync(join(hosted.root, "apps/shop/tests"), { recursive: true });
   for (const { path, title } of tests) writeFileSync(join(hosted.root, path), `test(${JSON.stringify(title)}, async () => {});\n`);
   const store = new MemoryCampaignStore();
@@ -83,12 +86,41 @@ describe("a campaign", () => {
     const [execution] = await hosted.executions.ofCampaign(id);
     assert.deepEqual(done, [{ path: QUOTES, title: "Answer a quote", verdict: "passed", execution: execution!.id, ranAt: execution!.ranAt }]);
     assert.deepEqual([execution!.origin, execution!.campaignId], ["campaign", id]);
-    await eventually(() => assert.equal(hosted.sessions.launches().running, undefined));
+    await eventually(async () => assert.equal((await hosted.sessions.launches()).running, undefined));
     await campaigns.launch(id);
     await eventually(async () => assert.equal((await hosted.executions.ofCampaign(id)).length, 2));
     assert.equal((await campaigns.progress(id)).campaign.status, "in_progress");
     const closed = await campaigns.close(id);
     assert.deepEqual([closed.status, closed.closedAt !== undefined], ["closed", true]);
+  });
+
+  it("counts in the list how many of its tests came to each verdict, those its scope takes while it is planned", async () => {
+    const { campaigns } = await campaignsOf(REPOSITORY, { script: { final: (file: string) => (file.includes("orders") ? "unexpected" : "expected") } });
+    const { id } = await campaigns.plan({ name: "Recette", environment: "local", scope: { tags: ["@p0", "@p1"] } });
+    await campaigns.plan({ name: "Plus tard", environment: "local", scope: { tags: [] } });
+    await campaigns.ready(id);
+    await campaigns.launch(id);
+    await eventually(async () => assert.equal((await hosted.executions.ofCampaign(id)).length, 1));
+    assert.deepEqual(
+      (await campaigns.list()).map(({ name, counts }) => [name, counts]),
+      [
+        ["Plus tard", { passed: 0, failed: 0, flaky: 0, skipped: 0, not_run: 3 }],
+        ["Recette", { passed: 1, failed: 1, flaky: 0, skipped: 0, not_run: 0 }],
+      ],
+    );
+  });
+
+  it("launches again only the tests that failed, or those not run, and refuses when there is none", async () => {
+    const { campaigns } = await campaignsOf(REPOSITORY, { script: { final: (file: string) => (file.includes("orders") ? "unexpected" : "expected") } });
+    const { id } = await campaigns.plan({ name: "Recette", environment: "local", scope: { tags: ["@p0", "@p1"] } });
+    await campaigns.ready(id);
+    const refused = (message: RegExp) => (error: unknown) => error instanceof CampaignRefusedError && message.test(error.message);
+    await assert.rejects(campaigns.launch(id, "failed"), refused(/^No test of the campaign failed/));
+    assert.deepEqual((await campaigns.launch(id, "not_run")).paths, [ORDERS, QUOTES]);
+    await eventually(async () => assert.equal((await hosted.executions.ofCampaign(id)).length, 1));
+    await eventually(async () => assert.equal((await hosted.sessions.launches()).running, undefined));
+    await assert.rejects(campaigns.launch(id, "not_run"), refused(/^Every test of the campaign ran already/));
+    assert.deepEqual((await campaigns.launch(id, "failed")).paths, [ORDERS]);
   });
 
   it("refuses what its state does not allow, a scope that takes no test, and a launch the turn of the sessions refuses", async () => {
@@ -101,7 +133,7 @@ describe("a campaign", () => {
     await assert.rejects(campaigns.ready(id), refused(/^A campaign ready cannot become ready/));
     await campaigns.launch(id);
     await assert.rejects(campaigns.launch(id), (error) => error instanceof LaunchRefusedError);
-    await eventually(() => assert.equal(hosted.sessions.launches().running, undefined));
+    await eventually(async () => assert.equal((await hosted.sessions.launches()).running, undefined));
     await campaigns.close(id);
     await assert.rejects(campaigns.launch(id), refused(/^A campaign closed cannot become in_progress/));
     const none = await campaigns.plan({ name: "Vide", environment: "local", scope: { tags: ["@p3"] } });

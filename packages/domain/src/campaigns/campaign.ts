@@ -40,10 +40,21 @@ export interface Campaign extends CampaignPlan {
   readonly tests: readonly CampaignTest[];
 }
 
+/** How many tests of a campaign came to each verdict, and how many no execution of it ran. */
+export type CampaignCounts = Readonly<Record<ExecutionVerdict | "not_run", number>>;
+
+/** A campaign with how many of its tests came to each verdict, as the list of the campaigns gives it. */
+export interface CampaignOverview extends Campaign {
+  readonly counts: CampaignCounts;
+}
+
 /** The campaigns of the instance, the latest planned first, as `GET /campaigns` answers. */
 export interface CampaignList {
-  readonly items: readonly Campaign[];
+  readonly items: readonly CampaignOverview[];
 }
+
+/** Which tests of a campaign a launch runs: every one by default, those that failed, or those no execution of it ran yet. */
+export type CampaignLaunchScope = "failed" | "not_run";
 
 /** What came of a test of a campaign: its verdict in the latest execution of the campaign that ran it, or `not_run`. */
 export interface CampaignResult extends CampaignTest {

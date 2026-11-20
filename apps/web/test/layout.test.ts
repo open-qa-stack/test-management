@@ -1313,12 +1313,20 @@ describe("the code of the console is covered in full", () => {
         await page.waitForURL(/#\/campaigns\/view\?id=c2/);
         await page.getByRole("button", { name: "Figer les tests" }).click();
         await page.getByRole("button", { name: "Lancer les tests" }).click();
-        await page.getByText("Les tests de la campagne tournent").waitFor();
+        await page.getByText("Lancement en cours : 1 / 2 tests finis").waitFor();
+        // The launch ends: the campaign is read again.
+        instance.launches = { last: { ...instance.launches.running!, endedAt: "2026-11-20T10:02:00.000Z", execution: "e1" } };
+        await page.getByRole("button", { name: "Clôturer", exact: true }).click();
+        await page.getByRole("button", { name: "Annuler" }).click();
+        await page.getByRole("button", { name: "Tout relancer" }).click();
+        await page.getByText("Lancement en cours : 1 / 2 tests finis").waitFor();
         instance.launches = {};
+        await page.getByRole("button", { name: "Clôturer", exact: true }).click();
         instance.refusal = "campaign_refused";
-        await page.getByRole("button", { name: "Clôturer" }).click();
+        await page.getByRole("button", { name: "Clôturer la campagne" }).click();
         await page.getByText("La campagne refuse ce changement").waitFor();
-        await page.getByRole("button", { name: "Clôturer" }).click();
+        await page.getByRole("button", { name: "Clôturer", exact: true }).click();
+        await page.getByRole("button", { name: "Clôturer la campagne" }).click();
         await page.getByText("Clôturée le").waitFor();
         // Once the configuration is read again, the form offers the environments it declares.
         instance.unconfigured = false;

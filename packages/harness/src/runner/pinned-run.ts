@@ -1,5 +1,5 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join, posix } from "node:path";
+import { dirname, join, posix } from "node:path";
 import {
   lockedPlaywrightVersion,
   networkFailureAddresses,
@@ -28,6 +28,31 @@ const REACH_SCRIPT = `const [limit, ...urls] = process.argv.slice(1);
 Promise.all(urls.map((url) => fetch(url, { redirect: "manual", signal: AbortSignal.timeout(Number(limit)) }).then(() => ({ url, answers: true }), (e) => ({ url, answers: false, error: String(e.cause?.code ?? e.cause?.errors?.[0]?.code ?? e.name) }))))
   .then((found) => console.log(JSON.stringify(found)));`;
 
+/**
+ * The reporter of the progress of a run, which the runner loads beside its JSON reporter: it writes to the file the
+ * variable `OQAS_PROGRESS_FILE` names how many tests run, then a line each test it finished, named by the path of its
+ * file from the test repository, where the runner runs, and its title, with its verdict once its last attempt ended.
+ */
+const PROGRESS_REPORTER = `const { appendFileSync, writeFileSync } = require("node:fs");
+const { relative, sep } = require("node:path");
+const file = process.env.OQAS_PROGRESS_FILE;
+const verdictOf = (test, result) => {
+  if (result.status === "skipped") return "skipped";
+  if (result.status === "passed") return result.retry > 0 ? "flaky" : "passed";
+  return result.retry >= test.retries ? "failed" : undefined;
+};
+module.exports = class Progress {
+  onBegin(config, suite) { writeFileSync(file, JSON.stringify({ total: suite.allTests().length }) + "\\n"); }
+  onTestEnd(test, result) {
+    const verdict = verdictOf(test, result);
+    if (verdict === undefined) return;
+    const path = relative(process.cwd(), test.location.file).split(sep).join("/");
+    appendFileSync(file, JSON.stringify({ path, title: test.titlePath().slice(3).join(" › "), verdict }) + "\\n");
+  }
+  printsToStdio() { return false; }
+};
+`;
+
 /** What a run needs. */
 export interface PinnedRunOptions {
   /** The resolved configuration. */
@@ -48,6 +73,11 @@ export interface PinnedRunOptions {
   readonly reachTimeoutMs?: number;
   /** The clock of the dates; the system clock by default. */
   readonly now?: () => Date;
+  /**
+   * Absolute path of a file the runner writes the progress of the run to while its tests run, as `launchProgress`
+   * reads it; none is written when it is left out.
+   */
+  readonly progressFile?: string;
 }
 
 /** Whether an address answered from where the tests run. */
@@ -168,8 +198,10 @@ export class PinnedRun {
     const report = posix.join(runDir, "report.json");
     await mkdir(join(this.options.repositoryRoot, runDir), { recursive: true });
     const output = posix.join(runDir, "test-results");
-    const ran = await this.step(["node_modules/.bin/playwright", "test", "--reporter=json", `--output=${output}`, ...options, ...files], {
+    const progress = await this.progress();
+    const ran = await this.step(["node_modules/.bin/playwright", "test", `--reporter=${progress.reporters}`, `--output=${output}`, ...options, ...files], {
       PLAYWRIGHT_JSON_OUTPUT_FILE: report,
+      ...progress.env,
     });
     const reported = reportedTests(await readFile(join(this.options.repositoryRoot, report), "utf8").catch(() => ""));
     if (reported === undefined) {
@@ -193,6 +225,16 @@ export class PinnedRun {
       reported,
       tests: testVerdicts({ listed, reported, addresses: this.addresses(), unreachable }),
     };
+  }
+
+  /** The reporters of the runner, and their variables: the JSON one, and that of the progress when the run writes it. */
+  private async progress(): Promise<{ reporters: string; env: Record<string, string> }> {
+    const file = this.options.progressFile;
+    if (file === undefined) return { reporters: "json", env: {} };
+    const reporter = join(dirname(file), "progress-reporter.cjs");
+    await mkdir(dirname(file), { recursive: true });
+    await writeFile(reporter, PROGRESS_REPORTER);
+    return { reporters: `json,${reporter}`, env: { OQAS_PROGRESS_FILE: file } };
   }
 
   private async steps(runDir: string, producedAt: string): Promise<RunResult> {

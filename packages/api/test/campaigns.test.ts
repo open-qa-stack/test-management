@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { CampaignRefusedError, UnknownCampaignError } from "@open-qa-stack/domain";
 import { campaignPlanOf, MAX_CAMPAIGN_NAME_LENGTH, MAX_CAMPAIGN_TAGS } from "../src/campaigns/campaign-plan.ts";
+import { CampaignLaunchPipe } from "../src/campaigns/campaign-launch.pipe.ts";
 import { CampaignPlanPipe } from "../src/campaigns/campaign-plan.pipe.ts";
 import { expectedProblem } from "../src/problems/expected-problem.ts";
 import { SessionError } from "../src/sessions/session-error.ts";
@@ -51,6 +52,21 @@ describe("a plan of a campaign", () => {
   it("is read by the pipe of the route as it is by itself", () => {
     assert.deepEqual(new CampaignPlanPipe().transform({ name: "R", environment: "local" }).scope, { tags: [] });
   });
+});
+
+describe("a launch of a campaign", () => {
+  it("launches every test without a body, or with an empty one, and only those that failed or were not run when it says so", () => {
+    const pipe = new CampaignLaunchPipe();
+    assert.deepEqual(
+      [pipe.transform(undefined), pipe.transform({}), pipe.transform({ only: "failed" }), pipe.transform({ only: "not_run" })],
+      [undefined, undefined, "failed", "not_run"],
+    );
+  });
+
+  for (const body of [{ only: "passed" }, { only: 1 }, { every: true }, "failed"])
+    it(`is refused, naming what is at fault, when it is ${JSON.stringify(body)}`, () => {
+      assert.equal(refusalOf(() => new CampaignLaunchPipe().transform(body)).failure, "invalid_request");
+    });
 });
 
 describe("the problems of the campaigns", () => {

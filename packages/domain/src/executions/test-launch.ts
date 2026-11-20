@@ -1,3 +1,5 @@
+import type { ExecutionVerdict } from "./execution.ts";
+
 /** What a launch is asked to run: tests of the repository as they are, with no agent. */
 export interface LaunchRequest {
   /** The files of tests, relative to the root of the test repository; every test of the repository when left out or empty. */
@@ -6,6 +8,22 @@ export interface LaunchRequest {
   readonly environment?: string;
   /** The campaign the tests are launched for: their execution belongs to it. */
   readonly campaign?: string;
+}
+
+/** A test a launch finished, as the runner told it while the others still ran. */
+export interface FinishedTest {
+  /** The path of its file, relative to the root of the test repository. */
+  readonly path: string;
+  readonly title: string;
+  readonly verdict: ExecutionVerdict;
+}
+
+/** How far a launch that runs went: how many tests it runs, once the runner listed them, and those it finished. */
+export interface LaunchProgress {
+  /** How many tests it runs; left out until the runner listed them. */
+  readonly total?: number;
+  /** The tests it finished, in the order they finished. */
+  readonly finished: readonly FinishedTest[];
 }
 
 /** A launch of tests that started: the tests it runs, and where. */
@@ -17,6 +35,8 @@ export interface TestLaunch {
   readonly paths: readonly string[];
   /** The campaign it runs the tests of, for one launched for a campaign. */
   readonly campaign?: string;
+  /** How far it went, for one that runs; left out once it ended, and until the runner started. */
+  readonly progress?: LaunchProgress;
 }
 
 /** A launch of tests that ended: the execution it kept, or why it kept none. */

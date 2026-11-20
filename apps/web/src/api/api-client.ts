@@ -1,5 +1,6 @@
 import type {
   Campaign,
+  CampaignLaunchScope,
   CampaignList,
   CampaignProgress,
   ConfigError,
@@ -315,9 +316,13 @@ export class ApiClient {
     return this.#ask<Campaign>(`/campaigns/${encodeURIComponent(id)}/readiness`, { method: "POST" });
   }
 
-  /** Launches the tests of a campaign; the failure carries the code `launch_refused` while a session or another launch runs. */
-  public launchCampaign(id: string): Promise<TestLaunch> {
-    return this.#ask<TestLaunch>(`/campaigns/${encodeURIComponent(id)}/launches`, { method: "POST" });
+  /**
+   * Launches the tests of a campaign: every one, those that failed, or those not run yet.
+   *
+   * @returns The launch; the failure carries the code `launch_refused` while a session or another launch runs.
+   */
+  public launchCampaign(id: string, only?: CampaignLaunchScope): Promise<TestLaunch> {
+    return this.#ask<TestLaunch>(`/campaigns/${encodeURIComponent(id)}/launches`, posting(only === undefined ? {} : { only }));
   }
 
   /** Closes a campaign in progress, for good. */

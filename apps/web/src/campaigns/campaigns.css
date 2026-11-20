@@ -90,3 +90,125 @@
 .campaign-counts {
   padding: var(--space-3) var(--inset);
 }
+
+/* How far a campaign went: the bar of its verdicts, what was not run left empty. */
+.campaign-bar {
+  display: inline-flex;
+  width: var(--space-12);
+  height: var(--space-2);
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--neutral-soft);
+  vertical-align: middle;
+}
+
+.campaign-bar.wide {
+  display: flex;
+  width: 100%;
+  height: var(--space-3);
+}
+
+.verdict-part.not_run {
+  background: transparent;
+}
+
+.campaign-row-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.campaign-progress {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--pad);
+}
+
+.campaign-progress-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.campaign-progress-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.campaign-launch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--primary);
+}
+
+.campaign-launch-bar {
+  flex: 1 1 var(--space-12);
+  height: var(--space-2);
+  accent-color: var(--primary);
+}
+
+.campaign-spinner {
+  width: var(--space-3);
+  height: var(--space-3);
+  border: var(--stroke) solid var(--primary-line);
+  border-top-color: var(--primary);
+  border-radius: var(--radius-pill);
+  animation: campaign-turn 1s linear infinite;
+}
+
+@keyframes campaign-turn {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .campaign-spinner {
+    animation: none;
+  }
+}
+
+/* The life of a campaign as steps: those it went through, the one it is at, those to come. */
+.campaign-lifecycle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-3);
+}
+
+.campaign-lifecycle li + li::before {
+  content: "›";
+  margin-right: var(--space-2);
+  color: var(--text-3);
+}
+
+.campaign-lifecycle .done {
+  color: var(--text-2);
+}
+
+.campaign-lifecycle .current {
+  color: var(--primary);
+  font-weight: var(--weight-strong);
+}
+
+.campaign-verdict {
+  flex: none;
+  min-width: calc(var(--space-12) + var(--space-6));
+}
+
+.campaign-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}

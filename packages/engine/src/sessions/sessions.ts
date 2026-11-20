@@ -52,7 +52,7 @@ export class Sessions {
   readonly #executions = new RunningExecutions();
   readonly #notifications = new EventNotifications();
   /** The launch of tests that runs in this process, with what settles once it ended; `undefined` when none runs. */
-  #launching: { readonly launch: TestLaunch; readonly ended: Promise<void> } | undefined;
+  #launching: { readonly run: LaunchRun; readonly ended: Promise<void> } | undefined;
   /** The last launch of tests that ended in this process; `undefined` until one did. */
   #launched: LaunchState["last"];
   /** The startup under way or done; `undefined` until it is asked for, and again when it failed. */
@@ -164,13 +164,17 @@ export class Sessions {
         this.#launching = undefined;
         void this.#startNext(repository);
       });
-    this.#launching = { launch: ready.launch, ended };
+    this.#launching = { run: ready, ended };
     return ready.launch;
   }
 
-  /** @returns The launch of tests that runs in this process, and the last one that ended in it. */
-  launches(): LaunchState {
-    return { ...(this.#launching === undefined ? {} : { running: this.#launching.launch }), ...(this.#launched === undefined ? {} : { last: this.#launched }) };
+  /** @returns The launch of tests that runs in this process with how far it went, and the last one that ended in it. */
+  async launches(): Promise<LaunchState> {
+    const last = this.#launched === undefined ? {} : { last: this.#launched };
+    const running = this.#launching?.run;
+    if (running === undefined) return last;
+    const progress = await running.progress();
+    return { running: { ...running.launch, ...(progress === undefined ? {} : { progress }) }, ...last };
   }
 
   /** @returns Every session, the latest opened first. */
