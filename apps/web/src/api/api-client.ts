@@ -5,12 +5,15 @@ import type {
   DocumentList,
   Execution,
   ExecutionList,
+  ExecutionOutcome,
   MessageReceipt,
   OqasConfig,
   Problem,
   Project,
   RepositoryTest,
   RepositoryTestList,
+  TestExecution,
+  TestExecutionList,
   TestReading,
   RevisionChange,
   RevisionList,
@@ -179,22 +182,46 @@ export class ApiClient {
   }
 
   /**
-   * Lists the executions of tests the instance keeps.
+   * Reads a page of the executions of tests the instance keeps.
    *
-   * @returns The executions, the latest first, each with what came of each of its tests.
+   * @param outcome - Which executions it keeps by what came of their tests; all of them when none is given.
+   * @param before - The execution the page starts after; the latest ones when none is given.
+   * @returns The executions of the page, the latest first, each with what came of each of its tests, and the last one when a page comes after it.
    */
-  public async executions(): Promise<readonly Execution[]> {
-    return (await this.#ask<ExecutionList>("/executions")).items;
+  public executionPage(outcome?: ExecutionOutcome, before?: string): Promise<ExecutionList> {
+    const query = new URLSearchParams({ ...(outcome === undefined ? {} : { outcome }), ...(before === undefined ? {} : { before }) }).toString();
+    return this.#ask<ExecutionList>(query === "" ? "/executions" : `/executions?${query}`);
   }
 
   /**
-   * Reads a test of the repository in steps, from the latest run that ran it.
+   * Reads one execution of tests the instance keeps.
+   *
+   * @param id - The identifier of the execution.
+   * @returns The execution, with what came of each of its tests; the failure carries the code `unknown_execution` when the instance keeps none under it.
+   */
+  public execution(id: string): Promise<Execution> {
+    return this.#ask<Execution>(`/executions/${encodeURIComponent(id)}`);
+  }
+
+  /**
+   * Reads what came of the tests of a file in its latest executions.
+   *
+   * @param path - The path of the file, relative to the root of the test repository.
+   * @returns Each execution that ran a test of it, the latest first, with what came of that test.
+   */
+  public async testExecutions(path: string): Promise<readonly TestExecution[]> {
+    return (await this.#ask<TestExecutionList>(`/tests/executions?${new URLSearchParams({ path }).toString()}`)).items;
+  }
+
+  /**
+   * Reads a test of the repository in steps, from the run of an execution.
    *
    * @param path - The path of the test, relative to the root of the test repository.
-   * @returns The test in steps; without a view when no run kept ran it.
+   * @param execution - The identifier of the execution.
+   * @returns The test in steps; without a view when the report of the execution is gone or did not hold it.
    */
-  public testReading(path: string): Promise<TestReading> {
-    return this.#ask<TestReading>(`/tests/reading?${new URLSearchParams({ path }).toString()}`);
+  public testReading(path: string, execution: string): Promise<TestReading> {
+    return this.#ask<TestReading>(`/tests/reading?${new URLSearchParams({ path, execution }).toString()}`);
   }
 
   /**

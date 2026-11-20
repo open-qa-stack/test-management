@@ -185,9 +185,6 @@ describe("the console", () => {
       /^lakeside-tests \/ Tests \/ apps\/shop\/orders\.spec\.ts .* Lecture du test/,
     );
     assert.equal(documentTitleOf({ route: at("#/tests/view?path=apps%2Fshop%2Forders.spec.ts") }), "Test · Open QA Stack");
-    // The step the address names is shown when it is a number from 1; another word is no step, and the screen chooses.
-    for (const step of ["2", "0", "two"])
-      assert.match(pageOf(consoleAt(`#/tests/view?path=apps%2Fshop%2Forders.spec.ts&step=${step}`, { project: PROJECT })), /Lecture du test/);
     for (const hash of ["#/tests/view", "#/tests/view?path="]) assert.match(pageOf(consoleAt(hash)), /Page introuvable/);
   });
 
@@ -197,7 +194,33 @@ describe("the console", () => {
       "lakeside-tests / Exécutions Exécutions Lecture des exécutions Elles apparaissent dès que l’instance a répondu.",
     );
     assert.equal(documentTitleOf({ route: at("#/executions") }), "Exécutions · Open QA Stack");
-    assert.match(pageOf(consoleAt("#/executions/more")), /Page introuvable/);
+    // A page is narrowed to an outcome the console knows, and starts after the execution the address names.
+    for (const query of ["outcome=failing", "outcome=passing", "outcome=other", "before=e1", "before="])
+      assert.match(pageOf(consoleAt(`#/executions?${query}`)), /Lecture des exécutions/);
+    for (const hash of [
+      "#/executions/more",
+      "#/executions/view",
+      "#/executions/view?id=",
+      "#/executions/result?id=e1",
+      "#/executions/result?path=a.spec.ts",
+      "#/executions/view/e1",
+    ])
+      assert.match(pageOf(consoleAt(hash)), /Page introuvable/, hash);
+  });
+
+  it("shows an execution, and what came of a test in it, at their addresses", () => {
+    assert.equal(
+      pageOf(consoleAt("#/executions/view?id=e1", { project: PROJECT })),
+      "lakeside-tests / Exécutions / e1 e1 Lecture de l’exécution Elle apparaît dès que l’instance a répondu.",
+    );
+    assert.equal(documentTitleOf({ route: at("#/executions/view?id=e1") }), "Exécution · Open QA Stack");
+    assert.match(
+      pageOf(consoleAt("#/executions/result?id=e1&path=apps%2Fshop%2Forders.spec.ts", { project: PROJECT })),
+      /^lakeside-tests \/ Exécutions \/ e1 \/ apps\/shop\/orders\.spec\.ts .* Lecture du test/,
+    );
+    assert.equal(documentTitleOf({ route: at("#/executions/result?id=e1&path=a.spec.ts") }), "Résultat d’un test · Open QA Stack");
+    // The step the address names is shown when it is a number from 1; another word is no step, and the screen chooses.
+    for (const step of ["2", "0", "two"]) assert.match(pageOf(consoleAt(`#/executions/result?id=e1&path=a.spec.ts&step=${step}`)), /Lecture du test/);
   });
 
   it("shows the configuration at its address, which reads it from the instance", () => {
