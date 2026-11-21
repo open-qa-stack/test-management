@@ -93,6 +93,14 @@ describe("the screen of a campaign", () => {
     assert.match(textOf(composed(false)), /Aucun test dans le dépôt/);
   });
 
+  it("says whether the campaign passes once it is no longer planned: every test passed, at once or on a retry", () => {
+    assert.match(screen({ value: PROGRESS }), /Recette 4\.2 <span class="badge ai">en cours<\/span> <span class="badge ko">ne passe pas<\/span><\/h1>/);
+    assert.match(screen({ value: PASSED }), /<span class="badge ok">.*passe<\/span>/);
+    const flaky = { ...PASSED, results: [{ ...PASSED.results[0]!, verdict: "flaky" as const }, PASSED.results[1]!] };
+    assert.match(textOf(screen({ value: flaky })), /en cours passe .* 1 réussi 1 instable/);
+    assert.doesNotMatch(textOf(screen({ value: { campaign: PLANNED, results: [] } })), /passe/);
+  });
+
   it("asks to confirm a closing, which can be given up", () => {
     const html = screen({ value: PROGRESS }, { confirming: true });
     assert.match(textOf(html), /Clôturer pour de bon \? Une campagne clôturée ne se relance plus\. Clôturer la campagne Annuler/);

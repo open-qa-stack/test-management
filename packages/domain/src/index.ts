@@ -153,8 +153,9 @@ export type {
   CampaignResult,
   CampaignStatus,
   CampaignTest,
+  CampaignVerdict,
 } from "./campaigns/campaign.ts";
-export { campaignCounts, campaignResults, campaignTransition, chosenTests } from "./campaigns/campaign-rules.ts";
+export { campaignCounts, campaignResults, campaignTransition, campaignVerdict, chosenTests } from "./campaigns/campaign-rules.ts";
 export { CampaignRefusedError } from "./campaigns/campaign-refused-error.ts";
 export { UnknownCampaignError } from "./campaigns/unknown-campaign-error.ts";
 export type { CampaignStorePort } from "./campaigns/campaign-store-port.ts";

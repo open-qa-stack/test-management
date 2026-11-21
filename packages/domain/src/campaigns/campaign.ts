@@ -47,6 +47,9 @@ export interface CampaignList {
   readonly items: readonly CampaignOverview[];
 }
 
+/** Whether a campaign passes: every test it is made of passed, at once or on a retry; it does not pass otherwise. */
+export type CampaignVerdict = "passes" | "fails";
+
 /** Which tests of a campaign a launch runs: every one by default, those that failed, or those no execution of it ran yet. */
 export type CampaignLaunchScope = "failed" | "not_run";
 

@@ -228,6 +228,17 @@ describe("the progress of a run, written while its tests run", () => {
     assert.ok(existsSync(reporter));
   });
 
+  it("gives the runner the retries it is asked for, and those of the repository otherwise", async () => {
+    const root = repository();
+    const asked = new FakeRunner(root);
+    await new PinnedRun({ config: configFor(siteUrl), environment: "local", repositoryRoot: root, tests: FILES, runner: asked, now: NOW, retries: 1 }).run();
+    const ranWith = (runner: FakeRunner) => runner.commands.find((command) => command.command[1] === "test" && !command.command.includes("--list"))!.command;
+    assert.ok(ranWith(asked).includes("--retries=1"));
+    const left = new FakeRunner(root);
+    await runIn(root, left);
+    assert.ok(!ranWith(left).some((argument) => argument.startsWith("--retries")));
+  });
+
   it("tells how many tests run, then each one once its last attempt ended, named from where the runner runs", async () => {
     const root = repository();
     const file = join(root, ".oqas", "launches", "launch-1", "progress.jsonl");

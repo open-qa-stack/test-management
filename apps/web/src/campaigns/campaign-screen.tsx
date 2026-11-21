@@ -14,6 +14,7 @@ import { CampaignComposer, type ComposerProps } from "./campaign-composer.tsx";
 import { CampaignLifecycle } from "./campaign-lifecycle.tsx";
 import { CampaignProgressCard } from "./campaign-progress.tsx";
 import { CampaignStatusBadge } from "./campaign-status.tsx";
+import { CampaignVerdictBadge } from "./campaign-verdict.tsx";
 import { CAMPAIGNS_PATH } from "./campaigns-paths.ts";
 
 /**
@@ -164,6 +165,12 @@ export function CampaignScreen({ project, id, state, launch, gestures, onGesture
       title={
         <>
           {name} <CampaignStatusBadge status={campaign.status} />
+          {campaign.status !== "planned" && (
+            <>
+              {" "}
+              <CampaignVerdictBadge counts={campaignCounts(results)} />
+            </>
+          )}
         </>
       }
       actions={

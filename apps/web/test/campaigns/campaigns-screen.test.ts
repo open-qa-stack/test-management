@@ -21,6 +21,7 @@ describe("the screen of the campaigns", () => {
     assert.match(textOf(html), /^lakeside-tests \/ Campagnes Campagnes Une campagne est faite des tests que vous choisissez/);
     assert.match(textOf(html), /Tout le dépôt local 3 tests choisis planifiée .* Recette 4\.2 local 1 \/ 2 joués · 1 échoué en cours/);
     assert.deepEqual(linksOf(html), [campaignHref("c2"), campaignHref("c1")]);
+    assert.match(textOf(html), /planifiée \d+ nov\. .* en cours ne passe pas/);
     assert.equal(campaignHref("c1"), "#/campaigns/view?id=c1");
   });
 

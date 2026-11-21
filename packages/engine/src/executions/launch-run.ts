@@ -18,6 +18,9 @@ import { PinnedRun } from "@open-qa-stack/harness";
 import type { Configuration } from "../configuration/configuration.ts";
 import { ExecutionRecorder } from "../sessions/execution-recorder.ts";
 
+/** How many times a launch runs again a test that failed: one that passes on a retry is flaky, not failed. */
+export const LAUNCH_RETRIES = 1;
+
 /** The folder of the launches, in the state folder of the test repository: each writes the progress of its run there. */
 export const LAUNCHES_FOLDER = "launches";
 
@@ -39,7 +42,8 @@ export interface LaunchHost {
 /**
  * One launch of tests of the repository, as they are, with no agent: the runner runs them at the version the
  * lockfile installs, against an environment the configuration declares, and their execution is kept with the
- * origin `manual`, or `campaign` for the tests of a campaign, as that of a session is.
+ * origin `manual`, or `campaign` for the tests of a campaign, as that of a session is. A test that fails is run once
+ * more: one that passes then is flaky.
  *
  * @remarks
  * The launch is made ready before it runs, so that what refuses it is told at once: a configuration that is
@@ -115,6 +119,7 @@ export class LaunchRun {
         env,
         now,
         progressFile: this.#progressFile,
+        retries: LAUNCH_RETRIES,
         ...(runner === undefined ? {} : { runner }),
       });
       // A launch of every test names none: what stops the preparation is told before the run, which would say it of no test.
