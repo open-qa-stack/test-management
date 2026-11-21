@@ -33,14 +33,18 @@ export type {
   Environment,
   Knowledge,
   Language,
+  GitHubModel,
   Model,
   NamedApi,
+  ProviderKeyModel,
   OqasConfig,
   Repository,
   TaskCriteria,
   TestLevel,
 } from "../config/types.ts";
 export { DEFAULT_LANGUAGE, LANGUAGES, languageOf } from "../config/language.ts";
+export type { ModelChoice, ModelConnectionCheck } from "../config/model-connection.ts";
+export { MODEL_PROVIDERS, providerOf, type ModelProvider } from "../config/model-providers.ts";
 export type { ConfigurationCheck, RevisionChange, RevisionList } from "../configuration-life/configuration-exchanges.ts";
 export type { ConfigurationRevision, RevisionOrigin, RevisionSummary } from "../configuration-life/configuration-revision.ts";
 export type { ConfigurationView } from "../configuration-life/configuration-view.ts";

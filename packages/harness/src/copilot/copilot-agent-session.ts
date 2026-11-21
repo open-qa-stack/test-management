@@ -1,5 +1,5 @@
 import type { CopilotSession, SessionEvent } from "@github/copilot-sdk";
-import { SessionClosedError, type AgentEvent, type AgentRuntimeError, type AgentSession } from "@open-qa-stack/domain";
+import { ModelResponseError, SessionClosedError, type AgentEvent, type AgentRuntimeError, type AgentSession } from "@open-qa-stack/domain";
 import type { TaskBudget } from "../guardrails/task-budget.ts";
 import type { ModelChannel } from "../model-gateway/model-channel.ts";
 import type { EventRelay } from "./event-relay.ts";
@@ -8,8 +8,12 @@ import { runtimeError } from "./runtime-error.ts";
 
 /** What a session is wired to besides its SDK session. */
 export interface SessionWiring {
-  /** The gateway channel of the session: where its model requests go, and why the latest one failed. */
-  readonly channel: ModelChannel;
+  /**
+   * The gateway channel of the session: where its model requests go, and why the latest one failed. Absent for
+   * a model of GitHub Copilot: the session then counts its calls and their tokens from the events of the SDK,
+   * and tells a failure as the SDK words it.
+   */
+  readonly channel?: ModelChannel;
   /** Names of the tools the session offers. */
   readonly toolNames: ReadonlySet<string>;
   /** Budget of the task, if it has limits. */
@@ -74,14 +78,35 @@ export class CopilotAgentSession implements AgentSession {
         return this.reportCall(event.data.toolCallId, event.data.toolName, event.data.arguments);
       case "tool.execution_complete":
         return this.reportRefusal(event.data.toolCallId);
+      case "assistant.turn_start":
+        return this.countCall();
+      case "assistant.usage":
+        return this.countTokens(event.data.inputTokens, event.data.outputTokens, event.data.cacheReadTokens);
       case "session.error":
-        this.pendingError = runtimeError(this.wiring.channel.lastFailure);
+        this.pendingError =
+          this.wiring.channel === undefined ? new ModelResponseError(`GitHub Copilot: ${event.data.message}`) : runtimeError(this.wiring.channel.lastFailure);
         return;
       case "session.idle":
         return this.finishTurn();
       default:
         return;
     }
+  }
+
+  /** Counts a call to a model of GitHub Copilot as an iteration of the task, and stops the session once a limit stopped the task. */
+  private countCall(): void {
+    const budget = this.wiring.budget;
+    if (this.wiring.channel !== undefined || budget === undefined) return;
+    budget.startIteration();
+    if (budget.stopped) void this.session.abort();
+  }
+
+  /** Counts the tokens of a call to a model of GitHub Copilot; a gateway counts those of the calls it sees. */
+  private countTokens(input: number | undefined, output: number | undefined, cached: number | undefined): void {
+    const budget = this.wiring.budget;
+    if (this.wiring.channel !== undefined || budget === undefined) return;
+    budget.countTokens(input ?? 0, output ?? 0);
+    budget.countCachedTokens(cached ?? 0);
   }
 
   private reportCall(callId: string, tool: string, args: unknown): void {

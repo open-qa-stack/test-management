@@ -53,6 +53,7 @@ export function ConfigurationPage({ project, onSaved }: { readonly project: stri
     discard: () => dispatch({ type: "discard" }),
     keepFile: () => sync.keepFile(),
     keepChange: () => sync.save(draft!, basedOn, true),
+    testModel: () => sync.testModel(draft!.model),
   };
   return <ConfigurationScreen project={project} state={state} controls={controls} />;
 }

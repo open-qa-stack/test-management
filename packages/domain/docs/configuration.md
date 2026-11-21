@@ -220,6 +220,10 @@ The agent that plans submits its scenarios in several calls, and the harness set
 
 ### Model
 
+The model is reached in one of two ways, which `mode` tells: with a provider key on an OpenAI-compatible server, or with the GitHub account of the machine for a model of GitHub Copilot.
+
+A provider key:
+
 | Key | Type | Required | Example |
 |---|---|---|---|
 | `mode` | `provider-key` | yes | `"provider-key"` |
@@ -231,11 +235,22 @@ The agent that plans submits its scenarios in several calls, and the harness set
 | `reasoningEffort` | non-empty string, as the server names it: how much the model reasons before it answers | no | `"none"` |
 | `requestTimeoutSeconds` | whole number of seconds, one at least: the longest wait for the answer to one request | no | `120` |
 
-Only a provider key is supported in solo mode for now.
+The console offers by name the providers whose OpenAI-compatible API is known, and fills in their address and the variable their key is usually kept in: the five that `MODEL_PROVIDERS` lists, OpenAI first. Any other server, a model run on the machine among them, is reached by its address.
+
+The GitHub account of the machine:
+
+| Key | Type | Required | Example |
+|---|---|---|---|
+| `mode` | `github` | yes | `"github"` |
+| `model` | non-empty string, as Copilot names the model | yes | `"gpt-5"` |
+| `capabilities` | list of `vision` | no | `["vision"]` |
+| `reasoningEffort` | non-empty string, among the efforts Copilot offers for the model | no | `"high"` |
+
+The account is the one the GitHub CLI (`gh auth login`) or the Copilot CLI signed in with, on the machine that runs the product: a workstation, or the machine that hosts an instance. It needs a GitHub Copilot subscription. The file names no key, and the product reads no token: the SDK of Copilot finds the account itself. On a machine several people use, they all go through that account. An address, a key, a wait or a provider is refused for this mode, at its JSON path.
 
 `vision` says that the model reads images. The screenshot tool of each application then gives the model the image it takes, besides its path, within the bounds the [browser tools](../../tools/docs/browser-tools.md#screenshots-the-model-reads) describe. Declare it only for a model that reads images: without it, the model is given the path alone, as for any model. Any other value is refused with the rule `unknown-variant`, at its JSON path, such as `/model/capabilities/0`.
 
-`requestTimeoutSeconds` bounds the wait for the answer to one request: 120 seconds by default. A request left without answer is sent once more, and the task fails when the second one gets none either, with `The model gave no answer within 120 seconds, 2 times in a row.`.
+`requestTimeoutSeconds` bounds the wait for the answer to one request of a provider key: 120 seconds by default. A request left without answer is sent once more, and the task fails when the second one gets none either, with `The model gave no answer within 120 seconds, 2 times in a row.`.
 
 `reasoningEffort` is sent with every request to the model, in place of the effort the agent runtime would ask for. Leave it out for a server that ignores it. Set it when a server refuses the default: some models accept tools on the chat completions API only with `none`, and say so in the reason of their refusal.
 

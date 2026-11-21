@@ -161,8 +161,20 @@ export interface ProviderKeyModel {
   requestTimeoutSeconds?: number;
 }
 
-/** Connection to the model. */
-export type Model = ProviderKeyModel;
+/**
+ * A model of GitHub Copilot, reached with the GitHub account the machine that runs the product signed in with,
+ * through the GitHub CLI or the Copilot CLI: the file names no key, and the product reads no token.
+ */
+export interface GitHubModel {
+  mode: "github";
+  /** The identifier of the model, as Copilot names it. */
+  model: string;
+  capabilities?: ModelCapability[];
+  reasoningEffort?: string;
+}
+
+/** Connection to the model: a provider key on an OpenAI-compatible server, or the GitHub account of the machine. */
+export type Model = ProviderKeyModel | GitHubModel;
 
 /** The criteria that bound each task of a bounded level, each a positive integer; one at least is given. */
 export interface TaskCriteria {

@@ -10,7 +10,7 @@ import { STATE_DIR_NAME } from "./file-names.ts";
 import { DEFAULT_LANGUAGE } from "./language.ts";
 import { configSchema } from "./schema.ts";
 import { isStoredDocuments, storedDocumentsPath } from "../knowledge-documents/stored-documents-path.ts";
-import type { Attachment, ConfigError, Knowledge, OqasConfig, ReachableKnowledge, Repository, ResolvedConfig, ValidationResult } from "./types.ts";
+import type { Attachment, ConfigError, Knowledge, Model, OqasConfig, ReachableKnowledge, Repository, ResolvedConfig, ValidationResult } from "./types.ts";
 
 /** Environment the configuration is validated against, usually `process.env`. */
 export type EnvironmentVariables = Readonly<Record<string, string | undefined>>;
@@ -28,6 +28,20 @@ export const DEFAULT_REPOSITORY: Readonly<Required<Repository>> = Object.freeze(
 // only their enclosing branch defines.
 const ajv = new Ajv2020({ allErrors: true, strict: true, strictRequired: false, discriminator: true });
 const validateShape = ajv.compile<OqasConfig>(configSchema);
+const validateModelShape = ajv.compile<Model>({ $defs: configSchema.$defs, $ref: "#/$defs/model" });
+
+/**
+ * Tells whether a value is a connection to the model, as the section `model` of the configuration holds it while the
+ * person drafts it: the name of the model may still be empty, since testing the connection is what lets them choose it.
+ *
+ * @param value - What was sent.
+ * @returns Whether it matches the schema of the section, with an address that is a URL for a provider key.
+ */
+export function isModel(value: unknown): value is Model {
+  const named = isRecord(value) && value["model"] === "" ? { ...value, model: "-" } : value;
+  if (!validateModelShape(named)) return false;
+  return named.mode === "github" || urlErrors("/model/baseUrl", named.baseUrl).length === 0;
+}
 
 /** Errors raised inside the alternatives of a knowledge source are summarised by their parent `oneOf`. */
 const NESTED_ALTERNATIVE = /\/oneOf\/\d+\/oneOf\/\d+\//;
@@ -202,7 +216,7 @@ function documentErrors(config: OqasConfig): ConfigError[] {
     errors.push(...pathErrors(pointer("/repository", key), value));
   }
 
-  errors.push(...urlErrors("/model/baseUrl", config.model.baseUrl));
+  if (config.model.mode === "provider-key") errors.push(...urlErrors("/model/baseUrl", config.model.baseUrl));
   if (config.$schema !== undefined && URL.canParse(config.$schema)) errors.push(...urlErrors("/$schema", config.$schema));
   return errors;
 }

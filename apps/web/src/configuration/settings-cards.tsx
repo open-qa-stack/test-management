@@ -12,57 +12,6 @@ const DEFAULT_LEVELS: readonly TestLevel[] = ["smoke", "functional", "business"]
 const LANGUAGE_CHOICES = LANGUAGES.map((language) => ({ value: language, label: LANGUAGE_NAMES[language] }));
 
 /**
- * The model the agents call: its server, its name, the variable that holds its key, what it can do and how much
- * it reasons.
- *
- * @param props - The model of the draft.
- * @returns Its card.
- */
-export function ModelCard({ model }: { readonly model: OqasConfig["model"] }): ReactNode {
-  return (
-    <Card title={t("configuration.settings.model.title")} hint={t("configuration.settings.model.hint")}>
-      <div className="config-body config-fields">
-        <ChoiceField
-          pointer="/model/provider"
-          label={t("configuration.settings.model.provider")}
-          value={model.provider}
-          options={[{ value: "openai", label: t("configuration.settings.openai") }]}
-        />
-        <InputField pointer="/model/baseUrl" label={t("configuration.settings.model.baseUrl")} value={model.baseUrl} code placeholder="https://" />
-        <InputField pointer="/model/model" label={t("configuration.settings.model.model")} value={model.model} code />
-        <InputField
-          pointer="/model/apiKeyEnv"
-          label={t("configuration.settings.model.apiKeyEnv")}
-          value={model.apiKeyEnv}
-          code
-          hint={t("configuration.settings.model.apiKeyEnvHint")}
-        />
-        <InputField
-          pointer="/model/reasoningEffort"
-          label={t("configuration.settings.model.reasoningEffort")}
-          value={model.reasoningEffort}
-          hint={t("configuration.settings.model.reasoningEffortHint")}
-        />
-        <InputField
-          pointer="/model/requestTimeoutSeconds"
-          label={t("configuration.settings.model.timeout")}
-          value={model.requestTimeoutSeconds}
-          numeric
-          placeholder="120"
-        />
-        <CheckField
-          pointer="/model/capabilities"
-          member="vision"
-          label={t("configuration.settings.model.vision")}
-          hint={t("configuration.settings.model.visionHint")}
-          checked={model.capabilities?.includes("vision") === true}
-        />
-      </div>
-    </Card>
-  );
-}
-
-/**
  * How far the agents go on their own: autonomous, or bounded for each task, and the guardrail of a run.
  *
  * @param props - The autonomy of the draft; autonomous when it names none.

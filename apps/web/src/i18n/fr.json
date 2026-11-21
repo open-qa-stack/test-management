@@ -451,23 +451,8 @@
       }
     },
     "settings": {
-      "openai": "Serveur compatible OpenAI",
       "autonomous": "Autonome : aucune limite par tâche",
       "bounded": "Bornée : des limites pour chaque tâche",
-      "model": {
-        "title": "Modèle",
-        "hint": "le serveur que les agents appellent",
-        "provider": "Fournisseur",
-        "baseUrl": "Adresse du serveur",
-        "model": "Modèle",
-        "apiKeyEnv": "Variable de la clé",
-        "apiKeyEnvHint": "Le nom de la variable d’environnement qui tient la clé ; la clé n’est jamais écrite ici.",
-        "reasoningEffort": "Effort de raisonnement",
-        "reasoningEffortHint": "Un mot du serveur, tel que low ou high ; rien n’est envoyé sans.",
-        "timeout": "Attente d’une réponse, en secondes",
-        "vision": "Lit les images",
-        "visionHint": "les agents voient les captures des écrans"
-      },
       "autonomy": {
         "title": "Autonomie",
         "hint": "jusqu’où vont les agents seuls",
@@ -501,6 +486,41 @@
         "stateDir": "Dossier d’état",
         "indexDir": "Dossier de l’index"
       }
+    },
+    "model": {
+      "title": "Modèle",
+      "hint": "ce que les agents utilisent pour réfléchir",
+      "connection": "Connexion au modèle",
+      "github": "Compte GitHub de cette machine (Copilot)",
+      "other": "Autre serveur (adresse à saisir)",
+      "githubNote": "L’outil utilise le compte GitHub connecté sur la machine où il tourne, avec son abonnement Copilot : rien à saisir. Sur une machine partagée, tout le monde passe par ce compte.",
+      "baseUrl": "Adresse du serveur",
+      "baseUrlHint": "Celle de son API compatible OpenAI, par exemple celle d’un modèle lancé sur votre poste.",
+      "apiKeyEnv": "Variable qui tient la clé",
+      "apiKeyEnvHint": "Le nom de la variable d’environnement où se trouve votre clé ; la clé n’est jamais écrite ici. Laissez vide pour un serveur sans clé.",
+      "test": "Tester la connexion",
+      "testing": "Test en cours…",
+      "failed": "Le test n’a pas pu être fait : {{reason}}",
+      "connected": "Connecté.",
+      "connectedAs": "Connecté avec le compte GitHub {{account}}.",
+      "pickBelow": "Choisissez un modèle dans la liste.",
+      "noList": "Le serveur ne donne pas la liste de ses modèles : saisissez le nom du modèle.",
+      "signedOut": "Aucun compte GitHub n’est connecté sur cette machine. Lancez cette commande dans un terminal, puis testez à nouveau :",
+      "noModels": "Le compte GitHub {{account}} est connecté, mais Copilot ne lui propose aucun modèle : il faut un abonnement GitHub Copilot sur ce compte, ou que son organisation en autorise.",
+      "keyMissing": "La variable {{variable}} n’est pas définie là où tourne l’outil. Mettez-y votre clé, relancez l’outil, puis testez à nouveau.",
+      "keyRefused": "Le fournisseur a refusé la clé (statut {{status}}). Vérifiez la clé que contient la variable.",
+      "unreachable": "Rien ne répond à l’adresse {{url}}. Vérifiez l’adresse, ou que le serveur est bien lancé.",
+      "model": "Modèle",
+      "modelHint": "Son nom, tel que le serveur le donne, par exemple gpt-4.1.",
+      "pick": "Choisir un modèle",
+      "advanced": "Avancé",
+      "reasoningEffort": "Effort de raisonnement",
+      "reasoningEffortHint": "Un mot du serveur, tel que low ou high ; rien n’est envoyé sans.",
+      "byDefault": "Par défaut",
+      "timeout": "Attente d’une réponse, en secondes",
+      "vision": "Lit les images",
+      "visionHint": "les agents voient les captures des écrans",
+      "visionTold": "la liste indique que ce modèle lit les images"
     },
     "application": {
       "types": {

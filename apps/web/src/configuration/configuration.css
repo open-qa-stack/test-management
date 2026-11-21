@@ -265,3 +265,15 @@
     flex: none;
   }
 }
+
+.config-advanced summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.config-advanced[open] summary {
+  margin-bottom: var(--gap);
+}

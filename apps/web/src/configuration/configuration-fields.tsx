@@ -91,7 +91,7 @@ export interface ChoiceFieldProps extends FieldBase {
   /** The label of the choice that leaves the key out, for a key that has a default; none for a key the configuration requires. */
   readonly none?: string;
   /** How the choice is read: a level of autonomy, or a value by default. */
-  readonly kind?: "choice" | "level";
+  readonly kind?: "choice" | "level" | "connection";
 }
 
 /**

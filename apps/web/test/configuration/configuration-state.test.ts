@@ -112,4 +112,24 @@ describe("the state of the screen of the configuration", () => {
     assert.deepEqual(after([{ type: "refused", code: "invalid_configuration", text: "Non valide.", errors: [other] }], withErrors).errors, [other]);
     assert.equal(after([{ type: "saving" }], refused).refusal, undefined);
   });
+
+  it("starts the model again when the person chooses another connection, and forgets the test of the one before", () => {
+    const tested = after([{ type: "testing", model: DOCUMENT.model }], READ);
+    const chosen = after([{ type: "connection", choice: "github" }], tested);
+    assert.deepEqual(chosen.draft!.model, { mode: "github", model: "" });
+    assert.equal(chosen.connection, undefined);
+    assert.deepEqual(after([{ type: "connection", choice: "github" }], INITIAL_CONFIGURATION), INITIAL_CONFIGURATION);
+  });
+
+  it("keeps the test of the connection asked last: what it found, or why it could not be made", () => {
+    const model = DOCUMENT.model;
+    const testing = after([{ type: "testing", model }], READ);
+    assert.deepEqual(testing.connection, { model });
+    const found = after([{ type: "tested", model, check: { state: "connected" } }], testing);
+    assert.deepEqual(found.connection, { model, check: { state: "connected" } });
+    const failed = after([{ type: "tested", model, failure: "Down." }], testing);
+    assert.deepEqual(failed.connection, { model, failure: "Down." });
+    const other = { ...model, model: "other" };
+    assert.equal(after([{ type: "tested", model: other, check: { state: "connected" } }], testing), testing);
+  });
 });

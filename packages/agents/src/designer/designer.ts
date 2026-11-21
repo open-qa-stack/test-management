@@ -22,6 +22,7 @@ import {
   type TraceLine,
   type TracePhase,
   type UncoveredRequest,
+  modelOrigin,
 } from "@open-qa-stack/domain";
 import { PlaywrightReference, playwrightTools, type BrowserAccess } from "@open-qa-stack/tools";
 import { agentNotes, agentRecall } from "../common/agent-notes.ts";
@@ -458,7 +459,7 @@ export class Designer {
         branch,
         // A branch still to create starts from the revision checked out now.
         base: await repository.head(),
-        model: { provider: config.model.provider, baseUrl: config.model.baseUrl, model: config.model.model },
+        model: modelOrigin(config.model),
         run: used,
         tests: kept,
       };

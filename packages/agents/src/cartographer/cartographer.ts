@@ -15,6 +15,7 @@ import {
   type StopReason,
   type ToolDefinition,
   type TraceLine,
+  modelOrigin,
 } from "@open-qa-stack/domain";
 import { browserTools, knowledgeTools, scopedToolName, type BrowserAccess, type KnowledgeAccess } from "@open-qa-stack/tools";
 import { agentNotes } from "../common/agent-notes.ts";
@@ -239,7 +240,7 @@ export class Cartographer {
       formatVersion: 1,
       producedAt: now().toISOString(),
       environment,
-      model: { provider: config.model.provider, baseUrl: config.model.baseUrl, model: config.model.model },
+      model: modelOrigin(config.model),
       run: {
         iterations: counters.iterations + sum(made.map((run) => run.iterations)),
         actions: counters.actions + sum(made.map((run) => run.actions)),

@@ -22,7 +22,7 @@ export const NO_EDIT: ConfigurationEdit = { change: ignore, click: ignore, error
 export const EditContext = createContext<ConfigurationEdit>(NO_EDIT);
 
 /** How a field reads what the person typed: a text, a number, a choice, a member of a set, or a level of autonomy. */
-export type FieldKind = "text" | "number" | "choice" | "member" | "level";
+export type FieldKind = "text" | "number" | "choice" | "member" | "level" | "connection";
 
 /** What a field holds when the person changed it. */
 export interface ChangedField {
@@ -57,6 +57,8 @@ export function actionOf(field: ChangedField): ConfigurationAction {
       };
     case "level":
       return { type: "level", level: value === "bounded" ? "bounded" : "autonomous" };
+    case "connection":
+      return { type: "connection", choice: value };
     case "number":
       return { type: "edit", pointer, value: value === "" ? undefined : Number(value) };
     default:

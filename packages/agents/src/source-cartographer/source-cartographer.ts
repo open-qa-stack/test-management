@@ -13,6 +13,7 @@ import {
   type StopReason,
   type ToolDefinition,
   type TraceLine,
+  modelOrigin,
 } from "@open-qa-stack/domain";
 import { DocumentSet, type BrowserAccess, type KnowledgeAccess, type SourceExport, type SourceInventory } from "@open-qa-stack/tools";
 import { agentNotes } from "../common/agent-notes.ts";
@@ -219,7 +220,7 @@ export class SourceCartographer {
       source: { id: source.id, type: source.type },
       fingerprint: subject.fingerprint,
       producedAt: now().toISOString(),
-      model: { provider: config.model.provider, baseUrl: config.model.baseUrl, model: config.model.model },
+      model: modelOrigin(config.model),
       run,
       status: inventory.truncated === true ? "truncated" : status,
       domains: accepted.domains.map((domain) => ({
@@ -329,7 +330,7 @@ export class SourceCartographer {
       journal.record("error", `No card was written: no element of ${source.id} was placed.`, source.id);
       return { kept: false, usage, journal: journal.entries(), ...stopped };
     }
-    const model = { provider: config.model.provider, baseUrl: config.model.baseUrl, model: config.model.model };
+    const model = modelOrigin(config.model);
     const card = { ...manifestCard(manifest, carded(manifest), run, model, now()), fingerprint: inventory.fingerprint };
     return { ...(await this.write(cardPath, card, journal)), usage, ...stopped };
   }

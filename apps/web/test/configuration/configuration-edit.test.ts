@@ -37,6 +37,7 @@ describe("what the person does to a field", () => {
       );
     assert.deepEqual(actionOf({ ...field, kind: "level", value: "bounded" }), { type: "level", level: "bounded" });
     assert.deepEqual(actionOf({ ...field, kind: "level", value: "autonomous" }), { type: "level", level: "autonomous" });
+    assert.deepEqual(actionOf({ ...field, kind: "connection", value: "github" }), { type: "connection", choice: "github" });
   });
 });
 
