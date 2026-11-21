@@ -50,7 +50,7 @@ export type { ConfigurationRevision, RevisionOrigin, RevisionSummary } from "../
 export type { ConfigurationView } from "../configuration-life/configuration-view.ts";
 export type { FileState } from "../configuration-life/file-state.ts";
 export type { DocumentList, StoredDocument, StoredDocumentSummary } from "../knowledge-documents/stored-document.ts";
-export type { RepositoryTest, RepositoryTestList } from "../repository-tests/repository-test.ts";
+export type { RepositoryTest, RepositoryTestAnomaly, RepositoryTestList } from "../repository-tests/repository-test.ts";
 export type {
   Execution,
   ExecutionFailure,

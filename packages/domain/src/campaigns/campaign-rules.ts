@@ -53,12 +53,12 @@ export function campaignVerdict(counts: CampaignCounts): CampaignVerdict | undef
 }
 
 /**
- * What came of each test of a campaign: its verdict in the latest of the executions that ran its file, `not_run`
+ * What came of each test of a campaign: its verdict in the latest of the executions that ran it, `not_run`
  * for one none ran.
  *
  * @remarks
- * A test is found in an execution by the path of its file: a launch runs files, and the tests of the repository are
- * listed one per file.
+ * A test is found in an execution by the path of its file and its titles, as the runner reports it: a launch runs the
+ * files of the tests, and what it ran of a file beside them does not count.
  *
  * @param tests - The tests the campaign fixed.
  * @param executions - The executions of the campaign, in any order.
@@ -67,7 +67,7 @@ export function campaignResults(tests: readonly CampaignTest[], executions: read
   const latestFirst = executions.toSorted((a, b) => byCodeUnits(b.ranAt, a.ranAt));
   return tests.map((test) => {
     for (const execution of latestFirst) {
-      const result = execution.results.find(({ path }) => path === test.path);
+      const result = execution.results.find(({ path, title }) => path === test.path && title === test.title);
       if (result !== undefined) return { ...test, verdict: result.verdict, execution: execution.id, ranAt: execution.ranAt };
     }
     return { ...test, verdict: "not_run" };

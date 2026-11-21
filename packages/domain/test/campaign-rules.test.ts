@@ -49,18 +49,23 @@ describe("the tests chosen for a campaign", () => {
 });
 
 describe("what came of each test of a campaign", () => {
+  /** An execution of the campaign, its verdicts by the path of their file then the title of their test. */
   const execution = (id: string, ranAt: string, verdicts: Record<string, "passed" | "failed">): Execution => ({
     id,
     origin: "campaign",
     campaignId: "c1",
     ranAt,
     report: `${id}.json`,
-    results: Object.entries(verdicts).map(([path, verdict]) => ({ path, title: path, project: "shop", verdict, durationMs: 1 })),
+    results: Object.entries(verdicts).map(([test, verdict]) => {
+      const [path, title] = test.split(" :: ") as [string, string];
+      return { path, title, project: "shop", verdict, durationMs: 1 };
+    }),
   });
 
-  it("is its verdict in the latest execution that ran its file, whatever their order, or not_run", () => {
-    const first = execution("e1", "2026-11-20T08:00:00.000Z", { "a.spec.ts": "failed", "b.spec.ts": "failed" });
-    const second = execution("e2", "2026-11-20T09:00:00.000Z", { "a.spec.ts": "passed" });
+  it("is its verdict in the latest execution that ran it, found by its file and its title, whatever their order, or not_run", () => {
+    // A launch runs the files: what it ran beside the tests of the campaign does not count.
+    const first = execution("e1", "2026-11-20T08:00:00.000Z", { "a.spec.ts :: A": "failed", "b.spec.ts :: B": "failed", "b.spec.ts :: Other": "passed" });
+    const second = execution("e2", "2026-11-20T09:00:00.000Z", { "a.spec.ts :: A": "passed", "c.spec.ts :: Other": "passed" });
     assert.deepEqual(
       campaignResults(
         [

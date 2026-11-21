@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { testDigests } from "../src/source-code/test-digests.ts";
+import { declaredTests, testDigests } from "../src/source-code/test-digests.ts";
 
 /** A file of two tests of the orders, the second in a group. */
 const FILE = `import { expect, test } from "@playwright/test";
@@ -87,5 +87,37 @@ test\`Tagged\`;
 
   it("reads none in a text with a syntax error", async () => {
     assert.deepEqual(await testDigests('test("Search an order", async () => {'), new Map());
+  });
+});
+
+describe("the tests a file declares", () => {
+  it("are each named as the runner reports them, with their tags and their steps, the first of a name counting", async () => {
+    const declared = await declaredTests(
+      [
+        'test.describe("Orders", () => {',
+        '  test("List", { tag: ["@a", 1, "@b"], timeout: 5 }, async () => {',
+        '    await test.step("1. Open", async () => {',
+        "      await test.step(`2. Look`, async () => {});",
+        "    });",
+        "    await test.step(name, async () => {});",
+        "  });",
+        '  test("Find", { timeout: 5 }, async () => {});',
+        '  test("Find", async () => {});',
+        "});",
+      ].join("\n"),
+    );
+    assert.deepEqual(
+      declared.tests.map(({ title, tags, steps }) => [title, tags, steps]),
+      [
+        ["Orders › List", ["@a", "@b"], ["1. Open", "2. Look"]],
+        ["Orders › Find", [], []],
+      ],
+    );
+    assert.deepEqual([declared.duplicates, declared.unreadable], [["Orders › Find"], false]);
+    assert.match(declared.tests[0]!.digest, /^[0-9a-f]{64}$/);
+  });
+
+  it("are none in a file that holds a syntax error, which is told unreadable", async () => {
+    assert.deepEqual(await declaredTests('test("Broken", async () => {\n'), { tests: [], duplicates: [], unreadable: true });
   });
 });
