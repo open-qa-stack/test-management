@@ -95,7 +95,7 @@ describe("the prerequisites of the machine", () => {
     });
     const config = validateConfig(text, {});
     assert.ok(config.ok);
-    const missing = await missingPrerequisites(config.config, workspace, { run: () => Promise.reject(new Error("spawn npm ENOENT")) });
+    const missing = await missingPrerequisites(config.config, workspace, { run: () => Promise.reject(new Error("spawn npm ENOENT")) }, {});
     assert.ok(missing.some((problem) => problem.startsWith("npm cannot be run")));
   });
 
@@ -122,15 +122,15 @@ describe("the prerequisites of the machine", () => {
     const root = mkdtempSync(join(workspace, "repo-"));
     execFileSync("git", ["init", "-q", "-b", "main"], { cwd: root });
     const npm = { run: () => Promise.resolve({ exitCode: 0, stdout: "11.0.0\n", stderr: "" }) };
-    const empty = await missingPrerequisites(config.config, root, npm);
+    const empty = await missingPrerequisites(config.config, root, npm, {});
     assert.ok(empty.some((problem) => problem.includes("is not the root of a git repository with a commit")));
     execFileSync("git", ["-c", "user.name=T", "-c", "user.email=t@example.com", "-c", "commit.gpgsign=false", "commit", "-q", "--allow-empty", "-m", "first"], {
       cwd: root,
     });
     mkdirSync(join(root, "tests"));
-    const inside = await missingPrerequisites(config.config, join(root, "tests"), npm);
+    const inside = await missingPrerequisites(config.config, join(root, "tests"), npm, {});
     assert.ok(inside.some((problem) => problem.includes("is not the root of a git repository with a commit")));
-    const top = await missingPrerequisites(config.config, root, npm);
+    const top = await missingPrerequisites(config.config, root, npm, {});
     assert.ok(!top.some((problem) => problem.includes("git repository")));
   });
 });

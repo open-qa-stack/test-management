@@ -188,7 +188,7 @@ export class Run {
     };
     const runner = this.options.runner ?? new LocalRunner(this.options.repositoryRoot);
     const prerequisites = await timed("prerequisites", async () => {
-      const missing = await missingPrerequisites(config, this.options.repositoryRoot, runner);
+      const missing = await missingPrerequisites(config, this.options.repositoryRoot, runner, this.options.env);
       for (const problem of missing) journal.record("prerequisites", "error", problem);
       return { value: missing, ok: missing.length === 0 };
     });

@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "vitest";
-import { ModelResponseError, ModelUnreachableError, ReplayMissError, type AgentEvent } from "@open-qa-stack/domain";
+import { type AgentEvent, ModelKeyRefusedError, ModelResponseError, ModelUnreachableError, ReplayMissError } from "@open-qa-stack/domain";
 import { answer, scriptedServer, toolCalls } from "@open-qa-stack/testing";
 import { runtimeEnvironment } from "../src/copilot/runtime-environment.ts";
 import { runtimeError } from "../src/copilot/runtime-error.ts";
@@ -48,6 +48,12 @@ describe("runtime errors from gateway failures", () => {
     assert.ok(runtimeError({ kind: "unreachable", url: "http://x/v1" }) instanceof ModelUnreachableError);
     assert.ok(runtimeError({ kind: "replay-miss", request: "r" }) instanceof ReplayMissError);
     assert.equal(runtimeError({ kind: "upstream-status", status: 500 }).message, "The model answered with status 500.");
+    for (const status of [401, 403]) {
+      const refused = runtimeError({ kind: "upstream-status", status, reason: "Incorrect API key." });
+      assert.ok(refused instanceof ModelKeyRefusedError);
+      assert.equal(refused.status, status);
+      assert.equal(refused.message, `The model server refused the key, with status ${status}: check the key its variable holds; oqas model status tests it.`);
+    }
     assert.equal(
       runtimeError({ kind: "upstream-status", status: 400, reason: "Unsupported parameter." }).message,
       "The model answered with status 400: Unsupported parameter.",

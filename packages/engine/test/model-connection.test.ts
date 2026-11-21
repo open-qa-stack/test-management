@@ -3,6 +3,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { validateConfig, type ModelConnectionCheck } from "@open-qa-stack/domain";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { afterAll, describe, it } from "vitest";
 import { liveRuntime, ModelConnection } from "../src/index.ts";
 import { missingPrerequisites } from "../src/run/prerequisites.ts";
@@ -86,9 +88,59 @@ function githubConfig(effort: object = { reasoningEffort: "low" }) {
   return result.config;
 }
 
+describe("the model server a run needs", () => {
+  /** A model server that refuses every key, and the configuration of a server at its address, with the variable of its key when one is named. */
+  async function refusing(apiKeyEnv?: string) {
+    const server = createServer((_request, response) => response.writeHead(401).end("{}"));
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`;
+    const result = validateConfig(
+      JSON.stringify({
+        formatVersion: 1,
+        applications: [
+          {
+            id: "shop",
+            name: "Shop",
+            type: "api",
+            authentication: { method: "none" },
+            environments: [{ name: "local", apis: [{ name: "b", baseUrl: "http://127.0.0.1:1" }] }],
+          },
+        ],
+        knowledge: [],
+        model: { mode: "provider-key", provider: "openai", baseUrl, model: "m", ...(apiKeyEnv === undefined ? {} : { apiKeyEnv }) },
+      }),
+      { MODEL_KEY: "sk-wrong" },
+    );
+    assert.ok(result.ok, JSON.stringify(result));
+    return { baseUrl, config: result.config, close: () => new Promise<void>((resolve) => server.close(() => resolve())) };
+  }
+  const npm = { run: () => Promise.resolve({ exitCode: 0, stdout: "11.0.0\n", stderr: "" }) };
+
+  it("is missing when it refuses the key: the run stops before any session, naming the variable and never the key", async () => {
+    const keyed = await refusing("MODEL_KEY");
+    try {
+      const missing = await missingPrerequisites(keyed.config, workspace, npm, { MODEL_KEY: "sk-wrong" });
+      const problem = missing.find((one) => one.startsWith("The model server"));
+      assert.equal(problem, `The model server at ${keyed.baseUrl} refused the key in MODEL_KEY, with status 401: check the key; oqas model status tests it.`);
+      assert.ok(!missing.join(" ").includes("sk-wrong"));
+    } finally {
+      await keyed.close();
+    }
+    const keyless = await refusing();
+    try {
+      const missing = await missingPrerequisites(keyless.config, workspace, npm, {});
+      assert.ok(
+        missing.includes(`The model server at ${keyless.baseUrl} asks for a key, with status 401: name the variable that holds it with oqas model set.`),
+      );
+    } finally {
+      await keyless.close();
+    }
+  });
+});
+
 describe("a run on a model of GitHub Copilot", () => {
   it("asks no server whether it answers: the session that calls the model tells", async () => {
-    const missing = await missingPrerequisites(githubConfig(), workspace, { run: () => Promise.resolve({ exitCode: 0, stdout: "", stderr: "" }) });
+    const missing = await missingPrerequisites(githubConfig(), workspace, { run: () => Promise.resolve({ exitCode: 0, stdout: "", stderr: "" }) }, {});
     assert.ok(!missing.some((problem) => problem.includes("model server")), missing.join(" "));
   });
 
