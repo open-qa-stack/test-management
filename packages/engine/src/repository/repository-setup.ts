@@ -47,11 +47,11 @@ export class RepositorySetup {
   }
 
   /**
-   * @returns Where the test repository stands.
+   * @returns Where the test repository stands: its folder, whether it is a git repository, and a Playwright project.
    * @throws {@link NoRepositoryError} when the host was given no test repository.
    */
   async state(): Promise<RepositoryState> {
-    return { git: await this.#git(), playwright: await exists(join(this.#root, "playwright.config.ts")) };
+    return { folder: this.#root, git: await this.#git(), playwright: await exists(join(this.#root, "playwright.config.ts")) };
   }
 
   /**

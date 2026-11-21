@@ -1068,7 +1068,9 @@
     "welcome": {
       "title": "Welcome",
       "short": "Welcome",
-      "lead": "Agents find out your application, propose the tests that matter and write them in Playwright in this folder. Three steps: your applications, what the agents may read, the model. Nothing is written before the last."
+      "lead": "Agents find out your application, propose the tests that matter and write them in Playwright in this folder. Three steps: your applications, what the agents may read, the model. Nothing is written before the last.",
+      "folder": "The project will be created in",
+      "otherFolder": "For another folder, start oqas --ui --repository followed by the folder again: it is created when it does not exist."
     },
     "applications": {
       "title": "Your applications",

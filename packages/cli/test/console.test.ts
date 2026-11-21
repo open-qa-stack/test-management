@@ -174,6 +174,17 @@ describe("oqas --ui", () => {
     assert.match(err, /^The database is unreachable: .*oqas\.db cannot be opened \(.+\)\.\n$/);
   });
 
+  it("makes the folder it is given when there is none, and serves the setting up of a project in it", async () => {
+    terminal = await Terminal.open([]);
+    const folder = join(workspace, "new-project");
+    const { url, ended, interrupt } = await served("--repository", folder);
+    assert.ok(existsSync(folder));
+    assert.deepEqual(await (await fetch(`${url}/api/repository`)).json(), { folder, git: "none", playwright: false });
+    assert.equal((await fetch(`${url}/api/configuration`).then((response) => response.json() as Promise<{ file: string }>)).file, "missing");
+    interrupt();
+    assert.equal((await ended).code, 0);
+  });
+
   it("is refused with 3 when the console is not built, and says what to run", async () => {
     terminal = await Terminal.open([]);
     const empty = join(workspace, "not-built");

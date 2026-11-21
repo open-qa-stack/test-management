@@ -43,14 +43,23 @@ describe("the setting up of an instance that has no configuration", () => {
     const { draft: _, ...configured } = configurationAfter(INITIAL_CONFIGURATION, { type: "read", view: VIEW, revisions: REVISIONS });
     assert.equal(configurationAfter(configured, { type: "begin", document: FIRST_DRAFT }).draft, undefined);
     const preparation = { created: ["package.json"], kept: [], committed: true };
-    const after = begun(FIRST_DRAFT, { type: "repository", repository: { git: "empty", playwright: false } }, { type: "prepared", preparation });
-    assert.deepEqual([after.repository, after.preparation], [{ git: "empty", playwright: false }, preparation]);
+    const after = begun(
+      FIRST_DRAFT,
+      { type: "repository", repository: { folder: "/work/shop-tests", git: "empty", playwright: false } },
+      { type: "prepared", preparation },
+    );
+    assert.deepEqual([after.repository, after.preparation], [{ folder: "/work/shop-tests", git: "empty", playwright: false }, preparation]);
   });
 
   it("opens on a welcome that says what the tool does, with no steps to show yet", () => {
     const html = render(createElement(FirstUse, { project: "shop-tests", state: begun(), controls: CONTROLS, step: "welcome", ...MOVES }));
     assert.match(textOf(html), /^shop-tests \/ Démarrer Bienvenue Des agents découvrent votre application.* Rien n’est écrit avant la dernière\. Commencer$/);
     assert.doesNotMatch(html, /first-use-steps/);
+    const told = begun(FIRST_DRAFT, { type: "repository", repository: { folder: "/work/shop-tests", git: "none", playwright: false } });
+    assert.match(
+      textOf(render(createElement(FirstUse, { project: "shop-tests", state: told, controls: CONTROLS, step: "welcome", ...MOVES }))),
+      /Le projet sera créé dans \/work\/shop-tests Pour un autre dossier, relancez oqas --ui --repository suivi du dossier : il est créé au besoin\. Commencer$/,
+    );
   });
 
   it("shows the steps, the one the person is at marked, with the cards of the configuration", () => {
@@ -72,7 +81,7 @@ describe("the setting up of an instance that has no configuration", () => {
   it("sums up what it will write, whether the folder becomes a git repository, and the errors left to correct", () => {
     assert.match(at("summary"), /dans ce dossier\. 1 application : sans nom Aucune source de connaissance pour l’instant Modèle/);
     assert.match(at("summary", begun({ ...FIRST_DRAFT, applications: [] })), /dans ce dossier\. Aucune application Aucune/);
-    const named = begun(DOCUMENT, { type: "repository", repository: { git: "none", playwright: false } });
+    const named = begun(DOCUMENT, { type: "repository", repository: { folder: "/work/shop-tests", git: "none", playwright: false } });
     assert.match(
       at("summary", named),
       /dans ce dossier\. 1 application : Shop 8 sources de connaissance Chacune est cartographiée dès la création du projet, puis l’ensemble est mis en commun par domaine\. Modèle : test-model, par une clé de fournisseur Ce dossier deviendra un dépôt git, et ce qui est créé y sera enregistré\. Retour Créer le projet$/,

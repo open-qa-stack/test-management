@@ -32,11 +32,11 @@ describe("the setup of a test repository", () => {
     writeFileSync(known, "[user]\n\tname = Ada Tester\n\temail = ada@example.test\n");
     process.env["GIT_CONFIG_GLOBAL"] = known;
     const { root, setup, git } = folder();
-    assert.deepEqual(await setup.state(), { git: "none", playwright: false });
+    assert.deepEqual(await setup.state(), { folder: root, git: "none", playwright: false });
     const done = await setup.prepare();
     assert.equal(done.committed, true);
     assert.ok(done.created.includes("playwright.config.ts"));
-    assert.deepEqual(await setup.state(), { git: "ready", playwright: true });
+    assert.deepEqual(await setup.state(), { folder: root, git: "ready", playwright: true });
     assert.equal(git("log", "--format=%s by %an <%ae>").trim(), `${SETUP_COMMIT} by Ada Tester <ada@example.test>`);
     assert.ok(git("show", "--name-only", "--format=").split("\n").includes("oqas.json"));
     assert.ok(existsSync(join(root, "apps")));
@@ -54,12 +54,12 @@ describe("the setup of a test repository", () => {
   it("commits nothing in a git repository that exists, with or without a commit, and keeps what it holds", async () => {
     const { root, setup, git } = folder();
     git("init", "--quiet");
-    assert.deepEqual(await setup.state(), { git: "empty", playwright: false });
+    assert.deepEqual(await setup.state(), { folder: root, git: "empty", playwright: false });
     writeFileSync(join(root, "package.json"), '{ "name": "ours" }\n');
     const done = await setup.prepare();
     assert.deepEqual([done.committed, done.kept], [false, ["package.json"]]);
     assert.throws(() => git("rev-parse", "--verify", "--quiet", "HEAD"));
-    assert.deepEqual(await setup.state(), { git: "empty", playwright: true });
+    assert.deepEqual(await setup.state(), { folder: root, git: "empty", playwright: true });
   });
 
   it("counts a folder inside a git repository as no repository of its own", async () => {

@@ -55,7 +55,7 @@ The commands that act on a session that exists run from any terminal, and from a
 
 | Option                  | Default                       | What it does |
 | ----------------------- | ----------------------------- | ------------ |
-| `--repository <folder>` | the current folder            | The test repository, which holds `oqas.json` once it is set up. Every command takes it. |
+| `--repository <folder>` | the current folder            | The test repository, which holds `oqas.json` once it is set up. Every command takes it. With `--ui`, a folder that does not exist yet is made, and the project is set up in it. |
 | `--environment <name>`  | the only environment declared | With `--brief`, and in the conversation: the environment the sessions run against. With several declared, it must be given. |
 | `--brief <text>`        |                               | What to test, in your words: a domain, a ticket, a rule, a journey. The designer looks up what echoes it in the index, explores, and plans its tests from it. |
 | `--follow`              | off                           | With `--brief`, `attach` and `show`: prints what the agents do besides what the harness tells of the session: see [The thread](#the-thread). |

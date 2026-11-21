@@ -174,10 +174,10 @@ describe("what keeps the screen of the configuration in step with its instance",
   });
 
   it("reads where the test repository stands, and tells nothing when the instance cannot say", async () => {
-    api.answers.set("GET /api/repository", json({ git: "none", playwright: false }));
+    api.answers.set("GET /api/repository", json({ folder: "/work/shop-tests", git: "none", playwright: false }));
     api.sync.readRepository();
     await settled();
-    assert.deepEqual(api.told, [{ type: "repository", repository: { git: "none", playwright: false } }]);
+    assert.deepEqual(api.told, [{ type: "repository", repository: { folder: "/work/shop-tests", git: "none", playwright: false } }]);
     api.answers.set("GET /api/repository", json({ code: "unavailable", detail: "Down." }, 503));
     api.sync.readRepository();
     await settled();

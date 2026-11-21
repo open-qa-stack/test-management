@@ -178,12 +178,12 @@ export function configurationApiSuite(engine: DatabaseEngine): void {
 
     it("is made a git repository and a Playwright project from the configuration in force, which the state then tells", async () => {
       const before = await repositoryAt("");
-      assert.deepEqual([before.status, before.cache, before.body], [200, "no-store", { git: "none", playwright: false }]);
+      assert.deepEqual([before.status, before.cache, before.body], [200, "no-store", { folder: repository, git: "none", playwright: false }]);
       const prepared = await repositoryAt("/preparation", "POST");
       assert.equal(prepared.status, 200);
       const done = prepared.body as { created: string[]; committed: boolean };
       assert.deepEqual([done.committed, done.created.includes("playwright.config.ts")], [true, true]);
-      assert.deepEqual((await repositoryAt("")).body, { git: "ready", playwright: true });
+      assert.deepEqual((await repositoryAt("")).body, { folder: repository, git: "ready", playwright: true });
     });
 
     it("is refused its setup while there is no configuration", async () => {

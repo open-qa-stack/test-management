@@ -1068,7 +1068,9 @@
     "welcome": {
       "title": "Bienvenue",
       "short": "Bienvenue",
-      "lead": "Des agents découvrent votre application, proposent les tests qui comptent et les écrivent en Playwright dans ce dossier. Trois étapes : vos applications, ce que les agents peuvent lire, le modèle. Rien n’est écrit avant la dernière."
+      "lead": "Des agents découvrent votre application, proposent les tests qui comptent et les écrivent en Playwright dans ce dossier. Trois étapes : vos applications, ce que les agents peuvent lire, le modèle. Rien n’est écrit avant la dernière.",
+      "folder": "Le projet sera créé dans",
+      "otherFolder": "Pour un autre dossier, relancez oqas --ui --repository suivi du dossier : il est créé au besoin."
     },
     "applications": {
       "title": "Vos applications",
