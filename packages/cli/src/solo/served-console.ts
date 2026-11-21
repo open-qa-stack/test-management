@@ -50,7 +50,7 @@ export async function startConsole(
     host,
     port,
     repository,
-    database: databaseOf(io, repository),
+    database: databaseOf(io, repository, "started"),
     console: builtConsole(io.console),
     runs: runsOf(io),
     logger: commandLogger(io),

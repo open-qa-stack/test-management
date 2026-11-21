@@ -44,7 +44,7 @@ export class ConfiguredInstance {
   /** Records a revision of an origin, which becomes the one in force. */
   #record(document: OqasConfig, origin: RevisionSummary["origin"]): ConfigurationView {
     const summary: RevisionSummary = {
-      number: this.revisions[0]!.number + 1,
+      number: (this.revisions[0]?.number ?? 0) + 1,
       recordedAt: "2026-11-18T10:00:00.000Z",
       origin,
       fileDigest: `d${this.revisions.length}`,
@@ -58,6 +58,9 @@ export class ConfiguredInstance {
   /** What the API answers. */
   public readonly api: Api = (request) => {
     const { path, method, body } = request;
+    // A test repository that is no git repository yet, which the setting up makes one.
+    if (path === "/api/repository") return json({ git: "none", playwright: false });
+    if (path === "/api/repository/preparation") return json({ created: ["playwright.config.ts"], kept: [], committed: true });
     if (!path.startsWith("/api/configuration")) return this.played.api(request);
     if (path === "/api/configuration") return json({ ...this.view, file: this.fileChanged ? "changed" : this.view.file });
     if (path === "/api/configuration/revisions" && method === "GET") return json({ items: this.revisions });
@@ -66,7 +69,7 @@ export class ConfiguredInstance {
       return json({ state: "connected", models: [{ id: "saved-model", name: "saved-model", reasoningEfforts: [] }] });
     if (path === "/api/configuration/synchronisation") return json(this.#record(this.view.revision!.document, "file"));
     const change = JSON.parse(body!) as RevisionChange;
-    if (change.basedOn !== this.view.revision!.number) return problem("stale_revision", 409);
+    if (change.basedOn !== (this.view.revision?.number ?? 0)) return problem("stale_revision", 409);
     if (this.fileChanged && change.replaceFile !== true) return problem("configuration_conflict", 409);
     const errors = errorsOf(change.document);
     if (errors.length > 0) return problem("invalid_configuration", 422, errors);

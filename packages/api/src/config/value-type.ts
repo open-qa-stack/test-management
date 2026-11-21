@@ -1,6 +1,5 @@
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
-import { CONFIG_FILE_NAME } from "@open-qa-stack/domain";
 import { DatabaseUrl } from "@open-qa-stack/store";
 import { CONSOLE_PAGE } from "../console/serve-console.ts";
 
@@ -43,11 +42,14 @@ export const databaseUrl: ValueType<DatabaseUrl> = {
   },
 };
 
-/** A test repository: the absolute path of a folder that holds the configuration of Open QA Stack. */
+/**
+ * A test repository: the absolute path of a folder. It need not hold the configuration of Open QA Stack yet: the
+ * console sets it up there, step by step.
+ */
 export const testRepository: ValueType<string> = {
-  rule: `the absolute path of a folder that holds ${CONFIG_FILE_NAME}`,
+  rule: "the absolute path of a folder",
   parse(raw) {
-    return isAbsolute(raw) && existsSync(join(raw, CONFIG_FILE_NAME)) ? { ok: true, value: raw } : { ok: false };
+    return isAbsolute(raw) && existsSync(raw) && statSync(raw).isDirectory() ? { ok: true, value: raw } : { ok: false };
   },
 };
 

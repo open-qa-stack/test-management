@@ -12,8 +12,10 @@ The shapes of every body are the types of `@open-qa-stack/domain/sessions`; the 
 | `POST /api/configuration/revisions` | Saves a change, which rewrites `oqas.json`. |
 | `POST /api/configuration/synchronisation` | Takes `oqas.json` as it is now as the revision in force. |
 | `POST /api/configuration/model-connection` | Tests a connection to the model as it is drafted, without anything recorded. |
+| `GET /api/repository` | Where the test repository stands: a git repository, with a commit, and a Playwright project. |
+| `POST /api/repository/preparation` | Sets the test repository up from the configuration in force. |
 
-The two reads and the test of a connection are answered with `cache-control: no-store`. Every answer that is not a success is a [problem](sessions.md#problems).
+The reads and the test of a connection are answered with `cache-control: no-store`. Every answer that is not a success is a [problem](sessions.md#problems).
 
 ## Secrets
 
@@ -132,6 +134,28 @@ HTTP/1.1 200 OK
 ```
 
 The synchronisation answers the configuration as it is now: a new revision when the file changed, the revision in force as it was when it did not, or when the file cannot be read. A file that is not a valid configuration is refused with `422` `invalid_configuration` and its errors, and the revision in force stays as it is: correct the file, or keep the configuration over it with a change sent with `"replaceFile": true`. A run that starts while the file is so refuses to go on, and tells the same.
+
+## Setting the test repository up
+
+```http
+GET /api/repository
+```
+
+```json
+{ "git": "none", "playwright": false }
+```
+
+`git` is `none` when the folder is no git repository, `empty` when it is one without a commit, `ready` when it has one; `playwright` tells whether it holds a `playwright.config.ts`. An API given no test repository answers `503` `unavailable`.
+
+```http
+POST /api/repository/preparation
+```
+
+```json
+{ "created": ["package.json", "playwright.config.ts"], "kept": [], "committed": true }
+```
+
+It does what [`oqas --init`](../../cli/docs/solo-command.md#initialising-a-test-repository) does, from the revision in force: it writes the files of a Playwright project that are missing, keeps those the repository has, and, in a folder that was no git repository, makes one and commits `oqas.json` and what it created — `committed` says so. The console calls it once the first revision is saved. An instance without a configuration is answered `404` `no_configuration`, and one given no test repository `503` `unavailable`.
 
 ## Problems
 

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, it } from "vitest";
@@ -83,13 +83,29 @@ describe("oqas config", () => {
     assert.match((await oqas("config", "show")).out, new RegExp(`^Revision 2 of the configuration, saved in the console on ${DATE}\\.\\n`));
   });
 
+  it("says a file that cannot be read tells where the sessions are kept", async () => {
+    const root = mkdtempSync(join(workspace, "repo-"));
+    mkdirSync(join(root, "oqas.json"));
+    let err = "";
+    const code = await soloCommand(["config", "show"], {
+      env: {},
+      cwd: root,
+      stdout: { write: () => true },
+      stderr: { write: (text: string) => (err += text) },
+    });
+    assert.deepEqual(
+      [code, err],
+      [3, `${join(root, "oqas.json")} cannot be read: it says where the sessions are kept. Correct it, or remove it and start again with oqas --ui.\n`],
+    );
+  });
+
   it("tells what to write when there is neither a revision nor a file", async () => {
     const { root, oqas } = repository();
     unlinkSync(join(root, "oqas.json"));
     assert.deepEqual(await oqas("config", "export"), {
       code: 3,
       out: "",
-      err: `${join(root, "oqas.json")} cannot be read, and the instance keeps no revision of the configuration. Write a oqas.json at the root of the test repository.\n`,
+      err: `${join(root, "oqas.json")} cannot be read, and the instance keeps no revision of the configuration. Start with oqas --ui, which sets it up step by step, or write a oqas.json at the root of the test repository.\n`,
     });
   });
 
