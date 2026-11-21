@@ -383,4 +383,4 @@ The rules — the changes a state allows, the order of the tests chosen, what ca
 
 ## Tests
 
-The tests of the operations run the engine in a test repository made for each of them, with a store kept in memory, a model server that answers as scripted and doubles of npm and Playwright: no test calls a model. Those of several processes put two hosts on one store, whose clock the test holds, so that a silence lasts exactly as long as the test says. `pnpm exec vitest run --project engine` runs them alone.
+The tests of the operations run the engine in a test repository made for each of them, with a store kept in memory, a model server that answers as scripted and doubles of npm and Playwright: no test calls a model. Those of several processes put two hosts on one store, whose clock the test holds, so that a silence lasts exactly as long as the test says. The writer of a session takes the wait before a write made again (`RetryWait`), the timers of the process by default: its test holds that wait too, and checks the delays asked, whatever the load of the machine. `pnpm exec vitest run --project engine` runs them alone.
