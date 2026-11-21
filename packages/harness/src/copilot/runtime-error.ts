@@ -1,4 +1,4 @@
-import { ModelResponseError, ModelUnreachableError, ReplayMissError, type AgentRuntimeError } from "@open-qa-stack/domain";
+import { ModelKeyRefusedError, ModelResponseError, ModelUnreachableError, ReplayMissError, type AgentRuntimeError } from "@open-qa-stack/domain";
 import type { GatewayFailure } from "../model-gateway/gateway-failure.ts";
 
 /**
@@ -14,6 +14,7 @@ export function runtimeError(failure: GatewayFailure | undefined): AgentRuntimeE
     case "replay-miss":
       return new ReplayMissError(failure.request);
     case "upstream-status":
+      if (failure.status === 401 || failure.status === 403) return new ModelKeyRefusedError(failure.status);
       return new ModelResponseError(
         failure.reason === undefined
           ? `The model answered with status ${failure.status}.`
