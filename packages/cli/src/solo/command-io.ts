@@ -1,5 +1,5 @@
 import type { CommandRunner, ResolvedConfig } from "@open-qa-stack/domain";
-import type { OpenRuntime, SessionsPace } from "@open-qa-stack/engine";
+import type { ConnectionProbes, OpenRuntime, SessionsPace } from "@open-qa-stack/engine";
 
 /** Where a command writes: an output of the process. */
 export interface CommandOutput {
@@ -38,4 +38,6 @@ export interface CommandIo {
   readonly console?: string;
   /** The paces of the command among the processes that reach the same database; those of the engine by default. */
   readonly pace?: SessionsPace;
+  /** How the connection to the model is tested; with the GitHub account of the machine and the server of the provider by default. */
+  readonly probes?: ConnectionProbes;
 }

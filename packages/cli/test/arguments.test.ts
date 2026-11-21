@@ -111,4 +111,50 @@ describe("the arguments of the command", () => {
       /Exit codes of a session followed to its end, and of the conversation for the last session it opened: 0 every test passed, 1 a test failed/,
     );
   });
+
+  it("test the connection to the model, or set it with the GitHub account or a provider, its key and its model", () => {
+    assert.deepEqual(parseArguments(["model", "status", "--output", "json"]), read({ name: "model", action: "status" }, { output: "json" }));
+    assert.deepEqual(
+      parseArguments(["model", "set", "--github", "--model", "gpt-5"]),
+      read({ name: "model", action: "set", connection: { github: true, model: "gpt-5" } }),
+    );
+    assert.deepEqual(
+      parseArguments(["model", "set", "--provider", "OpenAI", "--key-env", "MY_KEY", "--model", "gpt-4.1"]),
+      read({ name: "model", action: "set", connection: { github: false, provider: "OpenAI", keyEnv: "MY_KEY", model: "gpt-4.1" } }),
+    );
+    assert.deepEqual(
+      parseArguments(["model", "set", "--provider", "http://localhost:1234/v1", "--model", "local"]),
+      read({ name: "model", action: "set", connection: { github: false, provider: "http://localhost:1234/v1", model: "local" } }),
+    );
+  });
+
+  it("refuse a connection to the model told by halves, or told to another command", () => {
+    const either =
+      "oqas model set takes --github, for the GitHub account of this machine, or --provider with the name of a provider or the address of its server.";
+    assert.deepEqual(parseArguments(["model"]), refused("oqas model takes status or set."));
+    assert.deepEqual(parseArguments(["model", "status", "now"]), refused("oqas model takes status or set."));
+    assert.deepEqual(parseArguments(["model", "set", "--model", "m"]), refused(either));
+    assert.deepEqual(parseArguments(["model", "set", "--github", "--provider", "OpenAI", "--model", "m"]), refused(either));
+    assert.deepEqual(
+      parseArguments(["model", "set", "--github", "--key-env", "K", "--model", "m"]),
+      refused("--key-env names the variable of the key of a provider: the GitHub account takes none."),
+    );
+    assert.deepEqual(
+      parseArguments(["model", "set", "--github"]),
+      refused("oqas model set needs --model, the model to use: oqas model status lists those the connection offers."),
+    );
+    assert.deepEqual(
+      parseArguments(["model", "status", "--follow"]),
+      refused("oqas model acts on the connection to the model: it takes no --brief, --environment nor --follow."),
+    );
+    const alone = "--github, --provider, --key-env and --model set the connection to the model: they go with oqas model set alone.";
+    for (const other of [
+      ["model", "status", "--github"],
+      ["sessions", "--model", "m"],
+      ["--brief", "Orders.", "--provider", "OpenAI"],
+      ["--init", "--key-env", "K"],
+    ])
+      assert.deepEqual(parseArguments(other), refused(alone), other.join(" "));
+    assert.deepEqual(parseArguments(["--help", "--github"]), read({ name: "help" }));
+  });
 });

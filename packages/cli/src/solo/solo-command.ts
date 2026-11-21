@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { configurationText, ExitCode, isStoredDocuments, type ConfigurationView, type ExitCodeValue } from "@open-qa-stack/domain";
 import { playwrightVersion } from "@open-qa-stack/tools";
 import { hasEnded, type Session } from "@open-qa-stack/domain/sessions";
-import type { Configuration, KnowledgeDocuments, Sessions } from "@open-qa-stack/engine";
+import { ModelConnection, type Configuration, type KnowledgeDocuments, type Sessions } from "@open-qa-stack/engine";
 import { parseArguments, USAGE, type Arguments, type Command } from "./arguments.ts";
 import { fileLine, revisionLine } from "./configuration-lines.ts";
 import { eventLine, ofTheAgents } from "./event-line.ts";
@@ -10,6 +10,7 @@ import { failureOf } from "./failure.ts";
 import { followSession } from "./follow-session.ts";
 import { Interruptions } from "./interruptions.ts";
 import { documentLine, documentsRefusal, receivedFiles, sourceLine } from "./knowledge-lines.ts";
+import { keptTuning, modelOfArguments, modelReport } from "./model-lines.ts";
 import { openOperations } from "./operations.ts";
 import { RepositoryInit } from "./repository-init.ts";
 import { servedConsole } from "./served-console.ts";
@@ -97,6 +98,8 @@ async function onSessions(command: Exclude<Command, { name: "help" }>, options: 
         return await configured({ configuration, command, options, io });
       case "knowledge":
         return await known({ configuration, documents, command, options, io });
+      case "model":
+        return await modelled({ configuration, command, options, io });
       case "sessions":
         return await listed({ sessions, command, options, io });
       case "show":
@@ -130,6 +133,25 @@ async function configured({
   const document = command.action === "show" && revision !== undefined ? `\n${configurationText(revision.document).trimEnd()}` : "";
   print({ options, io }, `${lines.join("\n")}${document}`, view);
   return ExitCode.passed;
+}
+
+/**
+ * `oqas model`: tests the connection to the model in force, and lists the models it offers; with `set`, records the
+ * connection it is given as a revision of origin `command` first, which rewrites `oqas.json`, keeping the tuning of
+ * the connection in force when it names the same model the same way. Exits with `0` when the
+ * model answers and is among those offered, with `4` otherwise.
+ */
+async function modelled({ configuration, command, options, io }: Omit<Asked<"model">, "sessions"> & { configuration: Configuration }): Promise<ExitCodeValue> {
+  if (command.action === "set") {
+    const inForce = await configuration.synchronise();
+    const model = keptTuning(modelOfArguments(command.connection), inForce.document.model);
+    await configuration.save({ ...inForce.document, model }, inForce.number, false, "command");
+  }
+  const revision = (await configuration.synchronise()).document;
+  const connection = new ModelConnection(io.env, ...(io.probes === undefined ? [] : [io.probes]));
+  const report = modelReport(revision.model, await connection.check(revision.model));
+  print({ options, io }, report.text, report.value);
+  return report.code;
 }
 
 /**
