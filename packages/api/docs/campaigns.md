@@ -29,7 +29,7 @@ planned ──readiness──▶ ready ──first launch──▶ in_progress �
 - **ready**: its tests are fixed; one removed from the repository afterwards stays in it. A campaign with no test chosen
   is refused.
 - **in_progress**: from its first launch. It is launched again as many times as wanted.
-- **closed**: final. A campaign is never reopened: plan another.
+- **closed**: final. A campaign is never reopened: plan another. It is closed once no launch of it runs, so that its results are fixed: a closure asked while one runs is refused, and so is the second of two closures at once.
 
 Any other change is refused with `campaign_refused`, whose detail names both states.
 

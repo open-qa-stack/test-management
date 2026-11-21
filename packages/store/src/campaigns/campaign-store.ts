@@ -73,12 +73,19 @@ export class CampaignStore implements CampaignStorePort {
   }
 
   /** Changes the state of a campaign: to `in_progress`, or to `closed` with when. */
-  async move(id: string, status: Extract<CampaignStatus, "in_progress" | "closed">, at?: string): Promise<void> {
-    await this.#database
+  async move(
+    id: string,
+    from: Extract<CampaignStatus, "ready" | "in_progress">,
+    status: Extract<CampaignStatus, "in_progress" | "closed">,
+    at?: string,
+  ): Promise<boolean> {
+    const changed = await this.#database
       .updateTable("campaigns")
       .set({ status, ...(at === undefined ? {} : { closed_at: instant(at) }) })
       .where("id", "=", id)
-      .execute();
+      .where("status", "=", from)
+      .executeTakeFirst();
+    return changed.numUpdatedRows > 0n;
   }
 
   /** The tests of a campaign, in the order of their paths then their titles. */

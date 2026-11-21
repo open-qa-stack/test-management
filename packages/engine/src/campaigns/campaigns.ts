@@ -15,6 +15,7 @@ import {
   type CampaignTest,
   type ExecutionStorePort,
   type LaunchRequest,
+  type LaunchState,
   type RepositoryTest,
   type TestLaunch,
 } from "@open-qa-stack/domain";
@@ -28,7 +29,7 @@ export interface CampaignsHost {
   /** The tests of the repository, which the tests chosen for a campaign are among. */
   readonly tests: { list(): Promise<RepositoryTest[]> };
   /** What launches tests: the operations on sessions, whose turn a launch takes. */
-  readonly launcher: { launch(request: LaunchRequest): Promise<TestLaunch> };
+  readonly launcher: { launch(request: LaunchRequest): Promise<TestLaunch>; launches(): Promise<LaunchState> };
   /** The clock; that of the machine by default. */
   readonly now?: () => Date;
 }
@@ -138,21 +139,25 @@ export class Campaigns {
     const tests = only === undefined ? campaign.tests : await this.#only(campaign, only);
     const paths = [...new Set(tests.map(({ path }) => path))];
     const launch = await this.#host.launcher.launch({ paths, environment: campaign.environment, campaign: id });
-    if (campaign.status === "ready") await this.#host.store.move(id, "in_progress");
+    // Of two first launches at once, the first puts it in progress: the second finds it there already.
+    if (campaign.status === "ready") await this.#host.store.move(id, "ready", "in_progress");
     return launch;
   }
 
   /**
-   * Closes a campaign in progress, for good.
+   * Closes a campaign in progress, for good, once no launch of it runs: the results of a closed campaign are fixed.
    *
    * @returns The campaign, closed.
    * @throws `UnknownCampaignError` when the instance keeps none under the identifier.
-   * @throws `CampaignRefusedError` when it is not in progress.
+   * @throws `CampaignRefusedError` when it is not in progress, when a launch of it runs, or when it was closed meanwhile.
    */
   async close(id: string): Promise<Campaign> {
     const campaign = await this.#campaign(id);
     campaignTransition(campaign.status, "closed");
-    await this.#host.store.move(id, "closed", this.#now().toISOString());
+    if ((await this.#host.launcher.launches()).running?.campaign === id)
+      throw new CampaignRefusedError("A launch of the campaign runs: close the campaign once it ended, so that its results are fixed.");
+    if (!(await this.#host.store.move(id, "in_progress", "closed", this.#now().toISOString())))
+      throw new CampaignRefusedError("The campaign was closed meanwhile.");
     return this.#campaign(id);
   }
 
