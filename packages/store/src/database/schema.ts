@@ -1,4 +1,4 @@
-import type { CampaignStatus, ExecutionOrigin, ExecutionVerdict, OqasConfig, RevisionOrigin } from "@open-qa-stack/domain";
+import type { CampaignStatus, ExecutionOrigin, ExecutionVerdict, MemoryKind, OqasConfig, RevisionOrigin } from "@open-qa-stack/domain";
 import type { AgentRole, Application, SessionEvent, SessionResult, SessionScope, SessionState } from "@open-qa-stack/domain/sessions";
 import type { StoredBoolean, StoredInstant, StoredJson } from "./stored-values.ts";
 
@@ -178,6 +178,29 @@ export interface TestVersionsTable {
 }
 
 /**
+ * The memories of the agents, each under its identifier, filed under a domain and a kind.
+ *
+ * @remarks
+ * The kind is a text, as the state of a session is: kinds may be added without a migration. The tags are served
+ * whole and never filtered on: they are kept as JSON. A memory never corrected has its three columns of the
+ * correction empty.
+ */
+export interface MemoriesTable {
+  id: string;
+  domain: string;
+  kind: MemoryKind;
+  text: string;
+  tags: StoredJson<readonly string[]>;
+  source: string | null;
+  written_role: string;
+  written_task: string;
+  written_at: StoredInstant;
+  revised_role: string | null;
+  revised_task: string | null;
+  revised_at: StoredInstant | null;
+}
+
+/**
  * The schema of the database of an instance, on every database the store supports: the tables the migrations
  * create, and what the statements of the store are checked against.
  */
@@ -193,4 +216,5 @@ export interface StoreSchema {
   executions: ExecutionsTable;
   execution_results: ExecutionResultsTable;
   test_versions: TestVersionsTable;
+  memories: MemoriesTable;
 }

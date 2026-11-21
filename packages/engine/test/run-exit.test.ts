@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "vitest";
-import { answer, closedPort } from "@open-qa-stack/testing";
+import { answer, closedPort, KeptMemories } from "@open-qa-stack/testing";
 import { liveRuntime, Run } from "../src/index.ts";
 import { MODEL, workspace, configText, chain, hostOf, plugged, ran, repository, stateOf, journalOf, untracked } from "./run-support.ts";
 
@@ -29,7 +29,14 @@ describe("solo command, criterion 2 — an invalid configuration, or an environm
     await hostOf(root).configuration.synchronise();
     writeFileSync(join(root, "oqas.json"), "{");
     const host = plugged(root);
-    const code = await new Run({ repositoryRoot: root, environment: "local", env: {}, ...host.ports, openRuntime: (config) => liveRuntime(config, {}) }).run();
+    const code = await new Run({
+      memory: new KeptMemories(),
+      repositoryRoot: root,
+      environment: "local",
+      env: {},
+      ...host.ports,
+      openRuntime: (config) => liveRuntime(config, {}),
+    }).run();
     assert.equal(code, 3);
     assert.match(host.err, /\[configuration\] error: \/: The file is not valid JSON\./);
     assert.match(
@@ -41,7 +48,14 @@ describe("solo command, criterion 2 — an invalid configuration, or an environm
   it("names the variable of the environment the configuration in force names and the machine does not set", async () => {
     const root = repository(configText("http://127.0.0.1:9/v1"));
     const host = plugged(root);
-    const code = await new Run({ repositoryRoot: root, environment: "local", env: {}, ...host.ports, openRuntime: (config) => liveRuntime(config, {}) }).run();
+    const code = await new Run({
+      memory: new KeptMemories(),
+      repositoryRoot: root,
+      environment: "local",
+      env: {},
+      ...host.ports,
+      openRuntime: (config) => liveRuntime(config, {}),
+    }).run();
     assert.equal(code, 3);
     assert.match(host.err, /\[configuration\] error: \/knowledge\/1\/connectionStringEnv: Environment variable SHOP_DB_URL is not set\./);
   });
@@ -51,6 +65,7 @@ describe("solo command, criterion 2 — an invalid configuration, or an environm
     const host = plugged(root);
     const configuration = { synchronise: () => Promise.reject(new Error("The database is unreachable.")) };
     const run = new Run({
+      memory: new KeptMemories(),
       repositoryRoot: root,
       environment: "local",
       env: {},

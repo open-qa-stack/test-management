@@ -23,9 +23,10 @@ import {
   type TracePhase,
   type UncoveredRequest,
   modelOrigin,
+  type MemoryStorePort,
 } from "@open-qa-stack/domain";
 import { PlaywrightReference, playwrightTools, type BrowserAccess } from "@open-qa-stack/tools";
-import { agentNotes, agentRecall } from "../common/agent-notes.ts";
+import { agentMemory, agentRecall } from "../common/agent-memory.ts";
 import { runAgentTask, taskEnd, taskLimits, type AgentTask } from "../common/agent-task.ts";
 import { usageOf } from "../common/model-usage.ts";
 import { Journal, type JournalEntry } from "../common/journal.ts";
@@ -72,6 +73,8 @@ export interface DesignerOptions {
   readonly env: Readonly<Record<string, string | undefined>>;
   /** The runtime that opens the agent's session. */
   readonly runtime: AgentRuntime;
+  /** Where the memories of the agents are kept, which they recall and add to. */
+  readonly memory: MemoryStorePort;
   /** System instructions of the agent that writes each test, composed from the test charter by the caller, such as `writerInstructions` of the harness gives them. */
   readonly writerInstructions: string;
   /** A check run on each test before it is accepted, such as one against the charter; none by default. */
@@ -336,7 +339,7 @@ export class Designer {
       const offered = [...session.screens.tools(), ...session.reads.tools()];
       const map = new IndexMap(index, await this.cards(index), offered, owners, await this.written(index));
       const request = planRequest(brief, index.environment, map.domains(), applications, levels, this.options.visual === true);
-      const notes = agentNotes(config, repositoryRoot, env, { role: "planner", task: id, now });
+      const notes = agentMemory(config, this.options.memory, env, { role: "planner", task: id, now });
       const tools = [...map.toolset(), ...existingTestTools(present), ...offered, ...notes, repairs.tool(), plan.tool()].map((tool) =>
         endedWithPlan(tool, plan, repairs),
       );
@@ -399,7 +402,7 @@ export class Designer {
         planned,
       );
       // Each scenario not closed is written in a session of its own, which is given its sheet and nothing else of the plan.
-      const recall = agentRecall(config, repositoryRoot, env, { role: "writer", task: id, now });
+      const recall = agentRecall(config, this.options.memory, env, { role: "writer", task: id, now });
       let stoppedBy: StopReason["limit"] | undefined;
       for (let scenario = proposals.scenario; scenario !== undefined; scenario = proposals.scenario) {
         // The session has the screens of the applications its scenario acts on, the sources the scenario cites, and those that tell why a run failed.

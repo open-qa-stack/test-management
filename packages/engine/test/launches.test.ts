@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { CONFIG_FILE_NAME, InvalidConfigurationError, LaunchRefusedError, launchProgress, type EndedLaunch } from "@open-qa-stack/domain";
 import { chain } from "@open-qa-stack/testing/test-repository";
 import { afterEach, describe, it } from "vitest";
+import { KeptMemories } from "@open-qa-stack/testing";
 import { Configuration, NoRepositoryError, Sessions } from "../src/index.ts";
 import { eventually } from "./support/eventually.ts";
 import { designDoor, ENV, Hosted } from "./support/hosted.ts";
@@ -130,6 +131,7 @@ describe("tests launched as they are, with no agent", () => {
       await unset.close();
     }
     const none = new Sessions({
+      memory: new KeptMemories(),
       store: new MemorySessionStore(),
       configuration: new Configuration(new MemoryConfigurationStore(), undefined),
       documents: new MemoryDocumentStore(),
@@ -157,6 +159,7 @@ describe("tests launched as they are, with no agent", () => {
     // With no runner of its own, the host runs the commands in the test repository: none runs without a lockfile.
     const logger = new RecordingLogger();
     const local = new Sessions({
+      memory: new KeptMemories(),
       store: new MemorySessionStore(),
       configuration: new Configuration(new MemoryConfigurationStore(), hosted.root),
       documents: new MemoryDocumentStore(),

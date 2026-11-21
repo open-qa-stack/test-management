@@ -14,6 +14,7 @@ import {
   type CommandRunner,
   type DocumentStorePort,
   type ExitCodeValue,
+  type MemoryStorePort,
   type ResolvedConfig,
   type RunState,
   type Step,
@@ -73,6 +74,8 @@ export interface RunOptions {
   readonly scope?: SessionScope;
   /** Where the documents of the knowledge sources the instance keeps are read, which the cartography writes to the state folder first. */
   readonly documents: Pick<DocumentStorePort, "documents">;
+  /** Where the memories of the agents are kept, which they recall and add to. */
+  readonly memory: MemoryStorePort;
   /** The environment of the process: the secrets and the accounts the configuration names. */
   readonly env: Readonly<Record<string, string | undefined>>;
   /** Receives the journal, an entry at a time, and keeps it. */
@@ -100,7 +103,7 @@ export interface RunOptions {
  * @remarks
  * The run works in the test repository, a folder, whoever hosts it: the branch, the tests, the cards and the
  * traces are written there. What differs from a host to another goes through the ports of its options: the
- * configuration, the documents the instance keeps, the journal, the inbox, the store of the state, the runtime of
+ * configuration, the documents the instance keeps, the memory of the agents, the journal, the inbox, the store of the state, the runtime of
  * the agents, the commands and the clock. The cartography starts by writing those documents to the state folder,
  * where the agents read them.
  *
@@ -246,6 +249,7 @@ export class Run {
           repositoryRoot: this.options.repositoryRoot,
           env: this.options.env,
           runtime: await agents(),
+          memory: this.options.memory,
           concurrency: config.cartography.concurrency,
           ...observed,
         }).run();
@@ -273,6 +277,7 @@ export class Run {
             repositoryRoot: this.options.repositoryRoot,
             env: this.options.env,
             runtime: await agents(),
+            memory: this.options.memory,
             writerInstructions: writerInstructions(rules, config.repository, config.design.architecture),
             check: new CharterCheck({ repository: this.options.repositoryRoot, rules }),
             screenshots: rules.some((rule) => rule.id === SCREENSHOT_RULE),

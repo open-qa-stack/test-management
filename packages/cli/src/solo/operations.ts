@@ -52,6 +52,7 @@ export async function openOperations(io: CommandIo, repository: string, hosts: b
     store: instance.sessions,
     configuration,
     documents: instance.documents,
+    memory: instance.memory,
     executions: instance.executions,
     repository: hosts ? repository : undefined,
     takesOver: false,

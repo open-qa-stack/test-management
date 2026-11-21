@@ -24,7 +24,7 @@ It works in two steps: each source is first mapped on its own, by its own agent,
 | Source code | The folders that hold files a grammar reads; past forty, the deepest are merged into their parent | Number of files, routes their outlines declare | |
 | User interface | What the agent that explores it chooses: a screen, by its route, or one thing a user does on it, as `/customers § Search a customer` | Its kind, `screen` or `feature` | |
 
-A base and a contract are not mapped with `submit_card`: see [The workflow of a base](#the-workflow-of-a-base), which a contract follows too. Nor are documents, see [The cartography of documents](#the-cartography-of-documents), nor a user interface, see [The exploration of an application](#the-exploration-of-an-application). For source code, the request gives the agent each element with its facts, so that it calls a tool only for what the request does not show. The agent gets the tools of this source only, and the notes. It hands the card in with `submit_card`, which must place every element and invent none; the facts are joined to the card afterwards. The fingerprint of a contract or a document covers its text, that of a base the definition of each of its exported elements, routines and triggers included, that of source code the content of the files counted, and that of a user interface its address, so that its card is made again on demand only.
+A base and a contract are not mapped with `submit_card`: see [The workflow of a base](#the-workflow-of-a-base), which a contract follows too. Nor are documents, see [The cartography of documents](#the-cartography-of-documents), nor a user interface, see [The exploration of an application](#the-exploration-of-an-application). For source code, the request gives the agent each element with its facts, so that it calls a tool only for what the request does not show. The agent gets the tools of this source only, and the [memory](#memory). It hands the card in with `submit_card`, which must place every element and invent none; the facts are joined to the card afterwards. The fingerprint of a contract or a document covers its text, that of a base the definition of each of its exported elements, routines and triggers included, that of source code the content of the files counted, and that of a user interface its address, so that its card is made again on demand only.
 
 ## The workflow of a base
 
@@ -90,7 +90,7 @@ A batch gets three calls. After the third that leaves elements to place, or when
 
 Every team writes its documents its own way: one long specification, a file per feature, a folder per module. The harness therefore cuts nothing beforehand. An agent of its own reads the documents of the source — one file, or a folder of them — in one session, under the limits of the configured autonomy, and chooses its elements itself.
 
-It gets the [tools of the documents](../../tools/docs/knowledge-tools.md#documents) of this source and of no other, the notes, and the two tools of its map. Its instructions give it a method — walk the tree, get an idea of each document, name the domains, hand each in — and the grain of an element: something a test can aim at, such as a use case, a screen, a business rule or a small group of rules; neither a chapter that holds everything nor a single sentence. Its request lists what the root holds.
+It gets the [tools of the documents](../../tools/docs/knowledge-tools.md#documents) of this source and of no other, the [memory](#memory), and the two tools of its map. Its instructions give it a method — walk the tree, get an idea of each document, name the domains, hand each in — and the grain of an element: something a test can aim at, such as a use case, a screen, a business rule or a small group of rules; neither a chapter that holds everything nor a single sentence. Its request lists what the root holds.
 
 | Tool | What it hands in |
 |---|---|
@@ -114,7 +114,7 @@ Once the session is over, the harness writes the folder of the source in the sam
 
 Nothing of a user interface can be read without opening it. An agent of its own explores it with the browser, in one session, under the limits of the configured autonomy: given the address of the interface in the environment, it opens the home, follows the menus and the links, tries what a user does on each screen, and maps what the application does into domains.
 
-It gets the browser tools of this application, the notes, and the two tools of its map. Each tool that acts on the page gives back what the page then shows, so that the agent sees where each step leads. A screen is named by its route: its path, with the route after `#/` of an application that routes in the fragment, without its query, and with `:id` in place of a segment that names one record — a number, a UUID, six characters or more with a digit. The screens of every record are one screen: `/customers/:id`, whatever name the agent gives the record, such as `:customerId`.
+It gets the browser tools of this application, the [memory](#memory), and the two tools of its map. Each tool that acts on the page gives back what the page then shows, so that the agent sees where each step leads. A screen is named by its route: its path, with the route after `#/` of an application that routes in the fragment, without its query, and with `:id` in place of a segment that names one record — a number, a UUID, six characters or more with a digit. The screens of every record are one screen: `/customers/:id`, whatever name the agent gives the record, such as `:customerId`.
 
 **What it may do.** An exploration never removes data: a click on an element whose name says it removes some is refused. The key `exploration` of the environment says the rest: with `read-only`, the default, a click on an element whose name says it creates or changes data is refused too, and the agent reads the form instead; with `read-write`, it may submit such forms to see what the application answers. Both are guesses from the words of a name.
 
@@ -137,7 +137,7 @@ Its request lists, source by source, the domains its agent made — id, label, d
 | `read_source_domain` | What the agent of a source wrote of one of its domains: the file of the domain when the source has one, cut past 8,000 characters, and otherwise its elements with their summary. |
 | The tools of the sources | Those of every knowledge source of the run — its tables, its contract, its documents, its code — to check in a source what its map leaves in doubt. |
 | The browser of each application | Guarded as an exploration is: nothing that removes data is clicked, and nothing that creates or changes some unless the environment is `read-write`. |
-| `remember`, `recall` | The notes: what the agents of the sources kept, and what the orchestrator keeps about the application as a whole. |
+| `remember`, `recall` | The [memory](#memory): what the agents of the sources kept, and what the orchestrator keeps about the application as a whole. |
 | `submit_index` | The domains of the application, each with its `id`, `label`, `description` and, in `from`, the domains of the sources it gathers: a `source`, a `domain` and, to cut a domain between two areas, the `items` this one takes. |
 
 `submit_index` answers in three ways:
@@ -152,9 +152,33 @@ Every refusal has an exit. Domains of the sources left aside in two submissions 
 
 The index is derived from the accepted submission: each domain refers, by source, to the elements of the domains it gathers; two domains handed in under one id are joined; what the agent of a source set aside stays in `unassigned`, and the orchestrator is not asked about it.
 
-## Notes
+## Memory
 
-Every agent can keep tagged notes with `remember` and find them with `recall`, in `<stateDir>/memory/notes.jsonl`. The sessions that place a batch of elements and that write the file of a domain keep notes without reading any: their request holds what they need. Each is told to keep what the agents after it should know and no element says by itself, not everything. A note, a card or an index that holds a connection string or the key of the model is refused. A password alone is not checked: the tools never give it to the agent, and one read in a source is often a word of the application's names.
+Every agent can keep what it learned for the agents that come after it with `remember`, and find what they kept with `recall`. The memories are kept in [the database of the instance](../../store/docs/database.md#the-memories-of-the-agents), with the rest of its state; nothing is written to the test repository. The sessions that place a batch of elements and that write the file of a domain keep memories without reading any: their request holds what they need. Each is told to keep what the agents after it should know and no element says by itself, not everything.
+
+A memory is filed under a domain and a kind:
+
+- **The domain** is the identifier of a domain of the knowledge it is about, or `general` for what holds across the domains.
+- **The kind** is one of six, each the answer to a question an agent asks before it acts:
+
+| Kind | What it is |
+| --- | --- |
+| `business_rule` | A rule the application applies: what a test checks. |
+| `pitfall` | What misleads an agent or breaks a test, such as a delay, a field that empties itself or a label that says something else. |
+| `test_data` | A record, an account by role or a value a test can rely on; never a password. |
+| `locator` | How to target an element of a screen reliably. |
+| `navigation` | How to reach a screen or a state. |
+| `vocabulary` | Two sources or two screens that name the same thing differently. |
+
+What a domain holds is no kind: that is the knowledge, which the cards and the index already say.
+
+A memory also holds its text, 600 characters at most, tags that file it, eight at most and kept in lower case, the source or the application it is about, who wrote it — the role of the agent and its task — and when, and who corrected it last.
+
+`recall` keeps exactly to the domain, the kind and the source it is given, then ranks what remains: two points per tag in common, one per word of three letters or more of its text found in the memory, the memory written or corrected last first on a tie; without tags nor text, the latest. It gives ten memories by default, thirty at most, each with its identifier.
+
+`remember` keeps no duplicate unasked. Before it keeps a memory, it ranks those of the same domain and the same kind against its text and its tags; when some share a tag or a word with it, nothing is kept, and the five closest are given back with their identifiers. The agent then decides, and no model is asked: it corrects the one that says the same, with `revises` and its identifier — the memory keeps its identifier, its domain, its kind and who wrote it, and takes the text, the tags and the source given — or calls again with `distinct` when its own says something none of them does. `revises` names a memory of the same domain and the same kind, or nothing is changed; `revises` and `distinct` are not given together.
+
+A memory, a card or an index that holds a connection string or the key of the model is refused, in any of its parts. A password alone is not checked: the tools never give it to the agent, and one read in a source is often a word of the application's names.
 
 ## Trace
 
