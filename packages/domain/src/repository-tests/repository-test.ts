@@ -2,7 +2,7 @@
 export interface RepositoryTest {
   /** Its path, relative to the root of the test repository, such as `apps/shop/tests/orders/search/search-orders.spec.ts`. */
   readonly path: string;
-  /** Its title; its path when the file gives none. */
+  /** Its titles, those of the groups `test.describe` that hold it then its own, as `<describe>… › <title>`, as the runner reports it; the path of its file when the file names no test. */
   readonly title: string;
   /** The titles of its steps, in order. */
   readonly steps: readonly string[];
@@ -24,7 +24,15 @@ export interface RepositoryTest {
   readonly data?: string;
 }
 
-/** The tests of the test repository, as `GET /tests` answers. */
+/**
+ * What keeps a file of the test repository from being listed as it is: a title two of its tests share, which the
+ * runner and the results take as one test; or a syntax error, which keeps every test of the file from being read.
+ */
+export type RepositoryTestAnomaly =
+  { readonly kind: "duplicate"; readonly path: string; readonly title: string } | { readonly kind: "unreadable"; readonly path: string };
+
+/** The tests of the test repository, as `GET /tests` answers, with what keeps some of its files from being listed as they are. */
 export interface RepositoryTestList {
   readonly items: readonly RepositoryTest[];
+  readonly anomalies: readonly RepositoryTestAnomaly[];
 }

@@ -8,6 +8,9 @@ import { eventually } from "./support/eventually.ts";
 import { Hosted } from "./support/hosted.ts";
 import { MemoryCampaignStore } from "./support/memory-campaign-store.ts";
 
+/** The title the played runner reports the test of each file under: a campaign finds a test by its file and its title. */
+const TITLE = "the test";
+
 const QUOTES = "apps/shop/tests/quotes.spec.ts";
 const ORDERS = "apps/shop/tests/orders.spec.ts";
 const LOGIN = "apps/shop/tests/login.spec.ts";
@@ -38,12 +41,12 @@ async function campaignsOf(
   return { campaigns, store };
 }
 
-const REPOSITORY = [listed(QUOTES, "Answer a quote", ["@p0", "@domain-quotes"]), listed(ORDERS, "List the orders", ["@p1"]), listed(LOGIN, "Log in", [])];
+const REPOSITORY = [listed(QUOTES, TITLE, ["@p0", "@domain-quotes"]), listed(ORDERS, TITLE, ["@p1"]), listed(LOGIN, TITLE, [])];
 
 /** The tests of the repository, by the path of their file and their title, as a campaign chooses them. */
-const QUOTE = { path: QUOTES, title: "Answer a quote" };
-const ORDER = { path: ORDERS, title: "List the orders" };
-const SIGN_IN = { path: LOGIN, title: "Log in" };
+const QUOTE = { path: QUOTES, title: TITLE };
+const ORDER = { path: ORDERS, title: TITLE };
+const SIGN_IN = { path: LOGIN, title: TITLE };
 
 /** Plans a campaign in the local environment, and chooses its tests. */
 async function chosen(campaigns: Campaigns, name: string, tests: readonly { path: string; title: string }[]): Promise<string> {
