@@ -38,6 +38,15 @@ export interface WriterPace {
   readonly maxRetryMs: number;
 }
 
+/**
+ * How the writer waits before it writes again: it resolves once the delay passed, or at once when the signal is
+ * aborted, and never rejects.
+ */
+export type RetryWait = (ms: number, signal: AbortSignal) => Promise<void>;
+
+/** The wait of a writer: the timers of the process. */
+const TIMER_WAIT: RetryWait = (ms, signal) => pause(ms, undefined, { signal }).catch(() => undefined);
+
 /** The pace of a writer a host does not set: 250 milliseconds at first, 10 seconds at most. */
 const DEFAULT_PACE: WriterPace = { firstRetryMs: 250, maxRetryMs: 10_000 };
 
@@ -70,6 +79,7 @@ export class SessionWriter {
   readonly #signals: WriterSignals;
   readonly #abandoned: AbortSignal;
   readonly #pace: WriterPace;
+  readonly #wait: RetryWait;
   readonly #pending: Pending[] = [];
   #writing: Promise<void> | undefined;
   #ended = false;
@@ -83,14 +93,24 @@ export class SessionWriter {
    * @param signals - What is told of the writes: each one the store took, and a session that takes nothing more.
    * @param abandoned - Aborted by a host that stops without waiting any longer: a write that fails is then given up.
    * @param pace - How a failed write is paced; 250 milliseconds at first, 10 seconds at most, by default.
+   * @param wait - How the writer waits before it writes again; the timers of the process by default.
    */
-  constructor(store: WriterStore, session: string, logger: SessionsLogger, signals: WriterSignals, abandoned: AbortSignal, pace: WriterPace = DEFAULT_PACE) {
+  constructor(
+    store: WriterStore,
+    session: string,
+    logger: SessionsLogger,
+    signals: WriterSignals,
+    abandoned: AbortSignal,
+    pace: WriterPace = DEFAULT_PACE,
+    wait: RetryWait = TIMER_WAIT,
+  ) {
     this.#store = store;
     this.#session = session;
     this.#logger = logger;
     this.#signals = signals;
     this.#abandoned = abandoned;
     this.#pace = pace;
+    this.#wait = wait;
   }
 
   /**
@@ -137,7 +157,7 @@ export class SessionWriter {
         if (!this.#failing) this.#logger.warn(`The session ${this.#session} cannot be written to, and what it tells waits: ${(error as Error).message}`);
         this.#failing = true;
         // The wait ends at once for a host that stops waiting.
-        await pause(retryMs, undefined, { signal: this.#abandoned }).catch(() => undefined);
+        await this.#wait(retryMs, this.#abandoned);
         if (this.#abandoned.aborted) return this.#giveUp();
         retryMs = Math.min(retryMs * 2, this.#pace.maxRetryMs);
         continue;
