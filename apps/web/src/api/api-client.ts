@@ -43,6 +43,8 @@ import type {
   StoredDocumentSummary,
   SecretList,
   SecretState,
+  Knowledge,
+  SourceCheck,
 } from "@open-qa-stack/domain/sessions";
 import { ApiError } from "./api-error.ts";
 import { t } from "../i18n/i18n.ts";
@@ -194,6 +196,17 @@ export class ApiClient {
    */
   public async testModel(model: Model, key?: string): Promise<ModelConnectionCheck> {
     return this.#ask<ModelConnectionCheck>("/configuration/model-connection", posting(key === undefined ? model : { ...model, key }));
+  }
+
+  /**
+   * Tests that a knowledge source answers, as the person drafts it: nothing is saved nor indexed.
+   *
+   * @param source - The source.
+   * @param value - The connection string the person typed for a database, and did not save yet.
+   * @returns Whether it answers, with the number of items it holds, or why it does not.
+   */
+  public async checkSource(source: Knowledge, value?: string): Promise<SourceCheck> {
+    return this.#ask<SourceCheck>("/knowledge/check", posting(value === undefined ? source : { ...source, value }));
   }
 
   /** @returns Each variable the configuration in force names, and where its value comes from; never a value. */

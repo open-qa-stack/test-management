@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
-import type { ConfigError, ConfigurationView } from "@open-qa-stack/domain/sessions";
+import type { ConfigError, ConfigurationView, Knowledge } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
 import {
   configurationAfter,
   INITIAL_CONFIGURATION,
   isChanged,
   isPending,
+  typedConnection,
   typedKey,
   type ConfigurationAction,
   type ConfigurationState,
@@ -173,5 +174,24 @@ describe("the state of the screen of the configuration", () => {
     const { apiKeyEnv: _, ...keyless } = provider;
     assert.equal(typedKey(keyless, { MODEL_KEY: "k" }), undefined);
     assert.equal(typedKey({ mode: "github", model: "m" }, { MODEL_KEY: "k" }), undefined);
+  });
+
+  it("keeps the latest test of each source, and drops an answer to a test of a source since changed", () => {
+    const source = READ.draft!.knowledge[0]!;
+    const checking = after([{ type: "sourceChecking", rank: 0, source }], READ);
+    assert.deepEqual(checking.sourceChecks, { 0: { source } });
+    const answered = after([{ type: "sourceChecked", rank: 0, source, check: { state: "ok", items: 3 } }], checking);
+    assert.deepEqual(answered.sourceChecks, { 0: { source, check: { state: "ok", items: 3 } } });
+    assert.deepEqual(after([{ type: "sourceChecked", rank: 0, source, failure: "Down." }], checking).sourceChecks, { 0: { source, failure: "Down." } });
+    const other = { ...source, id: "other" };
+    assert.equal(after([{ type: "sourceChecked", rank: 0, source: other, check: { state: "unchecked" } }], checking), checking);
+    assert.equal(after([{ type: "sourceChecked", rank: 1, source, check: { state: "unchecked" } }], checking), checking);
+  });
+
+  it("finds the connection string typed for a database, and none for another source", () => {
+    const database: Knowledge = { id: "orders", type: "postgresql", connectionStringEnv: "SHOP_DB_URL", attachments: [] };
+    assert.equal(typedConnection(database, { SHOP_DB_URL: "postgres://typed" }), "postgres://typed");
+    assert.equal(typedConnection(database, {}), undefined);
+    assert.equal(typedConnection({ id: "docs", type: "document", path: "docs", attachments: [] }, { SHOP_DB_URL: "postgres://typed" }), undefined);
   });
 });

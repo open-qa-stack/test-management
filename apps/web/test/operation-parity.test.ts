@@ -39,6 +39,7 @@ const CONSOLE: Readonly<Record<OperationId, Offer>> = {
   "KnowledgeDocuments.upload": { client: "upload" },
   "KnowledgeDocuments.remove": { client: "removeDocument" },
   "KnowledgeDomains.list": { client: "domains" },
+  "KnowledgeSources.check": { client: "checkSource" },
   "RepositoryTests.listed": { client: "tests" },
   "TestReadings.read": { client: "testReading" },
   "TestReadings.trace": { address: "/tests/trace", in: "src/executions/executions-paths.ts" },

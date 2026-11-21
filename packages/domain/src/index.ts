@@ -66,7 +66,15 @@ export { GITHUB_COPILOT_URL, modelOrigin, type ModelOrigin } from "./config/mode
 export { MODEL_PROVIDERS, providerOf, type ModelProvider } from "./config/model-providers.ts";
 export { CHARTER_RULE_ID_PATTERN, configSchema, CONTAINER_NAME_PATTERN, ENV_VAR_PATTERN, SLUG_PATTERN } from "./config/schema.ts";
 export type * from "./config/types.ts";
-export { declaredStateDir, DEFAULT_REPOSITORY, isModel, resolvedConfig, validateConfig, type EnvironmentVariables } from "./config/validate.ts";
+export {
+  declaredStateDir,
+  DEFAULT_REPOSITORY,
+  isKnowledgeSource,
+  isModel,
+  resolvedConfig,
+  validateConfig,
+  type EnvironmentVariables,
+} from "./config/validate.ts";
 export { placementErrors, unplacedItems, type SourceInventory } from "./domain-index/placement.ts";
 export { domainIndexSchema, domainSubmissionSchema } from "./domain-index/schema.ts";
 export type * from "./domain-index/types.ts";
@@ -164,6 +172,7 @@ export { CampaignRefusedError } from "./campaigns/campaign-refused-error.ts";
 export { UnknownCampaignError } from "./campaigns/unknown-campaign-error.ts";
 export { OPERATIONS, operationIds, type OperationId } from "./operations/operations.ts";
 export { declaredSecrets } from "./secrets/declared-secrets.ts";
+export type { SourceCheck } from "./knowledge-check/source-check.ts";
 export { SecretRefusedError } from "./secrets/secret-refused-error.ts";
 export type { SecretKind, SecretList, SecretSource, SecretState } from "./secrets/secret-state.ts";
 export { UnknownSecretError } from "./secrets/unknown-secret-error.ts";

@@ -107,7 +107,14 @@ export function FirstUse({ project, state, controls, step, onBack, onNext }: Fir
         {step === "knowledge" && (
           <section className="config-section" aria-label={title}>
             {draft.knowledge.map((source, rank) => (
-              <KnowledgeCard key={rank} source={source} rank={rank} applications={draft.applications} />
+              <KnowledgeCard
+                key={rank}
+                source={source}
+                rank={rank}
+                applications={draft.applications}
+                onCheck={controls.checkSource}
+                {...(state.sourceChecks?.[rank] === undefined ? {} : { test: state.sourceChecks[rank] })}
+              />
             ))}
             <AddSourceButtons />
           </section>

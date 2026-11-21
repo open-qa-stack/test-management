@@ -2,7 +2,7 @@ import { useEffect, useMemo, useReducer, useState, type ReactNode } from "react"
 import { api } from "../api/instance-api.ts";
 import { actionOf, pressOf, type FieldKind } from "./configuration-edit.ts";
 import { ConfigurationScreen, type ConfigurationControls } from "./configuration-screen.tsx";
-import { configurationAfter, INITIAL_CONFIGURATION, isChanged, typedKey } from "./configuration-state.ts";
+import { configurationAfter, INITIAL_CONFIGURATION, isChanged, typedConnection, typedKey } from "./configuration-state.ts";
 import { ConfigurationSync } from "./configuration-sync.ts";
 import { FIRST_DRAFT, FIRST_USE_STEPS, FirstUse } from "./first-use.tsx";
 import { locale } from "../i18n/i18n.ts";
@@ -67,6 +67,11 @@ export function ConfigurationPage({ project, onSaved }: { readonly project: stri
     keepFile: () => sync.keepFile(),
     keepChange: () => sync.save(draft!, basedOn, true, values),
     testModel: () => sync.testModel(draft!.model, typedKey(draft!.model, values)),
+    checkSource: ({ currentTarget }) => {
+      const rank = Number(currentTarget.dataset["rank"]);
+      const source = draft!.knowledge[rank]!;
+      sync.checkSource(rank, source, typedConnection(source, values));
+    },
     setUp: () => sync.setUp(draft!, values),
   };
   if (state.view?.revision === undefined && draft !== undefined)

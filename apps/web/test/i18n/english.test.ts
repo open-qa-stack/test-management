@@ -27,6 +27,7 @@ const CONTROLS: ConfigurationControls = {
   keepFile: IGNORED,
   keepChange: IGNORED,
   testModel: IGNORED,
+  checkSource: IGNORED,
   setUp: IGNORED,
 };
 

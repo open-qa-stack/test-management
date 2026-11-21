@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, it } from "vitest";
@@ -144,12 +144,59 @@ describe("the arguments of oqas knowledge", () => {
       ok: true,
       arguments: { output: "text", follow: false, command: { name: "knowledge", action: "add-document", source: "manuals", files: ["a.md", "b.md"] } },
     });
-    const usage = "oqas knowledge takes list, or add-document then a source and one file at least.";
+    const usage = "oqas knowledge takes list, check and a source at most, or add-document then a source and one file at least.";
     for (const argv of [["knowledge"], ["knowledge", "list", "more"], ["knowledge", "add-document", "manuals"], ["knowledge", "remove"]])
       assert.deepEqual(parseArguments(argv), { ok: false, error: usage }, argv.join(" "));
     assert.deepEqual(parseArguments(["knowledge", "list", "--follow"]), {
       ok: false,
       error: "oqas knowledge acts on the knowledge sources: it takes no --brief, --environment nor --follow.",
+    });
+  });
+});
+
+describe("oqas knowledge check", () => {
+  it("tests each source, without the model, says what answers and why the others do not, and exits with 4", async () => {
+    const { root, oqas } = repository();
+    mkdirSync(join(root, "specs"));
+    writeFileSync(join(root, "specs", "orders.md"), "# Orders\n");
+    const told = await oqas("knowledge", "check");
+    assert.equal(told.code, 4);
+    const lines = told.out.trimEnd().split("\n");
+    assert.deepEqual(
+      lines.map((line) => line.split("  ")[0]),
+      ["contract", "local-contract", "shop-db", "order-specs", "manuals", "code", "server-log", "container-log"],
+    );
+    assert.match(told.out, /^contract {2}does not answer: fetch failed/m);
+    assert.match(told.out, /^order-specs {2}answers, 1 item$/m);
+    assert.match(told.out, /^manuals {2}answers, 0 items$/m);
+    assert.match(told.out, /^server-log {2}not tested: logs are read while a session runs$/m);
+  });
+
+  it("tests one source when named, exits with 0 when it answers, and prints JSON when asked", async () => {
+    const { root, oqas } = repository();
+    mkdirSync(join(root, "specs"));
+    writeFileSync(join(root, "specs", "orders.md"), "# Orders\n");
+    assert.deepEqual(await oqas("knowledge", "check", "order-specs"), { code: 0, out: "order-specs  answers, 1 item\n", err: "" });
+    const json = await oqas("knowledge", "check", "order-specs", "--output", "json");
+    assert.deepEqual(JSON.parse(json.out), { checks: [{ source: "order-specs", check: { state: "ok", items: 1 } }] });
+  });
+
+  it("is refused for a source the configuration does not declare, and where it declares none", async () => {
+    const unknown = await repository().oqas("knowledge", "check", "nowhere");
+    assert.deepEqual([unknown.code, unknown.err], [3, "The configuration in force declares no knowledge source nowhere; oqas knowledge list lists them.\n"]);
+    const none = await repository(fixtureConfig("http://127.0.0.1:9/v1", "http://127.0.0.1:9/", { knowledge: [] })).oqas("knowledge", "check");
+    assert.deepEqual([none.code, none.err], [3, "The configuration in force declares no knowledge source.\n"]);
+  });
+
+  it("is read from its arguments: check, and a source at most", () => {
+    assert.deepEqual(parseArguments(["knowledge", "check"]), {
+      ok: true,
+      arguments: { output: "text", follow: false, command: { name: "knowledge", action: "check" } },
+    });
+    assert.deepEqual(parseArguments(["knowledge", "check", "docs"]).ok, true);
+    assert.deepEqual(parseArguments(["knowledge", "check", "a", "b"]), {
+      ok: false,
+      error: "oqas knowledge takes list, check and a source at most, or add-document then a source and one file at least.",
     });
   });
 });

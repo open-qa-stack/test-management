@@ -39,6 +39,7 @@ The command is a presentation of [the operations on sessions](../../engine/docs/
 | `oqas model set` | Sets the connection to the model — the GitHub account of the machine, or a provider and its key — then tests it. |
 | `oqas knowledge list` | Lists the knowledge sources of the configuration in force, and the documents the instance keeps: see [The knowledge](#the-knowledge). |
 | `oqas knowledge add-document <source> <file>...` | Uploads Markdown files as documents of a source declared `"stored": true`. |
+| `oqas knowledge check [<source>]` | Tests that the knowledge sources answer, or one of them, without the model and indexing nothing. |
 | `oqas secrets` | Lists the variables the configuration names, and where the value of each comes from: see [The values of the variables](#the-values-of-the-variables). |
 | `oqas secrets set <variable>` | Saves the value of one of them on this machine, out of the test repository, typed unseen or read from the input. |
 | `oqas --ui` | Serves the console of the test repository in a browser, and runs the sessions opened in it, until Ctrl-C: see [The console](#the-console). |
@@ -321,6 +322,18 @@ underwriting-guides: documents the instance keeps; attached to policy-management
 ```
 
 `oqas knowledge list` writes nothing; it lists the sources of the configuration in force, which `oqas config import` takes from `oqas.json` when it changed. `add-document` takes the files whose paths it is given, relative to the current folder, each named as its document after the last part of its path, all of them or none, by [the rules of an upload](../../api/docs/knowledge.md#uploading-documents): a document of the same name is replaced. With `--output json`, `list` prints the sources, each with its documents when the instance keeps them, and `add-document` the documents of the source once they are kept. They exit with `0`, or with `3` when the upload breaks a rule — each error is told beside its file — when the source is not declared stored in the configuration in force, or when a file cannot be read.
+
+`oqas knowledge check` tests that each knowledge source of the configuration in force answers, or the one it names, as [the API tests one](../../api/docs/knowledge.md#testing-a-source): without the model, indexing nothing, with the values of the variables saved on this machine.
+
+```console
+$ oqas knowledge check
+policy-management-api  answers, 42 items
+customer-db  does not answer: password authentication failed for user "reader"
+underwriting-guides  answers, 2 items
+server-log  not tested: logs are read while a session runs
+```
+
+It exits with `0` when each answers, with `4` when one does not, and with `3` when the configuration declares no source, or not the one named. With `--output json`, it prints `{"checks":[{"source":…,"check":…}]}`.
 
 ## Speaking to a session
 

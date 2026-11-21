@@ -179,4 +179,27 @@ export function knowledgeApiSuite(engine: DatabaseEngine): void {
       }
     });
   });
+
+  describe(`the test of a knowledge source on ${engine.name}`, () => {
+    const check = async (body: unknown, on = api) =>
+      answerOf(await fetch(`${on.url}/knowledge/check`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }));
+
+    it("tells whether a source drafted answers, with what it holds, and never caches it", async () => {
+      mkdirSync(join(repository, "docs"));
+      writeFileSync(join(repository, "docs", "orders.md"), "# Orders\n");
+      const answered = await check({ type: "document", path: "docs" });
+      assert.deepEqual([answered.status, answered.cache, answered.body], [200, "no-store", { state: "ok", items: 1 }]);
+      const failed = await check({ type: "postgresql", connectionStringEnv: "SHOP_DB_URL", value: "postgres://nobody@127.0.0.1:1/shop" });
+      assert.equal((failed.body as { state: string }).state, "failed");
+    });
+
+    it("is refused for what is no source, a value that is no text, or by an API given no test repository", async () => {
+      assert.equal(problemCode(await check({ type: "tickets" })), "400 invalid_request");
+      assert.equal(problemCode(await check({ type: "postgresql", connectionStringEnv: "SHOP_DB_URL", value: 1 })), "400 invalid_request");
+      assert.equal(problemCode(await check("docs")), "400 invalid_request");
+      await api.close();
+      api = await sessionsApi({ database: database.url });
+      assert.equal(problemCode(await check({ type: "document", path: "docs" })), "503 unavailable");
+    });
+  });
 }

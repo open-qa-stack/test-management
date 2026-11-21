@@ -1,4 +1,4 @@
-import type { ConfigurationView, Model, OqasConfig } from "@open-qa-stack/domain/sessions";
+import type { ConfigurationView, Knowledge, Model, OqasConfig } from "@open-qa-stack/domain/sessions";
 import type { ApiClient } from "../api/api-client.ts";
 import type { ApiError } from "../api/api-error.ts";
 import { poll } from "../api/poll.ts";
@@ -67,6 +67,21 @@ export class ConfigurationSync {
     this.#api.testModel(model, key).then(
       (check) => this.#dispatch({ type: "tested", model, check }),
       (error: ApiError) => this.#dispatch({ type: "tested", model, failure: error.message }),
+    );
+  }
+
+  /**
+   * Tests that a knowledge source of the draft answers, and tells what the instance found.
+   *
+   * @param rank - The rank of the source in the draft.
+   * @param source - The source.
+   * @param value - The connection string the person typed for a database, and did not save yet.
+   */
+  public checkSource(rank: number, source: Knowledge, value?: string): void {
+    this.#dispatch({ type: "sourceChecking", rank, source });
+    this.#api.checkSource(source, value).then(
+      (check) => this.#dispatch({ type: "sourceChecked", rank, source, check }),
+      (error: ApiError) => this.#dispatch({ type: "sourceChecked", rank, source, failure: error.message }),
     );
   }
 

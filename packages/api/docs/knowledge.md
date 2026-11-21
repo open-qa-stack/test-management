@@ -11,8 +11,33 @@ The shapes of every body are the types of `@open-qa-stack/domain/sessions`. A cl
 | `GET /api/knowledge/:source/documents/:name` | A document, with its text. |
 | `DELETE /api/knowledge/:source/documents/:name` | Removes a document. |
 | `GET /api/knowledge/domains` | [The domains of the knowledge](#the-domains-of-the-knowledge), as the cartography named them. |
+| `POST /api/knowledge/check` | [Tests a source](#testing-a-source) as it is drafted, without the model, indexing nothing. |
 
 `:source` is the identifier of the source in the configuration in force, and `:name` the file name of a document, both encoded as a path segment. The two reads are answered with `cache-control: no-store`. Every answer that is not a success is a [problem](sessions.md#problems).
+
+## Testing a source
+
+```http
+POST /api/knowledge/check
+content-type: application/json
+
+{"type":"postgresql","connectionStringEnv":"SHOP_DB_URL","value":"postgres://reader@db.example.test/shop"}
+
+HTTP/1.1 200 OK
+cache-control: no-store
+
+{"state":"ok","items":12}
+```
+
+The body is a source of the section `knowledge` of a configuration as the person drafts it: its `id` and its `attachments` may be left out. Beside its keys, `value` carries the connection string the person typed for a database and did not save yet, which is tried in place of the one its variable holds. The source is read as the cartography reads it first, and nothing else: the contract is read as OpenAPI, the database answers a query on its catalogue and no row of its data is read, the folder of the documents or of the code is listed, the documents the instance keeps are counted. Nothing calls the model, and nothing is written.
+
+| `state` | When | With |
+|---|---|---|
+| `ok` | The source answers. | `items`, what it holds: the operations of a contract, the tables of a database, the files of a folder, the documents kept. |
+| `failed` | It does not. | `reason`, what went wrong, to correct. |
+| `unchecked` | The source is logs, which are read while a session runs. | — |
+
+A body that is no source the configuration accepts, or whose `value` is no text, is answered with `400 invalid_request`; an API started without a test repository answers `503 unavailable`.
 
 ## The domains of the knowledge
 

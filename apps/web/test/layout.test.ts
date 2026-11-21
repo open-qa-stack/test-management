@@ -1615,7 +1615,7 @@ describe("the code of the console is covered in full", () => {
         await page.getByLabel("Nom", { exact: true }).first().fill("Boutique");
         await page.getByText("Avancé", { exact: true }).click();
         await page.getByLabel("Attente d’une réponse, en secondes").fill("90");
-        await page.getByRole("button", { name: "Tester la connexion" }).click();
+        await page.getByRole("button", { name: "Tester la connexion" }).last().click();
         await page.getByRole("status").filter({ hasText: "Choisissez un modèle dans la liste" }).waitFor();
         await page.getByLabel("Connexion au modèle").selectOption("Autre serveur (adresse à saisir)");
         await page.getByLabel("Connexion au modèle").selectOption("Compte GitHub de cette machine (Copilot)");
@@ -1637,9 +1637,12 @@ describe("the code of the console is covered in full", () => {
         instance.fileChanged = true;
         await page.getByRole("button", { name: "Prendre oqas.json" }).click();
         await page.getByRole("status").filter({ hasText: "Révision 5 enregistrée" }).waitFor();
+        // A source is tested as it is drafted.
+        await page.getByRole("button", { name: "Tester la connexion" }).first().click();
+        await page.getByRole("status").filter({ hasText: "Connexion réussie · 3 éléments trouvés." }).waitFor();
         // A value typed is saved alone, out of the configuration, which does not change.
         await page.getByLabel("Clé", { exact: true }).fill("typed-key");
-        await page.getByRole("button", { name: "Tester la connexion" }).click();
+        await page.getByRole("button", { name: "Tester la connexion" }).last().click();
         await page.getByRole("button", { name: "Enregistrer" }).click();
         await page.getByRole("status").filter({ hasText: "Les valeurs tapées sont enregistrées sur cet ordinateur." }).waitFor();
         assert.equal(instance.values.get("MODEL_KEY"), "typed-key");

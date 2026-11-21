@@ -33,6 +33,8 @@ export type Command =
   | { readonly name: "model"; readonly action: "set"; readonly connection: ModelArguments }
   /** Upload files as documents of a source the instance keeps. */
   | { readonly name: "knowledge"; readonly action: "add-document"; readonly source: string; readonly files: readonly string[] }
+  /** Test that the knowledge sources of the configuration in force answer, or one of them. */
+  | { readonly name: "knowledge"; readonly action: "check"; readonly source?: string }
   /** List the variables the configuration in force names, and where the value of each comes from. */
   | { readonly name: "secrets"; readonly action: "list" }
   /** Save the value of one of them, read from the input of the command, out of the test repository. */
@@ -95,6 +97,7 @@ export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
        oqas [--repository <folder>] model set --provider <name|address> [--key-env <variable>] --model <id> [--output text|json]
        oqas [--repository <folder>] knowledge list [--output text|json]
        oqas [--repository <folder>] knowledge add-document <source> <file>... [--output text|json]
+       oqas [--repository <folder>] knowledge check [<source>] [--output text|json]
        oqas [--repository <folder>] secrets [--output text|json]
        oqas [--repository <folder>] secrets set <variable>
        oqas [--repository <folder>] --ui [--host <address>] [--port <number>]
@@ -129,6 +132,9 @@ Commands:
   knowledge add-document <source> <file>...
                          Upload Markdown files as documents of such a source, all of them or none: a document of
                          the same name is replaced.
+  knowledge check [<source>]
+                         Test that the knowledge sources answer, or one of them, without the model and indexing
+                         nothing: exits with 0 when each answers, with 4 otherwise.
   secrets                List the variables the configuration names (the key of the model, the connection strings,
                          the test accounts) and where the value of each comes from: the environment, which wins, a
                          value saved on this machine, or none yet.
@@ -324,5 +330,6 @@ function knowledgeOf(words: readonly string[], ofASession: boolean): Command | s
   if (ofASession) return "oqas knowledge acts on the knowledge sources: it takes no --brief, --environment nor --follow.";
   if (action === "list" && source === undefined) return { name: "knowledge", action };
   if (action === "add-document" && source !== undefined && files.length > 0) return { name: "knowledge", action, source, files };
-  return "oqas knowledge takes list, or add-document then a source and one file at least.";
+  if (action === "check" && files.length === 0) return { name: "knowledge", action, ...(source === undefined ? {} : { source }) };
+  return "oqas knowledge takes list, check and a source at most, or add-document then a source and one file at least.";
 }
