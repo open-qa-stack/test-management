@@ -1,6 +1,6 @@
 # The database
 
-An instance keeps its state in one database: the project, the sessions, their events, the messages sent to them, the revisions of its configuration, and the documents uploaded to its knowledge sources. The processes that say [the operations on sessions](../../engine/docs/engine.md#the-operations-on-sessions) reach it — the API, and the `oqas` command in a terminal — each of which runs the sessions it opened, and [meets the others there](#several-processes-on-one-database). They do so through `@open-qa-stack/store`, which holds the schema of the database, its migrations, its connections, [the commands of the life of a session](#the-life-of-a-session), and [the one assembly of them](#the-database-of-an-instance-assembled) every process uses.
+An instance keeps its state in one database: the project, the sessions, their events, the messages sent to them, the revisions of its configuration, the documents uploaded to its knowledge sources, the executions of tests, the campaigns, and the memories of the agents. The processes that say [the operations on sessions](../../engine/docs/engine.md#the-operations-on-sessions) reach it — the API, and the `oqas` command in a terminal — each of which runs the sessions it opened, and [meets the others there](#several-processes-on-one-database). They do so through `@open-qa-stack/store`, which holds the schema of the database, its migrations, its connections, [the commands of the life of a session](#the-life-of-a-session), and [the one assembly of them](#the-database-of-an-instance-assembled) every process uses.
 
 ## One schema, two databases
 
@@ -73,10 +73,11 @@ The migrations so far:
 | `0008_campaigns` | The tables of [the campaigns](#the-campaigns) and of the tests each one fixed, and the campaign of an execution. The executions kept before belong to none. |
 | `0009_session_scopes` | The scope of a session: what of the project it keeps its work to. The sessions asked for before keep the whole project. |
 | `0010_campaign_selections` | Leaves the tags of the campaigns: a campaign is made of the tests chosen for it. A campaign still planned keeps no test, and its tests are chosen again. |
+| `0011_memories` | The table of [the memories of the agents](#the-memories-of-the-agents). The notes an earlier version kept in `<stateDir>/memory/notes.jsonl` are not brought in: the file is neither read nor removed. |
 
 ## The database of an instance, assembled
 
-`InstanceDatabase` is the database of an instance as a process gets it, assembled once for all of them: given the URL `instanceDatabaseUrl` resolved and the logger of the process, it holds the connection (`database`), the migrations (`migrations`), their status (`status`), the store of the sessions (`sessions`), that of the configuration (`configuration`), that of the documents (`documents`) and that of the executions (`executions`), and opens nothing until a statement needs it. The API provides its parts to its modules; the `oqas` command hands its store to the operations.
+`InstanceDatabase` is the database of an instance as a process gets it, assembled once for all of them: given the URL `instanceDatabaseUrl` resolved and the logger of the process, it holds the connection (`database`), the migrations (`migrations`), their status (`status`), the store of the sessions (`sessions`), that of the configuration (`configuration`), that of the documents (`documents`), that of the executions (`executions`), that of the campaigns (`campaigns`) and that of the memories of the agents (`memory`), and opens nothing until a statement needs it. The API provides its parts to its modules; the `oqas` command hands its store to the operations.
 
 `prepare()` is the one rule that brings the schema in order before a process reads anything: on a SQLite file it applies the pending migrations; on a server it applies none, and raises `PendingMigrationsError` — `The database schema is not up to date: 2 migrations are pending. Apply them with the migration command, then start again.` — when some are pending. A server that cannot be reached is not refused there: its status reports it, and what reads the database next raises `DatabaseUnavailableError`, so that a server that starts before its database still starts.
 
@@ -98,7 +99,7 @@ The store writes a date and a JSON value as the same text to both, and reads bac
 
 ## Tables
 
-The database keeps the project of the instance, its sessions, the events of each session, the messages a person sent to it, the revisions of its configuration, and the documents uploaded to its knowledge sources. [The sessions](../../api/docs/sessions.md#where-sessions-are-kept-and-what-runs-them) tell who writes what.
+The database keeps the project of the instance, its sessions, the events of each session, the messages a person sent to it, the revisions of its configuration, the documents uploaded to its knowledge sources, the executions of tests and their versions, the campaigns, and the memories of the agents. [The sessions](../../api/docs/sessions.md#where-sessions-are-kept-and-what-runs-them) tell who writes what.
 
 `project` holds one row at most: a check on its key refuses a second one.
 
@@ -231,6 +232,23 @@ Where a test failed is read from the last attempt of the report; the five column
 |---|---|---|
 | `campaign_id`, `path`, `title` | `text`, primary key | The campaign, which its tests go with, and a test chosen for it, named as in `execution_results`. |
 
+### The memories of the agents
+
+`memories` holds one row each memory an agent kept for the agents that come after it, filed under a domain and a kind, as [the memories of the agents](#the-memories-of-the-agents) tell.
+
+| Column | Type | Why |
+|---|---|---|
+| `id` | `text`, primary key | The identifier of the memory, a UUID given when it is written, by which it is corrected. |
+| `domain` | `text` | The identifier of the domain of the knowledge it is about, or `general`. |
+| `kind` | `text` | `business_rule`, `pitfall`, `test_data`, `locator`, `navigation` or `vocabulary`: a text, so that a kind is added without a migration. |
+| `text` | `text` | What the agent learned. |
+| `tags` | JSON | The words that file it, in lower case: served whole, never filtered on. |
+| `source` | `text`, nullable | The knowledge source or the application it is about, when there is one. |
+| `written_role`, `written_task`, `written_at` | `text`, `text`, date | Who wrote it — the role of the agent and its task — and when. |
+| `revised_role`, `revised_task`, `revised_at` | `text`, `text`, date, all three nullable | Who corrected it last, and when; empty until it is. |
+
+`memories_domain_kind` indexes the domain and the kind, which every search filters on.
+
 The columns that keep a date, a JSON value or a boolean are kept [as each database keeps them](#how-each-type-is-kept). Nothing filters on what a JSON column holds, which is served as it was written, its fields in the order they were given: on PostgreSQL the columns are `json` and not `jsonb`, which would sort the fields.
 
 ## The life of a session
@@ -306,6 +324,16 @@ The store notifies no one, and nothing listens to the database: the process that
 - **An upload is kept whole or not at all**, in one transaction: a document of a name the source holds replaces it, and is dated anew.
 - **The documents of a source are listed by their names**, code unit by code unit, the same on both databases whatever their collation.
 - **The store applies no rule of an upload**: which sources take documents, which names, formats and sizes, is for [the operations on documents](../../engine/docs/engine.md#the-operations-on-documents) to tell, before anything is kept.
+
+## The memories of the agents
+
+`MemoryStore` is the one place that writes the memories of the agents. It implements `MemoryStorePort` of `@open-qa-stack/domain`: it lists the memories that equal every filter it is given — a domain, a kind, a source, or several of them — in the order they were written, `list(filter)`; it keeps a memory just written, `add(memory)`; and it corrects what a memory says, `revise(id, content, revised)`, which tells whether a memory of that identifier was kept.
+
+- **A memory is one row of `memories`, under an identifier that never changes**: its domain, its kind, its text, its tags as JSON, its source, who wrote it — the role and the task of the agent, and the date — and who corrected it last, in three columns empty until it is.
+- **A correction changes what the memory says, nothing else**: its text, its tags and its source are replaced; its identifier, its domain, its kind and who wrote it stay.
+- **The filters are exact**, on the index `memories_domain_kind`: a domain is matched as it is written, case included.
+- **Two memories written in the same millisecond are listed in the order of their identifiers**, code unit by code unit, the same on both databases.
+- **The store ranks nothing**: [the tools of the agents](../../agents/docs/cartographer.md#memory) rank what it lists, by the rule of `rankMemories` in `@open-qa-stack/domain`.
 
 ## Several processes on one database
 

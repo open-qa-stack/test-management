@@ -131,8 +131,8 @@ describe("criterion 7 — a dirty working tree or a taken branch stops the desig
     git(root, "branch", BRANCH);
     writeFileSync(join(root, "specs", "orders.md"), "# Orders, changed\n");
     writeFileSync(join(root, "notes.txt"), "draft\n");
-    mkdirSync(join(root, ".oqas", "memory"), { recursive: true });
-    writeFileSync(join(root, ".oqas", "memory", "notes.jsonl"), "");
+    mkdirSync(join(root, ".oqas"), { recursive: true });
+    writeFileSync(join(root, ".oqas", "oqas.db"), "");
     const { outcome, server, before } = await design(replies(valid(3)), { root });
     assert.equal(outcome.ok, false);
     assert.deepEqual(

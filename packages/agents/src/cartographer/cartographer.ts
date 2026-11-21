@@ -16,9 +16,10 @@ import {
   type ToolDefinition,
   type TraceLine,
   modelOrigin,
+  type MemoryStorePort,
 } from "@open-qa-stack/domain";
 import { browserTools, knowledgeTools, scopedToolName, type BrowserAccess, type KnowledgeAccess } from "@open-qa-stack/tools";
-import { agentNotes } from "../common/agent-notes.ts";
+import { agentMemory } from "../common/agent-memory.ts";
 import { ScreenTrail } from "../application-explorer/screen-trail.ts";
 import { configSecrets } from "../common/config-secrets.ts";
 import { runAgentTask, taskEnd, taskLimits } from "../common/agent-task.ts";
@@ -55,6 +56,8 @@ export interface CartographerOptions {
   readonly env: Readonly<Record<string, string | undefined>>;
   /** The runtime that opens the agents' sessions. */
   readonly runtime: AgentRuntime;
+  /** Where the memories of the agents are kept, which they recall and add to. */
+  readonly memory: MemoryStorePort;
   /** Makes the SQL client of a database; PostgreSQL by default. */
   readonly sqlClient?: KnowledgeAccess["sqlClient"];
   /** How the browser starts and waits; a headless Chromium with the default waits otherwise. */
@@ -193,7 +196,7 @@ export class Cartographer {
     // The orchestrator reads what the agent of each source wrote of a domain, in the folder the source was mapped to.
     const written = (source: string, domain: string) =>
       new SourceFolder(join(repositoryRoot, config.repository.indexDir, CARDS_FOLDER, source), secrets).readDomain(domain);
-    const notes = agentNotes(config, repositoryRoot, env, { role: "cartographer", task: `index-${environment}-${now().toISOString()}`, now });
+    const notes = agentMemory(config, this.options.memory, env, { role: "cartographer", task: `index-${environment}-${now().toISOString()}`, now });
     const browser = this.browser(sources);
     const events: AgentEvent[] = [];
     const { inbox } = this.options;

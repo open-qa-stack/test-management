@@ -1,4 +1,4 @@
-import { scriptedServer } from "@open-qa-stack/testing";
+import { scriptedServer, KeptMemories } from "@open-qa-stack/testing";
 import { configText, FakeRunner, repository, type Script } from "@open-qa-stack/testing/test-repository";
 import { journalLine, RunThread, traceLine, type RunEntry, type RunLine } from "@open-qa-stack/domain";
 import { Configuration, liveRuntime, Run } from "../../src/index.ts";
@@ -31,6 +31,7 @@ export async function toldByTheEngine(replies: Parameters<typeof scriptedServer>
   let kept = false;
   try {
     await new Run({
+      memory: new KeptMemories(),
       repositoryRoot: root,
       configuration: new Configuration(new MemoryConfigurationStore(), root),
       documents: new MemoryDocumentStore(),

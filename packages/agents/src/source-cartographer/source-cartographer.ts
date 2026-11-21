@@ -14,9 +14,10 @@ import {
   type ToolDefinition,
   type TraceLine,
   modelOrigin,
+  type MemoryStorePort,
 } from "@open-qa-stack/domain";
 import { DocumentSet, type BrowserAccess, type KnowledgeAccess, type SourceExport, type SourceInventory } from "@open-qa-stack/tools";
-import { agentNotes } from "../common/agent-notes.ts";
+import { agentMemory } from "../common/agent-memory.ts";
 import { configSecrets } from "../common/config-secrets.ts";
 import { runAgentTask, taskEnd, taskLimits } from "../common/agent-task.ts";
 import { HandedIn } from "../common/handed-in.ts";
@@ -52,6 +53,8 @@ export interface SourceCartographerOptions {
   readonly env: Readonly<Record<string, string | undefined>>;
   /** The runtime that opens the agent's session. */
   readonly runtime: AgentRuntime;
+  /** Where the memories of the agents are kept, which they recall and add to. */
+  readonly memory: MemoryStorePort;
   /** Makes the SQL client of a database; PostgreSQL by default. */
   readonly sqlClient?: KnowledgeAccess["sqlClient"];
   /** How the browser starts and waits; a headless Chromium with the default waits otherwise. */
@@ -337,8 +340,8 @@ export class SourceCartographer {
 
   /** The notes an agent that maps the source takes and reads. */
   private notes(now: () => Date): ToolDefinition[] {
-    const { config, source, repositoryRoot, env } = this.options;
-    return agentNotes(config, repositoryRoot, env, { role: "cartographer", task: `card-${source.id}-${now().toISOString()}`, now });
+    const { config, source, memory, env } = this.options;
+    return agentMemory(config, memory, env, { role: "cartographer", task: `card-${source.id}-${now().toISOString()}`, now });
   }
 
   /** Writes a card that passes its schema. */

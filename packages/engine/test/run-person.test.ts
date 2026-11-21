@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "vitest";
-import { scriptedServer } from "@open-qa-stack/testing";
+import { scriptedServer, KeptMemories } from "@open-qa-stack/testing";
 import type { PersonMessage, TraceLine } from "@open-qa-stack/domain";
 import type { Inbox } from "@open-qa-stack/agents";
 import { liveRuntime, Run } from "../src/index.ts";
@@ -35,6 +35,7 @@ async function spoken(inbox: Inbox, atExecution: () => void = () => undefined) {
   };
   try {
     const code = await new Run({
+      memory: new KeptMemories(),
       repositoryRoot: root,
       environment: "local",
       env: { SHOP_DB_URL: WITNESS },

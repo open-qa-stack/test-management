@@ -20,7 +20,7 @@ import {
   type TestTrial,
   type TraceLine,
 } from "@open-qa-stack/domain";
-import { answer, scriptedServer, testSite, toolCalls, type ScriptedServer, type TestSite } from "@open-qa-stack/testing";
+import { answer, KeptMemories, scriptedServer, testSite, toolCalls, type ScriptedServer, type TestSite } from "@open-qa-stack/testing";
 import { Designer, readPlanFile, type DesignOutcome, type DesignState, type Inbox, type PlanRecord } from "../src/index.ts";
 
 export const MODEL = "test-model";
@@ -364,6 +364,7 @@ export async function design(script: readonly { status?: number; body: unknown }
     const charter = resolveCharter(config.charter);
     assert.ok(charter.ok);
     const designer = new Designer({
+      memory: new KeptMemories(),
       config,
       repositoryRoot: root,
       env: setup.env ?? ENV,
