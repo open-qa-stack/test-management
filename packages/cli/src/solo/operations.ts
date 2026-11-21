@@ -1,7 +1,19 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { CONFIG_FILE_NAME, DATABASE_FILE_NAME, DEFAULT_REPOSITORY } from "@open-qa-stack/domain";
-import { Configuration, KnowledgeDocuments, liveRuntime, ModelConnection, Sessions, START_ADVICE, type SessionsHost } from "@open-qa-stack/engine";
+import { CONFIG_FILE_NAME, DATABASE_FILE_NAME, DEFAULT_REPOSITORY, type Model } from "@open-qa-stack/domain";
+import {
+  Configuration,
+  FileSecretStore,
+  KnowledgeDocuments,
+  liveRuntime,
+  ModelConnection,
+  Secrets,
+  Sessions,
+  START_ADVICE,
+  type Environment,
+  type EnvironmentSource,
+  type SessionsHost,
+} from "@open-qa-stack/engine";
 import { DATABASE_URL_VARIABLE, DatabaseUrl, InstanceDatabase, instanceDatabaseUrl } from "@open-qa-stack/store";
 import { UsageError } from "./usage-error.ts";
 import type { CommandIo } from "./command-io.ts";
@@ -13,6 +25,8 @@ export interface Operations {
   readonly configuration: Configuration;
   /** The operations on the documents of the knowledge sources the instance keeps. */
   readonly documents: KnowledgeDocuments;
+  /** The operations on the values of the variables the configuration names, which complete the environment of the runs. */
+  readonly secrets: Secrets;
   /**
    * Stops hosting, when the command hosted a session, and closes the database.
    *
@@ -47,8 +61,11 @@ export async function openOperations(io: CommandIo, repository: string, hosts: b
   const logger = commandLogger(io);
   const instance = new InstanceDatabase(databaseOf(io, repository), logger);
   const configuration = new Configuration(instance.configuration, repository);
+  const secrets = new Secrets(configuration, io.env, FileSecretStore.of(repository));
   const sessions = new Sessions({
     ...runsOf(io),
+    // The values saved for the variables of the configuration complete the environment of the command, read as each run starts.
+    env: secrets,
     store: instance.sessions,
     configuration,
     documents: instance.documents,
@@ -67,7 +84,7 @@ export async function openOperations(io: CommandIo, repository: string, hosts: b
     await instance.close();
     throw error;
   }
-  return { sessions, configuration, documents: new KnowledgeDocuments(instance.documents, instance.configuration), close };
+  return { sessions, configuration, documents: new KnowledgeDocuments(instance.documents, instance.configuration), secrets, close };
 }
 
 /**
@@ -83,11 +100,10 @@ export function commandLogger(io: Pick<CommandIo, "stderr">): { log(message: unk
  * @param io - What the command runs with.
  * @returns What the runs of the sessions a command hosts work with, in whichever presentation hosts them: its environment, and what it was given in place of the machine.
  */
-export function runsOf(io: CommandIo): Pick<SessionsHost, "env" | "openRuntime" | "runner" | "now" | "pace"> {
-  const connect = io.connect ?? liveRuntime;
+export function runsOf(io: CommandIo): Pick<SessionsHost, "openRuntime" | "runner" | "now" | "pace"> & { readonly env: Environment } {
   return {
     env: io.env,
-    openRuntime: (config) => connect(config, io.env),
+    openRuntime: io.connect ?? liveRuntime,
     ...(io.runner === undefined ? {} : { runner: io.runner }),
     ...(io.now === undefined ? {} : { now: io.now }),
     ...(io.pace === undefined ? {} : { pace: io.pace }),
@@ -122,9 +138,25 @@ export function databaseOf(io: CommandIo, repository: string, unconfigured: "ref
  * The test of the connection to the model a command makes: with the probes it is given, or with the GitHub account of
  * the machine and the server of the provider.
  *
- * @param io - The environment of the command, which the key of a provider is read from.
+ * @param io - What the command runs with.
+ * @param env - The environment the key of a provider is read from, or what reads it at each test; that of the command by default.
  * @returns The operation.
  */
-export function modelConnectionOf(io: CommandIo): ModelConnection {
-  return io.probes === undefined ? new ModelConnection(io.env) : new ModelConnection(io.env, io.probes);
+export function modelConnectionOf(io: CommandIo, env: Environment | EnvironmentSource = io.env): ModelConnection {
+  return io.probes === undefined ? new ModelConnection(env) : new ModelConnection(env, io.probes);
+}
+
+/**
+ * Records the connection to the model a person set in a terminal, as a revision of origin `command`, which rewrites
+ * `oqas.json`; then saves the key they typed for its variable, out of the test repository.
+ *
+ * @param operations - The operations on the configuration and on the values of its variables.
+ * @param model - The connection.
+ * @param key - The key typed for the variable of the connection, when the person typed one.
+ */
+export async function savedModel({ configuration, secrets }: Pick<Operations, "configuration" | "secrets">, model: Model, key?: string): Promise<void> {
+  const inForce = await configuration.synchronise();
+  await configuration.save({ ...inForce.document, model }, inForce.number, false, "command");
+  // A key is typed for the variable of a provider alone, which the connection names.
+  if (key !== undefined) await secrets.save((model as Extract<Model, { mode: "provider-key" }>).apiKeyEnv!, key);
 }

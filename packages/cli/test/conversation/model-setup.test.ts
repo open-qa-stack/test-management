@@ -3,7 +3,7 @@ import { cleanup, render } from "ink-testing-library";
 import { createElement } from "react";
 import { afterEach, describe, it } from "vitest";
 import type { Model, ModelConnectionCheck } from "@open-qa-stack/domain";
-import { ModelSetup, type SetupEnd } from "../../src/solo/conversation/model-setup/model-setup.ts";
+import { checkText, ModelSetup, type SetupEnd } from "../../src/solo/conversation/model-setup/model-setup.ts";
 import { PLAIN, UNICODE, until } from "./screen.ts";
 
 const ENTER = "\r";
@@ -70,11 +70,24 @@ describe("the setting of the connection to the model in a terminal", () => {
   });
 
   it("asks a provider for the variable of its key, and another server for its address, refusing what is neither", async () => {
-    const stage = staged(COPILOT, [{ state: "key-missing", variable: "OPENAI_API_KEY" }], undefined, PLAIN);
+    const stage = staged(
+      COPILOT,
+      [
+        { state: "key-missing", variable: "OPENAI_API_KEY" },
+        { state: "key-refused", status: 401 },
+      ],
+      undefined,
+      PLAIN,
+    );
     await stage.press(DOWN, "OpenAI");
     await stage.press(ENTER, "Variable that holds the key");
     assert.match(stage.screen(), /OPENAI_API_KEY/);
-    await stage.press(ENTER, "The variable OPENAI_API_KEY is not set where the tool runs");
+    // A variable that holds no key asks for the key itself, which is not shown.
+    await stage.press(ENTER, "OPENAI_API_KEY holds no key here: type it, it is not shown.");
+    await stage.press(ENTER, "The key is expected.");
+    await stage.press("sk-x", "••••");
+    assert.doesNotMatch(stage.screen(), /sk-x/);
+    await stage.press(ENTER, "The provider refused the key (status 401)");
     await stage.press(DOWN, "Choose another connection");
     await stage.press(ENTER, "How does the tool reach the model?");
     await stage.press(UP, "Another server");
@@ -120,5 +133,12 @@ describe("the setting of the connection to the model in a terminal", () => {
     await other.press(ENTER, "Variable that holds the key");
     await other.press(ENTER, "Connected.");
     await other.press(ENTER, "Saving gpt-4.1, through http://localhost:1/v1");
+  });
+
+  it("tells where to give a key its variable holds none of, as the conversation reads it", () => {
+    assert.equal(
+      checkText({ state: "key-missing", variable: "OPENAI_API_KEY" }),
+      "OPENAI_API_KEY holds no key here: give it with oqas secrets set OPENAI_API_KEY, or in the console, then test again.",
+    );
   });
 });

@@ -132,7 +132,7 @@ A host stops a run by aborting the `AbortSignal` it gave as `stop`. Nothing is k
 
 To run the engine, a host:
 
-1. Gives it a test repository as a folder, the root of a git repository with a commit, and the environment variables the configuration names.
+1. Gives it a test repository as a folder, the root of a git repository with a commit, and the environment variables the configuration names: an environment, or what reads it as each run starts, such as `Secrets`.
 2. Implements `JournalOutput`, to show the entries to whoever follows the run and to keep them; `RunStore`, to keep the state of each run; and `Inbox`, to hand the agents what a person says while the run is going.
 3. Takes the lines of the trace of the agents with `follow`, to show them at work.
 4. Opens the runtime of the agents: `liveRuntime` opens it on the model of the configuration, through a gateway of its own for a provider key, with the GitHub account of the machine for a model of GitHub Copilot, and is what every host uses unless it brings another `AgentRuntime`.
@@ -297,7 +297,17 @@ Their rules:
 
 ### Testing the connection to the model
 
-`ModelConnection` tests a connection to the model before anything is saved, so that a person sees whether it answers and chooses the model in what it offers. `check(model)` takes the section `model` as it is drafted, and answers a `ModelConnectionCheck`: for a model of GitHub Copilot, what the GitHub account of the machine answers (`checkGitHubAccount` of the harness); for a provider key, `key-missing` without asking the server when the variable that holds the key is not set in the environment it was given, and what the server answers otherwise (`checkProviderModels`). The [route of the API](../../api/docs/configuration.md#testing-the-connection-to-the-model) lists the states.
+`ModelConnection` tests a connection to the model before anything is saved, so that a person sees whether it answers and chooses the model in what it offers. `check(model, key)` takes the section `model` as it is drafted, with the key the person typed and did not save yet, and answers a `ModelConnectionCheck`: for a model of GitHub Copilot, what the GitHub account of the machine answers (`checkGitHubAccount` of the harness); for a provider key, `key-missing` without asking the server when no key was typed and the variable that holds it has no value in the environment it was given, and what the server answers otherwise (`checkProviderModels`).
+
+### The values of the variables
+
+`Secrets` holds the operations on the values of the variables the configuration names — the key of the model, the connection strings, the accounts of the tests. Whatever asks for them — the console, a command, the conversation — calls these, and holds no rule of its own:
+
+- `list()` gives each variable the configuration in force names, once, with what it holds and where its value comes from: the environment of the process, a value saved, or none.
+- `save(name, value)` saves the value of one of them in place of the one saved. It raises `UnknownSecretError` for a variable the configuration does not name, `SecretRefusedError` for an empty value or a variable the environment of the process sets, which wins, and `NoRepositoryError` on a host without a test repository.
+- `current()` gives the environment the runs read: that of the process, completed with the values saved. `Secrets` is an `EnvironmentSource`: a host gives it to the operations on sessions and to `ModelConnection` in place of an environment, and they read it as each run, each test, starts, so that a value saved by another process is read by the next one.
+
+The values are kept by a `SecretStore`: `FileSecretStore` keeps them in `secrets/values.json` of the state folder of the test repository, a file only its owner reads, in a folder whose own `.gitignore` leaves it out of git, whatever the `.gitignore` of the repository says. No operation gives a value back. The [route of the API](../../api/docs/configuration.md#testing-the-connection-to-the-model) lists the states.
 
 ## The operations on documents
 

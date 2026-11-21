@@ -7,7 +7,7 @@ import type { Sessions } from "@open-qa-stack/engine";
 import type { DatabaseUrl } from "@open-qa-stack/store";
 import { UI_HOST } from "../arguments.ts";
 import { failureOf } from "../failure.ts";
-import { databaseOf, modelConnectionOf, openOperations } from "../operations.ts";
+import { databaseOf, modelConnectionOf, openOperations, savedModel } from "../operations.ts";
 import { startConsole, type StartedConsole } from "../served-console.ts";
 import { exitCodeOf } from "../session-exit.ts";
 import { Conversation, type ConversationProps, type Leaving } from "./conversation.ts";
@@ -117,7 +117,7 @@ export async function converse({ repository, environment, terminal, io }: Conver
   const reported: string[] = [];
   const quiet: CommandIo = { ...io, stderr: { write: (text) => reported.push(text) } };
   try {
-    const { sessions, configuration, close } = await openOperations(quiet, repository, true);
+    const { sessions, configuration, secrets, close } = await openOperations(quiet, repository, true);
     let serving: Promise<StartedConsole> | undefined;
     let withinMs: number | undefined;
     try {
@@ -144,11 +144,8 @@ export async function converse({ repository, environment, terminal, io }: Conver
         reasonOf,
         model: {
           inForce: async () => (await configuration.synchronise()).document.model,
-          check: (model) => modelConnectionOf(io).check(model),
-          save: async (model) => {
-            const inForce = await configuration.synchronise();
-            await configuration.save({ ...inForce.document, model }, inForce.number, false, "command");
-          },
+          check: (model, key) => modelConnectionOf(io, secrets).check(model, key),
+          save: (model, key) => savedModel({ configuration, secrets }, model, key),
         },
       });
       if (atOnce) withinMs = 0;

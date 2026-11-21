@@ -89,6 +89,11 @@ export function configurationApiSuite(engine: DatabaseEngine): void {
       assert.deepEqual(missing.body, { state: "key-missing", variable: "OQAS_UNSET_KEY" });
       assert.equal(problemCode(await post("/model-connection", { mode: "github" })), "400 invalid_request");
       assert.equal(problemCode(await post("/model-connection", { ...server, baseUrl: "nowhere" })), "400 invalid_request");
+      // A key typed and not saved yet is tried in place of the variable that holds none.
+      const typed = await post("/model-connection", { ...server, apiKeyEnv: "OQAS_UNSET_KEY", key: "typed" });
+      assert.deepEqual(typed.body, { state: "unreachable", url: "http://127.0.0.1:9/v1" });
+      assert.equal(problemCode(await post("/model-connection", { ...server, key: 1 })), "400 invalid_request");
+      assert.equal(problemCode(await post("/model-connection", "not an object")), "400 invalid_request");
       assert.equal(((await get("/revisions")).body as RevisionList).items.length, 1);
     });
 
@@ -187,6 +192,48 @@ export function configurationApiSuite(engine: DatabaseEngine): void {
       await database.clear();
       api = await sessionsApi({ database: database.url, repository });
       assert.equal(problemCode(await repositoryAt("/preparation", "POST")), "404 no_configuration");
+    });
+  });
+
+  describe(`the values of the variables of an instance on ${engine.name}`, () => {
+    const secrets = async (on = api) => answerOf(await fetch(`${on.url}/secrets`));
+    const put = async (name: string, body: unknown, on = api) =>
+      fetch(`${on.url}/secrets/${name}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+
+    it("are listed without a value, saved out of the test repository, and never given back", async () => {
+      const listed = await secrets();
+      assert.deepEqual(
+        [listed.status, listed.cache, listed.body],
+        [200, "no-store", { secrets: [{ name: "SHOP_DB_URL", kind: "connection_string", paths: ["/knowledge/1/connectionStringEnv"], source: "missing" }] }],
+      );
+      const saved = await put("SHOP_DB_URL", { value: "postgres://shop" });
+      assert.deepEqual([saved.status, await saved.text()], [204, ""]);
+      assert.equal(((await secrets()).body as { secrets: { source: string }[] }).secrets[0]?.source, "saved");
+      assert.deepEqual(JSON.parse(readFileSync(join(repository, ".oqas", "secrets", "values.json"), "utf8")), { SHOP_DB_URL: "postgres://shop" });
+      assert.doesNotMatch(JSON.stringify((await secrets()).body), /postgres:\/\/shop/);
+    });
+
+    it("are refused for a variable the configuration does not name, empty, set by the environment, or not given as a text", async () => {
+      const unknown = await answerOf(await put("NODE_OPTIONS", { value: "x" }));
+      assert.equal(problemCode(unknown), "404 unknown_secret");
+      assert.match((unknown.body as Problem).detail, /names no variable NODE_OPTIONS\. List the variables it names with GET \/secrets\./);
+      assert.equal(problemCode(await answerOf(await put("SHOP_DB_URL", { value: "" }))), "409 secret_refused");
+      assert.equal(problemCode(await answerOf(await put("SHOP_DB_URL", {}))), "400 invalid_request");
+      await api.close();
+      api = await sessionsApi({ database: database.url, repository, runs: { env: { SHOP_DB_URL: "from-env" } } });
+      assert.equal(((await secrets()).body as { secrets: { source: string }[] }).secrets[0]?.source, "environment");
+      assert.equal(problemCode(await answerOf(await put("SHOP_DB_URL", { value: "other" }))), "409 secret_refused");
+    });
+
+    it("are saved by no API that was given no test repository, which lists those of the revision in force", async () => {
+      await api.close();
+      api = await sessionsApi({ database: database.url });
+      assert.equal(((await secrets()).body as { secrets: { name: string }[] }).secrets[0]?.name, "SHOP_DB_URL");
+      assert.equal(problemCode(await answerOf(await put("SHOP_DB_URL", { value: "x" }))), "503 unavailable");
+      await api.close();
+      await database.clear();
+      api = await sessionsApi({ database: database.url });
+      assert.deepEqual((await secrets()).body, { secrets: [] });
     });
   });
 }

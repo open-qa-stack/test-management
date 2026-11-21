@@ -41,6 +41,8 @@ import type {
   SessionOpening,
   StoredDocument,
   StoredDocumentSummary,
+  SecretList,
+  SecretState,
 } from "@open-qa-stack/domain/sessions";
 import { ApiError } from "./api-error.ts";
 import { t } from "../i18n/i18n.ts";
@@ -187,10 +189,33 @@ export class ApiClient {
    * Tests a connection to the model as the person drafts it: nothing is saved.
    *
    * @param model - The section `model` of the draft.
+   * @param key - The key the person typed and did not save yet; the one the variable holds otherwise.
    * @returns Whether the model answers and what it offers, or why it does not.
    */
-  public async testModel(model: Model): Promise<ModelConnectionCheck> {
-    return this.#ask<ModelConnectionCheck>("/configuration/model-connection", posting(model));
+  public async testModel(model: Model, key?: string): Promise<ModelConnectionCheck> {
+    return this.#ask<ModelConnectionCheck>("/configuration/model-connection", posting(key === undefined ? model : { ...model, key }));
+  }
+
+  /** @returns Each variable the configuration in force names, and where its value comes from; never a value. */
+  public async secrets(): Promise<readonly SecretState[]> {
+    return (await this.#ask<SecretList>("/secrets")).secrets;
+  }
+
+  /**
+   * Saves the value of a variable the configuration in force names, on the machine of the instance, out of the test
+   * repository, in place of the one saved.
+   *
+   * @param name - The name of the variable.
+   * @param value - Its value.
+   * @returns Once it is saved; the failure carries the code `unknown_secret` when the configuration does not name it,
+   * `secret_refused` when the environment of the instance sets it.
+   */
+  public async saveSecret(name: string, value: string): Promise<void> {
+    await this.#answer(`/secrets/${encodeURIComponent(name)}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ value }),
+    });
   }
 
   /**

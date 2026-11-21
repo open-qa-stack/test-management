@@ -23,7 +23,7 @@ export const CONNECTIONS: readonly string[] = [GITHUB, ...MODEL_PROVIDERS.map(({
  * - `saving`: the connection is recorded.
  * - `saved`: it is; the setting ends.
  */
-export type SetupStep = "connection" | "address" | "key" | "testing" | "model" | "name" | "failed" | "saving" | "saved";
+export type SetupStep = "connection" | "address" | "key" | "secret" | "testing" | "model" | "name" | "failed" | "saving" | "saved";
 
 /** The setting of the connection to the model, as it stands. */
 export interface SetupState {
@@ -39,9 +39,11 @@ export interface SetupState {
   /** What the latest test found. */
   readonly check?: ModelConnectionCheck;
   /** Why what was typed is refused, until it is typed again. */
-  readonly refusal?: "address" | "variable" | "name";
+  readonly refusal?: "address" | "variable" | "secret" | "name";
   /** The variable of the key to offer once the address of another server is typed. */
   readonly pendingKey?: string;
+  /** The key the person typed for a variable that holds none, saved with the connection. */
+  readonly typedKey?: string;
 }
 
 /** What happens to the setting. */
@@ -91,7 +93,9 @@ function lengthOf(state: SetupState): number {
 }
 
 /** The step once a connection is chosen in the list. */
-function connectionChosen(state: SetupState): SetupState {
+function connectionChosen(chosen: SetupState): SetupState {
+  // A key typed for another connection is not this one's.
+  const { typedKey: _, ...state } = chosen;
   const { inForce } = state;
   const choice = CONNECTIONS[state.selected]!;
   if (choice === GITHUB) return testing(state, { mode: "github", model: inForce.mode === "github" ? inForce.model : "" });
@@ -136,6 +140,9 @@ function enteredText(state: SetupState): SetupState {
       const { apiKeyEnv: _, ...keyless } = draft;
       return testing(state, text === "" ? keyless : { ...keyless, apiKeyEnv: text });
     }
+    case "secret":
+      if (text === "") return { ...state, refusal: "secret" };
+      return { ...testing(state, draft), typedKey: text };
     case "name":
       return named(state, text);
     default:
@@ -151,6 +158,8 @@ function named(state: SetupState, text: string): SetupState {
 
 /** The step once the test found something: the models to choose from, the name to type, or what to do. */
 function tested(state: SetupState, check: ModelConnectionCheck): SetupState {
+  // A variable that holds no key asks for the key itself, saved on this machine with the connection.
+  if (check.state === "key-missing") return { ...state, step: "secret", check, text: "" };
   if (check.state !== "connected") return { ...state, step: "failed", check, selected: 0 };
   if (check.models === undefined) return { ...state, step: "name", check, text: state.draft.model };
   const chosen = check.models.findIndex(({ id }) => id === state.draft.model);

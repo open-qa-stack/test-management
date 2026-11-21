@@ -52,7 +52,8 @@ function repository(answers: { github?: ModelConnectionCheck; provider?: ModelCo
     return { code, out, err };
   };
   const model = () => (JSON.parse(readFileSync(join(root, "oqas.json"), "utf8")) as OqasConfig).model;
-  return { oqas, asked, model };
+  const saved = () => JSON.parse(readFileSync(join(root, ".oqas", "secrets", "values.json"), "utf8")) as Record<string, string>;
+  return { oqas, asked, model, saved };
 }
 
 describe("oqas model status", () => {
@@ -132,7 +133,7 @@ describe("oqas model set", () => {
     const told = await other.oqas("model", "set", "--provider", "http://localhost:1234/v1", "--key-env", "LOCAL_KEY", "--model", "qwen");
     assert.equal(
       told.out,
-      "http://localhost:1234/v1, its key in LOCAL_KEY, model qwen.\nThe variable LOCAL_KEY is not set: put the key of the provider in it, then run oqas model status again.\n",
+      "http://localhost:1234/v1, its key in LOCAL_KEY, model qwen.\nLOCAL_KEY holds no key: give it with oqas secrets set LOCAL_KEY, or set the variable, then run oqas model status again.\n",
     );
     const bare = repository();
     await bare.oqas("model", "set", "--provider", "http://localhost:1234/v1", "--model", "qwen");
@@ -201,6 +202,30 @@ describe("oqas model, alone, in a terminal", () => {
     const told = await ended;
     assert.deepEqual([told.code, told.out], [0, "The model test-model is set, through http://127.0.0.1:9/v1.\n"]);
     assert.deepEqual(model(), { mode: "provider-key", provider: "openai", baseUrl: "http://127.0.0.1:9/v1", model: "test-model" });
+  });
+
+  it("asks for the key, unseen, when its variable holds none, tests with it, and saves it out of the test repository", async () => {
+    const screen = new FakeTerminal();
+    const { oqas, asked, model, saved } = repository(
+      { provider: { state: "connected", models: [{ id: "test-model", name: "test-model", reasoningEfforts: [] }] } },
+      true,
+      screen,
+    );
+    const ended = oqas("model");
+    await screen.sees("How does the tool reach the model?");
+    await typing(screen, "\r", "Address of the server");
+    await typing(screen, "\r", "Variable that holds the key");
+    await screen.enter("LOCAL_KEY");
+    await screen.sees("Key of the provider");
+    await screen.sees("LOCAL_KEY holds no key here: type it, it is not shown.");
+    await typing(screen, "sk-typed", "••••••••");
+    assert.doesNotMatch(screen.text, /sk-typed/);
+    await typing(screen, "\r", "Choose the model:");
+    screen.type("\r");
+    assert.equal((await ended).code, 0);
+    assert.deepEqual(asked, [["provider", "http://127.0.0.1:9/v1", "sk-typed"]]);
+    assert.deepEqual(model(), { mode: "provider-key", provider: "openai", baseUrl: "http://127.0.0.1:9/v1", model: "test-model", apiKeyEnv: "LOCAL_KEY" });
+    assert.deepEqual(saved(), { LOCAL_KEY: "sk-typed" });
   });
 
   it("leaves with Esc, changes nothing, and exits with 5", async () => {

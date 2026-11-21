@@ -3,7 +3,7 @@ import { isStoredDocuments, type Attachment, type ConfiguredApplication, type Kn
 import { t } from "../i18n/i18n.ts";
 import { hrefTo } from "../routing/route.ts";
 import { Card } from "../ui/card.tsx";
-import { AddButton, choices, ChoiceField, InputField, ItemHead, PlaceErrors, RemoveButton } from "./configuration-fields.tsx";
+import { AddButton, choices, ChoiceField, InputField, ItemHead, PlaceErrors, RemoveButton, SecretField } from "./configuration-fields.tsx";
 import type { NewItem } from "./configuration-edit.ts";
 
 /** The kinds of sources a button adds, in the order the section offers them. */
@@ -107,13 +107,16 @@ function WhereFields({ at, source }: { readonly at: string; readonly source: Kno
       );
     case "postgresql":
       return (
-        <InputField
-          pointer={`${at}/connectionStringEnv`}
-          label={t("configuration.knowledge.connectionStringEnv")}
-          value={source.connectionStringEnv}
-          code
-          hint={t("configuration.knowledge.connectionStringEnvHint")}
-        />
+        <>
+          <InputField
+            pointer={`${at}/connectionStringEnv`}
+            label={t("configuration.knowledge.connectionStringEnv")}
+            value={source.connectionStringEnv}
+            code
+            hint={t("configuration.knowledge.connectionStringEnvHint")}
+          />
+          <SecretField variable={source.connectionStringEnv} kind="connection_string" />
+        </>
       );
     case "document":
       return source.stored === true ? (

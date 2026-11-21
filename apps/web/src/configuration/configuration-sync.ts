@@ -25,16 +25,19 @@ export class ConfigurationSync {
   }
 
   /**
-   * Reads the configuration and its revisions, again and again: the screen shows when the file or another person
-   * changed them.
+   * Reads the configuration, its revisions and where the values of its variables come from, again and again: the
+   * screen shows when the file or another person changed them.
    *
    * @returns What stops reading them.
    */
   public read(): () => void {
     return poll(
       {
-        ask: () => Promise.all([this.#api.configuration(), this.#api.revisions()]),
-        told: ([view, revisions]) => this.#dispatch({ type: "read", view, revisions }),
+        ask: () => Promise.all([this.#api.configuration(), this.#api.revisions(), this.#api.secrets()]),
+        told: ([view, revisions, secrets]) => {
+          this.#dispatch({ type: "read", view, revisions });
+          this.#dispatch({ type: "secrets", secrets });
+        },
         failed: (error) => this.#dispatch({ type: "unread", message: error.message }),
       },
       READ_PAUSE_MS,
@@ -54,20 +57,14 @@ export class ConfigurationSync {
   }
 
   /**
-   * Saves a change, made from a revision.
-   *
-   * @param document - The configuration as it is to be.
-   * @param basedOn - The number of the revision it was made from.
-   * @param replaceFile - Whether the change rewrites a file that changed too.
-   */
-  /**
    * Tests the connection to the model the draft names, and tells what the instance found.
    *
    * @param model - The section `model` of the draft.
+   * @param key - The key the person typed for the variable of the model, and did not save yet.
    */
-  public testModel(model: Model): void {
+  public testModel(model: Model, key?: string): void {
     this.#dispatch({ type: "testing", model });
-    this.#api.testModel(model).then(
+    this.#api.testModel(model, key).then(
       (check) => this.#dispatch({ type: "tested", model, check }),
       (error: ApiError) => this.#dispatch({ type: "tested", model, failure: error.message }),
     );
@@ -82,27 +79,70 @@ export class ConfigurationSync {
   }
 
   /**
-   * Saves the first configuration of an instance that has none, which writes its file, then sets the test repository
-   * up: a Playwright project, and a git repository with a commit of a folder that is none.
+   * Saves the first configuration of an instance that has none, which writes its file, and the values the person
+   * typed for its variables, then sets the test repository up: a Playwright project, and a git repository with a
+   * commit of a folder that is none.
    *
    * @param document - The configuration as the person set it up.
+   * @param values - The values typed, by the name of their variable.
    */
-  public setUp(document: OqasConfig): void {
-    this.#settle(this.#api.save({ basedOn: 0, document }), () =>
-      this.#api.prepareRepository().then(
+  public setUp(document: OqasConfig, values: Readonly<Record<string, string>>): void {
+    this.#settle(this.#api.save({ basedOn: 0, document }), async () => {
+      if (!(await this.#saveValues(values))) return;
+      await this.#api.prepareRepository().then(
         (preparation) => this.#dispatch({ type: "prepared", preparation }),
-        (error: ApiError) => this.#dispatch({ type: "refused", code: error.code, text: error.message, errors: error.errors }),
-      ),
-    );
+        (error: ApiError) => this.#refused(error),
+      );
+    });
   }
 
-  public save(document: OqasConfig, basedOn: number, replaceFile: boolean): void {
-    this.#settle(this.#api.save({ basedOn, document, ...(replaceFile ? { replaceFile } : {}) }));
+  /**
+   * Saves a change, made from a revision, then the values the person typed for the variables it names: the values
+   * alone when the configuration did not change.
+   *
+   * @param document - The configuration as it is to be; `undefined` when it did not change.
+   * @param basedOn - The number of the revision it was made from.
+   * @param replaceFile - Whether the change rewrites a file that changed too.
+   * @param values - The values typed, by the name of their variable.
+   */
+  public save(document: OqasConfig | undefined, basedOn: number, replaceFile: boolean, values: Readonly<Record<string, string>>): void {
+    const saveValues = (): Promise<boolean> => this.#saveValues(values);
+    if (document !== undefined) this.#settle(this.#api.save({ basedOn, document, ...(replaceFile ? { replaceFile } : {}) }), saveValues);
+    else {
+      this.#dispatch({ type: "saving" });
+      void saveValues();
+    }
   }
 
   /** Takes the configuration file as it is now as the revision in force. */
   public keepFile(): void {
     this.#settle(this.#api.synchronise());
+  }
+
+  /**
+   * Saves the values typed, one after the other, but those of the variables the environment of the instance sets, which
+   * win; then tells the state where each variable stands. Nothing is asked when none was typed.
+   *
+   * @returns Whether every value was saved.
+   */
+  async #saveValues(values: Readonly<Record<string, string>>): Promise<boolean> {
+    const typed = Object.entries(values);
+    if (typed.length === 0) return true;
+    try {
+      // A person who set the instance up typed values before it could tell which variables its environment sets.
+      const set = new Set((await this.#api.secrets()).filter(({ source }) => source === "environment").map(({ name }) => name));
+      for (const [name, value] of typed) if (!set.has(name)) await this.#api.saveSecret(name, value);
+      this.#dispatch({ type: "valued", secrets: await this.#api.secrets() });
+      return true;
+    } catch (error) {
+      this.#refused(error as ApiError);
+      return false;
+    }
+  }
+
+  /** Tells the state the instance refused what was asked. */
+  #refused(error: ApiError): void {
+    this.#dispatch({ type: "refused", code: error.code, text: error.message, errors: error.errors });
   }
 
   /**
@@ -121,7 +161,7 @@ export class ConfigurationSync {
           () => undefined,
         );
       },
-      (error: ApiError) => this.#dispatch({ type: "refused", code: error.code, text: error.message, errors: error.errors }),
+      (error: ApiError) => this.#refused(error),
     );
   }
 }

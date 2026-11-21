@@ -2,6 +2,7 @@ import { journalLine, RunThread, traceLine, type RunLine } from "@open-qa-stack/
 import type { Session, SessionResult } from "@open-qa-stack/domain/sessions";
 import { Run } from "../run/run.ts";
 import { liveRuntime } from "../runtime/live-runtime.ts";
+import { environmentOf } from "../secrets/environment-of.ts";
 import { ExecutionRecorder } from "./execution-recorder.ts";
 import { SessionJournal } from "./session-journal.ts";
 import { SessionRunStore } from "./session-run-store.ts";
@@ -65,7 +66,7 @@ export class SessionExecution {
    * @returns Once the end of the session is written, or the session takes nothing more.
    */
   async run(): Promise<void> {
-    const { store, env, logger, runner, writerPace, now = () => new Date() } = this.#host;
+    const { store, logger, runner, writerPace, now = () => new Date() } = this.#host;
     const { session, repository, inbox, stop, abandoned, wrote } = this.#options;
     const { id, request, environment, scope } = session;
     const writer = new SessionWriter(store, id, logger, { wrote, lost: () => stop.abort() }, abandoned, writerPace);
@@ -80,6 +81,8 @@ export class SessionExecution {
       // What the person said while the session waited is there before the first agent works.
       for (const message of await store.pendingMessages(id)) inbox.drop(message);
       const { brief, branch } = sessionTurn(request, await store.eventsAfter(id, 0));
+      // The values saved since the host started are read by this run.
+      const env = await environmentOf(this.#host.env);
       await new Run({
         repositoryRoot: repository,
         configuration: this.#host.configuration,
@@ -93,7 +96,7 @@ export class SessionExecution {
         follow: (line) => tell(traceLine(JSON.stringify(line))),
         openInbox: () => inbox,
         store: kept,
-        openRuntime: this.#host.openRuntime ?? ((config) => liveRuntime(config, env)),
+        openRuntime: (config) => (this.#host.openRuntime ?? liveRuntime)(config, env),
         ...(runner === undefined ? {} : { runner }),
         now,
         stop: stop.signal,

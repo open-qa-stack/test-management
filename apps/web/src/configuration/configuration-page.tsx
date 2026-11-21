@@ -2,7 +2,7 @@ import { useEffect, useMemo, useReducer, useState, type ReactNode } from "react"
 import { api } from "../api/instance-api.ts";
 import { actionOf, pressOf, type FieldKind } from "./configuration-edit.ts";
 import { ConfigurationScreen, type ConfigurationControls } from "./configuration-screen.tsx";
-import { configurationAfter, INITIAL_CONFIGURATION, isChanged } from "./configuration-state.ts";
+import { configurationAfter, INITIAL_CONFIGURATION, isChanged, typedKey } from "./configuration-state.ts";
 import { ConfigurationSync } from "./configuration-sync.ts";
 import { FIRST_DRAFT, FIRST_USE_STEPS, FirstUse } from "./first-use.tsx";
 import { locale } from "../i18n/i18n.ts";
@@ -20,7 +20,7 @@ export function ConfigurationPage({ project, onSaved }: { readonly project: stri
   const [step, setStep] = useState(0);
   const sync = useMemo(() => new ConfigurationSync(api, dispatch), []);
   useEffect(() => sync.read(), [sync]);
-  const { draft, basedOn, saved } = state;
+  const { draft, basedOn, saved, values } = state;
   useEffect(() => {
     if (saved !== undefined) onSaved?.();
   }, [saved, onSaved]);
@@ -41,7 +41,7 @@ export function ConfigurationPage({ project, onSaved }: { readonly project: stri
     change: ({ currentTarget }) => {
       const { name, value, dataset } = currentTarget;
       const checked = currentTarget instanceof HTMLInputElement && currentTarget.checked;
-      const { member, defaults } = dataset;
+      const { member, defaults, variable } = dataset;
       dispatch(
         actionOf({
           name,
@@ -50,6 +50,7 @@ export function ConfigurationPage({ project, onSaved }: { readonly project: stri
           kind: dataset["kind"] as FieldKind,
           ...(member === undefined ? {} : { member }),
           ...(defaults === undefined ? {} : { defaults }),
+          ...(variable === undefined ? {} : { variable }),
         }),
       );
     },
@@ -59,14 +60,14 @@ export function ConfigurationPage({ project, onSaved }: { readonly project: stri
     },
     save: (event) => {
       event.preventDefault();
-      // The form is drawn once there is a draft.
-      sync.save(draft!, basedOn, false);
+      // The form is drawn once there is a draft; a draft that did not change leaves the values typed alone to save.
+      sync.save(changed ? draft : undefined, basedOn, false, values);
     },
     discard: () => dispatch({ type: "discard" }),
     keepFile: () => sync.keepFile(),
-    keepChange: () => sync.save(draft!, basedOn, true),
-    testModel: () => sync.testModel(draft!.model),
-    setUp: () => sync.setUp(draft!),
+    keepChange: () => sync.save(draft!, basedOn, true, values),
+    testModel: () => sync.testModel(draft!.model, typedKey(draft!.model, values)),
+    setUp: () => sync.setUp(draft!, values),
   };
   if (state.view?.revision === undefined && draft !== undefined)
     return (

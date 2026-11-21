@@ -23,10 +23,10 @@ export type ConversationSessions = Pick<Sessions, "open" | "say" | "resume" | "i
 export interface ConversationModel {
   /** The connection in force. */
   readonly inForce: () => Promise<Model>;
-  /** Tests a connection. */
-  readonly check: (model: Model) => Promise<ModelConnectionCheck>;
-  /** Records a connection. */
-  readonly save: (model: Model) => Promise<void>;
+  /** Tests a connection, with the key the person typed when they typed one. */
+  readonly check: (model: Model, key?: string) => Promise<ModelConnectionCheck>;
+  /** Records a connection, and saves the key the person typed for its variable when they typed one. */
+  readonly save: (model: Model, key?: string) => Promise<void>;
 }
 
 /**

@@ -38,6 +38,11 @@ describe("what the person does to a field", () => {
     assert.deepEqual(actionOf({ ...field, kind: "level", value: "bounded" }), { type: "level", level: "bounded" });
     assert.deepEqual(actionOf({ ...field, kind: "level", value: "autonomous" }), { type: "level", level: "autonomous" });
     assert.deepEqual(actionOf({ ...field, kind: "connection", value: "github" }), { type: "connection", choice: "github" });
+    assert.deepEqual(actionOf({ name: "secret-MODEL_KEY", value: "sk", checked: false, kind: "secret", variable: "MODEL_KEY" }), {
+      type: "value",
+      name: "MODEL_KEY",
+      value: "sk",
+    });
   });
 });
 
@@ -66,7 +71,7 @@ describe("what the person presses", () => {
 describe("a field outside a screen that holds a draft", () => {
   it("applies nothing and finds no error, and is named after where it is", () => {
     assert.equal(ignore(), undefined);
-    assert.deepEqual(NO_EDIT, { change: ignore, click: ignore, errors: [] });
+    assert.deepEqual(NO_EDIT, { change: ignore, click: ignore, errors: [], values: {} });
     assert.equal(idOf("/applications/0/environments/1/uiUrl"), "config-applications-0-environments-1-uiUrl");
   });
 });

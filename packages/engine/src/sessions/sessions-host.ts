@@ -1,5 +1,6 @@
 import type { CommandRunner, DocumentStorePort, ExecutionStorePort, ResolvedConfig, SessionStorePort } from "@open-qa-stack/domain";
 import type { Configuration } from "../configuration/configuration.ts";
+import type { Environment, EnvironmentSource } from "../ports/environment-source.ts";
 import type { OpenRuntime } from "../ports/open-runtime.ts";
 import type { SessionsLogger } from "./sessions-logger.ts";
 import type { WriterPace } from "./session-writer.ts";
@@ -26,12 +27,12 @@ export interface SessionsHost {
    * none over: they wait for a host that stays.
    */
   readonly takesOver: boolean;
-  /** The environment of the runs: the secrets and the accounts the configuration of the repository names. */
-  readonly env: Readonly<Record<string, string | undefined>>;
+  /** The environment of the runs, which holds the secrets and the accounts the configuration of the repository names; one that may change is read as each run starts. */
+  readonly env: Environment | EnvironmentSource;
   /** Where the operations report what happens to a session, and what goes wrong around it. */
   readonly logger: SessionsLogger;
-  /** Opens the runtime of the agents of a run; on the model of the configuration, with the key `env` holds, by default. */
-  readonly openRuntime?: (config: ResolvedConfig) => Promise<OpenRuntime>;
+  /** Opens the runtime of the agents of a run, with the environment of the runs; on the model of the configuration, with the key `env` holds, by default. */
+  readonly openRuntime?: (config: ResolvedConfig, env: Environment) => Promise<OpenRuntime>;
   /** Runs the commands of the machine and of the tests; in the test repository by default. */
   readonly runner?: CommandRunner;
   /** The clock of the runs; that of the machine by default. */

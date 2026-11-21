@@ -1,5 +1,7 @@
 import { checkGitHubAccount, checkProviderModels } from "@open-qa-stack/harness";
 import type { Model, ModelConnectionCheck } from "@open-qa-stack/domain";
+import { environmentOf } from "../secrets/environment-of.ts";
+import type { Environment, EnvironmentSource } from "../ports/environment-source.ts";
 
 /** How the connection to each kind of model is checked; those of the harness by default. */
 export interface ConnectionProbes {
@@ -14,15 +16,15 @@ export interface ConnectionProbes {
  * whether it answers, and chooses the model in what it offers.
  */
 export class ModelConnection {
-  readonly #env: Readonly<Record<string, string | undefined>>;
+  readonly #env: Environment | EnvironmentSource;
   readonly #probes: ConnectionProbes;
 
   /**
-   * @param env - The environment of the process: the key of a provider is read from it, and the GitHub account of
-   * the machine is found with it.
+   * @param env - The environment of the process, or what reads it as it is at each test: the key of a provider is
+   * read from it, and the GitHub account of the machine is found with it.
    * @param probes - How each connection is checked; those of the harness by default.
    */
-  constructor(env: Readonly<Record<string, string | undefined>>, probes: ConnectionProbes = { github: checkGitHubAccount, provider: checkProviderModels }) {
+  constructor(env: Environment | EnvironmentSource, probes: ConnectionProbes = { github: checkGitHubAccount, provider: checkProviderModels }) {
     this.#env = env;
     this.#probes = probes;
   }
@@ -31,14 +33,16 @@ export class ModelConnection {
    * Tests a connection to the model.
    *
    * @param model - The connection, as the section `model` of the configuration holds it.
-   * @returns What the test found: `key-missing` without asking the server when the variable that holds the key is
-   * not set; what the server or the GitHub account answers otherwise.
+   * @param typed - The key the person typed, and has not saved yet; that of the variable the connection names otherwise.
+   * @returns What the test found: `key-missing` without asking the server when there is no key, neither typed nor in
+   * the variable; what the server or the GitHub account answers otherwise.
    */
-  check(model: Model): Promise<ModelConnectionCheck> {
-    if (model.mode === "github") return this.#probes.github(this.#env);
-    if (model.apiKeyEnv === undefined) return this.#probes.provider(model.baseUrl, undefined);
-    const key = this.#env[model.apiKeyEnv];
-    if (key === undefined || key === "") return Promise.resolve({ state: "key-missing", variable: model.apiKeyEnv });
+  async check(model: Model, typed?: string): Promise<ModelConnectionCheck> {
+    const env = await environmentOf(this.#env);
+    if (model.mode === "github") return this.#probes.github(env);
+    if (model.apiKeyEnv === undefined) return this.#probes.provider(model.baseUrl, typed || undefined);
+    const key = typed || env[model.apiKeyEnv];
+    if (key === undefined || key === "") return { state: "key-missing", variable: model.apiKeyEnv };
     return this.#probes.provider(model.baseUrl, key);
   }
 }

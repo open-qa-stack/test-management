@@ -7,7 +7,7 @@ import { Page } from "../ui/page.tsx";
 import { ApplicationCard } from "./application-card.tsx";
 import { EditContext, type ConfigurationEdit } from "./configuration-edit.ts";
 import { AddButton, PlaceErrors } from "./configuration-fields.tsx";
-import { isChanged, type ConfigurationState } from "./configuration-state.ts";
+import { isPending, type ConfigurationState } from "./configuration-state.ts";
 import { errorText } from "./configuration-words.ts";
 import { AddSourceButtons, KnowledgeCard } from "./knowledge-card.tsx";
 import { HistoryCard, JsonCard } from "./record-cards.tsx";
@@ -18,7 +18,7 @@ import { AutonomyCard, DesignCard, LanguageCard, RepositoryCard } from "./settin
 export const FORM_ID = "configuration-form";
 
 /** What the person does on the screen besides changing a field. */
-export interface ConfigurationControls extends Omit<ConfigurationEdit, "errors"> {
+export interface ConfigurationControls extends Omit<ConfigurationEdit, "errors" | "secrets" | "values"> {
   /** Saves the draft. */
   readonly save: FormEventHandler<HTMLFormElement>;
   /** Drops the draft for the revision in force. */
@@ -106,9 +106,13 @@ function Notes({ state, controls }: { readonly state: ConfigurationState; readon
         </div>
       </section>
     );
-  return saved === undefined ? null : (
+  const told = [
+    ...(saved === undefined ? [] : [t("configuration.screen.saved", { number: saved })]),
+    ...(state.valued ? [t("configuration.screen.valued")] : []),
+  ];
+  return told.length === 0 ? null : (
     <p className="config-note ok" role="status">
-      {t("configuration.screen.saved", { number: saved })}
+      {told.join(" ")}
     </p>
   );
 }
@@ -123,7 +127,7 @@ function Notes({ state, controls }: { readonly state: ConfigurationState; readon
  */
 export function ConfigurationScreen({ project, state, controls }: ConfigurationScreenProps): ReactNode {
   const { draft, view, errors, saving, unread, revisions } = state;
-  const changed = isChanged(state);
+  const pending = isPending(state);
   const title = t("configuration.screen.title");
   const crumbs = [{ label: project }, { label: title }];
   if (draft === undefined)
@@ -146,14 +150,14 @@ export function ConfigurationScreen({ project, state, controls }: ConfigurationS
       <span className="small muted config-state" role="status">
         {saving
           ? t("configuration.screen.saving")
-          : changed
+          : pending
             ? t("configuration.screen.unsaved")
             : t("configuration.screen.inForce", { number: view!.revision!.number })}
       </span>
-      <button type="button" className="btn" onClick={controls.discard} disabled={!changed || saving}>
+      <button type="button" className="btn" onClick={controls.discard} disabled={!pending || saving}>
         {t("configuration.screen.discard")}
       </button>
-      <button type="submit" form={FORM_ID} className="btn primary" disabled={!changed || saving}>
+      <button type="submit" form={FORM_ID} className="btn primary" disabled={!pending || saving}>
         {t("configuration.screen.save")}
       </button>
     </div>
@@ -162,7 +166,15 @@ export function ConfigurationScreen({ project, state, controls }: ConfigurationS
     <Page crumbs={crumbs} title={title} actions={actions}>
       <Notes state={state} controls={controls} />
       <ErrorSummary errors={errors} />
-      <EditContext.Provider value={{ change: controls.change, click: controls.click, errors }}>
+      <EditContext.Provider
+        value={{
+          change: controls.change,
+          click: controls.click,
+          errors,
+          values: state.values,
+          ...(state.secrets === undefined ? {} : { secrets: state.secrets }),
+        }}
+      >
         <form id={FORM_ID} className="config-form" onSubmit={controls.save} noValidate>
           <section className="config-section" aria-labelledby="config-applications">
             <h2 id="config-applications">{t("configuration.screen.applications")}</h2>
