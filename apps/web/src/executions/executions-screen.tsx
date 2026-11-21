@@ -1,11 +1,12 @@
 import type { ChangeEventHandler, ReactNode } from "react";
-import type { Execution, ExecutionList, ExecutionOutcome, ExecutionResult, Session } from "@open-qa-stack/domain/sessions";
+import type { CampaignOverview, Execution, ExecutionList, ExecutionOutcome, ExecutionResult, Session } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../api/polled-state.ts";
 import { dateText, durationText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
 import { Badge } from "../ui/badge.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
+import { campaignHref } from "../campaigns/campaigns-paths.ts";
 import { contentText, executionDuration, versionText } from "./execution-text.ts";
 import { EXECUTION_PERIODS } from "./execution-period.ts";
 import { executionHref, executionsHref, resultHref, type ExecutionsFilter } from "./executions-paths.ts";
@@ -31,6 +32,8 @@ export interface ExecutionsScreenProps {
   readonly before?: string;
   /** The sessions of the project the console listed, which name what an execution ran. */
   readonly sessions: readonly Session[];
+  /** The campaigns of the project the console listed, which name the one an execution was launched for; none until they are read. */
+  readonly campaigns?: readonly CampaignOverview[];
   /** What the instance told of the page. */
   readonly state: PolledState<ExecutionList>;
   readonly controls: ExecutionsControls;
@@ -82,7 +85,16 @@ function ResultRow({ execution, result }: { readonly execution: Execution; reado
 }
 
 /** An execution, as a line that unfolds into its tests: when it ran, where from, what it ran, what came of it, how long, at which version. */
-function ExecutionRow({ execution, sessions }: { readonly execution: Execution; readonly sessions: readonly Session[] }): ReactNode {
+function ExecutionRow({
+  execution,
+  sessions,
+  campaigns,
+}: {
+  readonly execution: Execution;
+  readonly sessions: readonly Session[];
+  readonly campaigns: readonly CampaignOverview[];
+}): ReactNode {
+  const content = contentText(execution, sessions, campaigns);
   return (
     <details className="exec-row">
       <summary className="exec-line">
@@ -93,7 +105,7 @@ function ExecutionRow({ execution, sessions }: { readonly execution: Execution; 
         <span className="exec-origin">
           <Badge tone="neutral">{t(`executions.origins.${execution.origin}`)}</Badge>
         </span>
-        <span className="exec-content small">{contentText(execution, sessions)}</span>
+        <span className="exec-content small">{execution.campaignId === undefined ? content : <a href={campaignHref(execution.campaignId)}>{content}</a>}</span>
         <span className="exec-result small">
           <VerdictBar results={execution.results} />
         </span>
@@ -120,11 +132,13 @@ function Table({
   filter,
   before,
   sessions,
+  campaigns,
 }: {
   readonly page: ExecutionList;
   readonly filter: ExecutionsFilter;
   readonly before: string | undefined;
   readonly sessions: readonly Session[];
+  readonly campaigns: readonly CampaignOverview[];
 }): ReactNode {
   return (
     <>
@@ -139,7 +153,7 @@ function Table({
           <span className="exec-version small">{t("executions.columns.version")}</span>
         </div>
         {page.items.map((execution) => (
-          <ExecutionRow key={execution.id} execution={execution} sessions={sessions} />
+          <ExecutionRow key={execution.id} execution={execution} sessions={sessions} campaigns={campaigns} />
         ))}
       </section>
       <nav className="exec-pages" aria-label={t("executions.pages")}>
@@ -168,7 +182,7 @@ function Table({
  * @param props - The name of the project, the filter and the page the address asks for, the sessions, what the instance told, and what the person does.
  * @returns The screen.
  */
-export function ExecutionsScreen({ project, filter, before, sessions, state, controls }: ExecutionsScreenProps): ReactNode {
+export function ExecutionsScreen({ project, filter, before, sessions, campaigns = [], state, controls }: ExecutionsScreenProps): ReactNode {
   const title = t("executions.title");
   const page = state.value;
   const narrowed = filter.outcome !== undefined || filter.period !== undefined || before !== undefined;
@@ -187,7 +201,7 @@ export function ExecutionsScreen({ project, filter, before, sessions, state, con
           {page.items.length === 0 ? (
             <EmptyState title={t("executions.noMatch")}>{t("executions.noMatchNote")}</EmptyState>
           ) : (
-            <Table page={page} filter={filter} before={before} sessions={sessions} />
+            <Table page={page} filter={filter} before={before} sessions={sessions} campaigns={campaigns} />
           )}
         </>
       )}

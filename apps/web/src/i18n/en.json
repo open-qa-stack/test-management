@@ -836,7 +836,9 @@
       "expected": "Expected {{expected}}, received {{received}}"
     },
     "campaign_one": "{{count}} test of a campaign",
-    "campaign_other": "{{count}} tests of a campaign"
+    "campaign_other": "{{count}} tests of a campaign",
+    "campaignNamed_one": "Campaign “{{name}}” · {{count}} test",
+    "campaignNamed_other": "Campaign “{{name}}” · {{count}} tests"
   },
   "execution": {
     "title": "Execution of {{date}}",
