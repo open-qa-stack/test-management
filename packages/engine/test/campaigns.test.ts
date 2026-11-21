@@ -5,6 +5,7 @@ import { CampaignRefusedError, LaunchRefusedError, UnknownCampaignError, type Re
 import { afterEach, describe, it } from "vitest";
 import { Campaigns } from "../src/index.ts";
 import { eventually } from "./support/eventually.ts";
+import { held } from "./support/held.ts";
 import { Hosted } from "./support/hosted.ts";
 import { MemoryCampaignStore } from "./support/memory-campaign-store.ts";
 
@@ -49,6 +50,9 @@ const ORDER = { path: ORDERS, title: TITLE };
 const SIGN_IN = { path: LOGIN, title: TITLE };
 
 /** Plans a campaign in the local environment, and chooses its tests. */
+/** Tells a refusal of the operations on campaigns whose message matches. */
+const refused = (message: RegExp) => (error: unknown) => error instanceof CampaignRefusedError && message.test(error.message);
+
 async function chosen(campaigns: Campaigns, name: string, tests: readonly { path: string; title: string }[]): Promise<string> {
   const { id } = await campaigns.plan({ name, environment: "local" });
   await campaigns.choose(id, tests);
@@ -127,7 +131,6 @@ describe("a campaign", () => {
     const { campaigns } = await campaignsOf(REPOSITORY, { script: { final: (file: string) => (file.includes("orders") ? "unexpected" : "expected") } });
     const id = await chosen(campaigns, "Recette", [QUOTE, ORDER]);
     await campaigns.ready(id);
-    const refused = (message: RegExp) => (error: unknown) => error instanceof CampaignRefusedError && message.test(error.message);
     await assert.rejects(campaigns.launch(id, "failed"), refused(/^No test of the campaign failed/));
     assert.deepEqual((await campaigns.launch(id, "not_run")).paths, [ORDERS, QUOTES]);
     await eventually(async () => assert.equal((await hosted.executions.ofCampaign(id)).length, 1));
@@ -139,7 +142,6 @@ describe("a campaign", () => {
   it("refuses what its state does not allow, no test chosen, a test the repository does not hold, and a launch the turn of the sessions refuses", async () => {
     const { campaigns } = await campaignsOf(REPOSITORY);
     const { id } = await campaigns.plan({ name: "Recette", environment: "local" });
-    const refused = (message: RegExp) => (error: unknown) => error instanceof CampaignRefusedError && message.test(error.message);
     await assert.rejects(campaigns.ready(id), refused(/^No test is chosen for the campaign: choose its tests before it becomes ready\.$/));
     await assert.rejects(
       campaigns.choose(id, [QUOTE, { path: "apps/shop/tests/gone.spec.ts", title: "Gone" }]),
@@ -161,6 +163,27 @@ describe("a campaign", () => {
       campaigns.progress("nowhere"),
       (error) => error instanceof UnknownCampaignError && error.message === "The instance keeps no campaign nowhere.",
     );
+  });
+
+  it("is closed once no launch of it runs, and once only: its results stay as they were", async () => {
+    // The run of the tests waits until the test lets it go.
+    const running = held();
+    const { campaigns } = await campaignsOf(REPOSITORY, {
+      before: async ({ command }) => {
+        if (command.some((arg) => arg.endsWith(".spec.ts"))) await running.promise;
+      },
+    });
+    const id = await chosen(campaigns, "Recette", [QUOTE]);
+    await campaigns.ready(id);
+    await campaigns.launch(id);
+    await assert.rejects(campaigns.close(id), refused(/^A launch of the campaign runs: close the campaign once it ended, so that its results are fixed\.$/));
+    running.resolve();
+    await eventually(async () => assert.equal((await hosted.sessions.launches()).running, undefined));
+    const closing = await Promise.allSettled([campaigns.close(id), campaigns.close(id)]);
+    assert.deepEqual(closing.map((outcome) => (outcome.status === "fulfilled" ? outcome.value.status : (outcome.reason as Error).message)).sort(), [
+      "The campaign was closed meanwhile.",
+      "closed",
+    ]);
   });
 
   it("dates with the clock of the machine by default", async () => {

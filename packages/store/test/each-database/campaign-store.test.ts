@@ -54,11 +54,15 @@ describe("the campaigns the store keeps", () => {
       readyAt: at(5),
       tests: tests.toSorted((a, b) => a.path.localeCompare(b.path) || a.title.localeCompare(b.title)),
     });
-    await store.move("c1", "in_progress");
+    assert.equal(await store.move("c1", "ready", "in_progress"), true);
     assert.equal((await store.get("c1"))?.status, "in_progress");
-    await store.move("c1", "closed", at(9));
+    // A change from a state the campaign left is not made: of two closures at once, one only is.
+    assert.equal(await store.move("c1", "ready", "in_progress"), false);
+    const [first, second] = await Promise.all([store.move("c1", "in_progress", "closed", at(9)), store.move("c1", "in_progress", "closed", at(10))]);
+    assert.deepEqual([first, second].filter(Boolean).length, 1);
     const closed = await store.get("c1");
-    assert.deepEqual([closed?.status, closed?.closedAt, closed?.tests.length], ["closed", at(9), 3]);
+    assert.equal(closed?.status, "closed");
+    assert.equal(closed?.tests.length, 3);
   });
 
   it("keeps no test when none is chosen", async () => {

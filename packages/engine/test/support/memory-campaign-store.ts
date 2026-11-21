@@ -27,9 +27,10 @@ export class MemoryCampaignStore implements CampaignStorePort {
     return Promise.resolve();
   }
 
-  move(id: string, status: "in_progress" | "closed", at?: string): Promise<void> {
+  move(id: string, from: "ready" | "in_progress", status: "in_progress" | "closed", at?: string): Promise<boolean> {
+    if (this.#campaigns.find((campaign) => campaign.id === id)?.status !== from) return Promise.resolve(false);
     this.#change(id, (campaign) => ({ ...campaign, status, ...(at === undefined ? {} : { closedAt: at }) }));
-    return Promise.resolve();
+    return Promise.resolve(true);
   }
 
   #change(id: string, change: (campaign: Campaign) => Campaign): void {

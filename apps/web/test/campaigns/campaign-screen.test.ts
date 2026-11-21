@@ -105,6 +105,14 @@ describe("the screen of a campaign", () => {
     const html = screen({ value: PROGRESS }, { confirming: true });
     assert.match(textOf(html), /Clôturer pour de bon \? Une campagne clôturée ne se relance plus\. Clôturer la campagne Annuler/);
     assert.deepEqual(buttons(html), ["Clôturer la campagne", "Annuler"]);
+    // A launch that starts meanwhile holds the closing back, and leaves it to be given up.
+    const launching = screen(
+      { value: PROGRESS },
+      { confirming: true },
+      { startedAt: "2026-11-20T10:00:00.000Z", environment: "local", paths: [QUOTE.path], campaign: "c1" },
+    );
+    assert.match(launching, /disabled="">Clôturer la campagne<\/button>/);
+    assert.doesNotMatch(launching, /disabled="">Annuler/);
   });
 
   it("follows the launch that runs: how far it went, the tests it finished with their verdict, those still to come", () => {
@@ -117,6 +125,8 @@ describe("the screen of a campaign", () => {
     assert.doesNotMatch(running, /href="#\/executions\/result/, "a test of the launch leads to no result until it ended");
     assert.ok(buttons(running).filter((label) => label !== "Clôturer").length === 3);
     assert.match(running, /disabled="">Tout relancer/);
+    assert.match(running, /disabled="">Clôturer<\/button>/, "a campaign is not closed while a launch of it runs");
+    assert.doesNotMatch(screen({ value: PROGRESS }), /disabled="">Clôturer/);
     const other = screen({ value: PROGRESS }, {}, { ...launch, paths: [QUOTE.path] });
     assert.match(textOf(other), /non joué Display the detail of a policy/);
   });
