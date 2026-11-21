@@ -51,4 +51,40 @@ describe("the tests of the test repository", () => {
     await configuration.record({ origin: "file", fileDigest: "a1", document: DOCUMENT }, 0);
     assert.deepEqual(await new RepositoryTests(undefined, configuration).list(), []);
   });
+
+  it("are listed one per test, by its titles as the runner reports them, with what keeps a file from being listed as it is", async () => {
+    const configuration = new MemoryConfigurationStore();
+    await configuration.record({ origin: "file", fileDigest: "a1", document: DOCUMENT }, 0);
+    const root = repository();
+    const shop = join(root, "suites", "shop");
+    writeFileSync(
+      join(shop, "orders.spec.ts"),
+      [
+        'test.describe("Orders", () => {',
+        '  test("List the orders", { tag: "@level-functional" }, async () => {',
+        '    await test.step("1. Open the orders", async () => {});',
+        "  });",
+        '  test("Find an order", async () => {});',
+        '  test("Find an order", async () => {});',
+        "});",
+      ].join("\n"),
+    );
+    writeFileSync(join(shop, "broken.spec.ts"), 'test("Broken", async () => {\n');
+    writeFileSync(join(shop, "looped.spec.ts"), 'for (const name of ["a", "b"]) test(`Open ${name}`, async () => {});\n');
+    const listed = await new RepositoryTests(root, configuration).listed();
+    assert.deepEqual(
+      listed.items.map(({ path, title, steps, tags }) => [path.replace("suites/shop/", ""), title, steps, tags]),
+      [
+        ["broken.spec.ts", "Broken", [], []],
+        ["home.spec.ts", "The home page answers", [], ["@app-shop", "@slow"]],
+        ["looped.spec.ts", "suites/shop/looped.spec.ts", [], []],
+        ["orders.spec.ts", "Orders › List the orders", ["1. Open the orders"], ["@level-functional"]],
+        ["orders.spec.ts", "Orders › Find an order", [], []],
+      ],
+    );
+    assert.deepEqual(listed.anomalies, [
+      { kind: "unreadable", path: "suites/shop/broken.spec.ts" },
+      { kind: "duplicate", path: "suites/shop/orders.spec.ts", title: "Orders › Find an order" },
+    ]);
+  });
 });

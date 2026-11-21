@@ -71,7 +71,23 @@ export function testsApiSuite(engine: DatabaseEngine): void {
             data: "read",
           },
         ],
+        anomalies: [],
       });
+    });
+
+    it("are listed one per test of a file, and tell a title two tests of a file share", async () => {
+      const folder = join(repository, "apps", "shop", "tests", "orders", "detail");
+      mkdirSync(folder, { recursive: true });
+      writeFileSync(
+        join(folder, "detail.spec.ts"),
+        'test("Open an order", async () => {});\ntest("Close an order", async () => {});\ntest("Close an order", async () => {});\n',
+      );
+      const listed = (await (await fetch(`${api.url}/tests`)).json()) as RepositoryTestList;
+      assert.deepEqual(
+        listed.items.map(({ path, title }) => `${path.replace("apps/shop/tests/orders/", "")} ${title}`),
+        ["detail/detail.spec.ts Open an order", "detail/detail.spec.ts Close an order", "search/search-orders.spec.ts Search an order by its number"],
+      );
+      assert.deepEqual(listed.anomalies, [{ kind: "duplicate", path: "apps/shop/tests/orders/detail/detail.spec.ts", title: "Close an order" }]);
     });
 
     it("are read in steps from the latest run that ran them, each step with its capture, and say why a capture or a query is refused", async () => {
