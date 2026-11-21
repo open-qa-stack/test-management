@@ -1,4 +1,14 @@
-import type { Autonomy, ConfigError, ConfigurationView, OqasConfig, ProblemCode, RevisionSummary } from "@open-qa-stack/domain/sessions";
+import type {
+  Autonomy,
+  ConfigError,
+  ConfigurationView,
+  Model,
+  ModelConnectionCheck,
+  OqasConfig,
+  ProblemCode,
+  RevisionSummary,
+} from "@open-qa-stack/domain/sessions";
+import { modelFor } from "./model-connection.ts";
 import { appendedAt, changedAt, removedAt, valueAt } from "./json-pointer.ts";
 
 /** What the screen of the configuration holds: what the instance told, and the change the person is making. */
@@ -21,10 +31,28 @@ export interface ConfigurationState {
   readonly refusal?: { readonly code: ProblemCode | "unreachable"; readonly text: string };
   /** Why the instance could not tell the configuration, when it answered so. */
   readonly unread?: string;
+  /** The latest test of the connection to the model; `undefined` before the person asked for one, and once they chose another connection. */
+  readonly connection?: ConnectionTest;
+}
+
+/** A test of the connection to the model, under way or done. */
+export interface ConnectionTest {
+  /** The section `model` of the draft when the test was asked for. */
+  readonly model: Model;
+  /** What the test found; `undefined` while it runs, and when it could not be made. */
+  readonly check?: ModelConnectionCheck;
+  /** Why the test could not be made, in the words of the instance. */
+  readonly failure?: string;
 }
 
 /** What changes the state of the screen. */
 export type ConfigurationAction =
+  /** The person chose how to reach the model: the GitHub account of the machine, a provider of the list, or another server. */
+  | { readonly type: "connection"; readonly choice: string }
+  /** The person asked for a test of the connection to the model. */
+  | { readonly type: "testing"; readonly model: Model }
+  /** The instance answered a test of the connection to the model, or could not make it. */
+  | { readonly type: "tested"; readonly model: Model; readonly check?: ModelConnectionCheck; readonly failure?: string }
   /** The instance told the configuration and its revisions. */
   | { readonly type: "read"; readonly view: ConfigurationView; readonly revisions: readonly RevisionSummary[] }
   /** The instance could not tell them. */
@@ -103,6 +131,22 @@ export function configurationAfter(state: ConfigurationState, action: Configurat
     }
     case "unread":
       return { ...state, unread: action.message };
+    case "connection": {
+      const { connection: _, ...rest } = state;
+      return edited(rest, (draft) => changedAt(draft, "/model", modelFor(action.choice, draft.model)));
+    }
+    case "testing":
+      return { ...state, connection: { model: action.model } };
+    case "tested":
+      if (state.connection?.model !== action.model) return state;
+      return {
+        ...state,
+        connection: {
+          model: action.model,
+          ...(action.check === undefined ? {} : { check: action.check }),
+          ...(action.failure === undefined ? {} : { failure: action.failure }),
+        },
+      };
     case "edit":
       return edited(state, (draft) => changedAt(draft, action.pointer, action.value));
     case "toggle":

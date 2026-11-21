@@ -1,21 +1,25 @@
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Post } from "@nestjs/common";
-import { Configuration } from "@open-qa-stack/engine";
+import { Configuration, ModelConnection } from "@open-qa-stack/engine";
+import type { Model } from "@open-qa-stack/domain";
 import { ConfigurationBodyPipe } from "./configuration-body.pipe.ts";
+import { ModelBodyPipe } from "./model-body.pipe.ts";
 import { RevisionRequestPipe } from "./revision-request.pipe.ts";
 import type { RevisionRequest } from "./revision-request.ts";
-import type { ConfigurationCheck, ConfigurationView, RevisionList } from "@open-qa-stack/domain/sessions";
+import type { ConfigurationCheck, ConfigurationView, ModelConnectionCheck, RevisionList } from "@open-qa-stack/domain/sessions";
 
 /**
  * `GET /configuration`, `GET /configuration/revisions`, `POST /configuration/validation`,
- * `POST /configuration/revisions` and `POST /configuration/synchronisation`: each route is one operation on the
- * configuration, said in HTTP.
+ * `POST /configuration/revisions`, `POST /configuration/synchronisation` and `POST /configuration/model-connection`:
+ * each route is one operation on the configuration, said in HTTP.
  */
 @Controller("configuration")
 export class ConfigurationController {
   readonly #configuration: Configuration;
+  readonly #connection: ModelConnection;
 
-  constructor(configuration: Configuration) {
+  constructor(configuration: Configuration, connection: ModelConnection) {
     this.#configuration = configuration;
+    this.#connection = connection;
   }
 
   /** @returns The revision in force, and how the configuration file stands to it, which no cache may keep. */
@@ -63,5 +67,18 @@ export class ConfigurationController {
   async synchronise(): Promise<ConfigurationView> {
     await this.#configuration.synchronise();
     return this.#configuration.view();
+  }
+
+  /**
+   * Tests a connection to the model as the person drafts it, before anything is saved.
+   *
+   * @returns What the test found, answered with `200`: whether the model answers and what it offers, or why it
+   * does not; a body that is not a connection the configuration accepts is answered with `400`.
+   */
+  @Post("model-connection")
+  @HttpCode(HttpStatus.OK)
+  @Header("Cache-Control", "no-store")
+  testModel(@Body(ModelBodyPipe) model: Model): Promise<ModelConnectionCheck> {
+    return this.#connection.check(model);
   }
 }

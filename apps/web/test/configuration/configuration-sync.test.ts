@@ -73,6 +73,23 @@ describe("what keeps the screen of the configuration in step with its instance",
     assert.equal(api.told.length, 1);
   });
 
+  it("tests the connection to the model, and tells what the instance found, or why it could not", async () => {
+    const model = DOCUMENT.model;
+    api.answers.set("POST /api/configuration/model-connection", json({ state: "key-missing", variable: "MODEL_KEY" }));
+    api.sync.testModel(model);
+    await settled();
+    assert.deepEqual(api.told, [
+      { type: "testing", model },
+      { type: "tested", model, check: { state: "key-missing", variable: "MODEL_KEY" } },
+    ]);
+    assert.deepEqual(api.bodies, [model]);
+    api.answers.set("POST /api/configuration/model-connection", json({ code: "invalid_request", detail: "Bad." }, 400));
+    api.sync.testModel(model);
+    await settled();
+    assert.equal(api.told.at(-1)!.type, "tested");
+    assert.ok("failure" in api.told.at(-1)!);
+  });
+
   it("saves a change made from a revision, says it saved, and lists the revisions again, or lets that list go when it fails", async () => {
     api.answers.set("POST /api/configuration/revisions", json(VIEW, 201));
     api.answers.set("GET /api/configuration/revisions", json({ items: REVISIONS }));

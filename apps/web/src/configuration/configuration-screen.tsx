@@ -11,7 +11,8 @@ import { isChanged, type ConfigurationState } from "./configuration-state.ts";
 import { errorText } from "./configuration-words.ts";
 import { AddSourceButtons, KnowledgeCard } from "./knowledge-card.tsx";
 import { HistoryCard, JsonCard } from "./record-cards.tsx";
-import { AutonomyCard, DesignCard, LanguageCard, ModelCard, RepositoryCard } from "./settings-cards.tsx";
+import { ModelCard } from "./model-card.tsx";
+import { AutonomyCard, DesignCard, LanguageCard, RepositoryCard } from "./settings-cards.tsx";
 
 /** The form of the configuration, which the buttons of the head of the page submit. */
 export const FORM_ID = "configuration-form";
@@ -26,6 +27,7 @@ export interface ConfigurationControls extends Omit<ConfigurationEdit, "errors">
   readonly keepFile: MouseEventHandler<HTMLButtonElement>;
   /** Saves the draft over a configuration file that changed too. */
   readonly keepChange: MouseEventHandler<HTMLButtonElement>;
+  readonly testModel: MouseEventHandler<HTMLButtonElement>;
 }
 
 /** What the screen of the configuration is drawn from. */
@@ -171,7 +173,7 @@ export function ConfigurationScreen({ project, state, controls }: ConfigurationS
           </section>
           <section className="config-section" aria-labelledby="config-agents">
             <h2 id="config-agents">{t("configuration.screen.agents")}</h2>
-            <ModelCard model={draft.model} />
+            <ModelCard model={draft.model} onTest={controls.testModel} {...(state.connection === undefined ? {} : { connection: state.connection })} />
             <AutonomyCard {...(draft.autonomy === undefined ? {} : { autonomy: draft.autonomy })} />
             <DesignCard design={draft.design} />
             <LanguageCard config={draft} />

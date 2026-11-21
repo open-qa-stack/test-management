@@ -451,23 +451,8 @@
       }
     },
     "settings": {
-      "openai": "OpenAI-compatible server",
       "autonomous": "Autonomous: no limit per task",
       "bounded": "Bounded: limits for each task",
-      "model": {
-        "title": "Model",
-        "hint": "the server the agents call",
-        "provider": "Provider",
-        "baseUrl": "Address of the server",
-        "model": "Model",
-        "apiKeyEnv": "Variable of the key",
-        "apiKeyEnvHint": "The name of the environment variable that holds the key; the key is never written here.",
-        "reasoningEffort": "Reasoning effort",
-        "reasoningEffortHint": "A word of the server, such as low or high; nothing is sent without one.",
-        "timeout": "Wait for an answer, in seconds",
-        "vision": "Reads images",
-        "visionHint": "the agents see the captures of the screens"
-      },
       "autonomy": {
         "title": "Autonomy",
         "hint": "how far the agents go on their own",
@@ -501,6 +486,41 @@
         "stateDir": "Folder of the state",
         "indexDir": "Folder of the index"
       }
+    },
+    "model": {
+      "title": "Model",
+      "hint": "what the agents think with",
+      "connection": "Connection to the model",
+      "github": "GitHub account of this machine (Copilot)",
+      "other": "Another server (type its address)",
+      "githubNote": "The tool uses the GitHub account signed in on the machine it runs on, with its Copilot subscription: nothing to type. On a shared machine, everyone goes through this account.",
+      "baseUrl": "Address of the server",
+      "baseUrlHint": "That of its OpenAI-compatible API, such as that of a model run on your machine.",
+      "apiKeyEnv": "Variable that holds the key",
+      "apiKeyEnvHint": "The name of the environment variable your key is in; the key is never written here. Leave it empty for a server with no key.",
+      "test": "Test the connection",
+      "testing": "Testing…",
+      "failed": "The test could not be made: {{reason}}",
+      "connected": "Connected.",
+      "connectedAs": "Connected with the GitHub account {{account}}.",
+      "pickBelow": "Choose a model in the list.",
+      "noList": "The server does not list its models: type the name of the model.",
+      "signedOut": "No GitHub account is signed in on this machine. Run this command in a terminal, then test again:",
+      "noModels": "The GitHub account {{account}} is signed in, but Copilot offers it no model: the account needs a GitHub Copilot subscription, or its organisation must allow one.",
+      "keyMissing": "The variable {{variable}} is not set where the tool runs. Put your key in it, start the tool again, then test again.",
+      "keyRefused": "The provider refused the key (status {{status}}). Check the key the variable holds.",
+      "unreachable": "Nothing answers at {{url}}. Check the address, or that the server is running.",
+      "model": "Model",
+      "modelHint": "Its name, as the server gives it, such as gpt-4.1.",
+      "pick": "Choose a model",
+      "advanced": "Advanced",
+      "reasoningEffort": "Reasoning effort",
+      "reasoningEffortHint": "A word of the server, such as low or high; nothing is sent without one.",
+      "byDefault": "Default",
+      "timeout": "Wait for an answer, in seconds",
+      "vision": "Reads images",
+      "visionHint": "the agents see the screenshots",
+      "visionTold": "the list says this model reads images"
     },
     "application": {
       "types": {

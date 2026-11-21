@@ -1,4 +1,4 @@
-import type { ConfigurationView, OqasConfig } from "@open-qa-stack/domain/sessions";
+import type { ConfigurationView, Model, OqasConfig } from "@open-qa-stack/domain/sessions";
 import type { ApiClient } from "../api/api-client.ts";
 import type { ApiError } from "../api/api-error.ts";
 import { poll } from "../api/poll.ts";
@@ -60,6 +60,19 @@ export class ConfigurationSync {
    * @param basedOn - The number of the revision it was made from.
    * @param replaceFile - Whether the change rewrites a file that changed too.
    */
+  /**
+   * Tests the connection to the model the draft names, and tells what the instance found.
+   *
+   * @param model - The section `model` of the draft.
+   */
+  public testModel(model: Model): void {
+    this.#dispatch({ type: "testing", model });
+    this.#api.testModel(model).then(
+      (check) => this.#dispatch({ type: "tested", model, check }),
+      (error: ApiError) => this.#dispatch({ type: "tested", model, failure: error.message }),
+    );
+  }
+
   public save(document: OqasConfig, basedOn: number, replaceFile: boolean): void {
     this.#settle(this.#api.save({ basedOn, document, ...(replaceFile ? { replaceFile } : {}) }));
   }

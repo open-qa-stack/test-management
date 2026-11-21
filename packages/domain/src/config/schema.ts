@@ -330,6 +330,25 @@ export const configSchema = {
             },
           },
         },
+        {
+          type: "object",
+          additionalProperties: false,
+          required: ["mode", "model"],
+          description: "A model of GitHub Copilot, reached with the GitHub account the machine signed in with, through the GitHub CLI or the Copilot CLI.",
+          properties: {
+            mode: { const: "github" },
+            model: label,
+            capabilities: {
+              type: "array",
+              items: { enum: ["vision"] },
+              description: "What the model can do besides reading and writing text: `vision`, it reads images.",
+            },
+            reasoningEffort: {
+              ...label,
+              description: "How much the model reasons before it answers, in a word Copilot offers for the model, such as `low` or `high`.",
+            },
+          },
+        },
       ],
     },
     autonomy: {

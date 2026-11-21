@@ -30,7 +30,7 @@ export function declaredVariables(config: VariableSections): DeclaredVariable[] 
   config.knowledge.forEach((item, i) => {
     if (item.type === "postgresql") variables.push({ path: pointer(pointer("/knowledge", i), "connectionStringEnv"), name: item.connectionStringEnv });
   });
-  if (config.model.apiKeyEnv !== undefined) variables.push({ path: "/model/apiKeyEnv", name: config.model.apiKeyEnv });
+  if (config.model.mode === "provider-key" && config.model.apiKeyEnv !== undefined) variables.push({ path: "/model/apiKeyEnv", name: config.model.apiKeyEnv });
   return variables;
 }
 

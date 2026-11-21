@@ -60,9 +60,12 @@ export { CONFIG_FILE_NAME, DATABASE_FILE_NAME, STATE_DIR_NAME } from "./config/f
 export { configurationText } from "./config/configuration-text.ts";
 export { DEFAULT_LANGUAGE, LANGUAGES, languageOf } from "./config/language.ts";
 export { readsImages } from "./config/model-capabilities.ts";
+export type { ModelChoice, ModelConnectionCheck } from "./config/model-connection.ts";
+export { GITHUB_COPILOT_URL, modelOrigin, type ModelOrigin } from "./config/model-origin.ts";
+export { MODEL_PROVIDERS, providerOf, type ModelProvider } from "./config/model-providers.ts";
 export { CHARTER_RULE_ID_PATTERN, configSchema, CONTAINER_NAME_PATTERN, ENV_VAR_PATTERN, SLUG_PATTERN } from "./config/schema.ts";
 export type * from "./config/types.ts";
-export { declaredStateDir, DEFAULT_REPOSITORY, resolvedConfig, validateConfig, type EnvironmentVariables } from "./config/validate.ts";
+export { declaredStateDir, DEFAULT_REPOSITORY, isModel, resolvedConfig, validateConfig, type EnvironmentVariables } from "./config/validate.ts";
 export { placementErrors, unplacedItems, type SourceInventory } from "./domain-index/placement.ts";
 export { domainIndexSchema, domainSubmissionSchema } from "./domain-index/schema.ts";
 export type * from "./domain-index/types.ts";

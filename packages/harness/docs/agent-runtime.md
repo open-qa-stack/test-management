@@ -37,7 +37,7 @@ A tool gives the model an image by returning an `ImageToolResult`: what the mode
 
 ## The Copilot implementation
 
-`CopilotAgentRuntime` drives the GitHub Copilot SDK with a provider key on an OpenAI-compatible server (chat completions). Sessions offer their own tools only: the built-in tools of the Copilot runtime are off, and no GitHub account is used. The runtime process gets only the environment variables it needs to start (`PATH`, `HOME`, the locale and the temporary folders), never a key. Tool calls are reported in the order the model listed them; when the model asks for several tools at once, they run concurrently and their results arrive in the order they finish. The SDK ships the Copilot runtime for each platform as an optional dependency of `@github/copilot-sdk`; installing the package installs it.
+`CopilotAgentRuntime` drives the GitHub Copilot SDK, in one of two ways. Given an `endpoint`, it reaches a provider key on an OpenAI-compatible server (chat completions) through the gateway, and no GitHub account is used. Without one, it reaches a model of GitHub Copilot with the account the GitHub CLI or the Copilot CLI signed in with on the machine, and reads no token: each session then counts its calls to the model and their tokens from the events of the SDK (`assistant.turn_start`, `assistant.usage`), and stops once a limit stopped its task, since no gateway sees its requests; a failure is told as the SDK words it. Sessions offer their own tools only: the built-in tools of the Copilot runtime are off. The runtime process gets only the environment variables it needs to start (`PATH`, `HOME`, the locale and the temporary folders), never a key. Tool calls are reported in the order the model listed them; when the model asks for several tools at once, they run concurrently and their results arrive in the order they finish. The SDK ships the Copilot runtime for each platform as an optional dependency of `@github/copilot-sdk`; installing the package installs it.
 
 ## The model gateway
 
@@ -52,3 +52,7 @@ Because the gateway makes the call, it knows why one fails, and the runtime turn
 ## Checking a model
 
 `TOOL_CALLING_CHECK` is a session with two tools, one without arguments and one with structured arguments, and a message that asks for both and for their results in the answer. A model handles tool calls for this check when it calls both tools, with arguments that match their schemas, calls no other tool, and quotes both results. `pnpm record:tool-calling --model <id> --server "<name and version>" --out <file>` runs it against a model server and writes the recording.
+
+## Checking a connection to the model
+
+`checkGitHubAccount(env)` tells who is signed in to GitHub on the machine, and the models Copilot offers them, those it disables left out: `connected` with the account and its models, `no-models` for an account Copilot offers none, `signed-out` when no account is signed in. The client of the SDK starts in a folder of its own, removed afterwards. `checkProviderModels(baseUrl, apiKey)` lists the models of an OpenAI-compatible server, `GET <baseUrl>/models`, with the key when there is one: `connected` with the models it names, sorted, or without a list when it gives none; `key-refused` on `401` or `403`; `unreachable` when nothing answers within 10 seconds.

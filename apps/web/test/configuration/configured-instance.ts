@@ -62,6 +62,8 @@ export class ConfiguredInstance {
     if (path === "/api/configuration") return json({ ...this.view, file: this.fileChanged ? "changed" : this.view.file });
     if (path === "/api/configuration/revisions" && method === "GET") return json({ items: this.revisions });
     if (path === "/api/configuration/validation") return json({ errors: errorsOf(JSON.parse(body!) as OqasConfig) });
+    if (path === "/api/configuration/model-connection")
+      return json({ state: "connected", models: [{ id: "saved-model", name: "saved-model", reasoningEfforts: [] }] });
     if (path === "/api/configuration/synchronisation") return json(this.#record(this.view.revision!.document, "file"));
     const change = JSON.parse(body!) as RevisionChange;
     if (change.basedOn !== this.view.revision!.number) return problem("stale_revision", 409);

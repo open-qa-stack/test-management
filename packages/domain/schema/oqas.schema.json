@@ -679,6 +679,38 @@
               "description": "How much the model reasons before it answers, in a word of its server, such as `none`, `low` or `high`; sent with every request when set."
             }
           }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "model"
+          ],
+          "description": "A model of GitHub Copilot, reached with the GitHub account the machine signed in with, through the GitHub CLI or the Copilot CLI.",
+          "properties": {
+            "mode": {
+              "const": "github"
+            },
+            "model": {
+              "type": "string",
+              "minLength": 1
+            },
+            "capabilities": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "vision"
+                ]
+              },
+              "description": "What the model can do besides reading and writing text: `vision`, it reads images."
+            },
+            "reasoningEffort": {
+              "type": "string",
+              "minLength": 1,
+              "description": "How much the model reasons before it answers, in a word Copilot offers for the model, such as `low` or `high`."
+            }
+          }
         }
       ]
     },

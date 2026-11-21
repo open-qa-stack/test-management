@@ -17,6 +17,8 @@ import type {
   LaunchRequest,
   LaunchState,
   MessageReceipt,
+  Model,
+  ModelConnectionCheck,
   OqasConfig,
   Problem,
   Project,
@@ -162,6 +164,16 @@ export class ApiClient {
    */
   public async check(document: OqasConfig): Promise<readonly ConfigError[]> {
     return (await this.#ask<ConfigurationCheck>("/configuration/validation", posting(document))).errors;
+  }
+
+  /**
+   * Tests a connection to the model as the person drafts it: nothing is saved.
+   *
+   * @param model - The section `model` of the draft.
+   * @returns Whether the model answers and what it offers, or why it does not.
+   */
+  public async testModel(model: Model): Promise<ModelConnectionCheck> {
+    return this.#ask<ModelConnectionCheck>("/configuration/model-connection", posting(model));
   }
 
   /**
