@@ -7,6 +7,7 @@ export type { DatabaseState } from "./database/database-state.ts";
 export { DatabaseStatus } from "./database/database-status.ts";
 export { DatabaseUnavailableError } from "./database/database-unavailable-error.ts";
 export { DatabaseUrl } from "./database/database-url.ts";
+export { MemoryStore } from "./memory/memory-store.ts";
 export { InstanceDatabase } from "./instance/instance-database.ts";
 export { DATABASE_URL_VARIABLE, instanceDatabaseUrl } from "./instance/instance-database-url.ts";
 export { PendingMigrationsError } from "./instance/pending-migrations-error.ts";

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { scriptedServer } from "@open-qa-stack/testing";
+import { scriptedServer, KeptMemories } from "@open-qa-stack/testing";
 import type { AgentEvent, AgentRuntime, RunEntry, SessionOptions } from "@open-qa-stack/domain";
 import { liveRuntime, Run } from "../src/index.ts";
 import { RunStoppedError } from "../src/runtime/run-stopped-error.ts";
@@ -22,6 +22,7 @@ async function stopped(stopAt: (entry: RunEntry) => boolean, replies: Parameters
   const runner = new FakeRunner(root);
   try {
     const code = await new Run({
+      memory: new KeptMemories(),
       repositoryRoot: root,
       environment: "local",
       env: { SHOP_DB_URL: WITNESS },
@@ -83,6 +84,7 @@ describe("a run its host asks to stop", () => {
     const host = plugged(root);
     try {
       const run = new Run({
+        memory: new KeptMemories(),
         repositoryRoot: root,
         environment: "local",
         env: { SHOP_DB_URL: WITNESS },

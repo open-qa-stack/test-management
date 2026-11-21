@@ -6,6 +6,7 @@ import { CONFIG_FILE_NAME, SessionEndedError, SessionStateError, UnknownSessionE
 import type { SessionEvent, SessionOpening } from "@open-qa-stack/domain/sessions";
 import { chain, ended, git, planned, read } from "@open-qa-stack/testing/test-repository";
 import { afterEach, describe, it } from "vitest";
+import { KeptMemories } from "@open-qa-stack/testing";
 import { Configuration, NoRepositoryError, Sessions } from "../src/index.ts";
 import { eventually } from "./support/eventually.ts";
 import { designDoor, ENV, Hosted } from "./support/hosted.ts";
@@ -156,6 +157,7 @@ describe("a session that is opened", () => {
     const unsaid = await store.ask({} as SessionOpening, GONE);
     await store.release(GONE);
     const sessions = new Sessions({
+      memory: new KeptMemories(),
       store,
       configuration: new Configuration(new MemoryConfigurationStore(), hosted.root),
       documents: new MemoryDocumentStore(),
@@ -182,6 +184,7 @@ describe("a session that is opened", () => {
     await store.release(GONE);
     hosted = await Hosted.create([]);
     const reading = new Sessions({
+      memory: new KeptMemories(),
       store,
       configuration: new Configuration(new MemoryConfigurationStore(), undefined),
       documents: new MemoryDocumentStore(),
@@ -306,6 +309,7 @@ describe("a session a person resumes once it ended", () => {
     const kept = await store.ask({ request: REQUEST }, GONE);
     await store.interrupt(kept.id);
     const reading = new Sessions({
+      memory: new KeptMemories(),
       store,
       configuration: new Configuration(new MemoryConfigurationStore(), undefined),
       documents: new MemoryDocumentStore(),

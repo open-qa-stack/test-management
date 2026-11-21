@@ -4,6 +4,7 @@ import { DatabaseStatus } from "../database/database-status.ts";
 import { DocumentStore } from "../documents/document-store.ts";
 import { CampaignStore } from "../campaigns/campaign-store.ts";
 import { ExecutionStore } from "../executions/execution-store.ts";
+import { MemoryStore } from "../memory/memory-store.ts";
 import { SchemaMigrations } from "../database/schema-migrations.ts";
 import { SessionStore } from "../sessions/session-store.ts";
 import { MIGRATIONS } from "../database/migrations/index.ts";
@@ -15,7 +16,7 @@ import type { StoreLogger } from "../store-logger.ts";
 /**
  * The database of an instance, assembled once for whatever process reaches it — the server that hosts its
  * sessions, a terminal that opens one or reads them: the connection, the migrations, their status, the
- * store of the sessions, that of the configuration, that of the documents of its knowledge sources and that of the executions of tests, with the one rule that brings the schema in order before anything is read.
+ * store of the sessions, that of the configuration, that of the documents of its knowledge sources, that of the executions of tests, that of the campaigns and that of the memories of the agents, with the one rule that brings the schema in order before anything is read.
  *
  * @remarks
  * Nothing is opened until a statement needs it: a process may assemble the database of a server that does not
@@ -38,6 +39,8 @@ export class InstanceDatabase {
   readonly executions: ExecutionStore;
   /** The store of the campaigns, which the operations on campaigns are given. */
   readonly campaigns: CampaignStore;
+  /** The store of the memories of the agents, which the runs are given. */
+  readonly memory: MemoryStore;
 
   /**
    * @param url - The connection URL of the database, as `instanceDatabaseUrl` resolves it.
@@ -53,6 +56,7 @@ export class InstanceDatabase {
     this.documents = new DocumentStore(this.database);
     this.executions = new ExecutionStore(this.database);
     this.campaigns = new CampaignStore(this.database);
+    this.memory = new MemoryStore(this.database);
   }
 
   /**

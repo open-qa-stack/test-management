@@ -15,7 +15,7 @@ import {
   type SourceManifest,
 } from "@open-qa-stack/domain";
 import { CopilotAgentRuntime, ModelGateway } from "@open-qa-stack/harness";
-import { answer, closedPort, scriptedServer, testSite, toolCalls, type ScriptedServer } from "@open-qa-stack/testing";
+import { answer, KeptMemories, closedPort, scriptedServer, testSite, toolCalls, type ScriptedServer } from "@open-qa-stack/testing";
 import { fingerprintOf, knowledgeInventory, MAX_SCANNED_FILES, type SourceInventory, type SqlClient, type SqlResult } from "@open-qa-stack/tools";
 import { sourceCardRequest } from "../src/source-cartographer/source-cartographer-prompt.ts";
 import { CARDS_FOLDER, Cartographer, mapSources, SourceCartographer, type CardSource, type SourceCartographyOutcome } from "../src/index.ts";
@@ -195,6 +195,7 @@ async function cartography(replies: readonly { status?: number; body: unknown }[
         writeFileSync(join(root, "code", folder, "index.ts"), `export const ${folder.toLowerCase()} = 1;\n`);
       }
     const cartographer = new SourceCartographer({
+      memory: new KeptMemories(),
       config: setup.config === undefined ? config : setup.config(config),
       source: setup.source ?? DB,
       repositoryRoot: root,
@@ -1178,6 +1179,7 @@ describe("freshness, criterion 2 — the sources without an up-to-date card are 
       const runtime = new CopilotAgentRuntime({ endpoint: gateway, model: MODEL, homeDirectory: mkdtempSync(join(workspace, "home-")) });
       try {
         const results = await mapSources({
+          memory: new KeptMemories(),
           config: configFor(server.baseUrl),
           environment: "local",
           repositoryRoot: root,
@@ -1240,7 +1242,7 @@ describe("freshness, criterion 2 — the sources without an up-to-date card are 
       assert.equal((await cartography([], setup)).outcome.kept, true);
       const unused: AgentRuntime = { openSession: () => Promise.reject(new Error("no session expected")), close: async () => undefined };
       const config = setup.config({ ...configFor("http://127.0.0.1:1"), knowledge: [] });
-      const results = await mapSources({ config, environment: "local", repositoryRoot: root, env: {}, runtime: unused });
+      const results = await mapSources({ memory: new KeptMemories(), config, environment: "local", repositoryRoot: root, env: {}, runtime: unused });
       assert.deepEqual(
         results.map(({ source, outcome }) => [source, outcome.kept]),
         [[{ id: "shop", type: "web", environment: "local" }, true]],
@@ -1337,7 +1339,15 @@ describe("how mapSources runs the tasks", () => {
     const documents = ["a", "b"].map((id): ReachableKnowledge => ({ id, type: "document", path: id, attachments: [{ application: "shop" }] }));
     const config = { ...configFor("http://127.0.0.1:1"), knowledge: documents };
     const run = (concurrency?: number) =>
-      mapSources({ config, environment: "local", repositoryRoot: root, env: {}, runtime: unused, ...(concurrency === undefined ? {} : { concurrency }) });
+      mapSources({
+        memory: new KeptMemories(),
+        config,
+        environment: "local",
+        repositoryRoot: root,
+        env: {},
+        runtime: unused,
+        ...(concurrency === undefined ? {} : { concurrency }),
+      });
     for (const concurrency of [Number.NaN, 0, -2, 1.5, 2])
       assert.deepEqual(
         (await run(concurrency)).map(({ source }) => source.id),
@@ -1357,6 +1367,7 @@ describe("how mapSources runs the tasks", () => {
     const documents = ["a", "b"].map((id): ReachableKnowledge => ({ id, type: "document", path: id, attachments: [{ application: "shop" }] }));
     await assert.rejects(
       mapSources({
+        memory: new KeptMemories(),
         config: { ...configFor("http://127.0.0.1:1"), knowledge: documents },
         environment: "local",
         repositoryRoot: root,
@@ -1379,7 +1390,7 @@ describe("what no index is made of", () => {
       ...configFor("http://127.0.0.1:1"),
       knowledge: [{ id: "notes", type: "document", path: "notes", attachments: [{ application: "shop" }] } as ReachableKnowledge],
     };
-    const outcome = await new Cartographer({ config, environment: "local", repositoryRoot: root, env: {}, runtime: unused }).run();
+    const outcome = await new Cartographer({ memory: new KeptMemories(), config, environment: "local", repositoryRoot: root, env: {}, runtime: unused }).run();
     assert.equal(outcome.index, undefined);
     assert.match(outcome.journal.map((entry) => entry.message).join("\n"), /No index was written: the sources were mapped into no domain\./);
   });

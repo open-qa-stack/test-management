@@ -43,6 +43,7 @@ export class SessionDatabase {
 
   /** Empties the tables of the sessions, with their events and their messages, of the project, of the configuration and of the documents. */
   async clear(): Promise<void> {
+    await this.database.kysely.deleteFrom("memories").execute();
     await this.database.kysely.deleteFrom("execution_results").execute();
     await this.database.kysely.deleteFrom("test_versions").execute();
     await this.database.kysely.deleteFrom("executions").execute();

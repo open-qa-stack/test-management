@@ -14,7 +14,7 @@ import {
   type SourceCardSubmission,
   type TraceLine,
 } from "@open-qa-stack/domain";
-import { answer, scriptedServer, testSite, toolCalls, type ScriptedServer, type TestSite } from "@open-qa-stack/testing";
+import { answer, KeptMemories, scriptedServer, testSite, toolCalls, type ScriptedServer, type TestSite } from "@open-qa-stack/testing";
 import { fingerprintOf, knowledgeInventory, type SqlClient } from "@open-qa-stack/tools";
 import { Cartographer, INDEX_FILE_NAME, type CartographyOutcome, type Inbox } from "../src/index.ts";
 
@@ -327,6 +327,7 @@ export async function cartography(
     await writeCards(root, config, database, setup.cards ?? Object.keys(ELEMENTS));
     setup.prepare?.(root);
     const cartographer = new Cartographer({
+      memory: new KeptMemories(),
       config,
       environment: setup.environment ?? "local",
       repositoryRoot: root,
