@@ -52,7 +52,8 @@ export async function startConsole(
     repository,
     database: databaseOf(io, repository, "started"),
     console: builtConsole(io.console),
-    runs: runsOf(io),
+    // The console stays: it maps the knowledge of the sources added in it.
+    runs: { ...runsOf(io), mapsKnowledge: true },
     logger: commandLogger(io),
   };
   const { startApi } = await import("@open-qa-stack/api");

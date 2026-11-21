@@ -53,7 +53,8 @@ cache-control: no-store
 | Field | Value |
 |---|---|
 | `id` | The identifier of the session. |
-| `request` | What was asked, in the words of the person. |
+| `purpose` | `map` for a session that maps the knowledge alone, which the instance opens itself when a source has no card yet: it writes no test, asks nothing of a person, and ends `passed` once the index is written. Left out for a session that tests. |
+| `request` | What was asked, in the words of the person; left out of a session nothing was asked of. |
 | `environment` | The environment the work targets, when the person named one. |
 | `openedAt` | When the session was opened, as an ISO 8601 date. |
 | `lastEventAt` | When its last event happened. |

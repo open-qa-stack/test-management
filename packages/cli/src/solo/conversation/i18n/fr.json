@@ -80,7 +80,8 @@
       "interrupted": "interrompue",
       "completed": "terminée",
       "ended": "terminée"
-    }
+    },
+    "mapping": "cartographie des connaissances"
   },
   "speakers": {
     "user": "Vous",

@@ -1,6 +1,6 @@
 import type { Project } from "../sessions/project.ts";
 import type { AgentRole } from "../sessions/session-event.ts";
-import type { MessageReceipt, Session, SessionOpening, SessionResult } from "../sessions/session.ts";
+import type { MappingOpening, MessageReceipt, Session, SessionOpening, SessionResult } from "../sessions/session.ts";
 import type { UnrankedEvent } from "../sessions/unranked-event.ts";
 
 /**
@@ -21,13 +21,14 @@ export interface SessionCommands {
   saveProject(saved: Project): Promise<void>;
 
   /**
-   * Asks for a session: it waits, `queued`, until its host starts it, and its first event is what the person asked.
+   * Asks for a session: it waits, `queued`, until its host starts it, and its first event is what the person asked; a
+   * session that maps the knowledge, which no person asked, starts with no event.
    *
-   * @param opening - What to test, and where.
+   * @param opening - What to test, and where; or the knowledge to map, in an environment.
    * @param host - What names the process that asks: the host of the session, which this is its first beat on.
    * @returns The session, under the identifier it was given.
    */
-  ask(opening: SessionOpening, host: string): Promise<Session>;
+  ask(opening: SessionOpening | MappingOpening, host: string): Promise<Session>;
 
   /**
    * Starts a session that waits: it becomes `running`, and an event tells so. Whoever starts it is its host

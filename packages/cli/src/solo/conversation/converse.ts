@@ -117,7 +117,7 @@ export async function converse({ repository, environment, terminal, io }: Conver
   const reported: string[] = [];
   const quiet: CommandIo = { ...io, stderr: { write: (text) => reported.push(text) } };
   try {
-    const { sessions, configuration, secrets, close } = await openOperations(quiet, repository, true);
+    const { sessions, configuration, secrets, close } = await openOperations(quiet, repository, true, true);
     let serving: Promise<StartedConsole> | undefined;
     let withinMs: number | undefined;
     try {

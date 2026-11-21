@@ -84,6 +84,14 @@ describe("a session the store keeps", () => {
     assert.equal(JSON.stringify((await store.session(asked.id))?.scope), JSON.stringify(scope));
   });
 
+  it("maps the knowledge when a host asks for it: no request, no event, the purpose kept, in the environment named or none", async () => {
+    const asked = await store.ask({ purpose: "map", environment: "local" }, "host");
+    assert.deepEqual([asked.purpose, asked.request, asked.environment, asked.state], ["map", undefined, "local", "queued"]);
+    assert.deepEqual(await store.session(asked.id), asked);
+    assert.deepEqual(await store.eventsAfter(asked.id, 0), []);
+    assert.equal((await store.ask({ purpose: "map" }, "host")).environment, undefined);
+  });
+
   it("is read without what its row lacks: a request, an environment, a result", async () => {
     await sessions.database.kysely
       .insertInto("sessions")

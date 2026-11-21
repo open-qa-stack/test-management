@@ -3,6 +3,7 @@ export type { Application, Project } from "./project.ts";
 export type * from "./session-event.ts";
 export type { UnrankedEvent } from "./unranked-event.ts";
 export type {
+  MappingOpening,
   MessageReceipt,
   Session,
   SessionList,

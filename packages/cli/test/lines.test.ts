@@ -150,6 +150,7 @@ describe("a session, as a command writes it", () => {
   it("is one line of the list: its identifier, how it stands, when it was opened, and what was asked on one line", () => {
     assert.equal(listedLine(session({ request: "Test the\n orders." })), `session-2026-11-13T12-00-00-000Z-9f3a1c2b  running  ${at}  Test the orders.`);
     assert.equal(listedLine(session({ state: "completed", result: RESULT })), `session-2026-11-13T12-00-00-000Z-9f3a1c2b  completed, passed  ${at}`);
+    assert.equal(listedLine(session({ purpose: "map" })), `session-2026-11-13T12-00-00-000Z-9f3a1c2b  running  ${at}  maps the knowledge`);
   });
 
   it("is summed up by how it stands, then by what it took, the branch of its tests and each verdict once it is completed", () => {

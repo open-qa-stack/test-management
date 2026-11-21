@@ -96,7 +96,8 @@
     "emptyTitle": "No session yet",
     "emptyBody": "The first one will show here as soon as a request is made.",
     "running": "Session in progress",
-    "unasked": "Session without a request"
+    "unasked": "Session without a request",
+    "mapping": "Mapping of the knowledge"
   },
   "session": {
     "filters": {

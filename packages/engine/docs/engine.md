@@ -256,6 +256,10 @@ A message may reach the inbox more than once — dropped by `say`, it is also am
 
 A process that is killed leaves its session `running` in the store, and beats no more: once its silence lasted, the next host to beat interrupts the session, and an interruption asked meanwhile does so at once.
 
+### The knowledge mapped as it is added
+
+A host that maps the knowledge opens a session of purpose `map` once it started, and once it recorded a revision of the configuration, when a source the cartography reads — a knowledge source but logs, the interface of an application — has no card yet in the test repository, or no index puts the cards together; unless such a session waits or runs already. The session maps the first environment the configuration declares: its run is that of a session that tests, ended once the index is written, with no brief and no design, and its result is `passed` with no test. A card or an index that is there is kept: whether it is up to date is the cartography's to tell, at the next session. What keeps the host from asking — a store that does not answer — is logged, and the next revision or start tries again. A revision another process recorded is seen at the next start.
+
 ### Hosting the operations
 
 A host gives `Sessions` a `SessionsHost`:
@@ -268,6 +272,7 @@ A host gives `Sessions` a `SessionsHost`:
 | `memory` | The `MemoryStorePort` of `@open-qa-stack/domain`: where the [memories of the agents](../../agents/docs/cartographer.md#memory) are kept, which the agents of every run recall and add to. |
 | `repository` | The absolute path of the test repository the sessions run in, a folder that holds `oqas.json`; `undefined` for a host that only serves what the store keeps. |
 | `takesOver` | Whether the host stays to run whatever waits, as a server does, and so takes over the sessions that wait for a host that died; `false` for a host that runs the session it opens and leaves. |
+| `mapsKnowledge`, optional | Whether the host [maps the knowledge that waits](#the-knowledge-mapped-as-it-is-added), as a server and the conversation do; `false` by default, for a command that runs the session it opens and leaves. |
 | `env` | The environment of the runs: the variables the configuration of the repository names — the key of the model, the test accounts. |
 | `logger` | A `SessionsLogger`: where a session that starts, one that is over and what goes wrong around them are reported. |
 | `openRuntime`, optional | Opens the runtime of the agents of a run; `liveRuntime` on the model of the configuration by default. |

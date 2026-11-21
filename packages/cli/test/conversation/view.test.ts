@@ -384,6 +384,12 @@ describe("what stands over the input", () => {
     const lines = screenOf(after([{ type: "listed", sessions: [{ ...RUNNING, state: "queued" }, unasked] }]), 100);
     assert.deepEqual(lines.slice(-3, -1), ["❯ 0a1b2c3d  queued  Test the search of a customer.", "  7777aaaa  interrupted"]);
   });
+
+  it("lists a session that maps the knowledge as such", () => {
+    const { request: _none, ...mapping } = { ...RUNNING, purpose: "map" as const };
+    const lines = screenOf(after([{ type: "listed", sessions: [mapping] }]), 100);
+    assert.equal(lines.at(-2), "❯ 0a1b2c3d  running  mapping of the knowledge");
+  });
 });
 
 describe("what the conversation tells around a thread", () => {

@@ -44,7 +44,9 @@ function SessionRow({ session }: { readonly session: Session }): ReactNode {
   return (
     <a className={live ? "row run-row live" : "row run-row"} href={hrefTo(`/agent/sessions/${session.id}`)}>
       <div className="grow">
-        <div className="agent-home-session">{session.request ?? t(live ? "home.running" : "home.unasked")}</div>
+        <div className="agent-home-session">
+          {session.purpose === "map" ? t("home.mapping") : (session.request ?? t(live ? "home.running" : "home.unasked"))}
+        </div>
         <div className="small muted">{facts.join(" · ")}</div>
       </div>
       <span className="run-row-side">

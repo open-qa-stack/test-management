@@ -12,7 +12,17 @@ import {
 } from "@open-qa-stack/domain";
 import { instant, jsonOf, storedJson } from "../database/stored-values.ts";
 import { newSessionId } from "./session-id.ts";
-import type { AgentRole, MessageReceipt, Project, Session, SessionEvent, SessionOpening, SessionResult, UnrankedEvent } from "@open-qa-stack/domain/sessions";
+import type {
+  AgentRole,
+  MappingOpening,
+  MessageReceipt,
+  Project,
+  Session,
+  SessionEvent,
+  SessionOpening,
+  SessionResult,
+  UnrankedEvent,
+} from "@open-qa-stack/domain/sessions";
 import type { ExpressionBuilder, Kysely, Selectable, Updateable } from "kysely";
 import type { Database } from "../database/database.ts";
 import type { SessionsTable, StoreSchema } from "../database/schema.ts";
@@ -27,9 +37,10 @@ type SessionRow = Selectable<SessionsTable>;
 type SessionChange = Pick<Updateable<SessionsTable>, "state" | "result" | "host" | "host_seen_at" | "interruption_requested_at">;
 
 /** A row of the sessions as the session it holds: what is absent is left out, dates are ISO 8601. */
-function sessionOf({ id, request, environment, scope, opened_at, last_event_at, state, result }: SessionRow): Session {
+function sessionOf({ id, purpose, request, environment, scope, opened_at, last_event_at, state, result }: SessionRow): Session {
   return {
     id,
+    ...(purpose === null ? {} : { purpose }),
     ...(request === null ? {} : { request }),
     ...(environment === null ? {} : { environment }),
     ...(scope === null ? {} : { scope: jsonOf(scope) }),
@@ -169,18 +180,34 @@ export class SessionStore implements SessionStorePort {
 
   /**
    * Asks for a session: it waits, `queued`, until its host starts it, and its first event is what the person
-   * asked.
+   * asked; a session that maps the knowledge, which no person asked, starts with no event.
    *
-   * @param opening - What to test, and where.
+   * @param opening - What to test, and where; or the knowledge to map, in an environment.
    * @param host - What names the process that asks: the host of the session, which this is its first beat on.
    * @returns The session, under the identifier it was given.
    */
-  async ask(opening: SessionOpening, host: string): Promise<Session> {
+  async ask(opening: SessionOpening | MappingOpening, host: string): Promise<Session> {
     const now = this.#clock();
     const at = instant(now);
-    const { request, environment = null, scope } = opening;
-    const asked = { id: newSessionId(now), request, environment, opened_at: at, last_event_at: at, state: ASKED_STATE, result: null };
-    const row = { ...asked, scope: scope === undefined ? null : storedJson(scope), host, host_seen_at: at, interruption_requested_at: null };
+    const environment = opening.environment ?? null;
+    const asked = {
+      id: newSessionId(now),
+      environment,
+      opened_at: at,
+      last_event_at: at,
+      state: ASKED_STATE,
+      result: null,
+      host,
+      host_seen_at: at,
+      interruption_requested_at: null,
+    };
+    if ("purpose" in opening) {
+      const row = { ...asked, purpose: opening.purpose, request: null, scope: null };
+      await this.#database.insertInto("sessions").values(row).execute();
+      return sessionOf(row);
+    }
+    const { request, scope } = opening;
+    const row = { ...asked, purpose: null, request, scope: scope === undefined ? null : storedJson(scope) };
     await this.#database.transaction().execute(async (transaction) => {
       await transaction.insertInto("sessions").values(row).execute();
       await this.#rank(transaction, row.id, [{ at, type: "user_message", text: request }]);

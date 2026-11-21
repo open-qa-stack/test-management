@@ -74,6 +74,7 @@ The migrations so far:
 | `0009_session_scopes` | The scope of a session: what of the project it keeps its work to. The sessions asked for before keep the whole project. |
 | `0010_campaign_selections` | Leaves the tags of the campaigns: a campaign is made of the tests chosen for it. A campaign still planned keeps no test, and its tests are chosen again. |
 | `0011_memories` | The table of [the memories of the agents](#the-memories-of-the-agents). The notes an earlier version kept in `<stateDir>/memory/notes.jsonl` are not brought in: the file is neither read nor removed. |
+| `0012_session_purposes` | The purpose of a session: `map` for one that maps the knowledge alone. The sessions asked for before test. |
 
 ## The database of an instance, assembled
 
@@ -114,6 +115,7 @@ The database keeps the project of the instance, its sessions, the events of each
 | Column | Type | Why |
 |---|---|---|
 | `id` | `text`, primary key | The identifier the store gave the session when it was [asked for](#the-life-of-a-session). Nothing is read in it. |
+| `purpose` | `text`, nullable | `map` for a session that maps the knowledge alone, asked by no person: it has no request and starts with no event. Empty for one that tests. |
 | `request`, `environment` | `text`, nullable | What the person asked, and where; the environment is left out of a session that names none. |
 | `scope` | JSON, nullable | What of the project the session keeps its work to: some applications, domains and levels; empty for the whole project. |
 | `opened_at`, `last_event_at` | date | Dates are served to the millisecond; the sessions are listed by the first, the latest first. |

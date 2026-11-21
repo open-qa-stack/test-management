@@ -60,6 +60,8 @@ export interface RunOptions {
   readonly environment?: string;
   /** What to test, in the developer's words; the designer works on the whole domain index without it. */
   readonly brief?: string;
+  /** `map` for a run that maps the knowledge alone: it ends once the index is written, and designs no test. */
+  readonly purpose?: "map";
   /**
    * The branch of an earlier run whose tests this one goes on with: the design checks it out and commits on it, and
    * the state names it whatever the design wrote; a new branch by default.
@@ -262,6 +264,7 @@ export class Run {
         return ExitCode.interrupted;
       }
       found = { index: this.inRepository(mapped.value.indexPath!) };
+      if (this.options.purpose === "map") return ExitCode.passed;
       const trials = new TrialRunner({ config, environment, repositoryRoot: this.options.repositoryRoot, runner, env: this.options.env });
       const designed = await unlessStopped("design", async () => {
         // The tests are checked against the dependencies of the test repository: they are installed first.

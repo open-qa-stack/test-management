@@ -68,7 +68,7 @@ export class SessionExecution {
   async run(): Promise<void> {
     const { store, logger, runner, writerPace, now = () => new Date() } = this.#host;
     const { session, repository, inbox, stop, abandoned, wrote } = this.#options;
-    const { id, request, environment, scope } = session;
+    const { id, purpose, request, environment, scope } = session;
     const writer = new SessionWriter(store, id, logger, { wrote, lost: () => stop.abort() }, abandoned, writerPace);
     const thread = new RunThread();
     const tell = (line: RunLine | undefined): void => writer.tell(line === undefined ? [] : thread.add(line));
@@ -92,6 +92,7 @@ export class SessionExecution {
         ...(branch === undefined ? {} : { branch }),
         ...(environment === undefined ? {} : { environment }),
         ...(scope === undefined ? {} : { scope }),
+        ...(purpose === undefined ? {} : { purpose }),
         env,
         journal,
         follow: (line) => tell(traceLine(JSON.stringify(line))),

@@ -143,9 +143,10 @@ describe("the entry of the agent", () => {
     assert.match(textOf(home([{ ...UNASKED, state: "queued" }])), /Session sans demande 16 nov. 2026, 08:00:00 UTC · en attente d’un agent en file$/);
   });
 
-  it("names a session nothing was asked of by whether its agents still work", () => {
+  it("names a session nothing was asked of by whether its agents still work, or as the mapping it is", () => {
     const text = textOf(home([UNASKED, { ...UNASKED, state: "completed" }]));
     assert.match(text, /Session en cours 16 nov. 2026, 08:00:00 UTC en direct Session sans demande 16 nov. 2026, 08:00:00 UTC terminée$/);
+    assert.match(textOf(home([{ ...UNASKED, purpose: "map" }])), /^.*Cartographie des connaissances 16 nov. 2026, 08:00:00 UTC en direct$/);
   });
 
   it("tells the facts of a result even when it holds no test, and how each session stands", () => {

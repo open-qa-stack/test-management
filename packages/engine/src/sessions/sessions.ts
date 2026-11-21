@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { setTimeout as pause } from "node:timers/promises";
-import { LaunchRefusedError, UnknownSessionError, type LaunchRequest, type LaunchState, type TestLaunch } from "@open-qa-stack/domain";
+import { LaunchRefusedError, resolvedConfig, UnknownSessionError, type LaunchRequest, type LaunchState, type TestLaunch } from "@open-qa-stack/domain";
+import { hasEnded } from "@open-qa-stack/domain/sessions";
 import type { MessageReceipt, Project, Session, SessionEvent, SessionMessage, SessionOpening } from "@open-qa-stack/domain/sessions";
 import { LaunchRun } from "../executions/launch-run.ts";
+import { unmappedEnvironment } from "../knowledge/unmapped.ts";
 import { EventNotifications } from "./event-notifications.ts";
 import { environmentOf } from "../secrets/environment-of.ts";
 import { NoRepositoryError } from "./no-repository-error.ts";
@@ -58,6 +60,8 @@ export class Sessions {
   #launched: LaunchState["last"];
   /** The startup under way or done; `undefined` until it is asked for, and again when it failed. */
   #started: Promise<void> | undefined;
+  /** Whether the startup went to its end: the knowledge is mapped by a host that started alone. */
+  #ready = false;
   #stopping = false;
   /** Aborted when the host stops: it beats no more. */
   readonly #beating = new AbortController();
@@ -72,6 +76,8 @@ export class Sessions {
   constructor(host: SessionsHost) {
     this.#host = host;
     this.#pace = host.pace ?? DEFAULT_PACE;
+    // A source added waits for no session: its knowledge is mapped as soon as the revision that adds it is recorded here.
+    if (host.mapsKnowledge === true) host.configuration.whenRecorded(() => void (this.#ready ? this.#mapWhenNeeded() : undefined));
   }
 
   /**
@@ -88,10 +94,17 @@ export class Sessions {
    * @throws What the store raises when it cannot be read or written.
    */
   start(): Promise<void> {
-    this.#started ??= this.#recover().catch((error: unknown) => {
-      this.#started = undefined;
-      throw error;
-    });
+    this.#started ??= this.#recover().then(
+      () => {
+        this.#ready = true;
+        // A host that maps the knowledge maps what waits for it, which another process may have left so.
+        if (this.#host.mapsKnowledge === true) void this.#mapWhenNeeded();
+      },
+      (error: unknown) => {
+        this.#started = undefined;
+        throw error;
+      },
+    );
     return this.#started;
   }
 
@@ -308,6 +321,26 @@ export class Sessions {
     this.#waiting.add(asked.id);
     const started = await this.#startNext(repository);
     return started?.id === asked.id ? started : asked;
+  }
+
+  /**
+   * Opens a session that maps the knowledge when a source of the configuration in force has no card yet, or no index
+   * puts the cards together, unless one waits or runs already. What prevents it — the store, a test repository that
+   * cannot be read — is logged: the next revision, or the next start, tries again.
+   */
+  async #mapWhenNeeded(): Promise<void> {
+    const { repository, configuration, store, logger } = this.#host;
+    if (repository === undefined || this.#stopping) return;
+    try {
+      const revision = (await configuration.view()).revision;
+      if (revision === undefined) return;
+      const environment = await unmappedEnvironment(resolvedConfig(revision.document), repository);
+      if (environment === undefined) return;
+      if ((await store.sessions()).some((session) => session.purpose === "map" && !hasEnded(session.state))) return;
+      await this.#line((lined) => lined.ask({ purpose: "map", environment }, this.#identity));
+    } catch (error) {
+      logger.warn(`The knowledge is not mapped: ${(error as Error).message}`);
+    }
   }
 
   /**

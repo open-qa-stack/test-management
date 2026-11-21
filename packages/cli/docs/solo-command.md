@@ -72,7 +72,7 @@ The commands that act on a session that exists run from any terminal, and from a
 
 ## The conversation
 
-`oqas`, in a terminal, opens a conversation on the test repository. It is one more presentation of the same operations, on the same database: what it shows of a session is what [the console](#the-console) shows, grouped the same way, and a session opened in one is followed in the other.
+`oqas`, in a terminal, opens a conversation on the test repository. It is one more presentation of the same operations, on the same database: what it shows of a session is what [the console](#the-console) shows, grouped the same way, and a session opened in one is followed in the other. As the console does, it [maps the knowledge that waits](../../engine/docs/engine.md#the-knowledge-mapped-as-it-is-added): a source with no card yet is mapped in a session of its own, listed as such; `oqas --brief` maps what its session reads first, as before.
 
 ```text
 Open QA Stack · tests
@@ -201,7 +201,7 @@ With `--output json`, the standard output holds JSON Lines and nothing else; wha
 | Command | What each line is |
 | --- | --- |
 | `oqas --brief`, `oqas attach`, `oqas show` | An event of the thread of the session, in the order of their ranks, in the format of [the contract of sessions](../../api/docs/sessions.md): `id`, its rank from 1, `at`, `type`, then what the type carries. Every event is printed, `--follow` or not. `--brief` and `attach` print each as it is told, and end after the `state_changed` that ends the session. |
-| `oqas sessions` | A session, as the API serves it: `id`, `request`, `environment`, `openedAt`, `lastEventAt`, `state`, and `result` once it is completed. |
+| `oqas sessions` | A session, as the API serves it: `id`, `purpose` for a session that maps the knowledge, `request`, `environment`, `openedAt`, `lastEventAt`, `state`, and `result` once it is completed. |
 | `oqas say` | The receipt of the message: `{"number":2}`; for a session that ended, the events of its new turn, as `--brief` prints them. |
 | `oqas stop` | The session as it is once the interruption is asked. |
 
@@ -374,7 +374,7 @@ The run of the new turn is told what the agents need of the turns before: what t
 
 ## The console
 
-`oqas --ui` shows the sessions of the test repository in a browser: what each agent thinks, does and hands in, every refusal of the harness, a field to speak to the agents and a way to stop them. It lists the tests of the repository too, application by application, narrowed to a level of the pyramid and to the words of a search, as their files are now.
+`oqas --ui` shows the sessions of the test repository in a browser: what each agent thinks, does and hands in, every refusal of the harness, a field to speak to the agents and a way to stop them. It maps the knowledge as it is added: a source saved with no card yet is mapped at once, in a session listed as « Mapping of the knowledge ». It lists the tests of the repository too, application by application, narrowed to a level of the pyramid and to the words of a search, as their files are now.
 
 ```text
 $ oqas --ui
