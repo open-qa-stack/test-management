@@ -1,3 +1,4 @@
+import { START_ADVICE } from "@open-qa-stack/engine";
 import { CONFIG_FILE_NAME, InvalidConfigurationError, NoConfigurationError, type FileState, type RevisionSummary } from "@open-qa-stack/domain";
 
 /** Where a revision comes from, in the words of the command. */
@@ -37,7 +38,7 @@ export function fileLine(file: FileState): string {
  * @returns The lines that tell it, without a final newline; `undefined` for an error that is no refusal of the configuration.
  */
 export function configurationRefusal(error: unknown): string | undefined {
-  if (error instanceof NoConfigurationError) return `${error.message} Write a ${CONFIG_FILE_NAME} at the root of the test repository.`;
+  if (error instanceof NoConfigurationError) return `${error.message} ${START_ADVICE}`;
   if (!(error instanceof InvalidConfigurationError)) return undefined;
   const way =
     error.inForce === undefined

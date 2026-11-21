@@ -1025,5 +1025,56 @@
     "save_one": "Keep the choice ({{count}} test)",
     "save_other": "Keep the choice ({{count}} tests)",
     "saving": "Keeping…"
+  },
+  "firstUse": {
+    "crumb": "Get started",
+    "steps": "Steps of the setting up",
+    "start": "Start",
+    "back": "Back",
+    "next": "Next",
+    "create": "Create the project",
+    "creating": "Creating the project…",
+    "welcome": {
+      "title": "Welcome",
+      "short": "Welcome",
+      "lead": "Agents find out your application, propose the tests that matter and write them in Playwright in this folder. Three steps: your applications, what the agents may read, the model. Nothing is written before the last."
+    },
+    "applications": {
+      "title": "Your applications",
+      "short": "Applications",
+      "lead": "For each application: its name, what it exposes, and its address in each test environment, never in production."
+    },
+    "knowledge": {
+      "title": "What the agents may read",
+      "short": "Knowledge",
+      "lead": "An API contract, the code, a database or documents: what helps the agents understand the application. You may add more later."
+    },
+    "model": {
+      "title": "The model",
+      "short": "Model",
+      "lead": "The model the agents think with: test the connection, then choose it in the list."
+    },
+    "summary": {
+      "title": "Summary",
+      "short": "Summary",
+      "lead": "Here is what will be created. « Create the project » writes the configuration and prepares the Playwright project in this folder.",
+      "applications_one": "1 application: {{names}}",
+      "applications_other": "{{count}} applications: {{names}}",
+      "unnamed": "unnamed",
+      "applications_zero": "No application",
+      "knowledge_zero": "No knowledge source yet",
+      "knowledge_one": "1 knowledge source",
+      "knowledge_other": "{{count}} knowledge sources",
+      "github": "Model: {{model}}, through the GitHub account of this machine",
+      "provider": "Model: {{model}}, through a provider key",
+      "newRepository": "This folder will become a git repository, and what is created will be committed to it.",
+      "existingRepository": "This folder is a git repository already: what is created is left to you to commit."
+    },
+    "ready": {
+      "title": "The project is ready",
+      "committed": "The configuration and the Playwright project are written and committed to a new git repository.",
+      "toCommit": "The configuration and the Playwright project are written: commit them to git before the first session.",
+      "agent": "Ask the agent for tests"
+    }
   }
 }

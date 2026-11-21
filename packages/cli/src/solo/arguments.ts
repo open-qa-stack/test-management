@@ -124,7 +124,7 @@ Commands:
                          the same name is replaced.
 
 Options:
-  --repository <folder>  The test repository, which holds oqas.json; the current folder by default.
+  --repository <folder>  The test repository, which holds oqas.json once it is set up; the current folder by default.
   --environment <name>   The environment to run against; the only one declared by default.
   --brief <text>         What to test, in your words: a domain, a ticket, a rule, a journey.
   --follow               Print what the agents do besides what the harness tells: each tool call, its result, each message.

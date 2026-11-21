@@ -1,6 +1,6 @@
 # The `oqas` command
 
-`oqas` is Open QA Stack in a terminal. In a test repository that holds `oqas.json`, it opens a session — it maps the target application, designs Playwright tests on a new local branch, runs them, and gives a verdict per test — and reads, follows, speaks to and interrupts the sessions of that repository. Nothing is pushed.
+`oqas` is Open QA Stack in a terminal. In a test repository that holds `oqas.json` — which `oqas --ui` sets up step by step in a folder that has none — it opens a session — it maps the target application, designs Playwright tests on a new local branch, runs them, and gives a verdict per test — and reads, follows, speaks to and interrupts the sessions of that repository. Nothing is pushed.
 
 ```sh
 oqas
@@ -51,7 +51,7 @@ The commands that act on a session that exists run from any terminal, and from a
 
 | Option                  | Default                       | What it does |
 | ----------------------- | ----------------------------- | ------------ |
-| `--repository <folder>` | the current folder            | The test repository, which holds `oqas.json`. Every command takes it. |
+| `--repository <folder>` | the current folder            | The test repository, which holds `oqas.json` once it is set up. Every command takes it. |
 | `--environment <name>`  | the only environment declared | With `--brief`, and in the conversation: the environment the sessions run against. With several declared, it must be given. |
 | `--brief <text>`        |                               | What to test, in your words: a domain, a ticket, a rule, a journey. The designer looks up what echoes it in the index, explores, and plans its tests from it. |
 | `--follow`              | off                           | With `--brief`, `attach` and `show`: prints what the agents do besides what the harness tells of the session: see [The thread](#the-thread). |
@@ -210,7 +210,7 @@ A program reads an event whose type it does not know as one to ignore: types are
 
 ## Initialising a test repository
 
-`oqas --init` makes a Playwright project of a test repository, from [its configuration](#the-configuration): the revision in force, once `oqas.json` is taken when it changed — the first time, the file becomes the first revision. It is a program, not an agent: it calls no model, installs nothing, commits nothing and needs none of the secrets a run reads.
+`oqas --init` makes a Playwright project of a test repository, from [its configuration](#the-configuration): the revision in force, once `oqas.json` is taken when it changed — the first time, the file becomes the first revision. It is a program, not an agent: it calls no model, installs nothing and needs none of the secrets a run reads. In a folder that is no git repository, it makes one and commits `oqas.json` and what it created, as `chore: set up the test repository`, signed by the git identity of the machine or, without one, by `Open QA Stack <oqas@localhost>`; in a git repository, it commits nothing.
 
 | File | What it holds |
 |---|---|
@@ -225,7 +225,7 @@ A program reads an event whose type it does not know as one to ignore: types are
 
 The folder of each application is created too. **A file the repository already has is kept as it is, never overwritten**: the command says which it created and which it kept, is safe on a repository a team set up, and may be run again. It ends with `0`, or with `3` when `oqas.json` is missing or invalid. `--init` takes `--repository` and nothing else.
 
-Then install and commit, lockfile included:
+Then install, and commit what a repository that was one already now holds, lockfile included:
 
 ```sh
 npm install
@@ -352,6 +352,8 @@ http://127.0.0.1:6727
 ```
 
 The address goes to the standard output, alone; what a person is told besides goes to the error output. The command opens no browser.
+
+**In a folder without `oqas.json`**, the console starts all the same, on the database of the default state folder, `.oqas`, and opens on « Get started »: the applications, what the agents may read, the model, then a summary that writes `oqas.json` and sets the folder up as `--init` does, a git repository with its commit included when it was none. Every other command refuses such a folder with `3`, and says to start with `oqas --ui`.
 
 It is not a server to connect to: it is one more presentation of the same operations, on the database the other commands reach. The process of the command serves, on one address, the console at `/` and [the routes of the API](../../api/docs/sessions.md) under `/api` — the application [the API package](../../api/docs/running.md#starting-the-api-from-a-program) starts, given what the command read from its arguments. There is no database to install and nothing else to start.
 

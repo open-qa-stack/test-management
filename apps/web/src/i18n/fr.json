@@ -1025,5 +1025,56 @@
     "save_one": "Enregistrer la sélection ({{count}} test)",
     "save_other": "Enregistrer la sélection ({{count}} tests)",
     "saving": "Enregistrement…"
+  },
+  "firstUse": {
+    "crumb": "Démarrer",
+    "steps": "Étapes de la mise en place",
+    "start": "Commencer",
+    "back": "Retour",
+    "next": "Suivant",
+    "create": "Créer le projet",
+    "creating": "Création du projet…",
+    "welcome": {
+      "title": "Bienvenue",
+      "short": "Bienvenue",
+      "lead": "Des agents découvrent votre application, proposent les tests qui comptent et les écrivent en Playwright dans ce dossier. Trois étapes : vos applications, ce que les agents peuvent lire, le modèle. Rien n’est écrit avant la dernière."
+    },
+    "applications": {
+      "title": "Vos applications",
+      "short": "Applications",
+      "lead": "Pour chaque application : son nom, ce qu’elle expose, et son adresse dans chaque environnement de test, jamais en production."
+    },
+    "knowledge": {
+      "title": "Ce que les agents peuvent lire",
+      "short": "Connaissances",
+      "lead": "Un contrat d’API, le code, une base de données ou des documents : ce qui aide les agents à comprendre l’application. Vous pourrez en ajouter d’autres plus tard."
+    },
+    "model": {
+      "title": "Le modèle",
+      "short": "Modèle",
+      "lead": "Le modèle avec lequel les agents réfléchissent : testez la connexion, puis choisissez-le dans la liste."
+    },
+    "summary": {
+      "title": "Récapitulatif",
+      "short": "Récapitulatif",
+      "lead": "Voici ce qui sera créé. « Créer le projet » écrit la configuration et prépare le projet Playwright dans ce dossier.",
+      "applications_one": "1 application : {{names}}",
+      "applications_other": "{{count}} applications : {{names}}",
+      "unnamed": "sans nom",
+      "applications_zero": "Aucune application",
+      "knowledge_zero": "Aucune source de connaissance pour l’instant",
+      "knowledge_one": "1 source de connaissance",
+      "knowledge_other": "{{count}} sources de connaissance",
+      "github": "Modèle : {{model}}, par le compte GitHub de cette machine",
+      "provider": "Modèle : {{model}}, par une clé de fournisseur",
+      "newRepository": "Ce dossier deviendra un dépôt git, et ce qui est créé y sera enregistré.",
+      "existingRepository": "Ce dossier est déjà un dépôt git : ce qui est créé vous sera laissé à enregistrer."
+    },
+    "ready": {
+      "title": "Le projet est prêt",
+      "committed": "La configuration et le projet Playwright sont écrits et enregistrés dans un nouveau dépôt git.",
+      "toCommit": "La configuration et le projet Playwright sont écrits : enregistrez-les dans git (commit) avant la première session.",
+      "agent": "Demander des tests à l’agent"
+    }
   }
 }

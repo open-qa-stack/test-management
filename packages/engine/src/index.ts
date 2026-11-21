@@ -1,4 +1,6 @@
 export { Configuration } from "./configuration/configuration.ts";
+export { START_ADVICE } from "./configuration/start-advice.ts";
+export { RepositorySetup, SETUP_COMMIT } from "./repository/repository-setup.ts";
 export { ModelConnection, type ConnectionProbes } from "./configuration/model-connection.ts";
 export { Campaigns, type CampaignsHost } from "./campaigns/campaigns.ts";
 export { Executions, FILE_EXECUTIONS_LIMIT } from "./executions/executions.ts";

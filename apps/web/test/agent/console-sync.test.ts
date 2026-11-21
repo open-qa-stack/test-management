@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, it, vi } from "vitest";
 import type { ConsoleAction } from "../../src/agent/console-state.ts";
 import { ConsoleSync, PAUSE_MS } from "../../src/agent/console-sync.ts";
 import { ApiClient } from "../../src/api/api-client.ts";
+import { i18n } from "../../src/i18n/i18n.ts";
 import { FakeDocument } from "../api/fake-document.ts";
 import { FakeEventSource } from "../api/fake-event-source.ts";
 import { BARE, VIEW } from "../configuration/configuration-fixture.ts";
@@ -111,15 +112,17 @@ describe("what keeps the console in step with its instance", () => {
   });
 
   describe("reading the language of the configuration", () => {
-    it("reads it once, English when the configuration names none or there is none", async () => {
+    it("reads it once, and keeps the language the console speaks while there is no configuration", async () => {
       api.answer("GET /api/configuration", json(VIEW));
       api.sync.language();
       await vi.advanceTimersByTimeAsync(10 * PAUSE_MS);
       assert.deepEqual(api.told, [{ type: "language", language: "fr" }]);
       assert.deepEqual(api.calls, ["GET /api/configuration"]);
+      await i18n.changeLanguage("en");
       api.answer("GET /api/configuration", json({ file: "missing" }));
       api.sync.language();
       await settled();
+      await i18n.changeLanguage("fr");
       assert.deepEqual(api.told.at(-1), { type: "language", language: "en" });
     });
 
