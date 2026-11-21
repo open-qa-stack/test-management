@@ -3,8 +3,8 @@ import { cleanup, render } from "ink-testing-library";
 import { createElement } from "react";
 import { afterEach, describe, it } from "vitest";
 import { SessionEndedError, UnknownSessionError } from "@open-qa-stack/domain";
-import type { Session } from "@open-qa-stack/domain/sessions";
-import { Conversation, type ConversationProps, type Leaving } from "../../src/solo/conversation/conversation.ts";
+import type { Model, ModelConnectionCheck, Session } from "@open-qa-stack/domain/sessions";
+import { Conversation, type ConversationModel, type ConversationProps, type Leaving } from "../../src/solo/conversation/conversation.ts";
 import { FakeSessions } from "./fake-sessions.ts";
 import { COMPLETED, CONTEXT, FAILED, NOW, numbered, RUNNING, THREAD, completion } from "./fixtures.ts";
 import { UNICODE, until } from "./screen.ts";
@@ -17,6 +17,13 @@ const UP = "\u001B[A";
 const DOWN = "\u001B[B";
 
 afterEach(() => cleanup());
+
+/** A model served on the machine that answers and lists no model: it says nothing when the conversation opens. */
+const QUIET_MODEL: ConversationModel = {
+  inForce: () => Promise.resolve({ mode: "provider-key", provider: "openai", baseUrl: "http://localhost:1234/v1", model: "local" }),
+  check: () => Promise.resolve({ state: "connected" }),
+  save: () => Promise.resolve(),
+};
 
 /** A conversation on screen, and what a test does with it. */
 interface Stage {
@@ -57,6 +64,7 @@ async function staged(held: readonly Session[] = [FAILED], props: Partial<Conver
       },
       reasonOf: (error) => `Told: ${(error as Error).message}`,
       onLeave: (leaving) => left.push(leaving),
+      model: QUIET_MODEL,
       ...props,
     }),
   );
@@ -64,6 +72,8 @@ async function staged(held: readonly Session[] = [FAILED], props: Partial<Conver
   const sees = (seen: string | RegExp): Promise<void> =>
     until(() => (typeof seen === "string" ? screen().includes(seen) : seen.test(screen())), `${String(seen)}\n${screen()}`);
   const press = async (keys: string, seen: string | RegExp): Promise<void> => {
+    // What opens over the input hears the keys once it is drawn: a key waits for the screen to settle.
+    await new Promise((resolve) => setTimeout(resolve, 20));
     stdin.write(keys);
     await sees(seen);
   };
@@ -368,5 +378,82 @@ describe("the thread the conversation follows", () => {
     await stage.press(ENTER, /Session session-2026-11-13[\s\S]*Session session-2026-11-12[\s\S]*Session session-2026-11-13/);
     await until(() => stage.sessions.followed.has(RUNNING.id), "the first session is followed again");
     assert.deepEqual(stage.sessions.left, [FAILED.id]);
+  });
+});
+
+describe("the model in the conversation", () => {
+  const SERVER: Model = { mode: "provider-key", provider: "openai", baseUrl: "http://localhost:1234/v1", model: "local" };
+
+  /** A model whose connection answers as told, and which records what it is given. */
+  const modelled = (check: ModelConnectionCheck, saved: Model[] = [], inForce: () => Promise<Model> = () => Promise.resolve(SERVER)): ConversationModel => ({
+    inForce,
+    check: () => Promise.resolve(check),
+    save: (model) => {
+      saved.push(model);
+      return Promise.resolve();
+    },
+  });
+
+  it("says when the conversation opens that the model does not answer, or is not offered, and how to set it", async () => {
+    const silent = await staged([], { model: modelled({ state: "signed-out" }) });
+    await silent.sees("The model does not answer. No GitHub account is signed in");
+    await silent.sees("/model to set it.");
+    cleanup();
+    const absent = await staged([], { model: modelled({ state: "connected", models: [{ id: "other", name: "other", reasoningEfforts: [] }] }) });
+    await absent.sees("The model local is not among those");
+    cleanup();
+    const refused = await staged([], { model: modelled({ state: "key-refused", status: 401 }) });
+    await refused.sees("The provider refused the key");
+    cleanup();
+    const none = await staged([], { model: modelled({ state: "no-models", account: "octo" }) });
+    await none.sees("The GitHub account octo is signed in");
+    cleanup();
+    const offered = await staged([], { model: modelled({ state: "connected", models: [{ id: "local", name: "local", reasoningEfforts: [] }] }) });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.doesNotMatch(offered.screen(), /does not answer|not among/);
+  });
+
+  it("opens the setting of the model with /model, records the connection chosen, and says so", async () => {
+    const saved: Model[] = [];
+    const stage = await staged([], { model: modelled({ state: "connected", models: [{ id: "local", name: "local", reasoningEfforts: [] }] }, saved) });
+    await stage.press("/model", "› /model");
+    await stage.press(ENTER, "How does the tool reach the model?");
+    assert.doesNotMatch(stage.screen(), /What do we test\?/);
+    await stage.press(ENTER, "Address of the server");
+    await stage.press(ENTER, "Variable that holds the key");
+    await stage.press(ENTER, "Choose the model:");
+    await stage.press(ENTER, "The model local is set");
+    assert.deepEqual(saved, [SERVER]);
+    await stage.sees("What do we test?");
+  });
+
+  it("leaves the setting with Esc or Ctrl-C, saying nothing changed, and tells what stops it", async () => {
+    const stage = await staged([], { model: modelled({ state: "connected" }) });
+    await stage.press("/model", "› /model");
+    await stage.press(ENTER, "How does the tool reach the model?");
+    await stage.press(ESC, "Nothing changed.");
+    await stage.press("/model", "› /model");
+    await stage.press(ENTER, "How does the tool reach the model?");
+    await stage.press(CTRL_C, "What do we test?");
+    assert.deepEqual(stage.left, []);
+    cleanup();
+    let reads = 0;
+    const failing = await staged([], {
+      model: {
+        inForce: () => (++reads === 1 ? Promise.resolve(SERVER) : Promise.reject(new Error("unreadable"))),
+        check: () => Promise.resolve({ state: "connected" }),
+        save: () => Promise.reject(new Error("refused")),
+      },
+    });
+    await failing.press("/model", "› /model");
+    await failing.press(ENTER, "Told: unreadable");
+    cleanup();
+    const refusing = await staged([], { model: { ...modelled({ state: "connected" }), save: () => Promise.reject(new Error("refused")) } });
+    await refusing.press("/model", "› /model");
+    await refusing.press(ENTER, "How does the tool reach the model?");
+    await refusing.press(ENTER, "Address of the server");
+    await refusing.press(ENTER, "Variable that holds the key");
+    await refusing.press(ENTER, "type the name of the model");
+    await refusing.press(ENTER, "Told: refused");
   });
 });

@@ -4,6 +4,8 @@ import { interruptionOf } from "./interruption.ts";
 import { hintedCommands } from "./slash-commands.ts";
 import { blocksOf, settledCount } from "./thread-blocks.ts";
 import { wording } from "./wording.ts";
+import type { Model } from "@open-qa-stack/domain/sessions";
+import { reachText, type SetupEnd } from "./model-setup/model-setup.ts";
 import type { Request } from "./request.ts";
 import { t } from "./i18n/i18n.ts";
 
@@ -38,7 +40,13 @@ export type ConversationAction =
   /** Something the person asked failed, or was refused: this says why, and what to do. */
   | { readonly type: "failed"; readonly why: string }
   /** The clock moved. */
-  | { readonly type: "ticked"; readonly now: number };
+  | { readonly type: "ticked"; readonly now: number }
+  /** The connection in force was read: its setting opens over the input. */
+  | { readonly type: "model-opened"; readonly inForce: Model }
+  /** The setting of the connection ended. */
+  | { readonly type: "model-ended"; readonly end: SetupEnd }
+  /** The model in force does not answer, for the reason given. */
+  | { readonly type: "model-silent"; readonly why: string };
 
 /** The conversation without what the last key told, and with Ctrl-C disarmed: what a key, or the end of a session, leaves of it whatever comes next. */
 function afterKey(state: ConversationState): ConversationState {
@@ -198,5 +206,16 @@ export function conversationReducer(state: ConversationState, action: Conversati
       return printing(state, { kind: "notice", tone: "error", text: action.why });
     case "ticked":
       return { ...state, now: action.now };
+    case "model-opened":
+      return { ...afterKey(state), overlay: { kind: "model", inForce: action.inForce } };
+    case "model-ended": {
+      const closed = withoutOverlay(state);
+      const { saved, error } = action.end;
+      if (error !== undefined) return printing(closed, { kind: "notice", tone: "error", text: error });
+      if (saved === undefined) return { ...closed, notice: t("model.left") };
+      return printing(closed, { kind: "notice", tone: "info", text: t("model.set", { model: saved.model, reach: reachText(saved) }) });
+    }
+    case "model-silent":
+      return printing(state, { kind: "notice", tone: "error", text: t("model.silent", { why: action.why }) });
   }
 }

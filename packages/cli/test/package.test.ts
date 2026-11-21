@@ -25,13 +25,18 @@ describe("the package of the command", () => {
     assert.ok(!imported.some((module) => module.includes("copilot")));
   });
 
-  it("draws its conversation with Ink and React in the words of i18next, which the files of the conversation alone import, and which are loaded for it alone", () => {
+  it("draws its conversation and the setting of the model with Ink and React in the words of i18next, which the files of the conversation alone import, and which are loaded for them alone", () => {
     const drawn = importedUnder(SOURCES, (file) => file.startsWith(CONVERSATION)).map(([, module]) => module);
     assert.deepEqual([...new Set(drawn.filter((module) => !allowed.test(module)))].sort(), ["i18next", "ink", "ink-spinner", "ink-text-input", "react"]);
-    // Nothing reaches the conversation but one import, made when it is opened: no other command loads what draws it.
+    // Nothing reaches the conversation but two imports, made when it is opened and when the model is set step by step: no other command loads what draws them.
     const reaching = importedUnder(SOURCES, (file) => !file.startsWith(CONVERSATION)).filter(([, module]) => module.includes("/conversation/"));
-    assert.deepEqual(reaching, [["solo/solo-command.ts", "./conversation/converse.ts"]]);
-    assert.match(readFileSync(new URL("solo/solo-command.ts", SOURCES), "utf8"), /await import\("\.\/conversation\/converse\.ts"\)/);
+    assert.deepEqual(reaching, [
+      ["solo/solo-command.ts", "./conversation/converse.ts"],
+      ["solo/solo-command.ts", "./conversation/model-setup/setup-command.ts"],
+    ]);
+    const command = readFileSync(new URL("solo/solo-command.ts", SOURCES), "utf8");
+    assert.match(command, /await import\("\.\/conversation\/converse\.ts"\)/);
+    assert.match(command, /await import\("\.\/conversation\/model-setup\/setup-command\.ts"\)/);
   });
 
   it("depends on what it imports, and on the console for its built files alone", () => {

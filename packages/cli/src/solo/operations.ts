@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { CONFIG_FILE_NAME } from "@open-qa-stack/domain";
-import { Configuration, KnowledgeDocuments, liveRuntime, Sessions, type SessionsHost } from "@open-qa-stack/engine";
+import { Configuration, KnowledgeDocuments, liveRuntime, ModelConnection, Sessions, type SessionsHost } from "@open-qa-stack/engine";
 import { DATABASE_URL_VARIABLE, DatabaseUrl, InstanceDatabase, instanceDatabaseUrl } from "@open-qa-stack/store";
 import { UsageError } from "./usage-error.ts";
 import type { CommandIo } from "./command-io.ts";
@@ -111,4 +111,15 @@ export function databaseOf(io: CommandIo, repository: string): DatabaseUrl {
       `${path} cannot be read; oqas needs a ${CONFIG_FILE_NAME} at the root of the test repository, which says where its sessions are kept.`,
     );
   }
+}
+
+/**
+ * The test of the connection to the model a command makes: with the probes it is given, or with the GitHub account of
+ * the machine and the server of the provider.
+ *
+ * @param io - The environment of the command, which the key of a provider is read from.
+ * @returns The operation.
+ */
+export function modelConnectionOf(io: CommandIo): ModelConnection {
+  return io.probes === undefined ? new ModelConnection(io.env) : new ModelConnection(io.env, io.probes);
 }
