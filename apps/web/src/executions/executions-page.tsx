@@ -39,6 +39,8 @@ export function ExecutionsPage({
       }),
     `${outcome}:${period}:${before}`,
   );
+  // The campaigns name the one an execution was launched for.
+  const campaigns = usePolled(() => api.campaigns(), "campaigns");
   const open = (next: ExecutionsFilter) => (window.location.hash = executionsHref(next));
   const controls: ExecutionsControls = {
     outcome: (event) => {
@@ -51,6 +53,14 @@ export function ExecutionsPage({
     },
   };
   return (
-    <ExecutionsScreen project={project} filter={filter} sessions={sessions} state={state} controls={controls} {...(before === undefined ? {} : { before })} />
+    <ExecutionsScreen
+      project={project}
+      filter={filter}
+      sessions={sessions}
+      campaigns={campaigns.value?.items ?? []}
+      state={state}
+      controls={controls}
+      {...(before === undefined ? {} : { before })}
+    />
   );
 }

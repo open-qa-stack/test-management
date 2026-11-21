@@ -52,6 +52,17 @@ describe("the executions of the tests", () => {
     const [latest] = EXECUTIONS;
     const launched = { ...latest!, origin: "campaign" as const, campaignId: "c1" };
     assert.match(textOf(screen({ value: pageOf([launched]) })), / campagne 5 tests d’une campagne /);
+    const campaign = {
+      id: "c1",
+      name: "Recette 4.2",
+      environment: "local",
+      status: "in_progress" as const,
+      createdAt: "2026-11-20T08:00:00.000Z",
+      tests: [],
+      counts: { passed: 0, failed: 0, flaky: 0, skipped: 0, not_run: 0 },
+    };
+    const named = screen({ value: pageOf([launched]) }, { campaigns: [campaign] });
+    assert.match(named, /<span class="exec-content small"><a href="#\/campaigns\/view\?id=c1">Campagne « Recette 4\.2 » · 5 tests<\/a><\/span>/);
   });
 
   it("says at a glance what came of the tests of an execution: a bar of their verdicts, the failures and the retries in words, or how many passed", () => {
