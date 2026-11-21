@@ -1,6 +1,6 @@
 import { byCodeUnits } from "../text-order.ts";
 import { CampaignRefusedError } from "./campaign-refused-error.ts";
-import type { CampaignCounts, CampaignResult, CampaignStatus, CampaignTest } from "./campaign.ts";
+import type { CampaignCounts, CampaignResult, CampaignStatus, CampaignTest, CampaignVerdict } from "./campaign.ts";
 import type { Execution } from "../executions/execution.ts";
 
 /** The one change each state of a campaign takes. */
@@ -36,6 +36,20 @@ export function campaignTransition(from: CampaignStatus, to: CampaignStatus): vo
 export function campaignCounts(results: readonly CampaignResult[]): CampaignCounts {
   const count = (verdict: CampaignResult["verdict"]): number => results.filter((result) => result.verdict === verdict).length;
   return { passed: count("passed"), failed: count("failed"), flaky: count("flaky"), skipped: count("skipped"), not_run: count("not_run") };
+}
+
+/**
+ * Whether a campaign passes, as the maintainer decided it: with no criterion of its own, it passes when every test it is
+ * made of passed in its latest execution — at once, or on a retry, as a flaky test does — and does not pass as soon as
+ * one failed, was skipped, or was not run.
+ *
+ * @param counts - How many of its tests came to each verdict.
+ * @returns Its verdict; `undefined` for a campaign of no test.
+ */
+export function campaignVerdict(counts: CampaignCounts): CampaignVerdict | undefined {
+  const total = counts.passed + counts.flaky + counts.failed + counts.skipped + counts.not_run;
+  if (total === 0) return undefined;
+  return counts.failed + counts.skipped + counts.not_run === 0 ? "passes" : "fails";
 }
 
 /**

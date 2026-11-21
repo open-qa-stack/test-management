@@ -109,7 +109,8 @@ content-type: application/json
 
 A launch runs tests of the repository as they are, with no agent and no model: the runner of the test repository, at the
 version its lockfile installs, runs them against an environment the configuration declares, after it checked that its
-addresses answer, as the end of a session does. Its execution is kept with the origin `manual`, and no session.
+addresses answer, as the end of a session does. A test that fails is run once more (`--retries=1`, whatever the
+configuration of Playwright of the repository says): one that passes then is `flaky`. Its execution is kept with the origin `manual`, and no session.
 
 | Field | |
 |---|---|
