@@ -1,4 +1,12 @@
-import type { ConfigError, ConfigurationView, OqasConfig, ProblemCode, StoredDocument, StoredDocumentSummary } from "@open-qa-stack/domain/sessions";
+import type {
+  ConfigError,
+  ConfigurationView,
+  OqasConfig,
+  ProblemCode,
+  StoredDocument,
+  StoredDocumentSummary,
+  CartographyState,
+} from "@open-qa-stack/domain/sessions";
 
 /** Why the instance refused what the person asked, in their words, with the errors of an upload, each at its file. */
 export interface Refusal {
@@ -33,6 +41,8 @@ export interface KnowledgeState {
   readonly opened?: StoredDocument | { readonly source: string; readonly name: string; readonly unread: string };
   /** The last upload or removal the person asked for. */
   readonly change?: DocumentChange;
+  /** Where the cartography of the knowledge stands, once the instance told it. */
+  readonly mapping?: CartographyState;
 }
 
 /** What changes the state of the screens. */
@@ -41,6 +51,8 @@ export type KnowledgeAction =
   | { readonly type: "read"; readonly view: ConfigurationView }
   /** The instance could not tell it. */
   | { readonly type: "unread"; readonly message: string }
+  /** The instance told where the cartography of the knowledge stands. */
+  | { readonly type: "mapped"; readonly mapping: CartographyState }
   /** The instance listed the documents of a source. */
   | { readonly type: "listed"; readonly source: string; readonly items: readonly StoredDocumentSummary[] }
   /** The instance told a document. */
@@ -73,6 +85,8 @@ export function knowledgeAfter(state: KnowledgeState, action: KnowledgeAction): 
     }
     case "unread":
       return { ...state, unread: action.message };
+    case "mapped":
+      return { ...state, mapping: action.mapping };
     case "listed":
       return { ...state, documents: { ...state.documents, [action.source]: action.items } };
     case "opened":

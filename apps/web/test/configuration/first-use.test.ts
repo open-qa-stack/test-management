@@ -58,7 +58,11 @@ describe("the setting up of an instance that has no configuration", () => {
     assert.match(applications, /<li aria-current="step">Applications<\/li>/);
     assert.match(textOf(applications), /Vos applications .* Ajouter une application Retour Suivant$/);
     assert.match(at("knowledge", begun(DOCUMENT)), /Ce que les agents peuvent lire .* Contrat OpenAPI Retirer Identifiant/);
-    assert.match(at("knowledge"), /plus tard\. Ajouter un contrat OpenAPI .* Retour Suivant$/);
+    // A person who is not in IT is offered four kinds: a contract of an API, the code, a database, documents.
+    assert.match(
+      at("knowledge"),
+      /plus tard\. Ajouter un contrat OpenAPI Ajouter du code source Ajouter une base PostgreSQL Ajouter des documents déposés Retour Suivant$/,
+    );
     assert.match(at("model"), /Récapitulatif Le modèle avec lequel les agents réfléchissent .* Compte GitHub de cette machine/);
     assert.match(at("model", begun(FIRST_DRAFT, { type: "testing", model: FIRST_DRAFT.model })), /Test en cours…/);
     const source = DOCUMENT.knowledge[0]!;
@@ -71,7 +75,7 @@ describe("the setting up of an instance that has no configuration", () => {
     const named = begun(DOCUMENT, { type: "repository", repository: { git: "none", playwright: false } });
     assert.match(
       at("summary", named),
-      /dans ce dossier\. 1 application : Shop 8 sources de connaissance Modèle : test-model, par une clé de fournisseur Ce dossier deviendra un dépôt git, et ce qui est créé y sera enregistré\. Retour Créer le projet$/,
+      /dans ce dossier\. 1 application : Shop 8 sources de connaissance Chacune est cartographiée dès la création du projet, puis l’ensemble est mis en commun par domaine\. Modèle : test-model, par une clé de fournisseur Ce dossier deviendra un dépôt git, et ce qui est créé y sera enregistré\. Retour Créer le projet$/,
     );
     assert.match(at("summary"), /Modèle : , par le compte GitHub de cette machine Ce dossier est déjà un dépôt git/);
     const wrong = begun(FIRST_DRAFT, {

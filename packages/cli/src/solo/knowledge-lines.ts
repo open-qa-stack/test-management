@@ -9,6 +9,7 @@ import {
   type Knowledge,
   type ReceivedFile,
   type SourceCheck,
+  type CartographyState,
   type StoredDocumentSummary,
 } from "@open-qa-stack/domain";
 import { UsageError } from "./usage-error.ts";
@@ -103,4 +104,21 @@ export function checkLine({ source, check }: { readonly source: string; readonly
     case "unchecked":
       return `${source}  not tested: logs are read while a session runs`;
   }
+}
+
+/** Where the cartography of a source stands, in the words of a line. */
+const MAPPING = { waiting: "waits to be mapped", mapping: "is being mapped", mapped: "mapped", truncated: "mapped in part: a limit stopped it" } as const;
+
+/**
+ * @param state - Where the cartography of the knowledge stands.
+ * @returns The lines `oqas knowledge mapping` prints: a line a source, then one of the index.
+ */
+export function mappingLines({ environment, sources, index }: CartographyState): string[] {
+  if (environment === undefined) return ["The instance has no configuration yet: nothing is mapped."];
+  const lines = sources.map(({ id, state, mappedAt }) => `${id}  ${MAPPING[state]}${mappedAt === undefined ? "" : ` on ${mappedAt}`}`);
+  const indexed =
+    index === undefined
+      ? "No index puts the cards together yet."
+      : `The index was written on ${index.producedAt}${index.status === "truncated" ? ", in part" : ""}.`;
+  return [`The knowledge of the environment ${environment}:`, ...lines, indexed];
 }

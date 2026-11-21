@@ -727,7 +727,16 @@
     "readOnly": "tel que l’instance le garde",
     "close": "Fermer",
     "opening": "Lecture du document",
-    "openingNote": "Il apparaît dès que l’instance a répondu."
+    "openingNote": "Il apparaît dès que l’instance a répondu.",
+    "mapping": {
+      "waiting": "En attente de cartographie",
+      "mapping": "Cartographie en cours",
+      "mapped": "Cartographiée",
+      "truncated": "Cartographiée en partie",
+      "noIndex": "Rien n’est encore cartographié : chaque source ajoutée est cartographiée aussitôt, puis l’ensemble est mis en commun par domaine.",
+      "index": "Connaissances mises en commun par domaine le {{date}}.",
+      "partIndex": "Connaissances mises en commun par domaine le {{date}}, en partie : une limite a arrêté la cartographie."
+    }
   },
   "tests": {
     "title": "Tests",
@@ -1090,7 +1099,8 @@
       "github": "Modèle : {{model}}, par le compte GitHub de cette machine",
       "provider": "Modèle : {{model}}, par une clé de fournisseur",
       "newRepository": "Ce dossier deviendra un dépôt git, et ce qui est créé y sera enregistré.",
-      "existingRepository": "Ce dossier est déjà un dépôt git : ce qui est créé vous sera laissé à enregistrer."
+      "existingRepository": "Ce dossier est déjà un dépôt git : ce qui est créé vous sera laissé à enregistrer.",
+      "mapping": "Chacune est cartographiée dès la création du projet, puis l’ensemble est mis en commun par domaine."
     },
     "ready": {
       "title": "Le projet est prêt",

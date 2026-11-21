@@ -202,4 +202,15 @@ export function knowledgeApiSuite(engine: DatabaseEngine): void {
       assert.equal(problemCode(await check({ type: "document", path: "docs" })), "503 unavailable");
     });
   });
+
+  describe(`where the cartography stands on ${engine.name}`, () => {
+    it("is each source the cartography reads, which waits while nothing mapped it, and no index yet, never cached", async () => {
+      const read = await get(`${api.url}/knowledge/mapping`);
+      assert.deepEqual([read.status, read.cache], [200, "no-store"]);
+      const { environment, sources, index } = read.body as { environment: string; sources: { id: string; state: string }[]; index?: unknown };
+      assert.equal(environment, "local");
+      assert.ok(sources.length > 0 && sources.every(({ state }) => state === "waiting"), JSON.stringify(sources));
+      assert.equal(index, undefined);
+    });
+  });
 }

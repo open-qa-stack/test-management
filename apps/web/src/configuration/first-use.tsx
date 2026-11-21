@@ -7,7 +7,7 @@ import { EditContext, NEW_ITEMS } from "./configuration-edit.ts";
 import { AddButton, PlaceErrors } from "./configuration-fields.tsx";
 import { ErrorSummary, type ConfigurationControls } from "./configuration-screen.tsx";
 import type { ConfigurationState } from "./configuration-state.ts";
-import { AddSourceButtons, KnowledgeCard } from "./knowledge-card.tsx";
+import { AddSourceButtons, FIRST_KINDS, KnowledgeCard } from "./knowledge-card.tsx";
 import { ModelCard } from "./model-card.tsx";
 
 /** The steps of the setting up, in their order. */
@@ -116,7 +116,7 @@ export function FirstUse({ project, state, controls, step, onBack, onNext }: Fir
                 {...(state.sourceChecks?.[rank] === undefined ? {} : { test: state.sourceChecks[rank] })}
               />
             ))}
-            <AddSourceButtons />
+            <AddSourceButtons kinds={FIRST_KINDS} />
           </section>
         )}
         {step === "model" && (
@@ -137,7 +137,10 @@ function Summary({ draft, repository }: { readonly draft: OqasConfig; readonly r
   return (
     <ul className="first-use-summary">
       <li>{t("firstUse.summary.applications", { count: named.length, names: named.join(", ") })}</li>
-      <li>{t("firstUse.summary.knowledge", { count: draft.knowledge.length })}</li>
+      <li>
+        {t("firstUse.summary.knowledge", { count: draft.knowledge.length })}
+        {draft.knowledge.length > 0 && ` ${t("firstUse.summary.mapping")}`}
+      </li>
       <li>
         {draft.model.mode === "github"
           ? t("firstUse.summary.github", { model: draft.model.model })

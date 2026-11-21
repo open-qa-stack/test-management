@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createElement } from "react";
 import { describe, it } from "vitest";
+import type { CartographyState } from "@open-qa-stack/domain/sessions";
 import { KnowledgeScreen, whereOf, type KnowledgeControls } from "../../src/knowledge/knowledge-screen.tsx";
 import { INITIAL_KNOWLEDGE, knowledgeAfter, type KnowledgeAction, type KnowledgeState } from "../../src/knowledge/knowledge-state.ts";
 import { parseRoute } from "../../src/routing/route.ts";
@@ -78,6 +79,35 @@ describe("the knowledge of the project", () => {
         "#/knowledge/server-log",
         "#/knowledge/container-log",
       ],
+    );
+  });
+
+  it("tells where the cartography of each source stands, and of the index that puts them together", () => {
+    const at = "2026-11-22T09:00:00.000Z";
+    const mapped = (mapping: CartographyState) => textOf(screen("#/knowledge", stateAfter([{ type: "mapped", mapping }])));
+    const sources = [
+      { id: "orders", type: "postgresql", state: "waiting" },
+      { id: "specs", type: "document", state: "mapping" },
+      { id: "code", type: "source-code", state: "mapped", mappedAt: at },
+      { id: "contract", type: "openapi", state: "truncated", mappedAt: at },
+    ] as const;
+    const text = mapped({ environment: "local", sources });
+    assert.match(text, /Rien n’est encore cartographié : chaque source ajoutée est cartographiée aussitôt/);
+    for (const row of [
+      "orders Base PostgreSQL · variable SHOP_DB_URL En attente de cartographie",
+      "specs Documents du dépôt · specs/orders.md Cartographie en cours",
+      "code Code source · ../shop Cartographiée",
+      "local › backend Cartographiée en partie",
+    ])
+      assert.ok(text.includes(row), row);
+    assert.ok(text.includes("manuals Documents déposés 1 document code"), "a source the cartography does not read has no badge");
+    assert.match(
+      mapped({ environment: "local", sources, index: { producedAt: at, status: "complete" } }),
+      /Connaissances mises en commun par domaine le 22 nov\. 2026/,
+    );
+    assert.match(
+      mapped({ environment: "local", sources, index: { producedAt: at, status: "truncated" } }),
+      /, en partie : une limite a arrêté la cartographie\./,
     );
   });
 

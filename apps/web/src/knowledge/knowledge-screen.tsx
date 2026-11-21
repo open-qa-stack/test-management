@@ -8,13 +8,16 @@ import {
   type ConfiguredApplication,
   type Knowledge,
   type StoredDocumentSummary,
+  type CartographyState,
+  type MappedSource,
+  type MappingState,
 } from "@open-qa-stack/domain/sessions";
 import { kindOf } from "../configuration/knowledge-card.tsx";
 import { errorText } from "../configuration/configuration-words.ts";
 import { dateText, sizeText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
 import { hrefTo, type Route } from "../routing/route.ts";
-import { Badge } from "../ui/badge.tsx";
+import { Badge, type BadgeTone } from "../ui/badge.tsx";
 import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page, type Crumb } from "../ui/page.tsx";
@@ -79,10 +82,13 @@ function SourceRow({
   source,
   attachment,
   documents,
+  mapped,
 }: {
   readonly source: Knowledge;
   readonly attachment: Attachment;
   readonly documents?: readonly StoredDocumentSummary[];
+  /** Where the cartography of the source stands; none for a source it does not read. */
+  readonly mapped?: MappedSource;
 }): ReactNode {
   const narrowed = narrowing(attachment);
   return (
@@ -93,7 +99,24 @@ function SourceRow({
       </div>
       {narrowed !== undefined && <span className="small muted">{narrowed}</span>}
       {documents !== undefined && <Badge tone="outline">{t("knowledge.documentCount", { count: documents.length })}</Badge>}
+      {mapped !== undefined && <Badge tone={MAPPING_TONES[mapped.state]}>{t(`knowledge.mapping.${mapped.state}`)}</Badge>}
     </a>
+  );
+}
+
+/** The tone of the badge of where the cartography of a source stands. */
+const MAPPING_TONES: Readonly<Record<MappingState, BadgeTone>> = { waiting: "outline", mapping: "ai", mapped: "ok", truncated: "warn" };
+
+/** Where the index of the knowledge stands: written, when, and whether in part; or not yet. */
+function IndexLine({ mapping }: { readonly mapping: CartographyState | undefined }): ReactNode {
+  if (mapping === undefined) return null;
+  const { index } = mapping;
+  return (
+    <p className="small muted" role="status">
+      {index === undefined
+        ? t("knowledge.mapping.noIndex")
+        : t(index.status === "complete" ? "knowledge.mapping.index" : "knowledge.mapping.partIndex", { date: dateText(index.producedAt) })}
+    </p>
   );
 }
 
@@ -120,6 +143,7 @@ function Overview({ project, state }: { readonly project: string; readonly state
       ) : (
         <>
           <p className="small muted">{t("knowledge.lead")}</p>
+          <IndexLine mapping={state.mapping} />
           {configuration!.applications.map((application) => (
             <ApplicationSources key={application.id} application={application} sources={sources} state={state} />
           ))}
@@ -151,6 +175,7 @@ function ApplicationSources({
           source={source}
           attachment={attachment}
           {...(state.documents[source.id] === undefined ? {} : { documents: state.documents[source.id] })}
+          {...mappedOf(state.mapping, source.id)}
         />
       ))}
     </Card>
@@ -346,4 +371,10 @@ function SourceScreen({ project, route, state, controls, id }: KnowledgeScreenPr
 export function KnowledgeScreen(props: KnowledgeScreenProps): ReactNode {
   const [, id] = props.route.path;
   return id === undefined ? <Overview project={props.project} state={props.state} /> : <SourceScreen {...props} id={id} />;
+}
+
+/** Where the cartography of a source stands, as the props of its row: none before the instance told it, nor for a source it does not read. */
+function mappedOf(mapping: CartographyState | undefined, id: string): { readonly mapped?: MappedSource } {
+  const mapped = mapping?.sources.find((source) => source.id === id);
+  return mapped === undefined ? {} : { mapped };
 }

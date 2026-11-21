@@ -9,6 +9,7 @@ import type {
   SessionList,
   SessionMessage,
   SessionOpening,
+  CartographyState,
 } from "@open-qa-stack/domain/sessions";
 import { COMPLETED, EVENTS, RUNNING, SESSION_ID, type EventBody } from "./agent/session-fixture.ts";
 import { VIEW } from "./configuration/configuration-fixture.ts";
@@ -41,6 +42,14 @@ export class PlayedInstance {
   public language: Language = "fr";
   /** The domains of its knowledge; none is served, as before a cartography, when left out. */
   public domains: readonly KnowledgeDomain[] | undefined;
+  /** Where the cartography of its knowledge stands: one source mapped, another waiting, the index not written yet. */
+  public mapping: CartographyState = {
+    environment: "local",
+    sources: [
+      { id: "manuals", type: "document", state: "mapped", mappedAt: "2026-11-22T09:00:00.000Z" },
+      { id: "customer-db", type: "postgresql", state: "waiting" },
+    ],
+  };
   /** Whether its application has a second environment, `staging`. */
   public staging = false;
   /** Whether its configuration cannot be read. */
@@ -126,6 +135,7 @@ export class PlayedInstance {
         : document.applications;
       return { body: JSON.stringify({ ...VIEW, revision: { ...VIEW.revision!, document: { ...document, applications, language: this.language } } }) };
     }
+    if (path === "/api/knowledge/mapping") return { body: JSON.stringify(this.mapping) };
     if (path === "/api/knowledge/domains")
       return this.domains === undefined ? problem("error", 404, "No such route.") : { body: JSON.stringify({ items: this.domains }) };
     if (path === "/api/project")

@@ -38,10 +38,14 @@ export class KnowledgeSync {
         ask: async () => {
           const view = await this.#api.configuration();
           const sources = (view.revision?.document.knowledge ?? []).filter(isStoredDocuments).map((source) => source.id);
-          const lists = await Promise.all(sources.map(async (source) => [source, await this.#api.documents(source)] as const));
-          return { view, lists };
+          const [lists, mapping] = await Promise.all([
+            Promise.all(sources.map(async (source) => [source, await this.#api.documents(source)] as const)),
+            this.#api.mapping(),
+          ]);
+          return { view, lists, mapping };
         },
-        told: ({ view, lists }) => {
+        told: ({ view, lists, mapping }) => {
+          this.#dispatch({ type: "mapped", mapping });
           this.#dispatch({ type: "read", view });
           for (const [source, items] of lists) this.#dispatch({ type: "listed", source, items });
         },

@@ -3,13 +3,14 @@ import { configurationText, ExitCode, isStoredDocuments, type ConfigurationView,
 import { playwrightVersion } from "@open-qa-stack/tools";
 import { hasEnded, type Session } from "@open-qa-stack/domain/sessions";
 import type { Configuration, KnowledgeDocuments, KnowledgeSources, Secrets, Sessions } from "@open-qa-stack/engine";
+import type { CartographyState } from "@open-qa-stack/domain";
 import { parseArguments, USAGE, type Arguments, type Command } from "./arguments.ts";
 import { fileLine, revisionLine } from "./configuration-lines.ts";
 import { eventLine, ofTheAgents } from "./event-line.ts";
 import { failureOf } from "./failure.ts";
 import { followSession } from "./follow-session.ts";
 import { Interruptions } from "./interruptions.ts";
-import { checkLine, documentLine, documentsRefusal, receivedFiles, sourceLine } from "./knowledge-lines.ts";
+import { checkLine, documentLine, documentsRefusal, mappingLines, receivedFiles, sourceLine } from "./knowledge-lines.ts";
 import { keptTuning, modelOfArguments, modelReport } from "./model-lines.ts";
 import { modelConnectionOf, openOperations, type Operations } from "./operations.ts";
 import { RepositoryInit } from "./repository-init.ts";
@@ -89,7 +90,7 @@ async function onSessions(command: Exclude<Command, { name: "help" }>, options: 
     const { converse } = await import("./conversation/converse.ts");
     return converse({ repository, terminal: io.terminal, io, ...(command.environment === undefined ? {} : { environment: command.environment }) });
   }
-  const { sessions, configuration, documents, secrets, sources, close } = await openOperations(io, repository, false);
+  const { sessions, configuration, documents, secrets, sources, mapping, close } = await openOperations(io, repository, false);
   try {
     switch (command.name) {
       case "init":
@@ -103,9 +104,9 @@ async function onSessions(command: Exclude<Command, { name: "help" }>, options: 
       case "config":
         return await configured({ configuration, command, options, io });
       case "knowledge":
-        return command.action === "check"
-          ? await checked({ configuration, sources, command, options, io })
-          : await known({ configuration, documents, command, options, io });
+        if (command.action === "check") return await checked({ configuration, sources, command, options, io });
+        if (command.action === "mapping") return mapped(await mapping.state(), options, io);
+        return await known({ configuration, documents, command, options, io });
       case "model":
         return command.action === "setup" ? await setUp({ configuration, secrets }, io) : await modelled({ configuration, secrets, command, options, io });
       case "secrets":
@@ -210,7 +211,7 @@ async function known({
 }: Omit<Asked<"knowledge">, "sessions" | "command"> & {
   configuration: Configuration;
   documents: KnowledgeDocuments;
-  command: Exclude<Extract<Command, { name: "knowledge" }>, { action: "check" }>;
+  command: Exclude<Extract<Command, { name: "knowledge" }>, { action: "check" | "mapping" }>;
 }): Promise<ExitCodeValue> {
   if (command.action === "add-document") {
     const files = await receivedFiles(io.cwd, command.files);
@@ -265,6 +266,12 @@ async function checked({
   const checks = await Promise.all(asked.map(async (source) => ({ source: source.id, check: await sources.check(source) })));
   print({ options, io }, checks.map(checkLine).join("\n"), { checks });
   return checks.some(({ check }) => check.state === "failed") ? ExitCode.prerequisite : ExitCode.passed;
+}
+
+/** `oqas knowledge mapping`: tells where the cartography of the knowledge stands, source by source, and its index. */
+function mapped(state: CartographyState, options: Arguments, io: CommandIo): ExitCodeValue {
+  print({ options, io }, mappingLines(state).join("\n"), state);
+  return ExitCode.passed;
 }
 
 /** Writes a line to the standard output, as a text or as the JSON of a value. */

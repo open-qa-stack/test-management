@@ -45,6 +45,7 @@ import type {
   SecretState,
   Knowledge,
   SourceCheck,
+  CartographyState,
 } from "@open-qa-stack/domain/sessions";
 import { ApiError } from "./api-error.ts";
 import { t } from "../i18n/i18n.ts";
@@ -207,6 +208,11 @@ export class ApiClient {
    */
   public async checkSource(source: Knowledge, value?: string): Promise<SourceCheck> {
     return this.#ask<SourceCheck>("/knowledge/check", posting(value === undefined ? source : { ...source, value }));
+  }
+
+  /** @returns Where the cartography of the knowledge stands, source by source, with the index that puts their cards together. */
+  public async mapping(): Promise<CartographyState> {
+    return this.#ask<CartographyState>("/knowledge/mapping");
   }
 
   /** @returns Each variable the configuration in force names, and where its value comes from; never a value. */

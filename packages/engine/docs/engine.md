@@ -331,6 +331,10 @@ The values are kept by a `SecretStore`: `FileSecretStore` keeps them in `secrets
 
 `KnowledgeSources` tests that a knowledge source answers before anything is saved or indexed, so that a person corrects a path, an address or a connection string as they declare it. `check(source, typed)` takes the source as it is drafted, with the connection string the person typed for a database and did not save yet, and reads it as the cartography reads it first (`knowledgeInventory` of the tools): it answers `ok` with the number of items the source holds, `failed` with why, or `unchecked` for logs, read while a session runs. The documents the instance keeps are counted in its store. Nothing calls the model, nothing is written, and a host without a test repository tests no source read in one. The [route of the API](../../api/docs/knowledge.md#testing-a-source) and `oqas knowledge check` call it.
 
+## Where the cartography stands
+
+`KnowledgeMapping.state()` tells where the cartography of the knowledge stands, by the configuration in force once it is in step with its file: each source the cartography reads in the first environment, `mapped` or `truncated` by its card, `mapping` while a session of purpose `map` runs, `waiting` otherwise; and the index, when one is written. A card or an index that cannot be read is none. The [route of the API](../../api/docs/knowledge.md#where-the-cartography-stands), the screen of the knowledge of the console and `oqas knowledge mapping` call it.
+
 ## The operations on documents
 
 A knowledge source of `type` `document` declared `"stored": true` holds documents uploaded to the instance rather than files of the test repository: its database keeps them, and only it. `KnowledgeDocuments` holds the operations on them, on the `DocumentStorePort` of `@open-qa-stack/domain`, which `@open-qa-stack/store` implements, and on the revisions of the configuration, which declare the sources:

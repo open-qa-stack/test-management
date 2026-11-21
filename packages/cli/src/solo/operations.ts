@@ -5,6 +5,7 @@ import {
   Configuration,
   FileSecretStore,
   KnowledgeDocuments,
+  KnowledgeMapping,
   KnowledgeSources,
   liveRuntime,
   ModelConnection,
@@ -30,6 +31,8 @@ export interface Operations {
   readonly secrets: Secrets;
   /** The test of the knowledge sources, with the environment the runs read. */
   readonly sources: KnowledgeSources;
+  /** Where the cartography of the knowledge stands. */
+  readonly mapping: KnowledgeMapping;
   /**
    * Stops hosting, when the command hosted a session, and closes the database.
    *
@@ -96,6 +99,7 @@ export async function openOperations(io: CommandIo, repository: string, hosts: b
     documents: new KnowledgeDocuments(instance.documents, instance.configuration),
     secrets,
     sources: new KnowledgeSources(repository, secrets, instance.documents),
+    mapping: new KnowledgeMapping(repository, configuration, instance.sessions),
     close,
   };
 }

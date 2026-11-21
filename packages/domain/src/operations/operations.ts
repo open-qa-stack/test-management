@@ -14,6 +14,7 @@ export const OPERATIONS = {
   KnowledgeDocuments: ["list", "read", "upload", "remove"],
   KnowledgeDomains: ["list"],
   KnowledgeSources: ["check"],
+  KnowledgeMapping: ["state"],
   RepositoryTests: ["listed"],
   TestReadings: ["read", "trace", "capture"],
   Executions: ["page", "get", "ofFile", "versions"],

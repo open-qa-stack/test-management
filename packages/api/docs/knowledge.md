@@ -11,9 +11,23 @@ The shapes of every body are the types of `@open-qa-stack/domain/sessions`. A cl
 | `GET /api/knowledge/:source/documents/:name` | A document, with its text. |
 | `DELETE /api/knowledge/:source/documents/:name` | Removes a document. |
 | `GET /api/knowledge/domains` | [The domains of the knowledge](#the-domains-of-the-knowledge), as the cartography named them. |
+| `GET /api/knowledge/mapping` | [Where the cartography stands](#where-the-cartography-stands), source by source. |
 | `POST /api/knowledge/check` | [Tests a source](#testing-a-source) as it is drafted, without the model, indexing nothing. |
 
 `:source` is the identifier of the source in the configuration in force, and `:name` the file name of a document, both encoded as a path segment. The two reads are answered with `cache-control: no-store`. Every answer that is not a success is a [problem](sessions.md#problems).
+
+## Where the cartography stands
+
+```http
+GET /api/knowledge/mapping
+
+HTTP/1.1 200 OK
+cache-control: no-store
+
+{"environment":"local","sources":[{"id":"order-specs","type":"document","state":"mapped","mappedAt":"2026-11-22T09:00:00.000Z"},{"id":"shop-db","type":"postgresql","state":"mapping"}]}
+```
+
+The answer lists each source the cartography reads in the first environment the configuration declares — the knowledge sources but logs, then the interface of each application — in the order of the configuration, with where its cartography stands in `state`: `waiting`, it has no card yet; `mapping`, a session maps the knowledge now; `mapped`, its card is written, on `mappedAt`; `truncated`, its card is written but a limit stopped it. `index`, when the cartography wrote one, gives when (`producedAt`) and whether in part (`status`). An instance without a test repository, or without a configuration, lists no source and names no `environment`. It is answered with `cache-control: no-store`.
 
 ## Testing a source
 
