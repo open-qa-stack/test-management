@@ -9,6 +9,7 @@ import type {
   RepositoryPreparation,
   RepositoryState,
   RevisionSummary,
+  SecretState,
 } from "@open-qa-stack/domain/sessions";
 import { modelFor } from "./model-connection.ts";
 import { appendedAt, changedAt, removedAt, valueAt } from "./json-pointer.ts";
@@ -39,6 +40,12 @@ export interface ConfigurationState {
   readonly preparation?: RepositoryPreparation;
   /** The latest test of the connection to the model; `undefined` before the person asked for one, and once they chose another connection. */
   readonly connection?: ConnectionTest;
+  /** The variables the configuration in force names, and where the value of each comes from; `undefined` before the instance told them. */
+  readonly secrets?: readonly SecretState[];
+  /** The values the person typed for variables, by name, which are saved with the configuration. */
+  readonly values: Readonly<Record<string, string>>;
+  /** Whether the values the person typed last were saved, which the screen tells. */
+  readonly valued?: boolean;
 }
 
 /** A test of the connection to the model, under way or done. */
@@ -89,11 +96,17 @@ export type ConfigurationAction =
   | { readonly type: "saved"; readonly view: ConfigurationView }
   /** The instance listed the revisions. */
   | { readonly type: "listed"; readonly revisions: readonly RevisionSummary[] }
+  /** The instance told the variables the configuration names. */
+  | { readonly type: "secrets"; readonly secrets: readonly SecretState[] }
+  /** The person typed the value of a variable: an empty one is not saved. */
+  | { readonly type: "value"; readonly name: string; readonly value: string }
+  /** The instance saved the values the person typed. */
+  | { readonly type: "valued"; readonly secrets: readonly SecretState[] }
   /** The instance refused it. */
   | { readonly type: "refused"; readonly code: ProblemCode | "unreachable"; readonly text: string; readonly errors: readonly ConfigError[] };
 
 /** The state of the screen before the instance told anything. */
-export const INITIAL_CONFIGURATION: ConfigurationState = { errors: [], saving: false, basedOn: 0 };
+export const INITIAL_CONFIGURATION: ConfigurationState = { errors: [], saving: false, basedOn: 0, values: {} };
 
 /**
  * Tells whether the person changed the configuration since the instance last told it.
@@ -103,6 +116,25 @@ export const INITIAL_CONFIGURATION: ConfigurationState = { errors: [], saving: f
  */
 export function isChanged(state: ConfigurationState): boolean {
   return state.draft !== state.view?.revision?.document;
+}
+
+/**
+ * Tells whether the person has something to save: a change of the configuration, or values typed.
+ *
+ * @param state - The state of the screen.
+ * @returns Whether saving would change something.
+ */
+export function isPending(state: ConfigurationState): boolean {
+  return isChanged(state) || Object.keys(state.values).length > 0;
+}
+
+/**
+ * @param model - The section `model` of the draft.
+ * @param values - The values the person typed, by the name of their variable.
+ * @returns The key typed for the variable of the model; `undefined` when none was.
+ */
+export function typedKey(model: Model, values: Readonly<Record<string, string>>): string | undefined {
+  return model.mode === "provider-key" && model.apiKeyEnv !== undefined ? values[model.apiKeyEnv] : undefined;
 }
 
 /** The autonomy of a level, with the guardrail the draft had: a bounded level starts bounded by thirty minutes a task. */
@@ -182,12 +214,12 @@ export function configurationAfter(state: ConfigurationState, action: Configurat
     case "discard": {
       const { refusal: _, saved: __, draft: ___, ...rest } = state;
       const revision = state.view?.revision;
-      return { ...rest, errors: [], basedOn: revision?.number ?? 0, ...(revision === undefined ? {} : { draft: revision.document }) };
+      return { ...rest, errors: [], values: {}, basedOn: revision?.number ?? 0, ...(revision === undefined ? {} : { draft: revision.document }) };
     }
     case "checked":
       return action.draft === state.draft ? { ...state, errors: action.errors } : state;
     case "saving": {
-      const { refusal: _, ...rest } = state;
+      const { refusal: _, valued: __, ...rest } = state;
       return { ...rest, saving: true };
     }
     case "saved": {
@@ -203,6 +235,17 @@ export function configurationAfter(state: ConfigurationState, action: Configurat
     }
     case "listed":
       return { ...state, revisions: action.revisions };
+    case "secrets":
+      return { ...state, secrets: action.secrets };
+    case "value": {
+      const { [action.name]: _, ...others } = state.values;
+      const { valued: __, ...rest } = state;
+      return { ...rest, values: action.value === "" ? others : { ...others, [action.name]: action.value } };
+    }
+    case "valued": {
+      const { refusal: _, ...rest } = state;
+      return { ...rest, secrets: action.secrets, values: {}, saving: false, valued: true };
+    }
     case "refused":
       return { ...state, saving: false, refusal: { code: action.code, text: action.text }, errors: action.errors.length > 0 ? action.errors : state.errors };
   }

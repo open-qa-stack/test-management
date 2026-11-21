@@ -39,6 +39,8 @@ The command is a presentation of [the operations on sessions](../../engine/docs/
 | `oqas model set` | Sets the connection to the model — the GitHub account of the machine, or a provider and its key — then tests it. |
 | `oqas knowledge list` | Lists the knowledge sources of the configuration in force, and the documents the instance keeps: see [The knowledge](#the-knowledge). |
 | `oqas knowledge add-document <source> <file>...` | Uploads Markdown files as documents of a source declared `"stored": true`. |
+| `oqas secrets` | Lists the variables the configuration names, and where the value of each comes from: see [The values of the variables](#the-values-of-the-variables). |
+| `oqas secrets set <variable>` | Saves the value of one of them on this machine, out of the test repository, typed unseen or read from the input. |
 | `oqas --ui` | Serves the console of the test repository in a browser, and runs the sessions opened in it, until Ctrl-C: see [The console](#the-console). |
 | `oqas --init` | Makes a Playwright project of the test repository and runs nothing: see [Initialising a test repository](#initialising-a-test-repository). |
 | `oqas --help` | Prints the usage. |
@@ -267,7 +269,7 @@ oqas.json is in step with it.
 
 ## The model
 
-`oqas model` alone, in a terminal, sets the connection step by step, in the language of the configuration: the person chooses how to reach the model in a list — the GitHub account of this machine, a provider by its name, or another server — types the address of another server and the variable of the key when the connection needs them, the connection is tested, and they choose the model among those it offers, or type its name when the server lists none. A connection that does not answer is told with what to do, and may be tested again or changed. Enter records the model chosen, as a revision of origin `command`; Esc leaves, and nothing changes. It exits with `0` once a connection is recorded, with `5` when the person left; with `--no-input`, `--output`, or where there is no terminal, it is refused with `3`. In the conversation, `/model` opens the same setting, and the conversation tests the model in force when it opens: a model that does not answer, or is not among those offered, is told at once, with `/model`.
+`oqas model` alone, in a terminal, sets the connection step by step, in the language of the configuration: the person chooses how to reach the model in a list — the GitHub account of this machine, a provider by its name, or another server — types the address of another server and the variable of the key when the connection needs them, and the key itself, unseen, when that variable holds none — it is saved with the connection, out of the test repository —; the connection is tested, and they choose the model among those it offers, or type its name when the server lists none. A connection that does not answer is told with what to do, and may be tested again or changed. Enter records the model chosen, as a revision of origin `command`; Esc leaves, and nothing changes. It exits with `0` once a connection is recorded, with `5` when the person left; with `--no-input`, `--output`, or where there is no terminal, it is refused with `3`. In the conversation, `/model` opens the same setting, and the conversation tests the model in force when it opens: a model that does not answer, or is not among those offered, is told at once, with `/model`.
 
 `oqas model status` tests the connection to the model of the configuration in force, as the console does: it says how the model is reached, whether it answers or what to do when it does not, and the models the connection offers, with whether the model in force is among them.
 
@@ -281,10 +283,26 @@ The model answers, through the GitHub account octo.
 gpt-5 is among them.
 $ oqas model set --provider OpenAI --model gpt-4.1
 OpenAI, its key in OPENAI_API_KEY, model gpt-4.1.
-The variable OPENAI_API_KEY is not set: put the key of the provider in it, then run oqas model status again.
+OPENAI_API_KEY holds no key: give it with oqas secrets set OPENAI_API_KEY, or set the variable, then run oqas model status again.
 ```
 
-`oqas model set` takes `--github`, or `--provider` with the name of a provider or the address of a server, and `--model`; a provider of the list gets its address and the variable its key is usually kept in, which `--key-env` replaces. Set again with the same model, the same way, the connection keeps what was tuned on it in the console or in `oqas.json` — whether the model reads images, its effort of reasoning, its wait for an answer —; another model starts without them. It records the connection as a revision of origin `command`, which rewrites `oqas.json`, whatever the test then finds: a key not set yet is set afterwards, and `oqas model status` tells when the model answers. Both ask nothing, so that a script or an agent can run them: with `--output json`, each prints the connection, what the test found as [the API tells it](../../api/docs/configuration.md#testing-the-connection-to-the-model), and `offered`, whether the model is among those listed, when the connection lists some. They exit with `0` when the model answers and is among those offered, or when the server lists none; with `4` when it does not answer, or is not offered; with `3` when the provider is neither one the list names nor an address.
+`oqas model set` takes `--github`, or `--provider` with the name of a provider or the address of a server, and `--model`; a provider of the list gets its address and the variable its key is usually kept in, which `--key-env` replaces. Set again with the same model, the same way, the connection keeps what was tuned on it in the console or in `oqas.json` — whether the model reads images, its effort of reasoning, its wait for an answer —; another model starts without them. It records the connection as a revision of origin `command`, which rewrites `oqas.json`, whatever the test then finds: a key not given yet is given afterwards, with `oqas secrets set`, and `oqas model status` tells when the model answers. Both ask nothing, so that a script or an agent can run them: with `--output json`, each prints the connection, what the test found as [the API tells it](../../api/docs/configuration.md#testing-the-connection-to-the-model), and `offered`, whether the model is among those listed, when the connection lists some. They exit with `0` when the model answers and is among those offered, or when the server lists none; with `4` when it does not answer, or is not offered; with `3` when the provider is neither one the list names nor an address.
+
+## The values of the variables
+
+The configuration names the variables that hold the secrets — the key of the model, the connection strings of the databases, the accounts of the tests — and never their values. A value comes from the environment of the process, which wins, as in a CI; or else from the value a person gave on this machine, which `oqas` keeps in the state folder of the test repository, out of git: in the console, beside the variable, in `oqas model`, or with `oqas secrets set`.
+
+```console
+$ oqas secrets
+SHOP_DB_URL  a connection string, set in the environment
+OPENAI_API_KEY  the key of the model, missing
+Give a missing value with oqas secrets set <variable>, or in the console (oqas --ui), or set the variable in the environment.
+$ oqas secrets set OPENAI_API_KEY
+Value of OPENAI_API_KEY (not shown):
+OPENAI_API_KEY is saved on this machine, out of the test repository.
+```
+
+`oqas secrets set <variable>` asks for the value in a terminal without showing it, and reads it from the input otherwise, without its last line break: `printf %s "$KEY" | oqas secrets set OPENAI_API_KEY`. A value never comes from the arguments, which the history of the shell and the list of the processes keep. A value saved replaces the one saved before, and the next run reads it, whichever process runs it. It is refused, with `3`, for a variable the configuration does not name, an empty one, and one the environment sets. With `--output json`, the list prints `{"secrets":[…]}` as [the API tells it](../../api/docs/configuration.md#secrets).
 
 ## The knowledge
 

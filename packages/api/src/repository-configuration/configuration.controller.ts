@@ -1,8 +1,7 @@
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Post } from "@nestjs/common";
 import { Configuration, ModelConnection } from "@open-qa-stack/engine";
-import type { Model } from "@open-qa-stack/domain";
 import { ConfigurationBodyPipe } from "./configuration-body.pipe.ts";
-import { ModelBodyPipe } from "./model-body.pipe.ts";
+import { ModelBodyPipe, type ModelTest } from "./model-body.pipe.ts";
 import { RevisionRequestPipe } from "./revision-request.pipe.ts";
 import type { RevisionRequest } from "./revision-request.ts";
 import type { ConfigurationCheck, ConfigurationView, ModelConnectionCheck, RevisionList } from "@open-qa-stack/domain/sessions";
@@ -70,7 +69,7 @@ export class ConfigurationController {
   }
 
   /**
-   * Tests a connection to the model as the person drafts it, before anything is saved.
+   * Tests a connection to the model as the person drafts it, with the key they typed, before anything is saved.
    *
    * @returns What the test found, answered with `200`: whether the model answers and what it offers, or why it
    * does not; a body that is not a connection the configuration accepts is answered with `400`.
@@ -78,7 +77,7 @@ export class ConfigurationController {
   @Post("model-connection")
   @HttpCode(HttpStatus.OK)
   @Header("Cache-Control", "no-store")
-  testModel(@Body(ModelBodyPipe) model: Model): Promise<ModelConnectionCheck> {
-    return this.#connection.check(model);
+  testModel(@Body(ModelBodyPipe) { model, key }: ModelTest): Promise<ModelConnectionCheck> {
+    return this.#connection.check(model, key);
   }
 }

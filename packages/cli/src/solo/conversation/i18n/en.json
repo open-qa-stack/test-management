@@ -235,6 +235,8 @@
     "addressHint": "That of its OpenAI-compatible API, such as http://localhost:1234/v1.",
     "key": "Variable that holds the key",
     "keyHint": "The name of the environment variable the key is in; leave it empty for a server with no key.",
+    "secret": "Key of the provider",
+    "secretHint": "{{variable}} holds no key here: type it, it is not shown. It is kept on this machine, out of the test repository.",
     "name": "Model",
     "nameHint": "Its name, as the server gives it.",
     "testing": "Testing the connection…",
@@ -242,7 +244,8 @@
     "refused": {
       "address": "An http:// or https:// address is expected.",
       "variable": "The name of a variable is expected: capital letters, digits and _.",
-      "name": "The name of the model is expected."
+      "name": "The name of the model is expected.",
+      "secret": "The key is expected."
     },
     "after": {
       "retry": "Test again",
@@ -259,7 +262,7 @@
       "noList": "The server does not list its models: type the name of the model.",
       "signedOut": "No GitHub account is signed in on this machine: run gh auth login in a terminal, then test again.",
       "noModels": "The GitHub account {{account}} is signed in, but Copilot offers it no model: the account needs a GitHub Copilot subscription, or its organisation must allow one.",
-      "keyMissing": "The variable {{variable}} is not set where the tool runs: put your key in it, start the tool again, then test again.",
+      "keyMissing": "{{variable}} holds no key here: give it with oqas secrets set {{variable}}, or in the console, then test again.",
       "keyRefused": "The provider refused the key (status {{status}}): check the key the variable holds.",
       "unreachable": "Nothing answers at {{url}}: check the address, or that the server is running."
     },

@@ -383,7 +383,9 @@
     "campaign_refused": "The campaign refuses this change: its state does not allow it, a test it names is not in the repository, or no test is chosen yet.",
     "unexplained": "The instance ran into an error.",
     "unreachable": "The instance does not answer.",
-    "unreadable": "The answer of the instance cannot be read."
+    "unreadable": "The answer of the instance cannot be read.",
+    "unknown_secret": "The configuration saved does not name this variable: save the configuration that names it first.",
+    "secret_refused": "This value cannot be saved: it is empty, or the environment of the tool sets the variable already, and wins."
   },
   "configuration": {
     "rules": {
@@ -497,7 +499,7 @@
       "baseUrl": "Address of the server",
       "baseUrlHint": "That of its OpenAI-compatible API, such as that of a model run on your machine.",
       "apiKeyEnv": "Variable that holds the key",
-      "apiKeyEnvHint": "The name of the environment variable your key is in; the key is never written here. Leave it empty for a server with no key.",
+      "apiKeyEnvHint": "The name the key is kept under; that of the provider will do. Leave it empty for a server with no key.",
       "test": "Test the connection",
       "testing": "Testing…",
       "failed": "The test could not be made: {{reason}}",
@@ -507,7 +509,7 @@
       "noList": "The server does not list its models: type the name of the model.",
       "signedOut": "No GitHub account is signed in on this machine. Run this command in a terminal, then test again:",
       "noModels": "The GitHub account {{account}} is signed in, but Copilot offers it no model: the account needs a GitHub Copilot subscription, or its organisation must allow one.",
-      "keyMissing": "The variable {{variable}} is not set where the tool runs. Put your key in it, start the tool again, then test again.",
+      "keyMissing": "{{variable}} holds no key here: type it above, then test again.",
       "keyRefused": "The provider refused the key (status {{status}}). Check the key the variable holds.",
       "unreachable": "Nothing answers at {{url}}. Check the address, or that the server is running.",
       "model": "Model",
@@ -521,6 +523,16 @@
       "vision": "Reads images",
       "visionHint": "the agents see the screenshots",
       "visionTold": "the list says this model reads images"
+    },
+    "secret": {
+      "model_key": "Key",
+      "connection_string": "Connection string",
+      "account_username": "User name",
+      "account_password": "Password",
+      "kept": "Kept on the computer the tool runs on, out of the test repository and of the database, in {{variable}}; it is not shown again.",
+      "saved": "A value is saved for {{variable}} on this computer; type another to replace it.",
+      "replace": "Saved — type to replace it",
+      "environment": "comes from the variable {{variable}} of the environment of the tool, which wins over a value typed here."
     },
     "application": {
       "types": {
@@ -560,7 +572,7 @@
       "type": "What it exposes",
       "method": "Sign-in of the users",
       "accounts": "Test accounts",
-      "accountsHint": "Only the names of the environment variables are kept: the credentials stay on the machine that runs the sessions.",
+      "accountsHint": "The configuration keeps the names of the variables alone; type the credentials below, they stay on the computer the tool runs on.",
       "accountName": "Name of the account",
       "usernameEnv": "Variable of the user name",
       "passwordEnv": "Variable of the password",
@@ -590,7 +602,7 @@
       "openapiHint": "Either its address, or a file of the test repository.",
       "contractPath": "File of the contract",
       "connectionStringEnv": "Variable of the connection string",
-      "connectionStringEnvHint": "Its name only: the connection string stays on the machine that runs the sessions.",
+      "connectionStringEnvHint": "The name the connection string is kept under; type it below, it stays on the computer the tool runs on.",
       "documentPath": "Document or folder",
       "documentPathHint": "In the test repository: a Markdown file, or a folder of them.",
       "storedNote": "Its documents are kept by the instance, and uploaded to it once the configuration is saved.",
@@ -643,6 +655,7 @@
       "takeFile": "Take oqas.json",
       "fileMissing": "oqas.json is not in the test repository: the next save writes it.",
       "saved": "Revision {{number}} saved: oqas.json is written again, and the next session reads it.",
+      "valued": "The values typed are saved on this computer.",
       "title": "Configuration",
       "reading": "Reading the configuration",
       "readingNote": "It shows as soon as the instance answered.",
@@ -658,7 +671,7 @@
       "agents": "Agents",
       "repository": "Test repository",
       "history": "History",
-      "secrets": "No secret is kept: neither in oqas.json, nor in the database. The configuration names the environment variables that hold them, on the machine that runs the sessions.",
+      "secrets": "The values typed here — key, connection strings, passwords — stay on the computer the tool runs on, out of the test repository and of the database. An environment variable wins: that is the way of a CI.",
       "knowledge": "Knowledge",
       "knowledgeNote": "What the agents read about the applications. Each source names where it is read — never a secret — and the applications it belongs to.",
       "noKnowledge": "No knowledge source"

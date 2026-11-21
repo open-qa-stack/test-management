@@ -2,7 +2,7 @@ import type { MouseEventHandler, ReactNode } from "react";
 import { MODEL_PROVIDERS, type Model, type ModelChoice, type ModelConnectionCheck } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
 import { Card } from "../ui/card.tsx";
-import { CheckField, ChoiceField, InputField } from "./configuration-fields.tsx";
+import { CheckField, ChoiceField, InputField, SecretField } from "./configuration-fields.tsx";
 import type { ConnectionTest } from "./configuration-state.ts";
 import { connectionOf, GITHUB_CHOICE, modelChoices, OTHER_CHOICE, sameReach } from "./model-connection.ts";
 
@@ -63,6 +63,7 @@ export function ModelCard({ model, connection, onTest }: ModelCardProps): ReactN
               value={model.apiKeyEnv}
               code
             />
+            <SecretField variable={model.apiKeyEnv} kind="model_key" />
           </>
         )}
         <div className="config-actions">

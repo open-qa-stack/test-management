@@ -1,11 +1,12 @@
-import type { SessionsHost } from "@open-qa-stack/engine";
+import type { Environment, SessionsHost } from "@open-qa-stack/engine";
 import type { DatabaseUrl } from "@open-qa-stack/store";
 
 /**
- * What the runs of the sessions work with, as the engine takes it from whoever hosts it: the environment the
- * configuration of the test repository reads its secrets from, and what a host replaces of the machine.
+ * What the runs of the sessions work with, as the engine takes it from whoever hosts it: the environment of the
+ * process, which the values saved for the variables of the configuration complete, and what a host replaces of the
+ * machine.
  */
-export type SessionsRuns = Pick<SessionsHost, "env" | "openRuntime" | "runner" | "now" | "writerPace" | "pace">;
+export type SessionsRuns = Pick<SessionsHost, "openRuntime" | "runner" | "now" | "writerPace" | "pace"> & { readonly env: Environment };
 
 /** Where an API logs: what happened, what an operator should look at, and what failed. */
 export interface ApiLogger {

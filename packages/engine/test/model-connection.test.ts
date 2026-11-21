@@ -59,6 +59,34 @@ describe("the test of the connection to the model", () => {
     assert.deepEqual(asked, []);
   });
 
+  it("asks the server with the key the person typed and did not save yet, in place of the one the variable holds", async () => {
+    const { asked, connection } = played();
+    await connection.check({ mode: "provider-key", provider: "openai", baseUrl: "https://x/v1", model: "", apiKeyEnv: "MISSING" }, "typed");
+    await connection.check({ mode: "provider-key", provider: "openai", baseUrl: "https://x/v1", model: "", apiKeyEnv: "OPENAI_API_KEY" }, "typed");
+    await connection.check({ mode: "provider-key", provider: "openai", baseUrl: "http://localhost:1234/v1", model: "" }, "typed");
+    await connection.check({ mode: "provider-key", provider: "openai", baseUrl: "https://x/v1", model: "", apiKeyEnv: "OPENAI_API_KEY" }, "");
+    assert.deepEqual(asked, [
+      ["provider", "https://x/v1", "typed"],
+      ["provider", "https://x/v1", "typed"],
+      ["provider", "http://localhost:1234/v1", "typed"],
+      ["provider", "https://x/v1", "sk-test"],
+    ]);
+  });
+
+  it("reads the environment as it is at each test when given what reads it", async () => {
+    let key = "first";
+    const asked: unknown[] = [];
+    const connection = new ModelConnection(
+      { current: () => Promise.resolve({ KEY: key }) },
+      { github: () => Promise.resolve({ state: "connected" }), provider: (_url, given) => (asked.push(given), Promise.resolve({ state: "connected" })) },
+    );
+    const model = { mode: "provider-key", provider: "openai", baseUrl: "https://x/v1", model: "", apiKeyEnv: "KEY" } as const;
+    await connection.check(model);
+    key = "second";
+    await connection.check(model);
+    assert.deepEqual(asked, ["first", "second"]);
+  });
+
   it("checks with the harness when given no probes of its own", async () => {
     const check = await new ModelConnection({}).check({ mode: "provider-key", provider: "openai", baseUrl: "http://127.0.0.1:9/v1", model: "" });
     assert.deepEqual(check, { state: "unreachable", url: "http://127.0.0.1:9/v1" });

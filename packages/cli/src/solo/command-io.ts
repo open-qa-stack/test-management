@@ -21,6 +21,8 @@ export interface CommandIo {
   readonly stderr: CommandOutput;
   /** The terminal of the person, when the command has one on both its input and its output: without it, the command asks nothing and draws nothing. */
   readonly terminal?: CommandTerminal;
+  /** The input of the command, which a value is read from where there is no terminal to type it in; none by default. */
+  readonly input?: AsyncIterable<string | Uint8Array>;
   /**
    * Listens to the person who asks the command to stop, Ctrl-C in a terminal: the listener is called each
    * time they do.

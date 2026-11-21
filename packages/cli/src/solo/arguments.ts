@@ -33,6 +33,10 @@ export type Command =
   | { readonly name: "model"; readonly action: "set"; readonly connection: ModelArguments }
   /** Upload files as documents of a source the instance keeps. */
   | { readonly name: "knowledge"; readonly action: "add-document"; readonly source: string; readonly files: readonly string[] }
+  /** List the variables the configuration in force names, and where the value of each comes from. */
+  | { readonly name: "secrets"; readonly action: "list" }
+  /** Save the value of one of them, read from the input of the command, out of the test repository. */
+  | { readonly name: "secrets"; readonly action: "set"; readonly variable: string }
   /** Serve the console of the test repository, and the sessions opened in it. */
   | { readonly name: "ui"; readonly host: string; readonly port: number };
 
@@ -91,6 +95,8 @@ export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
        oqas [--repository <folder>] model set --provider <name|address> [--key-env <variable>] --model <id> [--output text|json]
        oqas [--repository <folder>] knowledge list [--output text|json]
        oqas [--repository <folder>] knowledge add-document <source> <file>... [--output text|json]
+       oqas [--repository <folder>] secrets [--output text|json]
+       oqas [--repository <folder>] secrets set <variable>
        oqas [--repository <folder>] --ui [--host <address>] [--port <number>]
        oqas [--repository <folder>] --init
 
@@ -112,7 +118,8 @@ Commands:
   config import          Take oqas.json as the configuration in force, when it changed.
   config export          Write the configuration in force over oqas.json, when it changed.
   model                  In a terminal, set the connection to the model step by step: how to reach it, the
-                         variable of its key, a test, then the model among those it offers.
+                         variable of its key and the key itself when it holds none, a test, then the model among
+                         those it offers.
   model status           Test the connection to the model in force, and list the models it offers.
   model set              Set the connection to the model, then test it: --github for the GitHub account this machine
                          signed in with (gh auth login), or --provider with the name of a provider (OpenAI, Mistral AI,
@@ -122,6 +129,11 @@ Commands:
   knowledge add-document <source> <file>...
                          Upload Markdown files as documents of such a source, all of them or none: a document of
                          the same name is replaced.
+  secrets                List the variables the configuration names (the key of the model, the connection strings,
+                         the test accounts) and where the value of each comes from: the environment, which wins, a
+                         value saved on this machine, or none yet.
+  secrets set <variable> Save the value of one of them on this machine, out of the test repository: typed without
+                         being shown in a terminal, read from the input otherwise. A value saved is replaced.
 
 Options:
   --repository <folder>  The test repository, which holds oqas.json once it is set up; the current folder by default.
@@ -250,6 +262,7 @@ function commandOf(
   if (name === "config") return configured(rest, opens || follow);
   if (name === "knowledge") return knowledgeOf(rest, opens || follow);
   if (name === "model") return modelOf(rest, opens || follow, connection, asks);
+  if (name === "secrets") return secretsOf(rest, opens || follow);
   if (!Object.hasOwn(ON_SESSIONS, name)) return `Unknown command ${name}; see oqas --help.`;
   const known = name as keyof typeof ON_SESSIONS;
   const taken: readonly string[] = ON_SESSIONS[known];
@@ -268,6 +281,16 @@ function configured(words: readonly string[], ofASession: boolean): Command | st
   if (words.length !== 1 || known === undefined) return "oqas config takes show, import or export.";
   if (ofASession) return "oqas config acts on the configuration: it takes no --brief, --environment nor --follow.";
   return { name: "config", action: known };
+}
+
+/** What `oqas secrets` asks for, or why it is refused: the list, or the value of one variable, and nothing of a session. */
+function secretsOf(words: readonly string[], ofASession: boolean): Command | string {
+  const [action, variable, ...rest] = words;
+  if (ofASession) return "oqas secrets acts on the values of the variables: it takes no --brief, --environment nor --follow.";
+  if (action === undefined) return { name: "secrets", action: "list" };
+  if (action !== "set" || variable === undefined || rest.length > 0)
+    return "oqas secrets takes nothing, to list the variables, or set then the variable: its value is read from the input, never from the arguments.";
+  return { name: "secrets", action, variable };
 }
 
 /** The options of the connection to the model, as they were given. */

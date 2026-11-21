@@ -383,7 +383,9 @@
     "campaign_refused": "La campagne refuse ce changement : son état ne le permet pas, un test qu’elle nomme n’est pas dans le dépôt, ou aucun test n’est encore choisi.",
     "unexplained": "L’instance a rencontré une erreur.",
     "unreachable": "L’instance ne répond pas.",
-    "unreadable": "La réponse de l’instance est illisible."
+    "unreadable": "La réponse de l’instance est illisible.",
+    "unknown_secret": "La configuration enregistrée ne nomme pas cette variable : enregistrez d’abord la configuration qui la nomme.",
+    "secret_refused": "Cette valeur ne peut pas être enregistrée : elle est vide, ou l’environnement de l’outil définit déjà la variable, et l’emporte."
   },
   "configuration": {
     "rules": {
@@ -497,7 +499,7 @@
       "baseUrl": "Adresse du serveur",
       "baseUrlHint": "Celle de son API compatible OpenAI, par exemple celle d’un modèle lancé sur votre poste.",
       "apiKeyEnv": "Variable qui tient la clé",
-      "apiKeyEnvHint": "Le nom de la variable d’environnement où se trouve votre clé ; la clé n’est jamais écrite ici. Laissez vide pour un serveur sans clé.",
+      "apiKeyEnvHint": "Le nom sous lequel la clé est gardée ; celui du fournisseur convient. Laissez vide pour un serveur sans clé.",
       "test": "Tester la connexion",
       "testing": "Test en cours…",
       "failed": "Le test n’a pas pu être fait : {{reason}}",
@@ -507,7 +509,7 @@
       "noList": "Le serveur ne donne pas la liste de ses modèles : saisissez le nom du modèle.",
       "signedOut": "Aucun compte GitHub n’est connecté sur cette machine. Lancez cette commande dans un terminal, puis testez à nouveau :",
       "noModels": "Le compte GitHub {{account}} est connecté, mais Copilot ne lui propose aucun modèle : il faut un abonnement GitHub Copilot sur ce compte, ou que son organisation en autorise.",
-      "keyMissing": "La variable {{variable}} n’est pas définie là où tourne l’outil. Mettez-y votre clé, relancez l’outil, puis testez à nouveau.",
+      "keyMissing": "{{variable}} ne tient aucune clé ici : tapez-la ci-dessus, puis testez à nouveau.",
       "keyRefused": "Le fournisseur a refusé la clé (statut {{status}}). Vérifiez la clé que contient la variable.",
       "unreachable": "Rien ne répond à l’adresse {{url}}. Vérifiez l’adresse, ou que le serveur est bien lancé.",
       "model": "Modèle",
@@ -521,6 +523,16 @@
       "vision": "Lit les images",
       "visionHint": "les agents voient les captures des écrans",
       "visionTold": "la liste indique que ce modèle lit les images"
+    },
+    "secret": {
+      "model_key": "Clé",
+      "connection_string": "Chaîne de connexion",
+      "account_username": "Identifiant",
+      "account_password": "Mot de passe",
+      "kept": "Gardée sur l’ordinateur où tourne l’outil, hors du dépôt de tests et de la base, dans {{variable}} ; elle ne s’affiche plus ensuite.",
+      "saved": "Une valeur est enregistrée pour {{variable}} sur cet ordinateur ; tapez-en une autre pour la remplacer.",
+      "replace": "Enregistrée — tapez pour la remplacer",
+      "environment": "vient de la variable {{variable}} de l’environnement de l’outil, qui l’emporte sur une valeur tapée ici."
     },
     "application": {
       "types": {
@@ -560,7 +572,7 @@
       "type": "Ce qu’elle expose",
       "method": "Connexion des utilisateurs",
       "accounts": "Comptes de test",
-      "accountsHint": "Seuls les noms des variables d’environnement sont gardés : les identifiants restent sur la machine qui lance les sessions.",
+      "accountsHint": "La configuration ne garde que les noms des variables ; tapez les identifiants ci-dessous, ils restent sur l’ordinateur où tourne l’outil.",
       "accountName": "Nom du compte",
       "usernameEnv": "Variable de l’identifiant",
       "passwordEnv": "Variable du mot de passe",
@@ -590,7 +602,7 @@
       "openapiHint": "Soit son adresse, soit un fichier du dépôt de tests.",
       "contractPath": "Fichier du contrat",
       "connectionStringEnv": "Variable de la chaîne de connexion",
-      "connectionStringEnvHint": "Son nom seulement : la chaîne de connexion reste sur la machine qui mène les sessions.",
+      "connectionStringEnvHint": "Le nom sous lequel la chaîne de connexion est gardée ; tapez-la ci-dessous, elle reste sur l’ordinateur où tourne l’outil.",
       "documentPath": "Document ou dossier",
       "documentPathHint": "Dans le dépôt de tests : un fichier Markdown, ou un dossier qui en contient.",
       "storedNote": "Ses documents sont gardés par l’instance, et s’y déposent une fois la configuration enregistrée.",
@@ -643,6 +655,7 @@
       "takeFile": "Prendre oqas.json",
       "fileMissing": "oqas.json est introuvable dans le dépôt de tests : le prochain enregistrement l’écrira.",
       "saved": "Révision {{number}} enregistrée : oqas.json est réécrit, et la prochaine session la lit.",
+      "valued": "Les valeurs tapées sont enregistrées sur cet ordinateur.",
       "title": "Configuration",
       "reading": "Lecture de la configuration",
       "readingNote": "Elle apparaît dès que l’instance a répondu.",
@@ -658,7 +671,7 @@
       "agents": "Agents",
       "repository": "Dépôt de tests",
       "history": "Historique",
-      "secrets": "Aucun secret n’est gardé : ni dans oqas.json, ni dans la base. La configuration nomme les variables d’environnement qui les tiennent, sur la machine qui lance les sessions.",
+      "secrets": "Les valeurs tapées ici — clé, chaînes de connexion, mots de passe — restent sur l’ordinateur où tourne l’outil, hors du dépôt de tests et de la base. Une variable d’environnement l’emporte : c’est le chemin d’une CI.",
       "knowledge": "Connaissances",
       "knowledgeNote": "Ce que les agents lisent des applications. Chaque source dit où elle se lit — jamais un secret — et les applications auxquelles elle se rattache.",
       "noKnowledge": "Aucune source de connaissance"

@@ -82,7 +82,7 @@ function stateLine(check: ModelConnectionCheck): string {
     case "no-models":
       return `The GitHub account ${check.account} is signed in, but GitHub Copilot offers it no model: the account needs a Copilot subscription, or its organisation must allow one.`;
     case "key-missing":
-      return `The variable ${check.variable} is not set: put the key of the provider in it, then run oqas model status again.`;
+      return `${check.variable} holds no key: give it with oqas secrets set ${check.variable}, or set the variable, then run oqas model status again.`;
     case "key-refused":
       return `The server refused the key, with status ${check.status}: check the key the variable holds.`;
     case "unreachable":
