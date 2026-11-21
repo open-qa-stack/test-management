@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, it } from "vitest";
+import { KeptMemories } from "@open-qa-stack/testing";
 import { validateConfig, type AgentEvent, type AgentRuntime, type AgentSession, type SessionOptions } from "@open-qa-stack/domain";
 import { mapSources } from "../src/index.ts";
 
@@ -85,6 +86,7 @@ describe("solo command, criterion 19 — two cartography tasks at once keep each
     assert.ok(config.ok);
     const runtime = new InterleavedRuntime();
     const results = await mapSources({
+      memory: new KeptMemories(),
       config: config.config,
       environment: "local",
       repositoryRoot: root,

@@ -59,8 +59,9 @@ describe("applying the migrations", () => {
         "0008_campaigns",
         "0009_session_scopes",
         "0010_campaign_selections",
+        "0011_memories",
       ]);
-      assert.equal(await migrate(url), "Applied 10 migrations.");
+      assert.equal(await migrate(url), "Applied 11 migrations.");
       assert.deepEqual(await tables(database), [
         "campaign_tests",
         "campaigns",
@@ -70,6 +71,7 @@ describe("applying the migrations", () => {
         "knowledge_documents",
         "kysely_migration",
         "kysely_migration_lock",
+        "memories",
         "project",
         "session_events",
         "session_messages",

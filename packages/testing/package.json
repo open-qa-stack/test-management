@@ -13,6 +13,9 @@
     "./loopback-only": "./src/loopback-only.ts",
     "./test-repository": "./src/test-repository/index.ts"
   },
+  "dependencies": {
+    "@open-qa-stack/domain": "workspace:*"
+  },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"
   },

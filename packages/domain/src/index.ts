@@ -188,4 +188,17 @@ export {
   type UploadReading,
 } from "./knowledge-documents/uploaded-documents.ts";
 export type { KnowledgeDomain, KnowledgeDomainList } from "./domain-index/knowledge-domain.ts";
+export {
+  GENERAL_DOMAIN,
+  MEMORY_KINDS,
+  type FoundMemory,
+  type Memory,
+  type MemoryContent,
+  type MemoryFilter,
+  type MemoryKind,
+  type MemoryOrigin,
+  type MemoryQuery,
+} from "./memory/memory.ts";
+export { closeMemories, MAX_CLOSE_MEMORIES, rankMemories } from "./memory/memory-ranking.ts";
+export type { MemoryStorePort } from "./memory/memory-store-port.ts";
 export type { RepositoryPreparation, RepositoryState } from "./test-repository/repository-setup-state.ts";

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { scriptedServer, type ScriptedServer } from "@open-qa-stack/testing";
+import { KeptMemories, scriptedServer, type ScriptedServer } from "@open-qa-stack/testing";
 import { configText, FakeRunner, repository, WITNESS, type RanCommand, type RanOutcome, type Script } from "@open-qa-stack/testing/test-repository";
 import type { CommandRunner } from "@open-qa-stack/domain";
 import type { Session, SessionEvent } from "@open-qa-stack/domain/sessions";
@@ -71,6 +71,8 @@ export class Hosted {
   readonly configuration = new MemoryConfigurationStore();
   /** The store of the documents of the knowledge sources the instance keeps. */
   readonly documents = new MemoryDocumentStore();
+  /** The memories of the agents of the sessions. */
+  readonly memory = new KeptMemories();
   /** The store of the executions of tests the sessions ran. */
   readonly executions = new MemoryExecutionStore();
   readonly logger = new RecordingLogger();
@@ -94,6 +96,7 @@ export class Hosted {
       store: this.store,
       configuration: new Configuration(this.configuration, this.root),
       documents: this.documents,
+      memory: this.memory,
       executions: this.executions,
       repository: this.root,
       env: ENV,

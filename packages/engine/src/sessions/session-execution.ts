@@ -87,6 +87,7 @@ export class SessionExecution {
         repositoryRoot: repository,
         configuration: this.#host.configuration,
         documents: this.#host.documents,
+        memory: this.#host.memory,
         ...(brief === undefined ? {} : { brief }),
         ...(branch === undefined ? {} : { branch }),
         ...(environment === undefined ? {} : { environment }),
