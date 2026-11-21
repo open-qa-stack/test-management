@@ -4,7 +4,7 @@ import { operationIds, type OperationId } from "@open-qa-stack/domain";
 import { parseArguments } from "../src/solo/arguments.ts";
 import { SLASH_COMMANDS, type SlashCommand } from "../src/solo/conversation/slash-commands.ts";
 
-/** What a client does not offer yet, and why: each is a gap to close, which the backlog tracks. */
+/** What a client does not offer yet, and why: each is a gap still to close. */
 interface Missing {
   readonly missing: string;
 }
@@ -124,7 +124,7 @@ describe("the operations of the engine, as the command offers them", () => {
   });
 
   // A gap closed lowers this count, and a gap opened is refused: it only goes down.
-  it("are missing no more than the backlog says", () => {
+  it("are missing no more than they were", () => {
     assert.equal(missingIn(COMMANDS).length, 25);
   });
 });
@@ -140,7 +140,7 @@ describe("the operations of the engine, as the conversation offers them", () => 
   });
 
   // A gap closed lowers this count, and a gap opened is refused: it only goes down.
-  it("are missing no more than the backlog says", () => {
+  it("are missing no more than they were", () => {
     assert.equal(missingIn(CONVERSATION).length, 32);
   });
 });
