@@ -91,6 +91,13 @@ Without a body, or with `{}`, every test of the campaign runs. `only` limits the
 campaign is `failed`, or `not_run`; a launch that would run none is refused with `campaign_refused`. While it runs,
 [`GET /api/launches`](executions.md#launching-tests) tells how far it went, test by test.
 
+## Whether a campaign passes
+
+A campaign has no criterion of its own: it passes when every test it is made of passed in its latest execution, at once
+or on a retry — a launch runs again once a test that failed, and one that passes then is `flaky` — and does not pass as
+soon as one failed, was skipped, or was not run. The verdict is not kept apart: it is read from what came of its tests,
+by `campaignVerdict` of `@open-qa-stack/domain/sessions`, and a closed campaign, which is never launched again, keeps it.
+
 ## The list of the campaigns
 
 Each item of `GET /api/campaigns` is a campaign with `counts`: how many of its tests are `passed`, `failed`, `flaky`,

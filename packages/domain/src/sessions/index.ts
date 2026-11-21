@@ -72,9 +72,10 @@ export type {
   CampaignResult,
   CampaignStatus,
   CampaignTest,
+  CampaignVerdict,
 } from "../campaigns/campaign.ts";
 export { testFacets, type TestFacets } from "../repository-tests/test-facets.ts";
-export { campaignCounts } from "../campaigns/campaign-rules.ts";
+export { campaignCounts, campaignVerdict } from "../campaigns/campaign-rules.ts";
 export type { TestReading } from "../repository-tests/test-reading.ts";
 export type { QaCapture, QaDetails, QaStep, QaView } from "../report/qa-view.ts";
 export { isStoredDocuments } from "../knowledge-documents/stored-documents-path.ts";

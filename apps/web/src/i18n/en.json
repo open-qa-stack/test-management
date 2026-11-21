@@ -380,7 +380,7 @@
     "unknown_execution": "The instance no longer keeps this execution.",
     "launch_refused": "The tests cannot be launched now: a session or another launch is running, or the environment asked for is not declared.",
     "unknown_campaign": "The instance does not keep this campaign.",
-    "campaign_refused": "The campaign refuses this change: its state does not allow it, or no test of the repository bears its tags.",
+    "campaign_refused": "The campaign refuses this change: its state does not allow it, a test it names is not in the repository, or no test is chosen yet.",
     "unexplained": "The instance ran into an error.",
     "unreachable": "The instance does not answer.",
     "unreadable": "The answer of the instance cannot be read."
@@ -937,7 +937,11 @@
     "launchFailed_other": "Launch the {{count}} failures again",
     "launchNotRun_one": "Launch the test not run",
     "launchNotRun_other": "Launch the {{count}} not run",
-    "launching": "The tests of the campaign run: the verdicts come at the end of the launch."
+    "launching": "The tests of the campaign run: the verdicts come at the end of the launch.",
+    "verdicts": {
+      "passes": "passes",
+      "fails": "does not pass"
+    }
   },
   "sessionScope": {
     "label": "Scope of the session",

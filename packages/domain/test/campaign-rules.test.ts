@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { campaignCounts, campaignResults, campaignTransition, CampaignRefusedError, chosenTests, type CampaignStatus, type Execution } from "../src/index.ts";
+import {
+  campaignCounts,
+  campaignResults,
+  campaignTransition,
+  campaignVerdict,
+  CampaignRefusedError,
+  chosenTests,
+  type CampaignStatus,
+  type Execution,
+} from "../src/index.ts";
 
 const STATES: readonly CampaignStatus[] = ["planned", "ready", "in_progress", "closed"];
 
@@ -82,5 +91,22 @@ describe("the counts of a campaign", () => {
       ]),
       { passed: 2, failed: 0, flaky: 1, skipped: 0, not_run: 1 },
     );
+  });
+});
+
+describe("the verdict of a campaign", () => {
+  const counts = { passed: 0, failed: 0, flaky: 0, skipped: 0, not_run: 0 };
+
+  it("passes when every test passed, at once or on a retry", () => {
+    assert.equal(campaignVerdict({ ...counts, passed: 3 }), "passes");
+    assert.equal(campaignVerdict({ ...counts, passed: 2, flaky: 1 }), "passes");
+  });
+
+  it("does not pass as soon as a test failed, was skipped or was not run", () => {
+    for (const verdict of ["failed", "skipped", "not_run"] as const) assert.equal(campaignVerdict({ ...counts, passed: 2, [verdict]: 1 }), "fails", verdict);
+  });
+
+  it("is none for a campaign of no test", () => {
+    assert.equal(campaignVerdict(counts), undefined);
   });
 });

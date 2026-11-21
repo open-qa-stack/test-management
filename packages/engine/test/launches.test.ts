@@ -36,7 +36,8 @@ function lastLaunch(sessions: Sessions): Promise<EndedLaunch> {
 
 describe("tests launched as they are, with no agent", () => {
   it("run the files named in the environment the configuration declares, and keep their execution as a manual one", async () => {
-    hosted = await Hosted.create([]);
+    const seen: (readonly string[])[] = [];
+    hosted = await Hosted.create([], { before: (step) => void seen.push(step.command) });
     withTests(hosted.root);
     assert.deepEqual(await hosted.sessions.launches(), {});
     const launch = await hosted.sessions.launch({ paths: [SEARCH], environment: "local" });
@@ -54,6 +55,10 @@ describe("tests launched as they are, with no agent", () => {
       [["the test", "passed"]],
     );
     assert.deepEqual(hosted.logger.lines, [], "a launch that kept its execution says nothing");
+    assert.ok(
+      seen.some((command) => command.includes("--retries=1")),
+      "a test that fails is run once more",
+    );
   });
 
   it("tell how far they went while they run: how many tests, then each one the runner finished", async () => {

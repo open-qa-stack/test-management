@@ -78,6 +78,11 @@ export interface PinnedRunOptions {
    * reads it; none is written when it is left out.
    */
   readonly progressFile?: string;
+  /**
+   * How many times the runner runs again a test that failed, whatever the configuration of Playwright of the repository
+   * says: a test that passes on a retry is flaky. That of the repository when left out.
+   */
+  readonly retries?: number;
 }
 
 /** Whether an address answered from where the tests run. */
@@ -243,7 +248,8 @@ export class PinnedRun {
     const prepared = await this.prepare();
     const version = prepared.version === undefined ? {} : { playwright: prepared.version };
     if (!prepared.ok) return { ...base, ...version, addresses: [], tests: tests.map((id) => ({ id, verdict: "not_run" as Verdict, reason: prepared.reason })) };
-    const { reported: _reported, ...ran } = await this.runFiles(tests, runDir);
+    const retries = this.options.retries === undefined ? [] : [`--retries=${this.options.retries}`];
+    const { reported: _reported, ...ran } = await this.runFiles(tests, runDir, retries);
     return { ...base, ...version, ...ran };
   }
 

@@ -313,3 +313,10 @@
 .campaign-composer-empty {
   padding: var(--space-4) var(--inset);
 }
+
+.campaign-row-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}

@@ -7,6 +7,7 @@ import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
 import { CampaignBar, ranOf } from "./campaign-progress.tsx";
 import { CampaignStatusBadge } from "./campaign-status.tsx";
+import { CampaignVerdictBadge } from "./campaign-verdict.tsx";
 import { campaignHref } from "./campaigns-paths.ts";
 
 /** Where the planning of a campaign stands: idle, asked of the instance, or refused, with why. */
@@ -76,7 +77,10 @@ function CampaignRow({ campaign }: { readonly campaign: CampaignOverview }): Rea
         </div>
       </div>
       <div className="campaign-row-side">
-        <CampaignStatusBadge status={campaign.status} />
+        <span className="campaign-row-badges">
+          <CampaignStatusBadge status={campaign.status} />
+          {campaign.status !== "planned" && <CampaignVerdictBadge counts={campaign.counts} />}
+        </span>
         <span className="small muted">{dateText(campaign.createdAt)}</span>
       </div>
     </a>
