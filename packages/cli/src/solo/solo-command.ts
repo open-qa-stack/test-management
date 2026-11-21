@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { configurationText, ExitCode, isStoredDocuments, type ConfigurationView, type ExitCodeValue } from "@open-qa-stack/domain";
 import { playwrightVersion } from "@open-qa-stack/tools";
 import { hasEnded, type Session } from "@open-qa-stack/domain/sessions";
-import type { Configuration, KnowledgeDocuments, Sessions } from "@open-qa-stack/engine";
+import type { Configuration, KnowledgeDocuments, Secrets, Sessions } from "@open-qa-stack/engine";
 import { parseArguments, USAGE, type Arguments, type Command } from "./arguments.ts";
 import { fileLine, revisionLine } from "./configuration-lines.ts";
 import { eventLine, ofTheAgents } from "./event-line.ts";
@@ -11,13 +11,15 @@ import { followSession } from "./follow-session.ts";
 import { Interruptions } from "./interruptions.ts";
 import { documentLine, documentsRefusal, receivedFiles, sourceLine } from "./knowledge-lines.ts";
 import { keptTuning, modelOfArguments, modelReport } from "./model-lines.ts";
-import { modelConnectionOf, openOperations } from "./operations.ts";
+import { modelConnectionOf, openOperations, type Operations } from "./operations.ts";
 import { RepositoryInit } from "./repository-init.ts";
+import { MISSING_ADVICE, secretLine } from "./secret-lines.ts";
 import { servedConsole } from "./served-console.ts";
 import { exitCodeOf } from "./session-exit.ts";
 import { listedLine, summaryLines } from "./session-lines.ts";
 import { referredSession } from "./session-reference.ts";
 import { ThreadOutput } from "./thread-output.ts";
+import { typedValue } from "./typed-value.ts";
 import { UsageError } from "./usage-error.ts";
 import type { CommandIo } from "./command-io.ts";
 
@@ -87,7 +89,7 @@ async function onSessions(command: Exclude<Command, { name: "help" }>, options: 
     const { converse } = await import("./conversation/converse.ts");
     return converse({ repository, terminal: io.terminal, io, ...(command.environment === undefined ? {} : { environment: command.environment }) });
   }
-  const { sessions, configuration, documents, close } = await openOperations(io, repository, false);
+  const { sessions, configuration, documents, secrets, close } = await openOperations(io, repository, false);
   try {
     switch (command.name) {
       case "init":
@@ -103,7 +105,9 @@ async function onSessions(command: Exclude<Command, { name: "help" }>, options: 
       case "knowledge":
         return await known({ configuration, documents, command, options, io });
       case "model":
-        return command.action === "setup" ? await setUp(configuration, io) : await modelled({ configuration, command, options, io });
+        return command.action === "setup" ? await setUp({ configuration, secrets }, io) : await modelled({ configuration, secrets, command, options, io });
+      case "secrets":
+        return await valued({ secrets, command, options, io });
       case "sessions":
         return await listed({ sessions, command, options, io });
       case "show":
@@ -147,11 +151,13 @@ async function configured({
  */
 async function modelled({
   configuration,
+  secrets,
   command,
   options,
   io,
 }: Omit<Asked<"model">, "sessions" | "command"> & {
   configuration: Configuration;
+  secrets: Secrets;
   command: Exclude<Extract<Command, { name: "model" }>, { action: "setup" }>;
 }): Promise<ExitCodeValue> {
   if (command.action === "set") {
@@ -160,17 +166,33 @@ async function modelled({
     await configuration.save({ ...inForce.document, model }, inForce.number, false, "command");
   }
   const revision = (await configuration.synchronise()).document;
-  const report = modelReport(revision.model, await modelConnectionOf(io).check(revision.model));
+  const report = modelReport(revision.model, await modelConnectionOf(io, secrets).check(revision.model));
   print({ options, io }, report.text, report.value);
   return report.code;
 }
 
+/**
+ * `oqas secrets`: lists the variables the configuration in force names, and where the value of each comes from; with
+ * `set`, saves the value of one first, typed in the terminal or read from the input.
+ */
+async function valued({ secrets, command, options, io }: Omit<Asked<"secrets">, "sessions"> & { secrets: Secrets }): Promise<ExitCodeValue> {
+  if (command.action === "set") {
+    await secrets.save(command.variable, await typedValue(io, `Value of ${command.variable} (not shown): `));
+    io.stderr.write(`${command.variable} is saved on this machine, out of the test repository.\n`);
+  }
+  const listed = await secrets.list();
+  const lines = listed.length === 0 ? ["The configuration in force names no variable."] : listed.map(secretLine);
+  if (listed.some(({ source }) => source === "missing")) lines.push(MISSING_ADVICE);
+  print({ options, io }, lines.join("\n"), { secrets: listed });
+  return ExitCode.passed;
+}
+
 /** `oqas model` alone: sets the connection to the model step by step, in a terminal. */
-async function setUp(configuration: Configuration, io: CommandIo): Promise<ExitCodeValue> {
+async function setUp(operations: Pick<Operations, "configuration" | "secrets">, io: CommandIo): Promise<ExitCodeValue> {
   if (io.terminal === undefined) throw new UsageError(SETUP_TERMINAL);
   // The setting and what draws it are loaded here and nowhere else, as the conversation is.
   const { setupModel } = await import("./conversation/model-setup/setup-command.ts");
-  return setupModel(configuration, io.terminal, io);
+  return setupModel(operations, io.terminal, io);
 }
 
 /**

@@ -1,5 +1,5 @@
 import { createContext, type ChangeEventHandler, type MouseEventHandler } from "react";
-import type { ConfigError } from "@open-qa-stack/domain/sessions";
+import type { ConfigError, SecretState } from "@open-qa-stack/domain/sessions";
 import type { ConfigurationAction } from "./configuration-state.ts";
 
 /** What the fields of the configuration share: what reads what the person did, and the errors the instance found. */
@@ -10,19 +10,23 @@ export interface ConfigurationEdit {
   readonly click: MouseEventHandler<HTMLButtonElement>;
   /** The errors of the draft, each where it is. */
   readonly errors: readonly ConfigError[];
+  /** The variables the configuration in force names, and where the value of each comes from; none before the instance told them. */
+  readonly secrets?: readonly SecretState[];
+  /** The values the person typed, by the name of their variable, which are saved with the configuration. */
+  readonly values: Readonly<Record<string, string>>;
 }
 
 /** What a field outside an edit does with what the person does to it: nothing. */
 export function ignore(): void {}
 
 /** The edit of the fields outside a screen that holds a draft: nothing is applied, and no error is found. */
-export const NO_EDIT: ConfigurationEdit = { change: ignore, click: ignore, errors: [] };
+export const NO_EDIT: ConfigurationEdit = { change: ignore, click: ignore, errors: [], values: {} };
 
 /** The edit the fields of the screen of the configuration are in. */
 export const EditContext = createContext<ConfigurationEdit>(NO_EDIT);
 
-/** How a field reads what the person typed: a text, a number, a choice, a member of a set, or a level of autonomy. */
-export type FieldKind = "text" | "number" | "choice" | "member" | "level" | "connection";
+/** How a field reads what the person typed: a text, a number, a choice, a member of a set, a level of autonomy, or the value of a variable. */
+export type FieldKind = "text" | "number" | "choice" | "member" | "level" | "connection" | "secret";
 
 /** What a field holds when the person changed it. */
 export interface ChangedField {
@@ -36,6 +40,8 @@ export interface ChangedField {
   readonly member?: string;
   /** For a member of a set, the members the set holds when the draft leaves it out, separated by commas. */
   readonly defaults?: string;
+  /** For the value of a variable, the name of the variable. */
+  readonly variable?: string;
 }
 
 /**
@@ -59,6 +65,8 @@ export function actionOf(field: ChangedField): ConfigurationAction {
       return { type: "level", level: value === "bounded" ? "bounded" : "autonomous" };
     case "connection":
       return { type: "connection", choice: value };
+    case "secret":
+      return { type: "value", name: field.variable!, value };
     case "number":
       return { type: "edit", pointer, value: value === "" ? undefined : Number(value) };
     default:

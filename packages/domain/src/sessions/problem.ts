@@ -33,6 +33,8 @@ export type ProblemCode =
   | "launch_refused"
   | "unknown_campaign"
   | "campaign_refused"
+  | "unknown_secret"
+  | "secret_refused"
   | "error";
 
 /**

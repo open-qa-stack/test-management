@@ -5,6 +5,8 @@ import {
   configurationAfter,
   INITIAL_CONFIGURATION,
   isChanged,
+  isPending,
+  typedKey,
   type ConfigurationAction,
   type ConfigurationState,
 } from "../../src/configuration/configuration-state.ts";
@@ -21,11 +23,11 @@ const READ = after([{ type: "read", view: VIEW, revisions: REVISIONS }]);
 
 describe("the state of the screen of the configuration", () => {
   it("starts with nothing told, and takes the revision in force as its draft once the instance tells it", () => {
-    assert.deepEqual(INITIAL_CONFIGURATION, { errors: [], saving: false, basedOn: 0 });
-    assert.deepEqual(READ, { errors: [], saving: false, basedOn: 2, view: VIEW, revisions: REVISIONS, draft: DOCUMENT });
+    assert.deepEqual(INITIAL_CONFIGURATION, { errors: [], saving: false, basedOn: 0, values: {} });
+    assert.deepEqual(READ, { errors: [], saving: false, basedOn: 2, view: VIEW, revisions: REVISIONS, draft: DOCUMENT, values: {} });
     assert.equal(isChanged(READ), false);
     const none: ConfigurationView = { file: "changed" };
-    assert.deepEqual(after([{ type: "read", view: none, revisions: [] }]), { errors: [], saving: false, basedOn: 0, view: none, revisions: [] });
+    assert.deepEqual(after([{ type: "read", view: none, revisions: [] }]), { errors: [], saving: false, basedOn: 0, view: none, revisions: [], values: {} });
   });
 
   it("says when the instance could not tell it, until it tells it again", () => {
@@ -131,5 +133,45 @@ describe("the state of the screen of the configuration", () => {
     assert.deepEqual(failed.connection, { model, failure: "Down." });
     const other = { ...model, model: "other" };
     assert.equal(after([{ type: "tested", model: other, check: { state: "connected" } }], testing), testing);
+  });
+
+  it("keeps the values typed apart from the draft, saves them with it, and drops them with it", () => {
+    const secret = { name: "MODEL_KEY", kind: "model_key", paths: ["/model/apiKeyEnv"], source: "missing" } as const;
+    const told = after([{ type: "secrets", secrets: [secret] }], READ);
+    assert.deepEqual(told.secrets, [secret]);
+    const typed = after(
+      [
+        { type: "value", name: "MODEL_KEY", value: "k" },
+        { type: "value", name: "DB_URL", value: "postgres://" },
+      ],
+      told,
+    );
+    assert.deepEqual(typed.values, { MODEL_KEY: "k", DB_URL: "postgres://" });
+    assert.equal(isChanged(typed), false);
+    assert.equal(isPending(typed), true);
+    assert.equal(isPending(READ), false);
+    assert.deepEqual(after([{ type: "value", name: "DB_URL", value: "" }], typed).values, { MODEL_KEY: "k" });
+    const valued = after([{ type: "saving" }, { type: "valued", secrets: [{ ...secret, source: "saved" }] }], typed);
+    assert.deepEqual(
+      { values: valued.values, saving: valued.saving, valued: valued.valued, secrets: valued.secrets },
+      {
+        values: {},
+        saving: false,
+        valued: true,
+        secrets: [{ ...secret, source: "saved" }],
+      },
+    );
+    assert.equal(after([{ type: "saving" }], valued).valued, undefined);
+    assert.equal(after([{ type: "value", name: "MODEL_KEY", value: "other" }], valued).valued, undefined);
+    assert.deepEqual(after([{ type: "discard" }], typed).values, {});
+  });
+
+  it("finds the key typed for the variable of the model, and none for a connection without one", () => {
+    const provider = { mode: "provider-key", provider: "openai", baseUrl: "https://api.openai.com/v1", model: "m", apiKeyEnv: "MODEL_KEY" } as const;
+    assert.equal(typedKey(provider, { MODEL_KEY: "k" }), "k");
+    assert.equal(typedKey(provider, {}), undefined);
+    const { apiKeyEnv: _, ...keyless } = provider;
+    assert.equal(typedKey(keyless, { MODEL_KEY: "k" }), undefined);
+    assert.equal(typedKey({ mode: "github", model: "m" }, { MODEL_KEY: "k" }), undefined);
   });
 });

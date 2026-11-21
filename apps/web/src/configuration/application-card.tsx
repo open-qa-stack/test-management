@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { ConfiguredApplication, Environment } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
 import { Card } from "../ui/card.tsx";
-import { AddButton, choices, ChoiceField, InputField, ItemHead, nameOf, PlaceErrors, RemoveButton } from "./configuration-fields.tsx";
+import { AddButton, choices, ChoiceField, InputField, ItemHead, nameOf, PlaceErrors, RemoveButton, SecretField } from "./configuration-fields.tsx";
 
 /** An environment of an application: its addresses, its named APIs and what its exploration may do. */
 function EnvironmentFields({
@@ -126,12 +126,14 @@ export function ApplicationCard({ application, rank }: { readonly application: C
                   value={account.usernameEnv}
                   code
                 />
+                <SecretField variable={account.usernameEnv} kind="account_username" />
                 <InputField
                   pointer={`${at}/authentication/accounts/${index}/passwordEnv`}
                   label={t("configuration.application.passwordEnv")}
                   value={account.passwordEnv}
                   code
                 />
+                <SecretField variable={account.passwordEnv} kind="account_password" />
               </div>
             </div>
           ))}

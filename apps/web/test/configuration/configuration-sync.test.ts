@@ -14,6 +14,8 @@ const json =
   () =>
     new Response(JSON.stringify(body), { status });
 
+const SECRET = { name: "MODEL_KEY", kind: "model_key", paths: ["/model/apiKeyEnv"], source: "missing" } as const;
+
 const ERROR = { kind: "structure", path: "/model/model", rule: "empty-value", message: "Expected a non-empty value." };
 
 /** An instance a test plays, and the screen it tells. */
@@ -49,12 +51,16 @@ describe("what keeps the screen of the configuration in step with its instance",
     vi.useRealTimers();
   });
 
-  it("reads the configuration and its revisions again and again, and says when the instance cannot tell them", async () => {
+  it("reads the configuration, its revisions and its variables again and again, and says when the instance cannot tell them", async () => {
     api.answers.set("GET /api/configuration", json(VIEW));
     api.answers.set("GET /api/configuration/revisions", json({ items: REVISIONS }));
+    api.answers.set("GET /api/secrets", json({ secrets: [SECRET] }));
     const stop = api.sync.read();
     await settled();
-    assert.deepEqual(api.told, [{ type: "read", view: VIEW, revisions: REVISIONS }]);
+    assert.deepEqual(api.told, [
+      { type: "read", view: VIEW, revisions: REVISIONS },
+      { type: "secrets", secrets: [SECRET] },
+    ]);
     api.answers.set("GET /api/configuration", json({ code: "unavailable", detail: "Down." }, 503));
     await vi.advanceTimersByTimeAsync(READ_PAUSE_MS);
     assert.deepEqual(api.told.at(-1), { type: "unread", message: "Aucune source de sessions n’est configurée sur cette instance." });
@@ -83,6 +89,9 @@ describe("what keeps the screen of the configuration in step with its instance",
       { type: "tested", model, check: { state: "key-missing", variable: "MODEL_KEY" } },
     ]);
     assert.deepEqual(api.bodies, [model]);
+    api.sync.testModel(model, "typed-key");
+    await settled();
+    assert.deepEqual(api.bodies.at(-1), { ...model, key: "typed-key" });
     api.answers.set("POST /api/configuration/model-connection", json({ code: "invalid_request", detail: "Bad." }, 400));
     api.sync.testModel(model);
     await settled();
@@ -93,12 +102,12 @@ describe("what keeps the screen of the configuration in step with its instance",
   it("saves a change made from a revision, says it saved, and lists the revisions again, or lets that list go when it fails", async () => {
     api.answers.set("POST /api/configuration/revisions", json(VIEW, 201));
     api.answers.set("GET /api/configuration/revisions", json({ items: REVISIONS }));
-    api.sync.save(DOCUMENT, 1, false);
+    api.sync.save(DOCUMENT, 1, false, {});
     await settled();
     assert.deepEqual(api.told, [{ type: "saving" }, { type: "saved", view: VIEW }, { type: "listed", revisions: REVISIONS }]);
     assert.deepEqual(api.bodies, [{ basedOn: 1, document: DOCUMENT }]);
     api.answers.set("GET /api/configuration/revisions", json({}, 500));
-    api.sync.save(DOCUMENT, 2, true);
+    api.sync.save(DOCUMENT, 2, true, {});
     await settled();
     assert.deepEqual(api.bodies.at(-1), { basedOn: 2, document: DOCUMENT, replaceFile: true });
     assert.deepEqual(api.told.slice(3), [{ type: "saving" }, { type: "saved", view: VIEW }]);
@@ -106,7 +115,7 @@ describe("what keeps the screen of the configuration in step with its instance",
 
   it("tells why the instance refused a change, with the errors it found, and takes the file when asked", async () => {
     api.answers.set("POST /api/configuration/revisions", json({ code: "invalid_configuration", detail: "Not valid.", errors: [ERROR] }, 422));
-    api.sync.save(DOCUMENT, 2, false);
+    api.sync.save(DOCUMENT, 2, false, {});
     await settled();
     assert.deepEqual(api.told.at(-1), {
       type: "refused",
@@ -121,6 +130,49 @@ describe("what keeps the screen of the configuration in step with its instance",
     assert.deepEqual(api.told.slice(-3), [{ type: "saving" }, { type: "saved", view: VIEW }, { type: "listed", revisions: REVISIONS }]);
     assert.ok(api.calls.includes("POST /api/configuration/synchronisation"));
   });
+
+  it("saves the values typed once the change is saved, and alone when the configuration did not change, then tells where each variable stands", async () => {
+    api.answers.set("POST /api/configuration/revisions", json(VIEW, 201));
+    api.answers.set("GET /api/configuration/revisions", json({ items: REVISIONS }));
+    api.answers.set("PUT /api/secrets/MODEL_KEY", () => new Response(null, { status: 204 }));
+    api.answers.set("PUT /api/secrets/DB_URL", () => new Response(null, { status: 204 }));
+    api.answers.set("GET /api/secrets", json({ secrets: [{ ...SECRET, source: "saved" }] }));
+    api.sync.save(DOCUMENT, 1, false, { MODEL_KEY: "key", DB_URL: "postgres://" });
+    await settled();
+    assert.deepEqual(
+      api.calls.filter((call) => call.includes("secrets")),
+      ["GET /api/secrets", "PUT /api/secrets/MODEL_KEY", "PUT /api/secrets/DB_URL", "GET /api/secrets"],
+    );
+    assert.deepEqual(api.bodies.slice(1), [{ value: "key" }, { value: "postgres://" }]);
+    assert.deepEqual(api.told.at(-1), { type: "valued", secrets: [{ ...SECRET, source: "saved" }] });
+    api.calls.length = 0;
+    api.sync.save(undefined, 1, false, { MODEL_KEY: "other" });
+    await settled();
+    assert.deepEqual(api.calls, ["GET /api/secrets", "PUT /api/secrets/MODEL_KEY", "GET /api/secrets"]);
+    assert.deepEqual(api.told.slice(-2), [{ type: "saving" }, { type: "valued", secrets: [{ ...SECRET, source: "saved" }] }]);
+  });
+
+  it("leaves out the values of the variables the environment of the instance sets, which win", async () => {
+    api.answers.set("GET /api/secrets", json({ secrets: [{ ...SECRET, source: "environment" }] }));
+    api.sync.save(undefined, 1, false, { MODEL_KEY: "typed" });
+    await settled();
+    assert.deepEqual(api.calls, ["GET /api/secrets", "GET /api/secrets"]);
+    assert.equal(api.told.at(-1)!.type, "valued");
+  });
+
+  it("tells why the instance refused a value typed", async () => {
+    api.answers.set("GET /api/secrets", json({ secrets: [SECRET] }));
+    api.answers.set("PUT /api/secrets/MODEL_KEY", json({ code: "secret_refused", detail: "Set in the environment." }, 409));
+    api.sync.save(undefined, 1, false, { MODEL_KEY: "key" });
+    await settled();
+    assert.deepEqual(api.told.at(-1), {
+      type: "refused",
+      code: "secret_refused",
+      text: "Cette valeur ne peut pas être enregistrée : elle est vide, ou l’environnement de l’outil définit déjà la variable, et l’emporte.",
+      errors: [],
+    });
+  });
+
   it("reads where the test repository stands, and tells nothing when the instance cannot say", async () => {
     api.answers.set("GET /api/repository", json({ git: "none", playwright: false }));
     api.sync.readRepository();
@@ -137,7 +189,7 @@ describe("what keeps the screen of the configuration in step with its instance",
     api.answers.set("POST /api/configuration/revisions", json(VIEW, 201));
     api.answers.set("GET /api/configuration/revisions", json({ items: REVISIONS }));
     api.answers.set("POST /api/repository/preparation", json(preparation));
-    api.sync.setUp(DOCUMENT);
+    api.sync.setUp(DOCUMENT, {});
     await settled();
     assert.deepEqual(api.bodies, [{ basedOn: 0, document: DOCUMENT }]);
     assert.deepEqual(api.told.slice(0, 2), [{ type: "saving" }, { type: "saved", view: VIEW }]);
@@ -147,11 +199,30 @@ describe("what keeps the screen of the configuration in step with its instance",
     );
     api.answers.set("POST /api/repository/preparation", json({ code: "unavailable", detail: "Down." }, 503));
     const before = api.told.length;
-    api.sync.setUp(DOCUMENT);
+    api.sync.setUp(DOCUMENT, {});
     await settled();
     assert.deepEqual(
       api.told.slice(before).find((action) => action.type === "refused"),
       { type: "refused", code: "unavailable", text: "Aucune source de sessions n’est configurée sur cette instance.", errors: [] },
     );
+  });
+
+  it("saves the values typed with the first configuration before it sets the test repository up, which a value refused stops", async () => {
+    api.answers.set("POST /api/configuration/revisions", json(VIEW, 201));
+    api.answers.set("GET /api/configuration/revisions", json({ items: REVISIONS }));
+    api.answers.set("GET /api/secrets", json({ secrets: [] }));
+    api.answers.set("PUT /api/secrets/MODEL_KEY", json({ code: "unknown_secret", detail: "Not named." }, 404));
+    api.sync.setUp(DOCUMENT, { MODEL_KEY: "key" });
+    await settled();
+    assert.equal(api.told.at(-1)!.type, "refused");
+    assert.ok(!api.calls.includes("POST /api/repository/preparation"));
+    api.answers.set("PUT /api/secrets/MODEL_KEY", () => new Response(null, { status: 204 }));
+    api.answers.set("GET /api/secrets", json({ secrets: [{ ...SECRET, source: "saved" }] }));
+    api.answers.set("POST /api/repository/preparation", json({ created: [], kept: [], committed: false }));
+    api.sync.setUp(DOCUMENT, { MODEL_KEY: "key" });
+    await settled();
+    const calls = api.calls.slice(api.calls.lastIndexOf("POST /api/configuration/revisions"));
+    assert.ok(calls.indexOf("PUT /api/secrets/MODEL_KEY") < calls.indexOf("POST /api/repository/preparation"));
+    assert.equal(api.told.at(-1)!.type, "prepared");
   });
 });

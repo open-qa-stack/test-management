@@ -18,10 +18,10 @@ export interface SetupEnd {
 export interface ModelSetupProps {
   /** The connection in force. */
   readonly inForce: Model;
-  /** Tests a connection. */
-  readonly check: (model: Model) => Promise<ModelConnectionCheck>;
-  /** Records a connection. */
-  readonly save: (model: Model) => Promise<void>;
+  /** Tests a connection, with the key the person typed when they typed one. */
+  readonly check: (model: Model, key?: string) => Promise<ModelConnectionCheck>;
+  /** Records a connection, and saves the key the person typed for its variable when they typed one. */
+  readonly save: (model: Model, key?: string) => Promise<void>;
   /** Says why an operation failed, in the words of the person. */
   readonly reasonOf: (error: unknown) => string;
   /** Called once, when the setting ends. */
@@ -31,8 +31,9 @@ export interface ModelSetupProps {
 
 /**
  * Sets the connection to the model in a terminal, as the card of the console does: the person chooses how to
- * reach it in a list, types the address and the variable of the key when the connection needs them, the
- * connection is tested, and they choose the model among those it offers. Escape leaves it, and nothing is recorded.
+ * reach it in a list, types the address and the variable of the key when the connection needs them, and the key
+ * itself, unseen, when that variable holds none; the connection is tested, and they choose the model among those it
+ * offers. Escape leaves it, and nothing is recorded.
  *
  * @param props - The connection in force, what tests and records one, and what to call at the end.
  * @returns The setting, step by step.
@@ -43,12 +44,12 @@ export function ModelSetup({ inForce, check, save, reasonOf, onEnd, theme }: Mod
 
   useEffect(() => {
     if (step === "testing")
-      check(draft).then(
+      check(draft, state.typedKey).then(
         (found) => dispatch({ type: "tested", check: found }),
         (error: unknown) => onEnd({ error: reasonOf(error) }),
       );
     if (step === "saving")
-      save(draft).then(
+      save(draft, state.typedKey).then(
         () => dispatch({ type: "saved" }),
         (error: unknown) => onEnd({ error: reasonOf(error) }),
       );
@@ -61,7 +62,7 @@ export function ModelSetup({ inForce, check, save, reasonOf, onEnd, theme }: Mod
     else if (key.return) dispatch({ type: "chosen" });
   });
 
-  const field = (label: string, hint: string): ReactNode =>
+  const field = (label: string, hint: string, mask?: string): ReactNode =>
     h(
       Box,
       { flexDirection: "column" },
@@ -71,7 +72,12 @@ export function ModelSetup({ inForce, check, save, reasonOf, onEnd, theme }: Mod
         Box,
         null,
         h(Box, { width: GUTTER, flexShrink: 0 }, h(Text, { ...theme.ink("accent"), bold: true }, theme.glyphs.prompt)),
-        h(TextInput, { value: state.text, onChange: (text) => dispatch({ type: "typed", text }), onSubmit: () => dispatch({ type: "entered" }) }),
+        h(TextInput, {
+          value: state.text,
+          onChange: (text) => dispatch({ type: "typed", text }),
+          onSubmit: () => dispatch({ type: "entered" }),
+          ...(mask === undefined ? {} : { mask }),
+        }),
       ),
       state.refusal === undefined ? null : h(Text, theme.ink("warn"), t(`model.refused.${state.refusal}`)),
     );
@@ -96,7 +102,7 @@ export function ModelSetup({ inForce, check, save, reasonOf, onEnd, theme }: Mod
 
 /** What draws a step: a field, a list, or a wait. */
 interface Drawing {
-  readonly field: (label: string, hint: string) => ReactNode;
+  readonly field: (label: string, hint: string, mask?: string) => ReactNode;
   readonly list: (lines: readonly string[]) => ReactNode[];
   readonly waiting: (text: string) => ReactNode;
   readonly theme: Theme;
@@ -111,6 +117,10 @@ function stepOf(state: SetupState, { field, list, waiting, theme }: Drawing): Re
       return [field(t("model.address"), t("model.addressHint"))];
     case "key":
       return [field(t("model.key"), t("model.keyHint"))];
+    case "secret":
+      return [
+        field(t("model.secret"), t("model.secretHint", { variable: (state.check as Extract<ModelConnectionCheck, { state: "key-missing" }>).variable }), "•"),
+      ];
     case "testing":
       return [waiting(t("model.testing"))];
     case "model":

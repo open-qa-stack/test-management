@@ -56,7 +56,10 @@ describe("the card of the model", () => {
   it("says in plain words what the test found, and what to do when it fails", () => {
     assert.match(told(GITHUB, { state: "signed-out" }), /Aucun compte GitHub n’est connecté sur cette machine\. .* gh auth login/);
     assert.match(told(GITHUB, { state: "no-models", account: "octo" }), /Le compte GitHub octo est connecté, mais Copilot ne lui propose aucun modèle/);
-    assert.match(told(OPENAI, { state: "key-missing", variable: "OPENAI_API_KEY" }), /La variable OPENAI_API_KEY n’est pas définie là où tourne l’outil/);
+    assert.match(
+      told(OPENAI, { state: "key-missing", variable: "OPENAI_API_KEY" }),
+      /OPENAI_API_KEY ne tient aucune clé ici : tapez-la ci-dessus, puis testez à nouveau\./,
+    );
     assert.match(told(OPENAI, { state: "key-refused", status: 401 }), /Le fournisseur a refusé la clé \(statut 401\)/);
     assert.match(told(LOCAL, { state: "unreachable", url: "http://localhost:1234/v1" }), /Rien ne répond à l’adresse http:\/\/localhost:1234\/v1/);
     assert.match(told(LOCAL, { state: "connected" }), /Connecté\. Le serveur ne donne pas la liste de ses modèles : saisissez le nom du modèle\./);

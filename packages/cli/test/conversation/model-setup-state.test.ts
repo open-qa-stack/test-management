@@ -128,4 +128,17 @@ describe("the setting of the connection to the model", () => {
     assert.equal(setupAfter(start, { type: "tested", check: { state: "connected" } }), start);
     assert.equal(setupAfter(start, { type: "saved" }), start);
   });
+
+  it("asks for the key itself when the variable holds none, then tests with it and saves it with the connection", () => {
+    const missing = setupAfter(after(OPENAI, { type: "chosen" }, { type: "entered" }), { type: "tested", check: { state: "key-missing", variable: "MY_KEY" } });
+    assert.deepEqual([missing.step, missing.text], ["secret", ""]);
+    assert.equal(setupAfter(missing, { type: "entered" }).refusal, "secret");
+    const typed = setupAfter(setupAfter(missing, { type: "typed", text: " sk-typed " }), { type: "entered" });
+    assert.deepEqual([typed.step, typed.typedKey], ["testing", "sk-typed"]);
+    const chosen = [{ type: "tested", check: { state: "connected", models: MODELS } }, { type: "chosen" }] as const;
+    assert.equal(chosen.reduce(setupAfter, typed).typedKey, "sk-typed");
+    // A key typed for one connection is not another's.
+    const other = setupAfter(setupStart(OPENAI), { type: "chosen" });
+    assert.equal(setupAfter({ ...other, ...typed, step: "connection" }, { type: "chosen" }).typedKey, undefined);
+  });
 });

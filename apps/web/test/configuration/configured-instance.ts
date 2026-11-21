@@ -40,6 +40,8 @@ export class ConfiguredInstance {
   public fileChanged = false;
   /** The changes the API took, in order. */
   public readonly saved: RevisionChange[] = [];
+  /** The values the API saved for the variables of the configuration, by name. */
+  public readonly values = new Map<string, string>();
 
   /** Records a revision of an origin, which becomes the one in force. */
   #record(document: OqasConfig, origin: RevisionSummary["origin"]): ConfigurationView {
@@ -61,6 +63,15 @@ export class ConfiguredInstance {
     // A test repository that is no git repository yet, which the setting up makes one.
     if (path === "/api/repository") return json({ git: "none", playwright: false });
     if (path === "/api/repository/preparation") return json({ created: ["playwright.config.ts"], kept: [], committed: true });
+    // The key of the model of the fixtures, which the person types: saved once typed, missing before.
+    if (path === "/api/secrets")
+      return json({
+        secrets: [{ name: "MODEL_KEY", kind: "model_key", paths: ["/model/apiKeyEnv"], source: this.values.has("MODEL_KEY") ? "saved" : "missing" }],
+      });
+    if (path.startsWith("/api/secrets/")) {
+      this.values.set(decodeURIComponent(path.slice("/api/secrets/".length)), (JSON.parse(body!) as { value: string }).value);
+      return { status: 204, body: "" };
+    }
     if (!path.startsWith("/api/configuration")) return this.played.api(request);
     if (path === "/api/configuration") return json({ ...this.view, file: this.fileChanged ? "changed" : this.view.file });
     if (path === "/api/configuration/revisions" && method === "GET") return json({ items: this.revisions });

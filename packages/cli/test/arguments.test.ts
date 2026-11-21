@@ -164,4 +164,21 @@ describe("the arguments of the command", () => {
       assert.deepEqual(parseArguments(other), refused(alone), other.join(" "));
     assert.deepEqual(parseArguments(["--help", "--github"]), read({ name: "help" }));
   });
+
+  it("list the values of the variables, or save one whose value is read from the input, never from the arguments", () => {
+    assert.deepEqual(parseArguments(["secrets"]), read({ name: "secrets", action: "list" }));
+    assert.deepEqual(parseArguments(["secrets", "--output", "json"]), read({ name: "secrets", action: "list" }, { output: "json" }));
+    assert.deepEqual(parseArguments(["secrets", "set", "MODEL_KEY"]), read({ name: "secrets", action: "set", variable: "MODEL_KEY" }));
+    const words = "oqas secrets takes nothing, to list the variables, or set then the variable: its value is read from the input, never from the arguments.";
+    for (const wrong of [
+      ["secrets", "set"],
+      ["secrets", "set", "MODEL_KEY", "sk-value"],
+      ["secrets", "show"],
+    ])
+      assert.deepEqual(parseArguments(wrong), refused(words), wrong.join(" "));
+    assert.deepEqual(
+      parseArguments(["secrets", "--follow"]),
+      refused("oqas secrets acts on the values of the variables: it takes no --brief, --environment nor --follow."),
+    );
+  });
 });

@@ -162,6 +162,10 @@ export type {
 export { campaignCounts, campaignResults, campaignTransition, campaignVerdict, chosenTests } from "./campaigns/campaign-rules.ts";
 export { CampaignRefusedError } from "./campaigns/campaign-refused-error.ts";
 export { UnknownCampaignError } from "./campaigns/unknown-campaign-error.ts";
+export { declaredSecrets } from "./secrets/declared-secrets.ts";
+export { SecretRefusedError } from "./secrets/secret-refused-error.ts";
+export type { SecretKind, SecretList, SecretSource, SecretState } from "./secrets/secret-state.ts";
+export { UnknownSecretError } from "./secrets/unknown-secret-error.ts";
 export type { CampaignStorePort } from "./campaigns/campaign-store-port.ts";
 export { executionResults } from "./executions/execution-results.ts";
 export type { ExecutionStorePort } from "./executions/execution-store-port.ts";

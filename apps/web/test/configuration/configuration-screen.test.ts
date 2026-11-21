@@ -73,7 +73,7 @@ describe("the screen of the configuration", () => {
     for (const heading of ["Applications et environnements", "Agents", "Dépôt de tests", "Historique"])
       assert.match(html, new RegExp(`<h2 id="[^"]+">${heading}</h2>`));
     assert.match(text, /Révision 2 Console · .* en vigueur Révision 1 Fichier oqas\.json · /);
-    assert.match(text, /Aucun secret n’est gardé/);
+    assert.match(text, /Les valeurs tapées ici — clé, chaînes de connexion, mots de passe — restent sur l’ordinateur où tourne l’outil/);
     assert.match(html, /<summary>Voir la configuration en JSON<\/summary><pre class="mono">\{\n {2}&quot;formatVersion&quot;: 1,/);
   });
 
@@ -147,7 +147,7 @@ describe("the screen of the configuration", () => {
     assert.ok(bears(html, "/knowledge/0/url", 'value="http://127.0.0.1:3001/openapi.json"', 'placeholder="https://"'));
     assert.ok(bears(html, "/knowledge/1/path", 'value="specs/openapi.yaml"'));
     assert.ok(bears(html, "/knowledge/2/connectionStringEnv", 'value="SHOP_DB_URL"', 'aria-describedby="config-knowledge-2-connectionStringEnv-hint"'));
-    assert.match(text, /Son nom seulement : la chaîne de connexion reste sur la machine qui mène les sessions\./);
+    assert.match(text, /Le nom sous lequel la chaîne de connexion est gardée ; tapez-la ci-dessous, elle reste sur l’ordinateur où tourne l’outil\./);
     assert.ok(bears(html, "/knowledge/3/path", 'value="specs/orders.md"'));
     assert.deepEqual(fieldsNamed(html, "/knowledge/4/path"), []);
     assert.match(html, /<a class="btn sm" href="#\/knowledge\/manuals">Ouvrir ses documents<\/a>/);
@@ -206,6 +206,19 @@ describe("the screen of the configuration", () => {
     assert.match(textOf(html), /Modifications non enregistrées Annuler les modifications Enregistrer/);
     assert.match(html, /<button type="submit" form="configuration-form" class="btn primary">Enregistrer<\/button>/);
     assert.match(textOf(screen(stateAfter([{ type: "edit", pointer: "/model/model", value: "other" }, { type: "saving" }]))), /Enregistrement…/);
+  });
+
+  it("asks for the value of each variable beside it, and lets the person save the values typed alone", () => {
+    const html = screen(stateAfter([{ type: "value", name: "MODEL_KEY", value: "typed" }]));
+    for (const variable of ["SHOP_USER", "SHOP_PASSWORD", "SHOP_DB_URL", "MODEL_KEY"]) assert.match(html, new RegExp(`id="secret-${variable}"`));
+    assert.match(textOf(html), /Modifications non enregistrées Annuler les modifications Enregistrer/);
+    assert.match(html, /<button type="submit" form="configuration-form" class="btn primary">Enregistrer<\/button>/);
+    const valued = stateAfter([{ type: "valued", secrets: [] }]);
+    assert.match(screen(valued), /<p class="config-note ok" role="status">Les valeurs tapées sont enregistrées sur cet ordinateur\.<\/p>/);
+    assert.match(
+      textOf(screen(configurationAfter(valued, { type: "saved", view: VIEW }))),
+      /Révision 2 enregistrée : oqas\.json est réécrit, et la prochaine session la lit\. Les valeurs tapées sont enregistrées sur cet ordinateur\./,
+    );
   });
 
   it("shows each error the instance found beside its field, and every one of them, counted, at the head of the form", () => {

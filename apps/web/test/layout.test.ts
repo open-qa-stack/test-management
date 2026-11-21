@@ -1637,6 +1637,13 @@ describe("the code of the console is covered in full", () => {
         instance.fileChanged = true;
         await page.getByRole("button", { name: "Prendre oqas.json" }).click();
         await page.getByRole("status").filter({ hasText: "Révision 5 enregistrée" }).waitFor();
+        // A value typed is saved alone, out of the configuration, which does not change.
+        await page.getByLabel("Clé", { exact: true }).fill("typed-key");
+        await page.getByRole("button", { name: "Tester la connexion" }).click();
+        await page.getByRole("button", { name: "Enregistrer" }).click();
+        await page.getByRole("status").filter({ hasText: "Les valeurs tapées sont enregistrées sur cet ordinateur." }).waitFor();
+        assert.equal(instance.values.get("MODEL_KEY"), "typed-key");
+        assert.equal(instance.revisions[0]?.number, 5, "the configuration did not change");
         // An instance with no configuration yet is set up step by step, then its repository prepared.
         instance.view = { file: "missing" };
         instance.revisions = [];

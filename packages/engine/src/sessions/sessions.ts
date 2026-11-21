@@ -4,6 +4,7 @@ import { LaunchRefusedError, UnknownSessionError, type LaunchRequest, type Launc
 import type { MessageReceipt, Project, Session, SessionEvent, SessionMessage, SessionOpening } from "@open-qa-stack/domain/sessions";
 import { LaunchRun } from "../executions/launch-run.ts";
 import { EventNotifications } from "./event-notifications.ts";
+import { environmentOf } from "../secrets/environment-of.ts";
 import { NoRepositoryError } from "./no-repository-error.ts";
 import { repositoryProject } from "./repository-project.ts";
 import { RunningExecutions } from "./running-executions.ts";
@@ -143,7 +144,7 @@ export class Sessions {
    * @throws `NoConfigurationError` or `InvalidConfigurationError` when the configuration in force is missing or not valid.
    */
   async launch(request: LaunchRequest): Promise<TestLaunch> {
-    const { repository, configuration, executions, env, runner, now = () => new Date() } = this.#host;
+    const { repository, configuration, executions, runner, now = () => new Date() } = this.#host;
     if (repository === undefined) throw new NoRepositoryError();
     const busy = (): void => {
       if (this.#launching !== undefined) throw new LaunchRefusedError("Tests launched already run: launch these once they ended.");
@@ -151,6 +152,7 @@ export class Sessions {
       if (this.#stopping) throw new LaunchRefusedError("The instance stops: launch the tests once it started again.");
     };
     busy();
+    const env = await environmentOf(this.#host.env);
     const ready = await LaunchRun.ready({ repository, configuration, store: executions, env, now, ...(runner === undefined ? {} : { runner }) }, request);
     // Something may have started while the configuration was read.
     busy();

@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import { HttpStatus } from "@nestjs/common";
 import { HttpAdapterHost } from "@nestjs/core";
 import { Test } from "@nestjs/testing";
-import { Configuration, KnowledgeDocuments, ModelConnection, Sessions } from "@open-qa-stack/engine";
+import { Configuration, KnowledgeDocuments, ModelConnection, Secrets, Sessions } from "@open-qa-stack/engine";
 import {
   ConfigurationStore,
   Database,
@@ -47,6 +47,7 @@ describe("the root module", () => {
       [Sessions, { sessions: async () => [] }],
       [SessionsLifecycle, { onApplicationBootstrap: async () => {} }],
       [ModelConnection, { check: async () => ({ state: "connected" }) }],
+      [Secrets, { list: async () => [] }],
     ]);
     let builder = Test.createTestingModule({ imports: [AppModule.forRoot(configuration)] });
     for (const [token, double] of doubles) builder = builder.overrideProvider(token).useValue(double);
