@@ -1,17 +1,16 @@
 import type { Campaign, CampaignStatus, CampaignStorePort, CampaignTest } from "@open-qa-stack/domain";
-import { instant, jsonOf, storedJson } from "../database/stored-values.ts";
+import { instant } from "../database/stored-values.ts";
 import type { Kysely, Selectable } from "kysely";
 import type { Database } from "../database/database.ts";
 import type { CampaignsTable, StoreSchema } from "../database/schema.ts";
 
 /** A row of the campaigns as the campaign it holds, with its tests, its empty dates left out. */
 function campaignOf(row: Selectable<CampaignsTable>, tests: readonly CampaignTest[]): Campaign {
-  const { id, name, environment, tags, status, created_at, ready_at, closed_at } = row;
+  const { id, name, environment, status, created_at, ready_at, closed_at } = row;
   return {
     id,
     name,
     environment,
-    scope: { tags: jsonOf(tags) },
     status,
     createdAt: instant(created_at),
     ...(ready_at === null ? {} : { readyAt: instant(ready_at) }),
@@ -21,8 +20,8 @@ function campaignOf(row: Selectable<CampaignsTable>, tests: readonly CampaignTes
 }
 
 /**
- * The campaigns of the instance, as its database keeps them: each with the tests it fixed when it became ready, in
- * the order of their paths then their titles.
+ * The campaigns of the instance, as its database keeps them: each with the tests chosen for it, in the order of their
+ * paths then their titles.
  */
 export class CampaignStore implements CampaignStorePort {
   readonly #database: Kysely<StoreSchema>;
@@ -33,10 +32,10 @@ export class CampaignStore implements CampaignStorePort {
   }
 
   /** Keeps a campaign that was just planned. */
-  async add({ id, name, environment, scope, status, createdAt }: Campaign): Promise<void> {
+  async add({ id, name, environment, status, createdAt }: Campaign): Promise<void> {
     await this.#database
       .insertInto("campaigns")
-      .values({ id, name, environment, tags: storedJson(scope.tags), status, created_at: instant(createdAt), ready_at: null, closed_at: null })
+      .values({ id, name, environment, status, created_at: instant(createdAt), ready_at: null, closed_at: null })
       .execute();
   }
 
@@ -52,20 +51,25 @@ export class CampaignStore implements CampaignStorePort {
     return Promise.all(rows.map(async (row) => campaignOf(row, await this.#testsOf(row.id))));
   }
 
-  /** Fixes the tests of a campaign, which becomes ready, all of them or none. */
-  async ready(id: string, tests: readonly CampaignTest[], at: string): Promise<void> {
+  /** Replaces the tests chosen for a campaign, all of them or none. */
+  async choose(id: string, tests: readonly CampaignTest[]): Promise<void> {
     await this.#database.transaction().execute(async (transaction) => {
-      await transaction
-        .updateTable("campaigns")
-        .set({ status: "ready", ready_at: instant(at) })
-        .where("id", "=", id)
-        .execute();
+      await transaction.deleteFrom("campaign_tests").where("campaign_id", "=", id).execute();
       if (tests.length > 0)
         await transaction
           .insertInto("campaign_tests")
           .values(tests.map(({ path, title }) => ({ campaign_id: id, path, title })))
           .execute();
     });
+  }
+
+  /** Fixes the tests of a campaign, which becomes ready. */
+  async ready(id: string, at: string): Promise<void> {
+    await this.#database
+      .updateTable("campaigns")
+      .set({ status: "ready", ready_at: instant(at) })
+      .where("id", "=", id)
+      .execute();
   }
 
   /** Changes the state of a campaign: to `in_progress`, or to `closed` with when. */

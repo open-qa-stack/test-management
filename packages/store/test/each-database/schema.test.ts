@@ -57,7 +57,6 @@ const DECLARED: { readonly [Table in keyof StoreSchema]: { readonly [Column in k
     id: "text",
     name: "text",
     environment: "text",
-    tags: "json",
     status: "text",
     created_at: "instant",
     ready_at: "instant, or nothing",

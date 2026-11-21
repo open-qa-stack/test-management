@@ -10,6 +10,7 @@ import { hrefTo } from "../routing/route.ts";
 import { Badge } from "../ui/badge.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
+import { CampaignComposer, type ComposerProps } from "./campaign-composer.tsx";
 import { CampaignLifecycle } from "./campaign-lifecycle.tsx";
 import { CampaignProgressCard } from "./campaign-progress.tsx";
 import { CampaignStatusBadge } from "./campaign-status.tsx";
@@ -43,6 +44,8 @@ export interface CampaignScreenProps {
   readonly gestures: GestureState;
   /** Asks for a change of the campaign. */
   readonly onGesture: (gesture: CampaignGesture) => void;
+  /** The choice of its tests, for a planned campaign; none shows the tests it holds. */
+  readonly composer?: ComposerProps;
 }
 
 /** The order a person reads the tests of a campaign in: what went wrong first, what was not run, then the others. */
@@ -102,16 +105,19 @@ function Gestures({
   launch,
   gestures,
   onGesture,
+  composer,
 }: { readonly progress: CampaignProgress } & Omit<CampaignScreenProps, "project" | "id" | "state">): ReactNode {
   const { status } = progress.campaign;
   const counts = campaignCounts(progress.results);
   const busy = gestures.pending !== undefined;
+  // A campaign becomes ready with the tests the instance keeps for it: some, and none left to keep.
+  const unfixable = progress.campaign.tests.length === 0 || composer?.changed === true;
   const button = (gesture: CampaignGesture, label: string, kind = "btn"): ReactNode => (
     <button
       key={gesture}
       type="button"
       className={kind}
-      disabled={busy || (gesture.startsWith("launch") && launch !== undefined)}
+      disabled={busy || (gesture.startsWith("launch") && launch !== undefined) || (gesture === "ready" && unfixable)}
       onClick={() => onGesture(gesture)}
     >
       {gestures.pending === gesture ? t("campaign.pending") : label}
@@ -139,7 +145,7 @@ function Gestures({
 }
 
 /** A campaign: where it is in its life, how far it went, its tests with what came of each, and what can be done with it now. */
-export function CampaignScreen({ project, id, state, launch, gestures, onGesture }: CampaignScreenProps): ReactNode {
+export function CampaignScreen({ project, id, state, launch, gestures, onGesture, composer }: CampaignScreenProps): ReactNode {
   const progress = state.value;
   const name = progress?.campaign.name ?? id;
   const crumbs = [{ label: project }, { label: t("campaigns.title"), href: hrefTo(CAMPAIGNS_PATH) }, { label: name }];
@@ -152,7 +158,6 @@ export function CampaignScreen({ project, id, state, launch, gestures, onGesture
       </Page>
     );
   const { campaign, results } = progress;
-  const tags = campaign.scope.tags.length === 0 ? t("campaigns.everyTest") : campaign.scope.tags.join(" ");
   return (
     <Page
       crumbs={crumbs}
@@ -161,14 +166,20 @@ export function CampaignScreen({ project, id, state, launch, gestures, onGesture
           {name} <CampaignStatusBadge status={campaign.status} />
         </>
       }
-      actions={<Gestures progress={progress} {...(launch === undefined ? {} : { launch })} gestures={gestures} onGesture={onGesture} />}
+      actions={
+        <Gestures
+          progress={progress}
+          {...(launch === undefined ? {} : { launch })}
+          gestures={gestures}
+          onGesture={onGesture}
+          {...(composer === undefined ? {} : { composer })}
+        />
+      }
     >
       <CampaignLifecycle status={campaign.status} />
       <dl className="campaign-facts small">
         <dt>{t("campaign.environment")}</dt>
         <dd>{campaign.environment}</dd>
-        <dt>{t("campaign.tags")}</dt>
-        <dd className="mono">{tags}</dd>
         <dt>{t("campaign.created")}</dt>
         <dd>{dateText(campaign.createdAt)}</dd>
         {campaign.closedAt !== undefined && (
@@ -184,7 +195,9 @@ export function CampaignScreen({ project, id, state, launch, gestures, onGesture
         </p>
       )}
       {campaign.status === "planned" && <p className="small muted">{t("campaign.plannedNote")}</p>}
-      {results.length === 0 ? (
+      {campaign.status === "planned" && composer !== undefined ? (
+        <CampaignComposer {...composer} />
+      ) : results.length === 0 ? (
         <EmptyState title={t("campaign.noTest")}>{t("campaign.noTestNote")}</EmptyState>
       ) : (
         <>

@@ -104,21 +104,20 @@ export interface KnowledgeDocumentsTable {
 }
 
 /**
- * The campaigns, each under its identifier. The tags of its scope are a list of texts; the state is a text, as
+ * The campaigns, each under its identifier. The state is a text, as
  * that of a session is. When it became ready and when it was closed are empty until then.
  */
 export interface CampaignsTable {
   id: string;
   name: string;
   environment: string;
-  tags: StoredJson<readonly string[]>;
   status: CampaignStatus;
   created_at: StoredInstant;
   ready_at: StoredInstant | null;
   closed_at: StoredInstant | null;
 }
 
-/** The tests a campaign fixed when it became ready, each named by the path of its file and its title. */
+/** The tests chosen for a campaign, each named by the path of its file and its title: they may change while it is planned. */
 export interface CampaignTestsTable {
   campaign_id: string;
   path: string;

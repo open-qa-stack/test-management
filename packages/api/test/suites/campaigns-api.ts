@@ -47,11 +47,16 @@ export function campaignsApiSuite(engine: DatabaseEngine): void {
   }
 
   describe(`the campaigns on ${engine.name}`, () => {
-    it("are planned with the tests their tags take, become ready, are launched in their environment, go in progress, and are closed", async () => {
+    it("are planned, have their tests chosen, become ready, are launched in their environment, go in progress, and are closed", async () => {
       assert.deepEqual(await call("/campaigns"), { status: 200, body: { items: [] } satisfies CampaignList });
-      const planned = await call("/campaigns", "POST", { name: " Recette 4.2 ", environment: "local", tags: ["@p0"] });
-      const campaign = planned.body as Campaign;
-      assert.deepEqual([planned.status, campaign.name, campaign.status, campaign.scope], [201, "Recette 4.2", "planned", { tags: ["@p0"] }]);
+      const planned = await call("/campaigns", "POST", { name: " Recette 4.2 ", environment: "local" });
+      assert.deepEqual(
+        [planned.status, (planned.body as Campaign).name, (planned.body as Campaign).status, (planned.body as Campaign).tests],
+        [201, "Recette 4.2", "planned", []],
+      );
+      const chose = await call(`/campaigns/${(planned.body as Campaign).id}/tests`, "PUT", { tests: [{ path: QUOTES, title: "Answer a quote" }] });
+      const campaign = chose.body as Campaign;
+      assert.deepEqual([chose.status, campaign.tests], [200, [{ path: QUOTES, title: "Answer a quote" }]]);
       assert.deepEqual((await call(`/campaigns/${campaign.id}`)).body as CampaignProgress, {
         campaign,
         results: [{ path: QUOTES, title: "Answer a quote", verdict: "not_run" }],
@@ -90,8 +95,10 @@ export function campaignsApiSuite(engine: DatabaseEngine): void {
         return [status, (told as Problem).code];
       };
       assert.deepEqual(await problem("/campaigns/nowhere"), [404, "unknown_campaign"]);
-      const { id } = (await call("/campaigns", "POST", { name: "Vide", environment: "local", tags: ["@p3"] })).body as Campaign;
+      const { id } = (await call("/campaigns", "POST", { name: "Vide", environment: "local" })).body as Campaign;
       assert.deepEqual(await problem(`/campaigns/${id}/readiness`, "POST"), [409, "campaign_refused"]);
+      assert.deepEqual(await problem(`/campaigns/${id}/tests`, "PUT", { tests: [{ path: QUOTES, title: "Gone" }] }), [409, "campaign_refused"]);
+      assert.deepEqual(await problem(`/campaigns/${id}/tests`, "PUT", { tests: "all" }), [400, "invalid_request"]);
       assert.deepEqual(await problem(`/campaigns/${id}/closure`, "POST"), [409, "campaign_refused"]);
       assert.deepEqual(await problem("/campaigns", "POST", { name: "", environment: "local" }), [400, "invalid_request"]);
     });

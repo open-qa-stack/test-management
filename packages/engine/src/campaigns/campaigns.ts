@@ -4,7 +4,7 @@ import {
   campaignResults,
   campaignTransition,
   CampaignRefusedError,
-  scopedTests,
+  chosenTests,
   UnknownCampaignError,
   type Campaign,
   type CampaignLaunchScope,
@@ -25,7 +25,7 @@ export interface CampaignsHost {
   readonly store: CampaignStorePort;
   /** Where the executions of their tests are kept. */
   readonly executions: ExecutionStorePort;
-  /** The tests of the repository, each with its tags. */
+  /** The tests of the repository, which the tests chosen for a campaign are among. */
   readonly tests: { list(): Promise<RepositoryTest[]> };
   /** What launches tests: the operations on sessions, whose turn a launch takes. */
   readonly launcher: { launch(request: LaunchRequest): Promise<TestLaunch> };
@@ -38,10 +38,9 @@ export interface CampaignsHost {
  * of each test. Whatever shows them — a REST API, a terminal — calls these and holds no rule of its own.
  *
  * @remarks
- * A campaign takes the tests of the repository that bear one of the tags of its scope, every test when it names none.
- * While it is planned, its tests are read from the repository as it is; when it becomes ready, they are fixed, and a
- * test added afterwards does not enter it. Its tests are launched as any test is, in the turn of the sessions, and their
- * execution belongs to it: what came of a test in the campaign is its verdict in the latest of them that ran it.
+ * A campaign is made of tests of the repository chosen one by one, which may change while it is planned; when it
+ * becomes ready, they are fixed. Its tests are launched as any test is, in the turn of the sessions, and their execution
+ * belongs to it: what came of a test in the campaign is its verdict in the latest of them that ran it.
  */
 export class Campaigns {
   readonly #host: CampaignsHost;
@@ -52,9 +51,9 @@ export class Campaigns {
   }
 
   /**
-   * Plans a campaign.
+   * Plans a campaign, with no test yet.
    *
-   * @param plan - Its name, its environment and its scope.
+   * @param plan - Its name and its environment.
    * @returns The campaign, planned.
    */
   async plan(plan: CampaignPlan): Promise<Campaign> {
@@ -67,47 +66,58 @@ export class Campaigns {
   async list(): Promise<CampaignOverview[]> {
     const campaigns = await this.#host.store.list();
     // The tests of the repository are read once, for the campaigns still planned.
-    const listed = campaigns.some(({ status }) => status === "planned") ? await this.#host.tests.list() : [];
     return Promise.all(
       campaigns.map(async (campaign) => {
-        const results =
-          campaign.status === "planned"
-            ? campaignResults(scopedTests(campaign.scope, listed), [])
-            : campaignResults(campaign.tests, await this.#host.executions.ofCampaign(campaign.id));
-        return { ...campaign, counts: campaignCounts(results) };
+        const executions = campaign.status === "planned" ? [] : await this.#host.executions.ofCampaign(campaign.id);
+        return { ...campaign, counts: campaignCounts(campaignResults(campaign.tests, executions)) };
       }),
     );
   }
 
   /**
    * @param id - The identifier of a campaign.
-   * @returns The campaign with what came of each of its tests: for one planned, the tests its scope takes now, none run.
+   * @returns The campaign with what came of each of its tests: none run for one planned.
    * @throws `UnknownCampaignError` when the instance keeps none under the identifier.
    */
   async progress(id: string): Promise<CampaignProgress> {
     const campaign = await this.#campaign(id);
-    if (campaign.status === "planned") return { campaign, results: campaignResults(await this.#scoped(campaign), []) };
-    return { campaign, results: campaignResults(campaign.tests, await this.#host.executions.ofCampaign(id)) };
+    const executions = campaign.status === "planned" ? [] : await this.#host.executions.ofCampaign(id);
+    return { campaign, results: campaignResults(campaign.tests, executions) };
   }
 
   /**
-   * Fixes the tests of a planned campaign, which becomes ready.
+   * Chooses the tests of a planned campaign, in place of those chosen before.
+   *
+   * @param tests - Tests of the repository, by the path of their file and their title, in any order.
+   * @returns The campaign, with its tests in the order of their paths then their titles, each once.
+   * @throws `UnknownCampaignError` when the instance keeps none under the identifier.
+   * @throws `CampaignRefusedError` when it is no longer planned, or a test is not one of the repository.
+   */
+  async choose(id: string, tests: readonly CampaignTest[]): Promise<Campaign> {
+    const campaign = await this.#campaign(id);
+    if (campaign.status !== "planned") throw new CampaignRefusedError(`A campaign ${campaign.status} keeps the tests it fixed: plan another to choose others.`);
+    const listed = new Set((await this.#host.tests.list()).map(({ path, title }) => `${path}\n${title}`));
+    const unknown = tests.filter(({ path, title }) => !listed.has(`${path}\n${title}`));
+    if (unknown.length > 0)
+      throw new CampaignRefusedError(
+        `The test repository holds no test ${unknown.map(({ path, title }) => `${title} (${path})`).join(", ")}: list its tests again.`,
+      );
+    await this.#host.store.choose(id, chosenTests(tests));
+    return this.#campaign(id);
+  }
+
+  /**
+   * Fixes the tests chosen for a planned campaign, which becomes ready.
    *
    * @returns The campaign, ready, with its tests.
    * @throws `UnknownCampaignError` when the instance keeps none under the identifier.
-   * @throws `CampaignRefusedError` when it is not planned, or its scope takes no test of the repository.
+   * @throws `CampaignRefusedError` when it is not planned, or no test is chosen for it.
    */
   async ready(id: string): Promise<Campaign> {
     const campaign = await this.#campaign(id);
     campaignTransition(campaign.status, "ready");
-    const tests = await this.#scoped(campaign);
-    if (tests.length === 0)
-      throw new CampaignRefusedError(
-        campaign.scope.tags.length === 0
-          ? "The test repository holds no test: write some before the campaign becomes ready."
-          : `No test of the repository bears ${campaign.scope.tags.join(", ")}: plan another campaign with tags its tests bear.`,
-      );
-    await this.#host.store.ready(id, tests, this.#now().toISOString());
+    if (campaign.tests.length === 0) throw new CampaignRefusedError("No test is chosen for the campaign: choose its tests before it becomes ready.");
+    await this.#host.store.ready(id, this.#now().toISOString());
     return this.#campaign(id);
   }
 
@@ -164,11 +174,6 @@ export class Campaigns {
     const campaign = await this.#host.store.get(id);
     if (campaign === undefined) throw new UnknownCampaignError(id);
     return campaign;
-  }
-
-  /** The tests of the repository the scope of a campaign takes now. */
-  async #scoped(campaign: Campaign): Promise<ReturnType<typeof scopedTests>> {
-    return scopedTests(campaign.scope, await this.#host.tests.list());
   }
 
   #now(): Date {

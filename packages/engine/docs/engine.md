@@ -365,14 +365,15 @@ const page = await new Executions(instance.executions).page({ limit: 25 });
 
 | Operation | What it does |
 | --- | --- |
-| `plan(plan)` | Keeps a campaign `planned`, under a new identifier. |
+| `plan(plan)` | Keeps a campaign `planned`, under a new identifier, with no test. |
+| `choose(id, tests)` | Chooses the tests of a planned campaign, in place of those before, each a test the repository lists; refused once it is no longer planned. |
 | `list()` | Every campaign, the latest planned first. |
-| `progress(id)` | The campaign with what came of each of its tests: for one planned, the tests its scope takes now, none run; for the others, the verdict of each fixed test in the latest execution of the campaign that ran its file, or `not_run`. |
-| `ready(id)` | Fixes the tests its scope takes — those that bear one of its tags, every test when it names none — and makes it `ready`; refused when it is not planned, or takes no test. |
+| `progress(id)` | The campaign with what came of each of its tests: for one planned, the tests chosen, none run; for the others, the verdict of each fixed test in the latest execution of the campaign that ran its file, or `not_run`. |
+| `ready(id)` | Fixes the tests chosen and makes it `ready`; refused when it is not planned, or no test is chosen. |
 | `launch(id)` | Launches the files of its tests against its environment, for the campaign; its first launch makes it `in_progress`. Refused when it is planned or closed. |
 | `close(id)` | Makes a campaign in progress `closed`, for good. |
 
-The rules — the changes a state allows, the tests a scope takes, what came of each test — are functions of the domain: `campaignTransition`, `scopedTests` and `campaignResults`. A refusal is `CampaignRefusedError`, a campaign the store does not keep `UnknownCampaignError`.
+The rules — the changes a state allows, the order of the tests chosen, what came of each test — are functions of the domain: `campaignTransition`, `chosenTests` and `campaignResults`. A refusal is `CampaignRefusedError`, a campaign the store does not keep `UnknownCampaignError`.
 
 [The API](../../api/docs/campaigns.md) says it in HTTP.
 

@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { describe, it } from "vitest";
 import type { CampaignProgress, TestLaunch } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../../src/api/polled-state.ts";
+import { EVERY_TEST } from "../../src/campaigns/campaign-composition.ts";
 import { CampaignScreen, launchScopeOf, type CampaignGesture, type GestureState } from "../../src/campaigns/campaign-screen.tsx";
 import { resultHref } from "../../src/executions/executions-paths.ts";
 import { elementsOf, render, textOf } from "../render.ts";
@@ -34,7 +35,7 @@ describe("the screen of a campaign", () => {
   it("tells where the campaign is in its life, how far it went, then each test, the failures first, which leads to its result", () => {
     const html = screen({ value: PROGRESS });
     assert.match(textOf(html), /^lakeside-tests \/ Campagnes \/ Recette 4\.2 Recette 4\.2 en cours/);
-    assert.match(textOf(html), /planifiée prête en cours clôturée Environnement local Tags @p0 @domain-policies Planifiée le \d+ nov\. 2026/);
+    assert.match(textOf(html), /planifiée prête en cours clôturée Environnement local Planifiée le \d+ nov\. 2026/);
     assert.match(
       textOf(html),
       /Avancement 1 \/ 2 joués 1 échoué 1 non joué 2 tests En échec Answer an insurance quote apps\/\S+ \d+ nov\. 2026, \d\d:\d\d non joué Display the detail of a policy/,
@@ -48,7 +49,11 @@ describe("the screen of a campaign", () => {
   it("offers what the state of the campaign allows: fix its tests, launch them, launch them all again, nothing once closed", () => {
     const planned = screen({ value: { campaign: PLANNED, results: [] } });
     assert.deepEqual(buttons(planned), ["Figer les tests"]);
-    assert.match(textOf(planned), /tous les tests .* Ce sont les tests que ses tags prennent aujourd’hui .* Aucun test Aucun test du dépôt ne porte ces tags/);
+    assert.match(
+      textOf(planned),
+      /Choisissez ses tests ci-dessous : ils restent modifiables jusqu’à ce que vous les figiez\. Aucun test Aucun test n’est choisi pour cette campagne\.$/,
+    );
+    assert.match(planned, /disabled="">Figer les tests<\/button>/, "a campaign becomes ready with tests");
     assert.deepEqual(buttons(screen({ value: { ...PROGRESS, campaign: { ...RUNNING, status: "ready" } } })), ["Lancer les tests"]);
     assert.deepEqual(buttons(screen({ value: PASSED })), ["Tout relancer", "Clôturer"]);
     const unrun: CampaignProgress = {
@@ -59,6 +64,33 @@ describe("the screen of a campaign", () => {
     const closed = screen({ value: { ...PASSED, campaign: { ...RUNNING, status: "closed", closedAt: "2026-11-21T10:00:00.000Z" } } });
     assert.deepEqual(buttons(closed), []);
     assert.match(textOf(closed), /Clôturée le 21 nov\. 2026, \d\d:\d\d Avancement 2 \/ 2 joués 2 réussis/);
+  });
+
+  it("composes a planned campaign, and fixes its tests only once the choice is kept", () => {
+    const composer = {
+      tests: { value: [] },
+      filter: EVERY_TEST,
+      chosen: new Set<string>(),
+      saving: false,
+      onFilter: () => undefined,
+      onTick: () => undefined,
+      onSave: () => undefined,
+    };
+    const chosen = { campaign: { ...PLANNED, tests: [QUOTE] }, results: [{ ...QUOTE, verdict: "not_run" as const }] };
+    const composed = (changed: boolean) =>
+      render(
+        createElement(CampaignScreen, {
+          project: "lakeside-tests",
+          id: "c2",
+          state: { value: chosen },
+          gestures: {},
+          onGesture: () => undefined,
+          composer: { ...composer, changed },
+        }),
+      );
+    assert.match(composed(false), /<button type="button" class="btn primary">Figer les tests<\/button>/);
+    assert.match(composed(true), /disabled="">Figer les tests<\/button>/);
+    assert.match(textOf(composed(false)), /Aucun test dans le dépôt/);
   });
 
   it("asks to confirm a closing, which can be given up", () => {

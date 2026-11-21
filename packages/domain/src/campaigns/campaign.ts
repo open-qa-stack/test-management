@@ -6,27 +6,21 @@ import type { ExecutionVerdict } from "../executions/execution.ts";
  */
 export type CampaignStatus = "planned" | "ready" | "in_progress" | "closed";
 
-/** Which tests of the repository a campaign takes: those that bear at least one of its tags, or every test when it names none. */
-export interface CampaignScope {
-  readonly tags: readonly string[];
-}
-
-/** A test a campaign fixed when it became ready, named as the tests of the repository are. */
+/** A test a campaign is made of, named as the tests of the repository are. */
 export interface CampaignTest {
   /** The path of its file, relative to the root of the test repository. */
   readonly path: string;
   readonly title: string;
 }
 
-/** What a campaign is asked to be when it is planned. */
+/** What a campaign is asked to be when it is planned: its tests are chosen afterwards. */
 export interface CampaignPlan {
   readonly name: string;
   /** The environment its tests run against. */
   readonly environment: string;
-  readonly scope: CampaignScope;
 }
 
-/** A campaign of tests: a scope of the repository, fixed once ready, run against one environment until it is closed. */
+/** A campaign of tests: tests of the repository chosen one by one, fixed once ready, run against one environment until it is closed. */
 export interface Campaign extends CampaignPlan {
   readonly id: string;
   readonly status: CampaignStatus;
@@ -36,7 +30,7 @@ export interface Campaign extends CampaignPlan {
   readonly readyAt?: string;
   /** When it was closed, as an ISO 8601 date; left out until then. */
   readonly closedAt?: string;
-  /** The tests it fixed when it became ready, in the order of their paths; none while it is planned. */
+  /** The tests chosen for it, in the order of their paths then their titles: they may change while it is planned, and are fixed once it is ready. */
   readonly tests: readonly CampaignTest[];
 }
 
