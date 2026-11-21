@@ -37,7 +37,7 @@ function chain(callee: Node): string[] {
 }
 
 /** The text a title is written as, a string literal or a template without substitution; `undefined` for another one. */
-function titleOf(argument: Node | undefined): string | undefined {
+function titleOf(argument: Node | null | undefined): string | undefined {
   if (argument?.type === "string") return stringValue(argument);
   if (argument?.type === "template_string" && !argument.namedChildren.some((child) => child!.type === "template_substitution"))
     return argument.text.slice(1, -1);
@@ -67,22 +67,102 @@ function declared(call: Node): Declared | undefined {
 }
 
 /** The digest of each test under a node, by its titles, as the groups that hold it give them. */
-function walk(node: Node, titles: readonly string[], digests: Map<string, string>): void {
+/** A test a file declares, as the walk finds it: its titles, and its call of `test`. */
+interface Found {
+  readonly title: string;
+  readonly call: Node;
+}
+
+/** Finds the tests under a node, each with the titles of the groups that hold it. */
+function walk(node: Node, titles: readonly string[], found: Found[]): void {
   const call = node.type === "call_expression" ? declared(node) : undefined;
   if (call?.kind === "unnamed") return;
   if (call?.kind === "test") {
-    const title = [...titles, call.title].join(" › ");
-    if (!digests.has(title))
-      digests.set(
-        title,
-        createHash("sha256")
-          .update(JSON.stringify(bare(node)))
-          .digest("hex"),
-      );
+    found.push({ title: [...titles, call.title].join(" › "), call: node });
     return;
   }
   const inner = call === undefined ? titles : [...titles, call.title];
-  for (const child of node.namedChildren) walk(child!, inner, digests);
+  for (const child of node.namedChildren) walk(child!, inner, found);
+}
+
+/** A test a file of tests declares, as the runner names it, with what its call says of it. */
+export interface DeclaredTest {
+  /** Its titles, those of the groups `test.describe` that hold it then its own, as `<describe>… › <title>`. */
+  readonly title: string;
+  /** The SHA-256 of its call of `test`, read as code without its comments nor its layout, in hexadecimal. */
+  readonly digest: string;
+  /** Its tags, as its details give them: `{ tag: "@a" }` or `{ tag: ["@a", "@b"] }`. */
+  readonly tags: readonly string[];
+  /** The titles of the steps `test.step(…)` of its body, in order. */
+  readonly steps: readonly string[];
+}
+
+/** What a file of tests declares: its tests, those whose titles another of the file already has, and whether it could be read whole. */
+export interface TestDeclarations {
+  /** Its tests, in the order of the file, the first of a name counting. */
+  readonly tests: readonly DeclaredTest[];
+  /** The titles a test of the file has once more, each once. */
+  readonly duplicates: readonly string[];
+  /** Whether the file holds a syntax error: none of its tests is then read. */
+  readonly unreadable: boolean;
+}
+
+/** The tags of the details of a call of `test`. */
+function tagsOf(call: Node): string[] {
+  const details = call.childForFieldName("arguments")!.namedChildren.find((child) => child!.type === "object");
+  const tag = details?.namedChildren.find((pair) => pair!.type === "pair" && pair!.childForFieldName("key")!.text === "tag");
+  const value = tag?.childForFieldName("value");
+  if (value?.type === "string") return [stringValue(value)];
+  return value?.type === "array" ? value.namedChildren.filter((item) => item!.type === "string").map((item) => stringValue(item!)) : [];
+}
+
+/** The titles of the steps of a call of `test`, in order. */
+function stepsOf(node: Node): string[] {
+  const own =
+    node.type === "call_expression" && chain(node.childForFieldName("function")!).join(".") === "test.step"
+      ? titleOf(node.childForFieldName("arguments")!.namedChildren[0])
+      : undefined;
+  return [...(own === undefined ? [] : [own]), ...node.namedChildren.flatMap((child) => stepsOf(child!))];
+}
+
+/**
+ * The tests a file of tests declares, each named as the runner reports it, with its digest, its tags and its steps.
+ *
+ * @remarks
+ * A test is named by its titles, those of the groups `test.describe` that hold it then its own, as `<describe>… ›
+ * <title>`. A test whose title is no plain text, such as one built in a loop, has none, and is not declared. Two tests
+ * of one name are one test for the runner and for what keeps their results: the first counts, and the name is told as a
+ * duplicate.
+ *
+ * @param text - The text of the file, in TypeScript.
+ * @returns Its tests, its duplicate titles, and whether it holds a syntax error.
+ * @throws Error when the grammar cannot be loaded.
+ */
+export async function declaredTests(text: string): Promise<TestDeclarations> {
+  // The extension picks the TypeScript grammar, which always exists.
+  const tree = (await parseSource("tests.ts", text))!;
+  try {
+    if (tree.rootNode.hasError) return { tests: [], duplicates: [], unreadable: true };
+    const found: Found[] = [];
+    walk(tree.rootNode, [], found);
+    const tests = new Map<string, DeclaredTest>();
+    const duplicates = new Set<string>();
+    for (const { title, call } of found) {
+      if (tests.has(title)) duplicates.add(title);
+      else
+        tests.set(title, {
+          title,
+          digest: createHash("sha256")
+            .update(JSON.stringify(bare(call)))
+            .digest("hex"),
+          tags: tagsOf(call),
+          steps: stepsOf(call),
+        });
+    }
+    return { tests: [...tests.values()], duplicates: [...duplicates], unreadable: false };
+  } finally {
+    tree.delete();
+  }
 }
 
 /**
@@ -99,13 +179,5 @@ function walk(node: Node, titles: readonly string[], digests: Map<string, string
  * @throws Error when the grammar cannot be loaded.
  */
 export async function testDigests(text: string): Promise<Map<string, string>> {
-  // The extension picks the TypeScript grammar, which always exists.
-  const tree = (await parseSource("tests.ts", text))!;
-  try {
-    const digests = new Map<string, string>();
-    if (!tree.rootNode.hasError) walk(tree.rootNode, [], digests);
-    return digests;
-  } finally {
-    tree.delete();
-  }
+  return new Map((await declaredTests(text)).tests.map(({ title, digest }) => [title, digest]));
 }

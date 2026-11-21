@@ -72,11 +72,10 @@ GET /api/campaigns/5b0c8f2e-6a51-4d1e-9a3f-2c7d1e0b9a44
 | Field | |
 |---|---|
 | `campaign` | The campaign: `id`, `name`, `environment`, `status`, `createdAt`, `readyAt`, `closedAt`, and its `tests`. |
-| `results[]` | Each test, by `path` and `title`, with its `verdict` in the latest execution of the campaign that ran its file — `passed`, `failed`, `flaky` or `skipped` — and that execution and its date, or `not_run` when none ran it. |
+| `results[]` | Each test, by `path` and `title`, with its `verdict` in the latest execution of the campaign that ran it — `passed`, `failed`, `flaky` or `skipped` — and that execution and its date, or `not_run` when none ran it. |
 
 A launch runs the files of the tests of the campaign, as [launching tests](executions.md#launching-tests) does, in the turn
-of the sessions; its execution has the origin `campaign` and names the campaign. A test is found in an execution by the
-path of its file: the tests of the repository are listed one per file.
+of the sessions; its execution has the origin `campaign` and names the campaign. A test is found in an execution by the path of its file and its titles, as the runner reports them: a launch runs the files of the tests, and what it ran of a file beside them does not count.
 
 ## Launching its tests
 

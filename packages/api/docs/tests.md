@@ -37,11 +37,19 @@ GET /api/tests
       "case": "nominal",
       "data": "read"
     }
-  ]
+  ],
+  "anomalies": [{ "kind": "duplicate", "path": "apps/policy-management/tests/policies/policy-detail/policy-detail-nominal.spec.ts", "title": "Display the detail of a policy" }]
 }
 ```
 
-A test is each file whose name ends with `.spec.ts` or `.test.ts` under the folder of the applications, but those of `node_modules`. Its `title` is that of its first `test(…)`, its path when it has none, and its `steps` the titles of its `test.step(…)`, in order.
+The tests are read from each file whose name ends with `.spec.ts` or `.test.ts` under the folder of the applications, but those of `node_modules`, in the order of their paths. Each test of a file is one item: its `title` is its titles as the runner reports them — those of the groups `test.describe` that hold it, then its own, as `<describe>… › <title>` — its `tags` those of its details, and its `steps` the titles of its `test.step(…)`, in order. A file whose tests cannot be read, or which names none by a plain title — such as tests built in a loop — is one item, titled by its path, with what its text gives of tags and steps.
+
+`anomalies` tells what keeps a file from being listed as it is:
+
+| `kind` | When | With |
+|---|---|---|
+| `duplicate` | Two tests of the file share a title: the runner and the results take them as one test, the first of the file. | `path`, `title` |
+| `unreadable` | The file holds a syntax error: none of its tests is read. | `path` |
 
 What a test is, beyond its file, is what its tags say of it, each `@<prefix>-<value>` as the harness writes them from the scenario of the test:
 

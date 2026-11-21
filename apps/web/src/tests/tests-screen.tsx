@@ -138,7 +138,7 @@ export function TestsScreen({ project, route, state, controls }: TestsScreenProp
             [...byApplication(shown)].map(([application, grouped]) => (
               <Card key={application} title={application === "" ? t("tests.noApplication") : application} hint={t("tests.count", { count: grouped.length })}>
                 {grouped.map((test) => (
-                  <TestRow key={test.path} test={test} />
+                  <TestRow key={`${test.path}\n${test.title}`} test={test} />
                 ))}
               </Card>
             ))

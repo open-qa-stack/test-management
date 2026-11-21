@@ -23,7 +23,7 @@ export class TestsController {
   @Get()
   @Header("Cache-Control", "no-store")
   async list(): Promise<RepositoryTestList> {
-    return { items: await this.#tests.list() };
+    return this.#tests.listed();
   }
 
   /** @returns The test of the path in steps, from the execution named or the latest run that ran it, which no cache may keep. */
