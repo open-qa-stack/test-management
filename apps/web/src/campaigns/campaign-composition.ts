@@ -30,7 +30,8 @@ export interface CompositionFacets {
 
 /** @returns The levels, domains, applications and tags the tests of the repository bear. */
 export function facetsOf(tests: readonly RepositoryTest[]): CompositionFacets {
-  const sorted = (values: readonly (string | undefined)[]): string[] => [...new Set(values.filter((value) => value !== undefined))].sort();
+  const sorted = (values: readonly (string | undefined)[]): string[] =>
+    [...new Set(values.filter((value) => value !== undefined))].sort((a, b) => a.localeCompare(b));
   return {
     levels: sorted(tests.map(({ level }) => level)),
     domains: sorted(tests.map(({ domain }) => domain)),
