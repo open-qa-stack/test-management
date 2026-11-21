@@ -17,8 +17,13 @@ export class MemoryCampaignStore implements CampaignStorePort {
     return Promise.resolve(this.#campaigns.toReversed());
   }
 
-  ready(id: string, tests: readonly CampaignTest[], at: string): Promise<void> {
-    this.#change(id, (campaign) => ({ ...campaign, status: "ready", readyAt: at, tests }));
+  choose(id: string, tests: readonly CampaignTest[]): Promise<void> {
+    this.#change(id, (campaign) => ({ ...campaign, tests }));
+    return Promise.resolve();
+  }
+
+  ready(id: string, at: string): Promise<void> {
+    this.#change(id, (campaign) => ({ ...campaign, status: "ready", readyAt: at }));
     return Promise.resolve();
   }
 

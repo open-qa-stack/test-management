@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { describe, it } from "vitest";
 import type { CampaignList } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../../src/api/polled-state.ts";
-import { campaignHref, declaredEnvironments, typedTags } from "../../src/campaigns/campaigns-paths.ts";
+import { campaignHref, declaredEnvironments } from "../../src/campaigns/campaigns-paths.ts";
 import { CampaignsScreen, type PlanningState } from "../../src/campaigns/campaigns-screen.tsx";
 import { linksOf, render, textOf } from "../render.ts";
 import { OVERVIEWS } from "./campaigns-fixture.ts";
@@ -16,22 +16,19 @@ const screen = (
 ): string => render(createElement(CampaignsScreen, { project: "lakeside-tests", state, environments, planning, onPlan: () => undefined }));
 
 describe("the screen of the campaigns", () => {
-  it("lists the campaigns, the latest planned first, each with its environment, its tags, its state, and a link to it", () => {
+  it("lists the campaigns, the latest planned first, each with its environment, how far it went, its state, and a link to it", () => {
     const html = screen({ value: { items: OVERVIEWS } });
-    assert.match(textOf(html), /^lakeside-tests \/ Campagnes Campagnes Une campagne prend les tests/);
-    assert.match(
-      textOf(html),
-      /Tout le dépôt local · tous les tests 3 tests pris planifiée .* Recette 4\.2 local · @p0 @domain-policies 1 \/ 2 joués · 1 échoué en cours/,
-    );
+    assert.match(textOf(html), /^lakeside-tests \/ Campagnes Campagnes Une campagne est faite des tests que vous choisissez/);
+    assert.match(textOf(html), /Tout le dépôt local 3 tests choisis planifiée .* Recette 4\.2 local 1 \/ 2 joués · 1 échoué en cours/);
     assert.deepEqual(linksOf(html), [campaignHref("c2"), campaignHref("c1")]);
     assert.equal(campaignHref("c1"), "#/campaigns/view?id=c1");
   });
 
-  it("plans a campaign from a name, an environment the configuration declares, and tags", () => {
+  it("plans a campaign from a name and an environment the configuration declares, its tests chosen next", () => {
     const html = screen({ value: { items: [] } });
     assert.match(
       textOf(html),
-      /Planifier une campagne Nom Environnement local staging Tags des tests Séparés par des espaces.* Planifier Aucune campagne Planifiez-en une/,
+      /Planifier une campagne Nom Environnement local staging Planifier Aucune campagne Planifiez-en une : un nom et un environnement, puis choisissez ses tests\./,
     );
     assert.ok(html.includes('<select name="environment">'));
     assert.match(screen({ value: { items: [] } }, []), /<input required="" name="environment"\/>/);
@@ -54,12 +51,5 @@ describe("the environments a campaign may run against", () => {
     const revision = { document: { applications: [application(["local", "staging"]), application(["local"])] } };
     assert.deepEqual(declaredEnvironments({ revision } as never), ["local", "staging"]);
     assert.deepEqual(declaredEnvironments({}), []);
-  });
-});
-
-describe("the tags a person types", () => {
-  it("are separated by spaces or commas, each once, with its @", () => {
-    assert.deepEqual(typedTags(" @p0, p1  @p0 "), ["@p0", "@p1"]);
-    assert.deepEqual(typedTags("   "), []);
   });
 });

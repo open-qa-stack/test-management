@@ -147,7 +147,6 @@ describe("the client of the API, for the documents of the knowledge sources", ()
       id: "c 1",
       name: "Recette",
       environment: "local",
-      scope: { tags: [] },
       status: "planned",
       createdAt: "2026-11-20T08:00:00.000Z",
       tests: [],
@@ -155,8 +154,9 @@ describe("the client of the API, for the documents of the knowledge sources", ()
     const answered = clientOf(() => json(campaign));
     const { client, calls } = answered;
     assert.deepEqual(await client.campaigns(), campaign);
-    assert.deepEqual(await client.planCampaign({ name: "Recette", environment: "local", tags: [] }), campaign);
+    assert.deepEqual(await client.planCampaign({ name: "Recette", environment: "local" }), campaign);
     await client.campaign("c 1");
+    await client.chooseCampaignTests("c 1", [{ path: "apps/a.spec.ts", title: "A" }]);
     await client.readyCampaign("c 1");
     await client.launchCampaign("c 1");
     await client.launchCampaign("c 1", "failed");
@@ -167,8 +167,9 @@ describe("the client of the API, for the documents of the knowledge sources", ()
       calls.map(([path, init]) => [path, init?.method ?? "GET", init?.body]),
       [
         ["/api/campaigns", "GET", undefined],
-        ["/api/campaigns", "POST", JSON.stringify({ name: "Recette", environment: "local", tags: [] })],
+        ["/api/campaigns", "POST", JSON.stringify({ name: "Recette", environment: "local" })],
         ["/api/campaigns/c%201", "GET", undefined],
+        ["/api/campaigns/c%201/tests", "PUT", JSON.stringify({ tests: [{ path: "apps/a.spec.ts", title: "A" }] })],
         ["/api/campaigns/c%201/readiness", "POST", undefined],
         ["/api/campaigns/c%201/launches", "POST", "{}"],
         ["/api/campaigns/c%201/launches", "POST", JSON.stringify({ only: "failed" })],

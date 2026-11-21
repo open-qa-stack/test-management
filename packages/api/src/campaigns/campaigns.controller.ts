@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Post, Put } from "@nestjs/common";
 import { Campaigns } from "@open-qa-stack/engine";
 import { CampaignLaunchPipe } from "./campaign-launch.pipe.ts";
 import { CampaignPlanPipe } from "./campaign-plan.pipe.ts";
-import type { Campaign, CampaignLaunchScope, CampaignList, CampaignPlan, CampaignProgress, TestLaunch } from "@open-qa-stack/domain/sessions";
+import { CampaignTestsPipe } from "./campaign-tests.pipe.ts";
+import type { Campaign, CampaignLaunchScope, CampaignTest, CampaignList, CampaignPlan, CampaignProgress, TestLaunch } from "@open-qa-stack/domain/sessions";
 
 /** The operations on the campaigns of the instance, said in HTTP: each route calls one operation, and holds no rule of its own. */
 @Controller("campaigns")
@@ -31,6 +32,12 @@ export class CampaignsController {
   @Header("Cache-Control", "no-store")
   progress(@Param("id") id: string): Promise<CampaignProgress> {
     return this.#campaigns.progress(id);
+  }
+
+  /** @returns The campaign, with the tests chosen in place of those before, in order. */
+  @Put(":id/tests")
+  choose(@Param("id") id: string, @Body(CampaignTestsPipe) tests: readonly CampaignTest[]): Promise<Campaign> {
+    return this.#campaigns.choose(id, tests);
   }
 
   /** @returns The campaign, ready, with the tests it fixed. */

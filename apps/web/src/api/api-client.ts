@@ -2,7 +2,9 @@ import type {
   Campaign,
   CampaignLaunchScope,
   CampaignList,
+  CampaignPlan,
   CampaignProgress,
+  CampaignTest,
   ConfigError,
   ConfigurationCheck,
   ConfigurationView,
@@ -299,10 +301,10 @@ export class ApiClient {
   /**
    * Plans a campaign.
    *
-   * @param plan - Its name, its environment, and the tags of its scope.
+   * @param plan - Its name and its environment; its tests are chosen next.
    * @returns The campaign, planned; the failure carries the code `invalid_request` for a plan that is not one.
    */
-  public planCampaign(plan: { readonly name: string; readonly environment: string; readonly tags: readonly string[] }): Promise<Campaign> {
+  public planCampaign(plan: CampaignPlan): Promise<Campaign> {
     return this.#ask<Campaign>("/campaigns", posting(plan));
   }
 
@@ -312,6 +314,15 @@ export class ApiClient {
    */
   public campaign(id: string): Promise<CampaignProgress> {
     return this.#ask<CampaignProgress>(`/campaigns/${encodeURIComponent(id)}`);
+  }
+
+  /**
+   * Chooses the tests of a planned campaign, in place of those chosen before.
+   *
+   * @returns The campaign; the failure carries the code `campaign_refused` when it is no longer planned, or a test is not one of the repository.
+   */
+  public chooseCampaignTests(id: string, tests: readonly CampaignTest[]): Promise<Campaign> {
+    return this.#ask<Campaign>(`/campaigns/${encodeURIComponent(id)}/tests`, { ...posting({ tests }), method: "PUT" });
   }
 
   /** Fixes the tests of a planned campaign; the failure carries the code `campaign_refused` when its state does not allow it, or its scope takes no test. */

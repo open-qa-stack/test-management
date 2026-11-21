@@ -72,6 +72,7 @@ The migrations so far:
 | `0007_test_versions` | The table of [the versions of the tests](#the-versions-of-the-tests), and the digest of the test, whether it was committed and its version in each result. The results kept before stay without them. |
 | `0008_campaigns` | The tables of [the campaigns](#the-campaigns) and of the tests each one fixed, and the campaign of an execution. The executions kept before belong to none. |
 | `0009_session_scopes` | The scope of a session: what of the project it keeps its work to. The sessions asked for before keep the whole project. |
+| `0010_campaign_selections` | Leaves the tags of the campaigns: a campaign is made of the tests chosen for it. A campaign still planned keeps no test, and its tests are chosen again. |
 
 ## The database of an instance, assembled
 
@@ -215,21 +216,20 @@ Where a test failed is read from the last attempt of the report; the five column
 
 ### The campaigns
 
-`campaigns` holds one row each campaign; `campaign_tests` the tests a campaign fixed when it became ready, which are not read from the test repository again. What came of a test in a campaign is not kept: it is read from the executions of the campaign, the latest that ran its file.
+`campaigns` holds one row each campaign; `campaign_tests` the tests chosen for it, which change while it is planned and are fixed once it is ready. What came of a test in a campaign is not kept: it is read from the executions of the campaign, the latest that ran its file.
 
 | Column of `campaigns` | Type | Why |
 |---|---|---|
 | `id` | `text`, primary key | The identifier of the campaign. |
 | `name` | `text` | What a person calls it. |
 | `environment` | `text` | The environment its tests run against. |
-| `tags` | JSON | The tags of its scope: a test that bears one of them is taken; every test when the list is empty. |
 | `status` | `text` | `planned`, `ready`, `in_progress` or `closed`. |
 | `created_at` | date | When it was planned. |
 | `ready_at`, `closed_at` | date, or nothing | When its tests were fixed, and when it was closed. |
 
 | Column of `campaign_tests` | Type | Why |
 |---|---|---|
-| `campaign_id`, `path`, `title` | `text`, primary key | The campaign, which its tests go with, and a test it fixed, named as in `execution_results`. |
+| `campaign_id`, `path`, `title` | `text`, primary key | The campaign, which its tests go with, and a test chosen for it, named as in `execution_results`. |
 
 The columns that keep a date, a JSON value or a boolean are kept [as each database keeps them](#how-each-type-is-kept). Nothing filters on what a JSON column holds, which is served as it was written, its fields in the order they were given: on PostgreSQL the columns are `json` and not `jsonb`, which would sort the fields.
 

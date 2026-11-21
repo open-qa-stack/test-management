@@ -11,19 +11,17 @@ export const RUNNING: Campaign = {
   id: "c1",
   name: "Recette 4.2",
   environment: "local",
-  scope: { tags: ["@p0", "@domain-policies"] },
   status: "in_progress",
   createdAt: "2026-11-20T08:00:00.000Z",
   readyAt: "2026-11-20T08:05:00.000Z",
   tests: [QUOTE, POLICY],
 };
 
-/** A campaign planned, with no tag: it takes every test. */
+/** A campaign planned, with no test chosen yet. */
 export const PLANNED: Campaign = {
   id: "c2",
   name: "Tout le dépôt",
   environment: "local",
-  scope: { tags: [] },
   status: "planned",
   createdAt: "2026-11-20T09:00:00.000Z",
   tests: [],

@@ -868,12 +868,11 @@
   },
   "campaigns": {
     "title": "Campaigns",
-    "lead": "A campaign takes the tests that bear its tags, fixes them once it is ready, then follows what came of each at every launch.",
+    "lead": "A campaign is made of the tests you choose, fixed once it is ready, then follows what came of each at every launch.",
     "reading": "Reading the campaigns",
     "readingNote": "They show as soon as the instance answered.",
     "none": "No campaign",
-    "noneNote": "Plan one: a name, an environment, and the tags of the tests to take.",
-    "everyTest": "every test",
+    "noneNote": "Plan one: a name and an environment, then choose its tests.",
     "statuses": {
       "planned": "planned",
       "ready": "ready",
@@ -885,19 +884,16 @@
       "name": "Name",
       "namePlaceholder": "Release 4.2",
       "environment": "Environment",
-      "tags": "Tags of the tests",
-      "tagsHelp": "Separated by spaces, such as @p0 @p1. Leave empty to take every test.",
       "submit": "Plan",
       "pending": "Planning…"
     },
-    "taken_one": "{{count}} test taken",
-    "taken_other": "{{count}} tests taken"
+    "chosen_one": "{{count}} test chosen",
+    "chosen_other": "{{count}} tests chosen"
   },
   "campaign": {
     "reading": "Reading the campaign",
     "readingNote": "It shows as soon as the instance answered.",
     "environment": "Environment",
-    "tags": "Tags",
     "created": "Planned on",
     "closed": "Closed on",
     "tests": "Tests of the campaign",
@@ -916,9 +912,9 @@
       "not_run_other": "{{count}} not run"
     },
     "notRun": "not run",
-    "plannedNote": "These are the tests its tags take today: they are fixed once the campaign is ready.",
+    "plannedNote": "Choose its tests below: they may change until you fix them.",
     "noTest": "No test",
-    "noTestNote": "No test of the repository bears these tags yet.",
+    "noTestNote": "No test is chosen for this campaign.",
     "ready": "Fix the tests",
     "launch": "Launch the tests",
     "relaunch": "Launch all again",
@@ -977,5 +973,31 @@
     "blocked_other": "{{count}} blocked",
     "indeterminate_one": "{{count}} indeterminate",
     "indeterminate_other": "{{count}} indeterminate"
+  },
+  "campaignComposer": {
+    "title": "Tests of the campaign",
+    "reading": "Reading the tests of the repository",
+    "readingNote": "They show as soon as the instance answered.",
+    "none": "No test in the repository",
+    "noneNote": "The agents write some in the sessions of design.",
+    "chosen": "{{count}} chosen out of {{total}}",
+    "search": "Filter by words",
+    "searchPlaceholder": "Title or path",
+    "level": "Level",
+    "domain": "Domain",
+    "application": "Application",
+    "tag": "Tag",
+    "every": "all",
+    "chosenOnly": "Only the choice",
+    "shown_one": "{{count}} test shown",
+    "shown_other": "{{count}} tests shown",
+    "tickShown": "Tick the tests shown",
+    "untickShown": "Untick the tests shown",
+    "noMatch": "No test matches these filters.",
+    "unsaved": "Choice changed, not kept yet.",
+    "saved": "Choice kept.",
+    "save_one": "Keep the choice ({{count}} test)",
+    "save_other": "Keep the choice ({{count}} tests)",
+    "saving": "Keeping…"
   }
 }

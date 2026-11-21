@@ -20,14 +20,3 @@ export function declaredEnvironments({ revision }: Pick<ConfigurationView, "revi
   const names = revision?.document.applications.flatMap(({ environments }) => environments.map(({ name }) => name)) ?? [];
   return [...new Set(names)];
 }
-
-/**
- * Reads the tags a person typed, separated by spaces or commas.
- *
- * @param typed - What the person typed.
- * @returns Each tag once, with its `@` when it was left out.
- */
-export function typedTags(typed: string): string[] {
-  const words = typed.split(/[\s,]+/).filter((word) => word !== "");
-  return [...new Set(words.map((word) => (word.startsWith("@") ? word : `@${word}`)))];
-}
