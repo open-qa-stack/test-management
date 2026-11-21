@@ -28,13 +28,16 @@ describe("the setup of a test repository", () => {
   });
 
   it("makes a folder that is no git repository one, writes the Playwright project and commits it with the configuration", async () => {
+    const known = join(workspace, "identity.gitconfig");
+    writeFileSync(known, "[user]\n\tname = Ada Tester\n\temail = ada@example.test\n");
+    process.env["GIT_CONFIG_GLOBAL"] = known;
     const { root, setup, git } = folder();
     assert.deepEqual(await setup.state(), { git: "none", playwright: false });
     const done = await setup.prepare();
     assert.equal(done.committed, true);
     assert.ok(done.created.includes("playwright.config.ts"));
     assert.deepEqual(await setup.state(), { git: "ready", playwright: true });
-    assert.equal(git("log", "--format=%s").trim(), SETUP_COMMIT);
+    assert.equal(git("log", "--format=%s by %an <%ae>").trim(), `${SETUP_COMMIT} by Ada Tester <ada@example.test>`);
     assert.ok(git("show", "--name-only", "--format=").split("\n").includes("oqas.json"));
     assert.ok(existsSync(join(root, "apps")));
   });
