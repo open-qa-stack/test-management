@@ -5,6 +5,7 @@ import { BlockView } from "./block-view.ts";
 import { CommandHints } from "./command-hints.ts";
 import { hintsOf } from "./key-hints.ts";
 import { PrintedItem } from "./printed-item.ts";
+import { ModelSetup, type ModelSetupProps } from "./model-setup/model-setup.ts";
 import { Prompt } from "./prompt.ts";
 import { SessionPicker } from "./session-picker.ts";
 import { hintedCommands } from "./slash-commands.ts";
@@ -27,6 +28,8 @@ export interface ConversationViewProps {
   readonly onChange: (input: string) => void;
   /** Hears Enter in the input. */
   readonly onSubmit: () => void;
+  /** What the setting of the model is given, when it opens over the input. */
+  readonly setup?: Omit<ModelSetupProps, "inForce" | "theme">;
 }
 
 /**
@@ -37,7 +40,7 @@ export interface ConversationViewProps {
  * @param props - The conversation, where it takes place, the theme, the width and what hears the input.
  * @returns The screen.
  */
-export function ConversationView({ state, context, theme, width, onChange, onSubmit }: ConversationViewProps): ReactNode {
+export function ConversationView({ state, context, theme, width, onChange, onSubmit, setup }: ConversationViewProps): ReactNode {
   const { shown, overlay } = state;
   const script = shown === undefined ? undefined : scriptOf(shown.session, shown.events, wording());
   const live = script === undefined || shown === undefined ? [] : blocksOf(script.steps).slice(shown.settled);
@@ -54,6 +57,7 @@ export function ConversationView({ state, context, theme, width, onChange, onSub
       : h(StatusLine, { session: shown.session, progress: progressOf(script), now: state.now, theme }),
     overlay?.kind === "picker" ? h(SessionPicker, { picker: overlay, theme }) : null,
     overlay?.kind === "stop" ? h(StopConfirmation, { session: overlay.session, theme }) : null,
+    overlay?.kind === "model" && setup !== undefined ? h(ModelSetup, { ...setup, inForce: overlay.inForce, theme }) : null,
     state.notice === undefined ? null : h(Text, theme.ink("warn"), state.notice),
     overlay === undefined ? h(Prompt, { value: state.input, epoch: state.inputEpoch, placeholder: hints.placeholder, onChange, onSubmit, theme }) : null,
     commands.length > 0

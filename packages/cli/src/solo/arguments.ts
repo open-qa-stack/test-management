@@ -25,6 +25,8 @@ export type Command =
   | { readonly name: "config"; readonly action: ConfigAction }
   /** List the knowledge sources of the configuration in force, with the documents the instance keeps of each. */
   | { readonly name: "knowledge"; readonly action: "list" }
+  /** Set the connection to the model step by step, in the terminal. */
+  | { readonly name: "model"; readonly action: "setup" }
   /** Test the connection to the model in force, and list the models it offers. */
   | { readonly name: "model"; readonly action: "status" }
   /** Set the connection to the model, then test it. */
@@ -83,6 +85,7 @@ export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
        oqas [--repository <folder>] say <session> <text> [--output text|json]
        oqas [--repository <folder>] stop <session> [--output text|json]
        oqas [--repository <folder>] config show|import|export [--output text|json]
+       oqas [--repository <folder>] model
        oqas [--repository <folder>] model status [--output text|json]
        oqas [--repository <folder>] model set --github --model <id> [--output text|json]
        oqas [--repository <folder>] model set --provider <name|address> [--key-env <variable>] --model <id> [--output text|json]
@@ -108,6 +111,8 @@ Commands:
   config show            Print the configuration in force, and how oqas.json stands to it.
   config import          Take oqas.json as the configuration in force, when it changed.
   config export          Write the configuration in force over oqas.json, when it changed.
+  model                  In a terminal, set the connection to the model step by step: how to reach it, the
+                         variable of its key, a test, then the model among those it offers.
   model status           Test the connection to the model in force, and list the models it offers.
   model set              Set the connection to the model, then test it: --github for the GitHub account this machine
                          signed in with (gh auth login), or --provider with the name of a provider (OpenAI, Mistral AI,
@@ -244,7 +249,7 @@ function commandOf(
   }
   if (name === "config") return configured(rest, opens || follow);
   if (name === "knowledge") return knowledgeOf(rest, opens || follow);
-  if (name === "model") return modelOf(rest, opens || follow, connection);
+  if (name === "model") return modelOf(rest, opens || follow, connection, asks);
   if (!Object.hasOwn(ON_SESSIONS, name)) return `Unknown command ${name}; see oqas --help.`;
   const known = name as keyof typeof ON_SESSIONS;
   const taken: readonly string[] = ON_SESSIONS[known];
@@ -274,9 +279,12 @@ interface ConnectionOptions {
 }
 
 /** What `oqas model` asks for, or why it is refused: a test of the connection in force, or a connection to set, and nothing of a session. */
-function modelOf(words: readonly string[], ofASession: boolean, { github, provider, keyEnv, model }: ConnectionOptions): Command | string {
+function modelOf(words: readonly string[], ofASession: boolean, { github, provider, keyEnv, model }: ConnectionOptions, asks: boolean): Command | string {
   const [action, ...rest] = words;
   if (ofASession) return "oqas model acts on the connection to the model: it takes no --brief, --environment nor --follow.";
+  if (action === undefined && asks) return { name: "model", action: "setup" };
+  if (action === undefined)
+    return "oqas model alone sets the connection step by step, in a terminal: with --no-input or --output, give status, or set with its options; see oqas --help.";
   if (rest.length > 0 || (action !== "status" && action !== "set")) return "oqas model takes status or set.";
   if (action === "status") return { name: "model", action };
   if (github === (provider !== undefined))

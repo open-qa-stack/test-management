@@ -107,6 +107,7 @@
     "new": "Go back to the start, to open another session",
     "stop": "Stop the session on screen, after a confirmation",
     "ui": "Serve the web console from this process and print its address",
+    "model": "Set the connection to the model: GitHub account or provider, then the model",
     "help": "List the commands and the keys",
     "quit": "Leave the conversation"
   },
@@ -224,5 +225,47 @@
     "failed": "failed",
     "blocked": "blocked",
     "not_run": "not run"
+  },
+  "model": {
+    "title": "Connection to the model",
+    "choose": "How does the tool reach the model?",
+    "github": "GitHub account of this machine (Copilot)",
+    "other": "Another server (type its address)",
+    "address": "Address of the server",
+    "addressHint": "That of its OpenAI-compatible API, such as http://localhost:1234/v1.",
+    "key": "Variable that holds the key",
+    "keyHint": "The name of the environment variable the key is in; leave it empty for a server with no key.",
+    "name": "Model",
+    "nameHint": "Its name, as the server gives it.",
+    "testing": "Testing the connection…",
+    "saving": "Saving {{model}}, through {{reach}}…",
+    "refused": {
+      "address": "An http:// or https:// address is expected.",
+      "variable": "The name of a variable is expected: capital letters, digits and _.",
+      "name": "The name of the model is expected."
+    },
+    "after": {
+      "retry": "Test again",
+      "change": "Choose another connection"
+    },
+    "keys": {
+      "list": "Up/Down choose · Enter confirm · Esc leave",
+      "field": "Enter confirm · Esc leave"
+    },
+    "check": {
+      "connected": "Connected.",
+      "connectedAs": "Connected with the GitHub account {{account}}.",
+      "pick": "Choose the model:",
+      "noList": "The server does not list its models: type the name of the model.",
+      "signedOut": "No GitHub account is signed in on this machine: run gh auth login in a terminal, then test again.",
+      "noModels": "The GitHub account {{account}} is signed in, but Copilot offers it no model: the account needs a GitHub Copilot subscription, or its organisation must allow one.",
+      "keyMissing": "The variable {{variable}} is not set where the tool runs: put your key in it, start the tool again, then test again.",
+      "keyRefused": "The provider refused the key (status {{status}}): check the key the variable holds.",
+      "unreachable": "Nothing answers at {{url}}: check the address, or that the server is running."
+    },
+    "set": "The model {{model}} is set, through {{reach}}.",
+    "left": "Nothing changed.",
+    "silent": "The model does not answer. {{why}} /model to set it.",
+    "notOffered": "The model {{model}} is not among those the connection offers."
   }
 }

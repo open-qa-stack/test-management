@@ -23,6 +23,7 @@ export type Request =
   | { readonly kind: "sessions" }
   | { readonly kind: "new" }
   | { readonly kind: "ui"; readonly port: number }
+  | { readonly kind: "model" }
   | { readonly kind: "help" }
   | { readonly kind: "quit" }
   | { readonly kind: "refused"; readonly why: string };

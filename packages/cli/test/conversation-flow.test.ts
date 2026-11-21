@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { setTimeout as pause } from "node:timers/promises";
 import { afterEach, describe, it } from "vitest";
@@ -184,6 +184,29 @@ describe("oqas, without a command, in a terminal", () => {
     assert.match(screen.text, /■ Harnais · contrôle automatique · erreur · Configuration\n {2}The environment nowhere is not declared/);
     await screen.enter("/quit");
     assert.equal((await ended).code, 3);
+  });
+
+  it("sets the model with /model, which rewrites oqas.json, and goes on", async () => {
+    terminal = await Terminal.open([]);
+    const { screen, ended } = await conversing();
+    await screen.enter("/model");
+    await screen.sees("How does the tool reach the model?");
+    const step = async (seen: string): Promise<void> => {
+      await pause(20);
+      screen.type("\r");
+      await screen.sees(seen);
+    };
+    await step("Address of the server");
+    await step("Variable that holds the key");
+    await step("type the name of the model");
+    await step("The model test-model is set");
+    assert.match(readFileSync(join(terminal.root, "oqas.json"), "utf8"), /"model": "test-model"/);
+    // The setting drew more lines than the input: the line typed is no longer the last of the screen.
+    screen.type("/quit");
+    await screen.sees("› /quit");
+    await pause(20);
+    screen.type("\r");
+    assert.equal((await ended).code, 0);
   });
 
   it("serves the web console from its process with /ui, on the port it is given, until the person leaves", async () => {
