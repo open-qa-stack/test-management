@@ -162,6 +162,7 @@ export type {
 export { campaignCounts, campaignResults, campaignTransition, campaignVerdict, chosenTests } from "./campaigns/campaign-rules.ts";
 export { CampaignRefusedError } from "./campaigns/campaign-refused-error.ts";
 export { UnknownCampaignError } from "./campaigns/unknown-campaign-error.ts";
+export { OPERATIONS, operationIds, type OperationId } from "./operations/operations.ts";
 export { declaredSecrets } from "./secrets/declared-secrets.ts";
 export { SecretRefusedError } from "./secrets/secret-refused-error.ts";
 export type { SecretKind, SecretList, SecretSource, SecretState } from "./secrets/secret-state.ts";

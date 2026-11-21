@@ -1,4 +1,5 @@
 export { Configuration } from "./configuration/configuration.ts";
+export { ENGINE_OPERATIONS, HOST_METHODS, type EngineClasses } from "./operations/operations.ts";
 export { START_ADVICE } from "./configuration/start-advice.ts";
 export { RepositorySetup, SETUP_COMMIT } from "./repository/repository-setup.ts";
 export { FileSecretStore, SECRETS_FOLDER } from "./secrets/file-secret-store.ts";

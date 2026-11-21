@@ -142,6 +142,18 @@ A host must also expect that `keep` is never called for a run the configuration 
 
 A host holds no step of a run. It imports `@open-qa-stack/engine`; the engine imports no host.
 
+## The operations and their clients
+
+The operations of the engine are listed in `OPERATIONS` of `@open-qa-stack/domain`, by the class that holds them: the contract every client fulfils. A person reaches each one in three clients — the console, through the API; the command; the conversation — and each client says, in a test of parity typed on that list, how it offers each operation, or why it does not yet:
+
+| Client | Its test of parity | What the test checks |
+|---|---|---|
+| The API, and the console through it | `packages/api/test/operation-parity.test.ts`, `apps/web/test/operation-parity.test.ts` | The route answers, not as a route the framework does not know; the client of the console has the method, and a screen calls it. |
+| The command | `packages/cli/test/operation-parity.test.ts` | The arguments are ones the command takes. |
+| The conversation | the same file | The command after a slash is one of the conversation. |
+
+An operation added to the list does not compile in these tests until each client says how it offers it, or names it missing with why; the count of the operations missing in a client only goes down. The engine checks the other way: `packages/engine/test/operations.test.ts` refuses a class it exports that it does not name, and a public method of its classes that is neither in the list nor in `HOST_METHODS`, the methods a host calls as it starts or stops, with why each is one.
+
 ## The operations on sessions
 
 `Sessions` is what an instance does with its sessions, with no HTTP, no terminal and no SQL in it. A presentation calls these operations and adds nothing to them: [the API](../../api/docs/sessions.md) in HTTP, [the `oqas` command](../../cli/docs/solo-command.md) in a terminal.
