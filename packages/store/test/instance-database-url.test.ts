@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "vitest";
@@ -27,8 +27,13 @@ describe("the database of an instance", () => {
     assert.equal(instanceDatabaseUrl(undefined, repository).file, join(repository, "state", "oqas", "oqas.db"));
   });
 
-  it("cannot be told without a URL when the test repository holds no configuration file", () => {
-    assert.throws(() => instanceDatabaseUrl(undefined, repository), { code: "ENOENT" });
+  it("is, without a URL, in the default state folder of a test repository that holds no configuration file yet", () => {
+    assert.equal(instanceDatabaseUrl(undefined, repository).file, join(repository, ".oqas", "oqas.db"));
+  });
+
+  it("cannot be told without a URL when the configuration file is there but cannot be read", () => {
+    mkdirSync(join(repository, "oqas.json"));
+    assert.throws(() => instanceDatabaseUrl(undefined, repository), { code: "EISDIR" });
   });
 
   it("is named to every process by the same environment variable", () => {

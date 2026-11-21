@@ -533,7 +533,7 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
           problem(
             503,
             "unavailable",
-            "The API was started without a test repository: it opens no session and changes no configuration. Set OQAS_REPOSITORY to the absolute path of a folder that holds oqas.json, and start the API again.",
+            "The API was started without a test repository: it opens no session and changes no configuration. Set OQAS_REPOSITORY to the absolute path of a folder, and start the API again.",
           ),
         );
         const listed = (await answerOf(await fetch(`${reading.url}/sessions`))).body as SessionList;

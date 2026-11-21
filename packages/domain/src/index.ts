@@ -184,3 +184,4 @@ export {
   type UploadReading,
 } from "./knowledge-documents/uploaded-documents.ts";
 export type { KnowledgeDomain, KnowledgeDomainList } from "./domain-index/knowledge-domain.ts";
+export type { RepositoryPreparation, RepositoryState } from "./test-repository/repository-setup-state.ts";

@@ -3,6 +3,7 @@ import type { ApiClient } from "../api/api-client.ts";
 import type { ApiError } from "../api/api-error.ts";
 import { followEvents } from "../api/event-stream.ts";
 import { poll } from "../api/poll.ts";
+import { locale } from "../i18n/i18n.ts";
 import type { ConsoleAction } from "./console-state.ts";
 
 /** How long the console waits between an answer of the API and the next time it asks the same, in milliseconds. */
@@ -50,8 +51,9 @@ export class ConsoleSync {
   }
 
   /**
-   * Reads the language of the configuration in force, again for as long as the API fails to tell it: English
-   * when the instance has no configuration, or one that names none.
+   * Reads the language of the configuration in force, again for as long as the API fails to tell it: English when
+   * the configuration names none, and the language the console speaks, that of the browser, when the instance has no
+   * configuration yet, which the person then sets up in their language.
    *
    * @returns What stops reading it.
    */
@@ -60,7 +62,7 @@ export class ConsoleSync {
       {
         ask: () => this.#api.configuration(),
         told: (view) => {
-          this.#dispatch({ type: "language", language: languageOf(view) });
+          this.#dispatch({ type: "language", language: view.revision === undefined ? locale() : languageOf(view) });
           stop();
         },
         failed: (error) => this.#unanswered(error),

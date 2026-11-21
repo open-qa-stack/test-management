@@ -28,6 +28,8 @@ export interface ConfigurationControls extends Omit<ConfigurationEdit, "errors">
   /** Saves the draft over a configuration file that changed too. */
   readonly keepChange: MouseEventHandler<HTMLButtonElement>;
   readonly testModel: MouseEventHandler<HTMLButtonElement>;
+  /** Writes the first configuration of an instance that has none, then sets its test repository up. */
+  readonly setUp: MouseEventHandler<HTMLButtonElement>;
 }
 
 /** What the screen of the configuration is drawn from. */
@@ -39,7 +41,7 @@ export interface ConfigurationScreenProps {
 }
 
 /** The errors of the draft, counted, each with where it is, at the head of the form. */
-function ErrorSummary({ errors }: { readonly errors: readonly ConfigError[] }): ReactNode {
+export function ErrorSummary({ errors }: { readonly errors: readonly ConfigError[] }): ReactNode {
   if (errors.length === 0) return null;
   return (
     <section className="config-note ko" aria-labelledby="config-errors-title">
@@ -92,6 +94,18 @@ function Notes({ state, controls }: { readonly state: ConfigurationState; readon
       </section>
     );
   if (view?.file === "missing") return <p className="config-note info">{t("configuration.screen.fileMissing")}</p>;
+  if (state.preparation !== undefined)
+    return (
+      <section className="config-note ok" role="status">
+        <b>{t("firstUse.ready.title")}</b>
+        <span>{t(state.preparation.committed ? "firstUse.ready.committed" : "firstUse.ready.toCommit")}</span>
+        <div className="config-actions">
+          <a className="btn primary" href="#/agent">
+            {t("firstUse.ready.agent")}
+          </a>
+        </div>
+      </section>
+    );
   return saved === undefined ? null : (
     <p className="config-note ok" role="status">
       {t("configuration.screen.saved", { number: saved })}

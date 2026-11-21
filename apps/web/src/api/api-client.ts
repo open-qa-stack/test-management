@@ -22,6 +22,8 @@ import type {
   OqasConfig,
   Problem,
   Project,
+  RepositoryPreparation,
+  RepositoryState,
   RepositoryTest,
   RepositoryTestList,
   TestExecution,
@@ -164,6 +166,21 @@ export class ApiClient {
    */
   public async check(document: OqasConfig): Promise<readonly ConfigError[]> {
     return (await this.#ask<ConfigurationCheck>("/configuration/validation", posting(document))).errors;
+  }
+
+  /** @returns Where the test repository of the instance stands: a git repository with a commit, a Playwright project. */
+  public async repository(): Promise<RepositoryState> {
+    return this.#ask<RepositoryState>("/repository");
+  }
+
+  /**
+   * Makes a Playwright project of the test repository, from the configuration in force, and a git repository with a
+   * commit of a folder that is none.
+   *
+   * @returns What was written, kept and committed.
+   */
+  public async prepareRepository(): Promise<RepositoryPreparation> {
+    return this.#ask<RepositoryPreparation>("/repository/preparation", { method: "POST" });
   }
 
   /**

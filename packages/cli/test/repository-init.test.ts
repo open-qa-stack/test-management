@@ -62,7 +62,7 @@ describe("the initialisation of a test repository as a Playwright project", () =
     assert.deepEqual(out, [
       `The test repository ${root} is a Playwright project at @playwright/test 1.64.1.\n`,
       "Created: package.json, playwright.config.ts, tsconfig.json, .gitignore, README.md, tests/shared/fixtures.ts, tests/shop/pages/index.ts, tests/back-office/pages/index.ts, .github/workflows/tests.yml.\n",
-      "Next: read what was created, run npm install, then commit it with the lockfile.\n",
+      "The folder was no git repository: it is one now, and what was created is committed. Next: run npm install.\n",
     ]);
     const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as { devDependencies: Record<string, string> };
     assert.equal(manifest.devDependencies["@playwright/test"], "1.64.1");
@@ -95,7 +95,7 @@ describe("the initialisation of a test repository as a Playwright project", () =
         [
           "Created: playwright.config.ts, tsconfig.json, .gitignore, tests/shared/fixtures.ts, tests/shop/pages/index.ts, tests/back-office/pages/index.ts, .github/workflows/tests.yml.\n",
           "Kept as they were, already there: package.json, README.md.\n",
-          "Next: read what was created, run npm install, then commit it with the lockfile.\n",
+          "The folder was no git repository: it is one now, and what was created is committed. Next: run npm install.\n",
         ],
       ],
     );
@@ -105,6 +105,11 @@ describe("the initialisation of a test repository as a Playwright project", () =
       "Kept as they were, already there: package.json, playwright.config.ts, tsconfig.json, .gitignore, README.md, tests/shared/fixtures.ts, tests/shop/pages/index.ts, tests/back-office/pages/index.ts, .github/workflows/tests.yml.\n",
       "Nothing was missing.\n",
     ]);
+    // In a repository that is one already, what is created is left to commit.
+    rmSync(join(root, "tsconfig.json"));
+    out.length = 0;
+    await init();
+    assert.equal(out.at(-1), "Next: read what was created, run npm install, then commit it with the lockfile.\n");
   });
 
   it("stops with 3, and writes nothing, without a configuration or with an invalid one", async () => {
@@ -112,7 +117,7 @@ describe("the initialisation of a test repository as a Playwright project", () =
     assert.deepEqual([await none.init(), none.err.length, existsSync(join(none.root, "package.json"))], [3, 1, false]);
     assert.match(
       none.err[0]!,
-      /oqas\.json cannot be read, and the instance keeps no revision of the configuration\. Write a oqas\.json at the root of the test repository\.\n$/,
+      /oqas\.json cannot be read, and the instance keeps no revision of the configuration\. Start with oqas --ui, which sets it up step by step, or write a oqas\.json at the root of the test repository\.\n$/,
     );
     const wrong = repository({ "oqas.json": JSON.stringify({ ...CONFIG, applications: [] }) });
     assert.deepEqual([await wrong.init(), existsSync(join(wrong.root, "package.json"))], [3, false]);

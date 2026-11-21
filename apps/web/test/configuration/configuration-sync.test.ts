@@ -121,4 +121,37 @@ describe("what keeps the screen of the configuration in step with its instance",
     assert.deepEqual(api.told.slice(-3), [{ type: "saving" }, { type: "saved", view: VIEW }, { type: "listed", revisions: REVISIONS }]);
     assert.ok(api.calls.includes("POST /api/configuration/synchronisation"));
   });
+  it("reads where the test repository stands, and tells nothing when the instance cannot say", async () => {
+    api.answers.set("GET /api/repository", json({ git: "none", playwright: false }));
+    api.sync.readRepository();
+    await settled();
+    assert.deepEqual(api.told, [{ type: "repository", repository: { git: "none", playwright: false } }]);
+    api.answers.set("GET /api/repository", json({ code: "unavailable", detail: "Down." }, 503));
+    api.sync.readRepository();
+    await settled();
+    assert.equal(api.told.length, 1);
+  });
+
+  it("saves the first configuration, then sets the test repository up, or tells why it could not", async () => {
+    const preparation = { created: ["package.json"], kept: [], committed: true };
+    api.answers.set("POST /api/configuration/revisions", json(VIEW, 201));
+    api.answers.set("GET /api/configuration/revisions", json({ items: REVISIONS }));
+    api.answers.set("POST /api/repository/preparation", json(preparation));
+    api.sync.setUp(DOCUMENT);
+    await settled();
+    assert.deepEqual(api.bodies, [{ basedOn: 0, document: DOCUMENT }]);
+    assert.deepEqual(api.told.slice(0, 2), [{ type: "saving" }, { type: "saved", view: VIEW }]);
+    assert.deepEqual(
+      api.told.find((action) => action.type === "prepared"),
+      { type: "prepared", preparation },
+    );
+    api.answers.set("POST /api/repository/preparation", json({ code: "unavailable", detail: "Down." }, 503));
+    const before = api.told.length;
+    api.sync.setUp(DOCUMENT);
+    await settled();
+    assert.deepEqual(
+      api.told.slice(before).find((action) => action.type === "refused"),
+      { type: "refused", code: "unavailable", text: "Aucune source de sessions n’est configurée sur cette instance.", errors: [] },
+    );
+  });
 });

@@ -6,6 +6,8 @@ import type {
   ModelConnectionCheck,
   OqasConfig,
   ProblemCode,
+  RepositoryPreparation,
+  RepositoryState,
   RevisionSummary,
 } from "@open-qa-stack/domain/sessions";
 import { modelFor } from "./model-connection.ts";
@@ -31,6 +33,10 @@ export interface ConfigurationState {
   readonly refusal?: { readonly code: ProblemCode | "unreachable"; readonly text: string };
   /** Why the instance could not tell the configuration, when it answered so. */
   readonly unread?: string;
+  /** Where the test repository stands, once the instance told it to a person who sets it up. */
+  readonly repository?: RepositoryState;
+  /** What setting the test repository up did, once the first configuration is saved; `undefined` before. */
+  readonly preparation?: RepositoryPreparation;
   /** The latest test of the connection to the model; `undefined` before the person asked for one, and once they chose another connection. */
   readonly connection?: ConnectionTest;
 }
@@ -47,6 +53,12 @@ export interface ConnectionTest {
 
 /** What changes the state of the screen. */
 export type ConfigurationAction =
+  /** The person starts the configuration of an instance that has none, from a first draft. */
+  | { readonly type: "begin"; readonly document: OqasConfig }
+  /** The instance told where the test repository stands. */
+  | { readonly type: "repository"; readonly repository: RepositoryState }
+  /** The test repository was set up after the first configuration was saved. */
+  | { readonly type: "prepared"; readonly preparation: RepositoryPreparation }
   /** The person chose how to reach the model: the GitHub account of the machine, a provider of the list, or another server. */
   | { readonly type: "connection"; readonly choice: string }
   /** The person asked for a test of the connection to the model. */
@@ -131,6 +143,12 @@ export function configurationAfter(state: ConfigurationState, action: Configurat
     }
     case "unread":
       return { ...state, unread: action.message };
+    case "begin":
+      return state.draft === undefined && state.view?.revision === undefined ? { ...state, draft: action.document, basedOn: 0 } : state;
+    case "repository":
+      return { ...state, repository: action.repository };
+    case "prepared":
+      return { ...state, preparation: action.preparation };
     case "connection": {
       const { connection: _, ...rest } = state;
       return edited(rest, (draft) => changedAt(draft, "/model", modelFor(action.choice, draft.model)));

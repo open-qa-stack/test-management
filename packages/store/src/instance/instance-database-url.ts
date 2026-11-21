@@ -1,6 +1,6 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { CONFIG_FILE_NAME, DATABASE_FILE_NAME, declaredStateDir } from "@open-qa-stack/domain";
+import { CONFIG_FILE_NAME, DATABASE_FILE_NAME, declaredStateDir, DEFAULT_REPOSITORY } from "@open-qa-stack/domain";
 import { DatabaseUrl } from "../database/database-url.ts";
 
 /** The environment variable every process of an instance reads the connection URL of its database from. */
@@ -15,13 +15,16 @@ export const DATABASE_URL_VARIABLE = "OQAS_DATABASE_URL";
  * the same database.
  *
  * @param given - The URL the instance was given, when it was given one.
- * @param repository - The test repository of the instance, a folder that holds its configuration file, when
- * it has one: whoever asks sees to it that one of the two is there.
+ * @param repository - The test repository of the instance, when it has one: whoever asks sees to it that one of
+ * the two is there. A repository without a configuration file yet keeps its database in the state folder by default,
+ * `.oqas`, so that an instance starts before it is configured.
  * @returns The URL of the database.
- * @throws The error of the file system when no URL was given and the configuration file cannot be read.
+ * @throws The error of the file system when no URL was given and the configuration file is there but cannot be read.
  */
 export function instanceDatabaseUrl(given: DatabaseUrl | undefined, repository: string | undefined): DatabaseUrl {
   if (given !== undefined) return given;
   const root = repository as string;
-  return DatabaseUrl.ofFile(join(root, declaredStateDir(readFileSync(join(root, CONFIG_FILE_NAME), "utf8")), DATABASE_FILE_NAME));
+  const file = join(root, CONFIG_FILE_NAME);
+  const stateDir = existsSync(file) ? declaredStateDir(readFileSync(file, "utf8")) : DEFAULT_REPOSITORY.stateDir;
+  return DatabaseUrl.ofFile(join(root, stateDir, DATABASE_FILE_NAME));
 }

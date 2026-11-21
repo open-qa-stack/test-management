@@ -1637,6 +1637,24 @@ describe("the code of the console is covered in full", () => {
         instance.fileChanged = true;
         await page.getByRole("button", { name: "Prendre oqas.json" }).click();
         await page.getByRole("status").filter({ hasText: "Révision 5 enregistrée" }).waitFor();
+        // An instance with no configuration yet is set up step by step, then its repository prepared.
+        instance.view = { file: "missing" };
+        instance.revisions = [];
+        await page.goto("http://console.test/#/agent");
+        await page.goto("http://console.test/#/configuration");
+        await page.getByRole("button", { name: "Commencer" }).click();
+        for (const step of ["Vos applications", "Ce que les agents peuvent lire", "Le modèle"]) {
+          await page.getByRole("heading", { name: step }).waitFor();
+          await page.getByRole("button", { name: "Suivant" }).click();
+        }
+        await page.getByText("Ce dossier deviendra un dépôt git").waitFor();
+        // A step left is found again as it was.
+        await page.getByRole("button", { name: "Retour" }).click();
+        await page.getByRole("heading", { name: "Le modèle" }).waitFor();
+        await page.getByRole("button", { name: "Suivant" }).click();
+        await page.getByRole("button", { name: "Créer le projet" }).click();
+        await page.getByText("Le projet est prêt").waitFor();
+        assert.equal(instance.saved.at(-1)?.document.language, "fr", "the configuration speaks the language it was set up in");
       },
       instance.api,
     );

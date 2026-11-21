@@ -24,7 +24,7 @@ The API reads its configuration once, at startup, from environment variables onl
 | `OQAS_HOST` | a text that is not empty | no | no | `0.0.0.0` | `127.0.0.1` | The address the API listens on. |
 | `OQAS_PORT` | an integer from 1 to 65535 | yes | no | | `8080` | The TCP port the API listens on. |
 | `OQAS_DATABASE_URL` | a database URL: postgres:// or postgresql:// with a host name for a PostgreSQL server, or sqlite: followed by the path of a file | no | yes | | `postgres://oqas:change-me@127.0.0.1:5432/oqas` | The connection URL of the database of the instance, to keep it elsewhere than in the test repository. Without it, the database is a SQLite file in the state folder of the test repository. |
-| `OQAS_REPOSITORY` | the absolute path of a folder that holds oqas.json | no | no | | `/srv/tests` | The test repository the sessions run in. Without it, the API serves the sessions it holds and opens none. |
+| `OQAS_REPOSITORY` | the absolute path of a folder | no | no | | `/srv/tests` | The test repository the sessions run in. Without it, the API serves the sessions it holds and opens none. |
 | `OQAS_CONSOLE` | the absolute path of a folder that holds index.html | no | no | | `/srv/console` | The built console, which the API then serves on its own address, beside its routes. Without it, the API serves its routes alone. |
 
 The database is a setting, and has a default:

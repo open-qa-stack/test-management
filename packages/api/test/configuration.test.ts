@@ -112,19 +112,20 @@ describe("the documentation of the configuration", () => {
 });
 
 describe("the test repository of the API", () => {
-  it("is the absolute path of a folder that holds oqas.json, and may be left unset: the API then has none", () => {
+  it("is the absolute path of a folder, with or without its configuration yet, and may be left unset: the API then has none", () => {
     const folder = mkdtempSync(join(tmpdir(), "oqas-api-configuration-"));
     try {
-      assert.deepEqual(testRepository.parse(folder), { ok: false });
+      assert.deepEqual(testRepository.parse(folder), { ok: true, value: folder });
       writeFileSync(join(folder, "oqas.json"), "{}");
       assert.deepEqual(testRepository.parse(folder), { ok: true, value: folder });
+      assert.deepEqual(testRepository.parse(join(folder, "oqas.json")), { ok: false });
       assert.deepEqual(testRepository.parse("tests"), { ok: false });
       const read = (variables: Record<string, string>) => ApiConfiguration.read({ OQAS_PORT: "8080", OQAS_DATABASE_URL: DATABASE, ...variables });
       assert.equal(read({ OQAS_REPOSITORY: folder }).repository, folder);
       assert.equal(read({}).repository, undefined);
       assert.deepEqual(
         violationsOf(() => read({ OQAS_REPOSITORY: join(folder, "nowhere") })),
-        ["OQAS_REPOSITORY must be the absolute path of a folder that holds oqas.json."],
+        ["OQAS_REPOSITORY must be the absolute path of a folder."],
       );
     } finally {
       rmSync(folder, { recursive: true, force: true });
@@ -176,7 +177,7 @@ describe("the database of the API", () => {
   it("is not placed in a test repository that is not one: the variable at fault is named alone", () => {
     assert.deepEqual(
       violationsOf(() => ApiConfiguration.read({ OQAS_PORT: "8080", OQAS_REPOSITORY: "tests" })),
-      ["OQAS_REPOSITORY must be the absolute path of a folder that holds oqas.json."],
+      ["OQAS_REPOSITORY must be the absolute path of a folder."],
     );
   });
 });

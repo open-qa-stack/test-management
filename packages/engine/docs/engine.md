@@ -323,6 +323,17 @@ Their rules:
 - **An upload is checked whole before anything is kept**, by `readUpload` of `@open-qa-stack/domain`: one document at least and 20 at most, each a Markdown file of 1,000,000 bytes at most — the largest file the tools of the agents read — text in UTF-8, its name given once, without a slash, a control character or a leading dot. An upload that breaks a rule is refused with `InvalidDocumentsError`, which holds every error, each at its document.
 - **A run reads them from the state folder.** When its cartography starts, it writes the documents of each such source to `<stateDir>/documents/<id>/`, which it empties first, and the agents read that folder as a source of documents of the repository. The folder is a copy for the run: nothing reads it back, and the next run replaces it.
 
+## Setting the test repository up
+
+`RepositorySetup` makes a Playwright project of the test repository from the revision in force of the configuration, as `oqas --init` and the « Get started » of the console do. It takes the root of the repository, or none, and what tells the revision in force.
+
+| Operation | What it does |
+| --- | --- |
+| `state()` | Whether the folder is a git repository — `none`, `empty` without a commit, `ready` with one — and whether it holds a `playwright.config.ts`. |
+| `prepare()` | Writes the files of the project that are missing and keeps the others, creates the folder of each application, and, in a folder that was no git repository, runs `git init` and commits `oqas.json` with what it created (`SETUP_COMMIT`), signed `Open QA Stack <oqas@localhost>` when the machine has no git identity. It throws `NoRepositoryError` without a root. |
+
+`START_ADVICE` is the sentence every presentation says when there is no configuration: start with `oqas --ui`, or write an `oqas.json`.
+
 ## The operations on the tests of the repository
 
 `RepositoryTests` lists the Playwright tests of the test repository, whoever wrote them, read from their files at each call: nothing is kept. It takes the root of the repository and what tells the revision in force of the configuration, which names the folder of the applications (`repository.appsDir`, `apps` by default).

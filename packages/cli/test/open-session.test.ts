@@ -162,7 +162,7 @@ describe("oqas --brief in a folder it cannot keep its sessions in", () => {
     assert.deepEqual(run, {
       code: 3,
       out: "",
-      err: `${join(terminal.root, "oqas.json")} cannot be read; oqas needs a oqas.json at the root of the test repository, which says where its sessions are kept.\n`,
+      err: `${join(terminal.root, "oqas.json")} is missing. Start with oqas --ui, which sets it up step by step, or write a oqas.json at the root of the test repository.\n`,
     });
     assert.equal(untracked(terminal.root), "");
   });
