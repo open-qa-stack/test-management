@@ -102,29 +102,40 @@ describe("what a run tells of its session", () => {
 
 describe("a write the store fails to take", () => {
   it("is made again, the same, after a delay that doubles up to a bound, until the store takes it: nothing is lost, nothing is written twice", async () => {
+    // The waits are asked of a clock the test holds: what is checked is the delay asked, whatever the load of the machine.
+    // What the run tells during the first wait joins what waits.
+    const waits: number[] = [];
+    const told = held();
+    const timed = new SessionWriter(
+      store,
+      "s1",
+      logger,
+      { wrote: () => undefined, lost: assert.fail },
+      abandoned.signal,
+      { firstRetryMs: 2, maxRetryMs: 5 },
+      (ms) => {
+        if (waits.push(ms) === 1) {
+          timed.tell([note("Three.")]);
+          told.resolve();
+        }
+        return Promise.resolve();
+      },
+    );
     let failures = 4;
-    const attempts: number[] = [];
     store.before = (command) => {
       if (command !== "append") return;
-      attempts.push(Date.now());
       failures -= 1;
       if (failures >= 0) throw new Error("The database is unreachable: connection refused");
     };
-    writer.tell([note("One."), note("Two.")]);
-    await eventually(() => assert.equal(logger.lines.length, 1));
-    writer.tell([note("Three.")]);
-    await writer.end(RESULT);
+    timed.tell([note("One."), note("Two.")]);
+    await told.promise;
+    await timed.end(RESULT);
     assert.deepEqual(appended(), [["One.", "Two.", "Three."]]);
     assert.deepEqual(logger.lines, [
       "warn The session s1 cannot be written to, and what it tells waits: The database is unreachable: connection refused",
       "log The session s1 is written to again.",
     ]);
-    const delays = attempts.slice(1).map((at, index) => at - (attempts[index] as number));
-    assert.equal(delays.length, 4);
-    assert.ok(
-      delays.every((delay) => delay < 50),
-      `the delay stays under its bound: ${delays.join(", ")}`,
-    );
+    assert.deepEqual(waits, [2, 4, 5, 5], "the delay doubles from the first, up to its bound");
   });
 
   it("starts from the first delay again once a write succeeded", async () => {
