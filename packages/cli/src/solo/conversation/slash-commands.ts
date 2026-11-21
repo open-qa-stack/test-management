@@ -1,6 +1,6 @@
 /** A command of the conversation, typed after a slash. */
 export interface SlashCommand {
-  readonly name: "sessions" | "new" | "stop" | "ui" | "help" | "quit";
+  readonly name: "sessions" | "new" | "stop" | "ui" | "model" | "help" | "quit";
   /** What it takes after its name, when it takes something. */
   readonly takes?: string;
 }
@@ -11,6 +11,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
   { name: "new" },
   { name: "stop" },
   { name: "ui", takes: "[port]" },
+  { name: "model" },
   { name: "help" },
   { name: "quit" },
 ];

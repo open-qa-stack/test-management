@@ -120,6 +120,8 @@ export class Terminal {
       },
       runner,
       pace: QUICK,
+      // The model of the chain is the scripted server, whose answers go to the sessions: the connection is played instead.
+      probes: { github: () => Promise.resolve({ state: "connected" }), provider: () => Promise.resolve({ state: "connected" }) },
       ...run.io,
     });
     return { code, out, err };

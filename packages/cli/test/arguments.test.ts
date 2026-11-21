@@ -131,7 +131,14 @@ describe("the arguments of the command", () => {
   it("refuse a connection to the model told by halves, or told to another command", () => {
     const either =
       "oqas model set takes --github, for the GitHub account of this machine, or --provider with the name of a provider or the address of its server.";
-    assert.deepEqual(parseArguments(["model"]), refused("oqas model takes status or set."));
+    assert.deepEqual(parseArguments(["model"]), read({ name: "model", action: "setup" }));
+    assert.deepEqual(
+      parseArguments(["model", "--no-input"]),
+      refused(
+        "oqas model alone sets the connection step by step, in a terminal: with --no-input or --output, give status, or set with its options; see oqas --help.",
+      ),
+    );
+    assert.deepEqual(parseArguments(["model", "nothing"]), refused("oqas model takes status or set."));
     assert.deepEqual(parseArguments(["model", "status", "now"]), refused("oqas model takes status or set."));
     assert.deepEqual(parseArguments(["model", "set", "--model", "m"]), refused(either));
     assert.deepEqual(parseArguments(["model", "set", "--github", "--provider", "OpenAI", "--model", "m"]), refused(either));

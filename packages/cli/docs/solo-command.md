@@ -34,6 +34,7 @@ The command is a presentation of [the operations on sessions](../../engine/docs/
 | `oqas config show` | Prints the configuration in force, and how `oqas.json` stands to it: see [The configuration](#the-configuration). |
 | `oqas config import` | Takes `oqas.json` as the configuration in force, when it changed. |
 | `oqas config export` | Writes the configuration in force over `oqas.json`, when it changed. |
+| `oqas model` | In a terminal, sets the connection to the model step by step: see [The model](#the-model). |
 | `oqas model status` | Tests the connection to the model in force, and lists the models it offers: see [The model](#the-model). |
 | `oqas model set` | Sets the connection to the model — the GitHub account of the machine, or a provider and its key — then tests it. |
 | `oqas knowledge list` | Lists the knowledge sources of the configuration in force, and the documents the instance keeps: see [The knowledge](#the-knowledge). |
@@ -104,6 +105,7 @@ While the session goes on, what you type is said to its agents, as [`oqas say`](
 | `/new` | Goes back to the start, to open another session. A session this terminal runs goes on, and the next one waits its turn. |
 | `/stop` | Stops the session on screen, after a confirmation: Enter stops it, Esc keeps it going. |
 | `/ui [port]` | Serves [the console](#the-console) from this process, on `127.0.0.1` and the port given — `6727` by default, `0` for any free one — and writes its address. It is served until you leave. |
+| `/model` | Sets the connection to the model step by step, as `oqas model` does: see [The model](#the-model). |
 | `/help` | Lists the commands and the keys. |
 | `/quit` | Leaves the conversation. |
 
@@ -114,7 +116,7 @@ A slash lists the commands as you type; Tab completes the first of them, and the
 | Enter | Opens a session with what you typed, says it to the agents of the session that goes on, or goes on with the session on screen once it ended. |
 | Tab | Completes the command you are typing. |
 | Up, Down | Move in the list of the sessions. |
-| Esc | Closes the list of the sessions, or the confirmation of a stop. |
+| Esc | Closes the list of the sessions, the confirmation of a stop, or the setting of the model. |
 | Ctrl-C | Closes what stands over the input, or clears what you typed. Otherwise, as in the terminal of `oqas --brief`: the first asks the session on screen to stop, when this terminal runs it and it goes on, and the conversation stays to show its end; pressed again at once, it leaves without waiting. Where there is nothing to stop — at the start, on a session that ended, on one another process runs — the first says to press again, and the second leaves. Any other key in between starts over. |
 
 **A session another process runs** — another terminal, a server, the console — is reopened with `/sessions`, followed, spoken to and stopped with `/stop`, through the database, as `oqas attach`, `say` and `stop` do. Ctrl-C never stops it: it is left to its process.
@@ -265,6 +267,8 @@ oqas.json is in step with it.
 
 ## The model
 
+`oqas model` alone, in a terminal, sets the connection step by step, in the language of the configuration: the person chooses how to reach the model in a list — the GitHub account of this machine, a provider by its name, or another server — types the address of another server and the variable of the key when the connection needs them, the connection is tested, and they choose the model among those it offers, or type its name when the server lists none. A connection that does not answer is told with what to do, and may be tested again or changed. Enter records the model chosen, as a revision of origin `command`; Esc leaves, and nothing changes. It exits with `0` once a connection is recorded, with `5` when the person left; with `--no-input`, `--output`, or where there is no terminal, it is refused with `3`. In the conversation, `/model` opens the same setting, and the conversation tests the model in force when it opens: a model that does not answer, or is not among those offered, is told at once, with `/model`.
+
 `oqas model status` tests the connection to the model of the configuration in force, as the console does: it says how the model is reached, whether it answers or what to do when it does not, and the models the connection offers, with whether the model in force is among them.
 
 ```console
@@ -396,7 +400,7 @@ The command holds no rule of a session: it reads its arguments, assembles the da
 | `oqas say` | `say`, or `resume` for a session that ended, then `events` and `session`. |
 | `oqas stop` | `interrupt`, then `session`. |
 | `oqas config` | On the `Configuration` of the engine: `view` for `show`; `synchronise`, then `view`, for `import`; `restore`, then `view`, for `export`. |
-| `oqas model` | `synchronise` on the `Configuration` of the engine, then `check` on its `ModelConnection`; `set` saves the connection with `save` first, of origin `command`. |
+| `oqas model` | `synchronise` on the `Configuration` of the engine, then `check` on its `ModelConnection`; `set`, and the setting step by step, save the connection with `save`, of origin `command`. |
 | `oqas --init` | `synchronise` on the `Configuration` of the engine. |
 
 `oqas`, `oqas --brief`, `oqas say` and `oqas --ui` are the commands that host — `say` only the session it resumes: each gives the operations its test repository, and stops them, within ten seconds, before it leaves. `oqas --ui` says no operation itself: it starts the REST presentation of `@open-qa-stack/api` in its process, whose routes say them, and loads that package only then — no other command pays for an HTTP server. The conversation is drawn with [Ink](https://github.com/vadimdemedes/ink) and React, which are loaded when it opens and by no other command; its screen is a function of a state that one reducer gives, in `src/solo/conversation/`, in the words of i18next, and what it reads of a thread — the steps and their turns — is the code the console reads it with, in `@open-qa-stack/domain/sessions`.

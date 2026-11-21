@@ -107,6 +107,7 @@
     "new": "Revenir au début, pour ouvrir une autre session",
     "stop": "Arrêter la session à l’écran, après confirmation",
     "ui": "Servir la console web depuis ce processus et écrire son adresse",
+    "model": "Régler la connexion au modèle : compte GitHub ou fournisseur, puis le modèle",
     "help": "Lister les commandes et les touches",
     "quit": "Quitter la conversation"
   },
@@ -224,5 +225,47 @@
     "failed": "échoué",
     "blocked": "bloqué",
     "not_run": "non joué"
+  },
+  "model": {
+    "title": "Connexion au modèle",
+    "choose": "Comment l’outil joint-il le modèle ?",
+    "github": "Compte GitHub de cette machine (Copilot)",
+    "other": "Autre serveur (adresse à saisir)",
+    "address": "Adresse du serveur",
+    "addressHint": "Celle de son API compatible OpenAI, par exemple http://localhost:1234/v1.",
+    "key": "Variable qui tient la clé",
+    "keyHint": "Le nom de la variable d’environnement où se trouve la clé ; laissez vide pour un serveur sans clé.",
+    "name": "Modèle",
+    "nameHint": "Son nom, tel que le serveur le donne.",
+    "testing": "Test de la connexion…",
+    "saving": "Enregistrement de {{model}}, par {{reach}}…",
+    "refused": {
+      "address": "Une adresse http:// ou https:// est attendue.",
+      "variable": "Un nom de variable est attendu : des majuscules, des chiffres et _.",
+      "name": "Le nom du modèle est attendu."
+    },
+    "after": {
+      "retry": "Tester à nouveau",
+      "change": "Choisir une autre connexion"
+    },
+    "keys": {
+      "list": "Haut/Bas choisir · Entrée valider · Échap quitter",
+      "field": "Entrée valider · Échap quitter"
+    },
+    "check": {
+      "connected": "Connecté.",
+      "connectedAs": "Connecté avec le compte GitHub {{account}}.",
+      "pick": "Choisissez le modèle :",
+      "noList": "Le serveur ne donne pas la liste de ses modèles : saisissez le nom du modèle.",
+      "signedOut": "Aucun compte GitHub n’est connecté sur cette machine : lancez gh auth login dans un terminal, puis testez à nouveau.",
+      "noModels": "Le compte GitHub {{account}} est connecté, mais Copilot ne lui propose aucun modèle : il faut un abonnement GitHub Copilot sur ce compte, ou que son organisation en autorise.",
+      "keyMissing": "La variable {{variable}} n’est pas définie là où tourne l’outil : mettez-y votre clé, relancez l’outil, puis testez à nouveau.",
+      "keyRefused": "Le fournisseur a refusé la clé (statut {{status}}) : vérifiez la clé que contient la variable.",
+      "unreachable": "Rien ne répond à l’adresse {{url}} : vérifiez l’adresse, ou que le serveur est bien lancé."
+    },
+    "set": "Le modèle {{model}} est réglé, par {{reach}}.",
+    "left": "Rien n’a changé.",
+    "silent": "Le modèle ne répond pas. {{why}} /model pour le régler.",
+    "notOffered": "Le modèle {{model}} n’est pas parmi ceux que propose la connexion."
   }
 }

@@ -2,6 +2,9 @@ import { useInput, useWindowSize } from "ink";
 import { createElement as h, useEffect, useReducer, type ReactNode } from "react";
 import { hasEnded, type Session, type SessionEvent } from "@open-qa-stack/domain/sessions";
 import type { Sessions } from "@open-qa-stack/engine";
+import type { Model, ModelConnectionCheck } from "@open-qa-stack/domain/sessions";
+import { checkText, type SetupEnd } from "./model-setup/model-setup.ts";
+import { t } from "./i18n/i18n.ts";
 import { conversationReducer } from "./conversation-reducer.ts";
 import { initialState, type ConversationContext } from "./conversation-state.ts";
 import { ConversationView } from "./conversation-view.ts";
@@ -16,6 +19,29 @@ const TICK_MS = 1000;
 export type ConversationSessions = Pick<Sessions, "open" | "say" | "resume" | "interrupt" | "sessions" | "session" | "events">;
 
 /** How the person left the conversation. */
+/** The connection to the model, as the conversation reads, tests and sets it. */
+export interface ConversationModel {
+  /** The connection in force. */
+  readonly inForce: () => Promise<Model>;
+  /** Tests a connection. */
+  readonly check: (model: Model) => Promise<ModelConnectionCheck>;
+  /** Records a connection. */
+  readonly save: (model: Model) => Promise<void>;
+}
+
+/**
+ * Why a connection to the model does not serve, in the words of the person: the reason the test gives, or that the
+ * model is not among those offered.
+ *
+ * @param model - The connection tested.
+ * @param check - What the test found.
+ * @returns The reason, or `undefined` when the model answers and is offered, or the server lists none.
+ */
+export function silenceOf(model: Model, check: ModelConnectionCheck): string | undefined {
+  if (check.state !== "connected") return checkText(check);
+  return check.models === undefined || check.models.some(({ id }) => id === model.model) ? undefined : t("model.notOffered", { model: model.model });
+}
+
 export interface Leaving {
   /** Whether they left at once, without waiting for the sessions this process runs. */
   readonly atOnce: boolean;
@@ -44,6 +70,8 @@ export interface ConversationProps {
   readonly reasonOf: (error: unknown) => string;
   /** Called once, when the person leaves, with how they did. */
   readonly onLeave: (leaving: Leaving) => void;
+  /** The connection to the model: tested when the conversation opens, set with /model. */
+  readonly model: ConversationModel;
 }
 
 /**
@@ -63,7 +91,7 @@ export interface ConversationProps {
  * @param props - The operations, where the conversation takes place, what draws and times it, and who hears it end.
  * @returns The screen.
  */
-export function Conversation({ sessions, context, latest, theme, now, serve, reasonOf, onLeave }: ConversationProps): ReactNode {
+export function Conversation({ sessions, context, latest, theme, now, serve, reasonOf, onLeave, model }: ConversationProps): ReactNode {
   const [state, dispatch] = useReducer(conversationReducer, undefined, () => initialState(latest, now()));
   const { columns } = useWindowSize();
   const fail = (error: unknown): void => dispatch({ type: "failed", why: reasonOf(error) });
@@ -102,6 +130,14 @@ export function Conversation({ sessions, context, latest, theme, now, serve, rea
     };
   }, [followed, turn]);
 
+  // The model is tested once the conversation is on screen, so that it opens at once: a model that does not answer is told as soon as it is known.
+  useEffect(() => {
+    void model
+      .inForce()
+      .then(async (inForce) => silenceOf(inForce, await model.check(inForce)))
+      .then((why) => (why === undefined ? undefined : dispatch({ type: "model-silent", why })), fail);
+  }, []);
+
   const timed = state.shown !== undefined && !hasEnded(state.shown.session.state);
   useEffect(() => {
     if (!timed) return undefined;
@@ -134,6 +170,8 @@ export function Conversation({ sessions, context, latest, theme, now, serve, rea
         return void sessions.sessions().then((listed) => dispatch({ type: "restarted", sessions: listed }), fail);
       case "ui":
         return void serve(request.port).then((url) => dispatch({ type: "served", url }), fail);
+      case "model":
+        return void model.inForce().then((inForce) => dispatch({ type: "model-opened", inForce }), fail);
       default:
         return undefined;
     }
@@ -146,6 +184,8 @@ export function Conversation({ sessions, context, latest, theme, now, serve, rea
   };
 
   useInput((input, key) => {
+    // The setting of the model hears its own keys, Ctrl-C aside, which closes it as it closes any list.
+    if (state.overlay?.kind === "model" && !(key.ctrl && input === "c")) return;
     if (key.ctrl && input === "c") {
       const interruption = interruptionOf(state);
       if (interruption.kind === "stop") void sessions.interrupt(interruption.session).catch(fail);
@@ -157,5 +197,6 @@ export function Conversation({ sessions, context, latest, theme, now, serve, rea
     else if (key.return && state.overlay !== undefined) submit();
   });
 
-  return h(ConversationView, { state, context, theme, width: columns, onChange: (input) => dispatch({ type: "typed", input }), onSubmit: submit });
+  const setup = { check: model.check, save: model.save, reasonOf, onEnd: (end: SetupEnd) => dispatch({ type: "model-ended", end }) };
+  return h(ConversationView, { state, context, theme, width: columns, setup, onChange: (input) => dispatch({ type: "typed", input }), onSubmit: submit });
 }

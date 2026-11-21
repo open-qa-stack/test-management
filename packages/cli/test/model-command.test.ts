@@ -8,6 +8,7 @@ import type { ConnectionProbes } from "@open-qa-stack/engine";
 import { fixtureConfig } from "@open-qa-stack/testing/fixture-repository";
 import { soloCommand } from "../src/index.ts";
 import { keptTuning } from "../src/solo/model-lines.ts";
+import { FakeTerminal } from "./support/fake-terminal.ts";
 
 const workspace = mkdtempSync(join(tmpdir(), "oqas-model-command-"));
 afterAll(() => rmSync(workspace, { recursive: true, force: true }));
@@ -22,7 +23,7 @@ const MODELS = [
 ];
 
 /** A test repository with its database beside it, the connections the test plays, and how to run oqas in it. */
-function repository(answers: { github?: ModelConnectionCheck; provider?: ModelConnectionCheck } = {}, played = true) {
+function repository(answers: { github?: ModelConnectionCheck; provider?: ModelConnectionCheck } = {}, played = true, terminal?: FakeTerminal) {
   const root = mkdtempSync(join(workspace, "repo-"));
   writeFileSync(join(root, "oqas.json"), TEXT);
   const asked: unknown[][] = [];
@@ -44,6 +45,7 @@ function repository(answers: { github?: ModelConnectionCheck; provider?: ModelCo
       env,
       cwd: root,
       ...(played ? { probes } : {}),
+      ...(terminal === undefined ? {} : { terminal }),
       stdout: { write: (text: string) => (out += text) },
       stderr: { write: (text: string) => (err += text) },
     });
@@ -172,5 +174,57 @@ describe("oqas model set", () => {
       /^acme is no provider oqas knows nor the address of a server: name one of OpenAI, .*, or give the address of an OpenAI-compatible server\.\n$/,
     );
     assert.equal(model().mode, "provider-key");
+  });
+});
+
+describe("oqas model, alone, in a terminal", () => {
+  /** Waits for the screen to settle, then types. */
+  const typing = async (screen: FakeTerminal, keys: string, seen: string): Promise<void> => {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    screen.type(keys);
+    await screen.sees(seen);
+  };
+
+  it("sets the connection step by step, records it, and exits with 0", async () => {
+    const screen = new FakeTerminal();
+    const { oqas, model } = repository(
+      { provider: { state: "connected", models: [{ id: "test-model", name: "test-model", reasoningEfforts: [] }] } },
+      true,
+      screen,
+    );
+    const ended = oqas("model");
+    await screen.sees("How does the tool reach the model?");
+    await typing(screen, "\r", "Address of the server");
+    await typing(screen, "\r", "Variable that holds the key");
+    await typing(screen, "\r", "Choose the model:");
+    screen.type("\r");
+    const told = await ended;
+    assert.deepEqual([told.code, told.out], [0, "The model test-model is set, through http://127.0.0.1:9/v1.\n"]);
+    assert.deepEqual(model(), { mode: "provider-key", provider: "openai", baseUrl: "http://127.0.0.1:9/v1", model: "test-model" });
+  });
+
+  it("leaves with Esc, changes nothing, and exits with 5", async () => {
+    const screen = new FakeTerminal();
+    const { oqas, model } = repository({}, true, screen);
+    const ended = oqas("model");
+    await screen.sees("How does the tool reach the model?");
+    await typing(screen, "\u001B", "How does the tool reach the model?");
+    const told = await ended;
+    assert.deepEqual([told.code, told.err], [5, "Nothing changed.\n"]);
+    assert.equal(model().model, "test-model");
+  });
+
+  it("tests the connection itself when given none to play", async () => {
+    const screen = new FakeTerminal();
+    const ended = repository({}, false, screen).oqas("model");
+    await screen.sees("How does the tool reach the model?");
+    await typing(screen, "\u001B", "How does the tool reach the model?");
+    assert.equal((await ended).code, 5);
+  });
+
+  it("is refused where there is no terminal", async () => {
+    const told = await repository().oqas("model");
+    assert.equal(told.code, 3);
+    assert.match(told.err, /^oqas model alone sets the connection step by step in a terminal, and this is not one/);
   });
 });

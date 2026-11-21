@@ -1,4 +1,4 @@
-import type { Session, SessionEvent } from "@open-qa-stack/domain/sessions";
+import type { Model, Session, SessionEvent } from "@open-qa-stack/domain/sessions";
 import type { Block } from "./thread-blocks.ts";
 
 /** How many sessions the start of the conversation recalls. */
@@ -34,7 +34,10 @@ export type Printed =
 
 /** What stands over the input until the person answers it: the sessions to pick one from, or the confirmation of a stop. */
 export type Overlay =
-  { readonly kind: "picker"; readonly sessions: readonly Session[]; readonly selected: number } | { readonly kind: "stop"; readonly session: string };
+  | { readonly kind: "picker"; readonly sessions: readonly Session[]; readonly selected: number }
+  | { readonly kind: "stop"; readonly session: string }
+  /** The setting of the connection to the model, from the connection in force. */
+  | { readonly kind: "model"; readonly inForce: Model };
 
 /** The thread on screen. */
 export interface ShownThread {

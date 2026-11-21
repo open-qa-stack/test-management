@@ -7,7 +7,7 @@ import type { Sessions } from "@open-qa-stack/engine";
 import type { DatabaseUrl } from "@open-qa-stack/store";
 import { UI_HOST } from "../arguments.ts";
 import { failureOf } from "../failure.ts";
-import { databaseOf, openOperations } from "../operations.ts";
+import { databaseOf, modelConnectionOf, openOperations } from "../operations.ts";
 import { startConsole, type StartedConsole } from "../served-console.ts";
 import { exitCodeOf } from "../session-exit.ts";
 import { Conversation, type ConversationProps, type Leaving } from "./conversation.ts";
@@ -142,6 +142,14 @@ export async function converse({ repository, environment, terminal, io }: Conver
           }
         },
         reasonOf,
+        model: {
+          inForce: async () => (await configuration.synchronise()).document.model,
+          check: (model) => modelConnectionOf(io).check(model),
+          save: async (model) => {
+            const inForce = await configuration.synchronise();
+            await configuration.save({ ...inForce.document, model }, inForce.number, false, "command");
+          },
+        },
       });
       if (atOnce) withinMs = 0;
       const last = hosted.at(-1);

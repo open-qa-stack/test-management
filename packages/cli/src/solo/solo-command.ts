@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { configurationText, ExitCode, isStoredDocuments, type ConfigurationView, type ExitCodeValue } from "@open-qa-stack/domain";
 import { playwrightVersion } from "@open-qa-stack/tools";
 import { hasEnded, type Session } from "@open-qa-stack/domain/sessions";
-import { ModelConnection, type Configuration, type KnowledgeDocuments, type Sessions } from "@open-qa-stack/engine";
+import type { Configuration, KnowledgeDocuments, Sessions } from "@open-qa-stack/engine";
 import { parseArguments, USAGE, type Arguments, type Command } from "./arguments.ts";
 import { fileLine, revisionLine } from "./configuration-lines.ts";
 import { eventLine, ofTheAgents } from "./event-line.ts";
@@ -11,7 +11,7 @@ import { followSession } from "./follow-session.ts";
 import { Interruptions } from "./interruptions.ts";
 import { documentLine, documentsRefusal, receivedFiles, sourceLine } from "./knowledge-lines.ts";
 import { keptTuning, modelOfArguments, modelReport } from "./model-lines.ts";
-import { openOperations } from "./operations.ts";
+import { modelConnectionOf, openOperations } from "./operations.ts";
 import { RepositoryInit } from "./repository-init.ts";
 import { servedConsole } from "./served-console.ts";
 import { exitCodeOf } from "./session-exit.ts";
@@ -28,6 +28,10 @@ interface Asked<Name extends Command["name"]> {
   readonly options: Arguments;
   readonly io: CommandIo;
 }
+
+/** What `oqas model` alone is told where it cannot ask anything. */
+const SETUP_TERMINAL =
+  "oqas model alone sets the connection step by step in a terminal, and this is not one: give status, or set with its options; see oqas --help.";
 
 /** What `oqas` without a command is told where it cannot open its conversation. */
 const NO_TERMINAL = "oqas opens its conversation in a terminal, and this is not one: say what to test with --brief, or name a command; see oqas --help.";
@@ -99,7 +103,7 @@ async function onSessions(command: Exclude<Command, { name: "help" }>, options: 
       case "knowledge":
         return await known({ configuration, documents, command, options, io });
       case "model":
-        return await modelled({ configuration, command, options, io });
+        return command.action === "setup" ? await setUp(configuration, io) : await modelled({ configuration, command, options, io });
       case "sessions":
         return await listed({ sessions, command, options, io });
       case "show":
@@ -141,17 +145,32 @@ async function configured({
  * the connection in force when it names the same model the same way. Exits with `0` when the
  * model answers and is among those offered, with `4` otherwise.
  */
-async function modelled({ configuration, command, options, io }: Omit<Asked<"model">, "sessions"> & { configuration: Configuration }): Promise<ExitCodeValue> {
+async function modelled({
+  configuration,
+  command,
+  options,
+  io,
+}: Omit<Asked<"model">, "sessions" | "command"> & {
+  configuration: Configuration;
+  command: Exclude<Extract<Command, { name: "model" }>, { action: "setup" }>;
+}): Promise<ExitCodeValue> {
   if (command.action === "set") {
     const inForce = await configuration.synchronise();
     const model = keptTuning(modelOfArguments(command.connection), inForce.document.model);
     await configuration.save({ ...inForce.document, model }, inForce.number, false, "command");
   }
   const revision = (await configuration.synchronise()).document;
-  const connection = new ModelConnection(io.env, ...(io.probes === undefined ? [] : [io.probes]));
-  const report = modelReport(revision.model, await connection.check(revision.model));
+  const report = modelReport(revision.model, await modelConnectionOf(io).check(revision.model));
   print({ options, io }, report.text, report.value);
   return report.code;
+}
+
+/** `oqas model` alone: sets the connection to the model step by step, in a terminal. */
+async function setUp(configuration: Configuration, io: CommandIo): Promise<ExitCodeValue> {
+  if (io.terminal === undefined) throw new UsageError(SETUP_TERMINAL);
+  // The setting and what draws it are loaded here and nowhere else, as the conversation is.
+  const { setupModel } = await import("./conversation/model-setup/setup-command.ts");
+  return setupModel(configuration, io.terminal, io);
 }
 
 /**
