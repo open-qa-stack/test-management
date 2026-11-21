@@ -41,13 +41,14 @@ export const ENGINE_OPERATIONS: MethodsOf = OPERATIONS;
  *
  * - `Sessions.start` and `Sessions.stop`: a host starts the sessions and stops them as it starts and stops.
  * - `Configuration.inStep`: a host brings the configuration in step with its file as it starts.
+ * - `Configuration.whenRecorded`: the operations on sessions map the knowledge of a source added once its revision is recorded.
  * - `Secrets.current`: the operations on sessions read the environment of the runs through it.
  * - `PastRuns.take`: a host keeps the runs of the repository as executions as it starts.
  * - `RepositoryTests.list`: the campaigns check the tests they choose against it.
  */
 export const HOST_METHODS = {
   Sessions: ["start", "stop"],
-  Configuration: ["inStep"],
+  Configuration: ["inStep", "whenRecorded"],
   Secrets: ["current"],
   PastRuns: ["take"],
   RepositoryTests: ["list"],

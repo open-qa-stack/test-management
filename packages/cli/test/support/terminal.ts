@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { scriptedServer, type ScriptedServer } from "@open-qa-stack/testing";
-import { configText, FakeRunner, repository, WITNESS, type RanCommand, type RanOutcome, type Script } from "@open-qa-stack/testing/test-repository";
+import { configText, FakeRunner, markMapped, repository, WITNESS, type RanCommand, type RanOutcome, type Script } from "@open-qa-stack/testing/test-repository";
 import type { SessionEvent } from "@open-qa-stack/domain/sessions";
 import { soloCommand, type CommandIo } from "../../src/index.ts";
 
@@ -61,7 +61,10 @@ export class Terminal {
 
   private constructor(server: ScriptedServer, setup: Setup) {
     this.server = server;
-    this.root = repository(setup.config === undefined ? configText(server.baseUrl) : setup.config(server.baseUrl));
+    const config = setup.config === undefined ? configText(server.baseUrl) : setup.config(server.baseUrl);
+    this.root = repository(config);
+    // The commands that stay map the knowledge that waits: here none waits, and the sessions a test opens run at once.
+    if (config !== undefined) markMapped(this.root);
     this.runner = new FakeRunner(this.root, setup.script);
   }
 

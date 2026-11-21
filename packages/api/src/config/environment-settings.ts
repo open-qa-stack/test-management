@@ -7,7 +7,7 @@ import type { Environment } from "./environment-variable.ts";
 /**
  * Reads and validates the settings of an API started as a program: its settings are its variables, and its
  * runs read the same environment for what the configuration of the test repository names — the key of the
- * model, the test accounts — as the command line does.
+ * model, the test accounts — as the command line does. It stays: it maps the knowledge of the sources added.
  *
  * @param env - The environment of the process.
  * @returns The settings.
@@ -15,5 +15,5 @@ import type { Environment } from "./environment-variable.ts";
  */
 export function environmentSettings(env: Environment): ApiSettings {
   const { host, port, database, repository, console } = readVariables(API_VARIABLES, env);
-  return { host, port, database: instanceDatabaseUrl(database, repository), repository, console, runs: { env } };
+  return { host, port, database: instanceDatabaseUrl(database, repository), repository, console, runs: { env, mapsKnowledge: true } };
 }

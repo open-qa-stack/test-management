@@ -26,6 +26,8 @@ export interface ProjectTable {
  */
 export interface SessionsTable {
   id: string;
+  /** `map` for a session that maps the knowledge alone; `null` for one that tests. */
+  purpose: "map" | null;
   request: string | null;
   environment: string | null;
   scope: StoredJson<SessionScope> | null;

@@ -96,7 +96,8 @@
     "emptyTitle": "Aucune session pour l’instant",
     "emptyBody": "La première apparaîtra ici dès qu’une demande sera faite.",
     "running": "Session en cours",
-    "unasked": "Session sans demande"
+    "unasked": "Session sans demande",
+    "mapping": "Cartographie des connaissances"
   },
   "session": {
     "filters": {

@@ -31,6 +31,7 @@ const DECLARED: { readonly [Table in keyof StoreSchema]: { readonly [Column in k
   project: { only: "boolean", name: "text, or nothing", applications: "json" },
   sessions: {
     id: "text",
+    purpose: "text, or nothing",
     request: "text, or nothing",
     environment: "text, or nothing",
     scope: "json, or nothing",

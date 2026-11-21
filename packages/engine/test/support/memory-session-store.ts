@@ -10,7 +10,17 @@ import {
   type PendingMessage,
   type SessionStorePort,
 } from "@open-qa-stack/domain";
-import type { AgentRole, MessageReceipt, Project, Session, SessionEvent, SessionOpening, SessionResult, UnrankedEvent } from "@open-qa-stack/domain/sessions";
+import type {
+  AgentRole,
+  MappingOpening,
+  MessageReceipt,
+  Project,
+  Session,
+  SessionEvent,
+  SessionOpening,
+  SessionResult,
+  UnrankedEvent,
+} from "@open-qa-stack/domain/sessions";
 
 /** What the store keeps of one session. */
 interface Kept {
@@ -86,12 +96,13 @@ export class MemorySessionStore implements SessionStorePort {
     this.#project = saved;
   }
 
-  async ask(opening: SessionOpening, host: string): Promise<Session> {
+  async ask(opening: SessionOpening | MappingOpening, host: string): Promise<Session> {
     await this.#answer("ask");
     const at = this.#now();
     this.#asked += 1;
     const session: Session = { id: `session-${this.#asked}`, ...opening, openedAt: at, lastEventAt: at, state: ASKED_STATE };
-    const events: SessionEvent[] = [{ id: 1, at, type: "user_message", text: opening.request }];
+    // A session that maps the knowledge was asked by no person: it starts with no event.
+    const events: SessionEvent[] = "purpose" in opening ? [] : [{ id: 1, at, type: "user_message", text: opening.request }];
     this.#kept.set(session.id, { session, events, messages: [], host, seen: this.#clock().getTime(), asked: false });
     return session;
   }

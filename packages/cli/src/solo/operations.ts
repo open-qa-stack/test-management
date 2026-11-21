@@ -50,17 +50,18 @@ const STOP_WITHIN_MS = 10_000;
  * A command that opens a session hosts it: it runs the session in its own process, in the test repository,
  * and leaves the sessions that wait for another host to a host that stays. A command that reads the sessions
  * or posts to one is given no test repository to run in: it hosts nothing, and touches no session but the one
- * it is asked about.
+ * it is asked about. A command that stays, the conversation, maps the knowledge that waits for it, as a server does.
  *
  * @param io - The environment and the outputs of the command.
  * @param repository - Absolute path of the test repository.
  * @param hosts - Whether the command opens a session, which it then runs.
+ * @param stays - Whether the command stays, and maps the knowledge of the sources added while it does.
  * @returns The operations, on a database whose schema is in order.
  * @throws {@link UsageError} when the database cannot be told: its URL is no URL, or the configuration file that places it cannot be read.
  * @throws `PendingMigrationsError` when the database is on a server that has migrations pending.
  * @throws `DatabaseUnavailableError` when the file of the database cannot be opened.
  */
-export async function openOperations(io: CommandIo, repository: string, hosts: boolean): Promise<Operations> {
+export async function openOperations(io: CommandIo, repository: string, hosts: boolean, stays = false): Promise<Operations> {
   const logger = commandLogger(io);
   const instance = new InstanceDatabase(databaseOf(io, repository), logger);
   const configuration = new Configuration(instance.configuration, repository);
@@ -76,6 +77,7 @@ export async function openOperations(io: CommandIo, repository: string, hosts: b
     executions: instance.executions,
     repository: hosts ? repository : undefined,
     takesOver: false,
+    mapsKnowledge: stays,
     logger,
   });
   const close = async (withinMs = STOP_WITHIN_MS): Promise<void> => {

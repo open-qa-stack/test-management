@@ -57,6 +57,8 @@ function digestOf(text: string): string {
 export class Configuration implements ConfigurationSource {
   readonly #store: ConfigurationStorePort;
   readonly #repository: string | undefined;
+  /** What is told each revision this instance records. */
+  readonly #listeners: ((revision: ConfigurationRevision) => void)[] = [];
 
   /**
    * @param store - The store of the revisions.
@@ -108,7 +110,7 @@ export class Configuration implements ConfigurationSource {
     const read = revisionDocument(file.text);
     if (!read.ok) throw new InvalidConfigurationError(CONFIG_FILE_NAME, read.errors, inForce?.number);
     try {
-      return await this.#store.record({ origin: "file", fileDigest: file.digest, document: read.document }, inForce?.number ?? 0);
+      return this.#told(await this.#store.record({ origin: "file", fileDigest: file.digest, document: read.document }, inForce?.number ?? 0));
     } catch (error) {
       // Another process synchronised the same file meanwhile: its revision is the one in force.
       const now = await this.#store.inForce();
@@ -175,10 +177,26 @@ export class Configuration implements ConfigurationSource {
     return this.#write(path, inForce.document, "command", inForce.number);
   }
 
+  /**
+   * Tells a listener each revision this instance records from now on — a change saved, a file taken or written —, as
+   * a host that maps the knowledge of a source added needs. A revision another process recorded is not told.
+   *
+   * @param listener - What is told the revision, once it is recorded.
+   */
+  whenRecorded(listener: (revision: ConfigurationRevision) => void): void {
+    this.#listeners.push(listener);
+  }
+
   /** Records a revision that rewrites the configuration file, the file written before the revision is kept. */
-  #write(path: string, document: OqasConfig, origin: "console" | "command", basedOn: number): Promise<ConfigurationRevision> {
+  async #write(path: string, document: OqasConfig, origin: "console" | "command", basedOn: number): Promise<ConfigurationRevision> {
     const text = configurationText(document);
-    return this.#store.record({ origin, fileDigest: digestOf(text), document }, basedOn, () => writeFile(path, text));
+    return this.#told(await this.#store.record({ origin, fileDigest: digestOf(text), document }, basedOn, () => writeFile(path, text)));
+  }
+
+  /** Tells each listener a revision recorded, and gives it back. */
+  #told(revision: ConfigurationRevision): ConfigurationRevision {
+    for (const listener of this.#listeners) listener(revision);
+    return revision;
   }
 
   /** The configuration file of the test repository as it is now; `undefined` when there is none, or it cannot be read. */

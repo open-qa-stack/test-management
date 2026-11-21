@@ -535,7 +535,7 @@ describe("the operations on sessions, started and stopped with the API", () => {
 
   it("run their sessions with what the API was started with: the environment it read its configuration from, or what a host settled for it", () => {
     const read = environmentSettings(CONFIGURATION);
-    assert.deepEqual(new RunEnvironment(ApiConfiguration.of(read)).runs, { env: CONFIGURATION });
+    assert.deepEqual(new RunEnvironment(ApiConfiguration.of(read)).runs, { env: CONFIGURATION, mapsKnowledge: true });
     const runs = { env: { SHOP_DB_URL: "witness" }, pace: { beatMs: 5, silentAfterMs: 50, followMs: 5 } };
     assert.equal(new RunEnvironment(ApiConfiguration.of({ ...read, runs })).runs, runs);
   });

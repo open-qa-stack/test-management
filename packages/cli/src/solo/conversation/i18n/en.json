@@ -80,7 +80,8 @@
       "interrupted": "interrupted",
       "completed": "completed",
       "ended": "ended"
-    }
+    },
+    "mapping": "mapping of the knowledge"
   },
   "speakers": {
     "user": "You",

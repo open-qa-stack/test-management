@@ -1,6 +1,7 @@
 import { Text } from "ink";
 import { createElement as h, type ReactNode } from "react";
 import type { Session } from "@open-qa-stack/domain/sessions";
+import { t } from "./i18n/i18n.ts";
 import { Marked } from "./marked.ts";
 import { standing } from "./session-facts.ts";
 import type { Theme, Tone } from "./palette.ts";
@@ -29,13 +30,14 @@ export function standingTone(session: Session): Tone {
 }
 
 /**
- * A session, on one line of a list: the end of its identifier, how it stands, and what was asked, cut to the line.
+ * A session, on one line of a list: the end of its identifier, how it stands, and what was asked — or that it maps the
+ * knowledge —, cut to the line.
  *
  * @param props - The session, whether it is selected, and the theme.
  * @returns The line.
  */
 export function SessionLine({ session, selected = false, theme }: SessionLineProps): ReactNode {
-  const asked = (session.request ?? "").replace(/\s+/g, " ").trim();
+  const asked = session.purpose === "map" ? t("facts.mapping") : (session.request ?? "").replace(/\s+/g, " ").trim();
   return h(
     Marked,
     { mark: selected ? theme.glyphs.pointer : "", style: theme.ink("accent") },

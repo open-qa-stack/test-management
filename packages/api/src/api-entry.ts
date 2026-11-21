@@ -6,7 +6,7 @@ import type { DatabaseUrl } from "@open-qa-stack/store";
  * process, which the values saved for the variables of the configuration complete, and what a host replaces of the
  * machine.
  */
-export type SessionsRuns = Pick<SessionsHost, "openRuntime" | "runner" | "now" | "writerPace" | "pace"> & { readonly env: Environment };
+export type SessionsRuns = Pick<SessionsHost, "openRuntime" | "runner" | "now" | "writerPace" | "pace" | "mapsKnowledge"> & { readonly env: Environment };
 
 /** Where an API logs: what happened, what an operator should look at, and what failed. */
 export interface ApiLogger {

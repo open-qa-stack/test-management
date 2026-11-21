@@ -9,10 +9,10 @@ function standing({ state, result }: Session): string {
  * Writes a session as one line of the list of the sessions.
  *
  * @param session - The session.
- * @returns Its identifier, how it stands, when it was opened and what was asked, without the end of the line.
+ * @returns Its identifier, how it stands, when it was opened and what was asked — or that it maps the knowledge —, without the end of the line.
  */
 export function listedLine(session: Session): string {
-  const asked = session.request === undefined ? "" : `  ${session.request.replace(/\s+/g, " ").trim()}`;
+  const asked = session.purpose === "map" ? "  maps the knowledge" : session.request === undefined ? "" : `  ${session.request.replace(/\s+/g, " ").trim()}`;
   return `${session.id}  ${standing(session)}  ${session.openedAt}${asked}`;
 }
 

@@ -80,6 +80,8 @@ export class Hosted {
   /** The test repository the sessions run in. */
   readonly root: string;
   readonly sessions: Sessions;
+  /** The operations on the configuration the sessions read theirs from. */
+  readonly settings: Configuration;
 
   private constructor(server: ScriptedServer, setup: Setup) {
     this.server = server;
@@ -92,9 +94,10 @@ export class Hosted {
         return doubles.run(step);
       },
     };
+    this.settings = new Configuration(this.configuration, this.root);
     this.sessions = new Sessions({
       store: this.store,
-      configuration: new Configuration(this.configuration, this.root),
+      configuration: this.settings,
       documents: this.documents,
       memory: this.memory,
       executions: this.executions,

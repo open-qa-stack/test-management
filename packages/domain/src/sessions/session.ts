@@ -39,6 +39,11 @@ export interface SessionResult {
 /** A request made to the agents, and the work it opened. */
 export interface Session {
   readonly id: string;
+  /**
+   * `map` for a session that maps the knowledge alone, writing no test, which a host opens itself once a source has no
+   * card; left out for one that tests.
+   */
+  readonly purpose?: "map";
   /** What was asked, in the words of the person; left out when nothing was. */
   readonly request?: string;
   /** The environment the work targets, once it is known. */
@@ -57,6 +62,13 @@ export interface Session {
 /** The sessions of a project, the latest first. */
 export interface SessionList {
   readonly items: readonly Session[];
+}
+
+/** What a host asks for when a source has no card: a session that maps the knowledge, in an environment. */
+export interface MappingOpening {
+  readonly purpose: "map";
+  /** The environment to map; the only one the project declares when left out. */
+  readonly environment?: string;
 }
 
 /** What a person sends to open a session. */
