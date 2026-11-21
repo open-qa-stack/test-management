@@ -34,6 +34,8 @@ The command is a presentation of [the operations on sessions](../../engine/docs/
 | `oqas config show` | Prints the configuration in force, and how `oqas.json` stands to it: see [The configuration](#the-configuration). |
 | `oqas config import` | Takes `oqas.json` as the configuration in force, when it changed. |
 | `oqas config export` | Writes the configuration in force over `oqas.json`, when it changed. |
+| `oqas model status` | Tests the connection to the model in force, and lists the models it offers: see [The model](#the-model). |
+| `oqas model set` | Sets the connection to the model — the GitHub account of the machine, or a provider and its key — then tests it. |
 | `oqas knowledge list` | Lists the knowledge sources of the configuration in force, and the documents the instance keeps: see [The knowledge](#the-knowledge). |
 | `oqas knowledge add-document <source> <file>...` | Uploads Markdown files as documents of a source declared `"stored": true`. |
 | `oqas --ui` | Serves the console of the test repository in a browser, and runs the sessions opened in it, until Ctrl-C: see [The console](#the-console). |
@@ -56,6 +58,10 @@ The commands that act on a session that exists run from any terminal, and from a
 | `--ui`                  |                               | Serves [the console](#the-console) and prints its address. It takes `--repository`, `--host` and `--port`, and nothing of a session: with `--brief`, `--environment`, `--follow`, `--output` or a command, it is refused with `3`. |
 | `--host <address>`      | `127.0.0.1`                   | With `--ui`: the address to listen on. The default is this machine alone, and should stay so: the console asks nobody who they are. |
 | `--port <number>`       | `6727`                        | With `--ui`: the port to listen on, from 0 to 65535. `0` takes any free port, which the address printed tells. A port that is taken is refused with `3`. |
+| `--github`              |                               | With `model set`: reach the model with the GitHub account this machine signed in with, for GitHub Copilot. |
+| `--provider <provider>` |                               | With `model set`: the name of a provider the console lists, whatever its case, or the address of an OpenAI-compatible server. |
+| `--key-env <variable>`  | that of the provider          | With `model set` and `--provider`: the variable that holds the key. A server reached by its address has none unless it is named. |
+| `--model <id>`          |                               | With `model set`: the model to use, as the connection names it. |
 | `--no-input`            |                               | Never asks anything on the terminal: `oqas` without a command then opens no conversation, and is refused with `3`. A command with `--brief` asks nothing, with or without it. |
 
 `oqas` without `--brief`, without `--ui` and without a command opens the conversation, and only in a terminal: when its input or its output is none — a pipe, a file, a job of a pipeline — or with `--no-input`, `--follow` or `--output`, it is refused with `3`, in a message that names `--brief`.
@@ -257,6 +263,25 @@ oqas.json is in step with it.
 
 `oqas config show` writes nothing: when the file changed since the revision in force, it says so, with the two commands that settle it. `import` and `export` print the revision in force once they are done; each does nothing when the file is in step. With `--output json`, each prints the configuration as `GET /api/configuration` gives it: the revision in force, and how the file stands to it. They exit with `0`, or with `3` when the file to take is not valid, or when there is neither a revision nor a file.
 
+## The model
+
+`oqas model status` tests the connection to the model of the configuration in force, as the console does: it says how the model is reached, whether it answers or what to do when it does not, and the models the connection offers, with whether the model in force is among them.
+
+```console
+$ oqas model set --github --model gpt-5
+The GitHub account of this machine (GitHub Copilot), model gpt-5.
+The model answers, through the GitHub account octo.
+2 models are offered:
+  gpt-5 — GPT-5
+  gpt-5-mini — GPT-5 mini
+gpt-5 is among them.
+$ oqas model set --provider OpenAI --model gpt-4.1
+OpenAI, its key in OPENAI_API_KEY, model gpt-4.1.
+The variable OPENAI_API_KEY is not set: put the key of the provider in it, then run oqas model status again.
+```
+
+`oqas model set` takes `--github`, or `--provider` with the name of a provider or the address of a server, and `--model`; a provider of the list gets its address and the variable its key is usually kept in, which `--key-env` replaces. Set again with the same model, the same way, the connection keeps what was tuned on it in the console or in `oqas.json` — whether the model reads images, its effort of reasoning, its wait for an answer —; another model starts without them. It records the connection as a revision of origin `command`, which rewrites `oqas.json`, whatever the test then finds: a key not set yet is set afterwards, and `oqas model status` tells when the model answers. Both ask nothing, so that a script or an agent can run them: with `--output json`, each prints the connection, what the test found as [the API tells it](../../api/docs/configuration.md#testing-the-connection-to-the-model), and `offered`, whether the model is among those listed, when the connection lists some. They exit with `0` when the model answers and is among those offered, or when the server lists none; with `4` when it does not answer, or is not offered; with `3` when the provider is neither one the list names nor an address.
+
 ## The knowledge
 
 The knowledge sources are declared in the configuration, each with its attachments. A source of `type` `document` declared `"stored": true` holds documents uploaded to the instance rather than files of the test repository: [the database of the instance](../../store/docs/database.md#the-documents-of-the-knowledge-sources) keeps them, and a session writes them to the state folder, where its agents read them.
@@ -355,7 +380,7 @@ A session is run by the process that opened it, and by no other: `oqas --brief` 
 | `4`  | The session was interrupted in its prerequisites: one of the machine is missing.                                                                                                                                                                                             |
 | `5`  | The session did not go to its end: it is completed, `stopped` — no index was written, the dependencies could not be installed, the design gave no test to run or was cut short by a limit, a step stopped on an unexpected error, which the thread tells — or it was interrupted, by Ctrl-C, by `oqas stop`, from the console, or because its process died. Also, for every command: the database cannot be reached, or the command stopped on an unexpected error, which goes to the error output. |
 
-`oqas sessions`, `show`, `say` to a session that goes on, `stop`, `config`, `--init` and `--help` exit with `0` once they did what they were asked, and so does a conversation that opened no session. A conversation left while the last session it opened still went on exits with `5`. `oqas --ui` exits with `0` once it was stopped, with `5` when it was left at once or could not start, and with `3` when its port is taken or the console is not built.
+`oqas sessions`, `show`, `say` to a session that goes on, `stop`, `config`, `--init` and `--help` exit with `0` once they did what they were asked, and `oqas model` as [the model](#the-model) says, and so does a conversation that opened no session. A conversation left while the last session it opened still went on exits with `5`. `oqas --ui` exits with `0` once it was stopped, with `5` when it was left at once or could not start, and with `3` when its port is taken or the console is not built.
 
 ## The command and the engine
 
@@ -371,6 +396,7 @@ The command holds no rule of a session: it reads its arguments, assembles the da
 | `oqas say` | `say`, or `resume` for a session that ended, then `events` and `session`. |
 | `oqas stop` | `interrupt`, then `session`. |
 | `oqas config` | On the `Configuration` of the engine: `view` for `show`; `synchronise`, then `view`, for `import`; `restore`, then `view`, for `export`. |
+| `oqas model` | `synchronise` on the `Configuration` of the engine, then `check` on its `ModelConnection`; `set` saves the connection with `save` first, of origin `command`. |
 | `oqas --init` | `synchronise` on the `Configuration` of the engine. |
 
 `oqas`, `oqas --brief`, `oqas say` and `oqas --ui` are the commands that host — `say` only the session it resumes: each gives the operations its test repository, and stops them, within ten seconds, before it leaves. `oqas --ui` says no operation itself: it starts the REST presentation of `@open-qa-stack/api` in its process, whose routes say them, and loads that package only then — no other command pays for an HTTP server. The conversation is drawn with [Ink](https://github.com/vadimdemedes/ink) and React, which are loaded when it opens and by no other command; its screen is a function of a state that one reducer gives, in `src/solo/conversation/`, in the words of i18next, and what it reads of a thread — the steps and their turns — is the code the console reads it with, in `@open-qa-stack/domain/sessions`.

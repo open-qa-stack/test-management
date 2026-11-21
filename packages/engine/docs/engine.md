@@ -282,7 +282,7 @@ const { revision, file } = await configuration.view();
 | `revisions()` | Every revision without its document, the latest first. |
 | `check(document)` | Every error the schema of `oqas.json` and its rules find in a configuration, each where it is, without anything recorded. |
 | `synchronise()` | Brings the revision in force in step with the file: a file that changed becomes a revision of origin `file`. A file that cannot be read leaves the revision in force as it is. |
-| `save(document, basedOn, replaceFile)` | A change made in the console: a revision of origin `console`, and `oqas.json` rewritten with it. |
+| `save(document, basedOn, replaceFile, origin)` | A change made in the console, or by a command such as `oqas model set`: a revision of origin `console`, or `command` when the command says so, and `oqas.json` rewritten with it. |
 | `restore()` | Writes the revision in force over a file that changed: a revision of origin `command`. A file in step is left as it is. |
 
 Their rules:

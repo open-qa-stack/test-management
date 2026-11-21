@@ -25,10 +25,21 @@ export type Command =
   | { readonly name: "config"; readonly action: ConfigAction }
   /** List the knowledge sources of the configuration in force, with the documents the instance keeps of each. */
   | { readonly name: "knowledge"; readonly action: "list" }
+  /** Test the connection to the model in force, and list the models it offers. */
+  | { readonly name: "model"; readonly action: "status" }
+  /** Set the connection to the model, then test it. */
+  | { readonly name: "model"; readonly action: "set"; readonly connection: ModelArguments }
   /** Upload files as documents of a source the instance keeps. */
   | { readonly name: "knowledge"; readonly action: "add-document"; readonly source: string; readonly files: readonly string[] }
   /** Serve the console of the test repository, and the sessions opened in it. */
   | { readonly name: "ui"; readonly host: string; readonly port: number };
+
+/**
+ * The connection `oqas model set` is given: the GitHub account of the machine, or a provider named or reached by the
+ * address of its server, with the variable of its key; and the model.
+ */
+export type ModelArguments =
+  { readonly github: true; readonly model: string } | { readonly github: false; readonly provider: string; readonly keyEnv?: string; readonly model: string };
 
 /** What `oqas config` does: print the configuration in force, take the configuration file as it, or write it over the file. */
 export type ConfigAction = "show" | "import" | "export";
@@ -51,7 +62,7 @@ export interface Arguments {
 const ON_SESSIONS = { sessions: [], show: ["<session>"], attach: ["<session>"], say: ["<session>", "<text>"], stop: ["<session>"] } as const;
 
 /** The options that take a value. */
-const VALUED = ["--repository", "--environment", "--brief", "--output", "--host", "--port"] as const;
+const VALUED = ["--repository", "--environment", "--brief", "--output", "--host", "--port", "--provider", "--key-env", "--model"] as const;
 
 /** The address `oqas --ui` listens on unless it is given another: this machine alone. */
 export const UI_HOST = "127.0.0.1";
@@ -72,6 +83,9 @@ export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
        oqas [--repository <folder>] say <session> <text> [--output text|json]
        oqas [--repository <folder>] stop <session> [--output text|json]
        oqas [--repository <folder>] config show|import|export [--output text|json]
+       oqas [--repository <folder>] model status [--output text|json]
+       oqas [--repository <folder>] model set --github --model <id> [--output text|json]
+       oqas [--repository <folder>] model set --provider <name|address> [--key-env <variable>] --model <id> [--output text|json]
        oqas [--repository <folder>] knowledge list [--output text|json]
        oqas [--repository <folder>] knowledge add-document <source> <file>... [--output text|json]
        oqas [--repository <folder>] --ui [--host <address>] [--port <number>]
@@ -94,6 +108,10 @@ Commands:
   config show            Print the configuration in force, and how oqas.json stands to it.
   config import          Take oqas.json as the configuration in force, when it changed.
   config export          Write the configuration in force over oqas.json, when it changed.
+  model status           Test the connection to the model in force, and list the models it offers.
+  model set              Set the connection to the model, then test it: --github for the GitHub account this machine
+                         signed in with (gh auth login), or --provider with the name of a provider (OpenAI, Mistral AI,
+                         OpenRouter…) or the address of an OpenAI-compatible server, and --model.
   knowledge list         List the knowledge sources of the configuration in force, and the documents the instance
                          keeps of each source declared "stored": true.
   knowledge add-document <source> <file>...
@@ -111,18 +129,26 @@ Options:
   --host <address>       With --ui, the address to listen on; 127.0.0.1 by default. The console asks nobody who
                          they are: keep it on this machine.
   --port <number>        With --ui, the port to listen on; 6727 by default, 0 for any free port.
+  --github               With model set: reach the model with the GitHub account of this machine, for GitHub Copilot.
+  --provider <provider>  With model set: the name of a provider, or the address of an OpenAI-compatible server.
+  --key-env <variable>   With model set and --provider: the variable that holds the key; that of the provider by default.
+  --model <id>           With model set: the model to use, as the connection names it.
   --init                 Initialise the test repository as a Playwright project, from its oqas.json: write the files it
                          lacks, overwrite none, run nothing.
   --help                 Print this help.
 
 Exit codes of a session followed to its end, and of the conversation for the last session it opened: 0 every test passed, 1 a test failed, 2 a test was blocked,
 indeterminate, skipped or not run, 3 the configuration or the arguments are invalid, 4 a prerequisite is missing,
-5 the session did not go to its end. The other commands exit with 0, with 3 when they are refused, with 5 when they fail.
+5 the session did not go to its end. model status and model set exit with 0 when the model answers and is among those
+it offers, with 4 otherwise. The other commands exit with 0, with 3 when they are refused, with 5 when they fail.
 --ui exits with 0 once it is stopped, and so does a conversation that opened no session.
 `;
 
 /** The options that take none. */
-const FLAGS = ["--help", "--follow", "--init", "--no-input", "--ui"] as const;
+const FLAGS = ["--help", "--follow", "--init", "--no-input", "--ui", "--github"] as const;
+
+/** What `oqas model set` is told the connection with, which no other command takes. */
+const MODEL_OPTIONS = "--github, --provider, --key-env and --model set the connection to the model: they go with oqas model set alone.";
 
 /** What reading the arguments gives: them, or why they are refused. */
 export type Parsed = { readonly ok: true; readonly arguments: Arguments } | { readonly ok: false; readonly error: string };
@@ -136,7 +162,17 @@ const refused = (error: string): Parsed => ({ ok: false, error });
  * @returns The arguments, or why they are refused.
  */
 export function parseArguments(argv: readonly string[]): Parsed {
-  const values: { repository?: string; environment?: string; brief?: string; output?: string; host?: string; port?: string } = {};
+  const values: {
+    repository?: string;
+    environment?: string;
+    brief?: string;
+    output?: string;
+    host?: string;
+    port?: string;
+    provider?: string;
+    "key-env"?: string;
+    model?: string;
+  } = {};
   const flags = new Set<string>();
   const words: string[] = [];
   for (let i = 0; i < argv.length; i++) {
@@ -150,7 +186,7 @@ export function parseArguments(argv: readonly string[]): Parsed {
     } else if (argument.startsWith("--")) return refused(`Unknown option ${argument}; see oqas --help.`);
     else words.push(argument);
   }
-  const { repository, environment, brief, output = "text", host, port } = values;
+  const { repository, environment, brief, output = "text", host, port, provider, "key-env": keyEnv, model } = values;
   if (output !== "text" && output !== "json") return refused("--output needs text or json.");
   const follow = flags.has("--follow");
   const help = flags.has("--help");
@@ -159,8 +195,12 @@ export function parseArguments(argv: readonly string[]): Parsed {
   const beside = init || follow || words.length > 0 || [environment, brief, values.output].some((value) => value !== undefined);
   // The conversation asks on the terminal, and prints a screen, not lines: it goes with where it takes place, and with nothing else.
   const asks = !flags.has("--no-input") && !follow && values.output === undefined;
-  const command = flags.has("--ui") && !help ? served(beside, host, port) : commandOf(words, { environment, brief, follow, help, init, asks });
+  const connection = { github: flags.has("--github"), provider, keyEnv, model };
+  const command = flags.has("--ui") && !help ? served(beside, host, port) : commandOf(words, { environment, brief, follow, help, init, asks, connection });
   if (typeof command === "string") return refused(command);
+  const setsTheModel = command.name === "model" && command.action === "set";
+  if (!setsTheModel && command.name !== "help" && (connection.github || [provider, keyEnv, model].some((value) => value !== undefined)))
+    return refused(MODEL_OPTIONS);
   if (command.name !== "ui" && command.name !== "help" && (host !== undefined || port !== undefined))
     return refused("--host and --port say where --ui listens: they go with it alone.");
   // An initialisation writes files and runs nothing: it takes the repository, and nothing of a session.
@@ -187,9 +227,11 @@ function commandOf(
     readonly init: boolean;
     /** Whether the command may open the conversation, when it is given nothing else to do. */
     readonly asks: boolean;
+    /** What `oqas model set` is told the connection with. */
+    readonly connection: ConnectionOptions;
   },
 ): Command | string {
-  const { environment, brief, follow, help, init, asks } = options;
+  const { environment, brief, follow, help, init, asks, connection } = options;
   if (help) return { name: "help" };
   const opens = environment !== undefined || brief !== undefined;
   const [name, ...rest] = words;
@@ -202,6 +244,7 @@ function commandOf(
   }
   if (name === "config") return configured(rest, opens || follow);
   if (name === "knowledge") return knowledgeOf(rest, opens || follow);
+  if (name === "model") return modelOf(rest, opens || follow, connection);
   if (!Object.hasOwn(ON_SESSIONS, name)) return `Unknown command ${name}; see oqas --help.`;
   const known = name as keyof typeof ON_SESSIONS;
   const taken: readonly string[] = ON_SESSIONS[known];
@@ -220,6 +263,28 @@ function configured(words: readonly string[], ofASession: boolean): Command | st
   if (words.length !== 1 || known === undefined) return "oqas config takes show, import or export.";
   if (ofASession) return "oqas config acts on the configuration: it takes no --brief, --environment nor --follow.";
   return { name: "config", action: known };
+}
+
+/** The options of the connection to the model, as they were given. */
+interface ConnectionOptions {
+  readonly github: boolean;
+  readonly provider: string | undefined;
+  readonly keyEnv: string | undefined;
+  readonly model: string | undefined;
+}
+
+/** What `oqas model` asks for, or why it is refused: a test of the connection in force, or a connection to set, and nothing of a session. */
+function modelOf(words: readonly string[], ofASession: boolean, { github, provider, keyEnv, model }: ConnectionOptions): Command | string {
+  const [action, ...rest] = words;
+  if (ofASession) return "oqas model acts on the connection to the model: it takes no --brief, --environment nor --follow.";
+  if (rest.length > 0 || (action !== "status" && action !== "set")) return "oqas model takes status or set.";
+  if (action === "status") return { name: "model", action };
+  if (github === (provider !== undefined))
+    return "oqas model set takes --github, for the GitHub account of this machine, or --provider with the name of a provider or the address of its server.";
+  if (github && keyEnv !== undefined) return "--key-env names the variable of the key of a provider: the GitHub account takes none.";
+  if (model === undefined) return "oqas model set needs --model, the model to use: oqas model status lists those the connection offers.";
+  const connection: ModelArguments = github ? { github, model } : { github, provider: provider!, model, ...(keyEnv === undefined ? {} : { keyEnv }) };
+  return { name: "model", action, connection };
 }
 
 /** What `oqas knowledge` asks for, or why it is refused: a list, or the documents to add to a source, and nothing of a session. */

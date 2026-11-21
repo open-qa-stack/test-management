@@ -141,13 +141,14 @@ export class Configuration implements ConfigurationSource {
    * @param basedOn - The number of the revision the change was made from; 0 when there was none.
    * @param replaceFile - Whether to rewrite a configuration file that changed since the revision in force: the
    * person chose to keep the change over the file.
+   * @param origin - Where the change was made: `console` by default, `command` for a command of the terminal.
    * @returns The revision.
    * @throws {@link NoRepositoryError} when the host has no test repository whose file to rewrite.
    * @throws `InvalidConfigurationError` when the change is not a valid configuration.
    * @throws `StaleRevisionError` when the revision in force is not the one the change was made from.
    * @throws `ConfigurationConflictError` when the file changed since the revision in force, and `replaceFile` is not set.
    */
-  async save(document: object, basedOn: number, replaceFile = false): Promise<ConfigurationRevision> {
+  async save(document: object, basedOn: number, replaceFile = false, origin: "console" | "command" = "console"): Promise<ConfigurationRevision> {
     const path = this.#path("The configuration cannot be changed");
     const read = revisionDocument(JSON.stringify(document));
     if (!read.ok) throw new InvalidConfigurationError("The change", read.errors);
@@ -155,7 +156,7 @@ export class Configuration implements ConfigurationSource {
     const number = inForce?.number ?? 0;
     if (number !== basedOn) throw new StaleRevisionError(basedOn, number);
     if (!replaceFile && fileStateOf(inForce, (await this.#read())?.digest) === "changed") throw new ConfigurationConflictError();
-    return this.#write(path, read.document, "console", basedOn);
+    return this.#write(path, read.document, origin, basedOn);
   }
 
   /**
