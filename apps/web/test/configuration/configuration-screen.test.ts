@@ -16,6 +16,7 @@ const CONTROLS: ConfigurationControls = {
   keepFile: () => assert.fail("no file is taken"),
   keepChange: () => assert.fail("no change is kept"),
   testModel: () => assert.fail("no connection is tested"),
+  checkSource: () => assert.fail("no source is tested"),
   setUp: () => assert.fail("nothing is set up"),
 };
 
@@ -206,6 +207,17 @@ describe("the screen of the configuration", () => {
     assert.match(textOf(html), /Modifications non enregistrées Annuler les modifications Enregistrer/);
     assert.match(html, /<button type="submit" form="configuration-form" class="btn primary">Enregistrer<\/button>/);
     assert.match(textOf(screen(stateAfter([{ type: "edit", pointer: "/model/model", value: "other" }, { type: "saving" }]))), /Enregistrement…/);
+  });
+
+  it("hands the card of each source the latest test of it", () => {
+    const source = DOCUMENT.knowledge[1]!;
+    const html = screen(
+      stateAfter([
+        { type: "sourceChecked", rank: 1, source, check: { state: "ok", items: 4 } },
+        { type: "sourceChecking", rank: 1, source },
+      ]),
+    );
+    assert.match(textOf(html), /Test en cours…/);
   });
 
   it("asks for the value of each variable beside it, and lets the person save the values typed alone", () => {

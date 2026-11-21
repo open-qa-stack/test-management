@@ -322,6 +322,10 @@ Their rules:
 
 The values are kept by a `SecretStore`: `FileSecretStore` keeps them in `secrets/values.json` of the state folder of the test repository, a file only its owner reads, in a folder whose own `.gitignore` leaves it out of git, whatever the `.gitignore` of the repository says. No operation gives a value back. The [route of the API](../../api/docs/configuration.md#testing-the-connection-to-the-model) lists the states.
 
+## Testing a knowledge source
+
+`KnowledgeSources` tests that a knowledge source answers before anything is saved or indexed, so that a person corrects a path, an address or a connection string as they declare it. `check(source, typed)` takes the source as it is drafted, with the connection string the person typed for a database and did not save yet, and reads it as the cartography reads it first (`knowledgeInventory` of the tools): it answers `ok` with the number of items the source holds, `failed` with why, or `unchecked` for logs, read while a session runs. The documents the instance keeps are counted in its store. Nothing calls the model, nothing is written, and a host without a test repository tests no source read in one. The [route of the API](../../api/docs/knowledge.md#testing-a-source) and `oqas knowledge check` call it.
+
 ## The operations on documents
 
 A knowledge source of `type` `document` declared `"stored": true` holds documents uploaded to the instance rather than files of the test repository: its database keeps them, and only it. `KnowledgeDocuments` holds the operations on them, on the `DocumentStorePort` of `@open-qa-stack/domain`, which `@open-qa-stack/store` implements, and on the revisions of the configuration, which declare the sources:

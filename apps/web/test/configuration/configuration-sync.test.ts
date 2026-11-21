@@ -225,4 +225,21 @@ describe("what keeps the screen of the configuration in step with its instance",
     assert.ok(calls.indexOf("PUT /api/secrets/MODEL_KEY") < calls.indexOf("POST /api/repository/preparation"));
     assert.equal(api.told.at(-1)!.type, "prepared");
   });
+
+  it("tests a source of the draft with the connection string typed, and tells what the instance found, or why it could not", async () => {
+    const source = DOCUMENT.knowledge[0]!;
+    api.answers.set("POST /api/knowledge/check", json({ state: "ok", items: 2 }));
+    api.sync.checkSource(0, source, "postgres://typed");
+    await settled();
+    assert.deepEqual(api.bodies, [{ ...source, value: "postgres://typed" }]);
+    assert.deepEqual(api.told, [
+      { type: "sourceChecking", rank: 0, source },
+      { type: "sourceChecked", rank: 0, source, check: { state: "ok", items: 2 } },
+    ]);
+    api.answers.set("POST /api/knowledge/check", json({ code: "unavailable", detail: "Down." }, 503));
+    api.sync.checkSource(0, source);
+    await settled();
+    assert.deepEqual(api.bodies.at(-1), source);
+    assert.deepEqual(api.told.at(-1), { type: "sourceChecked", rank: 0, source, failure: "Aucune source de sessions n’est configurée sur cette instance." });
+  });
 });

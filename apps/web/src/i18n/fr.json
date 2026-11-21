@@ -631,7 +631,15 @@
       "api": "API",
       "anyApi": "Toutes les API",
       "addAttachment": "Ajouter un rattachement",
-      "openKnowledge": "Ouvrir ses documents"
+      "openKnowledge": "Ouvrir ses documents",
+      "check": "Tester la connexion",
+      "checking": "Test en cours…",
+      "checkFailed": "Le test n’a pas pu être fait : {{reason}}",
+      "unanswered": "La source ne répond pas : {{reason}}",
+      "answered_zero": "Connexion réussie, mais la source ne contient rien pour l’instant.",
+      "answered_one": "Connexion réussie · 1 élément trouvé.",
+      "answered_other": "Connexion réussie · {{count}} éléments trouvés.",
+      "unchecked": "Les journaux se lisent pendant une session : ils ne se testent pas ici."
     },
     "remove": "Retirer",
     "records": {

@@ -8,6 +8,7 @@ import {
   UnknownDocumentSourceError,
   type Knowledge,
   type ReceivedFile,
+  type SourceCheck,
   type StoredDocumentSummary,
 } from "@open-qa-stack/domain";
 import { UsageError } from "./usage-error.ts";
@@ -87,4 +88,19 @@ export function documentsRefusal(error: unknown, paths: readonly string[]): stri
   if (!(error instanceof InvalidDocumentsError)) return undefined;
   const at = (path: string): string => (path === "" ? "the upload" : paths[Number(path.slice("/documents/".length))]!);
   return [error.message, ...error.errors.map(({ path, message }) => `${at(path)}: ${message}`)].join("\n");
+}
+
+/**
+ * @param checked - A knowledge source, and what its test found.
+ * @returns The line `oqas knowledge check` prints of it.
+ */
+export function checkLine({ source, check }: { readonly source: string; readonly check: SourceCheck }): string {
+  switch (check.state) {
+    case "ok":
+      return `${source}  answers, ${check.items === 1 ? "1 item" : `${check.items} items`}`;
+    case "failed":
+      return `${source}  does not answer: ${check.reason}`;
+    case "unchecked":
+      return `${source}  not tested: logs are read while a session runs`;
+  }
 }

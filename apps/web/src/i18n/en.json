@@ -631,7 +631,15 @@
       "api": "API",
       "anyApi": "Every API",
       "addAttachment": "Add an attachment",
-      "openKnowledge": "Open its documents"
+      "openKnowledge": "Open its documents",
+      "check": "Test the connection",
+      "checking": "Testing…",
+      "checkFailed": "The test could not be made: {{reason}}",
+      "unanswered": "The source does not answer: {{reason}}",
+      "answered_zero": "Connected, but the source holds nothing yet.",
+      "answered_one": "Connected · 1 item found.",
+      "answered_other": "Connected · {{count}} items found.",
+      "unchecked": "Logs are read while a session runs: they are not tested here."
     },
     "remove": "Remove",
     "records": {

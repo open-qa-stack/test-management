@@ -10,6 +10,8 @@ import type {
   RepositoryState,
   RevisionSummary,
   SecretState,
+  Knowledge,
+  SourceCheck,
 } from "@open-qa-stack/domain/sessions";
 import { modelFor } from "./model-connection.ts";
 import { appendedAt, changedAt, removedAt, valueAt } from "./json-pointer.ts";
@@ -46,6 +48,18 @@ export interface ConfigurationState {
   readonly values: Readonly<Record<string, string>>;
   /** Whether the values the person typed last were saved, which the screen tells. */
   readonly valued?: boolean;
+  /** The latest test of each knowledge source, by its rank in the draft; one made of a source since changed no longer holds. */
+  readonly sourceChecks?: Readonly<Record<number, SourceTest>>;
+}
+
+/** A test of a knowledge source, under way or done. */
+export interface SourceTest {
+  /** The source of the draft when the test was asked for. */
+  readonly source: Knowledge;
+  /** What the test found; `undefined` while it runs, and when it could not be made. */
+  readonly check?: SourceCheck;
+  /** Why the test could not be made, in the words of the instance. */
+  readonly failure?: string;
 }
 
 /** A test of the connection to the model, under way or done. */
@@ -96,6 +110,10 @@ export type ConfigurationAction =
   | { readonly type: "saved"; readonly view: ConfigurationView }
   /** The instance listed the revisions. */
   | { readonly type: "listed"; readonly revisions: readonly RevisionSummary[] }
+  /** The person asked for a test of a knowledge source. */
+  | { readonly type: "sourceChecking"; readonly rank: number; readonly source: Knowledge }
+  /** The instance answered a test of a knowledge source, or could not make it. */
+  | { readonly type: "sourceChecked"; readonly rank: number; readonly source: Knowledge; readonly check?: SourceCheck; readonly failure?: string }
   /** The instance told the variables the configuration names. */
   | { readonly type: "secrets"; readonly secrets: readonly SecretState[] }
   /** The person typed the value of a variable: an empty one is not saved. */
@@ -135,6 +153,15 @@ export function isPending(state: ConfigurationState): boolean {
  */
 export function typedKey(model: Model, values: Readonly<Record<string, string>>): string | undefined {
   return model.mode === "provider-key" && model.apiKeyEnv !== undefined ? values[model.apiKeyEnv] : undefined;
+}
+
+/**
+ * @param source - A knowledge source of the draft.
+ * @param values - The values the person typed, by the name of their variable.
+ * @returns The connection string typed for a database; `undefined` for any other source, and when none was typed.
+ */
+export function typedConnection(source: Knowledge, values: Readonly<Record<string, string>>): string | undefined {
+  return source.type === "postgresql" ? values[source.connectionStringEnv] : undefined;
 }
 
 /** The autonomy of a level, with the guardrail the draft had: a bounded level starts bounded by thirty minutes a task. */
@@ -237,6 +264,13 @@ export function configurationAfter(state: ConfigurationState, action: Configurat
       return { ...state, revisions: action.revisions };
     case "secrets":
       return { ...state, secrets: action.secrets };
+    case "sourceChecking":
+      return { ...state, sourceChecks: { ...state.sourceChecks, [action.rank]: { source: action.source } } };
+    case "sourceChecked": {
+      if (state.sourceChecks?.[action.rank]?.source !== action.source) return state;
+      const { type: _, rank, ...test } = action;
+      return { ...state, sourceChecks: { ...state.sourceChecks, [rank]: test } };
+    }
     case "value": {
       const { [action.name]: _, ...others } = state.values;
       const { valued: __, ...rest } = state;

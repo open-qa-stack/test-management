@@ -16,6 +16,7 @@ const CONTROLS: ConfigurationControls = {
   keepFile: () => assert.fail("no file is taken"),
   keepChange: () => assert.fail("no change is kept"),
   testModel: () => assert.fail("no connection is tested"),
+  checkSource: () => assert.fail("no source is tested"),
   setUp: () => assert.fail("nothing is set up"),
 };
 
@@ -60,6 +61,8 @@ describe("the setting up of an instance that has no configuration", () => {
     assert.match(at("knowledge"), /plus tard\. Ajouter un contrat OpenAPI .* Retour Suivant$/);
     assert.match(at("model"), /Récapitulatif Le modèle avec lequel les agents réfléchissent .* Compte GitHub de cette machine/);
     assert.match(at("model", begun(FIRST_DRAFT, { type: "testing", model: FIRST_DRAFT.model })), /Test en cours…/);
+    const source = DOCUMENT.knowledge[0]!;
+    assert.match(at("knowledge", begun(DOCUMENT, { type: "sourceChecking", rank: 0, source })), /Test en cours…/);
   });
 
   it("sums up what it will write, whether the folder becomes a git repository, and the errors left to correct", () => {

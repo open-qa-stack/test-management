@@ -28,6 +28,8 @@ export interface ConfigurationControls extends Omit<ConfigurationEdit, "errors" 
   /** Saves the draft over a configuration file that changed too. */
   readonly keepChange: MouseEventHandler<HTMLButtonElement>;
   readonly testModel: MouseEventHandler<HTMLButtonElement>;
+  /** Tests the knowledge source of the draft its button names by its rank. */
+  readonly checkSource: MouseEventHandler<HTMLButtonElement>;
   /** Writes the first configuration of an instance that has none, then sets its test repository up. */
   readonly setUp: MouseEventHandler<HTMLButtonElement>;
 }
@@ -193,7 +195,14 @@ export function ConfigurationScreen({ project, state, controls }: ConfigurationS
             <p className="small muted">{t("configuration.screen.knowledgeNote")}</p>
             {draft.knowledge.length === 0 && <EmptyState title={t("configuration.screen.noKnowledge")} />}
             {draft.knowledge.map((source, index) => (
-              <KnowledgeCard key={index} source={source} rank={index} applications={draft.applications} />
+              <KnowledgeCard
+                key={index}
+                source={source}
+                rank={index}
+                applications={draft.applications}
+                onCheck={controls.checkSource}
+                {...(state.sourceChecks?.[index] === undefined ? {} : { test: state.sourceChecks[index] })}
+              />
             ))}
             <AddSourceButtons />
           </section>

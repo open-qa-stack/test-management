@@ -1,10 +1,11 @@
-import type { ReactNode } from "react";
+import type { MouseEventHandler, ReactNode } from "react";
 import { isStoredDocuments, type Attachment, type ConfiguredApplication, type Knowledge } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
 import { hrefTo } from "../routing/route.ts";
 import { Card } from "../ui/card.tsx";
 import { AddButton, choices, ChoiceField, InputField, ItemHead, PlaceErrors, RemoveButton, SecretField } from "./configuration-fields.tsx";
 import type { NewItem } from "./configuration-edit.ts";
+import type { SourceTest } from "./configuration-state.ts";
 
 /** The kinds of sources a button adds, in the order the section offers them. */
 export const SOURCE_KINDS = ["openapi", "postgresql", "document", "stored", "source-code", "logs"] as const satisfies readonly NewItem[];
@@ -185,17 +186,24 @@ function WhereFields({ at, source }: { readonly at: string; readonly source: Kno
  * A knowledge source of the configuration: its identifier, what it is read from — never a secret — and the
  * applications, environments and APIs it is attached to. Its kind is chosen when it is added.
  *
- * @param props - The source, its rank in the list, and the applications of the draft it may be attached to.
+ * @param props - The source, its rank in the list, the applications of the draft it may be attached to, the latest test of
+ * the source, and how to ask for one.
  * @returns Its card.
  */
 export function KnowledgeCard({
   source,
   rank,
   applications,
+  test,
+  onCheck,
 }: {
   readonly source: Knowledge;
   readonly rank: number;
   readonly applications: readonly ConfiguredApplication[];
+  /** The latest test of the source, when the person asked for one. */
+  readonly test?: SourceTest;
+  /** Asks for a test of the source its button names by its rank. */
+  readonly onCheck: MouseEventHandler<HTMLButtonElement>;
 }): ReactNode {
   const at = `/knowledge/${rank}`;
   const title = source.id === "" ? t("configuration.knowledge.untitled", { rank: rank + 1 }) : source.id;
@@ -211,6 +219,20 @@ export function KnowledgeCard({
           <InputField pointer={`${at}/id`} label={t("configuration.application.id")} value={source.id} code hint={t("configuration.application.idHint")} />
           <WhereFields at={at} source={source} />
         </div>
+        {source.type !== "logs" && (
+          <div className="config-actions">
+            <button
+              type="button"
+              className="btn sm"
+              data-rank={rank}
+              onClick={onCheck}
+              disabled={test?.source === source && test.check === undefined && test.failure === undefined}
+            >
+              {t("configuration.knowledge.check")}
+            </button>
+          </div>
+        )}
+        <CheckResult test={test?.source === source ? test : undefined} />
         <fieldset className="config-group">
           <legend>{t("configuration.knowledge.attachments")}</legend>
           <p className="field-hint">{t("configuration.knowledge.attachmentsHint")}</p>
@@ -244,4 +266,41 @@ export function AddSourceButtons(): ReactNode {
       ))}
     </div>
   );
+}
+
+/** What the latest test of a source found, in plain words; nothing before one, nor once the source changed since. */
+function CheckResult({ test }: { readonly test: SourceTest | undefined }): ReactNode {
+  if (test === undefined) return null;
+  if (test.failure !== undefined)
+    return (
+      <p className="config-note ko" role="status">
+        {t("configuration.knowledge.checkFailed", { reason: test.failure })}
+      </p>
+    );
+  if (test.check === undefined)
+    return (
+      <p className="small muted" role="status">
+        {t("configuration.knowledge.checking")}
+      </p>
+    );
+  switch (test.check.state) {
+    case "ok":
+      return (
+        <p className="config-note ok" role="status">
+          {t("configuration.knowledge.answered", { count: test.check.items })}
+        </p>
+      );
+    case "failed":
+      return (
+        <p className="config-note ko" role="status">
+          {t("configuration.knowledge.unanswered", { reason: test.check.reason })}
+        </p>
+      );
+    case "unchecked":
+      return (
+        <p className="small muted" role="status">
+          {t("configuration.knowledge.unchecked")}
+        </p>
+      );
+  }
 }

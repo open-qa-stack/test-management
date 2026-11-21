@@ -94,3 +94,4 @@ export type { KnowledgeDomain, KnowledgeDomainList } from "../domain-index/knowl
 export type { RepositoryPreparation, RepositoryState } from "../test-repository/repository-setup-state.ts";
 export type { SecretKind, SecretList, SecretSource, SecretState } from "../secrets/secret-state.ts";
 export { OPERATIONS, operationIds, type OperationId } from "../operations/operations.ts";
+export type { SourceCheck } from "../knowledge-check/source-check.ts";

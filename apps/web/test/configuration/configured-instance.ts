@@ -63,6 +63,8 @@ export class ConfiguredInstance {
     // A test repository that is no git repository yet, which the setting up makes one.
     if (path === "/api/repository") return json({ git: "none", playwright: false });
     if (path === "/api/repository/preparation") return json({ created: ["playwright.config.ts"], kept: [], committed: true });
+    // Every source answers, and holds three items.
+    if (path === "/api/knowledge/check") return json({ state: "ok", items: 3 });
     // The key of the model of the fixtures, which the person types: saved once typed, missing before.
     if (path === "/api/secrets")
       return json({

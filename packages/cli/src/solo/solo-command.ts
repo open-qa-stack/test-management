@@ -2,14 +2,14 @@ import { resolve } from "node:path";
 import { configurationText, ExitCode, isStoredDocuments, type ConfigurationView, type ExitCodeValue } from "@open-qa-stack/domain";
 import { playwrightVersion } from "@open-qa-stack/tools";
 import { hasEnded, type Session } from "@open-qa-stack/domain/sessions";
-import type { Configuration, KnowledgeDocuments, Secrets, Sessions } from "@open-qa-stack/engine";
+import type { Configuration, KnowledgeDocuments, KnowledgeSources, Secrets, Sessions } from "@open-qa-stack/engine";
 import { parseArguments, USAGE, type Arguments, type Command } from "./arguments.ts";
 import { fileLine, revisionLine } from "./configuration-lines.ts";
 import { eventLine, ofTheAgents } from "./event-line.ts";
 import { failureOf } from "./failure.ts";
 import { followSession } from "./follow-session.ts";
 import { Interruptions } from "./interruptions.ts";
-import { documentLine, documentsRefusal, receivedFiles, sourceLine } from "./knowledge-lines.ts";
+import { checkLine, documentLine, documentsRefusal, receivedFiles, sourceLine } from "./knowledge-lines.ts";
 import { keptTuning, modelOfArguments, modelReport } from "./model-lines.ts";
 import { modelConnectionOf, openOperations, type Operations } from "./operations.ts";
 import { RepositoryInit } from "./repository-init.ts";
@@ -89,7 +89,7 @@ async function onSessions(command: Exclude<Command, { name: "help" }>, options: 
     const { converse } = await import("./conversation/converse.ts");
     return converse({ repository, terminal: io.terminal, io, ...(command.environment === undefined ? {} : { environment: command.environment }) });
   }
-  const { sessions, configuration, documents, secrets, close } = await openOperations(io, repository, false);
+  const { sessions, configuration, documents, secrets, sources, close } = await openOperations(io, repository, false);
   try {
     switch (command.name) {
       case "init":
@@ -103,7 +103,9 @@ async function onSessions(command: Exclude<Command, { name: "help" }>, options: 
       case "config":
         return await configured({ configuration, command, options, io });
       case "knowledge":
-        return await known({ configuration, documents, command, options, io });
+        return command.action === "check"
+          ? await checked({ configuration, sources, command, options, io })
+          : await known({ configuration, documents, command, options, io });
       case "model":
         return command.action === "setup" ? await setUp({ configuration, secrets }, io) : await modelled({ configuration, secrets, command, options, io });
       case "secrets":
@@ -205,7 +207,11 @@ async function known({
   command,
   options,
   io,
-}: Omit<Asked<"knowledge">, "sessions"> & { configuration: Configuration; documents: KnowledgeDocuments }): Promise<ExitCodeValue> {
+}: Omit<Asked<"knowledge">, "sessions" | "command"> & {
+  configuration: Configuration;
+  documents: KnowledgeDocuments;
+  command: Exclude<Extract<Command, { name: "knowledge" }>, { action: "check" }>;
+}): Promise<ExitCodeValue> {
   if (command.action === "add-document") {
     const files = await receivedFiles(io.cwd, command.files);
     try {
@@ -231,6 +237,34 @@ async function known({
   ]);
   print({ options, io }, lines.join("\n"), { sources: listed.map(({ source, kept }) => (kept === undefined ? source : { ...source, documents: kept })) });
   return ExitCode.passed;
+}
+
+/**
+ * `oqas knowledge check`: tests that the knowledge sources of the configuration in force answer, or the one named,
+ * without the model and indexing nothing. Exits with `0` when each answers, with `4` otherwise.
+ */
+async function checked({
+  configuration,
+  sources,
+  command,
+  options,
+  io,
+}: Omit<Asked<"knowledge">, "sessions" | "command"> & {
+  configuration: Configuration;
+  sources: KnowledgeSources;
+  command: Extract<Command, { name: "knowledge"; action: "check" }>;
+}): Promise<ExitCodeValue> {
+  const declared = (await configuration.synchronise()).document.knowledge;
+  const asked = command.source === undefined ? declared : declared.filter(({ id }) => id === command.source);
+  if (asked.length === 0)
+    throw new UsageError(
+      command.source === undefined
+        ? "The configuration in force declares no knowledge source."
+        : `The configuration in force declares no knowledge source ${command.source}; oqas knowledge list lists them.`,
+    );
+  const checks = await Promise.all(asked.map(async (source) => ({ source: source.id, check: await sources.check(source) })));
+  print({ options, io }, checks.map(checkLine).join("\n"), { checks });
+  return checks.some(({ check }) => check.state === "failed") ? ExitCode.prerequisite : ExitCode.passed;
 }
 
 /** Writes a line to the standard output, as a text or as the JSON of a value. */

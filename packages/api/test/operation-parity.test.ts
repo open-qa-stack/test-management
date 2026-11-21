@@ -43,6 +43,7 @@ const ROUTES: Readonly<Record<OperationId, Offer>> = {
   "KnowledgeDocuments.upload": "POST /knowledge/s/documents",
   "KnowledgeDocuments.remove": "DELETE /knowledge/s/documents/d.md",
   "KnowledgeDomains.list": "GET /knowledge/domains",
+  "KnowledgeSources.check": "POST /knowledge/check",
   "RepositoryTests.listed": "GET /tests",
   "TestReadings.read": "GET /tests/reading",
   "TestReadings.trace": "GET /tests/trace",

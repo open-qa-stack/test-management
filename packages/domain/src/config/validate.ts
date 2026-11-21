@@ -29,6 +29,23 @@ export const DEFAULT_REPOSITORY: Readonly<Required<Repository>> = Object.freeze(
 const ajv = new Ajv2020({ allErrors: true, strict: true, strictRequired: false, discriminator: true });
 const validateShape = ajv.compile<OqasConfig>(configSchema);
 const validateModelShape = ajv.compile<Model>({ $defs: configSchema.$defs, $ref: "#/$defs/model" });
+const validateKnowledgeShape = ajv.compile<Knowledge>({ $defs: configSchema.$defs, $ref: "#/$defs/knowledge" });
+
+/**
+ * Tells whether a value is a knowledge source, as the configuration holds it while the person drafts it: its identifier
+ * and what it is attached to may still be missing, since testing it comes before.
+ *
+ * @param value - What was sent.
+ * @returns Whether it is a source the configuration would accept once named and attached.
+ */
+export function isKnowledgeSource(value: unknown): value is Knowledge {
+  if (!isRecord(value)) return false;
+  return validateKnowledgeShape({
+    ...value,
+    id: value["id"] === "" || value["id"] === undefined ? "draft" : value["id"],
+    attachments: [{ application: "draft" }],
+  });
+}
 
 /**
  * Tells whether a value is a connection to the model, as the section `model` of the configuration holds it while the
