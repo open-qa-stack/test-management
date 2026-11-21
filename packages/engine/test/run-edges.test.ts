@@ -3,7 +3,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "vitest";
 import type { AgentRuntime, TaskLimits, TraceLine } from "@open-qa-stack/domain";
-import { answer, closedPort, scriptedServer } from "@open-qa-stack/testing";
+import { answer, closedPort, scriptedServer, KeptMemories } from "@open-qa-stack/testing";
 import { liveRuntime, Run } from "../src/index.ts";
 import { MODEL, WITNESS, siteUrl, configText, repository, FakeRunner, ended, written, chain, later, plugged, ran, stateOf, journalOf } from "./run-support.ts";
 
@@ -16,6 +16,7 @@ describe("the edges of a run", () => {
     const root = repository(configText(down));
     const host = plugged(root);
     const code = await new Run({
+      memory: new KeptMemories(),
       repositoryRoot: root,
       environment: "local",
       env: { SHOP_DB_URL: WITNESS },
@@ -103,6 +104,7 @@ describe("the edges of a run", () => {
     const host = plugged(root);
     try {
       const code = await new Run({
+        memory: new KeptMemories(),
         repositoryRoot: root,
         environment: "local",
         env: { SHOP_DB_URL: WITNESS },
@@ -125,6 +127,7 @@ describe("the edges of a run", () => {
     const host = plugged(root);
     try {
       const code = await new Run({
+        memory: new KeptMemories(),
         repositoryRoot: root,
         environment: "local",
         env: { SHOP_DB_URL: WITNESS },
@@ -150,6 +153,7 @@ describe("the edges of a run", () => {
     const host = plugged(root);
     try {
       const run = new Run({
+        memory: new KeptMemories(),
         repositoryRoot: root,
         environment: "local",
         env: { SHOP_DB_URL: WITNESS },
@@ -190,6 +194,7 @@ describe("the guardrail of a run", () => {
     let read = false;
     try {
       const code = await new Run({
+        memory: new KeptMemories(),
         repositoryRoot: root,
         environment: "local",
         env: { SHOP_DB_URL: WITNESS },

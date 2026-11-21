@@ -1,4 +1,4 @@
-import { scriptedServer, type ScriptedServer } from "@open-qa-stack/testing";
+import { scriptedServer, type ScriptedServer, KeptMemories } from "@open-qa-stack/testing";
 import type { RunEntry, RunState, TraceLine } from "@open-qa-stack/domain";
 import { Configuration, liveRuntime, Run, type RunOptions } from "../src/index.ts";
 import { MemoryJournal } from "./memory-journal.ts";
@@ -90,6 +90,7 @@ export async function ran(
   const host = plugged(root);
   try {
     const code = await new Run({
+      memory: new KeptMemories(),
       repositoryRoot: root,
       ...(setup.environment === undefined ? {} : { environment: setup.environment }),
       ...(setup.brief === undefined ? {} : { brief: setup.brief }),
