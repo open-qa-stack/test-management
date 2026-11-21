@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, afterEach, before, beforeEach, describe, it } from "node:test";
@@ -163,6 +163,30 @@ export function configurationApiSuite(engine: DatabaseEngine): void {
       const refused = await post("/revisions", { basedOn: 0, document: DOCUMENT });
       assert.equal(problemCode(refused), "503 unavailable");
       assert.match((refused.body as Problem).detail, /changes no configuration/);
+      const repositoryRefused = await answerOf(await fetch(`${api.url}/repository`));
+      assert.equal(problemCode(repositoryRefused), "503 unavailable");
+    });
+  });
+
+  describe(`the test repository of an instance on ${engine.name}`, () => {
+    const repositoryAt = async (path: string, method = "GET") => answerOf(await fetch(`${api.url}/repository${path}`, { method }));
+
+    it("is made a git repository and a Playwright project from the configuration in force, which the state then tells", async () => {
+      const before = await repositoryAt("");
+      assert.deepEqual([before.status, before.cache, before.body], [200, "no-store", { git: "none", playwright: false }]);
+      const prepared = await repositoryAt("/preparation", "POST");
+      assert.equal(prepared.status, 200);
+      const done = prepared.body as { created: string[]; committed: boolean };
+      assert.deepEqual([done.committed, done.created.includes("playwright.config.ts")], [true, true]);
+      assert.deepEqual((await repositoryAt("")).body, { git: "ready", playwright: true });
+    });
+
+    it("is refused its setup while there is no configuration", async () => {
+      unlinkSync(join(repository, "oqas.json"));
+      await api.close();
+      await database.clear();
+      api = await sessionsApi({ database: database.url, repository });
+      assert.equal(problemCode(await repositoryAt("/preparation", "POST")), "404 no_configuration");
     });
   });
 }

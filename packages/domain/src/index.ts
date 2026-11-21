@@ -197,3 +197,4 @@ export {
 } from "./memory/memory.ts";
 export { closeMemories, MAX_CLOSE_MEMORIES, rankMemories } from "./memory/memory-ranking.ts";
 export type { MemoryStorePort } from "./memory/memory-store-port.ts";
+export type { RepositoryPreparation, RepositoryState } from "./test-repository/repository-setup-state.ts";

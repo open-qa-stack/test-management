@@ -27,6 +27,7 @@ const CONTROLS: ConfigurationControls = {
   keepFile: IGNORED,
   keepChange: IGNORED,
   testModel: IGNORED,
+  setUp: IGNORED,
 };
 
 /** The parts of the words of some resources around what they interpolate and mark up, long enough to be told apart from a name. */

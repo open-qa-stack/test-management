@@ -73,6 +73,29 @@ export class ConfigurationSync {
     );
   }
 
+  /** Reads where the test repository stands, for a person who sets it up; a reading that fails tells nothing. */
+  public readRepository(): void {
+    this.#api.repository().then(
+      (repository) => this.#dispatch({ type: "repository", repository }),
+      () => undefined,
+    );
+  }
+
+  /**
+   * Saves the first configuration of an instance that has none, which writes its file, then sets the test repository
+   * up: a Playwright project, and a git repository with a commit of a folder that is none.
+   *
+   * @param document - The configuration as the person set it up.
+   */
+  public setUp(document: OqasConfig): void {
+    this.#settle(this.#api.save({ basedOn: 0, document }), () =>
+      this.#api.prepareRepository().then(
+        (preparation) => this.#dispatch({ type: "prepared", preparation }),
+        (error: ApiError) => this.#dispatch({ type: "refused", code: error.code, text: error.message, errors: error.errors }),
+      ),
+    );
+  }
+
   public save(document: OqasConfig, basedOn: number, replaceFile: boolean): void {
     this.#settle(this.#api.save({ basedOn, document, ...(replaceFile ? { replaceFile } : {}) }));
   }
@@ -82,12 +105,17 @@ export class ConfigurationSync {
     this.#settle(this.#api.synchronise());
   }
 
-  /** Tells the state that a request left, then what the instance answered, and lists the revisions again once it took it. */
-  #settle(answer: Promise<ConfigurationView>): void {
+  /**
+   * Tells the state that a request left, then what the instance answered, and lists the revisions again once it took it.
+   *
+   * @param then - What to do once the instance took it; nothing by default.
+   */
+  #settle(answer: Promise<ConfigurationView>, then: () => unknown = () => undefined): void {
     this.#dispatch({ type: "saving" });
     answer.then(
       (view) => {
         this.#dispatch({ type: "saved", view });
+        then();
         this.#api.revisions().then(
           (revisions) => this.#dispatch({ type: "listed", revisions }),
           () => undefined,

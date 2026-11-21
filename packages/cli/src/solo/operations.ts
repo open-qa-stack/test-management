@@ -1,6 +1,7 @@
+import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { CONFIG_FILE_NAME } from "@open-qa-stack/domain";
-import { Configuration, KnowledgeDocuments, liveRuntime, ModelConnection, Sessions, type SessionsHost } from "@open-qa-stack/engine";
+import { CONFIG_FILE_NAME, DATABASE_FILE_NAME, DEFAULT_REPOSITORY } from "@open-qa-stack/domain";
+import { Configuration, KnowledgeDocuments, liveRuntime, ModelConnection, Sessions, START_ADVICE, type SessionsHost } from "@open-qa-stack/engine";
 import { DATABASE_URL_VARIABLE, DatabaseUrl, InstanceDatabase, instanceDatabaseUrl } from "@open-qa-stack/store";
 import { UsageError } from "./usage-error.ts";
 import type { CommandIo } from "./command-io.ts";
@@ -38,7 +39,7 @@ const STOP_WITHIN_MS = 10_000;
  * @param repository - Absolute path of the test repository.
  * @param hosts - Whether the command opens a session, which it then runs.
  * @returns The operations, on a database whose schema is in order.
- * @throws {@link UsageError} when the database cannot be told: its URL is no URL, or the repository holds no configuration to place it by.
+ * @throws {@link UsageError} when the database cannot be told: its URL is no URL, or the configuration file that places it cannot be read.
  * @throws `PendingMigrationsError` when the database is on a server that has migrations pending.
  * @throws `DatabaseUnavailableError` when the file of the database cannot be opened.
  */
@@ -98,19 +99,23 @@ export function runsOf(io: CommandIo): Pick<SessionsHost, "env" | "openRuntime" 
  * @param io - The environment of the command.
  * @param repository - Absolute path of the test repository.
  * @returns The URL of the database of the instance, from the environment of the command and its test repository.
- * @throws {@link UsageError} when the database cannot be told: its URL is no URL, or the repository holds no configuration to place it by.
+ * @param unconfigured - Whether a test repository without a configuration file is refused, or started: the console starts in it, to set it up.
+ * @throws {@link UsageError} when the database cannot be told: its URL is no URL, the configuration file is missing and the command is refused there, or it cannot be read.
  */
-export function databaseOf(io: CommandIo, repository: string): DatabaseUrl {
+export function databaseOf(io: CommandIo, repository: string, unconfigured: "refused" | "started" = "refused"): DatabaseUrl {
   const raw = io.env[DATABASE_URL_VARIABLE];
   const given = raw === undefined ? undefined : DatabaseUrl.parse(raw);
   if (raw !== undefined && given === undefined) throw new UsageError(`${DATABASE_URL_VARIABLE} must be ${DatabaseUrl.rule}.`);
+  // Only the console starts in a folder never configured, where it sets the configuration up: no other command writes a database
+  // there. A folder whose file went keeps its database, from which oqas config export writes the file again.
+  const configured = existsSync(join(repository, CONFIG_FILE_NAME)) || existsSync(join(repository, DEFAULT_REPOSITORY.stateDir, DATABASE_FILE_NAME));
+  if (given === undefined && unconfigured === "refused" && !configured)
+    throw new UsageError(`${join(repository, CONFIG_FILE_NAME)} is missing. ${START_ADVICE}`);
   try {
     return instanceDatabaseUrl(given, repository);
   } catch {
     const path = join(repository, CONFIG_FILE_NAME);
-    throw new UsageError(
-      `${path} cannot be read; oqas needs a ${CONFIG_FILE_NAME} at the root of the test repository, which says where its sessions are kept.`,
-    );
+    throw new UsageError(`${path} cannot be read: it says where the sessions are kept. Correct it, or remove it and start again with oqas --ui.`);
   }
 }
 

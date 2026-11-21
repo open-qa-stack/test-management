@@ -1,3 +1,4 @@
+import { START_ADVICE } from "../configuration/start-advice.ts";
 import { posix, relative, sep } from "node:path";
 import {
   CONFIG_FILE_NAME,
@@ -443,7 +444,7 @@ function succeeded(step: Step): string {
  */
 function refused(journal: RunJournal, error: unknown): ConfigurationRevision | undefined {
   if (error instanceof NoConfigurationError) {
-    journal.record("configuration", "error", `${error.message} Write a ${CONFIG_FILE_NAME} at the root of the test repository.`);
+    journal.record("configuration", "error", `${error.message} ${START_ADVICE}`);
     return undefined;
   }
   if (!(error instanceof InvalidConfigurationError)) throw error;

@@ -16,6 +16,7 @@ const CONTROLS: ConfigurationControls = {
   keepFile: () => assert.fail("no file is taken"),
   keepChange: () => assert.fail("no change is kept"),
   testModel: () => assert.fail("no connection is tested"),
+  setUp: () => assert.fail("nothing is set up"),
 };
 
 /** The state after the actions, from the state once the instance told the configuration of the fixtures. */
@@ -245,6 +246,16 @@ describe("the screen of the configuration", () => {
       screen(saved),
       /<p class="config-note ok" role="status">Révision 2 enregistrée : oqas\.json est réécrit, et la prochaine session la lit\.<\/p>/,
     );
+  });
+
+  it("says the project is ready once it was set up, committed or left to commit, and leads to the agent", () => {
+    const ready = (committed: boolean) =>
+      textOf(screen(configurationAfter(stateAfter([]), { type: "prepared", preparation: { created: [], kept: [], committed } })));
+    assert.match(
+      ready(true),
+      /Le projet est prêt La configuration et le projet Playwright sont écrits et enregistrés dans un nouveau dépôt git\. Demander des tests à l’agent/,
+    );
+    assert.match(ready(false), /Le projet est prêt .* enregistrez-les dans git \(commit\) avant la première session\./);
   });
 
   it("leaves the person the two ways out when the file and the console both changed, and says why any other change was refused", () => {
