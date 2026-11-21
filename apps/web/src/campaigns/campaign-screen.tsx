@@ -113,12 +113,15 @@ function Gestures({
   const busy = gestures.pending !== undefined;
   // A campaign becomes ready with the tests the instance keeps for it: some, and none left to keep.
   const unfixable = progress.campaign.tests.length === 0 || composer?.changed === true;
+  // While a launch of it runs, the campaign takes no other launch, and is not closed: its results are not fixed yet.
+  const waitsForTheLaunch = (gesture: CampaignGesture): boolean =>
+    launch !== undefined && (gesture.startsWith("launch") || gesture === "close" || gesture === "confirm_close");
   const button = (gesture: CampaignGesture, label: string, kind = "btn"): ReactNode => (
     <button
       key={gesture}
       type="button"
       className={kind}
-      disabled={busy || (gesture.startsWith("launch") && launch !== undefined) || (gesture === "ready" && unfixable)}
+      disabled={busy || waitsForTheLaunch(gesture) || (gesture === "ready" && unfixable)}
       onClick={() => onGesture(gesture)}
     >
       {gestures.pending === gesture ? t("campaign.pending") : label}

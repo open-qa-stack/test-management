@@ -28,11 +28,14 @@ export interface CampaignStorePort {
   ready(id: string, at: string): Promise<void>;
 
   /**
-   * Changes the state of a campaign: to `in_progress`, or to `closed` with when.
+   * Changes the state of a campaign from the one it is in: to `in_progress`, or to `closed` with when. Of two changes
+   * from one state at once, one only is made.
    *
    * @param id - The identifier of the campaign.
+   * @param from - The state it must be in for the change to be made.
    * @param status - Its new state.
    * @param at - When it was closed, as an ISO 8601 date, for `closed`.
+   * @returns Whether the change was made: `false` when the campaign was no longer in `from`.
    */
-  move(id: string, status: "in_progress" | "closed", at?: string): Promise<void>;
+  move(id: string, from: "ready" | "in_progress", status: "in_progress" | "closed", at?: string): Promise<boolean>;
 }
