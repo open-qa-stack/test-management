@@ -23,7 +23,7 @@ const code = await new Run({
 Each step starts only when the one before succeeded; once the prerequisites passed, the summary runs whatever the end of the others.
 
 1. **Configuration.** The revision in force of the configuration is read through the `configuration` port, once it is in step with `oqas.json` at the root of the test repository; it is validated against the environment, the environment to run against is chosen, and the test charter is resolved.
-2. **Prerequisites.** The folder is the root of a git repository with a commit, the model server answers, `npm` can be run, and the repository is a Playwright project.
+2. **Prerequisites.** The folder is the root of a git repository with a commit, the model server answers — a model of GitHub Copilot has no server of its own to ask, and its session tells whether it answers —, `npm` can be run, and the repository is a Playwright project.
 3. **Cartography.** The documents of the sources the instance keeps are written to the state folder, where the agents read them; then the sources without an up-to-date card are mapped, then consolidated into the domain index, by the cartographer of `@open-qa-stack/agents`.
 4. **Design.** The dependencies of the test repository are installed, then the tests are designed in passes on a new local branch, by the designer of `@open-qa-stack/agents`, each test checked against the charter and run against the application before it is kept. A run given the `branch` of an earlier one goes on with it instead: the design checks it out, reads the tests it holds as those of the repository, and commits its own on it.
 5. **Execution.** The tests designed run together, and the harness pronounces a verdict per test.
@@ -135,7 +135,7 @@ To run the engine, a host:
 1. Gives it a test repository as a folder, the root of a git repository with a commit, and the environment variables the configuration names.
 2. Implements `JournalOutput`, to show the entries to whoever follows the run and to keep them; `RunStore`, to keep the state of each run; and `Inbox`, to hand the agents what a person says while the run is going.
 3. Takes the lines of the trace of the agents with `follow`, to show them at work.
-4. Opens the runtime of the agents: `liveRuntime` opens it on the model of the configuration, through a gateway of its own, and is what every host uses unless it brings another `AgentRuntime`.
+4. Opens the runtime of the agents: `liveRuntime` opens it on the model of the configuration, through a gateway of its own for a provider key, with the GitHub account of the machine for a model of GitHub Copilot, and is what every host uses unless it brings another `AgentRuntime`.
 5. Turns the end of `run()` into what it reports: the operations on sessions end a session with the result read from the state the run wrote, and interrupt a session whose run wrote none, or was asked to stop.
 
 A host must also expect that `keep` is never called for a run the configuration or the prerequisites stopped: a host that waits for it to tell the entries tells those it holds when `run()` returns.
@@ -294,6 +294,10 @@ Their rules:
 - **The file a change writes** is the document in the order the schema declares its keys, indented by two spaces: the same document is always the same text, and the diff of the file shows what changed. It is written in the transaction that records the revision: when it cannot be written, nothing is recorded.
 - **Validation is that of the file**: the schema of `oqas.json` and the rules that span the document, the environment left out. Whether a variable the configuration names is set is told by the run, on the machine that runs it. A revision holds no secret, as the file holds none: only the names of the variables.
 - **A host without a test repository** reads the revisions and changes none: `save` and `restore` raise `NoRepositoryError`. With neither a revision nor a file, `synchronise` and `restore` raise `NoConfigurationError`.
+
+### Testing the connection to the model
+
+`ModelConnection` tests a connection to the model before anything is saved, so that a person sees whether it answers and chooses the model in what it offers. `check(model)` takes the section `model` as it is drafted, and answers a `ModelConnectionCheck`: for a model of GitHub Copilot, what the GitHub account of the machine answers (`checkGitHubAccount` of the harness); for a provider key, `key-missing` without asking the server when the variable that holds the key is not set in the environment it was given, and what the server answers otherwise (`checkProviderModels`). The [route of the API](../../api/docs/configuration.md#testing-the-connection-to-the-model) lists the states.
 
 ## The operations on documents
 

@@ -17,7 +17,7 @@ import { secretForms, secretPaths } from "@open-qa-stack/tools";
 export function configSecrets(config: ResolvedConfig, env: Readonly<Record<string, string | undefined>>): string[] {
   const value = (variable: string): string[] => (env[variable] ? [env[variable]] : []);
   const connections = config.knowledge.flatMap((source) => (source.type === "postgresql" ? value(source.connectionStringEnv) : []));
-  const key = config.model.apiKeyEnv === undefined ? [] : value(config.model.apiKeyEnv);
+  const key = config.model.mode === "github" || config.model.apiKeyEnv === undefined ? [] : value(config.model.apiKeyEnv);
   return [...new Set([...connections, ...key])];
 }
 

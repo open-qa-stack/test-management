@@ -19,7 +19,15 @@ const inEnglish = speaking("en");
 
 /** What the person does on the screen of the configuration, which a static rendering never calls. */
 const IGNORED = (): void => assert.fail("nothing is done");
-const CONTROLS: ConfigurationControls = { change: IGNORED, click: IGNORED, save: IGNORED, discard: IGNORED, keepFile: IGNORED, keepChange: IGNORED };
+const CONTROLS: ConfigurationControls = {
+  change: IGNORED,
+  click: IGNORED,
+  save: IGNORED,
+  discard: IGNORED,
+  keepFile: IGNORED,
+  keepChange: IGNORED,
+  testModel: IGNORED,
+};
 
 /** The parts of the words of some resources around what they interpolate and mark up, long enough to be told apart from a name. */
 function partsOf(words: object): string[] {
@@ -86,7 +94,7 @@ describe("the console in English", () => {
     });
     const html = render(createElement(ConfigurationScreen, { project: "p", state, controls: CONTROLS }));
     const text = english(createElement(ConfigurationScreen, { project: "p", state, controls: CONTROLS }));
-    assert.match(text, /Applications and environments .* Agents Model · the server the agents call /);
+    assert.match(text, /Applications and environments .* Agents Model · what the agents think with Connection to the model /);
     assert.match(text, /Languages · what the product says, and what the tests say Language of the console and of the agents English Français /);
     assert.match(text, /Language of the tests English Français The titles, the steps and the intents of the tests written; their code stays in English\./);
     assert.match(

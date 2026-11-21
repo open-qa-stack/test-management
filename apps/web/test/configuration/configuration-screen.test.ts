@@ -15,6 +15,7 @@ const CONTROLS: ConfigurationControls = {
   discard: () => assert.fail("nothing is dropped"),
   keepFile: () => assert.fail("no file is taken"),
   keepChange: () => assert.fail("no change is kept"),
+  testModel: () => assert.fail("no connection is tested"),
 };
 
 /** The state after the actions, from the state once the instance told the configuration of the fixtures. */
@@ -226,9 +227,9 @@ describe("the screen of the configuration", () => {
     const choice = configurationAfter(state, {
       type: "checked",
       draft: state.draft!,
-      errors: [{ kind: "structure", path: "/model/provider", rule: "unknown-variant", message: "…" }],
+      errors: [{ kind: "structure", path: "/model/mode", rule: "unknown-variant", message: "…" }],
     });
-    assert.ok(bears(screen(choice), "/model/provider", "select", 'aria-invalid="true"', 'aria-describedby="config-model-provider-errors"'));
+    assert.ok(bears(screen(choice), "/model/mode", "select", 'aria-invalid="true"', 'aria-describedby="config-model-mode-errors"'));
   });
 
   it("says when the file changed, or cannot be read, and that a change was saved", () => {
@@ -256,5 +257,12 @@ describe("the screen of the configuration", () => {
     assert.match(textOf(html), /Rien n’est fusionné : choisissez ce qui est gardé\. Garder le fichier Garder mes modifications/);
     const stale = stateAfter([{ type: "refused", code: "stale_revision", text: "La configuration a changé.", errors: [] }]);
     assert.match(screen(stale), /<p class="config-note ko" role="alert">La configuration a changé\.<\/p>/);
+  });
+
+  it("hands the card of the model the latest test of its connection", () => {
+    const state = configurationAfter(stateAfter([]), { type: "tested", model: DOCUMENT.model });
+    const testing = configurationAfter(stateAfter([]), { type: "testing", model: DOCUMENT.model });
+    assert.doesNotMatch(textOf(screen(state)), /Test en cours/);
+    assert.match(textOf(screen(testing)), /Test en cours…/);
   });
 });

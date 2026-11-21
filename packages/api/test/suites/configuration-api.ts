@@ -81,6 +81,17 @@ export function configurationApiSuite(engine: DatabaseEngine): void {
       );
     });
 
+    it("tests a connection to the model as it is drafted: what the server answers, or that its key is not set, and nothing is recorded", async () => {
+      const server = { mode: "provider-key", provider: "openai", baseUrl: "http://127.0.0.1:9/v1", model: "" };
+      const unreachable = await post("/model-connection", server);
+      assert.deepEqual([unreachable.status, unreachable.cache, unreachable.body], [200, "no-store", { state: "unreachable", url: "http://127.0.0.1:9/v1" }]);
+      const missing = await post("/model-connection", { ...server, apiKeyEnv: "OQAS_UNSET_KEY" });
+      assert.deepEqual(missing.body, { state: "key-missing", variable: "OQAS_UNSET_KEY" });
+      assert.equal(problemCode(await post("/model-connection", { mode: "github" })), "400 invalid_request");
+      assert.equal(problemCode(await post("/model-connection", { ...server, baseUrl: "nowhere" })), "400 invalid_request");
+      assert.equal(((await get("/revisions")).body as RevisionList).items.length, 1);
+    });
+
     it("is checked without anything recorded, each error where it is", async () => {
       const valid = await post("/validation", DOCUMENT);
       assert.deepEqual([valid.status, valid.body], [200, { errors: [] } satisfies ConfigurationCheck]);

@@ -1,4 +1,5 @@
 export { Configuration } from "./configuration/configuration.ts";
+export { ModelConnection, type ConnectionProbes } from "./configuration/model-connection.ts";
 export { Campaigns, type CampaignsHost } from "./campaigns/campaigns.ts";
 export { Executions, FILE_EXECUTIONS_LIMIT } from "./executions/executions.ts";
 export { KnowledgeDomains } from "./knowledge/knowledge-domains.ts";

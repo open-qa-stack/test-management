@@ -11,8 +11,9 @@ The shapes of every body are the types of `@open-qa-stack/domain/sessions`; the 
 | `POST /api/configuration/validation` | The errors of a configuration, without anything recorded. |
 | `POST /api/configuration/revisions` | Saves a change, which rewrites `oqas.json`. |
 | `POST /api/configuration/synchronisation` | Takes `oqas.json` as it is now as the revision in force. |
+| `POST /api/configuration/model-connection` | Tests a connection to the model as it is drafted, without anything recorded. |
 
-The two reads are answered with `cache-control: no-store`. Every answer that is not a success is a [problem](sessions.md#problems).
+The two reads and the test of a connection are answered with `cache-control: no-store`. Every answer that is not a success is a [problem](sessions.md#problems).
 
 ## Secrets
 
@@ -66,6 +67,32 @@ HTTP/1.1 200 OK
 
 The body is the configuration itself. The answer lists every error the schema of `oqas.json` and its rules find, the environment left out, each with its `kind`, its `path` — a JSON Pointer to the field at fault, `""` for the whole document — its `rule` and its `message`, as [the configuration file](../../domain/docs/configuration.md#validation) describes them: a client shows each beside its field. An empty list is a valid configuration. Nothing is recorded.
 
+## Testing the connection to the model
+
+```http
+POST /api/configuration/model-connection
+content-type: application/json
+
+{"mode":"github","model":""}
+
+HTTP/1.1 200 OK
+
+{"state":"connected","account":"octo","models":[{"id":"gpt-5","name":"GPT-5","vision":true,"reasoningEfforts":["low","high"]}]}
+```
+
+The body is the section `model` of a configuration as the person drafts it: the name of the model may still be empty, since the test is what lets them choose it. The answer says what the test found, in `state`:
+
+| `state` | When | With |
+|---|---|---|
+| `connected` | The model answers. | `account`, the GitHub account, for a model of GitHub Copilot; `models`, what the connection offers, each with its `id`, its `name`, whether it reads images (`vision`) when the connection tells it, and the efforts of reasoning it accepts. Without `models`, the server gives no list: the person types the name. |
+| `signed-out` | No GitHub account is signed in on the machine that runs the API, through the GitHub CLI or the Copilot CLI. | — |
+| `no-models` | The GitHub account is signed in, and Copilot offers it no model: it has no Copilot subscription, or its organisation allows it none. | `account` |
+| `key-missing` | The variable that holds the key of a provider is not set in the environment of the runs; the server is not asked. | `variable` |
+| `key-refused` | The server answered `401` or `403` to the list of its models. | `status` |
+| `unreachable` | Nothing answered at the address of the server within 10 seconds. | `url` |
+
+A model of GitHub Copilot is checked with the account the machine signed in with: the API reads no token, and the SDK of Copilot finds the account itself. A provider key is checked by listing the models of the server, `GET <baseUrl>/models`, with the key the variable holds. Nothing is recorded.
+
 ## Saving a change
 
 ```http
@@ -110,7 +137,7 @@ The synchronisation answers the configuration as it is now: a new revision when 
 
 | Code | Status | When |
 |---|---|---|
-| `invalid_request` | `400` | The body is not one the route reads: a field the route does not know, `basedOn` that is no whole number from 0, `document` or the body of a validation that is no JSON object, `replaceFile` that is no boolean. |
+| `invalid_request` | `400` | The body is not one the route reads: a field the route does not know, `basedOn` that is no whole number from 0, `document` or the body of a validation that is no JSON object, `replaceFile` that is no boolean, the body of a test of the connection that is no section `model` the configuration accepts. |
 | `stale_revision` | `409` | The change was made from a revision another replaced since, or from one that does not exist. |
 | `configuration_conflict` | `409` | `oqas.json` changed since the revision in force, and the change would overwrite it. |
 | `invalid_configuration` | `422` | The change, or the file to take, is not a valid configuration. The problem bears `errors`, each error where it is, as a validation lists them. |
