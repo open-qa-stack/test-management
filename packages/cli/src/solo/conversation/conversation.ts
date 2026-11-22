@@ -5,6 +5,7 @@ import type { Sessions } from "@open-qa-stack/engine";
 import type { Model, ModelConnectionCheck } from "@open-qa-stack/domain/sessions";
 import type { PrintingCommand } from "../operation-commands.ts";
 import { checkText, type SetupEnd } from "./model-setup/model-setup.ts";
+import type { SecretEnd } from "./secret-entry.ts";
 import { t } from "./i18n/i18n.ts";
 import { conversationReducer } from "./conversation-reducer.ts";
 import { initialState, type ConversationContext } from "./conversation-state.ts";
@@ -79,6 +80,8 @@ export interface ConversationProps {
    * @returns What it wrote, and whether it did not do all it was asked.
    */
   readonly run: (command: PrintingCommand) => Promise<{ readonly text: string; readonly failed: boolean }>;
+  /** Saves the value of a variable the configuration names, out of the test repository, as `oqas secrets set` does. */
+  readonly saveSecret: (variable: string, value: string) => Promise<void>;
 }
 
 /**
@@ -98,7 +101,7 @@ export interface ConversationProps {
  * @param props - The operations, where the conversation takes place, what draws and times it, and who hears it end.
  * @returns The screen.
  */
-export function Conversation({ sessions, context, latest, theme, now, serve, reasonOf, onLeave, model, run }: ConversationProps): ReactNode {
+export function Conversation({ sessions, context, latest, theme, now, serve, reasonOf, onLeave, model, run, saveSecret }: ConversationProps): ReactNode {
   const [state, dispatch] = useReducer(conversationReducer, undefined, () => initialState(latest, now()));
   const { columns } = useWindowSize();
   const fail = (error: unknown): void => dispatch({ type: "failed", why: reasonOf(error) });
@@ -193,8 +196,8 @@ export function Conversation({ sessions, context, latest, theme, now, serve, rea
   };
 
   useInput((input, key) => {
-    // The setting of the model hears its own keys, Ctrl-C aside, which closes it as it closes any list.
-    if (state.overlay?.kind === "model" && !(key.ctrl && input === "c")) return;
+    // The setting of the model and the typing of a value hear their own keys, Ctrl-C aside, which closes them as it closes any list.
+    if ((state.overlay?.kind === "model" || state.overlay?.kind === "secret") && !(key.ctrl && input === "c")) return;
     if (key.ctrl && input === "c") {
       const interruption = interruptionOf(state);
       if (interruption.kind === "stop") void sessions.interrupt(interruption.session).catch(fail);
@@ -207,5 +210,15 @@ export function Conversation({ sessions, context, latest, theme, now, serve, rea
   });
 
   const setup = { check: model.check, save: model.save, reasonOf, onEnd: (end: SetupEnd) => dispatch({ type: "model-ended", end }) };
-  return h(ConversationView, { state, context, theme, width: columns, setup, onChange: (input) => dispatch({ type: "typed", input }), onSubmit: submit });
+  const secret = { save: saveSecret, reasonOf, onEnd: (end: SecretEnd) => dispatch({ type: "secret-ended", end }) };
+  return h(ConversationView, {
+    state,
+    context,
+    theme,
+    width: columns,
+    setup,
+    secret,
+    onChange: (input) => dispatch({ type: "typed", input }),
+    onSubmit: submit,
+  });
 }

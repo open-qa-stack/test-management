@@ -116,6 +116,7 @@
     "campaigns": "plan, choose, ready, launch, show or close: the campaigns of tests, as oqas campaigns does",
     "executions": "The executions of tests, the latest first, or show one, as oqas executions does",
     "secrets": "List the variables the configuration names, and where the value of each comes from",
+    "repository": "Tell where the test repository stands: git, and its Playwright project, as oqas repository does",
     "init": "Prepare the test repository as a Playwright project, as oqas --init does",
     "help": "List the commands and the keys",
     "quit": "Leave the conversation"
@@ -165,8 +166,7 @@
     "nothingToStop": "No session goes on here: there is nothing to stop.",
     "port": "/ui takes a port from 0 to 65535, 0 for any free one.",
     "options": "The conversation runs the command in its own test repository, and prints it as lines: it takes no --repository, --output nor --follow.",
-    "notHere": "oqas {{command}} does not run in the conversation: run it in another terminal.",
-    "typedValue": "The conversation would show the value as it is typed: save it with oqas secrets set {{variable}} in another terminal."
+    "notHere": "oqas {{command}} does not run in the conversation: run it in another terminal."
   },
   "recent": {
     "none": "No session yet.",
@@ -352,5 +352,14 @@
     "committed": ", and a git repository with its first commit",
     "toCommit": "; commit them when you wish",
     "left": "Nothing was set up."
+  },
+  "secret": {
+    "label": "Value of {{variable}}",
+    "hint": "Type it: it is not shown. It is kept on this machine, out of the test repository; the environment wins over it.",
+    "refused": "A value is expected.",
+    "saving": "Saving {{variable}}…",
+    "saved": "{{variable}} is saved on this machine, out of the test repository.",
+    "left": "Nothing was saved.",
+    "keys": "Enter save · Esc leave"
   }
 }

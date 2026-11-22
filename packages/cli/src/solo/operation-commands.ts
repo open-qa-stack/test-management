@@ -1,21 +1,24 @@
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { setTimeout as pause } from "node:timers/promises";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 import {
+  CONFIG_FILE_NAME,
   configurationText,
   ExitCode,
   isStoredDocuments,
   type Campaign,
   type CartographyState,
+  type RepositoryState,
+  type RevisionSummary,
   type TestLaunch,
   type ConfigurationView,
   type ExitCodeValue,
 } from "@open-qa-stack/domain";
 import { playwrightVersion } from "@open-qa-stack/tools";
-import type { Session } from "@open-qa-stack/domain/sessions";
+import type { Project, Session } from "@open-qa-stack/domain/sessions";
 import type { Configuration, KnowledgeDocuments, KnowledgeSources, Secrets, Sessions } from "@open-qa-stack/engine";
 import type { Arguments, Command } from "./arguments.ts";
-import { fileLine, revisionLine } from "./configuration-lines.ts";
+import { errorLine, fileLine, revisionLine } from "./configuration-lines.ts";
 import { eventLine, ofTheAgents } from "./event-line.ts";
 import { failureOf } from "./failure.ts";
 import { checkLine, documentLine, documentsRefusal, mappingLines, receivedFiles, sourceLine } from "./knowledge-lines.ts";
@@ -45,7 +48,25 @@ export interface Asked<Name extends Command["name"]> {
  * slash, in the conversation. Those that run or follow a session, serve the console or draw a screen are not.
  */
 export type PrintingCommand =
-  | Extract<Command, { name: "init" | "config" | "knowledge" | "secrets" | "sessions" | "show" | "stop" | "tests" | "executions" | "launch" | "campaigns" }>
+  | Extract<
+      Command,
+      {
+        name:
+          | "init"
+          | "config"
+          | "knowledge"
+          | "secrets"
+          | "sessions"
+          | "show"
+          | "stop"
+          | "tests"
+          | "executions"
+          | "launch"
+          | "campaigns"
+          | "project"
+          | "repository";
+      }
+    >
   | Extract<Command, { name: "model"; action: "status" | "set" }>;
 
 /** The names of the commands that print, as {@link isPrinting} reads them: typed on them, it does not compile while one is left out. */
@@ -62,6 +83,8 @@ const PRINTING: Readonly<Record<PrintingCommand["name"], true>> = {
   executions: true,
   launch: true,
   campaigns: true,
+  project: true,
+  repository: true,
 };
 
 /**
@@ -103,10 +126,18 @@ export async function runPrinting(
         print: (line) => io.stdout.write(line),
       }).run();
     case "config":
+      if (command.action === "history") return historied(await configuration.revisions(), { options, io });
+      if (command.action === "check") return await fileChecked(configuration, repository, { options, io });
       return await configured({ configuration, command, options, io });
+    case "project":
+      return projected(await sessions.project(), { options, io });
+    case "repository":
+      return stood(await operations.setup.state(), { options, io });
     case "knowledge":
       if (command.action === "check") return await checked({ configuration, sources, command, options, io });
       if (command.action === "mapping") return mapped(await mapping.state(), options, io);
+      if (command.action === "domains") return await domained(operations, { options, io });
+      if (command.action === "read" || command.action === "remove") return await documented(documents, command, { options, io });
       return await known({ configuration, documents, command, options, io });
     case "model":
       return await modelled({ configuration, secrets, command, options, io });
@@ -322,6 +353,80 @@ export async function caught(run: () => Promise<ExitCodeValue>, stderr: CommandO
   }
 }
 
+/** `oqas config history`: lists the revisions of the configuration, the latest first, and where each was made. */
+function historied(revisions: readonly RevisionSummary[], printing: Pick<Asked<"config">, "options" | "io">): ExitCodeValue {
+  print(printing, linesOr(revisions.map(revisionLine), "The instance keeps no revision of the configuration."), { items: revisions });
+  return ExitCode.passed;
+}
+
+/** `oqas config check`: checks the configuration file without taking it. Exits with `0` when it is valid, `3` otherwise. */
+async function fileChecked(configuration: Configuration, repository: string, printing: Pick<Asked<"config">, "options" | "io">): Promise<ExitCodeValue> {
+  const text = await readFile(join(repository, CONFIG_FILE_NAME), "utf8").catch(() => {
+    throw new UsageError(`The test repository holds no ${CONFIG_FILE_NAME} to check.`);
+  });
+  let document: unknown;
+  try {
+    document = JSON.parse(text);
+  } catch (error) {
+    throw new UsageError(`${CONFIG_FILE_NAME} is no JSON: ${(error as Error).message}`);
+  }
+  const errors = configuration.check(document as object);
+  print(printing, linesOr(errors.map(errorLine), `${CONFIG_FILE_NAME} is a valid configuration.`), { errors });
+  return errors.length === 0 ? ExitCode.passed : ExitCode.configuration;
+}
+
+/** `oqas project`: names the project of the instance, as a host on the test repository names it, and its applications. */
+function projected(project: Project, printing: Pick<Asked<"project">, "options" | "io">): ExitCodeValue {
+  print(printing, [`The project ${project.name}.`, ...project.applications.map(({ id, name }) => `  ${name} (${id})`)].join("\n"), project);
+  return ExitCode.passed;
+}
+
+/** How a test repository stands to git, in the words of the command. */
+const GIT_STATES: Readonly<Record<RepositoryState["git"], string>> = {
+  none: "it is no git repository",
+  empty: "it is a git repository without a commit",
+  ready: "it is a git repository with a commit",
+};
+
+/** `oqas repository`: tells where the test repository stands. */
+function stood(state: RepositoryState, printing: Pick<Asked<"repository">, "options" | "io">): ExitCodeValue {
+  const playwright = state.playwright ? "a Playwright project" : "no Playwright project yet: oqas --init prepares it";
+  print(printing, `The test repository is ${state.folder}: ${GIT_STATES[state.git]}, and ${playwright}.`, state);
+  return ExitCode.passed;
+}
+
+/** `oqas knowledge domains`: lists the domains the cartography found in the knowledge. */
+async function domained({ domains }: Pick<Operations, "domains">, printing: Pick<Asked<"knowledge">, "options" | "io">): Promise<ExitCodeValue> {
+  const items = await domains.list();
+  const none = "The cartography found no domain yet: oqas knowledge mapping tells where it stands.";
+  print(
+    printing,
+    linesOr(
+      items.map(({ id, label, description }) => `${id}: ${label}. ${description}`),
+      none,
+    ),
+    { items },
+  );
+  return ExitCode.passed;
+}
+
+/** `oqas knowledge read` and `remove`: prints a document a source of the instance keeps, or removes it. */
+async function documented(
+  documents: KnowledgeDocuments,
+  command: Extract<Command, { name: "knowledge"; action: "read" | "remove" }>,
+  printing: Pick<Asked<"knowledge">, "options" | "io">,
+): Promise<ExitCodeValue> {
+  const { source, document } = command;
+  if (command.action === "read") {
+    const read = await documents.read(source, document);
+    print(printing, read.text.trimEnd(), read);
+    return ExitCode.passed;
+  }
+  await documents.remove(source, document);
+  print(printing, `The document ${document} is removed from ${source}.`, { source, document });
+  return ExitCode.passed;
+}
+
 /**
  * `oqas config`: prints the configuration in force and how the configuration file stands to it; with `import`,
  * takes the file as the configuration in force first, when it changed; with `export`, writes the configuration in
@@ -400,7 +505,7 @@ async function known({
 }: Omit<Asked<"knowledge">, "sessions" | "command"> & {
   configuration: Configuration;
   documents: KnowledgeDocuments;
-  command: Exclude<Extract<Command, { name: "knowledge" }>, { action: "check" | "mapping" }>;
+  command: Extract<Command, { name: "knowledge"; action: "list" | "add-document" }>;
 }): Promise<ExitCodeValue> {
   if (command.action === "add-document") {
     const files = await receivedFiles(io.cwd, command.files);

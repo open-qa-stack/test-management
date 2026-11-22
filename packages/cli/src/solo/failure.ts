@@ -5,6 +5,8 @@ import {
   SessionEndedError,
   UnknownCampaignError,
   UnknownCaptureError,
+  UnknownDocumentError,
+  UnknownDocumentSourceError,
   UnknownExecutionError,
   UnknownSecretError,
   UnknownSessionError,
@@ -29,6 +31,8 @@ const REFUSALS = [
   LaunchRefusedError,
   UnknownCampaignError,
   CampaignRefusedError,
+  UnknownDocumentError,
+  UnknownDocumentSourceError,
 ];
 
 /** What did not go to its end for a reason its message tells: the person reads it as it is. */

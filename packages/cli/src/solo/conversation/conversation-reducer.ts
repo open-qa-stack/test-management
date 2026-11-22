@@ -6,6 +6,7 @@ import { blocksOf, settledCount } from "./thread-blocks.ts";
 import { wording } from "./wording.ts";
 import type { Model } from "@open-qa-stack/domain/sessions";
 import { reachText, type SetupEnd } from "./model-setup/model-setup.ts";
+import type { SecretEnd } from "./secret-entry.ts";
 import type { Request } from "./request.ts";
 import { t } from "./i18n/i18n.ts";
 
@@ -47,6 +48,8 @@ export type ConversationAction =
   | { readonly type: "model-opened"; readonly inForce: Model }
   /** The setting of the connection ended. */
   | { readonly type: "model-ended"; readonly end: SetupEnd }
+  /** The typing of the value of a variable ended. */
+  | { readonly type: "secret-ended"; readonly end: SecretEnd }
   /** The model in force does not answer, for the reason given. */
   | { readonly type: "model-silent"; readonly why: string };
 
@@ -100,6 +103,8 @@ function submitted(state: ConversationState, request: Request): ConversationStat
   switch (request.kind) {
     case "stop":
       return { ...cleared, overlay: { kind: "stop", session: request.session } };
+    case "secret":
+      return { ...cleared, overlay: { kind: "secret", variable: request.variable } };
     case "confirm-stop":
       return { ...withoutOverlay(cleared), notice: t("notices.stopAsked") };
     case "pick":
@@ -218,6 +223,13 @@ export function conversationReducer(state: ConversationState, action: Conversati
       if (error !== undefined) return printing(closed, { kind: "notice", tone: "error", text: error });
       if (saved === undefined) return { ...closed, notice: t("model.left") };
       return printing(closed, { kind: "notice", tone: "info", text: t("model.set", { model: saved.model, reach: reachText(saved) }) });
+    }
+    case "secret-ended": {
+      const closed = withoutOverlay(state);
+      const { variable, saved, error } = action.end;
+      if (error !== undefined) return printing(closed, { kind: "notice", tone: "error", text: error });
+      if (!saved) return { ...closed, notice: t("secret.left") };
+      return printing(closed, { kind: "notice", tone: "info", text: t("secret.saved", { variable }) });
     }
     case "model-silent":
       return printing(state, { kind: "notice", tone: "error", text: t("model.silent", { why: action.why }) });

@@ -10,9 +10,8 @@ export type ConversationCommand = { readonly ok: true; readonly command: Printin
  * runs, with the same words.
  *
  * @param argv - The arguments of the command the words stand for, as `oqas` would be given them.
- * @returns The command, when it is one that prints and asks nothing typed; why it is refused otherwise: what the
- * command refuses, an option of where it runs or how it prints, which the conversation sets, or a value to type,
- * which the conversation would show.
+ * @returns The command, when it is one that prints; why it is refused otherwise: what the command refuses, or an
+ * option of where it runs or how it prints, which the conversation sets.
  */
 export function conversationCommandOf(argv: readonly string[]): ConversationCommand {
   const parsed = parseArguments(argv);
@@ -20,6 +19,5 @@ export function conversationCommandOf(argv: readonly string[]): ConversationComm
   const { repository, output, follow, command } = parsed.arguments;
   if (repository !== undefined || output !== "text" || follow) return { ok: false, why: t("requests.options") };
   if (!isPrinting(command)) return { ok: false, why: t("requests.notHere", { command: argv.join(" ") }) };
-  if (command.name === "secrets" && command.action === "set") return { ok: false, why: t("requests.typedValue", { variable: command.variable }) };
   return { ok: true, command };
 }

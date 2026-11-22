@@ -149,6 +149,7 @@ export async function converse({ repository, environment, terminal, io }: Conver
           check: (model, key) => modelConnectionOf(io, secrets).check(model, key),
           save: (model, key) => savedModel({ configuration, secrets }, model, key),
         },
+        saveSecret: (variable, value) => secrets.save(variable, value),
         run: async (command) => {
           const { text, code } = await printedBy(operations, repository, command, io);
           return { text, failed: code !== ExitCode.passed };

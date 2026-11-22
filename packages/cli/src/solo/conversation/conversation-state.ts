@@ -40,7 +40,9 @@ export type Overlay =
   | { readonly kind: "picker"; readonly sessions: readonly Session[]; readonly selected: number }
   | { readonly kind: "stop"; readonly session: string }
   /** The setting of the connection to the model, from the connection in force. */
-  | { readonly kind: "model"; readonly inForce: Model };
+  | { readonly kind: "model"; readonly inForce: Model }
+  /** The value of a variable, typed without being shown. */
+  | { readonly kind: "secret"; readonly variable: string };
 
 /** The thread on screen. */
 export interface ShownThread {

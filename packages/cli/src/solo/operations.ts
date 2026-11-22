@@ -7,10 +7,12 @@ import {
   Executions,
   FileSecretStore,
   KnowledgeDocuments,
+  KnowledgeDomains,
   KnowledgeMapping,
   KnowledgeSources,
   liveRuntime,
   ModelConnection,
+  RepositorySetup,
   RepositoryTests,
   Secrets,
   Sessions,
@@ -45,6 +47,10 @@ export interface Operations {
   readonly executions: Executions;
   /** The campaigns of tests of the instance. */
   readonly campaigns: Campaigns;
+  /** The domains the cartography found in the knowledge. */
+  readonly domains: KnowledgeDomains;
+  /** Where the test repository stands, and its preparation. */
+  readonly setup: RepositorySetup;
   /**
    * Stops hosting, when the command hosted a session, and closes the database.
    *
@@ -116,6 +122,8 @@ export async function openOperations(
   return {
     sessions,
     configuration,
+    domains: new KnowledgeDomains(repository, instance.configuration),
+    setup: new RepositorySetup(repository, configuration),
     campaigns: new Campaigns({ store: instance.campaigns, executions: instance.executions, tests, launcher: sessions }),
     documents: new KnowledgeDocuments(instance.documents, instance.configuration),
     secrets,

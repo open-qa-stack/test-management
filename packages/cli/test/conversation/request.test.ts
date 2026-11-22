@@ -87,18 +87,15 @@ describe("what Enter asks", () => {
     );
   });
 
-  it("refuses, with why, what oqas refuses, an option the conversation sets itself, what does not run in it, and a value to type", () => {
+  it("refuses, with why, what oqas refuses, an option the conversation sets itself and what does not run in it, and asks a value to type unseen", () => {
     const refused = (why: string) => ({ kind: "refused", why });
-    assert.deepEqual(requestOf(typing("/config bogus")), refused("oqas config takes show, import or export."));
+    assert.deepEqual(requestOf(typing("/config bogus")), refused("oqas config takes show, import, export, history or check."));
     assert.deepEqual(
       requestOf(typing("/config show --output json")),
       refused("The conversation runs the command in its own test repository, and prints it as lines: it takes no --repository, --output nor --follow."),
     );
     assert.deepEqual(requestOf(typing("/knowledge --help")), refused("oqas knowledge --help does not run in the conversation: run it in another terminal."));
-    assert.deepEqual(
-      requestOf(typing("/secrets set MODEL_KEY")),
-      refused("The conversation would show the value as it is typed: save it with oqas secrets set MODEL_KEY in another terminal."),
-    );
+    assert.deepEqual(requestOf(typing("/secrets set MODEL_KEY")), { kind: "secret", variable: "MODEL_KEY" });
   });
 
   it("gives /ui the port it is given, 0 for any free one, that of oqas --ui by default, and refuses what is no port", () => {

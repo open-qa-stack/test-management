@@ -116,6 +116,7 @@
     "campaigns": "plan, choose, ready, launch, show ou close : les campagnes de tests, comme oqas campaigns",
     "executions": "Les exécutions de tests, la plus récente d’abord, ou show pour l’une d’elles, comme oqas executions",
     "secrets": "Lister les variables que la configuration nomme, et d’où vient la valeur de chacune",
+    "repository": "Dire où en est le dépôt de tests : git, et son projet Playwright, comme oqas repository",
     "init": "Préparer le dépôt de tests en projet Playwright, comme oqas --init",
     "help": "Lister les commandes et les touches",
     "quit": "Quitter la conversation"
@@ -165,8 +166,7 @@
     "nothingToStop": "Aucune session ne tourne ici : il n’y a rien à arrêter.",
     "port": "/ui prend un port de 0 à 65535, 0 pour n’importe quel port libre.",
     "options": "La conversation lance la commande dans son propre dépôt de tests, et l’écrit en lignes : elle ne prend ni --repository, ni --output, ni --follow.",
-    "notHere": "oqas {{command}} ne se lance pas dans la conversation : lancez-la dans un autre terminal.",
-    "typedValue": "La conversation montrerait la valeur pendant la saisie : enregistrez-la avec oqas secrets set {{variable}} dans un autre terminal."
+    "notHere": "oqas {{command}} ne se lance pas dans la conversation : lancez-la dans un autre terminal."
   },
   "recent": {
     "none": "Aucune session pour l’instant.",
@@ -352,5 +352,14 @@
     "committed": ", et un dépôt git avec son premier commit",
     "toCommit": " ; committez-les quand vous le souhaitez",
     "left": "Rien n’a été mis en place."
+  },
+  "secret": {
+    "label": "Valeur de {{variable}}",
+    "hint": "Saisissez-la : elle ne s’affiche pas. Elle est gardée sur cette machine, hors du dépôt de tests ; l’environnement l’emporte sur elle.",
+    "refused": "Une valeur est attendue.",
+    "saving": "Enregistrement de {{variable}}…",
+    "saved": "{{variable}} est enregistrée sur cette machine, hors du dépôt de tests.",
+    "left": "Rien n’a été enregistré.",
+    "keys": "Entrée enregistrer · Échap quitter"
   }
 }

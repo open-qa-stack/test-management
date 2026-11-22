@@ -37,6 +37,16 @@ export type Command =
   | { readonly name: "knowledge"; readonly action: "add-document"; readonly source: string; readonly files: readonly string[] }
   /** Tell where the cartography of the knowledge stands, source by source. */
   | { readonly name: "knowledge"; readonly action: "mapping" }
+  /** List the domains the cartography found in the knowledge. */
+  | { readonly name: "knowledge"; readonly action: "domains" }
+  /** Print a document a source of the instance keeps. */
+  | { readonly name: "knowledge"; readonly action: "read"; readonly source: string; readonly document: string }
+  /** Remove a document from a source of the instance. */
+  | { readonly name: "knowledge"; readonly action: "remove"; readonly source: string; readonly document: string }
+  /** Tell where the test repository stands: its folder, whether it is a git repository, and a Playwright project. */
+  | { readonly name: "repository" }
+  /** Name the project of the instance, and its applications. */
+  | { readonly name: "project" }
   /** Test that the knowledge sources of the configuration in force answer, or one of them. */
   | { readonly name: "knowledge"; readonly action: "check"; readonly source?: string }
   /** List the variables the configuration in force names, and where the value of each comes from. */
@@ -77,11 +87,14 @@ export type Command =
 export type ModelArguments =
   { readonly github: true; readonly model: string } | { readonly github: false; readonly provider: string; readonly keyEnv?: string; readonly model: string };
 
-/** What `oqas config` does: print the configuration in force, take the configuration file as it, or write it over the file. */
-export type ConfigAction = "show" | "import" | "export";
+/**
+ * What `oqas config` does: print the configuration in force, take the configuration file as it, write it over the
+ * file, list its revisions, or check the file without taking it.
+ */
+export type ConfigAction = "show" | "import" | "export" | "history" | "check";
 
 /** What `oqas config` is followed by. */
-const CONFIG_ACTIONS: readonly ConfigAction[] = ["show", "import", "export"];
+const CONFIG_ACTIONS: readonly ConfigAction[] = ["show", "import", "export", "history", "check"];
 
 /** The arguments of the command, once read. */
 export interface Arguments {
@@ -130,7 +143,9 @@ export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
        oqas [--repository <folder>] attach <session> [--follow] [--output text|json]
        oqas [--repository <folder>] say <session> <text> [--output text|json]
        oqas [--repository <folder>] stop <session> [--output text|json]
-       oqas [--repository <folder>] config show|import|export [--output text|json]
+       oqas [--repository <folder>] config show|import|export|history|check [--output text|json]
+       oqas [--repository <folder>] project [--output text|json]
+       oqas [--repository <folder>] repository [--output text|json]
        oqas [--repository <folder>] model
        oqas [--repository <folder>] model status [--output text|json]
        oqas [--repository <folder>] model set --github --model <id> [--output text|json]
@@ -138,7 +153,8 @@ export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
        oqas [--repository <folder>] knowledge list [--output text|json]
        oqas [--repository <folder>] knowledge add-document <source> <file>... [--output text|json]
        oqas [--repository <folder>] knowledge check [<source>] [--output text|json]
-       oqas [--repository <folder>] knowledge mapping [--output text|json]
+       oqas [--repository <folder>] knowledge mapping|domains [--output text|json]
+       oqas [--repository <folder>] knowledge read|remove <source> <document> [--output text|json]
        oqas [--repository <folder>] tests [--output text|json]
        oqas [--repository <folder>] tests read|executions|versions <test> [--output text|json]
        oqas [--repository <folder>] tests trace <test> <file>
@@ -173,6 +189,12 @@ Commands:
   config show            Print the configuration in force, and how oqas.json stands to it.
   config import          Take oqas.json as the configuration in force, when it changed.
   config export          Write the configuration in force over oqas.json, when it changed.
+  config history         List the revisions of the configuration, the latest first, and where each was made.
+  config check           Check oqas.json without taking it: each error where it is. Exits with 0 when it is valid,
+                         with 3 otherwise.
+  project                Name the project of the instance, and its applications.
+  repository             Tell where the test repository stands: its folder, whether it is a git repository with a
+                         commit, and whether it is a Playwright project.
   model                  In a terminal, set the connection to the model step by step: how to reach it, the
                          variable of its key and the key itself when it holds none, a test, then the model among
                          those it offers.
@@ -220,6 +242,11 @@ Commands:
                          where a test failed or none did, --before starts after an execution.
   executions show <execution>
                          Print an execution, with what came of each of its tests and why a test failed.
+  knowledge domains      List the domains the cartography found in the knowledge.
+  knowledge read <source> <document>
+                         Print a document a source of the instance keeps.
+  knowledge remove <source> <document>
+                         Remove it from the source.
   secrets                List the variables the configuration names (the key of the model, the connection strings,
                          the test accounts) and where the value of each comes from: the environment, which wins, a
                          value saved on this machine, or none yet.
@@ -369,6 +396,8 @@ function commandOf(
   if (name === "tests") return testsOf(rest, opens || follow);
   if (name === "executions") return executionsOf(rest, opens || follow);
   if (name === "campaigns") return campaignsOf(rest, { environment, brief, follow });
+  if (name === "repository" || name === "project")
+    return opens || follow || rest.length > 0 ? `oqas ${name} takes nothing after it, and no --brief, --environment nor --follow.` : { name };
   if (name === "launch") {
     if (brief !== undefined || follow) return "oqas launch runs tests as they are: it takes --environment, and no --brief nor --follow.";
     return { name: "launch", paths: rest, ...(environment === undefined ? {} : { environment }) };
@@ -388,7 +417,7 @@ function commandOf(
 function configured(words: readonly string[], ofASession: boolean): Command | string {
   const [action] = words;
   const known = CONFIG_ACTIONS.find((one) => one === action);
-  if (words.length !== 1 || known === undefined) return "oqas config takes show, import or export.";
+  if (words.length !== 1 || known === undefined) return "oqas config takes show, import, export, history or check.";
   if (ofASession) return "oqas config acts on the configuration: it takes no --brief, --environment nor --follow.";
   return { name: "config", action: known };
 }
@@ -433,9 +462,13 @@ function knowledgeOf(words: readonly string[], ofASession: boolean): Command | s
   const [action, source, ...files] = words;
   if (ofASession) return "oqas knowledge acts on the knowledge sources: it takes no --brief, --environment nor --follow.";
   if ((action === "list" || action === "mapping") && source === undefined) return { name: "knowledge", action };
+  if (action === "domains" && source === undefined) return { name: "knowledge", action };
+  const [document] = files;
+  if (action === "read" && source !== undefined && document !== undefined && files.length === 1) return { name: "knowledge", action, source, document };
+  if (action === "remove" && source !== undefined && document !== undefined && files.length === 1) return { name: "knowledge", action, source, document };
   if (action === "add-document" && source !== undefined && files.length > 0) return { name: "knowledge", action, source, files };
   if (action === "check" && files.length === 0) return { name: "knowledge", action, ...(source === undefined ? {} : { source }) };
-  return "oqas knowledge takes list, mapping, check and a source at most, or add-document then a source and one file at least.";
+  return "oqas knowledge takes list, mapping or domains, check and a source at most, read or remove then a source and a document, or add-document then a source and one file at least.";
 }
 
 /** What `oqas tests` is followed by, with the words each action takes after it. */

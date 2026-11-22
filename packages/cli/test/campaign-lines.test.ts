@@ -19,6 +19,10 @@ describe("a campaign, as a command writes it", () => {
       overviewLine({ ...CAMPAIGN, counts: { passed: 3, flaky: 1, failed: 2, skipped: 0, not_run: 4 } }),
       "c1  Release 1  in progress  staging  1 test: 3 passed, 1 passed on a retry, 2 failed, 4 not run",
     );
+    assert.equal(
+      overviewLine({ ...CAMPAIGN, tests: [], counts: { passed: 0, flaky: 0, failed: 0, skipped: 0, not_run: 0 } }),
+      "c1  Release 1  in progress  staging  0 tests",
+    );
   });
 
   it("tells each of its tests with the verdict it came to, and the execution that gave it", () => {

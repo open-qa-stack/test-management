@@ -16,7 +16,7 @@ interface Missing {
  * the operations, it does not compile while an operation of the engine is not said here.
  */
 const COMMANDS: Readonly<Record<OperationId, readonly string[] | Missing>> = {
-  "Sessions.project": { missing: "no command prints the project alone" },
+  "Sessions.project": ["project"],
   "Sessions.sessions": ["sessions"],
   "Sessions.session": ["show", "s"],
   "Sessions.open": ["--brief", "Orders."],
@@ -28,21 +28,21 @@ const COMMANDS: Readonly<Record<OperationId, readonly string[] | Missing>> = {
   "Sessions.launch": ["launch", "--environment", "local"],
   "Sessions.launches": ["launch", "--environment", "local"],
   "Configuration.view": ["config", "show"],
-  "Configuration.revisions": { missing: "config show prints the revision in force, not the history" },
-  "Configuration.check": { missing: "no command checks a configuration without saving it" },
+  "Configuration.revisions": ["config", "history"],
+  "Configuration.check": ["config", "check"],
   "Configuration.synchronise": ["config", "import"],
-  "Configuration.save": { missing: "model set saves the model alone; the rest is changed in oqas.json, then config import" },
+  "Configuration.save": ["model", "set", "--github", "--model", "gpt-5"],
   "Configuration.restore": ["config", "export"],
   "ModelConnection.check": ["model", "status"],
   "Secrets.list": ["secrets"],
   "Secrets.save": ["secrets", "set", "MODEL_KEY"],
-  "RepositorySetup.state": { missing: "no command tells where the test repository stands" },
+  "RepositorySetup.state": ["repository"],
   "RepositorySetup.prepare": ["--init"],
   "KnowledgeDocuments.list": ["knowledge", "list"],
-  "KnowledgeDocuments.read": { missing: "no command prints a document" },
+  "KnowledgeDocuments.read": ["knowledge", "read", "manuals", "quotes.md"],
   "KnowledgeDocuments.upload": ["knowledge", "add-document", "manuals", "quotes.md"],
-  "KnowledgeDocuments.remove": { missing: "no command removes a document" },
-  "KnowledgeDomains.list": { missing: "no command lists the domains" },
+  "KnowledgeDocuments.remove": ["knowledge", "remove", "manuals", "quotes.md"],
+  "KnowledgeDomains.list": ["knowledge", "domains"],
   "KnowledgeSources.check": ["knowledge", "check"],
   "KnowledgeMapping.state": ["knowledge", "mapping"],
   "RepositoryTests.listed": ["tests"],
@@ -85,21 +85,21 @@ const CONVERSATION: Readonly<Record<OperationId, InConversation>> = {
   "Sessions.launch": { typed: "/launch --environment local" },
   "Sessions.launches": { typed: "/launch --environment local" },
   "Configuration.view": { typed: "/config show" },
-  "Configuration.revisions": { missing: "no command shows the history of the configuration" },
-  "Configuration.check": { missing: "no command checks a configuration" },
+  "Configuration.revisions": { typed: "/config history" },
+  "Configuration.check": { typed: "/config check" },
   "Configuration.synchronise": { typed: "/config import" },
-  "Configuration.save": { missing: "/model saves the model alone" },
+  "Configuration.save": { typed: "/model set --github --model gpt-5" },
   "Configuration.restore": { typed: "/config export" },
   "ModelConnection.check": { slash: "model" },
   "Secrets.list": { typed: "/secrets" },
-  "Secrets.save": { missing: "/model saves the key of the model alone" },
-  "RepositorySetup.state": { missing: "no command tells where the test repository stands" },
+  "Secrets.save": { typed: "/secrets set MODEL_KEY" },
+  "RepositorySetup.state": { typed: "/repository" },
   "RepositorySetup.prepare": { typed: "/init" },
   "KnowledgeDocuments.list": { typed: "/knowledge list" },
-  "KnowledgeDocuments.read": { missing: "no command prints a document" },
+  "KnowledgeDocuments.read": { typed: "/knowledge read manuals quotes.md" },
   "KnowledgeDocuments.upload": { typed: "/knowledge add-document manuals quotes.md" },
-  "KnowledgeDocuments.remove": { missing: "no command removes a document" },
-  "KnowledgeDomains.list": { missing: "no command lists the domains" },
+  "KnowledgeDocuments.remove": { typed: "/knowledge remove manuals quotes.md" },
+  "KnowledgeDomains.list": { typed: "/knowledge domains" },
   "KnowledgeSources.check": { typed: "/knowledge check" },
   "KnowledgeMapping.state": { typed: "/knowledge mapping" },
   "RepositoryTests.listed": { typed: "/tests" },
@@ -134,7 +134,7 @@ describe("the operations of the engine, as the command offers them", () => {
 
   // A gap closed lowers this count, and a gap opened is refused: it only goes down.
   it("are missing no more than they were", () => {
-    assert.equal(missingIn(COMMANDS).length, 8);
+    assert.equal(missingIn(COMMANDS).length, 0);
   });
 });
 
@@ -144,13 +144,14 @@ describe("the operations of the engine, as the conversation offers them", () => 
     for (const id of operationIds()) {
       const offer = CONVERSATION[id];
       if ("slash" in offer) assert.ok(names.has(offer.slash), `${id}: /${offer.slash} is no command of the conversation`);
-      else if ("typed" in offer) assert.equal(requestOf({ ...initialState([], 0), input: offer.typed }).kind, "command", `${id}: ${offer.typed} runs nothing`);
+      else if ("typed" in offer)
+        assert.ok(["command", "secret"].includes(requestOf({ ...initialState([], 0), input: offer.typed }).kind), `${id}: ${offer.typed} runs nothing`);
       else assert.ok(("itself" in offer ? offer.itself : offer.missing).length > 0, id);
     }
   });
 
   // A gap closed lowers this count, and a gap opened is refused: it only goes down.
   it("are missing no more than they were", () => {
-    assert.equal(missingIn(CONVERSATION).length, 8);
+    assert.equal(missingIn(CONVERSATION).length, 0);
   });
 });

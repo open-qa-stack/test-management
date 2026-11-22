@@ -73,12 +73,12 @@ async function onSessions(command: Exclude<Command, { name: "help" }>, options: 
   }
   if (command.name === "attach") return withOperations(io, repository, ({ sessions }) => attached({ sessions, command, options, io }));
   if (command.name === "model" && command.action === "setup") return withOperations(io, repository, (operations) => setUp(operations, io));
-  // A launch runs its tests in this process, as a session opened here runs.
+  // A launch runs its tests in this process, as a session opened here runs; the project is read from the repository, as a host reads it.
   return withOperations(
     io,
     repository,
     (operations) => runPrinting(operations, repository, command, options, io),
-    command.name === "launch" || (command.name === "campaigns" && command.action === "launch"),
+    command.name === "launch" || command.name === "project" || (command.name === "campaigns" && command.action === "launch"),
   );
 }
 

@@ -28,6 +28,8 @@ export type Request =
   | { readonly kind: "model" }
   /** A command that prints, run as `oqas` runs it. */
   | { readonly kind: "command"; readonly command: PrintingCommand }
+  /** The value of a variable to type, without it being shown, then to save. */
+  | { readonly kind: "secret"; readonly variable: string }
   | { readonly kind: "help" }
   | { readonly kind: "quit" }
   | { readonly kind: "refused"; readonly why: string };
@@ -41,7 +43,10 @@ function commandOf(state: ConversationState, line: string): Request {
   if ("runs" in command) {
     if (command.name === "model" && rest.length === 0) return { kind: "model" };
     const asked = conversationCommandOf([...command.runs, ...rest]);
-    return asked.ok ? { kind: "command", command: asked.command } : { kind: "refused", why: asked.why };
+    if (!asked.ok) return { kind: "refused", why: asked.why };
+    const { command: run } = asked;
+    // A value is typed over the input, unseen, as oqas secrets set reads it in a terminal: never in the line typed.
+    return run.name === "secrets" && run.action === "set" ? { kind: "secret", variable: run.variable } : { kind: "command", command: run };
   }
   const [value, ...more] = rest;
   if (value !== undefined && (command.name !== "ui" || more.length > 0))
