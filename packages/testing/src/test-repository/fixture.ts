@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 /** The model the configuration of a test repository names, which the scripted completions name too. */
@@ -46,16 +46,16 @@ export function fixtureConfig(modelUrl: string, siteUrl: string, changes: Record
   });
 }
 
+/** The base of the test repositories and of their remotes, by the folder they are made in: each repository of the folder copies it. */
+const bases = new Map<string, { readonly root: string; readonly remote: string }>();
+
 /**
- * A test repository with a remote, its configuration, a document and the base of the tests.
- *
- * @param workspace - The folder the repository and its remote are made in.
- * @param config - The text of its configuration; none is written when left out.
- * @returns The absolute path of the repository.
+ * Makes the base of the test repositories of a folder: a document and the base of the tests, committed and pushed to a
+ * bare remote. It goes with the folder.
  */
-export function fixtureRepository(workspace: string, config: string | undefined): string {
-  const root = mkdtempSync(join(workspace, "repo-"));
-  const remote = mkdtempSync(join(workspace, "remote-"));
+function baseRepository(workspace: string): { readonly root: string; readonly remote: string } {
+  const root = mkdtempSync(join(workspace, "base-"));
+  const remote = mkdtempSync(join(workspace, "base-remote-"));
   git(remote, "init", "-q", "--bare", "-b", "main");
   git(root, "init", "-q", "-b", "main");
   git(root, "config", "user.name", "Test Maintainer");
@@ -81,10 +81,38 @@ export function fixtureRepository(workspace: string, config: string | undefined)
     join(root, "node_modules", "@playwright", "test", "index.d.ts"),
     "export interface APIResponse { ok(): boolean; text(): Promise<string>; }\nexport interface APIRequestContext { get(url: string): Promise<APIResponse>; }\nexport interface Page { goto(url: string): Promise<unknown>; }\ninterface Extending { extend<T>(fixtures: { [K in keyof T]: (given: { context: { newPage(): Promise<T[K]> } }, use: (value: T[K]) => Promise<void>) => Promise<void> }): TestType; }\ntype TestType = ((title: string, body: (fixtures: { request: APIRequestContext }) => Promise<void>) => void) & ((title: string, details: { tag: string[] }, body: (fixtures: { request: APIRequestContext }) => Promise<void>) => void) & { step<T>(title: string, body: () => Promise<T>): Promise<T> } & Extending;\nexport declare const test: TestType;\nexport declare function expect(value: unknown, message?: string): { toBe(expected: unknown): void; toContain(expected: string): void };\n",
   );
-  if (config !== undefined) writeFileSync(join(root, "oqas.json"), config);
   git(root, "add", "-A");
   git(root, "commit", "-q", "-m", "chore: start the test repository");
   git(root, "remote", "add", "origin", remote);
   git(root, "push", "-q", "origin", "main");
+  return { root, remote };
+}
+
+/**
+ * A test repository with a remote, its configuration, a document and the base of the tests.
+ *
+ * @remarks
+ * The repository and its remote are copies of a base made once in the folder, its origin the copy of the remote: git
+ * starts a few times for each, not for every file. The configuration, when there is one, joins the one commit of the
+ * base, which is pushed again.
+ *
+ * @param workspace - The folder the repository and its remote are made in.
+ * @param config - The text of its configuration; none is written when left out.
+ * @returns The absolute path of the repository.
+ */
+export function fixtureRepository(workspace: string, config: string | undefined): string {
+  const base = bases.get(workspace) ?? baseRepository(workspace);
+  bases.set(workspace, base);
+  const root = mkdtempSync(join(workspace, "repo-"));
+  const remote = mkdtempSync(join(workspace, "remote-"));
+  cpSync(base.root, root, { recursive: true });
+  cpSync(base.remote, remote, { recursive: true });
+  const settings = join(root, ".git", "config");
+  writeFileSync(settings, readFileSync(settings, "utf8").replace(base.remote, remote));
+  if (config === undefined) return root;
+  writeFileSync(join(root, "oqas.json"), config);
+  git(root, "add", "oqas.json");
+  git(root, "commit", "-q", "--amend", "--no-edit");
+  git(root, "push", "-q", "--force", "origin", "main");
   return root;
 }

@@ -62,6 +62,9 @@ export class CopilotAgentRuntime implements AgentRuntime {
     this.client = new CopilotClient({
       useLoggedInUser: options.endpoint === undefined,
       baseDirectory: options.homeDirectory,
+      // The runtime works in its own folder: the agents reach the test repository through their tools alone, and the
+      // runtime reads nothing of the folder the process runs in, such as its git repository.
+      workingDirectory: options.homeDirectory,
       logLevel: "error",
       env: runtimeEnvironment(process.env),
     });
