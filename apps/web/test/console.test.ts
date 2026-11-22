@@ -263,6 +263,14 @@ describe("the console", () => {
     assert.equal(pageOf(html), "lakeside-tests / Configuration Configuration Lecture de la configuration Elle apparaît dès que l’instance a répondu.");
     assert.equal(documentTitleOf({ route: at("#/configuration") }), "Configuration · Open QA Stack");
     assert.match(pageOf(consoleAt("#/configuration/more")), /Page introuvable/);
+    assert.match(pageOf(consoleAt("#/configuration/applications")), /Page introuvable/);
+    assert.match(pageOf(consoleAt("#/applications", { project: PROJECT })), /^lakeside-tests \/ Applications Applications Lecture de la configuration/);
+    assert.equal(documentTitleOf({ route: at("#/applications/shop") }), "Applications · Open QA Stack");
+    assert.match(
+      pageOf(consoleAt("#/applications/shop", { project: PROJECT, onConfigured: () => undefined })),
+      /^lakeside-tests \/ Applications \/ shop shop Lecture/,
+    );
+    assert.match(pageOf(consoleAt("#/applications/shop/more")), /Page introuvable/);
     // Told what reads the project again once a change is saved, the screen shows the same until one is.
     assert.equal(pageOf(consoleAt("#/configuration", { project: PROJECT, onConfigured: () => undefined })), pageOf(html));
   });

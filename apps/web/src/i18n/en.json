@@ -24,7 +24,8 @@
       "campaigns": "Campaigns",
       "defects": "Defects",
       "knowledge": "Knowledge",
-      "configuration": "Configuration"
+      "configuration": "Configuration",
+      "applications": "Applications"
     }
   },
   "console": {
@@ -44,7 +45,8 @@
       "result": "Result of a test",
       "trace": "Trace of a test",
       "campaigns": "Campaigns",
-      "campaign": "Campaign"
+      "campaign": "Campaign",
+      "applications": "Applications"
     },
     "opening": {
       "title": "Reading the session",
@@ -675,17 +677,41 @@
       "inForce": "Revision {{number}} in force",
       "discard": "Discard the changes",
       "save": "Save",
-      "applications": "Applications and environments",
-      "addApplication": "Add an application",
       "agents": "Agents",
       "repository": "Test repository",
       "history": "History",
       "secrets": "The values typed here — key, connection strings, passwords — stay on the computer the tool runs on, out of the test repository and of the database. An environment variable wins: that is the way of a CI.",
-      "knowledge": "Knowledge",
-      "knowledgeNote_zero": "No source yet: sources are declared in Knowledge.",
-      "knowledgeNote_one": "{{count}} source declared: it is changed in Knowledge.",
-      "knowledgeNote_other": "{{count}} sources declared: they are changed in Knowledge.",
-      "openKnowledge": "Open the knowledge"
+      "lead": "The settings of Open QA Stack. The applications under test and the knowledge the agents read have screens of their own.",
+      "addApplication": "Add an application"
+    },
+    "item": {
+      "saved": "Saved"
+    },
+    "applications": {
+      "new": "New application",
+      "reading": "Reading the configuration",
+      "unknown": "No application of that name",
+      "unknownNote": "The configuration in force declares none: it may have been renamed or removed.",
+      "back": "Back to the applications",
+      "drop": "Remove the application",
+      "dropTitle": "Remove the application {{name}}?",
+      "dropNote": "The next sessions no longer test it. A new revision of the configuration is saved: the previous one stays in the history. The sources attached to it must be detached from it first.",
+      "confirmDrop": "Remove the application",
+      "cancel": "Cancel",
+      "environments_one": "{{count}} environment",
+      "environments_other": "{{count}} environments",
+      "apis_zero": "no API",
+      "apis_one": "{{count}} API",
+      "apis_other": "{{count}} APIs",
+      "accounts_zero": "no test account",
+      "accounts_one": "{{count}} test account",
+      "accounts_other": "{{count}} test accounts",
+      "add": "Add an application",
+      "title": "Applications",
+      "lead": "The applications the agents test, each with its environments and APIs.",
+      "none": "No configuration yet",
+      "noneNote": "Configure the project: its applications are declared when it starts.",
+      "configure": "Configure the project"
     }
   },
   "knowledge": {
@@ -741,9 +767,6 @@
     },
     "add": "Add knowledge",
     "addHint": "choose what the agents will read",
-    "edit": {
-      "saved": "Saved"
-    },
     "drop": "Remove the source",
     "dropTitle": "Remove the source {{id}}?",
     "dropNote": "The next sessions no longer read it. A new revision of the configuration is saved: the previous one stays in the history.",

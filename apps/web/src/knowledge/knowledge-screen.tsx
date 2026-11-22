@@ -11,8 +11,10 @@ import {
   type CartographyState,
   type MappedSource,
   type MappingState,
+  type OqasConfig,
 } from "@open-qa-stack/domain/sessions";
 import { EditContext } from "../configuration/configuration-edit.ts";
+import { rankIn } from "../configuration/use-item-pages.ts";
 import type { ConfigurationControls } from "../configuration/configuration-screen.tsx";
 import type { ConfigurationState } from "../configuration/configuration-state.ts";
 import { AddSourceButtons, kindOf } from "../configuration/knowledge-card.tsx";
@@ -61,16 +63,14 @@ const KNOWLEDGE = "/knowledge";
 export const sourcePath = (source: string): string => `${KNOWLEDGE}/${source}`;
 
 /**
- * Tells the rank of a source in the configuration in force, which is its rank in the draft: a source is added after
- * the others, and changed or removed alone.
+ * Tells the rank of a source in the configuration in force, which is its rank in the draft.
  *
  * @param editing - The draft of the configuration.
  * @param id - The identifier of the source.
  * @returns Its rank; `undefined` while the instance did not tell the configuration, and for a source it does not declare.
  */
 export function rankOf(editing: ConfigurationState, id: string): number | undefined {
-  const rank = editing.view?.revision?.document.knowledge.findIndex((source) => source.id === id) ?? -1;
-  return rank < 0 ? undefined : rank;
+  return rankIn(editing.view, (document: OqasConfig) => document.knowledge, id);
 }
 
 /** The number of sources of the configuration in force, which a source added follows: a source is added to a configuration in force. */

@@ -1,24 +1,14 @@
 import assert from "node:assert/strict";
 import { createElement } from "react";
 import { describe, it } from "vitest";
-import type { ConfigurationControls } from "../../src/configuration/configuration-screen.tsx";
 import { configurationAfter, INITIAL_CONFIGURATION, type ConfigurationAction, type ConfigurationState } from "../../src/configuration/configuration-state.ts";
 import { FIRST_DRAFT, FirstUse, type FirstUseStep } from "../../src/configuration/first-use.tsx";
 import { render, textOf } from "../render.ts";
 import { DOCUMENT, REVISIONS, VIEW } from "./configuration-fixture.ts";
+import { UNCALLED_CONTROLS } from "./uncalled-controls.ts";
 
 /** What the person does on the screen, which a static rendering never calls. */
-const CONTROLS: ConfigurationControls = {
-  change: () => assert.fail("nothing is changed"),
-  click: () => assert.fail("nothing is pressed"),
-  save: () => assert.fail("nothing is saved"),
-  discard: () => assert.fail("nothing is dropped"),
-  takeFile: () => assert.fail("no file is taken"),
-  writeFile: () => assert.fail("no file is written"),
-  testModel: () => assert.fail("no connection is tested"),
-  checkSource: () => assert.fail("no source is tested"),
-  setUp: () => assert.fail("nothing is set up"),
-};
+const CONTROLS = UNCALLED_CONTROLS;
 
 /** The moves from a step to another, which a static rendering never makes. */
 const MOVES = { onBack: () => assert.fail("no step is left"), onNext: () => assert.fail("no step is left") };

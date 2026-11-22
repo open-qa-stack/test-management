@@ -1,13 +1,10 @@
 import type { FormEventHandler, MouseEventHandler, ReactNode } from "react";
 import type { ConfigError } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
-import { hrefTo } from "../routing/route.ts";
 import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
-import { ApplicationCard } from "./application-card.tsx";
 import { EditContext, type ConfigurationEdit } from "./configuration-edit.ts";
-import { AddButton, PlaceErrors } from "./configuration-fields.tsx";
 import { isPending, type ConfigurationState } from "./configuration-state.ts";
 import { errorText } from "./configuration-words.ts";
 import { FileCard, HistoryCard, JsonCard } from "./record-cards.tsx";
@@ -92,8 +89,7 @@ export function Notes({ state }: { readonly state: ConfigurationState }): ReactN
 }
 
 /**
- * The configuration of the instance: what the person changes — the applications and their environments, the
- * model, the autonomy, the levels of design, the layout of the
+ * The settings of Open QA Stack: what the person changes — the model, the autonomy, the levels of design, the layout of the
  * repository — then saves; what is read only — the JSON — and the history of the revisions.
  *
  * @param props - The project, the state of the screen and what the person does on it.
@@ -147,6 +143,7 @@ export function ConfigurationScreen({ project, state, controls }: ConfigurationS
   );
   return (
     <Page crumbs={crumbs} title={title} actions={actions}>
+      <p className="small muted">{t("configuration.screen.lead")}</p>
       <Notes state={state} />
       <ErrorSummary errors={errors} />
       <EditContext.Provider
@@ -159,29 +156,6 @@ export function ConfigurationScreen({ project, state, controls }: ConfigurationS
         }}
       >
         <form id={FORM_ID} className="config-form" onSubmit={controls.save} noValidate>
-          <section className="config-section" aria-labelledby="config-applications">
-            <h2 id="config-applications">{t("configuration.screen.applications")}</h2>
-            <PlaceErrors pointer="/applications" />
-            {draft.applications.map((application, index) => (
-              <ApplicationCard key={index} application={application} rank={index} />
-            ))}
-            <div className="config-actions">
-              <AddButton pointer="/applications" item="application">
-                {t("configuration.screen.addApplication")}
-              </AddButton>
-            </div>
-          </section>
-          <section className="config-section" aria-labelledby="config-knowledge">
-            <h2 id="config-knowledge">{t("configuration.screen.knowledge")}</h2>
-            <Card>
-              <div className="row">
-                <span className="grow small muted">{t("configuration.screen.knowledgeNote", { count: draft.knowledge.length })}</span>
-                <a className="btn sm" href={hrefTo("/knowledge")}>
-                  {t("configuration.screen.openKnowledge")}
-                </a>
-              </div>
-            </Card>
-          </section>
           <section className="config-section" aria-labelledby="config-agents">
             <h2 id="config-agents">{t("configuration.screen.agents")}</h2>
             <ModelCard model={draft.model} onTest={controls.testModel} {...(state.connection === undefined ? {} : { connection: state.connection })} />

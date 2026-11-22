@@ -1,12 +1,8 @@
 import type { ReactNode } from "react";
-import { EditContext } from "../configuration/configuration-edit.ts";
-import { ErrorSummary, Notes, type ConfigurationControls } from "../configuration/configuration-screen.tsx";
-import { isPending, type ConfigurationState } from "../configuration/configuration-state.ts";
+import { DraftForm } from "../configuration/draft-form.tsx";
+import type { ConfigurationControls } from "../configuration/configuration-screen.tsx";
+import type { ConfigurationState } from "../configuration/configuration-state.ts";
 import { KnowledgeCard } from "../configuration/knowledge-card.tsx";
-import { t } from "../i18n/i18n.ts";
-
-/** The form of a source, which its buttons submit. */
-export const SOURCE_FORM = "source-form";
 
 /** What the editor of a source is drawn from. */
 export interface SourceEditorProps {
@@ -27,43 +23,19 @@ export interface SourceEditorProps {
  * @returns The editor; nothing before the instance told the configuration.
  */
 export function SourceEditor({ state, controls, rank, removable = false }: SourceEditorProps): ReactNode {
-  const { draft, errors, saving } = state;
+  const { draft } = state;
   const source = draft?.knowledge[rank];
   if (draft === undefined || source === undefined) return null;
-  const pending = isPending(state);
   return (
-    <EditContext.Provider
-      value={{
-        change: controls.change,
-        click: controls.click,
-        errors,
-        values: state.values,
-        ...(state.secrets === undefined ? {} : { secrets: state.secrets }),
-      }}
-    >
-      <form id={SOURCE_FORM} className="config-form" onSubmit={controls.save} noValidate>
-        <Notes state={state} />
-        <ErrorSummary errors={errors} />
-        <KnowledgeCard
-          source={source}
-          rank={rank}
-          applications={draft.applications}
-          onCheck={controls.checkSource}
-          removable={removable}
-          {...(state.sourceChecks?.[rank] === undefined ? {} : { test: state.sourceChecks[rank] })}
-        />
-        <div className="config-head">
-          <span className="small muted config-state" role="status">
-            {saving ? t("configuration.screen.saving") : pending ? t("configuration.screen.unsaved") : t("knowledge.edit.saved")}
-          </span>
-          <button type="button" className="btn" onClick={controls.discard} disabled={!pending || saving}>
-            {t("configuration.screen.discard")}
-          </button>
-          <button type="submit" className="btn primary" disabled={!pending || saving}>
-            {t("configuration.screen.save")}
-          </button>
-        </div>
-      </form>
-    </EditContext.Provider>
+    <DraftForm state={state} controls={controls}>
+      <KnowledgeCard
+        source={source}
+        rank={rank}
+        applications={draft.applications}
+        onCheck={controls.checkSource}
+        removable={removable}
+        {...(state.sourceChecks?.[rank] === undefined ? {} : { test: state.sourceChecks[rank] })}
+      />
+    </DraftForm>
   );
 }

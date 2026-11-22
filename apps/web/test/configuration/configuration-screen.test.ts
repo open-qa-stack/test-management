@@ -2,24 +2,15 @@ import assert from "node:assert/strict";
 import { createElement } from "react";
 import type { ConfigError, OqasConfig } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
-import { ConfigurationScreen, FORM_ID, type ConfigurationControls } from "../../src/configuration/configuration-screen.tsx";
+import { ConfigurationScreen, FORM_ID } from "../../src/configuration/configuration-screen.tsx";
 import { configurationAfter, INITIAL_CONFIGURATION, type ConfigurationAction, type ConfigurationState } from "../../src/configuration/configuration-state.ts";
 import { render, textOf } from "../render.ts";
 import { BARE, DOCUMENT, REVISIONS, VIEW } from "./configuration-fixture.ts";
 import { bears } from "./fields.ts";
+import { UNCALLED_CONTROLS } from "./uncalled-controls.ts";
 
 /** What the person does on the screen, which a static rendering never calls. */
-const CONTROLS: ConfigurationControls = {
-  change: () => assert.fail("nothing is changed"),
-  click: () => assert.fail("nothing is pressed"),
-  save: () => assert.fail("nothing is saved"),
-  discard: () => assert.fail("nothing is dropped"),
-  takeFile: () => assert.fail("no file is taken"),
-  writeFile: () => assert.fail("no file is written"),
-  testModel: () => assert.fail("no connection is tested"),
-  checkSource: () => assert.fail("no source is tested"),
-  setUp: () => assert.fail("nothing is set up"),
-};
+const CONTROLS = UNCALLED_CONTROLS;
 
 /** The state after the actions, from the state once the instance told the configuration of the fixtures. */
 function stateAfter(actions: readonly ConfigurationAction[], document: OqasConfig = DOCUMENT): ConfigurationState {
@@ -54,8 +45,9 @@ describe("the screen of the configuration", () => {
     assert.match(html, new RegExp(`<form id="${FORM_ID}" class="config-form" noValidate="">`));
     assert.match(text, /Révision 2 en vigueur Annuler les modifications Enregistrer/);
     assert.match(html, /<button type="submit" form="configuration-form" class="btn primary" disabled="">Enregistrer<\/button>/);
-    for (const heading of ["Applications et environnements", "Agents", "Dépôt de tests", "Historique"])
-      assert.match(html, new RegExp(`<h2 id="[^"]+">${heading}</h2>`));
+    assert.match(text, /Les réglages d’Open QA Stack\. Les applications testées et les connaissances que lisent les agents ont leurs propres écrans\./);
+    assert.doesNotMatch(html, /name="\/(applications|knowledge)\//);
+    for (const heading of ["Agents", "Dépôt de tests", "Historique"]) assert.match(html, new RegExp(`<h2 id="[^"]+">${heading}</h2>`));
     assert.match(text, /Révision 2 Console · .* en vigueur Révision 1 Fichier oqas\.json · /);
     assert.match(text, /Les valeurs tapées ici — clé, chaînes de connexion, mots de passe — restent sur l’ordinateur où tourne l’outil/);
     assert.match(html, /<summary>Voir la configuration en JSON<\/summary><pre class="mono">\{\n {2}&quot;formatVersion&quot;: 1,/);
@@ -63,13 +55,6 @@ describe("the screen of the configuration", () => {
 
   it("gives every field a label, its value from the draft, and the defaults where the draft leaves a key out", () => {
     const html = screen(stateAfter([]));
-    assert.match(html, /<label for="config-applications-0-id">Identifiant<\/label>/);
-    assert.ok(bears(html, "/applications/0/id", "input", 'id="config-applications-0-id"', 'data-kind="text"', 'class="mono"', 'value="shop"'));
-    assert.match(html, /<option value="web">Interface web<\/option><option value="api">API<\/option><option value="web-and-api" selected="">/);
-    assert.ok(bears(html, "/applications/0/type", "select", 'data-kind="choice"', 'aria-invalid="false"'));
-    assert.ok(bears(html, "/applications/0/authentication/accounts/0/passwordEnv", 'value="SHOP_PASSWORD"', 'class="mono"'));
-    assert.ok(bears(html, "/applications/0/environments/0/apis/0/baseUrl", 'value="http://127.0.0.1:3001"'));
-    assert.match(html, /<option value="read-write" selected="">/);
     assert.ok(
       bears(
         html,
@@ -91,36 +76,13 @@ describe("the screen of the configuration", () => {
     assert.ok(!bears(html, "/design/levels", 'data-member="functional"', 'checked=""'));
     assert.ok(bears(html, "/repository/appsDir", 'value="tests"', 'placeholder="apps"'));
     assert.ok(bears(html, "/repository/blocksDir", 'value=""', 'placeholder="blocs"'));
-    assert.match(html, /data-add="\/applications\/0\/environments\/0\/apis" data-item="api"/);
-    assert.match(html, /aria-label="Retirer l’application Shop" data-remove="\/applications\/0"/);
-    assert.match(textOf(html), /Environnement local Retirer Nom Comme les sessions le nomment/);
-    assert.match(html, /aria-label="Retirer l’environnement local de Shop" data-remove="\/applications\/0\/environments\/0"/);
-    assert.match(html, /aria-label="Retirer l’API backend de l’environnement local" data-remove="\/applications\/0\/environments\/0\/apis\/0"/);
-    assert.match(html, /aria-label="Retirer le compte clerk de Shop" data-remove="\/applications\/0\/authentication\/accounts\/0"/);
-    assert.ok(bears(html, "/applications/0/id", 'aria-describedby="config-applications-0-id-hint"'));
-    assert.match(html, /name="\/applications\/0\/id" value="shop"\/><span id="config-applications-0-id-hint" class="field-hint">/);
   });
 
-  it("names an application and an environment without a name by their rank, and lays out the defaults of a bare configuration", () => {
+  it("lays out the defaults of a bare configuration", () => {
     const html = screen(stateAfter([], BARE));
-    const text = textOf(html);
-    assert.match(text, /Application 1 · sans identifiant/);
-    assert.match(text, /Environnement 1 Environnement 1 Retirer Nom/);
-    assert.match(html, /aria-label="Retirer l’environnement 1 de Application 1" data-remove="\/applications\/0\/environments\/0"/);
     assert.ok(bears(html, "/autonomy/guardrailMinutes", 'value=""', 'placeholder="120"'));
     assert.doesNotMatch(html, /\/autonomy\/task/);
     for (const level of ["smoke", "functional", "business"]) assert.ok(bears(html, "/design/levels", `data-member="${level}"`, 'checked=""'), level);
-  });
-
-  it("leads to the knowledge, where the sources are declared, and counts them", () => {
-    const html = screen(stateAfter([]));
-    assert.match(textOf(html), /Connaissances 8 sources déclarées : elles se modifient dans Connaissances\. Ouvrir les connaissances/);
-    assert.match(html, /<a class="btn sm" href="#\/knowledge">Ouvrir les connaissances<\/a>/);
-    assert.doesNotMatch(html, /name="\/knowledge\//);
-    assert.match(
-      textOf(screen(stateAfter([], { ...DOCUMENT, knowledge: [] }))),
-      /Aucune source pour l’instant : les sources se déclarent dans Connaissances\./,
-    );
   });
 
   it("says a change is not saved, and lets the person save it or drop it", () => {
@@ -132,7 +94,7 @@ describe("the screen of the configuration", () => {
 
   it("asks for the value of each variable beside it, and lets the person save the values typed alone", () => {
     const html = screen(stateAfter([{ type: "value", name: "MODEL_KEY", value: "typed" }]));
-    for (const variable of ["SHOP_USER", "SHOP_PASSWORD", "MODEL_KEY"]) assert.match(html, new RegExp(`id="secret-${variable}"`));
+    for (const variable of ["MODEL_KEY"]) assert.match(html, new RegExp(`id="secret-${variable}"`));
     assert.match(textOf(html), /Modifications non enregistrées Annuler les modifications Enregistrer/);
     assert.match(html, /<button type="submit" form="configuration-form" class="btn primary">Enregistrer<\/button>/);
     const valued = stateAfter([{ type: "valued", secrets: [] }]);
@@ -157,7 +119,6 @@ describe("the screen of the configuration", () => {
     );
     assert.ok(bears(html, "/model/apiKeyEnv", 'aria-invalid="true"', 'aria-describedby="config-model-apiKeyEnv-hint config-model-apiKeyEnv-errors"'));
     assert.match(html, /<span id="config-model-apiKeyEnv-errors" class="field-error">Nom de variable/);
-    assert.match(html, /<p class="field-error" role="note">Il en faut au moins un\.<\/p>/);
     const one = configurationAfter(state, { type: "checked", draft: state.draft!, errors: errors.slice(0, 1) });
     assert.match(textOf(screen(one)), /1 erreur à corriger avant d’enregistrer/);
     const choice = configurationAfter(state, {
