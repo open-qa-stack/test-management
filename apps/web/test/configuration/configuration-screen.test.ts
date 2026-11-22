@@ -2,24 +2,15 @@ import assert from "node:assert/strict";
 import { createElement } from "react";
 import type { ConfigError, OqasConfig } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
-import { ConfigurationScreen, FORM_ID, type ConfigurationControls } from "../../src/configuration/configuration-screen.tsx";
+import { ConfigurationScreen, FORM_ID } from "../../src/configuration/configuration-screen.tsx";
 import { configurationAfter, INITIAL_CONFIGURATION, type ConfigurationAction, type ConfigurationState } from "../../src/configuration/configuration-state.ts";
 import { render, textOf } from "../render.ts";
 import { BARE, DOCUMENT, REVISIONS, VIEW } from "./configuration-fixture.ts";
 import { bears } from "./fields.ts";
+import { UNCALLED_CONTROLS } from "./uncalled-controls.ts";
 
 /** What the person does on the screen, which a static rendering never calls. */
-const CONTROLS: ConfigurationControls = {
-  change: () => assert.fail("nothing is changed"),
-  click: () => assert.fail("nothing is pressed"),
-  save: () => assert.fail("nothing is saved"),
-  discard: () => assert.fail("nothing is dropped"),
-  takeFile: () => assert.fail("no file is taken"),
-  writeFile: () => assert.fail("no file is written"),
-  testModel: () => assert.fail("no connection is tested"),
-  checkSource: () => assert.fail("no source is tested"),
-  setUp: () => assert.fail("nothing is set up"),
-};
+const CONTROLS = UNCALLED_CONTROLS;
 
 /** The state after the actions, from the state once the instance told the configuration of the fixtures. */
 function stateAfter(actions: readonly ConfigurationAction[], document: OqasConfig = DOCUMENT): ConfigurationState {

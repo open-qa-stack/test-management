@@ -2,26 +2,16 @@ import assert from "node:assert/strict";
 import { createElement } from "react";
 import type { ConfigError } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
-import type { ConfigurationControls } from "../../src/configuration/configuration-screen.tsx";
 import { configurationAfter, INITIAL_CONFIGURATION, type ConfigurationAction, type ConfigurationState } from "../../src/configuration/configuration-state.ts";
 import { ITEM_FORM } from "../../src/configuration/draft-form.tsx";
 import { SourceEditor } from "../../src/knowledge/source-editor.tsx";
 import { DOCUMENT, REVISIONS, VIEW } from "../configuration/configuration-fixture.ts";
 import { bears, fieldsNamed } from "../configuration/fields.ts";
 import { render, textOf } from "../render.ts";
+import { UNCALLED_CONTROLS } from "../configuration/uncalled-controls.ts";
 
 /** What the person does to the source, which a static rendering never calls. */
-const CONTROLS: ConfigurationControls = {
-  change: () => assert.fail("nothing is changed"),
-  click: () => assert.fail("nothing is pressed"),
-  save: () => assert.fail("nothing is saved"),
-  discard: () => assert.fail("nothing is dropped"),
-  takeFile: () => assert.fail("no file is taken"),
-  writeFile: () => assert.fail("no file is written"),
-  testModel: () => assert.fail("no connection is tested"),
-  checkSource: () => assert.fail("no source is tested"),
-  setUp: () => assert.fail("nothing is set up"),
-};
+const CONTROLS = UNCALLED_CONTROLS;
 
 /** The draft after the actions, from the configuration of the fixtures in force. */
 const stateAfter = (actions: readonly ConfigurationAction[] = []): ConfigurationState =>

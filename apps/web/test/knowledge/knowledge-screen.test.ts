@@ -8,23 +8,14 @@ import { parseRoute } from "../../src/routing/route.ts";
 import { linksOf, render, textOf } from "../render.ts";
 import { DOCUMENT, REVISIONS, VIEW } from "../configuration/configuration-fixture.ts";
 import { configurationAfter, INITIAL_CONFIGURATION, type ConfigurationState } from "../../src/configuration/configuration-state.ts";
+import { UNCALLED_CONTROLS } from "../configuration/uncalled-controls.ts";
 
 /** What the person does on the screens, which a static rendering never calls. */
 const CONTROLS: KnowledgeControls = {
   upload: () => assert.fail("nothing is uploaded"),
   remove: () => assert.fail("nothing is removed"),
   drop: () => assert.fail("no source is removed"),
-  edit: {
-    change: () => assert.fail("nothing is changed"),
-    click: () => assert.fail("nothing is pressed"),
-    save: () => assert.fail("nothing is saved"),
-    discard: () => assert.fail("nothing is dropped"),
-    takeFile: () => assert.fail("no file is taken"),
-    writeFile: () => assert.fail("no file is written"),
-    testModel: () => assert.fail("no connection is tested"),
-    checkSource: () => assert.fail("no source is tested"),
-    setUp: () => assert.fail("nothing is set up"),
-  },
+  edit: UNCALLED_CONTROLS,
 };
 
 /** The draft of the configuration once the instance told the configuration of the fixtures. */
