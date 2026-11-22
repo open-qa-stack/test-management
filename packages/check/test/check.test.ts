@@ -250,6 +250,44 @@ describe("the check", { concurrency: true }, () => {
     assert.equal(report.match(/end_of_record/g)?.length, 2);
   });
 
+  it("tests the packages named alone, by name or folder, and requires their coverage alone", async () => {
+    const [named, folder] = await inDemo(async (workspace) => {
+      await testedTogether(workspace);
+      await workspace.write("packages/together/src/half.ts", "export const half = (value: number): number => value / 2;\n");
+      return [await workspace.check({}, ["--packages", "demo"]), await workspace.check({}, ["--packages", "packages/together"])];
+    });
+    assert.equal(named.code, 0, named.output);
+    assert.doesNotMatch(named.output, /^together: /m, "the coverage of a package not named is not required");
+    assert.notEqual(folder.code, 0);
+    assert.match(folder.output, /^together: src\/half\.ts is missing from the coverage of the tests$/m);
+  });
+
+  it("tests the packages a change touches since a revision", async () => {
+    const run = await inDemo(async (workspace) => {
+      const git = (...args: string[]): string => execFileSync("git", args, { cwd: workspace.root, encoding: "utf8" });
+      git("add", ".");
+      git("-c", "user.name=T", "-c", "user.email=t@example.com", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "first");
+      await workspace.write("packages/demo/src/sign.ts", (await workspace.read("packages/demo/src/sign.ts")).replace("The sign", "The sign, as a word,"));
+      return workspace.check({}, ["--affected", "HEAD"]);
+    });
+    assert.equal(run.code, 0, run.output);
+    assert.match(run.output, /^check: the packages touched since HEAD: demo$/m);
+  });
+
+  it("refuses a package it does not know, and arguments it does not read, saying what to give", async () => {
+    const [unknown, unread] = await inDemo(async (workspace) => [
+      await workspace.check({}, ["--packages", "demo,nowhere"]),
+      await workspace.check({}, ["--everything"]),
+    ]);
+    assert.equal(unknown.code, 2);
+    assert.match(unknown.output, /^check: no package is named nowhere\. Name each by its name or its folder, such as packages\/agents\.$/m);
+    assert.equal(unread.code, 2);
+    assert.match(
+      unread.output,
+      /^check: give --packages <names or folders, separated by commas> or --affected <revision>, or nothing to test every package\.$/m,
+    );
+  });
+
   it("fails on a file the script of the root does not cover, naming its package", async () => {
     const run = await inDemo(async (workspace) => {
       await testedTogether(workspace);

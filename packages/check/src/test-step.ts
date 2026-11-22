@@ -31,6 +31,9 @@ const WORKSPACE_REPORT = "lcov.info";
 /** The variable that names a file in which the check keeps the coverage of the whole workspace, for a tool that reads it. */
 export const COVERAGE_REPORT = "OQAS_COVERAGE_REPORT";
 
+/** The variable that tells the tests of the workspace the folders of the packages to test, separated by commas. */
+export const TEST_PACKAGES = "OQAS_TEST_PACKAGES";
+
 /**
  * Runs the tests of the workspace and requires them to cover all the lines, branches and functions of every
  * file of code under the `src` folder of each package, those no test loads included.
@@ -51,6 +54,9 @@ export const COVERAGE_REPORT = "OQAS_COVERAGE_REPORT";
  *
  * The reports are removed once read, unless the step is given a file to keep them in: it then writes there the
  * reports of every run as one, in the LCOV format, each path relative to the root of the workspace.
+ *
+ * Given the packages to test, the step tests those alone and requires their coverage alone: the test script of the
+ * root is told their folders in `OQAS_TEST_PACKAGES`.
  */
 export class TestStep implements Step {
   public readonly name = "tests and coverage";
@@ -58,6 +64,8 @@ export class TestStep implements Step {
   private readonly packages: readonly WorkspacePackage[];
   private readonly write: (output: string) => void;
   private readonly keep: string | undefined;
+  /** The names of the packages to test; every package when none is given. */
+  private readonly chosen: ReadonlySet<string> | undefined;
   /** The reports read during a run, each path relative to the root. */
   private readonly read: string[] = [];
 
@@ -66,16 +74,18 @@ export class TestStep implements Step {
    * @param packages - The packages of the workspace.
    * @param write - Writes the output of the tests of a package to the output of the check.
    * @param keep - The file to keep the coverage of the whole workspace in, relative to the root; none to keep nothing.
+   * @param chosen - The names of the packages to test; every package when none is given.
    */
-  public constructor(root: string, packages: readonly WorkspacePackage[], write: (output: string) => void, keep?: string) {
+  public constructor(root: string, packages: readonly WorkspacePackage[], write: (output: string) => void, keep?: string, chosen?: ReadonlySet<string>) {
     this.root = root;
     this.packages = packages;
     this.write = write;
     this.keep = keep === undefined ? undefined : join(root, keep);
+    this.chosen = chosen;
   }
 
   public async run(): Promise<readonly string[]> {
-    const beside = this.packages.filter(({ path }) => path !== this.root);
+    const beside = this.packages.filter(({ path, name }) => path !== this.root && (this.chosen === undefined || this.chosen.has(name)));
     // A package without a test script of its own is tested by that of the root, when the root has one.
     const shared = beside.filter(({ sources, testScript }) => sources.length > 0 && testScript === undefined);
     const rooted = this.packages.some(({ path, testScript }) => path === this.root && testScript !== undefined);
@@ -101,7 +111,8 @@ export class TestStep implements Step {
 
   /** Runs the test script of the root, and reads from its report what it covered of the packages it tests. */
   private async testTogether(shared: readonly WorkspacePackage[], typesOnly: ReadonlySet<string>, folder: string): Promise<string[]> {
-    const failures = await new ScriptStep(this.name, this.root, "test", { ...process.env, [COVERAGE_DIRECTORY]: folder }, this.write).run();
+    const packages = this.chosen === undefined ? {} : { [TEST_PACKAGES]: shared.map(({ path }) => relative(this.root, path)).join(",") };
+    const failures = await new ScriptStep(this.name, this.root, "test", { ...process.env, [COVERAGE_DIRECTORY]: folder, ...packages }, this.write).run();
     const covered = await this.report(join(folder, WORKSPACE_REPORT), this.root);
     return [
       ...failures,

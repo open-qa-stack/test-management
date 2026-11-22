@@ -101,9 +101,10 @@ export class DemoWorkspace {
    * runner it starts runs the tests of the workspace.
    *
    * @param variables - Variables of the environment the check is given, besides those of the test runner.
+   * @param args - The arguments of the check.
    * @returns What the check gave.
    */
-  public async check(variables: Readonly<Record<string, string>> = {}): Promise<CheckRun> {
+  public async check(variables: Readonly<Record<string, string>> = {}, args: readonly string[] = []): Promise<CheckRun> {
     const env: NodeJS.ProcessEnv = { ...process.env };
     delete env["NODE_TEST_CONTEXT"];
     delete env["NODE_OPTIONS"];
@@ -113,7 +114,7 @@ export class DemoWorkspace {
     // A runner of continuous integration asks the tools for colours; the tests read plain text.
     delete env["FORCE_COLOR"];
     env["NO_COLOR"] = "1";
-    const child = spawn(process.execPath, ["--disable-warning=ExperimentalWarning", MAIN], { cwd: this.root, env, stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(process.execPath, ["--disable-warning=ExperimentalWarning", MAIN, ...args], { cwd: this.root, env, stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk: Buffer) => (stdout += chunk.toString()));
