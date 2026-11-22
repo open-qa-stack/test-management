@@ -1,11 +1,8 @@
-import { useEffect, useMemo, useReducer, useState, type ReactNode } from "react";
-import { api } from "../api/instance-api.ts";
-import { actionOf, pressOf, type FieldKind } from "./configuration-edit.ts";
-import { ConfigurationScreen, type ConfigurationControls } from "./configuration-screen.tsx";
-import { configurationAfter, INITIAL_CONFIGURATION, isChanged, typedConnection, typedKey } from "./configuration-state.ts";
-import { ConfigurationSync } from "./configuration-sync.ts";
-import { FIRST_DRAFT, FIRST_USE_STEPS, FirstUse } from "./first-use.tsx";
+import { useEffect, useState, type ReactNode } from "react";
 import { locale } from "../i18n/i18n.ts";
+import { ConfigurationScreen } from "./configuration-screen.tsx";
+import { FIRST_DRAFT, FIRST_USE_STEPS, FirstUse } from "./first-use.tsx";
+import { useConfigurationEditor } from "./use-configuration-editor.ts";
 
 /**
  * The screen of the configuration in a browser: it keeps the configuration in step with the instance, applies
@@ -16,11 +13,9 @@ import { locale } from "../i18n/i18n.ts";
  * @returns The screen.
  */
 export function ConfigurationPage({ project, onSaved }: { readonly project: string; readonly onSaved?: () => void }): ReactNode {
-  const [state, dispatch] = useReducer(configurationAfter, INITIAL_CONFIGURATION);
+  const { state, dispatch, sync, controls } = useConfigurationEditor();
   const [step, setStep] = useState(0);
-  const sync = useMemo(() => new ConfigurationSync(api, dispatch), []);
-  useEffect(() => sync.read(), [sync]);
-  const { draft, basedOn, saved, values } = state;
+  const { draft, saved } = state;
   useEffect(() => {
     if (saved !== undefined) onSaved?.();
   }, [saved, onSaved]);
@@ -29,51 +24,10 @@ export function ConfigurationPage({ project, onSaved }: { readonly project: stri
   useEffect(() => {
     // The configuration speaks the language the person sets it up in, which the console keeps speaking afterwards.
     if (unset) dispatch({ type: "begin", document: { ...FIRST_DRAFT, language: locale() } });
-  }, [unset]);
+  }, [dispatch, unset]);
   useEffect(() => {
     if (unset) sync.readRepository();
   }, [sync, unset]);
-  const changed = isChanged(state);
-  useEffect(() => {
-    if (changed && draft !== undefined) sync.check(draft);
-  }, [sync, draft, changed]);
-  const controls: ConfigurationControls = {
-    change: ({ currentTarget }) => {
-      const { name, value, dataset } = currentTarget;
-      const checked = currentTarget instanceof HTMLInputElement && currentTarget.checked;
-      const { member, defaults, variable } = dataset;
-      dispatch(
-        actionOf({
-          name,
-          value,
-          checked,
-          kind: dataset["kind"] as FieldKind,
-          ...(member === undefined ? {} : { member }),
-          ...(defaults === undefined ? {} : { defaults }),
-          ...(variable === undefined ? {} : { variable }),
-        }),
-      );
-    },
-    click: ({ currentTarget }) => {
-      const action = pressOf(currentTarget.dataset);
-      if (action !== undefined) dispatch(action);
-    },
-    save: (event) => {
-      event.preventDefault();
-      // The form is drawn once there is a draft; a draft that did not change leaves the values typed alone to save.
-      sync.save(changed ? draft : undefined, basedOn, values);
-    },
-    discard: () => dispatch({ type: "discard" }),
-    takeFile: () => sync.takeFile(),
-    writeFile: () => sync.writeFile(),
-    testModel: () => sync.testModel(draft!.model, typedKey(draft!.model, values)),
-    checkSource: ({ currentTarget }) => {
-      const rank = Number(currentTarget.dataset["rank"]);
-      const source = draft!.knowledge[rank]!;
-      sync.checkSource(rank, source, typedConnection(source, values));
-    },
-    setUp: () => sync.setUp(draft!, values),
-  };
   if (state.view?.revision === undefined && draft !== undefined)
     return (
       <FirstUse

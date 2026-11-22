@@ -190,7 +190,7 @@ function WhereFields({ at, source }: { readonly at: string; readonly source: Kno
  * applications, environments and APIs it is attached to. Its kind is chosen when it is added.
  *
  * @param props - The source, its rank in the list, the applications of the draft it may be attached to, the latest test of
- * the source, and how to ask for one.
+ * the source, how to ask for one, and whether the card offers to remove it.
  * @returns Its card.
  */
 export function KnowledgeCard({
@@ -199,6 +199,7 @@ export function KnowledgeCard({
   applications,
   test,
   onCheck,
+  removable = true,
 }: {
   readonly source: Knowledge;
   readonly rank: number;
@@ -207,6 +208,8 @@ export function KnowledgeCard({
   readonly test?: SourceTest;
   /** Asks for a test of the source its button names by its rank. */
   readonly onCheck: MouseEventHandler<HTMLButtonElement>;
+  /** Whether the card offers to remove the source from the draft: a screen that removes it otherwise says no. */
+  readonly removable?: boolean;
 }): ReactNode {
   const at = `/knowledge/${rank}`;
   const title = source.id === "" ? t("configuration.knowledge.untitled", { rank: rank + 1 }) : source.id;
@@ -214,7 +217,7 @@ export function KnowledgeCard({
     <Card
       title={title}
       hint={t(`configuration.knowledge.kinds.${kindOf(source)}`)}
-      aside={<RemoveButton pointer={at} label={t("configuration.knowledge.removeSource", { name: title })} />}
+      {...(removable ? { aside: <RemoveButton pointer={at} label={t("configuration.knowledge.removeSource", { name: title })} /> } : {})}
     >
       <div className="config-body">
         <PlaceErrors pointer={at} />

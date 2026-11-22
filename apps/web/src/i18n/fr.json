@@ -682,17 +682,19 @@
       "history": "Historique",
       "secrets": "Les valeurs tapées ici — clé, chaînes de connexion, mots de passe — restent sur l’ordinateur où tourne l’outil, hors du dépôt de tests et de la base. Une variable d’environnement l’emporte : c’est le chemin d’une CI.",
       "knowledge": "Connaissances",
-      "knowledgeNote": "Ce que les agents lisent des applications. Chaque source dit où elle se lit — jamais un secret — et les applications auxquelles elle se rattache.",
-      "noKnowledge": "Aucune source de connaissance"
+      "knowledgeNote_zero": "Aucune source pour l’instant : les sources se déclarent dans Connaissances.",
+      "knowledgeNote_one": "{{count}} source déclarée : elle se modifie dans Connaissances.",
+      "knowledgeNote_other": "{{count}} sources déclarées : elles se modifient dans Connaissances.",
+      "openKnowledge": "Ouvrir les connaissances"
     }
   },
   "knowledge": {
     "title": "Connaissances",
-    "configure": "Déclarer dans la configuration",
+    "configure": "Configurer le projet",
     "reading": "Lecture des connaissances",
     "readingNote": "Elles apparaissent dès que l’instance a répondu.",
     "none": "Aucune source de connaissance",
-    "noneNote": "Déclarez dans la configuration les contrats, les bases, les documents, le code et les journaux que lisent les agents.",
+    "noneNote": "Ajoutez les contrats, les bases, les documents, le code et les journaux que lisent les agents.",
     "lead": "Les sources de chaque application, et où chacune se lit. Les domaines qu’en tire la cartographie viendront dans une prochaine version.",
     "noSource": "Aucune source n’est rattachée à cette application",
     "variable": "variable {{name}}",
@@ -736,7 +738,16 @@
       "noIndex": "Rien n’est encore cartographié : chaque source ajoutée est cartographiée aussitôt, puis l’ensemble est mis en commun par domaine.",
       "index": "Connaissances mises en commun par domaine le {{date}}.",
       "partIndex": "Connaissances mises en commun par domaine le {{date}}, en partie : une limite a arrêté la cartographie."
-    }
+    },
+    "add": "Ajouter une connaissance",
+    "addHint": "choisissez ce que les agents liront",
+    "edit": {
+      "saved": "Enregistrée"
+    },
+    "drop": "Retirer la source",
+    "dropTitle": "Retirer la source {{id}} ?",
+    "dropNote": "Les prochaines sessions ne la lisent plus. Une nouvelle révision de la configuration est enregistrée : la précédente reste dans l’historique.",
+    "confirmDrop": "Retirer la source"
   },
   "tests": {
     "title": "Tests",

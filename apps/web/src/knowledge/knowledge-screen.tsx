@@ -12,7 +12,10 @@ import {
   type MappedSource,
   type MappingState,
 } from "@open-qa-stack/domain/sessions";
-import { kindOf } from "../configuration/knowledge-card.tsx";
+import { EditContext } from "../configuration/configuration-edit.ts";
+import type { ConfigurationControls } from "../configuration/configuration-screen.tsx";
+import type { ConfigurationState } from "../configuration/configuration-state.ts";
+import { AddSourceButtons, kindOf } from "../configuration/knowledge-card.tsx";
 import { errorText } from "../configuration/configuration-words.ts";
 import { dateText, sizeText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
@@ -22,6 +25,7 @@ import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page, type Crumb } from "../ui/page.tsx";
 import type { KnowledgeState, Refusal } from "./knowledge-state.ts";
+import { SourceEditor } from "./source-editor.tsx";
 
 /** The identifier of the input that takes the files of an upload. */
 export const FILES_INPUT = "knowledge-files";
@@ -32,6 +36,10 @@ export interface KnowledgeControls {
   readonly upload: FormEventHandler<HTMLFormElement>;
   /** Removes the document the button names, once the person confirmed it. */
   readonly remove: MouseEventHandler<HTMLButtonElement>;
+  /** What the person does to the draft of the configuration, which holds the sources. */
+  readonly edit: ConfigurationControls;
+  /** Removes the source the button names by its rank from the configuration, once the person confirmed it. */
+  readonly drop: MouseEventHandler<HTMLButtonElement>;
 }
 
 /** What the screens of the knowledge are drawn from. */
@@ -41,6 +49,8 @@ export interface KnowledgeScreenProps {
   /** Where the console is: the knowledge, or one of its sources, with the document it reads or asks to remove. */
   readonly route: Route;
   readonly state: KnowledgeState;
+  /** The draft of the configuration, in which the person adds, changes and removes a source. */
+  readonly editing: ConfigurationState;
   readonly controls: KnowledgeControls;
 }
 
@@ -48,7 +58,23 @@ export interface KnowledgeScreenProps {
 const KNOWLEDGE = "/knowledge";
 
 /** The address of a source, whose identifier is a slug. */
-const sourcePath = (source: string): string => `${KNOWLEDGE}/${source}`;
+export const sourcePath = (source: string): string => `${KNOWLEDGE}/${source}`;
+
+/**
+ * Tells the rank of a source in the configuration in force, which is its rank in the draft: a source is added after
+ * the others, and changed or removed alone.
+ *
+ * @param editing - The draft of the configuration.
+ * @param id - The identifier of the source.
+ * @returns Its rank; `undefined` while the instance did not tell the configuration, and for a source it does not declare.
+ */
+export function rankOf(editing: ConfigurationState, id: string): number | undefined {
+  const rank = editing.view?.revision?.document.knowledge.findIndex((source) => source.id === id) ?? -1;
+  return rank < 0 ? undefined : rank;
+}
+
+/** The number of sources of the configuration in force, which a source added follows: a source is added to a configuration in force. */
+const inForceCount = (editing: ConfigurationState): number => editing.view!.revision!.document.knowledge.length;
 
 /**
  * Says where a source is read from: its address, its file, its folder, its container or the variable of its
@@ -120,24 +146,48 @@ function IndexLine({ mapping }: { readonly mapping: CartographyState | undefined
   );
 }
 
+/** The source the person adds: the kinds to choose from, then the source of the kind chosen, to fill in and save. */
+function Adder({ editing, controls }: { readonly editing: ConfigurationState; readonly controls: KnowledgeControls }): ReactNode {
+  const rank = inForceCount(editing);
+  if (editing.draft !== undefined && editing.draft.knowledge.length > rank)
+    return <SourceEditor state={editing} controls={controls.edit} rank={rank} removable />;
+  return (
+    <Card title={t("knowledge.add")} hint={t("knowledge.addHint")}>
+      <div className="config-body">
+        <EditContext.Provider value={{ change: controls.edit.change, click: controls.edit.click, errors: [], values: {} }}>
+          <AddSourceButtons />
+        </EditContext.Provider>
+      </div>
+    </Card>
+  );
+}
+
 /** The sources of the configuration, application after application: a source attached to several is listed under each. */
-function Overview({ project, state }: { readonly project: string; readonly state: KnowledgeState }): ReactNode {
+function Overview({ project, route, state, editing, controls }: KnowledgeScreenProps): ReactNode {
   const title = t("knowledge.title");
-  const configure = (
+  // A source is added to a configuration in force; an instance without one is set up first.
+  const configured = editing.view?.revision !== undefined;
+  const action = configured ? (
+    <a className="btn primary" href={hrefTo(KNOWLEDGE, { add: "source" })}>
+      {t("knowledge.add")}
+    </a>
+  ) : (
     <a className="btn" href={hrefTo("/configuration")}>
       {t("knowledge.configure")}
     </a>
   );
   const { configuration } = state;
   const sources = configuration?.knowledge ?? [];
+  const adding = configured && route.query["add"] !== undefined;
   return (
-    <Page crumbs={[{ label: project }, { label: title }]} title={title} actions={configure}>
+    <Page crumbs={[{ label: project }, { label: title }]} title={title} actions={action}>
+      {adding && <Adder editing={editing} controls={controls} />}
       {!state.read ? (
         <EmptyState title={t("knowledge.reading")}>
           <span role="status">{state.unread ?? t("knowledge.readingNote")}</span>
         </EmptyState>
       ) : sources.length === 0 ? (
-        <EmptyState title={t("knowledge.none")} action={configure}>
+        <EmptyState title={t("knowledge.none")} {...(adding ? {} : { action })}>
           {t("knowledge.noneNote")}
         </EmptyState>
       ) : (
@@ -332,7 +382,35 @@ function OpenedDocument({ source, name, state }: { readonly source: string; read
 }
 
 /** A source: what it is and what it is attached to; for one whose documents the instance keeps, its documents. */
-function SourceScreen({ project, route, state, controls, id }: KnowledgeScreenProps & { readonly id: string }): ReactNode {
+/** The confirmation of the removal of a source the person asked for, with the ways out. */
+function DropConfirmation({
+  id,
+  rank,
+  editing,
+  controls,
+}: {
+  readonly id: string;
+  readonly rank: number;
+  readonly editing: ConfigurationState;
+  readonly controls: KnowledgeControls;
+}): ReactNode {
+  return (
+    <section className="config-note warn knowledge-confirm" aria-labelledby="knowledge-drop-title">
+      <b id="knowledge-drop-title">{t("knowledge.dropTitle", { id })}</b>
+      <span>{t("knowledge.dropNote")}</span>
+      <div className="config-actions">
+        <a className="btn" href={hrefTo(sourcePath(id))}>
+          {t("knowledge.cancel")}
+        </a>
+        <button type="button" className="btn danger" data-rank={rank} onClick={controls.drop} disabled={editing.saving}>
+          {t("knowledge.confirmDrop")}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function SourceScreen({ project, route, state, editing, controls, id }: KnowledgeScreenProps & { readonly id: string }): ReactNode {
   const crumbs: Crumb[] = [{ label: project }, { label: t("knowledge.title"), href: hrefTo(KNOWLEDGE) }, { label: id }];
   const source = state.configuration?.knowledge.find((candidate) => candidate.id === id);
   if (source === undefined)
@@ -344,17 +422,29 @@ function SourceScreen({ project, route, state, controls, id }: KnowledgeScreenPr
       </Page>
     );
   const reading = route.query["document"];
+  const rank = rankOf(editing, id);
+  const drop =
+    rank === undefined ? undefined : (
+      <a className="btn ghost" href={hrefTo(sourcePath(id), { drop: "source" })}>
+        {t("knowledge.drop")}
+      </a>
+    );
   return (
-    <Page crumbs={crumbs} title={<span className="mono">{id}</span>}>
-      <Card title={kindText(source)}>
-        <p className="row small muted">{isStoredDocuments(source) ? t("knowledge.storedNote") : t("knowledge.readThere")}</p>
-        {source.attachments.map((attachment, index) => (
-          <div key={index} className="row">
-            <span className="grow">{attachment.application}</span>
-            <span className="small muted">{narrowing(attachment) ?? t("knowledge.everywhere")}</span>
-          </div>
-        ))}
-      </Card>
+    <Page crumbs={crumbs} title={<span className="mono">{id}</span>} {...(drop === undefined ? {} : { actions: drop })}>
+      {rank !== undefined && route.query["drop"] !== undefined && <DropConfirmation id={id} rank={rank} editing={editing} controls={controls} />}
+      {rank !== undefined && editing.draft !== undefined ? (
+        <SourceEditor state={editing} controls={controls.edit} rank={rank} />
+      ) : (
+        <Card title={kindText(source)}>
+          {source.attachments.map((attachment, index) => (
+            <div key={index} className="row">
+              <span className="grow">{attachment.application}</span>
+              <span className="small muted">{narrowing(attachment) ?? t("knowledge.everywhere")}</span>
+            </div>
+          ))}
+        </Card>
+      )}
+      <p className="small muted">{isStoredDocuments(source) ? t("knowledge.storedNote") : t("knowledge.readThere")}</p>
       {isStoredDocuments(source) && <StoredDocuments source={id} route={route} state={state} controls={controls} />}
       {isStoredDocuments(source) && reading !== undefined && <OpenedDocument source={id} name={reading} state={state} />}
     </Page>
@@ -370,7 +460,7 @@ function SourceScreen({ project, route, state, controls, id }: KnowledgeScreenPr
  */
 export function KnowledgeScreen(props: KnowledgeScreenProps): ReactNode {
   const [, id] = props.route.path;
-  return id === undefined ? <Overview project={props.project} state={props.state} /> : <SourceScreen {...props} id={id} />;
+  return id === undefined ? <Overview {...props} /> : <SourceScreen {...props} id={id} />;
 }
 
 /** Where the cartography of a source stands, as the props of its row: none before the instance told it, nor for a source it does not read. */

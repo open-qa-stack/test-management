@@ -682,17 +682,19 @@
       "history": "History",
       "secrets": "The values typed here — key, connection strings, passwords — stay on the computer the tool runs on, out of the test repository and of the database. An environment variable wins: that is the way of a CI.",
       "knowledge": "Knowledge",
-      "knowledgeNote": "What the agents read about the applications. Each source names where it is read — never a secret — and the applications it belongs to.",
-      "noKnowledge": "No knowledge source"
+      "knowledgeNote_zero": "No source yet: sources are declared in Knowledge.",
+      "knowledgeNote_one": "{{count}} source declared: it is changed in Knowledge.",
+      "knowledgeNote_other": "{{count}} sources declared: they are changed in Knowledge.",
+      "openKnowledge": "Open the knowledge"
     }
   },
   "knowledge": {
     "title": "Knowledge",
-    "configure": "Declare in the configuration",
+    "configure": "Configure the project",
     "reading": "Reading the knowledge",
     "readingNote": "It shows as soon as the instance answered.",
     "none": "No knowledge source",
-    "noneNote": "Declare the contracts, the databases, the documents, the code and the logs the agents read in the configuration.",
+    "noneNote": "Add the contracts, databases, documents, code and logs the agents read.",
     "lead": "The sources of each application, and where each is read from. The domains the cartography maps them into come in a later version.",
     "noSource": "No source is attached to this application",
     "variable": "variable {{name}}",
@@ -736,7 +738,16 @@
       "noIndex": "Nothing is mapped yet: each source added is mapped at once, then all of them are put together by domain.",
       "index": "Knowledge put together by domain on {{date}}.",
       "partIndex": "Knowledge put together by domain on {{date}}, in part: a limit stopped the cartography."
-    }
+    },
+    "add": "Add knowledge",
+    "addHint": "choose what the agents will read",
+    "edit": {
+      "saved": "Saved"
+    },
+    "drop": "Remove the source",
+    "dropTitle": "Remove the source {{id}}?",
+    "dropNote": "The next sessions no longer read it. A new revision of the configuration is saved: the previous one stays in the history.",
+    "confirmDrop": "Remove the source"
   },
   "tests": {
     "title": "Tests",

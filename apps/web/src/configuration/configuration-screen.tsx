@@ -1,6 +1,7 @@
 import type { FormEventHandler, MouseEventHandler, ReactNode } from "react";
 import type { ConfigError } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
+import { hrefTo } from "../routing/route.ts";
 import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
@@ -9,7 +10,6 @@ import { EditContext, type ConfigurationEdit } from "./configuration-edit.ts";
 import { AddButton, PlaceErrors } from "./configuration-fields.tsx";
 import { isPending, type ConfigurationState } from "./configuration-state.ts";
 import { errorText } from "./configuration-words.ts";
-import { AddSourceButtons, KnowledgeCard } from "./knowledge-card.tsx";
 import { FileCard, HistoryCard, JsonCard } from "./record-cards.tsx";
 import { ModelCard } from "./model-card.tsx";
 import { AutonomyCard, DesignCard, LanguageCard, RepositoryCard } from "./settings-cards.tsx";
@@ -60,7 +60,7 @@ export function ErrorSummary({ errors }: { readonly errors: readonly ConfigError
 }
 
 /** What the screen says of what the instance answered, with the ways out it leaves. */
-function Notes({ state }: { readonly state: ConfigurationState }): ReactNode {
+export function Notes({ state }: { readonly state: ConfigurationState }): ReactNode {
   const { refusal, saved } = state;
   if (refusal !== undefined)
     return (
@@ -93,7 +93,7 @@ function Notes({ state }: { readonly state: ConfigurationState }): ReactNode {
 
 /**
  * The configuration of the instance: what the person changes — the applications and their environments, the
- * knowledge sources and their attachments, the model, the autonomy, the levels of design, the layout of the
+ * model, the autonomy, the levels of design, the layout of the
  * repository — then saves; what is read only — the JSON — and the history of the revisions.
  *
  * @param props - The project, the state of the screen and what the person does on it.
@@ -173,19 +173,14 @@ export function ConfigurationScreen({ project, state, controls }: ConfigurationS
           </section>
           <section className="config-section" aria-labelledby="config-knowledge">
             <h2 id="config-knowledge">{t("configuration.screen.knowledge")}</h2>
-            <p className="small muted">{t("configuration.screen.knowledgeNote")}</p>
-            {draft.knowledge.length === 0 && <EmptyState title={t("configuration.screen.noKnowledge")} />}
-            {draft.knowledge.map((source, index) => (
-              <KnowledgeCard
-                key={index}
-                source={source}
-                rank={index}
-                applications={draft.applications}
-                onCheck={controls.checkSource}
-                {...(state.sourceChecks?.[index] === undefined ? {} : { test: state.sourceChecks[index] })}
-              />
-            ))}
-            <AddSourceButtons />
+            <Card>
+              <div className="row">
+                <span className="grow small muted">{t("configuration.screen.knowledgeNote", { count: draft.knowledge.length })}</span>
+                <a className="btn sm" href={hrefTo("/knowledge")}>
+                  {t("configuration.screen.openKnowledge")}
+                </a>
+              </div>
+            </Card>
           </section>
           <section className="config-section" aria-labelledby="config-agents">
             <h2 id="config-agents">{t("configuration.screen.agents")}</h2>
