@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import { operationIds, type OperationId } from "@open-qa-stack/domain";
 import { parseArguments } from "../src/solo/arguments.ts";
+import { initialState } from "../src/solo/conversation/conversation-state.ts";
+import { requestOf } from "../src/solo/conversation/request.ts";
 import { SLASH_COMMANDS, type SlashCommand } from "../src/solo/conversation/slash-commands.ts";
 
 /** What a client does not offer yet, and why: each is a gap still to close. */
@@ -60,8 +62,11 @@ const COMMANDS: Readonly<Record<OperationId, readonly string[] | Missing>> = {
   "Campaigns.close": { missing: "no command closes a campaign" },
 };
 
-/** How the conversation offers an operation: a command typed after a slash, what the conversation does on its own, or nothing yet. */
-type InConversation = { readonly slash: SlashCommand["name"] } | { readonly itself: string } | Missing;
+/**
+ * How the conversation offers an operation: a command of its own typed after a slash, what is typed to run what `oqas`
+ * runs, what the conversation does on its own, or nothing yet.
+ */
+type InConversation = { readonly slash: SlashCommand["name"] } | { readonly typed: string } | { readonly itself: string } | Missing;
 
 /**
  * How the conversation offers each operation of the engine. Typed on the operations, it does not compile while an
@@ -79,24 +84,24 @@ const CONVERSATION: Readonly<Record<OperationId, InConversation>> = {
   "Sessions.thread": { itself: "a session reopened shows its thread so far" },
   "Sessions.launch": { missing: "no command launches tests" },
   "Sessions.launches": { missing: "no command lists the launches of tests" },
-  "Configuration.view": { missing: "no command shows the configuration" },
+  "Configuration.view": { typed: "/config show" },
   "Configuration.revisions": { missing: "no command shows the history of the configuration" },
   "Configuration.check": { missing: "no command checks a configuration" },
-  "Configuration.synchronise": { missing: "no command takes oqas.json" },
+  "Configuration.synchronise": { typed: "/config import" },
   "Configuration.save": { missing: "/model saves the model alone" },
-  "Configuration.restore": { missing: "no command writes oqas.json" },
+  "Configuration.restore": { typed: "/config export" },
   "ModelConnection.check": { slash: "model" },
-  "Secrets.list": { missing: "no command lists the variables" },
+  "Secrets.list": { typed: "/secrets" },
   "Secrets.save": { missing: "/model saves the key of the model alone" },
   "RepositorySetup.state": { missing: "no command tells where the test repository stands" },
-  "RepositorySetup.prepare": { missing: "no command prepares the test repository" },
-  "KnowledgeDocuments.list": { missing: "no command lists the documents" },
+  "RepositorySetup.prepare": { typed: "/init" },
+  "KnowledgeDocuments.list": { typed: "/knowledge list" },
   "KnowledgeDocuments.read": { missing: "no command prints a document" },
-  "KnowledgeDocuments.upload": { missing: "no command uploads a document" },
+  "KnowledgeDocuments.upload": { typed: "/knowledge add-document manuals quotes.md" },
   "KnowledgeDocuments.remove": { missing: "no command removes a document" },
   "KnowledgeDomains.list": { missing: "no command lists the domains" },
-  "KnowledgeSources.check": { missing: "no command tests a source" },
-  "KnowledgeMapping.state": { missing: "no command tells where the cartography stands" },
+  "KnowledgeSources.check": { typed: "/knowledge check" },
+  "KnowledgeMapping.state": { typed: "/knowledge mapping" },
   "RepositoryTests.listed": { missing: "no command lists the tests of the repository" },
   "TestReadings.read": { missing: "no command reads a test" },
   "TestReadings.trace": { missing: "no command gives the trace of a test" },
@@ -134,17 +139,18 @@ describe("the operations of the engine, as the command offers them", () => {
 });
 
 describe("the operations of the engine, as the conversation offers them", () => {
-  it("each are a command of the conversation, something it does on its own, or said missing with why", () => {
+  it("each are a command of the conversation, what runs the command, something it does on its own, or said missing with why", () => {
     const names = new Set(SLASH_COMMANDS.map(({ name }) => name));
     for (const id of operationIds()) {
       const offer = CONVERSATION[id];
       if ("slash" in offer) assert.ok(names.has(offer.slash), `${id}: /${offer.slash} is no command of the conversation`);
+      else if ("typed" in offer) assert.equal(requestOf({ ...initialState([], 0), input: offer.typed }).kind, "command", `${id}: ${offer.typed} runs nothing`);
       else assert.ok(("itself" in offer ? offer.itself : offer.missing).length > 0, id);
     }
   });
 
   // A gap closed lowers this count, and a gap opened is refused: it only goes down.
   it("are missing no more than they were", () => {
-    assert.equal(missingIn(CONVERSATION).length, 34);
+    assert.equal(missingIn(CONVERSATION).length, 25);
   });
 });

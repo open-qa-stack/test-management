@@ -65,6 +65,7 @@ async function staged(held: readonly Session[] = [FAILED], props: Partial<Conver
       reasonOf: (error) => `Told: ${(error as Error).message}`,
       onLeave: (leaving) => left.push(leaving),
       model: QUIET_MODEL,
+      run: async () => ({ text: "", failed: false }),
       ...props,
     }),
   );

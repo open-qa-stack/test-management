@@ -109,9 +109,15 @@ While the session goes on, what you type is said to its agents, as [`oqas say`](
 | `/new` | Goes back to the start, to open another session. A session this terminal runs goes on, and the next one waits its turn. |
 | `/stop` | Stops the session on screen, after a confirmation: Enter stops it, Esc keeps it going. |
 | `/ui [port]` | Serves [the console](#the-console) from this process, on `127.0.0.1` and the port given — `6727` by default, `0` for any free one — and writes its address. It is served until you leave. |
-| `/model` | Sets the connection to the model step by step, as `oqas model` does: see [The model](#the-model). |
+| `/model` | Sets the connection to the model step by step, as `oqas model` does: see [The model](#the-model). Followed by `status` or `set` and its options, it runs `oqas model status` or `oqas model set`. |
+| `/config show\|import\|export` | Runs [`oqas config`](#the-configuration) with the same words. |
+| `/knowledge list\|mapping\|check\|add-document …` | Runs [`oqas knowledge`](#the-knowledge) with the same words. |
+| `/secrets` | Runs [`oqas secrets`](#the-values-of-the-variables): the variables the configuration names, and where the value of each comes from. A value is saved with `oqas secrets set` in another terminal, since the conversation would show it as it is typed; the key of the model is saved with `/model`. |
+| `/init` | Runs [`oqas --init`](#initialising-a-test-repository). |
 | `/help` | Lists the commands and the keys. |
 | `/quit` | Leaves the conversation. |
+
+`/config`, `/knowledge`, `/secrets`, `/init` and `/model` followed by words run the code of the command, on the operations the conversation holds, and write the same lines in the thread — in English, as the command writes them —, marked with ✗ when the command did not do all it was asked. What the command refuses, the conversation refuses on the line under the input, with the same words, and so does it refuse `--repository`, `--output` and `--follow`, which it sets itself.
 
 A slash lists the commands as you type; Tab completes the first of them, and the start of a name is enough when no other command shares it.
 

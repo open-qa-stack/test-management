@@ -108,7 +108,11 @@
     "new": "Go back to the start, to open another session",
     "stop": "Stop the session on screen, after a confirmation",
     "ui": "Serve the web console from this process and print its address",
-    "model": "Set the connection to the model: GitHub account or provider, then the model",
+    "model": "Set the connection to the model step by step; followed by status or set, as oqas model does",
+    "config": "show, import or export: the configuration in force and oqas.json, as oqas config does",
+    "knowledge": "list, mapping, check or add-document: the knowledge sources, as oqas knowledge does",
+    "secrets": "List the variables the configuration names, and where the value of each comes from",
+    "init": "Prepare the test repository as a Playwright project, as oqas --init does",
     "help": "List the commands and the keys",
     "quit": "Leave the conversation"
   },
@@ -155,7 +159,10 @@
     "takes": "/{{name}} takes {{what}}.",
     "nothingAfter": "nothing after it",
     "nothingToStop": "No session goes on here: there is nothing to stop.",
-    "port": "/ui takes a port from 0 to 65535, 0 for any free one."
+    "port": "/ui takes a port from 0 to 65535, 0 for any free one.",
+    "options": "The conversation runs the command in its own test repository, and prints it as lines: it takes no --repository, --output nor --follow.",
+    "notHere": "oqas {{command}} does not run in the conversation: run it in another terminal.",
+    "typedValue": "The conversation would show the value as it is typed: save it with oqas secrets set {{variable}} in another terminal."
   },
   "recent": {
     "none": "No session yet.",

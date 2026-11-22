@@ -3,6 +3,7 @@ import { createElement as h, useEffect, useReducer, type ReactNode } from "react
 import { hasEnded, type Session, type SessionEvent } from "@open-qa-stack/domain/sessions";
 import type { Sessions } from "@open-qa-stack/engine";
 import type { Model, ModelConnectionCheck } from "@open-qa-stack/domain/sessions";
+import type { PrintingCommand } from "../operation-commands.ts";
 import { checkText, type SetupEnd } from "./model-setup/model-setup.ts";
 import { t } from "./i18n/i18n.ts";
 import { conversationReducer } from "./conversation-reducer.ts";
@@ -72,6 +73,12 @@ export interface ConversationProps {
   readonly onLeave: (leaving: Leaving) => void;
   /** The connection to the model: tested when the conversation opens, set with /model. */
   readonly model: ConversationModel;
+  /**
+   * Runs a command typed after a slash, as `oqas` runs it.
+   *
+   * @returns What it wrote, and whether it did not do all it was asked.
+   */
+  readonly run: (command: PrintingCommand) => Promise<{ readonly text: string; readonly failed: boolean }>;
 }
 
 /**
@@ -91,7 +98,7 @@ export interface ConversationProps {
  * @param props - The operations, where the conversation takes place, what draws and times it, and who hears it end.
  * @returns The screen.
  */
-export function Conversation({ sessions, context, latest, theme, now, serve, reasonOf, onLeave, model }: ConversationProps): ReactNode {
+export function Conversation({ sessions, context, latest, theme, now, serve, reasonOf, onLeave, model, run }: ConversationProps): ReactNode {
   const [state, dispatch] = useReducer(conversationReducer, undefined, () => initialState(latest, now()));
   const { columns } = useWindowSize();
   const fail = (error: unknown): void => dispatch({ type: "failed", why: reasonOf(error) });
@@ -172,6 +179,8 @@ export function Conversation({ sessions, context, latest, theme, now, serve, rea
         return void serve(request.port).then((url) => dispatch({ type: "served", url }), fail);
       case "model":
         return void model.inForce().then((inForce) => dispatch({ type: "model-opened", inForce }), fail);
+      case "command":
+        return void run(request.command).then((ran) => dispatch({ type: "ran", ...ran }), fail);
       default:
         return undefined;
     }

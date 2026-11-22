@@ -397,9 +397,10 @@ describe("what the conversation tells around a thread", () => {
     it(`hints the commands being typed, writes the help, an error and a notice, at ${width} columns`, () => {
       const hinted = screenOf(after([{ type: "typed", input: "/s" }]), width);
       fits(hinted, width);
-      assert.equal(hinted.at(-3), "› /s");
-      assert.match(hinted.at(-2)!, /^❯ \/sessions {3}Pick a session and reopen its thread/);
-      assert.match(hinted.at(-1)!, /^ {2}\/stop {7}Stop the session on screen/);
+      assert.equal(hinted.at(-4), "› /s");
+      assert.match(hinted.at(-3)!, /^❯ \/sessions {3}Pick a session and reopen its thread/);
+      assert.match(hinted.at(-2)!, /^ {2}\/stop {7}Stop the session on screen/);
+      assert.match(hinted.at(-1)!, /^ {2}\/secrets {4}List the variables the configuration names/);
       assert.match(screenOf(after([{ type: "typed", input: "/u" }]), width).at(-1)!, /^❯ \/ui \[port\] {2}Serve the web console/);
 
       const told = screenOf(

@@ -19,7 +19,7 @@ describe("the commands a person may be typing", () => {
     assert.deepEqual(hintedCommands("/"), SLASH_COMMANDS);
     assert.deepEqual(
       hintedCommands("/s").map(({ name }) => name),
-      ["sessions", "stop"],
+      ["sessions", "stop", "secrets"],
     );
     assert.deepEqual(
       hintedCommands("/stop").map(({ name }) => name),
@@ -48,7 +48,7 @@ describe("what Enter asks", () => {
 
   it("is the command a slash names, by its name or by the start of it when no other shares it", () => {
     assert.deepEqual(
-      ["/sessions", "/new", "/help", "/quit", "/q", "/se", "/ui", " /help  "].map((input) => requestOf(typing(input))),
+      ["/sessions", "/new", "/help", "/quit", "/q", "/ses", "/ui", " /help  "].map((input) => requestOf(typing(input))),
       [
         { kind: "sessions" },
         { kind: "new" },
@@ -69,6 +69,36 @@ describe("what Enter asks", () => {
     assert.deepEqual(requestOf(typing("/")), refused("Unknown command /; /help lists the commands."));
     assert.deepEqual(requestOf(typing("/quit now")), refused("/quit takes nothing after it."));
     assert.deepEqual(requestOf(typing("/ui 80 90")), refused("/ui takes [port]."));
+  });
+
+  it("runs what oqas runs with the words after a command that runs it, and sets the model step by step with /model alone", () => {
+    const command = (command: object) => ({ kind: "command", command });
+    assert.deepEqual(
+      ["/config show", "/kn mapping", "/knowledge check orders", "/secrets", "/init", "/model status", "/model"].map((input) => requestOf(typing(input))),
+      [
+        command({ name: "config", action: "show" }),
+        command({ name: "knowledge", action: "mapping" }),
+        command({ name: "knowledge", action: "check", source: "orders" }),
+        command({ name: "secrets", action: "list" }),
+        command({ name: "init" }),
+        command({ name: "model", action: "status" }),
+        { kind: "model" },
+      ],
+    );
+  });
+
+  it("refuses, with why, what oqas refuses, an option the conversation sets itself, what does not run in it, and a value to type", () => {
+    const refused = (why: string) => ({ kind: "refused", why });
+    assert.deepEqual(requestOf(typing("/config bogus")), refused("oqas config takes show, import or export."));
+    assert.deepEqual(
+      requestOf(typing("/config show --output json")),
+      refused("The conversation runs the command in its own test repository, and prints it as lines: it takes no --repository, --output nor --follow."),
+    );
+    assert.deepEqual(requestOf(typing("/knowledge --help")), refused("oqas knowledge --help does not run in the conversation: run it in another terminal."));
+    assert.deepEqual(
+      requestOf(typing("/secrets set MODEL_KEY")),
+      refused("The conversation would show the value as it is typed: save it with oqas secrets set MODEL_KEY in another terminal."),
+    );
   });
 
   it("gives /ui the port it is given, 0 for any free one, that of oqas --ui by default, and refuses what is no port", () => {

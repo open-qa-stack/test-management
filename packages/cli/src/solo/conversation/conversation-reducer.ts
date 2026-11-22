@@ -39,6 +39,8 @@ export type ConversationAction =
   | { readonly type: "served"; readonly url: string }
   /** Something the person asked failed, or was refused: this says why, and what to do. */
   | { readonly type: "failed"; readonly why: string }
+  /** A command run after a slash ended, having written this. */
+  | { readonly type: "ran"; readonly text: string; readonly failed: boolean }
   /** The clock moved. */
   | { readonly type: "ticked"; readonly now: number }
   /** The connection in force was read: its setting opens over the input. */
@@ -204,6 +206,8 @@ export function conversationReducer(state: ConversationState, action: Conversati
       return printing(state, { kind: "notice", tone: "info", text: t("notices.served", { url: action.url }) });
     case "failed":
       return printing(state, { kind: "notice", tone: "error", text: action.why });
+    case "ran":
+      return printing(state, { kind: "output", text: action.text, failed: action.failed });
     case "ticked":
       return { ...state, now: action.now };
     case "model-opened":

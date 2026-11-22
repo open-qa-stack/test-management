@@ -40,6 +40,12 @@ export function PrintedItem({ item, context, theme, width }: PrintedItemProps): 
       return h(ResultSummary, { session: item.session, theme });
     case "help":
       return h(Help, { theme });
+    case "output":
+      return h(
+        Box,
+        { marginTop: 1 },
+        item.failed ? h(Marked, { mark: theme.glyphs.failed, style: theme.ink("ko") }, h(Text, theme.ink("ko"), item.text)) : h(Text, null, item.text),
+      );
     case "notice":
       return h(
         Box,

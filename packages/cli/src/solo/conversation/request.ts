@@ -1,5 +1,7 @@
 import { hasEnded, type Session } from "@open-qa-stack/domain/sessions";
 import { UI_PORT } from "../arguments.ts";
+import type { PrintingCommand } from "../operation-commands.ts";
+import { conversationCommandOf } from "./conversation-command.ts";
 import { hintedCommands } from "./slash-commands.ts";
 import type { ConversationState } from "./conversation-state.ts";
 import { t } from "./i18n/i18n.ts";
@@ -24,6 +26,8 @@ export type Request =
   | { readonly kind: "new" }
   | { readonly kind: "ui"; readonly port: number }
   | { readonly kind: "model" }
+  /** A command that prints, run as `oqas` runs it. */
+  | { readonly kind: "command"; readonly command: PrintingCommand }
   | { readonly kind: "help" }
   | { readonly kind: "quit" }
   | { readonly kind: "refused"; readonly why: string };
@@ -34,6 +38,11 @@ function commandOf(state: ConversationState, line: string): Request {
   const named = hintedCommands(word);
   const [command] = named.filter(({ name }) => named.length === 1 || name === word.slice(1));
   if (command === undefined) return { kind: "refused", why: t("requests.unknown", { word }) };
+  if ("runs" in command) {
+    if (command.name === "model" && rest.length === 0) return { kind: "model" };
+    const asked = conversationCommandOf([...command.runs, ...rest]);
+    return asked.ok ? { kind: "command", command: asked.command } : { kind: "refused", why: asked.why };
+  }
   const [value, ...more] = rest;
   if (value !== undefined && (command.name !== "ui" || more.length > 0))
     return { kind: "refused", why: t("requests.takes", { name: command.name, what: command.takes ?? t("requests.nothingAfter") }) };
