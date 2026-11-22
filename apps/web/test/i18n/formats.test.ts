@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { dateText, durationText, elapsedText, momentText, sizeText } from "../../src/i18n/formats.ts";
+import { dateText, dayText, durationText, elapsedText, momentText, sizeText } from "../../src/i18n/formats.ts";
 import { speaking } from "./in-language.ts";
 
 /** A text with its spaces folded, the no-break ones a language writes between a number and its unit included. */
@@ -43,6 +43,14 @@ describe("a moment of a session", () => {
     assert.equal(momentText("2026-11-15T14:44:06.348Z"), "15 nov. 2026, 14:44:06 UTC");
     await inEnglish();
     assert.equal(folded(momentText("2026-11-15T14:44:06.348Z")), "Nov 15, 2026, 2:44:06 PM UTC");
+  });
+});
+
+describe("the day of a session", () => {
+  it("is written short, its month abbreviated, in universal time", async () => {
+    assert.equal(dayText("2026-11-19T23:30:00.000Z"), "19 nov.");
+    await inEnglish();
+    assert.equal(dayText("2026-11-19T23:30:00.000Z"), "Nov 19");
   });
 });
 

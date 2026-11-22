@@ -138,4 +138,47 @@ describe("the turns of a thread", () => {
     const [turn] = turnsOf([running]);
     assert.deepEqual(turn, { kind: "agent", agent: "planner", items: [running] });
   });
+
+  it("gather the refusals alike that follow one another, by gate, tool and what was refused, whatever their scenario", () => {
+    const refusal = (code: string | undefined, scenario: string, tool?: string): Step => ({
+      kind: "verdict",
+      at: "09:00:05",
+      accepted: false,
+      about: "Plan",
+      scenario,
+      text: "Refused.",
+      reason: "Refused.",
+      ...(code === undefined ? {} : { code }),
+      ...(tool === undefined ? {} : { tool }),
+    });
+    const pass: Step = { kind: "pass", at: "09:00:04", title: "Plan", summary: "" };
+    const accepted: Step = { kind: "verdict", at: "09:00:06", accepted: true, about: "Plan", text: "Accepted.", reason: "Accepted." };
+    const steps = [
+      refusal("PLAN-SHOWN", "a"),
+      pass,
+      refusal("PLAN-LOCATOR", "a"),
+      refusal("PLAN-LOCATOR", "b"),
+      refusal("PLAN-LOCATOR", "c"),
+      refusal("PLAN-SHOWN", "c"),
+      refusal(undefined, "c", "shop_click"),
+      refusal(undefined, "c", "shop_fill"),
+      refusal(undefined, "c", "shop_fill"),
+      accepted,
+      accepted,
+      ACTION,
+      refusal("PLAN-SHOWN", "d"),
+    ];
+    assert.deepEqual(turnsOf(shownOf(steps)).map(summaryOf), [
+      "card 0",
+      "card 1",
+      "refusals 2,3,4",
+      "card 5",
+      "card 6",
+      "refusals 7,8",
+      "card 9",
+      "card 10",
+      "agent:planner 11",
+      "card 12",
+    ]);
+  });
 });

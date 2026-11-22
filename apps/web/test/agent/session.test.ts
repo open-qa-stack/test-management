@@ -267,14 +267,17 @@ describe("the thread of a session", () => {
     assert.equal(ended, "Cette session n’a laissé aucun événement Elle s’est arrêtée avant que ses agents ne commencent.");
   });
 
-  it("is a labelled region whose turns come one under another", () => {
+  it("is a labelled region whose turns come one under another, what an ended session came to first", () => {
     const html = thread();
     assert.match(
       html,
       /^<section class="thread" aria-label="Fil de la session"><div class="thread-item"><div class="pass" role="separator" aria-label="Configuration">/,
     );
     assert.equal(countOf(html, /<div class="thread-item">/g), 10);
-    assert.match(thread(liveOf(COMPLETED)), /<\/section><\/div><\/section>$/);
+    assert.match(
+      thread(liveOf(COMPLETED)),
+      /^<section class="thread" aria-label="Fil de la session"><div class="thread-item"><section class="result-card outcome">/,
+    );
   });
 
   it("ends on who is at work, with its picture, only while the session goes on", () => {
@@ -344,13 +347,13 @@ describe("the thread of a session", () => {
     assert.match(kept("all", "user"), /Votre message : sans le profil remis à Rédacteur/);
   });
 
-  it("names an agent once, with its role and the time it came in, for all it thinks, says and does in a row", () => {
+  it("names an agent once, with its role and the time it came in, for all it thinks, says and does in a row, its actions in a row folded under their count and time", () => {
     const html = thread();
     const text = textOf(html);
     assert.equal(countOf(html, /<article class="turn">/g), 2);
     assert.match(
       text,
-      /Planificateur explore l’application et propose le plan 14:44:11 Réflexion I should open the application first\. I should open the application first\. A ouvert \/ dans customer-management \{"url":"http:\/\/localhost:3020\/"\} 900 ms A proposé un plan de 1 scénario The plan was accepted: search\. 40 ms /,
+      /Planificateur explore l’application et propose le plan 14:44:11 Réflexion I should open the application first\. I should open the application first\. 2 actions 940 ms A ouvert \/ dans customer-management \{"url":"http:\/\/localhost:3020\/"\} 900 ms A proposé un plan de 1 scénario The plan was accepted: search\. 40 ms /,
     );
     assert.match(text, /Rédacteur écrit et joue les tests Playwright 14:44:19 I write the test now\. A joué le test Rédacteur travaille$/);
     assert.match(
@@ -550,11 +553,25 @@ describe("the thread of a session", () => {
     assert.match(written, /<p class="brief-text">This plan is<\/p>/);
   });
 
-  it("shows a note of the harness alone as a line", () => {
+  it("shows a note of the harness alone as a line, in the words of the console when it knows its form", () => {
     assert.match(
       thread(),
-      /<div class="notes single"><svg [^>]*>.*?<\/svg><span class="note-text">The configuration is valid; the run targets the environment local\.<\/span><\/div>/,
+      /<div class="notes single"><svg [^>]*>.*?<\/svg><span class="note-text">La configuration est valide ; la session vise l’environnement local\.<\/span><\/div>/,
     );
+    assert.match(thread(liveWith([note("The harness did something new.", 1)])), /<span class="note-text">The harness did something new\.<\/span>/);
+  });
+
+  it("names no path of the machine that ran in the notes of the harness", () => {
+    const html = thread(
+      liveWith([
+        note(
+          "The index /home/me/shop/.oqas/index/domain-index.json is complete and made of the cards every source has now, by their fingerprints; it was kept.",
+          1,
+        ),
+      ]),
+    );
+    assert.match(html, /L’index des domaines est complet et à jour ; il est conservé\./);
+    assert.doesNotMatch(html, /\/home\//);
   });
 
   it("folds the notes of the harness that follow one another under their count and the last of them, each with its time", () => {
@@ -569,7 +586,7 @@ describe("the thread of a session", () => {
     assert.doesNotMatch(apart, /notes du harnais/);
   });
 
-  it("folds a row of notes alike under one line, what they say around the source and how many sources, alone or among other notes", () => {
+  it("folds a row of notes alike under one line that counts their sources, alone or among other notes, each note in the words of the console", () => {
     const alike: Step = {
       kind: "repeated",
       at: "09:00:01",
@@ -584,22 +601,38 @@ describe("the thread of a session", () => {
     const alone = thread(liveWith([alike]));
     assert.match(
       alone,
-      /<details class="notes"><summary><svg [^>]*>.*?<\/svg><span>The card of … is up to date; it was kept\.<\/span><span class="note-count">2 sources<\/span><\/summary><ul><li><span class="turn-at">09:00:01<\/span> The card of orders-api is up to date; it was kept\.<\/li><li><span class="turn-at">09:00:02<\/span> The card of orders-db is up to date; it was kept\.<\/li><\/ul><\/details>/,
+      /<details class="notes"><summary><svg [^>]*>.*?<\/svg><span>Les fiches de 2 sources sont à jour ; elles sont conservées\.<\/span><span class="note-count">2 sources<\/span><\/summary><ul><li><span class="turn-at">09:00:01<\/span> La fiche de orders-api est à jour ; elle est conservée\.<\/li><li><span class="turn-at">09:00:02<\/span> La fiche de orders-db est à jour ; elle est conservée\.<\/li><\/ul><\/details>/,
     );
     const among = thread(liveWith([note("The index is ready.", 3), alike]));
-    assert.match(among, /<span>2 notes du harnais<\/span><span class="note-preview" aria-hidden="true">The card of … is up to date; it was kept\.<\/span>/);
+    assert.match(
+      among,
+      /<span>2 notes du harnais<\/span><span class="note-preview" aria-hidden="true">Les fiches de 2 sources sont à jour ; elles sont conservées\.<\/span>/,
+    );
     assert.match(among, /<li><span class="turn-at">09:00:03<\/span> The index is ready\.<\/li><li><details class="notes">/);
+    const read: Step = {
+      kind: "repeated",
+      at: "09:00:01",
+      before: "Read ",
+      after: " again.",
+      sources: ["orders-api", "orders-db"],
+      notes: [
+        { kind: "note", at: "09:00:01", text: "Read orders-api again." },
+        { kind: "note", at: "09:00:02", text: "Read orders-db again." },
+      ],
+    };
+    assert.match(thread(liveWith([read])), /<span>Read … again\.<\/span><span class="note-count">2 sources<\/span>/);
   });
 
-  it("shows a verdict of the harness as every verdict: its author and the kind of judge it is, what it came to, its gate, what it is about", () => {
+  it("folds a refusal of the harness under one line, and shows it under it as every verdict: its author and the kind of judge it is, what it came to, its gate, what it is about", () => {
     const html = thread();
     assert.match(
       textOf(html),
-      /Harnais contrôle automatique refusé PLAN-ELEMENT 14:44:17 Plan · scénario search The plan was refused by the harness scenario search, expect 1\.1,/,
+      /refusé PLAN-ELEMENT Le harnais refuse le plan search 14:44:17 Harnais contrôle automatique refusé PLAN-ELEMENT 14:44:17 Plan · scénario search Le harnais refuse le plan scenario search, expect 1\.1,/,
     );
+    assert.match(html, /<details class="refusals"><summary><span class="speaker-mark sm tone-neutral"[^>]*>.*?<\/span><span class="badge ko">refusé<\/span>/);
     assert.match(
       html,
-      /<article class="verdict refused"><header class="verdict-head"><div class="lead"><span class="speaker-mark sm tone-neutral" aria-hidden="true">.*?<\/span><b>Harnais<\/b><span class="badge outline">contrôle automatique<\/span><span class="badge ko">refusé<\/span><span class="verdict-code">PLAN-ELEMENT<\/span><\/div><span class="turn-at">14:44:17<\/span><\/header><p class="verdict-about">Plan · scénario search<\/p><p class="verdict-subject">The plan was refused by the harness<\/p><p id="verdict-text-9" class="verdict-text/,
+      /<article class="verdict refused"><header class="verdict-head"><div class="lead"><span class="speaker-mark sm tone-neutral" aria-hidden="true">.*?<\/span><b>Harnais<\/b><span class="badge outline">contrôle automatique<\/span><span class="badge ko">refusé<\/span><span class="verdict-code">PLAN-ELEMENT<\/span><\/div><span class="turn-at">14:44:17<\/span><\/header><p class="verdict-about">Plan · scénario search<\/p><p class="verdict-subject">Le harnais refuse le plan<\/p><p id="verdict-text-9" class="verdict-text/,
     );
     const accepted = thread(liveWith(REVIEWED));
     assert.match(accepted, /<article class="verdict accepted">.{0,700}<span class="badge ok">accepté<\/span><\/div>.{0,80}<p class="verdict-about">Plan<\/p>/);
@@ -613,19 +646,69 @@ describe("the thread of a session", () => {
       tool: "shop_click",
       reason: "Two elements.",
     };
-    assert.match(
+    assert.equal(
       textOf(thread(liveWith([error]))),
-      /^Harnais contrôle automatique erreur 09:00:00 Plan · outil shop_click Two elements\. Détails shop_click: Two elements\.$/,
+      "erreur Une action de l’agent n’a pas abouti 09:00:00 Harnais contrôle automatique erreur 09:00:00 Plan · outil shop_click Une action de l’agent n’a pas abouti Détails techniques shop_click: Two elements.",
     );
   });
 
-  it("folds the page a refusal quotes under its address, and keeps its text as the harness wrote it under Détails", () => {
+  it("gathers the refusals alike that follow one another under one line that counts them and names their scenarios, each refusal under it", () => {
+    const refusal = (scenario: string, at: string): Step => ({
+      kind: "verdict",
+      at,
+      accepted: false,
+      about: "Plan",
+      code: "PLAN-LOCATOR",
+      scenario,
+      text: `The plan was refused by the harness: scenario ${scenario} cites no element.`,
+      subject: "The plan was refused by the harness",
+      reason: `scenario ${scenario} cites no element.`,
+    });
+    const html = thread(liveWith([refusal("search", "09:00:01"), refusal("open", "09:00:02"), refusal("search", "09:00:03")]));
+    assert.equal(countOf(html, /<details class="refusals">/g), 1);
+    assert.equal(countOf(html, /<article class="verdict refused">/g), 3);
+    assert.match(
+      textOf(html),
+      /^Refusé ×3 PLAN-LOCATOR Le harnais refuse le plan search, open 09:00:01 Harnais contrôle automatique refusé PLAN-LOCATOR 09:00:01 Plan · scénario search Le harnais refuse le plan scenario search cites no element\./,
+    );
+    const pressed: string[] = [];
+    const buttons = elementsOf(
+      createElement(Thread, {
+        path: PATH,
+        frame: liveWith([refusal("search", "09:00:01"), { ...refusal("open", "09:00:02"), reason: "x".repeat(481) } as Step]).frame,
+        lookIndex: undefined,
+        stage: "ended",
+        unfolded: [],
+        onUnfold: (index) => pressed.push(index),
+      }),
+      "button",
+    );
+    (buttons[0]!["onClick"] as () => void)();
+    assert.deepEqual(pressed, ["text-1"]);
+  });
+
+  it("names what a row of refusals is about by its phase when the harness gave it no subject, and an action that did not succeed when no gate refused", () => {
+    const coded: Step = {
+      kind: "verdict",
+      at: "09:00:01",
+      accepted: false,
+      about: "Plan",
+      code: "PLAN-LEVEL",
+      text: "Too many levels.",
+      reason: "Too many levels.",
+    };
+    assert.match(textOf(thread(liveWith([coded, coded]))), /^Refusé ×2 PLAN-LEVEL Plan 09:00:01 /);
+    const failed: Step = { kind: "verdict", at: "09:00:01", accepted: false, about: "Plan", tool: "shop_click", text: "shop_click: No.", reason: "No." };
+    assert.match(textOf(thread(liveWith([failed, failed]))), /^Refusé ×2 Une action de l’agent n’a pas abouti 09:00:01 /);
+  });
+
+  it("folds the page a refusal quotes under its address, and keeps its text as the harness wrote it under Détails techniques", () => {
     const html = thread();
     assert.match(
       html,
       /<details class="raw"><summary>Page à ce moment <span class="mono">http:\/\/localhost:3020\/<\/span><\/summary><pre>- heading &quot;Customers&quot;\n- textbox &quot;Search...&quot;\n- button &quot;Search&quot;\n- table &quot;Customers&quot;<\/pre><\/details>/,
     );
-    assert.ok(html.includes(`<details class="raw"><summary>Détails</summary><pre>${REFUSAL.replaceAll('"', "&quot;")}</pre></details></article>`));
+    assert.ok(html.includes(`<details class="raw"><summary>Détails techniques</summary><pre>${REFUSAL.replaceAll('"', "&quot;")}</pre></details></article>`));
   });
 
   it("writes a short reason whole, and folds a long one to its first lines over a button that unfolds it in place", () => {
@@ -633,16 +716,34 @@ describe("the thread of a session", () => {
     const folded = thread();
     assert.match(folded, /<p id="verdict-text-9" class="verdict-text folded">scenario search, expect 1\.1,[^<]*then propose the plan again\.<\/p>/);
     assert.match(folded, /<button type="button" class="btn ghost sm read-more" aria-expanded="false" aria-controls="verdict-text-9">Lire la suite<\/button>/);
-    const unfolded = thread({ ...liveOf(), unfolded: [9] });
+    const unfolded = thread({ ...liveOf(), unfolded: ["text-9"] });
     assert.match(unfolded, /<p id="verdict-text-9" class="verdict-text">/);
     assert.match(unfolded, /<button type="button" class="btn ghost sm read-more" aria-expanded="true" aria-controls="verdict-text-9">Replier<\/button>/);
-    const pressed: number[] = [];
+    const pressed: string[] = [];
     const [button] = elementsOf(
       createElement(Thread, { path: PATH, frame: liveOf().frame, lookIndex: undefined, stage: "live", unfolded: [], onUnfold: (index) => pressed.push(index) }),
       "button",
     );
     (button!["onClick"] as () => void)();
-    assert.deepEqual(pressed, [9]);
+    assert.deepEqual(pressed, ["text-9"]);
+  });
+
+  it("unfolds the long reason of an accepted verdict, which stays in sight, by its key", () => {
+    const accepted: Step = { kind: "verdict", at: "09:00:00", accepted: true, about: "Plan", text: "x".repeat(481), reason: "x".repeat(481) };
+    const pressed: string[] = [];
+    const [button] = elementsOf(
+      createElement(Thread, {
+        path: PATH,
+        frame: liveWith([accepted]).frame,
+        lookIndex: undefined,
+        stage: "ended",
+        unfolded: [],
+        onUnfold: (key) => pressed.push(key),
+      }),
+      "button",
+    );
+    (button!["onClick"] as () => void)();
+    assert.deepEqual(pressed, ["text-0"]);
   });
 
   it("folds a reason of many short lines too, and one of a single long line", () => {
@@ -652,7 +753,7 @@ describe("the thread of a session", () => {
     assert.doesNotMatch(thread(liveWith([{ ...lines, reason: "a\nb\nc\nd\ne\nf" }])), /folded|read-more/);
   });
 
-  it("shows the verdict of a reviewer in the same form: the agent and the kind of judge it is, what it came to, what it reviewed, each remark, the call under Détails", () => {
+  it("shows the verdict of a reviewer in the same form: the agent and the kind of judge it is, what it came to, what it reviewed, its remarks folded under their count, the call under Détails techniques", () => {
     const review: Step = {
       kind: "review",
       from: "code_reviewer",
@@ -667,14 +768,14 @@ describe("the thread of a session", () => {
     const html = thread(liveWith([review]));
     assert.match(
       textOf(html),
-      /^Relecteur de code agent relecteur 2 remarques 09:00:01 relecture du test de search · juge la qualité du code Playwright Step 1 PW-DATA-01 porte sur le plan The total depends on the data\. No screenshot ends the step\. Détails Outil report_quality Réponse du harnais Recorded\. Answer with one word; call no more tools\. Réponse du relecteur Done$/,
+      /^Relecteur de code agent relecteur 2 remarques 09:00:01 relecture du test de search · juge la qualité du code Playwright 2 remarques Step 1 PW-DATA-01 porte sur le plan The total depends on the data\. No screenshot ends the step\. Détails techniques Outil report_quality Réponse du harnais Recorded\. Answer with one word; call no more tools\. Réponse du relecteur Done$/,
     );
     assert.match(
       html,
-      /<article class="verdict review">.*<b>Relecteur de code<\/b><span class="badge ai">agent relecteur<\/span><span class="badge warn">2 remarques<\/span>.*<ol class="remarks"><li class="remark"><div class="remark-head"><b>Step 1<\/b><span class="verdict-code">PW-DATA-01<\/span>/,
+      /<article class="verdict review">.*<b>Relecteur de code<\/b><span class="badge ai">agent relecteur<\/span><span class="badge warn">2 remarques<\/span>.*<details class="raw remarks-fold"><summary>2 remarques<\/summary><ol class="remarks"><li class="remark"><div class="remark-head"><b>Step 1<\/b><span class="verdict-code">PW-DATA-01<\/span>/,
     );
     assert.match(html, /<li class="remark"><p class="remark-text">No screenshot ends the step\.<\/p><\/li>/);
-    assert.match(html, /<details class="raw"><summary>Détails<\/summary><dl>/);
+    assert.match(html, /<details class="raw"><summary>Détails techniques<\/summary><dl>/);
   });
 
   it("says a reviewer found nothing, a duplicate of the plan with what it repeats, a call not taken, and one still on its way", () => {
@@ -700,7 +801,7 @@ describe("the thread of a session", () => {
     const text = textOf(thread(liveWith([clean, plan, none, refused])));
     assert.match(
       text,
-      /Relecteur de cohérence agent relecteur aucune remarque 09:00:01 relecture du test de search · compare chaque test à son scénario Détails Outil report_findings Réponse du harnais Recorded\. Relecteur/,
+      /Relecteur de cohérence agent relecteur aucune remarque 09:00:01 relecture du test de search · compare chaque test à son scénario Détails techniques Outil report_findings Réponse du harnais Recorded\. Relecteur/,
     );
     assert.match(
       text,
@@ -831,21 +932,95 @@ describe("the thread of a session", () => {
     assert.match(thread(), /<div class="pass" role="separator" aria-label="Configuration"><span class="pass-title">Configuration<\/span><\/div>/);
   });
 
-  it("ends on the verdict of each test: passed, failed, blocked, or as the harness wrote it", () => {
+  it("opens, once the session ended, on the verdict of each test, counted: passed, failed, blocked, or as the harness wrote it, a raw reason folded", () => {
     const html = thread(liveWith(REVIEWED));
     assert.match(
       textOf(html),
-      /Verdict de l’exécution : 4 tests réussi Search a customer smoke échoué Open a customer The heading never showed\. bloqué Delete a customer skipped Export the customers$/,
+      /^Verdict de l’exécution : 4 tests 1 réussi · 1 échoué · 2 sans verdict réussi Search a customer smoke échoué Open a customer Détails techniques The heading never showed\. bloqué Delete a customer skipped Export the customers Plan · smoke/,
     );
-    assert.match(html, /<section class="result-card outcome"><header><b>Verdict de l’exécution : 4 tests<\/b><\/header>/);
+    assert.match(
+      html,
+      /<section class="result-card outcome"><header><b>Verdict de l’exécution : 4 tests<\/b><span class="outcome-tally">1 réussi · 1 échoué · 2 sans verdict<\/span><\/header>/,
+    );
     assert.match(
       html,
       /<div class="result-row"><span class="badge ok">réussi<\/span><span class="result-title">Search a customer<\/span><span class="turn-role">smoke<\/span><\/div>/,
     );
-    assert.match(html, /<span class="badge ko">échoué<\/span>/);
+    assert.match(
+      html,
+      /<span class="badge ko">échoué<\/span><span class="result-title">Open a customer<\/span><details class="raw result-raw"><summary>Détails techniques<\/summary><pre>The heading never showed\.<\/pre><\/details>/,
+    );
     assert.match(html, /<span class="badge warn">bloqué<\/span><span class="result-title">Delete a customer<\/span><span class="turn-role"><\/span><\/div>/);
     assert.match(html, /<span class="badge warn">skipped<\/span>/);
-    assert.match(textOf(thread(liveOf(COMPLETED))), /Verdict de l’exécution : 1 test réussi Rechercher un client par son nom Every attempt passed\.$/);
+    assert.match(
+      textOf(thread(liveOf(COMPLETED))),
+      /^Verdict de l’exécution : 1 test 1 réussi réussi Rechercher un client par son nom Chaque essai a réussi\. /,
+    );
+  });
+
+  it("keeps the verdicts where they came while the session goes on, and counts only what came", () => {
+    const html = thread(liveWith(REVIEWED, RUNNING));
+    assert.match(textOf(html), /^Plan · smoke /);
+    const failed = thread(liveWith([{ kind: "outcome", at: "09:00:00", title: "Verdicts", tests: [{ title: "Open", level: "", verdict: "failed" }] }]));
+    assert.match(failed, /<span class="outcome-tally">1 échoué<\/span>/);
+  });
+
+  it("leaves out a pass that holds nothing, but the one a session that goes on is at", () => {
+    const pass = (title: string): Step => ({ kind: "pass", at: "09:00:00", title, summary: "" });
+    const steps = [pass("Cartographie · sources"), pass("Cartographie · fiche"), note("The index is ready.", 1), pass("Plan")];
+    assert.doesNotMatch(textOf(thread(liveWith(steps))), /sources|Plan/);
+    assert.match(textOf(thread(liveWith(steps, RUNNING))), /^Cartographie · fiche The index is ready\. Plan Les agents travaillent$/);
+  });
+
+  it("folds the work of the agents in a row under one line: who worked, how many actions and failures, the refusals and notes of the harness, and their time", () => {
+    const opened: Step = {
+      kind: "tool",
+      from: "planner",
+      at: "09:00:01",
+      tool: "shop_goto",
+      title: "A ouvert /",
+      durationMs: 300,
+      look: { kind: "page", name: "/", lines: ["- heading"] },
+    };
+    const failed: Step = { kind: "tool", from: "planner", at: "09:00:02", tool: "shop_click", title: "A cliqué", outcome: "failed", durationMs: 200 };
+    const refused: Step = { kind: "verdict", at: "09:00:03", accepted: false, about: "Plan", tool: "shop_click", text: "shop_click: No.", reason: "No." };
+    const work = [opened, refused, failed, note("The source was read.", 4)];
+    const html = thread(liveWith(work));
+    assert.match(
+      html,
+      /^<section class="thread" aria-label="Fil de la session"><div class="thread-item"><details class="stretch"><summary><span class="stretch-marks"><span class="speaker-mark sm tone-ai"/,
+    );
+    assert.match(textOf(html), /^Planificateur · 2 actions · 1 échec · 1 refus du harnais · 1 note du harnais 500 ms Planificateur /);
+    assert.match(thread(liveWith(work), 0), /<details class="stretch" open="">/);
+    const harness = thread(liveWith([refused, note("The source was read.", 4)]));
+    assert.match(harness, /<span class="stretch-marks"><span class="speaker-mark sm tone-neutral"/);
+    assert.match(textOf(harness), /^1 refus du harnais · 1 note du harnais erreur /);
+    const pressed: string[] = [];
+    const [stretch] = elementsOf(
+      createElement(Thread, {
+        path: PATH,
+        frame: liveWith(work).frame,
+        lookIndex: undefined,
+        stage: "ended",
+        unfolded: [],
+        onUnfold: (key) => pressed.push(key),
+      }),
+      "details",
+    ).filter((details) => details["className"] === "stretch");
+    const toggle = stretch!["onToggle"] as (event: { currentTarget: { open: boolean } }) => void;
+    toggle({ currentTarget: { open: false } });
+    assert.deepEqual(pressed, []);
+    toggle({ currentTarget: { open: true } });
+    assert.deepEqual(pressed, ["stretch-0"]);
+    assert.match(thread({ ...liveWith(work), unfolded: ["stretch-0"] }), /<details class="stretch" open="">/);
+    const written: Step = { kind: "tool", from: "writer", at: "09:00:05", tool: "propose_test", title: "A remis le test", durationMs: 100 };
+    assert.match(textOf(thread(liveWith([opened, written]))), /^Planificateur, Rédacteur · 2 actions 400 ms /);
+  });
+
+  it("counts the failures of the actions an agent did in a row, beside what it says", () => {
+    const failed: Step = { kind: "tool", from: "planner", at: "09:00:02", tool: "shop_click", title: "A cliqué", outcome: "failed", durationMs: 200 };
+    const said: Step = { kind: "say", from: "planner", at: "09:00:03", text: "Voici le plan." };
+    assert.match(textOf(thread(liveWith([failed, failed, said]))), /2 actions 2 échecs 400 ms /);
   });
 
   it("keeps a kind of step or an agent when asked, and its links keep what the address holds", () => {
@@ -1050,9 +1225,10 @@ describe("the screen of a session", () => {
     assert.deepEqual(calls, ["say", "sayOnEnter"]);
   });
 
-  it("is headed by what was asked, and leads back to the sessions of the project", () => {
+  it("is headed by its day, what was asked left to its bubble, and leads back to the sessions of the project", () => {
     const html = screen();
-    assert.match(textOf(html), /^lakeside-tests \/ Agent \/ tester la recherche d'un client tester la recherche d'un client /);
+    assert.match(textOf(html), /^lakeside-tests \/ Agent \/ Session du 15 nov\. Session du 15 nov\. /);
+    assert.equal(countOf(html, /tester la recherche d&#x27;un client/g), 1);
     assert.equal(linksOf(html)[0], "#/agent");
   });
 

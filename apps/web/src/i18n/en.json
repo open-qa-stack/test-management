@@ -125,7 +125,8 @@
     "backToLive": "Back to live",
     "showAll": "Show everything",
     "passes": "Passes of the session",
-    "unfollow": "Stop following {{name}}"
+    "unfollow": "Stop following {{name}}",
+    "title": "Session of {{day}}"
   },
   "speakers": {
     "user": {
@@ -197,7 +198,21 @@
     "yourRequest": "Your request: ",
     "deliveredTo": "delivered to {{name}}",
     "agentsWork": "The agents are working",
-    "agentWorks": "{{name}} is working"
+    "agentWorks": "{{name}} is working",
+    "actions_one": "{{count}} action",
+    "actions_other": "{{count}} actions",
+    "actionsFailed_one": "{{count}} failure",
+    "actionsFailed_other": "{{count}} failures",
+    "refusals": "Refused ×{{count}}",
+    "technical": "Technical details",
+    "toolFailed": "An action of the agent did not succeed",
+    "summary": "Summary",
+    "passedCount_one": "{{count}} passed",
+    "passedCount_other": "{{count}} passed",
+    "failedCount_one": "{{count}} failed",
+    "failedCount_other": "{{count}} failed",
+    "otherCount_one": "{{count}} without a verdict",
+    "otherCount_other": "{{count}} without a verdict"
   },
   "count": {
     "sources_one": "{{count}} source",
@@ -246,7 +261,6 @@
   "verdict": {
     "automatic": "automatic check",
     "reviewer": "reviewing agent",
-    "details": "Details",
     "scenario": "scenario {{id}}",
     "tool": "tool {{name}}",
     "accepted": "accepted",
@@ -1211,5 +1225,54 @@
     "picked_zero": "No domain picked out of {{total}}",
     "picked_one": "1 domain picked out of {{total}}",
     "picked_other": "{{count}} domains picked out of {{total}}"
+  },
+  "harness": {
+    "configurationValid": "The configuration is valid; the session targets the environment {{environment}}.",
+    "prerequisitesSucceeded": "The prerequisites are met.",
+    "cartographySucceeded": "The cartography is done.",
+    "designSucceeded": "The design of the tests is done.",
+    "executionSucceeded": "The tests were run; their verdicts are in the summary.",
+    "summaryWritten": "The summary of the session is written.",
+    "cardKept": "The card of {{source}} is up to date; it is kept.",
+    "domainFileKept": "The file of the domain {{domain}} is up to date; it is kept.",
+    "indexKept": "The index of the domains is complete and up to date; it is kept.",
+    "scenarioOpened": "The scenario {{scenario}} is opened; its test will be {{test}}.",
+    "testWritten": "The test {{test}} is written.",
+    "testPassed": "The test {{test}} was run: it passes.",
+    "testFailed": "The test {{test}} was run: it fails.",
+    "callsBeyondSheet": "Scenario {{scenario}}: calls beyond its sheet: {{count}}.",
+    "callBeyondSheet": "Scenario {{scenario}}: after the failed run {{run}}, the agent used {{tool}}, beyond its sheet.",
+    "planWritten": "The plan is saved in {{file}}.",
+    "designWritten": "The state of the design is saved in {{file}}.",
+    "designWrittenNothing": "The state of the design is saved in {{file}}; no new test was written, and nothing was committed.",
+    "testsCommitted": "The tests are committed on the branch {{branch}}; the active branch of the test repository is {{active}}.",
+    "planAcceptedEmpty": "The plan is accepted, without any scenario.",
+    "planAccepted": "The plan is accepted: {{scenarios}}.",
+    "noTestEmptyPlan": "No test was written: the plan holds no scenario, and says what of the request no test can do.",
+    "briefCovered": "The harness asks for no more scenarios: the agent says the request is covered.",
+    "onlyDuplicates": "The harness asks for no more scenarios: the last ones proposed were duplicates, and the agent has nothing new to verify.",
+    "briefUnfeasible": "The harness asks for no more scenarios: the agent says no test can do what the request expects.",
+    "askedConfirmation": "The harness asked the agent to confirm that the test of {{scenario}} fails because of the application, before its runs are spent.",
+    "setAsideByHarness": "The scenario {{scenario}} is set aside by the harness ({{rule}}): it repeats {{of}}. {{reason}}",
+    "setAsideByReviewer": "The scenario {{scenario}} is set aside by the plan reviewer: it repeats {{of}}. {{reason}}",
+    "answerLeftOut": "The harness left out an answer of the plan reviewer: {{scenario}} as a duplicate of {{of}}.",
+    "coherenceFault": "The coherence reviewer finds fault with the test of {{scenario}}: {{remark}}",
+    "codeFault": "The code reviewer finds fault with the test of {{scenario}}: {{remark}}",
+    "sharedLocator": "The harness warned the agent: {{count}} elements of the page answer the same locator, which shows {{shown}}.",
+    "allTestsRun": "The {{designed}} tests designed are run; none is left out.",
+    "testsRun": "{{run}} of the {{designed}} tests designed are run; left out as unfinished, duplicate or unfeasible: {{left}}.",
+    "verdictPassed": "Passed: {{title}}.",
+    "verdictFailed": "Failed: {{title}}.",
+    "everyAttemptPassed": "Every attempt passed.",
+    "planRefusedByHarness": "The harness refuses the plan",
+    "planRefused": "The plan is refused",
+    "planUncovered": "The plan does not cover the whole request",
+    "noTestWritten": "No test was written",
+    "rows": {
+      "cardKept_one": "The card of {{count}} source is up to date; it is kept.",
+      "cardKept_other": "The cards of {{count}} sources are up to date; they are kept.",
+      "domainFileKept_one": "The file of {{count}} domain is up to date; it is kept.",
+      "domainFileKept_other": "The files of {{count}} domains are up to date; they are kept."
+    }
   }
 }

@@ -4,6 +4,7 @@ import { Badge, type BadgeTone } from "../ui/badge.tsx";
 import { Trans } from "react-i18next/TransWithoutContext";
 import { i18n, t } from "../i18n/i18n.ts";
 import { identityOf } from "./agents.ts";
+import { harnessText } from "./harness-words.ts";
 import { LongText } from "./long-text.tsx";
 import { SpeakerMark } from "./speaker-mark.tsx";
 
@@ -24,7 +25,7 @@ interface VerdictCardProps {
   readonly at: string;
   /** What the verdict says. */
   readonly children: ReactNode;
-  /** What it was told with, folded under “Details”. */
+  /** What it was told with, folded under “Technical details”. */
   readonly details: ReactNode;
 }
 
@@ -55,7 +56,7 @@ function VerdictCard({ author, active, verdict, state, code, about, at, children
       <p className="verdict-about">{about.join(" · ")}</p>
       {children}
       <details className="raw">
-        <summary>{t("verdict.details")}</summary>
+        <summary>{t("thread.technical")}</summary>
         {details}
       </details>
     </article>
@@ -84,8 +85,9 @@ export interface HarnessVerdictProps {
 
 /**
  * A verdict of the harness: accepted on evidence, or refused with the gate that refused, the scenario and the tool
- * it is about, what was refused, then why and what to do, in full; the page it quotes folded under its address, and
- * its text as the harness wrote it under “Details”.
+ * it is about, what was refused in the words of the console, then why and what to do, in full; the page it quotes
+ * folded under its address, and its text as the harness wrote it under “Technical details”. The error a tool
+ * answered, which no gate refused with, is said in a sentence: its raw text is read under the technical details.
  *
  * @param props - The step, its rank, and whether its reason is unfolded.
  * @returns The card.
@@ -94,6 +96,7 @@ export function HarnessVerdict({ step, index, open, onUnfold }: HarnessVerdictPr
   const verdict: readonly [BadgeTone, string] = step.accepted
     ? ["ok", t("verdict.accepted")]
     : ["ko", t(step.code === undefined ? "verdict.error" : "verdict.refused")];
+  const raw = step.tool !== undefined && step.code === undefined;
   return (
     <VerdictCard
       author="harness"
@@ -105,8 +108,14 @@ export function HarnessVerdict({ step, index, open, onUnfold }: HarnessVerdictPr
       at={step.at}
       details={<pre>{step.text}</pre>}
     >
-      {step.subject !== undefined && <p className="verdict-subject">{step.subject}</p>}
-      <LongText id={`verdict-text-${index}`} className="verdict-text" text={step.reason} open={open} onUnfold={onUnfold} />
+      {raw ? (
+        <p className="verdict-subject">{t("thread.toolFailed")}</p>
+      ) : (
+        <>
+          {step.subject !== undefined && <p className="verdict-subject">{harnessText(step.subject)}</p>}
+          <LongText id={`verdict-text-${index}`} className="verdict-text" text={step.reason} open={open} onUnfold={onUnfold} />
+        </>
+      )}
       {step.page !== undefined && (
         <details className="raw">
           <summary>
@@ -162,18 +171,27 @@ function RemarkView({ remark }: { readonly remark: Remark }): ReactNode {
 
 /**
  * The verdict of a reviewer, in the form of every verdict: who reviewed what, what it came to, and each of its
- * remarks in full. The call it was handed in with — the tool, what the harness answered, the word the reviewer
- * replied — is under “Details”, for whoever looks into the working of the review.
+ * remarks in full — one in sight, several folded under their count. The call it was handed in with — the tool,
+ * what the harness answered, the word the reviewer replied — is under “Technical details”, for whoever looks into
+ * the working of the review.
  *
  * @param props - The step, and whether the reviewer is handing it in.
  * @returns The card.
  */
 export function ReviewVerdict({ step, running }: { readonly step: ReviewStep; readonly running: boolean }): ReactNode {
+  const verdict = reviewVerdictOf(step, running);
+  const remarks = (
+    <ol className="remarks">
+      {step.remarks.map((remark, index) => (
+        <RemarkView key={index} remark={remark} />
+      ))}
+    </ol>
+  );
   return (
     <VerdictCard
       author={step.from}
       active={running}
-      verdict={reviewVerdictOf(step, running)}
+      verdict={verdict}
       state="review"
       about={[reviewedOf(step), identityOf(step.from).role]}
       at={step.at}
@@ -196,12 +214,12 @@ export function ReviewVerdict({ step, running }: { readonly step: ReviewStep; re
         </dl>
       }
     >
-      {step.remarks.length > 0 && (
-        <ol className="remarks">
-          {step.remarks.map((remark, index) => (
-            <RemarkView key={index} remark={remark} />
-          ))}
-        </ol>
+      {step.remarks.length === 1 && remarks}
+      {step.remarks.length > 1 && (
+        <details className="raw remarks-fold">
+          <summary>{verdict[1]}</summary>
+          {remarks}
+        </details>
       )}
     </VerdictCard>
   );

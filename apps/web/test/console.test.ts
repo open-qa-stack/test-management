@@ -127,10 +127,10 @@ describe("the console", () => {
         project: { name: "lakeside-tests", applications: [] },
         ...(sessions === undefined ? {} : { sessions }),
       });
-      assert.match(pageOf(html), /^lakeside-tests \/ Agent \/ tester la recherche d'un client tester la recherche d'un client en direct/);
+      assert.match(pageOf(html), /^lakeside-tests \/ Agent \/ Session du 15 nov\. Session du 15 nov\. en direct/);
       assert.match(html, /<section class="thread" aria-label="Fil de la session">/);
     }
-    assert.match(pageOf(consoleAt(`${SESSION}?show=talk`, { live: liveOf(COMPLETED) })), /^Projet \/ Agent \/ tester la recherche d'un client/);
+    assert.match(pageOf(consoleAt(`${SESSION}?show=talk`, { live: liveOf(COMPLETED) })), /^Projet \/ Agent \/ Session du 15 nov\. /);
   });
 
   it("names the project by a word of its own while the instance has none", () => {

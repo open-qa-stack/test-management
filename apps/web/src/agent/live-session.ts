@@ -20,8 +20,8 @@ export interface SessionControls {
   readonly say: (event: FormEvent<HTMLFormElement>) => void;
   /** Asks the instance to stop the session: what the confirmation of a stop does, and nothing else. */
   readonly stop: () => void;
-  /** Unfolds a long text of the thread, by the rank of its step in the script, to be read to the end; folds it again when it is. */
-  readonly unfold: (index: number) => void;
+  /** Unfolds a part of the thread, by its key — a long text to be read to the end, a row of actions or of refusals, a stretch of work —; folds it again when it is. */
+  readonly unfold: (key: string) => void;
   /** Hears a key of the field of the composer: Enter sends, Shift+Enter starts a new line. */
   readonly sayOnEnter: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
 }
@@ -40,7 +40,7 @@ export interface LiveSession {
   readonly saying: Sending;
   /** Where the request of the person to stop it is. */
   readonly stopping: Stopping;
-  /** The ranks, in its script, of the long texts the person unfolded. */
-  readonly unfolded: readonly number[];
+  /** What of its thread the person unfolded, by key. */
+  readonly unfolded: readonly string[];
   readonly controls: SessionControls;
 }

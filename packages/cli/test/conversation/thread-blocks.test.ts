@@ -40,6 +40,14 @@ describe("the blocks of a thread", () => {
     assert.deepEqual(blocksOf([NOTE, NOTE]).map(summaryOf), ["note*", "note"]);
   });
 
+  it("keep each refusal of a row of refusals alike on its own", () => {
+    const refusal: Step = { kind: "verdict", at: "09:00:04", accepted: false, about: "Plan", code: "PLAN-SHOWN", text: "No.", reason: "No." };
+    assert.deepEqual(blocksOf([refusal, { ...refusal, scenario: "b" }]), [
+      { kind: "verdict", step: refusal },
+      { kind: "verdict", step: { ...refusal, scenario: "b" } },
+    ]);
+  });
+
   it("carry who speaks, and for a message the agent it reached once one took it", () => {
     const blocks = blocksOf(stepsOf([...THREAD, { type: "message_delivered", message: 1, agent: "writer" }]));
     assert.deepEqual(

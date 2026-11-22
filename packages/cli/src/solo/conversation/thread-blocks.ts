@@ -62,6 +62,9 @@ export function blocksOf(steps: readonly Step[]): Block[] {
         );
       case "notes":
         return turn.items.map(({ step }, index) => ({ kind: "note", heads: index === 0, step: step as NoteStep | RepeatedNoteStep }));
+      // A terminal keeps every refusal on its line: what it writes for good is never folded.
+      case "refusals":
+        return turn.items.map(({ step }) => ({ kind: "verdict", step: step as VerdictStep }));
       case "card": {
         const step = turn.shown.step as Card;
         return [{ kind: step.kind, step } as Block];

@@ -247,6 +247,7 @@ describe("what an agent had before its eyes", () => {
     const page = await app().open(1440, SESSION, new PlayedInstance().api);
     try {
       await page.getByText("I write the test now.").waitFor();
+      await page.getByText("2 actions", { exact: true }).click();
       await page.getByRole("link", { name: /voir la page consultée/ }).click();
       const panel = page.getByRole("dialog", { name: "Page consultée customer-management · http://localhost:3020/" });
       await panel.waitFor();
@@ -271,6 +272,7 @@ describe("what an agent had before its eyes", () => {
       try {
         await page.setViewportSize({ width, height: 420 });
         await page.getByText("I write the test now.").waitFor();
+        await page.getByText("2 actions", { exact: true }).click();
         const eye = page.getByRole("link", { name: /voir la page consultée/ });
         for (const [name, close] of closings) {
           await eye.click();
@@ -294,6 +296,7 @@ describe("what an agent had before its eyes", () => {
       try {
         await page.setViewportSize({ width, height: 420 });
         await page.getByText("I write the test now.").waitFor();
+        await page.getByText("2 actions", { exact: true }).click();
         await page.evaluate(() => window.scrollTo(0, 120));
         await page.getByRole("link", { name: /voir la page consultée/ }).click();
         const panel = page.getByRole("dialog");
@@ -418,6 +421,7 @@ describe("the thread of a session", () => {
       try {
         const text = page.locator(".verdict-text");
         const button = page.getByRole("button", { name: "Lire la suite" });
+        await page.locator(".refusals > summary").click();
         await button.waitFor();
         const folded = await text.evaluate((element) => [element.scrollHeight > element.clientHeight, element.clientHeight] as const);
         assert.equal(folded[0], true, `${width}: the end is hidden while folded`);
@@ -495,7 +499,7 @@ describe("what the person says to the agents while they work", () => {
       instance.deliver(1, "writer");
       await sent.getByText("remis à Rédacteur").waitFor();
       assert.match(await sent.locator(".request").innerText(), /^Votre message :\s+sans le profil$/);
-      assert.equal(await page.getByRole("heading", { level: 1 }).innerText(), "tester la recherche d'un client");
+      assert.equal(await page.getByRole("heading", { level: 1 }).innerText(), "Session du 15 nov.");
       assert.equal(await page.title(), "tester la recherche d'un client · Open QA Stack");
     } finally {
       await page.close();
@@ -759,7 +763,7 @@ describe("the console in a browser", () => {
       await page.getByRole("link", { name: /tester la recherche d'un client/ }).click();
       await page.getByText("I write the test now.").waitFor();
       assert.equal(new URL(page.url()).hash, `#/agent/sessions/${SESSION_ID}`);
-      assert.equal(await page.getByRole("heading", { level: 1 }).innerText(), "tester la recherche d'un client");
+      assert.equal(await page.getByRole("heading", { level: 1 }).innerText(), "Session du 15 nov.");
       await page.goBack();
       await page.getByRole("heading", { name: "Qu’est-ce qu’on teste ?" }).waitFor();
     } finally {
@@ -831,7 +835,7 @@ describe("the console in a browser", () => {
     const page = await app().open(1280, `#/agent/sessions/${SESSION_ID}`, instance.api);
     try {
       await page.getByText("I write the test now.").waitFor();
-      assert.equal(await page.getByRole("heading", { level: 1 }).innerText(), "tester la recherche d'un client");
+      assert.equal(await page.getByRole("heading", { level: 1 }).innerText(), "Session du 15 nov.");
       await page.getByRole("link", { name: "Agent", exact: true }).first().click();
       await page.getByText("Aucune session pour l’instant").waitFor();
     } finally {
@@ -886,7 +890,7 @@ describe("the console in a browser", () => {
       await link.click();
       await page.getByText("I write the test now.").waitFor();
       assert.equal(await page.title(), "tester la recherche d'un client · Open QA Stack");
-      assert.equal(await focused(), "H1: tester la recherche d'un client");
+      assert.equal(await focused(), "H1: Session du 15 nov.");
       await page.getByRole("link", { name: "Échanges" }).click();
       await page.waitForURL(/show=talk/);
       assert.equal(await focused(), "A: Échanges");
@@ -911,7 +915,7 @@ describe("the console in a browser", () => {
     try {
       await page.getByRole("textbox", { name: "Dites aux agents quoi tester" }).fill("  vérifier le changement d'adresse  ");
       await page.getByRole("button", { name: "Démarrer une session" }).click();
-      await page.getByRole("heading", { level: 1, name: "vérifier le changement d'adresse" }).waitFor();
+      await page.getByRole("heading", { level: 1, name: /^Session du / }).waitFor();
       assert.equal(new URL(page.url()).hash, `#/agent/sessions/${OPENED_ID}`);
       assert.deepEqual(instance.asked, [{ environment: "local", request: "vérifier le changement d'adresse" }]);
       await page.locator(".thread .request", { hasText: "vérifier le changement d'adresse" }).waitFor();
@@ -1193,6 +1197,7 @@ describe("the code of the console is covered in full", () => {
         instance.unlisted = false;
         await page.getByRole("link", { name: /tester la recherche d'un client/ }).click();
         await page.getByText("I write the test now.").waitFor();
+        await page.getByText("2 actions", { exact: true }).click();
         await page
           .getByRole("link", { name: /voir la page consultée/ })
           .first()
@@ -1202,6 +1207,7 @@ describe("the code of the console is covered in full", () => {
         await page.keyboard.press("Tab");
         await page.keyboard.press("Escape");
         await page.getByRole("dialog").waitFor({ state: "detached" });
+        await page.locator(".refusals > summary").click();
         await page.getByRole("button", { name: "Lire la suite" }).click();
         await page.getByRole("button", { name: "Replier", exact: true }).waitFor();
         await page.getByRole("button", { name: "Rejouer" }).click();
@@ -1247,7 +1253,7 @@ describe("the code of the console is covered in full", () => {
         await page.getByText("La session est de nouveau en cours").waitFor();
         instance.refusal = undefined;
         await page.getByRole("button", { name: "Démarrer une session" }).click();
-        await page.getByRole("heading", { level: 1, name: "vérifier le changement d'adresse" }).waitFor();
+        await page.locator(".thread .request", { hasText: "vérifier le changement d'adresse" }).waitFor();
         // The menu folds as the person asks, and stays so at the next visit; a trace opens with it folded, whatever is kept.
         await page.getByRole("button", { name: "Replier le menu" }).click();
         assert.equal(await page.evaluate(() => window.localStorage.getItem("oqas.navigation")), "folded");
