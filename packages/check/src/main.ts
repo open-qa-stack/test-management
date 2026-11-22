@@ -1,3 +1,6 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Check } from "./check.ts";
 import { checkOptions, USAGE, type PackageChoice } from "./check-options.ts";
 import { CoverageDirectiveStep } from "./coverage-directive-step.ts";
@@ -29,7 +32,15 @@ const tests =
     ? []
     : [new TestStep(root, packages, (output) => process.stdout.write(output), { keep: process.env[COVERAGE_REPORT], chosen, mode: options.tests })];
 const check = new Check([...(options.before ? before : []), ...tests], (line) => process.stdout.write(`${line}\n`));
-process.exitCode = await check.run();
+// Every program the check starts keeps its temporary files in one folder of the run, removed once the run ends: the
+// folders a test leaves behind do not pile up on the disk from one run to the next.
+const scratch = await mkdtemp(join(tmpdir(), "oqas-check-"));
+for (const variable of ["TMPDIR", "TMP", "TEMP"]) process.env[variable] = scratch;
+try {
+  process.exitCode = await check.run();
+} finally {
+  await rm(scratch, { recursive: true, force: true });
+}
 
 /** Finds the packages the check tests: every one, those named, or those a change touches, each with its dependents. */
 async function choice(asked: PackageChoice): Promise<ReadonlySet<string> | undefined> {
