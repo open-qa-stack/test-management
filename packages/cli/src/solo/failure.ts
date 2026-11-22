@@ -1,10 +1,28 @@
-import { SecretRefusedError, SessionEndedError, UnknownSecretError, UnknownSessionError } from "@open-qa-stack/domain";
+import {
+  SecretRefusedError,
+  SessionEndedError,
+  UnknownCaptureError,
+  UnknownExecutionError,
+  UnknownSecretError,
+  UnknownSessionError,
+  UnknownTraceError,
+} from "@open-qa-stack/domain";
 import { DatabaseUnavailableError, PendingMigrationsError } from "@open-qa-stack/store";
 import { configurationRefusal } from "./configuration-lines.ts";
 import { UsageError } from "./usage-error.ts";
 
 /** The refusals a person can act on: what they asked cannot be done as it is asked. */
-const REFUSALS = [UsageError, UnknownSessionError, SessionEndedError, PendingMigrationsError, UnknownSecretError, SecretRefusedError];
+const REFUSALS = [
+  UsageError,
+  UnknownSessionError,
+  SessionEndedError,
+  PendingMigrationsError,
+  UnknownSecretError,
+  SecretRefusedError,
+  UnknownExecutionError,
+  UnknownTraceError,
+  UnknownCaptureError,
+];
 
 /** Why something the command was asked did not happen, and how much the person can do about it. */
 export interface Failure {

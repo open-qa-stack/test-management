@@ -3,15 +3,18 @@ import { join } from "node:path";
 import { CONFIG_FILE_NAME, DATABASE_FILE_NAME, DEFAULT_REPOSITORY, type Model } from "@open-qa-stack/domain";
 import {
   Configuration,
+  Executions,
   FileSecretStore,
   KnowledgeDocuments,
   KnowledgeMapping,
   KnowledgeSources,
   liveRuntime,
   ModelConnection,
+  RepositoryTests,
   Secrets,
   Sessions,
   START_ADVICE,
+  TestReadings,
   type Environment,
   type EnvironmentSource,
   type SessionsHost,
@@ -33,6 +36,12 @@ export interface Operations {
   readonly sources: KnowledgeSources;
   /** Where the cartography of the knowledge stands. */
   readonly mapping: KnowledgeMapping;
+  /** The tests of the test repository. */
+  readonly tests: RepositoryTests;
+  /** The tests of the test repository read in steps, from the runs that ran them. */
+  readonly readings: TestReadings;
+  /** The executions of tests the instance keeps. */
+  readonly executions: Executions;
   /**
    * Stops hosting, when the command hosted a session, and closes the database.
    *
@@ -107,6 +116,9 @@ export async function openOperations(
     secrets,
     sources: new KnowledgeSources(repository, secrets, instance.documents),
     mapping: new KnowledgeMapping(repository, configuration, instance.sessions),
+    tests: new RepositoryTests(repository, instance.configuration),
+    readings: new TestReadings(repository, instance.configuration, instance.executions),
+    executions: new Executions(instance.executions),
     close,
   };
 }

@@ -1,3 +1,5 @@
+import { writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { configurationText, ExitCode, isStoredDocuments, type CartographyState, type ConfigurationView, type ExitCodeValue } from "@open-qa-stack/domain";
 import { playwrightVersion } from "@open-qa-stack/tools";
 import type { Session } from "@open-qa-stack/domain/sessions";
@@ -13,6 +15,7 @@ import { RepositoryInit } from "./repository-init.ts";
 import { MISSING_ADVICE, secretLine } from "./secret-lines.ts";
 import { listedLine, summaryLines } from "./session-lines.ts";
 import { referredSession } from "./session-reference.ts";
+import { anomalyLine, executionLines, executionPageLines, readingLines, testExecutionLine, testLine, versionLine } from "./test-lines.ts";
 import { typedValue } from "./typed-value.ts";
 import { UsageError } from "./usage-error.ts";
 import type { CommandIo, CommandOutput } from "./command-io.ts";
@@ -30,11 +33,11 @@ export interface Asked<Name extends Command["name"]> {
  * slash, in the conversation. Those that run or follow a session, serve the console or draw a screen are not.
  */
 export type PrintingCommand =
-  | Extract<Command, { name: "init" | "config" | "knowledge" | "secrets" | "sessions" | "show" | "stop" }>
+  | Extract<Command, { name: "init" | "config" | "knowledge" | "secrets" | "sessions" | "show" | "stop" | "tests" | "executions" }>
   | Extract<Command, { name: "model"; action: "status" | "set" }>;
 
 /** The names of the commands that print, as {@link isPrinting} reads them. */
-const PRINTING: ReadonlySet<Command["name"]> = new Set(["init", "config", "knowledge", "secrets", "sessions", "show", "stop", "model"]);
+const PRINTING: ReadonlySet<Command["name"]> = new Set(["init", "config", "knowledge", "secrets", "sessions", "show", "stop", "model", "tests", "executions"]);
 
 /**
  * Tells whether a command does what it is asked and ends at once, printing what it did.
@@ -90,7 +93,91 @@ export async function runPrinting(
       return await shown({ sessions, command, options, io });
     case "stop":
       return await stopped({ sessions, command, options, io });
+    case "tests":
+      // The tests are read with the configuration of oqas.json, which says where the applications and the runs are.
+      await configuration.inStep();
+      return await tested(operations, command, { options, io });
+    case "executions":
+      return await executed(operations, command, { options, io });
   }
+}
+
+/** The lines of a list, or what says it is empty. */
+function linesOr(lines: readonly string[], none: string): string {
+  return lines.length === 0 ? none : lines.join("\n");
+}
+
+/** How many executions `oqas executions` lists at a time. */
+const EXECUTIONS_PAGE = 20;
+
+/**
+ * `oqas tests`: lists the tests of the test repository; with a test, reads it in steps, lists what came of its file in
+ * the latest executions or the versions of its tests, or writes its trace or the capture of one of its steps to a file.
+ */
+async function tested(
+  { tests, readings, executions }: Pick<Operations, "tests" | "readings" | "executions">,
+  command: Extract<Command, { name: "tests" }>,
+  printing: Pick<Asked<"tests">, "options" | "io">,
+): Promise<ExitCodeValue> {
+  const { io } = printing;
+  switch (command.action) {
+    case "list": {
+      const listed = await tests.listed();
+      const lines = listed.items.length === 0 ? ["The test repository holds no test yet."] : listed.items.map(testLine);
+      print(printing, [...lines, ...listed.anomalies.map(anomalyLine)].join("\n"), listed);
+      return ExitCode.passed;
+    }
+    case "read": {
+      const reading = await readings.read(command.path);
+      print(printing, readingLines(reading).join("\n"), reading);
+      return ExitCode.passed;
+    }
+    case "executions": {
+      const items = await executions.ofFile(command.path);
+      print(printing, linesOr(items.map(testExecutionLine), `No execution the instance keeps ran ${command.path}.`), { items });
+      return ExitCode.passed;
+    }
+    case "versions": {
+      const items = await executions.versions(command.path);
+      print(printing, linesOr(items.map(versionLine), `The instance keeps no version of ${command.path}.`), { items });
+      return ExitCode.passed;
+    }
+    case "trace": {
+      const file = resolve(io.cwd, command.file);
+      await writeFile(file, await readings.trace(command.path));
+      print(printing, `The trace of ${command.path} is written to ${file}: npx playwright show-trace opens it.`, { path: command.path, file });
+      return ExitCode.passed;
+    }
+    case "capture": {
+      const file = resolve(io.cwd, command.file);
+      const { contentType, bytes } = await readings.capture(command.path, command.step);
+      await writeFile(file, bytes);
+      print(printing, `The capture of step ${command.step} of ${command.path} is written to ${file} (${contentType}).`, {
+        path: command.path,
+        step: command.step,
+        file,
+        contentType,
+      });
+      return ExitCode.passed;
+    }
+  }
+}
+
+/** `oqas executions`: lists the executions of tests, the latest first, a page at a time; with `show`, prints one. */
+async function executed(
+  { executions }: Pick<Operations, "executions">,
+  command: Extract<Command, { name: "executions" }>,
+  printing: Pick<Asked<"executions">, "options" | "io">,
+): Promise<ExitCodeValue> {
+  if (command.action === "show") {
+    const execution = await executions.get(command.execution);
+    print(printing, executionLines(execution).join("\n"), execution);
+    return ExitCode.passed;
+  }
+  const { outcome, before } = command;
+  const page = await executions.page({ limit: EXECUTIONS_PAGE, ...(outcome === undefined ? {} : { outcome }), ...(before === undefined ? {} : { before }) });
+  print(printing, executionPageLines(page).join("\n"), page);
+  return ExitCode.passed;
 }
 
 /**

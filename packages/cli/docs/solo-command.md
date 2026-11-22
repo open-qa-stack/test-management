@@ -112,12 +112,14 @@ While the session goes on, what you type is said to its agents, as [`oqas say`](
 | `/model` | Sets the connection to the model step by step, as `oqas model` does: see [The model](#the-model). Followed by `status` or `set` and its options, it runs `oqas model status` or `oqas model set`. |
 | `/config show\|import\|export` | Runs [`oqas config`](#the-configuration) with the same words. |
 | `/knowledge list\|mapping\|check\|add-document …` | Runs [`oqas knowledge`](#the-knowledge) with the same words. |
+| `/tests …` | Runs [`oqas tests`](#the-tests-and-their-executions) with the same words. |
+| `/executions …` | Runs [`oqas executions`](#the-tests-and-their-executions) with the same words. |
 | `/secrets` | Runs [`oqas secrets`](#the-values-of-the-variables): the variables the configuration names, and where the value of each comes from. A value is saved with `oqas secrets set` in another terminal, since the conversation would show it as it is typed; the key of the model is saved with `/model`. |
 | `/init` | Runs [`oqas --init`](#initialising-a-test-repository). |
 | `/help` | Lists the commands and the keys. |
 | `/quit` | Leaves the conversation. |
 
-`/config`, `/knowledge`, `/secrets`, `/init` and `/model` followed by words run the code of the command, on the operations the conversation holds, and write the same lines in the thread — in English, as the command writes them —, marked with ✗ when the command did not do all it was asked. What the command refuses, the conversation refuses on the line under the input, with the same words, and so does it refuse `--repository`, `--output` and `--follow`, which it sets itself.
+`/config`, `/knowledge`, `/tests`, `/executions`, `/secrets`, `/init` and `/model` followed by words run the code of the command, on the operations the conversation holds, and write the same lines in the thread — in English, as the command writes them —, marked with ✗ when the command did not do all it was asked. What the command refuses, the conversation refuses on the line under the input, with the same words, and so does it refuse `--repository`, `--output` and `--follow`, which it sets itself.
 
 A slash lists the commands as you type; Tab completes the first of them, and the start of a name is enough when no other command shares it.
 
@@ -343,6 +345,16 @@ server-log  not tested: logs are read while a session runs
 It exits with `0` when each answers, with `4` when one does not, and with `3` when the configuration declares no source, or not the one named. With `--output json`, it prints `{"checks":[{"source":…,"check":…}]}`.
 
 `oqas knowledge mapping` tells where the cartography stands, as [the API tells it](../../api/docs/knowledge.md#where-the-cartography-stands): each source mapped, mapped in part, being mapped or waiting, and the index. It exits with `0`.
+
+## The tests and their executions
+
+`oqas tests` lists the tests of the test repository, a line each: the path of its file, its titles, and its level, domain, functionality and case when its tags give them; then the files whose tests cannot all be listed, two tests that share a title or a syntax error. The configuration in force is brought in step with `oqas.json` first, which says where the applications and the runs are. A test is named by the path of its file, relative to the test repository:
+
+- `oqas tests read <test>` reads it in steps, as the latest run that ran it reported it: what came of it, each step with its state and duration, what the failed assertion expected and received, and whether a trace is kept.
+- `oqas tests trace <test> <file>` writes that trace to the file, which `npx playwright show-trace` opens; `oqas tests capture <test> <step> <file>` writes the capture the run attached for the step. Both are refused with `3` when the run kept none.
+- `oqas tests executions <test>` lists what came of the tests of the file in the latest executions that ran them; `oqas tests versions <test>` lists their versions, the latest first.
+
+`oqas executions` lists the executions of tests the instance keeps, the latest first, twenty at a time: where each comes from — a session, a campaign or a launch by hand —, when it ran and how many of its tests passed. `--outcome failing` keeps those where a test failed, `--outcome passing` those where none did, and `--before <execution>` starts the page after an execution. `oqas executions show <execution>` prints one, with the verdict and the version of each test, and where and why a test failed. With `--output json`, each command prints what the API answers for the same question.
 
 ## Speaking to a session
 

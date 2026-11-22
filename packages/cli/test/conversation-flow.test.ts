@@ -218,6 +218,8 @@ describe("oqas, without a command, in a terminal", () => {
     await screen.sees(secrets.out.trimEnd());
     await screen.enter("/knowledge mapping");
     await screen.sees(mapping.out.trimEnd());
+    await screen.enter("/executions");
+    await screen.sees("No execution of tests to list.");
     // What the command refuses, the conversation runs and marks, with what the command says of it.
     await screen.enter("/knowledge check nowhere");
     await screen.sees("✗ The configuration in force declares no knowledge source nowhere; oqas knowledge list lists them.");

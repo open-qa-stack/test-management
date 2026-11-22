@@ -111,6 +111,8 @@
     "model": "Régler la connexion au modèle pas à pas ; suivi de status ou set, comme oqas model",
     "config": "show, import ou export : la configuration en vigueur et oqas.json, comme oqas config",
     "knowledge": "list, mapping, check ou add-document : les sources de connaissance, comme oqas knowledge",
+    "tests": "read, executions, versions, trace ou capture : les tests du dépôt, comme oqas tests",
+    "executions": "Les exécutions de tests, la plus récente d’abord, ou show pour l’une d’elles, comme oqas executions",
     "secrets": "Lister les variables que la configuration nomme, et d’où vient la valeur de chacune",
     "init": "Préparer le dépôt de tests en projet Playwright, comme oqas --init",
     "help": "Lister les commandes et les touches",

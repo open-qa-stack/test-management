@@ -45,14 +45,14 @@ const COMMANDS: Readonly<Record<OperationId, readonly string[] | Missing>> = {
   "KnowledgeDomains.list": { missing: "no command lists the domains" },
   "KnowledgeSources.check": ["knowledge", "check"],
   "KnowledgeMapping.state": ["knowledge", "mapping"],
-  "RepositoryTests.listed": { missing: "no command lists the tests of the repository" },
-  "TestReadings.read": { missing: "no command reads a test" },
-  "TestReadings.trace": { missing: "no command gives the trace of a test" },
-  "TestReadings.capture": { missing: "no command gives the capture of a step" },
-  "Executions.page": { missing: "no command lists the executions" },
-  "Executions.get": { missing: "no command prints an execution" },
-  "Executions.ofFile": { missing: "no command lists the executions of a test" },
-  "Executions.versions": { missing: "no command lists the versions of a test" },
+  "RepositoryTests.listed": ["tests"],
+  "TestReadings.read": ["tests", "read", "orders.spec.ts"],
+  "TestReadings.trace": ["tests", "trace", "orders.spec.ts", "trace.zip"],
+  "TestReadings.capture": ["tests", "capture", "orders.spec.ts", "2", "step-2.png"],
+  "Executions.page": ["executions", "--outcome", "failing"],
+  "Executions.get": ["executions", "show", "e"],
+  "Executions.ofFile": ["tests", "executions", "orders.spec.ts"],
+  "Executions.versions": ["tests", "versions", "orders.spec.ts"],
   "Campaigns.plan": { missing: "no command plans a campaign" },
   "Campaigns.list": { missing: "no command lists the campaigns" },
   "Campaigns.progress": { missing: "no command tells the progress of a campaign" },
@@ -102,14 +102,14 @@ const CONVERSATION: Readonly<Record<OperationId, InConversation>> = {
   "KnowledgeDomains.list": { missing: "no command lists the domains" },
   "KnowledgeSources.check": { typed: "/knowledge check" },
   "KnowledgeMapping.state": { typed: "/knowledge mapping" },
-  "RepositoryTests.listed": { missing: "no command lists the tests of the repository" },
-  "TestReadings.read": { missing: "no command reads a test" },
-  "TestReadings.trace": { missing: "no command gives the trace of a test" },
-  "TestReadings.capture": { missing: "no command gives the capture of a step" },
-  "Executions.page": { missing: "no command lists the executions" },
-  "Executions.get": { missing: "no command prints an execution" },
-  "Executions.ofFile": { missing: "no command lists the executions of a test" },
-  "Executions.versions": { missing: "no command lists the versions of a test" },
+  "RepositoryTests.listed": { typed: "/tests" },
+  "TestReadings.read": { typed: "/tests read orders.spec.ts" },
+  "TestReadings.trace": { typed: "/tests trace orders.spec.ts trace.zip" },
+  "TestReadings.capture": { typed: "/tests capture orders.spec.ts 2 step-2.png" },
+  "Executions.page": { typed: "/executions --outcome failing" },
+  "Executions.get": { typed: "/executions show e" },
+  "Executions.ofFile": { typed: "/tests executions orders.spec.ts" },
+  "Executions.versions": { typed: "/tests versions orders.spec.ts" },
   "Campaigns.plan": { missing: "no command plans a campaign" },
   "Campaigns.list": { missing: "no command lists the campaigns" },
   "Campaigns.progress": { missing: "no command tells the progress of a campaign" },
@@ -134,7 +134,7 @@ describe("the operations of the engine, as the command offers them", () => {
 
   // A gap closed lowers this count, and a gap opened is refused: it only goes down.
   it("are missing no more than they were", () => {
-    assert.equal(missingIn(COMMANDS).length, 25);
+    assert.equal(missingIn(COMMANDS).length, 17);
   });
 });
 
@@ -151,6 +151,6 @@ describe("the operations of the engine, as the conversation offers them", () => 
 
   // A gap closed lowers this count, and a gap opened is refused: it only goes down.
   it("are missing no more than they were", () => {
-    assert.equal(missingIn(CONVERSATION).length, 25);
+    assert.equal(missingIn(CONVERSATION).length, 17);
   });
 });
