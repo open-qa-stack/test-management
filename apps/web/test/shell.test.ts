@@ -46,7 +46,7 @@ function marked(hash: string): string[] {
 describe("the shell", () => {
   it("frames the page between the top bar and the navigation", () => {
     const html = shell("#/");
-    assert.match(textOf(html), /^✓ Open QA Stack Travail Agent /);
+    assert.match(textOf(html), /^✓ Open QA Stack Agent Menu Travail Agent /);
     assert.match(
       html,
       /<aside id="shell-sidebar" class="shell-sidebar"><nav class="nav" aria-label="Navigation principale">.*<\/aside><main class="shell-page"><p>page<\/p><\/main><\/div>$/,
@@ -62,6 +62,7 @@ describe("the shell", () => {
     );
     assert.deepEqual(linksOf(html), [
       "#/agent",
+      "#/?nav=open",
       "#/agent",
       "#/discovery",
       "#/tests",
@@ -101,6 +102,31 @@ describe("the shell", () => {
     assert.doesNotMatch(shell("#/"), /menu-toggle/);
   });
 
+  it("names the screen in the top bar by the entry it is under, and by the product at an address that leads nowhere", () => {
+    const named = (hash: string): string => /<span class="top-screen">([^<]*)<\/span>/.exec(shell(hash))![1]!;
+    assert.equal(named(""), "Agent");
+    assert.equal(named("#/agent/sessions/oqas-2026-11-15T14-44-06-348Z"), "Agent");
+    assert.equal(named("#/tests/view?id=t1"), "Tests");
+    assert.equal(named("#/knowledge/manuals"), "Connaissances");
+    assert.equal(named("#/coverage"), "Open QA Stack");
+    assert.equal(named("#/nowhere"), "Open QA Stack");
+  });
+
+  it("opens the navigation in a panel over the screen from the button of the top bar, keeping where the screen is", () => {
+    const closed = shell("#/agent/sessions/s1?show=talk");
+    assert.match(closed, /<a class="btn top-menu" href="#\/agent\/sessions\/s1\?show=talk&amp;nav=open" aria-haspopup="dialog">Menu<\/a>/);
+    assert.doesNotMatch(closed, /<dialog/);
+    const open = shell("#/agent/sessions/s1?show=talk&nav=open", { project: projectWith(1) });
+    const panel = /<dialog class="side-panel" aria-labelledby="shell-menu">.*<\/dialog>/.exec(open)?.[0] ?? "";
+    assert.match(panel, /<h2 id="shell-menu">Menu<\/h2><a class="side-panel-close" href="#\/agent\/sessions\/s1\?show=talk" aria-label="Fermer">/);
+    assert.match(
+      textOf(panel),
+      /^Menu LA lakeside-tests 1 application · projet Travail Agent Référentiel Découverte À relire bientôt Tests Couverture bientôt Exécution Exécutions Campagnes Anomalies bientôt Projet Applications Connaissances Configuration$/,
+    );
+    assert.match(panel, /<a href="#\/agent" class="on" aria-current="page">/);
+    assert.match(shell("#/?nav=open"), /<a class="side-panel-close" href="#\/" aria-label="Fermer">/);
+  });
+
   it("says the instance no longer answers only when it cannot be reached", () => {
     assert.doesNotMatch(shell("#/"), /Hors ligne|role="alert"/);
     assert.doesNotMatch(shell("#/", { unreachable: false }), /Hors ligne/);
@@ -111,7 +137,7 @@ describe("the shell", () => {
 
   it("names the project over the navigation, once the API described it", () => {
     const html = shell("#/", { project: projectWith(2) });
-    assert.match(textOf(html), /^✓ Open QA Stack LA lakeside-tests 2 applications · projet Travail Agent/);
+    assert.match(textOf(html), /^✓ Open QA Stack Agent Menu LA lakeside-tests 2 applications · projet Travail Agent/);
     assert.match(html, /<span class="proj-avatar">LA<\/span>/);
     assert.doesNotMatch(shell("#/"), /class="proj"/);
   });
@@ -119,7 +145,7 @@ describe("the shell", () => {
   it("does not name a project that has no name yet", () => {
     const html = shell("#/", { project: { applications: projectWith(2).applications } });
     assert.doesNotMatch(html, /class="chip mono"|class="proj"|undefined/);
-    assert.match(textOf(html), /^✓ Open QA Stack Travail Agent /);
+    assert.match(textOf(html), /^✓ Open QA Stack Agent Menu Travail Agent /);
   });
 
   it("counts the applications of the project as French does, in the singular below two", () => {
@@ -130,7 +156,7 @@ describe("the shell", () => {
   it("is written in English when the console speaks it", async () => {
     await inEnglish();
     const text = textOf(shell("#/", { project: projectWith(1), unreachable: true }));
-    assert.match(text, /● Offline — the instance no longer answers; the page picks up by itself once it is back/);
+    assert.match(text, /● Offline — the instance no longer answers; the page picks up by itself once it is back ✓ Open QA Stack Agent Menu/);
     assert.match(text, /lakeside-tests 1 application · project Work Agent Repository Discovery To review soon Tests Coverage soon/);
   });
 });

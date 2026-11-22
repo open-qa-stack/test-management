@@ -8,6 +8,7 @@
     "navigation": "Main navigation",
     "fold": "Fold the menu",
     "unfold": "Unfold the menu",
+    "menuTitle": "Menu",
     "soon": "soon",
     "applications_one": "{{count}} application · project",
     "applications_other": "{{count}} applications · project",

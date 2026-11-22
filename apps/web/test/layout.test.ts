@@ -87,18 +87,76 @@ async function settled(element: Locator): Promise<void> {
 }
 
 describe("the shell on a narrow and on a wide screen", () => {
-  it("keeps every entry of the navigation within reach on a phone, the mark left out, without what is coming", async () => {
-    const page = await app().open(390, "#/nowhere", new PlayedInstance().api);
+  it("names the screen at the top of a phone, beside a menu that names every entry in full, and keeps nothing at the bottom", async () => {
+    const page = await app().open(390, "#/tests", new ListedInstance().api);
     try {
-      assert.equal(await page.locator(".top").isVisible(), false, "the agent leads home, as the mark does");
-      const links = page.getByRole("navigation", { name: "Navigation principale" }).getByRole("link");
-      for (const box of await links.evaluateAll((all) => all.map((link) => link.getBoundingClientRect().toJSON() as DOMRect)))
-        assert.ok(box.x >= 0 && box.x + box.width <= 390 && box.y < 80, `${box.x}: every entry stands whole in the top bar`);
-      const entry = page.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name: "Agent" });
-      assert.equal(await page.getByText("bientôt").first().isVisible(), false);
-      assert.equal(await page.getByText("lakeside · projet").isVisible(), false);
-      await entry.click();
-      await page.getByRole("heading", { name: "Qu’est-ce qu’on teste ?" }).waitFor();
+      await page.getByRole("heading", { level: 1, name: "Tests" }).waitFor();
+      const bar = await page.locator(".top").boundingBox();
+      assert.ok(bar !== null);
+      assert.deepEqual([bar.x, bar.y, bar.width], [0, 0, 390]);
+      assert.equal(await page.locator(".top-screen").innerText(), "Tests");
+      assert.equal(await page.locator(".shell-sidebar").isVisible(), false, "the navigation waits for its button");
+      const docked = await page.evaluate(() =>
+        [...document.querySelectorAll("body *")]
+          .filter((element) => ["fixed", "sticky"].includes(getComputedStyle(element).position) && element.checkVisibility())
+          .filter((element) => element.getBoundingClientRect().bottom >= window.innerHeight - 1)
+          .map((element) => element.className),
+      );
+      assert.deepEqual(docked, [], "no bar at the bottom of the screen");
+      await page.getByRole("link", { name: "Menu" }).click();
+      const menu = page.getByRole("dialog", { name: "Menu" });
+      await menu.waitFor();
+      await settled(menu);
+      assert.deepEqual(await menu.boundingBox(), { x: 0, y: 0, width: 390, height: 800 }, "the menu takes the whole screen");
+      const entries = await menu.locator(".nav-label, .grp").evaluateAll((all) =>
+        all.map((element) => {
+          const box = element.getBoundingClientRect();
+          return {
+            text: element.textContent,
+            cut: element.scrollWidth > element.clientWidth,
+            left: box.left,
+            right: box.right,
+            shown: element.checkVisibility(),
+          };
+        }),
+      );
+      assert.deepEqual(
+        entries.map(({ text }) => text),
+        [
+          "Travail",
+          "Agent",
+          "Référentiel",
+          "Découverte",
+          "À relire",
+          "Tests",
+          "Couverture",
+          "Exécution",
+          "Exécutions",
+          "Campagnes",
+          "Anomalies",
+          "Projet",
+          "Applications",
+          "Connaissances",
+          "Configuration",
+        ],
+      );
+      for (const entry of entries) assert.ok(entry.shown && !entry.cut && entry.left >= 0 && entry.right <= 390, `${entry.text} stands whole`);
+      assert.equal(await menu.getByRole("link", { name: "Tests" }).getAttribute("aria-current"), "page");
+      assert.equal(await overflowOf(page), 0);
+      assert.deepEqual(await tooSmallOf(page), []);
+      await menu.getByRole("link", { name: "Exécutions" }).click();
+      await page.getByRole("heading", { level: 1, name: "Exécutions" }).waitFor();
+      assert.equal(await page.getByRole("dialog").count(), 0, "picking an entry closes the menu");
+      assert.equal(await page.locator(".top-screen").innerText(), "Exécutions");
+      await page.getByRole("link", { name: "Menu" }).click();
+      await menu.waitFor();
+      assert.equal(new URL(page.url()).hash, "#/executions?nav=open");
+      await page.keyboard.press("Escape");
+      await menu.waitFor({ state: "detached" });
+      assert.equal(new URL(page.url()).hash, "#/executions");
+      await page.getByRole("link", { name: "Menu" }).click();
+      await menu.getByRole("link", { name: "Fermer" }).click();
+      await menu.waitFor({ state: "detached" });
     } finally {
       await page.close();
     }
@@ -1053,11 +1111,10 @@ describe("the configuration in a browser", () => {
         await page.locator("details.config-json summary").click();
         assert.equal(await overflowOf(page), 0, `${width}`);
         if (width < 1100) {
-          // Every entry of the bar stands whole in the window, its icon named by its label.
-          for (const name of ["Agent", "Configuration"]) {
-            const box = await page.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name }).boundingBox();
-            assert.ok(box !== null && box.x >= 0 && box.x + box.width <= width, `${name} at ${width}`);
-          }
+          // The top bar names the screen, and its menu stands whole in the window.
+          assert.equal(await page.locator(".top-screen").innerText(), "Configuration");
+          const box = await page.getByRole("link", { name: "Menu" }).boundingBox();
+          assert.ok(box !== null && box.x >= 0 && box.x + box.width <= width, `the menu at ${width}`);
           assert.equal(await page.getByRole("button", { name: "Enregistrer" }).count(), 0, "nothing to save, no button to save");
           assert.deepEqual(await tooSmallOf(page), [], `${width}`);
           assert.deepEqual(await tooSmallFieldsOf(page), [], `${width}`);
