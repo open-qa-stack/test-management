@@ -16,6 +16,19 @@ const project = (root: string, test: Record<string, unknown> = {}) => ({
   test: { name: root.split("/").at(-1)!, root, include: ["test/**/*.test.ts"], ...test },
 });
 
+/**
+ * The folders of the packages to test, from the root of the workspace, which `OQAS_TEST_PACKAGES` names separated by
+ * commas, as the check gives them for a pull request; every package when it names none.
+ */
+const CHOSEN = process.env["OQAS_TEST_PACKAGES"]?.split(",").filter((folder) => folder !== "");
+
+/** Whether the tests of a folder run, and its code is measured. */
+const chosen = (root: string): boolean => CHOSEN === undefined || CHOSEN.includes(root);
+
+/** The code the tests measure, every file of it: that of the packages chosen, or of the whole workspace. */
+const MEASURED =
+  CHOSEN === undefined ? ["{packages,apps}/*/src/**/*.{ts,tsx}", "lint/*.ts", "src/**/*.{ts,tsx}", "*.ts"] : CHOSEN.map((root) => `${root}/src/**/*.{ts,tsx}`);
+
 /** The tests of the store that are written once for every database it supports, which `OQAS_TEST_DATABASE` names to them. */
 const ON_EACH_DATABASE = "test/each-database/**/*.test.ts";
 
@@ -54,12 +67,12 @@ export default defineConfig({
       project("packages/cli", { setupFiles: [LOOPBACK_ONLY] }),
       project("apps/web", { setupFiles: ["./test/in-french.ts"] }),
       project("lint"),
-    ],
+    ].filter(({ test }) => chosen(test.root)),
     coverage: {
       provider: "v8",
       // The code of each package and the lint rules. Vitest reads these patterns from the root of the workspace on a
       // full run, and from the folder of each project when `--project` picks some: they are written for both.
-      include: ["{packages,apps}/*/src/**/*.{ts,tsx}", "lint/*.ts", "src/**/*.{ts,tsx}", "*.ts"],
+      include: MEASURED,
       exclude: [
         "{packages,apps}/*/test/**",
         "lint/test/**",

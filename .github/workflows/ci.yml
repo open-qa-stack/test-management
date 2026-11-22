@@ -42,8 +42,9 @@ jobs:
       - name: Check
         # Type check, lint, format, build, coverage directives, secrets, then the tests at full
         # coverage. The tests of the store and of the API run on SQLite and on PostgreSQL: each of
-        # the two starts a disposable PostgreSQL with the Docker of the runner.
-        run: pnpm check
+        # the two starts a disposable PostgreSQL with the Docker of the runner. A pull request tests
+        # the packages it touches and those that depend on them; main tests every package.
+        run: pnpm check ${{ github.event_name == 'pull_request' && format('--affected origin/{0}', github.event.pull_request.base.ref) || '' }}
         env:
           # The coverage of every run of tests, in one report whose paths start from the root, for the analysis.
           OQAS_COVERAGE_REPORT: coverage/lcov.info
