@@ -727,7 +727,16 @@
     "readOnly": "as the instance keeps it",
     "close": "Close",
     "opening": "Reading the document",
-    "openingNote": "It shows as soon as the instance answered."
+    "openingNote": "It shows as soon as the instance answered.",
+    "mapping": {
+      "waiting": "Waiting to be mapped",
+      "mapping": "Being mapped",
+      "mapped": "Mapped",
+      "truncated": "Mapped in part",
+      "noIndex": "Nothing is mapped yet: each source added is mapped at once, then all of them are put together by domain.",
+      "index": "Knowledge put together by domain on {{date}}.",
+      "partIndex": "Knowledge put together by domain on {{date}}, in part: a limit stopped the cartography."
+    }
   },
   "tests": {
     "title": "Tests",
@@ -1090,7 +1099,8 @@
       "github": "Model: {{model}}, through the GitHub account of this machine",
       "provider": "Model: {{model}}, through a provider key",
       "newRepository": "This folder will become a git repository, and what is created will be committed to it.",
-      "existingRepository": "This folder is a git repository already: what is created is left to you to commit."
+      "existingRepository": "This folder is a git repository already: what is created is left to you to commit.",
+      "mapping": "Each is mapped as soon as the project is created, then all of them are put together by domain."
     },
     "ready": {
       "title": "The project is ready",

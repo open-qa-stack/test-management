@@ -7,6 +7,7 @@ import { MAX_DOCUMENT_BYTES } from "@open-qa-stack/domain";
 import { DatabaseUrl, InstanceDatabase } from "@open-qa-stack/store";
 import { fixtureConfig } from "@open-qa-stack/testing/fixture-repository";
 import { parseArguments, soloCommand } from "../src/index.ts";
+import { mappingLines } from "../src/solo/knowledge-lines.ts";
 
 const workspace = mkdtempSync(join(tmpdir(), "oqas-knowledge-command-"));
 afterAll(() => rmSync(workspace, { recursive: true, force: true }));
@@ -144,7 +145,7 @@ describe("the arguments of oqas knowledge", () => {
       ok: true,
       arguments: { output: "text", follow: false, command: { name: "knowledge", action: "add-document", source: "manuals", files: ["a.md", "b.md"] } },
     });
-    const usage = "oqas knowledge takes list, check and a source at most, or add-document then a source and one file at least.";
+    const usage = "oqas knowledge takes list, mapping, check and a source at most, or add-document then a source and one file at least.";
     for (const argv of [["knowledge"], ["knowledge", "list", "more"], ["knowledge", "add-document", "manuals"], ["knowledge", "remove"]])
       assert.deepEqual(parseArguments(argv), { ok: false, error: usage }, argv.join(" "));
     assert.deepEqual(parseArguments(["knowledge", "list", "--follow"]), {
@@ -196,7 +197,46 @@ describe("oqas knowledge check", () => {
     assert.deepEqual(parseArguments(["knowledge", "check", "docs"]).ok, true);
     assert.deepEqual(parseArguments(["knowledge", "check", "a", "b"]), {
       ok: false,
-      error: "oqas knowledge takes list, check and a source at most, or add-document then a source and one file at least.",
+      error: "oqas knowledge takes list, mapping, check and a source at most, or add-document then a source and one file at least.",
     });
+  });
+});
+
+describe("oqas knowledge mapping", () => {
+  it("tells where the cartography of each source stands, and the index, as lines or as JSON", async () => {
+    const { oqas } = repository();
+    const told = await oqas("knowledge", "mapping");
+    assert.equal(told.code, 0);
+    assert.match(told.out, /^The knowledge of the environment local:\n/);
+    assert.match(told.out, /\norder-specs {2}waits to be mapped\n/);
+    assert.match(told.out, /\nNo index puts the cards together yet\.\n$/);
+    const json = JSON.parse((await oqas("knowledge", "mapping", "--output", "json")).out) as { environment: string };
+    assert.equal(json.environment, "local");
+  });
+
+  it("says each state of a source, and of the index, in plain words", () => {
+    const at = "2026-11-22T09:00:00.000Z";
+    assert.deepEqual(
+      mappingLines({
+        environment: "local",
+        sources: [
+          { id: "a", type: "document", state: "waiting" },
+          { id: "b", type: "document", state: "mapping" },
+          { id: "c", type: "document", state: "mapped", mappedAt: at },
+          { id: "d", type: "web", state: "truncated", mappedAt: at },
+        ],
+        index: { producedAt: at, status: "truncated" },
+      }),
+      [
+        "The knowledge of the environment local:",
+        "a  waits to be mapped",
+        "b  is being mapped",
+        `c  mapped on ${at}`,
+        `d  mapped in part: a limit stopped it on ${at}`,
+        `The index was written on ${at}, in part.`,
+      ],
+    );
+    assert.equal(mappingLines({ environment: "local", sources: [], index: { producedAt: at, status: "complete" } }).at(-1), `The index was written on ${at}.`);
+    assert.deepEqual(mappingLines({ sources: [] }), ["The instance has no configuration yet: nothing is mapped."]);
   });
 });

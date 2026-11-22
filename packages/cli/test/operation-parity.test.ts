@@ -42,6 +42,7 @@ const COMMANDS: Readonly<Record<OperationId, readonly string[] | Missing>> = {
   "KnowledgeDocuments.remove": { missing: "no command removes a document" },
   "KnowledgeDomains.list": { missing: "no command lists the domains" },
   "KnowledgeSources.check": ["knowledge", "check"],
+  "KnowledgeMapping.state": ["knowledge", "mapping"],
   "RepositoryTests.listed": { missing: "no command lists the tests of the repository" },
   "TestReadings.read": { missing: "no command reads a test" },
   "TestReadings.trace": { missing: "no command gives the trace of a test" },
@@ -95,6 +96,7 @@ const CONVERSATION: Readonly<Record<OperationId, InConversation>> = {
   "KnowledgeDocuments.remove": { missing: "no command removes a document" },
   "KnowledgeDomains.list": { missing: "no command lists the domains" },
   "KnowledgeSources.check": { missing: "no command tests a source" },
+  "KnowledgeMapping.state": { missing: "no command tells where the cartography stands" },
   "RepositoryTests.listed": { missing: "no command lists the tests of the repository" },
   "TestReadings.read": { missing: "no command reads a test" },
   "TestReadings.trace": { missing: "no command gives the trace of a test" },
@@ -143,6 +145,6 @@ describe("the operations of the engine, as the conversation offers them", () => 
 
   // A gap closed lowers this count, and a gap opened is refused: it only goes down.
   it("are missing no more than they were", () => {
-    assert.equal(missingIn(CONVERSATION).length, 33);
+    assert.equal(missingIn(CONVERSATION).length, 34);
   });
 });

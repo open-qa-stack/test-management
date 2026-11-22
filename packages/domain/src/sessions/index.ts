@@ -96,3 +96,4 @@ export type { RepositoryPreparation, RepositoryState } from "../test-repository/
 export type { SecretKind, SecretList, SecretSource, SecretState } from "../secrets/secret-state.ts";
 export { OPERATIONS, operationIds, type OperationId } from "../operations/operations.ts";
 export type { SourceCheck } from "../knowledge-check/source-check.ts";
+export type { CartographyState, MappedSource, MappingState } from "../knowledge-check/knowledge-mapping.ts";

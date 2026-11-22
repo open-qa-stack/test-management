@@ -173,6 +173,7 @@ export { UnknownCampaignError } from "./campaigns/unknown-campaign-error.ts";
 export { OPERATIONS, operationIds, type OperationId } from "./operations/operations.ts";
 export { declaredSecrets } from "./secrets/declared-secrets.ts";
 export type { SourceCheck } from "./knowledge-check/source-check.ts";
+export type { CartographyState, MappedSource, MappingState } from "./knowledge-check/knowledge-mapping.ts";
 export { SecretRefusedError } from "./secrets/secret-refused-error.ts";
 export type { SecretKind, SecretList, SecretSource, SecretState } from "./secrets/secret-state.ts";
 export { UnknownSecretError } from "./secrets/unknown-secret-error.ts";

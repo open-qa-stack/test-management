@@ -35,6 +35,9 @@ class PlayedApi {
 
 const settled = (): Promise<unknown> => vi.advanceTimersByTimeAsync(0);
 
+/** Where the cartography of the knowledge stands: one source mapped, the index not written yet. */
+const MAPPING = { environment: "local", sources: [{ id: "manuals", type: "document", state: "mapped", mappedAt: "2026-11-22T09:00:00.000Z" }] } as const;
+
 describe("what keeps the screens of the knowledge in step with their instance", () => {
   let api = new PlayedApi();
 
@@ -53,9 +56,11 @@ describe("what keeps the screens of the knowledge in step with their instance", 
   it("reads the configuration in force and the documents of each source it keeps, again and again, and says when the instance cannot tell them", async () => {
     api.answers.set("GET /api/configuration", json(VIEW));
     api.answers.set("GET /api/knowledge/manuals/documents", json({ items: [QUOTES] }));
+    api.answers.set("GET /api/knowledge/mapping", json(MAPPING));
     const stop = api.sync.read();
     await settled();
     assert.deepEqual(api.told, [
+      { type: "mapped", mapping: MAPPING },
       { type: "read", view: VIEW },
       { type: "listed", source: "manuals", items: [QUOTES] },
     ]);

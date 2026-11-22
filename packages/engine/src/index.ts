@@ -10,6 +10,7 @@ export { ModelConnection, type ConnectionProbes } from "./configuration/model-co
 export { Campaigns, type CampaignsHost } from "./campaigns/campaigns.ts";
 export { Executions, FILE_EXECUTIONS_LIMIT } from "./executions/executions.ts";
 export { KnowledgeDomains } from "./knowledge/knowledge-domains.ts";
+export { KnowledgeMapping } from "./knowledge/knowledge-mapping.ts";
 export { KnowledgeSources } from "./knowledge/knowledge-sources.ts";
 export { PastRuns } from "./executions/past-runs.ts";
 export { KnowledgeDocuments } from "./documents/knowledge-documents.ts";

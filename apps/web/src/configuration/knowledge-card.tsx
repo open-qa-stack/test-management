@@ -13,6 +13,9 @@ export const SOURCE_KINDS = ["openapi", "postgresql", "document", "stored", "sou
 /** A kind of source a button adds. */
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 
+/** The kinds the setting up offers, for a person who is not in IT: a contract of an API, the code, a database, documents. */
+export const FIRST_KINDS: readonly SourceKind[] = ["openapi", "source-code", "postgresql", "stored"];
+
 /**
  * Tells the kind of a source: its type, or `stored` for documents the instance keeps.
  *
@@ -254,12 +257,13 @@ export function KnowledgeCard({
 /**
  * The buttons that add a source of each kind.
  *
+ * @param props - The kinds offered, in their order; every kind by default.
  * @returns Them.
  */
-export function AddSourceButtons(): ReactNode {
+export function AddSourceButtons({ kinds = SOURCE_KINDS }: { readonly kinds?: readonly SourceKind[] }): ReactNode {
   return (
     <div className="config-actions">
-      {SOURCE_KINDS.map((kind) => (
+      {kinds.map((kind) => (
         <AddButton key={kind} pointer="/knowledge" item={kind}>
           {t(`configuration.knowledge.add.${kind}`)}
         </AddButton>

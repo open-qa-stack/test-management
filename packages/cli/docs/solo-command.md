@@ -39,6 +39,7 @@ The command is a presentation of [the operations on sessions](../../engine/docs/
 | `oqas model set` | Sets the connection to the model — the GitHub account of the machine, or a provider and its key — then tests it. |
 | `oqas knowledge list` | Lists the knowledge sources of the configuration in force, and the documents the instance keeps: see [The knowledge](#the-knowledge). |
 | `oqas knowledge add-document <source> <file>...` | Uploads Markdown files as documents of a source declared `"stored": true`. |
+| `oqas knowledge mapping` | Tells where the cartography of the knowledge stands, source by source, and its index. |
 | `oqas knowledge check [<source>]` | Tests that the knowledge sources answer, or one of them, without the model and indexing nothing. |
 | `oqas secrets` | Lists the variables the configuration names, and where the value of each comes from: see [The values of the variables](#the-values-of-the-variables). |
 | `oqas secrets set <variable>` | Saves the value of one of them on this machine, out of the test repository, typed unseen or read from the input. |
@@ -334,6 +335,8 @@ server-log  not tested: logs are read while a session runs
 ```
 
 It exits with `0` when each answers, with `4` when one does not, and with `3` when the configuration declares no source, or not the one named. With `--output json`, it prints `{"checks":[{"source":…,"check":…}]}`.
+
+`oqas knowledge mapping` tells where the cartography stands, as [the API tells it](../../api/docs/knowledge.md#where-the-cartography-stands): each source mapped, mapped in part, being mapped or waiting, and the index. It exits with `0`.
 
 ## Speaking to a session
 

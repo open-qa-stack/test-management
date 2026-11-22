@@ -6,6 +6,7 @@ import type { KnowledgeDocuments } from "../documents/knowledge-documents.ts";
 import type { Executions } from "../executions/executions.ts";
 import type { PastRuns } from "../executions/past-runs.ts";
 import type { KnowledgeDomains } from "../knowledge/knowledge-domains.ts";
+import type { KnowledgeMapping } from "../knowledge/knowledge-mapping.ts";
 import type { KnowledgeSources } from "../knowledge/knowledge-sources.ts";
 import type { RepositorySetup } from "../repository/repository-setup.ts";
 import type { Secrets } from "../secrets/secrets.ts";
@@ -23,6 +24,7 @@ export interface EngineClasses {
   readonly KnowledgeDocuments: KnowledgeDocuments;
   readonly KnowledgeDomains: KnowledgeDomains;
   readonly KnowledgeSources: KnowledgeSources;
+  readonly KnowledgeMapping: KnowledgeMapping;
   readonly RepositoryTests: RepositoryTests;
   readonly TestReadings: TestReadings;
   readonly Executions: Executions;

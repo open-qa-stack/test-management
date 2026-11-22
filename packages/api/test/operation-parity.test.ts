@@ -44,6 +44,7 @@ const ROUTES: Readonly<Record<OperationId, Offer>> = {
   "KnowledgeDocuments.remove": "DELETE /knowledge/s/documents/d.md",
   "KnowledgeDomains.list": "GET /knowledge/domains",
   "KnowledgeSources.check": "POST /knowledge/check",
+  "KnowledgeMapping.state": "GET /knowledge/mapping",
   "RepositoryTests.listed": "GET /tests",
   "TestReadings.read": "GET /tests/reading",
   "TestReadings.trace": "GET /tests/trace",
