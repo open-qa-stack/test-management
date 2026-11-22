@@ -1,12 +1,10 @@
 import { Box, Text, useInput } from "ink";
-import Spinner from "ink-spinner";
-import TextInput from "ink-text-input";
 import { createElement as h, useEffect, useReducer, type ReactNode } from "react";
 import type { Knowledge, Model, ModelConnectionCheck, RepositoryPreparation, SourceCheck } from "@open-qa-stack/domain";
 import { t } from "../i18n/i18n.ts";
-import { Marked } from "../marked.ts";
 import { ModelSetup } from "../model-setup/model-setup.ts";
-import { GUTTER, type Theme } from "../palette.ts";
+import type { Theme } from "../palette.ts";
+import { choiceLines, setupField, waitingLine } from "../setup-parts.ts";
 import { knowledgeOf, slugOf, sourceIds, type DraftSource, type ProjectDraft } from "./project-draft.ts";
 import { EXPOSES, PROJECT_START, projectSetupAfter, SOURCE_CHOICES, type ProjectSetupState } from "./project-setup-state.ts";
 
@@ -77,35 +75,18 @@ export function ProjectSetup({ folder, check, checkModel, create, reasonOf, onEn
     { isActive: step !== "model" },
   );
 
+  const typing = { theme, text: state.text, onType: (text: string) => dispatch({ type: "typed", text }), onEnter: () => dispatch({ type: "entered" }) };
   const field = (label: string, hint: string, mask?: string): ReactNode =>
-    h(
-      Box,
-      { flexDirection: "column" },
-      h(Text, { bold: true }, label),
-      h(Text, theme.ink("muted"), hint),
-      state.failure === undefined ? null : h(Text, theme.ink("warn"), t("setup.unanswered", { reason: state.failure })),
-      h(
-        Box,
-        null,
-        h(Box, { width: GUTTER, flexShrink: 0 }, h(Text, { ...theme.ink("accent"), bold: true }, theme.glyphs.prompt)),
-        h(TextInput, {
-          value: state.text,
-          onChange: (text) => dispatch({ type: "typed", text }),
-          onSubmit: () => dispatch({ type: "entered" }),
-          ...(mask === undefined ? {} : { mask }),
-        }),
-      ),
-      state.refusal === undefined ? null : h(Text, theme.ink("warn"), t(`setup.refused.${state.refusal}`)),
-    );
-  const list = (lines: readonly string[]): ReactNode[] =>
-    lines.map((line, index) =>
-      h(
-        Marked,
-        { key: index, mark: index === state.selected ? theme.glyphs.pointer : "", style: theme.ink("accent") },
-        h(Text, { bold: index === state.selected }, line),
-      ),
-    );
-  const waiting = (text: string): ReactNode => h(Text, theme.ink("accent"), h(Spinner, { type: theme.glyphs.spinner }), ` ${text}`);
+    setupField({
+      ...typing,
+      label,
+      hint,
+      ...(mask === undefined ? {} : { mask }),
+      ...(state.failure === undefined ? {} : { warning: t("setup.unanswered", { reason: state.failure }) }),
+      ...(state.refusal === undefined ? {} : { refusal: t(`setup.refused.${state.refusal}`) }),
+    });
+  const list = (lines: readonly string[]): ReactNode[] => choiceLines(theme, lines, state.selected);
+  const waiting = (text: string): ReactNode => waitingLine(theme, text);
 
   if (step === "model")
     return h(

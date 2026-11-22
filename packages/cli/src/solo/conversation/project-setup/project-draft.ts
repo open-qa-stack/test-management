@@ -56,7 +56,9 @@ export function slugOf(name: string): string {
     .replace(/\p{M}/gu, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    // What is not a letter nor a digit is one dash already: at most one starts the slug, and one ends it.
+    .replace(/^-/, "")
+    .replace(/-$/, "");
   return new RegExp(SLUG_PATTERN).test(slug) ? slug : "app";
 }
 

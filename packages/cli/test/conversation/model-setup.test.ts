@@ -4,7 +4,7 @@ import { createElement } from "react";
 import { afterEach, describe, it } from "vitest";
 import type { Model, ModelConnectionCheck } from "@open-qa-stack/domain";
 import { checkText, ModelSetup, type SetupEnd } from "../../src/solo/conversation/model-setup/model-setup.ts";
-import { PLAIN, UNICODE, until } from "./screen.ts";
+import { PLAIN, UNICODE, staging, until } from "./screen.ts";
 
 const ENTER = "\r";
 const ESC = "\u001B";
@@ -40,15 +40,7 @@ function staged(inForce: Model, checks: readonly (ModelConnectionCheck | Error)[
       theme,
     }),
   );
-  const screen = (): string => String(lastFrame());
-  const sees = (seen: string | RegExp): Promise<void> =>
-    until(() => (typeof seen === "string" ? screen().includes(seen) : seen.test(screen())), `${String(seen)}\n${screen()}`);
-  const press = async (keys: string, seen: string | RegExp): Promise<void> => {
-    // Ink reads what is typed once it drew: each key goes alone.
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    stdin.write(keys);
-    await sees(seen);
-  };
+  const { screen, sees, press } = staging(lastFrame, stdin);
   return { tested, saved, ends, screen, sees, press };
 }
 

@@ -5,7 +5,7 @@ import { afterEach, describe, it } from "vitest";
 import type { Knowledge, ModelConnectionCheck, RepositoryPreparation, SourceCheck } from "@open-qa-stack/domain";
 import { ProjectSetup, summaryLines, type ProjectSetupEnd } from "../../src/solo/conversation/project-setup/project-setup.ts";
 import type { ProjectDraft } from "../../src/solo/conversation/project-setup/project-draft.ts";
-import { PLAIN, UNICODE, until } from "./screen.ts";
+import { PLAIN, UNICODE, staging, until } from "./screen.ts";
 
 const ENTER = "\r";
 const ESC = "\u001B";
@@ -44,15 +44,7 @@ function staged(played: Played = {}, theme = UNICODE) {
       theme,
     }),
   );
-  const screen = (): string => String(lastFrame());
-  const sees = (seen: string | RegExp): Promise<void> =>
-    until(() => (typeof seen === "string" ? screen().includes(seen) : seen.test(screen())), `${String(seen)}\n${screen()}`);
-  const press = async (keys: string, seen: string | RegExp): Promise<void> => {
-    // Ink reads what is typed once it drew: each key goes alone.
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    stdin.write(keys);
-    await sees(seen);
-  };
+  const { screen, sees, press } = staging(lastFrame, stdin);
   return { tested, created, ends, screen, sees, press };
 }
 
@@ -121,6 +113,10 @@ describe("the setting up of a project in a terminal", () => {
     await stage.press("openapi.json", "openapi.json");
     await stage.press(ENTER, "The source does not answer: Told: down");
     await stage.press(ENTER, "answers, 7 items");
+    assert.deepEqual(
+      stage.tested.map(({ source }) => source.type),
+      ["openapi", "openapi"],
+    );
   });
 
   it("ends with the reason when the model cannot be tested, or the project cannot be created", async () => {
