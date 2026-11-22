@@ -4,7 +4,7 @@ import type { ConfigError, OqasConfig } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
 import { ConfigurationScreen, FORM_ID, type ConfigurationControls } from "../../src/configuration/configuration-screen.tsx";
 import { configurationAfter, INITIAL_CONFIGURATION, type ConfigurationAction, type ConfigurationState } from "../../src/configuration/configuration-state.ts";
-import { render, textOf } from "../render.ts";
+import { linksOf, render, textOf } from "../render.ts";
 import { BARE, DOCUMENT, REVISIONS, VIEW } from "./configuration-fixture.ts";
 import { bears } from "./fields.ts";
 
@@ -63,13 +63,6 @@ describe("the screen of the configuration", () => {
 
   it("gives every field a label, its value from the draft, and the defaults where the draft leaves a key out", () => {
     const html = screen(stateAfter([]));
-    assert.match(html, /<label for="config-applications-0-id">Identifiant<\/label>/);
-    assert.ok(bears(html, "/applications/0/id", "input", 'id="config-applications-0-id"', 'data-kind="text"', 'class="mono"', 'value="shop"'));
-    assert.match(html, /<option value="web">Interface web<\/option><option value="api">API<\/option><option value="web-and-api" selected="">/);
-    assert.ok(bears(html, "/applications/0/type", "select", 'data-kind="choice"', 'aria-invalid="false"'));
-    assert.ok(bears(html, "/applications/0/authentication/accounts/0/passwordEnv", 'value="SHOP_PASSWORD"', 'class="mono"'));
-    assert.ok(bears(html, "/applications/0/environments/0/apis/0/baseUrl", 'value="http://127.0.0.1:3001"'));
-    assert.match(html, /<option value="read-write" selected="">/);
     assert.ok(
       bears(
         html,
@@ -91,25 +84,28 @@ describe("the screen of the configuration", () => {
     assert.ok(!bears(html, "/design/levels", 'data-member="functional"', 'checked=""'));
     assert.ok(bears(html, "/repository/appsDir", 'value="tests"', 'placeholder="apps"'));
     assert.ok(bears(html, "/repository/blocksDir", 'value=""', 'placeholder="blocs"'));
-    assert.match(html, /data-add="\/applications\/0\/environments\/0\/apis" data-item="api"/);
-    assert.match(html, /aria-label="Retirer l’application Shop" data-remove="\/applications\/0"/);
-    assert.match(textOf(html), /Environnement local Retirer Nom Comme les sessions le nomment/);
-    assert.match(html, /aria-label="Retirer l’environnement local de Shop" data-remove="\/applications\/0\/environments\/0"/);
-    assert.match(html, /aria-label="Retirer l’API backend de l’environnement local" data-remove="\/applications\/0\/environments\/0\/apis\/0"/);
-    assert.match(html, /aria-label="Retirer le compte clerk de Shop" data-remove="\/applications\/0\/authentication\/accounts\/0"/);
-    assert.ok(bears(html, "/applications/0/id", 'aria-describedby="config-applications-0-id-hint"'));
-    assert.match(html, /name="\/applications\/0\/id" value="shop"\/><span id="config-applications-0-id-hint" class="field-hint">/);
   });
 
-  it("names an application and an environment without a name by their rank, and lays out the defaults of a bare configuration", () => {
+  it("lays out the defaults of a bare configuration", () => {
     const html = screen(stateAfter([], BARE));
-    const text = textOf(html);
-    assert.match(text, /Application 1 · sans identifiant/);
-    assert.match(text, /Environnement 1 Environnement 1 Retirer Nom/);
-    assert.match(html, /aria-label="Retirer l’environnement 1 de Application 1" data-remove="\/applications\/0\/environments\/0"/);
     assert.ok(bears(html, "/autonomy/guardrailMinutes", 'value=""', 'placeholder="120"'));
     assert.doesNotMatch(html, /\/autonomy\/task/);
     for (const level of ["smoke", "functional", "business"]) assert.ok(bears(html, "/design/levels", `data-member="${level}"`, 'checked=""'), level);
+  });
+
+  it("lists the applications of the configuration in force, each leading to its page, and leads to the page that adds one", () => {
+    const html = screen(stateAfter([]));
+    assert.match(
+      textOf(html),
+      /Applications et environnements Shop Interface web et API · 1 environnement · 1 API · 1 compte de test shop Ajouter une application/,
+    );
+    assert.ok(linksOf(html).includes("#/configuration/applications/shop"));
+    assert.ok(linksOf(html).includes("#/configuration/applications?add=application"));
+    assert.doesNotMatch(html, /name="\/applications\//);
+    const bare = textOf(
+      screen(stateAfter([], { ...BARE, applications: [{ ...BARE.applications[0]!, authentication: { method: "none" }, environments: [{ name: "local" }] }] })),
+    );
+    assert.match(bare, /Application 1 Interface web · 1 environnement · aucune API · aucun compte de test/);
   });
 
   it("leads to the knowledge, where the sources are declared, and counts them", () => {
@@ -132,7 +128,7 @@ describe("the screen of the configuration", () => {
 
   it("asks for the value of each variable beside it, and lets the person save the values typed alone", () => {
     const html = screen(stateAfter([{ type: "value", name: "MODEL_KEY", value: "typed" }]));
-    for (const variable of ["SHOP_USER", "SHOP_PASSWORD", "MODEL_KEY"]) assert.match(html, new RegExp(`id="secret-${variable}"`));
+    for (const variable of ["MODEL_KEY"]) assert.match(html, new RegExp(`id="secret-${variable}"`));
     assert.match(textOf(html), /Modifications non enregistrées Annuler les modifications Enregistrer/);
     assert.match(html, /<button type="submit" form="configuration-form" class="btn primary">Enregistrer<\/button>/);
     const valued = stateAfter([{ type: "valued", secrets: [] }]);
@@ -157,7 +153,6 @@ describe("the screen of the configuration", () => {
     );
     assert.ok(bears(html, "/model/apiKeyEnv", 'aria-invalid="true"', 'aria-describedby="config-model-apiKeyEnv-hint config-model-apiKeyEnv-errors"'));
     assert.match(html, /<span id="config-model-apiKeyEnv-errors" class="field-error">Nom de variable/);
-    assert.match(html, /<p class="field-error" role="note">Il en faut au moins un\.<\/p>/);
     const one = configurationAfter(state, { type: "checked", draft: state.draft!, errors: errors.slice(0, 1) });
     assert.match(textOf(screen(one)), /1 erreur à corriger avant d’enregistrer/);
     const choice = configurationAfter(state, {

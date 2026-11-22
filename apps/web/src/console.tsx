@@ -130,7 +130,8 @@ function executionsShown(part: string | undefined, query: Route["query"]): Shown
 /** What the console shows: a session once the API told the one the route opens, a wait until it did or said it keeps none. */
 function shownOf({ route, live, missing = false }: ConsoleProps): Shown {
   if (isEntry(route)) return { screen: "entry" };
-  if (route.path.length === 1 && route.path[0] === "configuration") return { screen: "configuration" };
+  if (route.path[0] === "configuration" && (route.path.length === 1 || (route.path[1] === "applications" && route.path.length <= 3)))
+    return { screen: "configuration" };
   if (route.path[0] === "knowledge" && route.path.length <= 2) return { screen: "knowledge" };
   if (route.path.length === 1 && route.path[0] === "tests") return { screen: "tests" };
   if (route.path.length === 1 && route.path[0] === "campaigns") return { screen: "campaigns" };
@@ -178,7 +179,7 @@ function Screen(props: ConsoleProps): ReactNode {
     case "session":
       return <SessionScreen route={route} live={shown.live} project={name} />;
     case "configuration":
-      return <ConfigurationPage project={name} {...(onConfigured === undefined ? {} : { onSaved: onConfigured })} />;
+      return <ConfigurationPage project={name} route={route} {...(onConfigured === undefined ? {} : { onSaved: onConfigured })} />;
     case "knowledge":
       return <KnowledgePage project={name} route={route} />;
     case "tests":

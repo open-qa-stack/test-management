@@ -1,13 +1,12 @@
 import type { FormEventHandler, MouseEventHandler, ReactNode } from "react";
-import type { ConfigError } from "@open-qa-stack/domain/sessions";
+import type { ConfigError, ConfiguredApplication } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
 import { hrefTo } from "../routing/route.ts";
 import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
-import { ApplicationCard } from "./application-card.tsx";
+import { APPLICATIONS, applicationPath } from "./application-paths.ts";
 import { EditContext, type ConfigurationEdit } from "./configuration-edit.ts";
-import { AddButton, PlaceErrors } from "./configuration-fields.tsx";
 import { isPending, type ConfigurationState } from "./configuration-state.ts";
 import { errorText } from "./configuration-words.ts";
 import { FileCard, HistoryCard, JsonCard } from "./record-cards.tsx";
@@ -91,8 +90,29 @@ export function Notes({ state }: { readonly state: ConfigurationState }): ReactN
   );
 }
 
+/** An application of the configuration in force, as a row that leads to its page: its name, what it is, and what it holds. */
+function ApplicationRow({ application, rank }: { readonly application: ConfiguredApplication; readonly rank: number }): ReactNode {
+  const { environments, authentication } = application;
+  const apis = environments.reduce((count, environment) => count + (environment.apis?.length ?? 0), 0);
+  const holds = [
+    t(`configuration.application.types.${application.type}`),
+    t("configuration.applications.environments", { count: environments.length }),
+    t("configuration.applications.apis", { count: apis }),
+    t("configuration.applications.accounts", { count: authentication.accounts?.length ?? 0 }),
+  ];
+  return (
+    <a className="row knowledge-row" href={hrefTo(applicationPath(application.id))}>
+      <div className="grow">
+        <b>{application.name === "" ? t("configuration.application.untitled", { rank: rank + 1 }) : application.name}</b>
+        <div className="small muted">{holds.join(" · ")}</div>
+      </div>
+      <span className="small muted mono">{application.id}</span>
+    </a>
+  );
+}
+
 /**
- * The configuration of the instance: what the person changes — the applications and their environments, the
+ * The configuration of the instance: the applications, each leading to its page, then what the person changes — the
  * model, the autonomy, the levels of design, the layout of the
  * repository — then saves; what is read only — the JSON — and the history of the revisions.
  *
@@ -161,14 +181,15 @@ export function ConfigurationScreen({ project, state, controls }: ConfigurationS
         <form id={FORM_ID} className="config-form" onSubmit={controls.save} noValidate>
           <section className="config-section" aria-labelledby="config-applications">
             <h2 id="config-applications">{t("configuration.screen.applications")}</h2>
-            <PlaceErrors pointer="/applications" />
-            {draft.applications.map((application, index) => (
-              <ApplicationCard key={index} application={application} rank={index} />
-            ))}
+            <Card>
+              {view!.revision!.document.applications.map((application, index) => (
+                <ApplicationRow key={index} application={application} rank={index} />
+              ))}
+            </Card>
             <div className="config-actions">
-              <AddButton pointer="/applications" item="application">
-                {t("configuration.screen.addApplication")}
-              </AddButton>
+              <a className="btn" href={hrefTo(APPLICATIONS, { add: "application" })}>
+                {t("configuration.applications.add")}
+              </a>
             </div>
           </section>
           <section className="config-section" aria-labelledby="config-knowledge">

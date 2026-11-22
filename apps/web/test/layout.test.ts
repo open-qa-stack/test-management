@@ -1585,8 +1585,8 @@ describe("the code of the console is covered in full", () => {
 
   it("runs every line of the screens of the knowledge when they are used in the browser", async () => {
     const instance = new DocumentedInstance();
-    const [screen] = await app().measure(
-      ["src/knowledge/knowledge-page.tsx"],
+    const [screen, pages] = await app().measure(
+      ["src/knowledge/knowledge-page.tsx", "src/configuration/use-item-pages.ts"],
       async (page) => {
         await page.goto("http://console.test/#/knowledge/manuals?document=quotes.md");
         await page.getByText("A quote is priced.").waitFor();
@@ -1625,6 +1625,7 @@ describe("the code of the console is covered in full", () => {
     );
     assert.ok(screen!.lines.length > 10, "the screen is in the build");
     assert.deepEqual(screen!.uncovered, []);
+    assert.deepEqual(pages!.uncovered, []);
   });
 
   it("runs every line of the screen of the configuration when it is used in the browser", async () => {
@@ -1634,18 +1635,14 @@ describe("the code of the console is covered in full", () => {
       async (page) => {
         await page.goto("http://console.test/#/configuration");
         await page.getByRole("heading", { name: "Applications et environnements" }).waitFor();
-        await page.getByLabel("Nom", { exact: true }).first().fill("Boutique");
         await page.getByText("Avancé", { exact: true }).click();
         await page.getByLabel("Attente d’une réponse, en secondes").fill("90");
         await page.getByRole("button", { name: "Tester la connexion" }).last().click();
         await page.getByRole("status").filter({ hasText: "Choisissez un modèle dans la liste" }).waitFor();
         await page.getByLabel("Connexion au modèle").selectOption("Autre serveur (adresse à saisir)");
         await page.getByLabel("Connexion au modèle").selectOption("Compte GitHub de cette machine (Copilot)");
-        await page.getByLabel("Ce qu’elle expose").selectOption("web");
         await page.getByLabel("Niveau", { exact: true }).selectOption("autonomous");
         await page.getByLabel("Inter-applications").check();
-        await page.getByRole("button", { name: "Ajouter un environnement" }).click();
-        await page.getByRole("button", { name: "Retirer l’environnement 2 de Boutique" }).click();
         await page.getByRole("button", { name: "Annuler les modifications" }).click();
         await page.getByRole("button", { name: "Enregistrer" }).waitFor({ state: "attached" });
         await page.getByLabel("Modèle", { exact: true }).fill("saved-model");
@@ -1666,10 +1663,33 @@ describe("the code of the console is covered in full", () => {
         await page.getByRole("status").filter({ hasText: "Les valeurs tapées sont enregistrées sur cet ordinateur." }).waitFor();
         assert.equal(instance.values.get("MODEL_KEY"), "typed-key");
         assert.equal(instance.revisions[0]?.number, 5, "the configuration did not change");
+        // An application is added on a page of its own and saved alone, followed under the identifier it is saved with, then removed.
+        await page.getByRole("link", { name: "Ajouter une application" }).click();
+        await page.getByLabel("Identifiant", { exact: true }).fill("back-office");
+        await page.getByLabel("Nom", { exact: true }).first().fill("Back office");
+        await page.getByLabel("Ce qu’elle expose").selectOption("web");
+        await page.getByRole("button", { name: "Ajouter un environnement" }).click();
+        await page.getByRole("button", { name: "Retirer l’environnement 2 de Back office" }).click();
+        await page.getByRole("button", { name: "Enregistrer" }).click();
+        await page.waitForURL(/#\/configuration\/applications\/back-office$/);
+        await page.getByLabel("Identifiant", { exact: true }).fill("office");
+        await page.getByRole("button", { name: "Enregistrer" }).click();
+        await page.waitForURL(/#\/configuration\/applications\/office$/);
+        assert.deepEqual(
+          instance.saved.slice(-2).map(({ document }) => document.applications.at(-1)?.id),
+          ["back-office", "office"],
+        );
+        await page.getByRole("link", { name: "Retirer l’application" }).click();
+        await page.getByRole("button", { name: "Retirer l’application" }).click();
+        await page.waitForURL(/#\/configuration$/);
+        assert.equal(instance.saved.at(-1)?.document.applications.length, 1);
         // An instance with no configuration yet is set up step by step, then its repository prepared.
         instance.view = { file: "missing" };
         instance.revisions = [];
+        instance.fileChanged = false;
         await page.goto("http://console.test/#/agent");
+        // The screen of the configuration is left, and its draft with it, before it opens again.
+        await page.getByRole("heading", { name: "Applications et environnements" }).waitFor({ state: "detached" });
         await page.goto("http://console.test/#/configuration");
         await page.getByRole("button", { name: "Commencer" }).click();
         for (const step of ["Vos applications", "Ce que les agents peuvent lire", "Le modèle"]) {

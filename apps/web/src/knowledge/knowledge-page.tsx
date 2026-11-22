@@ -1,13 +1,20 @@
-import { useEffect, useMemo, useReducer, useRef, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useReducer, type ReactNode } from "react";
+import type { ConfigurationView } from "@open-qa-stack/domain/sessions";
 import { api } from "../api/instance-api.ts";
 import { useConfigurationEditor } from "../configuration/use-configuration-editor.ts";
+import { useItemPages, type ItemList } from "../configuration/use-item-pages.ts";
 import { hrefTo, type Route } from "../routing/route.ts";
-import { FILES_INPUT, KnowledgeScreen, rankOf, sourcePath, type KnowledgeControls } from "./knowledge-screen.tsx";
+import { FILES_INPUT, KnowledgeScreen, sourcePath, type KnowledgeControls } from "./knowledge-screen.tsx";
 import { INITIAL_KNOWLEDGE, knowledgeAfter } from "./knowledge-state.ts";
 import { KnowledgeSync } from "./knowledge-sync.ts";
 
-/** The address of the knowledge. */
-const KNOWLEDGE = "/knowledge";
+/** The sources of the configuration, each with a page of its own under the knowledge. */
+const SOURCES: ItemList = {
+  items: (document) => document.knowledge,
+  without: (document, rank) => ({ ...document, knowledge: document.knowledge.filter((_, index) => index !== rank) }),
+  home: "/knowledge",
+  pathOf: sourcePath,
+};
 
 /**
  * The screens of the knowledge in a browser: they keep the sources and their documents in step with the instance,
@@ -34,26 +41,9 @@ export function KnowledgePage({ project, route }: { readonly project: string; re
     if (change.uploaded > 0) (window.document.getElementById(FILES_INPUT) as HTMLInputElement).form!.reset();
     else if (asked !== undefined) window.location.replace(hrefTo(`/knowledge/${change.source}`));
   }, [change, asked]);
-  const { dispatch: edit, state: editing } = editor;
-  // A change of a source not saved is dropped once the person goes to another screen of the knowledge.
-  useEffect(() => edit({ type: "discard" }), [edit, source, adding]);
-  // The rank of the source the screen shows, kept to follow it once it is saved under another identifier, and whether the person removed it.
-  const shown = useRef<number | undefined>(undefined);
-  const dropped = useRef(false);
-  if (source !== undefined && rankOf(editing, source) !== undefined) shown.current = rankOf(editing, source);
-  const { saved, view } = editing;
-  useEffect(() => {
-    const revision = view?.revision;
-    if (saved === undefined || revision === undefined) return;
-    // The list of the sources shows the revision saved at once, without waiting for the next reading.
-    dispatch({ type: "read", view: view! });
-    const sources = revision.document.knowledge;
-    if (adding !== undefined) window.location.replace(hrefTo(sourcePath(sources.at(-1)!.id)));
-    else if (source !== undefined && !sources.some(({ id }) => id === source)) {
-      const kept = dropped.current ? undefined : sources[shown.current!];
-      window.location.replace(hrefTo(kept === undefined ? KNOWLEDGE : sourcePath(kept.id)));
-    }
-  }, [saved, view, adding, source]);
+  const told = useCallback((view: ConfigurationView) => dispatch({ type: "read", view }), []);
+  // The list of the sources shows the revision saved at once, without waiting for the next reading.
+  const drop = useItemPages(editor, SOURCES, { id: source, adding: adding !== undefined }, told);
   const controls: KnowledgeControls = {
     upload: (event) => {
       event.preventDefault();
@@ -64,13 +54,7 @@ export function KnowledgePage({ project, route }: { readonly project: string; re
     },
     remove: ({ currentTarget }) => sync.remove(currentTarget.dataset["source"]!, currentTarget.dataset["name"]!),
     edit: editor.controls,
-    drop: ({ currentTarget }) => {
-      const rank = Number(currentTarget.dataset["rank"]);
-      // The button is drawn for a source of the configuration in force, which is what loses it.
-      const revision = editing.view!.revision!;
-      dropped.current = true;
-      editor.sync.save({ ...revision.document, knowledge: revision.document.knowledge.filter((_, index) => index !== rank) }, revision.number, {});
-    },
+    drop: ({ currentTarget }) => drop(Number(currentTarget.dataset["rank"])),
   };
-  return <KnowledgeScreen project={project} route={route} state={state} editing={editing} controls={controls} />;
+  return <KnowledgeScreen project={project} route={route} state={state} editing={editor.state} controls={controls} />;
 }

@@ -4,7 +4,8 @@ import type { ConfigError } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
 import type { ConfigurationControls } from "../../src/configuration/configuration-screen.tsx";
 import { configurationAfter, INITIAL_CONFIGURATION, type ConfigurationAction, type ConfigurationState } from "../../src/configuration/configuration-state.ts";
-import { SOURCE_FORM, SourceEditor } from "../../src/knowledge/source-editor.tsx";
+import { ITEM_FORM } from "../../src/configuration/draft-form.tsx";
+import { SourceEditor } from "../../src/knowledge/source-editor.tsx";
 import { DOCUMENT, REVISIONS, VIEW } from "../configuration/configuration-fixture.ts";
 import { bears, fieldsNamed } from "../configuration/fields.ts";
 import { render, textOf } from "../render.ts";
@@ -38,7 +39,7 @@ describe("the editor of a source", () => {
 
   it("shows the source alone in a form of its own, with nothing to save while nothing changed, and no button that removes it", () => {
     const html = editor(0);
-    assert.match(html, new RegExp(`^<form id="${SOURCE_FORM}" class="config-form" noValidate="">`));
+    assert.match(html, new RegExp(`^<form id="${ITEM_FORM}" class="config-form" noValidate="">`));
     assert.match(textOf(html), /^contract · Contrat OpenAPI Identifiant/);
     assert.match(textOf(html), /Enregistrée Annuler les modifications Enregistrer$/);
     assert.match(html, /<button type="submit" class="btn primary" disabled="">Enregistrer<\/button>/);

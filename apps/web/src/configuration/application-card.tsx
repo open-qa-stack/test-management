@@ -75,10 +75,19 @@ function EnvironmentFields({
  * An application of the configuration: what it is, how a user signs in with the variables of its test accounts,
  * and its environments.
  *
- * @param props - The application, and its rank in the list.
+ * @param props - The application, its rank in the list, and whether the card offers to remove it.
  * @returns Its card.
  */
-export function ApplicationCard({ application, rank }: { readonly application: ConfiguredApplication; readonly rank: number }): ReactNode {
+export function ApplicationCard({
+  application,
+  rank,
+  removable = true,
+}: {
+  readonly application: ConfiguredApplication;
+  readonly rank: number;
+  /** Whether the card offers to remove the application from the draft: a screen that removes it otherwise says no. */
+  readonly removable?: boolean;
+}): ReactNode {
   const at = `/applications/${rank}`;
   const accounts = application.authentication.accounts ?? [];
   const title = application.name === "" ? t("configuration.application.untitled", { rank: rank + 1 }) : application.name;
@@ -86,7 +95,7 @@ export function ApplicationCard({ application, rank }: { readonly application: C
     <Card
       title={title}
       hint={application.id === "" ? t("configuration.application.noId") : application.id}
-      aside={<RemoveButton pointer={at} label={t("configuration.application.removeApplication", { name: title })} />}
+      {...(removable ? { aside: <RemoveButton pointer={at} label={t("configuration.application.removeApplication", { name: title })} /> } : {})}
     >
       <div className="config-body">
         <div className="config-fields">
