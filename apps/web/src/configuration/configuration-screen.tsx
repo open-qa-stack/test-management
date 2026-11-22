@@ -172,13 +172,16 @@ export function ConfigurationScreen({ project, state, controls }: ConfigurationS
           </section>
         </form>
       </EditContext.Provider>
-      <section className="config-section" aria-labelledby="config-history">
-        <h2 id="config-history">{t("configuration.screen.history")}</h2>
+      {/* The history, the file and the JSON are an expert's: they are folded. */}
+      <details className="config-section config-advanced">
+        <summary>
+          <h2 id="config-history">{t("configuration.screen.history")}</h2>
+        </summary>
         {/* The instance tells the revisions with the configuration: there is a draft once it told them. */}
         <HistoryCard revisions={revisions!} />
         <FileCard file={view!.file} saving={saving} controls={controls} />
         <JsonCard draft={draft} />
-      </section>
+      </details>
       <Card className="config-secrets">
         <p className="row small muted">{t("configuration.screen.secrets")}</p>
       </Card>

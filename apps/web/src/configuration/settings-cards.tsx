@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { DEFAULT_LANGUAGE, LANGUAGES, type OqasConfig, type TestLevel } from "@open-qa-stack/domain/sessions";
 import { LANGUAGE_NAMES, t } from "../i18n/i18n.ts";
 import { Card } from "../ui/card.tsx";
-import { CheckField, ChoiceField, InputField, PlaceErrors } from "./configuration-fields.tsx";
+import { AdvancedFields, CheckField, ChoiceField, InputField, PlaceErrors } from "./configuration-fields.tsx";
 import { LEVELS, levelText } from "./configuration-words.ts";
 
 /** The levels a plan is asked for when the configuration names none. */
@@ -31,6 +31,9 @@ export function AutonomyCard({ autonomy = { level: "autonomous" } }: { readonly 
             { value: "bounded", label: t("configuration.settings.bounded") },
           ]}
         />
+      </div>
+      {/* The limits are an expert's: the level says how far the agents go, and the defaults hold. */}
+      <AdvancedFields pointers={["/autonomy/guardrailMinutes", "/autonomy/task"]}>
         <InputField
           pointer="/autonomy/guardrailMinutes"
           label={t("configuration.settings.autonomy.guardrail")}
@@ -52,7 +55,7 @@ export function AutonomyCard({ autonomy = { level: "autonomous" } }: { readonly 
             <PlaceErrors pointer="/autonomy/task" />
           </>
         )}
-      </div>
+      </AdvancedFields>
     </Card>
   );
 }
@@ -119,6 +122,9 @@ export function RepositoryCard({ repository = {} }: { readonly repository?: Oqas
     <Card title={t("configuration.settings.repository.title")} hint={t("configuration.settings.repository.hint")}>
       <div className="config-body config-fields">
         <InputField pointer="/repository/appsDir" label={t("configuration.settings.repository.appsDir")} value={repository.appsDir} code placeholder="apps" />
+      </div>
+      {/* The other folders are an expert's: their defaults hold. */}
+      <AdvancedFields pointers={["/repository/blocksDir", "/repository/journeysDir", "/repository/stateDir", "/repository/indexDir"]}>
         <InputField
           pointer="/repository/blocksDir"
           label={t("configuration.settings.repository.blocksDir")}
@@ -147,7 +153,7 @@ export function RepositoryCard({ repository = {} }: { readonly repository?: Oqas
           code
           placeholder=".oqas/index"
         />
-      </div>
+      </AdvancedFields>
     </Card>
   );
 }

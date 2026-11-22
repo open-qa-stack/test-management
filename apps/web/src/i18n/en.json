@@ -688,7 +688,7 @@
       "save": "Save",
       "agents": "Agents",
       "repository": "Test repository",
-      "history": "History",
+      "history": "History, oqas.json file and JSON",
       "secrets": "The values typed here — key, connection strings, passwords — stay on the computer the tool runs on, out of the test repository and of the database. An environment variable wins: that is the way of a CI.",
       "lead": "The settings of Open QA Stack. The applications under test and the knowledge the agents read have screens of their own.",
       "addApplication": "Add an application"

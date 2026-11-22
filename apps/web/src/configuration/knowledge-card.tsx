@@ -99,7 +99,7 @@ function AttachmentFields({
 }
 
 /** The fields of what a source is read from, which its kind tells: an address, a file, a folder, a container or a variable, never a secret. */
-function WhereFields({ at, source }: { readonly at: string; readonly source: Knowledge }): ReactNode {
+function WhereFields({ at, source, documentsLink }: { readonly at: string; readonly source: Knowledge; readonly documentsLink: boolean }): ReactNode {
   switch (source.type) {
     case "openapi":
       return (
@@ -134,7 +134,7 @@ function WhereFields({ at, source }: { readonly at: string; readonly source: Kno
       return source.stored === true ? (
         <div className="config-field">
           <p className="field-hint">{t("configuration.knowledge.storedNote")}</p>
-          {source.id !== "" && (
+          {documentsLink && source.id !== "" && (
             <div className="config-actions">
               <a className="btn sm" href={hrefTo(`/knowledge/${source.id}`)}>
                 {t("configuration.knowledge.openKnowledge")}
@@ -210,6 +210,7 @@ export function KnowledgeCard({
   test,
   onCheck,
   removable = true,
+  documentsLink = true,
 }: {
   readonly source: Knowledge;
   readonly rank: number;
@@ -220,6 +221,8 @@ export function KnowledgeCard({
   readonly onCheck: MouseEventHandler<HTMLButtonElement>;
   /** Whether the card offers to remove the source from the draft: a screen that removes it otherwise says no. */
   readonly removable?: boolean;
+  /** Whether the card of a source of documents the instance keeps leads to them: not on the page that shows them. */
+  readonly documentsLink?: boolean;
 }): ReactNode {
   const at = `/knowledge/${rank}`;
   const title = source.id === "" ? t("configuration.knowledge.untitled", { rank: rank + 1 }) : source.id;
@@ -233,7 +236,7 @@ export function KnowledgeCard({
         <PlaceErrors pointer={at} />
         <div className="config-fields">
           <InputField pointer={`${at}/id`} label={t("configuration.application.id")} value={source.id} code hint={t("configuration.application.idHint")} />
-          <WhereFields at={at} source={source} />
+          <WhereFields at={at} source={source} documentsLink={documentsLink} />
         </div>
         {source.type !== "logs" && (
           <div className="config-actions">

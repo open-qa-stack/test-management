@@ -1027,6 +1027,8 @@ describe("the configuration in a browser", () => {
     for (const width of [390, 1440]) {
       const page = await configurationAt(width);
       try {
+        // The history, the file and the JSON are folded at the foot of the screen.
+        await page.getByRole("heading", { name: "Historique, fichier oqas.json et JSON" }).click();
         await page.locator("details.config-json summary").click();
         assert.equal(await overflowOf(page), 0, `${width}`);
         if (width < 1100) {
@@ -1061,6 +1063,7 @@ describe("the configuration in a browser", () => {
       await page.getByText("1 erreur à corriger").waitFor({ state: "detached" });
       await page.getByRole("button", { name: "Enregistrer" }).click();
       await page.getByRole("status").filter({ hasText: "Révision 3 enregistrée" }).waitFor();
+      await page.getByRole("heading", { name: "Historique, fichier oqas.json et JSON" }).click();
       await page.getByText("Révision 3", { exact: true }).waitFor();
       assert.equal(instance.saved[0]!.document.model.model, "other-model");
       assert.equal(await page.getByRole("button", { name: "Enregistrer" }).isDisabled(), true);
@@ -1074,6 +1077,7 @@ describe("the configuration in a browser", () => {
     instance.fileChanged = true;
     const page = await configurationAt(390, instance);
     try {
+      await page.getByRole("heading", { name: "Historique, fichier oqas.json et JSON" }).click();
       await page.getByText("oqas.json diffère de la révision en vigueur").waitFor();
       await page.getByRole("button", { name: "Prendre oqas.json" }).click();
       await page.getByRole("status").filter({ hasText: "Révision 3 enregistrée" }).waitFor();
@@ -1671,7 +1675,8 @@ describe("the code of the console is covered in full", () => {
       async (page) => {
         await page.goto("http://console.test/#/configuration");
         await page.getByRole("heading", { name: "Agents", exact: true }).waitFor();
-        await page.getByText("Avancé", { exact: true }).click();
+        // The settings of an expert are folded: those of the model, then those of the autonomy.
+        await page.getByText("Avancé", { exact: true }).first().click();
         await page.getByLabel("Attente d’une réponse, en secondes").fill("90");
         await page.getByRole("button", { name: "Tester la connexion" }).last().click();
         await page.getByRole("status").filter({ hasText: "Choisissez un modèle dans la liste" }).waitFor();
@@ -1684,7 +1689,8 @@ describe("the code of the console is covered in full", () => {
         await page.getByLabel("Modèle", { exact: true }).fill("saved-model");
         await page.getByRole("button", { name: "Enregistrer" }).click();
         await page.getByRole("status").filter({ hasText: "Révision 3 enregistrée" }).waitFor();
-        // A change saved writes no file: the file is written, or taken, when the person asks for it.
+        // A change saved writes no file: the file is written, or taken, when the person asks for it, under the history folded.
+        await page.getByRole("heading", { name: "Historique, fichier oqas.json et JSON" }).click();
         await page.getByRole("button", { name: "Écrire oqas.json" }).click();
         await page.getByText("oqas.json contient la révision en vigueur.").waitFor();
         await page.getByLabel("Modèle", { exact: true }).fill("kept-model");
