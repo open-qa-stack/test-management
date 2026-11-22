@@ -274,6 +274,50 @@ describe("the check", { concurrency: true }, () => {
     assert.match(run.output, /^check: the packages touched since HEAD: demo$/m);
   });
 
+  it("runs the steps before the tests alone, or the tests alone", async () => {
+    const [before, tests] = await inDemo(async (workspace) => [
+      await workspace.check({}, ["--only", "static"]),
+      await workspace.check({}, ["--only", "tests"]),
+    ]);
+    assert.equal(before.code, 0, before.output);
+    assert.match(before.output, /^check: secrets$/m);
+    assert.doesNotMatch(before.output, /^check: tests and coverage$/m);
+    assert.equal(tests.code, 0, tests.output);
+    assert.match(tests.output, /^check: tests and coverage$/m);
+    assert.doesNotMatch(tests.output, /^check: typecheck$/m);
+  });
+
+  it("runs a part of the tests of the root given its share, no package with a script of its own, and requires no coverage of it", async () => {
+    const [run, asked] = await inDemo(async (workspace) => {
+      await testedTogether(workspace);
+      const manifest = JSON.parse(await workspace.read("package.json")) as { scripts: Record<string, string> };
+      await workspace.write(
+        "package.json",
+        JSON.stringify({ ...manifest, scripts: { ...manifest.scripts, "test:part": 'echo "$OQAS_TEST_PART" > part.txt' } }),
+      );
+      const part = await workspace.check({}, ["--part", "2/3"]);
+      return [part, await workspace.read("part.txt")];
+    });
+    assert.equal(run.code, 0, run.output);
+    assert.equal(asked, "2/3 --shard=2/3\n");
+    assert.doesNotMatch(run.output, /names the sign of a number/);
+  });
+
+  it("runs the packages with a test script of their own alone, or merges the parts of the others, requiring the coverage of each", async () => {
+    const [own, merge] = await inDemo(async (workspace) => {
+      await testedTogether(workspace);
+      const manifest = JSON.parse(await workspace.read("package.json")) as { scripts: Record<string, string> };
+      await workspace.write("package.json", JSON.stringify({ ...manifest, scripts: { ...manifest.scripts, "test:merge": TOGETHER_SCRIPT } }));
+      await workspace.write("packages/together/src/half.ts", "export const half = (value: number): number => value / 2;\n");
+      return [await workspace.check({}, ["--part", "own"]), await workspace.check({}, ["--merge"])];
+    });
+    assert.equal(own.code, 0, own.output);
+    assert.match(own.output, /names the sign of a number/);
+    assert.notEqual(merge.code, 0);
+    assert.match(merge.output, /^together: src\/half\.ts is missing from the coverage of the tests$/m);
+    assert.doesNotMatch(merge.output, /names the sign of a number/);
+  });
+
   it("refuses a package it does not know, and arguments it does not read, saying what to give", async () => {
     const [unknown, unread] = await inDemo(async (workspace) => [
       await workspace.check({}, ["--packages", "demo,nowhere"]),
@@ -282,10 +326,7 @@ describe("the check", { concurrency: true }, () => {
     assert.equal(unknown.code, 2);
     assert.match(unknown.output, /^check: no package is named nowhere\. Name each by its name or its folder, such as packages\/agents\.$/m);
     assert.equal(unread.code, 2);
-    assert.match(
-      unread.output,
-      /^check: give --packages <names or folders, separated by commas> or --affected <revision>, or nothing to test every package\.$/m,
-    );
+    assert.match(unread.output, /^check: run it with nothing to check every package, or give:$/m);
   });
 
   it("fails on a file the script of the root does not cover, naming its package", async () => {
