@@ -115,7 +115,13 @@ export class TestStep implements Step {
     const reports = await mkdtemp(join(tmpdir(), "check-coverage-"));
     try {
       const { kind } = this.mode;
-      const own = kind === "all" || kind === "own" ? beside.filter(({ testScript }) => testScript !== undefined) : [];
+      const only = this.mode.kind === "own" ? this.mode.only : undefined;
+      const own =
+        kind === "all" || kind === "own"
+          ? beside.filter(
+              ({ name, path, testScript }) => testScript !== undefined && (only === undefined || only === name || only === relative(this.root, path)),
+            )
+          : [];
       const together = kind === "own" || shared.length === 0 ? [] : [() => this.testTogether(shared, typesOnly, join(reports, "workspace"))];
       const runs = [...together, ...own.map((workspacePackage, index) => () => this.test(workspacePackage, typesOnly, join(reports, `${index}.info`)))];
       const findings = await eachOf(runs, PACKAGES_AT_ONCE, (run) => run());
