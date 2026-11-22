@@ -14,6 +14,7 @@ export class ScriptStep implements Step {
   private readonly script: string;
   private readonly env: NodeJS.ProcessEnv;
   private readonly write: ((output: string) => void) | undefined;
+  private readonly args: readonly string[];
 
   /**
    * @param name - The name of the step.
@@ -22,19 +23,32 @@ export class ScriptStep implements Step {
    * @param env - The environment of the script.
    * @param write - Writes the whole output of the script, its error output included, once the script has ended, so
    * that scripts running at the same time do not mix their lines; without it, the script writes as it runs.
+   * @param args - The arguments the script is given.
    */
-  public constructor(name: string, root: string, script: string, env: NodeJS.ProcessEnv = process.env, write?: (output: string) => void) {
+  public constructor(
+    name: string,
+    root: string,
+    script: string,
+    env: NodeJS.ProcessEnv = process.env,
+    write?: (output: string) => void,
+    args: readonly string[] = [],
+  ) {
     this.name = name;
     this.root = root;
     this.script = script;
     this.env = env;
     this.write = write;
+    this.args = args;
   }
 
   public async run(): Promise<readonly string[]> {
     const env = { ...this.env };
     delete env["npm_config_reporter"];
-    const child = spawn("pnpm", ["run", this.script], { cwd: this.root, env, stdio: this.write === undefined ? "inherit" : ["inherit", "pipe", "pipe"] });
+    const child = spawn("pnpm", ["run", this.script, ...this.args], {
+      cwd: this.root,
+      env,
+      stdio: this.write === undefined ? "inherit" : ["inherit", "pipe", "pipe"],
+    });
     const output: Buffer[] = [];
     for (const stream of [child.stdout, child.stderr]) stream?.on("data", (chunk: Buffer) => output.push(chunk));
     const [code] = (await once(child, "close")) as [number | null];

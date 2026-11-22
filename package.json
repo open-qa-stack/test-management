@@ -14,6 +14,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run --coverage",
+    "test:part": "vitest run --coverage --reporter=blob",
+    "test:merge": "vitest --merge-reports --coverage",
     "check": "node --disable-warning=ExperimentalWarning packages/check/src/main.ts",
     "scan": "node --disable-warning=ExperimentalWarning packages/check/src/scan-main.ts",
     "test:watch": "vitest"

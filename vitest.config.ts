@@ -104,7 +104,9 @@ export default defineConfig({
       ],
       reportsDirectory: process.env["OQAS_COVERAGE_DIRECTORY"] ?? "coverage",
       reporter: ["text-summary", "lcovonly"],
-      thresholds: { perFile: true, lines: 100, branches: 100, functions: 100, statements: 100 },
+      // A part of the tests, run apart as `OQAS_TEST_PART` says, covers part of the code: the reports of every part,
+      // merged, are held to the thresholds.
+      ...(process.env["OQAS_TEST_PART"] === undefined ? { thresholds: { perFile: true, lines: 100, branches: 100, functions: 100, statements: 100 } } : {}),
     },
   },
 });

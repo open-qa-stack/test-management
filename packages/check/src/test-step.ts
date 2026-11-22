@@ -4,6 +4,7 @@ import { dirname, join, relative } from "node:path";
 import { readCoverageReport, rebasedCoverageReport, type FileCoverage } from "./coverage-report.ts";
 import { declaresTypesOnly } from "./types-only.ts";
 import { ScriptStep } from "./script-step.ts";
+import type { TestMode } from "./check-options.ts";
 import type { Step } from "./step.ts";
 import type { WorkspacePackage } from "./workspace-package.ts";
 
@@ -34,6 +35,19 @@ export const COVERAGE_REPORT = "OQAS_COVERAGE_REPORT";
 /** The variable that tells the tests of the workspace the folders of the packages to test, separated by commas. */
 export const TEST_PACKAGES = "OQAS_TEST_PACKAGES";
 
+/** The variable that tells the tests of the workspace they are a part of them, which holds no threshold of its own. */
+export const TEST_PART = "OQAS_TEST_PART";
+
+/** What the step is given beside the workspace. */
+export interface TestStepOptions {
+  /** The file to keep the coverage of the whole workspace in, relative to the root; none to keep nothing. */
+  readonly keep?: string | undefined;
+  /** The names of the packages to test; every package when none is given. */
+  readonly chosen?: ReadonlySet<string> | undefined;
+  /** How the tests run. */
+  readonly mode: TestMode;
+}
+
 /**
  * Runs the tests of the workspace and requires them to cover all the lines, branches and functions of every
  * file of code under the `src` folder of each package, those no test loads included.
@@ -57,6 +71,12 @@ export const TEST_PACKAGES = "OQAS_TEST_PACKAGES";
  *
  * Given the packages to test, the step tests those alone and requires their coverage alone: the test script of the
  * root is told their folders in `OQAS_TEST_PACKAGES`.
+ *
+ * The tests may also run on several machines. A part runs a share of the test files of the root, by the `--shard`
+ * of its test runner, and writes what it found and covered as a report of its own, holding no threshold: the
+ * coverage of a part is not that of the code. The packages with a test script of their own run apart, with their
+ * coverage. The merge reads the reports of every part as one run, then requires the coverage of the packages the
+ * root tests, as a run of them all does.
  */
 export class TestStep implements Step {
   public readonly name = "tests and coverage";
@@ -66,6 +86,7 @@ export class TestStep implements Step {
   private readonly keep: string | undefined;
   /** The names of the packages to test; every package when none is given. */
   private readonly chosen: ReadonlySet<string> | undefined;
+  private readonly mode: TestMode;
   /** The reports read during a run, each path relative to the root. */
   private readonly read: string[] = [];
 
@@ -73,15 +94,15 @@ export class TestStep implements Step {
    * @param root - The root of the workspace.
    * @param packages - The packages of the workspace.
    * @param write - Writes the output of the tests of a package to the output of the check.
-   * @param keep - The file to keep the coverage of the whole workspace in, relative to the root; none to keep nothing.
-   * @param chosen - The names of the packages to test; every package when none is given.
+   * @param options - Where to keep the coverage, which packages to test and how.
    */
-  public constructor(root: string, packages: readonly WorkspacePackage[], write: (output: string) => void, keep?: string, chosen?: ReadonlySet<string>) {
+  public constructor(root: string, packages: readonly WorkspacePackage[], write: (output: string) => void, options: TestStepOptions) {
     this.root = root;
     this.packages = packages;
     this.write = write;
-    this.keep = keep === undefined ? undefined : join(root, keep);
-    this.chosen = chosen;
+    this.keep = options.keep === undefined ? undefined : join(root, options.keep);
+    this.chosen = options.chosen;
+    this.mode = options.mode;
   }
 
   public async run(): Promise<readonly string[]> {
@@ -93,11 +114,10 @@ export class TestStep implements Step {
     const typesOnly = await typesOnlyFiles(this.packages.flatMap(({ sources }) => sources));
     const reports = await mkdtemp(join(tmpdir(), "check-coverage-"));
     try {
-      const own = beside.filter(({ testScript }) => testScript !== undefined);
-      const runs = [
-        ...(shared.length === 0 ? [] : [() => this.testTogether(shared, typesOnly, join(reports, "workspace"))]),
-        ...own.map((workspacePackage, index) => () => this.test(workspacePackage, typesOnly, join(reports, `${index}.info`))),
-      ];
+      const { kind } = this.mode;
+      const own = kind === "all" || kind === "own" ? beside.filter(({ testScript }) => testScript !== undefined) : [];
+      const together = kind === "own" || shared.length === 0 ? [] : [() => this.testTogether(shared, typesOnly, join(reports, "workspace"))];
+      const runs = [...together, ...own.map((workspacePackage, index) => () => this.test(workspacePackage, typesOnly, join(reports, `${index}.info`)))];
       const findings = await eachOf(runs, PACKAGES_AT_ONCE, (run) => run());
       if (this.keep !== undefined) {
         await mkdir(dirname(this.keep), { recursive: true });
@@ -109,10 +129,21 @@ export class TestStep implements Step {
     }
   }
 
-  /** Runs the test script of the root, and reads from its report what it covered of the packages it tests. */
+  /**
+   * Runs the test script of the root, and reads from its report what it covered of the packages it tests; or runs a part
+   * of its tests, which reads nothing; or merges the reports of the parts, and reads what they covered together.
+   */
   private async testTogether(shared: readonly WorkspacePackage[], typesOnly: ReadonlySet<string>, folder: string): Promise<string[]> {
     const packages = this.chosen === undefined ? {} : { [TEST_PACKAGES]: shared.map(({ path }) => relative(this.root, path)).join(",") };
-    const failures = await new ScriptStep(this.name, this.root, "test", { ...process.env, [COVERAGE_DIRECTORY]: folder, ...packages }, this.write).run();
+    const env = { ...process.env, [COVERAGE_DIRECTORY]: folder, ...packages };
+    const { mode } = this;
+    if (mode.kind === "part")
+      return [
+        ...(await new ScriptStep(this.name, this.root, "test:part", { ...env, [TEST_PART]: `${mode.index}/${mode.count}` }, this.write, [
+          `--shard=${mode.index}/${mode.count}`,
+        ]).run()),
+      ];
+    const failures = await new ScriptStep(this.name, this.root, mode.kind === "merge" ? "test:merge" : "test", env, this.write).run();
     const covered = await this.report(join(folder, WORKSPACE_REPORT), this.root);
     return [
       ...failures,
