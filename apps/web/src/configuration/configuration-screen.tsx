@@ -1,11 +1,12 @@
 import type { FormEventHandler, MouseEventHandler, ReactNode } from "react";
-import type { ConfigError } from "@open-qa-stack/domain/sessions";
+import type { ConfigError, OqasConfig } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
 import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
 import { EditContext, type ConfigurationEdit } from "./configuration-edit.ts";
-import { isPending, type ConfigurationState } from "./configuration-state.ts";
+import { isPending, shownErrors, type ConfigurationState } from "./configuration-state.ts";
+import { placeText } from "./config-place.ts";
 import { errorText } from "./configuration-words.ts";
 import { FileCard, HistoryCard, JsonCard } from "./record-cards.tsx";
 import { ModelCard } from "./model-card.tsx";
@@ -39,8 +40,8 @@ export interface ConfigurationScreenProps {
   readonly controls: ConfigurationControls;
 }
 
-/** The errors of the draft, counted, each with where it is, at the head of the form. */
-export function ErrorSummary({ errors }: { readonly errors: readonly ConfigError[] }): ReactNode {
+/** The errors of the draft, counted, each with where it is in words, at the head of the form. */
+export function ErrorSummary({ errors, draft }: { readonly errors: readonly ConfigError[]; readonly draft: OqasConfig | undefined }): ReactNode {
   if (errors.length === 0) return null;
   return (
     <section className="config-note ko" aria-labelledby="config-errors-title">
@@ -48,7 +49,7 @@ export function ErrorSummary({ errors }: { readonly errors: readonly ConfigError
       <ul>
         {errors.map((error, index) => (
           <li key={index}>
-            <code className="mono">{error.path || "/"}</code> {errorText(error)}
+            <b>{placeText(error.path, draft)}</b> {errorText(error, draft)}
           </li>
         ))}
       </ul>
@@ -96,7 +97,8 @@ export function Notes({ state }: { readonly state: ConfigurationState }): ReactN
  * @returns The screen.
  */
 export function ConfigurationScreen({ project, state, controls }: ConfigurationScreenProps): ReactNode {
-  const { draft, view, errors, saving, unread, revisions } = state;
+  const { draft, view, saving, unread, revisions } = state;
+  const errors = shownErrors(state);
   const pending = isPending(state);
   const title = t("configuration.screen.title");
   const crumbs = [{ label: project }, { label: title }];
@@ -145,12 +147,13 @@ export function ConfigurationScreen({ project, state, controls }: ConfigurationS
     <Page crumbs={crumbs} title={title} actions={actions}>
       <p className="small muted">{t("configuration.screen.lead")}</p>
       <Notes state={state} />
-      <ErrorSummary errors={errors} />
+      <ErrorSummary errors={errors} draft={draft} />
       <EditContext.Provider
         value={{
           change: controls.change,
           click: controls.click,
           errors,
+          draft,
           values: state.values,
           ...(state.secrets === undefined ? {} : { secrets: state.secrets }),
         }}

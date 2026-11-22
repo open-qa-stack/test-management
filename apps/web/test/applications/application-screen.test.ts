@@ -48,7 +48,7 @@ describe("the page of an application", () => {
 
   it("shows the application alone, every field with its label and its value, with nothing to save while nothing changed, and no button that removes it", () => {
     const html = page("#/applications/shop");
-    assert.match(textOf(html), /^shop-tests \/ Applications \/ Shop Shop Retirer l’application Shop · shop Identifiant/);
+    assert.match(textOf(html), /^shop-tests \/ Applications \/ Shop Shop Retirer l’application Shop · shop Nom .* Avancé Identifiant Minuscules/);
     assert.match(textOf(html), /Enregistrée Annuler les modifications Enregistrer$/);
     assert.doesNotMatch(html, /data-remove="\/applications\/0"/);
     assert.match(html, /<a class="btn ghost" href="#\/applications\/shop\?drop=application">Retirer l’application<\/a>/);
@@ -75,6 +75,22 @@ describe("the page of an application", () => {
     assert.match(textOf(page("#/applications/shop", unnamed)), /^shop-tests \/ Applications \/ Application 1 Application 1 Retirer l’application/);
   });
 
+  it("folds the identifier and the variables under « Avancé », which opens by itself on an error of one of them", () => {
+    assert.match(
+      page("#/applications/shop"),
+      /<details class="config-advanced"><summary>Avancé<\/summary><div class="config-fields"><div class="config-field"><label for="config-applications-0-id">/,
+    );
+    const wrong = configurationAfter(stateAfter(), {
+      type: "checked",
+      draft: stateAfter().draft!,
+      errors: [{ kind: "structure", path: "/applications/0/id", rule: "slug", message: "…" }],
+    });
+    assert.match(
+      page("#/applications/shop", { ...wrong, tried: true }),
+      /<details class="config-advanced" open=""><summary>Avancé<\/summary><div class="config-fields"><div class="config-field"><label for="config-applications-0-id">/,
+    );
+  });
+
   it("asks for the values of the variables of the test accounts beside them", () => {
     const html = page("#/applications/shop");
     for (const variable of ["SHOP_USER", "SHOP_PASSWORD"]) assert.match(html, new RegExp(`id="secret-${variable}"`));
@@ -94,10 +110,10 @@ describe("the page of an application", () => {
     assert.doesNotMatch(page("#/applications?add=application"), /<form/, "nothing until the page added it");
     const added = stateAfter([{ type: "add", pointer: "/applications", item: NEW_ITEMS.application }]);
     const errors: ConfigError[] = [{ kind: "structure", path: "/applications/1/environments", rule: "too-few-items", message: "Too few items." }];
-    const html = page("#/applications?add=application", { ...added, errors });
+    const html = page("#/applications?add=application", { ...added, errors, tried: true });
     const text = textOf(html);
     assert.match(text, /^shop-tests \/ Applications \/ Nouvelle application Nouvelle application 1 erreur à corriger avant d’enregistrer/);
-    assert.match(text, /Application 2 · sans identifiant Retirer Identifiant/);
+    assert.match(text, /Application 2 · sans identifiant Retirer Nom /);
     assert.match(text, /Environnement 1 Environnement 1 Retirer Nom/);
     assert.match(html, /aria-label="Retirer l’environnement 1 de Application 2" data-remove="\/applications\/1\/environments\/0"/);
     assert.match(html, /<p class="field-error" role="note">Il en faut au moins un\.<\/p>/);

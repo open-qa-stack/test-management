@@ -3,7 +3,7 @@ import { attachmentsOf, isProjectWide, isStoredDocuments, type Attachment, type 
 import { t } from "../i18n/i18n.ts";
 import { hrefTo } from "../routing/route.ts";
 import { Card } from "../ui/card.tsx";
-import { AddButton, choices, ChoiceField, InputField, ItemHead, PlaceErrors, RemoveButton, SecretField } from "./configuration-fields.tsx";
+import { AddButton, AdvancedFields, choices, ChoiceField, InputField, ItemHead, PlaceErrors, RemoveButton, SecretField } from "./configuration-fields.tsx";
 import type { NewItem } from "./configuration-edit.ts";
 import type { SourceTest } from "./configuration-state.ts";
 
@@ -48,7 +48,13 @@ function AttachmentFields({
 }): ReactNode {
   const application = applications.find((candidate) => candidate.id === attachment.application);
   const environment = application?.environments.find((candidate) => candidate.name === attachment.environment);
-  const title = t("configuration.knowledge.attachment", { rank: rank + 1 });
+  // What the attachment says in words: the application, then the environment and the API it narrows to, or every environment.
+  const where =
+    attachment.environment === undefined
+      ? t("configuration.knowledge.everyEnvironment")
+      : [attachment.environment, attachment.api].filter((part) => part !== undefined).join(" › ");
+  const served = application === undefined ? t("configuration.knowledge.noApplication") : application.name === "" ? application.id : application.name;
+  const title = t("configuration.knowledge.serves", { application: served, where });
   return (
     <div className="config-item">
       <ItemHead
@@ -112,14 +118,16 @@ function WhereFields({ at, source }: { readonly at: string; readonly source: Kno
     case "postgresql":
       return (
         <>
-          <InputField
-            pointer={`${at}/connectionStringEnv`}
-            label={t("configuration.knowledge.connectionStringEnv")}
-            value={source.connectionStringEnv}
-            code
-            hint={t("configuration.knowledge.connectionStringEnvHint")}
-          />
           <SecretField variable={source.connectionStringEnv} kind="connection_string" />
+          <AdvancedFields pointers={[`${at}/connectionStringEnv`]}>
+            <InputField
+              pointer={`${at}/connectionStringEnv`}
+              label={t("configuration.knowledge.connectionStringEnv")}
+              value={source.connectionStringEnv}
+              code
+              hint={t("configuration.knowledge.connectionStringEnvHint")}
+            />
+          </AdvancedFields>
         </>
       );
     case "document":
@@ -153,13 +161,15 @@ function WhereFields({ at, source }: { readonly at: string; readonly source: Kno
             code
             hint={t("configuration.knowledge.codePathHint")}
           />
-          <ChoiceField
-            pointer={`${at}/commands`}
-            label={t("configuration.knowledge.commands")}
-            value={source.commands}
-            options={choices(["none", "git", "shell"], (value) => t(`configuration.knowledge.commandChoices.${value}`))}
-            none={t("configuration.knowledge.commandsDefault")}
-          />
+          <AdvancedFields pointers={[`${at}/commands`]}>
+            <ChoiceField
+              pointer={`${at}/commands`}
+              label={t("configuration.knowledge.commands")}
+              value={source.commands}
+              options={choices(["none", "git", "shell"], (value) => t(`configuration.knowledge.commandChoices.${value}`))}
+              none={t("configuration.knowledge.commandsDefault")}
+            />
+          </AdvancedFields>
         </>
       );
     case "logs":

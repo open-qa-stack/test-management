@@ -13,6 +13,7 @@ import type {
   Knowledge,
   SourceCheck,
 } from "@open-qa-stack/domain/sessions";
+import { withFollowers } from "./derived-names.ts";
 import { modelFor } from "./model-connection.ts";
 import { appendedAt, changedAt, removedAt, valueAt } from "./json-pointer.ts";
 
@@ -28,6 +29,10 @@ export interface ConfigurationState {
   readonly basedOn: number;
   /** The errors the instance found in the draft, each where it is. */
   readonly errors: readonly ConfigError[];
+  /** Where the person changed the draft since it was read, as JSON Pointers: the errors there are shown at once. */
+  readonly touched?: readonly string[];
+  /** Whether the person asked to save the draft since it was read: every error is shown then. */
+  readonly tried?: boolean;
   /** Whether a change is on its way to the instance. */
   readonly saving: boolean;
   /** The revision the person saved last, which the screen tells. */
@@ -172,11 +177,27 @@ function autonomyOf(level: Autonomy["level"], draft: OqasConfig): Autonomy {
 }
 
 /** The state once the draft changed: what the instance found in the draft before no longer holds. */
-function edited(state: ConfigurationState, change: (draft: OqasConfig) => OqasConfig): ConfigurationState {
+function edited(state: ConfigurationState, change: (draft: OqasConfig) => OqasConfig, at?: string): ConfigurationState {
   if (state.draft === undefined) return state;
   const { saved: _, refusal: __, ...rest } = state;
-  return { ...rest, draft: change(state.draft) };
+  return { ...rest, draft: change(state.draft), ...(at === undefined ? {} : { touched: [...(state.touched ?? []), at] }) };
 }
+
+/**
+ * The errors the screen shows: every error once the person asked to save; before, those of what they changed alone, so
+ * that an item they add is not shown wrong before they filled it.
+ *
+ * @param state - The state of the screen.
+ * @returns The errors to show, each where it is.
+ */
+export function shownErrors(state: ConfigurationState): readonly ConfigError[] {
+  if (state.tried === true) return state.errors;
+  const touched = state.touched ?? [];
+  return state.errors.filter(({ path }) => touched.some((at) => path === at || path.startsWith(`${at}/`)));
+}
+
+/** The list an item is in: the errors of a list, such as too few items, follow the removal of one of them. */
+const listOf = (pointer: string): string => pointer.slice(0, pointer.lastIndexOf("/"));
 
 /**
  * Gives the state of the screen after an action.
@@ -210,7 +231,7 @@ export function configurationAfter(state: ConfigurationState, action: Configurat
       return { ...state, preparation: action.preparation };
     case "connection": {
       const { connection: _, ...rest } = state;
-      return edited(rest, (draft) => changedAt(draft, "/model", modelFor(action.choice, draft.model)));
+      return edited(rest, (draft) => changedAt(draft, "/model", modelFor(action.choice, draft.model)), "/model");
     }
     case "testing":
       return { ...state, connection: { model: action.model } };
@@ -225,21 +246,30 @@ export function configurationAfter(state: ConfigurationState, action: Configurat
         },
       };
     case "edit":
-      return edited(state, (draft) => changedAt(draft, action.pointer, action.value));
+      // The identifiers and the variables made of what the person changes follow it while they did not set them.
+      return edited(
+        state,
+        (draft) => withFollowers(draft, changedAt(draft, action.pointer, action.value), action.pointer, state.view?.revision?.document),
+        action.pointer,
+      );
     case "toggle":
-      return edited(state, (draft) => {
-        const members = valueAt(draft, action.pointer);
-        const kept = (Array.isArray(members) ? (members as string[]) : action.defaults).filter((member) => member !== action.member);
-        return changedAt(draft, action.pointer, action.on ? [...kept, action.member] : kept);
-      });
+      return edited(
+        state,
+        (draft) => {
+          const members = valueAt(draft, action.pointer);
+          const kept = (Array.isArray(members) ? (members as string[]) : action.defaults).filter((member) => member !== action.member);
+          return changedAt(draft, action.pointer, action.on ? [...kept, action.member] : kept);
+        },
+        action.pointer,
+      );
     case "level":
-      return edited(state, (draft) => changedAt(draft, "/autonomy", autonomyOf(action.level, draft)));
+      return edited(state, (draft) => changedAt(draft, "/autonomy", autonomyOf(action.level, draft)), "/autonomy");
     case "add":
       return edited(state, (draft) => appendedAt(draft, action.pointer, action.item));
     case "remove":
-      return edited(state, (draft) => removedAt(draft, action.pointer));
+      return edited(state, (draft) => removedAt(draft, action.pointer), listOf(action.pointer));
     case "discard": {
-      const { refusal: _, saved: __, draft: ___, ...rest } = state;
+      const { refusal: _, saved: __, draft: ___, touched: ____, tried: _____, ...rest } = state;
       const revision = state.view?.revision;
       return { ...rest, errors: [], values: {}, basedOn: revision?.number ?? 0, ...(revision === undefined ? {} : { draft: revision.document }) };
     }
@@ -247,10 +277,10 @@ export function configurationAfter(state: ConfigurationState, action: Configurat
       return action.draft === state.draft ? { ...state, errors: action.errors } : state;
     case "saving": {
       const { refusal: _, valued: __, ...rest } = state;
-      return { ...rest, saving: true };
+      return { ...rest, saving: true, tried: true };
     }
     case "saved": {
-      const { refusal: _, ...rest } = state;
+      const { refusal: _, touched: __, tried: ___, ...rest } = state;
       const { revision } = action.view;
       return {
         ...rest,

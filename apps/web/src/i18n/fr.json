@@ -647,7 +647,10 @@
         "applications": "Des applications précises"
       },
       "reachProjectHint": "Les sessions la lisent quelle que soit l’application qu’elles testent.",
-      "reachApplicationsHint": "Elle décrit ces applications, chacune restreinte au besoin à l’un de ses environnements et de ses API. Une session qui teste une autre application peut la lire, avec un avertissement."
+      "reachApplicationsHint": "Elle décrit ces applications, chacune restreinte au besoin à l’un de ses environnements et de ses API. Une session qui teste une autre application peut la lire, avec un avertissement.",
+      "serves": "Sert à : {{application}}, {{where}}",
+      "everyEnvironment": "tous les environnements",
+      "noApplication": "une application à choisir"
     },
     "remove": "Retirer",
     "records": {
@@ -718,6 +721,13 @@
       "none": "Aucune configuration pour l’instant",
       "noneNote": "Configurez le projet : ses applications se déclarent au démarrage.",
       "configure": "Configurer le projet"
+    },
+    "places": {
+      "whole": "La configuration",
+      "path": "Chemin",
+      "rank": "{{rank}}",
+      "source": "Source {{name}}",
+      "attachment": "Sert à {{rank}}"
     }
   },
   "knowledge": {

@@ -647,7 +647,10 @@
         "applications": "Given applications"
       },
       "reachProjectHint": "The sessions read it whatever application they test.",
-      "reachApplicationsHint": "It describes these applications, each narrowed to one of its environments and APIs if need be. A session that tests another application may read it, with a warning."
+      "reachApplicationsHint": "It describes these applications, each narrowed to one of its environments and APIs if need be. A session that tests another application may read it, with a warning.",
+      "serves": "Serves: {{application}}, {{where}}",
+      "everyEnvironment": "every environment",
+      "noApplication": "an application to choose"
     },
     "remove": "Remove",
     "records": {
@@ -718,6 +721,13 @@
       "none": "No configuration yet",
       "noneNote": "Configure the project: its applications are declared when it starts.",
       "configure": "Configure the project"
+    },
+    "places": {
+      "whole": "The configuration",
+      "path": "Path",
+      "rank": "{{rank}}",
+      "source": "Source {{name}}",
+      "attachment": "Serves {{rank}}"
     }
   },
   "knowledge": {
