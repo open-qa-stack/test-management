@@ -43,7 +43,7 @@ const attachment = {
 
 const knowledgeCommon = {
   id: slug,
-  attachments: { type: "array", minItems: 1, items: { $ref: "#/$defs/attachment" } },
+  attachments: { type: "array", items: { $ref: "#/$defs/attachment" } },
 } as const;
 
 /**
@@ -137,20 +137,20 @@ export const configSchema = {
         {
           type: "object",
           additionalProperties: false,
-          required: ["id", "type", "attachments"],
+          required: ["id", "type"],
           properties: { ...knowledgeCommon, type: { const: "openapi" }, url, path: relativePath },
           oneOf: [{ required: ["url"] }, { required: ["path"] }],
         },
         {
           type: "object",
           additionalProperties: false,
-          required: ["id", "type", "attachments", "connectionStringEnv"],
+          required: ["id", "type", "connectionStringEnv"],
           properties: { ...knowledgeCommon, type: { const: "postgresql" }, connectionStringEnv: envVar },
         },
         {
           type: "object",
           additionalProperties: false,
-          required: ["id", "type", "attachments"],
+          required: ["id", "type"],
           properties: {
             ...knowledgeCommon,
             type: { const: "document" },
@@ -162,7 +162,7 @@ export const configSchema = {
         {
           type: "object",
           additionalProperties: false,
-          required: ["id", "type", "attachments", "path"],
+          required: ["id", "type", "path"],
           properties: {
             ...knowledgeCommon,
             type: { const: "source-code" },
@@ -176,7 +176,7 @@ export const configSchema = {
         {
           type: "object",
           additionalProperties: false,
-          required: ["id", "type", "attachments"],
+          required: ["id", "type"],
           properties: {
             ...knowledgeCommon,
             type: { const: "logs" },

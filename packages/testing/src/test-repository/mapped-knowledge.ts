@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { resolvedConfig, type OqasConfig } from "@open-qa-stack/domain";
+import { isReadIn, resolvedConfig, type OqasConfig } from "@open-qa-stack/domain";
 
 /**
  * Marks the knowledge of a test repository mapped: a card for each source the cartography reads in the first
@@ -12,9 +12,7 @@ import { resolvedConfig, type OqasConfig } from "@open-qa-stack/domain";
 export function markMapped(root: string): void {
   const config = resolvedConfig(JSON.parse(readFileSync(join(root, "oqas.json"), "utf8")) as OqasConfig);
   const environment = config.applications[0]!.environments[0]!.name;
-  const knowledge = config.knowledge
-    .filter((source) => source.type !== "logs" && source.attachments.some((attachment) => (attachment.environment ?? environment) === environment))
-    .map(({ id }) => id);
+  const knowledge = config.knowledge.filter((source) => source.type !== "logs" && isReadIn(source, environment)).map(({ id }) => id);
   const interfaces = config.applications
     .filter((application) => application.environments.some((e) => e.name === environment && e.uiUrl !== undefined))
     .map(({ id }) => id);

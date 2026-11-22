@@ -1,5 +1,5 @@
 import type { MouseEventHandler, ReactNode } from "react";
-import { isStoredDocuments, type Attachment, type ConfiguredApplication, type Knowledge } from "@open-qa-stack/domain/sessions";
+import { attachmentsOf, isProjectWide, isStoredDocuments, type Attachment, type ConfiguredApplication, type Knowledge } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
 import { hrefTo } from "../routing/route.ts";
 import { Card } from "../ui/card.tsx";
@@ -241,16 +241,24 @@ export function KnowledgeCard({
         <CheckResult test={test?.source === source ? test : undefined} />
         <fieldset className="config-group">
           <legend>{t("configuration.knowledge.attachments")}</legend>
-          <p className="field-hint">{t("configuration.knowledge.attachmentsHint")}</p>
-          <PlaceErrors pointer={`${at}/attachments`} />
-          {source.attachments.map((attachment, index) => (
+          <ChoiceField
+            pointer={`${at}/attachments`}
+            kind="reach"
+            label={t("configuration.knowledge.reach")}
+            hint={t(isProjectWide(source) ? "configuration.knowledge.reachProjectHint" : "configuration.knowledge.reachApplicationsHint")}
+            value={isProjectWide(source) ? "project" : "applications"}
+            options={choices(["project", "applications"], (value) => t(`configuration.knowledge.reaches.${value}`))}
+          />
+          {attachmentsOf(source).map((attachment, index) => (
             <AttachmentFields key={index} at={`${at}/attachments/${index}`} attachment={attachment} rank={index} owner={title} applications={applications} />
           ))}
-          <div className="config-actions">
-            <AddButton pointer={`${at}/attachments`} item="attachment">
-              {t("configuration.knowledge.addAttachment")}
-            </AddButton>
-          </div>
+          {!isProjectWide(source) && (
+            <div className="config-actions">
+              <AddButton pointer={`${at}/attachments`} item="attachment">
+                {t("configuration.knowledge.addAttachment")}
+              </AddButton>
+            </div>
+          )}
         </fieldset>
       </div>
     </Card>

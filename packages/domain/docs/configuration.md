@@ -99,13 +99,13 @@ Test accounts used to sign in. The format keeps them with the application's auth
 
 ### Knowledge
 
-Every knowledge source has an `id`, a `type`, `attachments`, and the keys its type requires.
+Every knowledge source has an `id`, a `type`, the keys its type requires, and its `attachments` when it describes given applications.
 
 | Key | Type | Required | Example |
 |---|---|---|---|
 | `id` | slug, unique | yes | `"policy-management-api"` |
 | `type` | `openapi`, `postgresql`, `document`, `source-code` or `logs` | yes | `"openapi"` |
-| `attachments` | array of [attachments](#attachment), at least one | yes | `[{ "application": "policy-management" }]` |
+| `attachments` | array of [attachments](#attachment) | no: left out, or empty, for a source of the whole project | `[{ "application": "policy-management" }]` |
 | `url` | URL, for `openapi`; exactly one of `url` and `path` | see type | `"http://localhost:8090/v3/api-docs"` |
 | `path` | path, for `openapi`, `document`, `source-code` and `logs` | see type | `"contracts/policy-management.json"`, `"specs/quotes.md"`, `"../policy-management"` |
 | `stored` | `true`, for `document`; exactly one of `path` and `stored` | see type | `true` |
@@ -125,6 +125,8 @@ A `logs` source gives the agents the lines a service writes: those of a file, `{
 The other kinds of knowledge the product plans (SOAP contracts, tickets, test data sets) are not supported by this format version.
 
 ### Attachment
+
+A source with attachments describes the applications they name: the sessions read it in the environments they leave open or name. A source without any is of the whole project, and read in every environment. A session that tests none of the applications of a source still reads it, but each answer of its tools warns that it describes other applications (see [the tools of the knowledge](../../tools/docs/knowledge-tools.md#failures)).
 
 | Key | Type | Required | Example |
 |---|---|---|---|

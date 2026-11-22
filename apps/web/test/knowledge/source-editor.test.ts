@@ -98,6 +98,23 @@ describe("the editor of a source", () => {
     assert.match(textOf(editor(8, configurationAfter(added, { type: "saving" }), true)), /Enregistrement… Annuler/);
   });
 
+  it("says what the source is for: given applications, each narrowed if need be, or the whole project, which has no attachment to add", () => {
+    const attached = editor(0);
+    assert.match(attached, /<option value="applications" selected="">Des applications précises<\/option>/);
+    assert.ok(bears(attached, "/knowledge/0/attachments", "select", 'data-kind="reach"'));
+    assert.match(
+      textOf(attached),
+      /Portée Pour Tout le projet Des applications précises Elle décrit ces applications, .* Une session qui teste une autre application peut la lire, avec un avertissement\. Rattachement 1/,
+    );
+    const wide = editor(0, stateAfter([{ type: "edit", pointer: "/knowledge/0/attachments", value: undefined }]));
+    assert.match(wide, /<option value="project" selected="">Tout le projet<\/option>/);
+    assert.match(
+      textOf(wide),
+      /Les sessions la lisent quelle que soit l’application qu’elles testent\. Enregistrée|Les sessions la lisent quelle que soit l’application qu’elles testent\. Modifications non enregistrées/,
+    );
+    assert.doesNotMatch(wide, /Rattachement 1|data-item="attachment"/);
+  });
+
   it("hands the card the latest test of the source, and says a change was saved or why it was refused", () => {
     const source = DOCUMENT.knowledge[1]!;
     assert.match(

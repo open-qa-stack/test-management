@@ -25,8 +25,11 @@ export const NO_EDIT: ConfigurationEdit = { change: ignore, click: ignore, error
 /** The edit the fields of the screen of the configuration are in. */
 export const EditContext = createContext<ConfigurationEdit>(NO_EDIT);
 
-/** How a field reads what the person typed: a text, a number, a choice, a member of a set, a level of autonomy, or the value of a variable. */
-export type FieldKind = "text" | "number" | "choice" | "member" | "level" | "connection" | "secret";
+/**
+ * How a field reads what the person typed: a text, a number, a choice, a member of a set, a level of autonomy, the
+ * value of a variable, or the reach of a knowledge source.
+ */
+export type FieldKind = "text" | "number" | "choice" | "member" | "level" | "connection" | "secret" | "reach";
 
 /** What a field holds when the person changed it. */
 export interface ChangedField {
@@ -67,6 +70,9 @@ export function actionOf(field: ChangedField): ConfigurationAction {
       return { type: "connection", choice: value };
     case "secret":
       return { type: "value", name: field.variable!, value };
+    case "reach":
+      // A source of the whole project has no attachment; one of applications starts with an application to choose.
+      return { type: "edit", pointer, value: value === "project" ? undefined : [{ application: "" }] };
     case "number":
       return { type: "edit", pointer, value: value === "" ? undefined : Number(value) };
     default:
@@ -94,12 +100,12 @@ export const NEW_ITEMS = {
   api: { name: "", baseUrl: "" },
   account: { name: "", usernameEnv: "", passwordEnv: "" },
   attachment: { application: "" },
-  openapi: { id: "", type: "openapi", url: "", attachments: [{ application: "" }] },
-  postgresql: { id: "", type: "postgresql", connectionStringEnv: "", attachments: [{ application: "" }] },
-  document: { id: "", type: "document", path: "", attachments: [{ application: "" }] },
-  stored: { id: "", type: "document", stored: true, attachments: [{ application: "" }] },
-  "source-code": { id: "", type: "source-code", path: "", attachments: [{ application: "" }] },
-  logs: { id: "", type: "logs", path: "", attachments: [{ application: "" }] },
+  openapi: { id: "", type: "openapi", url: "" },
+  postgresql: { id: "", type: "postgresql", connectionStringEnv: "" },
+  document: { id: "", type: "document", path: "" },
+  stored: { id: "", type: "document", stored: true },
+  "source-code": { id: "", type: "source-code", path: "" },
+  logs: { id: "", type: "logs", path: "" },
 } as const;
 
 /** A kind of item a button adds. */

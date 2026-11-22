@@ -142,7 +142,10 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
         tool.function.description,
       ]),
     );
-    assert.match(described.get("shop_db_search")!, /Read-only\. A value of the data of a plan comes from a result such as this one\.$/);
+    assert.match(
+      described.get("shop_db_search")!,
+      /Read-only\. The source \S+ describes the application shop\. A value of the data of a plan comes from a result such as this one\.$/,
+    );
     assert.doesNotMatch(described.get("shop_db_query")!, /data of a plan/);
     assert.match(
       described.get("shop_goto")!,

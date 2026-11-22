@@ -42,7 +42,8 @@ export interface SessionTools {
  * @remarks
  * The browser starts at the first call of a browser tool. The watch of the screens checks on the page, with
  * the browser of the session and without the model, the locators it builds itself. The search of each base says that the data of a
- * plan come from results such as its own.
+ * plan come from results such as its own; the tools of a source attached only to applications the session does not test
+ * warn of it with each answer.
  *
  * @param scope - What the session works on.
  * @returns The watches, which give the tools, and the means to close the browser.
@@ -63,7 +64,9 @@ export function sessionTools(scope: SessionScope): SessionTools {
     (application, targets) => browser.matches(application, targets),
   );
   const secrets = declaredValues(config, env);
-  const tools = knowledgeTools(sources, { repositoryRoot, env, secrets, taskStart: scope.start });
+  // A source attached only to applications the session does not test warns of it with each answer.
+  const tested = applications.map((application) => application.id);
+  const tools = knowledgeTools(sources, { repositoryRoot, env, secrets, taskStart: scope.start, applications: tested });
   return { screens, reads: new SourceWatch(sources, withDataHint(tools, sources), secrets), close: () => browser.close() };
 }
 

@@ -622,8 +622,7 @@
       "container": "Container",
       "engine": "Container engine",
       "noEngine": "None",
-      "attachments": "Attached to",
-      "attachmentsHint": "The applications whose sessions read this source, each narrowed to one of its environments and APIs if need be.",
+      "attachments": "Reach",
       "attachment": "Attachment {{rank}}",
       "theAttachment": "the attachment {{rank}}",
       "application": "Application",
@@ -641,7 +640,14 @@
       "answered_zero": "Connected, but the source holds nothing yet.",
       "answered_one": "Connected · 1 item found.",
       "answered_other": "Connected · {{count}} items found.",
-      "unchecked": "Logs are read while a session runs: they are not tested here."
+      "unchecked": "Logs are read while a session runs: they are not tested here.",
+      "reach": "For",
+      "reaches": {
+        "project": "The whole project",
+        "applications": "Given applications"
+      },
+      "reachProjectHint": "The sessions read it whatever application they test.",
+      "reachApplicationsHint": "It describes these applications, each narrowed to one of its environments and APIs if need be. A session that tests another application may read it, with a warning."
     },
     "remove": "Remove",
     "records": {
@@ -770,7 +776,9 @@
     "drop": "Remove the source",
     "dropTitle": "Remove the source {{id}}?",
     "dropNote": "The next sessions no longer read it. A new revision of the configuration is saved: the previous one stays in the history.",
-    "confirmDrop": "Remove the source"
+    "confirmDrop": "Remove the source",
+    "project": "The whole project",
+    "projectHint": "read whatever application is tested"
   },
   "tests": {
     "title": "Tests",

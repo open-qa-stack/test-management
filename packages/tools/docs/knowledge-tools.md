@@ -36,6 +36,10 @@
 
 A source that cannot be reached, or a database whose connection string is not set, fails the call and not the session: the agent receives the error and may go on. An operation, a section or a table that does not exist is answered with an error the agent can read. A missing folder fails the call, and is looked for again at the next one. A missing log file, an engine that is not installed, does not answer in time or cannot read the container, fails the call with its reason. A stopped container still has its logs, and the tool reads them. `knowledgeTools` gives tools to every source it receives: choosing the sources of a session from their attachments is up to the caller.
 
+## What a source describes
+
+The tools of a source attached to applications name them in their description. Given `applications`, those the session tests, the tools of a source attached to none of them answer `{ warning, result }`: the warning names the applications of the source and those of the session, and asks the agent to check that what it looks for is the same before it relies on it (`withReach`). The source stays readable: what it tells of another application may hold for this one. A source of the whole project says nothing of the kind.
+
 ## Export of a database
 
 `knowledgeInventory(source, access)` reads what a source holds without the model. For a `postgresql` source it reads the catalog once and returns, with the inventory, the `export` of the database: its elements, tables first, then views, then functions and procedures, each with a `name`, a `kind`, a `summary` of a few lines, its whole `definition`, the `names` it declares, the `links` to the other elements it refers to, the `file` of its definition in the export and a `fingerprint`.

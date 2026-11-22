@@ -7,7 +7,7 @@ import { MAX_DOCUMENT_BYTES } from "@open-qa-stack/domain";
 import { DatabaseUrl, InstanceDatabase } from "@open-qa-stack/store";
 import { fixtureConfig } from "@open-qa-stack/testing/fixture-repository";
 import { parseArguments, soloCommand } from "../src/index.ts";
-import { mappingLines } from "../src/solo/knowledge-lines.ts";
+import { mappingLines, sourceLine } from "../src/solo/knowledge-lines.ts";
 
 const workspace = mkdtempSync(join(tmpdir(), "oqas-knowledge-command-"));
 afterAll(() => rmSync(workspace, { recursive: true, force: true }));
@@ -70,6 +70,13 @@ describe("oqas knowledge", () => {
       ].join("\n"),
       err: "",
     });
+  });
+
+  it("says a source attached to no application is for the whole project", () => {
+    assert.equal(
+      sourceLine({ id: "glossary", type: "document", path: "docs/glossary.md" }),
+      "glossary: documents of the repository, docs/glossary.md; for the whole project.",
+    );
   });
 
   it("uploads files as documents of a source the instance keeps, all of them or none, then lists them", async () => {

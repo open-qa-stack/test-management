@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, posix } from "node:path";
 import {
   CONFIG_FILE_NAME,
+  isReadIn,
   validateDomainIndex,
   validateSourceCard,
   validateSourceManifest,
@@ -246,7 +247,7 @@ export class Designer {
 
     const applications = config.applications.filter((application) => application.environments.some((environment) => environment.name === index.environment));
     const packages = testPackages(await readFile(join(repositoryRoot, "package.json"), "utf8").catch(() => undefined));
-    const readable = config.knowledge.filter((source) => source.attachments.some((a) => a.environment === undefined || a.environment === index.environment));
+    const readable = config.knowledge.filter((source) => isReadIn(source, index.environment));
     // The sources a scenario may cite and a tool may belong to: the index is a map, not a limit.
     const owners = [
       ...new Set([...index.sources.map((source) => source.id), ...readable.map((source) => source.id), ...applications.map((application) => application.id)]),

@@ -15,6 +15,7 @@ import { sourceCodeTools } from "./source-code/source-code-tools.ts";
 import { ContainerLogs } from "./logs/container-logs.ts";
 import { LogFile } from "./logs/log-file.ts";
 import { logsTools } from "./logs/logs-tools.ts";
+import { withReach } from "./source-reach.ts";
 
 /** What the tools of knowledge sources need to reach them. */
 export interface KnowledgeAccess {
@@ -31,6 +32,11 @@ export interface KnowledgeAccess {
   readonly secrets?: readonly string[];
   /** The start of the task, from which the log tools read when the agent gives no instant; when the tools are made by default. */
   readonly taskStart?: Date;
+  /**
+   * The applications the session tests, which a source attached only to others warns of with each answer; none for a
+   * session that is not kept to some.
+   */
+  readonly applications?: readonly string[];
 }
 
 /**
@@ -39,7 +45,8 @@ export interface KnowledgeAccess {
  * @remarks
  * Every tool is bound to its source. A source that cannot be reached does not fail the session: the
  * call fails, and the model is told. A database whose connection string is not set fails the same way,
- * when called. Which sources a session gets, given their attachments, is for the caller to choose.
+ * when called. Which sources a session gets, given their attachments, is for the caller to choose; the tools of
+ * each say what it describes, as `withReach` tells.
  *
  * @param knowledge - The knowledge sources of the configuration.
  * @param access - How to reach them.
@@ -47,28 +54,29 @@ export interface KnowledgeAccess {
  */
 export function knowledgeTools(knowledge: readonly ReachableKnowledge[], access: KnowledgeAccess): ToolDefinition[] {
   const taskStart = access.taskStart ?? new Date();
-  return knowledge.flatMap((source) => {
-    switch (source.type) {
-      case "openapi":
-        return openApiTools(source.id, new OpenApiContract(source, access.repositoryRoot));
-      case "postgresql": {
-        const client = lazySqlClient(source.connectionStringEnv, access.env, access.sqlClient ?? defaultSqlClient);
-        const catalog = new DatabaseCatalog(client);
-        return databaseTools(source.id, catalog, new DatabaseData(source.id, client, catalog));
-      }
-      case "document":
-        return documentTools(source.id, new DocumentSet(access.repositoryRoot, source.path));
-      case "source-code":
-        return sourceCodeTools(source.id, new CodeFolder(resolve(access.repositoryRoot, source.path)), source.commands ?? "git");
-      case "logs": {
-        const log =
-          source.path === undefined
-            ? new ContainerLogs(source.engine, source.container)
-            : new LogFile(resolve(access.repositoryRoot, source.path), source.path);
-        return logsTools(source.id, log, taskStart, access.secrets ?? []);
-      }
+  return knowledge.flatMap((source) => withReach(sourceTools(source, access, taskStart), source, access.applications));
+}
+
+/** The tools of one source, bound to it. */
+function sourceTools(source: ReachableKnowledge, access: KnowledgeAccess, taskStart: Date): ToolDefinition[] {
+  switch (source.type) {
+    case "openapi":
+      return openApiTools(source.id, new OpenApiContract(source, access.repositoryRoot));
+    case "postgresql": {
+      const client = lazySqlClient(source.connectionStringEnv, access.env, access.sqlClient ?? defaultSqlClient);
+      const catalog = new DatabaseCatalog(client);
+      return databaseTools(source.id, catalog, new DatabaseData(source.id, client, catalog));
     }
-  });
+    case "document":
+      return documentTools(source.id, new DocumentSet(access.repositoryRoot, source.path));
+    case "source-code":
+      return sourceCodeTools(source.id, new CodeFolder(resolve(access.repositoryRoot, source.path)), source.commands ?? "git");
+    case "logs": {
+      const log =
+        source.path === undefined ? new ContainerLogs(source.engine, source.container) : new LogFile(resolve(access.repositoryRoot, source.path), source.path);
+      return logsTools(source.id, log, taskStart, access.secrets ?? []);
+    }
+  }
 }
 
 /** Reaches a database with PostgreSQL itself. */

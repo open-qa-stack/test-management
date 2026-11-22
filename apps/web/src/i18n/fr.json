@@ -622,8 +622,7 @@
       "container": "Conteneur",
       "engine": "Moteur de conteneurs",
       "noEngine": "Aucun",
-      "attachments": "Rattachée à",
-      "attachmentsHint": "Les applications dont les sessions lisent cette source, chacune restreinte au besoin à l’un de ses environnements et de ses API.",
+      "attachments": "Portée",
       "attachment": "Rattachement {{rank}}",
       "theAttachment": "le rattachement {{rank}}",
       "application": "Application",
@@ -641,7 +640,14 @@
       "answered_zero": "Connexion réussie, mais la source ne contient rien pour l’instant.",
       "answered_one": "Connexion réussie · 1 élément trouvé.",
       "answered_other": "Connexion réussie · {{count}} éléments trouvés.",
-      "unchecked": "Les journaux se lisent pendant une session : ils ne se testent pas ici."
+      "unchecked": "Les journaux se lisent pendant une session : ils ne se testent pas ici.",
+      "reach": "Pour",
+      "reaches": {
+        "project": "Tout le projet",
+        "applications": "Des applications précises"
+      },
+      "reachProjectHint": "Les sessions la lisent quelle que soit l’application qu’elles testent.",
+      "reachApplicationsHint": "Elle décrit ces applications, chacune restreinte au besoin à l’un de ses environnements et de ses API. Une session qui teste une autre application peut la lire, avec un avertissement."
     },
     "remove": "Retirer",
     "records": {
@@ -770,7 +776,9 @@
     "drop": "Retirer la source",
     "dropTitle": "Retirer la source {{id}} ?",
     "dropNote": "Les prochaines sessions ne la lisent plus. Une nouvelle révision de la configuration est enregistrée : la précédente reste dans l’historique.",
-    "confirmDrop": "Retirer la source"
+    "confirmDrop": "Retirer la source",
+    "project": "Tout le projet",
+    "projectHint": "lue quelle que soit l’application testée"
   },
   "tests": {
     "title": "Tests",

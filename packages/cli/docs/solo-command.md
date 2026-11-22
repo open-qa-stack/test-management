@@ -322,7 +322,7 @@ OPENAI_API_KEY is saved on this machine, out of the test repository.
 
 ## The knowledge
 
-The knowledge sources are declared in the configuration, each with its attachments. A source of `type` `document` declared `"stored": true` holds documents uploaded to the instance rather than files of the test repository: [the database of the instance](../../store/docs/database.md#the-documents-of-the-knowledge-sources) keeps them, and a session writes them to the state folder, where its agents read them.
+The knowledge sources are declared in the configuration, each attached to the applications it describes, or to none for a source of the whole project. A source of `type` `document` declared `"stored": true` holds documents uploaded to the instance rather than files of the test repository: [the database of the instance](../../store/docs/database.md#the-documents-of-the-knowledge-sources) keeps them, and a session writes them to the state folder, where its agents read them.
 
 ```console
 $ oqas knowledge add-document underwriting-guides guides/quotes.md guides/claims.md
