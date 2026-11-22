@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { realpath } from "node:fs/promises";
+import { access, realpath } from "node:fs/promises";
 import { posix } from "node:path";
 import { promisify } from "node:util";
 
@@ -108,6 +108,55 @@ export class TestRepository {
     await this.git("add", "--", ...kept);
     await this.git("commit", "--quiet", "--message", message, "--", ...kept);
     return kept;
+  }
+
+  /**
+   * Tells what keeps one file from being committed alone on the branch checked out, as a person changes it from the
+   * console: a folder that is not the root of a git repository with a commit, no branch checked out, a merge, a rebase,
+   * a cherry-pick or a revert under way, or changes of the file not committed.
+   *
+   * @param path - The file, relative to the root.
+   * @returns What to do first, in a sentence; `undefined` when the file can be committed alone.
+   */
+  public async fileProblem(path: string): Promise<string | undefined> {
+    const top = await this.git("rev-parse", "--show-toplevel", "--verify", "HEAD").then(
+      (out) => out.split("\n")[0]!,
+      () => undefined,
+    );
+    if (top === undefined || (await realpath(top)) !== (await realpath(this.root)))
+      return `${this.root} is not the root of a git repository with a commit: make it one first.`;
+    if ((await this.branch()) === "") return "No branch is checked out: check one out first.";
+    for (const operation of ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-merge", "rebase-apply"]) {
+      const marker = (await this.git("rev-parse", "--path-format=absolute", "--git-path", operation)).trim();
+      if (
+        await access(marker).then(
+          () => true,
+          () => false,
+        )
+      )
+        return "A merge, a rebase, a cherry-pick or a revert is under way in the test repository: end it or abort it first.";
+    }
+    if ((await this.git("status", "--porcelain", "--untracked-files=all", "--", path)) !== "")
+      return `${path} has changes that are not committed: commit them or drop them first.`;
+    return undefined;
+  }
+
+  /**
+   * Commits one file alone on the branch checked out: whatever else is changed or staged stays as it is. A commit git
+   * refuses leaves the index of the file as it was.
+   *
+   * @param path - The file, relative to the root.
+   * @param message - The commit message.
+   * @throws Error when git refuses the commit, for want of an identity or by a hook.
+   */
+  public async commitFile(path: string, message: string): Promise<void> {
+    await this.git("add", "--", path);
+    try {
+      await this.git("commit", "--quiet", "--only", "--message", message, "--", path);
+    } catch (error) {
+      await this.git("reset", "--quiet", "--", path);
+      throw error;
+    }
   }
 
   /**

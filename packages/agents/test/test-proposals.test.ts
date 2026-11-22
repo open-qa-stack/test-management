@@ -7,6 +7,7 @@ import type { Knowledge, PlannedScenario, TestRunner, ToolDefinition } from "@op
 import { Journal } from "../src/common/journal.ts";
 import { ScreenWatch } from "../src/designer/screen-watch.ts";
 import { skeleton } from "../src/designer/scenario-sheet.ts";
+import { withTags } from "../src/designer/scenario-tags.ts";
 import { SourceWatch } from "../src/designer/source-watch.ts";
 import { locatorsOf } from "../src/designer/spec-rules.ts";
 import type { CoherenceJudge } from "../src/designer/coherence-judge.ts";
@@ -18,6 +19,9 @@ const root = mkdtempSync(join(tmpdir(), "oqas-proposals-"));
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 
 const STARTED = "2026-11-13T10:00:00.000Z";
+
+/** The identifier the harness gives each new test of these scenarios. */
+const ID = "5e1f0a2b-3c4d-4e5f-8a9b-0c1d2e3f4a5b";
 
 /** A scenario of an application whose one step opens it and expects its heading. */
 const scenario = (application: string, sources: readonly string[]): PlannedScenario => ({
@@ -48,6 +52,7 @@ const rules = (runner: TestRunner): ProposalRules => ({
   packages: ["@playwright/test"],
   screenshots: false,
   now: () => new Date(NOW),
+  newId: () => ID,
 });
 /** A session that sees no screen and reads no source. */
 const BLIND = { screens: new ScreenWatch([], []), reads: new SourceWatch([], [], []) };
@@ -100,6 +105,21 @@ async function secondRun(
 /** The advice of a refusal for TEST-LOOK; none when the run was not refused for it. */
 const advice = (told: unknown) =>
   /Refused \(TEST-LOOK\): look before you run again\. (.*)\n/.exec(typeof told === "object" && told !== null && "error" in told ? String(told.error) : "")?.[1];
+
+describe("the identifier of the test of a scenario", () => {
+  it("is the one the test it repairs bears, the same for each of its texts", async () => {
+    const borne = "0b1c2d3e-4f50-4617-8899-aabbccddeeff";
+    const planned = scenario("ledger", []);
+    const ran: string[] = [];
+    const runner: TestRunner = { run: async (test) => (ran.push(test.content), failing.run(test)) };
+    const repaired = { path: "apps/ledger/tests/ledger/listing/open-ledger.spec.ts", content: withTags(acted(skeleton(planned, false)), planned, borne) };
+    const proposals = new TestProposals({ ...rules(runner), repairs: new Map([[planned.id, repaired]]) }, new Journal(), { scenarios: [planned] });
+    proposals.begin(BLIND);
+    await proposals.trialTool().execute({ content: repaired.content });
+    assert.deepEqual(ran, [repaired.content]);
+    assert.ok(!ran[0]!.includes(ID));
+  });
+});
 
 describe("a run that failed on a page that asks to sign in", () => {
   /** A runner whose every test fails at its first step, on the page given. */
@@ -214,7 +234,7 @@ describe("the fifth refusal of one reason", () => {
       /^Scenario open-ledger was closed by the harness after 5 refusals for TEST-STEPS, with the test of its last run: passed\.\nNext: answer with one sentence\. Call no more tools\.$/,
     );
     assert.deepEqual(
-      proposals.accepted.map(({ verdict, closedBy, content: kept, classes }) => [verdict, closedBy, kept === content, classes]),
+      proposals.accepted.map(({ verdict, closedBy, content: kept, classes }) => [verdict, closedBy, kept === withTags(content, planned, ID), classes]),
       [
         [
           "passed",
@@ -567,7 +587,7 @@ describe("a scenario whose session ends before it is closed", () => {
         ],
         runs: [],
         closedBy: "SESSION-END",
-        content: skeleton(planned, false),
+        content: withTags(skeleton(planned, false), planned, ID),
         references: [],
       },
     ]);
@@ -593,7 +613,7 @@ describe("a scenario whose session ends before it is closed", () => {
         // The harness wrote on it the tags of its scenario.
         one.replace(
           'test("open", ',
-          'test("open", { tag: ["@level-functional","@domain-ledger","@feature-listing","@app-ledger","@kind-other","@case-nominal","@data-read"] }, ',
+          `test("open", { tag: ["@level-functional","@domain-ledger","@feature-listing","@app-ledger","@kind-other","@case-nominal","@data-read","@oqas-id-${ID}"] }, `,
         ),
         "not_run",
         "unfinished",
@@ -606,7 +626,7 @@ describe("a scenario whose session ends before it is closed", () => {
     ran.giveUp("SESSION-END");
     assert.deepEqual(
       [ran.accepted[0]!.content, ran.accepted[0]!.verdict, ran.accepted[0]!.runs],
-      [written, "failed", [{ verdict: "failed", errorClass: "assertion", failedStep: "1. Open the ledger" }]],
+      [withTags(written, planned, ID), "failed", [{ verdict: "failed", errorClass: "assertion", failedStep: "1. Open the ledger" }]],
     );
   });
 
@@ -765,7 +785,7 @@ describe("a scenario the agent that writes it gives up", () => {
     await giveUp(REASON);
     assert.deepEqual(
       proposals.accepted.map(({ verdict, content }) => [verdict, content]),
-      [["not_run", skeleton(planned, false)]],
+      [["not_run", withTags(skeleton(planned, false), planned, ID)]],
     );
   });
 

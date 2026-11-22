@@ -192,7 +192,7 @@ function Screen(props: ConsoleProps): ReactNode {
     case "tests":
       return <TestsPage project={name} route={route} />;
     case "test":
-      return <TestPage key={shown.path} project={name} path={shown.path} />;
+      return <TestPage key={shown.path} project={name} path={shown.path} route={route} />;
     case "campaigns":
       return <CampaignsPage project={name} />;
     case "campaign":

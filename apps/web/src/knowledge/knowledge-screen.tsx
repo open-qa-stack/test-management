@@ -154,10 +154,10 @@ export function IndexLine({ mapping }: { readonly mapping: CartographyState | un
 }
 
 /** The source the person adds: the kinds to choose from, then the source of the kind chosen, to fill in and save. */
-function Adder({ editing, controls }: { readonly editing: ConfigurationState; readonly controls: KnowledgeControls }): ReactNode {
+function Adder({ route, editing, controls }: { readonly route: Route; readonly editing: ConfigurationState; readonly controls: KnowledgeControls }): ReactNode {
   const rank = inForceCount(editing);
   if (editing.draft !== undefined && editing.draft.knowledge.length > rank)
-    return <SourceEditor state={editing} controls={controls.edit} rank={rank} removable />;
+    return <SourceEditor state={editing} controls={controls.edit} rank={rank} route={route} removable />;
   return (
     <Card title={t("knowledge.add")} hint={t("knowledge.addHint")}>
       <div className="config-body">
@@ -193,7 +193,7 @@ function Overview({ project, route, state, editing, controls }: KnowledgeScreenP
       {...(adding ? {} : { actions: action })}
       {...(state.read && sources.length > 0 ? { hint: t("knowledge.lead") } : {})}
     >
-      {adding && <Adder editing={editing} controls={controls} />}
+      {adding && <Adder route={route} editing={editing} controls={controls} />}
       {!state.read ? (
         <EmptyState title={t("knowledge.reading")}>
           <span role="status">{state.unread ?? t("knowledge.readingNote")}</span>
@@ -465,7 +465,7 @@ function SourceScreen({ project, route, state, editing, controls, id }: Knowledg
     <Page crumbs={crumbs} title={id} {...(drop === undefined ? {} : { actions: drop })}>
       {rank !== undefined && route.query["drop"] !== undefined && <DropConfirmation id={id} rank={rank} editing={editing} controls={controls} />}
       {rank !== undefined && editing.draft !== undefined ? (
-        <SourceEditor state={editing} controls={controls.edit} rank={rank} />
+        <SourceEditor state={editing} controls={controls.edit} rank={rank} route={route} />
       ) : (
         <Card title={kindText(source)}>
           {isProjectWide(source) && <p className="row">{t("knowledge.project")}</p>}

@@ -17,6 +17,7 @@ export const OPERATIONS = {
   KnowledgeMapping: ["state"],
   RepositoryTests: ["listed"],
   TestReadings: ["read", "trace", "capture"],
+  TestSources: ["read", "change"],
   Executions: ["page", "get", "ofFile", "versions"],
   Campaigns: ["plan", "list", "progress", "choose", "ready", "launch", "close"],
 } as const;

@@ -1,7 +1,8 @@
 import type { CoherenceJudge } from "./coherence-judge.ts";
 import type { QualityJudge } from "./quality-judge.ts";
-import { withTags } from "./scenario-tags.ts";
+import { borneId, withTags } from "./scenario-tags.ts";
 import { scenarioScope } from "./screen-watch.ts";
+import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { join, posix } from "node:path";
 import {
@@ -86,6 +87,8 @@ export interface ProposalRules {
   readonly now: () => Date;
   /** The test each scenario repairs, by the identifier of the scenario: its test is written again in its file. */
   readonly repairs?: ReadonlyMap<string, RepairedTest>;
+  /** Gives the identifier of a new test, written as its tag `@oqas-id-…`; a random UUID by default. */
+  readonly newId?: () => string;
 }
 
 /** What the agent sees and reads in the session that writes the test of one scenario. */
@@ -165,6 +168,8 @@ export class TestProposals {
   private readonly references = new Map<string, readonly TestReference[]>();
   /** The scenarios whose repaired test was submitted as the repository has it, which a repair starts with. */
   private readonly runAsIs = new Set<string>();
+  /** The identifier of the test of each scenario, by the identifier of the scenario: one for every text of it. */
+  private readonly ids = new Map<string, string>();
   /** The calls that run or close a test, one after the other. */
   private queue: Promise<unknown> = Promise.resolve();
   /** The scenario whose test the agent was warned runs what another runs. */
@@ -382,7 +387,7 @@ export class TestProposals {
     if ("error" in open) return open;
     const { cursor, scenario, path } = open;
     // The tags of a test are those of its scenario, whatever the agent wrote of them.
-    const content = withTags(submitted, scenario);
+    const content = withTags(submitted, scenario, this.idOf(scenario));
     const what = `The test ${path} could not be run`;
     const repaired = this.rules.repairs?.get(scenario.id);
     const asIs = this.asIsErrors(scenario, repaired, content);
@@ -454,10 +459,20 @@ export class TestProposals {
    * Why the test a scenario repairs cannot be submitted yet: it is first submitted as the repository has it, so that the agent
    * sees how it fails before it changes it. The rule holds for the first submission only, whatever that gave.
    */
+  /** The identifier of the test of a scenario: the one the test it repairs bears, or a new one, the same for each of its texts. */
+  private idOf(scenario: PlannedScenario): string {
+    const known = this.ids.get(scenario.id);
+    if (known !== undefined) return known;
+    const repaired = this.rules.repairs?.get(scenario.id);
+    const id = (repaired === undefined ? undefined : borneId(repaired.content)) ?? (this.rules.newId ?? randomUUID)();
+    this.ids.set(scenario.id, id);
+    return id;
+  }
+
   private asIsErrors(scenario: PlannedScenario, repaired: RepairedTest | undefined, content: string): Refusal[] {
     if (repaired === undefined || this.runAsIs.has(scenario.id)) return [];
     // An agent seldom writes back the blanks that end a file.
-    if (content.trimEnd() === withTags(repaired.content, scenario).trimEnd()) {
+    if (content.trimEnd() === withTags(repaired.content, scenario, this.idOf(scenario)).trimEnd()) {
       this.runAsIs.add(scenario.id);
       return [];
     }
@@ -767,7 +782,7 @@ export class TestProposals {
     const content =
       this.rules.repairs?.get(open.scenario.id)?.content ??
       this.submitted ??
-      skeleton(open.scenario, this.rules.screenshots, fixturesFor(open.path, this.rules.fixtures));
+      withTags(skeleton(open.scenario, this.rules.screenshots, fixturesFor(open.path, this.rules.fixtures)), open.scenario, this.idOf(open.scenario));
     const ran = open.cursor.runs.findLast((run) => run.content === content && judged(run));
     this.kept.push({
       path: open.path,

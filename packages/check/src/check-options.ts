@@ -9,10 +9,14 @@ export type PackageChoice =
 
 /**
  * How the tests run: all of them on this machine; a part of the tests of the root, among parts that run on other
- * machines; the packages that have a test script of their own; or the merge of the reports the parts wrote.
+ * machines; the packages that have a test script of their own, or one of them, named by its name or its folder; or
+ * the merge of the reports the parts wrote.
  */
 export type TestMode =
-  { readonly kind: "all" } | { readonly kind: "part"; readonly index: number; readonly count: number } | { readonly kind: "own" } | { readonly kind: "merge" };
+  | { readonly kind: "all" }
+  | { readonly kind: "part"; readonly index: number; readonly count: number }
+  | { readonly kind: "own"; readonly only?: string }
+  | { readonly kind: "merge" };
 
 /** What the check is asked to do. */
 export interface CheckOptions {
@@ -28,7 +32,7 @@ export const USAGE = [
   "check: run it with nothing to check every package, or give:",
   "  --affected <revision> or --packages <names or folders, separated by commas>, to test some packages and their dependents;",
   "  --only static, to run the steps before the tests alone, or --only tests, to run the tests alone;",
-  "  --part <index>/<count>, --part own or --merge, to run part of the tests on this machine, as the continuous integration does.",
+  "  --part <index>/<count>, --part own, --part own:<name or folder> or --merge, to run part of the tests on this machine, as the continuous integration does.",
 ].join("\n");
 
 /**
@@ -61,9 +65,10 @@ export function checkOptions(args: readonly string[]): CheckOptions | undefined 
   return { packages, before: tests === undefined && only !== "tests", tests: only === "static" ? undefined : (tests ?? { kind: "all" }) };
 }
 
-/** Reads a part of the tests: `own`, or its index among a count, from 1. */
+/** Reads a part of the tests: `own`, or `own:` and the name or the folder of one such package, or its index among a count, from 1. */
 function partOf(value: string): TestMode | undefined {
   if (value === "own") return { kind: "own" };
+  if (value.startsWith("own:") && value.length > "own:".length) return { kind: "own", only: value.slice("own:".length) };
   const match = /^(\d+)\/(\d+)$/.exec(value);
   if (match === null) return undefined;
   const [index, count] = [Number(match[1]), Number(match[2])];

@@ -123,6 +123,8 @@ export interface DesignerOptions {
   readonly inbox?: Inbox;
   /** The clock of the dates; the system clock by default. */
   readonly now?: () => Date;
+  /** Gives the identifier of each new test, written as its tag `@oqas-id-…`; a random UUID by default. */
+  readonly newId?: () => string;
 }
 
 /** What a design produced. */
@@ -399,6 +401,7 @@ export class Designer {
           screenshots: this.options.screenshots ?? false,
           now,
           ...(repaired === undefined ? {} : { repairs: repaired }),
+          ...(this.options.newId === undefined ? {} : { newId: this.options.newId }),
         },
         journal,
         planned,

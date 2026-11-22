@@ -2,12 +2,12 @@ import type { ReactNode } from "react";
 import type { ConfigError, ConfiguredApplication } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
 import { withPanel, type Route } from "../routing/route.ts";
-import { Badge } from "../ui/badge.tsx";
 import { Card } from "../ui/card.tsx";
 import { SidePanel } from "../ui/side-panel.tsx";
 import { AccountFields, EnvironmentFields, IdentityFields } from "../configuration/application-card.tsx";
 import { AddButton, nameOf, PlaceErrors, RemoveButton } from "../configuration/configuration-fields.tsx";
 import type { ConfigurationControls } from "../configuration/configuration-screen.tsx";
+import { PartRow } from "../configuration/part-row.tsx";
 import { isPending, shownErrors, type ConfigurationState } from "../configuration/configuration-state.ts";
 import { SaveBar } from "../configuration/save-bar.tsx";
 
@@ -31,22 +31,6 @@ const PANEL_TITLE = "application-panel-title";
 function panelOf(route: Route): { readonly kind: "account" | "environment"; readonly rank: number } | undefined {
   const [kind, rank] = (route.query["panel"] ?? "").split(":");
   return kind === "account" || kind === "environment" ? { kind, rank: Number(rank) } : undefined;
-}
-
-/** A part of the application in a list: its name, what it holds, whether it has an error, and the link that changes it. */
-function PartRow({ name, facts, wrong, href }: { readonly name: string; readonly facts?: string; readonly wrong: boolean; readonly href: string }): ReactNode {
-  return (
-    <div className="row part-row">
-      <div className="grow">
-        <b>{name}</b>
-        {facts !== undefined && <div className="small muted">{facts}</div>}
-      </div>
-      {wrong && <Badge tone="ko">{t("configuration.application.toFix")}</Badge>}
-      <a className="btn sm" href={href} aria-label={t("configuration.application.editPart", { name })}>
-        {t("configuration.application.edit")}
-      </a>
-    </div>
-  );
 }
 
 /**

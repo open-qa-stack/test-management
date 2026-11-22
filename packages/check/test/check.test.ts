@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { describe, it } from "node:test";
 import { DemoWorkspace } from "./demo-workspace.ts";
 
@@ -274,6 +275,31 @@ describe("the check", { concurrency: true }, () => {
     assert.match(run.output, /^check: the packages touched since HEAD: demo$/m);
   });
 
+  it("gives every program it starts a temporary folder of its own run, which it removes once the run ends", async () => {
+    const run = await inDemo(async (workspace) => {
+      await workspace.write(
+        "packages/demo/test/leftover.test.ts",
+        [
+          'import { mkdtempSync, writeFileSync } from "node:fs";',
+          'import { tmpdir } from "node:os";',
+          'import { join } from "node:path";',
+          'import { test } from "node:test";',
+          "",
+          'test("leaves a folder behind", () => {',
+          '  const folder = mkdtempSync(join(tmpdir(), "left-"));',
+          '  writeFileSync(join(process.cwd(), "left.txt"), folder);',
+          "});",
+          "",
+        ].join("\n"),
+      );
+      const checked = await workspace.check({}, ["--only", "tests"]);
+      return { checked, left: await workspace.read("packages/demo/left.txt") };
+    });
+    assert.equal(run.checked.code, 0, run.checked.output);
+    assert.match(run.left, /[\\/]oqas-check-[^\\/]+[\\/]left-/);
+    assert.equal(existsSync(run.left), false, "the folder the test left is gone with its run");
+  });
+
   it("runs the steps before the tests alone, or the tests alone", async () => {
     const [before, tests] = await inDemo(async (workspace) => [
       await workspace.check({}, ["--only", "static"]),
@@ -303,16 +329,25 @@ describe("the check", { concurrency: true }, () => {
     assert.doesNotMatch(run.output, /names the sign of a number/);
   });
 
-  it("runs the packages with a test script of their own alone, or merges the parts of the others, requiring the coverage of each", async () => {
-    const [own, merge] = await inDemo(async (workspace) => {
+  it("runs the packages with a test script of their own alone, or one of them named, or merges the parts of the others, requiring the coverage of each", async () => {
+    const [own, merge, named, other] = await inDemo(async (workspace) => {
       await testedTogether(workspace);
       const manifest = JSON.parse(await workspace.read("package.json")) as { scripts: Record<string, string> };
       await workspace.write("package.json", JSON.stringify({ ...manifest, scripts: { ...manifest.scripts, "test:merge": TOGETHER_SCRIPT } }));
       await workspace.write("packages/together/src/half.ts", "export const half = (value: number): number => value / 2;\n");
-      return [await workspace.check({}, ["--part", "own"]), await workspace.check({}, ["--merge"])];
+      return [
+        await workspace.check({}, ["--part", "own"]),
+        await workspace.check({}, ["--merge"]),
+        await workspace.check({}, ["--part", "own:packages/demo"]),
+        await workspace.check({}, ["--part", "own:other"]),
+      ];
     });
     assert.equal(own.code, 0, own.output);
     assert.match(own.output, /names the sign of a number/);
+    assert.equal(named.code, 0, named.output);
+    assert.match(named.output, /names the sign of a number/, "the package named by its folder runs");
+    assert.equal(other.code, 0, other.output);
+    assert.doesNotMatch(other.output, /names the sign of a number/, "another package named, it runs nothing");
     assert.notEqual(merge.code, 0);
     assert.match(merge.output, /^together: src\/half\.ts is missing from the coverage of the tests$/m);
     assert.doesNotMatch(merge.output, /names the sign of a number/);

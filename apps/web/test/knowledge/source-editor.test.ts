@@ -6,6 +6,7 @@ import { configurationAfter, INITIAL_CONFIGURATION, type ConfigurationAction, ty
 import { ITEM_FORM } from "../../src/configuration/draft-form.tsx";
 import { SourceEditor } from "../../src/knowledge/source-editor.tsx";
 import { KnowledgeCard } from "../../src/configuration/knowledge-card.tsx";
+import { parseRoute } from "../../src/routing/route.ts";
 import { DOCUMENT, REVISIONS, VIEW } from "../configuration/configuration-fixture.ts";
 import { bears, fieldsNamed } from "../configuration/fields.ts";
 import { render, textOf } from "../render.ts";
@@ -18,9 +19,9 @@ const CONTROLS = UNCALLED_CONTROLS;
 const stateAfter = (actions: readonly ConfigurationAction[] = []): ConfigurationState =>
   [{ type: "read", view: VIEW, revisions: REVISIONS } as const, ...actions].reduce(configurationAfter, INITIAL_CONFIGURATION);
 
-/** The editor of the source of a rank, as HTML. */
-const editor = (rank: number, state: ConfigurationState = stateAfter(), removable = false): string =>
-  render(createElement(SourceEditor, { state, controls: CONTROLS, rank, removable }));
+/** The editor of the source of a rank, as HTML, at an address. */
+const editor = (rank: number, state: ConfigurationState = stateAfter(), removable = false, hash = "#/knowledge/contract"): string =>
+  render(createElement(SourceEditor, { state, controls: CONTROLS, rank, route: parseRoute(hash), removable }));
 
 describe("the editor of a source", () => {
   it("shows nothing before the instance told the configuration, nor for a rank it does not hold", () => {
@@ -67,12 +68,39 @@ describe("the editor of a source", () => {
     assert.ok(bears(logs, "/knowledge/7/container", 'value="shop"'));
     assert.match(logs, /<option value="podman" selected="">podman<\/option>/);
     const contract = editor(0);
+    assert.match(textOf(contract), /Sert à : Shop, local › backend Modifier Ajouter un rattachement/);
+    assert.doesNotMatch(contract, /<dialog/, "no panel is open");
+  });
+
+  it("lists the attachments a row each, which opens the panel that changes it, as does the button that adds one", () => {
+    const html = editor(0);
     assert.match(
-      textOf(contract),
-      /Sert à : Shop, local › backend Retirer Application Choisir une application shop Environnement Tous les environnements local API Toutes les API backend Ajouter un rattachement/,
+      html,
+      /<a class="btn sm" href="#\/knowledge\/contract\?panel=attachment%3A0" aria-label="Modifier Sert à : Shop, local › backend">Modifier<\/a>/,
     );
-    assert.match(contract, /<option value="backend" selected="">backend<\/option>/);
-    assert.match(contract, /aria-label="Retirer le rattachement 1 de contract" data-remove="\/knowledge\/0\/attachments\/0"/);
+    assert.match(html, /data-add="\/knowledge\/0\/attachments" data-item="attachment" data-panel="attachment:1"/);
+    assert.deepEqual(fieldsNamed(html, "/knowledge/0/attachments/0/application"), [], "the fields of an attachment are in its panel");
+  });
+
+  it("changes an attachment in a panel: its application, environment and API, and what removes it and closes the panel", () => {
+    const html = editor(0, stateAfter(), false, "#/knowledge/contract?panel=attachment%3A0");
+    assert.match(
+      html,
+      /<dialog class="side-panel" aria-labelledby="source-panel-title"><header class="side-panel-head"><h2 id="source-panel-title">Rattachement 1<\/h2><a class="side-panel-close" href="#\/knowledge\/contract" aria-label="Fermer">/,
+    );
+    assert.match(
+      textOf(html),
+      /Rattachement 1 Application Choisir une application shop Environnement Tous les environnements local API Toutes les API backend Retirer ce rattachement Enregistrée Enregistrée$/,
+      "the panel and the page each tell where the change stands",
+    );
+    assert.match(html, /<option value="backend" selected="">backend<\/option>/);
+    assert.match(html, /<button type="button" class="btn ghost" data-remove="\/knowledge\/0\/attachments\/0" data-panel="">Retirer ce rattachement<\/button>/);
+    assert.doesNotMatch(
+      editor(0, stateAfter(), false, "#/knowledge/contract?panel=attachment%3A3"),
+      /<dialog/,
+      "an attachment the draft no longer holds opens no panel",
+    );
+    assert.doesNotMatch(editor(0, stateAfter(), false, "#/knowledge/contract?panel=account%3A0"), /<dialog/, "a panel the page does not know opens nothing");
   });
 
   it("shows a source added as it is to fill, which it offers to remove, and keeps a reference that no longer names anything, beside its error", () => {
@@ -85,8 +113,9 @@ describe("the editor of a source", () => {
       { kind: "reference", path: "/knowledge/8/attachments/0/application", rule: "slug", message: "Expected a slug." },
       { kind: "structure", path: "/knowledge/8", rule: "document-source", message: 'Declare exactly one of "path" or "stored".' },
     ];
-    const html = editor(8, { ...added, errors, tried: true }, true);
+    const html = editor(8, { ...added, errors, tried: true }, true, "#/knowledge?add=source&panel=attachment%3A0");
     const text = textOf(html);
+    assert.match(text, /Sert à : une application à choisir, gone › old À corriger Modifier/, "the row of a wrong attachment says it");
     assert.match(text, /^2 erreurs à corriger avant d’enregistrer/);
     assert.match(text, /Documents déposés Retirer Soit un chemin, soit des documents déposés : exactement l’un des deux\./);
     assert.match(html, /aria-label="Retirer la source Source 9" data-remove="\/knowledge\/8"/);
@@ -121,7 +150,7 @@ describe("the editor of a source", () => {
     const named = stateAfter([{ type: "edit", pointer: "/knowledge/0/attachments", value: attachments }]);
     assert.match(
       textOf(editor(0, named)),
-      /Sert à : Shop, tous les environnements Retirer .* Sert à : une application à choisir, tous les environnements Retirer/,
+      /Sert à : Shop, tous les environnements Modifier Sert à : une application à choisir, tous les environnements Modifier/,
     );
     const unnamed = configurationAfter(named, { type: "edit", pointer: "/applications/0/name", value: "" });
     assert.match(textOf(editor(0, unnamed)), /Sert à : shop, tous les environnements/);
@@ -153,5 +182,14 @@ describe("the card of a source of documents the instance keeps", () => {
       createElement(KnowledgeCard, { source: DOCUMENT.knowledge[4]!, rank: 4, applications: DOCUMENT.applications, onCheck: CONTROLS.checkSource }),
     );
     assert.match(html, /<a class="btn sm" href="#\/knowledge\/manuals">Ouvrir ses documents<\/a>/);
+  });
+
+  it("shows the fields of its attachments open, where no panel changes them", () => {
+    const html = render(
+      createElement(KnowledgeCard, { source: DOCUMENT.knowledge[0]!, rank: 0, applications: DOCUMENT.applications, onCheck: CONTROLS.checkSource }),
+    );
+    assert.match(textOf(html), /Sert à : Shop, local › backend Retirer Application Choisir une application shop/);
+    assert.match(html, /aria-label="Retirer le rattachement 1 de contract" data-remove="\/knowledge\/0\/attachments\/0"/);
+    assert.match(html, /data-add="\/knowledge\/0\/attachments" data-item="attachment">/);
   });
 });

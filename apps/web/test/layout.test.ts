@@ -8,6 +8,7 @@ import { ConfiguredInstance } from "./configuration/configured-instance.ts";
 import { DocumentedInstance } from "./knowledge/documented-instance.ts";
 import { DETAIL, EXECUTIONS } from "./executions/executions-fixture.ts";
 import { ListedInstance } from "./tests/listed-instance.ts";
+import { DETAIL as DETAIL_TEST } from "./tests/tests-fixture.ts";
 import { OPENED_ID, PlayedInstance } from "./played-instance.ts";
 
 let built: BuiltConsole | undefined;
@@ -86,18 +87,76 @@ async function settled(element: Locator): Promise<void> {
 }
 
 describe("the shell on a narrow and on a wide screen", () => {
-  it("keeps every entry of the navigation within reach on a phone, the mark left out, without what is coming", async () => {
-    const page = await app().open(390, "#/nowhere", new PlayedInstance().api);
+  it("names the screen at the top of a phone, beside a menu that names every entry in full, and keeps nothing at the bottom", async () => {
+    const page = await app().open(390, "#/tests", new ListedInstance().api);
     try {
-      assert.equal(await page.locator(".top").isVisible(), false, "the agent leads home, as the mark does");
-      const links = page.getByRole("navigation", { name: "Navigation principale" }).getByRole("link");
-      for (const box of await links.evaluateAll((all) => all.map((link) => link.getBoundingClientRect().toJSON() as DOMRect)))
-        assert.ok(box.x >= 0 && box.x + box.width <= 390 && box.y < 80, `${box.x}: every entry stands whole in the top bar`);
-      const entry = page.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name: "Agent" });
-      assert.equal(await page.getByText("bientôt").first().isVisible(), false);
-      assert.equal(await page.getByText("lakeside · projet").isVisible(), false);
-      await entry.click();
-      await page.getByRole("heading", { name: "Qu’est-ce qu’on teste ?" }).waitFor();
+      await page.getByRole("heading", { level: 1, name: "Tests" }).waitFor();
+      const bar = await page.locator(".top").boundingBox();
+      assert.ok(bar !== null);
+      assert.deepEqual([bar.x, bar.y, bar.width], [0, 0, 390]);
+      assert.equal(await page.locator(".top-screen").innerText(), "Tests");
+      assert.equal(await page.locator(".shell-sidebar").isVisible(), false, "the navigation waits for its button");
+      const docked = await page.evaluate(() =>
+        [...document.querySelectorAll("body *")]
+          .filter((element) => ["fixed", "sticky"].includes(getComputedStyle(element).position) && element.checkVisibility())
+          .filter((element) => element.getBoundingClientRect().bottom >= window.innerHeight - 1)
+          .map((element) => element.className),
+      );
+      assert.deepEqual(docked, [], "no bar at the bottom of the screen");
+      await page.getByRole("link", { name: "Menu" }).click();
+      const menu = page.getByRole("dialog", { name: "Menu" });
+      await menu.waitFor();
+      await settled(menu);
+      assert.deepEqual(await menu.boundingBox(), { x: 0, y: 0, width: 390, height: 800 }, "the menu takes the whole screen");
+      const entries = await menu.locator(".nav-label, .grp").evaluateAll((all) =>
+        all.map((element) => {
+          const box = element.getBoundingClientRect();
+          return {
+            text: element.textContent,
+            cut: element.scrollWidth > element.clientWidth,
+            left: box.left,
+            right: box.right,
+            shown: element.checkVisibility(),
+          };
+        }),
+      );
+      assert.deepEqual(
+        entries.map(({ text }) => text),
+        [
+          "Travail",
+          "Agent",
+          "Référentiel",
+          "Découverte",
+          "À relire",
+          "Tests",
+          "Couverture",
+          "Exécution",
+          "Exécutions",
+          "Campagnes",
+          "Anomalies",
+          "Projet",
+          "Applications",
+          "Connaissances",
+          "Configuration",
+        ],
+      );
+      for (const entry of entries) assert.ok(entry.shown && !entry.cut && entry.left >= 0 && entry.right <= 390, `${entry.text} stands whole`);
+      assert.equal(await menu.getByRole("link", { name: "Tests" }).getAttribute("aria-current"), "page");
+      assert.equal(await overflowOf(page), 0);
+      assert.deepEqual(await tooSmallOf(page), []);
+      await menu.getByRole("link", { name: "Exécutions" }).click();
+      await page.getByRole("heading", { level: 1, name: "Exécutions" }).waitFor();
+      assert.equal(await page.getByRole("dialog").count(), 0, "picking an entry closes the menu");
+      assert.equal(await page.locator(".top-screen").innerText(), "Exécutions");
+      await page.getByRole("link", { name: "Menu" }).click();
+      await menu.waitFor();
+      assert.equal(new URL(page.url()).hash, "#/executions?nav=open");
+      await page.keyboard.press("Escape");
+      await menu.waitFor({ state: "detached" });
+      assert.equal(new URL(page.url()).hash, "#/executions");
+      await page.getByRole("link", { name: "Menu" }).click();
+      await menu.getByRole("link", { name: "Fermer" }).click();
+      await menu.waitFor({ state: "detached" });
     } finally {
       await page.close();
     }
@@ -1052,11 +1111,10 @@ describe("the configuration in a browser", () => {
         await page.locator("details.config-json summary").click();
         assert.equal(await overflowOf(page), 0, `${width}`);
         if (width < 1100) {
-          // Every entry of the bar stands whole in the window, its icon named by its label.
-          for (const name of ["Agent", "Configuration"]) {
-            const box = await page.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name }).boundingBox();
-            assert.ok(box !== null && box.x >= 0 && box.x + box.width <= width, `${name} at ${width}`);
-          }
+          // The top bar names the screen, and its menu stands whole in the window.
+          assert.equal(await page.locator(".top-screen").innerText(), "Configuration");
+          const box = await page.getByRole("link", { name: "Menu" }).boundingBox();
+          assert.ok(box !== null && box.x >= 0 && box.x + box.width <= width, `the menu at ${width}`);
           assert.equal(await page.getByRole("button", { name: "Enregistrer" }).count(), 0, "nothing to save, no button to save");
           assert.deepEqual(await tooSmallOf(page), [], `${width}`);
           assert.deepEqual(await tooSmallFieldsOf(page), [], `${width}`);
@@ -1137,6 +1195,31 @@ describe("the knowledge in a browser", () => {
         await page.getByText("A quote is priced.").waitFor();
         assert.equal(await overflowOf(page), 0, `source at ${width}`);
         if (width < 1100) assert.deepEqual(await tooSmallOf(page), [], `source at ${width}`);
+      } finally {
+        await page.close();
+      }
+    }
+  });
+
+  it("changes an attachment of a source in a panel: the whole of a phone, at the right of a wide screen, every button a finger can press", async () => {
+    for (const width of [390, 1440]) {
+      const page = await app().open(width, "#/knowledge/contract", new DocumentedInstance().api);
+      try {
+        await page.getByRole("link", { name: "Modifier Sert à : Shop, local › backend" }).click();
+        const panel = page.getByRole("dialog", { name: "Rattachement 1" });
+        await panel.getByLabel("Application", { exact: true }).waitFor();
+        await settled(panel);
+        const { height } = page.viewportSize()!;
+        const box = (await panel.boundingBox())!;
+        if (width < 720) {
+          assert.deepEqual(box, { x: 0, y: 0, width, height }, "the panel covers the phone");
+          assert.deepEqual(await tooSmallOf(page), [], `panel at ${width}`);
+        } else {
+          assert.equal(box.x + box.width, width, "the panel holds to the right edge");
+          assert.ok(box.width < width / 2, `the panel is ${box.width} px wide`);
+          assert.deepEqual([box.y, box.height], [0, height]);
+        }
+        assert.equal(await overflowOf(page), 0, `panel at ${width}`);
       } finally {
         await page.close();
       }
@@ -1376,7 +1459,19 @@ describe("the code of the console is covered in full", () => {
         await page.goto("http://console.test/#/tests");
         await page.getByRole("link", { name: /Display the detail of a policy/ }).click();
         await page.waitForURL(/#\/tests\/view\?path=apps%2Fpolicy-management%2F/);
-        await page.getByText("1. Open the policy of the customer").waitFor();
+        await page.getByText("Open the policy of the customer", { exact: true }).waitFor();
+        // A title saved closes its panel; a change the instance refuses keeps it open, with why.
+        await page.getByRole("link", { name: "Modifier le titre" }).click();
+        await page.getByRole("dialog").getByLabel("Titre", { exact: true }).fill("Show the detail of a policy");
+        await page.getByRole("dialog").getByRole("button", { name: "Enregistrer" }).click();
+        await page.getByRole("dialog").waitFor({ state: "detached" });
+        instance.changeRefusal = "unknown_test";
+        await page.getByRole("link", { name: "Modifier l’étape 1" }).click();
+        await page.getByRole("dialog").getByLabel("Ce que fait l’étape").fill("Open the policy");
+        await page.getByRole("dialog").getByRole("button", { name: "Enregistrer" }).click();
+        await page.getByText("Le dépôt ne contient plus ce test").waitFor();
+        await page.keyboard.press("Escape");
+        await page.getByRole("dialog").waitFor({ state: "detached" });
         instance.refusal = "launch_refused";
         await page.getByRole("button", { name: "Relancer ce test" }).click();
         await page.getByText("Les tests ne peuvent pas être lancés maintenant").waitFor();
@@ -1397,6 +1492,73 @@ describe("the code of the console is covered in full", () => {
     );
     assert.ok(screen!.lines.length > 0, "the screen is in the build");
     assert.deepEqual(screen!.uncovered, []);
+  });
+
+  it("changes the title and a step of a test in a panel, the whole screen of a phone and a drawer on a wide one, and shows its code", async () => {
+    const instance = new ListedInstance();
+    const sources = ["src/tests/test-text-panel.tsx"];
+    const measured = await app().measure(
+      sources,
+      async (page) => {
+        await page.setViewportSize({ width: 390, height: 800 });
+        await page.goto(`http://console.test/#/tests/view?path=${encodeURIComponent(DETAIL_TEST.path)}`);
+        await page.getByText("Read its amounts", { exact: true }).waitFor();
+        assert.equal(await overflowOf(page), 0, "the card fits a phone");
+        assert.deepEqual(await tooSmallOf(page), [], "a finger reaches each action of the card");
+        // The code of the test is folded until the person opens it.
+        await page.getByText("Voir le code du test").click();
+        await page.getByText('await expect(page.getByText("CHF 1,200.00")).toBeVisible();').waitFor();
+        // On a phone, the panel of the title takes the whole screen; Enter saves the title, and the panel closes on the card read again.
+        await page.getByRole("link", { name: "Modifier le titre" }).click();
+        const dialog = page.getByRole("dialog", { name: "Titre du test" });
+        await settled(dialog);
+        assert.deepEqual(await dialog.boundingBox(), { x: 0, y: 0, width: 390, height: 800 });
+        assert.deepEqual(await tooSmallOf(page), [], "a finger reaches each action of the panel");
+        const field = dialog.getByLabel("Titre", { exact: true });
+        assert.equal(await field.inputValue(), DETAIL_TEST.title);
+        await field.fill("Show the detail of a policy");
+        await field.press("Enter");
+        await dialog.waitFor({ state: "detached" });
+        await page.getByRole("heading", { name: "Show the detail of a policy" }).waitFor();
+        // A step is changed without the number the list gives it: an empty text is refused, and so is a change the instance refuses, once.
+        await page.getByRole("link", { name: "Modifier l’étape 2" }).click();
+        const step = page.getByRole("dialog", { name: "Étape 2" });
+        const text = step.getByLabel("Ce que fait l’étape");
+        assert.equal(await text.inputValue(), "Read its amounts");
+        await text.fill("  ");
+        await step.getByRole("button", { name: "Enregistrer" }).click();
+        await step.getByText("Écrivez un texte.").waitFor();
+        await text.fill("x".repeat(301));
+        await step.getByRole("button", { name: "Enregistrer" }).click();
+        await step.getByText("Le texte dépasse 300 caractères.").waitFor();
+        await text.fill("Read the amounts\nof the policy");
+        assert.equal(await text.inputValue(), "Read the amounts of the policy", "a step is one line");
+        instance.changeRefusal = "test_change_refused";
+        await step.getByRole("button", { name: "Enregistrer" }).click();
+        await step.getByText("Ce changement ne peut pas être écrit").waitFor();
+        await step.getByRole("button", { name: "Enregistrer" }).click();
+        await step.waitFor({ state: "detached" });
+        await page.getByText("Read the amounts of the policy", { exact: true }).waitFor();
+        // On a wide screen, the panel is a drawer at the right, which Cancel closes without a change.
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await page.getByRole("link", { name: "Modifier l’étape 1" }).click();
+        const first = page.getByRole("dialog", { name: "Étape 1" });
+        await settled(first);
+        const drawer = (await first.boundingBox())!;
+        assert.ok(drawer.x > 720 && drawer.x + drawer.width === 1440 && drawer.height === 900, `the drawer is at ${JSON.stringify(drawer)}`);
+        await first.getByRole("link", { name: "Annuler" }).click();
+        await first.waitFor({ state: "detached" });
+        assert.deepEqual(instance.changes, [
+          { path: DETAIL_TEST.path, title: DETAIL_TEST.title, change: { title: "Show the detail of a policy" } },
+          { path: DETAIL_TEST.path, title: "Show the detail of a policy", change: { step: 2, text: "Read the amounts of the policy" } },
+        ]);
+      },
+      instance.api,
+    );
+    for (const [rank, source] of sources.entries()) {
+      assert.ok(measured[rank]!.lines.length > 0, `${source} is in the build`);
+      assert.deepEqual(measured[rank]!.uncovered, [], source);
+    }
   });
 
   it("runs every line of the screen of a trace when it is used in the browser, from the result of a test, the menu folded", async () => {
@@ -1648,8 +1810,8 @@ describe("the code of the console is covered in full", () => {
 
   it("runs every line of the screens of the knowledge when they are used in the browser", async () => {
     const instance = new DocumentedInstance();
-    const [screen, pages] = await app().measure(
-      ["src/knowledge/knowledge-page.tsx", "src/configuration/use-item-pages.ts"],
+    const [screen, pages, panels] = await app().measure(
+      ["src/knowledge/knowledge-page.tsx", "src/configuration/use-item-pages.ts", "src/configuration/use-panel-controls.ts"],
       async (page) => {
         await page.goto("http://console.test/#/knowledge/manuals?document=quotes.md");
         await page.getByText("A quote is priced.").waitFor();
@@ -1667,17 +1829,41 @@ describe("the code of the console is covered in full", () => {
         await page.getByLabel("Identifiant", { exact: true }).fill("pricing");
         await page.getByLabel("Adresse du contrat").fill("http://127.0.0.1:3001/pricing.json");
         await page.getByLabel("Pour", { exact: true }).selectOption("applications");
-        await page.getByLabel("Application", { exact: true }).selectOption("shop");
+        const dialog = page.getByRole("dialog");
+        await page.getByRole("link", { name: /^Modifier Sert à/ }).click();
+        await dialog.getByLabel("Application", { exact: true }).selectOption("shop");
+        await page.keyboard.press("Escape");
+        await page.waitForURL(/#\/knowledge\?add=source$/);
         await page.getByRole("button", { name: "Tester la connexion" }).click();
         await page.getByRole("status").filter({ hasText: "Connexion réussie · 3 éléments trouvés." }).waitFor();
         await page.getByRole("button", { name: "Enregistrer" }).click();
         await page.waitForURL(/#\/knowledge\/pricing$/);
+        // An attachment is added in a panel, which its removal closes, as dropping the change does; Escape closes the panel of another.
+        await page.getByRole("button", { name: "Ajouter un rattachement" }).click();
+        await page.waitForURL(/#\/knowledge\/pricing\?panel=attachment%3A1$/);
+        await dialog.getByRole("button", { name: "Retirer ce rattachement" }).click();
+        await dialog.waitFor({ state: "detached" });
+        await page.getByRole("button", { name: "Ajouter un rattachement" }).click();
+        await dialog.getByLabel("Application", { exact: true }).selectOption("shop");
+        await dialog.getByRole("button", { name: "Annuler les modifications" }).click();
+        await dialog.waitFor({ state: "detached" });
+        await page.getByRole("link", { name: "Modifier Sert à : Shop, tous les environnements" }).click();
+        await dialog.getByLabel("Environnement", { exact: true }).waitFor();
+        await page.keyboard.press("Escape");
+        await page.waitForURL(/#\/knowledge\/pricing$/);
+        // An attachment saved from its panel closes it.
+        await page.getByRole("button", { name: "Ajouter un rattachement" }).click();
+        await dialog.getByLabel("Application", { exact: true }).selectOption("shop");
+        await dialog.getByLabel("Environnement", { exact: true }).selectOption("local");
+        await dialog.getByRole("button", { name: "Enregistrer" }).click();
+        await dialog.waitFor({ state: "detached" });
+        await page.getByRole("link", { name: "Modifier Sert à : Shop, local" }).waitFor();
         await page.getByLabel("Identifiant", { exact: true }).fill("prices");
         await page.getByRole("button", { name: "Enregistrer" }).click();
         await page.waitForURL(/#\/knowledge\/prices$/);
         assert.deepEqual(
           instance.configured.saved.map(({ document }) => document.knowledge.at(-1)?.id),
-          ["pricing", "prices"],
+          ["pricing", "pricing", "prices"],
         );
         // A source removed once the person confirmed it leads back to the knowledge.
         await page.getByRole("link", { name: "Retirer la source" }).click();
@@ -1690,12 +1876,13 @@ describe("the code of the console is covered in full", () => {
     assert.ok(screen!.lines.length > 10, "the screen is in the build");
     assert.deepEqual(screen!.uncovered, []);
     assert.deepEqual(pages!.uncovered, []);
+    assert.deepEqual(panels!.uncovered, []);
   });
 
   it("runs every line of the screens of the applications when they are used in the browser", async () => {
     const instance = new ConfiguredInstance();
-    const [screen, panel] = await app().measure(
-      ["src/applications/applications-page.tsx", "src/ui/side-panel.tsx"],
+    const [screen, panel, panels] = await app().measure(
+      ["src/applications/applications-page.tsx", "src/ui/side-panel.tsx", "src/configuration/use-panel-controls.ts"],
       async (page) => {
         await page.goto("http://console.test/#/applications");
         // An application is added on a page of its own and saved alone, followed under the identifier it is saved with, then removed.
@@ -1745,6 +1932,7 @@ describe("the code of the console is covered in full", () => {
     assert.ok(screen!.lines.length > 10, "the screen is in the build");
     assert.deepEqual(screen!.uncovered, []);
     assert.deepEqual(panel!.uncovered, []);
+    assert.deepEqual(panels!.uncovered, []);
   });
 
   it("runs every line of the screen of the configuration when it is used in the browser", async () => {

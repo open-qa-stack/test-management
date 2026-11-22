@@ -1,10 +1,11 @@
-import { BadRequestException, Controller, Get, Header, Query, StreamableFile } from "@nestjs/common";
-import { Executions, RepositoryTests, TestReadings } from "@open-qa-stack/engine";
-import type { RepositoryTestList, TestExecutionList, TestReading, TestVersionList } from "@open-qa-stack/domain/sessions";
+import { BadRequestException, Body, Controller, Get, Header, Patch, Query, StreamableFile } from "@nestjs/common";
+import { Executions, RepositoryTests, TestReadings, TestSources } from "@open-qa-stack/engine";
+import { isRecord, type TestChange, type TestEdit } from "@open-qa-stack/domain";
+import type { RepositoryTest, RepositoryTestList, TestExecutionList, TestReading, TestSource, TestVersionList } from "@open-qa-stack/domain/sessions";
 
 /**
- * `GET /tests`, `GET /tests/reading`, `GET /tests/capture`, `GET /tests/trace`, `GET /tests/executions` and `GET /tests/versions`: the operations on the tests of
- * the test repository, said in HTTP. A test is named by its path, relative to the root of the repository, in the
+ * `GET /tests`, `PATCH /tests`, `GET /tests/source`, `GET /tests/reading`, `GET /tests/capture`, `GET /tests/trace`, `GET /tests/executions` and
+ * `GET /tests/versions`: the operations on the tests of the test repository, said in HTTP. A test is named by its path, relative to the root of the repository, in the
  * query; a reading, a capture and a trace come from the latest run of the test, or from the execution the query names.
  */
 @Controller("tests")
@@ -12,11 +13,13 @@ export class TestsController {
   readonly #tests: RepositoryTests;
   readonly #readings: TestReadings;
   readonly #executions: Executions;
+  readonly #sources: TestSources;
 
-  constructor(tests: RepositoryTests, readings: TestReadings, executions: Executions) {
+  constructor(tests: RepositoryTests, readings: TestReadings, executions: Executions, sources: TestSources) {
     this.#tests = tests;
     this.#readings = readings;
     this.#executions = executions;
+    this.#sources = sources;
   }
 
   /** @returns The tests of the repository as their files are now, in the order of their paths, which no cache may keep. */
@@ -24,6 +27,20 @@ export class TestsController {
   @Header("Cache-Control", "no-store")
   async list(): Promise<RepositoryTestList> {
     return this.#tests.listed();
+  }
+
+  /** @returns The test as its file tells it once changed — its own title, or the text of one of its steps — with its identifier. */
+  @Patch()
+  @Header("Cache-Control", "no-store")
+  change(@Body() body: unknown): Promise<RepositoryTest> {
+    return this.#sources.change(changeOf(body));
+  }
+
+  /** @returns The text of the file of tests of the path as it is now, which no cache may keep. */
+  @Get("source")
+  @Header("Cache-Control", "no-store")
+  source(@Query("path") path: unknown): Promise<TestSource> {
+    return this.#sources.read(pathOf(path));
   }
 
   /** @returns The test of the path in steps, from the execution named or the latest run that ran it, which no cache may keep. */
@@ -63,6 +80,27 @@ export class TestsController {
   async versions(@Query("path") path: unknown): Promise<TestVersionList> {
     return { items: await this.#executions.versions(pathOf(path)) };
   }
+}
+
+/** What a body asks to change of a test: its own title, or the text of a step by its number. */
+function editOf(change: unknown): TestEdit {
+  if (isRecord(change) && Object.keys(change).length === 1 && typeof change["title"] === "string") return { title: change["title"] };
+  if (
+    isRecord(change) &&
+    Object.keys(change).length === 2 &&
+    Number.isInteger(change["step"]) &&
+    (change["step"] as number) >= 1 &&
+    typeof change["text"] === "string"
+  )
+    return { step: change["step"] as number, text: change["text"] };
+  throw new BadRequestException("change is { title } or { step, text }: the new own title of the test, or the number of a step from 1 and its new text.");
+}
+
+/** The change a body asks for: the test by its path and its titles, and what changes of it. */
+function changeOf(body: unknown): TestChange {
+  if (!isRecord(body) || typeof body["title"] !== "string")
+    throw new BadRequestException("The body is { path, title, change }: the test as GET /tests names it, and what changes.");
+  return { path: pathOf(body["path"]), title: body["title"], change: editOf(body["change"]) };
 }
 
 /** The execution a query names, if it names one. */
