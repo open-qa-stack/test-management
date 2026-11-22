@@ -69,13 +69,7 @@
   color: var(--ko);
 }
 
-/* A session of the list: its state goes under its facts on a phone, beside them once a line holds both. */
-.run-row {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--gap-row);
-}
-
+/* A session of the list: as every row, its state goes under its facts on a phone, beside them once a line holds both. */
 .run-row.live {
   background: var(--primary-faint);
 }
@@ -104,12 +98,6 @@
 @media (min-width: 720px) {
   .agent-home {
     padding-top: var(--space-12);
-  }
-
-  .run-row {
-    flex-direction: row;
-    align-items: center;
-    gap: var(--space-3);
   }
 }
 

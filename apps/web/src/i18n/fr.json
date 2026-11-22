@@ -591,6 +591,14 @@
         "source-code": "Code source",
         "logs": "Journaux"
       },
+      "explain": {
+        "openapi": "La description des API d’une application, pour les tester sans deviner.",
+        "postgresql": "La base de données d’une application, lue sans jamais être modifiée.",
+        "document": "Des spécifications ou des guides déjà rangés dans le dépôt de tests.",
+        "stored": "Des fichiers que vous déposez ici : spécifications, guides, comptes rendus.",
+        "source-code": "Le code d’une application, pour comprendre ses écrans et ses règles.",
+        "logs": "Les journaux d’une application, pour voir ce qui s’y passe vraiment."
+      },
       "add": {
         "openapi": "Ajouter un contrat OpenAPI",
         "postgresql": "Ajouter une base PostgreSQL",
@@ -721,7 +729,10 @@
       "lead": "Les applications que testent les agents, chacune avec ses environnements et ses API.",
       "none": "Aucune configuration pour l’instant",
       "noneNote": "Configurez le projet : ses applications se déclarent au démarrage.",
-      "configure": "Configurer le projet"
+      "configure": "Configurer le projet",
+      "sources_zero": "aucune connaissance",
+      "sources_one": "{{count}} connaissance",
+      "sources_other": "{{count}} connaissances"
     },
     "places": {
       "whole": "La configuration",
@@ -738,7 +749,7 @@
     "readingNote": "Elles apparaissent dès que l’instance a répondu.",
     "none": "Aucune source de connaissance",
     "noneNote": "Ajoutez les contrats, les bases, les documents, le code et les journaux que lisent les agents.",
-    "lead": "Les sources de chaque application, et où chacune se lit. Les domaines qu’en tire la cartographie viendront dans une prochaine version.",
+    "lead": "Les sources de chaque application, et où chacune se lit. Les domaines qu’en tire la cartographie sont dans Découverte.",
     "noSource": "Aucune source n’est rattachée à cette application",
     "variable": "variable {{name}}",
     "container": "conteneur {{name}}",
@@ -951,6 +962,7 @@
     "duration": "Durée {{duration}}",
     "launchedBy": "Lancée par la session « {{request}} »",
     "bySession": "Lancée par une session de conception",
+    "seeSession": "Voir la session →",
     "noSession": "La session qui l’a lancée n’est plus gardée.",
     "version": "Dépôt de tests au commit {{commit}}",
     "noVersion": "Version du dépôt de tests non conservée.",
@@ -1172,15 +1184,19 @@
     "sources": "Sources",
     "noSource": "Aucune source n’est déclarée",
     "domains": "Domaines",
-    "domainsHint_one": "{{count}} trouvé",
-    "domainsHint_other": "{{count}} trouvés",
     "noDomain": "Aucun domaine pour l’instant",
     "noDomainNote": "Les domaines apparaissent quand la cartographie a lu vos sources et les a mises en commun.",
     "openKnowledge": "Ouvrir les connaissances",
-    "generate_zero": "Choisissez des domaines",
+    "generate_zero": "Générer les tests",
     "generate_one": "Générer les tests de ce domaine",
     "generate_other": "Générer les tests de ces {{count}} domaines",
     "opening": "Ouverture de la session…",
-    "request": "Écris les tests des domaines : {{domains}}."
+    "request": "Écris les tests des domaines : {{domains}}.",
+    "sourceCount_one": "{{count}} lue par la cartographie",
+    "sourceCount_other": "{{count}} lues par la cartographie",
+    "seeSources": "Voir chaque source",
+    "picked_zero": "Aucun domaine choisi sur {{total}}",
+    "picked_one": "1 domaine choisi sur {{total}}",
+    "picked_other": "{{count}} domaines choisis sur {{total}}"
   }
 }

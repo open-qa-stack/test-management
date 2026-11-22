@@ -37,23 +37,23 @@ function Origin({ execution, sessions }: { readonly execution: Execution; readon
       ) : execution.sessionId === undefined ? (
         <div>{t("execution.noSession")}</div>
       ) : (
-        <a href={hrefTo(`/agent/sessions/${execution.sessionId}`)}>
-          {request === undefined ? t("execution.bySession") : t("execution.launchedBy", { request })}
-        </a>
+        <div>
+          {request === undefined ? t("execution.bySession") : t("execution.launchedBy", { request })}{" "}
+          <a href={hrefTo(`/agent/sessions/${execution.sessionId}`)}>{t("execution.seeSession")}</a>
+        </div>
       )}
       <div>{execution.commit === undefined ? t("execution.noVersion") : t("execution.version", { commit: execution.commit.slice(0, 7) })}</div>
     </div>
   );
 }
 
-/** A test of the execution, which leads to what came of it: its verdict, its title, its path, where it failed, and how long it took. */
+/** A test of the execution, which leads to what came of it: its verdict, its title, where it failed, and how long it took. */
 function ResultRow({ execution, result }: { readonly execution: Execution; readonly result: ExecutionResult }): ReactNode {
   return (
     <a className="row tests-row" href={resultHref(execution.id, result.path)}>
       <VerdictBadge verdict={result.verdict} />
       <div className="grow">
         <b>{result.title}</b>
-        <div className="small muted mono">{result.path}</div>
         <FailureNote failure={result.failure} />
       </div>
       <span className="small muted">{durationText(result.durationMs)}</span>

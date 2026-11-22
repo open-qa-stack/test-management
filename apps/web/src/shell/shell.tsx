@@ -84,13 +84,6 @@ export function Shell({ route, project, unreachable = false, menu, children }: S
           <i>✓</i>
           <span>Open QA Stack</span>
         </a>
-        <div className="top-tools">
-          {name !== undefined && (
-            <span className="chip mono">
-              <Icon name="git" /> {name}
-            </span>
-          )}
-        </div>
       </header>
       <aside id="shell-sidebar" className="shell-sidebar">
         <nav className="nav" aria-label={t("shell.navigation")}>

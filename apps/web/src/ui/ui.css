@@ -58,7 +58,7 @@
 
 .ph h1 {
   margin: 0;
-  color: var(--brand-navy);
+  color: var(--text);
   font-size: var(--type-title);
   font-weight: var(--weight-strong);
   line-height: var(--leading-title);
@@ -74,6 +74,15 @@
   gap: var(--space-2);
   max-width: 100%;
   margin-left: auto;
+}
+
+/* What a page is for: a line under its title, as close to it as a line to the one above, as wide as reads well. */
+.page-hint {
+  flex-basis: 100%;
+  margin: var(--gap-line) 0 0;
+  color: var(--text-2);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
 }
 
 .content {
@@ -97,6 +106,7 @@
   background: var(--surface);
   color: var(--text);
   font-weight: var(--weight-medium);
+  text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
 }
@@ -244,6 +254,90 @@ a.chip {
   box-shadow: var(--elevation-rest);
 }
 
+/*
+ * Tiles: the things of a kind a page holds, an application, a domain, each a card of its own, side by side as many as
+ * the width takes, one under the other on a phone. A tile that leads somewhere or that the person picks shows it.
+ */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: var(--gap-turn);
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-row);
+  min-width: 0;
+  padding: var(--inset);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--elevation-rest);
+  color: inherit;
+  text-decoration: none;
+}
+
+button.tile {
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+a.tile:hover,
+button.tile:hover,
+label.tile:hover {
+  border-color: var(--primary);
+}
+
+/* A tile picked: its edge and its ground say so, the box it holds too. */
+.tile:has(input:checked) {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.tile-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+/* The box a tile is picked with reads at a glance, in the colour of the brand. */
+.tile-head input[type="checkbox"] {
+  flex: none;
+  width: var(--space-4);
+  height: var(--space-4);
+  margin: 0;
+  accent-color: var(--brand-navy);
+}
+
+.tile-head b {
+  flex: 1;
+  min-width: 0;
+  font-weight: var(--weight-strong);
+  overflow-wrap: anywhere;
+}
+
+.tile-text {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+}
+
+/* What a page does with what the person picked: a line under it, what is picked then the action, which stays in sight at the foot of the window while the person picks. */
+.action-bar {
+  position: sticky;
+  bottom: 0;
+  padding: var(--space-2) 0;
+  background: var(--sheet);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
 /* The header of a card reads as a sentence, its title then its hint: on a narrow screen it wraps as text does. */
 .hd {
   padding: var(--space-3) var(--inset);
@@ -274,6 +368,15 @@ a.chip {
 
 .row:last-child {
   border-bottom: 0;
+}
+
+/* What a row says first keeps a reading width: its facts sit beside it on a wide screen and go under it on a narrow one, never squeezing it. */
+.row:has(> .grow) {
+  flex-wrap: wrap;
+}
+
+.row > .grow {
+  flex: 1 1 16rem;
 }
 
 a.row {
@@ -321,4 +424,36 @@ a.row:hover {
 .code-line {
   display: block;
   white-space: pre;
+}
+
+/*
+ * The fields of every form look alike: a line of the height of a control, a soft edge that turns to the primary
+ * colour with a halo when focused. On a phone their text reads at 16 px, which keeps the browser from zooming;
+ * from 720 px it is the size of the labels above them.
+ */
+:where(.config-field, .campaign-field, .exec-filter, .tests-search) :is(input:not([type="checkbox"], [type="radio"]), select, textarea) {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--control);
+  padding: 0 var(--space-3);
+  border: var(--hairline) solid var(--field-line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--type-reading);
+  line-height: var(--leading-reading);
+}
+
+:where(.config-field, .campaign-field, .exec-filter, .tests-search) :is(input, select, textarea):focus {
+  border-color: var(--primary);
+  box-shadow: var(--halo);
+  outline: 0;
+}
+
+@media (min-width: 720px) {
+  :where(.config-field, .campaign-field, .exec-filter, .tests-search) :is(input:not([type="checkbox"], [type="radio"]), select, textarea) {
+    font-size: var(--type-body);
+    line-height: var(--leading-body);
+  }
 }

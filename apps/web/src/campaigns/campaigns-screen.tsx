@@ -92,8 +92,7 @@ export function CampaignsScreen({ project, state, environments, planning, onPlan
   const title = t("campaigns.title");
   const list = state.value;
   return (
-    <Page crumbs={[{ label: project }, { label: title }]} title={title}>
-      <p className="small muted">{t("campaigns.lead")}</p>
+    <Page crumbs={[{ label: project }, { label: title }]} title={title} hint={t("campaigns.lead")}>
       <div className="campaigns-layout">
         <PlanForm environments={environments} planning={planning} onPlan={onPlan} />
         {list === undefined ? (

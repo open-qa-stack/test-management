@@ -70,24 +70,24 @@ describe("the knowledge of the project", () => {
       knowledgeAfter(INITIAL_KNOWLEDGE, { type: "read", view: none }),
       configurationAfter(INITIAL_CONFIGURATION, { type: "read", view: none, revisions: REVISIONS }),
     );
-    assert.deepEqual(linksOf(adding), ["#/knowledge?add=source"], "the empty state offers nothing more while a source is added");
+    assert.deepEqual(linksOf(adding), [], "nothing more is offered while a source is added");
   });
 
   it("offers each kind of source to add, then the source of the kind chosen, to fill in and save", () => {
     const kinds = screen("#/knowledge?add=source");
     assert.match(
       textOf(kinds),
-      /Connaissances Ajouter une connaissance Ajouter une connaissance · choisissez ce que les agents liront Ajouter un contrat OpenAPI Ajouter une base PostgreSQL Ajouter des documents du dépôt Ajouter des documents déposés Ajouter du code source Ajouter des journaux Les sources/,
+      /Connaissances Les sources de chaque application, .* Ajouter une connaissance · choisissez ce que les agents liront Contrat OpenAPI La description .* Base PostgreSQL La base .* Documents du dépôt Des spécifications .* Documents déposés Des fichiers .* Code source Le code .* Journaux Les journaux /,
     );
     for (const kind of ["openapi", "postgresql", "document", "stored", "source-code", "logs"])
-      assert.match(kinds, new RegExp(`data-add="/knowledge" data-item="${kind}"`), kind);
+      assert.match(kinds, new RegExp(`class="tile" data-add="/knowledge" data-item="${kind}"`), kind);
     const added = configurationAfter(EDITING, {
       type: "add",
       pointer: "/knowledge",
       item: { id: "", type: "openapi", url: "", attachments: [{ application: "" }] },
     });
     const html = screen("#/knowledge?add=source", stateAfter(), added);
-    assert.match(textOf(html), /Ajouter une connaissance Source 9 · Contrat OpenAPI Retirer Identifiant/);
+    assert.match(textOf(html), /Connaissances Les sources de chaque application, .* Contrat OpenAPI Retirer Identifiant/);
     assert.match(html, /data-remove="\/knowledge\/8"/);
     assert.doesNotMatch(screen("#/knowledge?add=source", stateAfter(), INITIAL_CONFIGURATION), /data-add=/);
   });
@@ -101,7 +101,7 @@ describe("the knowledge of the project", () => {
     const text = textOf(html);
     assert.match(
       text,
-      /Les domaines qu’en tire la cartographie viendront dans une prochaine version\. Shop · shop contract Contrat OpenAPI · http:\/\/127\.0\.0\.1:3001\/openapi\.json local › backend local-contract/,
+      /Les domaines qu’en tire la cartographie sont dans Découverte\. .*Shop · shop contract Contrat OpenAPI · http:\/\/127\.0\.0\.1:3001\/openapi\.json local › backend local-contract/,
     );
     for (const row of [
       "orders Base PostgreSQL · variable SHOP_DB_URL",
@@ -142,10 +142,11 @@ describe("the knowledge of the project", () => {
     for (const row of [
       "orders Base PostgreSQL · variable SHOP_DB_URL En attente de cartographie",
       "specs Documents du dépôt · specs/orders.md Cartographie en cours",
-      "code Code source · ../shop Cartographiée",
+      "code Code source · ../shop",
       "local › backend Cartographiée en partie",
     ])
       assert.ok(text.includes(row), row);
+    assert.ok(!text.includes("../shop Cartographiée"), "a source mapped has no badge: the line of the index says it");
     assert.ok(text.includes("manuals Documents déposés 1 document code"), "a source the cartography does not read has no badge");
     assert.match(
       mapped({ environment: "local", sources, index: { producedAt: at, status: "complete" } }),
@@ -203,14 +204,14 @@ describe("a source of the knowledge", () => {
 
   it("lets the person change the source, test it and save it alone, or remove it once they confirmed it", () => {
     const html = screen("#/knowledge/contract");
-    assert.match(textOf(html), /^shop-tests \/ Connaissances \/ contract contract Retirer la source contract · Contrat OpenAPI Identifiant/);
+    assert.match(textOf(html), /^shop-tests \/ Connaissances \/ contract contract Retirer la source Contrat OpenAPI Identifiant/);
     assert.match(html, /<a class="btn ghost" href="#\/knowledge\/contract\?drop=source">Retirer la source<\/a>/);
     assert.match(html, /name="\/knowledge\/0\/url"/);
     assert.doesNotMatch(html, /name="\/knowledge\/1\//);
     const asked = screen("#/knowledge/contract?drop=source");
     assert.match(
       textOf(asked),
-      /Retirer la source contract \? Les prochaines sessions ne la lisent plus\. Une nouvelle révision de la configuration est enregistrée : la précédente reste dans l’historique\. Annuler Retirer la source contract/,
+      /Retirer la source contract \? Les prochaines sessions ne la lisent plus\. Une nouvelle révision de la configuration est enregistrée : la précédente reste dans l’historique\. Annuler Retirer la source Contrat OpenAPI/,
     );
     assert.match(asked, /<button type="button" class="btn danger" data-rank="0">Retirer la source<\/button>/);
     assert.match(screen("#/knowledge/contract?drop=source", stateAfter(), configurationAfter(EDITING, { type: "saving" })), /data-rank="0" disabled="">/);

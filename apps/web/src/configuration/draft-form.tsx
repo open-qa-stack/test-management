@@ -3,6 +3,7 @@ import { t } from "../i18n/i18n.ts";
 import { EditContext } from "./configuration-edit.ts";
 import { ErrorSummary, Notes, type ConfigurationControls } from "./configuration-screen.tsx";
 import { isPending, shownErrors, type ConfigurationState } from "./configuration-state.ts";
+import { SaveBar } from "./save-bar.tsx";
 
 /** The form of one item of the configuration — a source, an application —, which its buttons submit. */
 export const ITEM_FORM = "item-form";
@@ -42,17 +43,7 @@ export function DraftForm({
         <Notes state={state} />
         <ErrorSummary errors={errors} draft={state.draft} />
         {children}
-        <div className="config-head">
-          <span className="small muted config-state" role="status">
-            {saving ? t("configuration.screen.saving") : pending ? t("configuration.screen.unsaved") : t("configuration.item.saved")}
-          </span>
-          <button type="button" className="btn" onClick={controls.discard} disabled={!pending || saving}>
-            {t("configuration.screen.discard")}
-          </button>
-          <button type="submit" className="btn primary" disabled={!pending || saving}>
-            {t("configuration.screen.save")}
-          </button>
-        </div>
+        <SaveBar saving={saving} pending={pending} saved={t("configuration.item.saved")} discard={controls.discard} />
       </form>
     </EditContext.Provider>
   );

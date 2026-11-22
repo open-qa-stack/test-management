@@ -20,42 +20,54 @@ const LANGUAGE_CHOICES = LANGUAGES.map((language) => ({ value: language, label: 
 export function AutonomyCard({ autonomy = { level: "autonomous" } }: { readonly autonomy?: OqasConfig["autonomy"] }): ReactNode {
   return (
     <Card title={t("configuration.settings.autonomy.title")} hint={t("configuration.settings.autonomy.hint")}>
-      <div className="config-body config-fields">
-        <ChoiceField
-          pointer="/autonomy/level"
-          kind="level"
-          label={t("configuration.settings.autonomy.level")}
-          value={autonomy.level}
-          options={[
-            { value: "autonomous", label: t("configuration.settings.autonomous") },
-            { value: "bounded", label: t("configuration.settings.bounded") },
-          ]}
-        />
+      <div className="config-body">
+        <div className="config-fields">
+          <ChoiceField
+            pointer="/autonomy/level"
+            kind="level"
+            label={t("configuration.settings.autonomy.level")}
+            value={autonomy.level}
+            options={[
+              { value: "autonomous", label: t("configuration.settings.autonomous") },
+              { value: "bounded", label: t("configuration.settings.bounded") },
+            ]}
+          />
+        </div>
+        {/* The limits are an expert's: the level says how far the agents go, and the defaults hold. */}
+        <AdvancedFields pointers={["/autonomy/guardrailMinutes", "/autonomy/task"]}>
+          <InputField
+            pointer="/autonomy/guardrailMinutes"
+            label={t("configuration.settings.autonomy.guardrail")}
+            value={autonomy.guardrailMinutes}
+            numeric
+            placeholder={autonomy.level === "autonomous" ? "120" : t("configuration.settings.autonomy.none")}
+            hint={t("configuration.settings.autonomy.guardrailHint")}
+          />
+          {autonomy.level === "bounded" && (
+            <>
+              <InputField
+                pointer="/autonomy/task/maxMinutes"
+                label={t("configuration.settings.autonomy.maxMinutes")}
+                value={autonomy.task.maxMinutes}
+                numeric
+              />
+              <InputField
+                pointer="/autonomy/task/maxIterations"
+                label={t("configuration.settings.autonomy.maxIterations")}
+                value={autonomy.task.maxIterations}
+                numeric
+              />
+              <InputField
+                pointer="/autonomy/task/maxActions"
+                label={t("configuration.settings.autonomy.maxActions")}
+                value={autonomy.task.maxActions}
+                numeric
+              />
+              <PlaceErrors pointer="/autonomy/task" />
+            </>
+          )}
+        </AdvancedFields>
       </div>
-      {/* The limits are an expert's: the level says how far the agents go, and the defaults hold. */}
-      <AdvancedFields pointers={["/autonomy/guardrailMinutes", "/autonomy/task"]}>
-        <InputField
-          pointer="/autonomy/guardrailMinutes"
-          label={t("configuration.settings.autonomy.guardrail")}
-          value={autonomy.guardrailMinutes}
-          numeric
-          placeholder={autonomy.level === "autonomous" ? "120" : t("configuration.settings.autonomy.none")}
-          hint={t("configuration.settings.autonomy.guardrailHint")}
-        />
-        {autonomy.level === "bounded" && (
-          <>
-            <InputField pointer="/autonomy/task/maxMinutes" label={t("configuration.settings.autonomy.maxMinutes")} value={autonomy.task.maxMinutes} numeric />
-            <InputField
-              pointer="/autonomy/task/maxIterations"
-              label={t("configuration.settings.autonomy.maxIterations")}
-              value={autonomy.task.maxIterations}
-              numeric
-            />
-            <InputField pointer="/autonomy/task/maxActions" label={t("configuration.settings.autonomy.maxActions")} value={autonomy.task.maxActions} numeric />
-            <PlaceErrors pointer="/autonomy/task" />
-          </>
-        )}
-      </AdvancedFields>
     </Card>
   );
 }
@@ -120,40 +132,42 @@ export function LanguageCard({ config }: { readonly config: OqasConfig }): React
 export function RepositoryCard({ repository = {} }: { readonly repository?: OqasConfig["repository"] }): ReactNode {
   return (
     <Card title={t("configuration.settings.repository.title")} hint={t("configuration.settings.repository.hint")}>
-      <div className="config-body config-fields">
-        <InputField pointer="/repository/appsDir" label={t("configuration.settings.repository.appsDir")} value={repository.appsDir} code placeholder="apps" />
+      <div className="config-body">
+        <div className="config-fields">
+          <InputField pointer="/repository/appsDir" label={t("configuration.settings.repository.appsDir")} value={repository.appsDir} code placeholder="apps" />
+        </div>
+        {/* The other folders are an expert's: their defaults hold. */}
+        <AdvancedFields pointers={["/repository/blocksDir", "/repository/journeysDir", "/repository/stateDir", "/repository/indexDir"]}>
+          <InputField
+            pointer="/repository/blocksDir"
+            label={t("configuration.settings.repository.blocksDir")}
+            value={repository.blocksDir}
+            code
+            placeholder="blocs"
+          />
+          <InputField
+            pointer="/repository/journeysDir"
+            label={t("configuration.settings.repository.journeysDir")}
+            value={repository.journeysDir}
+            code
+            placeholder="parcours"
+          />
+          <InputField
+            pointer="/repository/stateDir"
+            label={t("configuration.settings.repository.stateDir")}
+            value={repository.stateDir}
+            code
+            placeholder=".oqas"
+          />
+          <InputField
+            pointer="/repository/indexDir"
+            label={t("configuration.settings.repository.indexDir")}
+            value={repository.indexDir}
+            code
+            placeholder=".oqas/index"
+          />
+        </AdvancedFields>
       </div>
-      {/* The other folders are an expert's: their defaults hold. */}
-      <AdvancedFields pointers={["/repository/blocksDir", "/repository/journeysDir", "/repository/stateDir", "/repository/indexDir"]}>
-        <InputField
-          pointer="/repository/blocksDir"
-          label={t("configuration.settings.repository.blocksDir")}
-          value={repository.blocksDir}
-          code
-          placeholder="blocs"
-        />
-        <InputField
-          pointer="/repository/journeysDir"
-          label={t("configuration.settings.repository.journeysDir")}
-          value={repository.journeysDir}
-          code
-          placeholder="parcours"
-        />
-        <InputField
-          pointer="/repository/stateDir"
-          label={t("configuration.settings.repository.stateDir")}
-          value={repository.stateDir}
-          code
-          placeholder=".oqas"
-        />
-        <InputField
-          pointer="/repository/indexDir"
-          label={t("configuration.settings.repository.indexDir")}
-          value={repository.indexDir}
-          code
-          placeholder=".oqas/index"
-        />
-      </AdvancedFields>
     </Card>
   );
 }

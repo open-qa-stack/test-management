@@ -62,10 +62,10 @@ describe("the discovery of the project", () => {
     const text = textOf(html);
     assert.match(
       text,
-      /Domaines · 2 trouvés Domaines Clients — La recherche et la fiche d’un client\. Commandes — La commande et son suivi\. Choisissez des domaines Sources contract Cartographiée orders Cartographie en cours Connaissances mises en commun par domaine le/,
+      /Domaines Clients La recherche et la fiche d’un client\. Commandes La commande et son suivi\. Aucun domaine choisi sur 2 Générer les tests Sources · 2 lues par la cartographie Cartographiée · 1 Cartographie en cours · 1 Connaissances mises en commun par domaine le .* Voir chaque source contract Cartographiée orders Cartographie en cours$/,
     );
     assert.match(html, /<input id="domain-customers" type="checkbox" name="domain" value="customers"\/>/);
-    assert.match(html, /<button type="submit" class="btn primary" disabled="">Choisissez des domaines<\/button>/);
+    assert.match(html, /<button type="submit" class="btn primary" disabled="">Générer les tests<\/button>/);
   });
 
   it("writes the tests of the domains picked, says the session opens, and why it was refused", () => {
@@ -85,7 +85,7 @@ describe("the discovery of the project", () => {
     const html = screen({ domains: [], mapping: { sources: [] } });
     assert.match(
       textOf(html),
-      /Aucun domaine pour l’instant Les domaines apparaissent quand la cartographie a lu vos sources et les a mises en commun\. Ouvrir les connaissances Sources Aucune source n’est déclarée/,
+      /Aucun domaine pour l’instant Les domaines apparaissent quand la cartographie a lu vos sources et les a mises en commun\. Ouvrir les connaissances Sources · 0 lue par la cartographie Aucune source n’est déclarée$/,
     );
     assert.ok(linksOf(html).includes("#/knowledge"));
   });

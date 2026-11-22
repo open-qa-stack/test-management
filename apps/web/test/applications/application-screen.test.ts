@@ -48,8 +48,8 @@ describe("the page of an application", () => {
 
   it("shows the application alone, every field with its label and its value, with nothing to save while nothing changed, and no button that removes it", () => {
     const html = page("#/applications/shop");
-    assert.match(textOf(html), /^shop-tests \/ Applications \/ Shop Shop Retirer l’application Shop · shop Nom .* Avancé Identifiant Minuscules/);
-    assert.match(textOf(html), /Enregistrée Annuler les modifications Enregistrer$/);
+    assert.match(textOf(html), /^shop-tests \/ Applications \/ Shop Shop Retirer l’application Nom .* Avancé Identifiant Minuscules/);
+    assert.match(textOf(html), /Enregistrée$/);
     assert.doesNotMatch(html, /data-remove="\/applications\/0"/);
     assert.match(html, /<a class="btn ghost" href="#\/applications\/shop\?drop=application">Retirer l’application<\/a>/);
     assert.match(html, /<label for="config-applications-0-id">Identifiant<\/label>/);
@@ -100,20 +100,21 @@ describe("the page of an application", () => {
     const html = page("#/applications/shop?drop=application");
     assert.match(
       textOf(html),
-      /Retirer l’application Shop \? Les prochaines sessions ne la testent plus\. .* Les sources qui lui sont rattachées doivent d’abord en être détachées\. Annuler Retirer l’application Shop · shop/,
+      /Retirer l’application Shop \? Les prochaines sessions ne la testent plus\. .* Les sources qui lui sont rattachées doivent d’abord en être détachées\. Annuler Retirer l’application Nom/,
     );
     assert.match(html, /<button type="button" class="btn danger" data-rank="0">Retirer l’application<\/button>/);
     assert.match(page("#/applications/shop?drop=application", configurationAfter(stateAfter(), { type: "saving" })), /data-rank="0" disabled="">/);
   });
 
-  it("shows the application being added, named by its rank until it has a name, which it offers to remove, beside the errors of the draft", () => {
+  it("shows the application being added under the title of the page, with no button that removes it, beside the errors of the draft", () => {
     assert.doesNotMatch(page("#/applications?add=application"), /<form/, "nothing until the page added it");
     const added = stateAfter([{ type: "add", pointer: "/applications", item: NEW_ITEMS.application }]);
     const errors: ConfigError[] = [{ kind: "structure", path: "/applications/1/environments", rule: "too-few-items", message: "Too few items." }];
     const html = page("#/applications?add=application", { ...added, errors, tried: true });
     const text = textOf(html);
     assert.match(text, /^shop-tests \/ Applications \/ Nouvelle application Nouvelle application 1 erreur à corriger avant d’enregistrer/);
-    assert.match(text, /Application 2 · sans identifiant Retirer Nom /);
+    assert.match(text, /avant d’enregistrer .*Nom /);
+    assert.doesNotMatch(html, /data-remove="\/applications\/1"/);
     assert.match(text, /Environnement 1 Environnement 1 Retirer Nom/);
     assert.match(html, /aria-label="Retirer l’environnement 1 de Application 2" data-remove="\/applications\/1\/environments\/0"/);
     assert.match(html, /<p class="field-error" role="note">Il en faut au moins un\.<\/p>/);

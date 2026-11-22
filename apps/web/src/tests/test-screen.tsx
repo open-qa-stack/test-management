@@ -52,7 +52,7 @@ function Tags({ test }: { readonly test: RepositoryTest }): ReactNode {
   );
 }
 
-/** What came of the test lately: its latest verdict and when, how many of its latest executions passed, and the way to the latest result. */
+/** What came of the test lately: its latest verdict and when, how many of its latest executions passed when there were several, and the way to the latest result. */
 function Summary({ path, executions }: { readonly path: string; readonly executions: readonly TestExecution[] }): ReactNode {
   const [latest] = executions;
   if (latest === undefined)
@@ -69,7 +69,7 @@ function Summary({ path, executions }: { readonly path: string; readonly executi
         <VerdictBadge verdict={latest.result.verdict} />
         <div className="grow">
           <b>{t("test.lastRun", { date: dateText(latest.ranAt) })}</b>
-          <div className="small muted">{t("test.rate", { passed, count: recent.length })}</div>
+          {recent.length > 1 && <div className="small muted">{t("test.rate", { passed, count: recent.length })}</div>}
         </div>
         <span className="test-dots" role="img" aria-label={t("test.history")}>
           {recent.toReversed().map(({ id, result }, rank) => (

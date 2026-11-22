@@ -124,10 +124,7 @@ describe("the entry of the agent", () => {
   it("lists a session per row, with what was asked, its facts and its state", () => {
     const text = textOf(home([RUNNING, COMPLETED, INTERRUPTED]));
     assert.match(text, /Sessions · 1 en direct tester la recherche d'un client 15 nov. 2026, 14:44:06 UTC en direct /);
-    assert.match(
-      text,
-      /tester la recherche d'un client 15 nov. 2026, 14:44:06 UTC · local · 1 min 54 s · 50 requêtes au modèle 1 \/ 1 test réussi tests réussis /,
-    );
+    assert.match(text, /tester la recherche d'un client 15 nov. 2026, 14:44:06 UTC · local · 1 min 54 s 1 \/ 1 test réussi /);
     assert.match(text, /Session sans demande 14 nov. 2026, 09:12:00 UTC interrompue$/);
     assert.doesNotMatch(text, /Lecture des sessions|Aucune session/);
   });
@@ -152,7 +149,7 @@ describe("the entry of the agent", () => {
   it("tells the facts of a result even when it holds no test, and how each session stands", () => {
     const stopped: Session = { ...COMPLETED, result: { outcome: "stopped", durationMs: 42_000, modelRequests: 3, tests: [] } };
     const html = home([stopped, { ...RUNNING, state: "interrupted" }]);
-    assert.match(textOf(html), /15 nov. 2026, 14:44:06 UTC · local · 42 s · 3 requêtes au modèle arrêtée avant la fin /);
+    assert.match(textOf(html), /15 nov. 2026, 14:44:06 UTC · local · 42 s arrêtée avant la fin /);
     assert.match(html, /<span class="badge neutral">arrêtée avant la fin<\/span>/);
     assert.match(html, /<span class="badge warn">interrompue<\/span>/);
   });

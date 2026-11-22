@@ -83,7 +83,7 @@ describe("the console in English", () => {
     await inEnglish();
     const home = english(createElement(AgentHomeScreen, { project: "p", sessions: [RUNNING, COMPLETED], opening: { state: "idle" } }));
     assert.match(home, /^p \/ Agent What do we test\? Tell the agents what to test Start a session Sessions · 1 live /);
-    assert.match(home, / · local · 1 min 54 sec · 50 requests to the model 1 \/ 1 test passed tests passed$/);
+    assert.match(home, / · local · 1 min 54 sec 1 \/ 1 test passed$/);
     assert.match(english(createElement(Console, { route: at("#/nowhere") })), /Page not found This address leads to no screen .* Back to the sessions$/);
   });
 
@@ -139,7 +139,7 @@ describe("the console in English", () => {
     const controls = { upload: IGNORED, remove: IGNORED, drop: IGNORED, edit };
     const editing = configurationAfter(INITIAL_CONFIGURATION, { type: "read", view: VIEW, revisions: REVISIONS });
     const overview = english(createElement(KnowledgeScreen, { project: "p", route: parseRoute("#/knowledge?add=source"), state, editing, controls }));
-    assert.match(overview, /Knowledge Add knowledge Add knowledge · choose what the agents will read Add an OpenAPI contract/);
+    assert.match(overview, /Knowledge The sources of each application, .* Add knowledge · choose what the agents will read OpenAPI contract The description/);
     assert.match(overview, /The sources of each application, and where each is read from\./);
     assert.match(overview, /manuals Uploaded documents 1 document/);
     const source = english(
@@ -151,11 +151,8 @@ describe("the console in English", () => {
         controls,
       }),
     );
-    assert.match(
-      source,
-      /Remove the source manuals\? The next sessions no longer read it\. .* Cancel Remove the source manuals · Uploaded documents Identifier/,
-    );
-    assert.match(source, /Saved Discard the changes Save/);
+    assert.match(source, /Remove the source manuals\? The next sessions no longer read it\. .* Cancel Remove the source Uploaded documents Identifier/);
+    assert.match(source, /Add an attachment Saved /);
     assert.match(source, /quotes\.md 1\.2 kB · .* Remove Remove quotes\.md\? The document is deleted from the instance/);
     assert.match(
       source,

@@ -26,11 +26,11 @@ describe("the screen of an execution", () => {
     const text = textOf(screen({ value: LATEST }));
     assert.match(
       text,
-      /^lakeside-tests \/ Exécutions \/ (\d+ nov\. 2026, \d\d:\d\d) Exécution du \1 1 en échec 1 instable 2 réussis 1 ignoré Durée 9 s Lancée par la session « Test the policies » Dépôt de tests au commit 4f2a9c0 /,
+      /^lakeside-tests \/ Exécutions \/ (\d+ nov\. 2026, \d\d:\d\d) Exécution du \1 1 en échec 1 instable 2 réussis 1 ignoré Durée 9 s Lancée par la session « Test the policies » Voir la session → Dépôt de tests au commit 4f2a9c0 /,
     );
     assert.match(
       text,
-      /policy-management · 5 tests En échec Policies › Edit a policy \S+ Étape 3 · Save the policy Attendu "Saved", obtenu "Refused" 5 s Instable Policies › Filter the policies \S+ 1 s Réussi Display the detail/,
+      /policy-management · 5 tests En échec Policies › Edit a policy Étape 3 · Save the policy Attendu "Saved", obtenu "Refused" 5 s Instable Policies › Filter the policies 1 s Réussi Display the detail/,
     );
     const result = `#/executions/result?id=${LATEST.id}&path=${encodeURIComponent(DETAIL)}`;
     assert.deepEqual(linksOf(screen({ value: LATEST })), ["#/executions", `#/agent/sessions/${LATEST.sessionId}`, result, result, result, result, result]);
@@ -44,9 +44,9 @@ describe("the screen of an execution", () => {
       const { failure: _kept, ...result } = failed;
       return textOf(screen({ value: { ...LATEST, results: [failure === undefined ? result : { ...result, failure }] } }));
     };
-    assert.match(told({ message: "Test timeout of 30000ms exceeded." }), /\.spec\.ts Test timeout of 30000ms exceeded\. 5 s$/);
-    assert.match(told({ step: { number: 2, title: "Open the policy" } }), /\.spec\.ts Étape 2 · Open the policy 5 s$/);
-    assert.match(told(), /\.spec\.ts 5 s$/);
+    assert.match(told({ message: "Test timeout of 30000ms exceeded." }), /Edit a policy Test timeout of 30000ms exceeded\. 5 s$/);
+    assert.match(told({ step: { number: 2, title: "Open the policy" } }), /Edit a policy Étape 2 · Open the policy 5 s$/);
+    assert.match(told(), /Edit a policy 5 s$/);
   });
 
   it("says an execution was launched by hand, or for a campaign, which it leads to", () => {

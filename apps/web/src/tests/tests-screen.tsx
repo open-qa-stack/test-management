@@ -78,14 +78,13 @@ function LevelFilter({ tests, route }: { readonly tests: readonly RepositoryTest
   );
 }
 
-/** A test in the list, which leads to its screen: its title, its path, then its level, its kind, its domain and functionality, and its steps. */
+/** A test in the list, which leads to its screen: its title, then its level, its kind, its domain and functionality, and its steps. */
 function TestRow({ test }: { readonly test: RepositoryTest }): ReactNode {
   const where = [test.domain, test.feature].filter((part) => part !== undefined).join(" › ");
   return (
     <a className="row tests-row" href={testHref(test.path)}>
       <div className="grow">
         <b>{test.title}</b>
-        <div className="small muted mono">{test.path}</div>
       </div>
       {where !== "" && <span className="small muted">{where}</span>}
       {test.level !== undefined && <Badge tone="outline">{levelText(test.level)}</Badge>}
@@ -118,7 +117,11 @@ export function TestsScreen({ project, route, state, controls }: TestsScreenProp
   const { level, q: search = "" } = route.query;
   const shown = (tests ?? []).filter((test) => (level === undefined || test.level === level) && matches(test, search));
   return (
-    <Page crumbs={[{ label: project }, { label: title }]} title={title}>
+    <Page
+      crumbs={[{ label: project }, { label: title }]}
+      title={title}
+      {...(tests === undefined || tests.length === 0 ? {} : { hint: t("tests.lead", { count: tests.length }) })}
+    >
       {tests === undefined ? (
         <EmptyState title={t("tests.reading")}>
           <span role="status">{state.unread ?? t("tests.readingNote")}</span>
@@ -127,7 +130,6 @@ export function TestsScreen({ project, route, state, controls }: TestsScreenProp
         <EmptyState title={t("tests.none")}>{t("tests.noneNote")}</EmptyState>
       ) : (
         <>
-          <p className="small muted">{t("tests.lead", { count: tests.length })}</p>
           <form className="tests-search" role="search" onSubmit={controls.search}>
             <input type="search" name="q" defaultValue={search} aria-label={t("tests.search")} placeholder={t("tests.search")} />
           </form>

@@ -591,6 +591,14 @@
         "source-code": "Source code",
         "logs": "Logs"
       },
+      "explain": {
+        "openapi": "The description of an application’s APIs, to test them without guessing.",
+        "postgresql": "An application’s database, read and never changed.",
+        "document": "Specifications or guides already kept in the test repository.",
+        "stored": "Files you drop here: specifications, guides, minutes.",
+        "source-code": "An application’s code, to understand its screens and rules.",
+        "logs": "An application’s logs, to see what really happens in it."
+      },
       "add": {
         "openapi": "Add an OpenAPI contract",
         "postgresql": "Add a PostgreSQL database",
@@ -721,7 +729,10 @@
       "lead": "The applications the agents test, each with its environments and APIs.",
       "none": "No configuration yet",
       "noneNote": "Configure the project: its applications are declared when it starts.",
-      "configure": "Configure the project"
+      "configure": "Configure the project",
+      "sources_zero": "no knowledge",
+      "sources_one": "{{count}} knowledge source",
+      "sources_other": "{{count}} knowledge sources"
     },
     "places": {
       "whole": "The configuration",
@@ -738,7 +749,7 @@
     "readingNote": "It shows as soon as the instance answered.",
     "none": "No knowledge source",
     "noneNote": "Add the contracts, databases, documents, code and logs the agents read.",
-    "lead": "The sources of each application, and where each is read from. The domains the cartography maps them into come in a later version.",
+    "lead": "The sources of each application, and where each is read from. The domains the cartography draws from them are in Discovery.",
     "noSource": "No source is attached to this application",
     "variable": "variable {{name}}",
     "container": "container {{name}}",
@@ -951,6 +962,7 @@
     "duration": "Duration {{duration}}",
     "launchedBy": "Run by the session “{{request}}”",
     "bySession": "Run by a design session",
+    "seeSession": "See the session →",
     "noSession": "The session that ran it is no longer kept.",
     "version": "Test repository at commit {{commit}}",
     "noVersion": "Version of the test repository not kept.",
@@ -1172,15 +1184,19 @@
     "sources": "Sources",
     "noSource": "No source is declared",
     "domains": "Domains",
-    "domainsHint_one": "{{count}} found",
-    "domainsHint_other": "{{count}} found",
     "noDomain": "No domain yet",
     "noDomainNote": "The domains show once the cartography read your sources and put them together.",
     "openKnowledge": "Open the knowledge",
-    "generate_zero": "Pick domains",
+    "generate_zero": "Generate the tests",
     "generate_one": "Write the tests of this domain",
     "generate_other": "Write the tests of these {{count}} domains",
     "opening": "Opening the session…",
-    "request": "Write the tests of the domains: {{domains}}."
+    "request": "Write the tests of the domains: {{domains}}.",
+    "sourceCount_one": "{{count}} read by the mapping",
+    "sourceCount_other": "{{count}} read by the mapping",
+    "seeSources": "See each source",
+    "picked_zero": "No domain picked out of {{total}}",
+    "picked_one": "1 domain picked out of {{total}}",
+    "picked_other": "{{count}} domains picked out of {{total}}"
   }
 }
