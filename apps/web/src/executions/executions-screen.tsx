@@ -187,7 +187,11 @@ export function ExecutionsScreen({ project, filter, before, sessions, campaigns 
   const page = state.value;
   const narrowed = filter.outcome !== undefined || filter.period !== undefined || before !== undefined;
   return (
-    <Page crumbs={[{ label: project }, { label: title }]} title={title}>
+    <Page
+      crumbs={[{ label: project }, { label: title }]}
+      title={title}
+      {...(page === undefined || (page.items.length === 0 && !narrowed) ? {} : { hint: t("executions.lead") })}
+    >
       {page === undefined ? (
         <EmptyState title={t("executions.reading")}>
           <span role="status">{state.unread ?? t("executions.readingNote")}</span>
@@ -196,7 +200,6 @@ export function ExecutionsScreen({ project, filter, before, sessions, campaigns 
         <EmptyState title={t("executions.none")}>{t("executions.noneNote")}</EmptyState>
       ) : (
         <>
-          <p className="small muted">{t("executions.lead")}</p>
           <Filters filter={filter} controls={controls} />
           {page.items.length === 0 ? (
             <EmptyState title={t("executions.noMatch")}>{t("executions.noMatchNote")}</EmptyState>

@@ -31,9 +31,9 @@ describe("the editor of a source", () => {
   it("shows the source alone in a form of its own, with nothing to save while nothing changed, and no button that removes it", () => {
     const html = editor(0);
     assert.match(html, new RegExp(`^<form id="${ITEM_FORM}" class="config-form" noValidate="">`));
-    assert.match(textOf(html), /^contract · Contrat OpenAPI Identifiant/);
-    assert.match(textOf(html), /Enregistrée Annuler les modifications Enregistrer$/);
-    assert.match(html, /<button type="submit" class="btn primary" disabled="">Enregistrer<\/button>/);
+    assert.match(textOf(html), /^Contrat OpenAPI Identifiant/);
+    assert.match(textOf(html), /Enregistrée$/);
+    assert.doesNotMatch(html, /type="submit"/, "nothing to save, no button to save");
     assert.doesNotMatch(html, /data-remove="\/knowledge\/0"/);
     assert.deepEqual(fieldsNamed(html, "/knowledge/1/id"), []);
   });
@@ -88,7 +88,7 @@ describe("the editor of a source", () => {
     const html = editor(8, { ...added, errors, tried: true }, true);
     const text = textOf(html);
     assert.match(text, /^2 erreurs à corriger avant d’enregistrer/);
-    assert.match(text, /Source 9 · Documents déposés Retirer Soit un chemin, soit des documents déposés : exactement l’un des deux\./);
+    assert.match(text, /Documents déposés Retirer Soit un chemin, soit des documents déposés : exactement l’un des deux\./);
     assert.match(html, /aria-label="Retirer la source Source 9" data-remove="\/knowledge\/8"/);
     assert.match(html, /<select id="config-knowledge-8-attachments-0-application"[^>]*aria-invalid="true"/);
     assert.match(html, /<option value="" selected="">Choisir une application<\/option>/);

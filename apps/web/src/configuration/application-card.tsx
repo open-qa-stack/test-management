@@ -86,27 +86,34 @@ function EnvironmentFields({
  * An application of the configuration: what it is, how a user signs in with the variables of its test accounts,
  * and its environments.
  *
- * @param props - The application, its rank in the list, and whether the card offers to remove it.
+ * @param props - The application, its rank in the list, and whether the card is one of a list.
  * @returns Its card.
  */
 export function ApplicationCard({
   application,
   rank,
-  removable = true,
+  listed = true,
 }: {
   readonly application: ConfiguredApplication;
   readonly rank: number;
-  /** Whether the card offers to remove the application from the draft: a screen that removes it otherwise says no. */
-  readonly removable?: boolean;
+  /**
+   * Whether the card is one of a list, which names the application in its header and offers to remove it; on the page
+   * of the application, which names it and removes it otherwise, it has no header.
+   */
+  readonly listed?: boolean;
 }): ReactNode {
   const at = `/applications/${rank}`;
   const accounts = application.authentication.accounts ?? [];
   const title = application.name === "" ? t("configuration.application.untitled", { rank: rank + 1 }) : application.name;
   return (
     <Card
-      title={title}
-      hint={application.id === "" ? t("configuration.application.noId") : application.id}
-      {...(removable ? { aside: <RemoveButton pointer={at} label={t("configuration.application.removeApplication", { name: title })} /> } : {})}
+      {...(listed
+        ? {
+            title,
+            hint: application.id === "" ? t("configuration.application.noId") : application.id,
+            aside: <RemoveButton pointer={at} label={t("configuration.application.removeApplication", { name: title })} />,
+          }
+        : {})}
     >
       <div className="config-body">
         <div className="config-fields">

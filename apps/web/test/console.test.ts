@@ -97,7 +97,7 @@ describe("the console", () => {
 
   it("gives the entry of the agent the project and the sessions the API told", () => {
     const html = consoleAt("#/agent", { project: PROJECT, sessions: [COMPLETED] });
-    assert.match(textOf(html), /^✓ Open QA Stack lakeside-tests LA lakeside-tests 1 application · projet/);
+    assert.match(textOf(html), /^✓ Open QA Stack LA lakeside-tests 1 application · projet/);
     assert.match(pageOf(html), /^lakeside-tests \/ Agent Qu’est-ce qu’on teste \?/);
     assert.ok(linksOf(html).includes(SESSION));
     assert.match(pageOf(consoleAt("#/", { sessions: [] })), /Aucune session pour l’instant/);

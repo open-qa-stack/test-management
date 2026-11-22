@@ -1,5 +1,5 @@
 import type { ChangeEventHandler, FormEventHandler, ReactNode } from "react";
-import type { CartographyState, KnowledgeDomain } from "@open-qa-stack/domain/sessions";
+import type { CartographyState, KnowledgeDomain, MappingState } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
 import { IndexLine, MAPPING_TONES } from "../knowledge/knowledge-screen.tsx";
 import { hrefTo } from "../routing/route.ts";
@@ -34,20 +34,42 @@ export interface DiscoveryScreenProps {
   readonly controls: DiscoveryControls;
 }
 
-/** The sources of the knowledge and where the cartography of each stands, then when the knowledge was put together. */
+/** The states of a cartography, in the order a source goes through them. */
+const STATES: readonly MappingState[] = ["mapped", "truncated", "mapping", "waiting"];
+
+/**
+ * The sources of the knowledge as a summary — how many stand in each state of their cartography, then when the
+ * knowledge was put together —, each source folded under it.
+ */
 function Sources({ mapping }: { readonly mapping: CartographyState }): ReactNode {
+  const { sources } = mapping;
   return (
-    <Card title={t("discovery.sources")}>
-      {mapping.sources.length === 0 && <EmptyState title={t("discovery.noSource")} />}
-      {mapping.sources.map((source) => (
-        <div key={source.id} className="row">
-          <b className="grow mono">{source.id}</b>
-          <Badge tone={MAPPING_TONES[source.state]}>{t(`knowledge.mapping.${source.state}`)}</Badge>
+    <Card title={t("discovery.sources")} hint={t("discovery.sourceCount", { count: sources.length })}>
+      {sources.length === 0 ? (
+        <EmptyState title={t("discovery.noSource")} />
+      ) : (
+        <div className="row discovery-summary">
+          {STATES.map((state) => [state, sources.filter((source) => source.state === state).length] as const)
+            .filter(([, count]) => count > 0)
+            .map(([state, count]) => (
+              <Badge key={state} tone={MAPPING_TONES[state]}>
+                {t(`knowledge.mapping.${state}`)} · {count}
+              </Badge>
+            ))}
+          <IndexLine mapping={mapping} />
         </div>
-      ))}
-      <div className="row">
-        <IndexLine mapping={mapping} />
-      </div>
+      )}
+      {sources.length > 0 && (
+        <details className="discovery-sources">
+          <summary className="row small">{t("discovery.seeSources")}</summary>
+          {sources.map((source) => (
+            <div key={source.id} className="row">
+              <span className="grow">{source.id}</span>
+              <Badge tone={MAPPING_TONES[source.state]}>{t(`knowledge.mapping.${source.state}`)}</Badge>
+            </div>
+          ))}
+        </details>
+      )}
     </Card>
   );
 }
@@ -71,8 +93,7 @@ export function DiscoveryScreen({ project, mapping, domains, unread, chosen, ope
       </Page>
     );
   return (
-    <Page crumbs={crumbs} title={title}>
-      <p className="small muted">{t("discovery.lead")}</p>
+    <Page crumbs={crumbs} title={title} hint={t("discovery.lead")}>
       {domains.length === 0 ? (
         <EmptyState
           title={t("discovery.noDomain")}
@@ -85,12 +106,13 @@ export function DiscoveryScreen({ project, mapping, domains, unread, chosen, ope
           {t("discovery.noDomainNote")}
         </EmptyState>
       ) : (
-        <form onSubmit={controls.generate}>
-          <Card title={t("discovery.domains")} hint={t("discovery.domainsHint", { count: domains.length })}>
-            <fieldset className="config-body config-group">
-              <legend className="sr-only">{t("discovery.domains")}</legend>
-              {domains.map((domain) => (
-                <label key={domain.id} className="check" htmlFor={`domain-${domain.id}`}>
+        <form className="discovery-form" onSubmit={controls.generate}>
+          <fieldset className="tiles">
+            <legend className="sr-only">{t("discovery.domains")}</legend>
+            {domains.map((domain) => (
+              <label key={domain.id} className="tile" htmlFor={`domain-${domain.id}`}>
+                <span className="tile-head">
+                  <b>{domain.label}</b>
                   <input
                     id={`domain-${domain.id}`}
                     type="checkbox"
@@ -99,20 +121,20 @@ export function DiscoveryScreen({ project, mapping, domains, unread, chosen, ope
                     checked={chosen.has(domain.id)}
                     onChange={controls.toggle}
                   />
-                  <span>
-                    {domain.label}
-                    <span className="field-hint"> — {domain.description}</span>
-                  </span>
-                </label>
-              ))}
-            </fieldset>
-          </Card>
+                </span>
+                <span className="tile-text">{domain.description}</span>
+              </label>
+            ))}
+          </fieldset>
           {opening.state === "refused" && (
             <p className="config-note ko" role="alert">
               {opening.text}
             </p>
           )}
-          <div className="config-actions">
+          <div className="action-bar">
+            <span className="small muted" role="status">
+              {t("discovery.picked", { count: chosen.size, total: domains.length })}
+            </span>
             <button type="submit" className="btn primary" disabled={chosen.size === 0 || opening.state === "opening"}>
               {opening.state === "opening" ? t("discovery.opening") : t("discovery.generate", { count: chosen.size })}
             </button>

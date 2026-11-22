@@ -94,7 +94,7 @@ export function ApplicationScreen({ project, route, state, controls }: Applicati
       <Page crumbs={crumbs(title)} title={title}>
         {application !== undefined && (
           <DraftForm state={state} controls={controls.edit}>
-            <ApplicationCard application={application} rank={rank} />
+            <ApplicationCard application={application} rank={rank} listed={false} />
           </DraftForm>
         )}
       </Page>
@@ -120,7 +120,7 @@ export function ApplicationScreen({ project, route, state, controls }: Applicati
     <Page crumbs={crumbs(name)} title={name} actions={drop}>
       {route.query["drop"] !== undefined && <DropConfirmation id={id} name={name} rank={rank} state={state} controls={controls} />}
       <DraftForm state={state} controls={controls.edit}>
-        <ApplicationCard application={application} rank={rank} removable={false} />
+        <ApplicationCard application={application} rank={rank} listed={false} />
       </DraftForm>
     </Page>
   );

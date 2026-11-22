@@ -104,22 +104,6 @@
   gap: var(--space-1);
 }
 
-.exec-filter select {
-  min-height: var(--control);
-  padding: 0 var(--space-3);
-  border: var(--hairline) solid var(--field-line);
-  border-radius: var(--radius-control);
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
-}
-
-.exec-filter select:focus {
-  border-color: var(--primary);
-  box-shadow: var(--halo);
-  outline: 0;
-}
-
 /* Where a test failed and why, under its title. */
 .exec-failure {
   display: flex;

@@ -30,16 +30,13 @@ describe("the tests of the repository", () => {
   it("lists every test application by application, with its level, its kind, its domain and functionality, and its steps", () => {
     const text = textOf(screen("#/tests"));
     assert.match(text, /^lakeside-tests \/ Tests Tests 4 tests du dépôt de tests, tels que leurs fichiers sont maintenant\./);
+    assert.match(text, /customer-management · 1 test Customer Management answers Smoke 1 étape/);
     assert.match(
       text,
-      /customer-management · 1 test Customer Management answers apps\/customer-management\/tests\/customers\/application-load\/customer-management-smoke\.spec\.ts Smoke 1 étape/,
-    );
-    assert.match(
-      text,
-      /policy-management · 2 tests Display the detail of a policy \S+ policies › policy-detail Fonctionnel 2 étapes Compare the edit form of a policy \S+ policies › policy-edit Fonctionnel Visuel 1 étape/,
+      /policy-management · 2 tests Display the detail of a policy policies › policy-detail Fonctionnel 2 étapes Compare the edit form of a policy policies › policy-edit Fonctionnel Visuel 1 étape/,
     );
     // A test without a tag is listed all the same, under no application.
-    assert.match(text, /Sans application · 1 test A test by hand apps\/scratch\.spec\.ts 0 étape/);
+    assert.match(text, /Sans application · 1 test A test by hand 0 étape/);
   });
 
   it("narrows the tests to a level and to the words of a search, which the address keeps, and says when none matches", () => {

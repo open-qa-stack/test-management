@@ -1,7 +1,6 @@
 import type { FormEventHandler, MouseEventHandler, ReactNode } from "react";
 import type { ConfigError, OqasConfig } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
-import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
 import { EditContext, type ConfigurationEdit } from "./configuration-edit.ts";
@@ -11,8 +10,9 @@ import { errorText } from "./configuration-words.ts";
 import { FileCard, HistoryCard, JsonCard } from "./record-cards.tsx";
 import { ModelCard } from "./model-card.tsx";
 import { AutonomyCard, DesignCard, LanguageCard, RepositoryCard } from "./settings-cards.tsx";
+import { SaveBar } from "./save-bar.tsx";
 
-/** The form of the configuration, which the buttons of the head of the page submit. */
+/** The form of the configuration, which the bar at its foot submits. */
 export const FORM_ID = "configuration-form";
 
 /** What the person does on the screen besides changing a field. */
@@ -126,26 +126,8 @@ export function ConfigurationScreen({ project, state, controls }: ConfigurationS
         )}
       </Page>
     );
-  const actions = (
-    <div className="config-head">
-      <span className="small muted config-state" role="status">
-        {saving
-          ? t("configuration.screen.saving")
-          : pending
-            ? t("configuration.screen.unsaved")
-            : t("configuration.screen.inForce", { number: view!.revision!.number })}
-      </span>
-      <button type="button" className="btn" onClick={controls.discard} disabled={!pending || saving}>
-        {t("configuration.screen.discard")}
-      </button>
-      <button type="submit" form={FORM_ID} className="btn primary" disabled={!pending || saving}>
-        {t("configuration.screen.save")}
-      </button>
-    </div>
-  );
   return (
-    <Page crumbs={crumbs} title={title} actions={actions}>
-      <p className="small muted">{t("configuration.screen.lead")}</p>
+    <Page crumbs={crumbs} title={title} hint={t("configuration.screen.lead")}>
       <Notes state={state} />
       <ErrorSummary errors={errors} draft={draft} />
       <EditContext.Provider
@@ -170,6 +152,8 @@ export function ConfigurationScreen({ project, state, controls }: ConfigurationS
             <h2 id="config-repository">{t("configuration.screen.repository")}</h2>
             <RepositoryCard {...(draft.repository === undefined ? {} : { repository: draft.repository })} />
           </section>
+          <p className="small muted config-secrets">{t("configuration.screen.secrets")}</p>
+          <SaveBar saving={saving} pending={pending} saved={t("configuration.screen.inForce", { number: view!.revision!.number })} discard={controls.discard} />
         </form>
       </EditContext.Provider>
       {/* The history, the file and the JSON are an expert's: they are folded. */}
@@ -182,9 +166,6 @@ export function ConfigurationScreen({ project, state, controls }: ConfigurationS
         <FileCard file={view!.file} saving={saving} controls={controls} />
         <JsonCard draft={draft} />
       </details>
-      <Card className="config-secrets">
-        <p className="row small muted">{t("configuration.screen.secrets")}</p>
-      </Card>
     </Page>
   );
 }

@@ -1,36 +1,46 @@
 import type { ReactNode } from "react";
-import type { ConfiguredApplication } from "@open-qa-stack/domain/sessions";
+import { sourceApplications, type ConfiguredApplication } from "@open-qa-stack/domain/sessions";
 import type { ConfigurationState } from "../configuration/configuration-state.ts";
 import { t } from "../i18n/i18n.ts";
 import { hrefTo, type Route } from "../routing/route.ts";
-import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
 import { APPLICATIONS, applicationPath } from "./application-paths.ts";
 import { ApplicationScreen, type ApplicationControls } from "./application-screen.tsx";
 
-/** An application of the configuration in force, as a row that leads to its page: its name, what it is, and what it holds. */
-function ApplicationRow({ application, rank }: { readonly application: ConfiguredApplication; readonly rank: number }): ReactNode {
+/**
+ * An application of the configuration in force, as a tile that leads to its page: its name and what it exposes, what
+ * it holds — environments, APIs, test accounts — and how many sources describe it, then its identifier.
+ */
+function ApplicationTile({
+  application,
+  rank,
+  sources,
+}: {
+  readonly application: ConfiguredApplication;
+  readonly rank: number;
+  readonly sources: number;
+}): ReactNode {
   const { environments, authentication } = application;
   const apis = environments.reduce((count, environment) => count + (environment.apis?.length ?? 0), 0);
   const holds = [
-    t(`configuration.application.types.${application.type}`),
     t("configuration.applications.environments", { count: environments.length }),
     t("configuration.applications.apis", { count: apis }),
     t("configuration.applications.accounts", { count: authentication.accounts?.length ?? 0 }),
   ];
   return (
-    <a className="row knowledge-row" href={hrefTo(applicationPath(application.id))}>
-      <div className="grow">
+    <a className="tile" href={hrefTo(applicationPath(application.id))}>
+      <span className="tile-head">
         <b>{application.name === "" ? t("configuration.application.untitled", { rank: rank + 1 }) : application.name}</b>
-        <div className="small muted">{holds.join(" · ")}</div>
-      </div>
-      <span className="small muted mono">{application.id}</span>
+      </span>
+      <span className="tile-text">{[t(`configuration.application.types.${application.type}`), ...holds].join(" · ")}</span>
+      <span className="tile-text">{t("configuration.applications.sources", { count: sources })}</span>
+      <span className="tile-text mono">{application.id}</span>
     </a>
   );
 }
 
-/** The applications of the configuration in force, each a row that leads to its page, and what adds one. */
+/** The applications of the configuration in force, each a tile that leads to its page, and the button that adds one. */
 function ApplicationList({ project, state }: { readonly project: string; readonly state: ConfigurationState }): ReactNode {
   const title = t("configuration.applications.title");
   const crumbs = [{ label: project }, { label: title }];
@@ -64,13 +74,17 @@ function ApplicationList({ project, state }: { readonly project: string; readonl
     </a>
   );
   return (
-    <Page crumbs={crumbs} title={title} actions={add}>
-      <p className="small muted">{t("configuration.applications.lead")}</p>
-      <Card>
+    <Page crumbs={crumbs} title={title} actions={add} hint={t("configuration.applications.lead")}>
+      <div className="tiles">
         {revision.document.applications.map((application, index) => (
-          <ApplicationRow key={index} application={application} rank={index} />
+          <ApplicationTile
+            key={index}
+            application={application}
+            rank={index}
+            sources={revision.document.knowledge.filter((source) => sourceApplications(source).includes(application.id)).length}
+          />
         ))}
-      </Card>
+      </div>
     </Page>
   );
 }

@@ -106,12 +106,6 @@
   transform: scaleX(-1);
 }
 
-.top-tools {
-  display: none;
-  align-items: center;
-  margin-left: auto;
-}
-
 .shell-sidebar {
   grid-area: 2 / 2;
   display: flex;
@@ -314,10 +308,6 @@
   .top {
     grid-column: 1 / -1;
     padding: 0 var(--space-4);
-  }
-
-  .top-tools {
-    display: flex;
   }
 
   .shell-sidebar {

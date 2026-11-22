@@ -43,8 +43,8 @@ describe("the screen of the configuration", () => {
     const html = screen(stateAfter([]));
     const text = textOf(html);
     assert.match(html, new RegExp(`<form id="${FORM_ID}" class="config-form" noValidate="">`));
-    assert.match(text, /Révision 2 en vigueur Annuler les modifications Enregistrer/);
-    assert.match(html, /<button type="submit" form="configuration-form" class="btn primary" disabled="">Enregistrer<\/button>/);
+    assert.match(text, /Révision 2 en vigueur Historique, fichier oqas\.json et JSON/);
+    assert.doesNotMatch(html, /type="submit"/, "nothing to save, no button to save");
     assert.match(text, /Les réglages d’Open QA Stack\. Les applications testées et les connaissances que lisent les agents ont leurs propres écrans\./);
     assert.doesNotMatch(html, /name="\/(applications|knowledge)\//);
     for (const heading of ["Agents", "Dépôt de tests"]) assert.match(html, new RegExp(`<h2 id="[^"]+">${heading}</h2>`));
@@ -92,7 +92,7 @@ describe("the screen of the configuration", () => {
   it("says a change is not saved, and lets the person save it or drop it", () => {
     const html = screen(stateAfter([{ type: "edit", pointer: "/model/model", value: "other" }]));
     assert.match(textOf(html), /Modifications non enregistrées Annuler les modifications Enregistrer/);
-    assert.match(html, /<button type="submit" form="configuration-form" class="btn primary">Enregistrer<\/button>/);
+    assert.match(html, /<button type="submit" class="btn primary">Enregistrer<\/button>/);
     assert.match(textOf(screen(stateAfter([{ type: "edit", pointer: "/model/model", value: "other" }, { type: "saving" }]))), /Enregistrement…/);
   });
 
@@ -100,7 +100,7 @@ describe("the screen of the configuration", () => {
     const html = screen(stateAfter([{ type: "value", name: "MODEL_KEY", value: "typed" }]));
     for (const variable of ["MODEL_KEY"]) assert.match(html, new RegExp(`id="secret-${variable}"`));
     assert.match(textOf(html), /Modifications non enregistrées Annuler les modifications Enregistrer/);
-    assert.match(html, /<button type="submit" form="configuration-form" class="btn primary">Enregistrer<\/button>/);
+    assert.match(html, /<button type="submit" class="btn primary">Enregistrer<\/button>/);
     const valued = stateAfter([{ type: "valued", secrets: [] }]);
     assert.match(screen(valued), /<p class="config-note ok" role="status">Les valeurs tapées sont enregistrées sur cet ordinateur\.<\/p>/);
     assert.match(

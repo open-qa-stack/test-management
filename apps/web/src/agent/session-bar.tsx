@@ -10,7 +10,7 @@ const TROUBLES = ["failed", "blocked", "indeterminate"] as const;
 
 /**
  * What came of the tests of a session, at a glance, as the executions show theirs: a bar of their verdicts, then in words
- * the failures, the tests blocked and those without a verdict, and how many passed out of how many.
+ * the failures, the tests blocked and those without a verdict, or, when there are none, how many passed out of how many.
  *
  * @returns Nothing for a session without a test yet.
  */
@@ -31,9 +31,7 @@ export function SessionBar({ session }: { readonly session: Session }): ReactNod
           {t(`sessionBar.${verdict}`, { count: count(verdict) })}
         </span>
       ))}
-      <span className={troubles.length === 0 ? "verdict-words passed" : "muted"}>
-        {t("facts.testsPassed", { passed: count("passed"), count: tests.length })}
-      </span>
+      {troubles.length === 0 && <span className="verdict-words passed">{t("facts.testsPassed", { passed: count("passed"), count: tests.length })}</span>}
     </span>
   );
 }

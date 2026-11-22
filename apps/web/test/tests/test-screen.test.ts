@@ -86,7 +86,7 @@ describe("the card of a test", () => {
     );
     const result = (id: string) => `#/executions/result?id=${id}&path=${encodeURIComponent(DETAIL.path)}`;
     assert.deepEqual(linksOf(html), ["#/tests", result("e3"), result("e3"), result("e2"), result("e1")]);
-    assert.match(textOf(screen({ value: EXECUTIONS.slice(0, 1) })), /0 réussite sur la dernière exécution/);
+    assert.doesNotMatch(textOf(screen({ value: EXECUTIONS.slice(0, 1) })), /sur la dernière exécution/, "one execution says no rate");
   });
 
   it(`counts no more than the latest ${HISTORY_SIZE} executions`, () => {

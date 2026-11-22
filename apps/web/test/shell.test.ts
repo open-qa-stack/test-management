@@ -109,11 +109,11 @@ describe("the shell", () => {
     assert.match(textOf(html), /^● Hors ligne — l’instance ne répond plus ; la page reprendra seule dès son retour ✓ Open QA Stack/);
   });
 
-  it("names the project in the top bar and over the navigation, once the API described it", () => {
+  it("names the project over the navigation, once the API described it", () => {
     const html = shell("#/", { project: projectWith(2) });
-    assert.match(textOf(html), /^✓ Open QA Stack lakeside-tests LA lakeside-tests 2 applications · projet Travail Agent/);
+    assert.match(textOf(html), /^✓ Open QA Stack LA lakeside-tests 2 applications · projet Travail Agent/);
     assert.match(html, /<span class="proj-avatar">LA<\/span>/);
-    assert.doesNotMatch(shell("#/"), /class="chip mono"|class="proj"/);
+    assert.doesNotMatch(shell("#/"), /class="proj"/);
   });
 
   it("does not name a project that has no name yet", () => {

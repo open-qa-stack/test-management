@@ -163,6 +163,23 @@ describe("the shell on a narrow and on a wide screen", () => {
     }
   });
 
+  it("keeps what a row says first at a reading width on a phone, its facts under it, with no hole between", async () => {
+    const page = await app().open(390, "#/agent", new PlayedInstance().api);
+    try {
+      const row = page.locator(".run-row").first();
+      await row.waitFor();
+      const sizes = await row.evaluate((element) => ({
+        row: element.getBoundingClientRect().height,
+        parts: [...element.children].reduce((sum, child) => sum + child.getBoundingClientRect().height, 0),
+        title: element.querySelector(".grow")!.getBoundingClientRect().width,
+      }));
+      assert.ok(sizes.title >= 250, `the title is ${sizes.title} px wide`);
+      assert.ok(sizes.row <= sizes.parts + 48, `the row is ${sizes.row} px high for ${sizes.parts} px of content`);
+    } finally {
+      await page.close();
+    }
+  });
+
   it("gives a finger 44 px at least on all that is pressed on the entry and on a session, on a phone", async () => {
     const page = await app().open(390, "#/agent", new PlayedInstance().api);
     try {
@@ -1036,8 +1053,7 @@ describe("the configuration in a browser", () => {
             const box = await page.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name }).boundingBox();
             assert.ok(box !== null && box.x >= 0 && box.x + box.width <= width, `${name} at ${width}`);
           }
-          const save = await page.getByRole("button", { name: "Enregistrer" }).evaluate((button) => getComputedStyle(button).opacity);
-          assert.equal(save, "1", "a disabled button of the head keeps its text legible");
+          assert.equal(await page.getByRole("button", { name: "Enregistrer" }).count(), 0, "nothing to save, no button to save");
           assert.deepEqual(await tooSmallOf(page), [], `${width}`);
           assert.deepEqual(await tooSmallFieldsOf(page), [], `${width}`);
           const size = await page.getByLabel("Modèle", { exact: true }).evaluate((field) => parseFloat(getComputedStyle(field).fontSize));
@@ -1065,7 +1081,7 @@ describe("the configuration in a browser", () => {
       await page.getByRole("heading", { name: "Historique, fichier oqas.json et JSON" }).click();
       await page.getByText("Révision 3", { exact: true }).waitFor();
       assert.equal(instance.saved[0]!.document.model.model, "other-model");
-      assert.equal(await page.getByRole("button", { name: "Enregistrer" }).isDisabled(), true);
+      assert.equal(await page.getByRole("button", { name: "Enregistrer" }).count(), 0);
     } finally {
       await page.close();
     }
@@ -1717,7 +1733,7 @@ describe("the code of the console is covered in full", () => {
         await page.getByLabel("Niveau", { exact: true }).selectOption("autonomous");
         await page.getByLabel("Inter-applications").check();
         await page.getByRole("button", { name: "Annuler les modifications" }).click();
-        await page.getByRole("button", { name: "Enregistrer" }).waitFor({ state: "attached" });
+        await page.getByRole("button", { name: "Enregistrer" }).waitFor({ state: "detached" });
         await page.getByLabel("Modèle", { exact: true }).fill("saved-model");
         await page.getByRole("button", { name: "Enregistrer" }).click();
         await page.getByRole("status").filter({ hasText: "Révision 3 enregistrée" }).waitFor();

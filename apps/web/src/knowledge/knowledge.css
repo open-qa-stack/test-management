@@ -1,17 +1,29 @@
 /* The knowledge: the sources of each application, a row each, then the documents of a source, the confirmation of a removal and the form of an upload. */
 
-.knowledge-row {
-  flex-wrap: wrap;
-}
-
-.knowledge-row .grow,
 .knowledge-document .grow {
   min-width: 0;
 }
 
-.knowledge-row .mono,
+.knowledge-id,
 .knowledge-name {
   overflow-wrap: anywhere;
+}
+
+/* The kind of a source, a picture on a soft square, as the row of a list reads it first. */
+.knowledge-kind {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--picture);
+  height: var(--picture);
+  border-radius: var(--radius-control);
+  background: var(--neutral-soft);
+  color: var(--text-2);
+}
+
+.knowledge-id {
+  font-weight: var(--weight-medium);
 }
 
 /* The name of a document opens it: it takes the room a finger needs. */

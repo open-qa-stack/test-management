@@ -19,12 +19,13 @@ import { EditContext } from "../configuration/configuration-edit.ts";
 import { rankIn } from "../configuration/use-item-pages.ts";
 import type { ConfigurationControls } from "../configuration/configuration-screen.tsx";
 import type { ConfigurationState } from "../configuration/configuration-state.ts";
-import { AddSourceButtons, kindOf } from "../configuration/knowledge-card.tsx";
+import { AddSourceButtons, KIND_ICONS, kindOf } from "../configuration/knowledge-card.tsx";
 import { errorText } from "../configuration/configuration-words.ts";
 import { dateText, sizeText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
 import { hrefTo, type Route } from "../routing/route.ts";
 import { Badge, type BadgeTone } from "../ui/badge.tsx";
+import { Icon } from "../ui/icon.tsx";
 import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page, type Crumb } from "../ui/page.tsx";
@@ -105,7 +106,7 @@ function kindText(source: Knowledge): string {
   return where === undefined ? kind : `${kind} · ${where}`;
 }
 
-/** A source in the list of an application: what it is, where it is read from, how many documents it holds. */
+/** A source in the list of an application: what it is, where it is read from, how many documents it holds, and its mapping while it is not done. */
 function SourceRow({
   source,
   attachment,
@@ -122,13 +123,16 @@ function SourceRow({
   const narrowed = attachment === undefined ? undefined : narrowing(attachment);
   return (
     <a className="row knowledge-row" href={hrefTo(sourcePath(source.id))}>
+      <span className="knowledge-kind">
+        <Icon name={KIND_ICONS[kindOf(source)]} />
+      </span>
       <div className="grow">
-        <b className="mono">{source.id}</b>
+        <span className="knowledge-id">{source.id}</span>
         <div className="small muted">{kindText(source)}</div>
       </div>
       {narrowed !== undefined && <span className="small muted">{narrowed}</span>}
       {documents !== undefined && <Badge tone="outline">{t("knowledge.documentCount", { count: documents.length })}</Badge>}
-      {mapped !== undefined && <Badge tone={MAPPING_TONES[mapped.state]}>{t(`knowledge.mapping.${mapped.state}`)}</Badge>}
+      {mapped !== undefined && mapped.state !== "mapped" && <Badge tone={MAPPING_TONES[mapped.state]}>{t(`knowledge.mapping.${mapped.state}`)}</Badge>}
     </a>
   );
 }
@@ -183,7 +187,12 @@ function Overview({ project, route, state, editing, controls }: KnowledgeScreenP
   const sources = configuration?.knowledge ?? [];
   const adding = configured && route.query["add"] !== undefined;
   return (
-    <Page crumbs={[{ label: project }, { label: title }]} title={title} actions={action}>
+    <Page
+      crumbs={[{ label: project }, { label: title }]}
+      title={title}
+      {...(adding ? {} : { actions: action })}
+      {...(state.read && sources.length > 0 ? { hint: t("knowledge.lead") } : {})}
+    >
       {adding && <Adder editing={editing} controls={controls} />}
       {!state.read ? (
         <EmptyState title={t("knowledge.reading")}>
@@ -195,7 +204,6 @@ function Overview({ project, route, state, editing, controls }: KnowledgeScreenP
         </EmptyState>
       ) : (
         <>
-          <p className="small muted">{t("knowledge.lead")}</p>
           <IndexLine mapping={state.mapping} />
           <ProjectSources sources={sources} state={state} />
           {configuration!.applications.map((application) => (
@@ -454,7 +462,7 @@ function SourceScreen({ project, route, state, editing, controls, id }: Knowledg
       </a>
     );
   return (
-    <Page crumbs={crumbs} title={<span className="mono">{id}</span>} {...(drop === undefined ? {} : { actions: drop })}>
+    <Page crumbs={crumbs} title={id} {...(drop === undefined ? {} : { actions: drop })}>
       {rank !== undefined && route.query["drop"] !== undefined && <DropConfirmation id={id} rank={rank} editing={editing} controls={controls} />}
       {rank !== undefined && editing.draft !== undefined ? (
         <SourceEditor state={editing} controls={controls.edit} rank={rank} />

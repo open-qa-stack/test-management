@@ -33,25 +33,30 @@
   gap: var(--space-3);
 }
 
+/* A group of fields of a card: a section under a hairline, its name in front, never a box in a box. */
 .config-group {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
   min-width: 0;
   margin: 0;
-  padding: var(--inset);
-  border: var(--hairline) solid var(--line-soft);
-  border-radius: var(--radius-control);
+  padding: var(--space-3) 0 0;
+  border: 0;
+  border-top: var(--hairline) solid var(--line-soft);
 }
 
 .config-body.config-group {
+  padding: var(--inset);
   border: 0;
 }
 
-.config-group legend {
-  padding: 0 var(--space-1);
-  color: var(--text-2);
-  font-weight: var(--weight-medium);
+/* The name of a group stands inside it, at its head, as a heading of the card; one a screen reader alone reads stays out of sight. */
+.config-group legend:not(.sr-only) {
+  float: left;
+  width: 100%;
+  padding: 0;
+  color: var(--text);
+  font-weight: var(--weight-strong);
 }
 
 /* An item of a list: its head, which names it beside the button that removes it, then its fields. */
@@ -78,11 +83,25 @@
   gap: var(--space-2);
 }
 
+/* A field is as wide as what it takes reads well: a short choice does not run the width of a wide screen. */
 .config-field {
   display: flex;
   flex-direction: column;
   gap: var(--gap-line);
   min-width: 0;
+  max-width: var(--measure);
+}
+
+/* A button among fields keeps its own size, at the head of its cell. */
+.config-fields > .btn,
+.config-fields > .config-actions {
+  align-self: start;
+  justify-self: start;
+}
+
+/* What is folded among fields takes the width of the card. */
+.config-fields > .config-advanced {
+  grid-column: 1 / -1;
 }
 
 .config-field label {
@@ -90,62 +109,10 @@
   font-weight: var(--weight-medium);
 }
 
-/*
- * The head of the page: on a phone, where the page stands and its two buttons each on a line of the width, which a
- * disabled one keeps legible; from 720 px, all three beside the title.
- */
-.ph .actions:has(> .config-head) {
-  flex-basis: 100%;
-}
-
-.config-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-}
-
-.config-state {
-  flex-basis: 100%;
-}
-
-.config-head .btn {
-  flex: 1;
-}
-
-.config-head .btn:disabled {
-  border-color: var(--line);
-  background: var(--neutral-soft);
-  color: var(--text-2);
-  opacity: 1;
-}
-
 .field-hint {
   color: var(--text-3);
   font-size: var(--type-small);
   line-height: var(--leading-small);
-}
-
-.config-field input,
-.config-field select {
-  width: 100%;
-  min-height: var(--control);
-  padding: 0 var(--space-3);
-  border: var(--hairline) solid var(--field-line);
-  border-radius: var(--radius-control);
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
-  font-size: var(--type-reading);
-  line-height: var(--leading-reading);
-}
-
-.config-field input:focus,
-.config-field select:focus {
-  border-color: var(--primary);
-  box-shadow: var(--halo);
-  outline: 0;
 }
 
 .config-field input[aria-invalid="true"],
@@ -252,30 +219,55 @@
   .config-fields {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
-  .ph .actions:has(> .config-head) {
-    flex-basis: auto;
-  }
-
-  .config-state {
-    flex-basis: auto;
-  }
-
-  .config-head .btn {
-    flex: none;
-  }
 }
 
+/* « Advanced »: a fold under a hairline, its arrow turning as it opens, quieter than the fields it holds. */
 .config-advanced summary {
   display: flex;
   align-items: center;
+  gap: var(--space-2);
   min-height: var(--tap);
-  color: var(--primary);
+  border-top: var(--hairline) solid var(--line-soft);
+  color: var(--text-2);
+  font-weight: var(--weight-medium);
+  list-style: none;
   cursor: pointer;
+}
+
+.config-advanced summary::-webkit-details-marker {
+  display: none;
+}
+
+.config-advanced summary::before {
+  content: "›";
+  display: inline-block;
+  width: var(--space-3);
+  transition: transform 120ms ease;
+}
+
+.config-advanced[open] summary::before {
+  transform: rotate(90deg);
 }
 
 .config-advanced[open] summary {
   margin-bottom: var(--space-2);
+}
+
+/* The bar that saves a form stays in sight at the foot of the window while the person fills it: what became of the change on its left, the buttons on its right. */
+.save-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-top: var(--hairline) solid var(--line);
+}
+
+.save-state {
+  flex: 1;
+}
+
+.config-secrets {
+  margin: 0;
 }
 
 .first-use-steps {

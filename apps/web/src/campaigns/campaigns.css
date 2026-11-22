@@ -27,27 +27,6 @@
   gap: var(--space-1);
 }
 
-.campaign-field input,
-.campaign-field select {
-  width: 100%;
-  min-height: var(--tap);
-  padding: 0 var(--space-3);
-  border: var(--hairline) solid var(--field-line);
-  border-radius: var(--radius-control);
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
-  font-size: var(--type-reading);
-  line-height: var(--leading-reading);
-}
-
-.campaign-field input:focus,
-.campaign-field select:focus {
-  border-color: var(--primary);
-  box-shadow: var(--halo);
-  outline: 0;
-}
-
 .campaign-refusal {
   color: var(--ko);
 }

@@ -10,6 +10,7 @@ import "./agent/session.css";
 import "./agent/agent-home.css";
 import "./configuration/configuration.css";
 import "./knowledge/knowledge.css";
+import "./discovery/discovery.css";
 import "./tests/tests.css";
 import "./executions/executions.css";
 import "./campaigns/campaigns.css";

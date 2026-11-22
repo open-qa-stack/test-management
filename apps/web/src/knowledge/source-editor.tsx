@@ -35,6 +35,7 @@ export function SourceEditor({ state, controls, rank, removable = false }: Sourc
         onCheck={controls.checkSource}
         removable={removable}
         documentsLink={false}
+        named={false}
         {...(state.sourceChecks?.[rank] === undefined ? {} : { test: state.sourceChecks[rank] })}
       />
     </DraftForm>

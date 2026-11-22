@@ -39,7 +39,6 @@ function SessionRow({ session }: { readonly session: Session }): ReactNode {
     scopeText(session),
     waitText(session),
     session.result === undefined ? undefined : durationText(session.result.durationMs),
-    session.result === undefined ? undefined : t("facts.modelRequests", { count: session.result.modelRequests }),
   ].filter((fact) => fact !== undefined);
   return (
     <a className={live ? "row run-row live" : "row run-row"} href={hrefTo(`/agent/sessions/${session.id}`)}>
@@ -51,7 +50,7 @@ function SessionRow({ session }: { readonly session: Session }): ReactNode {
       </div>
       <span className="run-row-side">
         <SessionBar session={session} />
-        <Badge tone={state.tone}>{state.label}</Badge>
+        {(session.result?.tests ?? []).length === 0 && <Badge tone={state.tone}>{state.label}</Badge>}
       </span>
     </a>
   );

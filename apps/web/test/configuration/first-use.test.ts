@@ -55,12 +55,16 @@ describe("the setting up of an instance that has no configuration", () => {
   it("shows the steps, the one the person is at marked, with the cards of the configuration", () => {
     const applications = render(createElement(FirstUse, { project: "shop-tests", state: begun(), controls: CONTROLS, step: "applications", ...MOVES }));
     assert.match(applications, /<li aria-current="step">Applications<\/li>/);
-    assert.match(textOf(applications), /Vos applications .* Ajouter une application Retour Suivant$/);
+    assert.match(textOf(applications), /Vos applications .*Application 1 · sans identifiant Retirer .* Ajouter une application Retour Suivant$/);
+    assert.match(
+      textOf(render(createElement(FirstUse, { project: "shop-tests", state: begun(DOCUMENT), controls: CONTROLS, step: "applications", ...MOVES }))),
+      /Shop · shop Retirer /,
+    );
     assert.match(at("knowledge", begun(DOCUMENT)), /Ce que les agents peuvent lire .* Contrat OpenAPI Retirer Identifiant/);
     // A person who is not in IT is offered four kinds: a contract of an API, the code, a database, documents.
     assert.match(
       at("knowledge"),
-      /plus tard\. Ajouter un contrat OpenAPI Ajouter du code source Ajouter une base PostgreSQL Ajouter des documents déposés Retour Suivant$/,
+      /plus tard\. Contrat OpenAPI La description .* Code source Le code .* Base PostgreSQL La base .* Documents déposés Des fichiers .* Retour Suivant$/,
     );
     assert.match(at("model"), /Récapitulatif Le modèle avec lequel les agents réfléchissent .* Compte GitHub de cette machine/);
     assert.match(at("model", begun(FIRST_DRAFT, { type: "testing", model: FIRST_DRAFT.model })), /Test en cours…/);

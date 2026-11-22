@@ -185,13 +185,27 @@ export function PlaceErrors({ pointer }: { readonly pointer: string }): ReactNod
 /**
  * A button that adds an item to a list of the draft.
  *
- * @param props - Where the list is, the kind of item, and what the button says.
+ * @param props - Where the list is, the kind of item, what the button shows, how it looks and its name.
  * @returns The button.
  */
-export function AddButton({ pointer, item, children }: { readonly pointer: string; readonly item: NewItem; readonly children: ReactNode }): ReactNode {
+export function AddButton({
+  pointer,
+  item,
+  children,
+  className = "btn sm",
+  label,
+}: {
+  readonly pointer: string;
+  readonly item: NewItem;
+  readonly children: ReactNode;
+  /** How the button looks: a small button, or a tile. */
+  readonly className?: string;
+  /** The name of the button, when what it shows says more than its name. */
+  readonly label?: string;
+}): ReactNode {
   const { click } = useContext(EditContext);
   return (
-    <button type="button" className="btn sm" data-add={pointer} data-item={item} onClick={click}>
+    <button type="button" className={className} data-add={pointer} data-item={item} onClick={click} aria-label={label}>
       {children}
     </button>
   );

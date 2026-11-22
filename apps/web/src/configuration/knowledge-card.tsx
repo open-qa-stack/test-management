@@ -3,6 +3,7 @@ import { attachmentsOf, isProjectWide, isStoredDocuments, type Attachment, type 
 import { t } from "../i18n/i18n.ts";
 import { hrefTo } from "../routing/route.ts";
 import { Card } from "../ui/card.tsx";
+import { Icon, type IconName } from "../ui/icon.tsx";
 import { AddButton, AdvancedFields, choices, ChoiceField, InputField, ItemHead, PlaceErrors, RemoveButton, SecretField } from "./configuration-fields.tsx";
 import type { NewItem } from "./configuration-edit.ts";
 import type { SourceTest } from "./configuration-state.ts";
@@ -211,6 +212,7 @@ export function KnowledgeCard({
   onCheck,
   removable = true,
   documentsLink = true,
+  named = true,
 }: {
   readonly source: Knowledge;
   readonly rank: number;
@@ -223,13 +225,15 @@ export function KnowledgeCard({
   readonly removable?: boolean;
   /** Whether the card of a source of documents the instance keeps leads to them: not on the page that shows them. */
   readonly documentsLink?: boolean;
+  /** Whether the card names the source, or its kind alone, on a page the source names already. */
+  readonly named?: boolean;
 }): ReactNode {
   const at = `/knowledge/${rank}`;
   const title = source.id === "" ? t("configuration.knowledge.untitled", { rank: rank + 1 }) : source.id;
   return (
     <Card
-      title={title}
-      hint={t(`configuration.knowledge.kinds.${kindOf(source)}`)}
+      title={named ? title : t(`configuration.knowledge.kinds.${kindOf(source)}`)}
+      {...(named ? { hint: t(`configuration.knowledge.kinds.${kindOf(source)}`) } : {})}
       {...(removable ? { aside: <RemoveButton pointer={at} label={t("configuration.knowledge.removeSource", { name: title })} /> } : {})}
     >
       <div className="config-body">
@@ -278,6 +282,16 @@ export function KnowledgeCard({
   );
 }
 
+/** The picture of each kind of source: a contract, a base, documents, code, logs. */
+export const KIND_ICONS: Readonly<Record<SourceKind, IconName>> = {
+  openapi: "api",
+  postgresql: "database",
+  document: "document",
+  stored: "document",
+  "source-code": "code",
+  logs: "data",
+};
+
 /**
  * The buttons that add a source of each kind.
  *
@@ -286,10 +300,16 @@ export function KnowledgeCard({
  */
 export function AddSourceButtons({ kinds = SOURCE_KINDS }: { readonly kinds?: readonly SourceKind[] }): ReactNode {
   return (
-    <div className="config-actions">
+    <div className="tiles">
       {kinds.map((kind) => (
-        <AddButton key={kind} pointer="/knowledge" item={kind}>
-          {t(`configuration.knowledge.add.${kind}`)}
+        <AddButton key={kind} pointer="/knowledge" item={kind} className="tile" label={t(`configuration.knowledge.add.${kind}`)}>
+          <span className="tile-head">
+            <span className="knowledge-kind">
+              <Icon name={KIND_ICONS[kind]} />
+            </span>
+            <b>{t(`configuration.knowledge.kinds.${kind}`)}</b>
+          </span>
+          <span className="tile-text">{t(`configuration.knowledge.explain.${kind}`)}</span>
         </AddButton>
       ))}
     </div>
