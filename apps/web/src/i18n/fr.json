@@ -688,7 +688,7 @@
       "save": "Enregistrer",
       "agents": "Agents",
       "repository": "Dépôt de tests",
-      "history": "Historique",
+      "history": "Historique, fichier oqas.json et JSON",
       "secrets": "Les valeurs tapées ici — clé, chaînes de connexion, mots de passe — restent sur l’ordinateur où tourne l’outil, hors du dépôt de tests et de la base. Une variable d’environnement l’emporte : c’est le chemin d’une CI.",
       "lead": "Les réglages d’Open QA Stack. Les applications testées et les connaissances que lisent les agents ont leurs propres écrans.",
       "addApplication": "Ajouter une application"

@@ -5,6 +5,7 @@ import { describe, it } from "vitest";
 import { configurationAfter, INITIAL_CONFIGURATION, type ConfigurationAction, type ConfigurationState } from "../../src/configuration/configuration-state.ts";
 import { ITEM_FORM } from "../../src/configuration/draft-form.tsx";
 import { SourceEditor } from "../../src/knowledge/source-editor.tsx";
+import { KnowledgeCard } from "../../src/configuration/knowledge-card.tsx";
 import { DOCUMENT, REVISIONS, VIEW } from "../configuration/configuration-fixture.ts";
 import { bears, fieldsNamed } from "../configuration/fields.ts";
 import { render, textOf } from "../render.ts";
@@ -54,7 +55,7 @@ describe("the editor of a source", () => {
     assert.ok(bears(editor(3), "/knowledge/3/path", 'value="specs/orders.md"'));
     const stored = editor(4);
     assert.deepEqual(fieldsNamed(stored, "/knowledge/4/path"), []);
-    assert.match(stored, /<a class="btn sm" href="#\/knowledge\/manuals">Ouvrir ses documents<\/a>/);
+    assert.doesNotMatch(stored, /Ouvrir ses documents/, "the page of the source shows its documents");
     assert.match(textOf(stored), /Ses documents sont gardés par l’instance, et s’y déposent une fois la configuration enregistrée\./);
     const code = editor(5);
     assert.ok(bears(code, "/knowledge/5/commands", 'data-kind="choice"'));
@@ -143,5 +144,14 @@ describe("the editor of a source", () => {
     assert.match(editor(1, configurationAfter(stateAfter(), { type: "saved", view: VIEW })), /<p class="config-note ok" role="status">Révision 2 enregistrée/);
     const refused = stateAfter([{ type: "refused", code: "stale_revision", text: "La configuration a changé.", errors: [] }]);
     assert.match(editor(1, refused), /<p class="config-note ko" role="alert">La configuration a changé\.<\/p>/);
+  });
+});
+
+describe("the card of a source of documents the instance keeps", () => {
+  it("leads to its documents, where the screen does not show them already", () => {
+    const html = render(
+      createElement(KnowledgeCard, { source: DOCUMENT.knowledge[4]!, rank: 4, applications: DOCUMENT.applications, onCheck: CONTROLS.checkSource }),
+    );
+    assert.match(html, /<a class="btn sm" href="#\/knowledge\/manuals">Ouvrir ses documents<\/a>/);
   });
 });

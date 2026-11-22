@@ -47,7 +47,11 @@ describe("the screen of the configuration", () => {
     assert.match(html, /<button type="submit" form="configuration-form" class="btn primary" disabled="">Enregistrer<\/button>/);
     assert.match(text, /Les réglages d’Open QA Stack\. Les applications testées et les connaissances que lisent les agents ont leurs propres écrans\./);
     assert.doesNotMatch(html, /name="\/(applications|knowledge)\//);
-    for (const heading of ["Agents", "Dépôt de tests", "Historique"]) assert.match(html, new RegExp(`<h2 id="[^"]+">${heading}</h2>`));
+    for (const heading of ["Agents", "Dépôt de tests"]) assert.match(html, new RegExp(`<h2 id="[^"]+">${heading}</h2>`));
+    assert.match(
+      html,
+      /<details class="config-section config-advanced"><summary><h2 id="config-history">Historique, fichier oqas\.json et JSON<\/h2><\/summary>/,
+    );
     assert.match(text, /Révision 2 Console · .* en vigueur Révision 1 Fichier oqas\.json · /);
     assert.match(text, /Les valeurs tapées ici — clé, chaînes de connexion, mots de passe — restent sur l’ordinateur où tourne l’outil/);
     assert.match(html, /<summary>Voir la configuration en JSON<\/summary><pre class="mono">\{\n {2}&quot;formatVersion&quot;: 1,/);
