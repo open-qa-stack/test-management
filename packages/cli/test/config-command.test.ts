@@ -39,15 +39,15 @@ function repository() {
 }
 
 describe("oqas config", () => {
-  it("shows the configuration in force and how the file stands to it, takes the file, and writes the configuration in force over a file that changed", async () => {
+  it("shows the configuration in force and how the file stands to it, takes the file, and writes the configuration in force over a file that differs", async () => {
     const { root, oqas, file } = repository();
     assert.deepEqual(await oqas("config", "show"), {
       code: 0,
-      out: "The instance keeps no revision of the configuration.\noqas.json changed since: oqas config import takes it, oqas config export writes the revision in force over it.\n",
+      out: "The instance keeps no revision of the configuration.\noqas.json differs from it: oqas config export writes the revision in force over it, oqas config import takes it instead.\n",
       err: "",
     });
     const imported = await oqas("config", "import");
-    assert.match(imported.out, new RegExp(`^Revision 1 of the configuration, read from oqas\\.json on ${DATE}\\.\\noqas\\.json is in step with it\\.\\n$`));
+    assert.match(imported.out, new RegExp(`^Revision 1 of the configuration, taken from oqas\\.json on ${DATE}\\.\\noqas\\.json holds it\\.\\n$`));
     const shown = await oqas("config", "show");
     assert.equal(shown.out.split("\n").slice(2).join("\n"), configurationText(JSON.parse(TEXT) as OqasConfig));
     writeFileSync(join(root, "oqas.json"), "{");
@@ -57,13 +57,10 @@ describe("oqas config", () => {
       err: "/: The file is not valid JSON.\nCorrect oqas.json, or write the revision 1 in force over it with oqas config export.\n",
     });
     const exported = await oqas("config", "export");
-    assert.match(
-      exported.out,
-      new RegExp(`^Revision 2 of the configuration, written to oqas\\.json by a command on ${DATE}\\.\\noqas\\.json is in step with it\\.\\n$`),
-    );
+    assert.match(exported.out, new RegExp(`^Revision 1 of the configuration, taken from oqas\\.json on ${DATE}\\.\\noqas\\.json holds it\\.\\n$`));
     assert.equal(file(), configurationText(JSON.parse(TEXT) as OqasConfig));
     unlinkSync(join(root, "oqas.json"));
-    assert.match((await oqas("config", "show")).out, /\noqas\.json cannot be read: oqas config export writes the revision in force to it\.\n/);
+    assert.match((await oqas("config", "show")).out, /\nThere is no oqas\.json: oqas config export writes the revision in force to it\.\n/);
   });
 
   it("prints the configuration as it is now in JSON, and names a change saved in the console", async () => {
@@ -79,7 +76,7 @@ describe("oqas config", () => {
     }
     const json = await oqas("config", "show", "--output", "json");
     const view = JSON.parse(json.out) as { revision: { number: number; origin: string; document: OqasConfig }; file: string };
-    assert.deepEqual([view.revision.number, view.revision.origin, view.revision.document.knowledge, view.file], [2, "console", [], "in_step"]);
+    assert.deepEqual([view.revision.number, view.revision.origin, view.revision.document.knowledge, view.file], [2, "console", [], "changed"]);
     assert.match((await oqas("config", "show")).out, new RegExp(`^Revision 2 of the configuration, saved in the console on ${DATE}\\.\\n`));
   });
 

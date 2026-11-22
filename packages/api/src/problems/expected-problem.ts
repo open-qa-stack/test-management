@@ -1,7 +1,6 @@
 import { HttpException, HttpStatus } from "@nestjs/common";
 import {
   CONFIG_FILE_NAME,
-  ConfigurationConflictError,
   InvalidConfigurationError,
   InvalidDocumentsError,
   isRecord,
@@ -37,11 +36,8 @@ const NO_REPOSITORY = `The API was started without a test repository: it opens n
 /** What a client is told of a change made from a revision another replaced since: where to make it from. */
 const STALE = "Read the configuration again, and make the change from the revision in force.";
 
-/** What a client is told of a change that would overwrite a file that changed too: the two ways out, each one request. */
-const CONFLICT = `Keep the file: POST /api/configuration/synchronisation makes it the revision in force. Or keep the change: send it again with "replaceFile": true, which rewrites ${CONFIG_FILE_NAME}.`;
-
 /** What a client is told of a configuration that is not valid. */
-const INVALID = `Each error is in errors, where it is. A file that is not valid is corrected, or replaced by a change sent with "replaceFile": true.`;
+const INVALID = `Each error is in errors, where it is. A ${CONFIG_FILE_NAME} that is not valid is corrected, then taken again: the revision in force stays as it is meanwhile.`;
 
 /** What a client is told of an instance that has no configuration: the two ways to give it one. */
 const NONE = `Write ${CONFIG_FILE_NAME} at the root of the test repository, or save a configuration made from the revision 0.`;
@@ -101,7 +97,6 @@ export function expectedProblem(error: unknown): Problem | undefined {
   if (error instanceof SessionStateError) return problemOf("session_running", `${error.message} It goes on: send it a message instead.`);
   if (error instanceof NoRepositoryError) return problemOf("unavailable", NO_REPOSITORY);
   if (error instanceof StaleRevisionError) return problemOf("stale_revision", `${error.message} ${STALE}`);
-  if (error instanceof ConfigurationConflictError) return problemOf("configuration_conflict", `${error.message} ${CONFLICT}`);
   if (error instanceof InvalidConfigurationError) return { ...problemOf("invalid_configuration", `${error.message} ${INVALID}`), errors: error.errors };
   if (error instanceof NoConfigurationError) return problemOf("no_configuration", `${error.message} ${NONE}`);
   if (error instanceof UnknownDocumentSourceError) return problemOf("unknown_document_source", `${error.message} ${NO_SOURCE}`);

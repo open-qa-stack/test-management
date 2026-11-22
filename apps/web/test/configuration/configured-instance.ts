@@ -27,7 +27,7 @@ const errorsOf = (document: OqasConfig): ConfigError[] => (document.model.model 
 
 /**
  * The API of an instance whose configuration a test changes as it goes, beside the sessions of a played instance:
- * it checks a draft, takes a change and the file, and refuses a change while the file changed too.
+ * it checks a draft, takes a change, which the file then differs from, and takes or writes the file.
  */
 export class ConfiguredInstance {
   /** The sessions of the instance. */
@@ -36,7 +36,7 @@ export class ConfiguredInstance {
   public view: ConfigurationView = VIEW;
   /** The revisions, the latest first. */
   public revisions: readonly RevisionSummary[] = REVISIONS;
-  /** Whether the file changed since the revision in force: a change that does not replace it is refused. */
+  /** Whether the file differs from the revision in force. */
   public fileChanged = false;
   /** The changes the API took, in order. */
   public readonly saved: RevisionChange[] = [];
@@ -45,6 +45,7 @@ export class ConfiguredInstance {
 
   /** Records a revision of an origin, which becomes the one in force. */
   #record(document: OqasConfig, origin: RevisionSummary["origin"]): ConfigurationView {
+    // A change saved writes no file, which then differs from it; a file taken holds it.
     const summary: RevisionSummary = {
       number: (this.revisions[0]?.number ?? 0) + 1,
       recordedAt: "2026-11-18T10:00:00.000Z",
@@ -52,8 +53,8 @@ export class ConfiguredInstance {
       fileDigest: `d${this.revisions.length}`,
     };
     this.revisions = [summary, ...this.revisions];
-    this.fileChanged = false;
-    this.view = { revision: { ...summary, document }, file: "in_step" };
+    this.fileChanged = origin !== "file";
+    this.view = { revision: { ...summary, document }, file: this.fileChanged ? "changed" : "in_step" };
     return this.view;
   }
 
@@ -81,9 +82,13 @@ export class ConfiguredInstance {
     if (path === "/api/configuration/model-connection")
       return json({ state: "connected", models: [{ id: "saved-model", name: "saved-model", reasoningEfforts: [] }] });
     if (path === "/api/configuration/synchronisation") return json(this.#record(this.view.revision!.document, "file"));
+    if (path === "/api/configuration/file") {
+      this.fileChanged = false;
+      this.view = { ...this.view, file: "in_step" };
+      return json(this.view);
+    }
     const change = JSON.parse(body!) as RevisionChange;
     if (change.basedOn !== (this.view.revision?.number ?? 0)) return problem("stale_revision", 409);
-    if (this.fileChanged && change.replaceFile !== true) return problem("configuration_conflict", 409);
     const errors = errorsOf(change.document);
     if (errors.length > 0) return problem("invalid_configuration", 422, errors);
     this.saved.push(change);

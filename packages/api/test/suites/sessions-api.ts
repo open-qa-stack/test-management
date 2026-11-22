@@ -91,6 +91,8 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
   /** Starts another API, on a test repository of its own whose model answers the whole scripted chain; both are closed after the test. */
   async function chained(): Promise<{ repository: TestRepository; api: TestApi }> {
     await api.close();
+    // An instance holds one test repository: the configuration of the one before is not this one.
+    await sessions.clear();
     const repository = await TestRepository.create(chain());
     const own = await hosted(repository);
     repositories.push(repository);
@@ -766,6 +768,8 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
     /** Starts an API at the paces of the tests, on a test repository of its own whose model answers the whole chain. */
     async function quick(): Promise<{ repository: TestRepository; api: TestApi }> {
       await api.close();
+      // An instance holds one test repository: the configuration of the one before is not this one.
+      await sessions.clear();
       const repository = await TestRepository.create(chain());
       const own = await sessionsApi({ database: sessions.url, repository: repository.root, runs: { ...repository.runs, pace: QUICK }, logger });
       started.push(repository, own);
@@ -854,6 +858,8 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
 
     it("says so in its log when the session did not end in time, and closes all the same", async () => {
       await api.close();
+      // An instance holds one test repository: the configuration of the one before is not this one.
+      await sessions.clear();
       const repository = await TestRepository.create(chain());
       const door = repository.designDoor();
       const own = await sessionsApi({

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { setTimeout as pause } from "node:timers/promises";
 import { afterEach, describe, it } from "vitest";
@@ -186,7 +186,7 @@ describe("oqas, without a command, in a terminal", () => {
     assert.equal((await ended).code, 3);
   });
 
-  it("sets the model with /model, which rewrites oqas.json, and goes on", async () => {
+  it("sets the model with /model, which saves it as the revision in force, and goes on", async () => {
     terminal = await Terminal.open([]);
     const { screen, ended } = await conversing();
     await screen.enter("/model");
@@ -200,7 +200,7 @@ describe("oqas, without a command, in a terminal", () => {
     await step("Variable that holds the key");
     await step("type the name of the model");
     await step("The model test-model is set");
-    assert.match(readFileSync(join(terminal.root, "oqas.json"), "utf8"), /"model": "test-model"/);
+    assert.match((await terminal.oqas(["config", "show"])).out, /"model": "test-model"/);
     // The setting drew more lines than the input: the line typed is no longer the last of the screen.
     screen.type("/quit");
     await screen.sees("› /quit");

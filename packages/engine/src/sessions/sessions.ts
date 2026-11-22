@@ -349,7 +349,7 @@ export class Sessions {
    */
   async #recover(): Promise<void> {
     const { store, repository } = this.#host;
-    if (repository !== undefined) await store.saveProject(repositoryProject(repository, (await this.#host.configuration.inStep())?.document));
+    if (repository !== undefined) await store.saveProject(repositoryProject(repository, (await this.#host.configuration.inForce())?.document));
     await this.#tidy();
     this.#beats = this.#beat();
   }

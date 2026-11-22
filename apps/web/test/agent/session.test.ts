@@ -727,7 +727,7 @@ describe("the thread of a session", () => {
     const html = thread(liveWith([scope]));
     assert.match(
       textOf(html),
-      /^Portée de la session 09:00:00 Niveaux demandés smoke functional Applications shop, back-office Environnement local Seuls ces niveaux sont conçus ; design\.levels dans oqas\.json les fixe\.$/,
+      /^Portée de la session 09:00:00 Niveaux demandés smoke functional Applications shop, back-office Environnement local Seuls ces niveaux sont conçus ; design\.levels dans la configuration les fixe\.$/,
     );
     assert.match(html, /<section class="result-card scope" aria-label="Portée de la session">/);
     assert.match(html, /<dd class="badges"><span class="badge info">smoke<\/span><span class="badge info">functional<\/span><\/dd>/);

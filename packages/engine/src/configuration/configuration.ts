@@ -3,7 +3,6 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
   CONFIG_FILE_NAME,
-  ConfigurationConflictError,
   configurationText,
   fileStateOf,
   InvalidConfigurationError,
@@ -14,7 +13,7 @@ import {
   type ConfigurationRevision,
   type ConfigurationStorePort,
   type ConfigurationView,
-  type OqasConfig,
+  type FileState,
   type RevisionSummary,
 } from "@open-qa-stack/domain";
 import { NoRepositoryError } from "../sessions/no-repository-error.ts";
@@ -32,24 +31,31 @@ function digestOf(text: string): string {
 }
 
 /**
- * The operations on the configuration of an instance: read it, check a change, save one, and keep it in step
- * with the configuration file of the test repository. Whatever shows the configuration — a REST API, a terminal —
- * calls these and holds no rule of its own.
+ * Tells how the configuration file stands to the revision in force: in step when it is the file the revision was read
+ * from, or the one writing the revision gives, whatever the layout of the file the revision was read from.
+ */
+function stateOf(inForce: ConfigurationRevision | undefined, file: ReadFile | undefined): FileState {
+  const state = fileStateOf(inForce, file?.digest);
+  // A file that differs was read.
+  return state === "changed" && inForce !== undefined && file!.digest === digestOf(configurationText(inForce.document)) ? "in_step" : state;
+}
+
+/**
+ * The operations on the configuration of an instance: read it, check a change, save one, and take or write the
+ * configuration file of the test repository. Whatever shows the configuration — a REST API, a terminal — calls these
+ * and holds no rule of its own.
  *
  * @remarks
- * The store keeps the truth: the revisions of the configuration, the revision in force being the last. The file
- * stays, as the configuration kept with the tests in git: each revision bears the digest of the file it was read
- * from or wrote, which tells whether the file changed since.
+ * The store is the one source of the configuration: its revisions, the revision in force being the last. The file is
+ * a copy, kept with the tests in git or written for the continuous integration; each revision bears the digest of
+ * the file that would hold it, which tells whether the file differs from it.
  *
- * - When it is synchronised — a host starts, a session starts, a person asks for it — a file that changed becomes
- *   a revision of origin `file`, once it is valid; a file that is not leaves the revision in force as it is, and
- *   is refused with its errors.
- * - A change saved from the console becomes a revision of origin `console`, and rewrites the file in the order
- *   the schema declares its keys: the diff of the file shows what changed. The change is made from the revision
- *   in force, and refused when another replaced it since.
- * - When both changed — the file since the revision in force, and the console now — the change is refused, and
- *   nothing is merged: the person keeps the file, by synchronising it, or keeps the change, by saving it again
- *   over the file.
+ * - An instance that keeps no revision yet takes the file as its first, of origin `file`, once it is valid.
+ * - Otherwise the file is read only when a person asks for it to be taken: a file that differs then becomes a
+ *   revision of origin `file`, once it is valid; one that is not is refused with its errors.
+ * - A change saved from the console or a command becomes a revision of origin `console` or `command`, made from the
+ *   revision in force, and refused when another replaced it since. It writes no file: the file is written when a
+ *   person asks for it, in the order the schema declares its keys.
  *
  * The configuration is validated by the schema of the file and its rules, the environment left out: whether a
  * variable it names is set is told by the run that reads it.
@@ -73,8 +79,7 @@ export class Configuration implements ConfigurationSource {
   /** @returns The revision in force, and how the configuration file stands to it. Nothing is written. */
   async view(): Promise<ConfigurationView> {
     const revision = await this.#store.inForce();
-    const file = await this.#read();
-    return { ...(revision === undefined ? {} : { revision }), file: fileStateOf(revision, file?.digest) };
+    return { ...(revision === undefined ? {} : { revision }), file: stateOf(revision, await this.#read()) };
   }
 
   /** @returns Every revision, without its document, the latest first. */
@@ -94,19 +99,27 @@ export class Configuration implements ConfigurationSource {
   }
 
   /**
-   * Brings the revision in force in step with the configuration file, then gives it: a file that changed since
-   * the revision in force becomes a revision of origin `file`. A file that cannot be read leaves the revision in
-   * force as it is.
+   * @returns The revision in force; an instance that keeps none yet takes the configuration file as its first, of origin `file`.
+   * @throws `NoConfigurationError` when there is neither a revision nor a file to read one from.
+   * @throws `InvalidConfigurationError` when the instance keeps no revision, and the file is not a valid configuration.
+   */
+  async current(): Promise<ConfigurationRevision> {
+    return (await this.#store.inForce()) ?? this.synchronise();
+  }
+
+  /**
+   * Takes the configuration file as the revision in force, when it differs from it: it becomes a revision of origin
+   * `file`. A file that cannot be read leaves the revision in force as it is.
    *
    * @returns The revision in force.
    * @throws `NoConfigurationError` when there is neither a revision nor a file to read one from.
-   * @throws `InvalidConfigurationError` when the file changed, and is not a valid configuration: the revision in
+   * @throws `InvalidConfigurationError` when the file differs, and is not a valid configuration: the revision in
    * force stays as it is.
    */
   async synchronise(): Promise<ConfigurationRevision> {
     const inForce = await this.#store.inForce();
     const file = await this.#read();
-    if (file === undefined || fileStateOf(inForce, file.digest) === "in_step") return inForce ?? this.#none();
+    if (file === undefined || stateOf(inForce, file) === "in_step") return inForce ?? this.#none();
     const read = revisionDocument(file.text);
     if (!read.ok) throw new InvalidConfigurationError(CONFIG_FILE_NAME, read.errors, inForce?.number);
     try {
@@ -120,61 +133,54 @@ export class Configuration implements ConfigurationSource {
   }
 
   /**
-   * Brings the revision in force in step with the configuration file as {@link Configuration.synchronise} does, and
-   * gives it, as a host does when it starts: a file the configuration refuses, or no file and no revision, leaves
-   * the revision in force as it is, and the runs tell what is wrong.
+   * Gives the revision in force as {@link Configuration.current} does, as a host does when it starts: a first file the
+   * configuration refuses, or no file and no revision, leaves the instance without one, and the runs tell what is wrong.
    *
    * @returns The revision in force; `undefined` when there is none.
    */
-  async inStep(): Promise<ConfigurationRevision | undefined> {
+  async inForce(): Promise<ConfigurationRevision | undefined> {
     try {
-      return await this.synchronise();
+      return await this.current();
     } catch (error) {
       if (!(error instanceof NoConfigurationError || error instanceof InvalidConfigurationError)) throw error;
-      return (await this.view()).revision;
+      return undefined;
     }
   }
 
   /**
-   * Saves a change of the configuration made in the console: it becomes a revision of origin `console`, and the
-   * configuration file is rewritten with it.
+   * Saves a change of the configuration: it becomes a revision of origin `console`, or `command` for a command of the
+   * terminal. No file is written.
    *
    * @param document - The configuration as it is to be.
    * @param basedOn - The number of the revision the change was made from; 0 when there was none.
-   * @param replaceFile - Whether to rewrite a configuration file that changed since the revision in force: the
-   * person chose to keep the change over the file.
    * @param origin - Where the change was made: `console` by default, `command` for a command of the terminal.
    * @returns The revision.
-   * @throws {@link NoRepositoryError} when the host has no test repository whose file to rewrite.
    * @throws `InvalidConfigurationError` when the change is not a valid configuration.
    * @throws `StaleRevisionError` when the revision in force is not the one the change was made from.
-   * @throws `ConfigurationConflictError` when the file changed since the revision in force, and `replaceFile` is not set.
    */
-  async save(document: object, basedOn: number, replaceFile = false, origin: "console" | "command" = "console"): Promise<ConfigurationRevision> {
-    const path = this.#path("The configuration cannot be changed");
+  async save(document: object, basedOn: number, origin: "console" | "command" = "console"): Promise<ConfigurationRevision> {
     const read = revisionDocument(JSON.stringify(document));
     if (!read.ok) throw new InvalidConfigurationError("The change", read.errors);
-    const inForce = await this.#store.inForce();
-    const number = inForce?.number ?? 0;
+    const number = (await this.#store.inForce())?.number ?? 0;
     if (number !== basedOn) throw new StaleRevisionError(basedOn, number);
-    if (!replaceFile && fileStateOf(inForce, (await this.#read())?.digest) === "changed") throw new ConfigurationConflictError();
-    return this.#write(path, read.document, origin, basedOn);
+    const text = configurationText(read.document);
+    return this.#told(await this.#store.record({ origin, fileDigest: digestOf(text), document: read.document }, basedOn));
   }
 
   /**
-   * Writes the revision in force to the configuration file, over what the file holds: a command keeps the
-   * configuration of the instance over a file that changed. The file rewritten is a revision of origin
-   * `command`; a file already in step is left as it is.
+   * Writes the revision in force to the configuration file, over what the file holds, in the order the schema
+   * declares its keys. A file that already holds it is left as it is; the revision in force does not change.
    *
    * @returns The revision in force.
    * @throws {@link NoRepositoryError} when the host has no test repository whose file to write.
    * @throws `NoConfigurationError` when the instance keeps no revision.
    */
   async restore(): Promise<ConfigurationRevision> {
-    const path = this.#path("The configuration file cannot be written");
+    if (this.#repository === undefined) throw new NoRepositoryError("The configuration file cannot be written");
     const inForce = (await this.#store.inForce()) ?? this.#none();
-    if (fileStateOf(inForce, (await this.#read())?.digest) === "in_step") return inForce;
-    return this.#write(path, inForce.document, "command", inForce.number);
+    const text = configurationText(inForce.document);
+    if ((await this.#read())?.digest !== digestOf(text)) await writeFile(join(this.#repository, CONFIG_FILE_NAME), text);
+    return inForce;
   }
 
   /**
@@ -185,12 +191,6 @@ export class Configuration implements ConfigurationSource {
    */
   whenRecorded(listener: (revision: ConfigurationRevision) => void): void {
     this.#listeners.push(listener);
-  }
-
-  /** Records a revision that rewrites the configuration file, the file written before the revision is kept. */
-  async #write(path: string, document: OqasConfig, origin: "console" | "command", basedOn: number): Promise<ConfigurationRevision> {
-    const text = configurationText(document);
-    return this.#told(await this.#store.record({ origin, fileDigest: digestOf(text), document }, basedOn, () => writeFile(path, text)));
   }
 
   /** Tells each listener a revision recorded, and gives it back. */
@@ -204,12 +204,6 @@ export class Configuration implements ConfigurationSource {
     if (this.#repository === undefined) return undefined;
     const text = await readFile(join(this.#repository, CONFIG_FILE_NAME), "utf8").catch(() => undefined);
     return text === undefined ? undefined : { text, digest: digestOf(text) };
-  }
-
-  /** The path of the configuration file, for a command that writes it. */
-  #path(refused: string): string {
-    if (this.#repository === undefined) throw new NoRepositoryError(refused);
-    return join(this.#repository, CONFIG_FILE_NAME);
   }
 
   /** Refuses to go on without a configuration. */

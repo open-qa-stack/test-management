@@ -42,7 +42,8 @@ export const ENGINE_OPERATIONS: MethodsOf = OPERATIONS;
  * The methods of the engine that a host calls, not a person: they are no operation, and no client offers them.
  *
  * - `Sessions.start` and `Sessions.stop`: a host starts the sessions and stops them as it starts and stops.
- * - `Configuration.inStep`: a host brings the configuration in step with its file as it starts.
+ * - `Configuration.current` and `Configuration.inForce`: the runs and the hosts read the revision in force, which an
+ *   instance that keeps none takes from the configuration file.
  * - `Configuration.whenRecorded`: the operations on sessions map the knowledge of a source added once its revision is recorded.
  * - `Secrets.current`: the operations on sessions read the environment of the runs through it.
  * - `PastRuns.take`: a host keeps the runs of the repository as executions as it starts.
@@ -50,7 +51,7 @@ export const ENGINE_OPERATIONS: MethodsOf = OPERATIONS;
  */
 export const HOST_METHODS = {
   Sessions: ["start", "stop"],
-  Configuration: ["inStep", "whenRecorded"],
+  Configuration: ["current", "inForce", "whenRecorded"],
   Secrets: ["current"],
   PastRuns: ["take"],
   RepositoryTests: ["list"],

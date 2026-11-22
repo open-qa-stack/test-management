@@ -47,7 +47,7 @@ export class KnowledgeMapping {
    * without a test repository, or without a configuration.
    */
   async state(): Promise<CartographyState> {
-    const revision = await this.#configuration.inStep();
+    const revision = await this.#configuration.inForce();
     if (this.#repository === undefined || revision === undefined) return { sources: [] };
     const config = resolvedConfig(revision.document);
     // The schema asks each application for an environment, and the configuration for an application.

@@ -27,12 +27,11 @@ export class MemoryConfigurationStore implements ConfigurationStorePort {
     return Promise.resolve(this.#revisions.map(({ document: _, ...summary }) => summary).reverse());
   }
 
-  async record(entry: RevisionEntry, basedOn: number, alongside?: () => Promise<void>): Promise<ConfigurationRevision> {
+  async record(entry: RevisionEntry, basedOn: number): Promise<ConfigurationRevision> {
     await this.before();
     const inForce = this.#revisions.length;
     if (basedOn !== inForce) throw new StaleRevisionError(basedOn, inForce);
     const revision = { number: basedOn + 1, recordedAt: this.#clock().toISOString(), ...entry };
-    await alongside?.();
     this.#revisions.push(revision);
     return revision;
   }

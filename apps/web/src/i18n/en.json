@@ -264,7 +264,7 @@
     "applications": "Applications",
     "domains": "Domains",
     "environment": "Environment",
-    "note": "Only these levels are designed; <code>design.levels</code> in <code>oqas.json</code> sets them."
+    "note": "Only these levels are designed; <code>design.levels</code> in the configuration sets them."
   },
   "composer": {
     "going": {
@@ -370,7 +370,6 @@
     "not_opened": "The session could not be opened.",
     "opening_timed_out": "Opening the session took too long: try again in a moment.",
     "stale_revision": "The configuration changed since you opened it: read it again, then make your change again.",
-    "configuration_conflict": "oqas.json changed since the last synchronisation: keep the file, or keep your changes.",
     "invalid_configuration": "The configuration is not valid: correct the fields it points out.",
     "no_configuration": "The instance has no configuration yet.",
     "unknown_document_source": "The configuration in force declares no such source of uploaded documents: save the configuration first.",
@@ -429,7 +428,7 @@
     "origins": {
       "file": "File oqas.json",
       "console": "Console",
-      "command": "Command oqas config export"
+      "command": "Command"
     },
     "levels": {
       "smoke": {
@@ -650,20 +649,21 @@
       "revision": "Revision {{number}}",
       "inForce": "in force",
       "json": "JSON",
-      "seeJson": "See the configuration as JSON"
+      "seeJson": "See the configuration as JSON",
+      "file": "File oqas.json",
+      "fileHint": "a copy kept with the tests",
+      "fileStates": {
+        "in_step": "oqas.json holds the revision in force.",
+        "changed": "oqas.json differs from the revision in force: write the revision in force over it, or take it instead.",
+        "missing": "There is no oqas.json in the test repository yet: write the revision in force to it to keep it with the tests in git."
+      },
+      "writeFile": "Write oqas.json",
+      "takeFile": "Take oqas.json"
     },
     "screen": {
       "errors_one": "{{count}} error to correct before saving",
       "errors_other": "{{count}} errors to correct before saving",
-      "conflict": "oqas.json changed since the last synchronisation",
-      "conflictNote": "Your changes would write over it. Nothing is merged: choose what is kept.",
-      "keepFile": "Keep the file",
-      "keepChange": "Keep my changes",
-      "fileChanged": "oqas.json changed since the revision in force",
-      "fileChangedNote": "It is taken when the next session starts, or now.",
-      "takeFile": "Take oqas.json",
-      "fileMissing": "oqas.json is not in the test repository: the next save writes it.",
-      "saved": "Revision {{number}} saved: oqas.json is written again, and the next session reads it.",
+      "saved": "Revision {{number}} saved: it is in force, and the next session reads it.",
       "valued": "The values typed are saved on this computer.",
       "title": "Configuration",
       "reading": "Reading the configuration",

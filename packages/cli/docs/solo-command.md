@@ -262,23 +262,24 @@ The limits of the autonomy level of the configuration apply to every task. Its g
 
 ## The configuration
 
-The configuration of the test repository — what `oqas.json` holds — is kept in [the database of the instance](../../store/docs/database.md#the-revisions-of-the-configuration) as revisions, each the whole document with its date and its origin, and kept in step with the file by [the operations on the configuration](../../engine/docs/engine.md#the-operations-on-the-configuration). A run reads the revision in force; the console shows and edits it.
+The configuration of the test repository is kept in [the database of the instance](../../store/docs/database.md#the-revisions-of-the-configuration), its one source, as revisions, each the whole document with its date and its origin, by [the operations on the configuration](../../engine/docs/engine.md#the-operations-on-the-configuration). A run reads the revision in force; the console, the conversation and the commands change it. `oqas.json` is a copy of it, as a file: kept with the tests in git, or given to the continuous integration.
 
-- **A file that changed is taken** when a session starts, when the console is served, and with `oqas config import`: it becomes the revision in force, of origin `file`. The first time a command meets the repository, the file is its first revision.
-- **A change saved in the console rewrites the file**, its keys in the order of the schema: `git diff oqas.json` shows what changed, and it is committed as any other change.
-- **A file that changed and is not valid is refused**, and the revision in force kept: the session stops on the errors of the file, each where it is, and on the two ways out — correct the file, or write the revision in force over it with `oqas config export`.
+- **The file gives an instance its first revision**: the first time a command, a session or the console meets an instance that keeps none, `oqas.json` becomes its first revision, of origin `file`.
+- **Afterwards the file is read only when you ask for it**: `oqas config import` takes it, when it differs from the revision in force. A file changed in an editor or by a checkout is not taken otherwise.
+- **No change writes the file**: what the console, the conversation or `oqas model set` saves becomes the revision in force, and `oqas.json` then differs from it. `oqas config export` writes it, its keys in the order of the schema: `git diff oqas.json` shows what changed, and it is committed as any other change.
+- **A file that is not valid is refused**, and the revision in force kept: `oqas config import` tells the errors of the file, each where it is, and the two ways out — correct the file, or write the revision in force over it with `oqas config export`.
 
 ```console
 $ oqas config show
 Revision 3 of the configuration, saved in the console on 2026-11-18T09:12:45.120Z.
-oqas.json is in step with it.
+oqas.json differs from it: oqas config export writes the revision in force over it, oqas config import takes it instead.
 {
   "formatVersion": 1,
   …
 }
 ```
 
-`oqas config show` writes nothing: when the file changed since the revision in force, it says so, with the two commands that settle it. `import` and `export` print the revision in force once they are done; each does nothing when the file is in step. With `--output json`, each prints the configuration as `GET /api/configuration` gives it: the revision in force, and how the file stands to it. They exit with `0`, or with `3` when the file to take is not valid, or when there is neither a revision nor a file.
+`oqas config show` writes nothing: when the file differs from the revision in force, it says so, with the two commands that settle it. `import` and `export` print the revision in force once they are done; each does nothing when the file holds it. With `--output json`, each prints the configuration as `GET /api/configuration` gives it: the revision in force, and how the file stands to it. They exit with `0`, or with `3` when the file to take is not valid, or when there is neither a revision nor a file.
 
 `oqas config history` lists the revisions, the latest first, each with its date and where it was made. `oqas config check` checks `oqas.json` without taking it, each error where it is, and exits with `0` when it is valid, with `3` otherwise — and when the file is missing or is no JSON. `oqas project` names the project, as a host on the test repository names it, and its applications; `oqas repository` tells where the test repository stands: whether it is a git repository with a commit, and a Playwright project.
 
@@ -301,7 +302,7 @@ OpenAI, its key in OPENAI_API_KEY, model gpt-4.1.
 OPENAI_API_KEY holds no key: give it with oqas secrets set OPENAI_API_KEY, or set the variable, then run oqas model status again.
 ```
 
-`oqas model set` takes `--github`, or `--provider` with the name of a provider or the address of a server, and `--model`; a provider of the list gets its address and the variable its key is usually kept in, which `--key-env` replaces. Set again with the same model, the same way, the connection keeps what was tuned on it in the console or in `oqas.json` — whether the model reads images, its effort of reasoning, its wait for an answer —; another model starts without them. It records the connection as a revision of origin `command`, which rewrites `oqas.json`, whatever the test then finds: a key not given yet is given afterwards, with `oqas secrets set`, and `oqas model status` tells when the model answers. Both ask nothing, so that a script or an agent can run them: with `--output json`, each prints the connection, what the test found as [the API tells it](../../api/docs/configuration.md#testing-the-connection-to-the-model), and `offered`, whether the model is among those listed, when the connection lists some. They exit with `0` when the model answers and is among those offered, or when the server lists none; with `4` when it does not answer, or is not offered; with `3` when the provider is neither one the list names nor an address.
+`oqas model set` takes `--github`, or `--provider` with the name of a provider or the address of a server, and `--model`; a provider of the list gets its address and the variable its key is usually kept in, which `--key-env` replaces. Set again with the same model, the same way, the connection keeps what was tuned on it in the console or in `oqas.json` — whether the model reads images, its effort of reasoning, its wait for an answer —; another model starts without them. It records the connection as a revision of origin `command`, whatever the test then finds: a key not given yet is given afterwards, with `oqas secrets set`, and `oqas model status` tells when the model answers. Both ask nothing, so that a script or an agent can run them: with `--output json`, each prints the connection, what the test found as [the API tells it](../../api/docs/configuration.md#testing-the-connection-to-the-model), and `offered`, whether the model is among those listed, when the connection lists some. They exit with `0` when the model answers and is among those offered, or when the server lists none; with `4` when it does not answer, or is not offered; with `3` when the provider is neither one the list names nor an address.
 
 ## The values of the variables
 

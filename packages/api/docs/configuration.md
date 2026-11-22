@@ -1,6 +1,6 @@
 # Configuration
 
-The configuration of an instance — its applications and their environments, what is known of them, the model, the autonomy of the agents, how the tests are designed and where they go — is what `oqas.json` holds. The instance keeps it in its database as revisions, each the whole document with its date and its origin, and keeps them in step with the `oqas.json` of the test repository the API was given. The API reads the configuration in force and its history, checks a change without recording it, and saves one. Each route is one of [the operations on the configuration](../../engine/docs/engine.md#the-operations-on-the-configuration) of the engine, said in HTTP. The web console edits the configuration through these routes.
+The configuration of an instance — its applications and their environments, what is known of them, the model, the autonomy of the agents, how the tests are designed and where they go — is what `oqas.json` holds. The instance keeps it in its database, its one source, as revisions, each the whole document with its date and its origin; the `oqas.json` of the test repository the API was given is a copy, which gives the instance its first revision and is taken or written when a client asks for it. The API reads the configuration in force and its history, checks a change without recording it, saves one, and takes or writes the file. Each route is one of [the operations on the configuration](../../engine/docs/engine.md#the-operations-on-the-configuration) of the engine, said in HTTP. The web console edits the configuration through these routes.
 
 The shapes of every body are the types of `@open-qa-stack/domain/sessions`; the document is the configuration [as `oqas.json` holds it](../../domain/docs/configuration.md). A client ignores a field or a value it does not know.
 
@@ -9,8 +9,9 @@ The shapes of every body are the types of `@open-qa-stack/domain/sessions`; the 
 | `GET /api/configuration` | The revision in force, and how `oqas.json` stands to it. |
 | `GET /api/configuration/revisions` | The revisions, the latest first, without their documents. |
 | `POST /api/configuration/validation` | The errors of a configuration, without anything recorded. |
-| `POST /api/configuration/revisions` | Saves a change, which rewrites `oqas.json`. |
+| `POST /api/configuration/revisions` | Saves a change, as the revision in force; no file is written. |
 | `POST /api/configuration/synchronisation` | Takes `oqas.json` as it is now as the revision in force. |
+| `PUT /api/configuration/file` | Writes the revision in force to `oqas.json`. |
 | `POST /api/configuration/model-connection` | Tests a connection to the model as it is drafted, without anything recorded. |
 | `GET /api/repository` | Where the test repository stands: its folder, a git repository, with a commit, and a Playwright project. |
 | `POST /api/repository/preparation` | Sets the test repository up from the configuration in force. |
@@ -64,12 +65,12 @@ cache-control: no-store
 | `revision` | The revision in force, the last recorded; left out on an instance that has none yet. |
 | `revision.number` | Its number, from 1. A change is made from it. |
 | `revision.recordedAt` | When it was recorded, as an ISO 8601 date. |
-| `revision.origin` | `file`, read from `oqas.json` when it changed; `console`, a change saved through this API; `command`, the revision in force written back to the file by `oqas config export`. |
-| `revision.fileDigest` | The SHA-256 digest of the `oqas.json` it was read from or wrote. |
+| `revision.origin` | `file`, taken from `oqas.json`; `console`, a change saved through this API; `command`, a change saved by a command of the terminal, such as `oqas model set`. |
+| `revision.fileDigest` | The SHA-256 digest of the `oqas.json` that holds it. |
 | `revision.document` | The configuration. |
-| `file` | `in_step` when `oqas.json` is the file of the revision in force; `changed` when it was changed since, or never taken; `missing` when it cannot be read, or the API was given no test repository. |
+| `file` | `in_step` when `oqas.json` holds the revision in force; `changed` when it differs from it, or was never taken; `missing` when it cannot be read, or the API was given no test repository. |
 
-Reading changes nothing: a file that changed is taken when the API starts, when a session starts, or when a client asks for it with `POST /api/configuration/synchronisation`.
+Reading changes nothing. The file is read when the instance keeps no revision yet — the API starts on it, or a session starts — and when a client asks for it with `POST /api/configuration/synchronisation`; never otherwise.
 
 ```http
 GET /api/configuration/revisions
@@ -131,25 +132,24 @@ content-type: application/json
 
 HTTP/1.1 201 Created
 
-{"revision":{"number":4,"origin":"console",…},"file":"in_step"}
+{"revision":{"number":4,"origin":"console",…},"file":"changed"}
 ```
 
 | Field | Value |
 |---|---|
 | `basedOn` | The number of the revision the change was made from: the revision in force the client read; `0` on an instance that has none. |
 | `document` | The configuration as it is to be. |
-| `replaceFile` | `true` to rewrite an `oqas.json` that changed since the revision in force: the person chose to keep the change over the file. Left out, such a change is refused. |
 
-The change becomes a revision of origin `console`, and `oqas.json` is rewritten with it, its keys in the order the schema declares them and indented by two spaces: the same document is always the same text, and the diff of the file in git shows what changed. The answer is the configuration as it is now. A change is saved whole or not at all: when the file cannot be written, nothing is recorded.
+The change becomes a revision of origin `console`, and no file is written: `oqas.json` then differs from it, until a client writes it. The answer is the configuration as it is now.
 
 The concurrency is optimistic: a change made from a revision another replaced since — another person saved, or the file was taken — is refused with `409` `stale_revision`, and the client reads the configuration again.
 
-## When the file and the console both changed
+## Taking and writing the file
 
-`oqas.json` is the configuration kept with the tests in git: a person may change it in an editor, or by a checkout, while the console holds a change. A change saved while the file changed since the revision in force is refused with `409` `configuration_conflict`, and nothing is merged. The detail says the two ways out, each one request:
+`oqas.json` is the configuration kept with the tests in git, or given to the continuous integration: a person may change it in an editor, or by a checkout. The instance does not read it again on its own; a client asks for one of two things, each one request:
 
-- **Keep the file**: `POST /api/configuration/synchronisation` takes `oqas.json` as the revision in force, of origin `file`. The change of the console is dropped; the client reads the configuration again.
-- **Keep the change**: the same change sent again with `"replaceFile": true`, which rewrites the file over what it held.
+- **Take the file**: `POST /api/configuration/synchronisation` takes `oqas.json` as the revision in force, of origin `file`, when it differs from it.
+- **Write the file**: `PUT /api/configuration/file` writes the revision in force over what `oqas.json` holds, its keys in the order the schema declares them and indented by two spaces: the same document is always the same text, and the diff of the file in git shows what changed. The revision in force does not change.
 
 ```http
 POST /api/configuration/synchronisation
@@ -159,7 +159,7 @@ HTTP/1.1 200 OK
 {"revision":{"number":4,"origin":"file",…},"file":"in_step"}
 ```
 
-The synchronisation answers the configuration as it is now: a new revision when the file changed, the revision in force as it was when it did not, or when the file cannot be read. A file that is not a valid configuration is refused with `422` `invalid_configuration` and its errors, and the revision in force stays as it is: correct the file, or keep the configuration over it with a change sent with `"replaceFile": true`. A run that starts while the file is so refuses to go on, and tells the same.
+Each answers the configuration as it is now. The synchronisation records a new revision when the file differs, and leaves the revision in force as it was when it does not, or when the file cannot be read. A file that is not a valid configuration is refused with `422` `invalid_configuration` and its errors, and the revision in force stays as it is: correct the file, then take it again. Writing the file on an instance that has no revision is answered `404` `no_configuration`, and on an API given no test repository `503` `unavailable`.
 
 ## Setting the test repository up
 
@@ -181,20 +181,19 @@ POST /api/repository/preparation
 { "created": ["package.json", "playwright.config.ts"], "kept": [], "committed": true }
 ```
 
-It does what [`oqas --init`](../../cli/docs/solo-command.md#initialising-a-test-repository) does, from the revision in force: it writes the files of a Playwright project that are missing, keeps those the repository has, and, in a folder that was no git repository, makes one and commits `oqas.json` and what it created — `committed` says so. The console calls it once the first revision is saved. An instance without a configuration is answered `404` `no_configuration`, and one given no test repository `503` `unavailable`.
+It does what [`oqas --init`](../../cli/docs/solo-command.md#initialising-a-test-repository) does, from the revision in force: it writes the files of a Playwright project that are missing, keeps those the repository has, and, in a folder that was no git repository, makes one and commits what it created, with `oqas.json` when the repository holds one — `committed` says so. The console calls it once the first revision is saved. An instance without a configuration is answered `404` `no_configuration`, and one given no test repository `503` `unavailable`.
 
 ## Problems
 
 | Code | Status | When |
 |---|---|---|
-| `invalid_request` | `400` | The body is not one the route reads: a field the route does not know, `basedOn` that is no whole number from 0, `document` or the body of a validation that is no JSON object, `replaceFile` that is no boolean, the body of a test of the connection that is no section `model` the configuration accepts, or whose `key` is no text; the body of a value that is no object whose `value` is a text. |
+| `invalid_request` | `400` | The body is not one the route reads: a field the route does not know, `basedOn` that is no whole number from 0, `document` or the body of a validation that is no JSON object, the body of a test of the connection that is no section `model` the configuration accepts, or whose `key` is no text; the body of a value that is no object whose `value` is a text. |
 | `stale_revision` | `409` | The change was made from a revision another replaced since, or from one that does not exist. |
-| `configuration_conflict` | `409` | `oqas.json` changed since the revision in force, and the change would overwrite it. |
 | `invalid_configuration` | `422` | The change, or the file to take, is not a valid configuration. The problem bears `errors`, each error where it is, as a validation lists them. |
-| `no_configuration` | `404` | A synchronisation on an instance that has no revision, and no `oqas.json` to take one from. |
+| `no_configuration` | `404` | A synchronisation on an instance that has no revision, and no `oqas.json` to take one from; writing the file on an instance that has no revision. |
 | `unknown_secret` | `404` | A value given for a variable the configuration in force does not name. |
 | `secret_refused` | `409` | A value that is empty, or for a variable the environment of the instance sets. |
-| `unavailable` | `503` | A change asked of an API that was started without a test repository, whose file it would rewrite; or the database cannot be reached. |
+| `unavailable` | `503` | The file asked of an API that was started without a test repository; or the database cannot be reached. |
 
 ## What the routes call
 
@@ -203,8 +202,9 @@ It does what [`oqas --init`](../../cli/docs/solo-command.md#initialising-a-test-
 | `GET /api/configuration` | `view()` |
 | `GET /api/configuration/revisions` | `revisions()` |
 | `POST /api/configuration/validation` | `check(document)` |
-| `POST /api/configuration/revisions` | `save(document, basedOn, replaceFile)`, then `view()` |
+| `POST /api/configuration/revisions` | `save(document, basedOn)`, then `view()` |
 | `POST /api/configuration/synchronisation` | `synchronise()`, then `view()` |
+| `PUT /api/configuration/file` | `restore()`, then `view()` |
 | `POST /api/configuration/model-connection` | `check(model, key)` of `ModelConnection` |
 | `GET /api/secrets` | `list()` of `Secrets` |
 | `PUT /api/secrets/{name}` | `save(name, value)` of `Secrets` |

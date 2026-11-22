@@ -238,11 +238,11 @@ export class ApiClient {
   }
 
   /**
-   * Saves a change of the configuration, which rewrites its file.
+   * Saves a change of the configuration, as the revision in force: no file is written.
    *
    * @param change - The configuration as it is to be, and the revision it was made from.
-   * @returns The configuration as it is now; the failure carries the code `stale_revision`, `configuration_conflict`
-   * or `invalid_configuration` with its errors when the instance refuses the change.
+   * @returns The configuration as it is now; the failure carries the code `stale_revision`, or `invalid_configuration`
+   * with its errors, when the instance refuses the change.
    */
   public save(change: RevisionChange): Promise<ConfigurationView> {
     return this.#ask<ConfigurationView>("/configuration/revisions", posting(change));
@@ -256,6 +256,15 @@ export class ApiClient {
    */
   public synchronise(): Promise<ConfigurationView> {
     return this.#ask<ConfigurationView>("/configuration/synchronisation", { method: "POST" });
+  }
+
+  /**
+   * Writes the revision in force to the file of the configuration, in the order of its schema.
+   *
+   * @returns The configuration as it is now.
+   */
+  public writeFile(): Promise<ConfigurationView> {
+    return this.#ask<ConfigurationView>("/configuration/file", { method: "PUT" });
   }
 
   /**

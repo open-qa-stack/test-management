@@ -265,7 +265,7 @@ describe("the scope of a session", () => {
       "  Levels asked: functional",
       "  Applications: shop, back-office",
       "  Environment: local",
-      "  Only these levels are designed: design.levels in oqas.json sets them.",
+      "  Only these levels are designed: design.levels in the configuration sets them.",
     ]);
   });
 });

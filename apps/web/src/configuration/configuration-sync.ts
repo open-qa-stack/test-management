@@ -117,12 +117,11 @@ export class ConfigurationSync {
    *
    * @param document - The configuration as it is to be; `undefined` when it did not change.
    * @param basedOn - The number of the revision it was made from.
-   * @param replaceFile - Whether the change rewrites a file that changed too.
    * @param values - The values typed, by the name of their variable.
    */
-  public save(document: OqasConfig | undefined, basedOn: number, replaceFile: boolean, values: Readonly<Record<string, string>>): void {
+  public save(document: OqasConfig | undefined, basedOn: number, values: Readonly<Record<string, string>>): void {
     const saveValues = (): Promise<boolean> => this.#saveValues(values);
-    if (document !== undefined) this.#settle(this.#api.save({ basedOn, document, ...(replaceFile ? { replaceFile } : {}) }), saveValues);
+    if (document !== undefined) this.#settle(this.#api.save({ basedOn, document }), saveValues);
     else {
       this.#dispatch({ type: "saving" });
       void saveValues();
@@ -130,8 +129,13 @@ export class ConfigurationSync {
   }
 
   /** Takes the configuration file as it is now as the revision in force. */
-  public keepFile(): void {
+  public takeFile(): void {
     this.#settle(this.#api.synchronise());
+  }
+
+  /** Writes the revision in force to the configuration file. */
+  public writeFile(): void {
+    this.#settle(this.#api.writeFile());
   }
 
   /**

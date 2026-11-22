@@ -83,7 +83,7 @@ export class LaunchRun {
    * @throws `LaunchRefusedError` when the environment is not one the configuration declares, or none is named among several.
    */
   static async ready(host: LaunchHost, request: LaunchRequest): Promise<LaunchRun> {
-    const revision = await host.configuration.synchronise();
+    const revision = await host.configuration.current();
     const result = validateConfig(JSON.stringify(revision.document), host.env);
     if (!result.ok) throw new InvalidConfigurationError(CONFIG_FILE_NAME, result.errors, revision.number);
     const declared = [...new Set(result.config.applications.flatMap((application) => application.environments.map((environment) => environment.name)))];

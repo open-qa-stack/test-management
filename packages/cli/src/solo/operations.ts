@@ -172,7 +172,7 @@ export function databaseOf(io: CommandIo, repository: string, unconfigured: "ref
   if (raw !== undefined && given === undefined) throw new UsageError(`${DATABASE_URL_VARIABLE} must be ${DatabaseUrl.rule}.`);
   // Only the console starts in a folder never configured, where it sets the configuration up: no other command writes a database
   // there. A folder whose file went keeps its database, from which oqas config export writes the file again.
-  if (given === undefined && unconfigured === "refused" && !isConfigured(repository))
+  if (given === undefined && unconfigured === "refused" && !holdsInstance(repository))
     throw new UsageError(`${join(repository, CONFIG_FILE_NAME)} is missing. ${START_ADVICE}`);
   try {
     return instanceDatabaseUrl(given, repository);
@@ -195,25 +195,45 @@ export function modelConnectionOf(io: CommandIo, env: Environment | EnvironmentS
 }
 
 /**
- * Records the connection to the model a person set in a terminal, as a revision of origin `command`, which rewrites
- * `oqas.json`; then saves the key they typed for its variable, out of the test repository.
+ * Records the connection to the model a person set in a terminal, as a revision of origin `command`; then saves the
+ * key they typed for its variable, out of the test repository.
  *
  * @param operations - The operations on the configuration and on the values of its variables.
  * @param model - The connection.
  * @param key - The key typed for the variable of the connection, when the person typed one.
  */
 export async function savedModel({ configuration, secrets }: Pick<Operations, "configuration" | "secrets">, model: Model, key?: string): Promise<void> {
-  const inForce = await configuration.synchronise();
-  await configuration.save({ ...inForce.document, model }, inForce.number, false, "command");
+  const inForce = await configuration.current();
+  await configuration.save({ ...inForce.document, model }, inForce.number, "command");
   // A key is typed for the variable of a provider alone, which the connection names.
   if (key !== undefined) await secrets.save((model as Extract<Model, { mode: "provider-key" }>).apiKeyEnv!, key);
 }
 
 /**
  * @param repository - Absolute path of the test repository.
- * @returns Whether it was ever configured: it holds its configuration file, or the database of an instance from which
- * `oqas config export` writes the file again.
+ * @returns Whether it may hold a configuration: it holds its configuration file, or the database of an instance,
+ * from which `oqas config export` writes the file again.
  */
-export function isConfigured(repository: string): boolean {
+export function holdsInstance(repository: string): boolean {
   return existsSync(join(repository, CONFIG_FILE_NAME)) || existsSync(join(repository, DEFAULT_REPOSITORY.stateDir, DATABASE_FILE_NAME));
+}
+
+/**
+ * Tells whether a test repository is set up: its instance keeps a configuration, or its configuration file gives it
+ * its first. A database left by a setting up that was left holds none.
+ *
+ * @param io - The environment of the command.
+ * @param repository - Absolute path of the test repository.
+ * @returns Whether it is set up.
+ */
+export async function isConfigured(io: CommandIo, repository: string): Promise<boolean> {
+  if (existsSync(join(repository, CONFIG_FILE_NAME))) return true;
+  if (io.env[DATABASE_URL_VARIABLE] === undefined && !holdsInstance(repository)) return false;
+  const instance = new InstanceDatabase(databaseOf(io, repository, "started"), commandLogger(io));
+  try {
+    await instance.prepare();
+    return (await instance.configuration.inForce()) !== undefined;
+  } finally {
+    await instance.close();
+  }
 }

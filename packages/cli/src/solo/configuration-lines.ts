@@ -10,16 +10,16 @@ import {
 
 /** Where a revision comes from, in the words of the command. */
 const ORIGINS: Readonly<Record<RevisionSummary["origin"], string>> = {
-  file: `read from ${CONFIG_FILE_NAME}`,
+  file: `taken from ${CONFIG_FILE_NAME}`,
   console: "saved in the console",
-  command: `written to ${CONFIG_FILE_NAME} by a command`,
+  command: "saved by a command",
 };
 
 /** How the configuration file stands to the revision in force, with what to do when they differ. */
 const FILE_STATES: Readonly<Record<FileState, string>> = {
-  in_step: `${CONFIG_FILE_NAME} is in step with it.`,
-  changed: `${CONFIG_FILE_NAME} changed since: oqas config import takes it, oqas config export writes the revision in force over it.`,
-  missing: `${CONFIG_FILE_NAME} cannot be read: oqas config export writes the revision in force to it.`,
+  in_step: `${CONFIG_FILE_NAME} holds it.`,
+  changed: `${CONFIG_FILE_NAME} differs from it: oqas config export writes the revision in force over it, oqas config import takes it instead.`,
+  missing: `There is no ${CONFIG_FILE_NAME}: oqas config export writes the revision in force to it.`,
 };
 
 /**

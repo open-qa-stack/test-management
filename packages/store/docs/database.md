@@ -313,11 +313,10 @@ The store notifies no one, and nothing listens to the database: the process that
 
 ## The revisions of the configuration
 
-`ConfigurationStore` is the one place that writes the revisions. It implements `ConfigurationStorePort` of `@open-qa-stack/domain`: it reads the revision in force, `inForce()`, and the list of the revisions without their documents, the latest first, `revisions()`; it has one command, `record(entry, basedOn, alongside)`, which records a revision on top of the one it was made from.
+`ConfigurationStore` is the one place that writes the revisions. It implements `ConfigurationStorePort` of `@open-qa-stack/domain`: it reads the revision in force, `inForce()`, and the list of the revisions without their documents, the latest first, `revisions()`; it has one command, `record(entry, basedOn)`, which records a revision on top of the one it was made from.
 
 - **A revision is made from the revision in force.** One made from another — replaced since, or that does not exist — is refused with `StaleRevisionError`, which names the revision in force, and nothing is kept.
 - **Of two revisions made from the same one at the same moment, one is kept.** The transaction writes first: it inserts the row of the number that follows, which the other already holds or waits for. The statement is the same on both databases.
-- **What is done alongside a revision happens with it.** `alongside` runs inside the transaction, once the revision is known to be in order: the operations write `oqas.json` there. When it throws, nothing is kept.
 
 ## The documents of the knowledge sources
 

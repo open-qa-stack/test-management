@@ -10,7 +10,7 @@ import { AddButton, PlaceErrors } from "./configuration-fields.tsx";
 import { isPending, type ConfigurationState } from "./configuration-state.ts";
 import { errorText } from "./configuration-words.ts";
 import { AddSourceButtons, KnowledgeCard } from "./knowledge-card.tsx";
-import { HistoryCard, JsonCard } from "./record-cards.tsx";
+import { FileCard, HistoryCard, JsonCard } from "./record-cards.tsx";
 import { ModelCard } from "./model-card.tsx";
 import { AutonomyCard, DesignCard, LanguageCard, RepositoryCard } from "./settings-cards.tsx";
 
@@ -24,9 +24,9 @@ export interface ConfigurationControls extends Omit<ConfigurationEdit, "errors" 
   /** Drops the draft for the revision in force. */
   readonly discard: MouseEventHandler<HTMLButtonElement>;
   /** Takes the configuration file as the revision in force. */
-  readonly keepFile: MouseEventHandler<HTMLButtonElement>;
-  /** Saves the draft over a configuration file that changed too. */
-  readonly keepChange: MouseEventHandler<HTMLButtonElement>;
+  readonly takeFile: MouseEventHandler<HTMLButtonElement>;
+  /** Writes the revision in force to the configuration file. */
+  readonly writeFile: MouseEventHandler<HTMLButtonElement>;
   readonly testModel: MouseEventHandler<HTMLButtonElement>;
   /** Tests the knowledge source of the draft its button names by its rank. */
   readonly checkSource: MouseEventHandler<HTMLButtonElement>;
@@ -59,43 +59,15 @@ export function ErrorSummary({ errors }: { readonly errors: readonly ConfigError
   );
 }
 
-/** What the screen says of the file and of what the instance answered, with the ways out it leaves. */
-function Notes({ state, controls }: { readonly state: ConfigurationState; readonly controls: ConfigurationControls }): ReactNode {
-  const { view, refusal, saved, saving } = state;
-  if (refusal?.code === "configuration_conflict")
-    return (
-      <section className="config-note warn" role="alert">
-        <b>{t("configuration.screen.conflict")}</b>
-        <span>{t("configuration.screen.conflictNote")}</span>
-        <div className="config-actions">
-          <button type="button" className="btn" onClick={controls.keepFile} disabled={saving}>
-            {t("configuration.screen.keepFile")}
-          </button>
-          <button type="button" className="btn primary" onClick={controls.keepChange} disabled={saving}>
-            {t("configuration.screen.keepChange")}
-          </button>
-        </div>
-      </section>
-    );
+/** What the screen says of what the instance answered, with the ways out it leaves. */
+function Notes({ state }: { readonly state: ConfigurationState }): ReactNode {
+  const { refusal, saved } = state;
   if (refusal !== undefined)
     return (
       <p className="config-note ko" role="alert">
         {refusal.text}
       </p>
     );
-  if (view?.file === "changed")
-    return (
-      <section className="config-note warn">
-        <b>{t("configuration.screen.fileChanged")}</b>
-        <span>{t("configuration.screen.fileChangedNote")}</span>
-        <div className="config-actions">
-          <button type="button" className="btn" onClick={controls.keepFile} disabled={saving}>
-            {t("configuration.screen.takeFile")}
-          </button>
-        </div>
-      </section>
-    );
-  if (view?.file === "missing") return <p className="config-note info">{t("configuration.screen.fileMissing")}</p>;
   if (state.preparation !== undefined)
     return (
       <section className="config-note ok" role="status">
@@ -141,8 +113,17 @@ export function ConfigurationScreen({ project, state, controls }: ConfigurationS
           </EmptyState>
         ) : (
           <>
-            <Notes state={state} controls={controls} />
-            <EmptyState title={t("configuration.screen.none")}>{t("configuration.screen.noneNote")}</EmptyState>
+            <Notes state={state} />
+            <EmptyState title={t("configuration.screen.none")}>
+              {t("configuration.screen.noneNote")}
+              {view.file === "changed" && (
+                <div className="config-actions">
+                  <button type="button" className="btn primary" onClick={controls.takeFile} disabled={saving}>
+                    {t("configuration.records.takeFile")}
+                  </button>
+                </div>
+              )}
+            </EmptyState>
           </>
         )}
       </Page>
@@ -166,7 +147,7 @@ export function ConfigurationScreen({ project, state, controls }: ConfigurationS
   );
   return (
     <Page crumbs={crumbs} title={title} actions={actions}>
-      <Notes state={state} controls={controls} />
+      <Notes state={state} />
       <ErrorSummary errors={errors} />
       <EditContext.Provider
         value={{
@@ -223,6 +204,7 @@ export function ConfigurationScreen({ project, state, controls }: ConfigurationS
         <h2 id="config-history">{t("configuration.screen.history")}</h2>
         {/* The instance tells the revisions with the configuration: there is a draft once it told them. */}
         <HistoryCard revisions={revisions!} />
+        <FileCard file={view!.file} saving={saving} controls={controls} />
         <JsonCard draft={draft} />
       </section>
       <Card className="config-secrets">

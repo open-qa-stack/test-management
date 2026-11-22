@@ -179,7 +179,7 @@
     "levels": "Niveaux demandés",
     "applications": "Applications",
     "environment": "Environnement",
-    "note": "Seuls ces niveaux sont conçus : design.levels dans oqas.json les fixe."
+    "note": "Seuls ces niveaux sont conçus : design.levels dans la configuration les fixe."
   },
   "said": {
     "waiting": "en attente d’un agent",
@@ -348,7 +348,7 @@
       "field": "Entrée valider · Échap quitter",
       "summary": "Entrée créer le projet · Échap quitter, rien n’est écrit"
     },
-    "created": "Le projet est prêt dans {{folder}} : oqas.json, le projet Playwright{{committed}}.",
+    "created": "Le projet est prêt dans {{folder}} : sa configuration, le projet Playwright{{committed}}.",
     "committed": ", et un dépôt git avec son premier commit",
     "toCommit": " ; committez-les quand vous le souhaitez",
     "left": "Rien n’a été mis en place."

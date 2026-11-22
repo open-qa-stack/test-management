@@ -55,7 +55,7 @@ export class ExecutionRecorder {
   async record(report: string, source: Pick<Execution, "origin" | "sessionId" | "campaignId">): Promise<Execution | undefined> {
     const { repository, configuration, store, now } = this.#options;
     const json = await readFile(join(repository, report), "utf8").catch(() => "");
-    const { appsDir } = { ...DEFAULT_REPOSITORY, ...(await configuration.inStep())?.document.repository };
+    const { appsDir } = { ...DEFAULT_REPOSITORY, ...(await configuration.inForce())?.document.repository };
     const results = executionResults(json, appsDir);
     if (results === undefined) return undefined;
     const commit = await this.#commit();

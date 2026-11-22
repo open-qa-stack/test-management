@@ -131,7 +131,7 @@ describe("the initialisation of a test repository as a Playwright project", () =
   });
 
   it("stops on what the store of the configuration raises when it is no refusal of the configuration", async () => {
-    const configuration = { synchronise: () => Promise.reject(new Error("The database is unreachable.")) };
+    const configuration = { current: () => Promise.reject(new Error("The database is unreachable.")) };
     const init = new RepositoryInit({ repositoryRoot: workspace, configuration, playwrightVersion: "1.64.1", write: () => undefined, print: () => undefined });
     await assert.rejects(init.run(), { message: "The database is unreachable." });
   });

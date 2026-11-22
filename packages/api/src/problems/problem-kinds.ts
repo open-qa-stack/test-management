@@ -17,7 +17,6 @@ const KINDS: Readonly<Record<ProblemCode, ProblemKind>> = {
   not_opened: { status: HttpStatus.BAD_GATEWAY, title: "Session not opened" },
   opening_timed_out: { status: HttpStatus.SERVICE_UNAVAILABLE, title: "Opening timed out" },
   stale_revision: { status: HttpStatus.CONFLICT, title: "Stale revision" },
-  configuration_conflict: { status: HttpStatus.CONFLICT, title: "Configuration conflict" },
   invalid_configuration: { status: HttpStatus.UNPROCESSABLE_ENTITY, title: "Invalid configuration" },
   no_configuration: { status: HttpStatus.NOT_FOUND, title: "No configuration" },
   unknown_document_source: { status: HttpStatus.NOT_FOUND, title: "Unknown source of documents" },
