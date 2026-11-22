@@ -1,7 +1,7 @@
 /*
- * The frame of every screen. On a phone it is one bar — the navigation, which keeps to the screens that exist, the
- * agent first, which leads home as the brand does — over the page. From 720 px the brand stands before it. From 1100 px the navigation stands at the left of the
- * page, with the project and what is coming.
+ * The frame of every screen. On a phone it is one bar — the mark, the name of the screen and the button that opens
+ * the navigation over it — over the page. From 720 px the bar holds the brand and the navigation, which keeps to the
+ * screens that exist. From 1100 px the navigation stands at the left of the page, with the project and what is coming.
  */
 .shell {
   display: grid;
@@ -43,13 +43,12 @@
 }
 
 .top {
-  grid-area: 2 / 1;
-  /* On a phone every entry of the navigation takes the width of the bar: the brand waits for a wider screen. */
-  display: none;
+  grid-area: 2 / 1 / auto / -1;
+  display: flex;
   align-items: center;
   gap: var(--space-3);
   min-height: var(--bar);
-  padding: 0 var(--space-1) 0 var(--gutter);
+  padding: 0 var(--gutter);
 }
 
 .brand,
@@ -82,6 +81,22 @@
   font-style: normal;
 }
 
+/* On a phone the bar names the screen, at the size of a heading, and cuts a name too long for it. */
+.top-screen {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--type-heading);
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-heading);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.top-menu {
+  flex: none;
+}
+
 /* The button that folds the menu: the sidebar it folds exists only on a wide screen. */
 .menu-toggle {
   display: none;
@@ -106,46 +121,32 @@
   transform: scaleX(-1);
 }
 
+/* On a phone the navigation waits for its button, in a panel over the screen. */
 .shell-sidebar {
   grid-area: 2 / 2;
-  display: flex;
+  display: none;
   min-width: 0;
 }
 
-/*
- * On a phone the entries stand side by side, each its own target a finger presses, so that all of them fit the
- * width of a small phone; the bar scrolls when they outgrow it, and holds the labels it hides, which then cannot
- * widen the page.
- */
+/* The navigation lists its entries under the heading of their group, each named in full, the project over them. */
 .nav {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 0;
-  min-width: 0;
-  padding: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.nav-group {
-  display: contents;
+  display: block;
+  padding: var(--space-2);
 }
 
 .nav a,
 .nav-soon {
+  display: flex;
   align-items: center;
   gap: var(--space-2);
   min-height: var(--control);
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-2);
   border-radius: var(--radius-control);
   font-weight: var(--weight-medium);
   white-space: nowrap;
 }
 
 .nav a {
-  flex: none;
-  display: flex;
   color: var(--text-2);
   text-decoration: none;
 }
@@ -156,6 +157,7 @@
 
 .nav a.on {
   background: var(--primary-soft);
+  box-shadow: inset var(--stroke) 0 0 var(--brand-navy);
   color: var(--brand-navy);
   font-weight: var(--weight-strong);
 }
@@ -164,31 +166,9 @@
   flex: none;
 }
 
-/* On a phone the bar holds an icon for each entry, which its label names to a screen reader: none is cut, each as wide as a finger and no wider. */
-.nav a {
-  justify-content: center;
-  min-width: var(--control);
-  padding: 0;
-}
-
-.nav-label {
-  position: absolute;
-  width: var(--hairline);
-  height: var(--hairline);
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-/* The project, the headings and what is coming wait for the sidebar: on a phone the bar holds what leads somewhere. */
-.proj,
-.grp,
-.nav-soon {
-  display: none;
-}
-
 /* The project: a row of the sidebar, whose picture takes the radius its padding leaves. */
 .proj {
+  display: flex;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2);
@@ -229,6 +209,7 @@
 
 /* The heading of a group stands apart from the group before, and close to its own entries. */
 .grp {
+  display: block;
   padding: var(--gap-turn) var(--space-2) var(--gap-line);
   color: var(--text-3);
   font-size: var(--type-caption);
@@ -274,13 +255,24 @@
   white-space: nowrap;
 }
 
+/* In a panel the navigation takes its width, which its body pads already. */
+.side-panel .nav {
+  padding: 0;
+}
+
 @media (min-width: 720px) {
   .top {
-    display: flex;
+    grid-area: 2 / 1;
+    padding-right: var(--space-1);
   }
 
-  .nav a {
-    padding: 0 var(--space-3);
+  .top-screen,
+  .top-menu {
+    display: none;
+  }
+
+  .shell-sidebar {
+    display: flex;
   }
 
   .brand span {
@@ -290,13 +282,37 @@
     overflow: visible;
     clip-path: none;
   }
+}
 
-  .nav-label {
-    position: static;
-    width: auto;
-    height: auto;
-    overflow: visible;
-    clip-path: none;
+/*
+ * On a tablet the entries stand side by side in the bar, the project, the headings and what is coming left out;
+ * the bar scrolls when they outgrow it, and cannot widen the page.
+ */
+@media (min-width: 720px) and (max-width: 1099.98px) {
+  .shell-sidebar .nav {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    padding: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .shell-sidebar .nav-group {
+    display: contents;
+  }
+
+  .shell-sidebar .nav a {
+    flex: none;
+    padding: 0 var(--space-3);
+  }
+
+  .shell-sidebar .nav a.on {
+    box-shadow: none;
+  }
+
+  .shell-sidebar :is(.proj, .grp, .nav-soon) {
+    display: none;
   }
 }
 
@@ -318,37 +334,11 @@
   }
 
   /* The navigation stays in sight while a long page scrolls; its pictures and its icons stand under the mark of the console. */
-  .nav {
+  .shell-sidebar .nav {
     position: sticky;
     top: 0;
-    display: block;
     max-height: 100dvh;
-    padding: var(--space-2);
-    overflow-x: visible;
     overflow-y: auto;
-  }
-
-  .nav-group {
-    display: block;
-  }
-
-  .nav a,
-  .nav-soon {
-    justify-content: flex-start;
-    padding: 0 var(--space-2);
-  }
-
-  .nav a.on {
-    box-shadow: inset var(--stroke) 0 0 var(--brand-navy);
-  }
-
-  .proj,
-  .nav-soon {
-    display: flex;
-  }
-
-  .grp {
-    display: block;
   }
 
   .shell-page {
@@ -361,14 +351,14 @@
   }
 
   /*
-   * Folded, the sidebar keeps an icon for each entry, which its label names to a screen reader as on a phone, and
-   * leaves the page the rest of the width.
+   * Folded, the sidebar keeps an icon for each entry, which its label names to a screen reader, and leaves the page
+   * the rest of the width.
    */
   .shell.folded {
     grid-template-columns: var(--rail) minmax(0, 1fr);
   }
 
-  .folded .nav-label {
+  .folded .shell-sidebar .nav-label {
     position: absolute;
     width: var(--hairline);
     height: var(--hairline);
@@ -376,18 +366,17 @@
     clip-path: inset(50%);
   }
 
-  .folded .proj,
-  .folded .grp,
-  .folded .nav-soon {
+  .folded .shell-sidebar :is(.proj, .grp, .nav-soon) {
     display: none;
   }
 
-  .folded .nav a {
+  .folded .shell-sidebar .nav a {
+    position: relative;
     justify-content: center;
     padding: 0;
   }
 
-  .folded .nav-group + .nav-group {
+  .folded .shell-sidebar .nav-group + .nav-group {
     margin-top: var(--space-2);
     padding-top: var(--space-2);
     border-top: var(--hairline) solid var(--line);

@@ -8,6 +8,7 @@
     "navigation": "Navigation principale",
     "fold": "Replier le menu",
     "unfold": "Déplier le menu",
+    "menuTitle": "Menu",
     "soon": "bientôt",
     "applications_one": "{{count}} application · projet",
     "applications_other": "{{count}} applications · projet",
