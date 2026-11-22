@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
-import type { LaunchRequest, RepositoryTest, TestExecution, TestVersion } from "@open-qa-stack/domain/sessions";
+import type { LaunchRequest, RepositoryTest, TestEdit, TestExecution, TestVersion } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../api/polled-state.ts";
 import { resultHref } from "../executions/executions-paths.ts";
 import { versionText } from "../executions/execution-text.ts";
 import { VerdictBadge } from "../executions/verdicts.tsx";
 import { dateText, durationText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
-import { hrefTo } from "../routing/route.ts";
+import { hrefTo, withPanel, type Route } from "../routing/route.ts";
 import { Badge } from "../ui/badge.tsx";
 import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
@@ -14,6 +14,10 @@ import { Page } from "../ui/page.tsx";
 import { TESTS_PATH } from "./tests-paths.ts";
 import { levelText } from "./tests-screen.tsx";
 import { TestRelaunch, type RelaunchState } from "./test-relaunch.tsx";
+import { TestCode } from "./test-code.tsx";
+import { TestSteps } from "./test-steps.tsx";
+import { TestEditPanel } from "./test-edit-panel.tsx";
+import type { TextSaving } from "./test-text-panel.tsx";
 
 /** How many of the latest executions the summary of a test counts. */
 export const HISTORY_SIZE = 10;
@@ -24,12 +28,20 @@ export interface TestScreenProps {
   readonly project: string;
   /** The path of the test, as the address gives it. */
   readonly path: string;
+  /** Where the console is, which tells the panel open: the title, or a step by its number. */
+  readonly route: Route;
   /** What the instance told of the tests of the repository, among which this one. */
   readonly tests: PolledState<readonly RepositoryTest[]>;
   /** What the instance told of the executions of the test, the latest first. */
   readonly executions: PolledState<readonly TestExecution[]>;
   /** What the instance told of the versions of the test, the latest first. */
   readonly versions: PolledState<readonly TestVersion[]>;
+  /** What the instance told of the text of the file of the test. */
+  readonly source: PolledState<string>;
+  /** Where the saving of a change to the test stands. */
+  readonly saving: TextSaving;
+  /** Changes the test: its own title, or the text of one of its steps. */
+  readonly onChange: (test: RepositoryTest, edit: TestEdit) => void;
   /** Where its relaunch stands; none offers it. */
   readonly relaunch?: RelaunchState;
   /** Runs it again, against the environment chosen, if any. */
@@ -80,23 +92,6 @@ function Summary({ path, executions }: { readonly path: string; readonly executi
           {t("test.lastResult")} →
         </a>
       </div>
-    </Card>
-  );
-}
-
-/** The steps of the test as its file writes them, without what came of them. */
-function Description({ test }: { readonly test: RepositoryTest }): ReactNode {
-  return (
-    <Card title={t("test.description")} hint={t("test.written", { count: test.steps.length })}>
-      {test.steps.length === 0 ? (
-        <p className="test-compare small muted">{t("test.noWrittenStep")}</p>
-      ) : (
-        <ul className="test-written">
-          {test.steps.map((step, rank) => (
-            <li key={rank}>{step}</li>
-          ))}
-        </ul>
-      )}
     </Card>
   );
 }
@@ -155,14 +150,14 @@ function Versions({ title, versions }: { readonly title: string; readonly versio
 }
 
 /**
- * The card of a test: what it is — its title, its path, what its tags say, its steps as written, its versions — and
- * what came of it lately — its latest verdict, how many of its latest executions passed, and each of them, at the
- * version it ran, leading to what came of it there.
+ * The card of a test: what it is — its title, its path, what its tags say, its steps as written, its code, its versions
+ * — and what came of it lately — its latest verdict, how many of its latest executions passed, and each of them, at the
+ * version it ran, leading to what came of it there. Its title and the text of each of its steps are changed in a panel.
  *
- * @param props - The name of the project, the path of the test, and what the instance told.
+ * @param props - The name of the project, the path of the test, the route, what the instance told, and what changes the test.
  * @returns The screen.
  */
-export function TestScreen({ project, path, tests, executions, versions, relaunch, onRelaunch }: TestScreenProps): ReactNode {
+export function TestScreen({ project, path, route, tests, executions, versions, source, saving, onChange, relaunch, onRelaunch }: TestScreenProps): ReactNode {
   const test = tests.value?.find((candidate) => candidate.path === path);
   const title = test?.title ?? path;
   const ran = executions.value;
@@ -172,7 +167,14 @@ export function TestScreen({ project, path, tests, executions, versions, relaunc
       title={title}
       {...(relaunch === undefined || onRelaunch === undefined ? {} : { actions: <TestRelaunch state={relaunch} onLaunch={onRelaunch} /> })}
     >
-      <p className="small muted mono">{path}</p>
+      <div className="row test-head">
+        <p className="grow small muted mono">{path}</p>
+        {test !== undefined && (
+          <a className="btn sm" href={withPanel(route, "title")}>
+            {t("test.editTitle")}
+          </a>
+        )}
+      </div>
       {test !== undefined && <Tags test={test} />}
       {tests.value === undefined || ran === undefined ? (
         <EmptyState title={t("test.reading")}>
@@ -184,11 +186,15 @@ export function TestScreen({ project, path, tests, executions, versions, relaunc
           {test === undefined && <EmptyState title={t("test.unknown")}>{t("test.unknownNote")}</EmptyState>}
           <div className="test-reading">
             <div className="test-column">
-              {test !== undefined && <Description test={test} />}
+              {test !== undefined && <TestSteps test={test} editHref={(number) => withPanel(route, `step:${number}`)} />}
               <Versions title={title} versions={versions.value ?? []} />
             </div>
-            <History path={path} title={title} executions={ran} />
+            <div className="test-column">
+              <History path={path} title={title} executions={ran} />
+              {test !== undefined && <TestCode source={source} />}
+            </div>
           </div>
+          {test !== undefined && <TestEditPanel test={test} route={route} tests={tests.value} saving={saving} onChange={onChange} />}
         </>
       )}
     </Page>

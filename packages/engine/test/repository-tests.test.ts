@@ -6,6 +6,7 @@ import { describe, it } from "vitest";
 import type { OqasConfig } from "@open-qa-stack/domain";
 import { RepositoryTests } from "../src/index.ts";
 import { MemoryConfigurationStore } from "./support/memory-configuration-store.ts";
+import { MemoryTestStore } from "./support/memory-test-store.ts";
 
 /** A configuration whose applications are in the folder `suites`. */
 const DOCUMENT = {
@@ -27,7 +28,7 @@ describe("the tests of the test repository", () => {
   it("are read under the folder of the applications of the configuration in force, with what their tags say of them", async () => {
     const configuration = new MemoryConfigurationStore();
     await configuration.record({ origin: "file", fileDigest: "a1", document: DOCUMENT }, 0);
-    assert.deepEqual(await new RepositoryTests(repository(), configuration).list(), [
+    assert.deepEqual(await new RepositoryTests(repository(), configuration, new MemoryTestStore()).list(), [
       { path: "suites/shop/home.spec.ts", title: "The home page answers", steps: [], tags: ["@app-shop", "@slow"], applications: ["shop"] },
     ]);
   });
@@ -40,16 +41,16 @@ describe("the tests of the test repository", () => {
     mkdirSync(join(root, "apps", "shop"), { recursive: true });
     writeFileSync(join(root, "apps", "shop", "orders.spec.ts"), 'test("Orders", async () => {});\n');
     assert.deepEqual(
-      (await new RepositoryTests(root, configuration).list()).map((test) => test.path),
+      (await new RepositoryTests(root, configuration, new MemoryTestStore()).list()).map((test) => test.path),
       ["apps/shop/orders.spec.ts"],
     );
   });
 
   it("are none without a test repository, or before a revision of the configuration is in force", async () => {
     const configuration = new MemoryConfigurationStore();
-    assert.deepEqual(await new RepositoryTests(repository(), configuration).list(), []);
+    assert.deepEqual(await new RepositoryTests(repository(), configuration, new MemoryTestStore()).list(), []);
     await configuration.record({ origin: "file", fileDigest: "a1", document: DOCUMENT }, 0);
-    assert.deepEqual(await new RepositoryTests(undefined, configuration).list(), []);
+    assert.deepEqual(await new RepositoryTests(undefined, configuration, new MemoryTestStore()).list(), []);
   });
 
   it("are listed one per test, by its titles as the runner reports them, with what keeps a file from being listed as it is", async () => {
@@ -71,7 +72,7 @@ describe("the tests of the test repository", () => {
     );
     writeFileSync(join(shop, "broken.spec.ts"), 'test("Broken", async () => {\n');
     writeFileSync(join(shop, "looped.spec.ts"), 'for (const name of ["a", "b"]) test(`Open ${name}`, async () => {});\n');
-    const listed = await new RepositoryTests(root, configuration).listed();
+    const listed = await new RepositoryTests(root, configuration, new MemoryTestStore()).listed();
     assert.deepEqual(
       listed.items.map(({ path, title, steps, tags }) => [path.replace("suites/shop/", ""), title, steps, tags]),
       [
@@ -86,5 +87,33 @@ describe("the tests of the test repository", () => {
       { kind: "unreadable", path: "suites/shop/broken.spec.ts" },
       { kind: "duplicate", path: "suites/shop/orders.spec.ts", title: "Orders › Find an order" },
     ]);
+  });
+
+  it("keep each test that bears an identifier under it, but an identifier two tests bear", async () => {
+    const configuration = new MemoryConfigurationStore();
+    await configuration.record({ origin: "file", fileDigest: "a1", document: DOCUMENT }, 0);
+    const root = repository();
+    const one = "3f0c2b9e-8d4a-4f1e-9b7a-2c5d6e7f8a90";
+    const copied = "0b1c2d3e-4f50-4617-8899-aabbccddeeff";
+    writeFileSync(
+      join(root, "suites", "shop", "orders.spec.ts"),
+      [
+        `test("List the orders", { tag: ["@app-shop", "@oqas-id-${one}"] }, async () => {});`,
+        `test("Find an order", { tag: "@oqas-id-${copied}" }, async () => {});`,
+        `test("Find an order again", { tag: "@oqas-id-${copied}" }, async () => {});`,
+      ].join("\n"),
+    );
+    const identities = new MemoryTestStore();
+    const listed = await new RepositoryTests(root, configuration, identities).list();
+    assert.deepEqual(
+      listed.map(({ title, id }) => [title, id]),
+      [
+        ["The home page answers", undefined],
+        ["List the orders", one],
+        ["Find an order", copied],
+        ["Find an order again", copied],
+      ],
+    );
+    assert.deepEqual(identities.told, [[{ id: one, path: "suites/shop/orders.spec.ts", title: "List the orders" }]]);
   });
 });

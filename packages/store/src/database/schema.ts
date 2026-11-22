@@ -180,6 +180,16 @@ export interface TestVersionsTable {
 }
 
 /**
+ * The tests the instance knows by their identifier, the UUID of their tag `@oqas-id-…`, each with the path of its file
+ * and its titles as the repository last told them: its versions and its results are kept under that place.
+ */
+export interface TestsTable {
+  id: string;
+  path: string;
+  title: string;
+}
+
+/**
  * The memories of the agents, each under its identifier, filed under a domain and a kind.
  *
  * @remarks
@@ -218,5 +228,6 @@ export interface StoreSchema {
   executions: ExecutionsTable;
   execution_results: ExecutionResultsTable;
   test_versions: TestVersionsTable;
+  tests: TestsTable;
   memories: MemoriesTable;
 }

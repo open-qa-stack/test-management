@@ -6,6 +6,8 @@ export interface RepositoryTest {
   readonly title: string;
   /** The titles of its steps, in order. */
   readonly steps: readonly string[];
+  /** Its identifier, by its tag `@oqas-id-…`, which stays with it when its title or its file change; none for a test never given one. */
+  readonly id?: string;
   /** Its tags, as the file gives them, such as `@level-functional`. */
   readonly tags: readonly string[];
   /** The applications it acts on, by their tags `@app-…`: several for a test that crosses them. */

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, afterEach, before, beforeEach, describe, it } from "node:test";
@@ -8,7 +9,7 @@ import { ExecutionStore } from "@open-qa-stack/store";
 import { SessionDatabase, type DatabaseEngine } from "@open-qa-stack/store/testing";
 import { fixtureConfig } from "@open-qa-stack/testing/fixture-repository";
 import { sessionsApi, type TestApi } from "../support/sessions-api.ts";
-import type { Problem, RepositoryTestList, TestExecutionList, TestVersionList, TestReading } from "@open-qa-stack/domain/sessions";
+import type { Problem, RepositoryTest, RepositoryTestList, TestExecutionList, TestSource, TestVersionList, TestReading } from "@open-qa-stack/domain/sessions";
 
 /** A test of the shop as a design writes it: a title, tags, and two steps. */
 const SEARCH = [
@@ -199,6 +200,69 @@ export function testsApiSuite(engine: DatabaseEngine): void {
         const unnamed = await fetch(`${api.url}/tests/${route}`);
         assert.deepEqual([route, unnamed.status, ((await unnamed.json()) as Problem).code], [route, 400, "invalid_request"]);
       }
+    });
+
+    it("give the code of a test, change its title and its steps in its file, and keep its history under its identifier", async () => {
+      const path = "apps/shop/tests/orders/search/search-orders.spec.ts";
+      const title = "Search an order by its number";
+      const git = (...args: string[]) => execFileSync("git", args, { cwd: repository, encoding: "utf8" });
+      git("init", "-q", "-b", "main");
+      git("-c", "user.name=Tester", "-c", "user.email=tester@example.com", "commit", "-q", "--allow-empty", "-m", "test: start");
+      git("config", "user.name", "Tester");
+      git("config", "user.email", "tester@example.com");
+      // A file not committed yet cannot be committed alone.
+      const uncommitted = await fetch(`${api.url}/tests`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ path, title, change: { title: "Find an order by its number" } }),
+      });
+      assert.deepEqual(
+        [uncommitted.status, ((await uncommitted.json()) as Problem).detail],
+        [422, `${path} has changes that are not committed: commit them or drop them first.`],
+      );
+      git("add", "-A");
+      git("commit", "-q", "-m", "test: add the search");
+      const source = await fetch(`${api.url}/tests/source?path=${encodeURIComponent(path)}`);
+      assert.deepEqual([source.status, source.headers.get("cache-control"), (await source.json()) as TestSource], [200, "no-store", { path, content: SEARCH }]);
+      await new ExecutionStore(database.database).add({
+        id: "e1",
+        origin: "design",
+        ranAt: "2026-11-19T08:00:00.000Z",
+        report: ".oqas/runs/run-2026-11-19T08-00-00-000Z/report.json",
+        results: [{ path, title, project: "shop", verdict: "passed", durationMs: 20, testDigest: "d1" }],
+      });
+      const change = (body: unknown) =>
+        fetch(`${api.url}/tests`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+      const renamed = await change({ path, title, change: { title: "Find an order by its number" } });
+      const test = (await renamed.json()) as RepositoryTest;
+      assert.deepEqual([renamed.status, test.title, test.steps], [200, "Find an order by its number", ["1. Open the orders", "2. Search ORD-1042"]]);
+      assert.match(test.id!, /^[0-9a-f-]{36}$/);
+      assert.ok(readFileSync(join(repository, path), "utf8").includes(`"@data-read", "@oqas-id-${test.id}"] }`));
+      assert.equal(git("log", "-1", "--format=%s").trim(), 'test: rename "Search an order by its number" to "Find an order by its number"');
+      // The versions and the results of the test follow it under its new title.
+      const versions = (await (await fetch(`${api.url}/tests/versions?path=${encodeURIComponent(path)}`)).json()) as TestVersionList;
+      const executions = (await (await fetch(`${api.url}/tests/executions?path=${encodeURIComponent(path)}`)).json()) as TestExecutionList;
+      assert.deepEqual([versions.items.map((version) => version.title), executions.items.map(({ result }) => result.title)], [[test.title], [test.title]]);
+      const stepped = (await (await change({ path, title: test.title, change: { step: 2, text: "Search the order ORD-1042" } })).json()) as RepositoryTest;
+      assert.deepEqual([stepped.id, stepped.steps[1]], [test.id, "2. Search the order ORD-1042"]);
+      const refusals: [unknown, number, string][] = [
+        [{ path, title: "Close an order", change: { title: "B" } }, 404, "unknown_test"],
+        [{ path, title: test.title, change: { step: 3, text: "Close" } }, 422, "test_change_refused"],
+        [{ path, title: test.title, change: { title: "" } }, 422, "test_change_refused"],
+        [{ path, title: test.title, change: { step: 0, text: "Close" } }, 400, "invalid_request"],
+        [{ path, title: test.title, change: { title: "B", step: 1 } }, 400, "invalid_request"],
+        [{ path, title: test.title }, 400, "invalid_request"],
+        [{ path }, 400, "invalid_request"],
+        [[], 400, "invalid_request"],
+      ];
+      for (const [body, status, code] of refusals) {
+        const answer = await change(body);
+        assert.deepEqual([JSON.stringify(body), answer.status, ((await answer.json()) as Problem).code], [JSON.stringify(body), status, code]);
+      }
+      const unknown = await fetch(`${api.url}/tests/source?path=${encodeURIComponent("apps/shop/tests/orders/search/orders.page.ts")}`);
+      assert.deepEqual([unknown.status, ((await unknown.json()) as Problem).code], [404, "unknown_test"]);
+      const unnamed = await fetch(`${api.url}/tests/source`);
+      assert.deepEqual([unnamed.status, ((await unnamed.json()) as Problem).code], [400, "invalid_request"]);
     });
   });
 }

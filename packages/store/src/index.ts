@@ -14,4 +14,5 @@ export { PendingMigrationsError } from "./instance/pending-migrations-error.ts";
 export { runMigrations } from "./database/run-migrations.ts";
 export { SchemaMigrations } from "./database/schema-migrations.ts";
 export { SessionStore } from "./sessions/session-store.ts";
+export { TestStore } from "./tests/test-store.ts";
 export type { StoreLogger } from "./store-logger.ts";

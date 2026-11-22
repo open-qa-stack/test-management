@@ -1,4 +1,4 @@
-import type { PlannedScenario } from "@open-qa-stack/domain";
+import { testIdOf, testIdTag, TEST_ID_TAG, type PlannedScenario } from "@open-qa-stack/domain";
 
 /** The option of a test that holds its tags, as the harness writes it after the title. */
 const TAGS = /(\btest\s*\(\s*(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)\s*,\s*)(?:\{\s*tag:\s*\[[^\]]*\]\s*(?:,\s*)?\}\s*,\s*)?/;
@@ -27,15 +27,26 @@ export function scenarioTags(scenario: TaggedScenario): string[] {
 }
 
 /**
- * The text of a test with the tags of its scenario: the harness writes them, never the agent, so that a test
- * the agent rewrote keeps those of its plan.
+ * The text of a test with the tags of its scenario and its identifier: the harness writes them, never the agent, so
+ * that a test the agent rewrote keeps those of its plan, and the identifier the instance keeps its history under.
  *
  * @param content - The text of a test file.
  * @param scenario - The scenario the test is of.
- * @returns The text, the first test of which bears the tags of the scenario in place of any it had.
+ * @param id - The identifier of the test, a UUID, written as its tag `@oqas-id-<id>`.
+ * @returns The text, the first test of which bears the tags of the scenario and its identifier in place of any it had.
  */
-export function withTags(content: string, scenario: TaggedScenario): string {
-  return content.replace(TAGS, (_whole, opening: string) => `${opening}{ tag: ${JSON.stringify(scenarioTags(scenario))} }, `);
+export function withTags(content: string, scenario: TaggedScenario, id: string): string {
+  return content.replace(TAGS, (_whole, opening: string) => `${opening}{ tag: ${JSON.stringify([...scenarioTags(scenario), testIdTag(id)])} }, `);
+}
+
+/**
+ * The identifier the text of a test bears, as the harness wrote it: that of a test a scenario repairs, which keeps it.
+ *
+ * @param content - The text of a test file.
+ * @returns The UUID of its first tag `@oqas-id-…`; `undefined` when it bears none.
+ */
+export function borneId(content: string): string | undefined {
+  return testIdOf([...content.matchAll(new RegExp(`${TEST_ID_TAG}[0-9a-f-]+`, "g"))].map(([tag]) => tag));
 }
 
 /**

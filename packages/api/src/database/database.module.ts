@@ -10,6 +10,7 @@ import {
   MemoryStore,
   SchemaMigrations,
   SessionStore,
+  TestStore,
 } from "@open-qa-stack/store";
 import { ApiConfiguration } from "../config/api-configuration.ts";
 import { SchemaCheck } from "./schema-check.ts";
@@ -17,7 +18,7 @@ import { SchemaCheck } from "./schema-check.ts";
 /**
  * Provides the database of the instance as the store assembles it for every process that reaches it, and
  * each of its parts to whoever needs one — the connection, the migrations, their status, the stores of the
- * sessions, of the configuration, of the documents of the knowledge sources, of the executions of tests, of the campaigns and of the memories of the agents; checks its schema at startup, and closes its connections when the instance stops.
+ * sessions, of the configuration, of the documents of the knowledge sources, of the executions of tests, of the campaigns, of the memories of the agents and of the tests under their identifiers; checks its schema at startup, and closes its connections when the instance stops.
  */
 @Module({
   providers: [
@@ -35,6 +36,7 @@ import { SchemaCheck } from "./schema-check.ts";
     { provide: ExecutionStore, useFactory: (instance: InstanceDatabase) => instance.executions, inject: [InstanceDatabase] },
     { provide: CampaignStore, useFactory: (instance: InstanceDatabase) => instance.campaigns, inject: [InstanceDatabase] },
     { provide: MemoryStore, useFactory: (instance: InstanceDatabase) => instance.memory, inject: [InstanceDatabase] },
+    { provide: TestStore, useFactory: (instance: InstanceDatabase) => instance.tests, inject: [InstanceDatabase] },
     SchemaCheck,
   ],
   exports: [
@@ -48,6 +50,7 @@ import { SchemaCheck } from "./schema-check.ts";
     ExecutionStore,
     CampaignStore,
     MemoryStore,
+    TestStore,
   ],
 })
 export class DatabaseModule implements OnApplicationShutdown {

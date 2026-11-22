@@ -15,6 +15,7 @@ export { KnowledgeSources } from "./knowledge/knowledge-sources.ts";
 export { PastRuns } from "./executions/past-runs.ts";
 export { KnowledgeDocuments } from "./documents/knowledge-documents.ts";
 export { RepositoryTests } from "./tests/repository-tests.ts";
+export { TestSources, type TestSourcesHost } from "./tests/test-sources.ts";
 export { TestReadings, type StepCapture } from "./tests/test-readings.ts";
 export type { ConfigurationSource } from "./ports/configuration-source.ts";
 export type { JournalOutput } from "./ports/journal-output.ts";

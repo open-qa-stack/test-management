@@ -24,6 +24,8 @@ const KINDS: Readonly<Record<ProblemCode, ProblemKind>> = {
   invalid_documents: { status: HttpStatus.UNPROCESSABLE_ENTITY, title: "Invalid documents" },
   unknown_capture: { status: HttpStatus.NOT_FOUND, title: "Unknown capture" },
   unknown_trace: { status: HttpStatus.NOT_FOUND, title: "Unknown trace" },
+  unknown_test: { status: HttpStatus.NOT_FOUND, title: "Unknown test" },
+  test_change_refused: { status: HttpStatus.UNPROCESSABLE_ENTITY, title: "Change refused" },
   unknown_execution: { status: HttpStatus.NOT_FOUND, title: "Unknown execution" },
   launch_refused: { status: HttpStatus.CONFLICT, title: "Launch refused" },
   unknown_campaign: { status: HttpStatus.NOT_FOUND, title: "Unknown campaign" },

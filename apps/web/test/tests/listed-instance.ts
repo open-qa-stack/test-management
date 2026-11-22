@@ -5,6 +5,7 @@ import type {
   Execution,
   LaunchState,
   RepositoryTest,
+  TestChange,
   TestExecution,
   TestReading,
   TestVersion,
@@ -13,7 +14,7 @@ import type { Api } from "../built-console.ts";
 import { ConfiguredInstance } from "../configuration/configured-instance.ts";
 import { PROGRESS } from "../campaigns/campaigns-fixture.ts";
 import { EXECUTIONS } from "../executions/executions-fixture.ts";
-import { READING, TESTS } from "./tests-fixture.ts";
+import { DETAIL, READING, SOURCE, TESTS } from "./tests-fixture.ts";
 
 /** A capture, as the instance serves one: what it shows does not matter to the screen. */
 const PIXEL = "";
@@ -48,6 +49,30 @@ export class ListedInstance {
 
   /** Whether the configuration cannot be read. */
   public unconfigured = false;
+
+  /** The changes the console asked of the tests, in order. */
+  public readonly changes: TestChange[] = [];
+
+  /** The code the instance refuses the next change of a test with, once; none to take it. */
+  public changeRefusal: string | undefined;
+
+  /** Answers a change of a test: refused once when the test asks it, otherwise the test as its file would tell it. */
+  #changed(body: string): { status: number; body: string } {
+    const change = JSON.parse(body) as TestChange;
+    const refusal = this.changeRefusal;
+    this.changeRefusal = undefined;
+    if (refusal !== undefined) return { status: 422, body: JSON.stringify({ code: refusal, detail: "No." }) };
+    this.changes.push(change);
+    const at = this.tests.findIndex((test) => test.path === change.path && test.title === change.title);
+    const test = this.tests[at]!;
+    const edit = change.change;
+    const changed: RepositoryTest =
+      "title" in edit
+        ? { ...test, title: edit.title }
+        : { ...test, steps: test.steps.map((step, rank) => (rank === edit.step - 1 ? `${edit.step}. ${edit.text}` : step)) };
+    this.tests = this.tests.with(at, changed);
+    return { status: 200, body: JSON.stringify(changed) };
+  }
 
   /** Answers a change of a campaign: refused once when the test asks it, otherwise the campaign as the change leaves it. */
   #change(id: string, change: (campaign: Campaign) => Campaign): { status: number; body: string } {
@@ -127,7 +152,9 @@ export class ListedInstance {
     const campaigns = this.#campaignsApi(request.path, request.method, request.body);
     if (campaigns !== undefined) return campaigns;
     if (request.path === "/api/configuration" && this.unconfigured) return { status: 503, body: JSON.stringify({ code: "unavailable" }) };
+    if (request.path === "/api/tests" && request.method === "PATCH") return this.#changed(request.body!);
     if (request.path === "/api/tests") return { status: 200, body: JSON.stringify({ items: this.tests }) };
+    if (request.path === "/api/tests/source") return { status: 200, body: JSON.stringify({ path: DETAIL.path, content: SOURCE }) };
     if (request.path === "/api/tests/reading") return { status: 200, body: JSON.stringify(this.reading) };
     if (request.path === "/api/executions")
       return {

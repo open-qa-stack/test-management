@@ -92,6 +92,7 @@ export default defineConfig({
         "**/src/knowledge/knowledge-page.tsx",
         "**/src/tests/tests-page.tsx",
         "**/src/tests/test-page.tsx",
+        "**/src/tests/test-text-panel.tsx",
         "**/src/executions/executions-page.tsx",
         "**/src/executions/execution-page.tsx",
         "**/src/executions/result-page.tsx",

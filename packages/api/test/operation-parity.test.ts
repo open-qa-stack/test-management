@@ -8,7 +8,7 @@ import { fixtureConfig } from "@open-qa-stack/testing/fixture-repository";
 import { sessionsApi, type TestApi } from "./support/sessions-api.ts";
 
 /** How the API offers an operation: the route that calls it, or why it offers none. */
-type Offer = `${"GET" | "POST" | "PUT" | "DELETE"} /${string}` | { readonly none: string };
+type Offer = `${"GET" | "POST" | "PUT" | "PATCH" | "DELETE"} /${string}` | { readonly none: string };
 
 /**
  * How the API — and the console through it — offers each operation of the engine. Typed on the operations, it does not
@@ -49,6 +49,8 @@ const ROUTES: Readonly<Record<OperationId, Offer>> = {
   "TestReadings.read": "GET /tests/reading",
   "TestReadings.trace": "GET /tests/trace",
   "TestReadings.capture": "GET /tests/capture",
+  "TestSources.read": "GET /tests/source",
+  "TestSources.change": "PATCH /tests",
   "Executions.page": "GET /executions",
   "Executions.get": "GET /executions/e",
   "Executions.ofFile": "GET /tests/executions",

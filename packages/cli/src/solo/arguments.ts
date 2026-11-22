@@ -1,4 +1,4 @@
-import type { CampaignLaunchScope, ExecutionOutcome } from "@open-qa-stack/domain";
+import type { CampaignLaunchScope, ExecutionOutcome, TestEdit } from "@open-qa-stack/domain";
 
 /** How a command prints what it tells: lines a person reads, or JSON Lines a program reads. */
 export type Output = "text" | "json";
@@ -56,7 +56,9 @@ export type Command =
   /** List the tests of the test repository, with what keeps some of its files from being listed as they are. */
   | { readonly name: "tests"; readonly action: "list" }
   /** Read a test in steps, as the latest run that ran it reported it; list what came of its file in the latest executions; or the versions of its tests. */
-  | { readonly name: "tests"; readonly action: "read" | "executions" | "versions"; readonly path: string }
+  | { readonly name: "tests"; readonly action: "read" | "executions" | "versions" | "source"; readonly path: string }
+  /** Change a test of the test repository: its own title, or the text of one of its steps. */
+  | { readonly name: "tests"; readonly action: "change"; readonly path: string; readonly title: string; readonly change: TestEdit }
   /** Write the trace the latest run kept of a test to a file. */
   | { readonly name: "tests"; readonly action: "trace"; readonly path: string; readonly file: string }
   /** Write the capture the latest run attached for a step of a test to a file. */
@@ -156,7 +158,9 @@ export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
        oqas [--repository <folder>] knowledge mapping|domains [--output text|json]
        oqas [--repository <folder>] knowledge read|remove <source> <document> [--output text|json]
        oqas [--repository <folder>] tests [--output text|json]
-       oqas [--repository <folder>] tests read|executions|versions <test> [--output text|json]
+       oqas [--repository <folder>] tests read|executions|versions|source <test> [--output text|json]
+       oqas [--repository <folder>] tests rename <test> <title> <new title> [--output text|json]
+       oqas [--repository <folder>] tests step <test> <title> <step> <text> [--output text|json]
        oqas [--repository <folder>] tests trace <test> <file>
        oqas [--repository <folder>] tests capture <test> <step> <file>
        oqas [--repository <folder>] launch [<test>...] [--environment <name>] [--output text|json]
@@ -219,6 +223,14 @@ Commands:
   tests executions <test>
                          List what came of the tests of the file in the latest executions that ran them.
   tests versions <test>  List the versions of the tests of the file, the latest first.
+  tests source <test>    Print the code of the file of the test, as it is now.
+  tests rename <test> <title> <new title>
+                         Change the own title of the test of the file that <title> names, as oqas tests lists it. A
+                         test changed is given its tag @oqas-id-<uuid> if it bears none, and keeps its history. The
+                         file is committed alone on the branch checked out.
+  tests step <test> <title> <step> <text>
+                         Change the text of a step of that test, by its number from 1; the number the harness wrote
+                         before it stays.
   tests trace <test> <file>
                          Write the trace the latest run kept of the test to the file, which npx playwright show-trace opens.
   tests capture <test> <step> <file>
@@ -472,7 +484,7 @@ function knowledgeOf(words: readonly string[], ofASession: boolean): Command | s
 }
 
 /** What `oqas tests` is followed by, with the words each action takes after it. */
-const TEST_ACTIONS = { read: 1, executions: 1, versions: 1, trace: 2, capture: 3 } as const;
+const TEST_ACTIONS = { read: 1, executions: 1, versions: 1, source: 1, trace: 2, capture: 3, rename: 3, step: 4 } as const;
 
 /** A step of a test, numbered from 1. */
 const STEP = /^[1-9][0-9]*$/;
@@ -484,7 +496,14 @@ function testsOf(words: readonly string[], ofASession: boolean): Command | strin
   if (action === undefined) return { name: "tests", action: "list" };
   const known = Object.hasOwn(TEST_ACTIONS, action) ? (action as keyof typeof TEST_ACTIONS) : undefined;
   if (known === undefined || words.length !== TEST_ACTIONS[known] + 1)
-    return "oqas tests takes nothing, read, executions or versions then a test, trace then a test and a file, or capture then a test, a step and a file.";
+    return "oqas tests takes nothing, read, executions, versions or source then a test, trace then a test and a file, capture then a test, a step and a file, rename then a test, its title and its new title, or step then a test, its title, a step and its new text.";
+  if (known === "rename") return { name: "tests", action: "change", path, title: rest[0]!, change: { title: rest[1]! } };
+  if (known === "step") {
+    const [title = "", step = "", text = ""] = rest;
+    return STEP.test(step)
+      ? { name: "tests", action: "change", path, title, change: { step: Number(step), text } }
+      : "oqas tests step needs the number of a step, from 1.";
+  }
   if (known === "trace") return { name: "tests", action: known, path, file: rest[0]! };
   if (known === "capture") {
     const [step = "", file = ""] = rest;

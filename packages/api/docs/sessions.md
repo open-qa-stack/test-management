@@ -323,6 +323,7 @@ content-type: application/problem+json; charset=utf-8
 | `unknown_document_source`, `unknown_document`, `invalid_documents` | `404`, `404`, `422` | `/problems/unknown-document-source`, … | The refusals of [the documents of the knowledge sources](knowledge.md#problems). |
 | `unknown_capture` | `404` | `/problems/unknown-capture` | A capture the run of a test that was read did not attach: see [the tests](tests.md#problems). |
 | `unknown_trace` | `404` | `/problems/unknown-trace` | A trace the run of a test that was read did not keep: see [the tests](tests.md#problems). |
+| `unknown_test`, `test_change_refused` | `404`, `422` | `/problems/unknown-test`, … | A test the repository does not hold, and a change to a test that cannot be written: see [the tests](tests.md#problems). |
 | `unknown_execution` | `404` | `/problems/unknown-execution` | An execution the instance does not keep: see [the executions](executions.md#problems). |
 | `launch_refused` | `409` | `/problems/launch-refused` | Tests that cannot be launched now: see [launching tests](executions.md#launching-tests). |
 | `unknown_campaign`, `campaign_refused` | `404`, `409` | `/problems/unknown-campaign`, … | The refusals of [the campaigns](campaigns.md#problems). |

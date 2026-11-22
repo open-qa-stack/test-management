@@ -3,7 +3,7 @@ import { describe, it } from "vitest";
 import * as store from "../src/index.ts";
 
 describe("the package", () => {
-  it("gives the connection, the migrations, the stores of the sessions, of the configuration, of the documents, of the executions, of the campaigns and of the memories, and the database of an instance assembled from them, and nothing of its tables", () => {
+  it("gives the connection, the migrations, the stores of the sessions, of the configuration, of the documents, of the executions, of the campaigns, of the memories and of the tests, and the database of an instance assembled from them, and nothing of its tables", () => {
     assert.deepEqual(Object.keys(store).sort(), [
       "CampaignStore",
       "ConfigurationStore",
@@ -19,6 +19,7 @@ describe("the package", () => {
       "PendingMigrationsError",
       "SchemaMigrations",
       "SessionStore",
+      "TestStore",
       "instanceDatabaseUrl",
       "runMigrations",
     ]);

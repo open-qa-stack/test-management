@@ -13,6 +13,8 @@ import {
   StaleRevisionError,
   UnknownCaptureError,
   UnknownTraceError,
+  UnknownTestError,
+  TestChangeRefusedError,
   UnknownDocumentError,
   UnknownDocumentSourceError,
   UnknownExecutionError,
@@ -55,6 +57,9 @@ const NO_CAPTURE = "Read the test again with GET /tests/reading: each of its ste
 const NO_TRACE =
   "Read the test again with GET /tests/reading, which says whether that run kept one; a run keeps the trace of a test as its configuration of Playwright asks.";
 
+/** What a client is told of a test the test repository does not hold. */
+const NO_TEST = "List the tests of the repository with GET /tests: a test is named by its path and its titles as it gives them.";
+
 /** What a client is told of a campaign the instance does not keep. */
 const NO_CAMPAIGN = "List the campaigns it keeps with GET /campaigns.";
 
@@ -77,7 +82,7 @@ function refusalOf(status: number, detail: string): Problem {
  * the operations on sessions — a session that does not exist, one that ended, one that goes on and is resumed,
  * no test repository to run one in — and on the configuration — a stale revision, a file that changed too, a
  * configuration that is not valid, none at all — and on documents — a source that takes none, a document it does
- * not hold, an upload that is refused — and on the tests — a capture their run did not attach — and on the executions
+ * not hold, an upload that is refused — and on the tests — a capture their run did not attach, a test the repository does not hold, a change that cannot be written — and on the executions
  * — one the instance does not keep, tests that cannot be launched now — and on the campaigns — one the instance does
  * not keep, a change its state does not allow — and on the values of the variables — a variable the configuration does
  * not name, a value refused — a database that cannot be reached, those the framework raises for a request it refuses — an unknown
@@ -104,6 +109,8 @@ export function expectedProblem(error: unknown): Problem | undefined {
   if (error instanceof InvalidDocumentsError) return { ...problemOf("invalid_documents", `${error.message} ${INVALID_DOCUMENTS}`), errors: error.errors };
   if (error instanceof UnknownCaptureError) return problemOf("unknown_capture", `${error.message} ${NO_CAPTURE}`);
   if (error instanceof UnknownTraceError) return problemOf("unknown_trace", `${error.message} ${NO_TRACE}`);
+  if (error instanceof UnknownTestError) return problemOf("unknown_test", `${error.message} ${NO_TEST}`);
+  if (error instanceof TestChangeRefusedError) return problemOf("test_change_refused", error.message);
   if (error instanceof UnknownExecutionError) return problemOf("unknown_execution", `${error.message} ${NO_EXECUTION}`);
   if (error instanceof LaunchRefusedError) return problemOf("launch_refused", error.message);
   if (error instanceof UnknownCampaignError) return problemOf("unknown_campaign", `${error.message} ${NO_CAMPAIGN}`);

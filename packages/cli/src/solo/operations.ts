@@ -18,6 +18,7 @@ import {
   Sessions,
   START_ADVICE,
   TestReadings,
+  TestSources,
   type Environment,
   type EnvironmentSource,
   type SessionsHost,
@@ -43,6 +44,8 @@ export interface Operations {
   readonly tests: RepositoryTests;
   /** The tests of the test repository read in steps, from the runs that ran them. */
   readonly readings: TestReadings;
+  /** The source of the tests of the test repository, read and changed. */
+  readonly code: TestSources;
   /** The executions of tests the instance keeps. */
   readonly executions: Executions;
   /** The campaigns of tests of the instance. */
@@ -118,7 +121,7 @@ export async function openOperations(
     await instance.close();
     throw error;
   }
-  const tests = new RepositoryTests(repository, instance.configuration);
+  const tests = new RepositoryTests(repository, instance.configuration, instance.tests);
   return {
     sessions,
     configuration,
@@ -131,6 +134,7 @@ export async function openOperations(
     mapping: new KnowledgeMapping(repository, configuration, instance.sessions),
     tests,
     readings: new TestReadings(repository, instance.configuration, instance.executions),
+    code: new TestSources({ repository, configuration: instance.configuration, tests, identities: instance.tests }),
     executions: new Executions(instance.executions),
     close,
   };
