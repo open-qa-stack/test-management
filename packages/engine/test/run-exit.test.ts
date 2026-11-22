@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, it } from "vitest";
 import { answer, closedPort, KeptMemories } from "@open-qa-stack/testing";
 import { liveRuntime, Run } from "../src/index.ts";
-import { MODEL, workspace, configText, chain, hostOf, plugged, ran, repository, stateOf, journalOf, untracked } from "./run-support.ts";
+import { MODEL, workspace, configText, chain, plugged, ran, repository, stateOf, journalOf, untracked } from "./run-support.ts";
 
 describe("solo command, criterion 1 — without a configuration, the command stops with 3 and touches nothing", () => {
   it("calls no model, runs nothing, and creates no file", async () => {
@@ -22,27 +22,6 @@ describe("solo command, criterion 2 — an invalid configuration, or an environm
     assert.match(run.err, /\/autonomy\/level/);
     assert.match(run.err, /oqas\.json is not a valid configuration: correct it\./);
     assert.deepEqual([run.server.requests.length, untracked(run.root)], [0, ""]);
-  });
-
-  it("tells the ways out of a file that changed and is not valid: correct it, or write the revision in force over it", async () => {
-    const root = repository(configText("http://127.0.0.1:9/v1"));
-    await hostOf(root).configuration.synchronise();
-    writeFileSync(join(root, "oqas.json"), "{");
-    const host = plugged(root);
-    const code = await new Run({
-      memory: new KeptMemories(),
-      repositoryRoot: root,
-      environment: "local",
-      env: {},
-      ...host.ports,
-      openRuntime: (config) => liveRuntime(config, {}),
-    }).run();
-    assert.equal(code, 3);
-    assert.match(host.err, /\[configuration\] error: \/: The file is not valid JSON\./);
-    assert.match(
-      host.err,
-      /oqas\.json changed and is not a valid configuration: correct it, or write the revision 1 in force over it, from the console or with oqas config export\./,
-    );
   });
 
   it("names the variable of the environment the configuration in force names and the machine does not set", async () => {
@@ -63,7 +42,7 @@ describe("solo command, criterion 2 — an invalid configuration, or an environm
   it("stops on what the source of the configuration raises when it is no refusal of the configuration", async () => {
     const root = repository(configText("http://127.0.0.1:9/v1"));
     const host = plugged(root);
-    const configuration = { synchronise: () => Promise.reject(new Error("The database is unreachable.")) };
+    const configuration = { current: () => Promise.reject(new Error("The database is unreachable.")) };
     const run = new Run({
       memory: new KeptMemories(),
       repositoryRoot: root,

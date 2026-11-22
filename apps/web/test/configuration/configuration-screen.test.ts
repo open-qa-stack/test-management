@@ -13,8 +13,8 @@ const CONTROLS: ConfigurationControls = {
   click: () => assert.fail("nothing is pressed"),
   save: () => assert.fail("nothing is saved"),
   discard: () => assert.fail("nothing is dropped"),
-  keepFile: () => assert.fail("no file is taken"),
-  keepChange: () => assert.fail("no change is kept"),
+  takeFile: () => assert.fail("no file is taken"),
+  writeFile: () => assert.fail("no file is written"),
   testModel: () => assert.fail("no connection is tested"),
   checkSource: () => assert.fail("no source is tested"),
   setUp: () => assert.fail("nothing is set up"),
@@ -61,7 +61,7 @@ describe("the screen of the configuration", () => {
     const html = screen(none);
     assert.match(
       textOf(html),
-      /oqas\.json a changé depuis la révision en vigueur .* Prendre oqas\.json L’instance n’a pas encore de configuration Écrivez oqas\.json/,
+      /L’instance n’a pas encore de configuration Écrivez oqas\.json à la racine du dépôt de tests : la console le reprend\. Prendre oqas\.json$/,
     );
   });
 
@@ -229,7 +229,7 @@ describe("the screen of the configuration", () => {
     assert.match(screen(valued), /<p class="config-note ok" role="status">Les valeurs tapées sont enregistrées sur cet ordinateur\.<\/p>/);
     assert.match(
       textOf(screen(configurationAfter(valued, { type: "saved", view: VIEW }))),
-      /Révision 2 enregistrée : oqas\.json est réécrit, et la prochaine session la lit\. Les valeurs tapées sont enregistrées sur cet ordinateur\./,
+      /Révision 2 enregistrée : elle est en vigueur, et la prochaine session la lit\. Les valeurs tapées sont enregistrées sur cet ordinateur\./,
     );
   });
 
@@ -258,19 +258,17 @@ describe("the screen of the configuration", () => {
     assert.ok(bears(screen(choice), "/model/mode", "select", 'aria-invalid="true"', 'aria-describedby="config-model-mode-errors"'));
   });
 
-  it("says when the file changed, or cannot be read, and that a change was saved", () => {
-    const changed = configurationAfter(stateAfter([]), { type: "read", view: { ...VIEW, file: "changed" }, revisions: REVISIONS });
+  it("tells beside the history how the file stands to the revision in force, with what writes or takes it, and that a change was saved", () => {
+    const fileCard = (file: "in_step" | "changed" | "missing") =>
+      textOf(screen(configurationAfter(stateAfter([]), { type: "read", view: { ...VIEW, file }, revisions: REVISIONS })));
+    assert.match(fileCard("in_step"), /Fichier oqas\.json · une copie gardée avec les tests oqas\.json contient la révision en vigueur\. JSON/);
     assert.match(
-      textOf(screen(changed)),
-      /oqas\.json a changé depuis la révision en vigueur Il sera pris au démarrage de la prochaine session, ou maintenant\. Prendre oqas\.json/,
+      fileCard("changed"),
+      /oqas\.json diffère de la révision en vigueur : écrivez-y la révision en vigueur, ou prenez-le à la place\. Écrire oqas\.json Prendre oqas\.json JSON ·/,
     );
-    const missing = configurationAfter(stateAfter([]), { type: "read", view: { ...VIEW, file: "missing" }, revisions: REVISIONS });
-    assert.match(textOf(screen(missing)), /oqas\.json est introuvable dans le dépôt de tests : le prochain enregistrement l’écrira\./);
+    assert.match(fileCard("missing"), /Le dépôt de tests n’a pas encore de oqas\.json : .* git\. Écrire oqas\.json JSON ·/);
     const saved = configurationAfter(stateAfter([]), { type: "saved", view: VIEW });
-    assert.match(
-      screen(saved),
-      /<p class="config-note ok" role="status">Révision 2 enregistrée : oqas\.json est réécrit, et la prochaine session la lit\.<\/p>/,
-    );
+    assert.match(screen(saved), /<p class="config-note ok" role="status">Révision 2 enregistrée : elle est en vigueur, et la prochaine session la lit\.<\/p>/);
   });
 
   it("says the project is ready once it was set up, committed or left to commit, and leads to the agent", () => {
@@ -283,14 +281,7 @@ describe("the screen of the configuration", () => {
     assert.match(ready(false), /Le projet est prêt .* enregistrez-les dans git \(commit\) avant la première session\./);
   });
 
-  it("leaves the person the two ways out when the file and the console both changed, and says why any other change was refused", () => {
-    const conflict = stateAfter([
-      { type: "edit", pointer: "/model/model", value: "other" },
-      { type: "refused", code: "configuration_conflict", text: "Conflit.", errors: [] },
-    ]);
-    const html = screen(conflict);
-    assert.match(html, /<section class="config-note warn" role="alert"><b>oqas\.json a changé depuis la dernière synchronisation<\/b>/);
-    assert.match(textOf(html), /Rien n’est fusionné : choisissez ce qui est gardé\. Garder le fichier Garder mes modifications/);
+  it("says why a change was refused", () => {
     const stale = stateAfter([{ type: "refused", code: "stale_revision", text: "La configuration a changé.", errors: [] }]);
     assert.match(screen(stale), /<p class="config-note ko" role="alert">La configuration a changé\.<\/p>/);
   });

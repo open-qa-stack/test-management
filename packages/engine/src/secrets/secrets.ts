@@ -51,7 +51,7 @@ export class Secrets implements EnvironmentSource {
    * @throws When the values kept cannot be read.
    */
   async list(): Promise<SecretState[]> {
-    const revision = await this.#configuration.inStep();
+    const revision = await this.#configuration.inForce();
     if (revision === undefined) return [];
     const saved = await this.#saved();
     return declaredSecrets(revision.document).map((secret) => ({

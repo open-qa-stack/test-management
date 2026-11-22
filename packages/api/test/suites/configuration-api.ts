@@ -64,6 +64,7 @@ export function configurationApiSuite(engine: DatabaseEngine): void {
         ...(body === undefined ? {} : { headers: { "content-type": "application/json" }, body: JSON.stringify(body) }),
       }),
     );
+  const put = async (path: string, on = api) => answerOf(await fetch(`${on.url}/configuration${path}`, { method: "PUT" }));
   const fileText = () => readFileSync(join(repository, "oqas.json"), "utf8");
   const problemCode = (answer: Answer) => `${answer.status} ${(answer.body as Problem).code}`;
 
@@ -109,12 +110,15 @@ export function configurationApiSuite(engine: DatabaseEngine): void {
       assert.equal(((await get("/revisions")).body as RevisionList).items.length, 1);
     });
 
-    it("is changed from the revision in force, which rewrites the file in the order of the schema", async () => {
+    it("is changed from the revision in force, which writes no file: the file then differs from it", async () => {
       const saved = await post("/revisions", { basedOn: 1, document: CHANGED });
       assert.equal(saved.status, 201);
       const { revision, file } = saved.body as ConfigurationView;
-      assert.deepEqual([revision?.number, revision?.origin, revision?.document, file], [2, "console", CHANGED, "in_step"]);
-      assert.equal(fileText(), configurationText(CHANGED));
+      assert.deepEqual([revision?.number, revision?.origin, revision?.document, file], [2, "console", CHANGED, "changed"]);
+      assert.equal(fileText(), TEXT);
+      // The file is written when a person asks for it, in the order of the schema.
+      const written = await put("/file");
+      assert.deepEqual([written.status, (written.body as ConfigurationView).file, fileText()], [200, "in_step", configurationText(CHANGED)]);
       assert.deepEqual(
         ((await get("/revisions")).body as RevisionList).items.map(({ number, origin }) => `${number} ${origin}`),
         ["2 console", "1 file"],
@@ -133,22 +137,17 @@ export function configurationApiSuite(engine: DatabaseEngine): void {
       );
       assert.equal(invalid.type, "application/problem+json; charset=utf-8");
       assert.equal(problemCode(await post("/revisions", { basedOn: 2 })), "400 invalid_request");
-      assert.equal(fileText(), configurationText(CHANGED));
+      assert.equal(problemCode(await post("/revisions", { basedOn: 2, document: CHANGED, replaceFile: true })), "400 invalid_request");
     });
 
-    it("refuses a change when the file changed too, and leaves the two ways out: keep the file, or keep the change over it", async () => {
+    it("reads the file no more once it took it, and takes it again when asked, a file that differs becoming the revision in force", async () => {
       writeFileSync(join(repository, "oqas.json"), JSON.stringify(CHANGED, null, 4));
-      assert.equal(((await get("")).body as ConfigurationView).file, "changed");
-      const conflict = await post("/revisions", { basedOn: 1, document: DOCUMENT });
-      assert.equal(problemCode(conflict), "409 configuration_conflict");
-      assert.match((conflict.body as Problem).detail, /POST \/api\/configuration\/synchronisation .* "replaceFile": true/);
+      const read = (await get("")).body as ConfigurationView;
+      assert.deepEqual([read.revision?.number, read.file], [1, "changed"]);
       const kept = await post("/synchronisation");
       assert.equal(kept.status, 200);
       const taken = kept.body as ConfigurationView;
       assert.deepEqual([taken.revision?.number, taken.revision?.origin, taken.revision?.document, taken.file], [2, "file", CHANGED, "in_step"]);
-      writeFileSync(join(repository, "oqas.json"), "{}");
-      const replaced = await post("/revisions", { basedOn: 2, document: DOCUMENT, replaceFile: true });
-      assert.deepEqual([replaced.status, (replaced.body as ConfigurationView).revision?.number, fileText()], [201, 3, configurationText(DOCUMENT)]);
     });
 
     it("refuses to take a file that is not valid, the revision in force kept", async () => {
@@ -159,15 +158,15 @@ export function configurationApiSuite(engine: DatabaseEngine): void {
       assert.equal(((await get("")).body as ConfigurationView).revision?.number, 1);
     });
 
-    it("is read and changed by none on an API that was given no test repository, which has none of its own before one is saved", async () => {
+    it("is kept by an API that was given no test repository, which has none of its own before one is saved, and takes no file", async () => {
       await api.close();
       await database.clear();
       api = await sessionsApi({ database: database.url });
       assert.deepEqual((await get("")).body, { file: "missing" } satisfies ConfigurationView);
       assert.equal(problemCode(await post("/synchronisation")), "404 no_configuration");
-      const refused = await post("/revisions", { basedOn: 0, document: DOCUMENT });
-      assert.equal(problemCode(refused), "503 unavailable");
-      assert.match((refused.body as Problem).detail, /changes no configuration/);
+      assert.equal(problemCode(await put("/file")), "503 unavailable");
+      const saved = await post("/revisions", { basedOn: 0, document: DOCUMENT });
+      assert.deepEqual([saved.status, (saved.body as ConfigurationView).revision?.number, (saved.body as ConfigurationView).file], [201, 1, "missing"]);
       const repositoryRefused = await answerOf(await fetch(`${api.url}/repository`));
       assert.equal(problemCode(repositoryRefused), "503 unavailable");
     });
@@ -192,6 +191,7 @@ export function configurationApiSuite(engine: DatabaseEngine): void {
       await database.clear();
       api = await sessionsApi({ database: database.url, repository });
       assert.equal(problemCode(await repositoryAt("/preparation", "POST")), "404 no_configuration");
+      assert.equal(problemCode(await put("/file")), "404 no_configuration");
     });
   });
 

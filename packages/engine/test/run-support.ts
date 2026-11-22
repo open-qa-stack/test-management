@@ -88,6 +88,9 @@ export async function ran(
   const root = (setup.root ?? repository)(config);
   const runner = new FakeRunner(root, setup.script);
   const host = plugged(root);
+  // A repository run again was given its file anew: it is taken, as oqas config import takes it.
+  const { configuration } = hostOf(root);
+  if ((await configuration.view()).revision !== undefined) await configuration.synchronise();
   try {
     const code = await new Run({
       memory: new KeptMemories(),

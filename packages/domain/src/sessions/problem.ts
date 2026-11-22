@@ -21,7 +21,6 @@ export type ProblemCode =
   | "not_opened"
   | "opening_timed_out"
   | "stale_revision"
-  | "configuration_conflict"
   | "invalid_configuration"
   | "no_configuration"
   | "unknown_document_source"

@@ -61,11 +61,11 @@ export function ConfigurationPage({ project, onSaved }: { readonly project: stri
     save: (event) => {
       event.preventDefault();
       // The form is drawn once there is a draft; a draft that did not change leaves the values typed alone to save.
-      sync.save(changed ? draft : undefined, basedOn, false, values);
+      sync.save(changed ? draft : undefined, basedOn, values);
     },
     discard: () => dispatch({ type: "discard" }),
-    keepFile: () => sync.keepFile(),
-    keepChange: () => sync.save(draft!, basedOn, true, values),
+    takeFile: () => sync.takeFile(),
+    writeFile: () => sync.writeFile(),
     testModel: () => sync.testModel(draft!.model, typedKey(draft!.model, values)),
     checkSource: ({ currentTarget }) => {
       const rank = Number(currentTarget.dataset["rank"]);

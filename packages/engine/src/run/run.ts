@@ -382,7 +382,7 @@ export class Run {
   ): Promise<{ config: ResolvedConfig; environment: string; rules: ActiveRule[]; stored: string[]; durationMs: number } | ExitCodeValue> {
     const at = now().getTime();
     journal.record("configuration", "started", "The configuration starts.");
-    const revision = await this.options.configuration.synchronise().catch((error: unknown) => refused(journal, error));
+    const revision = await this.options.configuration.current().catch((error: unknown) => refused(journal, error));
     if (revision === undefined) return ExitCode.configuration;
     const result = validateConfig(JSON.stringify(revision.document), this.options.env);
     if (!result.ok) {
@@ -452,11 +452,8 @@ function refused(journal: RunJournal, error: unknown): ConfigurationRevision | u
   }
   if (!(error instanceof InvalidConfigurationError)) throw error;
   for (const found of error.errors) journal.record("configuration", "error", `${found.path || "/"}: ${found.message}`);
-  const way =
-    error.inForce === undefined
-      ? `${CONFIG_FILE_NAME} is not a valid configuration: correct it.`
-      : `${CONFIG_FILE_NAME} changed and is not a valid configuration: correct it, or write the revision ${error.inForce} in force over it, from the console or with oqas config export.`;
-  journal.record("configuration", "error", way);
+  // A run reads the file only on an instance that keeps no revision: there is none in force to write over it.
+  journal.record("configuration", "error", `${CONFIG_FILE_NAME} is not a valid configuration: correct it.`);
   return undefined;
 }
 

@@ -28,7 +28,7 @@ const CONSOLE: Readonly<Record<OperationId, Offer>> = {
   "Configuration.check": { client: "check" },
   "Configuration.synchronise": { client: "synchronise" },
   "Configuration.save": { client: "save" },
-  "Configuration.restore": { none: "each change saved rewrites oqas.json, which is then in step with the revision in force" },
+  "Configuration.restore": { client: "writeFile" },
   "ModelConnection.check": { client: "testModel" },
   "Secrets.list": { client: "secrets" },
   "Secrets.save": { client: "saveSecret" },

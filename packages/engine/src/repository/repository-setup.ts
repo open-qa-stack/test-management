@@ -59,19 +59,21 @@ export class RepositorySetup {
    * force, and makes the folder a git repository, with a commit, when it is none.
    *
    * @returns What it wrote, what it kept, and whether it committed.
-   * @throws What bringing the configuration in step raises: `NoConfigurationError`, `InvalidConfigurationError`.
+   * @throws What reading the configuration in force raises: `NoConfigurationError`, `InvalidConfigurationError`.
    * @throws The error of git when the folder cannot be made a repository or the commit cannot be made.
    * @throws {@link NoRepositoryError} when the host was given no test repository.
    */
   async prepare(): Promise<RepositoryPreparation> {
     // A host without a test repository is refused before anything is read.
     void this.#root;
-    const revision = await this.#configuration.synchronise();
+    const revision = await this.#configuration.current();
     const fresh = (await this.#git()) === "none";
     const { created, kept } = await this.#write(revision.document);
     if (!fresh) return { created, kept, committed: false };
     await this.#run("init", "--quiet");
-    await this.#run("add", "--", CONFIG_FILE_NAME, ...created);
+    // The configuration lives in the instance: its file is committed with the project when a person wrote it.
+    const copy = (await exists(join(this.#root, CONFIG_FILE_NAME))) ? [CONFIG_FILE_NAME] : [];
+    await this.#run("add", "--", ...copy, ...created);
     const known = (await this.#run("config", "user.email").catch(() => "")).trim() !== "";
     await this.#run(...(known ? [] : SETUP_AUTHOR), "commit", "--quiet", "--message", SETUP_COMMIT);
     return { created, kept, committed: true };

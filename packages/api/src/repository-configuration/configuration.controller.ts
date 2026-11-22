@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Header, HttpCode, HttpStatus, Post } from "@nestjs/common";
+import { Body, Controller, Get, Header, HttpCode, HttpStatus, Post, Put } from "@nestjs/common";
 import { Configuration, ModelConnection } from "@open-qa-stack/engine";
 import { ConfigurationBodyPipe } from "./configuration-body.pipe.ts";
 import { ModelBodyPipe, type ModelTest } from "./model-body.pipe.ts";
@@ -43,20 +43,19 @@ export class ConfigurationController {
   }
 
   /**
-   * Saves a change of the configuration, which rewrites the configuration file.
+   * Saves a change of the configuration, as the revision in force: no file is written.
    *
    * @returns The configuration as it is now, answered with `201`; a change that is not valid is answered with
-   * `422`, one made from a revision another replaced since or that would overwrite a file that changed with
-   * `409`, and an API that was given no test repository with `503`.
+   * `422`, and one made from a revision another replaced since with `409`.
    */
   @Post("revisions")
-  async save(@Body(RevisionRequestPipe) { document, basedOn, replaceFile }: RevisionRequest): Promise<ConfigurationView> {
-    await this.#configuration.save(document, basedOn, replaceFile);
+  async save(@Body(RevisionRequestPipe) { document, basedOn }: RevisionRequest): Promise<ConfigurationView> {
+    await this.#configuration.save(document, basedOn);
     return this.#configuration.view();
   }
 
   /**
-   * Brings the revision in force in step with the configuration file: a file that changed becomes the revision in force.
+   * Takes the configuration file as the revision in force, when it differs from it.
    *
    * @returns The configuration as it is now, answered with `200`; a file that is not valid is answered with
    * `422`, and an instance with neither a revision nor a file with `404`.
@@ -65,6 +64,19 @@ export class ConfigurationController {
   @HttpCode(HttpStatus.OK)
   async synchronise(): Promise<ConfigurationView> {
     await this.#configuration.synchronise();
+    return this.#configuration.view();
+  }
+
+  /**
+   * Writes the revision in force to the configuration file of the test repository, in the order the schema declares
+   * its keys, to keep it with the tests in git or give it to the continuous integration.
+   *
+   * @returns The configuration as it is now, answered with `200`; an instance without a revision is answered with
+   * `404`, and an API that was given no test repository with `503`.
+   */
+  @Put("file")
+  async writeFile(): Promise<ConfigurationView> {
+    await this.#configuration.restore();
     return this.#configuration.view();
   }
 

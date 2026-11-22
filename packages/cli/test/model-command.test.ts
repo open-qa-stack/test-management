@@ -51,7 +51,9 @@ function repository(answers: { github?: ModelConnectionCheck; provider?: ModelCo
     });
     return { code, out, err };
   };
-  const model = () => (JSON.parse(readFileSync(join(root, "oqas.json"), "utf8")) as OqasConfig).model;
+  // The model in force, as the instance keeps it: no command rewrites oqas.json.
+  const model = async () =>
+    (JSON.parse((await oqas("config", "show", "--output", "json")).out) as { revision: { document: OqasConfig } }).revision.document.model;
   const saved = () => JSON.parse(readFileSync(join(root, ".oqas", "secrets", "values.json"), "utf8")) as Record<string, string>;
   return { oqas, asked, model, saved };
 }
@@ -93,7 +95,7 @@ describe("oqas model status", () => {
 });
 
 describe("oqas model set", () => {
-  it("sets the GitHub account of the machine, rewrites oqas.json, and tests it", async () => {
+  it("sets the GitHub account of the machine, saves it as the revision in force, and tests it", async () => {
     const { oqas, asked, model } = repository({ github: { state: "connected", account: "octo", models: MODELS } });
     const told = await oqas("model", "set", "--github", "--model", "gpt-5");
     assert.equal(told.code, 0);
@@ -101,10 +103,10 @@ describe("oqas model set", () => {
       told.out,
       /^The GitHub account of this machine \(GitHub Copilot\), model gpt-5\.\nThe model answers, through the GitHub account octo\.\n2 models are offered:/,
     );
-    assert.deepEqual(model(), { mode: "github", model: "gpt-5" });
+    assert.deepEqual(await model(), { mode: "github", model: "gpt-5" });
     assert.deepEqual(asked, [["github"]]);
     const config = await oqas("config", "show");
-    assert.match(config.out, /^Revision 2 of the configuration, written to oqas\.json by a command on /);
+    assert.match(config.out, /^Revision 2 of the configuration, saved by a command on /);
   });
 
   it("sets a provider by its name, with its address and the variable of its key, and reads the key from it", async () => {
@@ -115,7 +117,7 @@ describe("oqas model set", () => {
       told.out,
       "OpenAI, its key in OPENAI_API_KEY, model gpt-4.1.\nThe server refused the key, with status 401: check the key the variable holds.\n",
     );
-    assert.deepEqual(model(), {
+    assert.deepEqual(await model(), {
       mode: "provider-key",
       provider: "openai",
       baseUrl: "https://api.openai.com/v1",
@@ -128,7 +130,13 @@ describe("oqas model set", () => {
   it("sets a provider by its address too, another server with the variable named, and tells the other failures", async () => {
     const byAddress = repository();
     await byAddress.oqas("model", "set", "--provider", "https://api.mistral.ai/v1/", "--key-env", "MINE", "--model", "m");
-    assert.deepEqual(byAddress.model(), { mode: "provider-key", provider: "openai", baseUrl: "https://api.mistral.ai/v1", model: "m", apiKeyEnv: "MINE" });
+    assert.deepEqual(await byAddress.model(), {
+      mode: "provider-key",
+      provider: "openai",
+      baseUrl: "https://api.mistral.ai/v1",
+      model: "m",
+      apiKeyEnv: "MINE",
+    });
     const other = repository({ provider: { state: "key-missing", variable: "LOCAL_KEY" } });
     const told = await other.oqas("model", "set", "--provider", "http://localhost:1234/v1", "--key-env", "LOCAL_KEY", "--model", "qwen");
     assert.equal(
@@ -137,7 +145,7 @@ describe("oqas model set", () => {
     );
     const bare = repository();
     await bare.oqas("model", "set", "--provider", "http://localhost:1234/v1", "--model", "qwen");
-    assert.deepEqual(bare.model(), { mode: "provider-key", provider: "openai", baseUrl: "http://localhost:1234/v1", model: "qwen" });
+    assert.deepEqual(await bare.model(), { mode: "provider-key", provider: "openai", baseUrl: "http://localhost:1234/v1", model: "qwen" });
   });
 
   it("tells a GitHub account signed out or without models what to do", async () => {
@@ -150,7 +158,7 @@ describe("oqas model set", () => {
   it("keeps the tuning of the model in force when it is set again the same way, and drops it for another", async () => {
     const { oqas, model } = repository();
     await oqas("model", "set", "--provider", "http://127.0.0.1:9/v1", "--model", "test-model");
-    assert.deepEqual(model(), { mode: "provider-key", provider: "openai", baseUrl: "http://127.0.0.1:9/v1", model: "test-model" });
+    assert.deepEqual(await model(), { mode: "provider-key", provider: "openai", baseUrl: "http://127.0.0.1:9/v1", model: "test-model" });
     const local: Model = { mode: "provider-key", provider: "openai", baseUrl: "http://x/v1", model: "m" };
     const tuned: Model = { ...local, capabilities: ["vision"], reasoningEffort: "none", requestTimeoutSeconds: 30 };
     assert.deepEqual(keptTuning(local, tuned), tuned);
@@ -174,7 +182,7 @@ describe("oqas model set", () => {
       told.err,
       /^acme is no provider oqas knows nor the address of a server: name one of OpenAI, .*, or give the address of an OpenAI-compatible server\.\n$/,
     );
-    assert.equal(model().mode, "provider-key");
+    assert.equal((await model()).mode, "provider-key");
   });
 });
 
@@ -201,7 +209,7 @@ describe("oqas model, alone, in a terminal", () => {
     screen.type("\r");
     const told = await ended;
     assert.deepEqual([told.code, told.out], [0, "The model test-model is set, through http://127.0.0.1:9/v1.\n"]);
-    assert.deepEqual(model(), { mode: "provider-key", provider: "openai", baseUrl: "http://127.0.0.1:9/v1", model: "test-model" });
+    assert.deepEqual(await model(), { mode: "provider-key", provider: "openai", baseUrl: "http://127.0.0.1:9/v1", model: "test-model" });
   });
 
   it("asks for the key, unseen, when its variable holds none, tests with it, and saves it out of the test repository", async () => {
@@ -224,7 +232,13 @@ describe("oqas model, alone, in a terminal", () => {
     screen.type("\r");
     assert.equal((await ended).code, 0);
     assert.deepEqual(asked, [["provider", "http://127.0.0.1:9/v1", "sk-typed"]]);
-    assert.deepEqual(model(), { mode: "provider-key", provider: "openai", baseUrl: "http://127.0.0.1:9/v1", model: "test-model", apiKeyEnv: "LOCAL_KEY" });
+    assert.deepEqual(await model(), {
+      mode: "provider-key",
+      provider: "openai",
+      baseUrl: "http://127.0.0.1:9/v1",
+      model: "test-model",
+      apiKeyEnv: "LOCAL_KEY",
+    });
     assert.deepEqual(saved(), { LOCAL_KEY: "sk-typed" });
   });
 
@@ -236,7 +250,7 @@ describe("oqas model, alone, in a terminal", () => {
     await typing(screen, "\u001B", "How does the tool reach the model?");
     const told = await ended;
     assert.deepEqual([told.code, told.err], [5, "Nothing changed.\n"]);
-    assert.equal(model().model, "test-model");
+    assert.equal((await model()).model, "test-model");
   });
 
   it("tests the connection itself when given none to play", async () => {

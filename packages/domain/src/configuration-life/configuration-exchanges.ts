@@ -13,11 +13,6 @@ export interface RevisionChange {
   readonly basedOn: number;
   /** The configuration as it is to be. */
   readonly document: OqasConfig;
-  /**
-   * Whether the change rewrites a configuration file that changed since the revision in force was synchronised with
-   * it: the person chose to keep the change over the file. Without it, such a change is refused.
-   */
-  readonly replaceFile?: boolean;
 }
 
 /** What the validation of a configuration found, without anything recorded. */

@@ -306,7 +306,6 @@ describe("a problem", () => {
     ["not_opened", 502, "/problems/not-opened", "Session not opened"],
     ["opening_timed_out", 503, "/problems/opening-timed-out", "Opening timed out"],
     ["stale_revision", 409, "/problems/stale-revision", "Stale revision"],
-    ["configuration_conflict", 409, "/problems/configuration-conflict", "Configuration conflict"],
     ["invalid_configuration", 422, "/problems/invalid-configuration", "Invalid configuration"],
     ["no_configuration", 404, "/problems/no-configuration", "No configuration"],
     ["unknown_document_source", 404, "/problems/unknown-document-source", "Unknown source of documents"],

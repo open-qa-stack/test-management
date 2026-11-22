@@ -63,7 +63,7 @@ async function onSessions(command: Exclude<Command, { name: "help" }>, options: 
   if (command.name === "converse") {
     if (io.terminal === undefined) throw new UsageError(NO_TERMINAL);
     // A folder never configured is set up step by step first, as the console does; the conversation opens once it is.
-    if (!isConfigured(repository)) {
+    if (!(await isConfigured(io, repository))) {
       const { setupProject } = await import("./conversation/project-setup/setup-project.ts");
       if (!(await setupProject(repository, io.terminal, io))) return ExitCode.interrupted;
     }

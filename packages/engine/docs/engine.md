@@ -1,6 +1,6 @@
 # The engine
 
-The engine is the application core of Open QA Stack, and holds three things. `Run` is one run on a test repository: every step, in one place, whatever starts it. `Sessions` is [the operations on the sessions of an instance](#the-operations-on-sessions) — open one, speak to it, resume it once it ended, interrupt it, read them, follow one — which run each session with a `Run`, in the process that hosts them. `Configuration` is [the operations on the configuration of an instance](#the-operations-on-the-configuration) — read it, check a change, save one — which keep its revisions in the database and in step with `oqas.json`. No rule of the product lives outside: [the `oqas` command](../../cli/docs/solo-command.md) says the operations in a terminal, and [the API](../../api/docs/sessions.md) says them in HTTP, both on the database of the instance.
+The engine is the application core of Open QA Stack, and holds three things. `Run` is one run on a test repository: every step, in one place, whatever starts it. `Sessions` is [the operations on the sessions of an instance](#the-operations-on-sessions) — open one, speak to it, resume it once it ended, interrupt it, read them, follow one — which run each session with a `Run`, in the process that hosts them. `Configuration` is [the operations on the configuration of an instance](#the-operations-on-the-configuration) — read it, check a change, save one, take or write `oqas.json` — which keep its revisions in the database. No rule of the product lives outside: [the `oqas` command](../../cli/docs/solo-command.md) says the operations in a terminal, and [the API](../../api/docs/sessions.md) says them in HTTP, both on the database of the instance.
 
 ```ts
 import { liveRuntime, Run } from "@open-qa-stack/engine";
@@ -22,7 +22,7 @@ const code = await new Run({
 
 Each step starts only when the one before succeeded; once the prerequisites passed, the summary runs whatever the end of the others.
 
-1. **Configuration.** The revision in force of the configuration is read through the `configuration` port, once it is in step with `oqas.json` at the root of the test repository; it is validated against the environment, the environment to run against is chosen, and the test charter is resolved.
+1. **Configuration.** The revision in force of the configuration is read through the `configuration` port — an instance that keeps none yet takes `oqas.json` at the root of the test repository as its first —; it is validated against the environment, the environment to run against is chosen, and the test charter is resolved.
 2. **Prerequisites.** The folder is the root of a git repository with a commit, the model server answers its list of models with the key — one that does not answer, or refuses the key, is told with the variable of the key and never its value; a model of GitHub Copilot has no server of its own to ask, and its session tells whether it answers —, `npm` can be run, and the repository is a Playwright project.
 3. **Cartography.** The documents of the sources the instance keeps are written to the state folder, where the agents read them; then the sources without an up-to-date card are mapped, then consolidated into the domain index, by the cartographer of `@open-qa-stack/agents`.
 4. **Design.** The dependencies of the test repository are installed, then the tests are designed in passes on a new local branch, by the designer of `@open-qa-stack/agents`, each test checked against the charter and run against the application before it is kept. A run given the `branch` of an earlier one goes on with it instead: the design checks it out, reads the tests it holds as those of the repository, and commits its own on it.
@@ -43,7 +43,7 @@ A port is what differs from a host to another. The engine declares it; the host 
 
 | Option | Port | What the engine does with it |
 | --- | --- | --- |
-| `configuration` | `ConfigurationSource` | Gives the revision in force of the configuration, once it is in step with its file; a file that changed and is not valid, or no configuration at all, stops the run with `configuration` (3), its errors in the journal. |
+| `configuration` | `ConfigurationSource` | Gives the revision in force of the configuration, `current()`; a first file that is not valid, or no configuration at all, stops the run with `configuration` (3), its errors in the journal. |
 | `journal` | `JournalOutput` | Tells what the run does, an entry at a time, and has the journal kept once the prerequisites passed. |
 | `follow` | `(line: TraceLine) => void`, optional | Shows each line of the trace of the agents as it is written. |
 | `openInbox` | `(run: RunReference) => Inbox` | Gives the agents what a person says while the run is going. |
@@ -57,7 +57,7 @@ One host plugs a run into these ports, [the operations on sessions](#the-operati
 
 | Option | The adapter the operations give |
 | --- | --- |
-| `configuration` | The `Configuration` of the host: a session that starts synchronises the configuration with its file. |
+| `configuration` | The `Configuration` of the host: a session that starts reads the revision in force. |
 | `journal` | `SessionJournal`: each entry becomes events of the session, once the journal is kept. |
 | `follow` | Each line becomes events of the session. |
 | `openInbox` | `SessionInbox`: the messages the person said to the session, dropped in memory once the store took them. |
@@ -170,7 +170,7 @@ const leave = events.subscribe({ event: (event) => show(event), ended: () => don
 
 | Operation | What it does |
 | --- | --- |
-| `start()` | Starts hosting: synchronises the configuration with its file, saves the project it names to the store, interrupts the sessions a process that died left `running`, takes over those it left waiting when the host stays, starts the first, and beats from then on. Done once; one that failed is done again when a session is next opened. |
+| `start()` | Starts hosting: reads the revision in force, taking `oqas.json` as the first on an instance that keeps none, saves the project it names to the store, interrupts the sessions a process that died left `running`, takes over those it left waiting when the host stays, starts the first, and beats from then on. Done once; one that failed is done again when a session is next opened. |
 | `stop(withinMs)` | Stops hosting: no other session starts, the one that runs is asked to stop, and its end is awaited for the time given. Resolves with `false` when it did not end in time: the execution is then left to end by itself, and gives up what the store, which its host closes, no longer takes. The beats end, and those the process gave are withdrawn: what it still hosts reads as left at once. No timer outlives it. |
 | `open(opening)` | Asks the store for the session, then starts it at once when none runs: it is returned `running`, or `queued` when it waits its turn. Raises `NoRepositoryError` on a host without a test repository. |
 | `say(id, message)` | Has the store take the message, which numbers it and tells it in the thread, then drops it in the inbox of the execution of the session when it runs here. |
@@ -267,7 +267,7 @@ A host gives `Sessions` a `SessionsHost`:
 | Field | What the host provides |
 | --- | --- |
 | `store` | The `SessionStorePort` of `@open-qa-stack/domain`: where the sessions are kept. `@open-qa-stack/store` implements it on the database of the instance, a SQLite file or a PostgreSQL server. |
-| `configuration` | The [`Configuration`](#the-operations-on-the-configuration) of the instance, on the same test repository: the runs read the revision in force through it, and the host synchronises it when it starts. |
+| `configuration` | The [`Configuration`](#the-operations-on-the-configuration) of the instance, on the same test repository: the runs and the host read the revision in force through it. |
 | `documents` | The `DocumentStorePort` of `@open-qa-stack/domain`: where the documents of the knowledge sources the instance keeps are, which the runs write to the state folder. |
 | `memory` | The `MemoryStorePort` of `@open-qa-stack/domain`: where the [memories of the agents](../../agents/docs/cartographer.md#memory) are kept, which the agents of every run recall and add to. |
 | `repository` | The absolute path of the test repository the sessions run in, a folder that holds `oqas.json`; `undefined` for a host that only serves what the store keeps. |
@@ -281,11 +281,11 @@ A host gives `Sessions` a `SessionsHost`:
 | `writerPace`, optional | How a write the store failed to take is made again: 250 milliseconds at first, 10 seconds at most, by default. |
 | `pace`, optional | The paces of the process among the others that reach the store: `DEFAULT_PACE` by default. |
 
-A host calls `start()` when it starts, or lets `open()` do it: the configuration is synchronised with its file, a file that changed and is not valid reported and the revision in force kept, and the project the store keeps is named after the test repository, with the applications of the revision in force. It calls `stop(withinMs)` before it closes its store. The two presentations: [the API](../../api/docs/sessions.md) starts with its server and stays; [`oqas --brief`](../../cli/docs/solo-command.md) hosts the session it opens. Both are given the stores of the sessions, of the configuration, of the documents, of the memories of the agents and of the executions by `InstanceDatabase` of [`@open-qa-stack/store`](../../store/docs/database.md#the-database-of-an-instance-assembled), which assembles the database of an instance once for every process.
+A host calls `start()` when it starts, or lets `open()` do it: the revision in force is read, a first file that is not valid left to the runs to report, and the project the store keeps is named after the test repository, with the applications of the revision in force. It calls `stop(withinMs)` before it closes its store. The two presentations: [the API](../../api/docs/sessions.md) starts with its server and stays; [`oqas --brief`](../../cli/docs/solo-command.md) hosts the session it opens. Both are given the stores of the sessions, of the configuration, of the documents, of the memories of the agents and of the executions by `InstanceDatabase` of [`@open-qa-stack/store`](../../store/docs/database.md#the-database-of-an-instance-assembled), which assembles the database of an instance once for every process.
 
 ## The operations on the configuration
 
-The configuration of an instance is kept in its database, as revisions: each holds the whole document, as `oqas.json` holds it, its date, its origin and the digest of the file it was read from or wrote. The revision in force is the last. `oqas.json` stays in the test repository, as the configuration kept with the tests in git, and the two are kept in step by `Configuration`, on the `ConfigurationStorePort` of `@open-qa-stack/domain`, which `@open-qa-stack/store` implements:
+The configuration of an instance lives in its database, as revisions: each holds the whole document, as `oqas.json` holds it, its date, its origin and the digest of the file that holds it. The revision in force is the last. The database is its one source: `oqas.json` is a copy, kept with the tests in git or given to the continuous integration, which is read to give an instance its first revision or when a person asks for it, and written when a person asks for it. `Configuration` holds these operations, on the `ConfigurationStorePort` of `@open-qa-stack/domain`, which `@open-qa-stack/store` implements:
 
 ```ts
 import { Configuration } from "@open-qa-stack/engine";
@@ -296,22 +296,22 @@ const { revision, file } = await configuration.view();
 
 | Operation | What it does |
 | --- | --- |
-| `view()` | The revision in force, and how `oqas.json` stands to it: `in_step`, `changed` since, or `missing`. Nothing is written. |
+| `view()` | The revision in force, and how `oqas.json` stands to it: `in_step` when it holds it, `changed` when it differs, `missing`. Nothing is written. |
 | `revisions()` | Every revision without its document, the latest first. |
 | `check(document)` | Every error the schema of `oqas.json` and its rules find in a configuration, each where it is, without anything recorded. |
-| `synchronise()` | Brings the revision in force in step with the file: a file that changed becomes a revision of origin `file`. A file that cannot be read leaves the revision in force as it is. |
-| `save(document, basedOn, replaceFile, origin)` | A change made in the console, or by a command such as `oqas model set`: a revision of origin `console`, or `command` when the command says so, and `oqas.json` rewritten with it. |
-| `restore()` | Writes the revision in force over a file that changed: a revision of origin `command`. A file in step is left as it is. |
+| `current()` | The revision in force; an instance that keeps none takes `oqas.json` as its first, of origin `file`. `inForce()` gives it the same way, and `undefined` where there is none to take. |
+| `synchronise()` | Takes `oqas.json` as the revision in force when it differs from it: a revision of origin `file`. A file that cannot be read leaves the revision in force as it is. |
+| `save(document, basedOn, origin)` | A change made in the console, or by a command such as `oqas model set`: a revision of origin `console`, or `command` when the command says so. No file is written. |
+| `restore()` | Writes the revision in force to `oqas.json`, over what it holds. The revision in force does not change. |
 
 Their rules:
 
-- **When the file is read.** A host synchronises it when it starts; a run, when its session starts; a person, when they ask for it. A process that starts on a database that keeps no revision yet takes the file as the first one.
-- **A file that changed and is not valid** is refused with `InvalidConfigurationError`, which holds every error found: the revision in force stays as it is, and a run stops on the errors and on what to do — correct the file, or write the revision in force over it.
+- **When the file is read.** When the instance keeps no revision yet, as a first launch or the continuous integration finds it; and when a person asks for it, with `synchronise()`. Otherwise never: a file changed in an editor is taken by `oqas config import`, or from the console.
+- **A file that is not valid** is refused with `InvalidConfigurationError`, which holds every error found: the revision in force stays as it is, and a run that has none stops on the errors.
 - **A change saved** is validated first, and refused with `InvalidConfigurationError` when it is not valid. It is made from the revision in force, whose number it names: one made from a revision another replaced since is refused with `StaleRevisionError`.
-- **When both changed** — the file since the revision in force, and the console now — the change is refused with `ConfigurationConflictError`, and nothing is merged. Either outcome is one call: keep the file with `synchronise()`, or keep the change with `save(document, basedOn, true)`, which rewrites the file.
-- **The file a change writes** is the document in the order the schema declares its keys, indented by two spaces: the same document is always the same text, and the diff of the file shows what changed. It is written in the transaction that records the revision: when it cannot be written, nothing is recorded.
+- **The file written** is the document in the order the schema declares its keys, indented by two spaces: the same document is always the same text, and the diff of the file shows what changed. A file that holds the revision in force is `in_step`, whatever the layout of the file it was taken from.
 - **Validation is that of the file**: the schema of `oqas.json` and the rules that span the document, the environment left out. Whether a variable the configuration names is set is told by the run, on the machine that runs it. A revision holds no secret, as the file holds none: only the names of the variables.
-- **A host without a test repository** reads the revisions and changes none: `save` and `restore` raise `NoRepositoryError`. With neither a revision nor a file, `synchronise` and `restore` raise `NoConfigurationError`.
+- **A host without a test repository** keeps its configuration all the same, and has no file: `restore` raises `NoRepositoryError`. With neither a revision nor a file, `current`, `synchronise` and `restore` raise `NoConfigurationError`.
 
 ### Testing the connection to the model
 
@@ -333,7 +333,7 @@ The values are kept by a `SecretStore`: `FileSecretStore` keeps them in `secrets
 
 ## Where the cartography stands
 
-`KnowledgeMapping.state()` tells where the cartography of the knowledge stands, by the configuration in force once it is in step with its file: each source the cartography reads in the first environment, `mapped` or `truncated` by its card, `mapping` while a session of purpose `map` runs, `waiting` otherwise; and the index, when one is written. A card or an index that cannot be read is none. The [route of the API](../../api/docs/knowledge.md#where-the-cartography-stands), the screen of the knowledge of the console and `oqas knowledge mapping` call it.
+`KnowledgeMapping.state()` tells where the cartography of the knowledge stands, by the configuration in force: each source the cartography reads in the first environment, `mapped` or `truncated` by its card, `mapping` while a session of purpose `map` runs, `waiting` otherwise; and the index, when one is written. A card or an index that cannot be read is none. The [route of the API](../../api/docs/knowledge.md#where-the-cartography-stands), the screen of the knowledge of the console and `oqas knowledge mapping` call it.
 
 ## The operations on documents
 

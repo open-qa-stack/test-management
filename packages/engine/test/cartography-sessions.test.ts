@@ -50,7 +50,7 @@ describe("a host that maps the knowledge", () => {
     const inForce = await hosted.settings.synchronise();
     const added = { id: "guides", type: "document", path: "specs", attachments: [{ application: "shop" }] } as const;
     const document = { ...inForce.document, knowledge: [...inForce.document.knowledge, added] };
-    const second = await hosted.settings.save(document, inForce.number, false);
+    const second = await hosted.settings.save(document, inForce.number);
     await new Promise((resolve) => setTimeout(resolve, 20));
     assert.deepEqual(
       (await hosted.store.sessions()).map(({ id }) => id),
@@ -58,7 +58,7 @@ describe("a host that maps the knowledge", () => {
       "the mapping that waits maps the source added",
     );
     await hosted.store.interrupt(waiting.id);
-    await hosted.settings.save({ ...document, knowledge: [...document.knowledge, { ...added, id: "more-guides" }] }, second.number, false);
+    await hosted.settings.save({ ...document, knowledge: [...document.knowledge, { ...added, id: "more-guides" }] }, second.number);
     const mapping = await eventually(async () => {
       const [latest] = await hosted!.store.sessions();
       assert.notEqual(latest?.id, waiting.id);
@@ -84,13 +84,13 @@ describe("a host that maps the knowledge", () => {
     };
     rmSync(join(hosted.root, ".oqas", "index"), { recursive: true, force: true });
     const inForce = await hosted.settings.synchronise();
-    await hosted.settings.save({ ...inForce.document, language: "fr" }, inForce.number, false);
+    await hosted.settings.save({ ...inForce.document, language: "fr" }, inForce.number);
     await eventually(() =>
       assert.ok(hosted!.logger.lines.includes("warn The knowledge is not mapped: The store does not answer."), hosted!.logger.lines.join("\n")),
     );
     const before = hosted.logger.lines.length;
     const stopping = hosted.sessions.stop(10_000);
-    await hosted.settings.save({ ...inForce.document, language: "en" }, inForce.number + 1, false);
+    await hosted.settings.save({ ...inForce.document, language: "en" }, inForce.number + 1);
     await stopping;
     assert.equal(hosted.logger.lines.slice(before).filter((line) => line.includes("not mapped")).length, 0);
   });

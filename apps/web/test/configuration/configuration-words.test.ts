@@ -12,7 +12,7 @@ describe("the words of the configuration", () => {
   });
 
   it("name each origin of a revision and each level of the pyramid, from its base", () => {
-    assert.deepEqual((["file", "console", "command"] as const).map(originText), ["Fichier oqas.json", "Console", "Commande oqas config export"]);
+    assert.deepEqual((["file", "console", "command"] as const).map(originText), ["Fichier oqas.json", "Console", "Commande"]);
     assert.deepEqual(LEVELS, ["smoke", "functional", "business", "cross-application", "end-to-end"]);
     assert.deepEqual(levelText("smoke"), { label: "Fumée", hint: "l’application répond" });
   });

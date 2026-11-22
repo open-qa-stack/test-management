@@ -122,7 +122,6 @@ export { SessionStateError } from "./session-life/session-state-error.ts";
 export type { SessionStorePort } from "./session-life/session-store-port.ts";
 export { UnknownSessionError } from "./session-life/unknown-session-error.ts";
 export type { ConfigurationCommands } from "./configuration-life/configuration-commands.ts";
-export { ConfigurationConflictError } from "./configuration-life/configuration-conflict-error.ts";
 export type { ConfigurationQueries } from "./configuration-life/configuration-queries.ts";
 export type { ConfigurationRevision, RevisionEntry, RevisionOrigin, RevisionSummary } from "./configuration-life/configuration-revision.ts";
 export type { ConfigurationStorePort } from "./configuration-life/configuration-store-port.ts";

@@ -56,7 +56,7 @@ describe("oqas config history and check", () => {
     assert.equal((await oqas("config", "history")).out, "The instance keeps no revision of the configuration.\n");
     assert.deepEqual(await oqas("config", "check"), { code: 0, out: "oqas.json is a valid configuration.\n", err: "" });
     await oqas("config", "import");
-    assert.match((await oqas("config", "history")).out, /^Revision 1 of the configuration, read from oqas\.json on \S+Z\.\n$/);
+    assert.match((await oqas("config", "history")).out, /^Revision 1 of the configuration, taken from oqas\.json on \S+Z\.\n$/);
     assert.equal((JSON.parse((await oqas("config", "history", "--output", "json")).out) as { items: RevisionSummary[] }).items[0]?.number, 1);
 
     writeFileSync(join(root, "oqas.json"), JSON.stringify({ formatVersion: 1 }));

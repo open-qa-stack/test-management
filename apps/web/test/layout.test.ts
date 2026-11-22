@@ -1069,24 +1069,23 @@ describe("the configuration in a browser", () => {
     }
   });
 
-  it("refuses a change while the file changed too, and leaves the person the two ways out, each one press", async () => {
+  it("takes a file that differs, and writes the revision in force to the file once a change is saved, each one press", async () => {
     const instance = new ConfiguredInstance();
     instance.fileChanged = true;
     const page = await configurationAt(390, instance);
     try {
-      await page.getByText("oqas.json a changé depuis la révision en vigueur").waitFor();
+      await page.getByText("oqas.json diffère de la révision en vigueur").waitFor();
+      await page.getByRole("button", { name: "Prendre oqas.json" }).click();
+      await page.getByRole("status").filter({ hasText: "Révision 3 enregistrée" }).waitFor();
+      assert.equal(instance.revisions[0]!.origin, "file");
+      await page.getByText("oqas.json contient la révision en vigueur.").waitFor();
       await page.getByLabel("Modèle", { exact: true }).fill("kept-model");
       await page.getByRole("button", { name: "Enregistrer" }).click();
-      const conflict = page.getByRole("alert").filter({ hasText: "oqas.json a changé depuis la dernière synchronisation" });
-      await conflict.waitFor();
-      assert.deepEqual(await tooSmallOf(page), []);
-      await conflict.getByRole("button", { name: "Garder mes modifications" }).click();
-      await page.getByRole("status").filter({ hasText: "Révision 3 enregistrée" }).waitFor();
-      assert.equal(instance.saved[0]!.replaceFile, true);
-      instance.fileChanged = true;
-      await page.getByRole("button", { name: "Prendre oqas.json" }).click();
       await page.getByRole("status").filter({ hasText: "Révision 4 enregistrée" }).waitFor();
-      assert.equal(instance.revisions[0]!.origin, "file");
+      assert.deepEqual(await tooSmallOf(page), []);
+      await page.getByRole("button", { name: "Écrire oqas.json" }).click();
+      await page.getByText("oqas.json contient la révision en vigueur.").waitFor();
+      assert.equal(instance.fileChanged, false);
     } finally {
       await page.close();
     }
@@ -1629,12 +1628,12 @@ describe("the code of the console is covered in full", () => {
         await page.getByLabel("Modèle", { exact: true }).fill("saved-model");
         await page.getByRole("button", { name: "Enregistrer" }).click();
         await page.getByRole("status").filter({ hasText: "Révision 3 enregistrée" }).waitFor();
-        instance.fileChanged = true;
+        // A change saved writes no file: the file is written, or taken, when the person asks for it.
+        await page.getByRole("button", { name: "Écrire oqas.json" }).click();
+        await page.getByText("oqas.json contient la révision en vigueur.").waitFor();
         await page.getByLabel("Modèle", { exact: true }).fill("kept-model");
         await page.getByRole("button", { name: "Enregistrer" }).click();
-        await page.getByRole("button", { name: "Garder mes modifications" }).click();
         await page.getByRole("status").filter({ hasText: "Révision 4 enregistrée" }).waitFor();
-        instance.fileChanged = true;
         await page.getByRole("button", { name: "Prendre oqas.json" }).click();
         await page.getByRole("status").filter({ hasText: "Révision 5 enregistrée" }).waitFor();
         // A source is tested as it is drafted.

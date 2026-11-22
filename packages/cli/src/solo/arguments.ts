@@ -187,8 +187,8 @@ Commands:
                          its new turn runs here, followed to its end.
   stop <session>         Interrupt a session that goes on.
   config show            Print the configuration in force, and how oqas.json stands to it.
-  config import          Take oqas.json as the configuration in force, when it changed.
-  config export          Write the configuration in force over oqas.json, when it changed.
+  config import          Take oqas.json as the configuration in force, when it differs.
+  config export          Write the configuration in force over oqas.json, when it differs.
   config history         List the revisions of the configuration, the latest first, and where each was made.
   config check           Check oqas.json without taking it: each error where it is. Exits with 0 when it is valid,
                          with 3 otherwise.

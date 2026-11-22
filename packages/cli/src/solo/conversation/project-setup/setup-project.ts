@@ -42,7 +42,7 @@ export async function setupProject(repository: string, terminal: CommandTerminal
           check: (source, value) => sources.check(source, value),
           checkModel: (model, key) => connection.check(model, key),
           create: async (draft) => {
-            await configuration.save(configOf(draft, language), 0, false, "command");
+            await configuration.save(configOf(draft, language), 0, "command");
             for (const [name, value] of Object.entries(valuesOf(draft))) await secrets.save(name, value);
             return new RepositorySetup(repository, configuration).prepare();
           },

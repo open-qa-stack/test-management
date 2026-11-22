@@ -151,7 +151,7 @@ export async function runPrinting(
       return await stopped({ sessions, command, options, io });
     case "tests":
       // The tests are read with the configuration of oqas.json, which says where the applications and the runs are.
-      await configuration.inStep();
+      await configuration.inForce();
       return await tested(operations, command, { options, io });
     case "executions":
       return await executed(operations, command, { options, io });
@@ -159,7 +159,7 @@ export async function runPrinting(
       return await launched(operations, command, { options, io });
     case "campaigns":
       // The tests of a campaign are read with the configuration of oqas.json, as those of oqas tests are.
-      await configuration.inStep();
+      await configuration.inForce();
       return await campaigned(operations, command, { options, io });
   }
 }
@@ -450,7 +450,7 @@ async function configured({
 
 /**
  * `oqas model`: tests the connection to the model in force, and lists the models it offers; with `set`, records the
- * connection it is given as a revision of origin `command` first, which rewrites `oqas.json`, keeping the tuning of
+ * connection it is given as a revision of origin `command` first, keeping the tuning of
  * the connection in force when it names the same model the same way. Exits with `0` when the
  * model answers and is among those offered, with `4` otherwise.
  */
@@ -466,11 +466,11 @@ async function modelled({
   command: Exclude<Extract<Command, { name: "model" }>, { action: "setup" }>;
 }): Promise<ExitCodeValue> {
   if (command.action === "set") {
-    const inForce = await configuration.synchronise();
+    const inForce = await configuration.current();
     const model = keptTuning(modelOfArguments(command.connection), inForce.document.model);
-    await configuration.save({ ...inForce.document, model }, inForce.number, false, "command");
+    await configuration.save({ ...inForce.document, model }, inForce.number, "command");
   }
-  const revision = (await configuration.synchronise()).document;
+  const revision = (await configuration.current()).document;
   const report = modelReport(revision.model, await modelConnectionOf(io, secrets).check(revision.model));
   print({ options, io }, report.text, report.value);
   return report.code;
@@ -549,7 +549,7 @@ async function checked({
   sources: KnowledgeSources;
   command: Extract<Command, { name: "knowledge"; action: "check" }>;
 }): Promise<ExitCodeValue> {
-  const declared = (await configuration.synchronise()).document.knowledge;
+  const declared = (await configuration.current()).document.knowledge;
   const asked = command.source === undefined ? declared : declared.filter(({ id }) => id === command.source);
   if (asked.length === 0)
     throw new UsageError(

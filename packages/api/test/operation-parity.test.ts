@@ -32,7 +32,7 @@ const ROUTES: Readonly<Record<OperationId, Offer>> = {
   "Configuration.check": "POST /configuration/validation",
   "Configuration.synchronise": "POST /configuration/synchronisation",
   "Configuration.save": "POST /configuration/revisions",
-  "Configuration.restore": { none: "each change saved in the console rewrites oqas.json, which is then in step with the revision in force" },
+  "Configuration.restore": "PUT /configuration/file",
   "ModelConnection.check": "POST /configuration/model-connection",
   "Secrets.list": "GET /secrets",
   "Secrets.save": "PUT /secrets/S",

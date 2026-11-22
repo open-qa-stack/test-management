@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import {
   configurationText,
-  ConfigurationConflictError,
   fileStateOf,
   InvalidConfigurationError,
   NoConfigurationError,
@@ -101,9 +100,6 @@ describe("the refusals of the configuration", () => {
     const stale = new StaleRevisionError(2, 4);
     assert.deepEqual([stale.name, stale.basedOn, stale.inForce], ["StaleRevisionError", 2, 4]);
     assert.equal(stale.message, "The change was made from the revision 2 of the configuration, and the revision in force is 4.");
-    const conflict = new ConfigurationConflictError();
-    assert.equal(conflict.name, "ConfigurationConflictError");
-    assert.match(conflict.message, /^oqas\.json changed since the revision in force/);
     const error = { kind: "structure", path: "/model", rule: "required", message: 'Missing required key "model".' } as const;
     const one = new InvalidConfigurationError("The file", [error]);
     assert.deepEqual(

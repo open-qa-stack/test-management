@@ -19,7 +19,7 @@ import { ModelSetup, reachText, type SetupEnd } from "./model-setup.ts";
  */
 export async function setupModel(operations: Pick<Operations, "configuration" | "secrets">, terminal: CommandTerminal, io: CommandIo): Promise<ExitCodeValue> {
   const { configuration, secrets } = operations;
-  const inForce = await configuration.synchronise();
+  const inForce = await configuration.current();
   await i18n.changeLanguage(languageOf(await configuration.view()));
   const connection = modelConnectionOf(io, secrets);
   const end = await new Promise<SetupEnd>((ended, failed) => {

@@ -74,8 +74,8 @@ describe("oqas, in a terminal, on a folder never configured", () => {
     await entering(screen, "/quit");
     const told = await ended;
     assert.equal(told.code, 0);
-    assert.match(told.out, /^The project is set up in .*: oqas\.json, the Playwright project/);
-    const config = JSON.parse(readFileSync(join(terminal.root, "oqas.json"), "utf8")) as OqasConfig;
+    assert.match(told.out, /^The project is set up in .*: its configuration, the Playwright project/);
+    const config = (JSON.parse((await terminal.oqas(["config", "show", "--output", "json"])).out) as { revision: { document: OqasConfig } }).revision.document;
     assert.deepEqual(
       [config.language, config.applications[0]?.id, config.knowledge.map(({ id }) => id), config.model.model],
       ["en", "shop", ["documents"], "test-model"],
@@ -105,7 +105,7 @@ describe("oqas, in a terminal, on a folder never configured", () => {
     await typing(screen, "\r", "What do we test?");
     await entering(screen, "/quit");
     const told = await ended;
-    assert.match(told.out, /^The project is set up in .*: oqas\.json, the Playwright project, and a git repository with its first commit\.\n/);
+    assert.match(told.out, /^The project is set up in .*: its configuration, the Playwright project, and a git repository with its first commit\.\n/);
     assert.ok(existsSync(join(folder, ".git")));
     assert.deepEqual(JSON.parse(readFileSync(join(folder, ".oqas", "secrets", "values.json"), "utf8")), { MODEL_KEY: "sk-typed" });
     const unreachable = new FakeTerminal();
@@ -124,7 +124,7 @@ describe("oqas, in a terminal, on a folder never configured", () => {
     assert.match(stopped.err, /no network/);
   });
 
-  it("writes nothing when the person leaves, and exits with 5", async () => {
+  it("keeps nothing when the person leaves, and exits with 5: the folder is set up again the next time", async () => {
     terminal = await Terminal.open([], { config: () => undefined });
     const screen = new FakeTerminal();
     const ended = terminal.oqas([], { env: { LANG: "fr_FR.UTF-8" }, io: { terminal: screen } });
@@ -132,7 +132,12 @@ describe("oqas, in a terminal, on a folder never configured", () => {
     await typing(screen, ESC, "Nom de l’application à tester");
     const told = await ended;
     assert.deepEqual([told.code, told.err], [5, "Rien n’a été mis en place.\n"]);
-    assert.ok(!existsSync(join(terminal.root, "oqas.json")));
+    // Nothing was kept: the next time, the folder is set up again.
+    const again = new FakeTerminal();
+    const second = terminal.oqas([], { env: { LANG: "fr_FR.UTF-8" }, io: { terminal: again } });
+    await again.sees("Nom de l’application à tester");
+    await typing(again, ESC, "Nom de l’application à tester");
+    assert.equal((await second).code, 5);
   });
 
   it("speaks the language of the terminal when the configuration speaks it, English otherwise", () => {

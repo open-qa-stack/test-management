@@ -102,20 +102,20 @@ describe("what keeps the screen of the configuration in step with its instance",
   it("saves a change made from a revision, says it saved, and lists the revisions again, or lets that list go when it fails", async () => {
     api.answers.set("POST /api/configuration/revisions", json(VIEW, 201));
     api.answers.set("GET /api/configuration/revisions", json({ items: REVISIONS }));
-    api.sync.save(DOCUMENT, 1, false, {});
+    api.sync.save(DOCUMENT, 1, {});
     await settled();
     assert.deepEqual(api.told, [{ type: "saving" }, { type: "saved", view: VIEW }, { type: "listed", revisions: REVISIONS }]);
     assert.deepEqual(api.bodies, [{ basedOn: 1, document: DOCUMENT }]);
     api.answers.set("GET /api/configuration/revisions", json({}, 500));
-    api.sync.save(DOCUMENT, 2, true, {});
+    api.sync.save(DOCUMENT, 2, {});
     await settled();
-    assert.deepEqual(api.bodies.at(-1), { basedOn: 2, document: DOCUMENT, replaceFile: true });
+    assert.deepEqual(api.bodies.at(-1), { basedOn: 2, document: DOCUMENT });
     assert.deepEqual(api.told.slice(3), [{ type: "saving" }, { type: "saved", view: VIEW }]);
   });
 
-  it("tells why the instance refused a change, with the errors it found, and takes the file when asked", async () => {
+  it("tells why the instance refused a change, with the errors it found, and takes or writes the file when asked", async () => {
     api.answers.set("POST /api/configuration/revisions", json({ code: "invalid_configuration", detail: "Not valid.", errors: [ERROR] }, 422));
-    api.sync.save(DOCUMENT, 2, false, {});
+    api.sync.save(DOCUMENT, 2, {});
     await settled();
     assert.deepEqual(api.told.at(-1), {
       type: "refused",
@@ -125,10 +125,15 @@ describe("what keeps the screen of the configuration in step with its instance",
     });
     api.answers.set("POST /api/configuration/synchronisation", json(VIEW));
     api.answers.set("GET /api/configuration/revisions", json({ items: REVISIONS }));
-    api.sync.keepFile();
+    api.sync.takeFile();
     await settled();
     assert.deepEqual(api.told.slice(-3), [{ type: "saving" }, { type: "saved", view: VIEW }, { type: "listed", revisions: REVISIONS }]);
     assert.ok(api.calls.includes("POST /api/configuration/synchronisation"));
+    api.answers.set("PUT /api/configuration/file", json(VIEW));
+    api.sync.writeFile();
+    await settled();
+    assert.deepEqual(api.told.slice(-3), [{ type: "saving" }, { type: "saved", view: VIEW }, { type: "listed", revisions: REVISIONS }]);
+    assert.ok(api.calls.includes("PUT /api/configuration/file"));
   });
 
   it("saves the values typed once the change is saved, and alone when the configuration did not change, then tells where each variable stands", async () => {
@@ -137,7 +142,7 @@ describe("what keeps the screen of the configuration in step with its instance",
     api.answers.set("PUT /api/secrets/MODEL_KEY", () => new Response(null, { status: 204 }));
     api.answers.set("PUT /api/secrets/DB_URL", () => new Response(null, { status: 204 }));
     api.answers.set("GET /api/secrets", json({ secrets: [{ ...SECRET, source: "saved" }] }));
-    api.sync.save(DOCUMENT, 1, false, { MODEL_KEY: "key", DB_URL: "postgres://" });
+    api.sync.save(DOCUMENT, 1, { MODEL_KEY: "key", DB_URL: "postgres://" });
     await settled();
     assert.deepEqual(
       api.calls.filter((call) => call.includes("secrets")),
@@ -146,7 +151,7 @@ describe("what keeps the screen of the configuration in step with its instance",
     assert.deepEqual(api.bodies.slice(1), [{ value: "key" }, { value: "postgres://" }]);
     assert.deepEqual(api.told.at(-1), { type: "valued", secrets: [{ ...SECRET, source: "saved" }] });
     api.calls.length = 0;
-    api.sync.save(undefined, 1, false, { MODEL_KEY: "other" });
+    api.sync.save(undefined, 1, { MODEL_KEY: "other" });
     await settled();
     assert.deepEqual(api.calls, ["GET /api/secrets", "PUT /api/secrets/MODEL_KEY", "GET /api/secrets"]);
     assert.deepEqual(api.told.slice(-2), [{ type: "saving" }, { type: "valued", secrets: [{ ...SECRET, source: "saved" }] }]);
@@ -154,7 +159,7 @@ describe("what keeps the screen of the configuration in step with its instance",
 
   it("leaves out the values of the variables the environment of the instance sets, which win", async () => {
     api.answers.set("GET /api/secrets", json({ secrets: [{ ...SECRET, source: "environment" }] }));
-    api.sync.save(undefined, 1, false, { MODEL_KEY: "typed" });
+    api.sync.save(undefined, 1, { MODEL_KEY: "typed" });
     await settled();
     assert.deepEqual(api.calls, ["GET /api/secrets", "GET /api/secrets"]);
     assert.equal(api.told.at(-1)!.type, "valued");
@@ -163,7 +168,7 @@ describe("what keeps the screen of the configuration in step with its instance",
   it("tells why the instance refused a value typed", async () => {
     api.answers.set("GET /api/secrets", json({ secrets: [SECRET] }));
     api.answers.set("PUT /api/secrets/MODEL_KEY", json({ code: "secret_refused", detail: "Set in the environment." }, 409));
-    api.sync.save(undefined, 1, false, { MODEL_KEY: "key" });
+    api.sync.save(undefined, 1, { MODEL_KEY: "key" });
     await settled();
     assert.deepEqual(api.told.at(-1), {
       type: "refused",

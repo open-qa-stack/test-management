@@ -124,7 +124,7 @@ export async function converse({ repository, environment, terminal, io }: Conver
     let withinMs: number | undefined;
     try {
       // The conversation speaks the language of the configuration in force, brought in step with its file as a host does when it starts.
-      await configuration.inStep();
+      await configuration.inForce();
       await i18n.changeLanguage(languageOf(await configuration.view()));
       const [project, latest] = await Promise.all([sessions.project(), sessions.sessions()]);
       const { atOnce, hosted } = await conversation(terminal, {
@@ -145,7 +145,7 @@ export async function converse({ repository, environment, terminal, io }: Conver
         },
         reasonOf,
         model: {
-          inForce: async () => (await configuration.synchronise()).document.model,
+          inForce: async () => (await configuration.current()).document.model,
           check: (model, key) => modelConnectionOf(io, secrets).check(model, key),
           save: (model, key) => savedModel({ configuration, secrets }, model, key),
         },

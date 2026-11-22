@@ -55,11 +55,10 @@ export class ConfigurationStore implements ConfigurationStorePort {
    *
    * @param entry - The revision.
    * @param basedOn - The number of the revision it was made from; 0 when there was none.
-   * @param alongside - What is done with the revision before it is kept; when it throws, nothing is kept.
    * @returns The revision, numbered after the one it was made from, and dated.
    * @throws {@link StaleRevisionError} when the revision in force is not the one it was made from.
    */
-  async record(entry: RevisionEntry, basedOn: number, alongside?: () => Promise<void>): Promise<ConfigurationRevision> {
+  async record(entry: RevisionEntry, basedOn: number): Promise<ConfigurationRevision> {
     const row = {
       number: basedOn + 1,
       recorded_at: instant(this.#clock()),
@@ -78,7 +77,6 @@ export class ConfigurationStore implements ConfigurationStorePort {
       if (inserted.length === 0) throw new StaleRevisionError(basedOn, await this.#last(transaction));
       // A revision made from one that does not exist is no more in order than one made from a revision replaced since.
       if (!(await this.#holds(transaction, basedOn))) throw new StaleRevisionError(basedOn, await this.#last(transaction, row.number));
-      await alongside?.();
     });
     return { ...summaryOf(row), document: entry.document };
   }

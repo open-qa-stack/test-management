@@ -77,20 +77,6 @@ describe("the revisions of the configuration the store keeps", () => {
     assert.ok(Date.parse(recordedAt) >= before && Date.parse(recordedAt) <= Date.now(), recordedAt);
   });
 
-  it("keep a revision once what is done alongside it ended, and nothing of one whose companion failed", async () => {
-    const done: string[] = [];
-    await store.record(fromFile("a1"), 0, () => {
-      done.push("written");
-      return Promise.resolve();
-    });
-    await assert.rejects(
-      store.record(fromFile("b2"), 1, () => Promise.reject(new Error("The file cannot be written."))),
-      /The file cannot be written\./,
-    );
-    assert.deepEqual(done, ["written"]);
-    assert.equal((await store.inForce())!.number, 1);
-  });
-
   it("record one of two changes made from the same revision at once, and refuse the other", async () => {
     await store.record(fromFile("a1"), 0);
     const outcomes = await Promise.allSettled([store.record(fromFile("b2"), 1), store.record(fromFile("c3"), 1)]);
