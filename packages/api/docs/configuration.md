@@ -12,7 +12,7 @@ The shapes of every body are the types of `@open-qa-stack/domain/sessions`; the 
 | `POST /api/configuration/revisions` | Saves a change, which rewrites `oqas.json`. |
 | `POST /api/configuration/synchronisation` | Takes `oqas.json` as it is now as the revision in force. |
 | `POST /api/configuration/model-connection` | Tests a connection to the model as it is drafted, without anything recorded. |
-| `GET /api/repository` | Where the test repository stands: a git repository, with a commit, and a Playwright project. |
+| `GET /api/repository` | Where the test repository stands: its folder, a git repository, with a commit, and a Playwright project. |
 | `POST /api/repository/preparation` | Sets the test repository up from the configuration in force. |
 | `GET /api/secrets` | The variables the configuration in force names, and where the value of each comes from; never a value. |
 | `PUT /api/secrets/{name}` | Saves the value of one of them, on the machine of the instance, out of the test repository. |
@@ -168,10 +168,10 @@ GET /api/repository
 ```
 
 ```json
-{ "git": "none", "playwright": false }
+{ "folder": "/work/shop-tests", "git": "none", "playwright": false }
 ```
 
-`git` is `none` when the folder is no git repository, `empty` when it is one without a commit, `ready` when it has one; `playwright` tells whether it holds a `playwright.config.ts`. An API given no test repository answers `503` `unavailable`.
+`folder` is the absolute path of the test repository on the machine of the instance, where the project is written. `git` is `none` when the folder is no git repository, `empty` when it is one without a commit, `ready` when it has one; `playwright` tells whether it holds a `playwright.config.ts`. An API given no test repository answers `503` `unavailable`.
 
 ```http
 POST /api/repository/preparation

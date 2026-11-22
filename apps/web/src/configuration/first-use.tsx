@@ -83,6 +83,11 @@ export function FirstUse({ project, state, controls, step, onBack, onNext }: Fir
         </ol>
       )}
       <p className="first-use-lead">{t(`firstUse.${step}.lead`)}</p>
+      {step === "welcome" && state.repository !== undefined && (
+        <p className="small muted">
+          {t("firstUse.welcome.folder")} <code className="mono">{state.repository.folder}</code> {t("firstUse.welcome.otherFolder")}
+        </p>
+      )}
       {state.refusal !== undefined && (
         <p className="config-note ko" role="alert">
           {state.refusal.text}

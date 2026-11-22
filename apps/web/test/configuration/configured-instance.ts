@@ -61,7 +61,7 @@ export class ConfiguredInstance {
   public readonly api: Api = (request) => {
     const { path, method, body } = request;
     // A test repository that is no git repository yet, which the setting up makes one.
-    if (path === "/api/repository") return json({ git: "none", playwright: false });
+    if (path === "/api/repository") return json({ folder: "/work/shop-tests", git: "none", playwright: false });
     if (path === "/api/repository/preparation") return json({ created: ["playwright.config.ts"], kept: [], committed: true });
     // Every source answers, and holds three items.
     if (path === "/api/knowledge/check") return json({ state: "ok", items: 3 });
