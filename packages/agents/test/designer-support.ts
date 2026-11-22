@@ -1,7 +1,7 @@
 import { withTags } from "../src/designer/scenario-tags.ts";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll } from "vitest";
@@ -136,8 +136,8 @@ export const CARD: SourceCard = {
   unassigned: [],
 };
 
-/** A test repository under git with one commit, pushed to a local bare remote, and an untracked index. */
-export function repository(index: unknown = INDEX, manifest?: string): string {
+/** Writes the files of a test repository, commits them and pushes them to a bare remote of its own. */
+function committedRepository(manifest: string | undefined): { readonly root: string; readonly remote: string } {
   const root = mkdtempSync(join(workspace, "repo-"));
   if (manifest !== undefined) writeFileSync(join(root, "package.json"), manifest);
   mkdirSync(join(root, "specs"));
@@ -155,6 +155,27 @@ export function repository(index: unknown = INDEX, manifest?: string): string {
   git(root, "commit", "-q", "-m", "chore: start the test repository");
   git(root, "remote", "add", "origin", remote);
   git(root, "push", "-q", "origin", "main");
+  return { root, remote };
+}
+
+/** The test repository without a manifest, committed and pushed once by the process, which each test copies: git starts once, not for every test. */
+let pristine: { readonly root: string; readonly remote: string } | undefined;
+
+/** A copy of the test repository without a manifest, with a copy of its remote, which is its origin. */
+function copiedRepository(): string {
+  pristine ??= committedRepository(undefined);
+  const root = mkdtempSync(join(workspace, "repo-"));
+  const remote = mkdtempSync(join(workspace, "remote-"));
+  cpSync(pristine.root, root, { recursive: true });
+  cpSync(pristine.remote, remote, { recursive: true });
+  const config = join(root, ".git", "config");
+  writeFileSync(config, readFileSync(config, "utf8").replace(pristine.remote, remote));
+  return root;
+}
+
+/** A test repository under git with one commit, pushed to a local bare remote, and an untracked index. */
+export function repository(index: unknown = INDEX, manifest?: string): string {
+  const root = manifest === undefined ? copiedRepository() : committedRepository(manifest).root;
   mkdirSync(join(root, ".oqas", "index", "sources"), { recursive: true });
   writeFileSync(join(root, ".oqas", "index", "domain-index.json"), typeof index === "string" ? index : JSON.stringify(index));
   writeFileSync(join(root, ".oqas", "index", "sources", "shop-api.json"), JSON.stringify(CARD));
