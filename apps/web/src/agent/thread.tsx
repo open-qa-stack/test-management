@@ -19,6 +19,7 @@ import {
   type SayStep,
   type SessionStage,
   type Speaker,
+  type Step,
   type ToolStep,
   type Turn,
 } from "@open-qa-stack/domain/sessions";
@@ -26,6 +27,10 @@ import { PlanCard } from "./plan-card.tsx";
 import { ScopeCard } from "./scope-card.tsx";
 import { SpeakerMark } from "./speaker-mark.tsx";
 import { HarnessVerdict, ReviewVerdict } from "./verdict-card.tsx";
+import { harnessText, isWorded, rowText } from "./harness-words.ts";
+import { Fold } from "./fold.tsx";
+import { RefusalGroup } from "./refusal-group.tsx";
+import { stretchesOf, type WorkStretch } from "./work-stretches.ts";
 import { iconOf } from "./tool-icon.ts";
 
 /** What the thread of a session needs. */
@@ -44,10 +49,10 @@ export interface ThreadProps {
   readonly query?: Readonly<Record<string, string>>;
   /** Where the session is: an empty thread says what it waits for, or that nothing will come. */
   readonly stage: SessionStage;
-  /** The ranks of the long texts the person unfolded. */
-  readonly unfolded: readonly number[];
-  /** Unfolds a long text, by the rank of its step, or folds it again. */
-  readonly onUnfold: (index: number) => void;
+  /** What of the thread the person unfolded, by key: `text-9` for the long text of the step 9, `actions-4` for the actions from the step 4, `stretch-3` for the stretch of work from the step 3. */
+  readonly unfolded: readonly string[];
+  /** Unfolds a part of the thread, by its key, or folds it again. */
+  readonly onUnfold: (key: string) => void;
 }
 
 /** What the links of a thread need to come back to it. */
@@ -57,8 +62,8 @@ interface Back {
   readonly lookIndex: number | undefined;
   /** The only speaker the thread follows, if any. */
   readonly followed: Speaker | undefined;
-  readonly unfolded: readonly number[];
-  readonly onUnfold: (index: number) => void;
+  readonly unfolded: readonly string[];
+  readonly onUnfold: (key: string) => void;
 }
 
 /** The colour family of each verdict of a test the console words; any other reads as it is. */
@@ -176,7 +181,52 @@ function Action({ step, shown, back }: { readonly step: ToolStep; readonly shown
 }
 
 /**
- * What one agent thought, said and did in a row, under its name. The name follows the agent: it leaves that
+ * The actions an agent did in a row, folded under one line: how many, how many failed, and the time they took
+ * together, once their tools told it. They unfold while one of them runs, and when the look of one of them is open.
+ */
+function ActionGroup({ items, back }: { readonly items: readonly ShownStep[]; readonly back: Back }): ReactNode {
+  const steps = items.map(({ step }) => step as ToolStep);
+  const failed = steps.filter(({ outcome }) => outcome === "failed").length;
+  const took = steps.reduce((sum, { durationMs }) => sum + (durationMs ?? 0), 0);
+  return (
+    <Fold
+      id={`actions-${items[0]!.index}`}
+      className="actions"
+      forced={items.some(({ running, index }) => running || index === back.lookIndex)}
+      unfolded={back.unfolded}
+      onUnfold={back.onUnfold}
+      summary={
+        <>
+          <Icon name="code" />
+          <span className="actions-count">{t("thread.actions", { count: steps.length })}</span>
+          {failed > 0 && <span className="actions-failed">{t("thread.actionsFailed", { count: failed })}</span>}
+          {took > 0 && <span className="act-time">{elapsedText(took)}</span>}
+        </>
+      }
+    >
+      <div className="actions-list">
+        {items.map((shown) => (
+          <Action key={shown.index} step={shown.step as ToolStep} shown={shown} back={back} />
+        ))}
+      </div>
+    </Fold>
+  );
+}
+
+/** The items of a turn of an agent, the actions it did in a row gathered: a run of one action stays alone. */
+function runsOf(items: readonly ShownStep[]): (ShownStep | readonly ShownStep[])[] {
+  const runs: (ShownStep | ShownStep[])[] = [];
+  for (const item of items) {
+    const last = runs.at(-1);
+    if (item.step.kind !== "tool") runs.push(item);
+    else if (Array.isArray(last)) last.push(item);
+    else runs.push([item]);
+  }
+  return runs.map((run) => (Array.isArray(run) && run.length === 1 ? run[0]! : run));
+}
+
+/**
+ * What one agent thought, said and did in a row, under its name; the actions it did in a row folded under their count. The name follows the agent: it leaves that
  * agent alone in the thread, or brings the others back when the thread already follows it.
  */
 function AgentTurn({ turn, back }: { readonly turn: Extract<Turn<ShownStep>, { kind: "agent" }>; readonly back: Back }): ReactNode {
@@ -199,7 +249,9 @@ function AgentTurn({ turn, back }: { readonly turn: Extract<Turn<ShownStep>, { k
           <span className="turn-role">{role}</span>
           <span className="turn-at">{turn.items[0]!.step.at}</span>
         </header>
-        {turn.items.map((shown) => {
+        {runsOf(turn.items).map((run) => {
+          if (Array.isArray(run)) return <ActionGroup key={run[0]!.index} items={run} back={back} />;
+          const shown = run as ShownStep;
           const { step } = shown;
           if (step.kind === "tool") return <Action key={shown.index} step={step} shown={shown} back={back} />;
           const said = step as SayStep;
@@ -233,9 +285,9 @@ function Brief({ shown }: { readonly shown: ShownStep }): ReactNode {
   );
 }
 
-/** What a note says, on its line: its text, or for a row of notes alike what they say around their sources. */
+/** What a note says, on its line, in the words of the console: its text, or for a row of notes alike what they say of their sources. */
 function noteTextOf(step: NoteStep | RepeatedNoteStep): string {
-  return step.kind === "note" ? step.text : `${step.before}…${step.after}`;
+  return step.kind === "note" ? harnessText(step.text) : rowText(step);
 }
 
 /** A row of notes alike: one line, what they say around the name of a source and how many sources, which unfolds on each note. */
@@ -250,7 +302,7 @@ function RepeatedNotes({ step }: { readonly step: RepeatedNoteStep }): ReactNode
       <ul>
         {step.notes.map((note, index) => (
           <li key={index}>
-            <span className="turn-at">{note.at}</span> {note.text}
+            <span className="turn-at">{note.at}</span> {harnessText(note.text)}
           </li>
         ))}
       </ul>
@@ -288,7 +340,7 @@ function Notes({ items }: { readonly items: readonly ShownStep[] }): ReactNode {
             </li>
           ) : (
             <li key={index}>
-              <span className="turn-at">{step.at}</span> {step.text}
+              <span className="turn-at">{step.at}</span> {harnessText(step.text)}
             </li>
           ),
         )}
@@ -311,12 +363,39 @@ function Pass({ step }: { readonly step: PassStep }): ReactNode {
   );
 }
 
-/** What the session produced, with the verdict of each test. */
+/** How many tests passed, failed, and came to another verdict, as the head of what the session produced says it. */
+function tallyOf(step: OutcomeStep): string {
+  const passed = step.tests.filter(({ verdict }) => verdict === "passed").length;
+  const failed = step.tests.filter(({ verdict }) => verdict === "failed").length;
+  const other = step.tests.length - passed - failed;
+  return [
+    ...(passed === 0 ? [] : [t("thread.passedCount", { count: passed })]),
+    ...(failed === 0 ? [] : [t("thread.failedCount", { count: failed })]),
+    ...(other === 0 ? [] : [t("thread.otherCount", { count: other })]),
+  ].join(" · ");
+}
+
+/**
+ * Why a test came to its verdict, under its title: in the words of the console when the harness said it in a
+ * form it knows, folded under the technical details when it is the raw answer of the runner, such as an error.
+ */
+function TestNote({ note }: { readonly note: string }): ReactNode {
+  if (isWorded(note)) return <span className="turn-role">{harnessText(note)}</span>;
+  return (
+    <details className="raw result-raw">
+      <summary>{t("thread.technical")}</summary>
+      <pre>{note}</pre>
+    </details>
+  );
+}
+
+/** What the session produced: how many tests passed and failed, then the verdict of each test. */
 function Outcome({ step }: { readonly step: OutcomeStep }): ReactNode {
   return (
     <section className="result-card outcome">
       <header>
         <b>{step.title}</b>
+        <span className="outcome-tally">{tallyOf(step)}</span>
       </header>
       {step.tests.map((test, index) => {
         const [tone, label] = verdictOf(test.verdict);
@@ -324,7 +403,7 @@ function Outcome({ step }: { readonly step: OutcomeStep }): ReactNode {
           <div key={index} className="result-row">
             <Badge tone={tone}>{label}</Badge>
             <span className="result-title">{test.title}</span>
-            <span className="turn-role">{test.note ?? test.level}</span>
+            {test.note === undefined ? <span className="turn-role">{test.level}</span> : <TestNote note={test.note} />}
           </div>
         );
       })}
@@ -364,11 +443,13 @@ function TurnView({ turn, back }: { readonly turn: Turn<ShownStep>; readonly bac
   if (turn.kind === "agent") return <AgentTurn turn={turn} back={back} />;
   if (turn.kind === "brief") return <Brief shown={turn.shown} />;
   if (turn.kind === "notes") return <Notes items={turn.items} />;
+  if (turn.kind === "refusals") return <RefusalGroup items={turn.items} unfolded={back.unfolded} onUnfold={back.onUnfold} />;
   const { step } = turn.shown;
   if (step.kind === "review") return <ReviewVerdict step={step} running={turn.shown.running} />;
+  if (step.kind === "verdict" && !step.accepted) return <RefusalGroup items={[turn.shown]} unfolded={back.unfolded} onUnfold={back.onUnfold} />;
   if (step.kind === "verdict") {
     const { index } = turn.shown;
-    return <HarnessVerdict step={step} index={index} open={back.unfolded.includes(index)} onUnfold={() => back.onUnfold(index)} />;
+    return <HarnessVerdict step={step} index={index} open={back.unfolded.includes(`text-${index}`)} onUnfold={() => back.onUnfold(`text-${index}`)} />;
   }
   if (step.kind === "plan") return <PlanCard step={step} />;
   if (step.kind === "scope") return <ScopeCard step={step} />;
@@ -377,23 +458,87 @@ function TurnView({ turn, back }: { readonly turn: Turn<ShownStep>; readonly bac
 }
 
 /**
- * The thread of a session, as a conversation: what was asked, what the person said since, each agent in turn — what it thought,
- * folded, what it said, and what it did, a line per action — the verdicts of the harness, the plans, and
- * what the session produced. While its agents work, its last line names who is at work.
+ * A stretch of work, on one line: the agents at work, how many actions they did and how many failed, how many
+ * times the harness refused, how many notes it wrote, and the time the actions took; each turn unfolds under it as it was. It is open while
+ * one of its steps runs, and when the look of one of its actions is.
+ */
+function Stretch({ stretch, back }: { readonly stretch: WorkStretch; readonly back: Back }): ReactNode {
+  const ranks = stretch.turns.flatMap((turn) => ("items" in turn ? turn.items : [turn.shown]).map(({ index }) => index));
+  return (
+    <Fold
+      id={`stretch-${ranks[0]!}`}
+      className="stretch"
+      forced={stretch.running || ranks.includes(back.lookIndex ?? -1)}
+      unfolded={back.unfolded}
+      onUnfold={back.onUnfold}
+      summary={
+        <>
+          <span className="stretch-marks">
+            {(stretch.agents.length === 0 ? (["harness"] as const) : stretch.agents).map((speaker) => (
+              <SpeakerMark key={speaker} speaker={speaker} size="sm" />
+            ))}
+          </span>
+          <span className="stretch-what">
+            {[
+              ...(stretch.agents.length === 0 ? [] : [stretch.agents.map((agent) => identityOf(agent).name).join(", ")]),
+              ...(stretch.actions === 0 ? [] : [t("thread.actions", { count: stretch.actions })]),
+              ...(stretch.failed === 0 ? [] : [t("thread.actionsFailed", { count: stretch.failed })]),
+              ...(stretch.refusals === 0 ? [] : [t("count.refusals", { count: stretch.refusals })]),
+              ...(stretch.notes === 0 ? [] : [t("thread.notes", { count: stretch.notes })]),
+            ].join(" · ")}
+          </span>
+          {stretch.actions > 0 && <span className="act-time">{elapsedText(stretch.durationMs)}</span>}
+        </>
+      }
+    >
+      <div className="stretch-turns">
+        {stretch.turns.map((turn, rank) => (
+          <TurnView key={rank} turn={turn} back={back} />
+        ))}
+      </div>
+    </Fold>
+  );
+}
+
+/** Whether a turn is a card of a kind of step. */
+function isCard(turn: Turn<ShownStep> | undefined, kind: Step["kind"]): boolean {
+  return turn?.kind === "card" && turn.shown.step.kind === kind;
+}
+
+/**
+ * The turns in the order a person reads them: what the session came to first, once it ended, and no pass that
+ * holds nothing — one another pass follows at once, or that the thread ends on once nothing more will come.
+ */
+function readingOrder(turns: readonly Turn<ShownStep>[], stage: SessionStage): Turn<ShownStep>[] {
+  const kept = turns.filter((turn, rank) => {
+    if (!isCard(turn, "pass")) return true;
+    const next = turns[rank + 1];
+    return next === undefined ? stage === "live" : !isCard(next, "pass");
+  });
+  const last = kept.findLastIndex((turn) => isCard(turn, "outcome"));
+  return stage !== "ended" || last === -1 ? kept : [kept[last]!, ...kept.slice(0, last), ...kept.slice(last + 1)];
+}
+
+/**
+ * The thread of a session, as a conversation: what the session produced first, once it ended; what was asked, what
+ * the person said since, each agent in turn — what it thought, folded, what it said, and what it did, its actions in
+ * a row folded under their count — the verdicts of the harness, its refusals alike gathered, and the plans. The work
+ * of the agents in a row, without a word of theirs, is folded under one line. While its agents work, its last line
+ * names who is at work.
  *
  * @param props - The session at this moment.
  * @returns The thread.
  */
 export function Thread({ path, frame, lookIndex, filter = "all", followed, query = {}, stage, unfolded, onUnfold }: ThreadProps): ReactNode {
-  const turns = turnsOf(frame.shown.filter(({ step }) => shows(step, filter, followed)));
+  const turns = readingOrder(turnsOf(frame.shown.filter(({ step }) => shows(step, filter, followed))), stage);
   const back: Back = { path, query, lookIndex, followed, unfolded, onUnfold };
   const working = frame.speaking === undefined || frame.speaking === "user" ? undefined : frame.speaking;
   return (
     <section className="thread" aria-label={t("thread.label")}>
       {frame.shown.length === 0 && <EmptyState title={t(`thread.empty.${stage}.title`)}>{t(`thread.empty.${stage}.body`)}</EmptyState>}
-      {turns.map((turn, index) => (
+      {stretchesOf(turns).map((entry, index) => (
         <div key={index} className="thread-item">
-          <TurnView turn={turn} back={back} />
+          {entry.kind === "stretch" ? <Stretch stretch={entry} back={back} /> : <TurnView turn={entry} back={back} />}
         </div>
       ))}
       {stage === "live" && frame.shown.length > 0 && (

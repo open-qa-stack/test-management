@@ -529,6 +529,8 @@
 .thinking summary,
 .brief summary,
 .notes summary,
+.actions summary,
+.refusals summary,
 .act-line {
   display: flex;
   align-items: center;
@@ -538,13 +540,19 @@
 /* What unfolds: a line to press, as tall as a finger, with no marker of its own. */
 .thinking summary,
 .brief summary,
-.notes summary {
+.notes summary,
+.actions summary,
+.refusals summary,
+.stretch summary {
   min-height: var(--tap);
 }
 
 .thinking summary,
 .brief summary,
 .notes summary,
+.actions summary,
+.refusals summary,
+.stretch summary,
 .act summary {
   list-style: none;
   cursor: pointer;
@@ -553,8 +561,138 @@
 .thinking summary::-webkit-details-marker,
 .brief summary::-webkit-details-marker,
 .notes summary::-webkit-details-marker,
+.actions summary::-webkit-details-marker,
+.refusals summary::-webkit-details-marker,
+.stretch summary::-webkit-details-marker,
 .act summary::-webkit-details-marker {
   display: none;
+}
+
+/* The actions of an agent in a row: one line that counts them and ends on their time, with a mark that turns once unfolded. */
+.actions summary {
+  padding: 0 var(--inset);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+}
+
+.actions summary svg {
+  flex: none;
+}
+
+.actions-count {
+  flex: 1;
+  min-width: 0;
+  color: var(--text);
+  font-weight: var(--weight-medium);
+}
+
+.actions-count::after,
+.refusals-what::after {
+  content: " ▸";
+  color: var(--text-3);
+}
+
+.actions[open] .actions-count::after,
+.refusals[open] .refusals-what::after {
+  content: " ▾";
+}
+
+.actions-failed {
+  flex: none;
+  color: var(--ko);
+}
+
+.actions-list,
+.refusals-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-line);
+  margin-top: var(--gap-line);
+}
+
+/* Refusals alike of the harness in a row: one line, how many and why; each refusal unfolds under it. */
+.refusals summary {
+  flex-wrap: wrap;
+  row-gap: var(--gap-line);
+  padding: var(--space-2) var(--inset);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--elevation-rest);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+}
+
+.refusals-what {
+  flex: 1;
+  min-width: 0;
+  color: var(--text);
+  font-weight: var(--weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.refusals-scenarios {
+  flex-basis: 100%;
+  order: 1;
+  color: var(--text-3);
+  overflow-wrap: anywhere;
+}
+
+/* Work of the agents in a row: one line, who worked and what came of it; each turn unfolds under it. */
+.stretch summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--inset);
+  border: var(--hairline) dashed var(--line);
+  border-radius: var(--radius-card);
+  color: var(--text-2);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+}
+
+.stretch-marks {
+  display: flex;
+  flex: none;
+  gap: var(--space-1);
+}
+
+.stretch-what {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.stretch-what::after {
+  content: " ▸";
+  color: var(--text-3);
+}
+
+.stretch[open] .stretch-what::after {
+  content: " ▾";
+}
+
+.stretch-turns {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+/* How many tests passed and failed, beside the title of what the session produced. */
+.outcome-tally {
+  margin-left: var(--space-2);
+  color: var(--text-2);
+  font-size: var(--type-small);
+}
+
+.result-row .result-raw {
+  grid-column: 2;
+  min-width: 0;
 }
 
 /* A reasoning: one muted line, which unfolds, set in as what an action holds. */
@@ -1509,16 +1647,6 @@ html:has(.look-panel) {
     left: auto;
     width: var(--drawer);
     border-left: var(--hairline) solid var(--line);
-    box-shadow: var(--elevation-raised);
-  }
-
-  .session-bar {
-    position: sticky;
-    top: var(--space-2);
-    z-index: 2;
-  }
-
-  .session-bar::after {
     box-shadow: var(--elevation-raised);
   }
 

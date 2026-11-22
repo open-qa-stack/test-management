@@ -39,6 +39,16 @@ export function momentText(iso: string): string {
 }
 
 /**
+ * Writes the day of a moment, short, in universal time, as the thread of a session tells its times.
+ *
+ * @param iso - The moment, in ISO 8601.
+ * @returns Its day and its month abbreviated, such as `19 nov.`.
+ */
+export function dayText(iso: string): string {
+  return new Intl.DateTimeFormat(locale(), { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(iso));
+}
+
+/**
  * Writes a date for the person, to the minute, in the time zone of the browser.
  *
  * @param iso - The date, in ISO 8601.

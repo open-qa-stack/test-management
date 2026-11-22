@@ -143,7 +143,7 @@ export function App(): ReactNode {
         else sync.say(session.id, text);
       },
       // Once the instance took the request, its confirmation closes: the bar of the session says the stop was asked.
-      unfold: (index: number) => dispatch({ type: "unfold", id: session.id, index }),
+      unfold: (key: string) => dispatch({ type: "unfold", id: session.id, key }),
       stop: () => sync.interrupt(session.id, () => (window.location.hash = withoutStop(parseRoute(currentHash())))),
       sayOnEnter: (event: FieldKeyboardEvent<HTMLTextAreaElement>): void => {
         // Enter sends, as in a conversation; with Shift it starts a new line, and while a character is being composed it chooses it.

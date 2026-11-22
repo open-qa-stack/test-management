@@ -67,7 +67,11 @@ describe("the console in English", () => {
     assert.match(text, /Opened \/ in customer-management .* 900 ms Proposed a plan of 1 scenario /);
     assert.match(text, /Plan accepted by the harness 1 scenario .* Identifier search Level smoke Case nominal Application customer-management Details /);
     assert.match(text, /Harness automatic check refused PLAN-ELEMENT .* Read more Page at that moment /);
-    assert.match(text, /Writing a test search Writer writes and runs the Playwright tests .* Verdict of the run: 1 test passed /);
+    assert.match(
+      text,
+      /Verdicts Verdict of the run: 1 test 1 passed passed Rechercher un client par son nom Every attempt passed\. Configuration The configuration is valid; the session targets the environment local\. /,
+    );
+    assert.match(text, /Writing a test search Writer writes and runs the Playwright tests /);
     assert.match(text, /Tell the agents what to do next: correct a test, add a scenario… Go on with the session$/);
   });
 

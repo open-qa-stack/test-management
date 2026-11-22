@@ -125,7 +125,8 @@
     "backToLive": "Revenir au direct",
     "showAll": "Tout afficher",
     "passes": "Passes de la session",
-    "unfollow": "Ne plus suivre {{name}}"
+    "unfollow": "Ne plus suivre {{name}}",
+    "title": "Session du {{day}}"
   },
   "speakers": {
     "user": {
@@ -197,7 +198,21 @@
     "yourRequest": "Votre demande : ",
     "deliveredTo": "remis à {{name}}",
     "agentsWork": "Les agents travaillent",
-    "agentWorks": "{{name}} travaille"
+    "agentWorks": "{{name}} travaille",
+    "actions_one": "{{count}} action",
+    "actions_other": "{{count}} actions",
+    "actionsFailed_one": "{{count}} échec",
+    "actionsFailed_other": "{{count}} échecs",
+    "refusals": "Refusé ×{{count}}",
+    "technical": "Détails techniques",
+    "toolFailed": "Une action de l’agent n’a pas abouti",
+    "summary": "Bilan",
+    "passedCount_one": "{{count}} réussi",
+    "passedCount_other": "{{count}} réussis",
+    "failedCount_one": "{{count}} échoué",
+    "failedCount_other": "{{count}} échoués",
+    "otherCount_one": "{{count}} sans verdict",
+    "otherCount_other": "{{count}} sans verdict"
   },
   "count": {
     "sources_one": "{{count}} source",
@@ -246,7 +261,6 @@
   "verdict": {
     "automatic": "contrôle automatique",
     "reviewer": "agent relecteur",
-    "details": "Détails",
     "scenario": "scénario {{id}}",
     "tool": "outil {{name}}",
     "accepted": "accepté",
@@ -1211,5 +1225,54 @@
     "picked_zero": "Aucun domaine choisi sur {{total}}",
     "picked_one": "1 domaine choisi sur {{total}}",
     "picked_other": "{{count}} domaines choisis sur {{total}}"
+  },
+  "harness": {
+    "configurationValid": "La configuration est valide ; la session vise l’environnement {{environment}}.",
+    "prerequisitesSucceeded": "Les prérequis sont réunis.",
+    "cartographySucceeded": "La cartographie est terminée.",
+    "designSucceeded": "La conception des tests est terminée.",
+    "executionSucceeded": "Les tests ont été exécutés ; leurs verdicts sont dans le bilan.",
+    "summaryWritten": "Le bilan de la session est écrit.",
+    "cardKept": "La fiche de {{source}} est à jour ; elle est conservée.",
+    "domainFileKept": "Le fichier du domaine {{domain}} est à jour ; il est conservé.",
+    "indexKept": "L’index des domaines est complet et à jour ; il est conservé.",
+    "scenarioOpened": "Le scénario {{scenario}} est ouvert ; son test sera {{test}}.",
+    "testWritten": "Le test {{test}} est écrit.",
+    "testPassed": "Le test {{test}} a été exécuté : il réussit.",
+    "testFailed": "Le test {{test}} a été exécuté : il échoue.",
+    "callsBeyondSheet": "Scénario {{scenario}} : appels hors de sa fiche : {{count}}.",
+    "callBeyondSheet": "Scénario {{scenario}} : après l’échec de l’essai {{run}}, l’agent a utilisé {{tool}}, hors de sa fiche.",
+    "planWritten": "Le plan est enregistré dans {{file}}.",
+    "designWritten": "L’état de la conception est enregistré dans {{file}}.",
+    "designWrittenNothing": "L’état de la conception est enregistré dans {{file}} ; aucun test nouveau n’a été écrit, et rien n’a été versé au dépôt.",
+    "testsCommitted": "Les tests sont versés sur la branche {{branch}} ; la branche active du dépôt de tests est {{active}}.",
+    "planAcceptedEmpty": "Le plan est accepté, sans aucun scénario.",
+    "planAccepted": "Le plan est accepté : {{scenarios}}.",
+    "noTestEmptyPlan": "Aucun test n’a été écrit : le plan ne contient aucun scénario, et dit ce qu’aucun test ne peut faire de la demande.",
+    "briefCovered": "Le harnais ne demande plus de scénario : l’agent dit que la demande est couverte.",
+    "onlyDuplicates": "Le harnais ne demande plus de scénario : les derniers proposés étaient des doublons, et l’agent n’a rien de nouveau à vérifier.",
+    "briefUnfeasible": "Le harnais ne demande plus de scénario : l’agent dit qu’aucun test ne peut faire ce que la demande attend.",
+    "askedConfirmation": "Le harnais a demandé à l’agent de confirmer que le test de {{scenario}} échoue à cause de l’application, avant d’épuiser ses essais.",
+    "setAsideByHarness": "Le scénario {{scenario}} est écarté par le harnais ({{rule}}) : il double {{of}}. {{reason}}",
+    "setAsideByReviewer": "Le scénario {{scenario}} est écarté par le relecteur du plan : il double {{of}}. {{reason}}",
+    "answerLeftOut": "Le harnais a écarté une réponse du relecteur du plan : {{scenario}} comme doublon de {{of}}.",
+    "coherenceFault": "Le relecteur de cohérence relève un défaut dans le test de {{scenario}} : {{remark}}",
+    "codeFault": "Le relecteur de code relève un défaut dans le test de {{scenario}} : {{remark}}",
+    "sharedLocator": "Le harnais a prévenu l’agent : {{count}} éléments de la page répondent au même repère, qui affiche {{shown}}.",
+    "allTestsRun": "Les {{designed}} tests conçus sont exécutés ; aucun n’est écarté.",
+    "testsRun": "{{run}} des {{designed}} tests conçus sont exécutés ; écartés car inachevés, en double ou infaisables : {{left}}.",
+    "verdictPassed": "Réussi : {{title}}.",
+    "verdictFailed": "Échoué : {{title}}.",
+    "everyAttemptPassed": "Chaque essai a réussi.",
+    "planRefusedByHarness": "Le harnais refuse le plan",
+    "planRefused": "Le plan est refusé",
+    "planUncovered": "Le plan ne couvre pas toute la demande",
+    "noTestWritten": "Aucun test n’a été écrit",
+    "rows": {
+      "cardKept_one": "La fiche de {{count}} source est à jour ; elle est conservée.",
+      "cardKept_other": "Les fiches de {{count}} sources sont à jour ; elles sont conservées.",
+      "domainFileKept_one": "Le fichier de {{count}} domaine est à jour ; il est conservé.",
+      "domainFileKept_other": "Les fichiers de {{count}} domaines sont à jour ; ils sont conservés."
+    }
   }
 }

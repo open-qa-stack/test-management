@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { durationText, momentText } from "../i18n/formats.ts";
+import { dayText, durationText, momentText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
 import { hrefTo, type Route } from "../routing/route.ts";
 import { Badge } from "../ui/badge.tsx";
@@ -116,7 +116,7 @@ function ReplayBar({ live }: { readonly live: LiveSession }): ReactNode {
 }
 
 /**
- * A session: its thread alone, followed as the agents work or replayed, over the composer of a message to the
+ * A session, named by its day — what was asked stays in the bubble that opens its thread: its thread alone, followed as the agents work or replayed, over the composer of a message to the
  * agents: one sent while it waits its turn is delivered when its agents start, and one sent once it ended resumes it. Until
  * then its bar offers to stop it, behind a confirmation the address opens (`?stop=ask`). What an agent had before its eyes
  * when it acted opens in a panel, from the eye of that action: the address names the action (`?look=6`).
@@ -131,8 +131,9 @@ export function SessionScreen({ route, live, project }: SessionScreenProps): Rea
   const filter = FILTERS.find((name) => name === route.query["show"]) ?? "all";
   const followed = AGENTS.find((agent) => agent === route.query["agent"]) as Speaker | undefined;
   const kept = { ...(filter === "all" ? {} : { show: filter }), ...(followed === undefined ? {} : { agent: followed }) };
+  const title = t("session.title", { day: dayText(live.session.openedAt) });
   return (
-    <Page crumbs={[{ label: project }, { label: t("console.titles.entry"), href: hrefTo("/agent") }, { label: script.title }]} title={script.title}>
+    <Page crumbs={[{ label: project }, { label: t("console.titles.entry"), href: hrefTo("/agent") }, { label: title }]} title={title}>
       <div className="session">
         {playback.following ? <FollowBar route={route} live={live} /> : <ReplayBar live={live} />}
         {asksToStop(route) && script.stage !== "ended" && live.stopping.state !== "asked" && (

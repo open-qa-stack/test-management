@@ -18,8 +18,8 @@ export interface Followed {
   readonly saying: Sending;
   /** Where the request of the person to stop it is. */
   readonly stopping: Stopping;
-  /** The ranks, in its script, of the long texts the person unfolded to read them to the end. */
-  readonly unfolded: readonly number[];
+  /** What of its thread the person unfolded: a long text to read it to the end, a row of actions or of refusals, a stretch of work. */
+  readonly unfolded: readonly string[];
 }
 
 /** Where something the person sends to the instance is: nothing sent, sent and not answered yet, or the error the API answered. */
@@ -98,8 +98,8 @@ export type ConsoleAction =
   | { readonly type: "stop_asked"; readonly id: string }
   /** The API refused to stop a session. */
   | { readonly type: "unstopped"; readonly id: string; readonly message: string }
-  /** The person unfolded a long text of a session to read it to the end, or folded it again. */
-  | { readonly type: "unfold"; readonly id: string; readonly index: number }
+  /** The person unfolded a part of the thread of a session, named by its key, or folded it again. */
+  | { readonly type: "unfold"; readonly id: string; readonly key: string }
   /** The person acted on the playback of a session. */
   | { readonly type: "playback"; readonly script: SessionScript; readonly action: PlaybackAction };
 
@@ -229,9 +229,7 @@ export function consoleAfter(state: ConsoleState, action: ConsoleAction): Consol
     case "unfold": {
       const { followed } = state;
       if (followed?.id !== action.id) return state;
-      const unfolded = followed.unfolded.includes(action.index)
-        ? followed.unfolded.filter((index) => index !== action.index)
-        : [...followed.unfolded, action.index];
+      const unfolded = followed.unfolded.includes(action.key) ? followed.unfolded.filter((key) => key !== action.key) : [...followed.unfolded, action.key];
       return { ...state, followed: { ...followed, unfolded } };
     }
     case "playback": {

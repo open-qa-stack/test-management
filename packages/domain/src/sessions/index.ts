@@ -20,6 +20,7 @@ export { scriptOf } from "./thread/script-of.ts";
 export type { ScriptWording } from "./thread/script-wording.ts";
 export type { SessionScript, SessionStage } from "./thread/session-script.ts";
 export type { RefusalParts } from "./thread/refusal-parts.ts";
+export { sayingOf, type Saying, type SayingCode } from "./thread/harness-saying.ts";
 export type * from "./thread/step.ts";
 export { turnsOf, type Turn } from "./thread/turns.ts";
 export { toolTitle, type ToolWord, type ToolWording } from "./thread/tool-title.ts";
