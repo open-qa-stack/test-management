@@ -83,6 +83,7 @@ export type {
 export { testFacets, type TestFacets } from "../repository-tests/test-facets.ts";
 export { campaignCounts, campaignVerdict } from "../campaigns/campaign-rules.ts";
 export type { TestReading } from "../repository-tests/test-reading.ts";
+export { MAX_TEST_TEXT, stepWording, textRefusal, type TestChange, type TestEdit, type TestSource } from "../repository-tests/test-change.ts";
 export type { QaCapture, QaDetails, QaStep, QaView } from "../report/qa-view.ts";
 export { isStoredDocuments } from "../knowledge-documents/stored-documents-path.ts";
 export { attachmentsOf, isProjectWide, sourceApplications } from "../config/knowledge-reach.ts";

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, it } from "vitest";
-import type { Execution, ExecutionList, RepositoryTestList, TestReading } from "@open-qa-stack/domain";
+import type { Execution, ExecutionList, RepositoryTest, RepositoryTestList, TestReading } from "@open-qa-stack/domain";
 import { chain, Terminal } from "./support/terminal.ts";
 
 const BRIEF = ["--environment", "local", "--brief", "Test the listing of the orders."];
@@ -69,6 +69,20 @@ describe("oqas tests and oqas executions", () => {
     assert.equal((await terminal.oqas(["tests", "executions", "nowhere.spec.ts"])).out, "No execution the instance keeps ran nowhere.spec.ts.\n");
     assert.equal((await terminal.oqas(["tests", "versions", "nowhere.spec.ts"])).out, "The instance keeps no version of nowhere.spec.ts.\n");
     assert.equal((await terminal.oqas(["tests", "read", "nowhere.spec.ts"])).out, "nowhere.spec.ts: no run the instance keeps ran it.\n");
+
+    // The code of a test is printed as its file holds it, and its title and its steps are changed in it, under the identifier the design gave it.
+    const source = await terminal.oqas(["tests", "source", FIRST]);
+    assert.equal(`${source.out}`, `${readFileSync(join(terminal.root, FIRST), "utf8").trimEnd()}\n`);
+    const [, testId] = /@oqas-id-([0-9a-f-]{36})/.exec(source.out) ?? [];
+    const renamed = await terminal.oqas(["tests", "rename", FIRST, "test-1", "Show the orders"]);
+    assert.deepEqual(renamed.out.split("\n").slice(1), [`Committed ${FIRST}; the test bears @oqas-id-${testId}.`, ""]);
+    assert.match(renamed.out, new RegExp(`^${FIRST} › Show the orders `));
+    const stepped = JSON.parse(
+      (await terminal.oqas(["tests", "step", FIRST, "Show the orders", "1", "Open the list", "--output", "json"])).out,
+    ) as RepositoryTest;
+    assert.deepEqual([stepped.title, stepped.id, stepped.steps[0]], ["Show the orders", testId, "1. Open the list"]);
+    const refused = await terminal.oqas(["tests", "step", FIRST, "Show the orders", "9", "Close"]);
+    assert.deepEqual(refused, { code: 3, out: "", err: 'The test "Show the orders" has no step 9.\n' });
   });
 
   it("read a test in steps from the latest run that ran it, and write its trace and the capture of a step to files", async () => {
@@ -105,12 +119,14 @@ describe("oqas tests and oqas executions", () => {
     await refused(["tests", "capture", FIRST, "1", "step.png"], `The run read of ${FIRST} attached no capture for its step 1.`);
     await refused(
       ["tests", "bogus", FIRST],
-      "oqas tests takes nothing, read, executions or versions then a test, trace then a test and a file, or capture then a test, a step and a file.",
+      "oqas tests takes nothing, read, executions, versions or source then a test, trace then a test and a file, capture then a test, a step and a file, rename then a test, its title and its new title, or step then a test, its title, a step and its new text.",
     );
     await refused(["tests", "capture", FIRST, "first", "step.png"], "oqas tests capture needs the number of a step, from 1.");
+    await refused(["tests", "step", FIRST, "test-1", "first", "Open"], "oqas tests step needs the number of a step, from 1.");
+    await refused(["tests", "source", FIRST], `The test repository holds no file of tests ${FIRST}.`);
     await refused(
       ["tests", "read"],
-      "oqas tests takes nothing, read, executions or versions then a test, trace then a test and a file, or capture then a test, a step and a file.",
+      "oqas tests takes nothing, read, executions, versions or source then a test, trace then a test and a file, capture then a test, a step and a file, rename then a test, its title and its new title, or step then a test, its title, a step and its new text.",
     );
     await refused(["tests", "--follow"], "oqas tests acts on the tests of the test repository: it takes no --brief, --environment nor --follow.");
     await refused(["executions", "show"], "oqas executions takes nothing, to list them, or show then an execution.");

@@ -15,6 +15,21 @@ export const DETAIL: RepositoryTest = {
   data: "read",
 };
 
+/** The code of the file of the test of the policies. */
+export const SOURCE = [
+  'import { expect, test } from "../../../../shared/fixtures.ts";',
+  "",
+  'test("Display the detail of a policy", { tag: ["@level-functional", "@app-policy-management"] }, async ({ page }) => {',
+  '  await test.step("1. Open the policy of the customer", async () => {',
+  '    await page.goto("/policies/fvh1p2pmkx");',
+  "  });",
+  '  await test.step("2. Read its amounts", async () => {',
+  '    await expect(page.getByText("CHF 1,200.00")).toBeVisible();',
+  "  });",
+  "});",
+  "",
+].join("\n");
+
 /** A visual test of the same application. */
 export const SCREEN: RepositoryTest = {
   ...DETAIL,

@@ -270,7 +270,7 @@ const EXECUTIONS_PAGE = 20;
  * the latest executions or the versions of its tests, or writes its trace or the capture of one of its steps to a file.
  */
 async function tested(
-  { tests, readings, executions }: Pick<Operations, "tests" | "readings" | "executions">,
+  { tests, readings, executions, code }: Pick<Operations, "tests" | "readings" | "executions" | "code">,
   command: Extract<Command, { name: "tests" }>,
   printing: Pick<Asked<"tests">, "options" | "io">,
 ): Promise<ExitCodeValue> {
@@ -295,6 +295,16 @@ async function tested(
     case "versions": {
       const items = await executions.versions(command.path);
       print(printing, linesOr(items.map(versionLine), `The instance keeps no version of ${command.path}.`), { items });
+      return ExitCode.passed;
+    }
+    case "source": {
+      const source = await code.read(command.path);
+      print(printing, source.content.trimEnd(), source);
+      return ExitCode.passed;
+    }
+    case "change": {
+      const changed = await code.change(command);
+      print(printing, `${testLine(changed)}\nCommitted ${changed.path}; the test bears @oqas-id-${changed.id}.`, changed);
       return ExitCode.passed;
     }
     case "trace": {

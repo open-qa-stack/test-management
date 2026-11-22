@@ -3,7 +3,7 @@ import { createElement, type FormEvent } from "react";
 import { describe, it } from "vitest";
 import { TestRelaunch, type RelaunchState } from "../../src/tests/test-relaunch.tsx";
 import { TestScreen } from "../../src/tests/test-screen.tsx";
-import { elementsOf, render, textOf } from "../render.ts";
+import { at, elementsOf, render, textOf } from "../render.ts";
 import { DETAIL, TESTS } from "./tests-fixture.ts";
 
 /** The relaunch of the test of the policies, in the state given, as HTML. */
@@ -51,6 +51,10 @@ describe("the relaunch of a test", () => {
         tests: { value: TESTS },
         executions: { value: [] },
         versions: { value: [] },
+        route: at("#/tests/view"),
+        source: {},
+        saving: { pending: false },
+        onChange: () => undefined,
         relaunch: { environments: ["local"], pending: false },
         onRelaunch: () => undefined,
       }),

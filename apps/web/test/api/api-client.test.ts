@@ -135,6 +135,20 @@ describe("the client of the API, for the documents of the knowledge sources", ()
     assert.deepEqual(versioned.calls, [["/api/tests/versions?path=apps%2Fshop%2Forders.spec.ts", undefined]]);
   });
 
+  it("reads the code of a file of tests out of the envelope the API answers, and changes a test by patching the tests", async () => {
+    const source = clientOf(() => json({ path: "apps/shop/orders.spec.ts", content: 'test("Orders", async () => {});\n' }));
+    assert.equal(await source.client.testSource("apps/shop/orders.spec.ts"), 'test("Orders", async () => {});\n');
+    assert.deepEqual(source.calls, [["/api/tests/source?path=apps%2Fshop%2Forders.spec.ts", undefined]]);
+    const test = { path: "apps/shop/orders.spec.ts", title: "Orders", id: "3f0c2b9e-8d4a-4f1e-9b7a-2c5d6e7f8a90", steps: [], tags: [], applications: [] };
+    const changed = clientOf(() => json(test));
+    const change = { path: test.path, title: "List the orders", change: { title: "Orders" } };
+    assert.deepEqual(await changed.client.changeTest(change), test);
+    assert.deepEqual(
+      changed.calls.map(([path, init]) => [path, init?.method, init?.body]),
+      [["/api/tests", "PATCH", JSON.stringify(change)]],
+    );
+  });
+
   it("reads the domains of the knowledge out of the envelope the API answers", async () => {
     const domain = { id: "quotes", label: "Devis", description: "Les demandes de devis." };
     const listed = clientOf(() => json({ items: [domain] }));

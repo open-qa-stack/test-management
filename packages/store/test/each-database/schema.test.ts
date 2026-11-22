@@ -92,6 +92,7 @@ const DECLARED: { readonly [Table in keyof StoreSchema]: { readonly [Column in k
     version: "integer, or nothing",
   },
   test_versions: { path: "text", title: "text", number: "integer", digest: "text", commit_sha: "text, or nothing", since: "instant" },
+  tests: { id: "text", path: "text", title: "text" },
   memories: {
     id: "text",
     domain: "text",

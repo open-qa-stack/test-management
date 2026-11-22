@@ -45,6 +45,8 @@ const CONSOLE: Readonly<Record<OperationId, Offer>> = {
   "TestReadings.read": { client: "testReading" },
   "TestReadings.trace": { address: "/tests/trace", in: "src/executions/executions-paths.ts" },
   "TestReadings.capture": { address: "/tests/capture", in: "src/executions/result-screen.tsx" },
+  "TestSources.read": { client: "testSource" },
+  "TestSources.change": { client: "changeTest" },
   "Executions.page": { client: "executionPage" },
   "Executions.get": { client: "execution" },
   "Executions.ofFile": { client: "testExecutions" },

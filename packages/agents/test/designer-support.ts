@@ -206,9 +206,12 @@ export interface Call {
 }
 
 /** A scenario of the plan, about the orders of the shop: its one step opens them and expects their heading. */
-/** A test as the harness keeps it: with the tags of its scenario, a functional scenario of the orders of the shop unless told otherwise. */
+/** The identifier the designs of these tests give each new test. */
+export const TEST_ID = "5e1f0a2b-3c4d-4e5f-8a9b-0c1d2e3f4a5b";
+
+/** A test as the harness keeps it: with the tags of its scenario, a functional scenario of the orders of the shop unless told otherwise, and its identifier. */
 export const tagged = (content: string, kind: "other" | "visual" | "functional" = "other") =>
-  withTags(content, { level: "functional", domain: "orders", feature: "listing", application: "shop", kind, case: "nominal", effect: "read" });
+  withTags(content, { level: "functional", domain: "orders", feature: "listing", application: "shop", kind, case: "nominal", effect: "read" }, TEST_ID);
 
 export const scenario = (id: string, kind = "other", changes: Record<string, unknown> = {}) => ({
   id,
@@ -385,6 +388,7 @@ export async function design(script: readonly { status?: number; body: unknown }
     const charter = resolveCharter(config.charter);
     assert.ok(charter.ok);
     const designer = new Designer({
+      newId: () => TEST_ID,
       memory: new KeptMemories(),
       config,
       repositoryRoot: root,

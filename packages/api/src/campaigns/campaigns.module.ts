@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
 import { Campaigns, RepositoryTests, Sessions } from "@open-qa-stack/engine";
-import { CampaignStore, ConfigurationStore, ExecutionStore } from "@open-qa-stack/store";
+import { CampaignStore, ConfigurationStore, ExecutionStore, TestStore } from "@open-qa-stack/store";
 import { ApiConfiguration } from "../config/api-configuration.ts";
 import { DatabaseModule } from "../database/database.module.ts";
 import { SessionsModule } from "../sessions/sessions.module.ts";
@@ -16,9 +16,15 @@ import { CampaignsController } from "./campaigns.controller.ts";
   providers: [
     {
       provide: Campaigns,
-      inject: [CampaignStore, ExecutionStore, ApiConfiguration, ConfigurationStore, Sessions],
-      useFactory: (store: CampaignStore, executions: ExecutionStore, { repository }: ApiConfiguration, configuration: ConfigurationStore, sessions: Sessions) =>
-        new Campaigns({ store, executions, tests: new RepositoryTests(repository, configuration), launcher: sessions }),
+      inject: [CampaignStore, ExecutionStore, ApiConfiguration, ConfigurationStore, TestStore, Sessions],
+      useFactory: (
+        store: CampaignStore,
+        executions: ExecutionStore,
+        { repository }: ApiConfiguration,
+        configuration: ConfigurationStore,
+        identities: TestStore,
+        sessions: Sessions,
+      ) => new Campaigns({ store, executions, tests: new RepositoryTests(repository, configuration, identities), launcher: sessions }),
     },
   ],
 })

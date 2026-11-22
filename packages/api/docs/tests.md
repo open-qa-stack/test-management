@@ -7,6 +7,8 @@ The shape of the body is the type `RepositoryTestList` of `@open-qa-stack/domain
 | Route | Answer |
 |---|---|
 | `GET /api/tests` | The tests of the test repository, in the order of their paths. |
+| `PATCH /api/tests` | Changes the title of a test, or the text of one of its steps, in its file. |
+| `GET /api/tests/source?path=<path>` | The code of the file of a test, as it is now. |
 | `GET /api/tests/reading?path=<path>[&execution=<id>]` | A test in steps, from the latest run that ran it, or from the execution named. |
 | `GET /api/tests/capture?path=<path>&step=<number>[&execution=<id>]` | The capture that run attached for a step. |
 | `GET /api/tests/trace?path=<path>[&execution=<id>]` | The trace that run kept of the test. |
@@ -65,7 +67,52 @@ What a test is, beyond its file, is what its tags say of it, each `@<prefix>-<va
 
 The first tag of a prefix counts. A test without a tag of a prefix has no such field; a test written by hand may have none of them. `tags` gives every tag as the file does, those of other prefixes too.
 
+### The identifier of a test
+
+`id` is the identifier of a test, the UUID of its tag `@oqas-id-<uuid>`, such as `@oqas-id-3f0c2b9e-8d4a-4f1e-9b7a-2c5d6e7f8a90`. It stays with the test when its title, its steps or its file change, and a run selects the test by it: `npx playwright test --grep @oqas-id-3f0c2b9e-8d4a-4f1e-9b7a-2c5d6e7f8a90`. The harness writes it on every test a design writes, and a repair keeps it; a test written by hand is given one the first time it is [changed](#changing-a-test). Listing the tests never writes a file.
+
+The instance keeps each test that bears an identifier under it, with where the repository last told it is: the path of its file and its titles. The [versions](#the-versions-of-a-test) and the [executions](#the-executions-of-a-test) of a test are kept under that place; when a test keeps its identifier and changes its place — renamed, moved to another file, by the console or by hand —, its versions, its results and the campaigns that chose it follow it to the new place at the next listing. They stay where they were when the new place already has versions of its own, and an identifier two tests bear, such as that of a test copied whole, moves nothing.
+
 An instance without a test repository, or before a revision of its configuration is in force, lists no test.
+
+## The code of a test
+
+```http
+GET /api/tests/source?path=apps%2Fpolicy-management%2Ftests%2Fpolicies%2Fpolicy-detail%2Fpolicy-detail-nominal.spec.ts
+```
+
+```json
+{
+  "path": "apps/policy-management/tests/policies/policy-detail/policy-detail-nominal.spec.ts",
+  "content": "import { expect, test } from \"../../../../shared/fixtures.ts\";\n\ntest(\"Display the detail of a policy\", …"
+}
+```
+
+Only the files the tests are listed from are read. The shape of the body is the type `TestSource` of `@open-qa-stack/domain/sessions`.
+
+## Changing a test
+
+```http
+PATCH /api/tests
+content-type: application/json
+
+{
+  "path": "apps/policy-management/tests/policies/policy-detail/policy-detail-nominal.spec.ts",
+  "title": "Display the detail of a policy",
+  "change": { "step": 2, "text": "Read the amounts of the policy" }
+}
+```
+
+`path` and `title` name the test as `GET /api/tests` gives it. `change` is one of:
+
+| `change` | What changes |
+|---|---|
+| `{ "title": "…" }` | The own title of the test: the titles of the groups `test.describe` that hold it stay. |
+| `{ "step": <number>, "text": "…" }` | The title of its step of that number, from 1, as its `steps` give them. A number the harness wrote before it, such as `2. `, stays. |
+
+A text is trimmed; it is one line of 300 characters at most. The file is changed from its syntax tree: the literal of the title or of the step is replaced where it is, in its own quotes, and the rest of the file is kept as it is, to the character. A test that bears no [identifier](#the-identifier-of-a-test) is given one in the same write, added to its tags. The file is then committed alone on the branch checked out, with the identity git knows in the test repository, as `test: rename "<title>" to "<new title>"` or `test: reword step <number> of "<title>"`: whatever else the repository has changed or staged stays as it is. A change is refused before anything is written when the file cannot be committed so — no git repository with a commit, no branch checked out, a merge, a rebase, a cherry-pick or a revert under way, changes of the file not committed —, and the detail says what to do first. A commit git refuses, for want of an identity or by a hook, puts the file back as it was.
+
+The body is the type `TestChange` of `@open-qa-stack/domain/sessions`. The answer is the test as its file now tells it, with its `id`, an item as `GET /api/tests` lists it.
 
 ## A test in steps
 
@@ -176,7 +223,9 @@ A version takes the commit the test repository was at when an execution first ra
 
 | `code` | Status | When |
 |---|---|---|
-| `invalid_request` | `400` | `path` is missing or empty, `step` is not a number from 1, or `execution` is empty. |
+| `invalid_request` | `400` | `path` is missing or empty, `step` is not a number from 1, `execution` is empty, or the body of a change is not `{ path, title, change }` with `change` one of its two shapes. |
+| `unknown_test` | `404` | The repository lists no file of tests of the path, or the file declares no test of the title. |
+| `test_change_refused` | `422` | The change cannot be written: the text is empty, of several lines or too long, another test of the file has the title, the test has no step of the number, its tags are not written as a text or a list of texts, the file holds a syntax error, or it cannot be committed alone. The detail says which, and what to do. |
 | `unknown_execution` | `404` | The query names an execution the instance does not keep. |
 | `unknown_capture` | `404` | The run of the test that was read attached no capture for the step that can be read: no run ran the test, it attached none for the step, or its file is gone or outside the repository. The detail says to read the test again, whose steps say which have a capture. |
 | `unknown_trace` | `404` | The run of the test that was read kept no trace of it that can be read: no run ran the test, it kept none, or its file is gone or outside the repository. |

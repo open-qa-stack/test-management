@@ -29,7 +29,9 @@ import type {
   TestExecution,
   TestExecutionList,
   TestLaunch,
+  TestChange,
   TestReading,
+  TestSource,
   TestVersion,
   TestVersionList,
   RevisionChange,
@@ -274,6 +276,27 @@ export class ApiClient {
    */
   public async tests(): Promise<readonly RepositoryTest[]> {
     return (await this.#ask<RepositoryTestList>("/tests")).items;
+  }
+
+  /**
+   * Reads the code of a file of tests, as it is now.
+   *
+   * @param path - The path of the file, relative to the root of the test repository.
+   * @returns Its text; the failure carries the code `unknown_test` when the repository lists no file of tests of the path.
+   */
+  public async testSource(path: string): Promise<string> {
+    return (await this.#ask<TestSource>(`/tests/source?${new URLSearchParams({ path }).toString()}`)).content;
+  }
+
+  /**
+   * Changes a test of the repository: its own title, or the text of one of its steps. Its file is written, not committed.
+   *
+   * @param change - The test, by its path and its titles, and what changes of it.
+   * @returns The test as its file now tells it; the failure carries the code `unknown_test` for a test the repository no
+   * longer holds, or `test_change_refused` for a change that cannot be written.
+   */
+  public changeTest(change: TestChange): Promise<RepositoryTest> {
+    return this.#ask<RepositoryTest>("/tests", { ...posting(change), method: "PATCH" });
   }
 
   /**

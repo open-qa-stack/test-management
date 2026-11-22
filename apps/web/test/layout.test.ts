@@ -8,6 +8,7 @@ import { ConfiguredInstance } from "./configuration/configured-instance.ts";
 import { DocumentedInstance } from "./knowledge/documented-instance.ts";
 import { DETAIL, EXECUTIONS } from "./executions/executions-fixture.ts";
 import { ListedInstance } from "./tests/listed-instance.ts";
+import { DETAIL as DETAIL_TEST } from "./tests/tests-fixture.ts";
 import { OPENED_ID, PlayedInstance } from "./played-instance.ts";
 
 let built: BuiltConsole | undefined;
@@ -1371,7 +1372,19 @@ describe("the code of the console is covered in full", () => {
         await page.goto("http://console.test/#/tests");
         await page.getByRole("link", { name: /Display the detail of a policy/ }).click();
         await page.waitForURL(/#\/tests\/view\?path=apps%2Fpolicy-management%2F/);
-        await page.getByText("1. Open the policy of the customer").waitFor();
+        await page.getByText("Open the policy of the customer", { exact: true }).waitFor();
+        // A title saved closes its panel; a change the instance refuses keeps it open, with why.
+        await page.getByRole("link", { name: "Modifier le titre" }).click();
+        await page.getByRole("dialog").getByLabel("Titre", { exact: true }).fill("Show the detail of a policy");
+        await page.getByRole("dialog").getByRole("button", { name: "Enregistrer" }).click();
+        await page.getByRole("dialog").waitFor({ state: "detached" });
+        instance.changeRefusal = "unknown_test";
+        await page.getByRole("link", { name: "Modifier l’étape 1" }).click();
+        await page.getByRole("dialog").getByLabel("Ce que fait l’étape").fill("Open the policy");
+        await page.getByRole("dialog").getByRole("button", { name: "Enregistrer" }).click();
+        await page.getByText("Le dépôt ne contient plus ce test").waitFor();
+        await page.keyboard.press("Escape");
+        await page.getByRole("dialog").waitFor({ state: "detached" });
         instance.refusal = "launch_refused";
         await page.getByRole("button", { name: "Relancer ce test" }).click();
         await page.getByText("Les tests ne peuvent pas être lancés maintenant").waitFor();
@@ -1392,6 +1405,73 @@ describe("the code of the console is covered in full", () => {
     );
     assert.ok(screen!.lines.length > 0, "the screen is in the build");
     assert.deepEqual(screen!.uncovered, []);
+  });
+
+  it("changes the title and a step of a test in a panel, the whole screen of a phone and a drawer on a wide one, and shows its code", async () => {
+    const instance = new ListedInstance();
+    const sources = ["src/tests/test-text-panel.tsx"];
+    const measured = await app().measure(
+      sources,
+      async (page) => {
+        await page.setViewportSize({ width: 390, height: 800 });
+        await page.goto(`http://console.test/#/tests/view?path=${encodeURIComponent(DETAIL_TEST.path)}`);
+        await page.getByText("Read its amounts", { exact: true }).waitFor();
+        assert.equal(await overflowOf(page), 0, "the card fits a phone");
+        assert.deepEqual(await tooSmallOf(page), [], "a finger reaches each action of the card");
+        // The code of the test is folded until the person opens it.
+        await page.getByText("Voir le code du test").click();
+        await page.getByText('await expect(page.getByText("CHF 1,200.00")).toBeVisible();').waitFor();
+        // On a phone, the panel of the title takes the whole screen; Enter saves the title, and the panel closes on the card read again.
+        await page.getByRole("link", { name: "Modifier le titre" }).click();
+        const dialog = page.getByRole("dialog", { name: "Titre du test" });
+        await settled(dialog);
+        assert.deepEqual(await dialog.boundingBox(), { x: 0, y: 0, width: 390, height: 800 });
+        assert.deepEqual(await tooSmallOf(page), [], "a finger reaches each action of the panel");
+        const field = dialog.getByLabel("Titre", { exact: true });
+        assert.equal(await field.inputValue(), DETAIL_TEST.title);
+        await field.fill("Show the detail of a policy");
+        await field.press("Enter");
+        await dialog.waitFor({ state: "detached" });
+        await page.getByRole("heading", { name: "Show the detail of a policy" }).waitFor();
+        // A step is changed without the number the list gives it: an empty text is refused, and so is a change the instance refuses, once.
+        await page.getByRole("link", { name: "Modifier l’étape 2" }).click();
+        const step = page.getByRole("dialog", { name: "Étape 2" });
+        const text = step.getByLabel("Ce que fait l’étape");
+        assert.equal(await text.inputValue(), "Read its amounts");
+        await text.fill("  ");
+        await step.getByRole("button", { name: "Enregistrer" }).click();
+        await step.getByText("Écrivez un texte.").waitFor();
+        await text.fill("x".repeat(301));
+        await step.getByRole("button", { name: "Enregistrer" }).click();
+        await step.getByText("Le texte dépasse 300 caractères.").waitFor();
+        await text.fill("Read the amounts\nof the policy");
+        assert.equal(await text.inputValue(), "Read the amounts of the policy", "a step is one line");
+        instance.changeRefusal = "test_change_refused";
+        await step.getByRole("button", { name: "Enregistrer" }).click();
+        await step.getByText("Ce changement ne peut pas être écrit").waitFor();
+        await step.getByRole("button", { name: "Enregistrer" }).click();
+        await step.waitFor({ state: "detached" });
+        await page.getByText("Read the amounts of the policy", { exact: true }).waitFor();
+        // On a wide screen, the panel is a drawer at the right, which Cancel closes without a change.
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await page.getByRole("link", { name: "Modifier l’étape 1" }).click();
+        const first = page.getByRole("dialog", { name: "Étape 1" });
+        await settled(first);
+        const drawer = (await first.boundingBox())!;
+        assert.ok(drawer.x > 720 && drawer.x + drawer.width === 1440 && drawer.height === 900, `the drawer is at ${JSON.stringify(drawer)}`);
+        await first.getByRole("link", { name: "Annuler" }).click();
+        await first.waitFor({ state: "detached" });
+        assert.deepEqual(instance.changes, [
+          { path: DETAIL_TEST.path, title: DETAIL_TEST.title, change: { title: "Show the detail of a policy" } },
+          { path: DETAIL_TEST.path, title: "Show the detail of a policy", change: { step: 2, text: "Read the amounts of the policy" } },
+        ]);
+      },
+      instance.api,
+    );
+    for (const [rank, source] of sources.entries()) {
+      assert.ok(measured[rank]!.lines.length > 0, `${source} is in the build`);
+      assert.deepEqual(measured[rank]!.uncovered, [], source);
+    }
   });
 
   it("runs every line of the screen of a trace when it is used in the browser, from the result of a test, the menu folded", async () => {

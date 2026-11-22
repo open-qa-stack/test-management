@@ -23,13 +23,13 @@ function bare(node: Node): unknown {
   return [node.type, ...node.children.filter((child) => significant(child!)).map((child) => bare(child!))];
 }
 
-/** The value of a string literal, its quotes and escapes taken away. */
-function stringValue(node: Node): string {
+/** The value of a string literal or of a template without substitution, its quotes and escapes taken away. */
+export function stringValue(node: Node): string {
   return node.text.slice(1, -1).replace(/\\(.)/g, "$1");
 }
 
 /** The names of a callee written as a chain, such as `["test", "describe", "serial"]`; none for another callee. */
-function chain(callee: Node): string[] {
+export function chain(callee: Node): string[] {
   if (callee.type === "identifier") return [callee.text];
   if (callee.type !== "member_expression") return [];
   const head = chain(callee.childForFieldName("object")!);
@@ -37,10 +37,9 @@ function chain(callee: Node): string[] {
 }
 
 /** The text a title is written as, a string literal or a template without substitution; `undefined` for another one. */
-function titleOf(argument: Node | null | undefined): string | undefined {
+export function titleOf(argument: Node | null | undefined): string | undefined {
   if (argument?.type === "string") return stringValue(argument);
-  if (argument?.type === "template_string" && !argument.namedChildren.some((child) => child!.type === "template_substitution"))
-    return argument.text.slice(1, -1);
+  if (argument?.type === "template_string" && !argument.namedChildren.some((child) => child!.type === "template_substitution")) return stringValue(argument);
   return undefined;
 }
 
@@ -66,9 +65,8 @@ function declared(call: Node): Declared | undefined {
   return { kind: "test", title };
 }
 
-/** The digest of each test under a node, by its titles, as the groups that hold it give them. */
 /** A test a file declares, as the walk finds it: its titles, and its call of `test`. */
-interface Found {
+export interface Found {
   readonly title: string;
   readonly call: Node;
 }
@@ -107,22 +105,53 @@ export interface TestDeclarations {
   readonly unreadable: boolean;
 }
 
+/**
+ * The tests a tree of a file of tests declares, in the order of the file, a title given twice once each time.
+ *
+ * @param root - The root of the tree.
+ * @returns Each test, by its titles, with its call of `test`.
+ */
+export function foundTests(root: Node): Found[] {
+  const found: Found[] = [];
+  walk(root, [], found);
+  return found;
+}
+
+/** The details of a call of `test`, the object after its title, if it has one. */
+export function detailsOf(call: Node): Node | undefined {
+  return call
+    .childForFieldName("arguments")!
+    .namedChildren.map((child) => child!)
+    .find((child) => child.type === "object");
+}
+
+/** The pair `tag` of the details of a call of `test`, if they have one. */
+export function tagPairOf(call: Node): Node | undefined {
+  return detailsOf(call)
+    ?.namedChildren.map((pair) => pair!)
+    .find((pair) => pair.type === "pair" && pair.childForFieldName("key")!.text === "tag");
+}
+
 /** The tags of the details of a call of `test`. */
 function tagsOf(call: Node): string[] {
-  const details = call.childForFieldName("arguments")!.namedChildren.find((child) => child!.type === "object");
-  const tag = details?.namedChildren.find((pair) => pair!.type === "pair" && pair!.childForFieldName("key")!.text === "tag");
-  const value = tag?.childForFieldName("value");
+  const value = tagPairOf(call)?.childForFieldName("value");
   if (value?.type === "string") return [stringValue(value)];
   return value?.type === "array" ? value.namedChildren.filter((item) => item!.type === "string").map((item) => stringValue(item!)) : [];
 }
 
+/** The titles of the steps of a call of `test`, in order: each the literal it is written as. */
+export function stepTitlesOf(node: Node): Node[] {
+  const argument =
+    node.type === "call_expression" && chain(node.childForFieldName("function")!).join(".") === "test.step"
+      ? node.childForFieldName("arguments")!.namedChildren[0]
+      : undefined;
+  const own = titleOf(argument) === undefined ? [] : [argument!];
+  return [...own, ...node.namedChildren.flatMap((child) => stepTitlesOf(child!))];
+}
+
 /** The titles of the steps of a call of `test`, in order. */
 function stepsOf(node: Node): string[] {
-  const own =
-    node.type === "call_expression" && chain(node.childForFieldName("function")!).join(".") === "test.step"
-      ? titleOf(node.childForFieldName("arguments")!.namedChildren[0])
-      : undefined;
-  return [...(own === undefined ? [] : [own]), ...node.namedChildren.flatMap((child) => stepsOf(child!))];
+  return stepTitlesOf(node).map((title) => titleOf(title)!);
 }
 
 /**
@@ -143,8 +172,7 @@ export async function declaredTests(text: string): Promise<TestDeclarations> {
   const tree = (await parseSource("tests.ts", text))!;
   try {
     if (tree.rootNode.hasError) return { tests: [], duplicates: [], unreadable: true };
-    const found: Found[] = [];
-    walk(tree.rootNode, [], found);
+    const found = foundTests(tree.rootNode);
     const tests = new Map<string, DeclaredTest>();
     const duplicates = new Set<string>();
     for (const { title, call } of found) {

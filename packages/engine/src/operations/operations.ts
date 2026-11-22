@@ -13,6 +13,7 @@ import type { Secrets } from "../secrets/secrets.ts";
 import type { Sessions } from "../sessions/sessions.ts";
 import type { RepositoryTests } from "../tests/repository-tests.ts";
 import type { TestReadings } from "../tests/test-readings.ts";
+import type { TestSources } from "../tests/test-sources.ts";
 
 /** The classes of the engine whose methods a client or a host calls, by name. */
 export interface EngineClasses {
@@ -27,6 +28,7 @@ export interface EngineClasses {
   readonly KnowledgeMapping: KnowledgeMapping;
   readonly RepositoryTests: RepositoryTests;
   readonly TestReadings: TestReadings;
+  readonly TestSources: TestSources;
   readonly Executions: Executions;
   readonly PastRuns: PastRuns;
   readonly Campaigns: Campaigns;

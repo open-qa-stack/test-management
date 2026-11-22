@@ -3,6 +3,7 @@ import {
   LaunchRefusedError,
   SecretRefusedError,
   SessionEndedError,
+  TestChangeRefusedError,
   UnknownCampaignError,
   UnknownCaptureError,
   UnknownDocumentError,
@@ -10,6 +11,7 @@ import {
   UnknownExecutionError,
   UnknownSecretError,
   UnknownSessionError,
+  UnknownTestError,
   UnknownTraceError,
 } from "@open-qa-stack/domain";
 import { DatabaseUnavailableError, PendingMigrationsError } from "@open-qa-stack/store";
@@ -28,6 +30,8 @@ const REFUSALS = [
   UnknownExecutionError,
   UnknownTraceError,
   UnknownCaptureError,
+  UnknownTestError,
+  TestChangeRefusedError,
   LaunchRefusedError,
   UnknownCampaignError,
   CampaignRefusedError,

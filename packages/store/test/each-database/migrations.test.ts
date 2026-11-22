@@ -61,8 +61,9 @@ describe("applying the migrations", () => {
         "0010_campaign_selections",
         "0011_memories",
         "0012_session_purposes",
+        "0013_tests",
       ]);
-      assert.equal(await migrate(url), "Applied 12 migrations.");
+      assert.equal(await migrate(url), "Applied 13 migrations.");
       assert.deepEqual(await tables(database), [
         "campaign_tests",
         "campaigns",
@@ -78,6 +79,7 @@ describe("applying the migrations", () => {
         "session_messages",
         "sessions",
         "test_versions",
+        "tests",
       ]);
       assert.equal(await migrate(url), "The database schema is up to date: no migration to apply.");
     }));
