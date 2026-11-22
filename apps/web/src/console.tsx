@@ -8,6 +8,7 @@ import { CampaignPage } from "./campaigns/campaign-page.tsx";
 import { CampaignsPage } from "./campaigns/campaigns-page.tsx";
 import { ApplicationsPage } from "./applications/applications-page.tsx";
 import { ConfigurationPage } from "./configuration/configuration-page.tsx";
+import { DiscoveryPage } from "./discovery/discovery-page.tsx";
 import { isExecutionPeriod } from "./executions/execution-period.ts";
 import { ExecutionPage } from "./executions/execution-page.tsx";
 import type { ExecutionsFilter } from "./executions/executions-paths.ts";
@@ -54,7 +55,7 @@ export interface ConsoleProps {
  * that says the instance keeps no such session, or that the address leads nowhere.
  */
 type Shown =
-  | { readonly screen: "entry" | "configuration" | "applications" | "knowledge" | "tests" | "campaigns" | "no_session" | "nowhere" }
+  | { readonly screen: "entry" | "configuration" | "discovery" | "applications" | "knowledge" | "tests" | "campaigns" | "no_session" | "nowhere" }
   | { readonly screen: "campaign"; readonly id: string }
   | { readonly screen: "executions"; readonly filter: ExecutionsFilter; readonly before?: string }
   | { readonly screen: "execution"; readonly id: string }
@@ -132,6 +133,7 @@ function executionsShown(part: string | undefined, query: Route["query"]): Shown
 function shownOf({ route, live, missing = false }: ConsoleProps): Shown {
   if (isEntry(route)) return { screen: "entry" };
   if (route.path.length === 1 && route.path[0] === "configuration") return { screen: "configuration" };
+  if (route.path.length === 1 && route.path[0] === "discovery") return { screen: "discovery" };
   if (route.path[0] === "applications" && route.path.length <= 2) return { screen: "applications" };
   if (route.path[0] === "knowledge" && route.path.length <= 2) return { screen: "knowledge" };
   if (route.path.length === 1 && route.path[0] === "tests") return { screen: "tests" };
@@ -181,6 +183,8 @@ function Screen(props: ConsoleProps): ReactNode {
       return <SessionScreen route={route} live={shown.live} project={name} />;
     case "configuration":
       return <ConfigurationPage project={name} {...(onConfigured === undefined ? {} : { onSaved: onConfigured })} />;
+    case "discovery":
+      return <DiscoveryPage project={name} />;
     case "applications":
       return <ApplicationsPage project={name} route={route} {...(onConfigured === undefined ? {} : { onSaved: onConfigured })} />;
     case "knowledge":

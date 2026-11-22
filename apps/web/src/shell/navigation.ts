@@ -32,7 +32,7 @@ export const NAVIGATION: readonly NavigationGroup[] = [
   {
     key: "repository",
     entries: [
-      { icon: "discovery", key: "discovery" },
+      { icon: "discovery", key: "discovery", path: "/discovery" },
       { icon: "review", key: "review" },
       { icon: "tests", key: "tests", path: "/tests" },
       { icon: "check", key: "coverage" },

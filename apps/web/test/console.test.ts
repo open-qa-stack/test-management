@@ -264,6 +264,8 @@ describe("the console", () => {
     assert.equal(documentTitleOf({ route: at("#/configuration") }), "Configuration · Open QA Stack");
     assert.match(pageOf(consoleAt("#/configuration/more")), /Page introuvable/);
     assert.match(pageOf(consoleAt("#/configuration/applications")), /Page introuvable/);
+    assert.match(pageOf(consoleAt("#/discovery", { project: PROJECT })), /^lakeside-tests \/ Découverte Découverte Lecture de la cartographie/);
+    assert.equal(documentTitleOf({ route: at("#/discovery") }), "Découverte · Open QA Stack");
     assert.match(pageOf(consoleAt("#/applications", { project: PROJECT })), /^lakeside-tests \/ Applications Applications Lecture de la configuration/);
     assert.equal(documentTitleOf({ route: at("#/applications/shop") }), "Applications · Open QA Stack");
     assert.match(
