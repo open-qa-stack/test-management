@@ -46,26 +46,83 @@ describe("the page of an application", () => {
     assert.deepEqual(linksOf(html).at(-1), "#/applications");
   });
 
-  it("shows the application alone, every field with its label and its value, with nothing to save while nothing changed, and no button that removes it", () => {
+  it("shows what the application is, then its test accounts and its environments a row each, with nothing to save while nothing changed, and no button that removes it", () => {
     const html = page("#/applications/shop");
-    assert.match(textOf(html), /^shop-tests \/ Applications \/ Shop Shop Retirer l’application Nom .* Avancé Identifiant Minuscules/);
-    assert.match(textOf(html), /Enregistrée$/);
+    const text = textOf(html);
+    assert.match(text, /^shop-tests \/ Applications \/ Shop Shop Retirer l’application Nom .* Avancé Identifiant Minuscules/);
+    assert.match(
+      text,
+      /Comptes de test clerk Modifier Ajouter un compte Environnements local http:\/\/127\.0\.0\.1:3000 · 1 API Modifier Ajouter un environnement Enregistrée$/,
+    );
     assert.doesNotMatch(html, /data-remove="\/applications\/0"/);
+    assert.doesNotMatch(html, /<dialog/, "no panel is open");
     assert.match(html, /<a class="btn ghost" href="#\/applications\/shop\?drop=application">Retirer l’application<\/a>/);
     assert.match(html, /<label for="config-applications-0-id">Identifiant<\/label>/);
     assert.ok(bears(html, "/applications/0/id", "input", 'id="config-applications-0-id"', 'data-kind="text"', 'class="mono"', 'value="shop"'));
     assert.match(html, /<option value="web">Interface web<\/option><option value="api">API<\/option><option value="web-and-api" selected="">/);
     assert.ok(bears(html, "/applications/0/type", "select", 'data-kind="choice"', 'aria-invalid="false"'));
+    assert.match(html, /<a class="btn sm" href="#\/applications\/shop\?panel=account%3A0" aria-label="Modifier clerk">Modifier<\/a>/);
+    assert.match(html, /<a class="btn sm" href="#\/applications\/shop\?panel=environment%3A0" aria-label="Modifier local">Modifier<\/a>/);
+    assert.match(html, /data-add="\/applications\/0\/authentication\/accounts" data-item="account" data-panel="account:1"/);
+    assert.match(html, /data-add="\/applications\/0\/environments" data-item="environment" data-panel="environment:1"/);
+  });
+
+  it("changes a test account in a panel: its name, the values of its variables beside them, the variables folded, and what removes it and closes the panel", () => {
+    const html = page("#/applications/shop?panel=account%3A0");
+    assert.match(
+      html,
+      /<dialog class="side-panel" aria-labelledby="application-panel-title"><header class="side-panel-head"><h2 id="application-panel-title">Compte clerk<\/h2><a class="side-panel-close" href="#\/applications\/shop" aria-label="Fermer">/,
+    );
+    for (const variable of ["SHOP_USER", "SHOP_PASSWORD"]) assert.match(html, new RegExp(`id="secret-${variable}"`));
     assert.ok(bears(html, "/applications/0/authentication/accounts/0/passwordEnv", 'value="SHOP_PASSWORD"', 'class="mono"'));
+    assert.match(
+      html,
+      /<button type="button" class="btn ghost" data-remove="\/applications\/0\/authentication\/accounts\/0" data-panel="">Retirer ce compte<\/button>/,
+    );
+    assert.match(textOf(html), /Retirer ce compte Enregistrée Enregistrée$/, "the panel and the page each tell where the change stands");
+    assert.doesNotMatch(page("#/applications/shop?panel=account%3A3"), /<dialog/, "an account the draft no longer holds opens no panel");
+  });
+
+  it("changes an environment in a panel: its fields, its APIs each with what removes it, and what removes the environment and closes the panel", () => {
+    const html = page("#/applications/shop?panel=environment%3A0");
+    assert.match(textOf(html), /Environnement local Nom Comme les sessions le nomment/);
     assert.ok(bears(html, "/applications/0/environments/0/apis/0/baseUrl", 'value="http://127.0.0.1:3001"'));
-    assert.match(textOf(html), /Environnement local Retirer Nom Comme les sessions le nomment/);
-    assert.ok(bears(html, "/applications/0/id", 'aria-describedby="config-applications-0-id-hint"'));
-    assert.match(html, /name="\/applications\/0\/id" value="shop"\/><span id="config-applications-0-id-hint" class="field-hint">/);
     assert.match(html, /data-add="\/applications\/0\/environments\/0\/apis" data-item="api"/);
-    assert.match(html, /aria-label="Retirer l’environnement local de Shop" data-remove="\/applications\/0\/environments\/0"/);
     assert.match(html, /aria-label="Retirer l’API backend de l’environnement local" data-remove="\/applications\/0\/environments\/0\/apis\/0"/);
-    assert.match(html, /aria-label="Retirer le compte clerk de Shop" data-remove="\/applications\/0\/authentication\/accounts\/0"/);
     assert.match(html, /<option value="read-write" selected="">/);
+    assert.match(html, /data-remove="\/applications\/0\/environments\/0" data-panel="">Retirer cet environnement<\/button>/);
+    assert.doesNotMatch(page("#/applications/shop?panel=other%3A0"), /<dialog/, "a panel the page does not know opens nothing");
+  });
+
+  it("marks a part that holds an error to correct, says when there is no test account, and names a part without a name by its rank", () => {
+    const wrong = configurationAfter(stateAfter(), {
+      type: "checked",
+      draft: stateAfter().draft!,
+      errors: [{ kind: "structure", path: "/applications/0/environments/0/uiUrl", rule: "format", message: "…" }],
+    });
+    assert.match(textOf(page("#/applications/shop", { ...wrong, tried: true })), /local http:\/\/127\.0\.0\.1:3000 · 1 API À corriger Modifier/);
+    const document = {
+      ...DOCUMENT,
+      applications: [{ ...DOCUMENT.applications[0]!, authentication: { method: "none" as const }, environments: [{ name: "", uiUrl: "" }] }],
+    };
+    const view = { ...VIEW, revision: { ...VIEW.revision!, document } };
+    const bare = configurationAfter(INITIAL_CONFIGURATION, { type: "read", view, revisions: REVISIONS });
+    assert.match(
+      textOf(page("#/applications/shop", bare)),
+      /Comptes de test Aucun compte de test pour l’instant\. Ajouter un compte Environnements Environnement 1 aucune API Modifier/,
+    );
+    const unnamed = {
+      ...DOCUMENT,
+      applications: [
+        { ...DOCUMENT.applications[0]!, authentication: { method: "form" as const, accounts: [{ name: "", usernameEnv: "U", passwordEnv: "P" }] } },
+      ],
+    };
+    const named = configurationAfter(INITIAL_CONFIGURATION, {
+      type: "read",
+      view: { ...VIEW, revision: { ...VIEW.revision!, document: unnamed } },
+      revisions: REVISIONS,
+    });
+    assert.match(textOf(page("#/applications/shop", named)), /Comptes de test Compte 1 Modifier Ajouter un compte/);
   });
 
   it("names an application in force without a name by its rank", () => {
@@ -91,11 +148,6 @@ describe("the page of an application", () => {
     );
   });
 
-  it("asks for the values of the variables of the test accounts beside them", () => {
-    const html = page("#/applications/shop");
-    for (const variable of ["SHOP_USER", "SHOP_PASSWORD"]) assert.match(html, new RegExp(`id="secret-${variable}"`));
-  });
-
   it("asks before it removes the application, and offers to cancel", () => {
     const html = page("#/applications/shop?drop=application");
     assert.match(
@@ -115,9 +167,8 @@ describe("the page of an application", () => {
     assert.match(text, /^shop-tests \/ Applications \/ Nouvelle application Nouvelle application 1 erreur à corriger avant d’enregistrer/);
     assert.match(text, /avant d’enregistrer .*Nom /);
     assert.doesNotMatch(html, /data-remove="\/applications\/1"/);
-    assert.match(text, /Environnement 1 Environnement 1 Retirer Nom/);
-    assert.match(html, /aria-label="Retirer l’environnement 1 de Application 2" data-remove="\/applications\/1\/environments\/0"/);
-    assert.match(html, /<p class="field-error" role="note">Il en faut au moins un\.<\/p>/);
+    assert.match(text, /Environnements Environnement 1 aucune API Modifier Il en faut au moins un\. Ajouter un environnement/);
+    assert.match(html, /href="#\/applications\?add=application&amp;panel=environment%3A0"/);
     assert.match(text, /Modifications non enregistrées Annuler les modifications Enregistrer$/);
   });
 });

@@ -1,4 +1,7 @@
 {
+  "panel": {
+    "close": "Fermer"
+  },
   "shell": {
     "offline": "Hors ligne",
     "offlineDetail": "— l’instance ne répond plus ; la page reprendra seule dès son retour",
@@ -580,7 +583,17 @@
       "usernameEnv": "Variable de l’identifiant",
       "passwordEnv": "Variable du mot de passe",
       "addAccount": "Ajouter un compte",
-      "addEnvironment": "Ajouter un environnement"
+      "addEnvironment": "Ajouter un environnement",
+      "edit": "Modifier",
+      "editPart": "Modifier {{name}}",
+      "toFix": "À corriger",
+      "noAccount": "Aucun compte de test pour l’instant.",
+      "environments": "Environnements",
+      "apiCount_zero": "aucune API",
+      "apiCount_one": "{{count}} API",
+      "apiCount_other": "{{count}} API",
+      "removeAccount": "Retirer ce compte",
+      "removeEnvironment": "Retirer cet environnement"
     },
     "knowledge": {
       "kinds": {

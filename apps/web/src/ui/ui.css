@@ -457,3 +457,125 @@ a.row:hover {
     line-height: var(--leading-body);
   }
 }
+
+/*
+ * A side panel, for a secondary task of a page: the whole screen of a phone; from 720 px, a panel at the right of the
+ * window over the page, which a veil keeps in sight. Its head and its foot stay while its body scrolls.
+ */
+.side-panel {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.side-panel[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.side-panel::backdrop {
+  background: var(--veil);
+}
+
+.side-panel-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--gutter);
+  border-bottom: var(--hairline) solid var(--line);
+}
+
+.side-panel-head h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--type-heading);
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-heading);
+  overflow-wrap: anywhere;
+}
+
+.side-panel-close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control);
+  height: var(--control);
+  border-radius: var(--radius-control);
+  color: var(--text-2);
+}
+
+.side-panel-close:hover {
+  background: var(--neutral-soft);
+  color: var(--text);
+}
+
+.side-panel-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-row);
+  padding: var(--space-4) var(--gutter);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* What a panel holds reads in one column, at the width of the panel; what it does stands at the start of its line. */
+.side-panel .config-fields {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.side-panel-body > .btn {
+  align-self: flex-start;
+}
+
+.side-panel-foot {
+  flex: none;
+  padding: 0 var(--gutter);
+}
+
+.side-panel-foot .save-bar {
+  position: static;
+}
+
+/* On a phone, what became of the change takes its own line over the buttons, which then hold on one. */
+.side-panel-foot .save-state {
+  flex-basis: 100%;
+}
+
+@media (min-width: 720px) {
+  .side-panel-foot .save-state {
+    flex-basis: auto;
+  }
+}
+
+@media (min-width: 720px) {
+  .side-panel {
+    left: auto;
+    width: var(--drawer);
+    border-left: var(--hairline) solid var(--line);
+    box-shadow: var(--elevation-raised);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .side-panel[open] {
+    animation: side-panel-in 0.18s ease-out;
+  }
+}
+
+@keyframes side-panel-in {
+  from {
+    transform: translateX(var(--space-6));
+  }
+}

@@ -1,15 +1,15 @@
 import type { MouseEventHandler, ReactNode } from "react";
-import type { ConfiguredApplication } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
 import { hrefTo, type Route } from "../routing/route.ts";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page, type Crumb } from "../ui/page.tsx";
-import { ApplicationCard } from "../configuration/application-card.tsx";
+import { applicationTitle } from "../configuration/application-card.tsx";
 import type { ConfigurationControls } from "../configuration/configuration-screen.tsx";
 import type { ConfigurationState } from "../configuration/configuration-state.ts";
 import { DraftForm } from "../configuration/draft-form.tsx";
 import { rankIn } from "../configuration/use-item-pages.ts";
 import { APPLICATIONS, applicationPath, applicationsOf } from "./application-paths.ts";
+import { ApplicationSheet } from "./application-sheet.tsx";
 
 /** What the person does on the page of an application. */
 export interface ApplicationControls {
@@ -29,10 +29,6 @@ export interface ApplicationScreenProps {
   readonly state: ConfigurationState;
   readonly controls: ApplicationControls;
 }
-
-/** The name of an application as a person reads it: its name, or its rank while it has none. */
-const titleOf = (application: ConfiguredApplication, rank: number): string =>
-  application.name === "" ? t("configuration.application.untitled", { rank: rank + 1 }) : application.name;
 
 /** The confirmation of the removal of an application the person asked for, with the ways out. */
 function DropConfirmation({
@@ -65,8 +61,8 @@ function DropConfirmation({
 }
 
 /**
- * An application of the configuration on a page of its own: what it is, how a user signs in, its environments and
- * their APIs, which the person changes and saves alone, as a revision of its own, or removes once they confirmed it;
+ * An application of the configuration on a page of its own: what it is, then its test accounts and its environments,
+ * each changed in a panel; the person saves it alone, as a revision of its own, or removes it once they confirmed it;
  * or the application they add, saved alone the same way.
  *
  * @param props - The project, the route, the draft and what the person does to it.
@@ -94,7 +90,7 @@ export function ApplicationScreen({ project, route, state, controls }: Applicati
       <Page crumbs={crumbs(title)} title={title}>
         {application !== undefined && (
           <DraftForm state={state} controls={controls.edit}>
-            <ApplicationCard application={application} rank={rank} listed={false} />
+            <ApplicationSheet application={application} rank={rank} route={route} state={state} controls={controls.edit} />
           </DraftForm>
         )}
       </Page>
@@ -110,7 +106,7 @@ export function ApplicationScreen({ project, route, state, controls }: Applicati
       </Page>
     );
   const application = draft.applications[rank]!;
-  const name = titleOf(view.revision.document.applications[rank]!, rank);
+  const name = applicationTitle(view.revision.document.applications[rank]!, rank);
   const drop = (
     <a className="btn ghost" href={hrefTo(applicationPath(id), { drop: "application" })}>
       {t("configuration.applications.drop")}
@@ -120,7 +116,7 @@ export function ApplicationScreen({ project, route, state, controls }: Applicati
     <Page crumbs={crumbs(name)} title={name} actions={drop}>
       {route.query["drop"] !== undefined && <DropConfirmation id={id} name={name} rank={rank} state={state} controls={controls} />}
       <DraftForm state={state} controls={controls.edit}>
-        <ApplicationCard application={application} rank={rank} listed={false} />
+        <ApplicationSheet application={application} rank={rank} route={route} state={state} controls={controls.edit} />
       </DraftForm>
     </Page>
   );

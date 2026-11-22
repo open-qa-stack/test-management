@@ -266,6 +266,11 @@
   flex: 1;
 }
 
+/* A part of an item in a list, a test account or an environment: its name, then the button that changes it, on one line. */
+.row.part-row:has(> .grow) {
+  flex-wrap: nowrap;
+}
+
 .config-secrets {
   margin: 0;
 }

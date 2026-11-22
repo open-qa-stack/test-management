@@ -33,6 +33,18 @@ export function hrefTo(path: string, query: Readonly<Record<string, string>> = {
 }
 
 /**
+ * Writes the link to the screen of a route with a panel open on it, or with none.
+ *
+ * @param route - The route, whose other parameters are kept.
+ * @param panel - The panel to open, such as `account:0`; none to close the one open.
+ * @returns The fragment to put in an `href`.
+ */
+export function withPanel(route: Route, panel?: string): string {
+  const { panel: _open, ...query } = route.query;
+  return hrefTo(`/${route.path.join("/")}`, panel === undefined ? query : { ...query, panel });
+}
+
+/**
  * Tells whether a route is at a path or under it.
  *
  * @param route - The route.
