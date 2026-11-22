@@ -1,5 +1,7 @@
 import { hasEnded, type Session } from "@open-qa-stack/domain/sessions";
 import { UI_PORT } from "../arguments.ts";
+import type { PrintingCommand } from "../operation-commands.ts";
+import { conversationCommandOf } from "./conversation-command.ts";
 import { hintedCommands } from "./slash-commands.ts";
 import type { ConversationState } from "./conversation-state.ts";
 import { t } from "./i18n/i18n.ts";
@@ -24,6 +26,10 @@ export type Request =
   | { readonly kind: "new" }
   | { readonly kind: "ui"; readonly port: number }
   | { readonly kind: "model" }
+  /** A command that prints, run as `oqas` runs it. */
+  | { readonly kind: "command"; readonly command: PrintingCommand }
+  /** The value of a variable to type, without it being shown, then to save. */
+  | { readonly kind: "secret"; readonly variable: string }
   | { readonly kind: "help" }
   | { readonly kind: "quit" }
   | { readonly kind: "refused"; readonly why: string };
@@ -34,6 +40,14 @@ function commandOf(state: ConversationState, line: string): Request {
   const named = hintedCommands(word);
   const [command] = named.filter(({ name }) => named.length === 1 || name === word.slice(1));
   if (command === undefined) return { kind: "refused", why: t("requests.unknown", { word }) };
+  if ("runs" in command) {
+    if (command.name === "model" && rest.length === 0) return { kind: "model" };
+    const asked = conversationCommandOf([...command.runs, ...rest]);
+    if (!asked.ok) return { kind: "refused", why: asked.why };
+    const { command: run } = asked;
+    // A value is typed over the input, unseen, as oqas secrets set reads it in a terminal: never in the line typed.
+    return run.name === "secrets" && run.action === "set" ? { kind: "secret", variable: run.variable } : { kind: "command", command: run };
+  }
   const [value, ...more] = rest;
   if (value !== undefined && (command.name !== "ui" || more.length > 0))
     return { kind: "refused", why: t("requests.takes", { name: command.name, what: command.takes ?? t("requests.nothingAfter") }) };

@@ -209,6 +209,37 @@ describe("oqas, without a command, in a terminal", () => {
     assert.equal((await ended).code, 0);
   });
 
+  it("runs after a slash what oqas runs with the same words, writes the same lines, marks what it refused, and goes on", async () => {
+    terminal = await Terminal.open([]);
+    const secrets = await terminal.oqas(["secrets"]);
+    const mapping = await terminal.oqas(["knowledge", "mapping"]);
+    const { screen, ended } = await conversing();
+    await screen.enter("/secrets");
+    await screen.sees(secrets.out.trimEnd());
+    await screen.enter("/knowledge mapping");
+    await screen.sees(mapping.out.trimEnd());
+    await screen.enter("/executions");
+    await screen.sees("No execution of tests to list.");
+    // A value is typed over the input, unseen, and saved as oqas secrets set saves it: here the environment holds one, which wins.
+    await screen.enter("/secrets set SHOP_DB_URL");
+    await screen.sees("Value of SHOP_DB_URL");
+    await pause(20);
+    screen.type("postgres://shop");
+    await screen.sees("***************");
+    await pause(20);
+    screen.type("\r");
+    await screen.sees(/✗ SHOP_DB_URL is set in the environment of the process, which wins over a value saved/);
+    assert.doesNotMatch(screen.text, /postgres:\/\/shop/);
+    // What the command refuses, the conversation runs and marks, with what the command says of it.
+    await screen.enter("/knowledge check nowhere");
+    await screen.sees("✗ The configuration in force declares no knowledge source nowhere; oqas knowledge list lists them.");
+    // What the command refuses to read, the conversation refuses before running anything, on the line under the input.
+    await screen.enter("/config bogus");
+    await screen.sees("oqas config takes show, import, export, history or check.");
+    await screen.enter("/quit");
+    assert.equal((await ended).code, 0);
+  });
+
   it("serves the web console from its process with /ui, on the port it is given, until the person leaves", async () => {
     terminal = await Terminal.open([]);
     const { screen, ended } = await conversing(undefined, { io: { console: CONSOLE } });

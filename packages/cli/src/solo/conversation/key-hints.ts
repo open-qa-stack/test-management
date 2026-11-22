@@ -23,8 +23,8 @@ export function hintsOf(state: ConversationState): KeyHints {
   const { overlay, shown } = state;
   if (overlay?.kind === "picker") return { placeholder: "", keys: [t("hints.picker.move"), t("hints.picker.open"), t("hints.close")] };
   if (overlay?.kind === "stop") return { placeholder: "", keys: [t("hints.stop.confirm"), t("hints.stop.keep")] };
-  // The setting of the model says its own keys.
-  if (overlay?.kind === "model") return { placeholder: "", keys: [] };
+  // The setting of the model, and the typing of a value, say their own keys.
+  if (overlay?.kind === "model" || overlay?.kind === "secret") return { placeholder: "", keys: [] };
   if (shown !== undefined && !hasEnded(shown.session.state)) {
     const stops = state.hosted.includes(shown.session.id);
     return { placeholder: t("hints.say"), keys: [t("hints.send"), t("hints.commands"), t(stops ? "hints.ctrlCStop" : "hints.ctrlCQuit")] };

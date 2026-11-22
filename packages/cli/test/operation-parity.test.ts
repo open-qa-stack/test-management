@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import { operationIds, type OperationId } from "@open-qa-stack/domain";
 import { parseArguments } from "../src/solo/arguments.ts";
+import { initialState } from "../src/solo/conversation/conversation-state.ts";
+import { requestOf } from "../src/solo/conversation/request.ts";
 import { SLASH_COMMANDS, type SlashCommand } from "../src/solo/conversation/slash-commands.ts";
 
 /** What a client does not offer yet, and why: each is a gap still to close. */
@@ -14,7 +16,7 @@ interface Missing {
  * the operations, it does not compile while an operation of the engine is not said here.
  */
 const COMMANDS: Readonly<Record<OperationId, readonly string[] | Missing>> = {
-  "Sessions.project": { missing: "no command prints the project alone" },
+  "Sessions.project": ["project"],
   "Sessions.sessions": ["sessions"],
   "Sessions.session": ["show", "s"],
   "Sessions.open": ["--brief", "Orders."],
@@ -23,45 +25,48 @@ const COMMANDS: Readonly<Record<OperationId, readonly string[] | Missing>> = {
   "Sessions.interrupt": ["stop", "s"],
   "Sessions.events": ["attach", "s"],
   "Sessions.thread": ["show", "s"],
-  "Sessions.launch": { missing: "no command launches tests" },
-  "Sessions.launches": { missing: "no command lists the launches of tests" },
+  "Sessions.launch": ["launch", "--environment", "local"],
+  "Sessions.launches": ["launch", "--environment", "local"],
   "Configuration.view": ["config", "show"],
-  "Configuration.revisions": { missing: "config show prints the revision in force, not the history" },
-  "Configuration.check": { missing: "no command checks a configuration without saving it" },
+  "Configuration.revisions": ["config", "history"],
+  "Configuration.check": ["config", "check"],
   "Configuration.synchronise": ["config", "import"],
-  "Configuration.save": { missing: "model set saves the model alone; the rest is changed in oqas.json, then config import" },
+  "Configuration.save": ["model", "set", "--github", "--model", "gpt-5"],
   "Configuration.restore": ["config", "export"],
   "ModelConnection.check": ["model", "status"],
   "Secrets.list": ["secrets"],
   "Secrets.save": ["secrets", "set", "MODEL_KEY"],
-  "RepositorySetup.state": { missing: "no command tells where the test repository stands" },
+  "RepositorySetup.state": ["repository"],
   "RepositorySetup.prepare": ["--init"],
   "KnowledgeDocuments.list": ["knowledge", "list"],
-  "KnowledgeDocuments.read": { missing: "no command prints a document" },
+  "KnowledgeDocuments.read": ["knowledge", "read", "manuals", "quotes.md"],
   "KnowledgeDocuments.upload": ["knowledge", "add-document", "manuals", "quotes.md"],
-  "KnowledgeDocuments.remove": { missing: "no command removes a document" },
-  "KnowledgeDomains.list": { missing: "no command lists the domains" },
+  "KnowledgeDocuments.remove": ["knowledge", "remove", "manuals", "quotes.md"],
+  "KnowledgeDomains.list": ["knowledge", "domains"],
   "KnowledgeSources.check": ["knowledge", "check"],
   "KnowledgeMapping.state": ["knowledge", "mapping"],
-  "RepositoryTests.listed": { missing: "no command lists the tests of the repository" },
-  "TestReadings.read": { missing: "no command reads a test" },
-  "TestReadings.trace": { missing: "no command gives the trace of a test" },
-  "TestReadings.capture": { missing: "no command gives the capture of a step" },
-  "Executions.page": { missing: "no command lists the executions" },
-  "Executions.get": { missing: "no command prints an execution" },
-  "Executions.ofFile": { missing: "no command lists the executions of a test" },
-  "Executions.versions": { missing: "no command lists the versions of a test" },
-  "Campaigns.plan": { missing: "no command plans a campaign" },
-  "Campaigns.list": { missing: "no command lists the campaigns" },
-  "Campaigns.progress": { missing: "no command tells the progress of a campaign" },
-  "Campaigns.choose": { missing: "no command chooses the tests of a campaign" },
-  "Campaigns.ready": { missing: "no command makes a campaign ready" },
-  "Campaigns.launch": { missing: "no command launches a campaign" },
-  "Campaigns.close": { missing: "no command closes a campaign" },
+  "RepositoryTests.listed": ["tests"],
+  "TestReadings.read": ["tests", "read", "orders.spec.ts"],
+  "TestReadings.trace": ["tests", "trace", "orders.spec.ts", "trace.zip"],
+  "TestReadings.capture": ["tests", "capture", "orders.spec.ts", "2", "step-2.png"],
+  "Executions.page": ["executions", "--outcome", "failing"],
+  "Executions.get": ["executions", "show", "e"],
+  "Executions.ofFile": ["tests", "executions", "orders.spec.ts"],
+  "Executions.versions": ["tests", "versions", "orders.spec.ts"],
+  "Campaigns.plan": ["campaigns", "plan", "Release", "--environment", "local"],
+  "Campaigns.list": ["campaigns"],
+  "Campaigns.progress": ["campaigns", "show", "c"],
+  "Campaigns.choose": ["campaigns", "choose", "c", "orders.spec.ts"],
+  "Campaigns.ready": ["campaigns", "ready", "c"],
+  "Campaigns.launch": ["campaigns", "launch", "c", "failed"],
+  "Campaigns.close": ["campaigns", "close", "c"],
 };
 
-/** How the conversation offers an operation: a command typed after a slash, what the conversation does on its own, or nothing yet. */
-type InConversation = { readonly slash: SlashCommand["name"] } | { readonly itself: string } | Missing;
+/**
+ * How the conversation offers an operation: a command of its own typed after a slash, what is typed to run what `oqas`
+ * runs, what the conversation does on its own, or nothing yet.
+ */
+type InConversation = { readonly slash: SlashCommand["name"] } | { readonly typed: string } | { readonly itself: string } | Missing;
 
 /**
  * How the conversation offers each operation of the engine. Typed on the operations, it does not compile while an
@@ -77,41 +82,41 @@ const CONVERSATION: Readonly<Record<OperationId, InConversation>> = {
   "Sessions.interrupt": { slash: "stop" },
   "Sessions.events": { itself: "the session followed is shown live" },
   "Sessions.thread": { itself: "a session reopened shows its thread so far" },
-  "Sessions.launch": { missing: "no command launches tests" },
-  "Sessions.launches": { missing: "no command lists the launches of tests" },
-  "Configuration.view": { missing: "no command shows the configuration" },
-  "Configuration.revisions": { missing: "no command shows the history of the configuration" },
-  "Configuration.check": { missing: "no command checks a configuration" },
-  "Configuration.synchronise": { missing: "no command takes oqas.json" },
-  "Configuration.save": { missing: "/model saves the model alone" },
-  "Configuration.restore": { missing: "no command writes oqas.json" },
+  "Sessions.launch": { typed: "/launch --environment local" },
+  "Sessions.launches": { typed: "/launch --environment local" },
+  "Configuration.view": { typed: "/config show" },
+  "Configuration.revisions": { typed: "/config history" },
+  "Configuration.check": { typed: "/config check" },
+  "Configuration.synchronise": { typed: "/config import" },
+  "Configuration.save": { typed: "/model set --github --model gpt-5" },
+  "Configuration.restore": { typed: "/config export" },
   "ModelConnection.check": { slash: "model" },
-  "Secrets.list": { missing: "no command lists the variables" },
-  "Secrets.save": { missing: "/model saves the key of the model alone" },
-  "RepositorySetup.state": { missing: "no command tells where the test repository stands" },
-  "RepositorySetup.prepare": { missing: "no command prepares the test repository" },
-  "KnowledgeDocuments.list": { missing: "no command lists the documents" },
-  "KnowledgeDocuments.read": { missing: "no command prints a document" },
-  "KnowledgeDocuments.upload": { missing: "no command uploads a document" },
-  "KnowledgeDocuments.remove": { missing: "no command removes a document" },
-  "KnowledgeDomains.list": { missing: "no command lists the domains" },
-  "KnowledgeSources.check": { missing: "no command tests a source" },
-  "KnowledgeMapping.state": { missing: "no command tells where the cartography stands" },
-  "RepositoryTests.listed": { missing: "no command lists the tests of the repository" },
-  "TestReadings.read": { missing: "no command reads a test" },
-  "TestReadings.trace": { missing: "no command gives the trace of a test" },
-  "TestReadings.capture": { missing: "no command gives the capture of a step" },
-  "Executions.page": { missing: "no command lists the executions" },
-  "Executions.get": { missing: "no command prints an execution" },
-  "Executions.ofFile": { missing: "no command lists the executions of a test" },
-  "Executions.versions": { missing: "no command lists the versions of a test" },
-  "Campaigns.plan": { missing: "no command plans a campaign" },
-  "Campaigns.list": { missing: "no command lists the campaigns" },
-  "Campaigns.progress": { missing: "no command tells the progress of a campaign" },
-  "Campaigns.choose": { missing: "no command chooses the tests of a campaign" },
-  "Campaigns.ready": { missing: "no command makes a campaign ready" },
-  "Campaigns.launch": { missing: "no command launches a campaign" },
-  "Campaigns.close": { missing: "no command closes a campaign" },
+  "Secrets.list": { typed: "/secrets" },
+  "Secrets.save": { typed: "/secrets set MODEL_KEY" },
+  "RepositorySetup.state": { typed: "/repository" },
+  "RepositorySetup.prepare": { typed: "/init" },
+  "KnowledgeDocuments.list": { typed: "/knowledge list" },
+  "KnowledgeDocuments.read": { typed: "/knowledge read manuals quotes.md" },
+  "KnowledgeDocuments.upload": { typed: "/knowledge add-document manuals quotes.md" },
+  "KnowledgeDocuments.remove": { typed: "/knowledge remove manuals quotes.md" },
+  "KnowledgeDomains.list": { typed: "/knowledge domains" },
+  "KnowledgeSources.check": { typed: "/knowledge check" },
+  "KnowledgeMapping.state": { typed: "/knowledge mapping" },
+  "RepositoryTests.listed": { typed: "/tests" },
+  "TestReadings.read": { typed: "/tests read orders.spec.ts" },
+  "TestReadings.trace": { typed: "/tests trace orders.spec.ts trace.zip" },
+  "TestReadings.capture": { typed: "/tests capture orders.spec.ts 2 step-2.png" },
+  "Executions.page": { typed: "/executions --outcome failing" },
+  "Executions.get": { typed: "/executions show e" },
+  "Executions.ofFile": { typed: "/tests executions orders.spec.ts" },
+  "Executions.versions": { typed: "/tests versions orders.spec.ts" },
+  "Campaigns.plan": { typed: "/campaigns plan Release --environment local" },
+  "Campaigns.list": { typed: "/campaigns" },
+  "Campaigns.progress": { typed: "/campaigns show c" },
+  "Campaigns.choose": { typed: "/campaigns choose c orders.spec.ts" },
+  "Campaigns.ready": { typed: "/campaigns ready c" },
+  "Campaigns.launch": { typed: "/campaigns launch c failed" },
+  "Campaigns.close": { typed: "/campaigns close c" },
 };
 
 /** The operations a client does not offer yet. */
@@ -129,22 +134,24 @@ describe("the operations of the engine, as the command offers them", () => {
 
   // A gap closed lowers this count, and a gap opened is refused: it only goes down.
   it("are missing no more than they were", () => {
-    assert.equal(missingIn(COMMANDS).length, 25);
+    assert.equal(missingIn(COMMANDS).length, 0);
   });
 });
 
 describe("the operations of the engine, as the conversation offers them", () => {
-  it("each are a command of the conversation, something it does on its own, or said missing with why", () => {
+  it("each are a command of the conversation, what runs the command, something it does on its own, or said missing with why", () => {
     const names = new Set(SLASH_COMMANDS.map(({ name }) => name));
     for (const id of operationIds()) {
       const offer = CONVERSATION[id];
       if ("slash" in offer) assert.ok(names.has(offer.slash), `${id}: /${offer.slash} is no command of the conversation`);
+      else if ("typed" in offer)
+        assert.ok(["command", "secret"].includes(requestOf({ ...initialState([], 0), input: offer.typed }).kind), `${id}: ${offer.typed} runs nothing`);
       else assert.ok(("itself" in offer ? offer.itself : offer.missing).length > 0, id);
     }
   });
 
   // A gap closed lowers this count, and a gap opened is refused: it only goes down.
   it("are missing no more than they were", () => {
-    assert.equal(missingIn(CONVERSATION).length, 34);
+    assert.equal(missingIn(CONVERSATION).length, 0);
   });
 });

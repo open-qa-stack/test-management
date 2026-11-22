@@ -1,5 +1,12 @@
 import { START_ADVICE } from "@open-qa-stack/engine";
-import { CONFIG_FILE_NAME, InvalidConfigurationError, NoConfigurationError, type FileState, type RevisionSummary } from "@open-qa-stack/domain";
+import {
+  CONFIG_FILE_NAME,
+  InvalidConfigurationError,
+  NoConfigurationError,
+  type ConfigError,
+  type FileState,
+  type RevisionSummary,
+} from "@open-qa-stack/domain";
 
 /** Where a revision comes from, in the words of the command. */
 const ORIGINS: Readonly<Record<RevisionSummary["origin"], string>> = {
@@ -44,5 +51,13 @@ export function configurationRefusal(error: unknown): string | undefined {
     error.inForce === undefined
       ? `Correct ${CONFIG_FILE_NAME}.`
       : `Correct ${CONFIG_FILE_NAME}, or write the revision ${error.inForce} in force over it with oqas config export.`;
-  return [...error.errors.map(({ path, message }) => `${path || "/"}: ${message}`), way].join("\n");
+  return [...error.errors.map(errorLine), way].join("\n");
+}
+
+/**
+ * @param error - An error of a configuration.
+ * @returns The line that tells it where it is: `/` for the whole document.
+ */
+export function errorLine({ path, message }: Pick<ConfigError, "path" | "message">): string {
+  return `${path || "/"}: ${message}`;
 }

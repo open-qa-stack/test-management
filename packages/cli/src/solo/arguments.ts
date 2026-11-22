@@ -1,3 +1,5 @@
+import type { CampaignLaunchScope, ExecutionOutcome } from "@open-qa-stack/domain";
+
 /** How a command prints what it tells: lines a person reads, or JSON Lines a program reads. */
 export type Output = "text" | "json";
 
@@ -35,12 +37,46 @@ export type Command =
   | { readonly name: "knowledge"; readonly action: "add-document"; readonly source: string; readonly files: readonly string[] }
   /** Tell where the cartography of the knowledge stands, source by source. */
   | { readonly name: "knowledge"; readonly action: "mapping" }
+  /** List the domains the cartography found in the knowledge. */
+  | { readonly name: "knowledge"; readonly action: "domains" }
+  /** Print a document a source of the instance keeps. */
+  | { readonly name: "knowledge"; readonly action: "read"; readonly source: string; readonly document: string }
+  /** Remove a document from a source of the instance. */
+  | { readonly name: "knowledge"; readonly action: "remove"; readonly source: string; readonly document: string }
+  /** Tell where the test repository stands: its folder, whether it is a git repository, and a Playwright project. */
+  | { readonly name: "repository" }
+  /** Name the project of the instance, and its applications. */
+  | { readonly name: "project" }
   /** Test that the knowledge sources of the configuration in force answer, or one of them. */
   | { readonly name: "knowledge"; readonly action: "check"; readonly source?: string }
   /** List the variables the configuration in force names, and where the value of each comes from. */
   | { readonly name: "secrets"; readonly action: "list" }
   /** Save the value of one of them, read from the input of the command, out of the test repository. */
   | { readonly name: "secrets"; readonly action: "set"; readonly variable: string }
+  /** List the tests of the test repository, with what keeps some of its files from being listed as they are. */
+  | { readonly name: "tests"; readonly action: "list" }
+  /** Read a test in steps, as the latest run that ran it reported it; list what came of its file in the latest executions; or the versions of its tests. */
+  | { readonly name: "tests"; readonly action: "read" | "executions" | "versions"; readonly path: string }
+  /** Write the trace the latest run kept of a test to a file. */
+  | { readonly name: "tests"; readonly action: "trace"; readonly path: string; readonly file: string }
+  /** Write the capture the latest run attached for a step of a test to a file. */
+  | { readonly name: "tests"; readonly action: "capture"; readonly path: string; readonly step: number; readonly file: string }
+  /** Launch tests of the test repository as they are, with no agent, in this process, and follow them to their end. */
+  | { readonly name: "launch"; readonly paths: readonly string[]; readonly environment?: string }
+  /** List the campaigns, the latest planned first, with how many of their tests came to each verdict. */
+  | { readonly name: "campaigns"; readonly action: "list" }
+  /** Plan a campaign against an environment, with no test yet. */
+  | { readonly name: "campaigns"; readonly action: "plan"; readonly campaign: string; readonly environment: string }
+  /** Print a campaign with what came of each of its tests, make it ready, or close it. */
+  | { readonly name: "campaigns"; readonly action: "show" | "ready" | "close"; readonly campaign: string }
+  /** Choose the tests of a campaign that is planned: every test of the files named. */
+  | { readonly name: "campaigns"; readonly action: "choose"; readonly campaign: string; readonly paths: readonly string[] }
+  /** Launch the tests of a campaign, every one or some, in this process, and follow them to their end. */
+  | { readonly name: "campaigns"; readonly action: "launch"; readonly campaign: string; readonly only?: CampaignLaunchScope }
+  /** List the executions of tests, the latest first, a page at a time. */
+  | { readonly name: "executions"; readonly action: "list"; readonly outcome?: ExecutionOutcome; readonly before?: string }
+  /** Print an execution, with what came of each of its tests. */
+  | { readonly name: "executions"; readonly action: "show"; readonly execution: string }
   /** Serve the console of the test repository, and the sessions opened in it. */
   | { readonly name: "ui"; readonly host: string; readonly port: number };
 
@@ -51,11 +87,14 @@ export type Command =
 export type ModelArguments =
   { readonly github: true; readonly model: string } | { readonly github: false; readonly provider: string; readonly keyEnv?: string; readonly model: string };
 
-/** What `oqas config` does: print the configuration in force, take the configuration file as it, or write it over the file. */
-export type ConfigAction = "show" | "import" | "export";
+/**
+ * What `oqas config` does: print the configuration in force, take the configuration file as it, write it over the
+ * file, list its revisions, or check the file without taking it.
+ */
+export type ConfigAction = "show" | "import" | "export" | "history" | "check";
 
 /** What `oqas config` is followed by. */
-const CONFIG_ACTIONS: readonly ConfigAction[] = ["show", "import", "export"];
+const CONFIG_ACTIONS: readonly ConfigAction[] = ["show", "import", "export", "history", "check"];
 
 /** The arguments of the command, once read. */
 export interface Arguments {
@@ -72,7 +111,19 @@ export interface Arguments {
 const ON_SESSIONS = { sessions: [], show: ["<session>"], attach: ["<session>"], say: ["<session>", "<text>"], stop: ["<session>"] } as const;
 
 /** The options that take a value. */
-const VALUED = ["--repository", "--environment", "--brief", "--output", "--host", "--port", "--provider", "--key-env", "--model"] as const;
+const VALUED = [
+  "--repository",
+  "--environment",
+  "--brief",
+  "--output",
+  "--host",
+  "--port",
+  "--provider",
+  "--key-env",
+  "--model",
+  "--outcome",
+  "--before",
+] as const;
 
 /** The address `oqas --ui` listens on unless it is given another: this machine alone. */
 export const UI_HOST = "127.0.0.1";
@@ -92,7 +143,9 @@ export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
        oqas [--repository <folder>] attach <session> [--follow] [--output text|json]
        oqas [--repository <folder>] say <session> <text> [--output text|json]
        oqas [--repository <folder>] stop <session> [--output text|json]
-       oqas [--repository <folder>] config show|import|export [--output text|json]
+       oqas [--repository <folder>] config show|import|export|history|check [--output text|json]
+       oqas [--repository <folder>] project [--output text|json]
+       oqas [--repository <folder>] repository [--output text|json]
        oqas [--repository <folder>] model
        oqas [--repository <folder>] model status [--output text|json]
        oqas [--repository <folder>] model set --github --model <id> [--output text|json]
@@ -100,7 +153,20 @@ export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
        oqas [--repository <folder>] knowledge list [--output text|json]
        oqas [--repository <folder>] knowledge add-document <source> <file>... [--output text|json]
        oqas [--repository <folder>] knowledge check [<source>] [--output text|json]
-       oqas [--repository <folder>] knowledge mapping [--output text|json]
+       oqas [--repository <folder>] knowledge mapping|domains [--output text|json]
+       oqas [--repository <folder>] knowledge read|remove <source> <document> [--output text|json]
+       oqas [--repository <folder>] tests [--output text|json]
+       oqas [--repository <folder>] tests read|executions|versions <test> [--output text|json]
+       oqas [--repository <folder>] tests trace <test> <file>
+       oqas [--repository <folder>] tests capture <test> <step> <file>
+       oqas [--repository <folder>] launch [<test>...] [--environment <name>] [--output text|json]
+       oqas [--repository <folder>] campaigns [--output text|json]
+       oqas [--repository <folder>] campaigns plan <name> --environment <name> [--output text|json]
+       oqas [--repository <folder>] campaigns show|ready|close <campaign> [--output text|json]
+       oqas [--repository <folder>] campaigns choose <campaign> <test>... [--output text|json]
+       oqas [--repository <folder>] campaigns launch <campaign> [failed|not-run] [--output text|json]
+       oqas [--repository <folder>] executions [--outcome failing|passing] [--before <execution>] [--output text|json]
+       oqas [--repository <folder>] executions show <execution> [--output text|json]
        oqas [--repository <folder>] secrets [--output text|json]
        oqas [--repository <folder>] secrets set <variable>
        oqas [--repository <folder>] --ui [--host <address>] [--port <number>]
@@ -123,6 +189,12 @@ Commands:
   config show            Print the configuration in force, and how oqas.json stands to it.
   config import          Take oqas.json as the configuration in force, when it changed.
   config export          Write the configuration in force over oqas.json, when it changed.
+  config history         List the revisions of the configuration, the latest first, and where each was made.
+  config check           Check oqas.json without taking it: each error where it is. Exits with 0 when it is valid,
+                         with 3 otherwise.
+  project                Name the project of the instance, and its applications.
+  repository             Tell where the test repository stands: its folder, whether it is a git repository with a
+                         commit, and whether it is a Playwright project.
   model                  In a terminal, set the connection to the model step by step: how to reach it, the
                          variable of its key and the key itself when it holds none, a test, then the model among
                          those it offers.
@@ -140,6 +212,41 @@ Commands:
                          nothing: exits with 0 when each answers, with 4 otherwise.
   knowledge mapping      Tell where the cartography of the knowledge stands: each source mapped, truncated, being
                          mapped or waiting, and the index that puts them together.
+  tests                  List the tests of the test repository, each with its level, domain, functionality and case
+                         when its tags give them, and the files whose tests cannot all be listed.
+  tests read <test>      Read a test in steps, as the latest run that ran it reported it: <test> is the path of its
+                         file, relative to the test repository.
+  tests executions <test>
+                         List what came of the tests of the file in the latest executions that ran them.
+  tests versions <test>  List the versions of the tests of the file, the latest first.
+  tests trace <test> <file>
+                         Write the trace the latest run kept of the test to the file, which npx playwright show-trace opens.
+  tests capture <test> <step> <file>
+                         Write the capture the latest run attached for the step of the test to the file.
+  launch [<test>...]     Launch tests of the test repository as they are, with no agent, in this process, against
+                         --environment, and follow them to their end: every test, or those of the files named.
+                         It exits with 0 when each passed, 1 when one failed, 2 when one was skipped.
+  campaigns              List the campaigns, the latest planned first, with how many of their tests came to each verdict.
+  campaigns plan <name>  Plan a campaign against --environment, with no test yet.
+  campaigns choose <campaign> <test>...
+                         Choose the tests of a campaign that is planned: every test of the files named.
+  campaigns ready <campaign>
+                         Fix the tests of a campaign: it may be launched from then on.
+  campaigns launch <campaign> [failed|not-run]
+                         Launch its tests, every one, those that failed or those not run yet, as oqas launch does.
+  campaigns show <campaign>
+                         Print a campaign with what came of each of its tests.
+  campaigns close <campaign>
+                         Close a campaign for good: what came of its tests is fixed.
+  executions             List the executions of tests, the latest first, twenty at a time: --outcome keeps those
+                         where a test failed or none did, --before starts after an execution.
+  executions show <execution>
+                         Print an execution, with what came of each of its tests and why a test failed.
+  knowledge domains      List the domains the cartography found in the knowledge.
+  knowledge read <source> <document>
+                         Print a document a source of the instance keeps.
+  knowledge remove <source> <document>
+                         Remove it from the source.
   secrets                List the variables the configuration names (the key of the model, the connection strings,
                          the test accounts) and where the value of each comes from: the environment, which wins, a
                          value saved on this machine, or none yet.
@@ -161,6 +268,9 @@ Options:
   --provider <provider>  With model set: the name of a provider, or the address of an OpenAI-compatible server.
   --key-env <variable>   With model set and --provider: the variable that holds the key; that of the provider by default.
   --model <id>           With model set: the model to use, as the connection names it.
+  --outcome failing|passing
+                         With executions: keep those where a test failed, or those where none did.
+  --before <execution>   With executions: start the page after this execution.
   --init                 Initialise the test repository as a Playwright project, from its oqas.json: write the files it
                          lacks, overwrite none, run nothing.
   --help                 Print this help.
@@ -200,6 +310,8 @@ export function parseArguments(argv: readonly string[]): Parsed {
     provider?: string;
     "key-env"?: string;
     model?: string;
+    outcome?: string;
+    before?: string;
   } = {};
   const flags = new Set<string>();
   const words: string[] = [];
@@ -214,7 +326,7 @@ export function parseArguments(argv: readonly string[]): Parsed {
     } else if (argument.startsWith("--")) return refused(`Unknown option ${argument}; see oqas --help.`);
     else words.push(argument);
   }
-  const { repository, environment, brief, output = "text", host, port, provider, "key-env": keyEnv, model } = values;
+  const { repository, environment, brief, output = "text", host, port, provider, "key-env": keyEnv, model, outcome, before } = values;
   if (output !== "text" && output !== "json") return refused("--output needs text or json.");
   const follow = flags.has("--follow");
   const help = flags.has("--help");
@@ -229,12 +341,19 @@ export function parseArguments(argv: readonly string[]): Parsed {
   const setsTheModel = command.name === "model" && command.action === "set";
   if (!setsTheModel && command.name !== "help" && (connection.github || [provider, keyEnv, model].some((value) => value !== undefined)))
     return refused(MODEL_OPTIONS);
+  const listsExecutions = command.name === "executions" && command.action === "list";
+  if (!listsExecutions && command.name !== "help" && (outcome !== undefined || before !== undefined))
+    return refused("--outcome and --before choose the executions oqas executions lists: they go with it alone.");
+  if (outcome !== undefined && outcome !== "failing" && outcome !== "passing") return refused("--outcome needs failing or passing.");
   if (command.name !== "ui" && command.name !== "help" && (host !== undefined || port !== undefined))
     return refused("--host and --port say where --ui listens: they go with it alone.");
   // An initialisation writes files and runs nothing: it takes the repository, and nothing of a session.
   if (command.name === "init" && (follow || values.output !== undefined))
     return refused("--init writes the files of the test repository and runs nothing: it takes --repository alone.");
-  return { ok: true, arguments: { ...(repository === undefined ? {} : { repository }), output, follow, command } };
+  const listed: Command = listsExecutions
+    ? { ...command, ...(outcome === undefined ? {} : { outcome: outcome as ExecutionOutcome }), ...(before === undefined ? {} : { before }) }
+    : command;
+  return { ok: true, arguments: { ...(repository === undefined ? {} : { repository }), output, follow, command: listed } };
 }
 
 /** What `--ui` asks for, or why it is refused: it goes with where it listens, and with nothing else. */
@@ -274,6 +393,15 @@ function commandOf(
   if (name === "knowledge") return knowledgeOf(rest, opens || follow);
   if (name === "model") return modelOf(rest, opens || follow, connection, asks);
   if (name === "secrets") return secretsOf(rest, opens || follow);
+  if (name === "tests") return testsOf(rest, opens || follow);
+  if (name === "executions") return executionsOf(rest, opens || follow);
+  if (name === "campaigns") return campaignsOf(rest, { environment, brief, follow });
+  if (name === "repository" || name === "project")
+    return opens || follow || rest.length > 0 ? `oqas ${name} takes nothing after it, and no --brief, --environment nor --follow.` : { name };
+  if (name === "launch") {
+    if (brief !== undefined || follow) return "oqas launch runs tests as they are: it takes --environment, and no --brief nor --follow.";
+    return { name: "launch", paths: rest, ...(environment === undefined ? {} : { environment }) };
+  }
   if (!Object.hasOwn(ON_SESSIONS, name)) return `Unknown command ${name}; see oqas --help.`;
   const known = name as keyof typeof ON_SESSIONS;
   const taken: readonly string[] = ON_SESSIONS[known];
@@ -289,7 +417,7 @@ function commandOf(
 function configured(words: readonly string[], ofASession: boolean): Command | string {
   const [action] = words;
   const known = CONFIG_ACTIONS.find((one) => one === action);
-  if (words.length !== 1 || known === undefined) return "oqas config takes show, import or export.";
+  if (words.length !== 1 || known === undefined) return "oqas config takes show, import, export, history or check.";
   if (ofASession) return "oqas config acts on the configuration: it takes no --brief, --environment nor --follow.";
   return { name: "config", action: known };
 }
@@ -334,7 +462,74 @@ function knowledgeOf(words: readonly string[], ofASession: boolean): Command | s
   const [action, source, ...files] = words;
   if (ofASession) return "oqas knowledge acts on the knowledge sources: it takes no --brief, --environment nor --follow.";
   if ((action === "list" || action === "mapping") && source === undefined) return { name: "knowledge", action };
+  if (action === "domains" && source === undefined) return { name: "knowledge", action };
+  const [document] = files;
+  if (action === "read" && source !== undefined && document !== undefined && files.length === 1) return { name: "knowledge", action, source, document };
+  if (action === "remove" && source !== undefined && document !== undefined && files.length === 1) return { name: "knowledge", action, source, document };
   if (action === "add-document" && source !== undefined && files.length > 0) return { name: "knowledge", action, source, files };
   if (action === "check" && files.length === 0) return { name: "knowledge", action, ...(source === undefined ? {} : { source }) };
-  return "oqas knowledge takes list, mapping, check and a source at most, or add-document then a source and one file at least.";
+  return "oqas knowledge takes list, mapping or domains, check and a source at most, read or remove then a source and a document, or add-document then a source and one file at least.";
+}
+
+/** What `oqas tests` is followed by, with the words each action takes after it. */
+const TEST_ACTIONS = { read: 1, executions: 1, versions: 1, trace: 2, capture: 3 } as const;
+
+/** A step of a test, numbered from 1. */
+const STEP = /^[1-9][0-9]*$/;
+
+/** What `oqas tests` asks for, or why it is refused: the list, or what it reads of one test, and nothing of a session. */
+function testsOf(words: readonly string[], ofASession: boolean): Command | string {
+  const [action, path = "", ...rest] = words;
+  if (ofASession) return "oqas tests acts on the tests of the test repository: it takes no --brief, --environment nor --follow.";
+  if (action === undefined) return { name: "tests", action: "list" };
+  const known = Object.hasOwn(TEST_ACTIONS, action) ? (action as keyof typeof TEST_ACTIONS) : undefined;
+  if (known === undefined || words.length !== TEST_ACTIONS[known] + 1)
+    return "oqas tests takes nothing, read, executions or versions then a test, trace then a test and a file, or capture then a test, a step and a file.";
+  if (known === "trace") return { name: "tests", action: known, path, file: rest[0]! };
+  if (known === "capture") {
+    const [step = "", file = ""] = rest;
+    return STEP.test(step) ? { name: "tests", action: known, path, step: Number(step), file } : "oqas tests capture needs the number of a step, from 1.";
+  }
+  return { name: "tests", action: known, path };
+}
+
+/** What `oqas executions` asks for, or why it is refused: a page of them, or one, and nothing of a session. */
+function executionsOf(words: readonly string[], ofASession: boolean): Command | string {
+  const [action, execution, ...rest] = words;
+  if (ofASession) return "oqas executions acts on the executions of tests: it takes no --brief, --environment nor --follow.";
+  if (action === undefined) return { name: "executions", action: "list" };
+  if (action !== "show" || execution === undefined || rest.length > 0) return "oqas executions takes nothing, to list them, or show then an execution.";
+  return { name: "executions", action, execution };
+}
+
+/** What `oqas campaigns` is followed by, with the words each action takes after its campaign at least and at most. */
+const CAMPAIGN_ACTIONS = { plan: [0, 0], show: [0, 0], ready: [0, 0], close: [0, 0], choose: [1, Infinity], launch: [0, 1] } as const;
+
+/** What `oqas campaigns launch` launches of a campaign, by the word that says it. */
+const SCOPES: Readonly<Record<string, CampaignLaunchScope>> = { failed: "failed", "not-run": "not_run" };
+
+/** What `oqas campaigns` asks for, or why it is refused: the list, or what it does to one campaign. */
+function campaignsOf(
+  words: readonly string[],
+  options: { readonly environment: string | undefined; readonly brief: string | undefined; readonly follow: boolean },
+): Command | string {
+  const [action, campaign = "", ...rest] = words;
+  const { environment, brief, follow } = options;
+  if (brief !== undefined || follow) return "oqas campaigns acts on the campaigns: it takes no --brief nor --follow.";
+  if ((environment !== undefined) !== (action === "plan"))
+    return "oqas campaigns plan needs --environment, the environment its tests run against: it goes with plan alone.";
+  if (action === undefined) return { name: "campaigns", action: "list" };
+  const known = Object.hasOwn(CAMPAIGN_ACTIONS, action) ? (action as keyof typeof CAMPAIGN_ACTIONS) : undefined;
+  const [least, most] = known === undefined ? [0, -1] : CAMPAIGN_ACTIONS[known];
+  if (known === undefined || words.length < 2 || rest.length < least || rest.length > most)
+    return "oqas campaigns takes nothing, plan then a name, show, ready or close then a campaign, choose then a campaign and its tests, or launch then a campaign and failed or not-run.";
+  if (known === "plan") return { name: "campaigns", action: known, campaign, environment: environment! };
+  if (known === "choose") return { name: "campaigns", action: known, campaign, paths: rest };
+  if (known !== "launch") return { name: "campaigns", action: known, campaign };
+  const [scope] = rest;
+  if (scope === undefined) return { name: "campaigns", action: known, campaign };
+  const only = SCOPES[scope];
+  return only === undefined
+    ? "oqas campaigns launch takes failed or not-run after the campaign, or nothing for every test."
+    : { name: "campaigns", action: known, campaign, only };
 }

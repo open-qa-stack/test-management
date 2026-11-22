@@ -145,7 +145,8 @@ describe("the arguments of oqas knowledge", () => {
       ok: true,
       arguments: { output: "text", follow: false, command: { name: "knowledge", action: "add-document", source: "manuals", files: ["a.md", "b.md"] } },
     });
-    const usage = "oqas knowledge takes list, mapping, check and a source at most, or add-document then a source and one file at least.";
+    const usage =
+      "oqas knowledge takes list, mapping or domains, check and a source at most, read or remove then a source and a document, or add-document then a source and one file at least.";
     for (const argv of [["knowledge"], ["knowledge", "list", "more"], ["knowledge", "add-document", "manuals"], ["knowledge", "remove"]])
       assert.deepEqual(parseArguments(argv), { ok: false, error: usage }, argv.join(" "));
     assert.deepEqual(parseArguments(["knowledge", "list", "--follow"]), {
@@ -197,7 +198,8 @@ describe("oqas knowledge check", () => {
     assert.deepEqual(parseArguments(["knowledge", "check", "docs"]).ok, true);
     assert.deepEqual(parseArguments(["knowledge", "check", "a", "b"]), {
       ok: false,
-      error: "oqas knowledge takes list, mapping, check and a source at most, or add-document then a source and one file at least.",
+      error:
+        "oqas knowledge takes list, mapping or domains, check and a source at most, read or remove then a source and a document, or add-document then a source and one file at least.",
     });
   });
 });

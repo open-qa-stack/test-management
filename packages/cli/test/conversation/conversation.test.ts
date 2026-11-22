@@ -65,6 +65,8 @@ async function staged(held: readonly Session[] = [FAILED], props: Partial<Conver
       reasonOf: (error) => `Told: ${(error as Error).message}`,
       onLeave: (leaving) => left.push(leaving),
       model: QUIET_MODEL,
+      run: async () => ({ text: "", failed: false }),
+      saveSecret: async () => undefined,
       ...props,
     }),
   );
@@ -417,6 +419,31 @@ describe("the model in the conversation", () => {
     await stage.press(ENTER, "The model local is set");
     assert.deepEqual(saved, [SERVER]);
     await stage.sees("What do we test?");
+  });
+
+  it("takes the value of a variable with /secrets set, unseen, refuses an empty one, saves it, and says so", async () => {
+    const saved: (readonly [string, string])[] = [];
+    const stage = await staged([], { saveSecret: async (variable, value) => void saved.push([variable, value]) });
+    await stage.press("/secrets set MODEL_KEY", "› /secrets set MODEL_KEY");
+    await stage.press(ENTER, "Value of MODEL_KEY");
+    assert.doesNotMatch(stage.screen(), /What do we test\?/);
+    await stage.press(ENTER, "A value is expected.");
+    await stage.press("s3cret", "******");
+    assert.doesNotMatch(stage.screen(), /s3cret/);
+    await stage.press(ENTER, "MODEL_KEY is saved on this machine, out of the test repository.");
+    assert.deepEqual(saved, [["MODEL_KEY", "s3cret"]]);
+    await stage.sees("What do we test?");
+  });
+
+  it("leaves the typing of a value with Esc, nothing saved, and tells why a value was not saved", async () => {
+    const stage = await staged([], { saveSecret: () => Promise.reject(new Error("refused")) });
+    await stage.press("/secrets set SHOP_DB_URL", "› /secrets set SHOP_DB_URL");
+    await stage.press(ENTER, "Value of SHOP_DB_URL");
+    await stage.press(ESC, "Nothing was saved.");
+    await stage.press("/secrets set SHOP_DB_URL", "› /secrets set SHOP_DB_URL");
+    await stage.press(ENTER, "Value of SHOP_DB_URL");
+    await stage.press("x", "*");
+    await stage.press(ENTER, "Told: refused");
   });
 
   it("leaves the setting with Esc or Ctrl-C, saying nothing changed, and tells what stops it", async () => {

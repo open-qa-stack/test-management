@@ -7,6 +7,7 @@ import type { Sessions } from "@open-qa-stack/engine";
 import type { DatabaseUrl } from "@open-qa-stack/store";
 import { UI_HOST } from "../arguments.ts";
 import { failureOf } from "../failure.ts";
+import { printedBy } from "../operation-commands.ts";
 import { databaseOf, modelConnectionOf, openOperations, savedModel } from "../operations.ts";
 import { startConsole, type StartedConsole } from "../served-console.ts";
 import { exitCodeOf } from "../session-exit.ts";
@@ -117,7 +118,8 @@ export async function converse({ repository, environment, terminal, io }: Conver
   const reported: string[] = [];
   const quiet: CommandIo = { ...io, stderr: { write: (text) => reported.push(text) } };
   try {
-    const { sessions, configuration, secrets, close } = await openOperations(quiet, repository, true, true);
+    const operations = await openOperations(quiet, repository, true, true);
+    const { sessions, configuration, secrets, close } = operations;
     let serving: Promise<StartedConsole> | undefined;
     let withinMs: number | undefined;
     try {
@@ -146,6 +148,11 @@ export async function converse({ repository, environment, terminal, io }: Conver
           inForce: async () => (await configuration.synchronise()).document.model,
           check: (model, key) => modelConnectionOf(io, secrets).check(model, key),
           save: (model, key) => savedModel({ configuration, secrets }, model, key),
+        },
+        saveSecret: (variable, value) => secrets.save(variable, value),
+        run: async (command) => {
+          const { text, code } = await printedBy(operations, repository, command, io);
+          return { text, failed: code !== ExitCode.passed };
         },
       });
       if (atOnce) withinMs = 0;

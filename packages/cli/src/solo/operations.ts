@@ -2,16 +2,22 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { CONFIG_FILE_NAME, DATABASE_FILE_NAME, DEFAULT_REPOSITORY, type Model } from "@open-qa-stack/domain";
 import {
+  Campaigns,
   Configuration,
+  Executions,
   FileSecretStore,
   KnowledgeDocuments,
+  KnowledgeDomains,
   KnowledgeMapping,
   KnowledgeSources,
   liveRuntime,
   ModelConnection,
+  RepositorySetup,
+  RepositoryTests,
   Secrets,
   Sessions,
   START_ADVICE,
+  TestReadings,
   type Environment,
   type EnvironmentSource,
   type SessionsHost,
@@ -33,6 +39,18 @@ export interface Operations {
   readonly sources: KnowledgeSources;
   /** Where the cartography of the knowledge stands. */
   readonly mapping: KnowledgeMapping;
+  /** The tests of the test repository. */
+  readonly tests: RepositoryTests;
+  /** The tests of the test repository read in steps, from the runs that ran them. */
+  readonly readings: TestReadings;
+  /** The executions of tests the instance keeps. */
+  readonly executions: Executions;
+  /** The campaigns of tests of the instance. */
+  readonly campaigns: Campaigns;
+  /** The domains the cartography found in the knowledge. */
+  readonly domains: KnowledgeDomains;
+  /** Where the test repository stands, and its preparation. */
+  readonly setup: RepositorySetup;
   /**
    * Stops hosting, when the command hosted a session, and closes the database.
    *
@@ -100,13 +118,20 @@ export async function openOperations(
     await instance.close();
     throw error;
   }
+  const tests = new RepositoryTests(repository, instance.configuration);
   return {
     sessions,
     configuration,
+    domains: new KnowledgeDomains(repository, instance.configuration),
+    setup: new RepositorySetup(repository, configuration),
+    campaigns: new Campaigns({ store: instance.campaigns, executions: instance.executions, tests, launcher: sessions }),
     documents: new KnowledgeDocuments(instance.documents, instance.configuration),
     secrets,
     sources: new KnowledgeSources(repository, secrets, instance.documents),
     mapping: new KnowledgeMapping(repository, configuration, instance.sessions),
+    tests,
+    readings: new TestReadings(repository, instance.configuration, instance.executions),
+    executions: new Executions(instance.executions),
     close,
   };
 }

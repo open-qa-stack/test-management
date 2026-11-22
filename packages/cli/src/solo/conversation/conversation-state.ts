@@ -21,7 +21,8 @@ export interface ConversationContext {
 
 /**
  * What the conversation wrote for good, to the scrollback of the terminal: the banner, the sessions it recalls,
- * the heading of a thread, a block of it once settled, what a session came to, the help, or something it tells.
+ * the heading of a thread, a block of it once settled, what a session came to, the help, what a command wrote, or
+ * something it tells.
  */
 export type Printed =
   | { readonly kind: "banner" }
@@ -30,6 +31,8 @@ export type Printed =
   | { readonly kind: "block"; readonly block: Block }
   | { readonly kind: "result"; readonly session: Session }
   | { readonly kind: "help" }
+  /** What a command run after a slash wrote, as the command writes it; marked when it did not do all it was asked. */
+  | { readonly kind: "output"; readonly text: string; readonly failed: boolean }
   | { readonly kind: "notice"; readonly tone: "info" | "error"; readonly text: string };
 
 /** What stands over the input until the person answers it: the sessions to pick one from, or the confirmation of a stop. */
@@ -37,7 +40,9 @@ export type Overlay =
   | { readonly kind: "picker"; readonly sessions: readonly Session[]; readonly selected: number }
   | { readonly kind: "stop"; readonly session: string }
   /** The setting of the connection to the model, from the connection in force. */
-  | { readonly kind: "model"; readonly inForce: Model };
+  | { readonly kind: "model"; readonly inForce: Model }
+  /** The value of a variable, typed without being shown. */
+  | { readonly kind: "secret"; readonly variable: string };
 
 /** The thread on screen. */
 export interface ShownThread {

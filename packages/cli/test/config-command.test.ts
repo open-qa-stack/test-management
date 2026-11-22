@@ -121,7 +121,7 @@ describe("oqas config", () => {
       arguments: { output: "json", follow: false, command: { name: "config", action: "export" } },
     });
     for (const argv of [["config"], ["config", "list"], ["config", "show", "now"]])
-      assert.deepEqual(parseArguments(argv), { ok: false, error: "oqas config takes show, import or export." });
+      assert.deepEqual(parseArguments(argv), { ok: false, error: "oqas config takes show, import, export, history or check." });
     for (const argv of [
       ["config", "show", "--follow"],
       ["config", "show", "--environment", "local"],

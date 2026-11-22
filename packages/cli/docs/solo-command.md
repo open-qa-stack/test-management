@@ -109,9 +109,20 @@ While the session goes on, what you type is said to its agents, as [`oqas say`](
 | `/new` | Goes back to the start, to open another session. A session this terminal runs goes on, and the next one waits its turn. |
 | `/stop` | Stops the session on screen, after a confirmation: Enter stops it, Esc keeps it going. |
 | `/ui [port]` | Serves [the console](#the-console) from this process, on `127.0.0.1` and the port given — `6727` by default, `0` for any free one — and writes its address. It is served until you leave. |
-| `/model` | Sets the connection to the model step by step, as `oqas model` does: see [The model](#the-model). |
+| `/model` | Sets the connection to the model step by step, as `oqas model` does: see [The model](#the-model). Followed by `status` or `set` and its options, it runs `oqas model status` or `oqas model set`. |
+| `/config show\|import\|export\|history\|check` | Runs [`oqas config`](#the-configuration) with the same words. |
+| `/knowledge list\|mapping\|check\|add-document …` | Runs [`oqas knowledge`](#the-knowledge) with the same words. |
+| `/tests …` | Runs [`oqas tests`](#the-tests-and-their-executions) with the same words. |
+| `/launch …` | Runs [`oqas launch`](#launching-tests) with the same words, in the process of the conversation: the input stays free while the tests run, and their execution is told once they ended. |
+| `/campaigns …` | Runs [`oqas campaigns`](#campaigns) with the same words; `/campaigns launch` runs in the process of the conversation, as `/launch` does. |
+| `/executions …` | Runs [`oqas executions`](#the-tests-and-their-executions) with the same words. |
+| `/secrets` | Runs [`oqas secrets`](#the-values-of-the-variables): the variables the configuration names, and where the value of each comes from. `/secrets set <variable>` opens a field over the input, where the value is typed unseen, then saved as `oqas secrets set` saves it; Esc leaves, and nothing is saved. |
+| `/repository` | Runs [`oqas repository`](#the-configuration). |
+| `/init` | Runs [`oqas --init`](#initialising-a-test-repository). |
 | `/help` | Lists the commands and the keys. |
 | `/quit` | Leaves the conversation. |
+
+`/config`, `/knowledge`, `/tests`, `/launch`, `/campaigns`, `/executions`, `/secrets`, `/repository`, `/init` and `/model` followed by words run the code of the command, on the operations the conversation holds, and write the same lines in the thread — in English, as the command writes them —, marked with ✗ when the command did not do all it was asked. What the command refuses, the conversation refuses on the line under the input, with the same words, and so does it refuse `--repository`, `--output` and `--follow`, which it sets itself.
 
 A slash lists the commands as you type; Tab completes the first of them, and the start of a name is enough when no other command shares it.
 
@@ -269,6 +280,8 @@ oqas.json is in step with it.
 
 `oqas config show` writes nothing: when the file changed since the revision in force, it says so, with the two commands that settle it. `import` and `export` print the revision in force once they are done; each does nothing when the file is in step. With `--output json`, each prints the configuration as `GET /api/configuration` gives it: the revision in force, and how the file stands to it. They exit with `0`, or with `3` when the file to take is not valid, or when there is neither a revision nor a file.
 
+`oqas config history` lists the revisions, the latest first, each with its date and where it was made. `oqas config check` checks `oqas.json` without taking it, each error where it is, and exits with `0` when it is valid, with `3` otherwise — and when the file is missing or is no JSON. `oqas project` names the project, as a host on the test repository names it, and its applications; `oqas repository` tells where the test repository stands: whether it is a git repository with a commit, and a Playwright project.
+
 ## The model
 
 `oqas model` alone, in a terminal, sets the connection step by step, in the language of the configuration: the person chooses how to reach the model in a list — the GitHub account of this machine, a provider by its name, or another server — types the address of another server and the variable of the key when the connection needs them, and the key itself, unseen, when that variable holds none — it is saved with the connection, out of the test repository —; the connection is tested, and they choose the model among those it offers, or type its name when the server lists none. A connection that does not answer is told with what to do, and may be tested again or changed. Enter records the model chosen, as a revision of origin `command`; Esc leaves, and nothing changes. It exits with `0` once a connection is recorded, with `5` when the person left; with `--no-input`, `--output`, or where there is no terminal, it is refused with `3`. In the conversation, `/model` opens the same setting, and the conversation tests the model in force when it opens: a model that does not answer, or is not among those offered, is told at once, with `/model`.
@@ -336,7 +349,27 @@ server-log  not tested: logs are read while a session runs
 
 It exits with `0` when each answers, with `4` when one does not, and with `3` when the configuration declares no source, or not the one named. With `--output json`, it prints `{"checks":[{"source":…,"check":…}]}`.
 
+`oqas knowledge read <source> <document>` prints a document the instance keeps, and `oqas knowledge remove <source> <document>` removes it; both are refused with `3` for a source or a document the instance does not keep. `oqas knowledge domains` lists the domains the cartography found, each with what it covers.
+
 `oqas knowledge mapping` tells where the cartography stands, as [the API tells it](../../api/docs/knowledge.md#where-the-cartography-stands): each source mapped, mapped in part, being mapped or waiting, and the index. It exits with `0`.
+
+## The tests and their executions
+
+`oqas tests` lists the tests of the test repository, a line each: the path of its file, its titles, and its level, domain, functionality and case when its tags give them; then the files whose tests cannot all be listed, two tests that share a title or a syntax error. The configuration in force is brought in step with `oqas.json` first, which says where the applications and the runs are. A test is named by the path of its file, relative to the test repository:
+
+- `oqas tests read <test>` reads it in steps, as the latest run that ran it reported it: what came of it, each step with its state and duration, what the failed assertion expected and received, and whether a trace is kept.
+- `oqas tests trace <test> <file>` writes that trace to the file, which `npx playwright show-trace` opens; `oqas tests capture <test> <step> <file>` writes the capture the run attached for the step. Both are refused with `3` when the run kept none.
+- `oqas tests executions <test>` lists what came of the tests of the file in the latest executions that ran them; `oqas tests versions <test>` lists their versions, the latest first.
+
+`oqas executions` lists the executions of tests the instance keeps, the latest first, twenty at a time: where each comes from — a session, a campaign or a launch by hand —, when it ran and how many of its tests passed. `--outcome failing` keeps those where a test failed, `--outcome passing` those where none did, and `--before <execution>` starts the page after an execution. `oqas executions show <execution>` prints one, with the verdict and the version of each test, and where and why a test failed. With `--output json`, each command prints what the API answers for the same question.
+
+## Launching tests
+
+`oqas launch [<test>...] --environment <name>` runs tests of the test repository as they are, with no agent: every test, or those of the files named. They run in this process, as a session opened here runs, and the command follows them to their end: each test it finished on the error output, as the runner tells it, then the execution it kept, as `oqas executions show` prints it. The environment may be left out when the configuration declares only one. It exits with `0` when each test passed, `1` when one failed, `2` when one was skipped and none failed, `3` when the launch is refused — another session or launch runs, or the environment is not declared — and `5` when the run kept no execution, with why.
+
+## Campaigns
+
+A campaign is made of tests of the repository chosen one by one, run against one environment until it is closed. `oqas campaigns plan <name> --environment <name>` plans one, with no test yet, and prints its identifier. `oqas campaigns choose <campaign> <test>...` chooses its tests, every test of the files named, while it is planned: they may change until `oqas campaigns ready <campaign>` fixes them. `oqas campaigns launch <campaign>` then launches its tests as [`oqas launch`](#launching-tests) does, in this process, and with the same exit codes; followed by `failed` or `not-run`, it launches only the tests that failed, or those no execution of it ran yet. `oqas campaigns show <campaign>` prints it with what came of each test, the verdict of the latest execution of it that ran the test; `oqas campaigns` lists them all, the latest planned first, with how many tests came to each verdict. `oqas campaigns close <campaign>` closes it for good. A step out of turn — launching a campaign still planned, choosing the tests of one that is ready — is refused with `3`, with what the campaign goes through.
 
 ## Speaking to a session
 
