@@ -105,7 +105,7 @@ describe("oqas config", () => {
     assert.deepEqual(await oqas("config", "export"), {
       code: 3,
       out: "",
-      err: `${join(root, "oqas.json")} cannot be read, and the instance keeps no revision of the configuration. Start with oqas --ui, which sets it up step by step, or write a oqas.json at the root of the test repository.\n`,
+      err: `${join(root, "oqas.json")} cannot be read, and the instance keeps no revision of the configuration. Start with oqas in a terminal or oqas --ui, which set it up step by step, or write a oqas.json at the root of the test repository.\n`,
     });
   });
 

@@ -93,7 +93,7 @@ describe("oqas, as a program", () => {
     const empty = mkdtempSync(join(workspace, "empty-"));
     const missing = await program(["sessions"], empty);
     assert.equal(missing.code, 3);
-    assert.match(missing.err, /oqas\.json is missing\. Start with oqas --ui, which sets it up step by step/);
+    assert.match(missing.err, /oqas\.json is missing\. Start with oqas in a terminal or oqas --ui, which set it up step by step/);
   });
 
   it("opens a session and exits with the code of its run, its outputs written whole", async () => {

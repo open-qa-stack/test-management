@@ -59,14 +59,21 @@ const STOP_WITHIN_MS = 10_000;
  * @param repository - Absolute path of the test repository.
  * @param hosts - Whether the command opens a session, which it then runs.
  * @param stays - Whether the command stays, and maps the knowledge of the sources added while it does.
+ * @param unconfigured - Whether a test repository without a configuration file is refused, or set up.
  * @returns The operations, on a database whose schema is in order.
  * @throws {@link UsageError} when the database cannot be told: its URL is no URL, or the configuration file that places it cannot be read.
  * @throws `PendingMigrationsError` when the database is on a server that has migrations pending.
  * @throws `DatabaseUnavailableError` when the file of the database cannot be opened.
  */
-export async function openOperations(io: CommandIo, repository: string, hosts: boolean, stays = false): Promise<Operations> {
+export async function openOperations(
+  io: CommandIo,
+  repository: string,
+  hosts: boolean,
+  stays = false,
+  unconfigured: "refused" | "started" = "refused",
+): Promise<Operations> {
   const logger = commandLogger(io);
-  const instance = new InstanceDatabase(databaseOf(io, repository), logger);
+  const instance = new InstanceDatabase(databaseOf(io, repository, unconfigured), logger);
   const configuration = new Configuration(instance.configuration, repository);
   const secrets = new Secrets(configuration, io.env, FileSecretStore.of(repository));
   const sessions = new Sessions({
@@ -140,8 +147,7 @@ export function databaseOf(io: CommandIo, repository: string, unconfigured: "ref
   if (raw !== undefined && given === undefined) throw new UsageError(`${DATABASE_URL_VARIABLE} must be ${DatabaseUrl.rule}.`);
   // Only the console starts in a folder never configured, where it sets the configuration up: no other command writes a database
   // there. A folder whose file went keeps its database, from which oqas config export writes the file again.
-  const configured = existsSync(join(repository, CONFIG_FILE_NAME)) || existsSync(join(repository, DEFAULT_REPOSITORY.stateDir, DATABASE_FILE_NAME));
-  if (given === undefined && unconfigured === "refused" && !configured)
+  if (given === undefined && unconfigured === "refused" && !isConfigured(repository))
     throw new UsageError(`${join(repository, CONFIG_FILE_NAME)} is missing. ${START_ADVICE}`);
   try {
     return instanceDatabaseUrl(given, repository);
@@ -176,4 +182,13 @@ export async function savedModel({ configuration, secrets }: Pick<Operations, "c
   await configuration.save({ ...inForce.document, model }, inForce.number, false, "command");
   // A key is typed for the variable of a provider alone, which the connection names.
   if (key !== undefined) await secrets.save((model as Extract<Model, { mode: "provider-key" }>).apiKeyEnv!, key);
+}
+
+/**
+ * @param repository - Absolute path of the test repository.
+ * @returns Whether it was ever configured: it holds its configuration file, or the database of an instance from which
+ * `oqas config export` writes the file again.
+ */
+export function isConfigured(repository: string): boolean {
+  return existsSync(join(repository, CONFIG_FILE_NAME)) || existsSync(join(repository, DEFAULT_REPOSITORY.stateDir, DATABASE_FILE_NAME));
 }

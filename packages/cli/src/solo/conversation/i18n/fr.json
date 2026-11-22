@@ -271,5 +271,75 @@
     "left": "Rien n’a changé.",
     "silent": "Le modèle ne répond pas. {{why}} /model pour le régler.",
     "notOffered": "Le modèle {{model}} n’est pas parmi ceux que propose la connexion."
+  },
+  "setup": {
+    "title": "Démarrer un projet",
+    "folder": "Le projet est créé dans {{folder}}.",
+    "name": "Nom de l’application à tester",
+    "nameHint": "Comme vous l’appelez : Boutique, Gestion des contrats…",
+    "exposes": "Qu’expose-t-elle ?",
+    "exposesChoices": {
+      "web": "Une interface web",
+      "api": "Une API",
+      "web-and-api": "Une interface web et une API"
+    },
+    "uiUrl": "Adresse de son interface web",
+    "apiUrl": "Adresse de son API",
+    "urlHint": "Dans l’environnement où les tests tournent, par exemple http://localhost:3000.",
+    "sources": "Que peuvent lire les agents ? Chaque source est testée dès qu’elle est ajoutée.",
+    "add": {
+      "openapi": "Ajouter un contrat d’API (OpenAPI)",
+      "source-code": "Ajouter le code source",
+      "postgresql": "Ajouter une base de données (PostgreSQL)",
+      "documents": "Ajouter des documents",
+      "done": "Passer au modèle"
+    },
+    "kinds": {
+      "openapi": "contrat d’API",
+      "source-code": "code source",
+      "postgresql": "base de données",
+      "documents": "documents"
+    },
+    "answered_zero": "répond, ne contient rien pour l’instant",
+    "answered_one": "répond, 1 élément",
+    "answered_other": "répond, {{count}} éléments",
+    "sourceLater": "documents à déposer ensuite, dans la console ou avec oqas knowledge add-document",
+    "where": {
+      "openapi": "Adresse ou chemin du contrat",
+      "source-code": "Dossier du code source"
+    },
+    "whereHint": {
+      "openapi": "Une adresse http:// ou https://, ou un chemin depuis le dossier du projet.",
+      "source-code": "Un chemin depuis le dossier du projet, par exemple ../boutique."
+    },
+    "variable": "Nom sous lequel la chaîne de connexion est gardée",
+    "variableHint": "Celui de l’environnement d’une CI, quand il y en a une.",
+    "value": "Chaîne de connexion",
+    "valueHint": "Elle ne s’affiche pas, et reste sur cette machine, hors du dépôt de tests, sous {{variable}} ; laissez vide quand l’environnement définit {{variable}}.",
+    "checking": "Test de la source…",
+    "unanswered": "La source ne répond pas : {{reason}} Corrigez, ou Échap pour l’abandonner.",
+    "summary": "Voici ce qui sera créé dans {{folder}} :",
+    "summaryApplication": "L’application {{name}}, à {{addresses}}",
+    "summaryKnowledge_zero": "Aucune source de connaissance pour l’instant",
+    "summaryKnowledge_one": "1 source de connaissance, cartographiée dès la création du projet",
+    "summaryKnowledge_other": "{{count}} sources de connaissance, cartographiées dès la création du projet",
+    "summaryGithub": "Le modèle {{model}}, par le compte GitHub de cette machine",
+    "summaryProvider": "Le modèle {{model}}, par une clé de fournisseur",
+    "creating": "Création du projet…",
+    "refused": {
+      "name": "Le nom de l’application est attendu.",
+      "address": "Une adresse http:// ou https:// est attendue.",
+      "where": "L’endroit où lire la source est attendu.",
+      "variable": "Un nom de variable est attendu : des majuscules, des chiffres et _."
+    },
+    "keys": {
+      "list": "Haut/Bas choisir · Entrée valider · Échap quitter",
+      "field": "Entrée valider · Échap quitter",
+      "summary": "Entrée créer le projet · Échap quitter, rien n’est écrit"
+    },
+    "created": "Le projet est prêt dans {{folder}} : oqas.json, le projet Playwright{{committed}}.",
+    "committed": ", et un dépôt git avec son premier commit",
+    "toCommit": " ; committez-les quand vous le souhaitez",
+    "left": "Rien n’a été mis en place."
   }
 }

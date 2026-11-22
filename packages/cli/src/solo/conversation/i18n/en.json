@@ -271,5 +271,75 @@
     "left": "Nothing changed.",
     "silent": "The model does not answer. {{why}} /model to set it.",
     "notOffered": "The model {{model}} is not among those the connection offers."
+  },
+  "setup": {
+    "title": "Set up a project",
+    "folder": "The project is set up in {{folder}}.",
+    "name": "Name of the application to test",
+    "nameHint": "As you call it: Shop, Policy Management…",
+    "exposes": "What does it expose?",
+    "exposesChoices": {
+      "web": "A user interface",
+      "api": "An API",
+      "web-and-api": "A user interface and an API"
+    },
+    "uiUrl": "Address of its user interface",
+    "apiUrl": "Address of its API",
+    "urlHint": "In the environment the tests run against, such as http://localhost:3000.",
+    "sources": "What may the agents read? Each source is tested as soon as it is added.",
+    "add": {
+      "openapi": "Add a contract of the API (OpenAPI)",
+      "source-code": "Add the source code",
+      "postgresql": "Add a database (PostgreSQL)",
+      "documents": "Add documents",
+      "done": "Go on to the model"
+    },
+    "kinds": {
+      "openapi": "contract of the API",
+      "source-code": "source code",
+      "postgresql": "database",
+      "documents": "documents"
+    },
+    "answered_zero": "answers, holds nothing yet",
+    "answered_one": "answers, 1 item",
+    "answered_other": "answers, {{count}} items",
+    "sourceLater": "documents to give later, in the console or with oqas knowledge add-document",
+    "where": {
+      "openapi": "Address or path of the contract",
+      "source-code": "Folder of the source code"
+    },
+    "whereHint": {
+      "openapi": "An http:// or https:// address, or a path from the folder of the project.",
+      "source-code": "A path from the folder of the project, such as ../shop."
+    },
+    "variable": "Name the connection string is kept under",
+    "variableHint": "That of the environment of a CI, when there is one.",
+    "value": "Connection string",
+    "valueHint": "It is not shown, and kept on this machine, out of the test repository, under {{variable}}; leave it empty when the environment sets {{variable}}.",
+    "checking": "Testing the source…",
+    "unanswered": "The source does not answer: {{reason}} Correct it, or Esc to give it up.",
+    "summary": "Here is what will be created in {{folder}}:",
+    "summaryApplication": "The application {{name}}, at {{addresses}}",
+    "summaryKnowledge_zero": "No knowledge source yet",
+    "summaryKnowledge_one": "1 knowledge source, mapped as soon as the project is created",
+    "summaryKnowledge_other": "{{count}} knowledge sources, mapped as soon as the project is created",
+    "summaryGithub": "The model {{model}}, through the GitHub account of this machine",
+    "summaryProvider": "The model {{model}}, through a provider key",
+    "creating": "Creating the project…",
+    "refused": {
+      "name": "The name of the application is expected.",
+      "address": "An http:// or https:// address is expected.",
+      "where": "Where the source is read is expected.",
+      "variable": "A name of variable is expected: capital letters, digits and _."
+    },
+    "keys": {
+      "list": "Up/Down choose · Enter confirm · Esc leave",
+      "field": "Enter confirm · Esc leave",
+      "summary": "Enter create the project · Esc leave, nothing written"
+    },
+    "created": "The project is set up in {{folder}}: oqas.json, the Playwright project{{committed}}.",
+    "committed": ", and a git repository with its first commit",
+    "toCommit": "; commit them when you wish",
+    "left": "Nothing was set up."
   }
 }

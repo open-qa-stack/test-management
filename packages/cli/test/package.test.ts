@@ -28,9 +28,10 @@ describe("the package of the command", () => {
   it("draws its conversation and the setting of the model with Ink and React in the words of i18next, which the files of the conversation alone import, and which are loaded for them alone", () => {
     const drawn = importedUnder(SOURCES, (file) => file.startsWith(CONVERSATION)).map(([, module]) => module);
     assert.deepEqual([...new Set(drawn.filter((module) => !allowed.test(module)))].sort(), ["i18next", "ink", "ink-spinner", "ink-text-input", "react"]);
-    // Nothing reaches the conversation but two imports, made when it is opened and when the model is set step by step: no other command loads what draws them.
+    // Nothing reaches the conversation but three imports, made when it is opened, when a project is set up and when the model is set step by step: no other command loads what draws them.
     const reaching = importedUnder(SOURCES, (file) => !file.startsWith(CONVERSATION)).filter(([, module]) => module.includes("/conversation/"));
     assert.deepEqual(reaching, [
+      ["solo/solo-command.ts", "./conversation/project-setup/setup-project.ts"],
       ["solo/solo-command.ts", "./conversation/converse.ts"],
       ["solo/solo-command.ts", "./conversation/model-setup/setup-command.ts"],
     ]);
