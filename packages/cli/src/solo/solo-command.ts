@@ -73,12 +73,23 @@ async function onSessions(command: Exclude<Command, { name: "help" }>, options: 
   }
   if (command.name === "attach") return withOperations(io, repository, ({ sessions }) => attached({ sessions, command, options, io }));
   if (command.name === "model" && command.action === "setup") return withOperations(io, repository, (operations) => setUp(operations, io));
-  return withOperations(io, repository, (operations) => runPrinting(operations, repository, command, options, io));
+  // A launch runs its tests in this process, as a session opened here runs.
+  return withOperations(
+    io,
+    repository,
+    (operations) => runPrinting(operations, repository, command, options, io),
+    command.name === "launch" || (command.name === "campaigns" && command.action === "launch"),
+  );
 }
 
-/** Runs something on the operations of a test repository, opened for it and let go of afterwards. */
-async function withOperations(io: CommandIo, repository: string, run: (operations: Operations) => Promise<ExitCodeValue>): Promise<ExitCodeValue> {
-  const operations = await openOperations(io, repository, false);
+/** Runs something on the operations of a test repository, opened for it and let go of afterwards; hosting what it launches when it does. */
+async function withOperations(
+  io: CommandIo,
+  repository: string,
+  run: (operations: Operations) => Promise<ExitCodeValue>,
+  hosts = false,
+): Promise<ExitCodeValue> {
+  const operations = await openOperations(io, repository, hosts);
   try {
     return await run(operations);
   } finally {

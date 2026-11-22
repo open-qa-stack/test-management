@@ -25,8 +25,8 @@ const COMMANDS: Readonly<Record<OperationId, readonly string[] | Missing>> = {
   "Sessions.interrupt": ["stop", "s"],
   "Sessions.events": ["attach", "s"],
   "Sessions.thread": ["show", "s"],
-  "Sessions.launch": { missing: "no command launches tests" },
-  "Sessions.launches": { missing: "no command lists the launches of tests" },
+  "Sessions.launch": ["launch", "--environment", "local"],
+  "Sessions.launches": ["launch", "--environment", "local"],
   "Configuration.view": ["config", "show"],
   "Configuration.revisions": { missing: "config show prints the revision in force, not the history" },
   "Configuration.check": { missing: "no command checks a configuration without saving it" },
@@ -53,13 +53,13 @@ const COMMANDS: Readonly<Record<OperationId, readonly string[] | Missing>> = {
   "Executions.get": ["executions", "show", "e"],
   "Executions.ofFile": ["tests", "executions", "orders.spec.ts"],
   "Executions.versions": ["tests", "versions", "orders.spec.ts"],
-  "Campaigns.plan": { missing: "no command plans a campaign" },
-  "Campaigns.list": { missing: "no command lists the campaigns" },
-  "Campaigns.progress": { missing: "no command tells the progress of a campaign" },
-  "Campaigns.choose": { missing: "no command chooses the tests of a campaign" },
-  "Campaigns.ready": { missing: "no command makes a campaign ready" },
-  "Campaigns.launch": { missing: "no command launches a campaign" },
-  "Campaigns.close": { missing: "no command closes a campaign" },
+  "Campaigns.plan": ["campaigns", "plan", "Release", "--environment", "local"],
+  "Campaigns.list": ["campaigns"],
+  "Campaigns.progress": ["campaigns", "show", "c"],
+  "Campaigns.choose": ["campaigns", "choose", "c", "orders.spec.ts"],
+  "Campaigns.ready": ["campaigns", "ready", "c"],
+  "Campaigns.launch": ["campaigns", "launch", "c", "failed"],
+  "Campaigns.close": ["campaigns", "close", "c"],
 };
 
 /**
@@ -82,8 +82,8 @@ const CONVERSATION: Readonly<Record<OperationId, InConversation>> = {
   "Sessions.interrupt": { slash: "stop" },
   "Sessions.events": { itself: "the session followed is shown live" },
   "Sessions.thread": { itself: "a session reopened shows its thread so far" },
-  "Sessions.launch": { missing: "no command launches tests" },
-  "Sessions.launches": { missing: "no command lists the launches of tests" },
+  "Sessions.launch": { typed: "/launch --environment local" },
+  "Sessions.launches": { typed: "/launch --environment local" },
   "Configuration.view": { typed: "/config show" },
   "Configuration.revisions": { missing: "no command shows the history of the configuration" },
   "Configuration.check": { missing: "no command checks a configuration" },
@@ -110,13 +110,13 @@ const CONVERSATION: Readonly<Record<OperationId, InConversation>> = {
   "Executions.get": { typed: "/executions show e" },
   "Executions.ofFile": { typed: "/tests executions orders.spec.ts" },
   "Executions.versions": { typed: "/tests versions orders.spec.ts" },
-  "Campaigns.plan": { missing: "no command plans a campaign" },
-  "Campaigns.list": { missing: "no command lists the campaigns" },
-  "Campaigns.progress": { missing: "no command tells the progress of a campaign" },
-  "Campaigns.choose": { missing: "no command chooses the tests of a campaign" },
-  "Campaigns.ready": { missing: "no command makes a campaign ready" },
-  "Campaigns.launch": { missing: "no command launches a campaign" },
-  "Campaigns.close": { missing: "no command closes a campaign" },
+  "Campaigns.plan": { typed: "/campaigns plan Release --environment local" },
+  "Campaigns.list": { typed: "/campaigns" },
+  "Campaigns.progress": { typed: "/campaigns show c" },
+  "Campaigns.choose": { typed: "/campaigns choose c orders.spec.ts" },
+  "Campaigns.ready": { typed: "/campaigns ready c" },
+  "Campaigns.launch": { typed: "/campaigns launch c failed" },
+  "Campaigns.close": { typed: "/campaigns close c" },
 };
 
 /** The operations a client does not offer yet. */
@@ -134,7 +134,7 @@ describe("the operations of the engine, as the command offers them", () => {
 
   // A gap closed lowers this count, and a gap opened is refused: it only goes down.
   it("are missing no more than they were", () => {
-    assert.equal(missingIn(COMMANDS).length, 17);
+    assert.equal(missingIn(COMMANDS).length, 8);
   });
 });
 
@@ -151,6 +151,6 @@ describe("the operations of the engine, as the conversation offers them", () => 
 
   // A gap closed lowers this count, and a gap opened is refused: it only goes down.
   it("are missing no more than they were", () => {
-    assert.equal(missingIn(CONVERSATION).length, 17);
+    assert.equal(missingIn(CONVERSATION).length, 8);
   });
 });

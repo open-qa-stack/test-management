@@ -1,4 +1,4 @@
-import type { ExecutionOutcome } from "@open-qa-stack/domain";
+import type { CampaignLaunchScope, ExecutionOutcome } from "@open-qa-stack/domain";
 
 /** How a command prints what it tells: lines a person reads, or JSON Lines a program reads. */
 export type Output = "text" | "json";
@@ -51,6 +51,18 @@ export type Command =
   | { readonly name: "tests"; readonly action: "trace"; readonly path: string; readonly file: string }
   /** Write the capture the latest run attached for a step of a test to a file. */
   | { readonly name: "tests"; readonly action: "capture"; readonly path: string; readonly step: number; readonly file: string }
+  /** Launch tests of the test repository as they are, with no agent, in this process, and follow them to their end. */
+  | { readonly name: "launch"; readonly paths: readonly string[]; readonly environment?: string }
+  /** List the campaigns, the latest planned first, with how many of their tests came to each verdict. */
+  | { readonly name: "campaigns"; readonly action: "list" }
+  /** Plan a campaign against an environment, with no test yet. */
+  | { readonly name: "campaigns"; readonly action: "plan"; readonly campaign: string; readonly environment: string }
+  /** Print a campaign with what came of each of its tests, make it ready, or close it. */
+  | { readonly name: "campaigns"; readonly action: "show" | "ready" | "close"; readonly campaign: string }
+  /** Choose the tests of a campaign that is planned: every test of the files named. */
+  | { readonly name: "campaigns"; readonly action: "choose"; readonly campaign: string; readonly paths: readonly string[] }
+  /** Launch the tests of a campaign, every one or some, in this process, and follow them to their end. */
+  | { readonly name: "campaigns"; readonly action: "launch"; readonly campaign: string; readonly only?: CampaignLaunchScope }
   /** List the executions of tests, the latest first, a page at a time. */
   | { readonly name: "executions"; readonly action: "list"; readonly outcome?: ExecutionOutcome; readonly before?: string }
   /** Print an execution, with what came of each of its tests. */
@@ -131,6 +143,12 @@ export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
        oqas [--repository <folder>] tests read|executions|versions <test> [--output text|json]
        oqas [--repository <folder>] tests trace <test> <file>
        oqas [--repository <folder>] tests capture <test> <step> <file>
+       oqas [--repository <folder>] launch [<test>...] [--environment <name>] [--output text|json]
+       oqas [--repository <folder>] campaigns [--output text|json]
+       oqas [--repository <folder>] campaigns plan <name> --environment <name> [--output text|json]
+       oqas [--repository <folder>] campaigns show|ready|close <campaign> [--output text|json]
+       oqas [--repository <folder>] campaigns choose <campaign> <test>... [--output text|json]
+       oqas [--repository <folder>] campaigns launch <campaign> [failed|not-run] [--output text|json]
        oqas [--repository <folder>] executions [--outcome failing|passing] [--before <execution>] [--output text|json]
        oqas [--repository <folder>] executions show <execution> [--output text|json]
        oqas [--repository <folder>] secrets [--output text|json]
@@ -183,6 +201,21 @@ Commands:
                          Write the trace the latest run kept of the test to the file, which npx playwright show-trace opens.
   tests capture <test> <step> <file>
                          Write the capture the latest run attached for the step of the test to the file.
+  launch [<test>...]     Launch tests of the test repository as they are, with no agent, in this process, against
+                         --environment, and follow them to their end: every test, or those of the files named.
+                         It exits with 0 when each passed, 1 when one failed, 2 when one was skipped.
+  campaigns              List the campaigns, the latest planned first, with how many of their tests came to each verdict.
+  campaigns plan <name>  Plan a campaign against --environment, with no test yet.
+  campaigns choose <campaign> <test>...
+                         Choose the tests of a campaign that is planned: every test of the files named.
+  campaigns ready <campaign>
+                         Fix the tests of a campaign: it may be launched from then on.
+  campaigns launch <campaign> [failed|not-run]
+                         Launch its tests, every one, those that failed or those not run yet, as oqas launch does.
+  campaigns show <campaign>
+                         Print a campaign with what came of each of its tests.
+  campaigns close <campaign>
+                         Close a campaign for good: what came of its tests is fixed.
   executions             List the executions of tests, the latest first, twenty at a time: --outcome keeps those
                          where a test failed or none did, --before starts after an execution.
   executions show <execution>
@@ -335,6 +368,11 @@ function commandOf(
   if (name === "secrets") return secretsOf(rest, opens || follow);
   if (name === "tests") return testsOf(rest, opens || follow);
   if (name === "executions") return executionsOf(rest, opens || follow);
+  if (name === "campaigns") return campaignsOf(rest, { environment, brief, follow });
+  if (name === "launch") {
+    if (brief !== undefined || follow) return "oqas launch runs tests as they are: it takes --environment, and no --brief nor --follow.";
+    return { name: "launch", paths: rest, ...(environment === undefined ? {} : { environment }) };
+  }
   if (!Object.hasOwn(ON_SESSIONS, name)) return `Unknown command ${name}; see oqas --help.`;
   const known = name as keyof typeof ON_SESSIONS;
   const taken: readonly string[] = ON_SESSIONS[known];
@@ -429,4 +467,36 @@ function executionsOf(words: readonly string[], ofASession: boolean): Command | 
   if (action === undefined) return { name: "executions", action: "list" };
   if (action !== "show" || execution === undefined || rest.length > 0) return "oqas executions takes nothing, to list them, or show then an execution.";
   return { name: "executions", action, execution };
+}
+
+/** What `oqas campaigns` is followed by, with the words each action takes after its campaign at least and at most. */
+const CAMPAIGN_ACTIONS = { plan: [0, 0], show: [0, 0], ready: [0, 0], close: [0, 0], choose: [1, Infinity], launch: [0, 1] } as const;
+
+/** What `oqas campaigns launch` launches of a campaign, by the word that says it. */
+const SCOPES: Readonly<Record<string, CampaignLaunchScope>> = { failed: "failed", "not-run": "not_run" };
+
+/** What `oqas campaigns` asks for, or why it is refused: the list, or what it does to one campaign. */
+function campaignsOf(
+  words: readonly string[],
+  options: { readonly environment: string | undefined; readonly brief: string | undefined; readonly follow: boolean },
+): Command | string {
+  const [action, campaign = "", ...rest] = words;
+  const { environment, brief, follow } = options;
+  if (brief !== undefined || follow) return "oqas campaigns acts on the campaigns: it takes no --brief nor --follow.";
+  if ((environment !== undefined) !== (action === "plan"))
+    return "oqas campaigns plan needs --environment, the environment its tests run against: it goes with plan alone.";
+  if (action === undefined) return { name: "campaigns", action: "list" };
+  const known = Object.hasOwn(CAMPAIGN_ACTIONS, action) ? (action as keyof typeof CAMPAIGN_ACTIONS) : undefined;
+  const [least, most] = known === undefined ? [0, -1] : CAMPAIGN_ACTIONS[known];
+  if (known === undefined || words.length < 2 || rest.length < least || rest.length > most)
+    return "oqas campaigns takes nothing, plan then a name, show, ready or close then a campaign, choose then a campaign and its tests, or launch then a campaign and failed or not-run.";
+  if (known === "plan") return { name: "campaigns", action: known, campaign, environment: environment! };
+  if (known === "choose") return { name: "campaigns", action: known, campaign, paths: rest };
+  if (known !== "launch") return { name: "campaigns", action: known, campaign };
+  const [scope] = rest;
+  if (scope === undefined) return { name: "campaigns", action: known, campaign };
+  const only = SCOPES[scope];
+  return only === undefined
+    ? "oqas campaigns launch takes failed or not-run after the campaign, or nothing for every test."
+    : { name: "campaigns", action: known, campaign, only };
 }

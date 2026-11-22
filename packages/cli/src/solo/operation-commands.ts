@@ -1,6 +1,16 @@
 import { writeFile } from "node:fs/promises";
+import { setTimeout as pause } from "node:timers/promises";
 import { resolve } from "node:path";
-import { configurationText, ExitCode, isStoredDocuments, type CartographyState, type ConfigurationView, type ExitCodeValue } from "@open-qa-stack/domain";
+import {
+  configurationText,
+  ExitCode,
+  isStoredDocuments,
+  type Campaign,
+  type CartographyState,
+  type TestLaunch,
+  type ConfigurationView,
+  type ExitCodeValue,
+} from "@open-qa-stack/domain";
 import { playwrightVersion } from "@open-qa-stack/tools";
 import type { Session } from "@open-qa-stack/domain/sessions";
 import type { Configuration, KnowledgeDocuments, KnowledgeSources, Secrets, Sessions } from "@open-qa-stack/engine";
@@ -9,6 +19,8 @@ import { fileLine, revisionLine } from "./configuration-lines.ts";
 import { eventLine, ofTheAgents } from "./event-line.ts";
 import { failureOf } from "./failure.ts";
 import { checkLine, documentLine, documentsRefusal, mappingLines, receivedFiles, sourceLine } from "./knowledge-lines.ts";
+import { campaignLine, overviewLine, progressLines } from "./campaign-lines.ts";
+import { LaunchEndError } from "./launch-end-error.ts";
 import { keptTuning, modelOfArguments, modelReport } from "./model-lines.ts";
 import { modelConnectionOf, type Operations } from "./operations.ts";
 import { RepositoryInit } from "./repository-init.ts";
@@ -33,11 +45,24 @@ export interface Asked<Name extends Command["name"]> {
  * slash, in the conversation. Those that run or follow a session, serve the console or draw a screen are not.
  */
 export type PrintingCommand =
-  | Extract<Command, { name: "init" | "config" | "knowledge" | "secrets" | "sessions" | "show" | "stop" | "tests" | "executions" }>
+  | Extract<Command, { name: "init" | "config" | "knowledge" | "secrets" | "sessions" | "show" | "stop" | "tests" | "executions" | "launch" | "campaigns" }>
   | Extract<Command, { name: "model"; action: "status" | "set" }>;
 
-/** The names of the commands that print, as {@link isPrinting} reads them. */
-const PRINTING: ReadonlySet<Command["name"]> = new Set(["init", "config", "knowledge", "secrets", "sessions", "show", "stop", "model", "tests", "executions"]);
+/** The names of the commands that print, as {@link isPrinting} reads them: typed on them, it does not compile while one is left out. */
+const PRINTING: Readonly<Record<PrintingCommand["name"], true>> = {
+  init: true,
+  config: true,
+  knowledge: true,
+  secrets: true,
+  sessions: true,
+  show: true,
+  stop: true,
+  model: true,
+  tests: true,
+  executions: true,
+  launch: true,
+  campaigns: true,
+};
 
 /**
  * Tells whether a command does what it is asked and ends at once, printing what it did.
@@ -46,7 +71,7 @@ const PRINTING: ReadonlySet<Command["name"]> = new Set(["init", "config", "knowl
  * @returns Whether it is a {@link PrintingCommand}.
  */
 export function isPrinting(command: Command): command is PrintingCommand {
-  return PRINTING.has(command.name) && !(command.name === "model" && command.action === "setup");
+  return Object.hasOwn(PRINTING, command.name) && !(command.name === "model" && command.action === "setup");
 }
 
 /**
@@ -99,6 +124,105 @@ export async function runPrinting(
       return await tested(operations, command, { options, io });
     case "executions":
       return await executed(operations, command, { options, io });
+    case "launch":
+      return await launched(operations, command, { options, io });
+    case "campaigns":
+      // The tests of a campaign are read with the configuration of oqas.json, as those of oqas tests are.
+      await configuration.inStep();
+      return await campaigned(operations, command, { options, io });
+  }
+}
+
+/** How often a launch that runs is asked how far it went, in milliseconds. */
+const LAUNCH_BEAT_MS = 100;
+
+/**
+ * `oqas launch`: launches tests of the test repository as they are, with no agent, in this process, and follows them
+ * to their end.
+ */
+async function launched(
+  operations: Pick<Operations, "sessions" | "executions">,
+  command: Extract<Command, { name: "launch" }>,
+  printing: Pick<Asked<"launch">, "options" | "io">,
+): Promise<ExitCodeValue> {
+  const { paths, environment } = command;
+  const launch = await operations.sessions.launch({ ...(paths.length === 0 ? {} : { paths }), ...(environment === undefined ? {} : { environment }) });
+  return followed(operations, launch, printing);
+}
+
+/**
+ * Follows a launch of tests that runs in this process to its end: each test it finished on the error output, then the
+ * execution it kept. Exits with `0` when each test passed, `1` when one failed, `2` when one was skipped, `5` when it
+ * kept no execution.
+ */
+async function followed(
+  { sessions, executions }: Pick<Operations, "sessions" | "executions">,
+  launch: TestLaunch,
+  printing: Pick<Asked<"launch">, "options" | "io">,
+): Promise<ExitCodeValue> {
+  const { stderr } = printing.io;
+  const { paths } = launch;
+  stderr.write(`Tests launched against ${launch.environment}: ${paths.length === 0 ? "every test of the repository" : paths.join(", ")}.\n`);
+  let told = 0;
+  let state = await sessions.launches();
+  // The launch is the one that runs until it is the last that ended: the next one waits for it.
+  while (state.last?.startedAt !== launch.startedAt) {
+    const finished = state.running?.progress?.finished ?? [];
+    for (const { verdict, path, title } of finished.slice(told)) stderr.write(`${verdict.padEnd(7)} ${path} › ${title}\n`);
+    told = Math.max(told, finished.length);
+    await pause(LAUNCH_BEAT_MS);
+    state = await sessions.launches();
+  }
+  const { execution: id, failure } = state.last;
+  if (id === undefined) throw new LaunchEndError(failure);
+  const execution = await executions.get(id);
+  print(printing, executionLines(execution).join("\n"), execution);
+  const verdicts = new Set(execution.results.map(({ verdict }) => verdict));
+  if (verdicts.has("failed")) return ExitCode.failed;
+  return verdicts.has("skipped") ? ExitCode.unsettled : ExitCode.passed;
+}
+
+/**
+ * `oqas campaigns`: lists the campaigns; plans one, chooses its tests, makes it ready, launches its tests and follows
+ * them to their end, prints it with what came of each test, or closes it.
+ */
+async function campaigned(
+  operations: Pick<Operations, "campaigns" | "tests" | "sessions" | "executions">,
+  command: Extract<Command, { name: "campaigns" }>,
+  printing: Pick<Asked<"campaigns">, "options" | "io">,
+): Promise<ExitCodeValue> {
+  const { campaigns } = operations;
+  const told = (campaign: Campaign): ExitCodeValue => {
+    print(printing, campaignLine(campaign), campaign);
+    return ExitCode.passed;
+  };
+  switch (command.action) {
+    case "list": {
+      const items = await campaigns.list();
+      print(printing, linesOr(items.map(overviewLine), "The instance keeps no campaign."), { items });
+      return ExitCode.passed;
+    }
+    case "plan":
+      return told(await campaigns.plan({ name: command.campaign, environment: command.environment }));
+    case "choose": {
+      // A file named stands for every test it holds.
+      const named = new Set(command.paths);
+      const tests = (await operations.tests.list()).filter(({ path }) => named.has(path)).map(({ path, title }) => ({ path, title }));
+      const missing = command.paths.filter((path) => !tests.some((test) => test.path === path));
+      if (missing.length > 0) throw new UsageError(`The test repository holds no test in ${missing.join(", ")}; oqas tests lists them.`);
+      return told(await campaigns.choose(command.campaign, tests));
+    }
+    case "ready":
+      return told(await campaigns.ready(command.campaign));
+    case "close":
+      return told(await campaigns.close(command.campaign));
+    case "show": {
+      const progress = await campaigns.progress(command.campaign);
+      print(printing, progressLines(progress).join("\n"), progress);
+      return ExitCode.passed;
+    }
+    case "launch":
+      return followed(operations, await campaigns.launch(command.campaign, command.only), printing);
   }
 }
 

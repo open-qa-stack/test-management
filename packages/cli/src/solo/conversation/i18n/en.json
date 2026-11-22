@@ -112,6 +112,8 @@
     "config": "show, import or export: the configuration in force and oqas.json, as oqas config does",
     "knowledge": "list, mapping, check or add-document: the knowledge sources, as oqas knowledge does",
     "tests": "read, executions, versions, trace or capture: the tests of the test repository, as oqas tests does",
+    "launch": "Launch tests as they are, with no agent, in this process, and tell their execution once they ended, as oqas launch does",
+    "campaigns": "plan, choose, ready, launch, show or close: the campaigns of tests, as oqas campaigns does",
     "executions": "The executions of tests, the latest first, or show one, as oqas executions does",
     "secrets": "List the variables the configuration names, and where the value of each comes from",
     "init": "Prepare the test repository as a Playwright project, as oqas --init does",

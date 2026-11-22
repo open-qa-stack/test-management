@@ -113,13 +113,15 @@ While the session goes on, what you type is said to its agents, as [`oqas say`](
 | `/config show\|import\|export` | Runs [`oqas config`](#the-configuration) with the same words. |
 | `/knowledge list\|mapping\|check\|add-document …` | Runs [`oqas knowledge`](#the-knowledge) with the same words. |
 | `/tests …` | Runs [`oqas tests`](#the-tests-and-their-executions) with the same words. |
+| `/launch …` | Runs [`oqas launch`](#launching-tests) with the same words, in the process of the conversation: the input stays free while the tests run, and their execution is told once they ended. |
+| `/campaigns …` | Runs [`oqas campaigns`](#campaigns) with the same words; `/campaigns launch` runs in the process of the conversation, as `/launch` does. |
 | `/executions …` | Runs [`oqas executions`](#the-tests-and-their-executions) with the same words. |
 | `/secrets` | Runs [`oqas secrets`](#the-values-of-the-variables): the variables the configuration names, and where the value of each comes from. A value is saved with `oqas secrets set` in another terminal, since the conversation would show it as it is typed; the key of the model is saved with `/model`. |
 | `/init` | Runs [`oqas --init`](#initialising-a-test-repository). |
 | `/help` | Lists the commands and the keys. |
 | `/quit` | Leaves the conversation. |
 
-`/config`, `/knowledge`, `/tests`, `/executions`, `/secrets`, `/init` and `/model` followed by words run the code of the command, on the operations the conversation holds, and write the same lines in the thread — in English, as the command writes them —, marked with ✗ when the command did not do all it was asked. What the command refuses, the conversation refuses on the line under the input, with the same words, and so does it refuse `--repository`, `--output` and `--follow`, which it sets itself.
+`/config`, `/knowledge`, `/tests`, `/launch`, `/campaigns`, `/executions`, `/secrets`, `/init` and `/model` followed by words run the code of the command, on the operations the conversation holds, and write the same lines in the thread — in English, as the command writes them —, marked with ✗ when the command did not do all it was asked. What the command refuses, the conversation refuses on the line under the input, with the same words, and so does it refuse `--repository`, `--output` and `--follow`, which it sets itself.
 
 A slash lists the commands as you type; Tab completes the first of them, and the start of a name is enough when no other command shares it.
 
@@ -355,6 +357,14 @@ It exits with `0` when each answers, with `4` when one does not, and with `3` wh
 - `oqas tests executions <test>` lists what came of the tests of the file in the latest executions that ran them; `oqas tests versions <test>` lists their versions, the latest first.
 
 `oqas executions` lists the executions of tests the instance keeps, the latest first, twenty at a time: where each comes from — a session, a campaign or a launch by hand —, when it ran and how many of its tests passed. `--outcome failing` keeps those where a test failed, `--outcome passing` those where none did, and `--before <execution>` starts the page after an execution. `oqas executions show <execution>` prints one, with the verdict and the version of each test, and where and why a test failed. With `--output json`, each command prints what the API answers for the same question.
+
+## Launching tests
+
+`oqas launch [<test>...] --environment <name>` runs tests of the test repository as they are, with no agent: every test, or those of the files named. They run in this process, as a session opened here runs, and the command follows them to their end: each test it finished on the error output, as the runner tells it, then the execution it kept, as `oqas executions show` prints it. The environment may be left out when the configuration declares only one. It exits with `0` when each test passed, `1` when one failed, `2` when one was skipped and none failed, `3` when the launch is refused — another session or launch runs, or the environment is not declared — and `5` when the run kept no execution, with why.
+
+## Campaigns
+
+A campaign is made of tests of the repository chosen one by one, run against one environment until it is closed. `oqas campaigns plan <name> --environment <name>` plans one, with no test yet, and prints its identifier. `oqas campaigns choose <campaign> <test>...` chooses its tests, every test of the files named, while it is planned: they may change until `oqas campaigns ready <campaign>` fixes them. `oqas campaigns launch <campaign>` then launches its tests as [`oqas launch`](#launching-tests) does, in this process, and with the same exit codes; followed by `failed` or `not-run`, it launches only the tests that failed, or those no execution of it ran yet. `oqas campaigns show <campaign>` prints it with what came of each test, the verdict of the latest execution of it that ran the test; `oqas campaigns` lists them all, the latest planned first, with how many tests came to each verdict. `oqas campaigns close <campaign>` closes it for good. A step out of turn — launching a campaign still planned, choosing the tests of one that is ready — is refused with `3`, with what the campaign goes through.
 
 ## Speaking to a session
 

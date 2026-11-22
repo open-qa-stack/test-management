@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { CONFIG_FILE_NAME, DATABASE_FILE_NAME, DEFAULT_REPOSITORY, type Model } from "@open-qa-stack/domain";
 import {
+  Campaigns,
   Configuration,
   Executions,
   FileSecretStore,
@@ -42,6 +43,8 @@ export interface Operations {
   readonly readings: TestReadings;
   /** The executions of tests the instance keeps. */
   readonly executions: Executions;
+  /** The campaigns of tests of the instance. */
+  readonly campaigns: Campaigns;
   /**
    * Stops hosting, when the command hosted a session, and closes the database.
    *
@@ -109,14 +112,16 @@ export async function openOperations(
     await instance.close();
     throw error;
   }
+  const tests = new RepositoryTests(repository, instance.configuration);
   return {
     sessions,
     configuration,
+    campaigns: new Campaigns({ store: instance.campaigns, executions: instance.executions, tests, launcher: sessions }),
     documents: new KnowledgeDocuments(instance.documents, instance.configuration),
     secrets,
     sources: new KnowledgeSources(repository, secrets, instance.documents),
     mapping: new KnowledgeMapping(repository, configuration, instance.sessions),
-    tests: new RepositoryTests(repository, instance.configuration),
+    tests,
     readings: new TestReadings(repository, instance.configuration, instance.executions),
     executions: new Executions(instance.executions),
     close,
