@@ -1597,6 +1597,29 @@ describe("the code of the console is covered in full", () => {
         await page.getByRole("button", { name: "Retirer le document" }).click();
         await page.getByRole("status").filter({ hasText: "Document retiré." }).waitFor();
         await page.waitForURL(/#\/knowledge\/manuals$/);
+        // A source is added, tested and saved alone, then followed under the identifier it is saved with.
+        await page.goto("http://console.test/#/knowledge");
+        await page.getByRole("link", { name: "Ajouter une connaissance" }).click();
+        await page.getByRole("button", { name: "Ajouter un contrat OpenAPI" }).click();
+        await page.getByLabel("Identifiant", { exact: true }).fill("pricing");
+        await page.getByLabel("Adresse du contrat").fill("http://127.0.0.1:3001/pricing.json");
+        await page.getByLabel("Application", { exact: true }).selectOption("shop");
+        await page.getByRole("button", { name: "Tester la connexion" }).click();
+        await page.getByRole("status").filter({ hasText: "Connexion réussie · 3 éléments trouvés." }).waitFor();
+        await page.getByRole("button", { name: "Enregistrer" }).click();
+        await page.waitForURL(/#\/knowledge\/pricing$/);
+        await page.getByLabel("Identifiant", { exact: true }).fill("prices");
+        await page.getByRole("button", { name: "Enregistrer" }).click();
+        await page.waitForURL(/#\/knowledge\/prices$/);
+        assert.deepEqual(
+          instance.configured.saved.map(({ document }) => document.knowledge.at(-1)?.id),
+          ["pricing", "prices"],
+        );
+        // A source removed once the person confirmed it leads back to the knowledge.
+        await page.getByRole("link", { name: "Retirer la source" }).click();
+        await page.getByRole("button", { name: "Retirer la source" }).click();
+        await page.waitForURL(/#\/knowledge$/);
+        assert.equal(instance.configured.saved.at(-1)?.document.knowledge.length, 8);
       },
       instance.api,
     );
@@ -1606,8 +1629,8 @@ describe("the code of the console is covered in full", () => {
 
   it("runs every line of the screen of the configuration when it is used in the browser", async () => {
     const instance = new ConfiguredInstance();
-    const [screen] = await app().measure(
-      ["src/configuration/configuration-page.tsx"],
+    const [screen, editor] = await app().measure(
+      ["src/configuration/configuration-page.tsx", "src/configuration/use-configuration-editor.ts"],
       async (page) => {
         await page.goto("http://console.test/#/configuration");
         await page.getByRole("heading", { name: "Applications et environnements" }).waitFor();
@@ -1636,9 +1659,6 @@ describe("the code of the console is covered in full", () => {
         await page.getByRole("status").filter({ hasText: "Révision 4 enregistrée" }).waitFor();
         await page.getByRole("button", { name: "Prendre oqas.json" }).click();
         await page.getByRole("status").filter({ hasText: "Révision 5 enregistrée" }).waitFor();
-        // A source is tested as it is drafted.
-        await page.getByRole("button", { name: "Tester la connexion" }).first().click();
-        await page.getByRole("status").filter({ hasText: "Connexion réussie · 3 éléments trouvés." }).waitFor();
         // A value typed is saved alone, out of the configuration, which does not change.
         await page.getByLabel("Clé", { exact: true }).fill("typed-key");
         await page.getByRole("button", { name: "Tester la connexion" }).last().click();
@@ -1654,6 +1674,12 @@ describe("the code of the console is covered in full", () => {
         await page.getByRole("button", { name: "Commencer" }).click();
         for (const step of ["Vos applications", "Ce que les agents peuvent lire", "Le modèle"]) {
           await page.getByRole("heading", { name: step }).waitFor();
+          if (step === "Ce que les agents peuvent lire") {
+            // A source is tested as it is drafted.
+            await page.getByRole("button", { name: "Ajouter un contrat OpenAPI" }).click();
+            await page.getByRole("button", { name: "Tester la connexion" }).click();
+            await page.getByRole("status").filter({ hasText: "Connexion réussie · 3 éléments trouvés." }).waitFor();
+          }
           await page.getByRole("button", { name: "Suivant" }).click();
         }
         await page.getByText("Ce dossier deviendra un dépôt git").waitFor();
@@ -1669,5 +1695,6 @@ describe("the code of the console is covered in full", () => {
     );
     assert.ok(screen!.lines.length > 10, "the screen is in the build");
     assert.deepEqual(screen!.uncovered, []);
+    assert.deepEqual(editor!.uncovered, []);
   });
 });

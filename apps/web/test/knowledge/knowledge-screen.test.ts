@@ -6,10 +6,29 @@ import { KnowledgeScreen, whereOf, type KnowledgeControls } from "../../src/know
 import { INITIAL_KNOWLEDGE, knowledgeAfter, type KnowledgeAction, type KnowledgeState } from "../../src/knowledge/knowledge-state.ts";
 import { parseRoute } from "../../src/routing/route.ts";
 import { linksOf, render, textOf } from "../render.ts";
-import { DOCUMENT, VIEW } from "../configuration/configuration-fixture.ts";
+import { DOCUMENT, REVISIONS, VIEW } from "../configuration/configuration-fixture.ts";
+import { configurationAfter, INITIAL_CONFIGURATION, type ConfigurationState } from "../../src/configuration/configuration-state.ts";
 
 /** What the person does on the screens, which a static rendering never calls. */
-const CONTROLS: KnowledgeControls = { upload: () => assert.fail("nothing is uploaded"), remove: () => assert.fail("nothing is removed") };
+const CONTROLS: KnowledgeControls = {
+  upload: () => assert.fail("nothing is uploaded"),
+  remove: () => assert.fail("nothing is removed"),
+  drop: () => assert.fail("no source is removed"),
+  edit: {
+    change: () => assert.fail("nothing is changed"),
+    click: () => assert.fail("nothing is pressed"),
+    save: () => assert.fail("nothing is saved"),
+    discard: () => assert.fail("nothing is dropped"),
+    takeFile: () => assert.fail("no file is taken"),
+    writeFile: () => assert.fail("no file is written"),
+    testModel: () => assert.fail("no connection is tested"),
+    checkSource: () => assert.fail("no source is tested"),
+    setUp: () => assert.fail("nothing is set up"),
+  },
+};
+
+/** The draft of the configuration once the instance told the configuration of the fixtures. */
+const EDITING: ConfigurationState = configurationAfter(INITIAL_CONFIGURATION, { type: "read", view: VIEW, revisions: REVISIONS });
 
 /** A document of the source `manuals` of the fixtures. */
 const QUOTES = { name: "quotes.md", bytes: 1200, uploadedAt: "2026-11-18T09:00:00.000Z" };
@@ -22,14 +41,14 @@ const stateAfter = (actions: readonly KnowledgeAction[] = []): KnowledgeState =>
   );
 
 /** The screen of an address in a state, as HTML. */
-const screen = (hash: string, state: KnowledgeState = stateAfter()): string =>
-  render(createElement(KnowledgeScreen, { project: "shop-tests", route: parseRoute(hash), state, controls: CONTROLS }));
+const screen = (hash: string, state: KnowledgeState = stateAfter(), editing: ConfigurationState = EDITING): string =>
+  render(createElement(KnowledgeScreen, { project: "shop-tests", route: parseRoute(hash), state, editing, controls: CONTROLS }));
 
 describe("the knowledge of the project", () => {
   it("says it reads the knowledge until the instance told it, and why it could not", () => {
     assert.equal(
-      textOf(screen("#/knowledge", INITIAL_KNOWLEDGE)),
-      "shop-tests / Connaissances Connaissances Déclarer dans la configuration Lecture des connaissances Elles apparaissent dès que l’instance a répondu.",
+      textOf(screen("#/knowledge", INITIAL_KNOWLEDGE, INITIAL_CONFIGURATION)),
+      "shop-tests / Connaissances Connaissances Configurer le projet Lecture des connaissances Elles apparaissent dès que l’instance a répondu.",
     );
     assert.match(
       textOf(screen("#/knowledge", { ...INITIAL_KNOWLEDGE, unread: "L’instance ne répond pas." })),
@@ -37,13 +56,49 @@ describe("the knowledge of the project", () => {
     );
   });
 
-  it("says the configuration declares no source, and leads to it", () => {
-    const html = screen("#/knowledge", knowledgeAfter(INITIAL_KNOWLEDGE, { type: "read", view: { file: "missing" } }));
-    assert.match(
-      textOf(html),
-      /Aucune source de connaissance Déclarez dans la configuration les contrats, les bases, les documents, le code et les journaux que lisent les agents\. Déclarer dans la configuration$/,
+  it("leads an instance without a configuration to set it up, and offers to add the first source to one that declares none", () => {
+    const unset = screen(
+      "#/knowledge",
+      knowledgeAfter(INITIAL_KNOWLEDGE, { type: "read", view: { file: "missing" } }),
+      configurationAfter(INITIAL_CONFIGURATION, { type: "read", view: { file: "missing" }, revisions: [] }),
     );
-    assert.deepEqual(linksOf(html), ["#/configuration", "#/configuration"]);
+    assert.match(
+      textOf(unset),
+      /Aucune source de connaissance Ajoutez les contrats, les bases, les documents, le code et les journaux que lisent les agents\. Configurer le projet$/,
+    );
+    assert.deepEqual(linksOf(unset), ["#/configuration", "#/configuration"]);
+    const none = { ...VIEW, revision: { ...VIEW.revision!, document: { ...DOCUMENT, knowledge: [] } } };
+    const empty = screen(
+      "#/knowledge",
+      knowledgeAfter(INITIAL_KNOWLEDGE, { type: "read", view: none }),
+      configurationAfter(INITIAL_CONFIGURATION, { type: "read", view: none, revisions: REVISIONS }),
+    );
+    assert.deepEqual(linksOf(empty), ["#/knowledge?add=source", "#/knowledge?add=source"]);
+    const adding = screen(
+      "#/knowledge?add=source",
+      knowledgeAfter(INITIAL_KNOWLEDGE, { type: "read", view: none }),
+      configurationAfter(INITIAL_CONFIGURATION, { type: "read", view: none, revisions: REVISIONS }),
+    );
+    assert.deepEqual(linksOf(adding), ["#/knowledge?add=source"], "the empty state offers nothing more while a source is added");
+  });
+
+  it("offers each kind of source to add, then the source of the kind chosen, to fill in and save", () => {
+    const kinds = screen("#/knowledge?add=source");
+    assert.match(
+      textOf(kinds),
+      /Connaissances Ajouter une connaissance Ajouter une connaissance · choisissez ce que les agents liront Ajouter un contrat OpenAPI Ajouter une base PostgreSQL Ajouter des documents du dépôt Ajouter des documents déposés Ajouter du code source Ajouter des journaux Les sources/,
+    );
+    for (const kind of ["openapi", "postgresql", "document", "stored", "source-code", "logs"])
+      assert.match(kinds, new RegExp(`data-add="/knowledge" data-item="${kind}"`), kind);
+    const added = configurationAfter(EDITING, {
+      type: "add",
+      pointer: "/knowledge",
+      item: { id: "", type: "openapi", url: "", attachments: [{ application: "" }] },
+    });
+    const html = screen("#/knowledge?add=source", stateAfter(), added);
+    assert.match(textOf(html), /Ajouter une connaissance Source 9 · Contrat OpenAPI Retirer Identifiant/);
+    assert.match(html, /data-remove="\/knowledge\/8"/);
+    assert.doesNotMatch(screen("#/knowledge?add=source", stateAfter(), INITIAL_CONFIGURATION), /data-add=/);
   });
 
   it("lists the sources of each application, where each is read from, never a secret, and how many documents the instance keeps", () => {
@@ -127,11 +182,26 @@ describe("the knowledge of the project", () => {
 
 describe("a source of the knowledge", () => {
   it("says what it is and what it is attached to, and that the agents read it where it is", () => {
-    const text = textOf(screen("#/knowledge/contract"));
+    const text = textOf(screen("#/knowledge/contract", stateAfter(), INITIAL_CONFIGURATION));
     assert.equal(
       text,
-      "shop-tests / Connaissances / contract contract Contrat OpenAPI · http://127.0.0.1:3001/openapi.json Les agents lisent cette source là où elle est : rien ne s’y dépose. shop local › backend",
+      "shop-tests / Connaissances / contract contract Contrat OpenAPI · http://127.0.0.1:3001/openapi.json shop local › backend Les agents lisent cette source là où elle est : rien ne s’y dépose.",
     );
+  });
+
+  it("lets the person change the source, test it and save it alone, or remove it once they confirmed it", () => {
+    const html = screen("#/knowledge/contract");
+    assert.match(textOf(html), /^shop-tests \/ Connaissances \/ contract contract Retirer la source contract · Contrat OpenAPI Identifiant/);
+    assert.match(html, /<a class="btn ghost" href="#\/knowledge\/contract\?drop=source">Retirer la source<\/a>/);
+    assert.match(html, /name="\/knowledge\/0\/url"/);
+    assert.doesNotMatch(html, /name="\/knowledge\/1\//);
+    const asked = screen("#/knowledge/contract?drop=source");
+    assert.match(
+      textOf(asked),
+      /Retirer la source contract \? Les prochaines sessions ne la lisent plus\. Une nouvelle révision de la configuration est enregistrée : la précédente reste dans l’historique\. Annuler Retirer la source contract/,
+    );
+    assert.match(asked, /<button type="button" class="btn danger" data-rank="0">Retirer la source<\/button>/);
+    assert.match(screen("#/knowledge/contract?drop=source", stateAfter(), configurationAfter(EDITING, { type: "saving" })), /data-rank="0" disabled="">/);
   });
 
   it("says the configuration declares no source of that name, once it is read", () => {
@@ -144,11 +214,11 @@ describe("a source of the knowledge", () => {
   });
 
   it("lists the documents the instance keeps, each to read or to remove, and the form of an upload, which names its rules", () => {
-    const html = screen("#/knowledge/manuals");
+    const html = screen("#/knowledge/manuals", stateAfter(), INITIAL_CONFIGURATION);
     const text = textOf(html);
     assert.match(
       text,
-      /manuals Documents déposés Ses documents sont gardés par l’instance : une session les écrit là où ses agents les lisent\. Seul le Markdown est lu\. shop tous les environnements/,
+      /manuals Documents déposés shop tous les environnements Ses documents sont gardés par l’instance : une session les écrit là où ses agents les lisent\. Seul le Markdown est lu\./,
     );
     assert.match(text, /Documents · dans l’ordre de leurs noms quotes\.md 1,2 ko · 18 nov\. 2026, \d\d:00 Retirer/);
     assert.ok(linksOf(html).includes("#/knowledge/manuals?document=quotes.md"));

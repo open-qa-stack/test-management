@@ -6,6 +6,7 @@ import { ConfigurationScreen, FORM_ID, type ConfigurationControls } from "../../
 import { configurationAfter, INITIAL_CONFIGURATION, type ConfigurationAction, type ConfigurationState } from "../../src/configuration/configuration-state.ts";
 import { render, textOf } from "../render.ts";
 import { BARE, DOCUMENT, REVISIONS, VIEW } from "./configuration-fixture.ts";
+import { bears } from "./fields.ts";
 
 /** What the person does on the screen, which a static rendering never calls. */
 const CONTROLS: ConfigurationControls = {
@@ -24,24 +25,6 @@ const CONTROLS: ConfigurationControls = {
 function stateAfter(actions: readonly ConfigurationAction[], document: OqasConfig = DOCUMENT): ConfigurationState {
   const view = { ...VIEW, revision: { ...VIEW.revision!, document } };
   return [{ type: "read", view, revisions: REVISIONS } as const, ...actions].reduce(configurationAfter, INITIAL_CONFIGURATION);
-}
-
-/**
- * The tags of the fields of a name in a piece of HTML.
- *
- * @param html - The HTML.
- * @param name - The name of the fields, their JSON Pointer.
- * @returns Each tag, as a set of its attributes written `name="value"`, and the kind of its element.
- */
-function fieldsNamed(html: string, name: string): string[][] {
-  return [...html.matchAll(/<(input|select)\b([^>]*)>/g)]
-    .filter(([, , attributes]) => attributes!.includes(` name="${name}"`))
-    .map(([, kind, attributes]) => [kind!, ...[...attributes!.matchAll(/([\w-]+)="([^"]*)"/g)].map(([attribute]) => attribute)]);
-}
-
-/** Tells whether a field of a name bears the attributes given, whatever their order. */
-function bears(html: string, name: string, ...attributes: string[]): boolean {
-  return fieldsNamed(html, name).some((field) => attributes.every((attribute) => field.includes(attribute)));
 }
 
 /** The screen in a state, as HTML. */
@@ -127,78 +110,16 @@ describe("the screen of the configuration", () => {
     assert.ok(bears(html, "/autonomy/guardrailMinutes", 'value=""', 'placeholder="120"'));
     assert.doesNotMatch(html, /\/autonomy\/task/);
     for (const level of ["smoke", "functional", "business"]) assert.ok(bears(html, "/design/levels", `data-member="${level}"`, 'checked=""'), level);
-    assert.match(text, /Aucune source de connaissance/);
   });
 
-  it("shows each knowledge source with what it is read from, never a secret, and what it is attached to", () => {
+  it("leads to the knowledge, where the sources are declared, and counts them", () => {
     const html = screen(stateAfter([]));
-    const text = textOf(html);
-    assert.match(text, /Connaissances Ce que les agents lisent des applications\./);
-    for (const source of [
-      "contract · Contrat OpenAPI Retirer",
-      "local-contract · Contrat OpenAPI Retirer",
-      "orders · Base PostgreSQL Retirer",
-      "specs · Documents du dépôt Retirer",
-      "manuals · Documents déposés Retirer",
-      "code · Code source Retirer",
-      "server-log · Journaux Retirer",
-      "container-log · Journaux Retirer",
-    ])
-      assert.ok(text.includes(source), source);
-    assert.ok(bears(html, "/knowledge/0/url", 'value="http://127.0.0.1:3001/openapi.json"', 'placeholder="https://"'));
-    assert.ok(bears(html, "/knowledge/1/path", 'value="specs/openapi.yaml"'));
-    assert.ok(bears(html, "/knowledge/2/connectionStringEnv", 'value="SHOP_DB_URL"', 'aria-describedby="config-knowledge-2-connectionStringEnv-hint"'));
-    assert.match(text, /Le nom sous lequel la chaîne de connexion est gardée ; tapez-la ci-dessous, elle reste sur l’ordinateur où tourne l’outil\./);
-    assert.ok(bears(html, "/knowledge/3/path", 'value="specs/orders.md"'));
-    assert.deepEqual(fieldsNamed(html, "/knowledge/4/path"), []);
-    assert.match(html, /<a class="btn sm" href="#\/knowledge\/manuals">Ouvrir ses documents<\/a>/);
-    assert.match(text, /Ses documents sont gardés par l’instance, et s’y déposent une fois la configuration enregistrée\./);
-    assert.ok(bears(html, "/knowledge/5/commands", 'data-kind="choice"'));
-    assert.match(
-      text,
-      /Commandes permises aux agents L’historique git \(par défaut\) Aucune : lister, chercher et lire L’historique git Toute commande du shell/,
-    );
-    assert.ok(bears(html, "/knowledge/7/container", 'value="shop"'));
-    assert.match(html, /<option value="podman" selected="">podman<\/option>/);
-    assert.match(
-      text,
-      /Rattachement 1 Retirer Application Choisir une application shop Environnement Tous les environnements local API Toutes les API backend Ajouter un rattachement/,
-    );
-    assert.match(html, /<option value="backend" selected="">backend<\/option>/);
-    assert.match(html, /aria-label="Retirer le rattachement 1 de contract" data-remove="\/knowledge\/0\/attachments\/0"/);
-    assert.match(html, /aria-label="Retirer la source manuals" data-remove="\/knowledge\/4"/);
-    assert.match(
-      text,
-      /Ajouter un contrat OpenAPI Ajouter une base PostgreSQL Ajouter des documents du dépôt Ajouter des documents déposés Ajouter du code source Ajouter des journaux/,
-    );
-    for (const kind of ["openapi", "postgresql", "document", "stored", "source-code", "logs"])
-      assert.match(html, new RegExp(`data-add="/knowledge" data-item="${kind}"`), kind);
-  });
-
-  it("shows a source added as it is to fill, and keeps a reference that no longer names anything, beside its error", () => {
-    const added = stateAfter([
-      { type: "add", pointer: "/knowledge", item: { id: "", type: "document", stored: true, attachments: [{ application: "" }] } },
-      { type: "edit", pointer: "/knowledge/8/attachments/0/environment", value: "gone" },
-      { type: "edit", pointer: "/knowledge/8/attachments/0/api", value: "old" },
-    ]);
-    const errors: ConfigError[] = [
-      { kind: "reference", path: "/knowledge/8/attachments/0/application", rule: "slug", message: "Expected a slug." },
-      { kind: "structure", path: "/knowledge/8", rule: "document-source", message: 'Declare exactly one of "path" or "stored".' },
-    ];
-    const html = screen({ ...added, errors });
-    const text = textOf(html);
-    assert.match(text, /Source 9 · Documents déposés Retirer Soit un chemin, soit des documents déposés : exactement l’un des deux\./);
-    assert.match(html, /<select id="config-knowledge-8-attachments-0-application"[^>]*aria-invalid="true"/);
-    assert.match(html, /<option value="" selected="">Choisir une application<\/option>/);
-    assert.match(html, /<option value="gone" selected="">gone<\/option>/);
-    assert.match(html, /<option value="old" selected="">old<\/option>/);
-    assert.doesNotMatch(html, /href="#\/knowledge\/"/);
-  });
-
-  it("says when the configuration declares no knowledge source", () => {
+    assert.match(textOf(html), /Connaissances 8 sources déclarées : elles se modifient dans Connaissances\. Ouvrir les connaissances/);
+    assert.match(html, /<a class="btn sm" href="#\/knowledge">Ouvrir les connaissances<\/a>/);
+    assert.doesNotMatch(html, /name="\/knowledge\//);
     assert.match(
       textOf(screen(stateAfter([], { ...DOCUMENT, knowledge: [] }))),
-      /Connaissances Ce que les agents .* Aucune source de connaissance Ajouter un contrat OpenAPI/,
+      /Aucune source pour l’instant : les sources se déclarent dans Connaissances\./,
     );
   });
 
@@ -209,20 +130,9 @@ describe("the screen of the configuration", () => {
     assert.match(textOf(screen(stateAfter([{ type: "edit", pointer: "/model/model", value: "other" }, { type: "saving" }]))), /Enregistrement…/);
   });
 
-  it("hands the card of each source the latest test of it", () => {
-    const source = DOCUMENT.knowledge[1]!;
-    const html = screen(
-      stateAfter([
-        { type: "sourceChecked", rank: 1, source, check: { state: "ok", items: 4 } },
-        { type: "sourceChecking", rank: 1, source },
-      ]),
-    );
-    assert.match(textOf(html), /Test en cours…/);
-  });
-
   it("asks for the value of each variable beside it, and lets the person save the values typed alone", () => {
     const html = screen(stateAfter([{ type: "value", name: "MODEL_KEY", value: "typed" }]));
-    for (const variable of ["SHOP_USER", "SHOP_PASSWORD", "SHOP_DB_URL", "MODEL_KEY"]) assert.match(html, new RegExp(`id="secret-${variable}"`));
+    for (const variable of ["SHOP_USER", "SHOP_PASSWORD", "MODEL_KEY"]) assert.match(html, new RegExp(`id="secret-${variable}"`));
     assert.match(textOf(html), /Modifications non enregistrées Annuler les modifications Enregistrer/);
     assert.match(html, /<button type="submit" form="configuration-form" class="btn primary">Enregistrer<\/button>/);
     const valued = stateAfter([{ type: "valued", secrets: [] }]);

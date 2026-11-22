@@ -165,7 +165,7 @@ describe("the console", () => {
   it("shows the knowledge and its sources at their addresses, which read them from the instance", () => {
     assert.equal(
       pageOf(consoleAt("#/knowledge", { project: PROJECT })),
-      "lakeside-tests / Connaissances Connaissances Déclarer dans la configuration Lecture des connaissances Elles apparaissent dès que l’instance a répondu.",
+      "lakeside-tests / Connaissances Connaissances Configurer le projet Lecture des connaissances Elles apparaissent dès que l’instance a répondu.",
     );
     assert.match(
       pageOf(consoleAt("#/knowledge/manuals", { project: PROJECT })),

@@ -122,13 +122,37 @@ describe("the console in English", () => {
         },
       } as const,
     ].reduce(knowledgeAfter, INITIAL_KNOWLEDGE);
-    const controls = { upload: IGNORED, remove: IGNORED };
-    const overview = english(createElement(KnowledgeScreen, { project: "p", route: parseRoute("#/knowledge"), state, controls }));
-    assert.match(overview, /Knowledge Declare in the configuration The sources of each application, and where each is read from\./);
+    const edit: ConfigurationControls = {
+      change: IGNORED,
+      click: IGNORED,
+      save: IGNORED,
+      discard: IGNORED,
+      takeFile: IGNORED,
+      writeFile: IGNORED,
+      testModel: IGNORED,
+      checkSource: IGNORED,
+      setUp: IGNORED,
+    };
+    const controls = { upload: IGNORED, remove: IGNORED, drop: IGNORED, edit };
+    const editing = configurationAfter(INITIAL_CONFIGURATION, { type: "read", view: VIEW, revisions: REVISIONS });
+    const overview = english(createElement(KnowledgeScreen, { project: "p", route: parseRoute("#/knowledge?add=source"), state, editing, controls }));
+    assert.match(overview, /Knowledge Add knowledge Add knowledge · choose what the agents will read Add an OpenAPI contract/);
+    assert.match(overview, /The sources of each application, and where each is read from\./);
     assert.match(overview, /manuals Uploaded documents 1 document/);
     const source = english(
-      createElement(KnowledgeScreen, { project: "p", route: parseRoute("#/knowledge/manuals?remove=quotes.md&document=quotes.md"), state, controls }),
+      createElement(KnowledgeScreen, {
+        project: "p",
+        route: parseRoute("#/knowledge/manuals?remove=quotes.md&document=quotes.md&drop=source"),
+        state,
+        editing,
+        controls,
+      }),
     );
+    assert.match(
+      source,
+      /Remove the source manuals\? The next sessions no longer read it\. .* Cancel Remove the source manuals · Uploaded documents Identifier/,
+    );
+    assert.match(source, /Saved Discard the changes Save/);
     assert.match(source, /quotes\.md 1\.2 kB · .* Remove Remove quotes\.md\? The document is deleted from the instance/);
     assert.match(
       source,
