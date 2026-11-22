@@ -86,6 +86,7 @@ export default defineConfig({
         "**/src/configuration/configuration-page.tsx",
         "**/src/configuration/use-configuration-editor.ts",
         "**/src/configuration/use-item-pages.ts",
+        "**/src/configuration/use-panel-controls.ts",
         "**/src/applications/applications-page.tsx",
         "**/src/ui/side-panel.tsx",
         "**/src/discovery/discovery-page.tsx",

@@ -671,6 +671,7 @@
       "api": "API",
       "anyApi": "Toutes les API",
       "addAttachment": "Ajouter un rattachement",
+      "removeAttachment": "Retirer ce rattachement",
       "openKnowledge": "Ouvrir ses documents",
       "check": "Tester la connexion",
       "checking": "Test en cours…",
