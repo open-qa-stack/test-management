@@ -54,3 +54,32 @@ export async function until(holds: () => boolean, what: string): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 5));
   }
 }
+
+/** A screen drawn in a terminal of the tests, as a person reads it and types in it. */
+export interface Staged {
+  /** The screen as a person reads it. */
+  readonly screen: () => string;
+  /** Waits for a text to be on the screen. */
+  readonly sees: (seen: string | RegExp) => Promise<void>;
+  /** Presses keys, then waits for a text to be on the screen. */
+  readonly press: (keys: string, seen: string | RegExp) => Promise<void>;
+}
+
+/**
+ * Reads and types in what `render` of `ink-testing-library` drew.
+ *
+ * @param lastFrame - What was drawn last.
+ * @param stdin - Where the keys are typed.
+ * @returns The screen, and how to wait for a text and to press keys: Ink reads a key once it drew, so each waits for the screen to settle.
+ */
+export function staging(lastFrame: () => string | undefined, stdin: { write(data: string): void }): Staged {
+  const screen = (): string => String(lastFrame());
+  const sees = (seen: string | RegExp): Promise<void> =>
+    until(() => (typeof seen === "string" ? screen().includes(seen) : seen.test(screen())), `${String(seen)}\n${screen()}`);
+  const press = async (keys: string, seen: string | RegExp): Promise<void> => {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    stdin.write(keys);
+    await sees(seen);
+  };
+  return { screen, sees, press };
+}

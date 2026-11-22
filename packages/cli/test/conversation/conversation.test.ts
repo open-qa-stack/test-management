@@ -7,7 +7,7 @@ import type { Model, ModelConnectionCheck, Session } from "@open-qa-stack/domain
 import { Conversation, type ConversationModel, type ConversationProps, type Leaving } from "../../src/solo/conversation/conversation.ts";
 import { FakeSessions } from "./fake-sessions.ts";
 import { COMPLETED, CONTEXT, FAILED, NOW, numbered, RUNNING, THREAD, completion } from "./fixtures.ts";
-import { UNICODE, until } from "./screen.ts";
+import { UNICODE, staging, until } from "./screen.ts";
 
 const ENTER = "\r";
 const TAB = "\t";
@@ -68,15 +68,7 @@ async function staged(held: readonly Session[] = [FAILED], props: Partial<Conver
       ...props,
     }),
   );
-  const screen = (): string => String(lastFrame());
-  const sees = (seen: string | RegExp): Promise<void> =>
-    until(() => (typeof seen === "string" ? screen().includes(seen) : seen.test(screen())), `${String(seen)}\n${screen()}`);
-  const press = async (keys: string, seen: string | RegExp): Promise<void> => {
-    // What opens over the input hears the keys once it is drawn: a key waits for the screen to settle.
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    stdin.write(keys);
-    await sees(seen);
-  };
+  const { screen, sees, press } = staging(lastFrame, stdin);
   await sees("What do we test?");
   return { sessions, served, left, screen, sees, press };
 }

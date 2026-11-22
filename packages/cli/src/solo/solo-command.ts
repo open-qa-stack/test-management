@@ -12,7 +12,7 @@ import { followSession } from "./follow-session.ts";
 import { Interruptions } from "./interruptions.ts";
 import { checkLine, documentLine, documentsRefusal, mappingLines, receivedFiles, sourceLine } from "./knowledge-lines.ts";
 import { keptTuning, modelOfArguments, modelReport } from "./model-lines.ts";
-import { modelConnectionOf, openOperations, type Operations } from "./operations.ts";
+import { isConfigured, modelConnectionOf, openOperations, type Operations } from "./operations.ts";
 import { RepositoryInit } from "./repository-init.ts";
 import { MISSING_ADVICE, secretLine } from "./secret-lines.ts";
 import { servedConsole } from "./served-console.ts";
@@ -86,6 +86,11 @@ async function onSessions(command: Exclude<Command, { name: "help" }>, options: 
   if (command.name === "ui") return servedConsole(command, repository, io);
   if (command.name === "converse") {
     if (io.terminal === undefined) throw new UsageError(NO_TERMINAL);
+    // A folder never configured is set up step by step first, as the console does; the conversation opens once it is.
+    if (!isConfigured(repository)) {
+      const { setupProject } = await import("./conversation/project-setup/setup-project.ts");
+      if (!(await setupProject(repository, io.terminal, io))) return ExitCode.interrupted;
+    }
     // The conversation and what draws it are loaded here and nowhere else, so that no other command pays for them.
     const { converse } = await import("./conversation/converse.ts");
     return converse({ repository, terminal: io.terminal, io, ...(command.environment === undefined ? {} : { environment: command.environment }) });

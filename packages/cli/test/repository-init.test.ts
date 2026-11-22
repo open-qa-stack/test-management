@@ -117,7 +117,7 @@ describe("the initialisation of a test repository as a Playwright project", () =
     assert.deepEqual([await none.init(), none.err.length, existsSync(join(none.root, "package.json"))], [3, 1, false]);
     assert.match(
       none.err[0]!,
-      /oqas\.json cannot be read, and the instance keeps no revision of the configuration\. Start with oqas --ui, which sets it up step by step, or write a oqas\.json at the root of the test repository\.\n$/,
+      /oqas\.json cannot be read, and the instance keeps no revision of the configuration\. Start with oqas in a terminal or oqas --ui, which set it up step by step, or write a oqas\.json at the root of the test repository\.\n$/,
     );
     const wrong = repository({ "oqas.json": JSON.stringify({ ...CONFIG, applications: [] }) });
     assert.deepEqual([await wrong.init(), existsSync(join(wrong.root, "package.json"))], [3, false]);
