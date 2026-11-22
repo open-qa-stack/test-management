@@ -27,3 +27,39 @@
   color: var(--primary);
   cursor: pointer;
 }
+
+/* A domain is picked by its name and what it is about; where it comes from sits under them, apart. */
+.discovery-form .tile:hover {
+  border-color: var(--primary);
+}
+
+.tile-pick {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-row);
+  cursor: pointer;
+}
+
+/* Where a domain comes from: the applications its sources describe, then each source, folded. */
+.domain-sources {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.domain-marks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.domain-sources summary {
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.domain-sources ul {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-4);
+  overflow-wrap: anywhere;
+}

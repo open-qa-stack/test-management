@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { DEFAULT_REPOSITORY, validateDomainIndex, type ConfigurationQueries, type KnowledgeDomain } from "@open-qa-stack/domain";
+import { DEFAULT_REPOSITORY, indexSourceApplications, validateDomainIndex, type ConfigurationQueries, type KnowledgeDomain } from "@open-qa-stack/domain";
 
 /** The file of the domain index, in its folder. */
 const INDEX_FILE = "domain-index.json";
@@ -22,7 +22,10 @@ export class KnowledgeDomains {
     this.#configuration = configuration;
   }
 
-  /** @returns The domains of the index, in its order; none without a test repository, a configuration, or an index that can be read. */
+  /**
+   * @returns The domains of the index, in its order, each with its sources and the applications each describes, as the
+   * configuration in force attaches them; none without a test repository, a configuration, or an index that can be read.
+   */
   async list(): Promise<KnowledgeDomain[]> {
     const revision = await this.#configuration.inForce();
     if (this.#repository === undefined || revision === undefined) return [];
@@ -35,6 +38,19 @@ export class KnowledgeDomains {
       return [];
     }
     const index = validateDomainIndex(content);
-    return index.ok ? index.value.domains.map(({ id, label, description }) => ({ id, label, description })) : [];
+    if (!index.ok) return [];
+    const { sources } = index.value;
+    // A valid index lists every source it refers to.
+    const applicationsOf = (source: string) =>
+      indexSourceApplications(
+        sources.find((candidate) => candidate.id === source)!,
+        revision.document.knowledge,
+      );
+    return index.value.domains.map(({ id, label, description, references }) => ({
+      id,
+      label,
+      description,
+      sources: references.map(({ source, items }) => ({ id: source, applications: applicationsOf(source), items })),
+    }));
   }
 }

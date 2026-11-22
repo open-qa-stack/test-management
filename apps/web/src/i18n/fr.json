@@ -1222,6 +1222,8 @@
     "sourceCount_one": "{{count}} lue par la cartographie",
     "sourceCount_other": "{{count}} lues par la cartographie",
     "seeSources": "Voir chaque source",
+    "domainSources_one": "D’où il vient : 1 source",
+    "domainSources_other": "D’où il vient : {{count}} sources",
     "picked_zero": "Aucun domaine choisi sur {{total}}",
     "picked_one": "1 domaine choisi sur {{total}}",
     "picked_other": "{{count}} domaines choisis sur {{total}}"

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { attachmentsOf, isProjectWide, isReadIn, sourceApplications, validateConfig, type Knowledge } from "../src/index.ts";
+import { attachmentsOf, indexSourceApplications, isProjectWide, isReadIn, sourceApplications, validateConfig, type Knowledge } from "../src/index.ts";
 import { EXAMPLE_ENV, example, listAt } from "./helpers.ts";
 
 /** A source of the whole project, and one attached to two applications, the second narrowed to an environment. */
@@ -35,5 +35,13 @@ describe("the reach of a knowledge source", () => {
       else source["attachments"] = attachments;
       assert.equal(validateConfig(JSON.stringify(config), EXAMPLE_ENV).ok, true, JSON.stringify(attachments));
     }
+  });
+
+  it("names, for a source of the domain index, the application of a user interface or the applications of a declared source", () => {
+    const knowledge = [{ id: "notes", ...WIDE }, ATTACHED];
+    assert.deepEqual(indexSourceApplications({ id: "shop", type: "web" }, knowledge), ["shop"]);
+    assert.deepEqual(indexSourceApplications({ id: "orders", type: "postgresql" }, knowledge), ["shop", "back-office"]);
+    assert.deepEqual(indexSourceApplications({ id: "notes", type: "document" }, knowledge), []);
+    assert.deepEqual(indexSourceApplications({ id: "gone", type: "openapi" }, knowledge), [], "a source the configuration no longer declares");
   });
 });

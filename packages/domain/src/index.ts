@@ -76,6 +76,7 @@ export {
   validateConfig,
   type EnvironmentVariables,
 } from "./config/validate.ts";
+export { indexSourceApplications } from "./domain-index/index-source-applications.ts";
 export { placementErrors, unplacedItems, type SourceInventory } from "./domain-index/placement.ts";
 export { domainIndexSchema, domainSubmissionSchema } from "./domain-index/schema.ts";
 export type * from "./domain-index/types.ts";
@@ -198,7 +199,7 @@ export {
   type UploadedFile,
   type UploadReading,
 } from "./knowledge-documents/uploaded-documents.ts";
-export type { KnowledgeDomain, KnowledgeDomainList } from "./domain-index/knowledge-domain.ts";
+export type { KnowledgeDomain, KnowledgeDomainList, KnowledgeDomainSource } from "./domain-index/knowledge-domain.ts";
 export {
   GENERAL_DOMAIN,
   MEMORY_KINDS,

@@ -150,7 +150,7 @@ describe("the knowledge as a map", () => {
       [
         "orders (Orders): Placing an order.",
         "The sources that hold it:",
-        "- Source shop (web): read it with shop_goto. It holds 1 screen.",
+        "- Source shop (web): read it with shop_goto. The source shop describes the application shop. It holds 1 screen.",
         "- Source shop-api (openapi): read it with shop_api_list_operations, shop_api_read_operation. It holds 1 operations.",
         "Call knowledge_domain with one of these sources for what it says of the domain, or knowledge_list with the domain for its elements.",
       ].join("\n"),
@@ -195,7 +195,7 @@ describe("the knowledge as a map", () => {
         "1 operations, 2 sections, 1 screen, 2 tables:",
         "- shop-api: customers — Finds a customer by name. (operations)",
         "- guide: Recherche d'un client (section)",
-        "- shop: /orders (screen)",
+        "- shop: /orders (screen, of the application shop)",
         "- shop-db: public.invoices — An invoice sent to a client. (table)",
         "- archive: Old customer files (section)",
         "- stock-db: public.items (table)",
@@ -203,7 +203,10 @@ describe("the knowledge as a map", () => {
       ].join("\n"),
     );
     assert.match(await answer(list, { kind: "Tables" }), /^2 tables:\n- shop-db: public\.invoices .*\n- stock-db: public\.items \(table\)\n/);
-    assert.match(await answer(list, { domain: "orders" }), /^1 operations, 1 screen:\n- shop-api: customers .*\n- shop: \/orders \(screen\)\n/);
+    assert.match(
+      await answer(list, { domain: "orders" }),
+      /^1 operations, 1 screen:\n- shop-api: customers .*\n- shop: \/orders \(screen, of the application shop\)\n/,
+    );
     // Words match whatever the case, the accents and the plural; the archive echoes two words, the guide one.
     assert.match(await answer(list, { words: "CUSTOMER recherché" }), /^1 operations, 2 sections:\n- shop-api: customers /);
     assert.match(
@@ -325,6 +328,82 @@ describe("the knowledge as a map", () => {
   it("refuses an element the knowledge does not place", async () => {
     assert.deepEqual(await call(read, { source: "guide", item: "Refunds" }), {
       error: "The knowledge places no Refunds in guide; knowledge_list gives the elements it places.",
+    });
+  });
+
+  describe("in a domain of sources of several applications", () => {
+    /** The domain of the orders, held by the screens of the shop, the base of the stock and a guide of the whole project. */
+    const MIXED: DomainIndex = {
+      ...INDEX,
+      domains: [
+        {
+          id: "orders",
+          label: "Orders",
+          description: "Placing an order.",
+          references: [
+            { source: "shop", items: ["/orders"] },
+            { source: "stock-db", items: ["public.items"] },
+            { source: "guide", items: ["Passer commande"] },
+          ],
+        },
+      ],
+      unassigned: [],
+    };
+    const KNOWLEDGE = [{ id: "stock-db", attachments: [{ application: "stock" }, { application: "stock", environment: "staging" }] }, { id: "guide" }];
+    const tools = ["shop_goto", "stock_db_search", "guide_read_section"].map(tool);
+    const toolsOf = (applications?: readonly string[]) =>
+      new IndexMap(MIXED, new Map(), tools, ["shop", "stock-db", "guide"], new Map(), {
+        knowledge: KNOWLEDGE,
+        ...(applications === undefined ? {} : { applications }),
+      }).toolset() as [ToolDefinition, ToolDefinition, ToolDefinition];
+    const warning =
+      "Warning: The source stock-db describes the application stock. The session tests shop: what it tells may not hold there. Check that what you look for is the same before you rely on it.";
+
+    it("names the application of each element, none for a source of the whole project", async () => {
+      const [mixedDomain, mixedList, mixedRead] = toolsOf();
+      assert.equal(
+        await call(mixedList, { domain: "orders" }),
+        [
+          "1 screen, 1 table, 1 section:",
+          "- shop: /orders (screen, of the application shop)",
+          "- stock-db: public.items (table, of the application stock)",
+          "- guide: Passer commande (section)",
+          "Call knowledge_read with a source and an item for what is known of one.",
+        ].join("\n"),
+      );
+      assert.match(
+        await answer(mixedDomain, { domain: "orders" }),
+        /\n- Source stock-db \(postgresql\): read it with stock_db_search\. The source stock-db describes the application stock\. It holds 1 table\.\n- Source guide \(document\): read it with guide_read_section\. It holds 1 section\.\n/,
+      );
+      assert.match(
+        await answer(mixedRead, { source: "stock-db", item: "public.items" }),
+        /^Source stock-db \(postgresql\): read it with stock_db_search\. The source stock-db describes the application stock\.\n- stock-db: public\.items \(table, of the application stock\)\n/,
+      );
+    });
+
+    it("warns a session that tests other applications of each element of a source that describes none of them", async () => {
+      const [mixedDomain, mixedList, mixedRead] = toolsOf(["shop"]);
+      const listed = await answer(mixedList, { domain: "orders" });
+      assert.equal(listed.split("\n").filter((line) => line === warning).length, 1, listed);
+      assert.equal(
+        await answer(mixedRead, { source: "stock-db", item: "public.items" }).then((text) => text.split("\n")[0]),
+        `Source stock-db (postgresql): read it with stock_db_search. ${warning}`,
+      );
+      assert.equal(
+        await answer(mixedDomain, { domain: "orders", source: "stock-db" }).then((text) => text.split("\n")[0]),
+        `Source stock-db (postgresql): read it with stock_db_search. ${warning}`,
+      );
+      // The screens of the shop and the guide of the whole project hold for the session: no warning comes with them.
+      assert.doesNotMatch(await answer(mixedRead, { source: "shop", item: "/orders" }), /Warning/);
+      assert.doesNotMatch(await answer(mixedList, { kind: "section" }), /Warning/);
+      // A source that describes the application of the session too, beside another, names both and does not warn.
+      const shared = new IndexMap(MIXED, new Map(), tools, ["shop", "stock-db", "guide"], new Map(), {
+        knowledge: [{ id: "stock-db", attachments: [{ application: "stock" }, { application: "shop" }] }],
+        applications: ["shop"],
+      }).toolset()[1]!;
+      const both = await answer(shared, { kind: "table" });
+      assert.match(both, /^1 table:\n- stock-db: public\.items \(table, of the applications stock, shop\)\n/);
+      assert.doesNotMatch(both, /Warning/);
     });
   });
 });

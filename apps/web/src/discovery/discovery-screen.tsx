@@ -75,6 +75,36 @@ function Sources({ mapping }: { readonly mapping: CartographyState }): ReactNode
 }
 
 /**
+ * Where a domain comes from: the applications its sources describe — the whole project for a source attached to none —,
+ * then, folded, each source with its applications and what the cartography placed of it in the domain.
+ */
+function DomainSources({ domain }: { readonly domain: KnowledgeDomain }): ReactNode {
+  const reach = (applications: readonly string[]) => (applications.length === 0 ? [t("knowledge.project")] : applications);
+  const marks = [...new Set(domain.sources.flatMap((source) => reach(source.applications)))];
+  return (
+    <div className="domain-sources small">
+      <span className="domain-marks">
+        {marks.map((mark) => (
+          <Badge key={mark} tone="neutral" square>
+            {mark}
+          </Badge>
+        ))}
+      </span>
+      <details>
+        <summary>{t("discovery.domainSources", { count: domain.sources.length })}</summary>
+        <ul>
+          {domain.sources.map((source) => (
+            <li key={source.id}>
+              <b>{source.id}</b> · {reach(source.applications).join(", ")} — <span className="muted">{source.items.join(", ")}</span>
+            </li>
+          ))}
+        </ul>
+      </details>
+    </div>
+  );
+}
+
+/**
  * The discovery of the project: what the cartography found in its knowledge — the sources and where each stands, the
  * domains — and what writes the tests of the domains the person picks, a session kept to them.
  *
@@ -110,20 +140,23 @@ export function DiscoveryScreen({ project, mapping, domains, unread, chosen, ope
           <fieldset className="tiles">
             <legend className="sr-only">{t("discovery.domains")}</legend>
             {domains.map((domain) => (
-              <label key={domain.id} className="tile" htmlFor={`domain-${domain.id}`}>
-                <span className="tile-head">
-                  <b>{domain.label}</b>
-                  <input
-                    id={`domain-${domain.id}`}
-                    type="checkbox"
-                    name="domain"
-                    value={domain.id}
-                    checked={chosen.has(domain.id)}
-                    onChange={controls.toggle}
-                  />
-                </span>
-                <span className="tile-text">{domain.description}</span>
-              </label>
+              <div key={domain.id} className="tile">
+                <label className="tile-pick" htmlFor={`domain-${domain.id}`}>
+                  <span className="tile-head">
+                    <b>{domain.label}</b>
+                    <input
+                      id={`domain-${domain.id}`}
+                      type="checkbox"
+                      name="domain"
+                      value={domain.id}
+                      checked={chosen.has(domain.id)}
+                      onChange={controls.toggle}
+                    />
+                  </span>
+                  <span className="tile-text">{domain.description}</span>
+                </label>
+                <DomainSources domain={domain} />
+              </div>
             ))}
           </fieldset>
           {opening.state === "refused" && (

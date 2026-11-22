@@ -1,5 +1,14 @@
-import type { CardItem, DomainIndex, IndexSourceType, SourceCard, SourceManifest, ToolDefinition } from "@open-qa-stack/domain";
-import { scopedToolName } from "@open-qa-stack/tools";
+import {
+  indexSourceApplications,
+  type CardItem,
+  type DomainIndex,
+  type IndexSourceType,
+  type Knowledge,
+  type SourceCard,
+  type SourceManifest,
+  type ToolDefinition,
+} from "@open-qa-stack/domain";
+import { scopedToolName, sourceReach, type SourceReach } from "@open-qa-stack/tools";
 
 /** Name of the tool that gives a domain: the sources that hold it, then what one of them says of it. */
 export const DOMAIN_TOOL = "knowledge_domain";
@@ -40,9 +49,19 @@ export interface WrittenSource {
   read(file: string): Promise<string | undefined>;
 }
 
+/** What tells the applications each source of the index describes, and those the session tests. */
+export interface IndexReach {
+  /** The knowledge sources of the configuration, whose attachments name the applications of each. */
+  readonly knowledge: readonly Pick<Knowledge, "id" | "attachments">[];
+  /** The applications the session tests, which a source describing only others warns of; none for a session that is not kept to some. */
+  readonly applications?: readonly string[];
+}
+
 /** An element of a source, as the index places it. */
 interface Element {
   readonly source: string;
+  /** The applications its source describes; none for a source of the whole project. */
+  readonly applications: readonly string[];
   readonly item: string;
   /** What it is: a table, a screen, a section, operations or a folder. */
   readonly kind: string;
@@ -61,12 +80,17 @@ interface Element {
  * Words match without regard to case or accents, a word matching another it begins, or that begins it,
  * when the shorter of the two has four letters or more, so that `customer` finds `Customers`. The index is a map, not a limit: the tools
  * of a source read the whole source, not only what the index places in it.
+ *
+ * Each element names the applications its source describes, as the configuration attaches it rather than as the index
+ * was written, so that an index of any age tells them; an element of a source that describes only applications the
+ * session does not test comes with the warning its tools give.
  */
 export class IndexMap {
   private readonly index: DomainIndex;
   private readonly elements: readonly Element[];
   private readonly tools: ReadonlyMap<string, readonly string[]>;
   private readonly written: ReadonlyMap<string, WrittenSource>;
+  private readonly reach: IndexReach;
 
   /**
    * @param index - The domain index.
@@ -74,6 +98,7 @@ export class IndexMap {
    * @param tools - The tools the designer has, to name those of each source.
    * @param owners - Every knowledge source and application the tools are scoped by, those the index does not list included.
    * @param written - What the workflow of each source wrote of it, for the sources that have one.
+   * @param reach - What tells the applications of each source and those the session tests; no source attached to one by default.
    */
   public constructor(
     index: DomainIndex,
@@ -81,19 +106,22 @@ export class IndexMap {
     tools: readonly ToolDefinition[],
     owners: readonly string[],
     written: ReadonlyMap<string, WrittenSource> = new Map(),
+    reach: IndexReach = { knowledge: [] },
   ) {
     this.index = index;
     this.written = written;
+    this.reach = reach;
     const described = new Map<string, CardItem>(
       [...cards].flatMap(([source, card]) => card.domains.flatMap((domain) => domain.items.map((item) => [`${source}\n${item.name}`, item] as const))),
     );
-    const placed = new Map<string, { source: string; item: string; kind: string; domains: string[] }>();
+    const placed = new Map<string, { source: string; applications: readonly string[]; item: string; kind: string; domains: string[] }>();
     const place = (source: string, item: string, domain?: string) => {
       const key = `${source}\n${item}`;
       // A valid index lists every source it refers to.
+      const listed = index.sources.find((candidate) => candidate.id === source)!;
       const said = described.get(key)?.facts?.["kind"];
-      const kind = typeof said === "string" ? said : KINDS[index.sources.find((candidate) => candidate.id === source)!.type];
-      const element = placed.get(key) ?? { source, item, kind, domains: [] };
+      const kind = typeof said === "string" ? said : KINDS[listed.type];
+      const element = placed.get(key) ?? { source, applications: indexSourceApplications(listed, reach.knowledge), item, kind, domains: [] };
       if (domain !== undefined && !element.domains.includes(domain)) element.domains.push(domain);
       placed.set(key, element);
     };
@@ -223,9 +251,9 @@ export class IndexMap {
       return `Nothing of the knowledge matches. Its kinds are ${kinds}. Try other words, or read the sources with their tools: the knowledge is a map, not a limit.`;
     }
     const more = kept.length > MAX_LISTED ? [`${kept.length - MAX_LISTED} more: narrow the list with a kind, a domain or words.`] : [];
-    return [`${counted(kept)}:`, ...kept.slice(0, MAX_LISTED).map(line), ...more, `Call ${READ_TOOL} with a source and an item for what is known of one.`].join(
-      "\n",
-    );
+    const shown = kept.slice(0, MAX_LISTED);
+    const warnings = [...new Set(shown.map((element) => element.source))].flatMap((source) => this.warning(source));
+    return [`${counted(kept)}:`, ...shown.map(line), ...more, ...warnings, `Call ${READ_TOOL} with a source and an item for what is known of one.`].join("\n");
   }
 
   /** An element, with its source and its tools, what its card says of it and, when its source wrote one, its definition. */
@@ -254,17 +282,36 @@ export class IndexMap {
     return [`Find a row: ${search}({ "schema": ${quoted(element.item.slice(0, at))}, "table": ${quoted(element.item.slice(at + 1))}, "value": "<text>" })`];
   }
 
-  /** A source, with its type and the tools that read it; a valid index lists every source it refers to. */
+  /**
+   * A source, with its type, the tools that read it and the applications it describes, with the warning of a source
+   * that describes only applications the session does not test; a valid index lists every source it refers to.
+   */
   private source(id: string): string {
     const { type } = this.index.sources.find((source) => source.id === id)!;
     const tools = this.tools.get(id) ?? [];
-    return `Source ${id} (${type}): ${tools.length === 0 ? "no tool of yours reads it" : `read it with ${tools.join(", ")}`}.`;
+    const reach = this.reachOf(id);
+    const told = reach === undefined ? "" : ` ${reach.warning ?? reach.named}`;
+    return `Source ${id} (${type}): ${tools.length === 0 ? "no tool of yours reads it" : `read it with ${tools.join(", ")}`}.${told}`;
+  }
+
+  /** The warning of a source that describes only applications the session does not test, or none. */
+  private warning(id: string): string[] {
+    const warning = this.reachOf(id)?.warning;
+    return warning === undefined ? [] : [warning];
+  }
+
+  /** What the session is told of the applications a source describes; nothing for a source of the whole project. A valid index lists every source it refers to. */
+  private reachOf(id: string): SourceReach | undefined {
+    const listed = this.index.sources.find((source) => source.id === id)!;
+    return sourceReach(id, indexSourceApplications(listed, this.reach.knowledge), this.reach.applications);
   }
 }
 
-/** An element, in one line: its source, its name, its summary and what it is. */
+/** An element, in one line: its source, its name, its summary, what it is and the applications its source describes. */
 function line(element: Element): string {
-  return `- ${element.source}: ${element.item}${element.card === undefined ? "" : ` — ${element.card.summary}`} (${element.kind})`;
+  const { applications } = element;
+  const of = applications.length === 0 ? "" : `, of ${applications.length === 1 ? "the application" : "the applications"} ${applications.join(", ")}`;
+  return `- ${element.source}: ${element.item}${element.card === undefined ? "" : ` — ${element.card.summary}`} (${element.kind}${of})`;
 }
 
 /** A fact of a card, in words: a list joined by commas, anything else as JSON. */
