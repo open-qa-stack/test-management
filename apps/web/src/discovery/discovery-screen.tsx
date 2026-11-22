@@ -73,7 +73,6 @@ export function DiscoveryScreen({ project, mapping, domains, unread, chosen, ope
   return (
     <Page crumbs={crumbs} title={title}>
       <p className="small muted">{t("discovery.lead")}</p>
-      <Sources mapping={mapping} />
       {domains.length === 0 ? (
         <EmptyState
           title={t("discovery.noDomain")}
@@ -120,6 +119,8 @@ export function DiscoveryScreen({ project, mapping, domains, unread, chosen, ope
           </div>
         </form>
       )}
+      {/* What the person decides comes first; where each source stands follows, as what the domains come from. */}
+      <Sources mapping={mapping} />
     </Page>
   );
 }

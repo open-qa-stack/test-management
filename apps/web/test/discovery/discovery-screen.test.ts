@@ -60,10 +60,9 @@ describe("the discovery of the project", () => {
   it("shows where the cartography of each source stands, and the domains it found, each to pick, with nothing to write before one is", () => {
     const html = screen();
     const text = textOf(html);
-    assert.match(text, /Sources contract Cartographiée orders Cartographie en cours Connaissances mises en commun par domaine le/);
     assert.match(
       text,
-      /Domaines · 2 trouvés Domaines Clients — La recherche et la fiche d’un client\. Commandes — La commande et son suivi\. Choisissez des domaines$/,
+      /Domaines · 2 trouvés Domaines Clients — La recherche et la fiche d’un client\. Commandes — La commande et son suivi\. Choisissez des domaines Sources contract Cartographiée orders Cartographie en cours Connaissances mises en commun par domaine le/,
     );
     assert.match(html, /<input id="domain-customers" type="checkbox" name="domain" value="customers"\/>/);
     assert.match(html, /<button type="submit" class="btn primary" disabled="">Choisissez des domaines<\/button>/);
@@ -86,7 +85,7 @@ describe("the discovery of the project", () => {
     const html = screen({ domains: [], mapping: { sources: [] } });
     assert.match(
       textOf(html),
-      /Sources Aucune source n’est déclarée .* Aucun domaine pour l’instant Les domaines apparaissent quand la cartographie a lu vos sources et les a mises en commun\. Ouvrir les connaissances$/,
+      /Aucun domaine pour l’instant Les domaines apparaissent quand la cartographie a lu vos sources et les a mises en commun\. Ouvrir les connaissances Sources Aucune source n’est déclarée/,
     );
     assert.ok(linksOf(html).includes("#/knowledge"));
   });
