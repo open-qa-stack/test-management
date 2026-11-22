@@ -2,7 +2,18 @@ import type { ReactNode } from "react";
 import type { ConfiguredApplication, Environment } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
 import { Card } from "../ui/card.tsx";
-import { AddButton, choices, ChoiceField, InputField, ItemHead, nameOf, PlaceErrors, RemoveButton, SecretField } from "./configuration-fields.tsx";
+import {
+  AddButton,
+  AdvancedFields,
+  choices,
+  ChoiceField,
+  InputField,
+  ItemHead,
+  nameOf,
+  PlaceErrors,
+  RemoveButton,
+  SecretField,
+} from "./configuration-fields.tsx";
 
 /** An environment of an application: its addresses, its named APIs and what its exploration may do. */
 function EnvironmentFields({
@@ -99,7 +110,6 @@ export function ApplicationCard({
     >
       <div className="config-body">
         <div className="config-fields">
-          <InputField pointer={`${at}/id`} label={t("configuration.application.id")} value={application.id} code hint={t("configuration.application.idHint")} />
           <InputField pointer={`${at}/name`} label={t("configuration.application.name")} value={application.name} />
           <ChoiceField
             pointer={`${at}/type`}
@@ -114,6 +124,9 @@ export function ApplicationCard({
             options={choices(["none", "form"], (value) => t(`configuration.application.methods.${value}`))}
           />
         </div>
+        <AdvancedFields pointers={[`${at}/id`]}>
+          <InputField pointer={`${at}/id`} label={t("configuration.application.id")} value={application.id} code hint={t("configuration.application.idHint")} />
+        </AdvancedFields>
         <fieldset className="config-group">
           <legend>{t("configuration.application.accounts")}</legend>
           <p className="field-hint">{t("configuration.application.accountsHint")}</p>
@@ -129,21 +142,23 @@ export function ApplicationCard({
               />
               <div className="config-fields">
                 <InputField pointer={`${at}/authentication/accounts/${index}/name`} label={t("configuration.application.accountName")} value={account.name} />
+                <SecretField variable={account.usernameEnv} kind="account_username" />
+                <SecretField variable={account.passwordEnv} kind="account_password" />
+              </div>
+              <AdvancedFields pointers={[`${at}/authentication/accounts/${index}/usernameEnv`, `${at}/authentication/accounts/${index}/passwordEnv`]}>
                 <InputField
                   pointer={`${at}/authentication/accounts/${index}/usernameEnv`}
                   label={t("configuration.application.usernameEnv")}
                   value={account.usernameEnv}
                   code
                 />
-                <SecretField variable={account.usernameEnv} kind="account_username" />
                 <InputField
                   pointer={`${at}/authentication/accounts/${index}/passwordEnv`}
                   label={t("configuration.application.passwordEnv")}
                   value={account.passwordEnv}
                   code
                 />
-                <SecretField variable={account.passwordEnv} kind="account_password" />
-              </div>
+              </AdvancedFields>
             </div>
           ))}
           <div className="config-actions">

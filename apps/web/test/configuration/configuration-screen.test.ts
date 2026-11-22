@@ -112,10 +112,10 @@ describe("the screen of the configuration", () => {
       { kind: "structure", path: "", rule: "json", message: "The file is not valid JSON." },
     ];
     const state = stateAfter([{ type: "edit", pointer: "/model/apiKeyEnv", value: "bad name" }]);
-    const html = screen(configurationAfter(state, { type: "checked", draft: state.draft!, errors }));
+    const html = screen({ ...configurationAfter(state, { type: "checked", draft: state.draft!, errors }), tried: true });
     assert.match(
       textOf(html),
-      /3 erreurs à corriger avant d’enregistrer \/model\/apiKeyEnv Nom de variable d’environnement attendu .* \/applications\/0\/environments Il en faut au moins un\. \/ Le fichier n’est pas du JSON valide\./,
+      /3 erreurs à corriger avant d’enregistrer Modèle › Variable qui tient la clé Nom de variable d’environnement attendu .* Shop Il en faut au moins un\. La configuration Le fichier n’est pas du JSON valide\./,
     );
     assert.ok(bears(html, "/model/apiKeyEnv", 'aria-invalid="true"', 'aria-describedby="config-model-apiKeyEnv-hint config-model-apiKeyEnv-errors"'));
     assert.match(html, /<span id="config-model-apiKeyEnv-errors" class="field-error">Nom de variable/);
@@ -126,7 +126,7 @@ describe("the screen of the configuration", () => {
       draft: state.draft!,
       errors: [{ kind: "structure", path: "/model/mode", rule: "unknown-variant", message: "…" }],
     });
-    assert.ok(bears(screen(choice), "/model/mode", "select", 'aria-invalid="true"', 'aria-describedby="config-model-mode-errors"'));
+    assert.ok(bears(screen({ ...choice, tried: true }), "/model/mode", "select", 'aria-invalid="true"', 'aria-describedby="config-model-mode-errors"'));
   });
 
   it("tells beside the history how the file stands to the revision in force, with what writes or takes it, and that a change was saved", () => {

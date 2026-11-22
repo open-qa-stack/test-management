@@ -6,7 +6,7 @@ import { ApplicationCard } from "./application-card.tsx";
 import { EditContext, NEW_ITEMS } from "./configuration-edit.ts";
 import { AddButton, PlaceErrors } from "./configuration-fields.tsx";
 import { ErrorSummary, type ConfigurationControls } from "./configuration-screen.tsx";
-import type { ConfigurationState } from "./configuration-state.ts";
+import { shownErrors, type ConfigurationState } from "./configuration-state.ts";
 import { AddSourceButtons, FIRST_KINDS, KnowledgeCard } from "./knowledge-card.tsx";
 import { ModelCard } from "./model-card.tsx";
 
@@ -94,8 +94,8 @@ export function FirstUse({ project, state, controls, step, onBack, onNext }: Fir
         </p>
       )}
       {/* What is left to correct is told before anything is written; each field says it beside itself before. */}
-      {step === "summary" && <ErrorSummary errors={state.errors} />}
-      <EditContext.Provider value={{ change: controls.change, click: controls.click, errors: state.errors, values: state.values }}>
+      {step === "summary" && <ErrorSummary errors={state.errors} draft={draft} />}
+      <EditContext.Provider value={{ change: controls.change, click: controls.click, errors: shownErrors(state), draft, values: state.values }}>
         {step === "applications" && (
           <section className="config-section" aria-label={title}>
             <PlaceErrors pointer="/applications" />

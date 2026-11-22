@@ -1,5 +1,5 @@
 import { createContext, type ChangeEventHandler, type MouseEventHandler } from "react";
-import type { ConfigError, SecretState } from "@open-qa-stack/domain/sessions";
+import type { ConfigError, OqasConfig, SecretState } from "@open-qa-stack/domain/sessions";
 import type { ConfigurationAction } from "./configuration-state.ts";
 
 /** What the fields of the configuration share: what reads what the person did, and the errors the instance found. */
@@ -14,6 +14,8 @@ export interface ConfigurationEdit {
   readonly secrets?: readonly SecretState[];
   /** The values the person typed, by the name of their variable, which are saved with the configuration. */
   readonly values: Readonly<Record<string, string>>;
+  /** The configuration as the person is changing it, which words the errors of the fields left empty. */
+  readonly draft?: OqasConfig;
 }
 
 /** What a field outside an edit does with what the person does to it: nothing. */

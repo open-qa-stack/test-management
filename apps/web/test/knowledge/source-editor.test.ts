@@ -68,7 +68,7 @@ describe("the editor of a source", () => {
     const contract = editor(0);
     assert.match(
       textOf(contract),
-      /Rattachement 1 Retirer Application Choisir une application shop Environnement Tous les environnements local API Toutes les API backend Ajouter un rattachement/,
+      /Sert à : Shop, local › backend Retirer Application Choisir une application shop Environnement Tous les environnements local API Toutes les API backend Ajouter un rattachement/,
     );
     assert.match(contract, /<option value="backend" selected="">backend<\/option>/);
     assert.match(contract, /aria-label="Retirer le rattachement 1 de contract" data-remove="\/knowledge\/0\/attachments\/0"/);
@@ -84,7 +84,7 @@ describe("the editor of a source", () => {
       { kind: "reference", path: "/knowledge/8/attachments/0/application", rule: "slug", message: "Expected a slug." },
       { kind: "structure", path: "/knowledge/8", rule: "document-source", message: 'Declare exactly one of "path" or "stored".' },
     ];
-    const html = editor(8, { ...added, errors }, true);
+    const html = editor(8, { ...added, errors, tried: true }, true);
     const text = textOf(html);
     assert.match(text, /^2 erreurs à corriger avant d’enregistrer/);
     assert.match(text, /Source 9 · Documents déposés Retirer Soit un chemin, soit des documents déposés : exactement l’un des deux\./);
@@ -104,7 +104,7 @@ describe("the editor of a source", () => {
     assert.ok(bears(attached, "/knowledge/0/attachments", "select", 'data-kind="reach"'));
     assert.match(
       textOf(attached),
-      /Portée Pour Tout le projet Des applications précises Elle décrit ces applications, .* Une session qui teste une autre application peut la lire, avec un avertissement\. Rattachement 1/,
+      /Portée Pour Tout le projet Des applications précises Elle décrit ces applications, .* Une session qui teste une autre application peut la lire, avec un avertissement\. Sert à : Shop, local › backend/,
     );
     const wide = editor(0, stateAfter([{ type: "edit", pointer: "/knowledge/0/attachments", value: undefined }]));
     assert.match(wide, /<option value="project" selected="">Tout le projet<\/option>/);
@@ -113,6 +113,17 @@ describe("the editor of a source", () => {
       /Les sessions la lisent quelle que soit l’application qu’elles testent\. Enregistrée|Les sessions la lisent quelle que soit l’application qu’elles testent\. Modifications non enregistrées/,
     );
     assert.doesNotMatch(wide, /Rattachement 1|data-item="attachment"/);
+  });
+
+  it("says in words what each attachment serves: the application, then where it narrows to, or every environment", () => {
+    const attachments = [{ application: "shop" }, { application: "gone" }];
+    const named = stateAfter([{ type: "edit", pointer: "/knowledge/0/attachments", value: attachments }]);
+    assert.match(
+      textOf(editor(0, named)),
+      /Sert à : Shop, tous les environnements Retirer .* Sert à : une application à choisir, tous les environnements Retirer/,
+    );
+    const unnamed = configurationAfter(named, { type: "edit", pointer: "/applications/0/name", value: "" });
+    assert.match(textOf(editor(0, unnamed)), /Sert à : shop, tous les environnements/);
   });
 
   it("hands the card the latest test of the source, and says a change was saved or why it was refused", () => {

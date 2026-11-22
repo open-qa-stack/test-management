@@ -6,6 +6,7 @@ import {
   INITIAL_CONFIGURATION,
   isChanged,
   isPending,
+  shownErrors,
   typedConnection,
   typedKey,
   type ConfigurationAction,
@@ -45,6 +46,33 @@ describe("the state of the screen of the configuration", () => {
     const told = after([{ type: "read", view: moved, revisions: REVISIONS }], edited);
     assert.deepEqual([told.draft, told.basedOn, told.view], [edited.draft, 2, moved]);
     assert.equal(after([{ type: "edit", pointer: "/model/model", value: "x" }]), INITIAL_CONFIGURATION, "nothing is changed before there is a draft");
+  });
+
+  it("shows the errors of what the person changed alone, every error once they asked to save, and none of those again once saved or dropped", () => {
+    const errors: ConfigError[] = [
+      { kind: "structure", path: "/knowledge/8/id", rule: "slug", message: "…" },
+      { kind: "structure", path: "/model/model", rule: "empty-value", message: "…" },
+      { kind: "structure", path: "/applications/0/environments", rule: "too-few-items", message: "…" },
+      { kind: "structure", path: "/autonomy/level", rule: "unknown-variant", message: "…" },
+    ];
+    const checked = (state: ConfigurationState): ConfigurationState => configurationAfter(state, { type: "checked", draft: state.draft!, errors });
+    const added = checked(after([{ type: "add", pointer: "/knowledge", item: { id: "", type: "openapi", url: "" } }], READ));
+    assert.deepEqual(shownErrors(added), [], "an item added is not shown wrong before it is filled");
+    const changed = checked(
+      after(
+        [
+          { type: "edit", pointer: "/model", value: { ...DOCUMENT.model, model: undefined } },
+          { type: "remove", pointer: "/applications/0/environments/0" },
+          { type: "level", level: "bounded" },
+        ],
+        added,
+      ),
+    );
+    assert.deepEqual(shownErrors(changed), errors.slice(1));
+    const tried = configurationAfter(changed, { type: "saving" });
+    assert.deepEqual(shownErrors(tried), errors);
+    for (const settled of [configurationAfter(tried, { type: "saved", view: VIEW }), configurationAfter(tried, { type: "discard" })])
+      assert.deepEqual([settled.touched, settled.tried], [undefined, undefined]);
   });
 
   it("checks and unchecks a member of a set, from its defaults when the draft leaves the set out", () => {

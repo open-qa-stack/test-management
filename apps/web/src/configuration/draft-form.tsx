@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { t } from "../i18n/i18n.ts";
 import { EditContext } from "./configuration-edit.ts";
 import { ErrorSummary, Notes, type ConfigurationControls } from "./configuration-screen.tsx";
-import { isPending, type ConfigurationState } from "./configuration-state.ts";
+import { isPending, shownErrors, type ConfigurationState } from "./configuration-state.ts";
 
 /** The form of one item of the configuration — a source, an application —, which its buttons submit. */
 export const ITEM_FORM = "item-form";
@@ -23,7 +23,8 @@ export function DraftForm({
   readonly controls: ConfigurationControls;
   readonly children: ReactNode;
 }): ReactNode {
-  const { errors, saving } = state;
+  const { saving } = state;
+  const errors = shownErrors(state);
   const pending = isPending(state);
   return (
     <EditContext.Provider
@@ -31,13 +32,15 @@ export function DraftForm({
         change: controls.change,
         click: controls.click,
         errors,
+        // The form of an item is drawn once there is a draft, which holds the item.
+        draft: state.draft!,
         values: state.values,
         ...(state.secrets === undefined ? {} : { secrets: state.secrets }),
       }}
     >
       <form id={ITEM_FORM} className="config-form" onSubmit={controls.save} noValidate>
         <Notes state={state} />
-        <ErrorSummary errors={errors} />
+        <ErrorSummary errors={errors} draft={state.draft} />
         {children}
         <div className="config-head">
           <span className="small muted config-state" role="status">

@@ -15,8 +15,8 @@ interface FieldBase {
 
 /** The errors the instance found at a field, and the elements under the field that describe it: its hint, its errors. */
 function useDescription(pointer: string, hint: string | undefined): { readonly texts: readonly string[]; readonly described?: string } {
-  const { errors } = useContext(EditContext);
-  const texts = errors.filter(({ path }) => path === pointer).map(errorText);
+  const { errors, draft } = useContext(EditContext);
+  const texts = errors.filter(({ path }) => path === pointer).map((error) => errorText(error, draft));
   const ids = [...(hint === undefined ? [] : [`${idOf(pointer)}-hint`]), ...(texts.length === 0 ? [] : [`${idOf(pointer)}-errors`])];
   return ids.length === 0 ? { texts } : { texts, described: ids.join(" ") };
 }
@@ -296,5 +296,23 @@ export function SecretField({ variable, kind }: SecretFieldProps): ReactNode {
         {t(source === "saved" ? "configuration.secret.saved" : "configuration.secret.kept", { variable })}
       </span>
     </div>
+  );
+}
+
+/**
+ * What an expert sets, folded under « Advanced »: it opens by itself when one of its fields holds an error shown, so
+ * that no error stays hidden.
+ *
+ * @param props - The pointers of its fields, and the fields.
+ * @returns The fold.
+ */
+export function AdvancedFields({ pointers, children }: { readonly pointers: readonly string[]; readonly children: ReactNode }): ReactNode {
+  const { errors } = useContext(EditContext);
+  const wrong = errors.some(({ path }) => pointers.some((pointer) => path === pointer || path.startsWith(`${pointer}/`)));
+  return (
+    <details className="config-advanced" {...(wrong ? { open: true } : {})}>
+      <summary>{t("configuration.model.advanced")}</summary>
+      <div className="config-fields">{children}</div>
+    </details>
   );
 }

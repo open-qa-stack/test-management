@@ -1637,13 +1637,15 @@ describe("the code of the console is covered in full", () => {
         await page.goto("http://console.test/#/applications");
         // An application is added on a page of its own and saved alone, followed under the identifier it is saved with, then removed.
         await page.getByRole("link", { name: "Ajouter une application" }).click();
-        await page.getByLabel("Identifiant", { exact: true }).fill("back-office");
+        // The identifier of an application added follows its name.
         await page.getByLabel("Nom", { exact: true }).first().fill("Back office");
         await page.getByLabel("Ce qu’elle expose").selectOption("web");
         await page.getByRole("button", { name: "Ajouter un environnement" }).click();
         await page.getByRole("button", { name: "Retirer l’environnement 2 de Back office" }).click();
         await page.getByRole("button", { name: "Enregistrer" }).click();
         await page.waitForURL(/#\/applications\/back-office$/);
+        // The identifier of an application in force is set under « Avancé ».
+        await page.getByText("Avancé", { exact: true }).first().click();
         await page.getByLabel("Identifiant", { exact: true }).fill("office");
         await page.getByRole("button", { name: "Enregistrer" }).click();
         await page.waitForURL(/#\/applications\/office$/);

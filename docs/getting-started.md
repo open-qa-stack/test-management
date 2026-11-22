@@ -1,6 +1,6 @@
 # Getting started
 
-From an empty folder to Playwright tests on a branch, on your machine.
+From an empty folder to Playwright tests on a branch, on your machine, without writing a configuration by hand.
 
 ## Install
 
@@ -13,22 +13,29 @@ pnpm install --frozen-lockfile
 pnpm --filter @open-qa-stack/tools exec playwright-core install chromium
 ```
 
-## Set up your test repository
+## Set up your project
 
-Your tests live in a git repository of their own, with a commit at least, on a machine that has npm. Put an `oqas.json` at its root — [`packages/domain/examples/lakeside-mutual/oqas.json`](../packages/domain/examples/lakeside-mutual/oqas.json) is a complete one — then make it a Playwright project and commit:
+Your tests live in a folder of their own, which becomes a git repository: an empty folder is fine. Start Open QA Stack there, in a terminal or in your browser:
 
 ```sh
-node <clone>/packages/cli/src/main.ts --repository <test repository> --init
-cd <test repository> && npm install && git add -A && git commit -m "chore: initialise the test repository"
+alias oqas="node <clone>/packages/cli/src/main.ts --repository <test folder>"
+oqas            # in a terminal
+oqas --ui       # or in the browser, once the console is built: pnpm --dir <clone> build
 ```
+
+Either one sets the project up step by step, in plain words: your applications and their addresses; what the agents may read — the contract of an API, the source code, a database, documents —, each tested as you add it; the model, and its key, typed unseen. It then makes a Playwright project of the folder, a git repository with its first commit when it was none, and keeps the configuration in the database of the project, `.oqas/oqas.db`. The keys and connection strings you type stay on your machine, out of the repository. Then install the Playwright project once:
+
+```sh
+cd <test folder> && npm install
+```
+
+The configuration is changed afterwards in the console — the applications, the knowledge and the settings each have their screen — or with `oqas config`. `oqas config export` writes it to `oqas.json`, a copy you may commit, which a pipeline takes with `oqas config import`: [`packages/domain/examples/lakeside-mutual/oqas.json`](../packages/domain/examples/lakeside-mutual/oqas.json) is a complete one.
 
 ## Ask for tests
 
 Then ask for tests, in your words:
 
 ```sh
-export OQAS_MODEL_API_KEY=…   # the variable oqas.json names for the key of the model
-alias oqas="node <clone>/packages/cli/src/main.ts --repository <test repository>"
 oqas
 ```
 
@@ -57,7 +64,6 @@ The command line alone needs nothing more. To watch the agents in a browser, and
 
 ```sh
 pnpm --dir <clone> build      # once: builds the console
-export OQAS_MODEL_API_KEY=…   # the variable oqas.json names for the key of the model
 oqas --ui
 ```
 
@@ -74,8 +80,8 @@ An instance that several people share is a server that stays, [the API](../packa
 A Playwright project a team would have set up by hand, which runs without Open QA Stack:
 
 ```
-<test repository>/
-  oqas.json  playwright.config.ts  package.json  tsconfig.json  README.md
+<test folder>/
+  playwright.config.ts  package.json  tsconfig.json  README.md
   apps/
     shared/
       fixtures.ts                      the test and the expect every test imports
@@ -94,6 +100,6 @@ Every test bears the tags of what it is: its level in the pyramid of tests, its 
 ## Going further
 
 - [The command](../packages/cli/docs/solo-command.md): every command and option, what each step does, the JSON output, the exit codes.
-- [The configuration](../packages/domain/docs/configuration.md): every key of `oqas.json`; [its schema](../packages/domain/schema/oqas.schema.json) is the reference.
+- [The configuration](../packages/domain/docs/configuration.md): every key of the configuration, as `oqas.json` writes it; [its schema](../packages/domain/schema/oqas.schema.json) is the reference.
 - [The test charter](../packages/harness/docs/test-charter.md): the rules every generated test is held to.
 - [How the tests are designed](../packages/agents/docs/designer.md): the agents, what the harness checks, what it refuses.
