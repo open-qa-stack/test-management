@@ -3,6 +3,7 @@ import type { ConfigurationView } from "@open-qa-stack/domain/sessions";
 import { api } from "../api/instance-api.ts";
 import { useConfigurationEditor } from "../configuration/use-configuration-editor.ts";
 import { useItemPages, type ItemList } from "../configuration/use-item-pages.ts";
+import { usePanelControls } from "../configuration/use-panel-controls.ts";
 import { hrefTo, type Route } from "../routing/route.ts";
 import { FILES_INPUT, KnowledgeScreen, sourcePath, type KnowledgeControls } from "./knowledge-screen.tsx";
 import { INITIAL_KNOWLEDGE, knowledgeAfter } from "./knowledge-state.ts";
@@ -44,6 +45,8 @@ export function KnowledgePage({ project, route }: { readonly project: string; re
   const told = useCallback((view: ConfigurationView) => dispatch({ type: "read", view }), []);
   // The list of the sources shows the revision saved at once, without waiting for the next reading.
   const drop = useItemPages(editor, SOURCES, { id: source, adding: adding !== undefined }, told);
+  // The page of a source added moves to the source saved: no panel to close there.
+  const edit = usePanelControls(editor.controls, route, editor.state.saved, source !== undefined);
   const controls: KnowledgeControls = {
     upload: (event) => {
       event.preventDefault();
@@ -53,7 +56,7 @@ export function KnowledgePage({ project, route }: { readonly project: string; re
       sync.upload(form.dataset["source"]!, [...files!]);
     },
     remove: ({ currentTarget }) => sync.remove(currentTarget.dataset["source"]!, currentTarget.dataset["name"]!),
-    edit: editor.controls,
+    edit,
     drop: ({ currentTarget }) => drop(Number(currentTarget.dataset["rank"])),
   };
   return <KnowledgeScreen project={project} route={route} state={state} editing={editor.state} controls={controls} />;

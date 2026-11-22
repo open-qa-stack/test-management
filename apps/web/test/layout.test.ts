@@ -1201,6 +1201,31 @@ describe("the knowledge in a browser", () => {
     }
   });
 
+  it("changes an attachment of a source in a panel: the whole of a phone, at the right of a wide screen, every button a finger can press", async () => {
+    for (const width of [390, 1440]) {
+      const page = await app().open(width, "#/knowledge/contract", new DocumentedInstance().api);
+      try {
+        await page.getByRole("link", { name: "Modifier Sert à : Shop, local › backend" }).click();
+        const panel = page.getByRole("dialog", { name: "Rattachement 1" });
+        await panel.getByLabel("Application", { exact: true }).waitFor();
+        await settled(panel);
+        const { height } = page.viewportSize()!;
+        const box = (await panel.boundingBox())!;
+        if (width < 720) {
+          assert.deepEqual(box, { x: 0, y: 0, width, height }, "the panel covers the phone");
+          assert.deepEqual(await tooSmallOf(page), [], `panel at ${width}`);
+        } else {
+          assert.equal(box.x + box.width, width, "the panel holds to the right edge");
+          assert.ok(box.width < width / 2, `the panel is ${box.width} px wide`);
+          assert.deepEqual([box.y, box.height], [0, height]);
+        }
+        assert.equal(await overflowOf(page), 0, `panel at ${width}`);
+      } finally {
+        await page.close();
+      }
+    }
+  });
+
   it("uploads the files chosen, which the list then shows, and refuses beside the field a file it does not read", async () => {
     const instance = new DocumentedInstance();
     const page = await documentsAt(390, instance);
@@ -1780,8 +1805,8 @@ describe("the code of the console is covered in full", () => {
 
   it("runs every line of the screens of the knowledge when they are used in the browser", async () => {
     const instance = new DocumentedInstance();
-    const [screen, pages] = await app().measure(
-      ["src/knowledge/knowledge-page.tsx", "src/configuration/use-item-pages.ts"],
+    const [screen, pages, panels] = await app().measure(
+      ["src/knowledge/knowledge-page.tsx", "src/configuration/use-item-pages.ts", "src/configuration/use-panel-controls.ts"],
       async (page) => {
         await page.goto("http://console.test/#/knowledge/manuals?document=quotes.md");
         await page.getByText("A quote is priced.").waitFor();
@@ -1799,17 +1824,41 @@ describe("the code of the console is covered in full", () => {
         await page.getByLabel("Identifiant", { exact: true }).fill("pricing");
         await page.getByLabel("Adresse du contrat").fill("http://127.0.0.1:3001/pricing.json");
         await page.getByLabel("Pour", { exact: true }).selectOption("applications");
-        await page.getByLabel("Application", { exact: true }).selectOption("shop");
+        const dialog = page.getByRole("dialog");
+        await page.getByRole("link", { name: /^Modifier Sert à/ }).click();
+        await dialog.getByLabel("Application", { exact: true }).selectOption("shop");
+        await page.keyboard.press("Escape");
+        await page.waitForURL(/#\/knowledge\?add=source$/);
         await page.getByRole("button", { name: "Tester la connexion" }).click();
         await page.getByRole("status").filter({ hasText: "Connexion réussie · 3 éléments trouvés." }).waitFor();
         await page.getByRole("button", { name: "Enregistrer" }).click();
         await page.waitForURL(/#\/knowledge\/pricing$/);
+        // An attachment is added in a panel, which its removal closes, as dropping the change does; Escape closes the panel of another.
+        await page.getByRole("button", { name: "Ajouter un rattachement" }).click();
+        await page.waitForURL(/#\/knowledge\/pricing\?panel=attachment%3A1$/);
+        await dialog.getByRole("button", { name: "Retirer ce rattachement" }).click();
+        await dialog.waitFor({ state: "detached" });
+        await page.getByRole("button", { name: "Ajouter un rattachement" }).click();
+        await dialog.getByLabel("Application", { exact: true }).selectOption("shop");
+        await dialog.getByRole("button", { name: "Annuler les modifications" }).click();
+        await dialog.waitFor({ state: "detached" });
+        await page.getByRole("link", { name: "Modifier Sert à : Shop, tous les environnements" }).click();
+        await dialog.getByLabel("Environnement", { exact: true }).waitFor();
+        await page.keyboard.press("Escape");
+        await page.waitForURL(/#\/knowledge\/pricing$/);
+        // An attachment saved from its panel closes it.
+        await page.getByRole("button", { name: "Ajouter un rattachement" }).click();
+        await dialog.getByLabel("Application", { exact: true }).selectOption("shop");
+        await dialog.getByLabel("Environnement", { exact: true }).selectOption("local");
+        await dialog.getByRole("button", { name: "Enregistrer" }).click();
+        await dialog.waitFor({ state: "detached" });
+        await page.getByRole("link", { name: "Modifier Sert à : Shop, local" }).waitFor();
         await page.getByLabel("Identifiant", { exact: true }).fill("prices");
         await page.getByRole("button", { name: "Enregistrer" }).click();
         await page.waitForURL(/#\/knowledge\/prices$/);
         assert.deepEqual(
           instance.configured.saved.map(({ document }) => document.knowledge.at(-1)?.id),
-          ["pricing", "prices"],
+          ["pricing", "pricing", "prices"],
         );
         // A source removed once the person confirmed it leads back to the knowledge.
         await page.getByRole("link", { name: "Retirer la source" }).click();
@@ -1822,12 +1871,13 @@ describe("the code of the console is covered in full", () => {
     assert.ok(screen!.lines.length > 10, "the screen is in the build");
     assert.deepEqual(screen!.uncovered, []);
     assert.deepEqual(pages!.uncovered, []);
+    assert.deepEqual(panels!.uncovered, []);
   });
 
   it("runs every line of the screens of the applications when they are used in the browser", async () => {
     const instance = new ConfiguredInstance();
-    const [screen, panel] = await app().measure(
-      ["src/applications/applications-page.tsx", "src/ui/side-panel.tsx"],
+    const [screen, panel, panels] = await app().measure(
+      ["src/applications/applications-page.tsx", "src/ui/side-panel.tsx", "src/configuration/use-panel-controls.ts"],
       async (page) => {
         await page.goto("http://console.test/#/applications");
         // An application is added on a page of its own and saved alone, followed under the identifier it is saved with, then removed.
@@ -1877,6 +1927,7 @@ describe("the code of the console is covered in full", () => {
     assert.ok(screen!.lines.length > 10, "the screen is in the build");
     assert.deepEqual(screen!.uncovered, []);
     assert.deepEqual(panel!.uncovered, []);
+    assert.deepEqual(panels!.uncovered, []);
   });
 
   it("runs every line of the screen of the configuration when it is used in the browser", async () => {

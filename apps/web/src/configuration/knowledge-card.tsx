@@ -1,11 +1,12 @@
-import type { MouseEventHandler, ReactNode } from "react";
+import { useContext, type MouseEventHandler, type ReactNode } from "react";
 import { attachmentsOf, isProjectWide, isStoredDocuments, type Attachment, type ConfiguredApplication, type Knowledge } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
 import { hrefTo } from "../routing/route.ts";
 import { Card } from "../ui/card.tsx";
 import { Icon, type IconName } from "../ui/icon.tsx";
 import { AddButton, AdvancedFields, choices, ChoiceField, InputField, ItemHead, PlaceErrors, RemoveButton, SecretField } from "./configuration-fields.tsx";
-import type { NewItem } from "./configuration-edit.ts";
+import { EditContext, type NewItem } from "./configuration-edit.ts";
+import { PartRow } from "./part-row.tsx";
 import type { SourceTest } from "./configuration-state.ts";
 
 /** The kinds of sources a button adds, in the order the section offers them. */
@@ -33,69 +34,120 @@ function withHeld(values: readonly string[], held: string | undefined): { readon
   return all.map((value) => ({ value, label: value }));
 }
 
-/** An attachment of a source: an application, and optionally one of its environments and one of the APIs of that environment. */
-function AttachmentFields({
-  at,
-  attachment,
-  rank,
-  owner,
-  applications,
-}: {
-  readonly at: string;
-  readonly attachment: Partial<Attachment>;
-  readonly rank: number;
-  readonly owner: string;
-  readonly applications: readonly ConfiguredApplication[];
-}): ReactNode {
+/**
+ * Says what an attachment of a source serves: its application, then the environment and the API it narrows to, or
+ * every environment.
+ *
+ * @param attachment - The attachment, as the draft holds it.
+ * @param applications - The applications of the draft.
+ * @returns What it serves, in words.
+ */
+export function attachmentTitle(attachment: Partial<Attachment>, applications: readonly ConfiguredApplication[]): string {
   const application = applications.find((candidate) => candidate.id === attachment.application);
-  const environment = application?.environments.find((candidate) => candidate.name === attachment.environment);
-  // What the attachment says in words: the application, then the environment and the API it narrows to, or every environment.
   const where =
     attachment.environment === undefined
       ? t("configuration.knowledge.everyEnvironment")
       : [attachment.environment, attachment.api].filter((part) => part !== undefined).join(" › ");
   const served = application === undefined ? t("configuration.knowledge.noApplication") : application.name === "" ? application.id : application.name;
-  const title = t("configuration.knowledge.serves", { application: served, where });
+  return t("configuration.knowledge.serves", { application: served, where });
+}
+
+/**
+ * The fields of an attachment of a source: an application, and optionally one of its environments and one of the APIs
+ * of that environment.
+ *
+ * @param props - Where the attachment is, the attachment, and the applications of the draft.
+ * @returns The fields.
+ */
+export function AttachmentChoices({
+  at,
+  attachment,
+  applications,
+}: {
+  readonly at: string;
+  readonly attachment: Partial<Attachment>;
+  readonly applications: readonly ConfiguredApplication[];
+}): ReactNode {
+  const application = applications.find((candidate) => candidate.id === attachment.application);
+  const environment = application?.environments.find((candidate) => candidate.name === attachment.environment);
   return (
-    <div className="config-item">
-      <ItemHead
-        title={title}
-        pointer={at}
-        removal={t("configuration.application.removeFrom", { item: t("configuration.knowledge.theAttachment", { rank: rank + 1 }), owner })}
+    <div className="config-fields">
+      <ChoiceField
+        pointer={`${at}/application`}
+        label={t("configuration.knowledge.application")}
+        value={attachment.application}
+        options={withHeld(
+          applications.map(({ id }) => id).filter((id) => id !== ""),
+          attachment.application,
+        )}
+        none={t("configuration.knowledge.chooseApplication")}
       />
-      <div className="config-fields">
-        <ChoiceField
-          pointer={`${at}/application`}
-          label={t("configuration.knowledge.application")}
-          value={attachment.application}
-          options={withHeld(
-            applications.map(({ id }) => id).filter((id) => id !== ""),
-            attachment.application,
-          )}
-          none={t("configuration.knowledge.chooseApplication")}
-        />
-        <ChoiceField
-          pointer={`${at}/environment`}
-          label={t("configuration.knowledge.environment")}
-          value={attachment.environment}
-          options={withHeld(
-            (application?.environments ?? []).map(({ name }) => name).filter((name) => name !== ""),
-            attachment.environment,
-          )}
-          none={t("configuration.knowledge.anyEnvironment")}
-        />
-        <ChoiceField
-          pointer={`${at}/api`}
-          label={t("configuration.knowledge.api")}
-          value={attachment.api}
-          options={withHeld(
-            (environment?.apis ?? []).map(({ name }) => name).filter((name) => name !== ""),
-            attachment.api,
-          )}
-          none={t("configuration.knowledge.anyApi")}
-        />
-      </div>
+      <ChoiceField
+        pointer={`${at}/environment`}
+        label={t("configuration.knowledge.environment")}
+        value={attachment.environment}
+        options={withHeld(
+          (application?.environments ?? []).map(({ name }) => name).filter((name) => name !== ""),
+          attachment.environment,
+        )}
+        none={t("configuration.knowledge.anyEnvironment")}
+      />
+      <ChoiceField
+        pointer={`${at}/api`}
+        label={t("configuration.knowledge.api")}
+        value={attachment.api}
+        options={withHeld(
+          (environment?.apis ?? []).map(({ name }) => name).filter((name) => name !== ""),
+          attachment.api,
+        )}
+        none={t("configuration.knowledge.anyApi")}
+      />
     </div>
+  );
+}
+
+/** The attachments of a source, as rows that each open the panel that changes it, or their fields open. */
+function Attachments({
+  at,
+  source,
+  owner,
+  applications,
+  panelOf,
+}: {
+  readonly at: string;
+  readonly source: Knowledge;
+  readonly owner: string;
+  readonly applications: readonly ConfiguredApplication[];
+  readonly panelOf: ((rank: number) => string) | undefined;
+}): ReactNode {
+  const { errors } = useContext(EditContext);
+  const attachments = attachmentsOf(source);
+  return (
+    <>
+      {attachments.map((attachment, index) => {
+        const pointer = `${at}/attachments/${index}`;
+        const title = attachmentTitle(attachment, applications);
+        return panelOf === undefined ? (
+          <div key={index} className="config-item">
+            <ItemHead
+              title={title}
+              pointer={pointer}
+              removal={t("configuration.application.removeFrom", { item: t("configuration.knowledge.theAttachment", { rank: index + 1 }), owner })}
+            />
+            <AttachmentChoices at={pointer} attachment={attachment} applications={applications} />
+          </div>
+        ) : (
+          <PartRow key={index} name={title} wrong={errors.some(({ path }) => path === pointer || path.startsWith(`${pointer}/`))} href={panelOf(index)} />
+        );
+      })}
+      {!isProjectWide(source) && (
+        <div className="config-actions">
+          <AddButton pointer={`${at}/attachments`} item="attachment" {...(panelOf === undefined ? {} : { panel: `attachment:${attachments.length}` })}>
+            {t("configuration.knowledge.addAttachment")}
+          </AddButton>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -201,7 +253,7 @@ function WhereFields({ at, source, documentsLink }: { readonly at: string; reado
  * applications, environments and APIs it is attached to. Its kind is chosen when it is added.
  *
  * @param props - The source, its rank in the list, the applications of the draft it may be attached to, the latest test of
- * the source, how to ask for one, and whether the card offers to remove it.
+ * the source, how to ask for one, whether the card offers to remove it, and how its attachments are changed.
  * @returns Its card.
  */
 export function KnowledgeCard({
@@ -213,6 +265,7 @@ export function KnowledgeCard({
   removable = true,
   documentsLink = true,
   named = true,
+  attachmentPanel,
 }: {
   readonly source: Knowledge;
   readonly rank: number;
@@ -227,6 +280,8 @@ export function KnowledgeCard({
   readonly documentsLink?: boolean;
   /** Whether the card names the source, or its kind alone, on a page the source names already. */
   readonly named?: boolean;
+  /** The link that opens the panel of the attachment of a rank, on a page that changes them in panels; their fields open otherwise. */
+  readonly attachmentPanel?: (rank: number) => string;
 }): ReactNode {
   const at = `/knowledge/${rank}`;
   const title = source.id === "" ? t("configuration.knowledge.untitled", { rank: rank + 1 }) : source.id;
@@ -266,16 +321,7 @@ export function KnowledgeCard({
             value={isProjectWide(source) ? "project" : "applications"}
             options={choices(["project", "applications"], (value) => t(`configuration.knowledge.reaches.${value}`))}
           />
-          {attachmentsOf(source).map((attachment, index) => (
-            <AttachmentFields key={index} at={`${at}/attachments/${index}`} attachment={attachment} rank={index} owner={title} applications={applications} />
-          ))}
-          {!isProjectWide(source) && (
-            <div className="config-actions">
-              <AddButton pointer={`${at}/attachments`} item="attachment">
-                {t("configuration.knowledge.addAttachment")}
-              </AddButton>
-            </div>
-          )}
+          <Attachments at={at} source={source} owner={title} applications={applications} panelOf={attachmentPanel} />
         </fieldset>
       </div>
     </Card>
