@@ -2,6 +2,7 @@ import { posix } from "node:path";
 import { Ajv2020, type ErrorObject } from "ajv/dist/2020.js";
 import { DEFAULT_AUTONOMY, resolveLimits, RETIRED_LEVELS } from "./autonomy.ts";
 import { declaredVariables } from "./declared-variables.ts";
+import { attachmentsOf } from "./knowledge-reach.ts";
 import { duplicateKeyPaths } from "./duplicate-keys.ts";
 import { configError as error, pointer, structureError } from "./errors.ts";
 import { isRecord, parseJson } from "../json.ts";
@@ -212,7 +213,7 @@ function documentErrors(config: OqasConfig): ConfigError[] {
     if (appIds.has(item.id)) errors.push(error("structure", pointer(itemPath, "id"), "duplicate", "The identifier is already given to an application."));
     knowledgeIds.add(item.id);
 
-    item.attachments.forEach((attachment, j) => {
+    attachmentsOf(item).forEach((attachment, j) => {
       errors.push(...referenceErrors(config, pointer(pointer(itemPath, "attachments"), j), attachment));
     });
 

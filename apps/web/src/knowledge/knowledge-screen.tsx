@@ -1,6 +1,8 @@
 import type { FormEventHandler, MouseEventHandler, ReactNode } from "react";
 import {
   DOCUMENT_EXTENSIONS,
+  attachmentsOf,
+  isProjectWide,
   isStoredDocuments,
   MAX_DOCUMENT_BYTES,
   MAX_DOCUMENTS_PER_UPLOAD,
@@ -111,12 +113,13 @@ function SourceRow({
   mapped,
 }: {
   readonly source: Knowledge;
-  readonly attachment: Attachment;
+  /** What ties the source to the application it is listed under; none for a source of the whole project. */
+  readonly attachment?: Attachment;
   readonly documents?: readonly StoredDocumentSummary[];
   /** Where the cartography of the source stands; none for a source it does not read. */
   readonly mapped?: MappedSource;
 }): ReactNode {
-  const narrowed = narrowing(attachment);
+  const narrowed = attachment === undefined ? undefined : narrowing(attachment);
   return (
     <a className="row knowledge-row" href={hrefTo(sourcePath(source.id))}>
       <div className="grow">
@@ -194,12 +197,31 @@ function Overview({ project, route, state, editing, controls }: KnowledgeScreenP
         <>
           <p className="small muted">{t("knowledge.lead")}</p>
           <IndexLine mapping={state.mapping} />
+          <ProjectSources sources={sources} state={state} />
           {configuration!.applications.map((application) => (
             <ApplicationSources key={application.id} application={application} sources={sources} state={state} />
           ))}
         </>
       )}
     </Page>
+  );
+}
+
+/** The sources of the whole project, which every session reads; nothing when there is none. */
+function ProjectSources({ sources, state }: { readonly sources: readonly Knowledge[]; readonly state: KnowledgeState }): ReactNode {
+  const wide = sources.filter(isProjectWide);
+  if (wide.length === 0) return null;
+  return (
+    <Card title={t("knowledge.project")} hint={t("knowledge.projectHint")}>
+      {wide.map((source) => (
+        <SourceRow
+          key={source.id}
+          source={source}
+          {...(state.documents[source.id] === undefined ? {} : { documents: state.documents[source.id] })}
+          {...mappedOf(state.mapping, source.id)}
+        />
+      ))}
+    </Card>
   );
 }
 
@@ -214,7 +236,9 @@ function ApplicationSources({
   readonly state: KnowledgeState;
 }): ReactNode {
   const attached = sources.flatMap((source) =>
-    source.attachments.filter((attachment) => attachment.application === application.id).map((attachment) => ({ source, attachment })),
+    attachmentsOf(source)
+      .filter((attachment) => attachment.application === application.id)
+      .map((attachment) => ({ source, attachment })),
   );
   return (
     <Card title={application.name} hint={application.id}>
@@ -436,7 +460,8 @@ function SourceScreen({ project, route, state, editing, controls, id }: Knowledg
         <SourceEditor state={editing} controls={controls.edit} rank={rank} />
       ) : (
         <Card title={kindText(source)}>
-          {source.attachments.map((attachment, index) => (
+          {isProjectWide(source) && <p className="row">{t("knowledge.project")}</p>}
+          {attachmentsOf(source).map((attachment, index) => (
             <div key={index} className="row">
               <span className="grow">{attachment.application}</span>
               <span className="small muted">{narrowing(attachment) ?? t("knowledge.everywhere")}</span>

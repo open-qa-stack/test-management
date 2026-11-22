@@ -53,7 +53,8 @@ export interface Attachment {
 
 interface KnowledgeBase {
   id: string;
-  attachments: Attachment[];
+  /** The applications the source belongs to; none for a source of the whole project. */
+  attachments?: Attachment[];
 }
 
 /** An OpenAPI contract, served at a URL or stored in the repository: exactly one of the two. */

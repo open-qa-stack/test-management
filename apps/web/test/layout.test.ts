@@ -1603,6 +1603,7 @@ describe("the code of the console is covered in full", () => {
         await page.getByRole("button", { name: "Ajouter un contrat OpenAPI" }).click();
         await page.getByLabel("Identifiant", { exact: true }).fill("pricing");
         await page.getByLabel("Adresse du contrat").fill("http://127.0.0.1:3001/pricing.json");
+        await page.getByLabel("Pour", { exact: true }).selectOption("applications");
         await page.getByLabel("Application", { exact: true }).selectOption("shop");
         await page.getByRole("button", { name: "Tester la connexion" }).click();
         await page.getByRole("status").filter({ hasText: "Connexion réussie · 3 éléments trouvés." }).waitFor();

@@ -180,6 +180,27 @@ describe("a source of the knowledge", () => {
     );
   });
 
+  it("lists the sources of the whole project first, which every session reads, and says it of one", () => {
+    const wide = {
+      ...DOCUMENT,
+      knowledge: [
+        { id: "glossary", type: "document", path: "docs/glossary.md" } as const,
+        { id: "notes", type: "document", stored: true } as const,
+        ...DOCUMENT.knowledge,
+      ],
+    };
+    const view = { ...VIEW, revision: { ...VIEW.revision!, document: wide } };
+    const state = [{ type: "read", view } as const, { type: "listed", source: "notes", items: [QUOTES] } as const].reduce(knowledgeAfter, stateAfter());
+    assert.match(
+      textOf(screen("#/knowledge", state)),
+      /Tout le projet · lue quelle que soit l’application testée glossary Documents du dépôt · docs\/glossary\.md notes Documents déposés 1 document Shop · shop/,
+    );
+    assert.match(
+      textOf(screen("#/knowledge/glossary", state, INITIAL_CONFIGURATION)),
+      /glossary Documents du dépôt · docs\/glossary\.md Tout le projet Les agents lisent/,
+    );
+  });
+
   it("lets the person change the source, test it and save it alone, or remove it once they confirmed it", () => {
     const html = screen("#/knowledge/contract");
     assert.match(textOf(html), /^shop-tests \/ Connaissances \/ contract contract Retirer la source contract · Contrat OpenAPI Identifiant/);

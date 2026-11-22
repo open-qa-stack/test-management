@@ -1,6 +1,7 @@
 import { readFile, stat } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import {
+  attachmentsOf,
   CONFIG_FILE_NAME,
   InvalidDocumentsError,
   isStoredDocuments,
@@ -26,7 +27,8 @@ const KINDS: Readonly<Record<Knowledge["type"] | "stored", string>> = {
 
 /**
  * @param source - A knowledge source of the configuration.
- * @returns The line that names it, what it is, where it is read from, never a secret, and what it is attached to.
+ * @returns The line that names it, what it is, where it is read from, never a secret, and what it is attached to, or
+ * that it is for the whole project.
  */
 export function sourceLine(source: Knowledge): string {
   const where =
@@ -39,10 +41,11 @@ export function sourceLine(source: Knowledge): string {
           : source.path === undefined
             ? ""
             : `, ${source.path}`;
-  const attached = source.attachments.map(({ application, environment, api }) =>
+  const attached = attachmentsOf(source).map(({ application, environment, api }) =>
     [application, environment, api].filter((part) => part !== undefined).join(" > "),
   );
-  return `${source.id}: ${KINDS[isStoredDocuments(source) ? "stored" : source.type]}${where}; attached to ${attached.join(", ")}.`;
+  const reach = attached.length === 0 ? "for the whole project" : `attached to ${attached.join(", ")}`;
+  return `${source.id}: ${KINDS[isStoredDocuments(source) ? "stored" : source.type]}${where}; ${reach}.`;
 }
 
 /**

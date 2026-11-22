@@ -84,6 +84,7 @@ export { campaignCounts, campaignVerdict } from "../campaigns/campaign-rules.ts"
 export type { TestReading } from "../repository-tests/test-reading.ts";
 export type { QaCapture, QaDetails, QaStep, QaView } from "../report/qa-view.ts";
 export { isStoredDocuments } from "../knowledge-documents/stored-documents-path.ts";
+export { attachmentsOf, isProjectWide, sourceApplications } from "../config/knowledge-reach.ts";
 export {
   DOCUMENT_EXTENSIONS,
   MAX_DOCUMENT_BYTES,

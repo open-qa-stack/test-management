@@ -214,8 +214,7 @@
           "additionalProperties": false,
           "required": [
             "id",
-            "type",
-            "attachments"
+            "type"
           ],
           "properties": {
             "id": {
@@ -224,7 +223,6 @@
             },
             "attachments": {
               "type": "array",
-              "minItems": 1,
               "items": {
                 "$ref": "#/$defs/attachment"
               }
@@ -262,7 +260,6 @@
           "required": [
             "id",
             "type",
-            "attachments",
             "connectionStringEnv"
           ],
           "properties": {
@@ -272,7 +269,6 @@
             },
             "attachments": {
               "type": "array",
-              "minItems": 1,
               "items": {
                 "$ref": "#/$defs/attachment"
               }
@@ -292,8 +288,7 @@
           "additionalProperties": false,
           "required": [
             "id",
-            "type",
-            "attachments"
+            "type"
           ],
           "properties": {
             "id": {
@@ -302,7 +297,6 @@
             },
             "attachments": {
               "type": "array",
-              "minItems": 1,
               "items": {
                 "$ref": "#/$defs/attachment"
               }
@@ -341,7 +335,6 @@
           "required": [
             "id",
             "type",
-            "attachments",
             "path"
           ],
           "properties": {
@@ -351,7 +344,6 @@
             },
             "attachments": {
               "type": "array",
-              "minItems": 1,
               "items": {
                 "$ref": "#/$defs/attachment"
               }
@@ -379,8 +371,7 @@
           "additionalProperties": false,
           "required": [
             "id",
-            "type",
-            "attachments"
+            "type"
           ],
           "properties": {
             "id": {
@@ -389,7 +380,6 @@
             },
             "attachments": {
               "type": "array",
-              "minItems": 1,
               "items": {
                 "$ref": "#/$defs/attachment"
               }

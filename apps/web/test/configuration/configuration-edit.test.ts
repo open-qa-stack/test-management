@@ -47,6 +47,12 @@ describe("what the person does to a field", () => {
 });
 
 describe("what the person presses", () => {
+  it("sets the reach of a source: the whole project leaves its attachments out, applications start with one to choose", () => {
+    const reach = { name: "/knowledge/2/attachments", checked: false, kind: "reach" } as const;
+    assert.deepEqual(actionOf({ ...reach, value: "project" }), { type: "edit", pointer: "/knowledge/2/attachments", value: undefined });
+    assert.deepEqual(actionOf({ ...reach, value: "applications" }), { type: "edit", pointer: "/knowledge/2/attachments", value: [{ application: "" }] });
+  });
+
   it("adds an item of its kind to a list, removes an item, and does nothing for a button that says neither", () => {
     assert.deepEqual(pressOf({ add: "/applications/0/environments", item: "environment" }), {
       type: "add",
@@ -56,7 +62,7 @@ describe("what the person presses", () => {
     assert.deepEqual(pressOf({ add: "/knowledge", item: "stored" }), {
       type: "add",
       pointer: "/knowledge",
-      item: { id: "", type: "document", stored: true, attachments: [{ application: "" }] },
+      item: { id: "", type: "document", stored: true },
     });
     assert.deepEqual(pressOf({ add: "/knowledge/0/attachments", item: "attachment" }), {
       type: "add",
