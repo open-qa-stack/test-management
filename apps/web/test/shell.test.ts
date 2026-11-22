@@ -54,13 +54,13 @@ describe("the shell", () => {
     assert.match(html, /<a class="brand" href="#\/agent">/);
   });
 
-  it("lists the agent, the tests, the executions, the campaigns, the knowledge and the configuration as links, and what is coming as a name without one", () => {
+  it("lists the agent, the tests, the executions, the campaigns, the applications, the knowledge and the configuration as links, and what is coming as a name without one", () => {
     const html = shell("#/");
     assert.match(
       textOf(html),
-      /Travail Agent Référentiel Découverte bientôt À relire bientôt Tests Couverture bientôt Exécution Exécutions Campagnes Anomalies bientôt Projet Connaissances Configuration page$/,
+      /Travail Agent Référentiel Découverte bientôt À relire bientôt Tests Couverture bientôt Exécution Exécutions Campagnes Anomalies bientôt Projet Applications Connaissances Configuration page$/,
     );
-    assert.deepEqual(linksOf(html), ["#/agent", "#/agent", "#/tests", "#/executions", "#/campaigns", "#/knowledge", "#/configuration"]);
+    assert.deepEqual(linksOf(html), ["#/agent", "#/agent", "#/tests", "#/executions", "#/campaigns", "#/applications", "#/knowledge", "#/configuration"]);
     const coming = NAVIGATION.flatMap((group) => group.entries).filter((entry) => entry.path === undefined);
     assert.equal((html.match(/<span class="nav-soon">/g) ?? []).length, coming.length);
     assert.equal(coming.length, 4);

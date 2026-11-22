@@ -4,12 +4,12 @@ import { t } from "../i18n/i18n.ts";
 import { hrefTo, type Route } from "../routing/route.ts";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page, type Crumb } from "../ui/page.tsx";
-import { ApplicationCard } from "./application-card.tsx";
-import type { ConfigurationControls } from "./configuration-screen.tsx";
-import type { ConfigurationState } from "./configuration-state.ts";
-import { DraftForm } from "./draft-form.tsx";
-import { rankIn } from "./use-item-pages.ts";
-import { applicationPath, applicationsOf, CONFIGURATION } from "./application-paths.ts";
+import { ApplicationCard } from "../configuration/application-card.tsx";
+import type { ConfigurationControls } from "../configuration/configuration-screen.tsx";
+import type { ConfigurationState } from "../configuration/configuration-state.ts";
+import { DraftForm } from "../configuration/draft-form.tsx";
+import { rankIn } from "../configuration/use-item-pages.ts";
+import { APPLICATIONS, applicationPath, applicationsOf } from "./application-paths.ts";
 
 /** What the person does on the page of an application. */
 export interface ApplicationControls {
@@ -73,10 +73,10 @@ function DropConfirmation({
  * @returns The page.
  */
 export function ApplicationScreen({ project, route, state, controls }: ApplicationScreenProps): ReactNode {
-  const [, , id] = route.path;
-  const crumbs = (label: string): Crumb[] => [{ label: project }, { label: t("configuration.screen.title"), href: hrefTo(CONFIGURATION) }, { label }];
+  const [, id] = route.path;
+  const crumbs = (label: string): Crumb[] => [{ label: project }, { label: t("configuration.applications.title"), href: hrefTo(APPLICATIONS) }, { label }];
   const { draft, view } = state;
-  const back = <a href={hrefTo(CONFIGURATION)}>{t("configuration.applications.back")}</a>;
+  const back = <a href={hrefTo(APPLICATIONS)}>{t("configuration.applications.back")}</a>;
   if (draft === undefined || view?.revision === undefined)
     return (
       <Page crumbs={crumbs(id ?? t("configuration.applications.new"))} title={id ?? t("configuration.applications.new")}>

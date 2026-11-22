@@ -24,7 +24,8 @@
       "campaigns": "Campagnes",
       "defects": "Anomalies",
       "knowledge": "Connaissances",
-      "configuration": "Configuration"
+      "configuration": "Configuration",
+      "applications": "Applications"
     }
   },
   "console": {
@@ -44,7 +45,8 @@
       "result": "Résultat d’un test",
       "trace": "Trace d’un test",
       "campaigns": "Campagnes",
-      "campaign": "Campagne"
+      "campaign": "Campagne",
+      "applications": "Applications"
     },
     "opening": {
       "title": "Lecture de la session",
@@ -675,17 +677,12 @@
       "inForce": "Révision {{number}} en vigueur",
       "discard": "Annuler les modifications",
       "save": "Enregistrer",
-      "applications": "Applications et environnements",
-      "addApplication": "Ajouter une application",
       "agents": "Agents",
       "repository": "Dépôt de tests",
       "history": "Historique",
       "secrets": "Les valeurs tapées ici — clé, chaînes de connexion, mots de passe — restent sur l’ordinateur où tourne l’outil, hors du dépôt de tests et de la base. Une variable d’environnement l’emporte : c’est le chemin d’une CI.",
-      "knowledge": "Connaissances",
-      "knowledgeNote_zero": "Aucune source pour l’instant : les sources se déclarent dans Connaissances.",
-      "knowledgeNote_one": "{{count}} source déclarée : elle se modifie dans Connaissances.",
-      "knowledgeNote_other": "{{count}} sources déclarées : elles se modifient dans Connaissances.",
-      "openKnowledge": "Ouvrir les connaissances"
+      "lead": "Les réglages d’Open QA Stack. Les applications testées et les connaissances que lisent les agents ont leurs propres écrans.",
+      "addApplication": "Ajouter une application"
     },
     "item": {
       "saved": "Enregistrée"
@@ -695,7 +692,7 @@
       "reading": "Lecture de la configuration",
       "unknown": "Aucune application de ce nom",
       "unknownNote": "La configuration en vigueur n’en déclare aucune : elle a pu être renommée ou retirée.",
-      "back": "Revenir à la configuration",
+      "back": "Revenir aux applications",
       "drop": "Retirer l’application",
       "dropTitle": "Retirer l’application {{name}} ?",
       "dropNote": "Les prochaines sessions ne la testent plus. Une nouvelle révision de la configuration est enregistrée : la précédente reste dans l’historique. Les sources qui lui sont rattachées doivent d’abord en être détachées.",
@@ -709,7 +706,12 @@
       "accounts_zero": "aucun compte de test",
       "accounts_one": "{{count}} compte de test",
       "accounts_other": "{{count}} comptes de test",
-      "add": "Ajouter une application"
+      "add": "Ajouter une application",
+      "title": "Applications",
+      "lead": "Les applications que testent les agents, chacune avec ses environnements et ses API.",
+      "none": "Aucune configuration pour l’instant",
+      "noneNote": "Configurez le projet : ses applications se déclarent au démarrage.",
+      "configure": "Configurer le projet"
     }
   },
   "knowledge": {

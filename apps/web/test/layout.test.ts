@@ -1007,7 +1007,7 @@ describe("the configuration in a browser", () => {
   /** The configuration of the instance, its form read. */
   async function configurationAt(width: number, instance = new ConfiguredInstance()): Promise<Page> {
     const page = await app().open(width, "#/configuration", instance.api);
-    await page.getByRole("heading", { name: "Applications et environnements" }).waitFor();
+    await page.getByRole("heading", { name: "Agents", exact: true }).waitFor();
     return page;
   }
 
@@ -1628,13 +1628,46 @@ describe("the code of the console is covered in full", () => {
     assert.deepEqual(pages!.uncovered, []);
   });
 
+  it("runs every line of the screens of the applications when they are used in the browser", async () => {
+    const instance = new ConfiguredInstance();
+    const [screen] = await app().measure(
+      ["src/applications/applications-page.tsx"],
+      async (page) => {
+        await page.goto("http://console.test/#/applications");
+        // An application is added on a page of its own and saved alone, followed under the identifier it is saved with, then removed.
+        await page.getByRole("link", { name: "Ajouter une application" }).click();
+        await page.getByLabel("Identifiant", { exact: true }).fill("back-office");
+        await page.getByLabel("Nom", { exact: true }).first().fill("Back office");
+        await page.getByLabel("Ce qu’elle expose").selectOption("web");
+        await page.getByRole("button", { name: "Ajouter un environnement" }).click();
+        await page.getByRole("button", { name: "Retirer l’environnement 2 de Back office" }).click();
+        await page.getByRole("button", { name: "Enregistrer" }).click();
+        await page.waitForURL(/#\/applications\/back-office$/);
+        await page.getByLabel("Identifiant", { exact: true }).fill("office");
+        await page.getByRole("button", { name: "Enregistrer" }).click();
+        await page.waitForURL(/#\/applications\/office$/);
+        assert.deepEqual(
+          instance.saved.slice(-2).map(({ document }) => document.applications.at(-1)?.id),
+          ["back-office", "office"],
+        );
+        await page.getByRole("link", { name: "Retirer l’application" }).click();
+        await page.getByRole("button", { name: "Retirer l’application" }).click();
+        await page.waitForURL(/#\/applications$/);
+        assert.equal(instance.saved.at(-1)?.document.applications.length, 1);
+      },
+      instance.api,
+    );
+    assert.ok(screen!.lines.length > 10, "the screen is in the build");
+    assert.deepEqual(screen!.uncovered, []);
+  });
+
   it("runs every line of the screen of the configuration when it is used in the browser", async () => {
     const instance = new ConfiguredInstance();
     const [screen, editor] = await app().measure(
       ["src/configuration/configuration-page.tsx", "src/configuration/use-configuration-editor.ts"],
       async (page) => {
         await page.goto("http://console.test/#/configuration");
-        await page.getByRole("heading", { name: "Applications et environnements" }).waitFor();
+        await page.getByRole("heading", { name: "Agents", exact: true }).waitFor();
         await page.getByText("Avancé", { exact: true }).click();
         await page.getByLabel("Attente d’une réponse, en secondes").fill("90");
         await page.getByRole("button", { name: "Tester la connexion" }).last().click();
@@ -1663,33 +1696,13 @@ describe("the code of the console is covered in full", () => {
         await page.getByRole("status").filter({ hasText: "Les valeurs tapées sont enregistrées sur cet ordinateur." }).waitFor();
         assert.equal(instance.values.get("MODEL_KEY"), "typed-key");
         assert.equal(instance.revisions[0]?.number, 5, "the configuration did not change");
-        // An application is added on a page of its own and saved alone, followed under the identifier it is saved with, then removed.
-        await page.getByRole("link", { name: "Ajouter une application" }).click();
-        await page.getByLabel("Identifiant", { exact: true }).fill("back-office");
-        await page.getByLabel("Nom", { exact: true }).first().fill("Back office");
-        await page.getByLabel("Ce qu’elle expose").selectOption("web");
-        await page.getByRole("button", { name: "Ajouter un environnement" }).click();
-        await page.getByRole("button", { name: "Retirer l’environnement 2 de Back office" }).click();
-        await page.getByRole("button", { name: "Enregistrer" }).click();
-        await page.waitForURL(/#\/configuration\/applications\/back-office$/);
-        await page.getByLabel("Identifiant", { exact: true }).fill("office");
-        await page.getByRole("button", { name: "Enregistrer" }).click();
-        await page.waitForURL(/#\/configuration\/applications\/office$/);
-        assert.deepEqual(
-          instance.saved.slice(-2).map(({ document }) => document.applications.at(-1)?.id),
-          ["back-office", "office"],
-        );
-        await page.getByRole("link", { name: "Retirer l’application" }).click();
-        await page.getByRole("button", { name: "Retirer l’application" }).click();
-        await page.waitForURL(/#\/configuration$/);
-        assert.equal(instance.saved.at(-1)?.document.applications.length, 1);
         // An instance with no configuration yet is set up step by step, then its repository prepared.
         instance.view = { file: "missing" };
         instance.revisions = [];
         instance.fileChanged = false;
         await page.goto("http://console.test/#/agent");
         // The screen of the configuration is left, and its draft with it, before it opens again.
-        await page.getByRole("heading", { name: "Applications et environnements" }).waitFor({ state: "detached" });
+        await page.getByRole("heading", { name: "Agents", exact: true }).waitFor({ state: "detached" });
         await page.goto("http://console.test/#/configuration");
         await page.getByRole("button", { name: "Commencer" }).click();
         for (const step of ["Vos applications", "Ce que les agents peuvent lire", "Le modèle"]) {

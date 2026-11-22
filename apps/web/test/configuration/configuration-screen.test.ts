@@ -4,7 +4,7 @@ import type { ConfigError, OqasConfig } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
 import { ConfigurationScreen, FORM_ID, type ConfigurationControls } from "../../src/configuration/configuration-screen.tsx";
 import { configurationAfter, INITIAL_CONFIGURATION, type ConfigurationAction, type ConfigurationState } from "../../src/configuration/configuration-state.ts";
-import { linksOf, render, textOf } from "../render.ts";
+import { render, textOf } from "../render.ts";
 import { BARE, DOCUMENT, REVISIONS, VIEW } from "./configuration-fixture.ts";
 import { bears } from "./fields.ts";
 
@@ -54,8 +54,9 @@ describe("the screen of the configuration", () => {
     assert.match(html, new RegExp(`<form id="${FORM_ID}" class="config-form" noValidate="">`));
     assert.match(text, /Révision 2 en vigueur Annuler les modifications Enregistrer/);
     assert.match(html, /<button type="submit" form="configuration-form" class="btn primary" disabled="">Enregistrer<\/button>/);
-    for (const heading of ["Applications et environnements", "Agents", "Dépôt de tests", "Historique"])
-      assert.match(html, new RegExp(`<h2 id="[^"]+">${heading}</h2>`));
+    assert.match(text, /Les réglages d’Open QA Stack\. Les applications testées et les connaissances que lisent les agents ont leurs propres écrans\./);
+    assert.doesNotMatch(html, /name="\/(applications|knowledge)\//);
+    for (const heading of ["Agents", "Dépôt de tests", "Historique"]) assert.match(html, new RegExp(`<h2 id="[^"]+">${heading}</h2>`));
     assert.match(text, /Révision 2 Console · .* en vigueur Révision 1 Fichier oqas\.json · /);
     assert.match(text, /Les valeurs tapées ici — clé, chaînes de connexion, mots de passe — restent sur l’ordinateur où tourne l’outil/);
     assert.match(html, /<summary>Voir la configuration en JSON<\/summary><pre class="mono">\{\n {2}&quot;formatVersion&quot;: 1,/);
@@ -91,32 +92,6 @@ describe("the screen of the configuration", () => {
     assert.ok(bears(html, "/autonomy/guardrailMinutes", 'value=""', 'placeholder="120"'));
     assert.doesNotMatch(html, /\/autonomy\/task/);
     for (const level of ["smoke", "functional", "business"]) assert.ok(bears(html, "/design/levels", `data-member="${level}"`, 'checked=""'), level);
-  });
-
-  it("lists the applications of the configuration in force, each leading to its page, and leads to the page that adds one", () => {
-    const html = screen(stateAfter([]));
-    assert.match(
-      textOf(html),
-      /Applications et environnements Shop Interface web et API · 1 environnement · 1 API · 1 compte de test shop Ajouter une application/,
-    );
-    assert.ok(linksOf(html).includes("#/configuration/applications/shop"));
-    assert.ok(linksOf(html).includes("#/configuration/applications?add=application"));
-    assert.doesNotMatch(html, /name="\/applications\//);
-    const bare = textOf(
-      screen(stateAfter([], { ...BARE, applications: [{ ...BARE.applications[0]!, authentication: { method: "none" }, environments: [{ name: "local" }] }] })),
-    );
-    assert.match(bare, /Application 1 Interface web · 1 environnement · aucune API · aucun compte de test/);
-  });
-
-  it("leads to the knowledge, where the sources are declared, and counts them", () => {
-    const html = screen(stateAfter([]));
-    assert.match(textOf(html), /Connaissances 8 sources déclarées : elles se modifient dans Connaissances\. Ouvrir les connaissances/);
-    assert.match(html, /<a class="btn sm" href="#\/knowledge">Ouvrir les connaissances<\/a>/);
-    assert.doesNotMatch(html, /name="\/knowledge\//);
-    assert.match(
-      textOf(screen(stateAfter([], { ...DOCUMENT, knowledge: [] }))),
-      /Aucune source pour l’instant : les sources se déclarent dans Connaissances\./,
-    );
   });
 
   it("says a change is not saved, and lets the person save it or drop it", () => {

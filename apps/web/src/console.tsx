@@ -6,6 +6,7 @@ import type { LiveSession } from "./agent/live-session.ts";
 import { SessionScreen } from "./agent/session-screen.tsx";
 import { CampaignPage } from "./campaigns/campaign-page.tsx";
 import { CampaignsPage } from "./campaigns/campaigns-page.tsx";
+import { ApplicationsPage } from "./applications/applications-page.tsx";
 import { ConfigurationPage } from "./configuration/configuration-page.tsx";
 import { isExecutionPeriod } from "./executions/execution-period.ts";
 import { ExecutionPage } from "./executions/execution-page.tsx";
@@ -53,7 +54,7 @@ export interface ConsoleProps {
  * that says the instance keeps no such session, or that the address leads nowhere.
  */
 type Shown =
-  | { readonly screen: "entry" | "configuration" | "knowledge" | "tests" | "campaigns" | "no_session" | "nowhere" }
+  | { readonly screen: "entry" | "configuration" | "applications" | "knowledge" | "tests" | "campaigns" | "no_session" | "nowhere" }
   | { readonly screen: "campaign"; readonly id: string }
   | { readonly screen: "executions"; readonly filter: ExecutionsFilter; readonly before?: string }
   | { readonly screen: "execution"; readonly id: string }
@@ -130,8 +131,8 @@ function executionsShown(part: string | undefined, query: Route["query"]): Shown
 /** What the console shows: a session once the API told the one the route opens, a wait until it did or said it keeps none. */
 function shownOf({ route, live, missing = false }: ConsoleProps): Shown {
   if (isEntry(route)) return { screen: "entry" };
-  if (route.path[0] === "configuration" && (route.path.length === 1 || (route.path[1] === "applications" && route.path.length <= 3)))
-    return { screen: "configuration" };
+  if (route.path.length === 1 && route.path[0] === "configuration") return { screen: "configuration" };
+  if (route.path[0] === "applications" && route.path.length <= 2) return { screen: "applications" };
   if (route.path[0] === "knowledge" && route.path.length <= 2) return { screen: "knowledge" };
   if (route.path.length === 1 && route.path[0] === "tests") return { screen: "tests" };
   if (route.path.length === 1 && route.path[0] === "campaigns") return { screen: "campaigns" };
@@ -179,7 +180,9 @@ function Screen(props: ConsoleProps): ReactNode {
     case "session":
       return <SessionScreen route={route} live={shown.live} project={name} />;
     case "configuration":
-      return <ConfigurationPage project={name} route={route} {...(onConfigured === undefined ? {} : { onSaved: onConfigured })} />;
+      return <ConfigurationPage project={name} {...(onConfigured === undefined ? {} : { onSaved: onConfigured })} />;
+    case "applications":
+      return <ApplicationsPage project={name} route={route} {...(onConfigured === undefined ? {} : { onSaved: onConfigured })} />;
     case "knowledge":
       return <KnowledgePage project={name} route={route} />;
     case "tests":
