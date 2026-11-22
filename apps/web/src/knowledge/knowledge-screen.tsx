@@ -20,6 +20,9 @@ import { rankIn } from "../configuration/use-item-pages.ts";
 import type { ConfigurationControls } from "../configuration/configuration-screen.tsx";
 import type { ConfigurationState } from "../configuration/configuration-state.ts";
 import { AddSourceButtons, KIND_ICONS, kindOf } from "../configuration/knowledge-card.tsx";
+import { TechnicalDetails } from "../ui/technical-details.tsx";
+import { kindName, sourceName } from "./source-name.ts";
+import { nameIn } from "../applications/application-names.ts";
 import { errorText } from "../configuration/configuration-words.ts";
 import { dateText, sizeText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
@@ -99,13 +102,6 @@ function narrowing({ environment, api }: Attachment): string | undefined {
   return environment === undefined ? undefined : [environment, api].filter((part) => part !== undefined).join(" › ");
 }
 
-/** What a source is, then where it is read from when its kind does not say it. */
-function kindText(source: Knowledge): string {
-  const where = whereOf(source);
-  const kind = t(`configuration.knowledge.kinds.${kindOf(source)}`);
-  return where === undefined ? kind : `${kind} · ${where}`;
-}
-
 /** A source in the list of an application: what it is, where it is read from, how many documents it holds, and its mapping while it is not done. */
 function SourceRow({
   source,
@@ -127,8 +123,8 @@ function SourceRow({
         <Icon name={KIND_ICONS[kindOf(source)]} />
       </span>
       <div className="grow">
-        <span className="knowledge-id">{source.id}</span>
-        <div className="small muted">{kindText(source)}</div>
+        <span className="knowledge-id">{kindName(source)}</span>
+        <div className="small muted">{source.id}</div>
       </div>
       {narrowed !== undefined && <span className="small muted">{narrowed}</span>}
       {documents !== undefined && <Badge tone="outline">{t("knowledge.documentCount", { count: documents.length })}</Badge>}
@@ -417,18 +413,21 @@ function OpenedDocument({ source, name, state }: { readonly source: string; read
 /** The confirmation of the removal of a source the person asked for, with the ways out. */
 function DropConfirmation({
   id,
+  name,
   rank,
   editing,
   controls,
 }: {
   readonly id: string;
+  /** The name of the source, as its page shows it. */
+  readonly name: string;
   readonly rank: number;
   readonly editing: ConfigurationState;
   readonly controls: KnowledgeControls;
 }): ReactNode {
   return (
     <section className="config-note warn knowledge-confirm" aria-labelledby="knowledge-drop-title">
-      <b id="knowledge-drop-title">{t("knowledge.dropTitle", { id })}</b>
+      <b id="knowledge-drop-title">{t("knowledge.dropTitle", { name })}</b>
       <span>{t("knowledge.dropNote")}</span>
       <div className="config-actions">
         <a className="btn" href={hrefTo(sourcePath(id))}>
@@ -454,6 +453,8 @@ function SourceScreen({ project, route, state, editing, controls, id }: Knowledg
       </Page>
     );
   const reading = route.query["document"];
+  const name = sourceName(source, state.configuration!.applications);
+  const where = whereOf(source);
   const rank = rankOf(editing, id);
   const drop =
     rank === undefined ? undefined : (
@@ -462,22 +463,26 @@ function SourceScreen({ project, route, state, editing, controls, id }: Knowledg
       </a>
     );
   return (
-    <Page crumbs={crumbs} title={id} {...(drop === undefined ? {} : { actions: drop })}>
-      {rank !== undefined && route.query["drop"] !== undefined && <DropConfirmation id={id} rank={rank} editing={editing} controls={controls} />}
+    <Page crumbs={crumbs.with(-1, { label: name })} title={name} {...(drop === undefined ? {} : { actions: drop })}>
+      {rank !== undefined && route.query["drop"] !== undefined && <DropConfirmation id={id} name={name} rank={rank} editing={editing} controls={controls} />}
       {rank !== undefined && editing.draft !== undefined ? (
         <SourceEditor state={editing} controls={controls.edit} rank={rank} route={route} />
       ) : (
-        <Card title={kindText(source)}>
+        <Card title={kindName(source)}>
           {isProjectWide(source) && <p className="row">{t("knowledge.project")}</p>}
           {attachmentsOf(source).map((attachment, index) => (
             <div key={index} className="row">
-              <span className="grow">{attachment.application}</span>
+              <span className="grow">{nameIn(state.configuration!.applications, attachment.application)}</span>
               <span className="small muted">{narrowing(attachment) ?? t("knowledge.everywhere")}</span>
             </div>
           ))}
         </Card>
       )}
       <p className="small muted">{isStoredDocuments(source) ? t("knowledge.storedNote") : t("knowledge.readThere")}</p>
+      <TechnicalDetails>
+        <div>{t("knowledge.sourceId", { id })}</div>
+        {where !== undefined && <div className="mono">{t("knowledge.where", { where })}</div>}
+      </TechnicalDetails>
       {isStoredDocuments(source) && <StoredDocuments source={id} route={route} state={state} controls={controls} />}
       {isStoredDocuments(source) && reading !== undefined && <OpenedDocument source={id} name={reading} state={state} />}
     </Page>

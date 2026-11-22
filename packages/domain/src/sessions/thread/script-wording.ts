@@ -11,6 +11,11 @@ export interface ScriptWording {
    */
   readonly phase: (phase: SessionPhase) => string;
   /**
+   * @param level - A level of the pyramid of tests, as a request of the harness names it; a later version may name one this presentation does not know.
+   * @returns How the level reads in the title of the pass of the plan.
+   */
+  readonly level: (level: string) => string;
+  /**
    * @param tool - The name of a tool.
    * @param args - The arguments of its call.
    * @param subject - The test the call is about, when the agent handed the tool the file of one.

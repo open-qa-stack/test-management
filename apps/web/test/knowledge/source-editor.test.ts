@@ -32,7 +32,7 @@ describe("the editor of a source", () => {
   it("shows the source alone in a form of its own, with nothing to save while nothing changed, and no button that removes it", () => {
     const html = editor(0);
     assert.match(html, new RegExp(`^<form id="${ITEM_FORM}" class="config-form" noValidate="">`));
-    assert.match(textOf(html), /^Contrat OpenAPI Identifiant/);
+    assert.match(textOf(html), /^Documentation de l’API Identifiant/);
     assert.match(textOf(html), /Enregistrée$/);
     assert.doesNotMatch(html, /type="submit"/, "nothing to save, no button to save");
     assert.doesNotMatch(html, /data-remove="\/knowledge\/0"/);
@@ -52,7 +52,7 @@ describe("the editor of a source", () => {
     const told = stateAfter([
       { type: "secrets", secrets: [{ name: "SHOP_DB_URL", kind: "connection_string", paths: ["/knowledge/2/connectionStringEnv"], source: "environment" }] },
     ]);
-    assert.match(textOf(editor(2, told)), /vient de la variable SHOP_DB_URL de l’environnement de l’outil/, "the editor tells where the value comes from");
+    assert.match(textOf(editor(2, told)), /vient de l’environnement de l’outil/, "the editor tells where the value comes from");
     assert.ok(bears(editor(3), "/knowledge/3/path", 'value="specs/orders.md"'));
     const stored = editor(4);
     assert.deepEqual(fieldsNamed(stored, "/knowledge/4/path"), []);
@@ -90,10 +90,11 @@ describe("the editor of a source", () => {
     );
     assert.match(
       textOf(html),
-      /Rattachement 1 Application Choisir une application shop Environnement Tous les environnements local API Toutes les API backend Retirer ce rattachement Enregistrée Enregistrée$/,
+      /Rattachement 1 Application Choisir une application Shop Environnement Tous les environnements local API Toutes les API backend Retirer ce rattachement Enregistrée Enregistrée$/,
       "the panel and the page each tell where the change stands",
     );
     assert.match(html, /<option value="backend" selected="">backend<\/option>/);
+    assert.match(html, /<option value="shop" selected="">Shop<\/option>/);
     assert.match(html, /<button type="button" class="btn ghost" data-remove="\/knowledge\/0\/attachments\/0" data-panel="">Retirer ce rattachement<\/button>/);
     assert.doesNotMatch(
       editor(0, stateAfter(), false, "#/knowledge/contract?panel=attachment%3A3"),
@@ -188,7 +189,7 @@ describe("the card of a source of documents the instance keeps", () => {
     const html = render(
       createElement(KnowledgeCard, { source: DOCUMENT.knowledge[0]!, rank: 0, applications: DOCUMENT.applications, onCheck: CONTROLS.checkSource }),
     );
-    assert.match(textOf(html), /Sert à : Shop, local › backend Retirer Application Choisir une application shop/);
+    assert.match(textOf(html), /Sert à : Shop, local › backend Retirer Application Choisir une application Shop/);
     assert.match(html, /aria-label="Retirer le rattachement 1 de contract" data-remove="\/knowledge\/0\/attachments\/0"/);
     assert.match(html, /data-add="\/knowledge\/0\/attachments" data-item="attachment">/);
   });

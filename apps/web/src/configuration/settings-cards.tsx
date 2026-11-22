@@ -3,7 +3,7 @@ import { DEFAULT_LANGUAGE, LANGUAGES, type OqasConfig, type TestLevel } from "@o
 import { LANGUAGE_NAMES, t } from "../i18n/i18n.ts";
 import { Card } from "../ui/card.tsx";
 import { AdvancedFields, CheckField, ChoiceField, InputField, PlaceErrors } from "./configuration-fields.tsx";
-import { LEVELS, levelText } from "./configuration-words.ts";
+import { LEVELS, levelHint, levelName } from "../i18n/vocabulary.ts";
 
 /** The levels a plan is asked for when the configuration names none. */
 const DEFAULT_LEVELS: readonly TestLevel[] = ["smoke", "functional", "business"];
@@ -85,7 +85,15 @@ export function DesignCard({ design }: { readonly design: OqasConfig["design"] }
       <fieldset className="config-body config-group">
         <legend className="sr-only">{t("configuration.settings.design.legend")}</legend>
         {LEVELS.map((level) => (
-          <CheckField key={level} pointer="/design/levels" member={level} defaults={DEFAULT_LEVELS} {...levelText(level)} checked={levels.includes(level)} />
+          <CheckField
+            key={level}
+            pointer="/design/levels"
+            member={level}
+            defaults={DEFAULT_LEVELS}
+            label={levelName(level)}
+            hint={levelHint(level)}
+            checked={levels.includes(level)}
+          />
         ))}
         <PlaceErrors pointer="/design/levels" />
       </fieldset>

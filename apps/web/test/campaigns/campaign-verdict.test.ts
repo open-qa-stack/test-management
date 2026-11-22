@@ -13,8 +13,8 @@ const badge = (counts: CampaignCounts): string => render(createElement(CampaignV
 
 describe("the badge of the verdict of a campaign", () => {
   it("says it passes when each test passed, flaky ones included, and that it does not as soon as one did not pass", () => {
-    assert.equal(badge({ ...NONE, passed: 2, flaky: 1 }), '<span class="badge ok">passe</span>');
-    assert.equal(badge({ ...NONE, passed: 2, not_run: 1 }), '<span class="badge ko">ne passe pas</span>');
+    assert.equal(badge({ ...NONE, passed: 2, flaky: 1 }), '<span class="badge ok">Réussi</span>');
+    assert.equal(badge({ ...NONE, passed: 2, not_run: 1 }), '<span class="badge ko">Échoué</span>');
   });
 
   it("shows nothing for a campaign of no test", () => {

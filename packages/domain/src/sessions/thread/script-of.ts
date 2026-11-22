@@ -146,7 +146,8 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
         break;
       }
       case "harness_message":
-        if (event.level !== undefined && plan !== undefined) steps[plan] = { ...steps[plan]!, title: `${wording.phase("plan")} · ${event.level}` } as Step;
+        if (event.level !== undefined && plan !== undefined)
+          steps[plan] = { ...steps[plan]!, title: `${wording.phase("plan")} · ${wording.level(event.level)}` } as Step;
         steps.push({ kind: "say", from: "harness", to: event.to, at, text: event.text.trim() });
         break;
       case "phase_started":

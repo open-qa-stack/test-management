@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Session, TestVerdict } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
+import { statusCount } from "../i18n/vocabulary.ts";
 
 /** The verdicts of the tests of a session, in the order its bar shows them: what passed first, what was not run last, left empty. */
 const PARTS: readonly TestVerdict[] = ["passed", "skipped", "blocked", "indeterminate", "failed", "not_run"];
@@ -28,7 +29,7 @@ export function SessionBar({ session }: { readonly session: Session }): ReactNod
       </span>
       {troubles.map((verdict) => (
         <span key={verdict} className={`verdict-words ${verdict}`}>
-          {t(`sessionBar.${verdict}`, { count: count(verdict) })}
+          {statusCount(verdict, count(verdict))}
         </span>
       ))}
       {troubles.length === 0 && <span className="verdict-words passed">{t("facts.testsPassed", { passed: count("passed"), count: tests.length })}</span>}

@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import type { RepositoryTest } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../api/polled-state.ts";
 import { t } from "../i18n/i18n.ts";
+import { levelName } from "../i18n/vocabulary.ts";
+import { applicationName } from "../applications/application-names.ts";
 import { Badge } from "../ui/badge.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { facetsOf, filteredTests, testKey, type CompositionFilter } from "./campaign-composition.ts";
@@ -29,12 +31,15 @@ function Criterion({
   values,
   value,
   onChange,
+  name = (option) => option,
 }: {
   readonly label: string;
   readonly every: string;
   readonly values: readonly string[];
   readonly value: string | undefined;
   readonly onChange: (value: string | undefined) => void;
+  /** What names a value for the person; the value itself when nothing does. */
+  readonly name?: (value: string) => string;
 }): ReactNode {
   return (
     <label className="campaign-composer-criterion small">
@@ -43,7 +48,7 @@ function Criterion({
         <option value="">{every}</option>
         {values.map((option) => (
           <option key={option} value={option}>
-            {option}
+            {name(option)}
           </option>
         ))}
       </select>
@@ -53,13 +58,16 @@ function Criterion({
 
 /** A test of the repository, which the person ticks to choose it. */
 function TestRow({ test, ticked, onTick }: { readonly test: RepositoryTest; readonly ticked: boolean; readonly onTick: ComposerProps["onTick"] }): ReactNode {
-  const facets = [test.level, test.domain, ...test.applications].filter((facet) => facet !== undefined);
+  const facets = [
+    ...(test.level === undefined ? [] : [levelName(test.level)]),
+    ...(test.domain === undefined ? [] : [test.domain]),
+    ...test.applications.map(applicationName),
+  ];
   return (
     <label className={ticked ? "row campaign-composer-test ticked" : "row campaign-composer-test"}>
       <input type="checkbox" checked={ticked} onChange={(event) => onTick([testKey(test)], event.currentTarget.checked)} />
       <span className="grow">
-        <b>{test.title}</b>
-        <span className="small muted mono campaign-path">{test.path}</span>
+        <b title={test.path}>{test.title}</b>
         <span className="campaign-composer-facets">
           {facets.map((facet) => (
             <Badge key={facet} tone="outline">
@@ -111,6 +119,7 @@ export function CampaignComposer({ tests, filter, chosen, changed, saving, onFil
           label={t("campaignComposer.level")}
           every={t("campaignComposer.every")}
           values={facets.levels}
+          name={levelName}
           value={filter.level}
           onChange={(level) => set({ level })}
         />
@@ -125,6 +134,7 @@ export function CampaignComposer({ tests, filter, chosen, changed, saving, onFil
           label={t("campaignComposer.application")}
           every={t("campaignComposer.every")}
           values={facets.applications}
+          name={applicationName}
           value={filter.application}
           onChange={(application) => set({ application })}
         />

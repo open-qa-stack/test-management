@@ -1,15 +1,14 @@
 import { scriptOf as scriptIn, type ScriptWording, type Session, type SessionEvent, type SessionScript } from "@open-qa-stack/domain/sessions";
 import { momentText } from "../i18n/formats.ts";
-import { t, type Words } from "../i18n/i18n.ts";
+import { t } from "../i18n/i18n.ts";
+import { levelName, phaseName } from "../i18n/vocabulary.ts";
 import { toolTitle } from "./tool-title.ts";
-
-/** The phases the console words; a later version of the API may name another. */
-const PHASES = new Set(["configuration", "prerequisites", "survey", "card", "consolidation", "index", "plan", "review", "write", "execution", "summary"]);
 
 /** The words of the console for what a thread tells, in its language now; a phase it does not know reads as a step of the work, without more. */
 function wording(): ScriptWording {
   return {
-    phase: (phase) => (PHASES.has(phase) ? t(`steps.phases.${phase as keyof Words["steps"]["phases"]}`) : t("steps.step")),
+    phase: phaseName,
+    level: levelName,
     tool: toolTitle,
     planAccepted: t("steps.planAccepted"),
     scope: t("steps.scope"),

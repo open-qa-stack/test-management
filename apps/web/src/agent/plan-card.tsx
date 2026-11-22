@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import type { PlannedExpect, PlannedScenario, PlanScenario, PlanStep } from "@open-qa-stack/domain/sessions";
 import { Badge } from "../ui/badge.tsx";
 import { t, type Words } from "../i18n/i18n.ts";
+import { levelName } from "../i18n/vocabulary.ts";
+import { applicationName } from "../applications/application-names.ts";
 
 /** A value of a plan, in the words of the console; one it does not know reads as it is. */
 function worded(value: string): string {
@@ -10,18 +12,23 @@ function worded(value: string): string {
 
 /** What a scenario is said to be beside its title: its case and the application it tests. */
 function placeOf(scenario: PlannedScenario): string {
-  return [scenario.case === undefined ? undefined : worded(scenario.case), scenario.application].filter((part) => part !== undefined).join(" · ");
+  return [
+    scenario.case === undefined ? undefined : worded(scenario.case),
+    scenario.application === undefined ? undefined : applicationName(scenario.application),
+  ]
+    .filter((part) => part !== undefined)
+    .join(" · ");
 }
 
 /** The facts of a scenario, each with its label, those the plan does not say left out. */
 function factsOf(scenario: PlannedScenario): (readonly [string, ReactNode])[] {
   const facts: (readonly [string, ReactNode | undefined])[] = [
     [t("plan.facts.id"), <span className="mono">{scenario.id}</span>],
-    [t("plan.facts.level"), scenario.level],
+    [t("plan.facts.level"), levelName(scenario.level)],
     [t("plan.facts.case"), scenario.case === undefined ? undefined : worded(scenario.case)],
     [t("plan.facts.effect"), scenario.effect === undefined ? undefined : worded(scenario.effect)],
     [t("plan.facts.kind"), scenario.kind === undefined ? undefined : worded(scenario.kind)],
-    [t("plan.facts.application"), scenario.application],
+    [t("plan.facts.application"), scenario.application === undefined ? undefined : applicationName(scenario.application)],
     [t("plan.facts.domain"), [scenario.domain, scenario.feature].filter((part) => part !== undefined).join(" · ") || undefined],
     [
       t("plan.facts.sources"),
@@ -92,7 +99,7 @@ function ScenarioCell({ scenario }: { readonly scenario: PlanScenario }): ReactN
   return (
     <details className="scenario">
       <summary className="scenario-head">
-        <Badge tone="neutral">{planned.level}</Badge>
+        <Badge tone="neutral">{levelName(planned.level)}</Badge>
         <span className="result-title">{planned.title}</span>
         {place !== "" && <span className="turn-role">{place}</span>}
         {refusals.length > 0 && <Badge tone="warn">{t("count.refusals", { count: refusals.length })}</Badge>}

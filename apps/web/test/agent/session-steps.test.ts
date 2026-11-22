@@ -56,7 +56,7 @@ describe("the script of a session", () => {
   it("starts a pass at each phase, a plan named after the level its request asks for, the writing of a test as a part", () => {
     assert.deepEqual(passes(script), [
       ["Configuration", "", false],
-      ["Plan · smoke", "", false],
+      ["Plan · Vérification rapide", "", false],
       ["Écriture d’un test", "search", true],
     ]);
     assert.deepEqual(steps[0], { kind: "pass", at: "14:44:06", title: "Configuration", summary: "" });
@@ -169,7 +169,7 @@ describe("the passes of a script", () => {
     ]);
     assert.deepEqual(
       passes(script).map(([title]) => title),
-      ["Plan · smoke", "Plan · functional"],
+      ["Plan · Vérification rapide", "Plan · Fonctionnel"],
     );
   });
 
@@ -183,7 +183,7 @@ describe("the passes of a script", () => {
     ]);
     assert.deepEqual(
       passes(script).map(([title]) => title),
-      ["Plan", "Plan · smoke"],
+      ["Plan", "Plan · Vérification rapide"],
     );
   });
 

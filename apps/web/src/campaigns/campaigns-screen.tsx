@@ -3,6 +3,7 @@ import type { CampaignList, CampaignOverview } from "@open-qa-stack/domain/sessi
 import type { PolledState } from "../api/polled-state.ts";
 import { dateText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
+import { statusCount } from "../i18n/vocabulary.ts";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
 import { CampaignBar, ranOf } from "./campaign-progress.tsx";
@@ -73,7 +74,7 @@ function CampaignRow({ campaign }: { readonly campaign: CampaignOverview }): Rea
         <div className="campaign-row-progress small muted">
           <CampaignBar counts={campaign.counts} />
           {campaign.status === "planned" ? t("campaigns.chosen", { count: total }) : t("campaign.ran", { ran: ranOf(campaign.counts), total })}
-          {campaign.counts.failed > 0 && <span className="verdict-words failed"> · {t("campaign.counts.failed", { count: campaign.counts.failed })}</span>}
+          {campaign.counts.failed > 0 && <span className="verdict-words failed"> · {statusCount("failed", campaign.counts.failed)}</span>}
         </div>
       </div>
       <div className="campaign-row-side">

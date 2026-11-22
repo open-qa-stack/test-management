@@ -60,11 +60,11 @@ describe("the setting up of an instance that has no configuration", () => {
       textOf(render(createElement(FirstUse, { project: "shop-tests", state: begun(DOCUMENT), controls: CONTROLS, step: "applications", ...MOVES }))),
       /Shop · shop Retirer /,
     );
-    assert.match(at("knowledge", begun(DOCUMENT)), /Ce que les agents peuvent lire .* Contrat OpenAPI Retirer Identifiant/);
+    assert.match(at("knowledge", begun(DOCUMENT)), /Ce que les agents peuvent lire .* Documentation de l’API Retirer Identifiant/);
     // A person who is not in IT is offered four kinds: a contract of an API, the code, a database, documents.
     assert.match(
       at("knowledge"),
-      /plus tard\. Contrat OpenAPI La description .* Code source Le code .* Base PostgreSQL La base .* Documents déposés Des fichiers .* Retour Suivant$/,
+      /plus tard\. Documentation de l’API La description .* Code Le code .* Base de données La base .* Documents déposés Des fichiers .* Retour Suivant$/,
     );
     assert.match(at("model"), /Récapitulatif Le modèle avec lequel les agents réfléchissent .* Compte GitHub de cette machine/);
     assert.match(at("model", begun(FIRST_DRAFT, { type: "testing", model: FIRST_DRAFT.model })), /Test en cours…/);

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Trans } from "react-i18next/TransWithoutContext";
 import { elapsedText } from "../i18n/formats.ts";
 import { i18n, t } from "../i18n/i18n.ts";
+import { levelName, statusCount, statusName, type Status } from "../i18n/vocabulary.ts";
 import { hrefTo } from "../routing/route.ts";
 import { Badge } from "../ui/badge.tsx";
 import { Code } from "../ui/code.tsx";
@@ -67,16 +68,18 @@ interface Back {
 }
 
 /** The colour family of each verdict of a test the console words; any other reads as it is. */
-const VERDICTS: Readonly<Record<string, readonly ["ok" | "ko" | "warn", "passed" | "failed" | "blocked"]>> = {
+const VERDICTS: Readonly<Record<string, readonly ["ok" | "ko" | "warn", Status]>> = {
   passed: ["ok", "passed"],
   failed: ["ko", "failed"],
   blocked: ["warn", "blocked"],
+  skipped: ["warn", "skipped"],
+  indeterminate: ["warn", "indeterminate"],
 };
 
 /** How a verdict of a test reads, and its colour family: as the console words it, or as it is. */
 function verdictOf(verdict: string): readonly ["ok" | "ko" | "warn", string] {
   const known = VERDICTS[verdict];
-  return known === undefined ? ["warn", verdict] : [known[0], t(`thread.verdicts.${known[1]}`)];
+  return known === undefined ? ["warn", verdict] : [known[0], statusName(known[1])];
 }
 
 /** A reasoning of an agent: folded to its first line once written, open while it is being written. */
@@ -102,7 +105,7 @@ function Thinking({ step, shown }: { readonly step: SayStep; readonly shown: Sho
 function ActionState({ step, running }: { readonly step: ToolStep; readonly running: boolean }): ReactNode {
   if (running) return <span className="spinner" role="img" aria-label={t("thread.running")} />;
   if (step.outcome === "failed") return <span className="act-state ko" role="img" aria-label={t("thread.failure")} />;
-  if (step.outcome === "passed") return <span className="act-state ok" role="img" aria-label={t("thread.verdicts.passed")} />;
+  if (step.outcome === "passed") return <span className="act-state ok" role="img" aria-label={statusName("passed")} />;
   return <span className="act-state" aria-hidden="true" />;
 }
 
@@ -369,8 +372,8 @@ function tallyOf(step: OutcomeStep): string {
   const failed = step.tests.filter(({ verdict }) => verdict === "failed").length;
   const other = step.tests.length - passed - failed;
   return [
-    ...(passed === 0 ? [] : [t("thread.passedCount", { count: passed })]),
-    ...(failed === 0 ? [] : [t("thread.failedCount", { count: failed })]),
+    ...(passed === 0 ? [] : [statusCount("passed", passed)]),
+    ...(failed === 0 ? [] : [statusCount("failed", failed)]),
     ...(other === 0 ? [] : [t("thread.otherCount", { count: other })]),
   ].join(" · ");
 }
@@ -403,7 +406,7 @@ function Outcome({ step }: { readonly step: OutcomeStep }): ReactNode {
           <div key={index} className="result-row">
             <Badge tone={tone}>{label}</Badge>
             <span className="result-title">{test.title}</span>
-            {test.note === undefined ? <span className="turn-role">{test.level}</span> : <TestNote note={test.note} />}
+            {test.note === undefined ? <span className="turn-role">{levelName(test.level)}</span> : <TestNote note={test.note} />}
           </div>
         );
       })}

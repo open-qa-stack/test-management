@@ -5,6 +5,7 @@ import type { RepositoryTest, TestExecution, TestVersion } from "@open-qa-stack/
 import type { PolledState } from "../../src/api/polled-state.ts";
 import { HISTORY_SIZE, TestScreen } from "../../src/tests/test-screen.tsx";
 import { at, linksOf, render, textOf } from "../render.ts";
+import { nameApplications } from "../../src/applications/application-names.ts";
 import { DETAIL, HANDMADE, SOURCE, TESTS } from "./tests-fixture.ts";
 
 /** What came of the test of the policies in an execution, at an hour of the morning. */
@@ -63,21 +64,23 @@ describe("the card of a test", () => {
   it("says it reads the test until the instance told both the tests and its executions, and why it could not", () => {
     assert.equal(
       textOf(screen({}, {})),
-      `lakeside-tests / Tests / ${DETAIL.path} ${DETAIL.path} ${DETAIL.path} Lecture du test Il apparaît dès que l’instance a répondu.`,
+      `lakeside-tests / Tests / ${DETAIL.path} ${DETAIL.path} Lecture du test Il apparaît dès que l’instance a répondu. Détails techniques ${DETAIL.path}`,
     );
-    assert.match(textOf(screen({}, { unread: "L’instance ne répond pas." })), /Lecture du test L’instance ne répond pas\.$/);
-    assert.match(textOf(screen({ unread: "Down." })), /Lecture du test Down\.$/);
+    assert.match(textOf(screen({}, { unread: "L’instance ne répond pas." })), /Lecture du test L’instance ne répond pas\. Détails techniques /);
+    assert.match(textOf(screen({ unread: "Down." })), /Lecture du test Down\. Détails techniques /);
   });
 
-  it("says what the test is, by its tags and its steps as written, and that it never ran", () => {
+  it("says what the test is, by its tags and its steps as written, and that it never ran, its file under its technical details", () => {
+    nameApplications([{ id: "policy-management", name: "Policy Management" }]);
     const text = textOf(screen({ value: [] }));
+    nameApplications([]);
     assert.match(
       text,
-      /^lakeside-tests \/ Tests \/ Display the detail of a policy Display the detail of a policy apps\/\S+ Modifier le titre Fonctionnel policies › policy-detail policy-management /,
+      /^lakeside-tests \/ Tests \/ Display the detail of a policy Display the detail of a policy Modifier le titre Fonctionnel policies › policy-detail Policy Management /,
     );
     assert.match(
       text,
-      /Pas encore exécuté Ses exécutions apparaissent ici dès qu’une session de l’agent, ou une exécution, l’a joué\. Étapes · 2 étapes, telles qu’écrites 1\. Open the policy of the customer Modifier 2\. Read its amounts Modifier Code · Le fichier tel qu’il est dans le dépôt de tests\. Voir le code du test Lecture du fichier…$/,
+      /Pas encore exécuté Ses exécutions apparaissent ici dès qu’une session de l’agent, ou une exécution, l’a joué\. Étapes · 2 étapes, telles qu’écrites 1\. Open the policy of the customer Modifier 2\. Read its amounts Modifier Code · Le fichier tel qu’il est dans le dépôt de tests\. Voir le code du test Lecture du fichier… Détails techniques apps\/policy-management\/\S+\.spec\.ts$/,
     );
     assert.match(textOf(screen({ value: [] }, { value: TESTS }, HANDMADE.path)), /Étapes · 0 étape, telle qu’écrite Le fichier ne déclare aucune étape\. Code/);
   });
@@ -85,15 +88,20 @@ describe("the card of a test", () => {
   it("says what came of it lately, then lists its executions, each leading to what came of it there", () => {
     const html = screen({ value: EXECUTIONS });
     const text = textOf(html);
-    assert.match(text, / En échec (Dernière exécution le \d+ nov\. 2026, \d\d:\d\d) 2 réussites sur les 3 dernières exécutions Voir le dernier résultat → /);
+    assert.match(text, / Échoué (Dernière exécution le \d+ nov\. 2026, \d\d:\d\d) 2 réussites sur les 3 dernières exécutions Voir le dernier résultat → /);
     assert.match(
       text,
-      /Exécutions · 3 exécutions, la plus récente d’abord En échec \d+ nov\. 2026, \d\d:\d\d conception · v3 · non commitée, sur 4f2a9c0 2 s Instable \d+ nov\. 2026, \d\d:\d\d conception · v2 · 4f2a9c0 2 s Réussi \d+ nov\. 2026, \d\d:\d\d · Policies › Edit a policy conception · — 2 s Code · /,
+      /Exécutions · 3 exécutions, la plus récente d’abord Échoué \d+ nov\. 2026, \d\d:\d\d Session de l’agent · v3 · Version de travail 2 s Instable \d+ nov\. 2026, \d\d:\d\d Session de l’agent · v2 2 s Réussi \d+ nov\. 2026, \d\d:\d\d · Policies › Edit a policy Session de l’agent 2 s Code · /,
     );
+    // The commit a version ran at is told to the reader who looks for it, never shown.
+    assert.match(html, /<span title="4f2a9c0">v2<\/span>/);
+    const uncommitted = { ...ran("e4", 8, "passed"), result: { ...ran("e4", 8, "passed").result, version: 1 } };
+    assert.match(screen({ value: [uncommitted] }), /<span>v1<\/span>/, "a version run at no commit names none");
+    assert.doesNotMatch(text, /4f2a9c0/);
     // The dots tell the latest executions, the oldest on the left.
     assert.match(
       html,
-      /<span class="test-dots" role="img" aria-label="Les dernières exécutions, la plus ancienne à gauche"><span class="test-dot passed" title="Réussi"><\/span><span class="test-dot flaky" title="Instable"><\/span><span class="test-dot failed" title="En échec"><\/span><\/span>/,
+      /<span class="test-dots" role="img" aria-label="Les dernières exécutions, la plus ancienne à gauche"><span class="test-dot passed" title="Réussi"><\/span><span class="test-dot flaky" title="Instable"><\/span><span class="test-dot failed" title="Échoué"><\/span><\/span>/,
     );
     const result = (id: string) => `#/executions/result?id=${id}&path=${encodeURIComponent(DETAIL.path)}`;
     const panel = (name: string) => `#/tests/view?panel=${encodeURIComponent(name)}`;
@@ -124,9 +132,10 @@ describe("the card of a test", () => {
     const html = screen({ value: EXECUTIONS }, { value: TESTS }, DETAIL.path, { value: versions });
     assert.match(
       textOf(html),
-      /Versions · 3 versions, la plus récente d’abord Version 3 Depuis le \d+ nov\. 2026, \d\d:\d\d · 1 exécution Non commitée Version 2 Depuis le \d+ nov\. 2026, \d\d:\d\d · 2 exécutions 4f2a9c0 Version 1 · Policies › Edit a policy Depuis le \d+ nov\. 2026, \d\d:\d\d · 1 exécution Non commitée Exécutions/,
+      /Versions · 3 versions, la plus récente d’abord Version 3 Depuis le \d+ nov\. 2026, \d\d:\d\d · 1 exécution Version de travail Version 2 Depuis le \d+ nov\. 2026, \d\d:\d\d · 2 exécutions Version 1 · Policies › Edit a policy Depuis le \d+ nov\. 2026, \d\d:\d\d · 1 exécution Version de travail Exécutions/,
     );
-    assert.match(html, /<span title="Jouée seulement avant d’être commitée, comme pendant une conception\.">/);
+    assert.match(html, /<b title="4f2a9c0">Version 2<\/b>/);
+    assert.match(html, /<span title="Jouée avant d’être enregistrée dans le dépôt de tests, comme pendant une conception\.">/);
     assert.doesNotMatch(textOf(screen({ value: EXECUTIONS }, { value: TESTS }, DETAIL.path, { value: [] })), /Versions/);
   });
 
@@ -134,12 +143,18 @@ describe("the card of a test", () => {
     const shown = screen({ value: [] }, { value: TESTS }, DETAIL.path, {}, { source: { value: SOURCE } });
     assert.match(shown, /<details class="test-code"><summary class="row">Voir le code du test<\/summary><pre class="test-code-lines code mono">/);
     assert.match(textOf(shown), /await test\.step\("2\. Read its amounts", async \(\) => \{/);
-    assert.match(textOf(screen({ value: [] }, { value: TESTS }, DETAIL.path, {}, { source: { unread: "Down." } })), /Voir le code du test Down\.$/);
+    assert.match(
+      textOf(screen({ value: [] }, { value: TESTS }, DETAIL.path, {}, { source: { unread: "Down." } })),
+      /Voir le code du test Down\. Détails techniques /,
+    );
   });
 
   it("opens the panel the route names, over the card", () => {
     const titled = screen({ value: [] }, { value: TESTS }, DETAIL.path, {}, { hash: "#/tests/view?panel=title" });
-    assert.match(textOf(titled), /Titre du test Titre Ce que le test vérifie, en une phrase\. .* Display the detail of a policy .* Annuler Enregistrer$/);
+    assert.match(
+      textOf(titled),
+      /Titre du test Titre Ce que le test vérifie, en une phrase\. .* Display the detail of a policy .* Annuler Enregistrer Détails techniques /,
+    );
     assert.doesNotMatch(screen({ value: [] }), /<dialog/);
   });
 });

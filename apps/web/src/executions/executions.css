@@ -15,8 +15,7 @@
 .exec-head,
 .exec-origin,
 .exec-content,
-.exec-duration,
-.exec-version {
+.exec-duration {
   display: none;
 }
 
@@ -185,13 +184,12 @@
 
 @media (min-width: 960px) {
   .exec-line {
-    grid-template-columns: var(--space-6) 11em 8em minmax(0, 1fr) 14em 6em 6em;
+    grid-template-columns: var(--space-6) 11em 11em minmax(0, 1fr) 14em 6em;
   }
 
   .exec-origin,
   .exec-content,
-  .exec-duration,
-  .exec-version {
+  .exec-duration {
     display: block;
   }
 

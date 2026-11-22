@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { ExecutionResult, ExecutionVerdict } from "@open-qa-stack/domain/sessions";
-import { t } from "../i18n/i18n.ts";
+import { statusCount, statusName } from "../i18n/vocabulary.ts";
 import { Badge, type BadgeTone } from "../ui/badge.tsx";
 
 /** The verdicts, in the order a summary counts them, each with the tone of its badge. */
@@ -21,7 +21,7 @@ const toneOf = (verdict: ExecutionVerdict): BadgeTone => VERDICTS.find(([known])
  * @returns The badge.
  */
 export function VerdictBadge({ verdict }: { readonly verdict: ExecutionVerdict }): ReactNode {
-  return <Badge tone={toneOf(verdict)}>{t(`executions.verdicts.${verdict}`)}</Badge>;
+  return <Badge tone={toneOf(verdict)}>{statusName(verdict)}</Badge>;
 }
 
 /**
@@ -35,7 +35,7 @@ export function VerdictCounts({ results }: { readonly results: readonly Executio
     .filter(([, , count]) => count > 0)
     .map(([verdict, tone, count]) => (
       <Badge key={verdict} tone={tone}>
-        {t(`executions.counts.${verdict}`, { count })}
+        {statusCount(verdict, count)}
       </Badge>
     ));
 }
@@ -75,7 +75,7 @@ export function VerdictBar({ results }: { readonly results: readonly ExecutionRe
       </span>
       {words.map((verdict) => (
         <span key={verdict} className={`verdict-words ${verdict}`}>
-          {t(`executions.counts.${verdict}`, { count: count(verdict) })}
+          {statusCount(verdict, count(verdict))}
         </span>
       ))}
     </>

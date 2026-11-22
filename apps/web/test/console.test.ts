@@ -127,7 +127,7 @@ describe("the console", () => {
         project: { name: "lakeside-tests", applications: [] },
         ...(sessions === undefined ? {} : { sessions }),
       });
-      assert.match(pageOf(html), /^lakeside-tests \/ Agent \/ Session du 15 nov\. Session du 15 nov\. en direct/);
+      assert.match(pageOf(html), /^lakeside-tests \/ Agent \/ Session du 15 nov\. Session du 15 nov\. En direct/);
       assert.match(html, /<section class="thread" aria-label="Fil de la session">/);
     }
     assert.match(pageOf(consoleAt(`${SESSION}?show=talk`, { live: liveOf(COMPLETED) })), /^Projet \/ Agent \/ Session du 15 nov\. /);
