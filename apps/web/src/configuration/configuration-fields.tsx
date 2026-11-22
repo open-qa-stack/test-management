@@ -185,7 +185,7 @@ export function PlaceErrors({ pointer }: { readonly pointer: string }): ReactNod
 /**
  * A button that adds an item to a list of the draft.
  *
- * @param props - Where the list is, the kind of item, what the button shows, how it looks and its name.
+ * @param props - Where the list is, the kind of item, what the button shows, how it looks, its name, and the panel it opens.
  * @returns The button.
  */
 export function AddButton({
@@ -194,6 +194,7 @@ export function AddButton({
   children,
   className = "btn sm",
   label,
+  panel,
 }: {
   readonly pointer: string;
   readonly item: NewItem;
@@ -202,10 +203,12 @@ export function AddButton({
   readonly className?: string;
   /** The name of the button, when what it shows says more than its name. */
   readonly label?: string;
+  /** The panel that opens on the item added, on a page that changes its items in panels. */
+  readonly panel?: string;
 }): ReactNode {
   const { click } = useContext(EditContext);
   return (
-    <button type="button" className={className} data-add={pointer} data-item={item} onClick={click} aria-label={label}>
+    <button type="button" className={className} data-add={pointer} data-item={item} data-panel={panel} onClick={click} aria-label={label}>
       {children}
     </button>
   );
@@ -214,12 +217,16 @@ export function AddButton({
 /**
  * A button that removes an item of a list of the draft.
  *
- * @param props - The item, and what the button names.
+ * @param props - The item, what the button names, and whether it is in the panel of the item, which it then closes.
  * @returns The button.
  */
-export function RemoveButton({ pointer, label }: { readonly pointer: string; readonly label: string }): ReactNode {
+export function RemoveButton({ pointer, label, closes = false }: { readonly pointer: string; readonly label: string; readonly closes?: boolean }): ReactNode {
   const { click } = useContext(EditContext);
-  return (
+  return closes ? (
+    <button type="button" className="btn ghost" data-remove={pointer} data-panel="" onClick={click}>
+      {label}
+    </button>
+  ) : (
     <button type="button" className="btn sm ghost" aria-label={label} data-remove={pointer} onClick={click}>
       {t("configuration.remove")}
     </button>

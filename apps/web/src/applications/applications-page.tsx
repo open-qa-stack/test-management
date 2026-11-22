@@ -1,8 +1,8 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { NEW_ITEMS } from "../configuration/configuration-edit.ts";
 import { useConfigurationEditor } from "../configuration/use-configuration-editor.ts";
 import { useItemPages, type ItemList } from "../configuration/use-item-pages.ts";
-import type { Route } from "../routing/route.ts";
+import { withPanel, type Route } from "../routing/route.ts";
 import { APPLICATIONS, applicationPath, applicationsOf } from "./application-paths.ts";
 import { ApplicationsScreen } from "./applications-screen.tsx";
 
@@ -37,12 +37,34 @@ export function ApplicationsPage({ project, route, onSaved }: { readonly project
   useEffect(() => {
     if (adding && inForce !== undefined && !added) dispatch({ type: "add", pointer: "/applications", item: NEW_ITEMS.application });
   }, [dispatch, adding, inForce, added]);
+  // A test account or an environment is changed in a panel: a button that adds or removes one opens or closes it,
+  // and the panel closes once the change is saved, or dropped.
+  const panel = route.query["panel"];
+  const lastSaved = useRef(saved);
+  useEffect(() => {
+    if (saved === lastSaved.current) return;
+    lastSaved.current = saved;
+    // The page of an application added moves to the application saved: no panel to close there.
+    if (panel !== undefined && id !== undefined) window.location.hash = withPanel(route);
+  }, [saved, panel, id, route]);
+  const edit = {
+    ...controls,
+    click: (event: Parameters<typeof controls.click>[0]) => {
+      controls.click(event);
+      const opened = event.currentTarget.dataset["panel"];
+      if (opened !== undefined) window.location.hash = withPanel(route, opened === "" ? undefined : opened);
+    },
+    discard: (event: Parameters<typeof controls.discard>[0]) => {
+      controls.discard(event);
+      if (panel !== undefined) window.location.hash = withPanel(route);
+    },
+  };
   return (
     <ApplicationsScreen
       project={project}
       route={route}
       state={state}
-      controls={{ edit: controls, drop: ({ currentTarget }) => drop(Number(currentTarget.dataset["rank"])) }}
+      controls={{ edit, drop: ({ currentTarget }) => drop(Number(currentTarget.dataset["rank"])) }}
     />
   );
 }

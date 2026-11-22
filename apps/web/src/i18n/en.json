@@ -1,4 +1,7 @@
 {
+  "panel": {
+    "close": "Close"
+  },
   "shell": {
     "offline": "Offline",
     "offlineDetail": "— the instance no longer answers; the page picks up by itself once it is back",
@@ -580,7 +583,17 @@
       "usernameEnv": "Variable of the user name",
       "passwordEnv": "Variable of the password",
       "addAccount": "Add an account",
-      "addEnvironment": "Add an environment"
+      "addEnvironment": "Add an environment",
+      "edit": "Change",
+      "editPart": "Change {{name}}",
+      "toFix": "To correct",
+      "noAccount": "No test account yet.",
+      "environments": "Environments",
+      "apiCount_zero": "no API",
+      "apiCount_one": "{{count}} API",
+      "apiCount_other": "{{count}} APIs",
+      "removeAccount": "Remove this account",
+      "removeEnvironment": "Remove this environment"
     },
     "knowledge": {
       "kinds": {

@@ -1683,8 +1683,8 @@ describe("the code of the console is covered in full", () => {
 
   it("runs every line of the screens of the applications when they are used in the browser", async () => {
     const instance = new ConfiguredInstance();
-    const [screen] = await app().measure(
-      ["src/applications/applications-page.tsx"],
+    const [screen, panel] = await app().measure(
+      ["src/applications/applications-page.tsx", "src/ui/side-panel.tsx"],
       async (page) => {
         await page.goto("http://console.test/#/applications");
         // An application is added on a page of its own and saved alone, followed under the identifier it is saved with, then removed.
@@ -1692,18 +1692,37 @@ describe("the code of the console is covered in full", () => {
         // The identifier of an application added follows its name.
         await page.getByLabel("Nom", { exact: true }).first().fill("Back office");
         await page.getByLabel("Ce qu’elle expose").selectOption("web");
+        // An environment is added in a panel, which its removal closes; Escape closes the panel of another.
+        const dialog = page.getByRole("dialog");
         await page.getByRole("button", { name: "Ajouter un environnement" }).click();
-        await page.getByRole("button", { name: "Retirer l’environnement 2 de Back office" }).click();
+        await page.waitForURL(/#\/applications\?add=application&panel=environment%3A1$/);
+        await dialog.getByRole("button", { name: "Retirer cet environnement" }).click();
+        await dialog.waitFor({ state: "detached" });
+        await page.getByRole("link", { name: "Modifier Environnement 1" }).click();
+        await dialog.getByLabel("Nom", { exact: true }).waitFor();
+        await page.keyboard.press("Escape");
+        await page.waitForURL(/#\/applications\?add=application$/);
+        await dialog.waitFor({ state: "detached" });
         await page.getByRole("button", { name: "Enregistrer" }).click();
         await page.waitForURL(/#\/applications\/back-office$/);
+        // A test account added and then dropped closes its panel; one saved from its panel closes it too.
+        await page.getByRole("button", { name: "Ajouter un compte" }).click();
+        await dialog.getByLabel("Nom du compte").fill("tester");
+        await dialog.getByRole("button", { name: "Annuler les modifications" }).click();
+        await dialog.waitFor({ state: "detached" });
+        await page.getByRole("button", { name: "Ajouter un compte" }).click();
+        await dialog.getByLabel("Nom du compte").fill("tester");
+        await dialog.getByRole("button", { name: "Enregistrer" }).click();
+        await dialog.waitFor({ state: "detached" });
+        await page.getByRole("link", { name: "Modifier tester" }).waitFor();
         // The identifier of an application in force is set under « Avancé ».
         await page.getByText("Avancé", { exact: true }).first().click();
         await page.getByLabel("Identifiant", { exact: true }).fill("office");
         await page.getByRole("button", { name: "Enregistrer" }).click();
         await page.waitForURL(/#\/applications\/office$/);
         assert.deepEqual(
-          instance.saved.slice(-2).map(({ document }) => document.applications.at(-1)?.id),
-          ["back-office", "office"],
+          instance.saved.slice(-3).map(({ document }) => document.applications.at(-1)?.id),
+          ["back-office", "back-office", "office"],
         );
         await page.getByRole("link", { name: "Retirer l’application" }).click();
         await page.getByRole("button", { name: "Retirer l’application" }).click();
@@ -1714,6 +1733,7 @@ describe("the code of the console is covered in full", () => {
     );
     assert.ok(screen!.lines.length > 10, "the screen is in the build");
     assert.deepEqual(screen!.uncovered, []);
+    assert.deepEqual(panel!.uncovered, []);
   });
 
   it("runs every line of the screen of the configuration when it is used in the browser", async () => {

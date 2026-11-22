@@ -56,6 +56,8 @@
   --focus-ring: rgba(36, 88, 214, 0.35);
   --shadow-soft: rgba(22, 53, 127, 0.06);
   --shadow-deep: rgba(22, 53, 127, 0.12);
+  /* The veil over a page a panel covers. */
+  --veil: rgba(16, 24, 40, 0.32);
 
   /* The one scale of every margin, padding, gap and offset, on a grid of 4 px, where a step is named after its count of 4 px. */
   --space-1: 4px;
