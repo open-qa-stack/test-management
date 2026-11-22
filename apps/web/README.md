@@ -26,7 +26,7 @@ The console reaches its instance under `/api`, on its own origin, where the API 
 | `src/routing/`                | The route, read from the fragment of the address (`#/agent/sessions/<session>?show=talk`).                                            |
 | `src/api/`                    | The client of the API, the one error every screen shows and its wordings, the poll of a call, the stream of a session, whether a session ended. |
 | `src/i18n/`                   | The words of the console in each language the configuration names, read by i18next, and how it writes a duration and a date by `Intl`. |
-| `src/shell/`                  | The frame of every screen: the top bar and the navigation, beside the mark on a narrow screen, a sidebar from 1100 px wide that folds to its icons. |
+| `src/shell/`                  | The frame of every screen: on a phone, a bar of the navigation alone, each entry an icon a finger presses; from 720 px, the mark before it; a sidebar from 1100 px wide that folds to its icons. |
 | `src/ui/`                     | The components every screen shares, and their style sheet.                                                                            |
 | `src/configuration/`          | The configuration: its form, the state of a draft and what keeps it in step with the instance, the words of the errors of its schema. |
 | `src/agent/`                  | The sessions: the words of the console for the steps of a thread, which `@open-qa-stack/domain/sessions` reads from the events of a session for every presentation, how a session is followed or replayed, its thread, and the panel of a look. |
@@ -71,6 +71,10 @@ Every failure of the API is an `ApiError` with the `code` of the problem the API
 **The values of the variables** — the key of the model, a connection string, an account of the tests — are typed beside the variable that names them (`SecretField` of `src/configuration/configuration-fields.tsx`), never in the draft: the screen keeps them apart, and « Save » sends them once the configuration that names them is saved, one `PUT /secrets/{name}` each, or alone when the configuration did not change; a value typed for a variable the environment of the instance sets is left out, since the environment wins. The screen reads where each value comes from with the configuration (`GET /secrets`): a value saved is offered to be replaced, never shown; a variable the environment of the instance sets is not asked for. The test of the connection to the model sends the key typed and not saved yet.
 
 The state of the screen is a reducer of its own, `src/configuration/configuration-state.ts`, and `src/configuration/configuration-sync.ts` keeps it in step with the instance, reading the configuration and its revisions every two seconds. Its fields are named after the JSON Pointer of what they hold, which the reducer changes and the errors of the instance name; `src/configuration/use-configuration-editor.ts` holds that state in a browser, as `src/app.tsx` does for the sessions, for `src/configuration/configuration-page.tsx` and the screens of the knowledge; both are measured there.
+
+### The discovery
+
+`#/discovery` shows what the cartography found in the knowledge (`GET /knowledge/mapping`, `GET /knowledge/domains`), read again every few seconds: each source and where its cartography stands, when the knowledge was put together by domain, then the domains, each with what it covers, to pick. « Write the tests of these domains » opens a session kept to the domains picked (`POST /sessions` with `scope.domains`), whose request names them, and the console then shows it; a refusal of the instance stands under the domains. Before a cartography, the screen says no domain was found yet, and leads to the knowledge. `src/discovery/discovery-page.tsx` holds the screen in a browser, and is measured there.
 
 ### The applications
 

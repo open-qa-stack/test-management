@@ -86,15 +86,14 @@ async function settled(element: Locator): Promise<void> {
 }
 
 describe("the shell on a narrow and on a wide screen", () => {
-  it("keeps the navigation within reach on a phone, beside the mark, without what is coming", async () => {
+  it("keeps every entry of the navigation within reach on a phone, the mark left out, without what is coming", async () => {
     const page = await app().open(390, "#/nowhere", new PlayedInstance().api);
     try {
-      const bar = await page.locator(".top").boundingBox();
+      assert.equal(await page.locator(".top").isVisible(), false, "the agent leads home, as the mark does");
+      const links = page.getByRole("navigation", { name: "Navigation principale" }).getByRole("link");
+      for (const box of await links.evaluateAll((all) => all.map((link) => link.getBoundingClientRect().toJSON() as DOMRect)))
+        assert.ok(box.x >= 0 && box.x + box.width <= 390 && box.y < 80, `${box.x}: every entry stands whole in the top bar`);
       const entry = page.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name: "Agent" });
-      const box = await entry.boundingBox();
-      assert.ok(bar !== null && box !== null);
-      assert.ok(box.x >= bar.x + bar.width && box.x + box.width <= 390, "the entry stands beside the mark, in the window");
-      assert.ok(box.y >= bar.y && box.y + box.height <= bar.y + bar.height, "the entry stands in the top bar");
       assert.equal(await page.getByText("bientôt").first().isVisible(), false);
       assert.equal(await page.getByText("lakeside · projet").isVisible(), false);
       await entry.click();
@@ -126,7 +125,7 @@ describe("the shell on a narrow and on a wide screen", () => {
       assert.equal(sidebar.x, 0);
       assert.equal(sidebar.y, bar.y + bar.height);
       assert.equal(bar.width, 1100);
-      assert.equal(await page.getByText("bientôt").count(), 4);
+      assert.equal(await page.getByText("bientôt").count(), 3);
       assert.equal(await page.getByText("bientôt").first().isVisible(), true);
       await page.getByText("1 application · projet").waitFor();
     } finally {
@@ -1249,6 +1248,39 @@ describe("the code of the console is covered in full", () => {
     assert.deepEqual(main!.uncovered, []);
     assert.ok(application!.lines.length > 20, "the application is in the build");
     assert.deepEqual(application!.uncovered, []);
+  });
+
+  it("runs every line of the screen of the discovery when it is used in the browser, and opens the session kept to the domains picked", async () => {
+    const instance = new PlayedInstance();
+    const [screen] = await app().measure(
+      ["src/discovery/discovery-page.tsx"],
+      async (page) => {
+        // An instance that does not answer is said so; before a cartography, it names no domain.
+        instance.down = true;
+        await page.goto("http://console.test/#/discovery");
+        await page.getByRole("status").filter({ hasText: "L’instance ne répond pas" }).waitFor();
+        instance.down = false;
+        await page.getByText("Aucun domaine pour l’instant").waitFor({ timeout: 15_000 });
+        instance.domains = [
+          { id: "quotes", label: "Devis", description: "Les demandes de devis." },
+          { id: "policies", label: "Polices", description: "Les contrats." },
+        ];
+        await page.getByRole("checkbox", { name: /^Devis/ }).check({ timeout: 15_000 });
+        await page.getByRole("checkbox", { name: /^Polices/ }).check();
+        await page.getByRole("checkbox", { name: /^Polices/ }).uncheck();
+        // A session the instance refuses says why, and the person may ask again.
+        instance.refusal = "error";
+        await page.getByRole("button", { name: "Générer les tests de ce domaine" }).click();
+        await page.getByRole("alert").filter({ hasText: "The API refuses in its own words." }).waitFor();
+        instance.refusal = undefined;
+        await page.getByRole("button", { name: "Générer les tests de ce domaine" }).click();
+        await page.waitForURL(/#\/agent\/sessions\//);
+        assert.deepEqual(instance.asked.at(-1), { request: "Écris les tests des domaines : Devis.", scope: { domains: ["quotes"] } });
+      },
+      instance.api,
+    );
+    assert.ok(screen!.lines.length > 10, "the screen is in the build");
+    assert.deepEqual(screen!.uncovered, []);
   });
 
   it("runs every line of the scope of a session when it is chosen in the browser, and opens the session kept to it", async () => {

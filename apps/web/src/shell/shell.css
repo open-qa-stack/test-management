@@ -1,6 +1,6 @@
 /*
- * The frame of every screen. On a phone it is one bar — the mark, then the navigation, which scrolls sideways
- * and keeps to the screens that exist — over the page. From 1100 px the navigation stands at the left of the
+ * The frame of every screen. On a phone it is one bar — the navigation, which keeps to the screens that exist, the
+ * agent first, which leads home as the brand does — over the page. From 720 px the brand stands before it. From 1100 px the navigation stands at the left of the
  * page, with the project and what is coming.
  */
 .shell {
@@ -44,7 +44,8 @@
 
 .top {
   grid-area: 2 / 1;
-  display: flex;
+  /* On a phone every entry of the navigation takes the width of the bar: the brand waits for a wider screen. */
+  display: none;
   align-items: center;
   gap: var(--space-3);
   min-height: var(--bar);
@@ -169,10 +170,11 @@
   flex: none;
 }
 
-/* On a phone the bar holds an icon for each entry, which its label names to a screen reader: none is cut. */
+/* On a phone the bar holds an icon for each entry, which its label names to a screen reader: none is cut, each as wide as a finger and no wider. */
 .nav a {
   justify-content: center;
   min-width: var(--control);
+  padding: 0;
 }
 
 .nav-label {
@@ -279,6 +281,14 @@
 }
 
 @media (min-width: 720px) {
+  .top {
+    display: flex;
+  }
+
+  .nav a {
+    padding: 0 var(--space-3);
+  }
+
   .brand span {
     position: static;
     width: auto;

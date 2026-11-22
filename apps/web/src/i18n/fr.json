@@ -46,7 +46,8 @@
       "trace": "Trace d’un test",
       "campaigns": "Campagnes",
       "campaign": "Campagne",
-      "applications": "Applications"
+      "applications": "Applications",
+      "discovery": "Découverte"
     },
     "opening": {
       "title": "Lecture de la session",
@@ -1162,5 +1163,24 @@
       "toCommit": "La configuration et le projet Playwright sont écrits : enregistrez-les dans git (commit) avant la première session.",
       "agent": "Demander des tests à l’agent"
     }
+  },
+  "discovery": {
+    "title": "Découverte",
+    "reading": "Lecture de la cartographie",
+    "readingNote": "Elle apparaît dès que l’instance a répondu.",
+    "lead": "Ce que la cartographie a trouvé dans vos connaissances. Choisissez des domaines : les agents en écrivent les tests.",
+    "sources": "Sources",
+    "noSource": "Aucune source n’est déclarée",
+    "domains": "Domaines",
+    "domainsHint_one": "{{count}} trouvé",
+    "domainsHint_other": "{{count}} trouvés",
+    "noDomain": "Aucun domaine pour l’instant",
+    "noDomainNote": "Les domaines apparaissent quand la cartographie a lu vos sources et les a mises en commun.",
+    "openKnowledge": "Ouvrir les connaissances",
+    "generate_zero": "Choisissez des domaines",
+    "generate_one": "Générer les tests de ce domaine",
+    "generate_other": "Générer les tests de ces {{count}} domaines",
+    "opening": "Ouverture de la session…",
+    "request": "Écris les tests des domaines : {{domains}}."
   }
 }

@@ -134,10 +134,10 @@ function SourceRow({
 }
 
 /** The tone of the badge of where the cartography of a source stands. */
-const MAPPING_TONES: Readonly<Record<MappingState, BadgeTone>> = { waiting: "outline", mapping: "ai", mapped: "ok", truncated: "warn" };
+export const MAPPING_TONES: Readonly<Record<MappingState, BadgeTone>> = { waiting: "outline", mapping: "ai", mapped: "ok", truncated: "warn" };
 
 /** Where the index of the knowledge stands: written, when, and whether in part; or not yet. */
-function IndexLine({ mapping }: { readonly mapping: CartographyState | undefined }): ReactNode {
+export function IndexLine({ mapping }: { readonly mapping: CartographyState | undefined }): ReactNode {
   if (mapping === undefined) return null;
   const { index } = mapping;
   return (

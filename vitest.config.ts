@@ -87,6 +87,7 @@ export default defineConfig({
         "**/src/configuration/use-configuration-editor.ts",
         "**/src/configuration/use-item-pages.ts",
         "**/src/applications/applications-page.tsx",
+        "**/src/discovery/discovery-page.tsx",
         "**/src/knowledge/knowledge-page.tsx",
         "**/src/tests/tests-page.tsx",
         "**/src/tests/test-page.tsx",
