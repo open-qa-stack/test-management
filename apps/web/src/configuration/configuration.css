@@ -312,3 +312,19 @@
 .address-test p {
   margin: 0;
 }
+
+/* Choices a person reads before picking, a line each, the label above them as that of a field: a finger presses their labels. */
+.config-radios {
+  display: grid;
+  gap: var(--space-1);
+  max-width: var(--measure);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.config-radios legend {
+  padding: 0;
+  color: var(--text);
+  font-weight: var(--weight-medium);
+}

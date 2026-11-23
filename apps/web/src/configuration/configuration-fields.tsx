@@ -129,6 +129,46 @@ export function ChoiceField({ pointer, label, hint, value, options, none, kind =
   );
 }
 
+/**
+ * Choices shown side by side, a button each, of which one is picked, with the errors the instance found there: for a
+ * few choices a person should read before picking.
+ *
+ * @param props - Where it is, its label, its choices and the one made.
+ * @returns The field.
+ */
+export function RadioField({
+  pointer,
+  label,
+  hint,
+  value,
+  options,
+  kind,
+}: Omit<ChoiceFieldProps, "none" | "kind"> & Required<Pick<ChoiceFieldProps, "kind">>): ReactNode {
+  const { change } = useContext(EditContext);
+  const { texts, described } = useDescription(pointer, hint);
+  const id = idOf(pointer);
+  return (
+    <fieldset className="config-radios" aria-describedby={described}>
+      <legend>{label}</legend>
+      {options.map((option) => (
+        <label key={option.value} className="check">
+          <input
+            type="radio"
+            id={`${id}-${option.value}`}
+            name={pointer}
+            data-kind={kind}
+            value={option.value}
+            checked={option.value === value}
+            onChange={change}
+          />
+          <span>{option.label}</span>
+        </label>
+      ))}
+      <FieldNotes pointer={pointer} hint={hint} texts={texts} />
+    </fieldset>
+  );
+}
+
 /** What a box to check shows. */
 export interface CheckFieldProps extends FieldBase {
   readonly checked: boolean;

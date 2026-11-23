@@ -237,10 +237,4 @@ describe("the guardrail of a run", () => {
     assert.equal(run.limits[0]?.maxDurationMs, 0);
     assert.deepEqual(stateOf(run.root).stoppedBy, { step: "cartography", limit: "duration" });
   });
-
-  it("bounds no session by the clock when the level sets no guardrail", async () => {
-    const run = await guarded({ level: "bounded", task: { maxIterations: 100 } }, "2026-11-13T14:00:00.000Z");
-    assert.equal(run.code, 0, run.err);
-    assert.ok(run.limits.every((limits) => limits?.maxDurationMs === null));
-  });
 });

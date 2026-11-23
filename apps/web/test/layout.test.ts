@@ -1970,7 +1970,7 @@ describe("the code of the console is covered in full", () => {
         await page.getByRole("status").filter({ hasText: "Choisissez un modèle dans la liste" }).waitFor();
         await page.getByLabel("Connexion au modèle").selectOption("Autre serveur (adresse à saisir)");
         await page.getByLabel("Connexion au modèle").selectOption("Compte GitHub de cette machine (Copilot)");
-        await page.getByLabel("Niveau", { exact: true }).selectOption("autonomous");
+        await page.getByLabel(/^Autonome/).check();
         await page.getByLabel("Entre applications").check();
         await page.getByRole("button", { name: "Annuler les modifications" }).click();
         await page.getByRole("button", { name: "Enregistrer" }).waitFor({ state: "detached" });

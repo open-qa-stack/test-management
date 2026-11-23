@@ -70,19 +70,24 @@ describe("the screen of the configuration", () => {
       ),
     );
     assert.ok(bears(html, "/model/capabilities", 'data-kind="member"', 'checked=""', 'data-member="vision"', 'data-defaults=""'));
-    assert.ok(bears(html, "/autonomy/level", "select", 'data-kind="level"'));
+    assert.match(
+      html,
+      /<legend>Niveau<\/legend><label class="check"><input type="radio" id="config-autonomy-level-bounded" data-kind="level" name="\/autonomy\/level" checked="" value="bounded"\/><span>Encadré \(recommandé\)/,
+    );
+    assert.match(html, /<input type="radio" id="config-autonomy-level-autonomous" data-kind="level" name="\/autonomy\/level" value="autonomous"\/>/);
     assert.ok(bears(html, "/autonomy/task/maxMinutes", 'value="10"'));
-    assert.ok(bears(html, "/autonomy/guardrailMinutes", 'value="60"', 'placeholder="aucun"'));
+    assert.ok(bears(html, "/autonomy/guardrailMinutes", 'value="60"', 'placeholder="120"'));
     assert.ok(bears(html, "/design/levels", 'data-member="smoke"', 'checked=""', 'data-defaults="smoke,functional,business"'));
     assert.ok(!bears(html, "/design/levels", 'data-member="functional"', 'checked=""'));
     assert.ok(bears(html, "/repository/appsDir", 'value="tests"', 'placeholder="apps"'));
     assert.ok(bears(html, "/repository/blocksDir", 'value=""', 'placeholder="blocs"'));
   });
 
-  it("lays out the defaults of a bare configuration", () => {
+  it("lays out the defaults of a bare configuration: the bounded level, ten minutes a task, the two-hour guardrail", () => {
     const html = screen(stateAfter([], BARE));
     assert.ok(bears(html, "/autonomy/guardrailMinutes", 'value=""', 'placeholder="120"'));
-    assert.doesNotMatch(html, /\/autonomy\/task/);
+    assert.ok(bears(html, "/autonomy/task/maxMinutes", 'value="10"'));
+    assert.match(html, /checked="" value="bounded"/);
     for (const level of ["smoke", "functional", "business"]) assert.ok(bears(html, "/design/levels", `data-member="${level}"`, 'checked=""'), level);
   });
 

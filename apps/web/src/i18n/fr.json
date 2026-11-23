@@ -426,14 +426,13 @@
       "command": "Commande"
     },
     "settings": {
-      "autonomous": "Autonome : aucune limite par tâche",
-      "bounded": "Bornée : des limites pour chaque tâche",
+      "autonomous": "Autonome : aucune limite par tâche, deux heures au plus par session",
+      "bounded": "Encadré (recommandé) : dix minutes par tâche, deux heures au plus par session",
       "autonomy": {
         "title": "Autonomie",
         "hint": "jusqu’où vont les agents seuls",
         "level": "Niveau",
         "guardrail": "Garde-fou d’un run, en minutes",
-        "none": "aucun",
         "guardrailHint": "Au-delà, les tâches des agents s’arrêtent.",
         "maxMinutes": "Minutes par tâche",
         "maxIterations": "Appels au modèle par tâche",
