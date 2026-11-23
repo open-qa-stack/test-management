@@ -18,10 +18,24 @@ const MAPPING: CartographyState = {
   index: { producedAt: "2026-11-22T09:00:00.000Z", status: "complete" },
 };
 
-/** Two domains the cartography found. */
+/** Two domains the cartography found, the second of sources of two applications and of the whole project. */
 const DOMAINS = [
-  { id: "customers", label: "Clients", description: "La recherche et la fiche d’un client." },
-  { id: "orders", label: "Commandes", description: "La commande et son suivi." },
+  {
+    id: "customers",
+    label: "Clients",
+    description: "La recherche et la fiche d’un client.",
+    sources: [{ id: "contract", applications: ["shop"], items: ["customers"] }],
+  },
+  {
+    id: "orders",
+    label: "Commandes",
+    description: "La commande et son suivi.",
+    sources: [
+      { id: "contract", applications: ["shop"], items: ["orders", "carts"] },
+      { id: "stock", applications: ["warehouse"], items: ["public.items"] },
+      { id: "guide", applications: [], items: ["Passer commande"] },
+    ],
+  },
 ];
 
 /** The screen in a state, as HTML. */
@@ -62,10 +76,20 @@ describe("the discovery of the project", () => {
     const text = textOf(html);
     assert.match(
       text,
-      /Domaines Clients La recherche et la fiche d’un client\. Commandes La commande et son suivi\. Aucun domaine choisi sur 2 Générer les tests Sources · 2 lues par la cartographie Cartographiée · 1 Cartographie en cours · 1 Connaissances mises en commun par domaine le .* Voir chaque source contract Cartographiée orders Cartographie en cours$/,
+      /Domaines Clients La recherche et la fiche d’un client\. shop D’où il vient : 1 source contract · shop — customers Commandes La commande et son suivi\. shop warehouse Tout le projet D’où il vient : 3 sources contract · shop — orders, carts stock · warehouse — public\.items guide · Tout le projet — Passer commande Aucun domaine choisi sur 2 Générer les tests Sources · 2 lues par la cartographie Cartographiée · 1 Cartographie en cours · 1 Connaissances mises en commun par domaine le .* Voir chaque source contract Cartographiée orders Cartographie en cours$/,
     );
     assert.match(html, /<input id="domain-customers" type="checkbox" name="domain" value="customers"\/>/);
     assert.match(html, /<button type="submit" class="btn primary" disabled="">Générer les tests<\/button>/);
+  });
+
+  it("names, on each domain, the applications its sources describe, then each source with its applications and what it holds of the domain", () => {
+    const html = screen();
+    assert.match(
+      html,
+      /<div class="domain-sources small"><span class="domain-marks"><span class="badge neutral sq">shop<\/span><span class="badge neutral sq">warehouse<\/span><span class="badge neutral sq">Tout le projet<\/span><\/span><details><summary>D’où il vient : 3 sources<\/summary><ul><li><b>contract<\/b> · shop — <span class="muted">orders, carts<\/span><\/li>/,
+    );
+    // What the domain comes from sits apart from what picks it.
+    assert.match(html, /<label class="tile-pick" for="domain-orders"><span class="tile-head"><b>Commandes<\/b>.*?<\/label><div class="domain-sources small">/s);
   });
 
   it("writes the tests of the domains picked, says the session opens, and why it was refused", () => {

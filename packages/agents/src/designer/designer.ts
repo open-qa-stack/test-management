@@ -340,7 +340,8 @@ export class Designer {
         journal,
       );
       const offered = [...session.screens.tools(), ...session.reads.tools()];
-      const map = new IndexMap(index, await this.cards(index), offered, owners, await this.written(index));
+      const reach = { knowledge: config.knowledge, applications: applications.map((application) => application.id) };
+      const map = new IndexMap(index, await this.cards(index), offered, owners, await this.written(index), reach);
       const request = planRequest(brief, index.environment, map.domains(), applications, levels, this.options.visual === true);
       const notes = agentMemory(config, this.options.memory, env, { role: "planner", task: id, now });
       const tools = [...map.toolset(), ...existingTestTools(present), ...offered, ...notes, repairs.tool(), plan.tool()].map((tool) =>

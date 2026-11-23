@@ -16,7 +16,7 @@ const VIEW = {
   },
 } as unknown as ConfigurationView;
 
-const DOMAINS = [{ id: "quotes", label: "Devis", description: "Les demandes de devis." }];
+const DOMAINS = [{ id: "quotes", label: "Devis", description: "Les demandes de devis.", sources: [] }];
 
 /** The fields of a form, as a browser gives them. */
 function form(fields: readonly [string, string][]): FormData {

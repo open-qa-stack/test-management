@@ -15,6 +15,7 @@ export { MAX_FOUND_MEMORIES, MAX_MEMORY_LENGTH, memoryTools, type MemoryWriter }
 export type { SqlClient, SqlResult } from "./postgresql/sql-client.ts";
 export { redactText, secretForms } from "./browser/redact.ts";
 export { secretPaths } from "./common/secret-paths.ts";
+export { sourceReach, type ReachWarning, type SourceReach } from "./source-reach.ts";
 export { MAX_SCANNED_FILES } from "./source-code/code-folder.ts";
 export { moduleSyntax, type ModuleImport, type ModuleSyntax } from "./source-code/module-syntax.ts";
 export { declaredTests, testDigests, type DeclaredTest, type TestDeclarations } from "./source-code/test-digests.ts";

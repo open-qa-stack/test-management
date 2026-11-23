@@ -1367,8 +1367,13 @@ describe("the code of the console is covered in full", () => {
         instance.down = false;
         await page.getByText("Aucun domaine pour l’instant").waitFor({ timeout: 15_000 });
         instance.domains = [
-          { id: "quotes", label: "Devis", description: "Les demandes de devis." },
-          { id: "policies", label: "Polices", description: "Les contrats." },
+          {
+            id: "quotes",
+            label: "Devis",
+            description: "Les demandes de devis.",
+            sources: [{ id: "quotes-db", applications: ["portal"], items: ["public.quotes"] }],
+          },
+          { id: "policies", label: "Polices", description: "Les contrats.", sources: [{ id: "guide", applications: [], items: ["Contrats"] }] },
         ];
         await page.getByRole("checkbox", { name: /^Devis/ }).check({ timeout: 15_000 });
         await page.getByRole("checkbox", { name: /^Polices/ }).check();
@@ -1391,9 +1396,9 @@ describe("the code of the console is covered in full", () => {
   it("runs every line of the scope of a session when it is chosen in the browser, and opens the session kept to it", async () => {
     const instance = new PlayedInstance();
     const domains = [
-      { id: "quotes", label: "Devis", description: "Les demandes de devis." },
-      { id: "policies", label: "Polices", description: "Les contrats." },
-      { id: "customers", label: "Clients", description: "Les clients." },
+      { id: "quotes", label: "Devis", description: "Les demandes de devis.", sources: [] },
+      { id: "policies", label: "Polices", description: "Les contrats.", sources: [] },
+      { id: "customers", label: "Clients", description: "Les clients.", sources: [] },
     ];
     const [entry, picker] = await app().measure(
       ["src/agent/agent-home-page.tsx", "src/agent/scope-picker.tsx"],

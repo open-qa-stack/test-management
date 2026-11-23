@@ -1138,6 +1138,8 @@
     "sourceCount_one": "{{count}} read by the mapping",
     "sourceCount_other": "{{count}} read by the mapping",
     "seeSources": "See each source",
+    "domainSources_one": "Where it comes from: 1 source",
+    "domainSources_other": "Where it comes from: {{count}} sources",
     "picked_zero": "No domain picked out of {{total}}",
     "picked_one": "1 domain picked out of {{total}}",
     "picked_other": "{{count}} domains picked out of {{total}}"

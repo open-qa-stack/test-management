@@ -63,7 +63,7 @@ describe("the entry of the agent", () => {
     const choices = {
       environments: ["local"],
       applications: [{ id: "shop", name: "Shop" }],
-      domains: [{ id: "quotes", label: "Devis", description: "Les demandes de devis." }],
+      domains: [{ id: "quotes", label: "Devis", description: "Les demandes de devis.", sources: [] }],
       levels: ["functional" as const],
     };
     const html = home([], { choices });

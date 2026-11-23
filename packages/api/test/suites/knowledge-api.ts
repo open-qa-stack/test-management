@@ -97,7 +97,9 @@ export function knowledgeApiSuite(engine: DatabaseEngine): void {
       };
       mkdirSync(join(repository, ".oqas", "index"), { recursive: true });
       writeFileSync(join(repository, ".oqas", "index", "domain-index.json"), JSON.stringify(index));
-      assert.deepEqual(await domains(), [{ id: "orders", label: "Commandes", description: "Passer une commande." }]);
+      assert.deepEqual(await domains(), [
+        { id: "orders", label: "Commandes", description: "Passer une commande.", sources: [{ id: "shop", applications: ["shop"], items: ["/orders"] }] },
+      ]);
     });
   });
 
