@@ -26,7 +26,7 @@ describe("the bar of the result of a session", () => {
   it("says in words the failures, the tests blocked and those without a verdict, or, when there are none, how many passed out of how many", () => {
     assert.match(
       bar(["failed", "failed", "blocked", "indeterminate", "passed"]),
-      /<span class="verdict-words failed">2 en échec<\/span><span class="verdict-words blocked">1 bloqué<\/span><span class="verdict-words indeterminate">1 indéterminé<\/span><\/span>$/,
+      /<span class="verdict-words failed">2 échoués<\/span><span class="verdict-words blocked">1 bloqué<\/span><span class="verdict-words indeterminate">1 indéterminé<\/span><\/span>$/,
     );
     assert.match(bar(["passed", "passed", "skipped"]), /<span class="verdict-words passed">2 \/ 3 tests réussis<\/span><\/span>$/);
   });

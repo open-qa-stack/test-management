@@ -77,7 +77,7 @@ describe("the knowledge of the project", () => {
     const kinds = screen("#/knowledge?add=source");
     assert.match(
       textOf(kinds),
-      /Connaissances Les sources de chaque application, .* Ajouter une connaissance · choisissez ce que les agents liront Contrat OpenAPI La description .* Base PostgreSQL La base .* Documents du dépôt Des spécifications .* Documents déposés Des fichiers .* Code source Le code .* Journaux Les journaux /,
+      /Connaissances Les sources de chaque application, .* Ajouter une connaissance · choisissez ce que les agents liront Documentation de l’API La description .* Base de données La base .* Documents du dépôt Des spécifications .* Documents déposés Des fichiers .* Code Le code .* Journaux Les journaux /,
     );
     for (const kind of ["openapi", "postgresql", "document", "stored", "source-code", "logs"])
       assert.match(kinds, new RegExp(`class="tile" data-add="/knowledge" data-item="${kind}"`), kind);
@@ -87,12 +87,12 @@ describe("the knowledge of the project", () => {
       item: { id: "", type: "openapi", url: "", attachments: [{ application: "" }] },
     });
     const html = screen("#/knowledge?add=source", stateAfter(), added);
-    assert.match(textOf(html), /Connaissances Les sources de chaque application, .* Contrat OpenAPI Retirer Identifiant/);
+    assert.match(textOf(html), /Connaissances Les sources de chaque application, .* Documentation de l’API Retirer Identifiant/);
     assert.match(html, /data-remove="\/knowledge\/8"/);
     assert.doesNotMatch(screen("#/knowledge?add=source", stateAfter(), INITIAL_CONFIGURATION), /data-add=/);
   });
 
-  it("lists the sources of each application, where each is read from, never a secret, and how many documents the instance keeps", () => {
+  it("lists the sources of each application, each by its kind in plain words and its identifier, never where it is read from, and how many documents the instance keeps", () => {
     const configuration = { ...DOCUMENT, applications: [...DOCUMENT.applications, { ...DOCUMENT.applications[0]!, id: "back-office", name: "Back office" }] };
     const html = screen(
       "#/knowledge",
@@ -101,15 +101,16 @@ describe("the knowledge of the project", () => {
     const text = textOf(html);
     assert.match(
       text,
-      /Les domaines qu’en tire la cartographie sont dans Découverte\. .*Shop · shop contract Contrat OpenAPI · http:\/\/127\.0\.0\.1:3001\/openapi\.json local › backend local-contract/,
+      /Les domaines qu’en tire la cartographie sont dans Découverte\. .*Shop · shop Documentation de l’API contract local › backend Documentation de l’API local-contract/,
     );
+    assert.doesNotMatch(text, /SHOP_DB_URL|http:|specs\/orders\.md|\.\.\/shop|logs\/server\.log/);
     for (const row of [
-      "orders Base PostgreSQL · variable SHOP_DB_URL",
-      "specs Documents du dépôt · specs/orders.md",
-      "manuals Documents déposés 1 document",
-      "code Code source · ../shop",
-      "server-log Journaux · logs/server.log",
-      "container-log Journaux · conteneur shop",
+      "Base de données orders",
+      "Documents du dépôt specs",
+      "Documents déposés manuals 1 document",
+      "Code code",
+      "Journaux server-log",
+      "Journaux container-log",
     ])
       assert.ok(text.includes(row), row);
     assert.match(text, /Back office · back-office Aucune source n’est rattachée à cette application$/);
@@ -140,14 +141,14 @@ describe("the knowledge of the project", () => {
     const text = mapped({ environment: "local", sources });
     assert.match(text, /Rien n’est encore cartographié : chaque source ajoutée est cartographiée aussitôt/);
     for (const row of [
-      "orders Base PostgreSQL · variable SHOP_DB_URL En attente de cartographie",
-      "specs Documents du dépôt · specs/orders.md Cartographie en cours",
-      "code Code source · ../shop",
+      "Base de données orders En attente de cartographie",
+      "Documents du dépôt specs Cartographie en cours",
+      "Code code",
       "local › backend Cartographiée en partie",
     ])
       assert.ok(text.includes(row), row);
-    assert.ok(!text.includes("../shop Cartographiée"), "a source mapped has no badge: the line of the index says it");
-    assert.ok(text.includes("manuals Documents déposés 1 document code"), "a source the cartography does not read has no badge");
+    assert.ok(!text.includes("Code code Cartographiée"), "a source mapped has no badge: the line of the index says it");
+    assert.ok(text.includes("Documents déposés manuals 1 document Code"), "a source the cartography does not read has no badge");
     assert.match(
       mapped({ environment: "local", sources, index: { producedAt: at, status: "complete" } }),
       /Connaissances mises en commun par domaine le 22 nov\. 2026/,
@@ -173,11 +174,11 @@ describe("the knowledge of the project", () => {
 });
 
 describe("a source of the knowledge", () => {
-  it("says what it is and what it is attached to, and that the agents read it where it is", () => {
+  it("says by name what it is and what it is attached to, that the agents read it where it is, and folds its identifier and where it is read from", () => {
     const text = textOf(screen("#/knowledge/contract", stateAfter(), INITIAL_CONFIGURATION));
     assert.equal(
       text,
-      "shop-tests / Connaissances / contract contract Contrat OpenAPI · http://127.0.0.1:3001/openapi.json shop local › backend Les agents lisent cette source là où elle est : rien ne s’y dépose.",
+      "shop-tests / Connaissances / Documentation de l’API · Shop Documentation de l’API · Shop Documentation de l’API Shop local › backend Les agents lisent cette source là où elle est : rien ne s’y dépose. Détails techniques Identifiant : contract Lue depuis : http://127.0.0.1:3001/openapi.json",
     );
   });
 
@@ -194,24 +195,27 @@ describe("a source of the knowledge", () => {
     const state = [{ type: "read", view } as const, { type: "listed", source: "notes", items: [QUOTES] } as const].reduce(knowledgeAfter, stateAfter());
     assert.match(
       textOf(screen("#/knowledge", state)),
-      /Tout le projet · lue quelle que soit l’application testée glossary Documents du dépôt · docs\/glossary\.md notes Documents déposés 1 document Shop · shop/,
+      /Tout le projet · lue quelle que soit l’application testée Documents du dépôt glossary Documents déposés notes 1 document Shop · shop/,
     );
     assert.match(
       textOf(screen("#/knowledge/glossary", state, INITIAL_CONFIGURATION)),
-      /glossary Documents du dépôt · docs\/glossary\.md Tout le projet Les agents lisent/,
+      /Documents du dépôt Documents du dépôt Tout le projet Les agents lisent .* Identifiant : glossary Lue depuis : docs\/glossary\.md$/,
     );
   });
 
   it("lets the person change the source, test it and save it alone, or remove it once they confirmed it", () => {
     const html = screen("#/knowledge/contract");
-    assert.match(textOf(html), /^shop-tests \/ Connaissances \/ contract contract Retirer la source Contrat OpenAPI Identifiant/);
+    assert.match(
+      textOf(html),
+      /^shop-tests \/ Connaissances \/ Documentation de l’API · Shop Documentation de l’API · Shop Retirer la source Documentation de l’API Identifiant/,
+    );
     assert.match(html, /<a class="btn ghost" href="#\/knowledge\/contract\?drop=source">Retirer la source<\/a>/);
     assert.match(html, /name="\/knowledge\/0\/url"/);
     assert.doesNotMatch(html, /name="\/knowledge\/1\//);
     const asked = screen("#/knowledge/contract?drop=source");
     assert.match(
       textOf(asked),
-      /Retirer la source contract \? Les prochaines sessions ne la lisent plus\. Une nouvelle révision de la configuration est enregistrée : la précédente reste dans l’historique\. Annuler Retirer la source Contrat OpenAPI/,
+      /Retirer « Documentation de l’API · Shop » \? Les prochaines sessions ne la lisent plus\. Une nouvelle révision de la configuration est enregistrée : la précédente reste dans l’historique\. Annuler Retirer la source Documentation de l’API/,
     );
     assert.match(asked, /<button type="button" class="btn danger" data-rank="0">Retirer la source<\/button>/);
     assert.match(screen("#/knowledge/contract?drop=source", stateAfter(), configurationAfter(EDITING, { type: "saving" })), /data-rank="0" disabled="">/);
@@ -231,7 +235,7 @@ describe("a source of the knowledge", () => {
     const text = textOf(html);
     assert.match(
       text,
-      /manuals Documents déposés shop tous les environnements Ses documents sont gardés par l’instance : une session les écrit là où ses agents les lisent\. Seul le Markdown est lu\./,
+      /Documents déposés · Shop Documents déposés Shop tous les environnements Ses documents sont gardés par l’instance : une session les écrit là où ses agents les lisent\. Seul le Markdown est lu\./,
     );
     assert.match(text, /Documents · dans l’ordre de leurs noms quotes\.md 1,2 ko · 18 nov\. 2026, \d\d:00 Retirer/);
     assert.ok(linksOf(html).includes("#/knowledge/manuals?document=quotes.md"));

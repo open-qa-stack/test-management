@@ -60,16 +60,16 @@ describe("the console in English", () => {
   it("tells a session that ended: its facts, its thread, its plan, its verdicts and its composer", async () => {
     await inEnglish();
     const text = english(createElement(SessionScreen, { route: at("#/agent/sessions/x"), live: liveOf(COMPLETED), project: "p" }));
-    assert.match(text, /tests passed Nov 15, 2026, 2:44:06 PM UTC · 1 min 54 sec · 3 actions · 50 requests to the model · \S+ Replay/);
+    assert.match(text, /Passed Nov 15, 2026, 2:44:06 PM UTC · 1 min 54 sec · 3 actions · 50 requests to the model · \S+ Replay/);
     assert.match(text, /All Exchanges Actions Verdicts/);
     assert.match(text, /Your request: .* Harness hands over to Planner /);
     assert.match(text, /Planner explores the application and proposes the plan .* Reasoning /);
     assert.match(text, /Opened \/ in customer-management .* 900 ms Proposed a plan of 1 scenario /);
-    assert.match(text, /Plan accepted by the harness 1 scenario .* Identifier search Level smoke Case nominal Application customer-management Details /);
+    assert.match(text, /Plan accepted by the harness 1 scenario .* Identifier search Level Quick check Case nominal Application customer-management Details /);
     assert.match(text, /Harness automatic check refused PLAN-ELEMENT .* Read more Page at that moment /);
     assert.match(
       text,
-      /Verdicts Verdict of the run: 1 test 1 passed passed Rechercher un client par son nom Every attempt passed\. Configuration The configuration is valid; the session targets the environment local\. /,
+      /Verdicts Verdict of the run: 1 test 1 passed Passed Rechercher un client par son nom Every attempt passed\. Configuration The configuration is valid; the session targets the environment local\. /,
     );
     assert.match(text, /Writing a test search Writer writes and runs the Playwright tests /);
     assert.match(text, /Tell the agents what to do next: correct a test, add a scenario… Go on with the session$/);
@@ -78,7 +78,7 @@ describe("the console in English", () => {
   it("asks before it stops a session that goes on", async () => {
     await inEnglish();
     const text = english(createElement(SessionScreen, { route: at("#/agent/sessions/x?stop=ask"), live: liveOf(RUNNING), project: "p" }));
-    assert.match(text, /live Nov 15, 2026, 2:44:06 PM UTC · 2 actions Stop Replay Stop this session\? Its agents stop as soon as they hand over/);
+    assert.match(text, /Live Nov 15, 2026, 2:44:06 PM UTC · 2 actions Stop Replay Stop this session\? Its agents stop as soon as they hand over/);
     assert.match(text, /Cancel Stop the session /);
     assert.match(text, /The agents are working|is working/);
   });
@@ -143,9 +143,9 @@ describe("the console in English", () => {
     const controls = { upload: IGNORED, remove: IGNORED, drop: IGNORED, edit };
     const editing = configurationAfter(INITIAL_CONFIGURATION, { type: "read", view: VIEW, revisions: REVISIONS });
     const overview = english(createElement(KnowledgeScreen, { project: "p", route: parseRoute("#/knowledge?add=source"), state, editing, controls }));
-    assert.match(overview, /Knowledge The sources of each application, .* Add knowledge · choose what the agents will read OpenAPI contract The description/);
+    assert.match(overview, /Knowledge The sources of each application, .* Add knowledge · choose what the agents will read API documentation The description/);
     assert.match(overview, /The sources of each application, and where each is read from\./);
-    assert.match(overview, /manuals Uploaded documents 1 document/);
+    assert.match(overview, /Uploaded documents manuals 1 document/);
     const source = english(
       createElement(KnowledgeScreen, {
         project: "p",
@@ -155,7 +155,10 @@ describe("the console in English", () => {
         controls,
       }),
     );
-    assert.match(source, /Remove the source manuals\? The next sessions no longer read it\. .* Cancel Remove the source Uploaded documents Identifier/);
+    assert.match(
+      source,
+      /Remove “Uploaded documents · Shop”\? The next sessions no longer read it\. .* Cancel Remove the source Uploaded documents Identifier/,
+    );
     assert.match(source, /Add an attachment Saved /);
     assert.match(source, /quotes\.md 1\.2 kB · .* Remove Remove quotes\.md\? The document is deleted from the instance/);
     assert.match(

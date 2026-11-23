@@ -5,6 +5,7 @@ import type { ExecutionList, Session } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../../src/api/polled-state.ts";
 import { ExecutionsScreen, type ExecutionsControls, type ExecutionsScreenProps } from "../../src/executions/executions-screen.tsx";
 import { linksOf, render, textOf } from "../render.ts";
+import { nameApplications } from "../../src/applications/application-names.ts";
 import { DETAIL, EXECUTIONS } from "./executions-fixture.ts";
 
 /** The session that ran the first execution. */
@@ -38,20 +39,21 @@ describe("the executions of the tests", () => {
       );
   });
 
-  it("shows each execution as a line: its date, its origin, the session that ran it or how many tests, its counts, its duration and its version", () => {
+  it("shows each execution as a line: its date, its origin, the session that ran it or how many tests, its counts and its duration, never a commit", () => {
     const text = textOf(screen());
     assert.match(
       text,
-      /^lakeside-tests \/ Exécutions Exécutions Les exécutions des tests, la plus récente d’abord\. Issue Toutes Avec un échec Sans échec Période Toutes les dates Dernières 24 heures 7 derniers jours 30 derniers jours Date Origine Contenu Résultat Durée Version 19 nov\. 2026, \d\d:\d\d conception /,
+      /^lakeside-tests \/ Exécutions Exécutions Les exécutions des tests, la plus récente d’abord\. Résultat Toutes Avec un échec Sans échec Période Toutes les dates Dernières 24 heures 7 derniers jours 30 derniers jours Date Origine Contenu Résultat Durée 19 nov\. 2026, \d\d:\d\d Session de l’agent /,
     );
-    assert.match(text, / conception Session « Test the policies » 1 en échec 1 instable 9 s 4f2a9c0 /);
-    assert.match(text, / conception 0 test 0 s — Aucun test n’a tourné dans cette exécution\. Ouvrir l’exécution → 1–2 sur 2$/);
+    assert.match(text, / Session de l’agent Session « Test the policies » 1 échoué 1 instable 9 s Échoué /);
+    assert.doesNotMatch(text, /4f2a9c0/);
+    assert.match(text, / Session de l’agent 0 test 0 s Aucun test n’a tourné dans cette exécution\. Ouvrir l’exécution → 1–2 sur 2$/);
   });
 
   it("says an execution of a campaign is one, whatever session the console lists", () => {
     const [latest] = EXECUTIONS;
     const launched = { ...latest!, origin: "campaign" as const, campaignId: "c1" };
-    assert.match(textOf(screen({ value: pageOf([launched]) })), / campagne 5 tests d’une campagne /);
+    assert.match(textOf(screen({ value: pageOf([launched]) })), / Campagne 5 tests d’une campagne /);
     const campaign = {
       id: "c1",
       name: "Recette 4.2",
@@ -69,7 +71,7 @@ describe("the executions of the tests", () => {
     const html = screen();
     assert.match(
       html,
-      /<span class="verdict-bar" aria-hidden="true"><span class="verdict-part passed" style="flex-grow:2"><\/span><span class="verdict-part flaky" style="flex-grow:1"><\/span><span class="verdict-part skipped" style="flex-grow:1"><\/span><span class="verdict-part failed" style="flex-grow:1"><\/span><\/span><span class="verdict-words failed">1 en échec<\/span><span class="verdict-words flaky">1 instable<\/span>/,
+      /<span class="verdict-bar" aria-hidden="true"><span class="verdict-part passed" style="flex-grow:2"><\/span><span class="verdict-part flaky" style="flex-grow:1"><\/span><span class="verdict-part skipped" style="flex-grow:1"><\/span><span class="verdict-part failed" style="flex-grow:1"><\/span><\/span><span class="verdict-words failed">1 échoué<\/span><span class="verdict-words flaky">1 instable<\/span>/,
     );
     const [latest] = EXECUTIONS;
     const passed = { ...latest!, results: latest!.results.filter((result) => result.verdict === "passed") };
@@ -77,10 +79,12 @@ describe("the executions of the tests", () => {
   });
 
   it("unfolds an execution into its tests, the failures first with where and why they failed, each leading to what came of it there, then leads to the execution", () => {
+    nameApplications([{ id: "policy-management", name: "Policy Management" }]);
     const text = textOf(screen());
+    nameApplications([]);
     assert.match(
       text,
-      /En échec Policies › Edit a policy · policy-management Étape 3 · Save the policy Attendu "Saved", obtenu "Refused" 5 s Instable Policies › Filter the policies · policy-management 1 s Réussi Display the detail of a policy · policy-management 2 s Réussi Policies › Print a policy · policy-management 1 s Ignoré Policies › Delete a policy · policy-management 0 s Ouvrir l’exécution →/,
+      /Échoué Policies › Edit a policy · Policy Management Étape 3 · Save the policy Attendu "Saved", obtenu "Refused" 5 s Instable Policies › Filter the policies · Policy Management 1 s Réussi Display the detail of a policy · Policy Management 2 s Réussi Policies › Print a policy · Policy Management 1 s Ignoré Policies › Delete a policy · Policy Management 0 s Ouvrir l’exécution →/,
     );
     const [first, second] = EXECUTIONS;
     const result = `#/executions/result?id=${first!.id}&path=${encodeURIComponent(DETAIL)}`;

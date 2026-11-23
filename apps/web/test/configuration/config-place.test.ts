@@ -13,7 +13,7 @@ describe("a place of the configuration", () => {
     assert.equal(placeText("/applications/0/authentication/accounts/0/passwordEnv", DOCUMENT), "Shop › Compte clerk › Variable du mot de passe");
     assert.equal(placeText("/knowledge/2/connectionStringEnv", DOCUMENT), "Source orders › Variable de la chaîne de connexion");
     assert.equal(placeText("/knowledge/0/attachments/0/application", DOCUMENT), "Source contract › Sert à 1 › Application");
-    assert.equal(placeText("/model/apiKeyEnv", DOCUMENT), "Modèle › Variable qui tient la clé");
+    assert.equal(placeText("/model/apiKeyEnv", DOCUMENT), "Modèle › Nom sous lequel la clé est gardée");
     assert.equal(placeText("/autonomy/level", DOCUMENT), "Autonomie › Niveau");
   });
 

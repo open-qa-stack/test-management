@@ -20,6 +20,7 @@ import { TestPage } from "./tests/test-page.tsx";
 import { TestsPage } from "./tests/tests-page.tsx";
 import { hrefTo, type Route } from "./routing/route.ts";
 import { t } from "./i18n/i18n.ts";
+import { nameApplications } from "./applications/application-names.ts";
 import { Shell, type ShellMenu } from "./shell/shell.tsx";
 import { EmptyState } from "./ui/empty-state.tsx";
 import { Page } from "./ui/page.tsx";
@@ -166,6 +167,8 @@ function Screen(props: ConsoleProps): ReactNode {
   const { route, project, sessions, unlisted, opening = { state: "idle" }, onOpen, onConfigured } = props;
   const listed = sessions ?? [];
   const name = project?.name ?? t("console.project");
+  // Every screen names an application as the project does; drawing the screen again names it anew.
+  nameApplications(project?.applications ?? []);
   const shown = shownOf(props);
   const back = <a href={hrefTo("/agent")}>{t("console.back")}</a>;
   switch (shown.screen) {

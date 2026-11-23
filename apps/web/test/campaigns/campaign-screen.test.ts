@@ -34,13 +34,14 @@ const PASSED: CampaignProgress = {
 describe("the screen of a campaign", () => {
   it("tells where the campaign is in its life, how far it went, then each test, the failures first, which leads to its result", () => {
     const html = screen({ value: PROGRESS });
-    assert.match(textOf(html), /^lakeside-tests \/ Campagnes \/ Recette 4\.2 Recette 4\.2 en cours/);
-    assert.match(textOf(html), /planifiée prête en cours clôturée Environnement local Planifiée le \d+ nov\. 2026/);
+    assert.match(textOf(html), /^lakeside-tests \/ Campagnes \/ Recette 4\.2 Recette 4\.2 En cours/);
+    assert.match(textOf(html), /Planifiée Prête En cours Clôturée Environnement local Planifiée le \d+ nov\. 2026/);
     assert.match(
       textOf(html),
-      /Avancement 1 \/ 2 joués 1 échoué 1 non joué 2 tests En échec Answer an insurance quote apps\/\S+ \d+ nov\. 2026, \d\d:\d\d non joué Display the detail of a policy/,
+      /Avancement 1 \/ 2 joués 1 échoué 1 non joué 2 tests Échoué Answer an insurance quote \d+ nov\. 2026, \d\d:\d\d Non joué Display the detail of a policy/,
     );
-    assert.match(html, /<li class="current" aria-current="step">en cours<\/li>/);
+    assert.match(html, /<li class="current" aria-current="step">En cours<\/li>/);
+    assert.match(html, /<b title="apps\/policy-management\/tests\/insurance-quotes\/quote-answer\.spec\.ts">Answer an insurance quote<\/b>/);
     assert.ok(html.includes(`href="${resultHref("e1", QUOTE.path).replaceAll("&", "&amp;")}"`));
     assert.doesNotMatch(html, new RegExp(`href="[^"]*${encodeURIComponent(POLICY.path)}`));
     assert.deepEqual(buttons(html), ["Relancer l’échec", "Lancer le test non joué", "Tout relancer", "Clôturer"]);
@@ -94,10 +95,10 @@ describe("the screen of a campaign", () => {
   });
 
   it("says whether the campaign passes once it is no longer planned: every test passed, at once or on a retry", () => {
-    assert.match(screen({ value: PROGRESS }), /Recette 4\.2 <span class="badge ai">en cours<\/span> <span class="badge ko">ne passe pas<\/span><\/h1>/);
-    assert.match(screen({ value: PASSED }), /<span class="badge ok">.*passe<\/span>/);
+    assert.match(screen({ value: PROGRESS }), /Recette 4\.2 <span class="badge ai">En cours<\/span> <span class="badge ko">Échoué<\/span><\/h1>/);
+    assert.match(screen({ value: PASSED }), /<span class="badge ok">.*Réussi<\/span>/);
     const flaky = { ...PASSED, results: [{ ...PASSED.results[0]!, verdict: "flaky" as const }, PASSED.results[1]!] };
-    assert.match(textOf(screen({ value: flaky })), /en cours passe .* 1 réussi 1 instable/);
+    assert.match(textOf(screen({ value: flaky })), /En cours Réussi .* 1 réussi 1 instable/);
     assert.doesNotMatch(textOf(screen({ value: { campaign: PLANNED, results: [] } })), /passe/);
   });
 
@@ -121,14 +122,14 @@ describe("the screen of a campaign", () => {
     const running = screen({ value: PROGRESS }, {}, { ...launch, progress: { total: 2, finished: [{ ...POLICY, verdict: "passed" }] } });
     assert.match(textOf(running), /Lancement en cours : 1 \/ 2 tests finis/);
     assert.match(running, /<progress class="campaign-launch-bar" max="2" value="1">/);
-    assert.match(textOf(running), /en cours Answer an insurance quote .* dans le lancement en cours Réussi Display the detail of a policy .* à l’instant/);
+    assert.match(textOf(running), /En cours Answer an insurance quote dans le lancement en cours Réussi Display the detail of a policy à l’instant/);
     assert.doesNotMatch(running, /href="#\/executions\/result/, "a test of the launch leads to no result until it ended");
     assert.ok(buttons(running).filter((label) => label !== "Clôturer").length === 3);
     assert.match(running, /disabled="">Tout relancer/);
     assert.match(running, /disabled="">Clôturer<\/button>/, "a campaign is not closed while a launch of it runs");
     assert.doesNotMatch(screen({ value: PROGRESS }), /disabled="">Clôturer/);
     const other = screen({ value: PROGRESS }, {}, { ...launch, paths: [QUOTE.path] });
-    assert.match(textOf(other), /non joué Display the detail of a policy/);
+    assert.match(textOf(other), /Non joué Display the detail of a policy/);
   });
 
   it("says the gesture asked of the instance, and why it refused one", () => {

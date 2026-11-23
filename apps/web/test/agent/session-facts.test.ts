@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import type { Session, SessionResult } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
 import { scopeText, stateOf, waitText } from "../../src/agent/session-facts.ts";
+import { nameApplications } from "../../src/applications/application-names.ts";
 import { COMPLETED, QUEUED, RUNNING } from "./session-fixture.ts";
 
 /**
@@ -17,29 +18,29 @@ const UNTOLD: Session = { ...RUNNING, state: "completed" };
 
 describe("the state of a session", () => {
   it("reads as queued while it waits its turn, in a tone that is neither the one of success nor the one of live", () => {
-    assert.deepEqual(stateOf(QUEUED), { tone: "outline", label: "en file" });
+    assert.deepEqual(stateOf(QUEUED), { tone: "outline", label: "En file" });
   });
 
   it("reads as live while its agents work, as interrupted when it stopped", () => {
-    assert.deepEqual(stateOf(RUNNING), { tone: "info", label: "en direct" });
-    assert.deepEqual(stateOf({ ...COMPLETED, state: "interrupted" }), { tone: "warn", label: "interrompue" });
+    assert.deepEqual(stateOf(RUNNING), { tone: "info", label: "En direct" });
+    assert.deepEqual(stateOf({ ...COMPLETED, state: "interrupted" }), { tone: "warn", label: "Interrompue" });
   });
 
   it("reads as how the session ended once it is completed", () => {
-    assert.deepEqual(stateOf(COMPLETED), { tone: "ok", label: "tests réussis" });
-    assert.deepEqual(stateOf(endedWith({ outcome: "failed" })), { tone: "ko", label: "test en échec" });
-    assert.deepEqual(stateOf(endedWith({ outcome: "inconclusive" })), { tone: "warn", label: "test sans verdict" });
-    assert.deepEqual(stateOf(endedWith({ outcome: "stopped" })), { tone: "neutral", label: "arrêtée avant la fin" });
+    assert.deepEqual(stateOf(COMPLETED), { tone: "ok", label: "Réussi" });
+    assert.deepEqual(stateOf(endedWith({ outcome: "failed" })), { tone: "ko", label: "Échoué" });
+    assert.deepEqual(stateOf(endedWith({ outcome: "inconclusive" })), { tone: "warn", label: "Indéterminé" });
+    assert.deepEqual(stateOf(endedWith({ outcome: "stopped" })), { tone: "neutral", label: "Arrêté" });
   });
 
   it("reads as ended, no more, when a completed session has no result", () => {
-    assert.deepEqual(stateOf(UNTOLD), { tone: "neutral", label: "terminée" });
+    assert.deepEqual(stateOf(UNTOLD), { tone: "neutral", label: "Terminée" });
   });
 
   it("reads as ended, no more, when the API tells a state or a way of ending this console does not know", () => {
-    assert.deepEqual(stateOf({ ...RUNNING, state: "archived" as Session["state"] }), { tone: "neutral", label: "terminée" });
-    assert.deepEqual(stateOf(endedWith({ outcome: "abandoned" as SessionResult["outcome"] })), { tone: "neutral", label: "terminée" });
-    assert.deepEqual(stateOf({ ...COMPLETED, state: "archived" as Session["state"] }), { tone: "ok", label: "tests réussis" });
+    assert.deepEqual(stateOf({ ...RUNNING, state: "archived" as Session["state"] }), { tone: "neutral", label: "Terminée" });
+    assert.deepEqual(stateOf(endedWith({ outcome: "abandoned" as SessionResult["outcome"] })), { tone: "neutral", label: "Terminée" });
+    assert.deepEqual(stateOf({ ...COMPLETED, state: "archived" as Session["state"] }), { tone: "ok", label: "Réussi" });
   });
 });
 
@@ -51,12 +52,14 @@ describe("what a session waits for", () => {
 });
 
 describe("the scope of a session, in a few words", () => {
-  it("names its applications, its domains and its levels, and nothing for a session of the whole project", () => {
+  it("names its applications by their names, its domains and its levels, and nothing for a session of the whole project", () => {
+    nameApplications([{ id: "policies", name: "Policies" }]);
     assert.equal(
       scopeText({ ...COMPLETED, scope: { applications: ["policies"], domains: ["quotes"], levels: ["business", "smoke"] } }),
-      "limitée à policies, quotes, métier, fumée",
+      "limitée à Policies, quotes, Parcours métier, Vérification rapide",
     );
     assert.equal(scopeText({ ...COMPLETED, scope: {} }), undefined);
     assert.equal(scopeText(COMPLETED), undefined);
+    nameApplications([]);
   });
 });

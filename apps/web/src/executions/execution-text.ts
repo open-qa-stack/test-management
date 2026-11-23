@@ -13,16 +13,6 @@ export function executionDuration(execution: Pick<Execution, "results">): string
 }
 
 /**
- * The version of the test repository an execution ran at.
- *
- * @param execution - The execution.
- * @returns The short commit; a dash for an execution that kept none.
- */
-export function versionText(execution: Pick<Execution, "commit">): string {
-  return execution.commit === undefined ? "—" : execution.commit.slice(0, 7);
-}
-
-/**
  * The session that ran an execution, among those the console knows.
  *
  * @param execution - The execution.

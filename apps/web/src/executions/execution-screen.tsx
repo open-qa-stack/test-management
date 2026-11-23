@@ -3,6 +3,8 @@ import type { Execution, ExecutionResult, Session } from "@open-qa-stack/domain/
 import type { PolledState } from "../api/polled-state.ts";
 import { dateText, durationText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
+import { applicationName } from "../applications/application-names.ts";
+import { TechnicalDetails } from "../ui/technical-details.tsx";
 import { hrefTo } from "../routing/route.ts";
 import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
@@ -25,7 +27,7 @@ export interface ExecutionScreenProps {
   readonly state: PolledState<Execution>;
 }
 
-/** Where the execution comes from, and the version of the test repository it ran at. */
+/** Where the execution comes from. */
 function Origin({ execution, sessions }: { readonly execution: Execution; readonly sessions: readonly Session[] }): ReactNode {
   const request = requestOf(execution, sessions);
   return (
@@ -42,7 +44,6 @@ function Origin({ execution, sessions }: { readonly execution: Execution; readon
           <a href={hrefTo(`/agent/sessions/${execution.sessionId}`)}>{t("execution.seeSession")}</a>
         </div>
       )}
-      <div>{execution.commit === undefined ? t("execution.noVersion") : t("execution.version", { commit: execution.commit.slice(0, 7) })}</div>
     </div>
   );
 }
@@ -68,7 +69,7 @@ function Results({ execution }: { readonly execution: Execution }): ReactNode {
   return projects.map((project) => {
     const results = failuresFirst(execution.results.filter((result) => result.project === project));
     return (
-      <Card key={project} title={project} hint={t("tests.count", { count: results.length })}>
+      <Card key={project} title={applicationName(project)} hint={t("tests.count", { count: results.length })}>
         {results.map((result, rank) => (
           <ResultRow key={rank} execution={execution} result={result} />
         ))}
@@ -112,6 +113,9 @@ export function ExecutionScreen({ project, id, sessions, state }: ExecutionScree
             </div>
           </Card>
           <Results execution={execution} />
+          <TechnicalDetails>
+            {execution.commit === undefined ? t("execution.noVersion") : t("execution.version", { commit: execution.commit.slice(0, 7) })}
+          </TechnicalDetails>
         </>
       )}
     </Page>

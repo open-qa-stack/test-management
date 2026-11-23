@@ -31,6 +31,7 @@ const EMPTY_RESULT: SessionResult = { outcome: "passed", durationMs: 10, modelRe
 /** The words of a presentation that says each thing as what it is. */
 const WORDING: ScriptWording = {
   phase: (phase) => `phase ${phase}`,
+  level: (level) => `level ${level}`,
   tool: (tool, args) => `${tool} ${JSON.stringify(args)}`,
   planAccepted: "plan accepted",
   scope: "scope",
@@ -124,7 +125,7 @@ describe("the script of a session", () => {
         { type: "phase_started", phase: "plan" },
         { type: "harness_message", to: "planner", text: "Plan the functional tests.", level: "functional" },
       ]),
-      ["phase plan", "phase plan · functional"],
+      ["phase plan", "phase plan · level functional"],
     );
   });
 

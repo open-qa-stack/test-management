@@ -5,6 +5,7 @@ import { levelHref, TestsScreen, type TestsControls } from "../../src/tests/test
 import { INITIAL_TESTS, type TestsState } from "../../src/tests/tests-state.ts";
 import { parseRoute } from "../../src/routing/route.ts";
 import { linksOf, render, textOf } from "../render.ts";
+import { nameApplications } from "../../src/applications/application-names.ts";
 import { TESTS } from "./tests-fixture.ts";
 
 /** What the person does on the screen, which a static rendering never calls. */
@@ -27,13 +28,15 @@ describe("the tests of the repository", () => {
     );
   });
 
-  it("lists every test application by application, with its level, its kind, its domain and functionality, and its steps", () => {
+  it("lists every test application by application, each by its name, with its level, its kind, its domain and functionality, and its steps", () => {
+    nameApplications([{ id: "policy-management", name: "Policy Management" }]);
     const text = textOf(screen("#/tests"));
+    nameApplications([]);
     assert.match(text, /^lakeside-tests \/ Tests Tests 4 tests du dépôt de tests, tels que leurs fichiers sont maintenant\./);
-    assert.match(text, /customer-management · 1 test Customer Management answers Smoke 1 étape/);
+    assert.match(text, /customer-management · 1 test Customer Management answers Vérification rapide 1 étape/);
     assert.match(
       text,
-      /policy-management · 2 tests Display the detail of a policy policies › policy-detail Fonctionnel 2 étapes Compare the edit form of a policy policies › policy-edit Fonctionnel Visuel 1 étape/,
+      /Policy Management · 2 tests Display the detail of a policy policies › policy-detail Fonctionnel 2 étapes Compare the edit form of a policy policies › policy-edit Fonctionnel Visuel 1 étape/,
     );
     // A test without a tag is listed all the same, under no application.
     assert.match(text, /Sans application · 1 test A test by hand 0 étape/);
@@ -57,7 +60,10 @@ describe("the tests of the repository", () => {
       ],
     );
     const functional = textOf(screen("#/tests?level=functional"));
-    assert.match(functional, /Tous les niveaux 4 Smoke 1 Fonctionnel 2 Métier 0 Entre applications 0 De bout en bout 0 policy-management · 2 tests/);
+    assert.match(
+      functional,
+      /Tous les niveaux 4 Vérification rapide 1 Fonctionnel 2 Parcours métier 0 Entre applications 0 De bout en bout 0 policy-management · 2 tests/,
+    );
     assert.doesNotMatch(functional, /Customer Management answers/);
     assert.match(screen("#/tests?level=functional"), /<a class="chip on" href="#\/tests\?level=functional" aria-current="page">/);
     const searched = textOf(screen("#/tests?q=EDIT%20visual"));

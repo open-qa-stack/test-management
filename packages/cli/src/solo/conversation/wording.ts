@@ -14,6 +14,8 @@ const PHASES = new Set(["configuration", "prerequisites", "survey", "card", "con
 export function wording(): ScriptWording {
   return {
     phase: (phase) => (PHASES.has(phase) ? t(`steps.phases.${phase as keyof Words["steps"]["phases"]}`) : t("steps.step")),
+    // The terminal names the levels by their tags, as its plans and its scope do.
+    level: (level) => level,
     tool: toolTitle,
     planAccepted: t("steps.planAccepted"),
     scope: t("steps.scope"),
