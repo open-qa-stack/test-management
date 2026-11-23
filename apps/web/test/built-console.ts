@@ -1,13 +1,17 @@
-import { readFile, mkdtemp, rm } from "node:fs/promises";
+import { readFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, type Browser, type Page } from "playwright-core";
 import { build } from "vite";
+import { onTestFinished } from "vitest";
 import { lineCoverage, type GeneratedMap, type LineCoverage } from "./line-coverage.ts";
 
 const APP = fileURLToPath(new URL("..", import.meta.url));
 const ORIGIN = "http://console.test";
+
+/** Where a test that failed leaves what its page showed and logged, in a folder git ignores. */
+export const FAILURES = fileURLToPath(new URL("../../../.vitest/failures/", import.meta.url));
 
 /** What the API answers to a request. */
 export interface ApiAnswer {
@@ -75,7 +79,7 @@ export class BuiltConsole {
    * @returns The page, once the shell is mounted.
    */
   public async open(width: number, hash = "", api: Api = NO_API): Promise<Page> {
-    const page = await this.#browser.newPage({ viewport: { width, height: 800 } });
+    const page = this.#watched(await this.#browser.newPage({ viewport: { width, height: 800 } }));
     try {
       await this.#load(page, hash, api);
       return page;
@@ -94,7 +98,7 @@ export class BuiltConsole {
    * @returns For each module, the lines the build maps to, and those that did not run.
    */
   public async measure(sources: readonly string[], use: (page: Page) => Promise<void>, api: Api = NO_API): Promise<LineCoverage[]> {
-    const page = await this.#browser.newPage({ viewport: { width: 1280, height: 800 } });
+    const page = this.#watched(await this.#browser.newPage({ viewport: { width: 1280, height: 800 } }));
     try {
       await page.coverage.startJSCoverage({ resetOnNavigation: false });
       await this.#load(page, "", api);
@@ -127,6 +131,32 @@ export class BuiltConsole {
     } finally {
       await rm(this.#outDir, { recursive: true, force: true });
     }
+  }
+
+  /**
+   * Keeps what a page logs, and closes it only once its test is over: a test that failed leaves in `FAILURES` what the
+   * page showed then, and what it logged, under the name of the test, to be read after the run.
+   */
+  #watched(page: Page): Page {
+    const journal: string[] = [];
+    page.on("console", (message) => journal.push(`${message.type()}: ${message.text()}`));
+    page.on("pageerror", (error) => journal.push(`error: ${error.stack ?? error.message}`));
+    const close = page.close.bind(page);
+    // The test closes its page when it is done with it; the page stays open until the test is over, to be captured.
+    page.close = async () => undefined;
+    onTestFinished(async ({ task }) => {
+      try {
+        if (task.result?.state === "fail" && !page.isClosed()) {
+          const name = join(FAILURES, `${task.name.replace(/[^\p{L}\p{N}]+/gu, "-").slice(0, 120)}-${page.viewportSize()?.width ?? 0}`);
+          await mkdir(FAILURES, { recursive: true });
+          await page.screenshot({ path: `${name}.png`, fullPage: true });
+          await writeFile(`${name}.log`, `${page.url()}\n${journal.join("\n")}\n`);
+        }
+      } finally {
+        await close();
+      }
+    });
+    return page;
   }
 
   async #load(page: Page, hash: string, api: Api): Promise<void> {
