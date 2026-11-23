@@ -14,11 +14,12 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run --coverage",
-    "test:part": "vitest run --coverage --reporter=blob",
+    "test:part": "vitest run --coverage --reporter=default --reporter=blob",
     "test:merge": "vitest --merge-reports --coverage",
     "check": "node --disable-warning=ExperimentalWarning packages/check/src/main.ts",
     "scan": "node --disable-warning=ExperimentalWarning packages/check/src/scan-main.ts",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:durations": "vitest --merge-reports --reporter=json --outputFile=.vitest/report.json && node --disable-warning=ExperimentalWarning -e \"import('./packages/testing/src/test-durations.ts').then(({ writeDurations }) => writeDurations('.vitest/report.json', 'test-durations.json', process.cwd()))\""
   },
   "devDependencies": {
     "@types/node": "22.20.5",

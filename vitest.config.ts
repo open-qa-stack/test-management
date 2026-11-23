@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
+import { DurationSequencer } from "./packages/testing/src/duration-sequencer.ts";
 
 /** Refuses, in the tests of a package that opens connections, any that leaves the machine. */
 const LOOPBACK_ONLY = fileURLToPath(new URL("./packages/testing/src/loopback-only.ts", import.meta.url));
@@ -42,6 +43,8 @@ export default defineConfig({
   test: {
     // A test file is a process of its own: the tests of the tools drive real browsers and real git repositories.
     pool: "forks",
+    // The parts the continuous integration runs on several machines are balanced by how long each file took.
+    sequence: { sequencer: DurationSequencer },
     // No test is retried: one that fails once has failed.
     retry: 0,
     // A test may start a browser, a server or a git repository, which takes seconds; none has minutes to wait.
