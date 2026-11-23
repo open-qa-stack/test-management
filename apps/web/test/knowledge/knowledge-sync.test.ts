@@ -129,6 +129,24 @@ describe("what keeps the screens of the knowledge in step with their instance", 
     });
   });
 
+  it("maps the knowledge again, a source or every source, and tells what came of it, or why it failed", async () => {
+    const outcome = { state: "unknown", source: "nowhere" } as const;
+    api.answers.set("POST /api/knowledge/mapping", json(outcome));
+    api.sync.remap("nowhere");
+    await settled();
+    assert.deepEqual(api.told, [
+      { type: "remapping", source: "nowhere" },
+      { type: "remapped", source: "nowhere", outcome },
+    ]);
+    api.answers.set("POST /api/knowledge/mapping", json({ code: "unavailable", detail: "Down." }, 503));
+    api.sync.remap();
+    await settled();
+    assert.deepEqual(api.told.slice(-2), [
+      { type: "remapping" },
+      { type: "remapped", failure: "Aucune source de sessions n’est configurée sur cette instance." },
+    ]);
+  });
+
   it("removes a document, then lists those left, or tells why it could not", async () => {
     api.answers.set("DELETE /api/knowledge/manuals/documents/quotes.md", json(undefined, 204));
     api.answers.set("GET /api/knowledge/manuals/documents", json({ items: [] }));

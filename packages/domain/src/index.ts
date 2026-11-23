@@ -176,6 +176,7 @@ export { OPERATIONS, operationIds, type OperationId } from "./operations/operati
 export { declaredSecrets } from "./secrets/declared-secrets.ts";
 export type { SourceCheck } from "./knowledge-check/source-check.ts";
 export type { CartographyState, MappedSource, MappingState } from "./knowledge-check/knowledge-mapping.ts";
+export type { KnowledgeRemap } from "./knowledge-check/knowledge-remap.ts";
 export { SecretRefusedError } from "./secrets/secret-refused-error.ts";
 export type { SecretKind, SecretList, SecretSource, SecretState } from "./secrets/secret-state.ts";
 export { UnknownSecretError } from "./secrets/unknown-secret-error.ts";

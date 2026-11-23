@@ -6,7 +6,7 @@
  * method of its classes but those a host calls.
  */
 export const OPERATIONS = {
-  Sessions: ["project", "sessions", "session", "open", "resume", "say", "interrupt", "events", "thread", "launch", "launches"],
+  Sessions: ["project", "sessions", "session", "open", "resume", "say", "interrupt", "events", "thread", "launch", "launches", "remap"],
   Configuration: ["view", "revisions", "check", "synchronise", "save", "restore"],
   ModelConnection: ["check"],
   EnvironmentAddresses: ["check"],

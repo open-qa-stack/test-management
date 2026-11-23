@@ -69,6 +69,8 @@ export class ConfiguredInstance {
       const { address } = JSON.parse(body!) as { address: string };
       return json(address.includes(":1/") ? { state: "refused", url: address } : { state: "answers", url: address, status: 200 });
     }
+    // A session maps the knowledge already: none other opens.
+    if (path === "/api/knowledge/mapping" && method === "POST") return json({ state: "busy", session: { id: "mapping", state: "running", purpose: "map" } });
     // Every source answers, and holds three items.
     if (path === "/api/knowledge/check") return json({ state: "ok", items: 3 });
     // The key of the model of the fixtures, which the person types: saved once typed, missing before.

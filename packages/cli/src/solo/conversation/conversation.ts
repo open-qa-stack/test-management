@@ -18,7 +18,7 @@ import type { Theme } from "./palette.ts";
 const TICK_MS = 1000;
 
 /** The operations on sessions the conversation calls. */
-export type ConversationSessions = Pick<Sessions, "open" | "say" | "resume" | "interrupt" | "sessions" | "session" | "events">;
+export type ConversationSessions = Pick<Sessions, "open" | "say" | "resume" | "interrupt" | "sessions" | "session" | "events" | "remap">;
 
 /** How the person left the conversation. */
 /** The connection to the model, as the conversation reads, tests and sets it. */
@@ -166,6 +166,12 @@ export function Conversation({ sessions, context, latest, theme, now, serve, rea
         return void sessions
           .open({ request: request.request, ...(context.environment === undefined ? {} : { environment: context.environment }) })
           .then((session) => dispatch({ type: "opened", session, hosted: true }), fail);
+      case "remap":
+        // The session that maps the knowledge is followed: the one opened here, or the one that maps already.
+        return void sessions.remap(request.source).then((remap) => {
+          if (remap.state === "unknown") return fail(new Error(t("requests.unknownSource", { source: remap.source })));
+          dispatch({ type: "opened", session: remap.session, hosted: remap.state === "opened" });
+        }, fail);
       case "say":
         return void sessions.say(request.session, { text: request.text }).catch(fail);
       case "resume":

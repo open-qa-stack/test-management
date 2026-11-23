@@ -12,6 +12,7 @@ The shapes of every body are the types of `@open-qa-stack/domain/sessions`. A cl
 | `DELETE /api/knowledge/:source/documents/:name` | Removes a document. |
 | `GET /api/knowledge/domains` | [The domains of the knowledge](#the-domains-of-the-knowledge), as the cartography named them. |
 | `GET /api/knowledge/mapping` | [Where the cartography stands](#where-the-cartography-stands), source by source. |
+| `POST /api/knowledge/mapping` | [Maps the knowledge again](#mapping-the-knowledge-again), one source or every source. |
 | `POST /api/knowledge/check` | [Tests a source](#testing-a-source) as it is drafted, without the model, indexing nothing. |
 
 `:source` is the identifier of the source in the configuration in force, and `:name` the file name of a document, both encoded as a path segment. The two reads are answered with `cache-control: no-store`. Every answer that is not a success is a [problem](sessions.md#problems).
@@ -28,6 +29,29 @@ cache-control: no-store
 ```
 
 The answer lists each source the cartography reads in the first environment the configuration declares — the knowledge sources but logs, then the interface of each application — in the order of the configuration, with where its cartography stands in `state`: `waiting`, it has no card yet; `mapping`, a session maps the knowledge now; `mapped`, its card is written, on `mappedAt`; `truncated`, its card is written but a limit stopped it. `index`, when the cartography wrote one, gives when (`producedAt`) and whether in part (`status`). An instance without a test repository, or without a configuration, lists no source and names no `environment`. It is answered with `cache-control: no-store`.
+
+## Mapping the knowledge again
+
+```http
+POST /api/knowledge/mapping
+content-type: application/json
+
+{"source":"order-specs"}
+
+HTTP/1.1 200 OK
+
+{"state":"opened","session":{"id":"…","purpose":"map","state":"running",…}}
+```
+
+A session that maps the knowledge opens only for a source without a card: a source whose content changed is not read again by itself. This route drops the card of the source named, and the domains it found — or those of every source of the environment mapped, with an empty body —, then opens a session that maps the knowledge, which runs, or waits its turn. The source goes through `waiting` and `mapping` again, then `mapped`, with a later date; the index that puts the cards together follows, as after a source is added. The answer says what happened, in `state`:
+
+| `state` | When | With |
+|---|---|---|
+| `opened` | The cards were dropped, and a session maps the knowledge. | `session` |
+| `busy` | A session that maps the knowledge waits or runs already: no second one opens, and nothing is dropped. | `session`, the one that maps |
+| `unknown` | The configuration in force declares no such source for the environment mapped. | `source` |
+
+A body whose `source` is no text is answered with `400 invalid_request`; an API started without a test repository answers `503 unavailable`.
 
 ## Testing a source
 

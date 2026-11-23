@@ -1824,6 +1824,9 @@ describe("the code of the console is covered in full", () => {
         await page.waitForURL(/#\/knowledge\/manuals$/);
         // A source is added, tested and saved alone, then followed under the identifier it is saved with.
         await page.goto("http://console.test/#/knowledge");
+        // The knowledge is mapped again on demand: a session that maps it already says so.
+        await page.getByRole("button", { name: "Tout cartographier à nouveau" }).click();
+        await page.getByRole("status").filter({ hasText: "Une session cartographie déjà les connaissances" }).waitFor();
         await page.getByRole("link", { name: "Ajouter une connaissance" }).click();
         await page.getByRole("button", { name: "Ajouter la documentation d’une API" }).click();
         await page.getByLabel("Identifiant", { exact: true }).fill("pricing");

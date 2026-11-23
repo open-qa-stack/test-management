@@ -34,6 +34,7 @@ import { EmptyState } from "../ui/empty-state.tsx";
 import { Page, type Crumb } from "../ui/page.tsx";
 import type { KnowledgeState, Refusal } from "./knowledge-state.ts";
 import { SourceEditor } from "./source-editor.tsx";
+import { RemapButton } from "./remap-button.tsx";
 
 /** The identifier of the input that takes the files of an upload. */
 export const FILES_INPUT = "knowledge-files";
@@ -48,6 +49,8 @@ export interface KnowledgeControls {
   readonly edit: ConfigurationControls;
   /** Removes the source the button names by its rank from the configuration, once the person confirmed it. */
   readonly drop: MouseEventHandler<HTMLButtonElement>;
+  /** Maps the knowledge again: the source the button names, or every source. */
+  readonly remap: MouseEventHandler<HTMLButtonElement>;
 }
 
 /** What the screens of the knowledge are drawn from. */
@@ -201,6 +204,7 @@ function Overview({ project, route, state, editing, controls }: KnowledgeScreenP
       ) : (
         <>
           <IndexLine mapping={state.mapping} />
+          <RemapButton remap={state.remap} onRemap={controls.remap} />
           <ProjectSources sources={sources} state={state} />
           {configuration!.applications.map((application) => (
             <ApplicationSources key={application.id} application={application} sources={sources} state={state} />
@@ -479,6 +483,7 @@ function SourceScreen({ project, route, state, editing, controls, id }: Knowledg
         </Card>
       )}
       <p className="small muted">{isStoredDocuments(source) ? t("knowledge.storedNote") : t("knowledge.readThere")}</p>
+      {state.mapping?.sources.some((mapped) => mapped.id === id) === true && <RemapButton source={id} remap={state.remap} onRemap={controls.remap} />}
       <TechnicalDetails>
         <div>{t("knowledge.sourceId", { id })}</div>
         {where !== undefined && <div className="mono">{t("knowledge.where", { where })}</div>}

@@ -27,6 +27,7 @@ const ROUTES: Readonly<Record<OperationId, Offer>> = {
   "Sessions.thread": "GET /sessions/s/events",
   "Sessions.launch": "POST /launches",
   "Sessions.launches": "GET /launches",
+  "Sessions.remap": "POST /knowledge/mapping",
   "Configuration.view": "GET /configuration",
   "Configuration.revisions": "GET /configuration/revisions",
   "Configuration.check": "POST /configuration/validation",

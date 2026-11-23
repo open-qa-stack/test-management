@@ -737,6 +737,16 @@
     }
   },
   "knowledge": {
+    "remap": {
+      "all": "Map everything again",
+      "one": "Map again",
+      "sending": "Asking…",
+      "opened": "A session reads this source again: it goes through « waiting », then « mapping ».",
+      "openedAll": "A session reads every source again: they go through « waiting », then « mapping ».",
+      "busy": "A session maps the knowledge already: no other one opens.",
+      "unknown": "The configuration in force does not declare this source for the environment mapped.",
+      "failed": "The request did not go through: {{reason}}"
+    },
     "title": "Knowledge",
     "configure": "Configure the project",
     "reading": "Reading the knowledge",

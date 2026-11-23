@@ -91,6 +91,21 @@ export class KnowledgeSync {
    * @param source - The identifier of the source.
    * @param name - The file name of the document.
    */
+  /**
+   * Asks the instance to map the knowledge again, the source named or every source, and tells what came of it; the
+   * cartography then goes on as the polling tells it.
+   *
+   * @param source - The identifier of the source; every source when none is named.
+   */
+  public remap(source?: string): void {
+    const named = source === undefined ? {} : { source };
+    this.#dispatch({ type: "remapping", ...named });
+    this.#api.remap(source).then(
+      (outcome) => this.#dispatch({ type: "remapped", ...named, outcome }),
+      (error: ApiError) => this.#dispatch({ type: "remapped", ...named, failure: error.message }),
+    );
+  }
+
   public remove(source: string, name: string): void {
     this.#settle(
       source,

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createElement } from "react";
 import { describe, it } from "vitest";
-import type { CartographyState } from "@open-qa-stack/domain/sessions";
+import type { CartographyState, Session } from "@open-qa-stack/domain/sessions";
 import { KnowledgeScreen, whereOf, type KnowledgeControls } from "../../src/knowledge/knowledge-screen.tsx";
 import { INITIAL_KNOWLEDGE, knowledgeAfter, type KnowledgeAction, type KnowledgeState } from "../../src/knowledge/knowledge-state.ts";
 import { parseRoute } from "../../src/routing/route.ts";
@@ -15,6 +15,7 @@ const CONTROLS: KnowledgeControls = {
   upload: () => assert.fail("nothing is uploaded"),
   remove: () => assert.fail("nothing is removed"),
   drop: () => assert.fail("no source is removed"),
+  remap: () => assert.fail("nothing is mapped again"),
   edit: UNCALLED_CONTROLS,
 };
 
@@ -126,6 +127,39 @@ describe("the knowledge of the project", () => {
         "#/knowledge/server-log",
         "#/knowledge/container-log",
       ],
+    );
+  });
+
+  it("offers to map every source again on the knowledge, and a source the cartography reads on its page, with what the last request told", () => {
+    const mapping = { environment: "local", sources: [{ id: "specs", type: "document", state: "mapped", mappedAt: "2026-11-22T09:00:00.000Z" }] } as const;
+    const mapped = stateAfter([{ type: "mapped", mapping }]);
+    assert.match(screen("#/knowledge", mapped), /<div class="remap"><button type="button" class="btn sm">Tout cartographier à nouveau<\/button><\/div>/);
+    assert.match(screen("#/knowledge/specs", mapped), /<button type="button" class="btn sm" data-source="specs">Cartographier à nouveau<\/button>/);
+    assert.doesNotMatch(screen("#/knowledge/manuals", mapped), /Cartographier à nouveau/, "a source the cartography does not read");
+    const session = {} as Session;
+    const told = (hash: string, actions: readonly KnowledgeAction[]) => textOf(screen(hash, stateAfter([{ type: "mapped", mapping }, ...actions])));
+    assert.match(
+      screen(
+        "#/knowledge/specs",
+        stateAfter([
+          { type: "mapped", mapping },
+          { type: "remapping", source: "specs" },
+        ]),
+      ),
+      /disabled="">Cartographier à nouveau<\/button><p class="small muted" role="status">Demande en cours…/,
+    );
+    assert.match(told("#/knowledge/specs", [{ type: "remapped", source: "specs", outcome: { state: "opened", session } }]), /Une session relit cette source/);
+    assert.match(told("#/knowledge", [{ type: "remapped", outcome: { state: "opened", session } }]), /Une session relit toutes les sources/);
+    assert.match(told("#/knowledge", [{ type: "remapped", outcome: { state: "busy", session } }]), /Une session cartographie déjà les connaissances/);
+    assert.match(
+      told("#/knowledge/specs", [{ type: "remapped", source: "specs", outcome: { state: "unknown", source: "specs" } }]),
+      /ne déclare pas cette source/,
+    );
+    assert.match(told("#/knowledge", [{ type: "remapped", failure: "Down." }]), /La demande n’a pas abouti : Down\./);
+    assert.doesNotMatch(
+      told("#/knowledge/specs", [{ type: "remapped", failure: "Down." }]),
+      /Down/,
+      "a request of every source is not told on the page of one",
     );
   });
 

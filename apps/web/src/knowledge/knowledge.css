@@ -49,3 +49,15 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* Maps the knowledge again: the button, then what the last request told. */
+.remap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.remap p {
+  margin: 0;
+}

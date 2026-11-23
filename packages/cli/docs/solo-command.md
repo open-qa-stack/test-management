@@ -42,6 +42,7 @@ The command is a presentation of [the operations on sessions](../../engine/docs/
 | `oqas knowledge mapping` | Tells where the cartography of the knowledge stands, source by source, and its index. |
 | `oqas knowledge check [<source>]` | Tests that the knowledge sources answer, or one of them, without the model and indexing nothing. |
 | `oqas applications check [<application>]` | Tests that each address of the environments answers, of every application or of one, without the model and writing nothing. |
+| `oqas knowledge remap [<source>]` | Maps the knowledge again, one source or every source, in a session it follows to its end. |
 | `oqas secrets` | Lists the variables the configuration names, and where the value of each comes from: see [The values of the variables](#the-values-of-the-variables). |
 | `oqas secrets set <variable>` | Saves the value of one of them on this machine, out of the test repository, typed unseen or read from the input. |
 | `oqas --ui` | Serves the console of the test repository in a browser, and runs the sessions opened in it, until Ctrl-C: see [The console](#the-console). |
@@ -363,6 +364,8 @@ customer-core › staging › backend  https://core.staging.exmaple/  names no m
 ```
 
 It exits with `0` when each answers, with `4` when one does not, and with `3` when the configuration declares no application, not the one named, or no address. With `--output json`, it prints `{"checks":[{"application":…,"environment":…,"address":…,"check":…}]}`. In the conversation, `/applications check` does the same.
+
+`oqas knowledge remap` maps the knowledge again, as [the API does](../../api/docs/knowledge.md#mapping-the-knowledge-again): the card of the source it names, or of every source, is dropped, and a session that maps the knowledge opens, which this command runs and follows to its end, as `--brief` follows the session it opens. When a session maps the knowledge already, it says which, opens none, and exits with `0`; `oqas attach` follows it. A source the configuration does not declare is refused with `3`. In the conversation, `/knowledge remap` opens the session on screen.
 
 `oqas knowledge mapping` tells where the cartography stands, as [the API tells it](../../api/docs/knowledge.md#where-the-cartography-stands): each source mapped, mapped in part, being mapped or waiting, and the index. It exits with `0`.
 

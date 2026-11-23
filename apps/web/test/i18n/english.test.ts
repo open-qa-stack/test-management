@@ -142,7 +142,7 @@ describe("the console in English", () => {
       checkAddress: IGNORED,
       setUp: IGNORED,
     };
-    const controls = { upload: IGNORED, remove: IGNORED, drop: IGNORED, edit };
+    const controls = { upload: IGNORED, remove: IGNORED, drop: IGNORED, remap: IGNORED, edit };
     const editing = configurationAfter(INITIAL_CONFIGURATION, { type: "read", view: VIEW, revisions: REVISIONS });
     const overview = english(createElement(KnowledgeScreen, { project: "p", route: parseRoute("#/knowledge?add=source"), state, editing, controls }));
     assert.match(overview, /Knowledge The sources of each application, .* Add knowledge · choose what the agents will read API documentation The description/);

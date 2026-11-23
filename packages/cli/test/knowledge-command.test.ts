@@ -142,6 +142,30 @@ describe("oqas knowledge", () => {
   });
 });
 
+describe("oqas knowledge remap", () => {
+  it("is refused for a source the configuration does not declare, and says which session maps the knowledge already", async () => {
+    const { oqas, database } = repository();
+    await oqas("config", "import");
+    const unknown = await oqas("knowledge", "remap", "nowhere");
+    assert.deepEqual(
+      [unknown.code, unknown.err],
+      [3, "The configuration in force declares no knowledge source nowhere to map; oqas knowledge mapping lists them.\n"],
+    );
+    const instance = new InstanceDatabase(DatabaseUrl.parse(`sqlite:${database}`)!, { log: () => undefined, warn: () => undefined });
+    const waiting = await instance.sessions.ask({ purpose: "map" }, "another-host");
+    await instance.close();
+    const busy = await oqas("knowledge", "remap");
+    assert.deepEqual([busy.code, busy.out], [0, `A session maps the knowledge already: ${waiting.id}. oqas attach ${waiting.id} follows it.\n`]);
+  });
+
+  it("opens a session that maps the source again in this command, and follows it to its end", async () => {
+    const { oqas } = repository();
+    await oqas("config", "import");
+    const run = await oqas("knowledge", "remap", "order-specs");
+    assert.match(run.err, /^Session \S+\n/);
+  });
+});
+
 describe("the arguments of oqas knowledge", () => {
   it("take list, or add-document with a source and one file at least, and nothing of a session", () => {
     assert.deepEqual(parseArguments(["knowledge", "list"]), {
@@ -153,7 +177,7 @@ describe("the arguments of oqas knowledge", () => {
       arguments: { output: "text", follow: false, command: { name: "knowledge", action: "add-document", source: "manuals", files: ["a.md", "b.md"] } },
     });
     const usage =
-      "oqas knowledge takes list, mapping or domains, check and a source at most, read or remove then a source and a document, or add-document then a source and one file at least.";
+      "oqas knowledge takes list, mapping or domains, check or remap and a source at most, read or remove then a source and a document, or add-document then a source and one file at least.";
     for (const argv of [["knowledge"], ["knowledge", "list", "more"], ["knowledge", "add-document", "manuals"], ["knowledge", "remove"]])
       assert.deepEqual(parseArguments(argv), { ok: false, error: usage }, argv.join(" "));
     assert.deepEqual(parseArguments(["knowledge", "list", "--follow"]), {
@@ -206,7 +230,7 @@ describe("oqas knowledge check", () => {
     assert.deepEqual(parseArguments(["knowledge", "check", "a", "b"]), {
       ok: false,
       error:
-        "oqas knowledge takes list, mapping or domains, check and a source at most, read or remove then a source and a document, or add-document then a source and one file at least.",
+        "oqas knowledge takes list, mapping or domains, check or remap and a source at most, read or remove then a source and a document, or add-document then a source and one file at least.",
     });
   });
 });

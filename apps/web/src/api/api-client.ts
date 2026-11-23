@@ -49,6 +49,7 @@ import type {
   SourceCheck,
   AddressCheck,
   CartographyState,
+  KnowledgeRemap,
 } from "@open-qa-stack/domain/sessions";
 import { ApiError } from "./api-error.ts";
 import { t } from "../i18n/i18n.ts";
@@ -226,6 +227,16 @@ export class ApiClient {
   /** @returns Where the cartography of the knowledge stands, source by source, with the index that puts their cards together. */
   public async mapping(): Promise<CartographyState> {
     return this.#ask<CartographyState>("/knowledge/mapping");
+  }
+
+  /**
+   * Maps the knowledge again: the source named, or every source.
+   *
+   * @param source - The identifier of the source; every source when none is named.
+   * @returns The session that maps it, opened or already at work, or that no such source is declared.
+   */
+  public async remap(source?: string): Promise<KnowledgeRemap> {
+    return this.#ask<KnowledgeRemap>("/knowledge/mapping", posting(source === undefined ? {} : { source }));
   }
 
   /** @returns Each variable the configuration in force names, and where its value comes from; never a value. */

@@ -1,6 +1,17 @@
 import { randomUUID } from "node:crypto";
+import { rm } from "node:fs/promises";
+import { join } from "node:path";
+import { CARDS_FOLDER, runSources } from "@open-qa-stack/agents";
 import { setTimeout as pause } from "node:timers/promises";
-import { LaunchRefusedError, resolvedConfig, UnknownSessionError, type LaunchRequest, type LaunchState, type TestLaunch } from "@open-qa-stack/domain";
+import {
+  LaunchRefusedError,
+  resolvedConfig,
+  UnknownSessionError,
+  type KnowledgeRemap,
+  type LaunchRequest,
+  type LaunchState,
+  type TestLaunch,
+} from "@open-qa-stack/domain";
 import { hasEnded } from "@open-qa-stack/domain/sessions";
 import type { MessageReceipt, Project, Session, SessionEvent, SessionMessage, SessionOpening } from "@open-qa-stack/domain/sessions";
 import { LaunchRun } from "../executions/launch-run.ts";
@@ -181,6 +192,33 @@ export class Sessions {
       });
     this.#launching = { run: ready, ended };
     return ready.launch;
+  }
+
+  /**
+   * Maps the knowledge again, on demand: drops the card of the source named, and the domains it found, or those of
+   * every source of the environment mapped, then opens a session that maps the knowledge, which reads again what has no card — unless one waits or
+   * runs already, which it then says, dropping nothing.
+   *
+   * @param source - The identifier of a source of the configuration in force; every source when none is named.
+   * @returns The session opened, the session that maps already, or that no such source is declared.
+   * @throws {@link NoRepositoryError} when the host has no test repository, which holds the cards.
+   * @throws `NoConfigurationError` when no configuration is in force.
+   */
+  async remap(source?: string): Promise<KnowledgeRemap> {
+    const { repository, configuration, store } = this.#host;
+    if (repository === undefined) throw new NoRepositoryError();
+    const busy = (await store.sessions()).find((session) => session.purpose === "map" && !hasEnded(session.state));
+    if (busy !== undefined) return { state: "busy", session: busy };
+    const config = resolvedConfig((await configuration.current()).document);
+    // The schema asks each application for an environment, and the configuration for an application: the first is mapped.
+    const environment = config.applications[0]!.environments[0]!.name;
+    const declared = runSources(config, environment).map(({ id }) => id);
+    if (source !== undefined && !declared.includes(source)) return { state: "unknown", source };
+    const cards = join(repository, config.repository.indexDir, CARDS_FOLDER);
+    // A card, and the folder of the domains it found, which the session writes again.
+    const dropped = (source === undefined ? declared : [source]).flatMap((id) => [join(cards, `${id}.json`), join(cards, id)]);
+    await Promise.all(dropped.map((path) => rm(path, { recursive: true, force: true })));
+    return { state: "opened", session: await this.#line((lined) => lined.ask({ purpose: "map", environment }, this.#identity)) };
   }
 
   /** @returns The launch of tests that runs in this process with how far it went, and the last one that ended in it. */

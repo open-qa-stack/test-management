@@ -6,6 +6,7 @@ import type {
   StoredDocument,
   StoredDocumentSummary,
   CartographyState,
+  KnowledgeRemap,
 } from "@open-qa-stack/domain/sessions";
 
 /** Why the instance refused what the person asked, in their words, with the errors of an upload, each at its file. */
@@ -27,6 +28,16 @@ export type DocumentChange =
   /** Refused. */
   | { readonly source: string; readonly state: "refused"; readonly refusal: Refusal };
 
+/** A request to map the knowledge again, of one source or of every source. */
+export interface RemapRequest {
+  /** The source named; none for every source. */
+  readonly source?: string;
+  /** What came of it. */
+  readonly outcome?: KnowledgeRemap;
+  /** Why it failed, in the words of the instance. */
+  readonly failure?: string;
+}
+
 /** What the screens of the knowledge hold: what the instance told of the sources, of their documents, and the change the person is making. */
 export interface KnowledgeState {
   /** The configuration in force, which declares the sources; `undefined` before the instance told it, or when it has none. */
@@ -43,6 +54,8 @@ export interface KnowledgeState {
   readonly change?: DocumentChange;
   /** Where the cartography of the knowledge stands, once the instance told it. */
   readonly mapping?: CartographyState;
+  /** The last request to map the knowledge again: on its way while it holds neither what came of it nor why it failed. */
+  readonly remap?: RemapRequest;
 }
 
 /** What changes the state of the screens. */
@@ -64,7 +77,11 @@ export type KnowledgeAction =
   /** The instance took it, and listed the documents of the source as they are now. */
   | { readonly type: "changed"; readonly source: string; readonly items: readonly StoredDocumentSummary[]; readonly uploaded: number }
   /** The console or the instance refused it. */
-  | { readonly type: "refused"; readonly source: string; readonly refusal: Refusal };
+  | { readonly type: "refused"; readonly source: string; readonly refusal: Refusal }
+  /** A request to map the knowledge again left for the instance. */
+  | { readonly type: "remapping"; readonly source?: string }
+  /** What came of it, or why it failed. */
+  | { readonly type: "remapped"; readonly source?: string; readonly outcome?: KnowledgeRemap; readonly failure?: string };
 
 /** The state of the screens before the instance told anything. */
 export const INITIAL_KNOWLEDGE: KnowledgeState = { read: false, documents: {} };
@@ -87,6 +104,11 @@ export function knowledgeAfter(state: KnowledgeState, action: KnowledgeAction): 
       return { ...state, unread: action.message };
     case "mapped":
       return { ...state, mapping: action.mapping };
+    case "remapping":
+    case "remapped": {
+      const { type: _, ...remap } = action;
+      return { ...state, remap };
+    }
     case "listed":
       return { ...state, documents: { ...state.documents, [action.source]: action.items } };
     case "opened":

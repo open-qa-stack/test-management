@@ -205,6 +205,37 @@ export function knowledgeApiSuite(engine: DatabaseEngine): void {
     });
   });
 
+  describe(`the knowledge mapped again on ${engine.name}`, () => {
+    const remap = async (body?: unknown) =>
+      answerOf(
+        await fetch(`${api.url}/knowledge/mapping`, {
+          method: "POST",
+          ...(body === undefined ? {} : { headers: { "content-type": "application/json" }, body: JSON.stringify(body) }),
+        }),
+      );
+
+    it("opens a session that maps a source again, and says when no such source is declared", async () => {
+      assert.deepEqual(await remap({ source: "nowhere" }), {
+        status: 200,
+        type: "application/json; charset=utf-8",
+        cache: null,
+        body: { state: "unknown", source: "nowhere" },
+      });
+      const opened = await remap({ source: "order-specs" });
+      const { state, session } = opened.body as { state: string; session: { purpose: string } };
+      assert.deepEqual([opened.status, state, session.purpose], [200, "opened", "map"]);
+    });
+
+    it("maps every source again with an empty body, and is refused for a source that is no text, or by an API given no test repository", async () => {
+      assert.equal(((await remap()).body as { state: string }).state, "opened");
+      assert.equal(problemCode(await remap({ source: 1 })), "400 invalid_request");
+      assert.equal(problemCode(await remap("order-specs")), "400 invalid_request");
+      await api.close();
+      api = await sessionsApi({ database: database.url });
+      assert.equal(problemCode(await remap()), "503 unavailable");
+    });
+  });
+
   describe(`where the cartography stands on ${engine.name}`, () => {
     it("is each source the cartography reads, which waits while nothing mapped it, and no index yet, never cached", async () => {
       const read = await get(`${api.url}/knowledge/mapping`);

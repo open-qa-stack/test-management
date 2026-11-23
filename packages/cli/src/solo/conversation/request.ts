@@ -26,6 +26,8 @@ export type Request =
   | { readonly kind: "new" }
   | { readonly kind: "ui"; readonly port: number }
   | { readonly kind: "model" }
+  /** A session that maps the knowledge again, one source or every source, to open and follow. */
+  | { readonly kind: "remap"; readonly source?: string }
   /** A command that prints, run as `oqas` runs it. */
   | { readonly kind: "command"; readonly command: PrintingCommand }
   /** The value of a variable to type, without it being shown, then to save. */
@@ -46,6 +48,7 @@ function commandOf(state: ConversationState, line: string): Request {
     if (!asked.ok) return { kind: "refused", why: asked.why };
     const { command: run } = asked;
     // A value is typed over the input, unseen, as oqas secrets set reads it in a terminal: never in the line typed.
+    if (run.name === "remap") return { kind: "remap", ...(run.source === undefined ? {} : { source: run.source }) };
     return run.name === "secrets" && run.action === "set" ? { kind: "secret", variable: run.variable } : { kind: "command", command: run };
   }
   const [value, ...more] = rest;

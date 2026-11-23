@@ -32,6 +32,14 @@ describe("the state of the screens of the knowledge", () => {
     });
   });
 
+  it("holds the last request to map the knowledge again: on its way, then what came of it or why it failed, of one source or of every source", () => {
+    const sending = after([{ type: "remapping", source: "manuals" }]);
+    assert.deepEqual(sending.remap, { source: "manuals" });
+    const outcome = { state: "unknown", source: "manuals" } as const;
+    assert.deepEqual(after([{ type: "remapped", source: "manuals", outcome }], sending).remap, { source: "manuals", outcome });
+    assert.deepEqual(after([{ type: "remapped", failure: "Down." }]).remap, { failure: "Down." });
+  });
+
   it("holds where the last change is: on its way, taken with the documents as they are now, or refused", () => {
     const sending = after([{ type: "sending", source: "manuals" }]);
     assert.deepEqual(sending.change, { source: "manuals", state: "sending" });
