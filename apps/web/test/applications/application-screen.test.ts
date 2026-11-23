@@ -94,6 +94,56 @@ describe("the page of an application", () => {
     assert.doesNotMatch(page("#/applications/shop?panel=other%3A0"), /<dialog/, "a panel the page does not know opens nothing");
   });
 
+  it("criterion 3 — offers to test each address of an environment beside its field, and tells the wait, then what the test found, while the field holds the address tested", () => {
+    const at = "/applications/0/environments/0";
+    const panel = "#/applications/shop?panel=environment%3A0";
+    const html = page(panel);
+    assert.match(html, new RegExp(`<button type="button" class="btn sm" data-pointer="${at}/uiUrl" aria-label="Tester http://127.0.0.1:3000">Tester</button>`));
+    assert.match(html, new RegExp(`data-pointer="${at}/apis/0/baseUrl" aria-label="Tester http://127.0.0.1:3001">Tester</button>`));
+    assert.doesNotMatch(html, /role="status">(Test en cours|Répond)/);
+    const tested = (test: object, pointer = `${at}/uiUrl`) =>
+      page(panel, { ...stateAfter(), addressChecks: { [pointer]: { address: "http://127.0.0.1:3000", ...test } } });
+    assert.match(
+      tested({}),
+      /disabled="" aria-label="Tester http:\/\/127\.0\.0\.1:3000">Tester<\/button><p class="small muted" role="status">Test en cours…<\/p>/,
+    );
+    const url = "http://127.0.0.1:3000";
+    for (const [check, text] of [
+      [{ state: "answers", url, status: 500 }, '<p class="config-note ok" role="status">Répond (500).</p>'],
+      [{ state: "malformed", url }, "Ce n’est pas une adresse http ou https : vérifiez son écriture."],
+      [{ state: "unknown-host", url }, "Aucune machine ne porte ce nom : vérifiez-le, c’est souvent une faute de frappe."],
+      [{ state: "refused", url }, "La connexion est refusée : rien n’écoute sur ce port. Vérifiez le port, et que l’application tourne."],
+      [{ state: "timeout", url }, "Pas de réponse en dix secondes : vérifiez que l’application tourne et qu’elle est joignable d’ici."],
+      [{ state: "unreachable", url }, "Injoignable : vérifiez l’adresse et le réseau."],
+      [{ state: "unreachable", url, code: "ECONNRESET" }, "Injoignable (ECONNRESET) : vérifiez l’adresse et le réseau."],
+    ] as const)
+      assert.ok(tested({ check }).includes(text), text);
+    assert.match(tested({ failure: "Down." }), /<p class="config-note ko" role="status">Le test n’a pas pu se faire : Down\.<\/p>/);
+    const changed = page(panel, {
+      ...stateAfter(),
+      addressChecks: { [`${at}/uiUrl`]: { address: "http://old.test/", check: { state: "answers", url, status: 200 } } },
+    });
+    assert.doesNotMatch(changed, /Répond/, "a test of an address since changed is not shown");
+  });
+
+  it("offers no test of an address an environment does not give", () => {
+    const document = {
+      ...DOCUMENT,
+      applications: [{ ...DOCUMENT.applications[0]!, type: "api" as const, environments: [{ name: "local", apis: [{ name: "backend", baseUrl: "" }] }] }],
+    };
+    const view = { ...VIEW, revision: { ...VIEW.revision!, document } };
+    const bare = configurationAfter(INITIAL_CONFIGURATION, { type: "read", view, revisions: REVISIONS });
+    assert.match(
+      page("#/applications/shop?panel=environment%3A0", bare),
+      /data-pointer="\/applications\/0\/environments\/0\/uiUrl" disabled="" aria-label="Tester ">/,
+    );
+    assert.match(
+      page("#/applications/shop?panel=environment%3A0", bare),
+      /data-pointer="\/applications\/0\/environments\/0\/apis\/0\/baseUrl" disabled="" aria-label="Tester ">/,
+      "an API added has no address yet",
+    );
+  });
+
   it("marks a part that holds an error to correct, says when there is no test account, and names a part without a name by its rank", () => {
     const wrong = configurationAfter(stateAfter(), {
       type: "checked",

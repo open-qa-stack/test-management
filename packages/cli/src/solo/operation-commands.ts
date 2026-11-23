@@ -16,7 +16,8 @@ import {
 } from "@open-qa-stack/domain";
 import { playwrightVersion } from "@open-qa-stack/tools";
 import type { Project, Session } from "@open-qa-stack/domain/sessions";
-import type { Configuration, KnowledgeDocuments, KnowledgeSources, Secrets, Sessions } from "@open-qa-stack/engine";
+import type { Configuration, EnvironmentAddresses, KnowledgeDocuments, KnowledgeSources, Secrets, Sessions } from "@open-qa-stack/engine";
+import { addressLine, type CheckedAddress } from "./address-lines.ts";
 import type { Arguments, Command } from "./arguments.ts";
 import { errorLine, fileLine, revisionLine } from "./configuration-lines.ts";
 import { eventLine, ofTheAgents } from "./event-line.ts";
@@ -55,6 +56,7 @@ export type PrintingCommand =
           | "init"
           | "config"
           | "knowledge"
+          | "applications"
           | "secrets"
           | "sessions"
           | "show"
@@ -74,6 +76,7 @@ const PRINTING: Readonly<Record<PrintingCommand["name"], true>> = {
   init: true,
   config: true,
   knowledge: true,
+  applications: true,
   secrets: true,
   sessions: true,
   show: true,
@@ -115,7 +118,7 @@ export async function runPrinting(
   options: Arguments,
   io: CommandIo,
 ): Promise<ExitCodeValue> {
-  const { sessions, configuration, documents, secrets, sources, mapping } = operations;
+  const { sessions, configuration, documents, secrets, sources, mapping, addresses } = operations;
   switch (command.name) {
     case "init":
       return await new RepositoryInit({
@@ -133,6 +136,8 @@ export async function runPrinting(
       return projected(await sessions.project(), { options, io });
     case "repository":
       return stood(await operations.setup.state(), { options, io });
+    case "applications":
+      return await addressesChecked({ configuration, addresses, command, options, io });
     case "knowledge":
       if (command.action === "check") return await checked({ configuration, sources, command, options, io });
       if (command.action === "mapping") return mapped(await mapping.state(), options, io);
@@ -570,6 +575,34 @@ async function checked({
   const checks = await Promise.all(asked.map(async (source) => ({ source: source.id, check: await sources.check(source) })));
   print({ options, io }, checks.map(checkLine).join("\n"), { checks });
   return checks.some(({ check }) => check.state === "failed") ? ExitCode.prerequisite : ExitCode.passed;
+}
+
+/**
+ * `oqas applications check`: tests that each address of the environments of the applications of the configuration in
+ * force answers — that of the interface, those of the APIs —, or of the one named, without the model and writing
+ * nothing. Exits with `0` when each answers, with `4` otherwise.
+ */
+async function addressesChecked({
+  configuration,
+  addresses,
+  command,
+  options,
+  io,
+}: Pick<Asked<"applications">, "command" | "options" | "io"> & { configuration: Configuration; addresses: EnvironmentAddresses }): Promise<ExitCodeValue> {
+  const declared = (await configuration.current()).document.applications;
+  const asked = command.application === undefined ? declared : declared.filter(({ id }) => id === command.application);
+  // A configuration declares one application at least: only an application named may be missing.
+  if (asked.length === 0) throw new UsageError(`The configuration in force declares no application ${command.application!}; oqas project names them.`);
+  const named = asked.flatMap(({ id, environments }) =>
+    environments.flatMap(({ name, uiUrl, apis = [] }) => [
+      ...(uiUrl === undefined ? [] : [{ application: id, environment: name, address: "interface", url: uiUrl }]),
+      ...apis.map((api) => ({ application: id, environment: name, address: api.name, url: api.baseUrl })),
+    ]),
+  );
+  if (named.length === 0) throw new UsageError("The environments of the applications declare no address to test.");
+  const checks: CheckedAddress[] = await Promise.all(named.map(async ({ url, ...where }) => ({ ...where, check: await addresses.check(url) })));
+  print({ options, io }, checks.map(addressLine).join("\n"), { checks });
+  return checks.every(({ check }) => check.state === "answers") ? ExitCode.passed : ExitCode.prerequisite;
 }
 
 /** `oqas knowledge mapping`: tells where the cartography of the knowledge stands, source by source, and its index. */

@@ -12,6 +12,7 @@ import type {
   SecretState,
   Knowledge,
   SourceCheck,
+  AddressCheck,
 } from "@open-qa-stack/domain/sessions";
 import { withFollowers } from "./derived-names.ts";
 import { modelFor } from "./model-connection.ts";
@@ -55,6 +56,18 @@ export interface ConfigurationState {
   readonly valued?: boolean;
   /** The latest test of each knowledge source, by its rank in the draft; one made of a source since changed no longer holds. */
   readonly sourceChecks?: Readonly<Record<number, SourceTest>>;
+  /** The latest test of each address of an environment, by the pointer of its field; it holds while the field holds the address tested. */
+  readonly addressChecks?: Readonly<Record<string, AddressTest>>;
+}
+
+/** A test of an address of an environment, under way or done. */
+export interface AddressTest {
+  /** The address the field held when the test was asked for. */
+  readonly address: string;
+  /** What the test found; `undefined` while it runs, and when it could not be made. */
+  readonly check?: AddressCheck;
+  /** Why the test could not be made, in the words of the instance. */
+  readonly failure?: string;
 }
 
 /** A test of a knowledge source, under way or done. */
@@ -119,6 +132,8 @@ export type ConfigurationAction =
   | { readonly type: "sourceChecking"; readonly rank: number; readonly source: Knowledge }
   /** The instance answered a test of a knowledge source, or could not make it. */
   | { readonly type: "sourceChecked"; readonly rank: number; readonly source: Knowledge; readonly check?: SourceCheck; readonly failure?: string }
+  | { readonly type: "addressChecking"; readonly pointer: string; readonly address: string }
+  | { readonly type: "addressChecked"; readonly pointer: string; readonly address: string; readonly check?: AddressCheck; readonly failure?: string }
   /** The instance told the variables the configuration names. */
   | { readonly type: "secrets"; readonly secrets: readonly SecretState[] }
   /** The person typed the value of a variable: an empty one is not saved. */
@@ -300,6 +315,13 @@ export function configurationAfter(state: ConfigurationState, action: Configurat
       if (state.sourceChecks?.[action.rank]?.source !== action.source) return state;
       const { type: _, rank, ...test } = action;
       return { ...state, sourceChecks: { ...state.sourceChecks, [rank]: test } };
+    }
+    case "addressChecking":
+      return { ...state, addressChecks: { ...state.addressChecks, [action.pointer]: { address: action.address } } };
+    case "addressChecked": {
+      if (state.addressChecks?.[action.pointer]?.address !== action.address) return state;
+      const { type: _, pointer, ...test } = action;
+      return { ...state, addressChecks: { ...state.addressChecks, [pointer]: test } };
     }
     case "value": {
       const { [action.name]: _, ...others } = state.values;

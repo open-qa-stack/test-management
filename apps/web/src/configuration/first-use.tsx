@@ -95,7 +95,17 @@ export function FirstUse({ project, state, controls, step, onBack, onNext }: Fir
       )}
       {/* What is left to correct is told before anything is written; each field says it beside itself before. */}
       {step === "summary" && <ErrorSummary errors={state.errors} draft={draft} />}
-      <EditContext.Provider value={{ change: controls.change, click: controls.click, errors: shownErrors(state), draft, values: state.values }}>
+      <EditContext.Provider
+        value={{
+          change: controls.change,
+          click: controls.click,
+          errors: shownErrors(state),
+          draft,
+          values: state.values,
+          checkAddress: controls.checkAddress,
+          ...(state.addressChecks === undefined ? {} : { addressChecks: state.addressChecks }),
+        }}
+      >
         {step === "applications" && (
           <section className="config-section" aria-label={title}>
             <PlaceErrors pointer="/applications" />

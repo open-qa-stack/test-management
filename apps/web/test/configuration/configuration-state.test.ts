@@ -216,6 +216,21 @@ describe("the state of the screen of the configuration", () => {
     assert.equal(after([{ type: "sourceChecked", rank: 1, source, check: { state: "unchecked" } }], checking), checking);
   });
 
+  it("keeps the latest test of each address by its field, and drops an answer to a test of an address since changed", () => {
+    const pointer = "/applications/0/environments/0/uiUrl";
+    const checking = after([{ type: "addressChecking", pointer, address: "http://a.test/" }], READ);
+    assert.deepEqual(checking.addressChecks, { [pointer]: { address: "http://a.test/" } });
+    const check = { state: "answers", url: "http://a.test/", status: 200 } as const;
+    assert.deepEqual(after([{ type: "addressChecked", pointer, address: "http://a.test/", check }], checking).addressChecks, {
+      [pointer]: { address: "http://a.test/", check },
+    });
+    assert.deepEqual(after([{ type: "addressChecked", pointer, address: "http://a.test/", failure: "Down." }], checking).addressChecks, {
+      [pointer]: { address: "http://a.test/", failure: "Down." },
+    });
+    assert.equal(after([{ type: "addressChecked", pointer, address: "http://b.test/", check }], checking), checking);
+    assert.equal(after([{ type: "addressChecked", pointer: "/other", address: "http://a.test/", check }], checking), checking);
+  });
+
   it("finds the connection string typed for a database, and none for another source", () => {
     const database: Knowledge = { id: "orders", type: "postgresql", connectionStringEnv: "SHOP_DB_URL", attachments: [] };
     assert.equal(typedConnection(database, { SHOP_DB_URL: "postgres://typed" }), "postgres://typed");

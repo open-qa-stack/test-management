@@ -299,3 +299,16 @@
   gap: var(--space-2);
   padding-left: var(--inset);
 }
+
+/* The test of an address, under its field: the button, then what the latest test found. */
+.address-test {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.address-test .config-note,
+.address-test p {
+  margin: 0;
+}

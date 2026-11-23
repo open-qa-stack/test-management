@@ -46,6 +46,7 @@ export type {
 } from "../config/types.ts";
 export { DEFAULT_LANGUAGE, LANGUAGES, languageOf } from "../config/language.ts";
 export type { ModelChoice, ModelConnectionCheck } from "../config/model-connection.ts";
+export type { AddressCheck } from "../config/address-check.ts";
 export { MODEL_PROVIDERS, providerOf, type ModelProvider } from "../config/model-providers.ts";
 export type { ConfigurationCheck, RevisionChange, RevisionList } from "../configuration-life/configuration-exchanges.ts";
 export type { ConfigurationRevision, RevisionOrigin, RevisionSummary } from "../configuration-life/configuration-revision.ts";

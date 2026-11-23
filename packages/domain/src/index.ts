@@ -63,6 +63,7 @@ export { configurationText } from "./config/configuration-text.ts";
 export { DEFAULT_LANGUAGE, LANGUAGES, languageOf } from "./config/language.ts";
 export { readsImages } from "./config/model-capabilities.ts";
 export type { ModelChoice, ModelConnectionCheck } from "./config/model-connection.ts";
+export type { AddressCheck } from "./config/address-check.ts";
 export { GITHUB_COPILOT_URL, modelOrigin, type ModelOrigin } from "./config/model-origin.ts";
 export { MODEL_PROVIDERS, providerOf, type ModelProvider } from "./config/model-providers.ts";
 export { CHARTER_RULE_ID_PATTERN, configSchema, CONTAINER_NAME_PATTERN, ENV_VAR_PATTERN, SLUG_PATTERN } from "./config/schema.ts";

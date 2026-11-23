@@ -41,6 +41,7 @@ The command is a presentation of [the operations on sessions](../../engine/docs/
 | `oqas knowledge add-document <source> <file>...` | Uploads Markdown files as documents of a source declared `"stored": true`. |
 | `oqas knowledge mapping` | Tells where the cartography of the knowledge stands, source by source, and its index. |
 | `oqas knowledge check [<source>]` | Tests that the knowledge sources answer, or one of them, without the model and indexing nothing. |
+| `oqas applications check [<application>]` | Tests that each address of the environments answers, of every application or of one, without the model and writing nothing. |
 | `oqas secrets` | Lists the variables the configuration names, and where the value of each comes from: see [The values of the variables](#the-values-of-the-variables). |
 | `oqas secrets set <variable>` | Saves the value of one of them on this machine, out of the test repository, typed unseen or read from the input. |
 | `oqas --ui` | Serves the console of the test repository in a browser, and runs the sessions opened in it, until Ctrl-C: see [The console](#the-console). |
@@ -351,6 +352,17 @@ server-log  not tested: logs are read while a session runs
 It exits with `0` when each answers, with `4` when one does not, and with `3` when the configuration declares no source, or not the one named. With `--output json`, it prints `{"checks":[{"source":…,"check":…}]}`.
 
 `oqas knowledge read <source> <document>` prints a document the instance keeps, and `oqas knowledge remove <source> <document>` removes it; both are refused with `3` for a source or a document the instance does not keep. `oqas knowledge domains` lists the domains the cartography found, each with what it covers.
+
+`oqas applications check` tests that each address of the environments of the applications of the configuration in force answers — that of the interface, those of the APIs —, or of the application it names, as [the API tests one](../../api/docs/configuration.md#testing-an-address-of-an-environment): any HTTP answer within ten seconds, whatever its status, is one. Each line says what is wrong, in words that say what to correct.
+
+```console
+$ oqas applications check
+policy-management › local › interface  http://localhost:3010/  answers, 200
+policy-management › local › backend  http://localhost:8090/  is refused: nothing listens on that port, check the port and that the application runs
+customer-core › staging › backend  https://core.staging.exmaple/  names no machine: check the name, often a typo
+```
+
+It exits with `0` when each answers, with `4` when one does not, and with `3` when the configuration declares no application, not the one named, or no address. With `--output json`, it prints `{"checks":[{"application":…,"environment":…,"address":…,"check":…}]}`. In the conversation, `/applications check` does the same.
 
 `oqas knowledge mapping` tells where the cartography stands, as [the API tells it](../../api/docs/knowledge.md#where-the-cartography-stands): each source mapped, mapped in part, being mapped or waiting, and the index. It exits with `0`.
 

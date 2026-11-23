@@ -1874,6 +1874,21 @@ describe("the code of the console is covered in full", () => {
     assert.deepEqual(panels!.uncovered, []);
   });
 
+  it("criterion 3 — tests an address from the panel of an environment, the wait then what it found told, on a phone and on a wide screen", async () => {
+    for (const width of [390, 1440]) {
+      const page = await app().open(width, "#/applications/shop?panel=environment%3A0", new ConfiguredInstance().api);
+      try {
+        const dialog = page.getByRole("dialog");
+        await dialog.getByLabel("Adresse de l’interface").fill("http://127.0.0.1:1/");
+        await dialog.getByRole("button", { name: "Tester http://127.0.0.1:1/" }).click();
+        await dialog.getByRole("status").filter({ hasText: "La connexion est refusée" }).waitFor();
+        assert.equal(await overflowOf(page), 0, `${width}`);
+      } finally {
+        await page.close();
+      }
+    }
+  });
+
   it("runs every line of the screens of the applications when they are used in the browser", async () => {
     const instance = new ConfiguredInstance();
     const [screen, panel, panels] = await app().measure(
@@ -1981,6 +1996,14 @@ describe("the code of the console is covered in full", () => {
         await page.getByRole("button", { name: "Commencer" }).click();
         for (const step of ["Vos applications", "Ce que les agents peuvent lire", "Le modèle"]) {
           await page.getByRole("heading", { name: step }).waitFor();
+          if (step === "Vos applications") {
+            // An address is tested as it is typed; changing it clears what the test found.
+            await page.getByLabel("Adresse de l’interface").first().fill("http://shop.test/");
+            await page.getByRole("button", { name: "Tester http://shop.test/" }).click();
+            await page.getByRole("status").filter({ hasText: "Répond (200)." }).waitFor();
+            await page.getByLabel("Adresse de l’interface").first().fill("http://shop.test/home");
+            await page.getByRole("status").filter({ hasText: "Répond (200)." }).waitFor({ state: "detached" });
+          }
           if (step === "Ce que les agents peuvent lire") {
             // A source is tested as it is drafted.
             await page.getByRole("button", { name: "Ajouter la documentation d’une API" }).click();

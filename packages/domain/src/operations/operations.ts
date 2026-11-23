@@ -9,6 +9,7 @@ export const OPERATIONS = {
   Sessions: ["project", "sessions", "session", "open", "resume", "say", "interrupt", "events", "thread", "launch", "launches"],
   Configuration: ["view", "revisions", "check", "synchronise", "save", "restore"],
   ModelConnection: ["check"],
+  EnvironmentAddresses: ["check"],
   Secrets: ["list", "save"],
   RepositorySetup: ["state", "prepare"],
   KnowledgeDocuments: ["list", "read", "upload", "remove"],

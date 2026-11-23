@@ -6,6 +6,7 @@ import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import { Logger } from "@nestjs/common";
 import { configurationText, type OqasConfig } from "@open-qa-stack/domain";
 import { SessionDatabase, type DatabaseEngine } from "@open-qa-stack/store/testing";
+import { closedPort } from "@open-qa-stack/testing";
 import { fixtureConfig } from "@open-qa-stack/testing/fixture-repository";
 import { sessionsApi, type TestApi } from "../support/sessions-api.ts";
 import type { ConfigurationCheck, ConfigurationView, Problem, RevisionList } from "@open-qa-stack/domain/sessions";
@@ -95,6 +96,16 @@ export function configurationApiSuite(engine: DatabaseEngine): void {
       assert.deepEqual(typed.body, { state: "unreachable", url: "http://127.0.0.1:9/v1" });
       assert.equal(problemCode(await post("/model-connection", { ...server, key: 1 })), "400 invalid_request");
       assert.equal(problemCode(await post("/model-connection", "not an object")), "400 invalid_request");
+      assert.equal(((await get("/revisions")).body as RevisionList).items.length, 1);
+    });
+
+    it("tests an address of an environment as it is typed, and records nothing", async () => {
+      const address = `http://127.0.0.1:${await closedPort()}/`;
+      const refused = await post("/address-check", { address });
+      assert.deepEqual([refused.status, refused.cache, refused.body], [200, "no-store", { state: "refused", url: address }]);
+      assert.deepEqual((await post("/address-check", { address: "shop" })).body, { state: "malformed", url: "shop" });
+      assert.equal(problemCode(await post("/address-check", { address: 1 })), "400 invalid_request");
+      assert.equal(problemCode(await post("/address-check", "not an object")), "400 invalid_request");
       assert.equal(((await get("/revisions")).body as RevisionList).items.length, 1);
     });
 

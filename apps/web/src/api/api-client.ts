@@ -47,6 +47,7 @@ import type {
   SecretState,
   Knowledge,
   SourceCheck,
+  AddressCheck,
   CartographyState,
 } from "@open-qa-stack/domain/sessions";
 import { ApiError } from "./api-error.ts";
@@ -210,6 +211,16 @@ export class ApiClient {
    */
   public async checkSource(source: Knowledge, value?: string): Promise<SourceCheck> {
     return this.#ask<SourceCheck>("/knowledge/check", posting(value === undefined ? source : { ...source, value }));
+  }
+
+  /**
+   * Tests that an address of an environment answers, as the person typed it: nothing is saved.
+   *
+   * @param address - The address of the interface, or of an API, of the environment.
+   * @returns Whether something answers there, or why not.
+   */
+  public async checkAddress(address: string): Promise<AddressCheck> {
+    return this.#ask<AddressCheck>("/configuration/address-check", posting({ address }));
   }
 
   /** @returns Where the cartography of the knowledge stands, source by source, with the index that puts their cards together. */
