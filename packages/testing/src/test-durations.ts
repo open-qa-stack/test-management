@@ -60,7 +60,7 @@ export function balancedParts(paths: readonly string[], durations: TestDurations
     .toSorted((a, b) => b.seconds - a.seconds || a.path.localeCompare(b.path) || a.rank - b.rank);
   const parts = Array.from({ length: count }, () => ({ seconds: 0, ranks: [] as number[] }));
   for (const item of items) {
-    const lightest = parts.reduce((least, part) => (part.seconds < least.seconds ? part : least));
+    const lightest = parts.reduce((least, part) => (part.seconds < least.seconds ? part : least), parts[0]!);
     lightest.seconds += item.seconds;
     lightest.ranks.push(item.rank);
   }
