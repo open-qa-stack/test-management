@@ -32,7 +32,17 @@ export interface Environment {
   uiUrl?: string;
   /** What the agent that explores the user interface may do: change no data, `read-only` when absent, or submit the forms that create or change some. */
   exploration?: "read-only" | "read-write";
+  /** What the agents may do there, each allowed when left out: write tests, run them. */
+  allow?: EnvironmentAllowance;
   apis?: NamedApi[];
+}
+
+/** What the agents may do in an environment, each allowed when left out. */
+export interface EnvironmentAllowance {
+  /** Whether tests may be written there. */
+  design?: boolean;
+  /** Whether tests may be run there. */
+  run?: boolean;
 }
 
 /** An application under test. */

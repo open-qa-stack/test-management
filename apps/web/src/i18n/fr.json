@@ -534,6 +534,9 @@
         "read-write": "Lecture et écriture : peut créer ou modifier, jamais supprimer"
       },
       "explorationDefault": "Lecture seule (par défaut)",
+      "notProduction": "Open QA Stack n’est pas fait pour la production : les agents y écrivent et y exécutent des tests, explorent l’interface et peuvent y créer des données. Choisissez ci-dessous, dans « Avancé », ce qui y est permis.",
+      "allowDesign": "Les agents peuvent écrire des tests sur cet environnement",
+      "allowRun": "Les tests peuvent s’exécuter sur cet environnement",
       "environment": "Environnement {{name}}",
       "theEnvironment": "l’environnement {{name}}",
       "api": "API {{name}}",

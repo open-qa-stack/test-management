@@ -72,6 +72,10 @@ describe("the setting up of an instance that has no configuration", () => {
     assert.match(at("knowledge", begun(DOCUMENT, { type: "sourceChecking", rank: 0, source })), /Test en cours…/);
   });
 
+  it("warns, beside each environment, that Open QA Stack is not meant for production", () => {
+    assert.match(at("applications"), /Open QA Stack n’est pas fait pour la production/);
+  });
+
   it("tells what the test of an address of an application found, beside its field", () => {
     const pointer = "/applications/0/environments/0/uiUrl";
     const document = { ...DOCUMENT, applications: [{ ...DOCUMENT.applications[0]!, environments: [{ name: "local", uiUrl: "http://shop.test/" }] }] };

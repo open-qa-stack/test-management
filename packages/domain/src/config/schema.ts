@@ -119,6 +119,13 @@ export const configSchema = {
           description:
             "What the agent that explores the user interface may do in this environment: `read-only`, the default, it changes no data; `read-write`, it may submit the forms that create or change data, never those that remove any.",
         },
+        allow: {
+          type: "object",
+          additionalProperties: false,
+          description:
+            "What the agents may do in this environment, each allowed when left out: `design`, write tests there; `run`, run tests there. A session or a launch an environment does not allow is refused before it starts.",
+          properties: { design: { type: "boolean" }, run: { type: "boolean" } },
+        },
         apis: {
           type: "array",
           items: {
