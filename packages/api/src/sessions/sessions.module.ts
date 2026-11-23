@@ -7,6 +7,7 @@ import { RepositoryConfigurationModule } from "../repository-configuration/repos
 import { EventStreams } from "./event-streams.ts";
 import { LaunchesController } from "./launches.controller.ts";
 import { ProjectController } from "./project.controller.ts";
+import { RemapController } from "./remap.controller.ts";
 import { RunEnvironment } from "./run-environment.ts";
 import { SessionsController } from "./sessions.controller.ts";
 import { SessionsLifecycle } from "./sessions-lifecycle.ts";
@@ -20,7 +21,7 @@ import { StreamPace } from "./stream-pace.ts";
  */
 @Module({
   imports: [DatabaseModule, RepositoryConfigurationModule],
-  controllers: [LaunchesController, ProjectController, SessionsController],
+  controllers: [LaunchesController, ProjectController, RemapController, SessionsController],
   providers: [
     EventStreams,
     RunEnvironment,

@@ -737,6 +737,16 @@
     }
   },
   "knowledge": {
+    "remap": {
+      "all": "Tout cartographier à nouveau",
+      "one": "Cartographier à nouveau",
+      "sending": "Demande en cours…",
+      "opened": "Une session relit cette source : elle repasse par « en attente », puis « en cours ».",
+      "openedAll": "Une session relit toutes les sources : elles repassent par « en attente », puis « en cours ».",
+      "busy": "Une session cartographie déjà les connaissances : aucune autre n’est ouverte.",
+      "unknown": "La configuration en vigueur ne déclare pas cette source pour l’environnement cartographié.",
+      "failed": "La demande n’a pas abouti : {{reason}}"
+    },
     "title": "Connaissances",
     "configure": "Configurer le projet",
     "reading": "Lecture des connaissances",

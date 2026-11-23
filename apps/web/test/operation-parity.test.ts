@@ -41,6 +41,7 @@ const CONSOLE: Readonly<Record<OperationId, Offer>> = {
   "KnowledgeDocuments.remove": { client: "removeDocument" },
   "KnowledgeDomains.list": { client: "domains" },
   "KnowledgeSources.check": { client: "checkSource" },
+  "Sessions.remap": { client: "remap" },
   "KnowledgeMapping.state": { client: "mapping" },
   "RepositoryTests.listed": { client: "tests" },
   "TestReadings.read": { client: "testReading" },

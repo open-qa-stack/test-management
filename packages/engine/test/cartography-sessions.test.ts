@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, afterEach, describe, it } from "vitest";
@@ -93,6 +93,38 @@ describe("a host that maps the knowledge", () => {
     await hosted.settings.save({ ...inForce.document, language: "en" }, inForce.number + 1);
     await stopping;
     assert.equal(hosted.logger.lines.slice(before).filter((line) => line.includes("not mapped")).length, 0);
+  });
+});
+
+describe("the knowledge mapped again on demand", () => {
+  it("criterion 1 — drops the card of the source named and opens a session that maps it; criterion 3 — drops every card when none is named", async () => {
+    hosted = await Hosted.create([]);
+    markMapped(hosted.root);
+    writeFileSync(join(hosted.root, ".oqas", "index", "sources", "other.json"), "{}");
+    const cards = join(hosted.root, ".oqas", "index", "sources");
+    const [named] = readdirSync(cards).filter((file) => file !== "other.json");
+    const source = named!.replace(/\.json$/, "");
+    const one = await hosted.sessions.remap(source);
+    assert.equal(one.state, "opened");
+    assert.equal(one.state === "opened" && one.session.purpose, "map");
+    assert.deepEqual(readdirSync(cards), ["other.json"], "the card of the source named is dropped, a card the configuration does not name is kept");
+    await hosted.ended(one.state === "opened" ? one.session.id : "");
+    markMapped(hosted.root);
+    const every = await hosted.sessions.remap();
+    assert.equal(every.state, "opened");
+    assert.deepEqual(readdirSync(cards), ["other.json"], `every card of the environment mapped is dropped: ${readdirSync(cards).join(",")}`);
+  });
+
+  it("criterion 2 — opens no second session while one waits or runs, says so, and drops nothing; says when no such source is declared", async () => {
+    hosted = await Hosted.create([]);
+    markMapped(hosted.root);
+    const waiting = await hosted.store.ask({ purpose: "map" }, "another-host");
+    const cards = readdirSync(join(hosted.root, ".oqas", "index", "sources"));
+    assert.deepEqual(await hosted.sessions.remap(), { state: "busy", session: waiting });
+    assert.deepEqual(readdirSync(join(hosted.root, ".oqas", "index", "sources")), cards);
+    await hosted.store.interrupt(waiting.id);
+    assert.deepEqual(await hosted.sessions.remap("nowhere"), { state: "unknown", source: "nowhere" });
+    assert.deepEqual(readdirSync(join(hosted.root, ".oqas", "index", "sources")), cards);
   });
 });
 

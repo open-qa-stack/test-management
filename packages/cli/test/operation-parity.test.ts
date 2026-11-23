@@ -27,6 +27,7 @@ const COMMANDS: Readonly<Record<OperationId, readonly string[] | Missing>> = {
   "Sessions.thread": ["show", "s"],
   "Sessions.launch": ["launch", "--environment", "local"],
   "Sessions.launches": ["launch", "--environment", "local"],
+  "Sessions.remap": ["knowledge", "remap", "order-specs"],
   "Configuration.view": ["config", "show"],
   "Configuration.revisions": ["config", "history"],
   "Configuration.check": ["config", "check"],
@@ -87,6 +88,7 @@ const CONVERSATION: Readonly<Record<OperationId, InConversation>> = {
   "Sessions.thread": { itself: "a session reopened shows its thread so far" },
   "Sessions.launch": { typed: "/launch --environment local" },
   "Sessions.launches": { typed: "/launch --environment local" },
+  "Sessions.remap": { typed: "/knowledge remap" },
   "Configuration.view": { typed: "/config show" },
   "Configuration.revisions": { typed: "/config history" },
   "Configuration.check": { typed: "/config check" },
@@ -151,7 +153,10 @@ describe("the operations of the engine, as the conversation offers them", () => 
       const offer = CONVERSATION[id];
       if ("slash" in offer) assert.ok(names.has(offer.slash), `${id}: /${offer.slash} is no command of the conversation`);
       else if ("typed" in offer)
-        assert.ok(["command", "secret"].includes(requestOf({ ...initialState([], 0), input: offer.typed }).kind), `${id}: ${offer.typed} runs nothing`);
+        assert.ok(
+          ["command", "secret", "remap"].includes(requestOf({ ...initialState([], 0), input: offer.typed }).kind),
+          `${id}: ${offer.typed} runs nothing`,
+        );
       else assert.ok(("itself" in offer ? offer.itself : offer.missing).length > 0, id);
     }
   });

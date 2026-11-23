@@ -101,3 +101,4 @@ export type { SecretKind, SecretList, SecretSource, SecretState } from "../secre
 export { OPERATIONS, operationIds, type OperationId } from "../operations/operations.ts";
 export type { SourceCheck } from "../knowledge-check/source-check.ts";
 export type { CartographyState, MappedSource, MappingState } from "../knowledge-check/knowledge-mapping.ts";
+export type { KnowledgeRemap } from "../knowledge-check/knowledge-remap.ts";

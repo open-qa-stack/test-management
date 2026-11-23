@@ -294,6 +294,32 @@ describe("Ctrl-C in the conversation", () => {
   });
 });
 
+describe("the knowledge mapped again from the conversation", () => {
+  it("opens the session that maps a source again and follows it; follows the one that maps already; says when no such source is declared, or why it failed", async () => {
+    const stage = await staged();
+    const mapping = { ...RUNNING, purpose: "map" as const };
+    stage.sessions.nextRemap = { state: "opened", session: mapping };
+    await stage.press("/knowledge remap order-specs", "› /knowledge remap order-specs");
+    await stage.press(ENTER, `Session ${mapping.id}`);
+    await until(() => stage.sessions.followed.has(mapping.id), "the session that maps is followed");
+    assert.deepEqual(stage.sessions.remaps, ["order-specs"]);
+    await stage.press("/new", "› /new");
+    await stage.press(ENTER, "What do we test?");
+    stage.sessions.nextRemap = { state: "busy", session: mapping };
+    await stage.press("/knowledge remap", "› /knowledge remap");
+    await stage.press(ENTER, `Session ${mapping.id}`);
+    assert.deepEqual(stage.sessions.remaps, ["order-specs", undefined]);
+    await stage.press("/new", "› /new");
+    await stage.press(ENTER, "What do we test?");
+    stage.sessions.nextRemap = { state: "unknown", source: "nowhere" };
+    await stage.press("/knowledge remap nowhere", "› /knowledge remap nowhere");
+    await stage.press(ENTER, "✗ Told: The configuration in force declares no knowledge source nowhere");
+    stage.sessions.failing.set("remap", new Error("The store does not answer."));
+    await stage.press("/knowledge remap", "› /knowledge remap");
+    await stage.press(ENTER, "✗ Told: The store does not answer.");
+  });
+});
+
 describe("what fails in the conversation", () => {
   it("is told in the thread, in the words of the command, and the conversation goes on: a session that cannot be opened, said to, stopped or listed", async () => {
     const stage = await staged();

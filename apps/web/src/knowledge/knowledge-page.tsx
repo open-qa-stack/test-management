@@ -56,6 +56,7 @@ export function KnowledgePage({ project, route }: { readonly project: string; re
       sync.upload(form.dataset["source"]!, [...files!]);
     },
     remove: ({ currentTarget }) => sync.remove(currentTarget.dataset["source"]!, currentTarget.dataset["name"]!),
+    remap: ({ currentTarget }) => sync.remap(currentTarget.dataset["source"]),
     edit,
     drop: ({ currentTarget }) => drop(Number(currentTarget.dataset["rank"])),
   };

@@ -59,6 +59,7 @@ export async function soloCommand(argv: readonly string[], io: CommandIo): Promi
 async function onSessions(command: Exclude<Command, { name: "help" }>, options: Arguments, repository: string, io: CommandIo): Promise<ExitCodeValue> {
   if (command.name === "run") return opened({ command, options, io }, repository);
   if (command.name === "say") return said({ command, options, io }, repository);
+  if (command.name === "remap") return remapped({ command, options, io }, repository);
   if (command.name === "ui") return servedConsole(command, repository, io);
   if (command.name === "converse") {
     if (io.terminal === undefined) throw new UsageError(NO_TERMINAL);
@@ -180,6 +181,24 @@ async function hosting(
   } finally {
     await close(withinMs);
   }
+}
+
+/**
+ * `oqas knowledge remap`: maps the knowledge again, the source named or every source, in a session this command runs,
+ * as `--brief` runs one it opens, and follows to its end; when a session maps the knowledge already, says which, and
+ * opens none.
+ */
+function remapped({ command, options, io }: Omit<Asked<"remap">, "sessions">, repository: string): Promise<ExitCodeValue> {
+  return hosting({ options, io }, repository, async (sessions) => {
+    const remap = await sessions.remap(command.source);
+    if (remap.state === "unknown")
+      throw new UsageError(`The configuration in force declares no knowledge source ${remap.source} to map; oqas knowledge mapping lists them.`);
+    if (remap.state === "busy") {
+      print({ options, io }, `A session maps the knowledge already: ${remap.session.id}. oqas attach ${remap.session.id} follows it.`, remap);
+      return undefined;
+    }
+    return { id: remap.session.id, after: 0 };
+  });
 }
 
 /** `oqas attach`: follows a session another process runs, or one that ended, as the command that opened it does. */

@@ -1,5 +1,5 @@
 import { UnknownSessionError } from "@open-qa-stack/domain";
-import type { MessageReceipt, Session, SessionEvent, SessionMessage, SessionOpening } from "@open-qa-stack/domain/sessions";
+import type { KnowledgeRemap, MessageReceipt, Session, SessionEvent, SessionMessage, SessionOpening } from "@open-qa-stack/domain/sessions";
 import type { EventListener, SessionEventStream } from "@open-qa-stack/engine";
 import type { ConversationSessions } from "../../src/solo/conversation/conversation.ts";
 
@@ -28,6 +28,10 @@ export class FakeSessions implements ConversationSessions {
   readonly failing = new Map<keyof ConversationSessions, Error>();
   /** The session the next opening gives. */
   next: Session | undefined;
+  /** The sources asked to be mapped again, `undefined` for every source. */
+  readonly remaps: (string | undefined)[] = [];
+  /** What the next request to map the knowledge again gives. */
+  nextRemap: KnowledgeRemap | undefined;
   /** Holds the answer of `events` until a test lets it go, when set. */
   gate: Promise<void> | undefined;
 
@@ -49,6 +53,14 @@ export class FakeSessions implements ConversationSessions {
     const session = this.next!;
     this.held.unshift(session);
     return session;
+  }
+
+  async remap(source?: string): Promise<KnowledgeRemap> {
+    this.#fail("remap");
+    this.remaps.push(source);
+    const remap = this.nextRemap!;
+    if (remap.state === "opened") this.held.unshift(remap.session);
+    return remap;
   }
 
   async say(id: string, message: SessionMessage): Promise<MessageReceipt> {

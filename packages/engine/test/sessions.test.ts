@@ -199,6 +199,7 @@ describe("a session that is opened", () => {
       reading.open({ request: REQUEST }),
       (error) => error instanceof NoRepositoryError && /was given no test repository/.test(error.message),
     );
+    await assert.rejects(reading.remap(), NoRepositoryError, "no knowledge is mapped again without a test repository");
     assert.deepEqual(await reading.project(), { applications: [] });
     assert.deepEqual(await reading.sessions(), [kept], "a session that waits is left to a host that can run it");
     assert.equal(await reading.stop(10), true);

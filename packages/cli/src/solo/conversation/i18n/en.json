@@ -110,7 +110,7 @@
     "ui": "Serve the web console from this process and print its address",
     "model": "Set the connection to the model step by step; followed by status or set, as oqas model does",
     "config": "show, import or export: the configuration in force and oqas.json, as oqas config does",
-    "knowledge": "list, mapping, check or add-document: the knowledge sources, as oqas knowledge does",
+    "knowledge": "list, mapping, check, remap or add-document: the knowledge sources, as oqas knowledge does",
     "applications": "check: test that each address of the environments answers, as oqas applications does",
     "tests": "read, executions, versions, trace or capture: the tests of the test repository, as oqas tests does",
     "launch": "Launch tests as they are, with no agent, in this process, and tell their execution once they ended, as oqas launch does",
@@ -161,6 +161,7 @@
     "unexpected": "Unexpected error: {{message}}"
   },
   "requests": {
+    "unknownSource": "The configuration in force declares no knowledge source {{source}} to map; /knowledge mapping lists them.",
     "unknown": "Unknown command {{word}}; /help lists the commands.",
     "takes": "/{{name}} takes {{what}}.",
     "nothingAfter": "nothing after it",
