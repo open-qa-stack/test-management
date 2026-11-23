@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { t } from "../i18n/i18n.ts";
+import { levelName } from "../i18n/vocabulary.ts";
 import type { ScopeChoices } from "./scope-choices.ts";
 
 /** A choice of a menu of the scope: what the form sends, and what the person reads. */
@@ -111,7 +112,7 @@ export function ScopePicker({ choices, disabled }: { readonly choices: ScopeChoi
         title={t("sessionScope.levels")}
         every={t("sessionScope.everyLevel")}
         none={t("sessionScope.noLevel")}
-        options={levels.map((level) => ({ value: level, label: t(`sessionScope.levelNames.${level}`) }))}
+        options={levels.map((level) => ({ value: level, label: levelName(level) }))}
         disabled={disabled}
       />
     </div>

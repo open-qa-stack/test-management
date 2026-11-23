@@ -2,17 +2,18 @@ import type { ReactNode } from "react";
 import type { LaunchRequest, RepositoryTest, TestEdit, TestExecution, TestVersion } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../api/polled-state.ts";
 import { resultHref } from "../executions/executions-paths.ts";
-import { versionText } from "../executions/execution-text.ts";
 import { VerdictBadge } from "../executions/verdicts.tsx";
 import { dateText, durationText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
+import { levelName, originName, statusName } from "../i18n/vocabulary.ts";
+import { applicationName } from "../applications/application-names.ts";
+import { TechnicalDetails } from "../ui/technical-details.tsx";
 import { hrefTo, withPanel, type Route } from "../routing/route.ts";
 import { Badge } from "../ui/badge.tsx";
 import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
 import { TESTS_PATH } from "./tests-paths.ts";
-import { levelText } from "./tests-screen.tsx";
 import { TestRelaunch, type RelaunchState } from "./test-relaunch.tsx";
 import { TestCode } from "./test-code.tsx";
 import { TestSteps } from "./test-steps.tsx";
@@ -53,11 +54,11 @@ function Tags({ test }: { readonly test: RepositoryTest }): ReactNode {
   const where = [test.domain, test.feature].filter((part) => part !== undefined).join(" › ");
   return (
     <div className="test-tags">
-      {test.level !== undefined && <Badge tone="outline">{levelText(test.level)}</Badge>}
+      {test.level !== undefined && <Badge tone="outline">{levelName(test.level)}</Badge>}
       {where !== "" && <Badge tone="outline">{where}</Badge>}
       {test.applications.map((application) => (
         <Badge key={application} tone="outline">
-          {application}
+          {applicationName(application)}
         </Badge>
       ))}
     </div>
@@ -85,7 +86,7 @@ function Summary({ path, executions }: { readonly path: string; readonly executi
         </div>
         <span className="test-dots" role="img" aria-label={t("test.history")}>
           {recent.toReversed().map(({ id, result }, rank) => (
-            <span key={`${id}-${rank}`} className={`test-dot ${result.verdict}`} title={t(`executions.verdicts.${result.verdict}`)} />
+            <span key={`${id}-${rank}`} className={`test-dot ${result.verdict}`} title={statusName(result.verdict)} />
           ))}
         </span>
         <a className="btn" href={resultHref(latest.id, path)}>
@@ -111,10 +112,16 @@ function History({ path, title, executions }: { readonly path: string; readonly 
             <b>{dateText(execution.ranAt)}</b>
             {execution.result.title !== title && <span className="small"> · {execution.result.title}</span>}
             <div className="small muted">
-              {t(`executions.origins.${execution.origin}`)} ·{" "}
-              {execution.result.version !== undefined && <>{t("test.versionShort", { number: execution.result.version })} · </>}
-              {execution.result.committed === false && <>{t("test.uncommittedOn")} </>}
-              <span className="mono">{versionText(execution)}</span>
+              {originName(execution.origin)}
+              {execution.result.version !== undefined && (
+                <>
+                  {" · "}
+                  <span {...(execution.commit === undefined ? {} : { title: execution.commit.slice(0, 7) })}>
+                    {t("test.versionShort", { number: execution.result.version })}
+                  </span>
+                </>
+              )}
+              {execution.result.committed === false && <> · {t("test.uncommitted")}</>}
             </div>
           </div>
           <span className="small muted">{durationText(execution.result.durationMs)}</span>
@@ -132,16 +139,14 @@ function Versions({ title, versions }: { readonly title: string; readonly versio
       {versions.map((version) => (
         <div key={`${version.title}-${version.number}`} className="row tests-row">
           <div className="grow">
-            <b>{t("test.version", { number: version.number })}</b>
+            <b {...(version.commit === undefined ? {} : { title: version.commit.slice(0, 7) })}>{t("test.version", { number: version.number })}</b>
             {version.title !== title && <span className="small"> · {version.title}</span>}
             <div className="small muted">{t("test.versionSince", { date: dateText(version.since), count: version.executions })}</div>
           </div>
-          {version.commit === undefined ? (
+          {version.commit === undefined && (
             <span title={t("test.uncommittedNote")}>
               <Badge tone="outline">{t("test.uncommitted")}</Badge>
             </span>
-          ) : (
-            <span className="small muted mono">{version.commit.slice(0, 7)}</span>
           )}
         </div>
       ))}
@@ -167,14 +172,13 @@ export function TestScreen({ project, path, route, tests, executions, versions, 
       title={title}
       {...(relaunch === undefined || onRelaunch === undefined ? {} : { actions: <TestRelaunch state={relaunch} onLaunch={onRelaunch} /> })}
     >
-      <div className="row test-head">
-        <p className="grow small muted mono">{path}</p>
-        {test !== undefined && (
+      {test !== undefined && (
+        <div className="row test-head">
           <a className="btn sm" href={withPanel(route, "title")}>
             {t("test.editTitle")}
           </a>
-        )}
-      </div>
+        </div>
+      )}
       {test !== undefined && <Tags test={test} />}
       {tests.value === undefined || ran === undefined ? (
         <EmptyState title={t("test.reading")}>
@@ -197,6 +201,9 @@ export function TestScreen({ project, path, route, tests, executions, versions, 
           {test !== undefined && <TestEditPanel test={test} route={route} tests={tests.value} saving={saving} onChange={onChange} />}
         </>
       )}
+      <TechnicalDetails>
+        <span className="mono">{path}</span>
+      </TechnicalDetails>
     </Page>
   );
 }

@@ -1,6 +1,7 @@
 import { useContext, type MouseEventHandler, type ReactNode } from "react";
 import { attachmentsOf, isProjectWide, isStoredDocuments, type Attachment, type ConfiguredApplication, type Knowledge } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
+import { nameIn } from "../applications/application-names.ts";
 import { hrefTo } from "../routing/route.ts";
 import { Card } from "../ui/card.tsx";
 import { Icon, type IconName } from "../ui/icon.tsx";
@@ -29,9 +30,13 @@ export function kindOf(source: Knowledge): SourceKind {
 }
 
 /** The choices of a list, with the value the draft holds when it is none of them: the draft is shown as it is, and its error beside it. */
-function withHeld(values: readonly string[], held: string | undefined): { readonly value: string; readonly label: string }[] {
+function withHeld(
+  values: readonly string[],
+  held: string | undefined,
+  name: (value: string) => string = (value) => value,
+): { readonly value: string; readonly label: string }[] {
   const all = held === undefined || held === "" || values.includes(held) ? values : [...values, held];
-  return all.map((value) => ({ value, label: value }));
+  return all.map((value) => ({ value, label: name(value) }));
 }
 
 /**
@@ -79,6 +84,7 @@ export function AttachmentChoices({
         options={withHeld(
           applications.map(({ id }) => id).filter((id) => id !== ""),
           attachment.application,
+          (id) => nameIn(applications, id),
         )}
         none={t("configuration.knowledge.chooseApplication")}
       />

@@ -68,16 +68,10 @@
   },
   "facts": {
     "states": {
-      "queued": "queued",
-      "running": "live",
-      "interrupted": "interrupted",
-      "ended": "ended"
-    },
-    "outcomes": {
-      "passed": "tests passed",
-      "failed": "test failed",
-      "inconclusive": "test without a verdict",
-      "stopped": "stopped before the end"
+      "queued": "Queued",
+      "running": "Live",
+      "interrupted": "Interrupted",
+      "ended": "Ended"
     },
     "waiting": "waiting for an agent",
     "testsPassed_one": "{{passed}} / {{count}} test passed",
@@ -179,11 +173,6 @@
         "body": "It stopped before its agents started."
       }
     },
-    "verdicts": {
-      "passed": "passed",
-      "failed": "failed",
-      "blocked": "blocked"
-    },
     "thinking": "Reasoning",
     "running": "in progress",
     "failure": "failure",
@@ -208,10 +197,6 @@
     "technical": "Technical details",
     "toolFailed": "An action of the agent did not succeed",
     "summary": "Summary",
-    "passedCount_one": "{{count}} passed",
-    "passedCount_other": "{{count}} passed",
-    "failedCount_one": "{{count}} failed",
-    "failedCount_other": "{{count}} failed",
     "otherCount_one": "{{count}} without a verdict",
     "otherCount_other": "{{count}} without a verdict"
   },
@@ -285,7 +270,7 @@
     "applications": "Applications",
     "domains": "Domains",
     "environment": "Environment",
-    "note": "Only these levels are designed; <code>design.levels</code> in the configuration sets them."
+    "note": "Only these levels are designed; the configuration sets them."
   },
   "composer": {
     "going": {
@@ -315,19 +300,6 @@
     "more": "Read more"
   },
   "steps": {
-    "phases": {
-      "configuration": "Configuration",
-      "prerequisites": "Prerequisites",
-      "survey": "Cartography · sources",
-      "card": "Cartography · card",
-      "consolidation": "Cartography · domains",
-      "index": "Cartography · index",
-      "plan": "Plan",
-      "review": "Plan review",
-      "write": "Writing a test",
-      "execution": "Running the tests",
-      "summary": "Summary"
-    },
     "step": "Step",
     "planAccepted": "Plan accepted by the harness",
     "scope": "Scope of the session",
@@ -453,28 +425,6 @@
       "console": "Console",
       "command": "Command"
     },
-    "levels": {
-      "smoke": {
-        "label": "Smoke",
-        "hint": "the application answers"
-      },
-      "functional": {
-        "label": "Functional",
-        "hint": "one behaviour of one screen"
-      },
-      "business": {
-        "label": "Business",
-        "hint": "a journey through several screens"
-      },
-      "cross-application": {
-        "label": "Cross-application",
-        "hint": "an action and its effect in another application"
-      },
-      "end-to-end": {
-        "label": "End to end",
-        "hint": "a journey through three applications or more"
-      }
-    },
     "settings": {
       "autonomous": "Autonomous: no limit per task",
       "bounded": "Bounded: limits for each task",
@@ -521,7 +471,7 @@
       "githubNote": "The tool uses the GitHub account signed in on the machine it runs on, with its Copilot subscription: nothing to type. On a shared machine, everyone goes through this account.",
       "baseUrl": "Address of the server",
       "baseUrlHint": "That of its OpenAI-compatible API, such as that of a model run on your machine.",
-      "apiKeyEnv": "Variable that holds the key",
+      "apiKeyEnv": "Name the key is kept under",
       "apiKeyEnvHint": "The name the key is kept under; that of the provider will do. Leave it empty for a server with no key.",
       "test": "Test the connection",
       "testing": "Testing…",
@@ -552,10 +502,10 @@
       "connection_string": "Connection string",
       "account_username": "User name",
       "account_password": "Password",
-      "kept": "Kept on the computer the tool runs on, out of the test repository and of the database, in {{variable}}; it is not shown again.",
-      "saved": "A value is saved for {{variable}} on this computer; type another to replace it.",
+      "kept": "Kept on the computer the tool runs on, out of the test repository and of the database; it is not shown again.",
+      "saved": "A value is saved on this computer; type another to replace it.",
       "replace": "Saved — type to replace it",
-      "environment": "comes from the variable {{variable}} of the environment of the tool, which wins over a value typed here."
+      "environment": "comes from the environment of the tool, which wins over a value typed here."
     },
     "application": {
       "types": {
@@ -614,11 +564,11 @@
     },
     "knowledge": {
       "kinds": {
-        "openapi": "OpenAPI contract",
-        "postgresql": "PostgreSQL database",
+        "openapi": "API documentation",
+        "postgresql": "Database",
         "document": "Documents of the repository",
         "stored": "Uploaded documents",
-        "source-code": "Source code",
+        "source-code": "Code",
         "logs": "Logs"
       },
       "explain": {
@@ -630,11 +580,11 @@
         "logs": "An application’s logs, to see what really happens in it."
       },
       "add": {
-        "openapi": "Add an OpenAPI contract",
-        "postgresql": "Add a PostgreSQL database",
+        "openapi": "Add the documentation of an API",
+        "postgresql": "Add a database",
         "document": "Add documents of the repository",
         "stored": "Add uploaded documents",
-        "source-code": "Add source code",
+        "source-code": "Add code",
         "logs": "Add logs"
       },
       "untitled": "Source {{rank}}",
@@ -728,7 +678,7 @@
       "save": "Save",
       "agents": "Agents",
       "repository": "Test repository",
-      "history": "History, oqas.json file and JSON",
+      "history": "History and copies of the settings",
       "secrets": "The values typed here — key, connection strings, passwords — stay on the computer the tool runs on, out of the test repository and of the database. An environment variable wins: that is the way of a CI.",
       "lead": "The settings of Open QA Stack. The applications under test and the knowledge the agents read have screens of their own.",
       "addApplication": "Add an application"
@@ -827,11 +777,13 @@
     "add": "Add knowledge",
     "addHint": "choose what the agents will read",
     "drop": "Remove the source",
-    "dropTitle": "Remove the source {{id}}?",
+    "dropTitle": "Remove “{{name}}”?",
     "dropNote": "The next sessions no longer read it. A new revision of the configuration is saved: the previous one stays in the history.",
     "confirmDrop": "Remove the source",
     "project": "The whole project",
-    "projectHint": "read whatever application is tested"
+    "projectHint": "read whatever application is tested",
+    "sourceId": "Identifier: {{id}}",
+    "where": "Read from: {{where}}"
   },
   "tests": {
     "title": "Tests",
@@ -844,13 +796,6 @@
     "search": "Search a title, a path or a tag",
     "levelFilter": "Levels of the pyramid of tests",
     "allLevels": "All levels",
-    "levels": {
-      "smoke": "Smoke",
-      "functional": "Functional",
-      "business": "Business",
-      "cross-application": "Cross-application",
-      "end-to-end": "End-to-end"
-    },
     "visual": "Visual",
     "steps_one": "{{count}} step",
     "steps_other": "{{count}} steps",
@@ -863,16 +808,6 @@
   "test": {
     "reading": "Reading the test",
     "readingNote": "It shows as soon as the instance answered.",
-    "status": {
-      "expected": "passed",
-      "unexpected": "failed",
-      "flaky": "passed after a retry",
-      "skipped": "skipped"
-    },
-    "states": {
-      "passed": "Passed",
-      "failed": "Failed"
-    },
     "capture": "Capture of step {{number}}",
     "noCapture": "No capture for this step.",
     "expected": "Expected",
@@ -880,7 +815,6 @@
     "noCompare": "The message of the failed assertion does not say what it received: the details tell it whole.",
     "steps": "Steps",
     "noStep": "The run reported no step of this test.",
-    "details": "Technical details",
     "summary": {
       "failedAt": "Fails at step {{step}} of {{count}}.",
       "expected_one": "Passes its {{count}} step.",
@@ -932,9 +866,8 @@
     "versionShort": "v{{number}}",
     "versionSince_one": "Since {{date}} · {{count}} execution",
     "versionSince_other": "Since {{date}} · {{count}} executions",
-    "uncommitted": "Not committed",
-    "uncommittedNote": "Only run before it was committed, as during a design.",
-    "uncommittedOn": "not committed, on",
+    "uncommitted": "Work in progress",
+    "uncommittedNote": "Run before it was saved to the test repository, as during a design.",
     "unknown": "This test is no longer in the repository",
     "unknownNote": "Its file was renamed or removed; its past executions stay listed here."
   },
@@ -944,29 +877,8 @@
     "readingNote": "They show as soon as the instance answered.",
     "none": "No execution yet",
     "noneNote": "The executions of the tests show here once a session of the agent ran the tests it wrote.",
-    "origins": {
-      "design": "design",
-      "manual": "manual launch",
-      "campaign": "campaign"
-    },
-    "verdicts": {
-      "passed": "Passed",
-      "failed": "Failed",
-      "flaky": "Flaky",
-      "skipped": "Skipped"
-    },
-    "counts": {
-      "passed_one": "{{count}} passed",
-      "passed_other": "{{count}} passed",
-      "failed_one": "{{count}} failed",
-      "failed_other": "{{count}} failed",
-      "flaky_one": "{{count}} flaky",
-      "flaky_other": "{{count}} flaky",
-      "skipped_one": "{{count}} skipped",
-      "skipped_other": "{{count}} skipped"
-    },
     "lead": "The executions of the tests, the latest first.",
-    "outcomeFilter": "Outcome",
+    "outcomeFilter": "Result",
     "outcomes": {
       "all": "All",
       "failing": "With a failure",
@@ -984,8 +896,7 @@
       "origin": "Origin",
       "content": "Content",
       "result": "Result",
-      "duration": "Duration",
-      "version": "Version"
+      "duration": "Duration"
     },
     "session": "Session “{{request}}”",
     "tests_one": "{{count}} test",
@@ -1012,10 +923,10 @@
     "readingNote": "It shows as soon as the instance answers.",
     "duration": "Duration {{duration}}",
     "launchedBy": "Run by the session “{{request}}”",
-    "bySession": "Run by a design session",
+    "bySession": "Run by an agent session",
     "seeSession": "See the session →",
     "noSession": "The session that ran it is no longer kept.",
-    "version": "Test repository at commit {{commit}}",
+    "version": "Version of the test repository: {{commit}}",
     "noVersion": "Version of the test repository not kept.",
     "noTest": "No test ran in this execution.",
     "forCampaign": "Launched for a campaign →",
@@ -1043,10 +954,10 @@
     "none": "No campaign",
     "noneNote": "Plan one: a name and an environment, then choose its tests.",
     "statuses": {
-      "planned": "planned",
-      "ready": "ready",
-      "in_progress": "in progress",
-      "closed": "closed"
+      "planned": "Planned",
+      "ready": "Ready",
+      "in_progress": "In progress",
+      "closed": "Closed"
     },
     "plan": {
       "title": "Plan a campaign",
@@ -1068,19 +979,6 @@
     "tests": "Tests of the campaign",
     "testCount_one": "{{count}} test",
     "testCount_other": "{{count}} tests",
-    "counts": {
-      "failed_one": "{{count}} failed",
-      "failed_other": "{{count}} failed",
-      "flaky_one": "{{count}} flaky",
-      "flaky_other": "{{count}} flaky",
-      "passed_one": "{{count}} passed",
-      "passed_other": "{{count}} passed",
-      "skipped_one": "{{count}} skipped",
-      "skipped_other": "{{count}} skipped",
-      "not_run_one": "{{count}} not run",
-      "not_run_other": "{{count}} not run"
-    },
-    "notRun": "not run",
     "plannedNote": "Choose its tests below: they may change until you fix them.",
     "noTest": "No test",
     "noTestNote": "No test is chosen for this campaign.",
@@ -1093,7 +991,7 @@
     "ran": "{{ran}} / {{total}} run",
     "launchPreparing": "Launch being prepared: installing, then checking the addresses of the environment…",
     "launchProgress": "Launch running: {{finished}} / {{total}} tests finished",
-    "running": "running",
+    "running": "Running",
     "inLaunch": "in the launch that runs",
     "justNow": "just now",
     "lifecycle": "Life of the campaign",
@@ -1104,11 +1002,7 @@
     "launchFailed_other": "Launch the {{count}} failures again",
     "launchNotRun_one": "Launch the test not run",
     "launchNotRun_other": "Launch the {{count}} not run",
-    "launching": "The tests of the campaign run: the verdicts come at the end of the launch.",
-    "verdicts": {
-      "passes": "passes",
-      "fails": "does not pass"
-    }
+    "launching": "The tests of the campaign run: the verdicts come at the end of the launch."
   },
   "sessionScope": {
     "label": "Scope of the session",
@@ -1123,14 +1017,7 @@
     "noDomain": "not mapped yet",
     "noLevel": "none asked for",
     "chosen_one": "{{count}} chosen",
-    "chosen_other": "{{count}} chosen",
-    "levelNames": {
-      "smoke": "smoke",
-      "functional": "functional",
-      "business": "business",
-      "cross-application": "cross-application",
-      "end-to-end": "end-to-end"
-    }
+    "chosen_other": "{{count}} chosen"
   },
   "relaunch": {
     "button": "Run this test again",
@@ -1138,14 +1025,6 @@
     "running": "Running again: installing, then running…",
     "finished": "Test run, its result is coming…",
     "environment": "Environment of the run"
-  },
-  "sessionBar": {
-    "failed_one": "{{count}} failed",
-    "failed_other": "{{count}} failed",
-    "blocked_one": "{{count}} blocked",
-    "blocked_other": "{{count}} blocked",
-    "indeterminate_one": "{{count}} indeterminate",
-    "indeterminate_other": "{{count}} indeterminate"
   },
   "campaignComposer": {
     "title": "Tests of the campaign",
@@ -1300,5 +1179,74 @@
       "domainFileKept_one": "The file of {{count}} domain is up to date; it is kept.",
       "domainFileKept_other": "The files of {{count}} domains are up to date; they are kept."
     }
-  }
+  },
+  "vocabulary": {
+    "levels": {
+      "smoke": {
+        "label": "Quick check",
+        "hint": "the application answers"
+      },
+      "functional": {
+        "label": "Functional",
+        "hint": "one behaviour of one screen"
+      },
+      "business": {
+        "label": "Business journey",
+        "hint": "a journey through several screens"
+      },
+      "cross-application": {
+        "label": "Across applications",
+        "hint": "an action and its effect in another application"
+      },
+      "end-to-end": {
+        "label": "End to end",
+        "hint": "a journey through three applications or more"
+      }
+    },
+    "statuses": {
+      "passed": "Passed",
+      "failed": "Failed",
+      "flaky": "Flaky",
+      "skipped": "Skipped",
+      "blocked": "Blocked",
+      "indeterminate": "Indeterminate",
+      "not_run": "Not run",
+      "stopped": "Stopped"
+    },
+    "counts": {
+      "passed_one": "{{count}} passed",
+      "passed_other": "{{count}} passed",
+      "failed_one": "{{count}} failed",
+      "failed_other": "{{count}} failed",
+      "flaky_one": "{{count}} flaky",
+      "flaky_other": "{{count}} flaky",
+      "skipped_one": "{{count}} skipped",
+      "skipped_other": "{{count}} skipped",
+      "blocked_one": "{{count}} blocked",
+      "blocked_other": "{{count}} blocked",
+      "indeterminate_one": "{{count}} indeterminate",
+      "indeterminate_other": "{{count}} indeterminate",
+      "not_run_one": "{{count}} not run",
+      "not_run_other": "{{count}} not run"
+    },
+    "origins": {
+      "design": "Agent session",
+      "manual": "Manual launch",
+      "campaign": "Campaign"
+    },
+    "phases": {
+      "configuration": "Configuration",
+      "prerequisites": "Prerequisites",
+      "survey": "Cartography · sources",
+      "card": "Cartography · card",
+      "consolidation": "Cartography · domains",
+      "index": "Cartography · index",
+      "plan": "Plan",
+      "review": "Plan review",
+      "write": "Writing a test",
+      "execution": "Running the tests",
+      "summary": "Summary"
+    }
+  },
+  "technicalDetails": "Technical details"
 }

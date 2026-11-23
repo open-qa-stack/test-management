@@ -633,7 +633,7 @@ describe("what the person says to the agents while they work", () => {
       await page.reload();
       await next.fill("corriger le test en échec");
       await page.getByRole("button", { name: "Poursuivre la session" }).click();
-      await page.locator(".session-bar .badge", { hasText: "en direct" }).waitFor();
+      await page.locator(".session-bar .badge", { hasText: "En direct" }).waitFor();
       assert.deepEqual(instance.resumedWith, [{ text: "corriger le test en échec" }]);
       // The session is live again before its stream told the request of the new turn: the thread is read once it did.
       await page.locator(".thread-item", { hasText: "corriger le test en échec" }).waitFor();
@@ -781,9 +781,9 @@ describe("the stop of a session, in a browser", () => {
       assert.equal(await page.evaluate(() => window.location.hash), `${SESSION}?show=talk`);
       assert.equal(await focusedOf(page), "SPAN: arrêt demandé…");
       assert.equal(await page.locator(".session-stop").count(), 0);
-      assert.equal(await page.locator(".session-bar .badge").innerText(), "en direct");
+      assert.equal(await page.locator(".session-bar .badge").innerText(), "En direct");
       instance.obey();
-      await page.locator(".session-bar .badge", { hasText: "interrompue" }).waitFor();
+      await page.locator(".session-bar .badge", { hasText: "Interrompue" }).waitFor();
       await controlOf(page).waitFor({ state: "detached" });
       await page.getByRole("button", { name: "Poursuivre la session" }).waitFor();
     } finally {
@@ -978,7 +978,7 @@ describe("the console in a browser", () => {
       assert.equal(new URL(page.url()).hash, `#/agent/sessions/${OPENED_ID}`);
       assert.deepEqual(instance.asked, [{ environment: "local", request: "vérifier le changement d'adresse" }]);
       await page.locator(".thread .request", { hasText: "vérifier le changement d'adresse" }).waitFor();
-      assert.equal(await page.locator(".session-bar .badge").innerText(), "en file");
+      assert.equal(await page.locator(".session-bar .badge").innerText(), "En file");
       assert.equal(await page.getByRole("status").filter({ hasText: "travaille" }).count(), 0);
       assert.equal(await page.getByRole("textbox", { name: "Dites aux agents ce qu’il faut corriger" }).isEnabled(), true);
     } finally {
@@ -999,15 +999,15 @@ describe("the console in a browser", () => {
       await field.press("Enter");
       await page.locator(".sent", { hasText: "sans le profil" }).getByText("en attente d’un agent").waitFor();
       assert.deepEqual(instance.said, [{ text: "sans le profil" }]);
-      assert.equal(await state.innerText(), "en file");
+      assert.equal(await state.innerText(), "En file");
       instance.take();
       await working.waitFor();
-      await state.filter({ hasText: "en direct" }).waitFor();
+      await state.filter({ hasText: "En direct" }).waitFor();
       assert.equal(await page.locator(".thread .request").count(), 2, "what was said while it waited stays in the thread");
       assert.equal(await field.isEnabled(), true);
       instance.completeOpened();
       await page.getByText("Verdict de l’exécution : 1 test").waitFor();
-      await state.filter({ hasText: "tests réussis" }).waitFor();
+      await state.filter({ hasText: "Réussi" }).waitFor();
       await field.waitFor({ state: "detached" });
       assert.equal(await working.count(), 0);
     } finally {
@@ -1031,7 +1031,7 @@ describe("the console in a browser", () => {
       await page.getByRole("link", { name: "Revenir aux sessions" }).click();
       const row = page.getByRole("link", { name: /vérifier le changement d'adresse/ });
       await row.waitFor();
-      assert.match(await row.innerText(), /en attente d’un agent\s+en file$/);
+      assert.match(await row.innerText(), /en attente d’un agent\s+En file$/);
       assert.equal(new URL(page.url()).hash, "#/agent");
     } finally {
       await page.close();
@@ -1107,7 +1107,7 @@ describe("the configuration in a browser", () => {
       const page = await configurationAt(width);
       try {
         // The history, the file and the JSON are folded at the foot of the screen.
-        await page.getByRole("heading", { name: "Historique, fichier oqas.json et JSON" }).click();
+        await page.getByRole("heading", { name: "Historique et copies des réglages" }).click();
         await page.locator("details.config-json summary").click();
         assert.equal(await overflowOf(page), 0, `${width}`);
         if (width < 1100) {
@@ -1140,7 +1140,7 @@ describe("the configuration in a browser", () => {
       await page.getByText("1 erreur à corriger").waitFor({ state: "detached" });
       await page.getByRole("button", { name: "Enregistrer" }).click();
       await page.getByRole("status").filter({ hasText: "Révision 3 enregistrée" }).waitFor();
-      await page.getByRole("heading", { name: "Historique, fichier oqas.json et JSON" }).click();
+      await page.getByRole("heading", { name: "Historique et copies des réglages" }).click();
       await page.getByText("Révision 3", { exact: true }).waitFor();
       assert.equal(instance.saved[0]!.document.model.model, "other-model");
       assert.equal(await page.getByRole("button", { name: "Enregistrer" }).count(), 0);
@@ -1154,7 +1154,7 @@ describe("the configuration in a browser", () => {
     instance.fileChanged = true;
     const page = await configurationAt(390, instance);
     try {
-      await page.getByRole("heading", { name: "Historique, fichier oqas.json et JSON" }).click();
+      await page.getByRole("heading", { name: "Historique et copies des réglages" }).click();
       await page.getByText("oqas.json diffère de la révision en vigueur").waitFor();
       await page.getByRole("button", { name: "Prendre oqas.json" }).click();
       await page.getByRole("status").filter({ hasText: "Révision 3 enregistrée" }).waitFor();
@@ -1757,7 +1757,7 @@ describe("the code of the console is covered in full", () => {
         await page.goto("http://console.test/#/executions/view?id=gone");
         await page.getByText("L’instance ne garde plus cette exécution.").waitFor();
         await page.goto("http://console.test/#/executions");
-        const outcome = page.getByLabel("Issue");
+        const outcome = page.getByLabel("Résultat");
         const period = page.getByLabel("Période");
         await outcome.selectOption("failing");
         await page.waitForURL(/#\/executions\?outcome=failing$/);
@@ -1825,7 +1825,7 @@ describe("the code of the console is covered in full", () => {
         // A source is added, tested and saved alone, then followed under the identifier it is saved with.
         await page.goto("http://console.test/#/knowledge");
         await page.getByRole("link", { name: "Ajouter une connaissance" }).click();
-        await page.getByRole("button", { name: "Ajouter un contrat OpenAPI" }).click();
+        await page.getByRole("button", { name: "Ajouter la documentation d’une API" }).click();
         await page.getByLabel("Identifiant", { exact: true }).fill("pricing");
         await page.getByLabel("Adresse du contrat").fill("http://127.0.0.1:3001/pricing.json");
         await page.getByLabel("Pour", { exact: true }).selectOption("applications");
@@ -1943,21 +1943,24 @@ describe("the code of the console is covered in full", () => {
         await page.goto("http://console.test/#/configuration");
         await page.getByRole("heading", { name: "Agents", exact: true }).waitFor();
         // The settings of an expert are folded: those of the model, then those of the autonomy.
-        await page.getByText("Avancé", { exact: true }).first().click();
+        await page
+          .locator("details", { has: page.getByLabel("Attente d’une réponse, en secondes") })
+          .locator("summary")
+          .click();
         await page.getByLabel("Attente d’une réponse, en secondes").fill("90");
         await page.getByRole("button", { name: "Tester la connexion" }).last().click();
         await page.getByRole("status").filter({ hasText: "Choisissez un modèle dans la liste" }).waitFor();
         await page.getByLabel("Connexion au modèle").selectOption("Autre serveur (adresse à saisir)");
         await page.getByLabel("Connexion au modèle").selectOption("Compte GitHub de cette machine (Copilot)");
         await page.getByLabel("Niveau", { exact: true }).selectOption("autonomous");
-        await page.getByLabel("Inter-applications").check();
+        await page.getByLabel("Entre applications").check();
         await page.getByRole("button", { name: "Annuler les modifications" }).click();
         await page.getByRole("button", { name: "Enregistrer" }).waitFor({ state: "detached" });
         await page.getByLabel("Modèle", { exact: true }).fill("saved-model");
         await page.getByRole("button", { name: "Enregistrer" }).click();
         await page.getByRole("status").filter({ hasText: "Révision 3 enregistrée" }).waitFor();
         // A change saved writes no file: the file is written, or taken, when the person asks for it, under the history folded.
-        await page.getByRole("heading", { name: "Historique, fichier oqas.json et JSON" }).click();
+        await page.getByRole("heading", { name: "Historique et copies des réglages" }).click();
         await page.getByRole("button", { name: "Écrire oqas.json" }).click();
         await page.getByText("oqas.json contient la révision en vigueur.").waitFor();
         await page.getByLabel("Modèle", { exact: true }).fill("kept-model");
@@ -1985,7 +1988,7 @@ describe("the code of the console is covered in full", () => {
           await page.getByRole("heading", { name: step }).waitFor();
           if (step === "Ce que les agents peuvent lire") {
             // A source is tested as it is drafted.
-            await page.getByRole("button", { name: "Ajouter un contrat OpenAPI" }).click();
+            await page.getByRole("button", { name: "Ajouter la documentation d’une API" }).click();
             await page.getByRole("button", { name: "Tester la connexion" }).click();
             await page.getByRole("status").filter({ hasText: "Connexion réussie · 3 éléments trouvés." }).waitFor();
           }

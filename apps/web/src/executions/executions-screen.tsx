@@ -3,11 +3,13 @@ import type { CampaignOverview, Execution, ExecutionList, ExecutionOutcome, Exec
 import type { PolledState } from "../api/polled-state.ts";
 import { dateText, durationText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
+import { originName } from "../i18n/vocabulary.ts";
+import { applicationName } from "../applications/application-names.ts";
 import { Badge } from "../ui/badge.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
 import { campaignHref } from "../campaigns/campaigns-paths.ts";
-import { contentText, executionDuration, versionText } from "./execution-text.ts";
+import { contentText, executionDuration } from "./execution-text.ts";
 import { EXECUTION_PERIODS } from "./execution-period.ts";
 import { executionHref, executionsHref, resultHref, type ExecutionsFilter } from "./executions-paths.ts";
 import { FailureNote } from "./failure-note.tsx";
@@ -76,7 +78,7 @@ function ResultRow({ execution, result }: { readonly execution: Execution; reado
       <VerdictBadge verdict={result.verdict} />
       <div className="grow">
         <b>{result.title}</b>
-        <span className="small muted"> · {result.project}</span>
+        <span className="small muted"> · {applicationName(result.project)}</span>
         <FailureNote failure={result.failure} />
       </div>
       <span className="small muted">{durationText(result.durationMs)}</span>
@@ -103,14 +105,13 @@ function ExecutionRow({
           {dateText(execution.ranAt)}
         </a>
         <span className="exec-origin">
-          <Badge tone="neutral">{t(`executions.origins.${execution.origin}`)}</Badge>
+          <Badge tone="neutral">{originName(execution.origin)}</Badge>
         </span>
         <span className="exec-content small">{execution.campaignId === undefined ? content : <a href={campaignHref(execution.campaignId)}>{content}</a>}</span>
         <span className="exec-result small">
           <VerdictBar results={execution.results} />
         </span>
         <span className="exec-duration small muted">{executionDuration(execution)}</span>
-        <span className="exec-version small muted mono">{versionText(execution)}</span>
       </summary>
       <div className="exec-tests">
         {execution.results.length === 0 ? (
@@ -150,7 +151,6 @@ function Table({
           <span className="exec-content small">{t("executions.columns.content")}</span>
           <span className="exec-result small">{t("executions.columns.result")}</span>
           <span className="exec-duration small">{t("executions.columns.duration")}</span>
-          <span className="exec-version small">{t("executions.columns.version")}</span>
         </div>
         {page.items.map((execution) => (
           <ExecutionRow key={execution.id} execution={execution} sessions={sessions} campaigns={campaigns} />

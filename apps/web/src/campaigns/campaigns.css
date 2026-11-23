@@ -42,18 +42,6 @@
   gap: var(--space-1);
 }
 
-/* On a phone a test is its title and its date: the path of its file shows from a tablet on. */
-.campaign-path {
-  display: none;
-  overflow-wrap: anywhere;
-}
-
-@media (min-width: 768px) {
-  .campaign-path {
-    display: block;
-  }
-}
-
 .campaign-facts {
   display: grid;
   grid-template-columns: max-content 1fr;

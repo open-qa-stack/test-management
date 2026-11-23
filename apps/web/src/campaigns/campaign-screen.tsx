@@ -6,6 +6,7 @@ import { resultHref } from "../executions/executions-paths.ts";
 import { VerdictBadge } from "../executions/verdicts.tsx";
 import { dateText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
+import { statusName } from "../i18n/vocabulary.ts";
 import { hrefTo } from "../routing/route.ts";
 import { Badge } from "../ui/badge.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
@@ -75,7 +76,7 @@ function ResultRow({ result }: { readonly result: LiveResult }): ReactNode {
     ) : live !== undefined ? (
       <VerdictBadge verdict={live.verdict} />
     ) : result.verdict === "not_run" ? (
-      <Badge tone="outline">{t("campaign.notRun")}</Badge>
+      <Badge tone="outline">{statusName("not_run")}</Badge>
     ) : (
       <VerdictBadge verdict={result.verdict} />
     );
@@ -85,8 +86,7 @@ function ResultRow({ result }: { readonly result: LiveResult }): ReactNode {
     <>
       <span className="campaign-verdict">{badge}</span>
       <div className="grow">
-        <b>{result.title}</b>
-        <div className="small muted mono campaign-path">{result.path}</div>
+        <b title={result.path}>{result.title}</b>
         {when !== undefined && <div className="small muted">{when}</div>}
       </div>
     </>

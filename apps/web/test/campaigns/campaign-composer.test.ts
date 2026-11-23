@@ -5,6 +5,7 @@ import type { RepositoryTest } from "@open-qa-stack/domain/sessions";
 import { CampaignComposer, type ComposerProps } from "../../src/campaigns/campaign-composer.tsx";
 import { EVERY_TEST, testKey, type CompositionFilter } from "../../src/campaigns/campaign-composition.ts";
 import { elementsOf, render, textOf } from "../render.ts";
+import { nameApplications } from "../../src/applications/application-names.ts";
 
 /** Two tests of the repository, one of each level. */
 const HOME: RepositoryTest = {
@@ -42,16 +43,15 @@ const html = (changes: Partial<ComposerProps> = {}): string => render(createElem
 const event = (value: string, checked = false) => ({ currentTarget: { value, checked } }) as unknown as ChangeEvent<HTMLInputElement & HTMLSelectElement>;
 
 describe("the composition of a planned campaign", () => {
-  it("lists the tests of the repository, each ticked when it is chosen, with its level, domain and applications, and how many are chosen", () => {
+  it("lists the tests of the repository, each ticked when it is chosen, with its level, domain and applications by their names, and how many are chosen", () => {
+    nameApplications([{ id: "a", name: "Shop" }]);
     const text = textOf(html());
+    nameApplications([]);
     assert.match(
       text,
-      /^Tests de la campagne 1 choisis sur 2 Filtrer par mots Niveau tous smoke Domaine tous home Application tous a Tag tous @level-smoke Seulement la sélection 2 tests affichés/,
+      /^Tests de la campagne 1 choisis sur 2 Filtrer par mots Niveau tous Vérification rapide Domaine tous home Application tous Shop Tag tous @level-smoke Seulement la sélection 2 tests affichés/,
     );
-    assert.match(
-      text,
-      /Open the home apps\/a\/home\.spec\.ts smoke home a Place an order apps\/a\/order\.spec\.ts a Sélection enregistrée\. Enregistrer la sélection \(1 test\)$/,
-    );
+    assert.match(text, /Open the home Vérification rapide home Shop Place an order Shop Sélection enregistrée\. Enregistrer la sélection \(1 test\)$/);
     assert.match(html(), /<label class="row campaign-composer-test ticked"><input type="checkbox" checked=""\/>/);
   });
 

@@ -68,16 +68,10 @@
   },
   "facts": {
     "states": {
-      "queued": "en file",
-      "running": "en direct",
-      "interrupted": "interrompue",
-      "ended": "terminée"
-    },
-    "outcomes": {
-      "passed": "tests réussis",
-      "failed": "test en échec",
-      "inconclusive": "test sans verdict",
-      "stopped": "arrêtée avant la fin"
+      "queued": "En file",
+      "running": "En direct",
+      "interrupted": "Interrompue",
+      "ended": "Terminée"
     },
     "waiting": "en attente d’un agent",
     "testsPassed_one": "{{passed}} / {{count}} test réussi",
@@ -179,11 +173,6 @@
         "body": "Elle s’est arrêtée avant que ses agents ne commencent."
       }
     },
-    "verdicts": {
-      "passed": "réussi",
-      "failed": "échoué",
-      "blocked": "bloqué"
-    },
     "thinking": "Réflexion",
     "running": "en cours",
     "failure": "échec",
@@ -208,10 +197,6 @@
     "technical": "Détails techniques",
     "toolFailed": "Une action de l’agent n’a pas abouti",
     "summary": "Bilan",
-    "passedCount_one": "{{count}} réussi",
-    "passedCount_other": "{{count}} réussis",
-    "failedCount_one": "{{count}} échoué",
-    "failedCount_other": "{{count}} échoués",
     "otherCount_one": "{{count}} sans verdict",
     "otherCount_other": "{{count}} sans verdict"
   },
@@ -285,7 +270,7 @@
     "applications": "Applications",
     "domains": "Domaines",
     "environment": "Environnement",
-    "note": "Seuls ces niveaux sont conçus ; <code>design.levels</code> dans la configuration les fixe."
+    "note": "Seuls ces niveaux sont conçus ; la configuration les fixe."
   },
   "composer": {
     "going": {
@@ -315,19 +300,6 @@
     "more": "Lire la suite"
   },
   "steps": {
-    "phases": {
-      "configuration": "Configuration",
-      "prerequisites": "Prérequis",
-      "survey": "Cartographie · sources",
-      "card": "Cartographie · fiche",
-      "consolidation": "Cartographie · domaines",
-      "index": "Cartographie · index",
-      "plan": "Plan",
-      "review": "Relecture du plan",
-      "write": "Écriture d’un test",
-      "execution": "Exécution des tests",
-      "summary": "Bilan"
-    },
     "step": "Étape",
     "planAccepted": "Plan accepté par le harnais",
     "scope": "Portée de la session",
@@ -453,28 +425,6 @@
       "console": "Console",
       "command": "Commande"
     },
-    "levels": {
-      "smoke": {
-        "label": "Fumée",
-        "hint": "l’application répond"
-      },
-      "functional": {
-        "label": "Fonctionnel",
-        "hint": "un comportement d’un écran"
-      },
-      "business": {
-        "label": "Métier",
-        "hint": "un parcours sur plusieurs écrans"
-      },
-      "cross-application": {
-        "label": "Inter-applications",
-        "hint": "une action et son effet dans une autre application"
-      },
-      "end-to-end": {
-        "label": "De bout en bout",
-        "hint": "un parcours sur trois applications ou plus"
-      }
-    },
     "settings": {
       "autonomous": "Autonome : aucune limite par tâche",
       "bounded": "Bornée : des limites pour chaque tâche",
@@ -521,7 +471,7 @@
       "githubNote": "L’outil utilise le compte GitHub connecté sur la machine où il tourne, avec son abonnement Copilot : rien à saisir. Sur une machine partagée, tout le monde passe par ce compte.",
       "baseUrl": "Adresse du serveur",
       "baseUrlHint": "Celle de son API compatible OpenAI, par exemple celle d’un modèle lancé sur votre poste.",
-      "apiKeyEnv": "Variable qui tient la clé",
+      "apiKeyEnv": "Nom sous lequel la clé est gardée",
       "apiKeyEnvHint": "Le nom sous lequel la clé est gardée ; celui du fournisseur convient. Laissez vide pour un serveur sans clé.",
       "test": "Tester la connexion",
       "testing": "Test en cours…",
@@ -552,10 +502,10 @@
       "connection_string": "Chaîne de connexion",
       "account_username": "Identifiant",
       "account_password": "Mot de passe",
-      "kept": "Gardée sur l’ordinateur où tourne l’outil, hors du dépôt de tests et de la base, dans {{variable}} ; elle ne s’affiche plus ensuite.",
-      "saved": "Une valeur est enregistrée pour {{variable}} sur cet ordinateur ; tapez-en une autre pour la remplacer.",
+      "kept": "Gardée sur l’ordinateur où tourne l’outil, hors du dépôt de tests et de la base ; elle ne s’affiche plus ensuite.",
+      "saved": "Une valeur est enregistrée sur cet ordinateur ; tapez-en une autre pour la remplacer.",
       "replace": "Enregistrée — tapez pour la remplacer",
-      "environment": "vient de la variable {{variable}} de l’environnement de l’outil, qui l’emporte sur une valeur tapée ici."
+      "environment": "vient de l’environnement de l’outil, qui l’emporte sur une valeur tapée ici."
     },
     "application": {
       "types": {
@@ -614,11 +564,11 @@
     },
     "knowledge": {
       "kinds": {
-        "openapi": "Contrat OpenAPI",
-        "postgresql": "Base PostgreSQL",
+        "openapi": "Documentation de l’API",
+        "postgresql": "Base de données",
         "document": "Documents du dépôt",
         "stored": "Documents déposés",
-        "source-code": "Code source",
+        "source-code": "Code",
         "logs": "Journaux"
       },
       "explain": {
@@ -630,11 +580,11 @@
         "logs": "Les journaux d’une application, pour voir ce qui s’y passe vraiment."
       },
       "add": {
-        "openapi": "Ajouter un contrat OpenAPI",
-        "postgresql": "Ajouter une base PostgreSQL",
+        "openapi": "Ajouter la documentation d’une API",
+        "postgresql": "Ajouter une base de données",
         "document": "Ajouter des documents du dépôt",
         "stored": "Ajouter des documents déposés",
-        "source-code": "Ajouter du code source",
+        "source-code": "Ajouter du code",
         "logs": "Ajouter des journaux"
       },
       "untitled": "Source {{rank}}",
@@ -728,7 +678,7 @@
       "save": "Enregistrer",
       "agents": "Agents",
       "repository": "Dépôt de tests",
-      "history": "Historique, fichier oqas.json et JSON",
+      "history": "Historique et copies des réglages",
       "secrets": "Les valeurs tapées ici — clé, chaînes de connexion, mots de passe — restent sur l’ordinateur où tourne l’outil, hors du dépôt de tests et de la base. Une variable d’environnement l’emporte : c’est le chemin d’une CI.",
       "lead": "Les réglages d’Open QA Stack. Les applications testées et les connaissances que lisent les agents ont leurs propres écrans.",
       "addApplication": "Ajouter une application"
@@ -827,11 +777,13 @@
     "add": "Ajouter une connaissance",
     "addHint": "choisissez ce que les agents liront",
     "drop": "Retirer la source",
-    "dropTitle": "Retirer la source {{id}} ?",
+    "dropTitle": "Retirer « {{name}} » ?",
     "dropNote": "Les prochaines sessions ne la lisent plus. Une nouvelle révision de la configuration est enregistrée : la précédente reste dans l’historique.",
     "confirmDrop": "Retirer la source",
     "project": "Tout le projet",
-    "projectHint": "lue quelle que soit l’application testée"
+    "projectHint": "lue quelle que soit l’application testée",
+    "sourceId": "Identifiant : {{id}}",
+    "where": "Lue depuis : {{where}}"
   },
   "tests": {
     "title": "Tests",
@@ -844,13 +796,6 @@
     "search": "Chercher un titre, un chemin ou un tag",
     "levelFilter": "Niveaux de la pyramide de tests",
     "allLevels": "Tous les niveaux",
-    "levels": {
-      "smoke": "Smoke",
-      "functional": "Fonctionnel",
-      "business": "Métier",
-      "cross-application": "Entre applications",
-      "end-to-end": "De bout en bout"
-    },
     "visual": "Visuel",
     "steps_one": "{{count}} étape",
     "steps_other": "{{count}} étapes",
@@ -863,16 +808,6 @@
   "test": {
     "reading": "Lecture du test",
     "readingNote": "Il apparaît dès que l’instance a répondu.",
-    "status": {
-      "expected": "réussi",
-      "unexpected": "en échec",
-      "flaky": "réussi après une nouvelle tentative",
-      "skipped": "ignoré"
-    },
-    "states": {
-      "passed": "Réussie",
-      "failed": "En échec"
-    },
     "capture": "Capture de l’étape {{number}}",
     "noCapture": "Aucune capture pour cette étape.",
     "expected": "Attendu",
@@ -880,7 +815,6 @@
     "noCompare": "Le message de l’assertion en échec ne dit pas ce qu’elle a obtenu : les détails le donnent en entier.",
     "steps": "Étapes",
     "noStep": "L’exécution n’a rapporté aucune étape de ce test.",
-    "details": "Détails techniques",
     "summary": {
       "failedAt": "Échoue à l’étape {{step}} sur {{count}}.",
       "expected_one": "Réussit son étape.",
@@ -932,9 +866,8 @@
     "versionShort": "v{{number}}",
     "versionSince_one": "Depuis le {{date}} · {{count}} exécution",
     "versionSince_other": "Depuis le {{date}} · {{count}} exécutions",
-    "uncommitted": "Non commitée",
-    "uncommittedNote": "Jouée seulement avant d’être commitée, comme pendant une conception.",
-    "uncommittedOn": "non commitée, sur",
+    "uncommitted": "Version de travail",
+    "uncommittedNote": "Jouée avant d’être enregistrée dans le dépôt de tests, comme pendant une conception.",
     "unknown": "Ce test n’est plus dans le dépôt",
     "unknownNote": "Son fichier a été renommé ou supprimé ; ses exécutions passées restent listées ici."
   },
@@ -944,29 +877,8 @@
     "readingNote": "Elles apparaissent dès que l’instance a répondu.",
     "none": "Aucune exécution pour l’instant",
     "noneNote": "Les exécutions des tests apparaissent ici dès qu’une session de l’agent a lancé les tests qu’elle a écrits.",
-    "origins": {
-      "design": "conception",
-      "manual": "lancement manuel",
-      "campaign": "campagne"
-    },
-    "verdicts": {
-      "passed": "Réussi",
-      "failed": "En échec",
-      "flaky": "Instable",
-      "skipped": "Ignoré"
-    },
-    "counts": {
-      "passed_one": "{{count}} réussi",
-      "passed_other": "{{count}} réussis",
-      "failed_one": "{{count}} en échec",
-      "failed_other": "{{count}} en échec",
-      "flaky_one": "{{count}} instable",
-      "flaky_other": "{{count}} instables",
-      "skipped_one": "{{count}} ignoré",
-      "skipped_other": "{{count}} ignorés"
-    },
     "lead": "Les exécutions des tests, la plus récente d’abord.",
-    "outcomeFilter": "Issue",
+    "outcomeFilter": "Résultat",
     "outcomes": {
       "all": "Toutes",
       "failing": "Avec un échec",
@@ -984,8 +896,7 @@
       "origin": "Origine",
       "content": "Contenu",
       "result": "Résultat",
-      "duration": "Durée",
-      "version": "Version"
+      "duration": "Durée"
     },
     "session": "Session « {{request}} »",
     "tests_one": "{{count}} test",
@@ -1012,10 +923,10 @@
     "readingNote": "Elle apparaît dès que l’instance a répondu.",
     "duration": "Durée {{duration}}",
     "launchedBy": "Lancée par la session « {{request}} »",
-    "bySession": "Lancée par une session de conception",
+    "bySession": "Lancée par une session de l’agent",
     "seeSession": "Voir la session →",
     "noSession": "La session qui l’a lancée n’est plus gardée.",
-    "version": "Dépôt de tests au commit {{commit}}",
+    "version": "Version du dépôt de tests : {{commit}}",
     "noVersion": "Version du dépôt de tests non conservée.",
     "noTest": "Aucun test n’a tourné dans cette exécution.",
     "forCampaign": "Lancée pour une campagne →",
@@ -1043,10 +954,10 @@
     "none": "Aucune campagne",
     "noneNote": "Planifiez-en une : un nom et un environnement, puis choisissez ses tests.",
     "statuses": {
-      "planned": "planifiée",
-      "ready": "prête",
-      "in_progress": "en cours",
-      "closed": "clôturée"
+      "planned": "Planifiée",
+      "ready": "Prête",
+      "in_progress": "En cours",
+      "closed": "Clôturée"
     },
     "plan": {
       "title": "Planifier une campagne",
@@ -1068,19 +979,6 @@
     "tests": "Tests de la campagne",
     "testCount_one": "{{count}} test",
     "testCount_other": "{{count}} tests",
-    "counts": {
-      "failed_one": "{{count}} échoué",
-      "failed_other": "{{count}} échoués",
-      "flaky_one": "{{count}} instable",
-      "flaky_other": "{{count}} instables",
-      "passed_one": "{{count}} réussi",
-      "passed_other": "{{count}} réussis",
-      "skipped_one": "{{count}} ignoré",
-      "skipped_other": "{{count}} ignorés",
-      "not_run_one": "{{count}} non joué",
-      "not_run_other": "{{count}} non joués"
-    },
-    "notRun": "non joué",
     "plannedNote": "Choisissez ses tests ci-dessous : ils restent modifiables jusqu’à ce que vous les figiez.",
     "noTest": "Aucun test",
     "noTestNote": "Aucun test n’est choisi pour cette campagne.",
@@ -1093,7 +991,7 @@
     "ran": "{{ran}} / {{total}} joués",
     "launchPreparing": "Lancement en préparation : installation, puis vérification des adresses de l’environnement…",
     "launchProgress": "Lancement en cours : {{finished}} / {{total}} tests finis",
-    "running": "en cours",
+    "running": "En cours",
     "inLaunch": "dans le lancement en cours",
     "justNow": "à l’instant",
     "lifecycle": "Cycle de vie de la campagne",
@@ -1104,11 +1002,7 @@
     "launchFailed_other": "Relancer les {{count}} échecs",
     "launchNotRun_one": "Lancer le test non joué",
     "launchNotRun_other": "Lancer les {{count}} non joués",
-    "launching": "Les tests de la campagne tournent : les verdicts arrivent à la fin du lancement.",
-    "verdicts": {
-      "passes": "passe",
-      "fails": "ne passe pas"
-    }
+    "launching": "Les tests de la campagne tournent : les verdicts arrivent à la fin du lancement."
   },
   "sessionScope": {
     "label": "Périmètre de la session",
@@ -1123,14 +1017,7 @@
     "noDomain": "pas encore cartographiés",
     "noLevel": "aucun demandé",
     "chosen_one": "{{count}} choisi",
-    "chosen_other": "{{count}} choisis",
-    "levelNames": {
-      "smoke": "fumée",
-      "functional": "fonctionnel",
-      "business": "métier",
-      "cross-application": "inter-applications",
-      "end-to-end": "bout en bout"
-    }
+    "chosen_other": "{{count}} choisis"
   },
   "relaunch": {
     "button": "Relancer ce test",
@@ -1138,14 +1025,6 @@
     "running": "Relance en cours : installation, puis exécution…",
     "finished": "Test joué, son résultat arrive…",
     "environment": "Environnement de la relance"
-  },
-  "sessionBar": {
-    "failed_one": "{{count}} en échec",
-    "failed_other": "{{count}} en échec",
-    "blocked_one": "{{count}} bloqué",
-    "blocked_other": "{{count}} bloqués",
-    "indeterminate_one": "{{count}} indéterminé",
-    "indeterminate_other": "{{count}} indéterminés"
   },
   "campaignComposer": {
     "title": "Tests de la campagne",
@@ -1300,5 +1179,74 @@
       "domainFileKept_one": "Le fichier de {{count}} domaine est à jour ; il est conservé.",
       "domainFileKept_other": "Les fichiers de {{count}} domaines sont à jour ; ils sont conservés."
     }
-  }
+  },
+  "vocabulary": {
+    "levels": {
+      "smoke": {
+        "label": "Vérification rapide",
+        "hint": "l’application répond"
+      },
+      "functional": {
+        "label": "Fonctionnel",
+        "hint": "un comportement d’un écran"
+      },
+      "business": {
+        "label": "Parcours métier",
+        "hint": "un parcours sur plusieurs écrans"
+      },
+      "cross-application": {
+        "label": "Entre applications",
+        "hint": "une action et son effet dans une autre application"
+      },
+      "end-to-end": {
+        "label": "De bout en bout",
+        "hint": "un parcours sur trois applications ou plus"
+      }
+    },
+    "statuses": {
+      "passed": "Réussi",
+      "failed": "Échoué",
+      "flaky": "Instable",
+      "skipped": "Ignoré",
+      "blocked": "Bloqué",
+      "indeterminate": "Indéterminé",
+      "not_run": "Non joué",
+      "stopped": "Arrêté"
+    },
+    "counts": {
+      "passed_one": "{{count}} réussi",
+      "passed_other": "{{count}} réussis",
+      "failed_one": "{{count}} échoué",
+      "failed_other": "{{count}} échoués",
+      "flaky_one": "{{count}} instable",
+      "flaky_other": "{{count}} instables",
+      "skipped_one": "{{count}} ignoré",
+      "skipped_other": "{{count}} ignorés",
+      "blocked_one": "{{count}} bloqué",
+      "blocked_other": "{{count}} bloqués",
+      "indeterminate_one": "{{count}} indéterminé",
+      "indeterminate_other": "{{count}} indéterminés",
+      "not_run_one": "{{count}} non joué",
+      "not_run_other": "{{count}} non joués"
+    },
+    "origins": {
+      "design": "Session de l’agent",
+      "manual": "Lancement manuel",
+      "campaign": "Campagne"
+    },
+    "phases": {
+      "configuration": "Configuration",
+      "prerequisites": "Prérequis",
+      "survey": "Cartographie · sources",
+      "card": "Cartographie · fiche",
+      "consolidation": "Cartographie · domaines",
+      "index": "Cartographie · index",
+      "plan": "Plan",
+      "review": "Relecture du plan",
+      "write": "Écriture d’un test",
+      "execution": "Exécution des tests",
+      "summary": "Bilan"
+    }
+  },
+  "technicalDetails": "Détails techniques"
 }

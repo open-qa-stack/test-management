@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { CampaignCounts, TestLaunch } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
+import { statusCount } from "../i18n/vocabulary.ts";
 import { Badge, type BadgeTone } from "../ui/badge.tsx";
 
 /** The verdicts a campaign counts, in the order its bar shows them, each with the tone of its badge. */
@@ -58,7 +59,7 @@ export function CampaignProgressCard({ counts, launch }: { readonly counts: Camp
       <div className="campaign-progress-counts">
         {PARTS.filter(([verdict]) => counts[verdict] > 0).map(([verdict, tone]) => (
           <Badge key={verdict} tone={tone}>
-            {t(`campaign.counts.${verdict}`, { count: counts[verdict] })}
+            {statusCount(verdict, counts[verdict])}
           </Badge>
         ))}
       </div>

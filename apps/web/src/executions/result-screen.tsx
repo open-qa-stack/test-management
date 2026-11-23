@@ -4,6 +4,7 @@ import { API_BASE } from "../api/api-client.ts";
 import type { PolledState } from "../api/polled-state.ts";
 import { dateText, elapsedText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
+import { statusName, type Status } from "../i18n/vocabulary.ts";
 import { hrefTo } from "../routing/route.ts";
 import { testHref } from "../tests/tests-paths.ts";
 import { Badge } from "../ui/badge.tsx";
@@ -51,6 +52,9 @@ function shownStep(view: QaView, asked: number | undefined): number | undefined 
   return view.failedStep ?? steps.findLast((step) => step.capture !== undefined)?.number ?? steps[0]?.number;
 }
 
+/** The status of each way Playwright says a test ended, as every screen names it. */
+const STATUSES: Readonly<Record<QaView["status"], Status>> = { expected: "passed", unexpected: "failed", flaky: "flaky", skipped: "skipped" };
+
 /** How the test ended in the execution, in one sentence: where it failed, or in how many steps it went through. */
 function Summary({ view }: { readonly view: QaView }): ReactNode {
   const count = numbered(view).length;
@@ -59,7 +63,7 @@ function Summary({ view }: { readonly view: QaView }): ReactNode {
   return (
     <Card>
       <div className="row test-summary">
-        <Badge tone={tone}>{t(`test.status.${view.status}`)}</Badge>
+        <Badge tone={tone}>{statusName(STATUSES[view.status])}</Badge>
         <div className="grow">
           <b>{sentence}</b>
         </div>
@@ -97,7 +101,7 @@ function StepRow({ step, place, shown }: { readonly step: QaStep & { readonly nu
       aria-current={shown ? "step" : undefined}
     >
       <span className="small muted test-step-number">{step.number}</span>
-      <span className={failed ? "test-step-state ko" : "test-step-state ok"} role="img" aria-label={t(`test.states.${step.state}`)}>
+      <span className={failed ? "test-step-state ko" : "test-step-state ok"} role="img" aria-label={statusName(step.state)}>
         {failed ? "✕" : "✓"}
       </span>
       <div className="grow">
@@ -128,23 +132,21 @@ function Screen({ step, place }: { readonly step: QaStep & { readonly number: nu
   );
 }
 
-/** What the reporter tells besides the steps, folded: the whole error, the stack, the outputs and the files the runner kept. */
-function Details({ view }: { readonly view: QaView }): ReactNode {
+/** What the reporter tells besides the steps, folded: the file of the test, the whole error, the stack, the outputs and the files the runner kept. */
+function Details({ view, path }: { readonly view: QaView; readonly path: string }): ReactNode {
   const { error, stack, stdout, stderr, trace, errorContext } = view.details;
-  const files = [trace, errorContext, ...view.details.screenshots].filter((file) => file !== undefined);
+  const files = [path, ...[trace, errorContext, ...view.details.screenshots].filter((file) => file !== undefined)];
   return (
     <details className="test-details">
-      <summary>{t("test.details")}</summary>
+      <summary>{t("technicalDetails")}</summary>
       {error !== undefined && <pre className="mono">{error}</pre>}
       {stack !== undefined && <pre className="mono">{stack}</pre>}
       {[...stdout, ...stderr].length > 0 && <pre className="mono">{[...stdout, ...stderr].join("")}</pre>}
-      {files.length > 0 && (
-        <ul className="small mono">
-          {files.map((file) => (
-            <li key={file}>{file}</li>
-          ))}
-        </ul>
-      )}
+      <ul className="small mono">
+        {files.map((file) => (
+          <li key={file}>{file}</li>
+        ))}
+      </ul>
     </details>
   );
 }
@@ -167,7 +169,7 @@ function Reading({ place, view, asked }: { readonly place: Place; readonly view:
         </Card>
         {step !== undefined && <Screen step={step} place={place} />}
       </div>
-      <Details view={view} />
+      <Details view={view} path={place.path} />
     </>
   );
 }
@@ -189,7 +191,6 @@ export function ResultScreen({ project, id, path, step, state }: ResultScreenPro
       crumbs={[{ label: project }, { label: t("executions.title"), href: hrefTo(EXECUTIONS_PATH) }, { label: ran, href: executionHref(id) }, { label: title }]}
       title={title}
     >
-      <p className="small muted mono">{path}</p>
       <p className="small">
         <a href={testHref(path)}>{t("result.card")} →</a>
         {reading?.traced === true && (

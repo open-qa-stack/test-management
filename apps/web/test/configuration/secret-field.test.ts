@@ -26,7 +26,7 @@ describe("the field of the value of a variable", () => {
     assert.match(html, /<label for="secret-MODEL_KEY">Clé<\/label>/);
     assert.match(html, /<input id="secret-MODEL_KEY" type="password" data-kind="secret" data-variable="MODEL_KEY" [^>]*name="secret-MODEL_KEY" value="typed"/);
     assert.match(html, /autoComplete="new-password"/);
-    assert.match(textOf(html), /Gardée sur l’ordinateur où tourne l’outil, hors du dépôt de tests et de la base, dans MODEL_KEY/);
+    assert.match(textOf(html), /Gardée sur l’ordinateur où tourne l’outil, hors du dépôt de tests et de la base ; elle ne s’affiche plus ensuite./);
     assert.doesNotMatch(html, /placeholder/);
     assert.match(field({ variable: "MODEL_KEY", kind: "model_key" }, [secret("missing")]), /value=""/);
   });
@@ -34,13 +34,13 @@ describe("the field of the value of a variable", () => {
   it("offers to replace a value saved, which it never shows", () => {
     const html = field({ variable: "MODEL_KEY", kind: "model_key" }, [secret("saved")]);
     assert.match(html, /placeholder="Enregistrée — tapez pour la remplacer"/);
-    assert.match(textOf(html), /Une valeur est enregistrée pour MODEL_KEY sur cet ordinateur ; tapez-en une autre pour la remplacer\./);
+    assert.match(textOf(html), /Une valeur est enregistrée sur cet ordinateur ; tapez-en une autre pour la remplacer\./);
   });
 
   it("asks nothing of a variable the environment sets, which wins", () => {
     const html = field({ variable: "MODEL_KEY", kind: "model_key" }, [secret("environment")]);
     assert.doesNotMatch(html, /<input/);
-    assert.match(textOf(html), /Clé vient de la variable MODEL_KEY de l’environnement de l’outil, qui l’emporte sur une valeur tapée ici\./);
+    assert.match(textOf(html), /Clé vient de l’environnement de l’outil, qui l’emporte sur une valeur tapée ici\./);
   });
 
   it("shows the name of a test account as it is typed, and hides its password", () => {

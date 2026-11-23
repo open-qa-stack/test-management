@@ -1,5 +1,7 @@
 import type { Session } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
+import { levelName, statusName, type Status } from "../i18n/vocabulary.ts";
+import { applicationName } from "../applications/application-names.ts";
 import type { BadgeTone } from "../ui/badge.tsx";
 
 /** How the state of a session reads, and its colour family. */
@@ -9,10 +11,10 @@ export interface StateLabel {
 }
 
 /** The colour family of each way a session ended; a later version of the API may tell another. */
-const OUTCOMES: Readonly<Record<string, readonly [BadgeTone, "passed" | "failed" | "inconclusive" | "stopped"]>> = {
+const OUTCOMES: Readonly<Record<string, readonly [BadgeTone, Status]>> = {
   passed: ["ok", "passed"],
   failed: ["ko", "failed"],
-  inconclusive: ["warn", "inconclusive"],
+  inconclusive: ["warn", "indeterminate"],
   stopped: ["neutral", "stopped"],
 };
 
@@ -29,7 +31,7 @@ export function stateOf(session: Session): StateLabel {
   if (session.state === "running") return { tone: "info", label: t("facts.states.running") };
   if (session.state === "interrupted") return { tone: "warn", label: t("facts.states.interrupted") };
   const outcome = session.result === undefined ? undefined : OUTCOMES[session.result.outcome];
-  return outcome === undefined ? { tone: "neutral", label: t("facts.states.ended") } : { tone: outcome[0], label: t(`facts.outcomes.${outcome[1]}`) };
+  return outcome === undefined ? { tone: "neutral", label: t("facts.states.ended") } : { tone: outcome[0], label: statusName(outcome[1]) };
 }
 
 /**
@@ -51,6 +53,6 @@ export function waitText(session: Session): string | undefined {
  */
 export function scopeText(session: Session): string | undefined {
   const { applications = [], domains = [], levels = [] } = session.scope ?? {};
-  const words = [...applications, ...domains, ...levels.map((level) => t(`sessionScope.levelNames.${level}`))];
+  const words = [...applications.map(applicationName), ...domains, ...levels.map(levelName)];
   return words.length === 0 ? undefined : t("facts.scope", { scope: words.join(", ") });
 }

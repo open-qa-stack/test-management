@@ -13,6 +13,7 @@ import { SessionScreen } from "../../src/agent/session-screen.tsx";
 import { SpeakerMark } from "../../src/agent/speaker-mark.tsx";
 import { Thread } from "../../src/agent/thread.tsx";
 import { at, elementsOf, linksOf, render, textOf } from "../render.ts";
+import { nameApplications } from "../../src/applications/application-names.ts";
 import { COMPLETED, EVENTS, fixtureScript, liveOf, NO_CONTROLS, numbered, QUEUED, REFUSAL, RUNNING, SESSION_ID } from "./session-fixture.ts";
 
 const PATH = `/agent/sessions/${SESSION_ID}`;
@@ -41,7 +42,7 @@ const STOPPED: Session = { ...RUNNING, state: "completed", result: { outcome: "s
 
 /** What the fixtures of a session never write: an accepted verdict, a failed tool, a file handed in without an answer, and every verdict of a test. */
 const REVIEWED: readonly Step[] = [
-  { kind: "pass", at: "09:00:00", title: "Plan · smoke", summary: "le chemin le plus court" },
+  { kind: "pass", at: "09:00:00", title: "Plan · Vérification rapide", summary: "le chemin le plus court" },
   { kind: "say", from: "planner", to: "harness", at: "09:00:01", text: "Voici le plan." },
   {
     kind: "verdict",
@@ -439,7 +440,7 @@ describe("the thread of a session", () => {
   it("marks an action that passed, and gives no link to one that looked at nothing", () => {
     assert.match(
       thread(),
-      /<div class="act"><details><summary class="act-line"><span class="act-state ok" role="img" aria-label="réussi"><\/span><svg [^>]*>.*?<\/svg><span class="act-title">A proposé un plan de 1 scénario<\/span><\/summary><pre class="act-result">The plan was accepted: search\.<\/pre><\/details><span class="act-time">40\u202fms<\/span><\/div>/,
+      /<div class="act"><details><summary class="act-line"><span class="act-state ok" role="img" aria-label="Réussi"><\/span><svg [^>]*>.*?<\/svg><span class="act-title">A proposé un plan de 1 scénario<\/span><\/summary><pre class="act-result">The plan was accepted: search\.<\/pre><\/details><span class="act-time">40\u202fms<\/span><\/div>/,
     );
   });
 
@@ -527,17 +528,17 @@ describe("the thread of a session", () => {
       ],
     };
     const ok = thread(liveWith([passed]));
-    assert.match(ok, /<span class="act-title">A joué « a » : réussi<\/span>/);
+    assert.match(ok, /<span class="act-title">A joué « a » : Réussi<\/span>/);
     assert.match(
       ok,
-      /<\/summary><ul class="act-tests"><li><span class="badge ok">réussi<\/span><span>a<\/span><\/li><\/ul><pre class="act-code code mono"><span class="code-line">test\(\);<\/span><\/pre><\/details>/,
+      /<\/summary><ul class="act-tests"><li><span class="badge ok">Réussi<\/span><span>a<\/span><\/li><\/ul><pre class="act-code code mono"><span class="code-line">test\(\);<\/span><\/pre><\/details>/,
     );
     assert.match(ok, /<span class="act-time">2,4\u202fs<\/span>/);
     const ko = thread(liveWith([failed]));
-    assert.match(ko, /<span class="act-title">A joué « a » : échoué<\/span>/);
+    assert.match(ko, /<span class="act-title">A joué « a » : Échoué<\/span>/);
     assert.match(
       ko,
-      /<ul class="act-tests"><li><span class="badge ko">échoué<\/span><span>a<\/span><\/li><li><span class="badge warn">timedOut<\/span><span>b<\/span><\/li><\/ul><pre class="act-result">Run of the file: failed\.\n {2}Error: no heading<\/pre><pre class="act-code code mono">/,
+      /<ul class="act-tests"><li><span class="badge ko">Échoué<\/span><span>a<\/span><\/li><li><span class="badge warn">timedOut<\/span><span>b<\/span><\/li><\/ul><pre class="act-result">Run of the file: failed\.\n {2}Error: no heading<\/pre><pre class="act-code code mono">/,
     );
   });
 
@@ -816,7 +817,7 @@ describe("the thread of a session", () => {
     assert.match(thread(liveWith([pending])), /<span class="badge ok">aucune remarque<\/span>/);
   });
 
-  it("shows what the session works on at the head of its thread: the levels asked, the applications, the environment, and where the levels are asked", () => {
+  it("shows what the session works on at the head of its thread: the levels asked, the applications by their names, the environment, and where the levels are asked", () => {
     const scope: Step = {
       kind: "scope",
       at: "09:00:00",
@@ -825,13 +826,15 @@ describe("the thread of a session", () => {
       applications: ["shop", "back-office"],
       levels: ["smoke", "functional"],
     };
+    nameApplications([{ id: "shop", name: "Shop" }]);
     const html = thread(liveWith([scope]));
+    nameApplications([]);
     assert.match(
       textOf(html),
-      /^Portée de la session 09:00:00 Niveaux demandés smoke functional Applications shop, back-office Environnement local Seuls ces niveaux sont conçus ; design\.levels dans la configuration les fixe\.$/,
+      /^Portée de la session 09:00:00 Niveaux demandés Vérification rapide Fonctionnel Applications Shop, back-office Environnement local Seuls ces niveaux sont conçus ; la configuration les fixe\.$/,
     );
     assert.match(html, /<section class="result-card scope" aria-label="Portée de la session">/);
-    assert.match(html, /<dd class="badges"><span class="badge info">smoke<\/span><span class="badge info">functional<\/span><\/dd>/);
+    assert.match(html, /<dd class="badges"><span class="badge info">Vérification rapide<\/span><span class="badge info">Fonctionnel<\/span><\/dd>/);
     assert.match(
       textOf(thread(liveWith([{ ...scope, domains: ["quotes", "policies"] }]))),
       /Applications shop, back-office Domaines quotes, policies Environnement local/,
@@ -839,16 +842,19 @@ describe("the thread of a session", () => {
   });
 
   it("lists the scenarios of an accepted plan under their count, each a cell folded to its level, its title, its case and its application", () => {
-    assert.match(textOf(thread()), /Plan accepté par le harnais 1 scénario 14:44:16 smoke Search a customer nominal · customer-management/);
+    assert.match(textOf(thread()), /Plan accepté par le harnais 1 scénario 14:44:16 Vérification rapide Search a customer nominal · customer-management/);
     const html = thread(liveWith(REVIEWED));
-    assert.match(textOf(html), /Plan accepté par le harnais 2 scénarios 09:00:03 smoke Search a customer shop .*smoke Open a customer Identifiant open/);
+    assert.match(
+      textOf(html),
+      /Plan accepté par le harnais 2 scénarios 09:00:03 Vérification rapide Search a customer shop .*Vérification rapide Open a customer Identifiant open/,
+    );
     assert.match(
       html,
       /<section class="result-card plan"><header><div class="lead"><span class="act-state ok" aria-hidden="true"><\/span><b>Plan accepté par le harnais<\/b>/,
     );
     assert.match(
       html,
-      /<details class="scenario"><summary class="scenario-head"><span class="badge neutral">smoke<\/span><span class="result-title">Search a customer<\/span><span class="turn-role">shop<\/span><\/summary>/,
+      /<details class="scenario"><summary class="scenario-head"><span class="badge neutral">Vérification rapide<\/span><span class="result-title">Search a customer<\/span><span class="turn-role">shop<\/span><\/summary>/,
     );
     assert.match(html, /<span class="result-title">Open a customer<\/span><\/summary>/);
   });
@@ -902,10 +908,10 @@ describe("the thread of a session", () => {
     };
     const html = thread(liveWith([plan]));
     const text = textOf(html);
-    assert.match(text, /functional Search a customer négatif · shop 2 refus du harnais Finds no customer for an unknown name\./);
+    assert.match(text, /Fonctionnel Search a customer négatif · shop 2 refus du harnais Finds no customer for an unknown name\./);
     assert.match(
       text,
-      /Identifiant search Niveau functional Cas négatif Effet écrit des données Nature visuel Application shop Domaine customers · customer-search Sources specs Search shop Données Zed inventée Ada shop/,
+      /Identifiant search Niveau Fonctionnel Cas négatif Effet écrit des données Nature visuel Application shop Domaine customers · customer-search Sources specs Search shop Données Zed inventée Ada shop/,
     );
     assert.match(
       text,
@@ -923,7 +929,7 @@ describe("the thread of a session", () => {
   it("opens a pass with what it makes of the request when it says it, a part of a pass marked apart", () => {
     assert.match(
       thread(liveWith(REVIEWED)),
-      /<div class="pass" role="separator" aria-label="Plan · smoke · le chemin le plus court"><span class="pass-title">Plan · smoke<\/span><span class="pass-summary">le chemin le plus court<\/span><\/div>/,
+      /<div class="pass" role="separator" aria-label="Plan · Vérification rapide · le chemin le plus court"><span class="pass-title">Plan · Vérification rapide<\/span><span class="pass-summary">le chemin le plus court<\/span><\/div>/,
     );
     assert.match(
       thread(),
@@ -936,7 +942,7 @@ describe("the thread of a session", () => {
     const html = thread(liveWith(REVIEWED));
     assert.match(
       textOf(html),
-      /^Verdict de l’exécution : 4 tests 1 réussi · 1 échoué · 2 sans verdict réussi Search a customer smoke échoué Open a customer Détails techniques The heading never showed\. bloqué Delete a customer skipped Export the customers Plan · smoke/,
+      /^Verdict de l’exécution : 4 tests 1 réussi · 1 échoué · 2 sans verdict Réussi Search a customer Vérification rapide Échoué Open a customer Détails techniques The heading never showed\. Bloqué Delete a customer Ignoré Export the customers Plan · Vérification rapide/,
     );
     assert.match(
       html,
@@ -944,23 +950,23 @@ describe("the thread of a session", () => {
     );
     assert.match(
       html,
-      /<div class="result-row"><span class="badge ok">réussi<\/span><span class="result-title">Search a customer<\/span><span class="turn-role">smoke<\/span><\/div>/,
+      /<div class="result-row"><span class="badge ok">Réussi<\/span><span class="result-title">Search a customer<\/span><span class="turn-role">Vérification rapide<\/span><\/div>/,
     );
     assert.match(
       html,
-      /<span class="badge ko">échoué<\/span><span class="result-title">Open a customer<\/span><details class="raw result-raw"><summary>Détails techniques<\/summary><pre>The heading never showed\.<\/pre><\/details>/,
+      /<span class="badge ko">Échoué<\/span><span class="result-title">Open a customer<\/span><details class="raw result-raw"><summary>Détails techniques<\/summary><pre>The heading never showed\.<\/pre><\/details>/,
     );
-    assert.match(html, /<span class="badge warn">bloqué<\/span><span class="result-title">Delete a customer<\/span><span class="turn-role"><\/span><\/div>/);
-    assert.match(html, /<span class="badge warn">skipped<\/span>/);
+    assert.match(html, /<span class="badge warn">Bloqué<\/span><span class="result-title">Delete a customer<\/span><span class="turn-role"><\/span><\/div>/);
+    assert.match(html, /<span class="badge warn">Ignoré<\/span>/);
     assert.match(
       textOf(thread(liveOf(COMPLETED))),
-      /^Verdict de l’exécution : 1 test 1 réussi réussi Rechercher un client par son nom Chaque essai a réussi\. /,
+      /^Verdict de l’exécution : 1 test 1 réussi Réussi Rechercher un client par son nom Chaque essai a réussi\. /,
     );
   });
 
   it("keeps the verdicts where they came while the session goes on, and counts only what came", () => {
     const html = thread(liveWith(REVIEWED, RUNNING));
-    assert.match(textOf(html), /^Plan · smoke /);
+    assert.match(textOf(html), /^Plan · Vérification rapide /);
     const failed = thread(liveWith([{ kind: "outcome", at: "09:00:00", title: "Verdicts", tests: [{ title: "Open", level: "", verdict: "failed" }] }]));
     assert.match(failed, /<span class="outcome-tally">1 échoué<\/span>/);
   });
@@ -1194,7 +1200,7 @@ describe("the stop of a session", () => {
         html,
         /<span id="session-stop" class="session-stopping" role="status" tabindex="-1">arrêt demandé…<\/span><button type="button" class="btn ghost sm">/,
       );
-      assert.match(textOf(html), /en direct 15 nov. 2026, 14:44:06 UTC · 2 actions arrêt demandé… Rejouer/);
+      assert.match(textOf(html), /En direct 15 nov. 2026, 14:44:06 UTC · 2 actions arrêt demandé… Rejouer/);
       assert.doesNotMatch(html, /class="session-stop"|Arrêter/);
     }
     assert.doesNotMatch(stoppedWith({ state: "asked" }, "", INTERRUPTED), /arrêt demandé|session-stop/);
@@ -1234,16 +1240,16 @@ describe("the screen of a session", () => {
 
   it("says in its facts what the session is kept to", () => {
     const html = screen("", liveOf({ ...RUNNING, scope: { domains: ["quotes"], levels: ["business"] } }));
-    assert.match(html, /<span class="session-facts">15 nov. 2026, 14:44:06 UTC · limitée à quotes, métier · 2 actions<\/span>/);
+    assert.match(html, /<span class="session-facts">15 nov. 2026, 14:44:06 UTC · limitée à quotes, Parcours métier · 2 actions<\/span>/);
   });
 
   it("follows a session whose agents work: its state, its facts in a line, and the offer to replay it", () => {
     const html = screen();
     assert.match(
       html,
-      /<div class="session-bar"><span class="badge info">en direct<\/span><span class="session-facts">15 nov. 2026, 14:44:06 UTC · 2 actions<\/span><a id="session-stop" class="btn ghost sm" href="#\/agent\/sessions\/[^"?]+\?stop=ask"><svg [^>]*><rect [^>]*\/><\/svg> Arrêter<\/a><button type="button" class="btn ghost sm"><svg [^>]*>.*?<\/svg> Rejouer<\/button><\/div>/,
+      /<div class="session-bar"><span class="badge info">En direct<\/span><span class="session-facts">15 nov. 2026, 14:44:06 UTC · 2 actions<\/span><a id="session-stop" class="btn ghost sm" href="#\/agent\/sessions\/[^"?]+\?stop=ask"><svg [^>]*><rect [^>]*\/><\/svg> Arrêter<\/a><button type="button" class="btn ghost sm"><svg [^>]*>.*?<\/svg> Rejouer<\/button><\/div>/,
     );
-    assert.match(textOf(html), /en direct 15 nov. 2026, 14:44:06 UTC · 2 actions Arrêter Rejouer ✓ Configuration/);
+    assert.match(textOf(html), /En direct 15 nov. 2026, 14:44:06 UTC · 2 actions Arrêter Rejouer ✓ Configuration/);
     assert.match(html, /<div class="content"><div class="session"><div class="session-bar">/);
     assert.doesNotMatch(html, /disabled|role="progressbar"|session-bar replay/);
     assert.deepEqual(pressed(), ["restart"]);
@@ -1262,25 +1268,25 @@ describe("the screen of a session", () => {
   it("adds what an ended session knows: its duration, its model requests and its branch", () => {
     assert.match(
       textOf(screen("", liveOf(COMPLETED))),
-      /tests réussis 15 nov. 2026, 14:44:06 UTC · 1 min 54 s · 3 actions · 50 requêtes au modèle · oqas\/design-20261115T144408Z Rejouer/,
+      /Réussi 15 nov. 2026, 14:44:06 UTC · 1 min 54 s · 3 actions · 50 requêtes au modèle · oqas\/design-20261115T144408Z Rejouer/,
     );
-    assert.match(textOf(screen("", liveOf(STOPPED))), /arrêtée avant la fin 15 nov. 2026, 14:44:06 UTC · 42 s · 3 actions · 3 requêtes au modèle Rejouer/);
+    assert.match(textOf(screen("", liveOf(STOPPED))), /Arrêté 15 nov. 2026, 14:44:06 UTC · 42 s · 3 actions · 3 requêtes au modèle Rejouer/);
   });
 
   it("tells only the opening and the actions of a session that has no result", () => {
     const interrupted = screen("", liveOf(INTERRUPTED));
-    assert.match(textOf(interrupted), /interrompue 15 nov. 2026, 14:44:06 UTC · 3 actions Rejouer/);
-    assert.match(interrupted, /<div class="session-bar"><span class="badge warn">interrompue<\/span>/);
+    assert.match(textOf(interrupted), /Interrompue 15 nov. 2026, 14:44:06 UTC · 3 actions Rejouer/);
+    assert.match(interrupted, /<div class="session-bar"><span class="badge warn">Interrompue<\/span>/);
     const untold = screen("", liveOf({ ...RUNNING, state: "completed" }));
     assert.match(
       untold,
-      /<div class="session-bar"><span class="badge neutral">terminée<\/span><span class="session-facts">15 nov. 2026, 14:44:06 UTC · 3 actions<\/span>/,
+      /<div class="session-bar"><span class="badge neutral">Terminée<\/span><span class="session-facts">15 nov. 2026, 14:44:06 UTC · 3 actions<\/span>/,
     );
   });
 
   it("counts the knowledge sources the agents read, each once, among the facts of a session that read some", () => {
     const written = liveWith([{ kind: "say", from: "cartographer", at: "09:00:00", text: "Je lis les sources." }], INTERRUPTED, ["specification", "tickets"]);
-    assert.match(textOf(screen("", written)), /interrompue 15 nov. 2026, 14:44:06 UTC · 2 sources de connaissance lues · 0 action Rejouer/);
+    assert.match(textOf(screen("", written)), /Interrompue 15 nov. 2026, 14:44:06 UTC · 2 sources de connaissance lues · 0 action Rejouer/);
     const events = numbered([
       { type: "phase_started", phase: "survey" },
       { type: "phase_started", phase: "card", source: "orders-db" },
@@ -1319,8 +1325,8 @@ describe("the screen of a session", () => {
 
   it("says in its bar that a queued session waits for an agent, and names nobody at work under what was asked", () => {
     const html = screen("", liveOf(QUEUED, {}, ASKED));
-    assert.match(html, /<span class="badge outline">en file<\/span>/);
-    assert.match(textOf(html), /en file 15 nov. 2026, 14:44:06 UTC · en attente d’un agent · 0 action Arrêter Rejouer /);
+    assert.match(html, /<span class="badge outline">En file<\/span>/);
+    assert.match(textOf(html), /En file 15 nov. 2026, 14:44:06 UTC · en attente d’un agent · 0 action Arrêter Rejouer /);
     assert.doesNotMatch(html, /class="working"|travaille/);
     assert.match(textOf(screen("", liveOf(QUEUED, { following: false, tick: 30 }, ASKED))), /× 1 Tout afficher/);
   });
@@ -1332,15 +1338,15 @@ describe("the screen of a session", () => {
   });
 
   it("shows where the session is with its passes, each but the last tied to the next, the parts of a pass left out", () => {
-    assert.match(textOf(screen()), /✓ Configuration 2 Plan · smoke Tout Échanges Actions Verdicts/);
-    assert.match(textOf(screen("", liveOf(COMPLETED))), /✓ Configuration ✓ Plan · smoke Tout/);
+    assert.match(textOf(screen()), /✓ Configuration 2 Plan · Vérification rapide Tout Échanges Actions Verdicts/);
+    assert.match(textOf(screen("", liveOf(COMPLETED))), /✓ Configuration ✓ Plan · Vérification rapide Tout/);
     assert.match(
       screen("", replayAt(REASONING, 0)),
-      /<span class="s done"><span class="n">✓<\/span>Configuration<\/span><span class="sep"><\/span><\/span><span class="pass-step"><span class="s cur"><span class="n">2<\/span>Plan · smoke<\/span><\/span><\/div>/,
+      /<span class="s done"><span class="n">✓<\/span>Configuration<\/span><span class="sep"><\/span><\/span><span class="pass-step"><span class="s cur"><span class="n">2<\/span>Plan · Vérification rapide<\/span><\/span><\/div>/,
     );
     assert.match(
       screen("", replayAt(0, 0)),
-      /<span class="s cur"><span class="n">1<\/span>Configuration<\/span><span class="sep"><\/span><\/span><span class="pass-step"><span class="s"><span class="n">2<\/span>Plan · smoke<\/span><\/span><\/div>/,
+      /<span class="s cur"><span class="n">1<\/span>Configuration<\/span><span class="sep"><\/span><\/span><span class="pass-step"><span class="s"><span class="n">2<\/span>Plan · Vérification rapide<\/span><\/span><\/div>/,
     );
   });
 

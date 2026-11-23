@@ -1,6 +1,8 @@
 import type { FormEventHandler, ReactNode } from "react";
 import type { RepositoryTest } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
+import { LEVELS, levelName } from "../i18n/vocabulary.ts";
+import { applicationName } from "../applications/application-names.ts";
 import { hrefTo, type Route } from "../routing/route.ts";
 import { Badge } from "../ui/badge.tsx";
 import { Card } from "../ui/card.tsx";
@@ -8,9 +10,6 @@ import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
 import { TESTS_PATH, testHref } from "./tests-paths.ts";
 import type { TestsState } from "./tests-state.ts";
-
-/** The levels of the pyramid of tests, from its base to its top, in which order the filter offers them. */
-const LEVELS = ["smoke", "functional", "business", "cross-application", "end-to-end"] as const;
 
 /** What the person does on the screen of the tests. */
 export interface TestsControls {
@@ -39,16 +38,6 @@ function matches(test: RepositoryTest, search: string): boolean {
 }
 
 /**
- * The level of a test in the words of the person.
- *
- * @param level - The level its tag gives.
- * @returns Its words; the tag as it is for a level the console does not know.
- */
-export function levelText(level: string): string {
-  return (LEVELS as readonly string[]).includes(level) ? t(`tests.levels.${level as (typeof LEVELS)[number]}`) : level;
-}
-
-/**
  * The link to the screen narrowed to a level, or to every level, and to the words of a search.
  *
  * @param level - The level; every level when none is given.
@@ -65,7 +54,7 @@ function LevelFilter({ tests, route }: { readonly tests: readonly RepositoryTest
   const { level: chosen, q: search } = route.query;
   const entries = [
     { level: undefined, label: t("tests.allLevels"), count: tests.length },
-    ...LEVELS.map((level) => ({ level, label: levelText(level), count: tests.filter((test) => test.level === level).length })),
+    ...LEVELS.map((level) => ({ level, label: levelName(level), count: tests.filter((test) => test.level === level).length })),
   ];
   return (
     <nav className="tests-levels" aria-label={t("tests.levelFilter")}>
@@ -87,7 +76,7 @@ function TestRow({ test }: { readonly test: RepositoryTest }): ReactNode {
         <b>{test.title}</b>
       </div>
       {where !== "" && <span className="small muted">{where}</span>}
-      {test.level !== undefined && <Badge tone="outline">{levelText(test.level)}</Badge>}
+      {test.level !== undefined && <Badge tone="outline">{levelName(test.level)}</Badge>}
       {test.kind === "visual" && <Badge tone="outline">{t("tests.visual")}</Badge>}
       <span className="small muted">{t("tests.steps", { count: test.steps.length })}</span>
     </a>
@@ -138,7 +127,11 @@ export function TestsScreen({ project, route, state, controls }: TestsScreenProp
             <EmptyState title={t("tests.noMatch")}>{t("tests.noMatchNote")}</EmptyState>
           ) : (
             [...byApplication(shown)].map(([application, grouped]) => (
-              <Card key={application} title={application === "" ? t("tests.noApplication") : application} hint={t("tests.count", { count: grouped.length })}>
+              <Card
+                key={application}
+                title={application === "" ? t("tests.noApplication") : applicationName(application)}
+                hint={t("tests.count", { count: grouped.length })}
+              >
                 {grouped.map((test) => (
                   <TestRow key={`${test.path}\n${test.title}`} test={test} />
                 ))}

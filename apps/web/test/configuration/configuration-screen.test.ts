@@ -43,15 +43,12 @@ describe("the screen of the configuration", () => {
     const html = screen(stateAfter([]));
     const text = textOf(html);
     assert.match(html, new RegExp(`<form id="${FORM_ID}" class="config-form" noValidate="">`));
-    assert.match(text, /Révision 2 en vigueur Historique, fichier oqas\.json et JSON/);
+    assert.match(text, /Révision 2 en vigueur Historique et copies des réglages/);
     assert.doesNotMatch(html, /type="submit"/, "nothing to save, no button to save");
     assert.match(text, /Les réglages d’Open QA Stack\. Les applications testées et les connaissances que lisent les agents ont leurs propres écrans\./);
     assert.doesNotMatch(html, /name="\/(applications|knowledge)\//);
     for (const heading of ["Agents", "Dépôt de tests"]) assert.match(html, new RegExp(`<h2 id="[^"]+">${heading}</h2>`));
-    assert.match(
-      html,
-      /<details class="config-section config-advanced"><summary><h2 id="config-history">Historique, fichier oqas\.json et JSON<\/h2><\/summary>/,
-    );
+    assert.match(html, /<details class="config-section config-advanced"><summary><h2 id="config-history">Historique et copies des réglages<\/h2><\/summary>/);
     assert.match(text, /Révision 2 Console · .* en vigueur Révision 1 Fichier oqas\.json · /);
     assert.match(text, /Les valeurs tapées ici — clé, chaînes de connexion, mots de passe — restent sur l’ordinateur où tourne l’outil/);
     assert.match(html, /<summary>Voir la configuration en JSON<\/summary><pre class="mono">\{\n {2}&quot;formatVersion&quot;: 1,/);
@@ -119,7 +116,7 @@ describe("the screen of the configuration", () => {
     const html = screen({ ...configurationAfter(state, { type: "checked", draft: state.draft!, errors }), tried: true });
     assert.match(
       textOf(html),
-      /3 erreurs à corriger avant d’enregistrer Modèle › Variable qui tient la clé Nom de variable d’environnement attendu .* Shop Il en faut au moins un\. La configuration Le fichier n’est pas du JSON valide\./,
+      /3 erreurs à corriger avant d’enregistrer Modèle › Nom sous lequel la clé est gardée Nom de variable d’environnement attendu .* Shop Il en faut au moins un\. La configuration Le fichier n’est pas du JSON valide\./,
     );
     assert.ok(bears(html, "/model/apiKeyEnv", 'aria-invalid="true"', 'aria-describedby="config-model-apiKeyEnv-hint config-model-apiKeyEnv-errors"'));
     assert.match(html, /<span id="config-model-apiKeyEnv-errors" class="field-error">Nom de variable/);
