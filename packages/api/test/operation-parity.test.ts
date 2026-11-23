@@ -34,6 +34,7 @@ const ROUTES: Readonly<Record<OperationId, Offer>> = {
   "Configuration.save": "POST /configuration/revisions",
   "Configuration.restore": "PUT /configuration/file",
   "ModelConnection.check": "POST /configuration/model-connection",
+  "EnvironmentAddresses.check": "POST /configuration/address-check",
   "Secrets.list": "GET /secrets",
   "Secrets.save": "PUT /secrets/S",
   "RepositorySetup.state": "GET /repository",

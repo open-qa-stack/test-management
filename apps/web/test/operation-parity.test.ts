@@ -30,6 +30,7 @@ const CONSOLE: Readonly<Record<OperationId, Offer>> = {
   "Configuration.save": { client: "save" },
   "Configuration.restore": { client: "writeFile" },
   "ModelConnection.check": { client: "testModel" },
+  "EnvironmentAddresses.check": { client: "checkAddress" },
   "Secrets.list": { client: "secrets" },
   "Secrets.save": { client: "saveSecret" },
   "RepositorySetup.state": { client: "repository" },

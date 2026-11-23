@@ -7,6 +7,7 @@ export { Secrets } from "./secrets/secrets.ts";
 export type { Environment, EnvironmentSource } from "./ports/environment-source.ts";
 export type { SecretStore } from "./ports/secret-store.ts";
 export { ModelConnection, type ConnectionProbes } from "./configuration/model-connection.ts";
+export { EnvironmentAddresses, ADDRESS_TIMEOUT_MS } from "./configuration/environment-addresses.ts";
 export { Campaigns, type CampaignsHost } from "./campaigns/campaigns.ts";
 export { Executions, FILE_EXECUTIONS_LIMIT } from "./executions/executions.ts";
 export { KnowledgeDomains } from "./knowledge/knowledge-domains.ts";

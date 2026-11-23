@@ -4,6 +4,7 @@ import { CONFIG_FILE_NAME, DATABASE_FILE_NAME, DEFAULT_REPOSITORY, type Model } 
 import {
   Campaigns,
   Configuration,
+  EnvironmentAddresses,
   Executions,
   FileSecretStore,
   KnowledgeDocuments,
@@ -38,6 +39,8 @@ export interface Operations {
   readonly secrets: Secrets;
   /** The test of the knowledge sources, with the environment the runs read. */
   readonly sources: KnowledgeSources;
+  /** The test of the addresses of the environments of the applications. */
+  readonly addresses: EnvironmentAddresses;
   /** Where the cartography of the knowledge stands. */
   readonly mapping: KnowledgeMapping;
   /** The tests of the test repository. */
@@ -131,6 +134,7 @@ export async function openOperations(
     documents: new KnowledgeDocuments(instance.documents, instance.configuration),
     secrets,
     sources: new KnowledgeSources(repository, secrets, instance.documents),
+    addresses: new EnvironmentAddresses(),
     mapping: new KnowledgeMapping(repository, configuration, instance.sessions),
     tests,
     readings: new TestReadings(repository, instance.configuration, instance.executions),

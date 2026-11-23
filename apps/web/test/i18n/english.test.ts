@@ -28,6 +28,7 @@ const CONTROLS: ConfigurationControls = {
   writeFile: IGNORED,
   testModel: IGNORED,
   checkSource: IGNORED,
+  checkAddress: IGNORED,
   setUp: IGNORED,
 };
 
@@ -138,6 +139,7 @@ describe("the console in English", () => {
       writeFile: IGNORED,
       testModel: IGNORED,
       checkSource: IGNORED,
+      checkAddress: IGNORED,
       setUp: IGNORED,
     };
     const controls = { upload: IGNORED, remove: IGNORED, drop: IGNORED, edit };

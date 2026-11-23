@@ -49,6 +49,8 @@ export type Command =
   | { readonly name: "project" }
   /** Test that the knowledge sources of the configuration in force answer, or one of them. */
   | { readonly name: "knowledge"; readonly action: "check"; readonly source?: string }
+  /** Test that each address of the environments of the applications answers, or of one application. */
+  | { readonly name: "applications"; readonly action: "check"; readonly application?: string }
   /** List the variables the configuration in force names, and where the value of each comes from. */
   | { readonly name: "secrets"; readonly action: "list" }
   /** Save the value of one of them, read from the input of the command, out of the test repository. */
@@ -155,6 +157,7 @@ export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
        oqas [--repository <folder>] knowledge list [--output text|json]
        oqas [--repository <folder>] knowledge add-document <source> <file>... [--output text|json]
        oqas [--repository <folder>] knowledge check [<source>] [--output text|json]
+       oqas [--repository <folder>] applications check [<application>] [--output text|json]
        oqas [--repository <folder>] knowledge mapping|domains [--output text|json]
        oqas [--repository <folder>] knowledge read|remove <source> <document> [--output text|json]
        oqas [--repository <folder>] tests [--output text|json]
@@ -214,6 +217,10 @@ Commands:
   knowledge check [<source>]
                          Test that the knowledge sources answer, or one of them, without the model and indexing
                          nothing: exits with 0 when each answers, with 4 otherwise.
+  applications check [<application>]
+                         Test that each address of the environments answers — that of the interface, those of the
+                         APIs —, of every application or of the one named: exits with 0 when each answers, with 4
+                         otherwise.
   knowledge mapping      Tell where the cartography of the knowledge stands: each source mapped, truncated, being
                          mapped or waiting, and the index that puts them together.
   tests                  List the tests of the test repository, each with its level, domain, functionality and case
@@ -403,6 +410,7 @@ function commandOf(
   }
   if (name === "config") return configured(rest, opens || follow);
   if (name === "knowledge") return knowledgeOf(rest, opens || follow);
+  if (name === "applications") return applicationsOf(rest, opens || follow);
   if (name === "model") return modelOf(rest, opens || follow, connection, asks);
   if (name === "secrets") return secretsOf(rest, opens || follow);
   if (name === "tests") return testsOf(rest, opens || follow);
@@ -481,6 +489,14 @@ function knowledgeOf(words: readonly string[], ofASession: boolean): Command | s
   if (action === "add-document" && source !== undefined && files.length > 0) return { name: "knowledge", action, source, files };
   if (action === "check" && files.length === 0) return { name: "knowledge", action, ...(source === undefined ? {} : { source }) };
   return "oqas knowledge takes list, mapping or domains, check and a source at most, read or remove then a source and a document, or add-document then a source and one file at least.";
+}
+
+/** What `oqas applications` asks for, or why it is refused: the test of the addresses, of every application or of one. */
+function applicationsOf(words: readonly string[], ofASession: boolean): Command | string {
+  const [action, application, ...rest] = words;
+  if (ofASession) return "oqas applications acts on the applications of the configuration: it takes no --brief, --environment nor --follow.";
+  if (action === "check" && rest.length === 0) return { name: "applications", action, ...(application === undefined ? {} : { application }) };
+  return "oqas applications takes check, and an application at most.";
 }
 
 /** What `oqas tests` is followed by, with the words each action takes after it. */

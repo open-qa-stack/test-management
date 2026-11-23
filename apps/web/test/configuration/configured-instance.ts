@@ -64,6 +64,11 @@ export class ConfiguredInstance {
     // A test repository that is no git repository yet, which the setting up makes one.
     if (path === "/api/repository") return json({ folder: "/work/shop-tests", git: "none", playwright: false });
     if (path === "/api/repository/preparation") return json({ created: ["playwright.config.ts"], kept: [], committed: true });
+    // Every address answers 200, but one that names a refused port.
+    if (path === "/api/configuration/address-check") {
+      const { address } = JSON.parse(body!) as { address: string };
+      return json(address.includes(":1/") ? { state: "refused", url: address } : { state: "answers", url: address, status: 200 });
+    }
     // Every source answers, and holds three items.
     if (path === "/api/knowledge/check") return json({ state: "ok", items: 3 });
     // The key of the model of the fixtures, which the person types: saved once typed, missing before.

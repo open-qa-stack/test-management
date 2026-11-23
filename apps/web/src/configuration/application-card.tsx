@@ -14,6 +14,7 @@ import {
   RemoveButton,
   SecretField,
 } from "./configuration-fields.tsx";
+import { AddressTest } from "./address-test.tsx";
 
 /** A test account of an application. */
 export type TestAccount = NonNullable<ConfiguredApplication["authentication"]["accounts"]>[number];
@@ -78,7 +79,8 @@ export function AccountFields({ at, account }: { readonly at: string; readonly a
 
 /**
  * An environment of an application: its name, the address of its interface and what its exploration may do, then its
- * named APIs, each with the button that removes it, and the button that adds one.
+ * named APIs, each with the button that removes it, and the button that adds one; each address with the button that
+ * tests it, where addresses are tested.
  *
  * @param props - Where the environment is in the draft, the environment, and what it is called in a removal.
  * @returns The fields.
@@ -95,6 +97,7 @@ export function EnvironmentFields({ at, environment, name }: { readonly at: stri
           hint={t("configuration.application.environmentNameHint")}
         />
         <InputField pointer={`${at}/uiUrl`} label={t("configuration.application.uiUrl")} value={environment.uiUrl} code placeholder="https://" />
+        <AddressTest pointer={`${at}/uiUrl`} address={environment.uiUrl} />
         <ChoiceField
           pointer={`${at}/exploration`}
           label={t("configuration.application.exploration")}
@@ -120,6 +123,7 @@ export function EnvironmentFields({ at, environment, name }: { readonly at: stri
               code
               placeholder="https://"
             />
+            <AddressTest pointer={`${at}/apis/${index}/baseUrl`} address={api.baseUrl} />
           </div>
         </div>
       ))}

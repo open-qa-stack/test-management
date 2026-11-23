@@ -1,24 +1,28 @@
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Post, Put } from "@nestjs/common";
-import { Configuration, ModelConnection } from "@open-qa-stack/engine";
+import { Configuration, EnvironmentAddresses, ModelConnection } from "@open-qa-stack/engine";
+import { AddressBodyPipe } from "./address-body.pipe.ts";
 import { ConfigurationBodyPipe } from "./configuration-body.pipe.ts";
 import { ModelBodyPipe, type ModelTest } from "./model-body.pipe.ts";
 import { RevisionRequestPipe } from "./revision-request.pipe.ts";
 import type { RevisionRequest } from "./revision-request.ts";
-import type { ConfigurationCheck, ConfigurationView, ModelConnectionCheck, RevisionList } from "@open-qa-stack/domain/sessions";
+import type { AddressCheck, ConfigurationCheck, ConfigurationView, ModelConnectionCheck, RevisionList } from "@open-qa-stack/domain/sessions";
 
 /**
  * `GET /configuration`, `GET /configuration/revisions`, `POST /configuration/validation`,
- * `POST /configuration/revisions`, `POST /configuration/synchronisation` and `POST /configuration/model-connection`:
+ * `POST /configuration/revisions`, `POST /configuration/synchronisation`, `POST /configuration/model-connection` and
+ * `POST /configuration/address-check`:
  * each route is one operation on the configuration, said in HTTP.
  */
 @Controller("configuration")
 export class ConfigurationController {
   readonly #configuration: Configuration;
   readonly #connection: ModelConnection;
+  readonly #addresses: EnvironmentAddresses;
 
-  constructor(configuration: Configuration, connection: ModelConnection) {
+  constructor(configuration: Configuration, connection: ModelConnection, addresses: EnvironmentAddresses) {
     this.#configuration = configuration;
     this.#connection = connection;
+    this.#addresses = addresses;
   }
 
   /** @returns The revision in force, and how the configuration file stands to it, which no cache may keep. */
@@ -91,5 +95,18 @@ export class ConfigurationController {
   @Header("Cache-Control", "no-store")
   testModel(@Body(ModelBodyPipe) { model, key }: ModelTest): Promise<ModelConnectionCheck> {
     return this.#connection.check(model, key);
+  }
+
+  /**
+   * Tests that an address of an environment answers, as the person typed it, before or after it is saved.
+   *
+   * @returns What the test found, answered with `200`: whether something answers there, or why not; a body without an
+   * address is answered with `400`.
+   */
+  @Post("address-check")
+  @HttpCode(HttpStatus.OK)
+  @Header("Cache-Control", "no-store")
+  checkAddress(@Body(AddressBodyPipe) address: string): Promise<AddressCheck> {
+    return this.#addresses.check(address);
   }
 }

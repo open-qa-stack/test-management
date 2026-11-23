@@ -11,5 +11,6 @@ export const UNCALLED_CONTROLS: ConfigurationControls = {
   writeFile: () => assert.fail("no file is written"),
   testModel: () => assert.fail("no connection is tested"),
   checkSource: () => assert.fail("no source is tested"),
+  checkAddress: () => assert.fail("no address is tested"),
   setUp: () => assert.fail("nothing is set up"),
 };

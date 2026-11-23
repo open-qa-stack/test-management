@@ -12,6 +12,7 @@ import {
   type ConfigurationState,
 } from "./configuration-state.ts";
 import { ConfigurationSync } from "./configuration-sync.ts";
+import { valueAt } from "./json-pointer.ts";
 
 /** A draft of the configuration in a browser, kept in step with the instance, and what the person does to it. */
 export interface ConfigurationEditor {
@@ -71,6 +72,11 @@ export function useConfigurationEditor(): ConfigurationEditor {
       const rank = Number(currentTarget.dataset["rank"]);
       const source = draft!.knowledge[rank]!;
       sync.checkSource(rank, source, typedConnection(source, values));
+    },
+    checkAddress: ({ currentTarget }) => {
+      const pointer = currentTarget.dataset["pointer"]!;
+      // The button is offered for a field that holds an address.
+      sync.checkAddress(pointer, valueAt(draft!, pointer) as string);
     },
     setUp: () => sync.setUp(draft!, values),
   };

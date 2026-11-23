@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { Configuration, FileSecretStore, ModelConnection, RepositorySetup, Secrets } from "@open-qa-stack/engine";
+import { Configuration, EnvironmentAddresses, FileSecretStore, ModelConnection, RepositorySetup, Secrets } from "@open-qa-stack/engine";
 import { ConfigurationStore } from "@open-qa-stack/store";
 import { ApiConfiguration } from "../config/api-configuration.ts";
 import { DatabaseModule } from "../database/database.module.ts";
@@ -35,6 +35,7 @@ import { SecretsController } from "./secrets.controller.ts";
         new Secrets(configuration, runs.env, repository === undefined ? undefined : FileSecretStore.of(repository)),
     },
     { provide: ModelConnection, inject: [Secrets], useFactory: (secrets: Secrets) => new ModelConnection(secrets) },
+    { provide: EnvironmentAddresses, useFactory: () => new EnvironmentAddresses() },
   ],
   exports: [Configuration, Secrets],
 })

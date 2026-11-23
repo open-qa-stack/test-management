@@ -72,6 +72,16 @@ describe("the setting up of an instance that has no configuration", () => {
     assert.match(at("knowledge", begun(DOCUMENT, { type: "sourceChecking", rank: 0, source })), /Test en cours…/);
   });
 
+  it("tells what the test of an address of an application found, beside its field", () => {
+    const pointer = "/applications/0/environments/0/uiUrl";
+    const document = { ...DOCUMENT, applications: [{ ...DOCUMENT.applications[0]!, environments: [{ name: "local", uiUrl: "http://shop.test/" }] }] };
+    const tested = {
+      ...begun(document),
+      addressChecks: { [pointer]: { address: "http://shop.test/", check: { state: "answers", url: "http://shop.test/", status: 200 } as const } },
+    };
+    assert.match(at("applications", tested), /Tester Répond \(200\)\./);
+  });
+
   it("sums up what it will write, whether the folder becomes a git repository, and the errors left to correct", () => {
     assert.match(at("summary"), /dans ce dossier\. 1 application : sans nom Aucune source de connaissance pour l’instant Modèle/);
     assert.match(at("summary", begun({ ...FIRST_DRAFT, applications: [] })), /dans ce dossier\. Aucune application Aucune/);

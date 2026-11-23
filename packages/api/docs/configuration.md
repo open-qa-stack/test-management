@@ -13,12 +13,13 @@ The shapes of every body are the types of `@open-qa-stack/domain/sessions`; the 
 | `POST /api/configuration/synchronisation` | Takes `oqas.json` as it is now as the revision in force. |
 | `PUT /api/configuration/file` | Writes the revision in force to `oqas.json`. |
 | `POST /api/configuration/model-connection` | Tests a connection to the model as it is drafted, without anything recorded. |
+| `POST /api/configuration/address-check` | Tests that an address of an environment answers, as it is typed, without anything recorded. |
 | `GET /api/repository` | Where the test repository stands: its folder, a git repository, with a commit, and a Playwright project. |
 | `POST /api/repository/preparation` | Sets the test repository up from the configuration in force. |
 | `GET /api/secrets` | The variables the configuration in force names, and where the value of each comes from; never a value. |
 | `PUT /api/secrets/{name}` | Saves the value of one of them, on the machine of the instance, out of the test repository. |
 
-The reads, the variables and the test of a connection are answered with `cache-control: no-store`. Every answer that is not a success is a [problem](sessions.md#problems).
+The reads, the variables and the tests of a connection and of an address are answered with `cache-control: no-store`. Every answer that is not a success is a [problem](sessions.md#problems).
 
 ## Secrets
 
@@ -121,6 +122,30 @@ The body is the section `model` of a configuration as the person drafts it: the 
 | `unreachable` | Nothing answered at the address of the server within 10 seconds. | `url` |
 
 A model of GitHub Copilot is checked with the account the machine signed in with: the API reads no token, and the SDK of Copilot finds the account itself. A provider key is checked by listing the models of the server, `GET <baseUrl>/models`, with the key the variable holds. Nothing is recorded.
+
+## Testing an address of an environment
+
+```http
+POST /api/configuration/address-check
+content-type: application/json
+
+{"address":"https://shop.test/login"}
+
+HTTP/1.1 200 OK
+
+{"state":"answers","url":"https://shop.test/login","status":500}
+```
+
+The body holds the address as the person typed it: that of the interface of an environment, or of one of its APIs, saved or not. Any HTTP answer within ten seconds, whatever its status, means the address answers; a redirection is not followed. The test writes nothing, maps nothing and calls no model. The address is said back without the name and the password it may carry. The answer says what the test found, in `state`:
+
+| `state` | When |
+|---|---|
+| `answers` | An HTTP answer came in time, with its `status`. |
+| `malformed` | The text is no `http` or `https` address. |
+| `unknown-host` | No machine has the name of the address: often a typo. |
+| `refused` | The machine refused the connection: nothing listens on that port. |
+| `timeout` | Nothing answered within ten seconds. |
+| `unreachable` | The connection failed another way, which `code` names when the system tells it. |
 
 ## Saving a change
 

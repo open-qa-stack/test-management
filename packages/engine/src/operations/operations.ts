@@ -2,6 +2,7 @@ import { OPERATIONS } from "@open-qa-stack/domain";
 import type { Campaigns } from "../campaigns/campaigns.ts";
 import type { Configuration } from "../configuration/configuration.ts";
 import type { ModelConnection } from "../configuration/model-connection.ts";
+import type { EnvironmentAddresses } from "../configuration/environment-addresses.ts";
 import type { KnowledgeDocuments } from "../documents/knowledge-documents.ts";
 import type { Executions } from "../executions/executions.ts";
 import type { PastRuns } from "../executions/past-runs.ts";
@@ -20,6 +21,7 @@ export interface EngineClasses {
   readonly Sessions: Sessions;
   readonly Configuration: Configuration;
   readonly ModelConnection: ModelConnection;
+  readonly EnvironmentAddresses: EnvironmentAddresses;
   readonly Secrets: Secrets;
   readonly RepositorySetup: RepositorySetup;
   readonly KnowledgeDocuments: KnowledgeDocuments;

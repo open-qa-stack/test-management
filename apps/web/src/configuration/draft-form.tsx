@@ -37,6 +37,8 @@ export function DraftForm({
         draft: state.draft!,
         values: state.values,
         ...(state.secrets === undefined ? {} : { secrets: state.secrets }),
+        checkAddress: controls.checkAddress,
+        ...(state.addressChecks === undefined ? {} : { addressChecks: state.addressChecks }),
       }}
     >
       <form id={ITEM_FORM} className="config-form" onSubmit={controls.save} noValidate>

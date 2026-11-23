@@ -16,7 +16,7 @@ import { SaveBar } from "./save-bar.tsx";
 export const FORM_ID = "configuration-form";
 
 /** What the person does on the screen besides changing a field. */
-export interface ConfigurationControls extends Omit<ConfigurationEdit, "errors" | "secrets" | "values"> {
+export interface ConfigurationControls extends Omit<ConfigurationEdit, "errors" | "secrets" | "values" | "addressChecks" | "checkAddress"> {
   /** Saves the draft. */
   readonly save: FormEventHandler<HTMLFormElement>;
   /** Drops the draft for the revision in force. */
@@ -28,6 +28,8 @@ export interface ConfigurationControls extends Omit<ConfigurationEdit, "errors" 
   readonly testModel: MouseEventHandler<HTMLButtonElement>;
   /** Tests the knowledge source of the draft its button names by its rank. */
   readonly checkSource: MouseEventHandler<HTMLButtonElement>;
+  /** Tests the address of an environment the button names by the pointer of its field. */
+  readonly checkAddress: MouseEventHandler<HTMLButtonElement>;
   /** Writes the first configuration of an instance that has none, then sets its test repository up. */
   readonly setUp: MouseEventHandler<HTMLButtonElement>;
 }

@@ -1,6 +1,6 @@
 import { createContext, type ChangeEventHandler, type MouseEventHandler } from "react";
 import type { ConfigError, OqasConfig, SecretState } from "@open-qa-stack/domain/sessions";
-import type { ConfigurationAction } from "./configuration-state.ts";
+import type { AddressTest, ConfigurationAction } from "./configuration-state.ts";
 
 /** What the fields of the configuration share: what reads what the person did, and the errors the instance found. */
 export interface ConfigurationEdit {
@@ -16,6 +16,10 @@ export interface ConfigurationEdit {
   readonly values: Readonly<Record<string, string>>;
   /** The configuration as the person is changing it, which words the errors of the fields left empty. */
   readonly draft?: OqasConfig;
+  /** Tests the address of the field the button names by its pointer; none where addresses are not tested. */
+  readonly checkAddress?: MouseEventHandler<HTMLButtonElement>;
+  /** The latest test of each address, by the pointer of its field. */
+  readonly addressChecks?: Readonly<Record<string, AddressTest>>;
 }
 
 /** What a field outside an edit does with what the person does to it: nothing. */

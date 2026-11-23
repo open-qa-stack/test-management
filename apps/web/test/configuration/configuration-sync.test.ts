@@ -231,6 +231,27 @@ describe("what keeps the screen of the configuration in step with its instance",
     assert.equal(api.told.at(-1)!.type, "prepared");
   });
 
+  it("tests an address of an environment as it is typed, and tells what the instance found, or why it could not", async () => {
+    const pointer = "/applications/0/environments/0/uiUrl";
+    api.answers.set("POST /api/configuration/address-check", json({ state: "answers", url: "http://a.test/", status: 500 }));
+    api.sync.checkAddress(pointer, "http://a.test/");
+    await settled();
+    assert.deepEqual(api.bodies, [{ address: "http://a.test/" }]);
+    assert.deepEqual(api.told, [
+      { type: "addressChecking", pointer, address: "http://a.test/" },
+      { type: "addressChecked", pointer, address: "http://a.test/", check: { state: "answers", url: "http://a.test/", status: 500 } },
+    ]);
+    api.answers.set("POST /api/configuration/address-check", json({ code: "unavailable", detail: "Down." }, 503));
+    api.sync.checkAddress(pointer, "http://a.test/");
+    await settled();
+    assert.deepEqual(api.told.at(-1), {
+      type: "addressChecked",
+      pointer,
+      address: "http://a.test/",
+      failure: "Aucune source de sessions n’est configurée sur cette instance.",
+    });
+  });
+
   it("tests a source of the draft with the connection string typed, and tells what the instance found, or why it could not", async () => {
     const source = DOCUMENT.knowledge[0]!;
     api.answers.set("POST /api/knowledge/check", json({ state: "ok", items: 2 }));

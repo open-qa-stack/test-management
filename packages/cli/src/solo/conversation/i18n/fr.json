@@ -111,6 +111,7 @@
     "model": "Régler la connexion au modèle pas à pas ; suivi de status ou set, comme oqas model",
     "config": "show, import ou export : la configuration en vigueur et oqas.json, comme oqas config",
     "knowledge": "list, mapping, check ou add-document : les sources de connaissance, comme oqas knowledge",
+    "applications": "check : tester que chaque adresse des environnements répond, comme oqas applications",
     "tests": "read, executions, versions, trace ou capture : les tests du dépôt, comme oqas tests",
     "launch": "Lancer des tests tels qu’ils sont, sans agent, dans ce processus, et dire leur exécution une fois finis, comme oqas launch",
     "campaigns": "plan, choose, ready, launch, show ou close : les campagnes de tests, comme oqas campaigns",

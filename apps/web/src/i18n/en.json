@@ -507,6 +507,19 @@
       "replace": "Saved — type to replace it",
       "environment": "comes from the environment of the tool, which wins over a value typed here."
     },
+    "address": {
+      "test": "Test",
+      "testName": "Test {{address}}",
+      "checking": "Testing…",
+      "answers": "Answers ({{status}}).",
+      "malformed": "This is no http or https address: check how it is written.",
+      "unknown-host": "No machine has this name: check it, it is often a typo.",
+      "refused": "The connection is refused: nothing listens on this port. Check the port, and that the application runs.",
+      "timeout": "No answer within ten seconds: check that the application runs and can be reached from here.",
+      "unreachable": "Cannot be reached: check the address and the network.",
+      "unreachableCode": "Cannot be reached ({{code}}): check the address and the network.",
+      "failed": "The test could not be made: {{reason}}"
+    },
     "application": {
       "types": {
         "web": "Web interface",

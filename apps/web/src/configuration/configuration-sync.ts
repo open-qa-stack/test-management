@@ -85,6 +85,20 @@ export class ConfigurationSync {
     );
   }
 
+  /**
+   * Tests that an address of an environment answers, as the person typed it, and tells what the test found.
+   *
+   * @param pointer - The pointer of the field that holds the address.
+   * @param address - The address.
+   */
+  public checkAddress(pointer: string, address: string): void {
+    this.#dispatch({ type: "addressChecking", pointer, address });
+    this.#api.checkAddress(address).then(
+      (check) => this.#dispatch({ type: "addressChecked", pointer, address, check }),
+      (error: ApiError) => this.#dispatch({ type: "addressChecked", pointer, address, failure: error.message }),
+    );
+  }
+
   /** Reads where the test repository stands, for a person who sets it up; a reading that fails tells nothing. */
   public readRepository(): void {
     this.#api.repository().then(

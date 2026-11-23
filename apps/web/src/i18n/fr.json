@@ -507,6 +507,19 @@
       "replace": "Enregistrée — tapez pour la remplacer",
       "environment": "vient de l’environnement de l’outil, qui l’emporte sur une valeur tapée ici."
     },
+    "address": {
+      "test": "Tester",
+      "testName": "Tester {{address}}",
+      "checking": "Test en cours…",
+      "answers": "Répond ({{status}}).",
+      "malformed": "Ce n’est pas une adresse http ou https : vérifiez son écriture.",
+      "unknown-host": "Aucune machine ne porte ce nom : vérifiez-le, c’est souvent une faute de frappe.",
+      "refused": "La connexion est refusée : rien n’écoute sur ce port. Vérifiez le port, et que l’application tourne.",
+      "timeout": "Pas de réponse en dix secondes : vérifiez que l’application tourne et qu’elle est joignable d’ici.",
+      "unreachable": "Injoignable : vérifiez l’adresse et le réseau.",
+      "unreachableCode": "Injoignable ({{code}}) : vérifiez l’adresse et le réseau.",
+      "failed": "Le test n’a pas pu se faire : {{reason}}"
+    },
     "application": {
       "types": {
         "web": "Interface web",
