@@ -40,9 +40,29 @@ export async function writeDurations(report: string, durations: string, root: st
 }
 
 /**
+ * Orders test files from the longest to the shortest, so that the longest start first and none is left to run alone at
+ * the end: a file whose duration is not known counts as long as the median one; with none known, every file counts the
+ * same, in the order of their paths.
+ *
+ * @param paths - The path of each file, from the root of the workspace; a file run twice is there twice.
+ * @param durations - How long the files took.
+ * @returns Each file by its rank, with how long it counts, the longest first.
+ */
+export function longestFirst(paths: readonly string[], durations: TestDurations): { readonly rank: number; readonly seconds: number }[] {
+  const known = paths
+    .map((path) => durations[path])
+    .filter((seconds) => seconds !== undefined)
+    .toSorted((a, b) => a - b);
+  const median = known[Math.floor(known.length / 2)] ?? 1;
+  return paths
+    .map((path, rank) => ({ rank, path, seconds: durations[path] ?? median }))
+    .toSorted((a, b) => b.seconds - a.seconds || a.path.localeCompare(b.path) || a.rank - b.rank)
+    .map(({ rank, seconds }) => ({ rank, seconds }));
+}
+
+/**
  * Splits test files into parts of nearly the same length: the longest first, each into the part that holds the least
- * so far, the first of them on a tie. A file whose duration is not known counts as long as the median one; with none
- * known, every file counts the same.
+ * so far, the first of them on a tie, as {@link longestFirst} orders them.
  *
  * @param paths - The path of each file, from the root of the workspace; a file run twice is there twice.
  * @param durations - How long the files took.
@@ -50,14 +70,7 @@ export async function writeDurations(report: string, durations: string, root: st
  * @returns The ranks of the files of each part, the parts in order.
  */
 export function balancedParts(paths: readonly string[], durations: TestDurations, count: number): number[][] {
-  const known = paths
-    .map((path) => durations[path])
-    .filter((seconds) => seconds !== undefined)
-    .toSorted((a, b) => a - b);
-  const median = known[Math.floor(known.length / 2)] ?? 1;
-  const items = paths
-    .map((path, rank) => ({ rank, path, seconds: durations[path] ?? median }))
-    .toSorted((a, b) => b.seconds - a.seconds || a.path.localeCompare(b.path) || a.rank - b.rank);
+  const items = longestFirst(paths, durations);
   const parts = Array.from({ length: count }, () => ({ seconds: 0, ranks: [] as number[] }));
   for (const item of items) {
     const lightest = parts.reduce((least, part) => (part.seconds < least.seconds ? part : least), parts[0]!);
