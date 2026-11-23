@@ -22,7 +22,15 @@ const DOCUMENT = {
   model: { mode: "provider-key", provider: "openai", baseUrl: "http://127.0.0.1:9/v1", model: "test-model" },
 } as OqasConfig;
 
-/** A domain index of two domains, the first of sources of both applications and of the whole project, as the cartography writes it. */
+/** The sources of the orders: the screens of the shop, a source of each application and one of the whole project, each with what it holds of them. */
+const ORDERS = [
+  { id: "shop", type: "web", item: "/orders" },
+  { id: "orders-db", type: "postgresql", item: "public.orders" },
+  { id: "invoices-api", type: "openapi", item: "invoices" },
+  { id: "glossary", type: "document", item: "Order" },
+];
+
+/** A domain index of two domains, the first of the sources of the orders, as the cartography writes it. */
 const INDEX = {
   formatVersion: 1,
   producedAt: "2026-11-20T09:00:00.000Z",
@@ -30,23 +38,13 @@ const INDEX = {
   model: { provider: "openai", baseUrl: "http://127.0.0.1:9/v1", model: "test-model" },
   run: { iterations: 1, actions: 0, durationMs: 1 },
   status: "complete",
-  sources: [
-    { id: "shop", type: "web", state: "read" },
-    { id: "orders-db", type: "postgresql", state: "read" },
-    { id: "invoices-api", type: "openapi", state: "read" },
-    { id: "glossary", type: "document", state: "read" },
-  ],
+  sources: ORDERS.map(({ id, type }) => ({ id, type, state: "read" })),
   domains: [
     {
       id: "orders",
       label: "Commandes",
       description: "Passer et suivre une commande.",
-      references: [
-        { source: "shop", items: ["/orders"] },
-        { source: "orders-db", items: ["public.orders"] },
-        { source: "invoices-api", items: ["invoices"] },
-        { source: "glossary", items: ["Order"] },
-      ],
+      references: ORDERS.map(({ id, item }) => ({ source: id, items: [item] })),
     },
     { id: "customers", label: "Clients", description: "Les clients de la boutique.", references: [{ source: "shop", items: ["/customers"] }] },
   ],
