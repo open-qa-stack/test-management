@@ -426,14 +426,13 @@
       "command": "Command"
     },
     "settings": {
-      "autonomous": "Autonomous: no limit per task",
-      "bounded": "Bounded: limits for each task",
+      "autonomous": "Autonomous: no limit per task, two hours at most per session",
+      "bounded": "Bounded (recommended): ten minutes per task, two hours at most per session",
       "autonomy": {
         "title": "Autonomy",
         "hint": "how far the agents go on their own",
         "level": "Level",
         "guardrail": "Guardrail of a run, in minutes",
-        "none": "none",
         "guardrailHint": "Beyond it, the tasks of the agents stop.",
         "maxMinutes": "Minutes per task",
         "maxIterations": "Calls to the model per task",

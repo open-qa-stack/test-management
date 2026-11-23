@@ -261,7 +261,7 @@ export type TestLevel = "smoke" | "functional" | "business" | "cross-application
 export interface ResolvedLimits {
   task: { maxIterations: number | null; maxMinutes: number | null; maxActions: number | null };
   /** How long, in minutes from the start of a run, the tasks of its agents may go on. */
-  guardrailMinutes: number | null;
+  guardrailMinutes: number;
 }
 
 /** The configuration once validated, with every default applied. */

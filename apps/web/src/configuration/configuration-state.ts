@@ -14,6 +14,7 @@ import type {
   SourceCheck,
   AddressCheck,
 } from "@open-qa-stack/domain/sessions";
+import { DEFAULT_TASK_MINUTES } from "@open-qa-stack/domain/sessions";
 import { withFollowers } from "./derived-names.ts";
 import { modelFor } from "./model-connection.ts";
 import { appendedAt, changedAt, removedAt, valueAt } from "./json-pointer.ts";
@@ -188,7 +189,7 @@ export function typedConnection(source: Knowledge, values: Readonly<Record<strin
 function autonomyOf(level: Autonomy["level"], draft: OqasConfig): Autonomy {
   const guardrail = valueAt(draft, "/autonomy/guardrailMinutes");
   const kept = typeof guardrail === "number" ? { guardrailMinutes: guardrail } : {};
-  return level === "bounded" ? { level, task: { maxMinutes: 30 }, ...kept } : { level, ...kept };
+  return level === "bounded" ? { level, task: { maxMinutes: DEFAULT_TASK_MINUTES }, ...kept } : { level, ...kept };
 }
 
 /** The state once the draft changed: what the instance found in the draft before no longer holds. */

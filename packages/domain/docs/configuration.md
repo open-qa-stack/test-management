@@ -52,7 +52,7 @@ Types used below: a *slug* matches `^[a-z0-9]+(-[a-z0-9]+)*$`; a *variable* is t
 | `cartography` | [how the sources are mapped](#cartography) | no | `{ "concurrency": 2 }` |
 | `design` | [how the tests are designed](#design) | no | `{ "reviewPlan": false }` |
 | `model` | [model connection](#model) | yes | see below |
-| `autonomy` | [autonomy level](#autonomy) | no, `autonomous` by default | `{ "level": "autonomous" }` |
+| `autonomy` | [autonomy level](#autonomy) | no, `bounded` with ten minutes per task by default | `{ "level": "autonomous" }` |
 
 `formatVersion` is the version of the file format, independent of the product version.
 
@@ -258,7 +258,7 @@ The account is the one the GitHub CLI (`gh auth login`) or the Copilot CLI signe
 
 ### Autonomy
 
-How far the agents may go on their own. Without `autonomy`, the level is `autonomous`.
+How far the agents may go on their own. Without `autonomy`, the level is `bounded`, each task to ten minutes (`{ "level": "bounded", "task": { "maxMinutes": 10 } }`), with the two-hour guardrail.
 
 | `level` | Limits |
 |---|---|
@@ -271,7 +271,7 @@ How far the agents may go on their own. Without `autonomy`, the level is `autono
 | `task.maxMinutes` | positive integer: the minutes a task may run | no | `30` |
 | `task.maxIterations` | positive integer: the calls a task may make to the model | no | `200` |
 | `task.maxActions` | positive integer: the browser actions a task may take | no | `1000` |
-| `guardrailMinutes` | positive integer: the minutes, from the start of a run, after which every task of its agents stops | no; `120` for `autonomous`, none for `bounded` | `240` |
+| `guardrailMinutes` | positive integer: the minutes, from the start of a run, after which every task of its agents stops | no; `120` at each level | `240` |
 
 `task` is only for `bounded`, which requires it with one criterion at least; a criterion left out does not bound the task. A bounded level looks like this:
 

@@ -13,11 +13,16 @@ const only = <T>(items: readonly T[]): T => {
   return items[0]!;
 };
 
-describe("autonomy, criterion 1 — a file without autonomy is valid, with the limits of autonomous", () => {
-  it("gives the autonomous level, no limit per task and the two-hour guardrail", () => {
-    const autonomous = { level: "autonomous", limits: { task: { maxIterations: null, maxMinutes: null, maxActions: null }, guardrailMinutes: 120 } };
-    assert.deepEqual(limitsOf(undefined), autonomous);
-    assert.deepEqual(limitsOf({ level: "autonomous" }), autonomous);
+describe("autonomy, criterion 1 — a file without autonomy is valid, with the limits of the bounded level by default", () => {
+  it("gives the bounded level, ten minutes per task and the two-hour guardrail; the autonomous level no limit per task and the same guardrail", () => {
+    assert.deepEqual(limitsOf(undefined), {
+      level: "bounded",
+      limits: { task: { maxIterations: null, maxMinutes: 10, maxActions: null }, guardrailMinutes: 120 },
+    });
+    assert.deepEqual(limitsOf({ level: "autonomous" }), {
+      level: "autonomous",
+      limits: { task: { maxIterations: null, maxMinutes: null, maxActions: null }, guardrailMinutes: 120 },
+    });
   });
 
   it("takes the guardrail the file gives", () => {
@@ -36,10 +41,10 @@ describe("autonomy, criterion 2 — bounded with one criterion is valid, the oth
     ["maxIterations", 300],
     ["maxActions", 1000],
   ] as const) {
-    it(`bounds only ${criterion}, with no guardrail`, () => {
+    it(`bounds only ${criterion}, with the two-hour guardrail`, () => {
       const { level, limits } = limitsOf({ level: "bounded", task: { [criterion]: value } });
       assert.equal(level, "bounded");
-      assert.deepEqual(limits, { task: { maxIterations: null, maxMinutes: null, maxActions: null, [criterion]: value }, guardrailMinutes: null });
+      assert.deepEqual(limits, { task: { maxIterations: null, maxMinutes: null, maxActions: null, [criterion]: value }, guardrailMinutes: 120 });
     });
   }
 

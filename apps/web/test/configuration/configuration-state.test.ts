@@ -84,7 +84,7 @@ describe("the state of the screen of the configuration", () => {
     assert.deepEqual((fromDefaults.draft as unknown as { cartography: { levels: string[] } }).cartography.levels, ["b"]);
   });
 
-  it("chooses a level of autonomy with the guardrail it had, a bounded one bounded by thirty minutes a task", () => {
+  it("chooses a level of autonomy with the guardrail it had, a bounded one bounded by ten minutes a task", () => {
     assert.deepEqual(after([{ type: "level", level: "autonomous" }], READ).draft!.autonomy, { level: "autonomous", guardrailMinutes: 60 });
     const unguarded = after(
       [
@@ -93,7 +93,7 @@ describe("the state of the screen of the configuration", () => {
       ],
       READ,
     );
-    assert.deepEqual(unguarded.draft!.autonomy, { level: "bounded", task: { maxMinutes: 30 } });
+    assert.deepEqual(unguarded.draft!.autonomy, { level: "bounded", task: { maxMinutes: 10 } });
   });
 
   it("adds and removes the items of a list", () => {

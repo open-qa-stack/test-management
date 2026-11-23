@@ -234,9 +234,7 @@ export class Run {
         // Every session of the run speaks to the person in their language.
         const spoken = new SpokenRuntime(open.runtime, config.language);
         const stoppable = this.options.stop === undefined ? spoken : new StoppableRuntime(spoken, this.options.stop);
-        counted = new CountedRuntime(
-          guardrailMinutes === null ? stoppable : new GuardedRuntime(stoppable, started.getTime() + guardrailMinutes * 60_000, () => now().getTime()),
-        );
+        counted = new CountedRuntime(new GuardedRuntime(stoppable, started.getTime() + guardrailMinutes * 60_000, () => now().getTime()));
       }
       return counted;
     };

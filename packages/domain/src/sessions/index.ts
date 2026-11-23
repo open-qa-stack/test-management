@@ -45,6 +45,7 @@ export type {
   TestLevel,
 } from "../config/types.ts";
 export { DEFAULT_LANGUAGE, LANGUAGES, languageOf } from "../config/language.ts";
+export { DEFAULT_GUARDRAIL_MINUTES, DEFAULT_TASK_MINUTES } from "../config/autonomy.ts";
 export type { ModelChoice, ModelConnectionCheck } from "../config/model-connection.ts";
 export type { AddressCheck } from "../config/address-check.ts";
 export { MODEL_PROVIDERS, providerOf, type ModelProvider } from "../config/model-providers.ts";

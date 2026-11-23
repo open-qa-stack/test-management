@@ -54,7 +54,7 @@ export type {
   TestPlan,
   UncoveredRequest,
 } from "./test/test-plan.ts";
-export { resolveLimits } from "./config/autonomy.ts";
+export { DEFAULT_GUARDRAIL_MINUTES, DEFAULT_TASK_MINUTES, resolveLimits } from "./config/autonomy.ts";
 export { baseUrlVariable } from "./config/base-url-variable.ts";
 export { attachmentsOf, isProjectWide, isReadIn, sourceApplications } from "./config/knowledge-reach.ts";
 export { declaredValues, declaredVariables, secretVariables, type DeclaredVariable, type VariableSections } from "./config/declared-variables.ts";

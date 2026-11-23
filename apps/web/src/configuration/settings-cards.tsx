@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import { DEFAULT_LANGUAGE, LANGUAGES, type OqasConfig, type TestLevel } from "@open-qa-stack/domain/sessions";
+import { DEFAULT_GUARDRAIL_MINUTES, DEFAULT_LANGUAGE, DEFAULT_TASK_MINUTES, LANGUAGES, type OqasConfig, type TestLevel } from "@open-qa-stack/domain/sessions";
 import { LANGUAGE_NAMES, t } from "../i18n/i18n.ts";
 import { Card } from "../ui/card.tsx";
-import { AdvancedFields, CheckField, ChoiceField, InputField, PlaceErrors } from "./configuration-fields.tsx";
+import { AdvancedFields, CheckField, ChoiceField, InputField, PlaceErrors, RadioField } from "./configuration-fields.tsx";
 import { LEVELS, levelHint, levelName } from "../i18n/vocabulary.ts";
 
 /** The levels a plan is asked for when the configuration names none. */
@@ -17,19 +17,23 @@ const LANGUAGE_CHOICES = LANGUAGES.map((language) => ({ value: language, label: 
  * @param props - The autonomy of the draft; autonomous when it names none.
  * @returns Its card.
  */
-export function AutonomyCard({ autonomy = { level: "autonomous" } }: { readonly autonomy?: OqasConfig["autonomy"] }): ReactNode {
+export function AutonomyCard({
+  autonomy = { level: "bounded", task: { maxMinutes: DEFAULT_TASK_MINUTES } },
+}: {
+  readonly autonomy?: OqasConfig["autonomy"];
+}): ReactNode {
   return (
     <Card title={t("configuration.settings.autonomy.title")} hint={t("configuration.settings.autonomy.hint")}>
       <div className="config-body">
         <div className="config-fields">
-          <ChoiceField
+          <RadioField
             pointer="/autonomy/level"
             kind="level"
             label={t("configuration.settings.autonomy.level")}
             value={autonomy.level}
             options={[
-              { value: "autonomous", label: t("configuration.settings.autonomous") },
               { value: "bounded", label: t("configuration.settings.bounded") },
+              { value: "autonomous", label: t("configuration.settings.autonomous") },
             ]}
           />
         </div>
@@ -40,7 +44,7 @@ export function AutonomyCard({ autonomy = { level: "autonomous" } }: { readonly 
             label={t("configuration.settings.autonomy.guardrail")}
             value={autonomy.guardrailMinutes}
             numeric
-            placeholder={autonomy.level === "autonomous" ? "120" : t("configuration.settings.autonomy.none")}
+            placeholder={String(DEFAULT_GUARDRAIL_MINUTES)}
             hint={t("configuration.settings.autonomy.guardrailHint")}
           />
           {autonomy.level === "bounded" && (
