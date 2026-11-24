@@ -11,6 +11,7 @@ import {
   type DomainIndex,
   type Knowledge,
   type PlanReview,
+  type PlannedScenario,
   type ResolvedConfig,
   type ScenarioLevel,
   type SourceCard,
@@ -52,7 +53,7 @@ import { PLANNER_INSTRUCTIONS, planRequest } from "./planner-prompt.ts";
 import { sessionTools, type SessionTools } from "./session-tools.ts";
 import { declaredAddresses, declaredSecrets, TEST_MODULE, testPackages } from "./spec-rules.ts";
 import { PageObjects } from "./page-objects.ts";
-import { coveringTests, existingTestTools, existingTests, plannedTests, type ExistingTest } from "./existing-tests.ts";
+import { coveringTests, earlierScenarios, existingTestTools, existingTests, plannedTests, type ExistingTest } from "./existing-tests.ts";
 import { ensureFixtures } from "./test-fixtures.ts";
 import { uncomparedScreens, withComparisons } from "./visual-scenarios.ts";
 import { WrittenFiles } from "./written-files.ts";
@@ -122,6 +123,12 @@ export interface DesignerOptions {
   readonly observe?: (line: TraceLine) => void;
   /** The inbox of the run: the session that plans and that of each scenario are given the messages a person sends while they are open, and recalled those delivered earlier in the run. No session hears anyone without it. */
   readonly inbox?: Inbox;
+  /** The round of the design this one is, when a design is made in several, each planning what the tests of those before leave out; the first by default. */
+  readonly round?: number;
+  /** The scenarios the plan may hold; no bound by default. */
+  readonly maxScenarios?: number;
+  /** The scenarios the earlier rounds planned: one of this plan that does and verifies what one of them does is set aside, whatever became of its test. */
+  readonly planned?: readonly PlannedScenario[];
   /** The clock of the dates; the system clock by default. */
   readonly now?: () => Date;
   /** Gives the identifier of each new test, written as its tag `@oqas-id-…`; a random UUID by default. */
@@ -142,6 +149,8 @@ export interface DesignOutcome {
   readonly uncovered?: readonly UncoveredRequest[];
   /** The test of each scenario closed, in the order of the plan. */
   readonly tests: readonly DesignedTest[];
+  /** The scenarios of the plan accepted, which a later round of the design plans no more; none without a plan. */
+  readonly planned?: readonly PlannedScenario[];
   /** What the run checked, refused and wrote. */
   readonly journal: readonly JournalEntry[];
   /** Where the trace of the sessions is written, when a session started. */
@@ -316,6 +325,7 @@ export class Designer {
     try {
       const session = sessionTools(scope);
       const levels = this.options.levels ?? DEFAULT_LEVELS;
+      const round = this.options.round ?? 1;
       // What the repository already tests: the agent that plans reads it, and a scenario one of these tests covers is set aside.
       const present = await existingTests(repositoryRoot, config.repository.appsDir);
       const paths = present.map((test) => test.path);
@@ -335,6 +345,9 @@ export class Designer {
           review: this.options.planReview ?? ACCEPT_EVERY_PLAN,
           ...(this.options.reviewPlan === true ? { judge: new PlanReviewer(reviewed) } : {}),
           existing,
+          ...(this.options.planned === undefined ? {} : { earlier: earlierScenarios(this.options.planned) }),
+          ...(this.options.maxScenarios === undefined ? {} : { maxScenarios: this.options.maxScenarios }),
+          ...(round > 1 ? { later: true } : {}),
           ...(this.options.visual === true ? { visual: true, uncompared: uncomparedScreens(existing) } : {}),
           now,
         },
@@ -343,7 +356,10 @@ export class Designer {
       const offered = [...session.screens.tools(), ...session.reads.tools()];
       const reach = { knowledge: config.knowledge, applications: applications.map((application) => application.id) };
       const map = new IndexMap(index, await this.cards(index), offered, owners, await this.written(index), reach);
-      const request = planRequest(brief, index.environment, map.domains(), applications, levels, this.options.visual === true);
+      const request = planRequest(brief, index.environment, map.domains(), applications, levels, this.options.visual === true, {
+        round,
+        ...(this.options.maxScenarios === undefined ? {} : { maxScenarios: this.options.maxScenarios }),
+      });
       const notes = agentMemory(config, this.options.memory, env, { role: "planner", task: id, now });
       const tools = [...map.toolset(), ...existingTestTools(present), ...offered, ...notes, repairs.tool(), plan.tool()].map((tool) =>
         endedWithPlan(tool, plan, repairs),
@@ -454,7 +470,12 @@ export class Designer {
       }));
       // A plan without a scenario says why no test can do what the brief asks: it is kept, and there is nothing to write.
       if (planned.scenarios.length === 0)
-        journal.record("info", "No test was written: the plan holds no scenario, and says what the brief asks that no test can do.");
+        journal.record(
+          "info",
+          round > 1
+            ? "No test was written: the plan holds no scenario, the tests already written covering the brief."
+            : "No test was written: the plan holds no scenario, and says what the brief asks that no test can do.",
+        );
       else if (kept.length === 0 && stoppedBy === undefined) return failed(`No test was written: ${obtained(0)}, one per scenario of the plan is expected.`);
       const record: PlanRecord = {
         formatVersion: 2,
@@ -503,6 +524,7 @@ export class Designer {
         planPath: join(repositoryRoot, state.plan),
         uncovered: record.uncovered ?? [],
         tests: kept,
+        planned: record.scenarios,
         journal: journal.entries(),
         tracePath: opened.path,
         ...(stoppedBy === undefined ? {} : { stoppedBy }),

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterAll, describe, it } from "vitest";
 import type { PlannedScenario } from "@open-qa-stack/domain";
-import { coveringTests, existingTests, existingTestTools } from "../src/designer/existing-tests.ts";
+import { coveringTests, earlierScenarios, existingTests, existingTestTools } from "../src/designer/existing-tests.ts";
 import { planFileText, type PlanRecord } from "../src/designer/plan-file.ts";
 
 const roots: string[] = [];
@@ -165,5 +165,15 @@ describe("the tests of earlier designs a new scenario is compared with", () => {
       },
     ]);
     assert.deepEqual(await coveringTests(repository({}), ".oqas", present), []);
+  });
+
+  it("are, for the rounds of one design, the scenarios they planned, whatever their test became, but one whose plan kept no lines", () => {
+    const earlier = earlierScenarios(record.scenarios);
+    assert.deepEqual(
+      earlier.map((planned) => planned.id),
+      ["search", "failed", "gone", "api"],
+    );
+    assert.deepEqual(earlier[0]!.verified.steps[1], { does: [FILL, "Veldane"], shows: ["Mira Veldane"], absent: ["Ada Brennick"] });
+    assert.match(earlier[0]!.described, /Search Veldane/);
   });
 });

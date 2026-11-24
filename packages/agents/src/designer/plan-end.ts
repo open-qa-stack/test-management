@@ -11,6 +11,7 @@ export function planEndText(end: PlanEnd): string {
   if (end === "covered") return "the agent said the brief is covered.";
   if (end === "none") return "the agent said no test can do what the brief asks.";
   if (end === "refused") return "the harness refused the scenarios last submitted, time after time, and kept those the plan held.";
+  if (end === "full") return "the plan holds as many scenarios as it may.";
   if (end === "exhausted") return "the scenarios last submitted were duplicates, and the agent has nothing new to verify.";
   return "the agent ended its session without another scenario.";
 }

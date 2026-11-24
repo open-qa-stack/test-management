@@ -93,6 +93,7 @@ const VISUAL_READING =
  * @param domains - The domains of the knowledge, a line each, as `IndexMap.domains` gives them.
  * @param applications - The applications a test may be about.
  * @param visual - Whether the plan is of visual tests alone; `false` by default.
+ * @param batch - Where the plan stands in the batch of its design: its round, the first by default, and the scenarios it may hold, when they are bounded.
  * @returns The message to send to the agent that plans.
  */
 export function planRequest(
@@ -102,7 +103,9 @@ export function planRequest(
   applications: readonly Application[],
   levels: readonly ScenarioLevel[],
   visual = false,
+  batch: { readonly round?: number; readonly maxScenarios?: number } = {},
 ): string {
+  const { round = 1, maxScenarios } = batch;
   const asked =
     brief === undefined
       ? "No brief was given: plan the tests that matter most across the domains below."
@@ -125,6 +128,14 @@ export function planRequest(
             `This plan is of the level ${levels[0]!} alone, and the tests of the levels below it are written already. ${LEVEL_READINGS[levels[0]!]} Never say in uncovered that this level cannot do the whole brief: plan what it verifies of it.`,
           ]
         : []),
+    ...(round > 1
+      ? [
+          `This is round ${round} of the design: the tests of the rounds before are written, and ${TESTS_LIST_TOOL} names them. Plan only what none of them verifies; when they cover the brief, call ${PLAN_TOOL} with "scenarios": [].`,
+        ]
+      : []),
+    ...(maxScenarios === undefined
+      ? []
+      : [`The plan may hold ${maxScenarios} ${maxScenarios === 1 ? "scenario" : "scenarios"}: plan first what matters most.`]),
     next,
   ].join("\n\n");
 }

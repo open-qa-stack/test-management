@@ -25,6 +25,9 @@ export type SayingCode =
   | "planAcceptedEmpty"
   | "planAccepted"
   | "noTestEmptyPlan"
+  | "noTestCovered"
+  | "planFull"
+  | "planNoRoom"
   | "briefCovered"
   | "onlyDuplicates"
   | "briefUnfeasible"
@@ -82,6 +85,9 @@ const FORMS: readonly (readonly [SayingCode, RegExp])[] = [
   ["planAcceptedEmpty", /^The plan was accepted: no scenario\.$/],
   ["planAccepted", /^The plan was accepted: (?<scenarios>.+)\.$/],
   ["noTestEmptyPlan", /^No test was written: the plan holds no scenario, and says what the brief asks that no test can do\.$/],
+  ["noTestCovered", /^No test was written: the plan holds no scenario, the tests already written covering the brief\.$/],
+  ["planFull", /^The harness asked for no more scenarios: the plan holds as many scenarios as it may\.$/],
+  ["planNoRoom", new RegExp(`^The plan is full at (?<count>\\d+), and had no room for: (?<scenarios>.+)\\.$`)],
   ["briefCovered", /^The harness asked for no more scenarios: the agent said the brief is covered\.$/],
   ["onlyDuplicates", /^The harness asked for no more scenarios: the scenarios last submitted were duplicates, and the agent has nothing new to verify\.$/],
   ["briefUnfeasible", /^The harness asked for no more scenarios: the agent said no test can do what the brief asks\.$/],

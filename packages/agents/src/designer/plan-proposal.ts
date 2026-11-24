@@ -20,7 +20,7 @@ import { planEndText } from "./plan-end.ts";
 import { journalRefusals, maskedRefusals, refusalText, repeatedText, type Refusal } from "./refusal.ts";
 import { GUIDED_REFUSALS, RefusalStreak } from "./refusal-streak.ts";
 import { onTab } from "./tab-variable.ts";
-import type { CoveringTest } from "./plan-draft.ts";
+import type { CoveringTest, EarlierScenario } from "./plan-draft.ts";
 import { described } from "./scenario-description.ts";
 import { screenScope, type ScreenWatch, type ShownElement, type WatchedAction } from "./screen-watch.ts";
 import type { SourceWatch } from "./source-watch.ts";
@@ -160,6 +160,15 @@ export interface PlanRules {
   readonly existing?: readonly CoveringTest[];
   /** The model that judges the scenarios the code could not tell from one another; the comparison by the code alone without it. */
   readonly judge?: DuplicateJudge;
+  /** The scenarios the earlier rounds of the design planned: a scenario one of them covers is set aside. */
+  readonly earlier?: readonly EarlierScenario[];
+  /** The scenarios the plan may hold; no bound when left out. */
+  readonly maxScenarios?: number;
+  /**
+   * Whether the plan is of a round after the first of its design: the tests of the rounds before are written, so a
+   * plan with no scenario says the brief is covered, and is closed as such, without a word of what no test can do.
+   */
+  readonly later?: boolean;
   /** The clock of the dates; the system clock by default. */
   readonly now?: () => Date;
 }
@@ -246,6 +255,8 @@ export class PlanProposal {
         described: (scenario) => described(scenario),
         ...(rules.judge === undefined ? {} : { judge: rules.judge }),
         ...(rules.existing === undefined ? {} : { existing: rules.existing }),
+        ...(rules.earlier === undefined ? {} : { earlier: rules.earlier }),
+        ...(rules.maxScenarios === undefined ? {} : { max: rules.maxScenarios }),
         now: rules.now ?? (() => new Date()),
       },
       journal,
@@ -506,16 +517,18 @@ export class PlanProposal {
     this.refusedPlans = 0;
     const aside = await this.draft.keep(submitted.scenarios);
     const end = this.draft.ended(submitted.scenarios.length);
-    return end === undefined ? this.masked(this.askMore(aside)) : this.settle(end, aside);
+    if (end === undefined) return this.masked(this.askMore(aside));
+    // In a later round, an agent that plans nothing found the tests already written enough: the brief is covered.
+    return this.settle(end === "none" && this.rules.later === true ? "covered" : end, aside);
   }
 
   /**
    * What the gates refuse in how many scenarios a call gives: none for a plan that holds none, unless the
-   * call says in `uncovered` why no test can do what the brief asks. A plan holds as many scenarios as its
-   * brief takes.
+   * call says in `uncovered` why no test can do what the brief asks, or the plan is of a later round, whose
+   * brief the tests already written may cover. A plan holds as many scenarios as its brief takes.
    */
   private countErrors(whole: number, explained: boolean): Refusal[] {
-    if (whole > 0 || explained) return [];
+    if (whole > 0 || explained || this.rules.later === true) return [];
     return [
       {
         code: "PLAN-COUNT",
@@ -602,7 +615,7 @@ export class PlanProposal {
    */
   private emptyAlone(submitted: SubmittedPlan): string | undefined {
     // A call with no scenario on a plan that holds none says what is uncovered, or PLAN-COUNT refused it.
-    if (submitted.scenarios.length > 0 || this.draft.scenarios.length > 0 || this.warnedEmpty) return undefined;
+    if (submitted.scenarios.length > 0 || this.draft.scenarios.length > 0 || this.warnedEmpty || this.rules.later === true) return undefined;
     this.warnedEmpty = true;
     this.journal.record("info", "The agent closed a plan with no scenario; it was asked once to plan the applications one at a time.");
     const { applications } = this.rules;
@@ -642,6 +655,7 @@ export class PlanProposal {
     const { plan: checked, emptied, echoes } = this.withoutEchoes(whole);
     const { plan: inscribed, notes } = this.inscribed(withoutEmptied(checked, emptied), this.accepts);
     const setAside = this.draft.setAside;
+    const left = this.draft.overflow;
     const plan: TestPlan = { ...inscribed, ended: end, ...(setAside.length === 0 ? {} : { setAside }) };
     const decision = await this.rules.review.review(plan);
     if (!decision.accepted) {
@@ -660,6 +674,7 @@ export class PlanProposal {
     return [
       `The plan was accepted with ${plan.scenarios.length} ${plan.scenarios.length === 1 ? "scenario" : "scenarios"}: ${planEndText(end)}`,
       ...aside.map(setAsideLine),
+      ...(left.length === 0 ? [] : [`Left out, the plan having no room for them: ${left.map((scenario) => scenario.id).join(", ")}.`]),
       ...echoes,
       SESSION_OVER,
     ]
