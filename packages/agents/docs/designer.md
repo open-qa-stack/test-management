@@ -38,6 +38,84 @@ The branch is `oqas/design-<date>` by default, such as `oqas/design-20261113T100
 
 A design that goes on with an earlier one, such as the next turn of a session, is given its branch as `continuedBranch`: that branch must exist, and no other is created. The design checks it out before it reads anything, when it is not checked out already, so that the agent that plans finds the tests it holds among those of the repository and sets aside what they cover; its tests are then committed on that branch.
 
+## The loops at a glance
+
+Each diagram gives, for a state, the events that may come next, and where each loop ends. The sections below give the rules; the bounds named here are theirs.
+
+### A design
+
+```mermaid
+stateDiagram-v2
+    [*] --> Checked: the test repository and the index are in order
+    [*] --> Unstarted: one of them is not, the journal names each problem
+    Checked --> Planning: the session that plans opens
+    Planning --> Writing: the plan is accepted with scenarios
+    Planning --> Succeeded: the plan is closed without a scenario (none)
+    Planning --> Failed: no plan is accepted — sixth plan refused or session over with no scenario kept, or refused by the review
+    Planning --> Stopped: a limit of the autonomy ends the session
+    Writing --> Writing: a scenario is closed, the session of the next opens
+    Writing --> Stopped: a limit of the autonomy ends a session
+    Writing --> Counted: the last scenario is closed
+    Counted --> Succeeded: every scenario has a test that counts, a duplicate or a reason
+    Counted --> Failed: a scenario has none of the three
+    Succeeded --> [*]: the tests, the state and the plan are committed on the branch
+    Failed --> [*]
+    Stopped --> [*]
+    Unstarted --> [*]
+```
+
+With `design.passes`, a design is one pass among several (see [The passes of a design](#the-passes-of-a-design)): the next pass starts once this one is over, and none starts after one that was stopped or could not start.
+
+### The plan
+
+```mermaid
+stateDiagram-v2
+    [*] --> Exploring
+    Exploring --> Submitted: propose_plan
+    Exploring --> Reminded: the agent stops with no plan accepted
+    Reminded --> Exploring: reminded, three times at most
+    Reminded --> Closed: fourth stop, with the scenarios kept (session-end)
+    Submitted --> Refused: a gate refuses the call
+    Refused --> Exploring: the agent fixes what was refused
+    Refused --> Closed: sixth call refused in a row (refused)
+    Submitted --> Asked: the scenarios pass, are kept or set aside as duplicates
+    Asked --> Submitted: propose_plan with the scenarios to add
+    Asked --> Closed: propose_plan with no scenario (covered, or none with uncovered)
+    Asked --> Closed: third duplicate in a row (exhausted)
+    Asked --> Closed: the session ends (session-end)
+    Closed --> Reviewed: the plan holds scenarios
+    Closed --> [*]: it holds none
+    Reviewed --> [*]: accepted and frozen, or refused by the review
+```
+
+A call the gates let through starts the count of refused calls again, and a scenario kept that of the duplicates.
+
+### The test of a scenario
+
+```mermaid
+stateDiagram-v2
+    [*] --> Open: the session is given the sheet of the scenario
+    Open --> Checked: run_test with the whole file
+    Open --> Reminded: the agent stops while the scenario is open
+    Reminded --> Open: reminded, three times at most
+    Reminded --> Closed: fourth stop (SESSION-END), kept as passed when its last run passed, as unfinished otherwise
+    Checked --> Open: a check refuses the text (TEST-…)
+    Checked --> Ran: the checks accept it, the runner runs it
+    Ran --> Passed: the run passed, twice for a test that writes
+    Ran --> FailedRun: the run failed, or gave no verdict
+    FailedRun --> Open: fewer than three failed runs, the agent repairs
+    FailedRun --> Proposed: propose_test with a diagnosis
+    Passed --> Proposed: propose_test
+    Open --> Proposed: propose_test with unfeasible, confirmed by the same call again
+    Proposed --> Open: refused (PROPOSE-…)
+    Proposed --> Closed: accepted
+    Checked --> Closed: fifth refusal of one code
+    Proposed --> Closed: fifth refusal of one code
+    Closed --> [*]: passed, failing with its cause, unfinished, duplicate or unfeasible
+```
+
+After `Closed`, every call of `run_test` and `propose_test` is refused with `SCENARIO-CLOSED`, and the next scenario is written in a session of its own.
+
 ## The index as a map
 
 The index tells where to look, without limiting where the agent may look:
