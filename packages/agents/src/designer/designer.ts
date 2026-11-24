@@ -170,6 +170,16 @@ const INSPECTED = new Set<Knowledge["type"]>(["logs", "source-code"]);
 const DEFAULT_LEVELS: readonly ScenarioLevel[] = ["smoke", "functional", "business"];
 const COUNTED = new Set<TestClass>(["passed", "failing-application"]);
 
+/**
+ * The tests of a design that count towards those it must give: those that passed, and those that fail because of the application.
+ *
+ * @param tests - The tests of a design.
+ * @returns Those that count, in their order.
+ */
+export function countedTests(tests: readonly DesignedTest[]): DesignedTest[] {
+  return tests.filter((test) => COUNTED.has(test.classes.at(-1)!.class));
+}
+
 /** Accepts every plan as it is: the designer works on its own. */
 const ACCEPT_EVERY_PLAN: PlanReview = { review: async () => ({ accepted: true }) };
 
@@ -501,7 +511,7 @@ export class Designer {
       const statePath = posix.join(config.repository.stateDir, DESIGNS_FOLDER, `${id}.json`);
       await this.write(repository, state, statePath, record, tests, written.paths, journal);
       committed = tests.length > 0;
-      const counted = kept.filter((test) => COUNTED.has(test.classes.at(-1)!.class)).length;
+      const counted = countedTests(kept).length;
       // The count of the harness: each scenario of the plan is accounted for — by a test that counts, by another test that already
       // verifies it, or by the reason the agent that writes gave for which no test can do it. Nothing else closes a design.
       const classed = (name: TestClass) => kept.filter((test) => test.classes.at(-1)!.class === name);

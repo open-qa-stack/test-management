@@ -1,5 +1,6 @@
 import type { ScenarioLevel } from "@open-qa-stack/domain";
-import type { DesignerOptions, DesignOutcome } from "./designer.ts";
+import { countedTests, type DesignerOptions, type DesignOutcome } from "./designer.ts";
+import { mergedOutcomes } from "./merged-outcomes.ts";
 
 /** The levels of the pyramid of tests, from its base to its top: the order the passes of a design are done in. */
 export const PYRAMID: readonly ScenarioLevel[] = ["smoke", "functional", "business", "cross-application", "end-to-end"];
@@ -18,6 +19,10 @@ export type DesignRun = (options: DesignerOptions) => Promise<DesignOutcome>;
  * agent that plans a level is told the tests the levels below it gave, and a scenario one of them covers is
  * set aside, so that a level builds on those below instead of writing them again. A pass a limit cut short
  * stops the passes. With a single plan, the levels are one pass, and the visual tests another.
+ *
+ * When the scenarios a plan may hold are bounded, the bound is that of the passes together: each pass may plan
+ * what the passes before left of it, counted by their tests that passed or fail because of the application,
+ * and the passes stop once nothing is left. Each pass is told the scenarios those before it planned.
  */
 export class DesignPasses {
   readonly #options: DesignerOptions;
@@ -52,23 +57,19 @@ export class DesignPasses {
     const passes: DesignerOptions[] = [...leveled, ...(visual === true ? [{ ...rest, levels: ["functional" as const], visual: true }] : [])];
     if (passes.length < 2) return this.#design(this.#options);
     let merged: DesignOutcome = { ok: true, tests: [], journal: [] };
+    const { maxScenarios, planned = [] } = this.#options;
     for (const options of passes) {
-      const pass = await this.#design(options);
+      const left = maxScenarios === undefined ? undefined : maxScenarios - countedTests(merged.tests).length;
+      // The passes together wrote what they may: the levels above are left to another batch.
+      if (left !== undefined && left <= 0) break;
+      const pass = await this.#design({
+        ...options,
+        ...(left === undefined ? {} : { maxScenarios: left }),
+        planned: [...planned, ...(merged.planned ?? [])],
+      });
       const name = options.visual === true ? "visual" : options.levels!.join(", ");
       const said = { level: "info" as const, message: `Pass ${name}: ${pass.tests.length} ${pass.tests.length === 1 ? "test" : "tests"}.` };
-      const uncovered = [...(merged.uncovered ?? []), ...(pass.uncovered ?? [])];
-      merged = {
-        ...merged,
-        ...pass,
-        ok: merged.ok && pass.ok,
-        // A pass that wrote nothing leaves the branch and the state of the pass before as they are.
-        ...(pass.branch === undefined && merged.branch !== undefined ? { branch: merged.branch } : {}),
-        ...(pass.tests.length === 0 && merged.statePath !== undefined ? { statePath: merged.statePath, planPath: merged.planPath! } : {}),
-        ...(uncovered.length === 0 ? {} : { uncovered }),
-        tests: [...merged.tests, ...pass.tests],
-        planned: [...(merged.planned ?? []), ...(pass.planned ?? [])],
-        journal: [...merged.journal, ...pass.journal, said],
-      };
+      merged = mergedOutcomes(merged, pass, said);
       // A pass cut short by a limit, or that could not start, leaves nothing the next could build on: they stop there. A repair is a whole design.
       if (pass.stoppedBy !== undefined || pass.unstarted === true || pass.repaired === true) break;
     }

@@ -373,7 +373,18 @@ A scenario is compared with the tests earlier designs wrote, as it is with the s
 
 ### The rounds of one design
 
-A design may be made in several rounds, each a design of its own that plans what the tests of the rounds before leave out. Three options of the designer say where one stands:
+A design may be made in several rounds, each a design of its own that plans what the tests of the rounds before leave out. `new DesignRounds(options, limits, round, visual).run()` makes them, one after the other, and gives what they gave together, with `batch`: the new tests of each round, those of the batch, and why it made no more rounds.
+
+| `batch.endedBy` | When |
+| --- | --- |
+| `tests` | The batch wrote the tests it may: `limits.maxTests`, or no bound when it is `null`. |
+| `idle-rounds` | `limits.maxIdleRounds` rounds in a row brought no new test. A new test is one that passed, or fails because of the application, at a path no round before gave; a round that brings one starts the count again. |
+| `guardrail` | `limits.deadline` passed once a round was over: no other is started, and the tests of the rounds before are kept. |
+| `stopped` | A round was cut short by a limit, could not start, or repaired tests: the outcome says which, as that of a design does. |
+
+The first round is always made. The visual tests, when the design makes some, are one design after the last round, within what the batch may still write, and only for a batch its idle rounds ended before the deadline. Within a round, the passes share the scenarios the batch may still write: each may plan what the tests of the passes before left, and no pass starts once nothing is left.
+
+Three options of the designer say where a design stands in its batch, which the rounds and the passes set:
 
 | Option | What it does |
 | --- | --- |

@@ -86,6 +86,32 @@ describe("the passes of a design", () => {
     assert.deepEqual([outcome.ok, outcome.branch, outcome.statePath, outcome.stoppedBy, outcome.uncovered], [false, "oqas/a", "a.json", "duration", undefined]);
   });
 
+  it("share the scenarios their plans may hold: each pass may plan what the tests of those before left, is told what they planned, and none starts once nothing is left", async () => {
+    const asked: [string, number | undefined, string[]][] = [];
+    const counted = (path: string, name: string) => ({ path, classes: [{ class: name }] }) as unknown as DesignOutcome["tests"][number];
+    const given: Record<string, DesignOutcome> = {
+      // A test left unfinished takes no room: only those that passed or fail because of the application count.
+      smoke: { ok: true, tests: [counted("a.spec.ts", "passed"), counted("b.spec.ts", "unfinished")], planned: [planned("a"), planned("b")], journal: [] },
+      functional: { ok: true, tests: [counted("c.spec.ts", "failing-application"), counted("d.spec.ts", "passed")], planned: [planned("c")], journal: [] },
+    };
+    const passes = new DesignPasses(
+      options({ levels: ["smoke", "functional", "business"], maxScenarios: 3, planned: [planned("old")] }),
+      "by-level",
+      true,
+      async (pass) => {
+        const level = pass.levels![0]!;
+        asked.push([level, pass.maxScenarios, pass.planned!.map((scenario) => scenario.id)]);
+        return given[level]!;
+      },
+    );
+    const outcome = await passes.run();
+    assert.deepEqual(asked, [
+      ["smoke", 3, ["old"]],
+      ["functional", 2, ["old", "a", "b"]],
+    ]);
+    assert.equal(outcome.tests.length, 4);
+  });
+
   it("stop at a pass that repaired tests: the repair is the whole design", async () => {
     const asked: [readonly string[] | undefined, boolean | undefined][] = [];
     const outcome = await new DesignPasses(options({ levels: ["smoke", "functional"] }), "by-level", true, async (pass) => {
