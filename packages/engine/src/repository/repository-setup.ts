@@ -89,6 +89,7 @@ export class RepositorySetup {
       stateDir: repository.stateDir,
       // Tests that each stand alone share no fixtures: nothing is written for them.
       ...(design.architecture === "standalone" ? {} : { fixturesFile: design.fixturesFile }),
+      pageObjects: design.architecture === "page-objects",
     });
     const created: string[] = [];
     const kept: string[] = [];

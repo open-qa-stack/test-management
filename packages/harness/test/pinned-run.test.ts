@@ -496,6 +496,7 @@ const PROJECT = {
   appsDir: "tests",
   stateDir: ".oqas",
   fixturesFile: "tests/shared/fixtures.ts",
+  pageObjects: true,
 };
 
 describe("criterion 12 — the base of the test repository", () => {
@@ -553,7 +554,21 @@ describe("criterion 12 — the base of the test repository", () => {
     assert.match(text("tests/shared/fixtures.ts"), /\ninterface Applications \{\n {2}shop: Shop;\n\}\n/);
     assert.match(text("tests/shop/pages/index.ts"), /^export class Shop \{\n {2}constructor\(readonly page: Page\) \{\}\n\}$/m);
     // Tests that each stand alone share nothing: neither file is written, and the README says nothing of them.
-    const { fixturesFile: _shared, ...standalone } = PROJECT;
+    // Tests that act on the page share the fixtures alone: the README names them, and no page object.
+    const onThePage = testRepositoryBase({ ...PROJECT, pageObjects: false });
+    assert.deepEqual(
+      onThePage.map((file) => file.path),
+      files.map((file) => file.path),
+    );
+    assert.ok(
+      onThePage[4]!.content.includes(
+        "| `tests/shared/fixtures.ts` | The fixtures every test shares: the `test` and the `expect` the tests import, with each application. |",
+      ),
+    );
+    assert.ok(onThePage[4]!.content.includes("## Fixtures\n\nA test imports `test` and `expect` from `tests/shared/fixtures.ts`"));
+    assert.ok(onThePage[4]!.content.includes("await customerManagement.page.getByRole("));
+    assert.doesNotMatch(onThePage[4]!.content, /page object|pages\//i);
+    const { fixturesFile: _shared, ...standalone } = { ...PROJECT, pageObjects: false };
     const alone = testRepositoryBase(standalone);
     assert.deepEqual(
       alone.map((file) => file.path),
