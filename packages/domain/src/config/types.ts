@@ -202,7 +202,16 @@ export interface TaskCriteria {
  * criteria of `task`. `guardrailMinutes` is how long, from the start of a run, the tasks of its agents may
  * go on.
  */
-export type Autonomy = { level: "autonomous"; guardrailMinutes?: number } | { level: "bounded"; task: TaskCriteria; guardrailMinutes?: number };
+export type Autonomy =
+  { level: "autonomous"; guardrailMinutes?: number } | { level: "bounded"; task: TaskCriteria; batch?: BatchCriteria; guardrailMinutes?: number };
+
+/** What ends the batch of a run, the rounds of design it makes one after the other; a criterion left out takes its default. */
+export interface BatchCriteria {
+  /** Tests a batch may write. */
+  maxTests?: number;
+  /** Rounds in a row that may bring no new test. */
+  maxIdleRounds?: number;
+}
 
 /** A language the product speaks, as a BCP 47 tag: English or French. */
 export type Language = "en" | "fr";
@@ -270,6 +279,8 @@ export type TestLevel = "smoke" | "functional" | "business" | "cross-application
 /** A limit set to `null` is not bounded by the level. */
 export interface ResolvedLimits {
   task: { maxIterations: number | null; maxMinutes: number | null; maxActions: number | null };
+  /** What ends a batch: the tests it may write, and the rounds in a row that may bring no new one. */
+  batch: { maxTests: number | null; maxIdleRounds: number };
   /** How long, in minutes from the start of a run, the tasks of its agents may go on. */
   guardrailMinutes: number;
 }
