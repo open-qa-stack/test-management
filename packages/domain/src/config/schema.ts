@@ -380,6 +380,14 @@ export const configSchema = {
               minProperties: 1,
               properties: { maxMinutes: positiveInteger, maxIterations: positiveInteger, maxActions: positiveInteger },
             },
+            batch: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                maxTests: { ...positiveInteger, description: "Tests a batch may write; 40 by default." },
+                maxIdleRounds: { ...positiveInteger, description: "Rounds in a row that may bring no new test before a batch ends; 3 by default." },
+              },
+            },
             guardrailMinutes: positiveInteger,
           },
         },

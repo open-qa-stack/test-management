@@ -769,6 +769,22 @@
                 }
               }
             },
+            "batch": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "maxTests": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Tests a batch may write; 40 by default."
+                },
+                "maxIdleRounds": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Rounds in a row that may bring no new test before a batch ends; 3 by default."
+                }
+              }
+            },
             "guardrailMinutes": {
               "type": "integer",
               "minimum": 1
