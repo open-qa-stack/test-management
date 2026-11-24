@@ -371,7 +371,8 @@ describe("the knowledge in a browser", () => {
   /** The documents of the source the instance keeps, listed. */
   async function documentsAt(width: number, instance = new DocumentedInstance(), hash = "#/knowledge/manuals"): Promise<Page> {
     const page = await app().open(width, hash, instance.api);
-    await page.getByRole("heading", { name: "manuals" }).waitFor();
+    // The title is the identifier of the source only while the configuration is read: the name it then has is the one that stays.
+    await page.getByRole("heading", { level: 1, name: "Documents déposés · Shop" }).waitFor();
     await page.getByRole("link", { name: "quotes.md", exact: true }).waitFor();
     return page;
   }
