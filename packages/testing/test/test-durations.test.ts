@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "vitest";
-import { balancedParts, durationsOf, writeDurations } from "../src/test-durations.ts";
+import { balancedParts, durationsOf, longestFirst, writeDurations } from "../src/test-durations.ts";
 
 describe("the durations of the test files", () => {
   it("are read from a report by path from the root, to a tenth of a second, the longest run of a file run twice kept", () => {
@@ -30,6 +30,15 @@ describe("the durations of the test files", () => {
     } finally {
       await rm(folder, { recursive: true, force: true });
     }
+  });
+
+  it("order the files from the longest to the shortest, an unknown one as long as the median, a tie by path", () => {
+    assert.deepEqual(longestFirst(["b", "new", "a", "c"], { a: 10, b: 30, c: 10 }), [
+      { rank: 0, seconds: 30 },
+      { rank: 2, seconds: 10 },
+      { rank: 3, seconds: 10 },
+      { rank: 1, seconds: 10 },
+    ]);
   });
 
   it("split the files into parts of nearly the same length, the longest first, into the lightest part", () => {
