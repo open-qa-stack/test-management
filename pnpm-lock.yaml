@@ -33,6 +33,110 @@ importers:
         specifier: 5.1.0
         version: 5.1.0(@types/node@22.20.5)(@vitest/coverage-v8@5.1.0)(vite@8.3.5(@types/node@22.20.5))
 
+  apps/api:
+    dependencies:
+      '@fastify/multipart':
+        specifier: 10.1.7
+        version: 10.1.7
+      '@fastify/static':
+        specifier: 10.1.11
+        version: 10.1.11
+      '@nestjs/common':
+        specifier: 12.4.2
+        version: 12.4.2(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core':
+        specifier: 12.4.2
+        version: 12.4.2(@nestjs/common@12.4.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/platform-fastify':
+        specifier: 12.4.2
+        version: 12.4.2(@fastify/multipart@10.1.7)(@fastify/static@10.1.11)(@nestjs/common@12.4.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.4.2(@nestjs/common@12.4.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@open-qa-stack/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@open-qa-stack/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
+      '@open-qa-stack/store':
+        specifier: workspace:*
+        version: link:../../packages/store
+      fastify:
+        specifier: 5.12.8
+        version: 5.12.8
+      playwright-core:
+        specifier: 1.64.1
+        version: 1.64.1
+      reflect-metadata:
+        specifier: 0.2.2
+        version: 0.2.2
+      rxjs:
+        specifier: 7.8.2
+        version: 7.8.2
+    devDependencies:
+      '@nestjs/testing':
+        specifier: 12.4.2
+        version: 12.4.2(@nestjs/common@12.4.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.4.2(@nestjs/common@12.4.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))
+      '@open-qa-stack/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
+      '@types/pg':
+        specifier: 8.23.1
+        version: 8.23.1
+      pg:
+        specifier: 8.23.1
+        version: 8.23.1
+
+  apps/cli:
+    dependencies:
+      '@open-qa-stack/api':
+        specifier: workspace:*
+        version: link:../api
+      '@open-qa-stack/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@open-qa-stack/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
+      '@open-qa-stack/harness':
+        specifier: workspace:*
+        version: link:../../packages/harness
+      '@open-qa-stack/store':
+        specifier: workspace:*
+        version: link:../../packages/store
+      '@open-qa-stack/tools':
+        specifier: workspace:*
+        version: link:../../packages/tools
+      '@open-qa-stack/web':
+        specifier: workspace:*
+        version: link:../web
+      i18next:
+        specifier: 26.7.1
+        version: 26.7.1(typescript@7.0.2)
+      ink:
+        specifier: 8.0.0
+        version: 8.0.0(@types/react@19.3.0)(react@19.3.1)
+      ink-spinner:
+        specifier: 5.0.0
+        version: 5.0.0(ink@8.0.0(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)
+      ink-text-input:
+        specifier: 6.0.0
+        version: 6.0.0(ink@8.0.0(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)
+      react:
+        specifier: 19.3.1
+        version: 19.3.1
+    devDependencies:
+      '@open-qa-stack/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
+      '@types/react':
+        specifier: 19.3.0
+        version: 19.3.0
+      ink-testing-library:
+        specifier: 4.0.0
+        version: 4.0.0(@types/react@19.3.0)
+      vitest:
+        specifier: 5.1.0
+        version: 5.1.0(@types/node@22.20.5)(@vitest/coverage-v8@5.1.0)(vite@8.3.5(@types/node@22.20.5))
+
   apps/web:
     dependencies:
       i18next:
@@ -89,111 +193,7 @@ importers:
         specifier: 5.1.0
         version: 5.1.0(@types/node@22.20.5)(@vitest/coverage-v8@5.1.0)(vite@8.3.5(@types/node@22.20.5))
 
-  packages/api:
-    dependencies:
-      '@fastify/multipart':
-        specifier: 10.1.7
-        version: 10.1.7
-      '@fastify/static':
-        specifier: 10.1.11
-        version: 10.1.11
-      '@nestjs/common':
-        specifier: 12.4.2
-        version: 12.4.2(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@nestjs/core':
-        specifier: 12.4.2
-        version: 12.4.2(@nestjs/common@12.4.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@nestjs/platform-fastify':
-        specifier: 12.4.2
-        version: 12.4.2(@fastify/multipart@10.1.7)(@fastify/static@10.1.11)(@nestjs/common@12.4.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.4.2(@nestjs/common@12.4.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))(rxjs@7.8.2)
-      '@open-qa-stack/domain':
-        specifier: workspace:*
-        version: link:../domain
-      '@open-qa-stack/engine':
-        specifier: workspace:*
-        version: link:../engine
-      '@open-qa-stack/store':
-        specifier: workspace:*
-        version: link:../store
-      fastify:
-        specifier: 5.12.8
-        version: 5.12.8
-      playwright-core:
-        specifier: 1.64.1
-        version: 1.64.1
-      reflect-metadata:
-        specifier: 0.2.2
-        version: 0.2.2
-      rxjs:
-        specifier: 7.8.2
-        version: 7.8.2
-    devDependencies:
-      '@nestjs/testing':
-        specifier: 12.4.2
-        version: 12.4.2(@nestjs/common@12.4.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.4.2(@nestjs/common@12.4.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))
-      '@open-qa-stack/testing':
-        specifier: workspace:*
-        version: link:../testing
-      '@types/pg':
-        specifier: 8.23.1
-        version: 8.23.1
-      pg:
-        specifier: 8.23.1
-        version: 8.23.1
-
   packages/check: {}
-
-  packages/cli:
-    dependencies:
-      '@open-qa-stack/api':
-        specifier: workspace:*
-        version: link:../api
-      '@open-qa-stack/domain':
-        specifier: workspace:*
-        version: link:../domain
-      '@open-qa-stack/engine':
-        specifier: workspace:*
-        version: link:../engine
-      '@open-qa-stack/harness':
-        specifier: workspace:*
-        version: link:../harness
-      '@open-qa-stack/store':
-        specifier: workspace:*
-        version: link:../store
-      '@open-qa-stack/tools':
-        specifier: workspace:*
-        version: link:../tools
-      '@open-qa-stack/web':
-        specifier: workspace:*
-        version: link:../../apps/web
-      i18next:
-        specifier: 26.7.1
-        version: 26.7.1(typescript@7.0.2)
-      ink:
-        specifier: 8.0.0
-        version: 8.0.0(@types/react@19.3.0)(react@19.3.1)
-      ink-spinner:
-        specifier: 5.0.0
-        version: 5.0.0(ink@8.0.0(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)
-      ink-text-input:
-        specifier: 6.0.0
-        version: 6.0.0(ink@8.0.0(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)
-      react:
-        specifier: 19.3.1
-        version: 19.3.1
-    devDependencies:
-      '@open-qa-stack/testing':
-        specifier: workspace:*
-        version: link:../testing
-      '@types/react':
-        specifier: 19.3.0
-        version: 19.3.0
-      ink-testing-library:
-        specifier: 4.0.0
-        version: 4.0.0(@types/react@19.3.0)
-      vitest:
-        specifier: 5.1.0
-        version: 5.1.0(@types/node@22.20.5)(@vitest/coverage-v8@5.1.0)(vite@8.3.5(@types/node@22.20.5))
 
   packages/domain:
     dependencies:

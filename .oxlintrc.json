@@ -17,21 +17,21 @@
       {
         "modules": {
           "@github/copilot-sdk": "packages/harness/src/copilot",
-          "ink": "packages/cli/src/solo/conversation",
-          "ink-spinner": "packages/cli/src/solo/conversation",
-          "ink-text-input": "packages/cli/src/solo/conversation"
+          "ink": "apps/cli/src/solo/conversation",
+          "ink-spinner": "apps/cli/src/solo/conversation",
+          "ink-text-input": "apps/cli/src/solo/conversation"
         }
       }
     ]
   },
   "overrides": [
     {
-      "files": ["packages/api/src/**", "packages/api/test/**"],
+      "files": ["apps/api/src/**", "apps/api/test/**"],
       "plugins": ["node"],
       "rules": { "node/no-process-env": "error" }
     },
     {
-      "files": ["packages/api/src/config/**", "packages/api/test/support/**"],
+      "files": ["apps/api/src/config/**", "apps/api/test/support/**"],
       "plugins": ["node"],
       "rules": { "node/no-process-env": "off" }
     },
@@ -45,7 +45,7 @@
               "@open-qa-stack/domain": { "directory": "packages/domain", "dependsOn": [], "external": ["ajv", "node:path"] },
               "@open-qa-stack/store": { "directory": "packages/store", "dependsOn": ["@open-qa-stack/domain"] },
               "@open-qa-stack/api": {
-                "directory": "packages/api",
+                "directory": "apps/api",
                 "dependsOn": ["@open-qa-stack/engine", "@open-qa-stack/store", "@open-qa-stack/domain"]
               },
               "@open-qa-stack/harness": { "directory": "packages/harness", "dependsOn": ["@open-qa-stack/domain"] },
@@ -59,7 +59,7 @@
                 "dependsOn": ["@open-qa-stack/harness", "@open-qa-stack/agents", "@open-qa-stack/tools", "@open-qa-stack/domain"]
               },
               "@open-qa-stack/cli": {
-                "directory": "packages/cli",
+                "directory": "apps/cli",
                 "dependsOn": [
                   "@open-qa-stack/api",
                   "@open-qa-stack/web",
@@ -97,9 +97,9 @@
       }
     },
     {
-      "files": ["packages/cli/src/connected/**"],
+      "files": ["apps/cli/src/connected/**"],
       "rules": {
-        "open-qa-stack/folder-boundaries": ["error", { "directory": "packages/cli/src/connected", "dependsOn": ["@open-qa-stack/domain"] }]
+        "open-qa-stack/folder-boundaries": ["error", { "directory": "apps/cli/src/connected", "dependsOn": ["@open-qa-stack/domain"] }]
       }
     }
   ]

@@ -18,7 +18,7 @@ To watch the agents work in a browser, serve the console of the same test reposi
 oqas --ui
 ```
 
-The command is a presentation of [the operations on sessions](../../engine/docs/engine.md#the-operations-on-sessions) of the engine, on the database of the instance: the same operations [the API](../../api/docs/sessions.md) says in HTTP, on the same database. A session opened in a terminal is listed, followed, spoken to and interrupted from the console of a server started on the same test repository, and a session opened from the console is listed, followed, spoken to and interrupted from a terminal.
+The command is a presentation of [the operations on sessions](../../../packages/engine/docs/engine.md#the-operations-on-sessions) of the engine, on the database of the instance: the same operations [the API](../../api/docs/sessions.md) says in HTTP, on the same database. A session opened in a terminal is listed, followed, spoken to and interrupted from the console of a server started on the same test repository, and a session opened from the console is listed, followed, spoken to and interrupted from a terminal.
 
 ## Commands
 
@@ -75,7 +75,7 @@ The commands that act on a session that exists run from any terminal, and from a
 
 ## The conversation
 
-`oqas`, in a terminal, opens a conversation on the test repository. It is one more presentation of the same operations, on the same database: what it shows of a session is what [the console](#the-console) shows, grouped the same way, and a session opened in one is followed in the other. As the console does, it [maps the knowledge that waits](../../engine/docs/engine.md#the-knowledge-mapped-as-it-is-added): a source with no card yet is mapped in a session of its own, listed as such; `oqas --brief` maps what its session reads first, as before.
+`oqas`, in a terminal, opens a conversation on the test repository. It is one more presentation of the same operations, on the same database: what it shows of a session is what [the console](#the-console) shows, grouped the same way, and a session opened in one is followed in the other. As the console does, it [maps the knowledge that waits](../../../packages/engine/docs/engine.md#the-knowledge-mapped-as-it-is-added): a source with no card yet is mapped in a session of its own, listed as such; `oqas --brief` maps what its session reads first, as before.
 
 ```text
 Open QA Stack · tests
@@ -146,7 +146,7 @@ A slash lists the commands as you type; Tab completes the first of them, and the
 
 ## Where the sessions are kept
 
-The sessions, their events and the messages sent to them are kept in [the database of the instance](../../store/docs/database.md): a SQLite file in the state folder of the test repository, `.oqas/oqas.db` unless `oqas.json` names another state folder, which the command makes when it is missing — or the database `OQAS_DATABASE_URL` names, when the variable is set. It is the database a server started with the same settings uses, which is all it takes for the two to show the same sessions. A SQLite file is brought to the schema of the version that opens it; a PostgreSQL server is not: the command stops with `3` when migrations are pending on it, and says to apply them with [the migration command](../../store/docs/database.md#migrations).
+The sessions, their events and the messages sent to them are kept in [the database of the instance](../../../packages/store/docs/database.md): a SQLite file in the state folder of the test repository, `.oqas/oqas.db` unless `oqas.json` names another state folder, which the command makes when it is missing — or the database `OQAS_DATABASE_URL` names, when the variable is set. It is the database a server started with the same settings uses, which is all it takes for the two to show the same sessions. A SQLite file is brought to the schema of the version that opens it; a PostgreSQL server is not: the command stops with `3` when migrations are pending on it, and says to apply them with [the migration command](../../../packages/store/docs/database.md#migrations).
 
 A command writes no other file of its own: no journal, no state, no inbox. What stays in the state folder beside the database is what the agents and the tests write, in every host: the cards and the domain index under `index/`, the plan and the state of each design under `designs/`, the traces of the agents under `traces/`, what Playwright wrote when each test was tried under `trials/`, and when the tests ran together under `runs/run-<date>/`. To keep the thread of a session as a file, export it:
 
@@ -264,7 +264,7 @@ The limits of the autonomy level of the configuration apply to every task. Its g
 
 ## The configuration
 
-The configuration of the test repository is kept in [the database of the instance](../../store/docs/database.md#the-revisions-of-the-configuration), its one source, as revisions, each the whole document with its date and its origin, by [the operations on the configuration](../../engine/docs/engine.md#the-operations-on-the-configuration). A run reads the revision in force; the console, the conversation and the commands change it. `oqas.json` is a copy of it, as a file: kept with the tests in git, or given to the continuous integration.
+The configuration of the test repository is kept in [the database of the instance](../../../packages/store/docs/database.md#the-revisions-of-the-configuration), its one source, as revisions, each the whole document with its date and its origin, by [the operations on the configuration](../../../packages/engine/docs/engine.md#the-operations-on-the-configuration). A run reads the revision in force; the console, the conversation and the commands change it. `oqas.json` is a copy of it, as a file: kept with the tests in git, or given to the continuous integration.
 
 - **The file gives an instance its first revision**: the first time a command, a session or the console meets an instance that keeps none, `oqas.json` becomes its first revision, of origin `file`.
 - **Afterwards the file is read only when you ask for it**: `oqas config import` takes it, when it differs from the revision in force. A file changed in an editor or by a checkout is not taken otherwise.
@@ -324,7 +324,7 @@ OPENAI_API_KEY is saved on this machine, out of the test repository.
 
 ## The knowledge
 
-The knowledge sources are declared in the configuration, each attached to the applications it describes, or to none for a source of the whole project. A source of `type` `document` declared `"stored": true` holds documents uploaded to the instance rather than files of the test repository: [the database of the instance](../../store/docs/database.md#the-documents-of-the-knowledge-sources) keeps them, and a session writes them to the state folder, where its agents read them.
+The knowledge sources are declared in the configuration, each attached to the applications it describes, or to none for a source of the whole project. A source of `type` `document` declared `"stored": true` holds documents uploaded to the instance rather than files of the test repository: [the database of the instance](../../../packages/store/docs/database.md#the-documents-of-the-knowledge-sources) keeps them, and a session writes them to the state folder, where its agents read them.
 
 ```console
 $ oqas knowledge add-document underwriting-guides guides/quotes.md guides/claims.md
@@ -473,7 +473,7 @@ A session is run by the process that opened it, and by no other: `oqas --brief` 
 
 ## The command and the engine
 
-The command holds no rule of a session: it reads its arguments, assembles the database of the instance with [`InstanceDatabase`](../../store/docs/database.md#the-database-of-an-instance-assembled) of `@open-qa-stack/store` as the API does, gives its stores to the `Sessions` and the `Configuration` of [`@open-qa-stack/engine`](../../engine/docs/engine.md#the-operations-on-sessions), and says one operation:
+The command holds no rule of a session: it reads its arguments, assembles the database of the instance with [`InstanceDatabase`](../../../packages/store/docs/database.md#the-database-of-an-instance-assembled) of `@open-qa-stack/store` as the API does, gives its stores to the `Sessions` and the `Configuration` of [`@open-qa-stack/engine`](../../../packages/engine/docs/engine.md#the-operations-on-sessions), and says one operation:
 
 | Command | Operation |
 | --- | --- |

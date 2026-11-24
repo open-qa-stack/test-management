@@ -1,6 +1,6 @@
 # Running the API
 
-`@open-qa-stack/api` is the back end of an instance: a NestJS application on the Fastify adapter. It keeps its state in one database, described in [the database](../../store/docs/database.md): a SQLite file in its test repository unless it is given another. It needs nothing installed beside it: no database server, identity provider, secret manager or cache. SQLite comes with the dependencies, as [a native module whose binaries are in its package](../../store/docs/database.md#sqlite). It is the process of an instance that stays: it serves the sessions under `/api`, and [the console](#the-console) beside them when it is given one, and runs those it is asked for with [the engine](../../engine/docs/engine.md), one at a time, in the test repository it is given. [The `oqas` command](../../cli/docs/solo-command.md), run on the same test repository, reaches the same database: the API serves the sessions a terminal opened, and a terminal reads, follows, speaks to and interrupts those the API runs.
+`@open-qa-stack/api` is the back end of an instance: a NestJS application on the Fastify adapter. It keeps its state in one database, described in [the database](../../../packages/store/docs/database.md): a SQLite file in its test repository unless it is given another. It needs nothing installed beside it: no database server, identity provider, secret manager or cache. SQLite comes with the dependencies, as [a native module whose binaries are in its package](../../../packages/store/docs/database.md#sqlite). It is the process of an instance that stays: it serves the sessions under `/api`, and [the console](#the-console) beside them when it is given one, and runs those it is asked for with [the engine](../../../packages/engine/docs/engine.md), one at a time, in the test repository it is given. [The `oqas` command](../../cli/docs/solo-command.md), run on the same test repository, reaches the same database: the API serves the sessions a terminal opened, and a terminal reads, follows, speaks to and interrupts those the API runs.
 
 ```sh
 pnpm --filter @open-qa-stack/api build
@@ -30,7 +30,7 @@ The API reads its configuration once, at startup, from environment variables onl
 The database is a setting, and has a default:
 
 - **Without `OQAS_DATABASE_URL`**, the database is a SQLite file, `oqas.db`, in the state folder of the test repository — `.oqas`, unless `oqas.json` names another under `repository.stateDir`. The API makes the folder and the file when they are missing; there is nothing to install and nothing to prepare. `oqas --init` has git ignore the file.
-- **With `OQAS_DATABASE_URL`**, the database is the one the URL names: a PostgreSQL server, `postgres://…`, or a SQLite file kept elsewhere, `sqlite:<path>`. Everything the API does is the same on both; [the database](../../store/docs/database.md#one-schema-two-databases) says what each is for.
+- **With `OQAS_DATABASE_URL`**, the database is the one the URL names: a PostgreSQL server, `postgres://…`, or a SQLite file kept elsewhere, `sqlite:<path>`. Everything the API does is the same on both; [the database](../../../packages/store/docs/database.md#one-schema-two-databases) says what each is for.
 
 `OQAS_CONSOLE` names the folder of [the built console](#the-console), which the API then serves on its own address.
 
@@ -38,7 +38,7 @@ One of `OQAS_DATABASE_URL` and `OQAS_REPOSITORY` must be set: the API refuses to
 
 `OQAS_REPOSITORY` names the test repository the sessions run in, on the machine of the API. Without it the API starts, serves the project and the sessions its database holds, and refuses to open a session with `503` and the code [`unavailable`](sessions.md#problems), in a detail that says what to set.
 
-The variables [the configuration of the test repository](../../domain/docs/configuration.md) names — the key of the model, the test accounts, a connection string — are read from the same environment by each run, as the command line reads them: set them for the API as you would for `oqas`. The programs a run starts — npm, the tests — are given the variables they need and no other: the URL of the database does not reach them.
+The variables [the configuration of the test repository](../../../packages/domain/docs/configuration.md) names — the key of the model, the test accounts, a connection string — are read from the same environment by each run, as the command line reads them: set them for the API as you would for `oqas`. The programs a run starts — npm, the tests — are given the variables they need and no other: the URL of the database does not reach them.
 
 A missing required variable or an invalid value stops the startup before anything listens. The process exits with code `1` and writes to the error output one line per variable at fault, naming the variable and the rule it breaks, never its value:
 
@@ -61,12 +61,12 @@ The API brings its database in order before it listens. What it does depends on 
 **A PostgreSQL server** may be shared, and may come back when it is away:
 
 - when the database answers and has applied every migration, the API starts;
-- when the database answers but migrations are pending, the API does not start: the process exits with code `1` and writes to the error output how many migrations are pending, and that [the migration command](../../store/docs/database.md#migrations) applies them;
+- when the database answers but migrations are pending, the API does not start: the process exits with code `1` and writes to the error output how many migrations are pending, and that [the migration command](../../../packages/store/docs/database.md#migrations) applies them;
 - when the database cannot be reached, the API starts all the same, logs a warning, and reports itself not ready until the database answers. Until then, its routes of the project and of the sessions answer `503` with the code [`unavailable`](sessions.md#problems); once the database answers, they serve it, without the API being started again.
 
 Once its database answered, the API puts it in order before it runs anything: it saves the project of its test repository, interrupts the sessions a process that died left `running` — a process that was killed in the middle of one — which it logs, and takes over the sessions such a process left waiting, which it starts in the order they were asked for. When the database did not answer at startup, this is done when a session is next opened.
 
-A process died when it stopped, or when it has not beaten on its sessions for 15 seconds: every process that runs sessions [beats on them in the database](../../engine/docs/engine.md#several-processes-on-one-store), every second. The sessions of a process that beats are left to it: an API that starts while a terminal runs `oqas --brief` on the same database interrupts nothing, serves that session, and takes it over in no case. An API that is killed and started again within those 15 seconds finds its former sessions not silent yet: it sees to them at the beat that follows, not at startup.
+A process died when it stopped, or when it has not beaten on its sessions for 15 seconds: every process that runs sessions [beats on them in the database](../../../packages/engine/docs/engine.md#several-processes-on-one-store), every second. The sessions of a process that beats are left to it: an API that starts while a terminal runs `oqas --brief` on the same database interrupts nothing, serves that session, and takes it over in no case. An API that is killed and started again within those 15 seconds finds its former sessions not silent yet: it sees to them at the beat that follows, not at startup.
 
 On a server, pending migrations are checked before the API listens, and by the readiness route; the other routes do not check them. A database that cannot be reached at startup and comes back later with migrations pending makes the readiness route answer `migrations_pending`, while the other routes keep serving on that schema: route requests to an instance only once it reports itself ready, and apply the migrations to make it ready.
 
@@ -139,7 +139,7 @@ It takes everything the API is started with as settings, and reads nothing else 
 
 ## Sessions
 
-The routes of the project and of the sessions and the stream of their events are described in [the sessions](sessions.md). The API hosts [the operations on sessions](../../engine/docs/engine.md#the-operations-on-sessions) of the engine: it keeps the sessions in the database, and runs those opened through it itself, one at a time, by calling the engine in its own process. There is no other process to start. What another process of the instance asks of a session the API runs — a message, an interruption, sent by `oqas say` and `oqas stop` — waits in the database, where the API reads it at its next beat, within a second.
+The routes of the project and of the sessions and the stream of their events are described in [the sessions](sessions.md). The API hosts [the operations on sessions](../../../packages/engine/docs/engine.md#the-operations-on-sessions) of the engine: it keeps the sessions in the database, and runs those opened through it itself, one at a time, by calling the engine in its own process. There is no other process to start. What another process of the instance asks of a session the API runs — a message, an interruption, sent by `oqas say` and `oqas stop` — waits in the database, where the API reads it at its next beat, within a second.
 
 The API holds no connection besides those to its database, the pool of a server or the one of a file: the streams of the sessions it runs are woken in memory, as it writes their events, and the stream of a session another process runs reads the database again twice a second.
 
@@ -157,6 +157,6 @@ When the session did not end in time — an installation or the tests were under
 
 NestJS relies on legacy TypeScript decorators and on the metadata the compiler emits for them, which Node cannot strip from a `.ts` file. Unlike the other packages, this one is therefore compiled to `dist/` before it runs, and its tests run on the compiled files; coverage is mapped back to `src/` through the source maps. The packages of the workspace it imports, `@open-qa-stack/engine` and `@open-qa-stack/store` among them, hold no decorator: Node runs them from their sources.
 
-The tests that go through a database are written once and run on both, a SQLite file and a real PostgreSQL server; see [the database](../../store/docs/database.md#tests). Those that run a session do so in a test repository made for them, with a model server that answers as scripted and doubles of npm and Playwright: no test calls a model.
+The tests that go through a database are written once and run on both, a SQLite file and a real PostgreSQL server; see [the database](../../../packages/store/docs/database.md#tests). Those that run a session do so in a test repository made for them, with a model server that answers as scripted and doubles of npm and Playwright: no test calls a model.
 
 Under that mapping, a line before the first or after the last statement that emits code counts as uncovered: in a module that holds code, put the value imports first, and keep a type declared alone at the top or at the bottom of a module in its own file.

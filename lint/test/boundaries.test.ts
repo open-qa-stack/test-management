@@ -8,12 +8,12 @@ import { DemoWorkspace, lint, ROOT, type LintConfiguration } from "./demo-worksp
 const PACKAGES = {
   domain: "packages/domain",
   store: "packages/store",
-  api: "packages/api",
+  api: "apps/api",
   harness: "packages/harness",
   tools: "packages/tools",
   agents: "packages/agents",
   engine: "packages/engine",
-  cli: "packages/cli",
+  cli: "apps/cli",
   web: "apps/web",
 } as const;
 
@@ -109,7 +109,7 @@ describe("criterion 3 — a refused couple is refused whatever the form of the i
   /** The code of each form, by the name of its file, and the line and the column where the import starts. */
   const forms: Readonly<Record<string, readonly [string, number, number]>> = {
     "subpath.ts": ['import { runner } from "@open-qa-stack/harness/runner";\nexport const used = runner;\n', 1, 1],
-    "relative.ts": ['import { runner } from "../../../harness/src/index.ts";\nexport const used = runner;\n', 1, 1],
+    "relative.ts": ['import { runner } from "../../../../packages/harness/src/index.ts";\nexport const used = runner;\n', 1, 1],
     "installed.ts": ['import { runner } from "../../node_modules/@open-qa-stack/harness/src/index.ts";\nexport const used = runner;\n', 1, 1],
     "dynamic.ts": ['export const harness = await import("@open-qa-stack/harness");\n', 1, 30],
     "template.ts": ["export const harness = await import(`@open-qa-stack/harness`);\n", 1, 30],
@@ -129,7 +129,7 @@ describe("criterion 3 — a refused couple is refused whatever the form of the i
     "re-export.ts": ['export { runner } from "@open-qa-stack/harness";\n', 1, 1],
     "re-export-all.ts": ['export * from "@open-qa-stack/harness";\n', 1, 1],
   };
-  const file = (form: string): string => `packages/api/src/forms/${form}`;
+  const file = (form: string): string => `apps/api/src/forms/${form}`;
   const of = linted(Object.fromEntries(Object.entries(forms).map(([form, [code]]) => [file(form), code])));
   for (const [form, [, line, column]] of Object.entries(forms)) {
     it(`refuses api → harness by a ${form.slice(0, form.indexOf("."))} import`, () => {
@@ -198,12 +198,7 @@ describe("criterion 6 — the domain holds no decorator, whatever its kind", () 
 
 describe("criterion 7 — the SDK of the agents is imported by the implementation of the agent runtime only", () => {
   const sdk = 'import { CopilotClient } from "@github/copilot-sdk";\nexport const client = CopilotClient;\n';
-  const refused = [
-    "packages/harness/src/runner/session.ts",
-    "packages/engine/src/run/session.ts",
-    "packages/cli/src/solo/session.ts",
-    "packages/api/src/session.ts",
-  ];
+  const refused = ["packages/harness/src/runner/session.ts", "packages/engine/src/run/session.ts", "apps/cli/src/solo/session.ts", "apps/api/src/session.ts"];
   const implementation = "packages/harness/src/copilot/session.ts";
   const dynamic = "packages/engine/src/dynamic.ts";
   const installed = "packages/engine/src/installed.ts";
@@ -227,8 +222,8 @@ describe("criterion 7 — the SDK of the agents is imported by the implementatio
 });
 
 describe("criterion 8 — the connected mode of the command line imports only the domain", () => {
-  const connected = (file: string): string => `packages/cli/src/connected/${file}`;
-  const solo = (file: string): string => `packages/cli/src/solo/${file}`;
+  const connected = (file: string): string => `apps/cli/src/connected/${file}`;
+  const solo = (file: string): string => `apps/cli/src/solo/${file}`;
   const refused = ["harness", "store", "tools"] as const;
   const of = linted({
     ...Object.fromEntries(refused.map((target) => [connected(`${target}.ts`), byName(name(target))])),
@@ -240,12 +235,12 @@ describe("criterion 8 — the connected mode of the command line imports only th
   });
   it("is set by an override of the lint configuration on the folder of the connected mode", async () => {
     const configuration = (await import(join(ROOT, ".oxlintrc.json"), { with: { type: "json" } })) as { default: { overrides: { files: string[] }[] } };
-    assert.ok(configuration.default.overrides.some(({ files }) => files.length === 1 && files[0] === "packages/cli/src/connected/**"));
+    assert.ok(configuration.default.overrides.some(({ files }) => files.length === 1 && files[0] === "apps/cli/src/connected/**"));
   });
   for (const target of refused) {
     it(`refuses ${target} in connected/`, () => {
       const file = connected(`${target}.ts`);
-      assert.deepEqual(of(file), [forbidden(file, 2, "packages/cli/src/connected", name(target), name("domain"), "folder-boundaries")]);
+      assert.deepEqual(of(file), [forbidden(file, 2, "apps/cli/src/connected", name(target), name("domain"), "folder-boundaries")]);
     });
   }
   it("refuses the SDK of the agents in connected/", () => {
@@ -256,12 +251,12 @@ describe("criterion 8 — the connected mode of the command line imports only th
   });
   it("refuses a file of solo/ imported by a relative path in connected/", () => {
     assert.deepEqual(of(connected("solo.ts")), [
-      `${connected("solo.ts")}:1:1: packages/cli/src/connected may not import ${solo("solo-command.ts")} by a relative path that leaves its folder. [Error/open-qa-stack(folder-boundaries)]`,
+      `${connected("solo.ts")}:1:1: apps/cli/src/connected may not import ${solo("solo-command.ts")} by a relative path that leaves its folder. [Error/open-qa-stack(folder-boundaries)]`,
     ]);
   });
   it("refuses harness reached by a path through the installed packages in connected/", () => {
     const file = connected("installed.ts");
-    assert.deepEqual(of(file), [forbidden(file, 1, "packages/cli/src/connected", name("harness"), name("domain"), "folder-boundaries")]);
+    assert.deepEqual(of(file), [forbidden(file, 1, "apps/cli/src/connected", name("harness"), name("domain"), "folder-boundaries")]);
   });
   for (const target of refused) {
     it(`accepts ${target} in solo/`, () => {

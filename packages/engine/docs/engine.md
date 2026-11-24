@@ -1,6 +1,6 @@
 # The engine
 
-The engine is the application core of Open QA Stack, and holds three things. `Run` is one run on a test repository: every step, in one place, whatever starts it. `Sessions` is [the operations on the sessions of an instance](#the-operations-on-sessions) — open one, speak to it, resume it once it ended, interrupt it, read them, follow one — which run each session with a `Run`, in the process that hosts them. `Configuration` is [the operations on the configuration of an instance](#the-operations-on-the-configuration) — read it, check a change, save one, take or write `oqas.json` — which keep its revisions in the database. No rule of the product lives outside: [the `oqas` command](../../cli/docs/solo-command.md) says the operations in a terminal, and [the API](../../api/docs/sessions.md) says them in HTTP, both on the database of the instance.
+The engine is the application core of Open QA Stack, and holds three things. `Run` is one run on a test repository: every step, in one place, whatever starts it. `Sessions` is [the operations on the sessions of an instance](#the-operations-on-sessions) — open one, speak to it, resume it once it ended, interrupt it, read them, follow one — which run each session with a `Run`, in the process that hosts them. `Configuration` is [the operations on the configuration of an instance](#the-operations-on-the-configuration) — read it, check a change, save one, take or write `oqas.json` — which keep its revisions in the database. No rule of the product lives outside: [the `oqas` command](../../../apps/cli/docs/solo-command.md) says the operations in a terminal, and [the API](../../../apps/api/docs/sessions.md) says them in HTTP, both on the database of the instance.
 
 ```ts
 import { liveRuntime, Run } from "@open-qa-stack/engine";
@@ -29,7 +29,7 @@ Each step starts only when the one before succeeded; once the prerequisites pass
 5. **Execution.** The tests designed run together, and the harness pronounces a verdict per test.
 6. **Summary.** The messages no agent received are told, the runtime of the agents is closed, and the state of the run is written.
 
-[The page of the command](../../cli/docs/solo-command.md#steps) says what each step does for the person who asks for the tests.
+[The page of the command](../../../apps/cli/docs/solo-command.md#steps) says what each step does for the person who asks for the tests.
 
 `run()` resolves with the code the run ends with, one of the `ExitCode` of `@open-qa-stack/domain`: `passed` (0), `failed` (1), `unsettled` (2), `configuration` (3), `prerequisite` (4) or `interrupted` (5). A step that stops on an unexpected error is told in the journal and ends the run with `interrupted`. `run()` rejects only when a port does: the journal refuses an entry outside a step, or the state cannot be written.
 
@@ -148,15 +148,15 @@ The operations of the engine are listed in `OPERATIONS` of `@open-qa-stack/domai
 
 | Client | Its test of parity | What the test checks |
 |---|---|---|
-| The API, and the console through it | `packages/api/test/operation-parity.test.ts`, `apps/web/test/operation-parity.test.ts` | The route answers, not as a route the framework does not know; the client of the console has the method, and a screen calls it. |
-| The command | `packages/cli/test/operation-parity.test.ts` | The arguments are ones the command takes. |
+| The API, and the console through it | `apps/api/test/operation-parity.test.ts`, `apps/web/test/operation-parity.test.ts` | The route answers, not as a route the framework does not know; the client of the console has the method, and a screen calls it. |
+| The command | `apps/cli/test/operation-parity.test.ts` | The arguments are ones the command takes. |
 | The conversation | the same file | The command after a slash is one of the conversation. |
 
 An operation added to the list does not compile in these tests until each client says how it offers it, or names it missing with why; the count of the operations missing in a client only goes down. The engine checks the other way: `packages/engine/test/operations.test.ts` refuses a class it exports that it does not name, and a public method of its classes that is neither in the list nor in `HOST_METHODS`, the methods a host calls as it starts or stops, with why each is one.
 
 ## The operations on sessions
 
-`Sessions` is what an instance does with its sessions, with no HTTP, no terminal and no SQL in it. A presentation calls these operations and adds nothing to them: [the API](../../api/docs/sessions.md) in HTTP, [the `oqas` command](../../cli/docs/solo-command.md) in a terminal.
+`Sessions` is what an instance does with its sessions, with no HTTP, no terminal and no SQL in it. A presentation calls these operations and adds nothing to them: [the API](../../../apps/api/docs/sessions.md) in HTTP, [the `oqas` command](../../../apps/cli/docs/solo-command.md) in a terminal.
 
 ```ts
 import { Sessions } from "@open-qa-stack/engine";
@@ -281,7 +281,7 @@ A host gives `Sessions` a `SessionsHost`:
 | `writerPace`, optional | How a write the store failed to take is made again: 250 milliseconds at first, 10 seconds at most, by default. |
 | `pace`, optional | The paces of the process among the others that reach the store: `DEFAULT_PACE` by default. |
 
-A host calls `start()` when it starts, or lets `open()` do it: the revision in force is read, a first file that is not valid left to the runs to report, and the project the store keeps is named after the test repository, with the applications of the revision in force. It calls `stop(withinMs)` before it closes its store. The two presentations: [the API](../../api/docs/sessions.md) starts with its server and stays; [`oqas --brief`](../../cli/docs/solo-command.md) hosts the session it opens. Both are given the stores of the sessions, of the configuration, of the documents, of the memories of the agents and of the executions by `InstanceDatabase` of [`@open-qa-stack/store`](../../store/docs/database.md#the-database-of-an-instance-assembled), which assembles the database of an instance once for every process.
+A host calls `start()` when it starts, or lets `open()` do it: the revision in force is read, a first file that is not valid left to the runs to report, and the project the store keeps is named after the test repository, with the applications of the revision in force. It calls `stop(withinMs)` before it closes its store. The two presentations: [the API](../../../apps/api/docs/sessions.md) starts with its server and stays; [`oqas --brief`](../../../apps/cli/docs/solo-command.md) hosts the session it opens. Both are given the stores of the sessions, of the configuration, of the documents, of the memories of the agents and of the executions by `InstanceDatabase` of [`@open-qa-stack/store`](../../store/docs/database.md#the-database-of-an-instance-assembled), which assembles the database of an instance once for every process.
 
 ## The operations on the configuration
 
@@ -325,15 +325,15 @@ Their rules:
 - `save(name, value)` saves the value of one of them in place of the one saved. It raises `UnknownSecretError` for a variable the configuration does not name, `SecretRefusedError` for an empty value or a variable the environment of the process sets, which wins, and `NoRepositoryError` on a host without a test repository.
 - `current()` gives the environment the runs read: that of the process, completed with the values saved. `Secrets` is an `EnvironmentSource`: a host gives it to the operations on sessions and to `ModelConnection` in place of an environment, and they read it as each run, each test, starts, so that a value saved by another process is read by the next one.
 
-The values are kept by a `SecretStore`: `FileSecretStore` keeps them in `secrets/values.json` of the state folder of the test repository, a file only its owner reads, in a folder whose own `.gitignore` leaves it out of git, whatever the `.gitignore` of the repository says. No operation gives a value back. The [route of the API](../../api/docs/configuration.md#testing-the-connection-to-the-model) lists the states.
+The values are kept by a `SecretStore`: `FileSecretStore` keeps them in `secrets/values.json` of the state folder of the test repository, a file only its owner reads, in a folder whose own `.gitignore` leaves it out of git, whatever the `.gitignore` of the repository says. No operation gives a value back. The [route of the API](../../../apps/api/docs/configuration.md#testing-the-connection-to-the-model) lists the states.
 
 ## Testing a knowledge source
 
-`KnowledgeSources` tests that a knowledge source answers before anything is saved or indexed, so that a person corrects a path, an address or a connection string as they declare it. `check(source, typed)` takes the source as it is drafted, with the connection string the person typed for a database and did not save yet, and reads it as the cartography reads it first (`knowledgeInventory` of the tools): it answers `ok` with the number of items the source holds, `failed` with why, or `unchecked` for logs, read while a session runs. The documents the instance keeps are counted in its store. Nothing calls the model, nothing is written, and a host without a test repository tests no source read in one. The [route of the API](../../api/docs/knowledge.md#testing-a-source) and `oqas knowledge check` call it.
+`KnowledgeSources` tests that a knowledge source answers before anything is saved or indexed, so that a person corrects a path, an address or a connection string as they declare it. `check(source, typed)` takes the source as it is drafted, with the connection string the person typed for a database and did not save yet, and reads it as the cartography reads it first (`knowledgeInventory` of the tools): it answers `ok` with the number of items the source holds, `failed` with why, or `unchecked` for logs, read while a session runs. The documents the instance keeps are counted in its store. Nothing calls the model, nothing is written, and a host without a test repository tests no source read in one. The [route of the API](../../../apps/api/docs/knowledge.md#testing-a-source) and `oqas knowledge check` call it.
 
 ## Where the cartography stands
 
-`KnowledgeMapping.state()` tells where the cartography of the knowledge stands, by the configuration in force: each source the cartography reads in the first environment, `mapped` or `truncated` by its card, `mapping` while a session of purpose `map` runs, `waiting` otherwise; and the index, when one is written. A card or an index that cannot be read is none. The [route of the API](../../api/docs/knowledge.md#where-the-cartography-stands), the screen of the knowledge of the console and `oqas knowledge mapping` call it.
+`KnowledgeMapping.state()` tells where the cartography of the knowledge stands, by the configuration in force: each source the cartography reads in the first environment, `mapped` or `truncated` by its card, `mapping` while a session of purpose `map` runs, `waiting` otherwise; and the index, when one is written. A card or an index that cannot be read is none. The [route of the API](../../../apps/api/docs/knowledge.md#where-the-cartography-stands), the screen of the knowledge of the console and `oqas knowledge mapping` call it.
 
 ## The operations on documents
 
@@ -384,7 +384,7 @@ const tests = await new RepositoryTests(repositoryRoot, instance.configuration).
 | --- | --- |
 | `list()` | The tests of the repository, in the order of their paths, each with its title, its steps, its tags and what they say of it — its applications, level, domain, functionality, kind, case and data, by `testFacets` of `@open-qa-stack/domain`. None for a host without a repository, or before a revision is in force. |
 
-[The API](../../api/docs/tests.md) says it in HTTP.
+[The API](../../../apps/api/docs/tests.md) says it in HTTP.
 
 ## The operations on the executions of tests
 
@@ -408,7 +408,7 @@ const page = await new Executions(instance.executions).page({ limit: 25 });
 
 `PastRuns` takes into the store the runs the test repository ran before the instance kept its executions: `take()` keeps each folder `<stateDir>/runs/run-<date>/` whose report the store does not hold, the earliest first, dated by the start of its run, without a session nor a version, and says how many. The API calls it when it starts.
 
-[The API](../../api/docs/executions.md) says it in HTTP.
+[The API](../../../apps/api/docs/executions.md) says it in HTTP.
 
 ## The operations on campaigns
 
@@ -426,7 +426,7 @@ const page = await new Executions(instance.executions).page({ limit: 25 });
 
 The rules — the changes a state allows, the order of the tests chosen, what came of each test — are functions of the domain: `campaignTransition`, `chosenTests` and `campaignResults`. A refusal is `CampaignRefusedError`, a campaign the store does not keep `UnknownCampaignError`.
 
-[The API](../../api/docs/campaigns.md) says it in HTTP.
+[The API](../../../apps/api/docs/campaigns.md) says it in HTTP.
 
 ## Tests
 

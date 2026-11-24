@@ -24,7 +24,7 @@ describe("the arguments of the check", () => {
       tests: { kind: "part", index: 2, count: 3 },
     });
     assert.deepEqual(checkOptions(["--part", "own"])?.tests, { kind: "own" });
-    assert.deepEqual(checkOptions(["--part", "own:packages/api"])?.tests, { kind: "own", only: "packages/api" });
+    assert.deepEqual(checkOptions(["--part", "own:apps/api"])?.tests, { kind: "own", only: "apps/api" });
     assert.deepEqual(checkOptions(["--merge", "--only", "tests"]), { packages: { kind: "all" }, before: false, tests: { kind: "merge" } });
   });
 

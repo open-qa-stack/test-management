@@ -12,7 +12,7 @@ Which database it is is a setting. The store has one schema, one series of migra
 | `sqlite:<path>` | SQLite, in the file named | The same, with the file kept elsewhere. `sqlite::memory:` keeps it in memory, for a test. |
 | `postgres://…`, `postgresql://…` | A PostgreSQL server | An instance whose database is kept on a server: shared, backed up and watched as the others of its host are. |
 
-The URL is what every process of the instance reads from `OQAS_DATABASE_URL`, a secret read from the environment only: the API (see [running the API](../../api/docs/running.md#configuration)) and the `oqas` command alike. `instanceDatabaseUrl` resolves it for both: the URL given or, without one, the file in the state folder of the test repository.
+The URL is what every process of the instance reads from `OQAS_DATABASE_URL`, a secret read from the environment only: the API (see [running the API](../../../apps/api/docs/running.md#configuration)) and the `oqas` command alike. `instanceDatabaseUrl` resolves it for both: the URL given or, without one, the file in the state folder of the test repository.
 
 Supported means tested: every test of the store and of the API that goes through a database is written once and runs on both, at every commit. The versions are those the tests run on: the SQLite of the better-sqlite3 the workspace pins, and PostgreSQL 18, in the image named in `compose.yaml` at the root of the repository, `postgres:18.7-alpine3.24`.
 
@@ -100,7 +100,7 @@ The store writes a date and a JSON value as the same text to both, and reads bac
 
 ## Tables
 
-The database keeps the project of the instance, its sessions, the events of each session, the messages a person sent to it, the revisions of its configuration, the documents uploaded to its knowledge sources, the executions of tests and their versions, the campaigns, and the memories of the agents. [The sessions](../../api/docs/sessions.md#where-sessions-are-kept-and-what-runs-them) tell who writes what.
+The database keeps the project of the instance, its sessions, the events of each session, the messages a person sent to it, the revisions of its configuration, the documents uploaded to its knowledge sources, the executions of tests and their versions, the campaigns, and the memories of the agents. [The sessions](../../../apps/api/docs/sessions.md#where-sessions-are-kept-and-what-runs-them) tell who writes what.
 
 `project` holds one row at most: a check on its key refuses a second one.
 

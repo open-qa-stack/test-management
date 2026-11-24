@@ -13,7 +13,7 @@ import { servedNotice } from "../src/solo/served-console.ts";
 import { chain, QUICK, Terminal, WITNESS, workspace, type Ran } from "./support/terminal.ts";
 
 const MAIN = fileURLToPath(new URL("../src/main.ts", import.meta.url));
-const APPS = fileURLToPath(new URL("../../../apps/", import.meta.url));
+const APPS = fileURLToPath(new URL("../../", import.meta.url));
 
 const PAGE = "<!doctype html><title>console</title>";
 
