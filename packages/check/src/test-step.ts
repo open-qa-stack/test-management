@@ -54,8 +54,9 @@ export interface TestStepOptions {
  *
  * @remarks
  * A package is tested one of two ways. One with a `test` script of its own runs it, a few such packages at a
- * time: its script starts the test runner of Node.js with `--experimental-test-coverage`, which Node.js does not
- * accept from `NODE_OPTIONS`. Every other package with source files is tested by the `test` script of the root
+ * time, and leaves its coverage report in the folder it is given: its script starts the test runner of Node.js
+ * with `--experimental-test-coverage`, which Node.js does not accept from `NODE_OPTIONS`, and is told there where
+ * to write the report; or it measures another way, and reads the folder from `OQAS_COVERAGE_DIRECTORY`. Every other package with source files is tested by the `test` script of the root
  * of the workspace, which runs them all in one pool of processes sized to the machine and writes its coverage
  * report, in the LCOV format, in the folder `OQAS_COVERAGE_DIRECTORY` names.
  *
@@ -123,7 +124,7 @@ export class TestStep implements Step {
             )
           : [];
       const together = kind === "own" || shared.length === 0 ? [] : [() => this.testTogether(shared, typesOnly, join(reports, "workspace"))];
-      const runs = [...together, ...own.map((workspacePackage, index) => () => this.test(workspacePackage, typesOnly, join(reports, `${index}.info`)))];
+      const runs = [...together, ...own.map((workspacePackage, index) => () => this.test(workspacePackage, typesOnly, join(reports, String(index))))];
       const findings = await eachOf(runs, PACKAGES_AT_ONCE, (run) => run());
       if (this.keep !== undefined) {
         await mkdir(dirname(this.keep), { recursive: true });
@@ -162,7 +163,14 @@ export class TestStep implements Step {
     ];
   }
 
-  private async test(workspacePackage: WorkspacePackage, typesOnly: ReadonlySet<string>, report: string): Promise<string[]> {
+  /**
+   * Runs the test script of a package, and reads what it covered from the report it leaves in the folder it is given: the
+   * test runner of Node.js is told to write it there, and a script that measures another way reads the folder from
+   * `OQAS_COVERAGE_DIRECTORY`.
+   */
+  private async test(workspacePackage: WorkspacePackage, typesOnly: ReadonlySet<string>, folder: string): Promise<string[]> {
+    await mkdir(folder, { recursive: true });
+    const report = join(folder, WORKSPACE_REPORT);
     const options = [
       process.env["NODE_OPTIONS"],
       ...COVERAGE,
@@ -172,7 +180,7 @@ export class TestStep implements Step {
       "--test-reporter=lcov",
       `"--test-reporter-destination=${report}"`,
     ];
-    const env = { ...process.env, NODE_OPTIONS: options.filter((option) => option !== undefined).join(" ") };
+    const env = { ...process.env, [COVERAGE_DIRECTORY]: folder, NODE_OPTIONS: options.filter((option) => option !== undefined).join(" ") };
     const failures = await new ScriptStep(this.name, workspacePackage.path, "test", env, this.write).run();
     const covered = await this.report(report, workspacePackage.path);
     const code = codeOf(workspacePackage, typesOnly);

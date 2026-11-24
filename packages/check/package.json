@@ -9,6 +9,9 @@
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "test": "node --test --disable-warning=ExperimentalWarning --experimental-test-coverage --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 --test-coverage-include='src/**' 'test/**/*.test.ts'"
+    "test": "c8 --reporter=lcovonly --reporter=text-summary --report-dir=\"${OQAS_COVERAGE_DIRECTORY:-coverage}\" --temp-directory=\"${OQAS_COVERAGE_DIRECTORY:-coverage}/tmp\" --include='src/**' --check-coverage --per-file --lines=100 --branches=100 --functions=100 vitest run"
+  },
+  "devDependencies": {
+    "c8": "12.0.0"
   }
 }
