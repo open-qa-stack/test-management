@@ -1,8 +1,8 @@
 # Configuration
 
-The configuration of an instance — its applications and their environments, what is known of them, the model, the autonomy of the agents, how the tests are designed and where they go — is what `oqas.json` holds. The instance keeps it in its database, its one source, as revisions, each the whole document with its date and its origin; the `oqas.json` of the test repository the API was given is a copy, which gives the instance its first revision and is taken or written when a client asks for it. The API reads the configuration in force and its history, checks a change without recording it, saves one, and takes or writes the file. Each route is one of [the operations on the configuration](../../engine/docs/engine.md#the-operations-on-the-configuration) of the engine, said in HTTP. The web console edits the configuration through these routes.
+The configuration of an instance — its applications and their environments, what is known of them, the model, the autonomy of the agents, how the tests are designed and where they go — is what `oqas.json` holds. The instance keeps it in its database, its one source, as revisions, each the whole document with its date and its origin; the `oqas.json` of the test repository the API was given is a copy, which gives the instance its first revision and is taken or written when a client asks for it. The API reads the configuration in force and its history, checks a change without recording it, saves one, and takes or writes the file. Each route is one of [the operations on the configuration](../../../packages/engine/docs/engine.md#the-operations-on-the-configuration) of the engine, said in HTTP. The web console edits the configuration through these routes.
 
-The shapes of every body are the types of `@open-qa-stack/domain/sessions`; the document is the configuration [as `oqas.json` holds it](../../domain/docs/configuration.md). A client ignores a field or a value it does not know.
+The shapes of every body are the types of `@open-qa-stack/domain/sessions`; the document is the configuration [as `oqas.json` holds it](../../../packages/domain/docs/configuration.md). A client ignores a field or a value it does not know.
 
 | Route | Answer |
 |---|---|
@@ -95,7 +95,7 @@ HTTP/1.1 200 OK
 {"errors":[{"kind":"structure","path":"/applications","rule":"too-few-items","message":"Too few items."}]}
 ```
 
-The body is the configuration itself. The answer lists every error the schema of `oqas.json` and its rules find, the environment left out, each with its `kind`, its `path` — a JSON Pointer to the field at fault, `""` for the whole document — its `rule` and its `message`, as [the configuration file](../../domain/docs/configuration.md#validation) describes them: a client shows each beside its field. An empty list is a valid configuration. Nothing is recorded.
+The body is the configuration itself. The answer lists every error the schema of `oqas.json` and its rules find, the environment left out, each with its `kind`, its `path` — a JSON Pointer to the field at fault, `""` for the whole document — its `rule` and its `message`, as [the configuration file](../../../packages/domain/docs/configuration.md#validation) describes them: a client shows each beside its field. An empty list is a valid configuration. Nothing is recorded.
 
 ## Testing the connection to the model
 

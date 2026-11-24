@@ -2,7 +2,7 @@
 
 The console of an instance: a React application built with Vite. As a rule of the workspace, it may import no package of the workspace other than `@open-qa-stack/domain`, and of it only the contract of its API, `@open-qa-stack/domain/sessions` — the sessions, and the configuration — : the rest of the domain runs on Node.js.
 
-The console shows the agents at work, live. It holds no sample data: everything it shows comes from the API of its instance, [`@open-qa-stack/api`](../../packages/api/README.md). Its first screen takes a request, which opens a session, and lists the sessions, the one whose agents are working first; the thread of a session fills event by event, and a session that ended can be replayed step by step. [The configuration](#the-configuration) of the project is shown, changed and saved in a screen of its own. The other parts of the console are named in its navigation as “soon”, and open nothing yet.
+The console shows the agents at work, live. It holds no sample data: everything it shows comes from the API of its instance, [`@open-qa-stack/api`](../api/README.md). Its first screen takes a request, which opens a session, and lists the sessions, the one whose agents are working first; the thread of a session fills event by event, and a session that ended can be replayed step by step. [The configuration](#the-configuration) of the project is shown, changed and saved in a screen of its own. The other parts of the console are named in its navigation as “soon”, and open nothing yet.
 
 ## Build and run
 
@@ -11,7 +11,7 @@ From the root of the workspace:
 | Command                                  | What it does                                                                                                                     |
 | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | `pnpm --filter @open-qa-stack/web dev`   | Serves the console with Vite's development server; what it asks under `/api` goes to the API of an instance on `127.0.0.1:8080`. |
-| `oqas --ui`                              | Serves the built console and the API of a test repository on one address, in one process: see [the command](../../packages/cli/docs/solo-command.md#the-console). |
+| `oqas --ui`                              | Serves the built console and the API of a test repository on one address, in one process: see [the command](../cli/docs/solo-command.md#the-console). |
 | `pnpm --filter @open-qa-stack/web build` | Builds the console into `apps/web/dist/`.                                                                                        |
 | `pnpm check`                             | Type-checks, builds every package, the console included, and runs the tests; it fails if the console does not build.             |
 

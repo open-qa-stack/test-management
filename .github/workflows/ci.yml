@@ -96,6 +96,11 @@ jobs:
       fail-fast: false
       matrix:
         package: [api, check]
+        include:
+          - package: api
+            folder: apps/api
+          - package: check
+            folder: packages/check
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -110,7 +115,7 @@ jobs:
         run: pnpm build
       - name: Tests
         # The tests of the API on PostgreSQL start a disposable server with the Docker of the runner.
-        run: pnpm check --part own:packages/${{ matrix.package }} ${{ github.event_name == 'pull_request' && format('--affected origin/{0}', github.event.pull_request.base.ref) || '' }}
+        run: pnpm check --part own:${{ matrix.folder }} ${{ github.event_name == 'pull_request' && format('--affected origin/{0}', github.event.pull_request.base.ref) || '' }}
         env:
           OQAS_COVERAGE_REPORT: coverage/own-${{ matrix.package }}.info
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

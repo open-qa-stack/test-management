@@ -30,11 +30,11 @@ describe("the rule that keeps each package within its table", () => {
     {
       packages: {
         "@open-qa-stack/domain": { directory: "packages/domain", dependsOn: [], external: ["zod"] },
-        "@open-qa-stack/api": { directory: "packages/api", dependsOn: ["@open-qa-stack/domain"] },
+        "@open-qa-stack/api": { directory: "apps/api", dependsOn: ["@open-qa-stack/domain"] },
       },
     },
   ];
-  const api = at("packages/api/src/rule.ts");
+  const api = at("apps/api/src/rule.ts");
   const domain = at("packages/domain/src/rule.ts");
   const refused = (messageId: string, source: string, target: string, allowed: string) => ({ messageId, data: { source, target, allowed } });
   tester.run("package-boundaries", packageBoundaries, {
@@ -70,13 +70,13 @@ describe("the rule that keeps each package within its table", () => {
       {
         filename: api,
         options,
-        code: 'import { rule } from "../../domain/src/rule.ts";',
+        code: 'import { rule } from "../../../packages/domain/src/rule.ts";',
         errors: [refused("relative", "@open-qa-stack/api", "@open-qa-stack/domain", "@open-qa-stack/domain")],
       },
       {
         filename: api,
         options,
-        code: 'export * from "../../testing/src/index.ts";\nexport { other } from "/elsewhere/other.ts";',
+        code: 'export * from "../../../packages/testing/src/index.ts";\nexport { other } from "/elsewhere/other.ts";',
         errors: [
           refused("relative", "@open-qa-stack/api", "packages/testing/src/index.ts", "@open-qa-stack/domain"),
           refused("relative", "@open-qa-stack/api", "../elsewhere/other.ts", "@open-qa-stack/domain"),
@@ -85,7 +85,7 @@ describe("the rule that keeps each package within its table", () => {
       {
         filename: domain,
         options,
-        code: 'import type { Api } from "@open-qa-stack/api";\nconst rule = await import("../../api/src/rule.ts");',
+        code: 'import type { Api } from "@open-qa-stack/api";\nconst rule = await import("../../../apps/api/src/rule.ts");',
         errors: [
           refused("forbidden", "@open-qa-stack/domain", "@open-qa-stack/api", "none"),
           refused("forbidden", "@open-qa-stack/domain", "@open-qa-stack/api", "none"),
@@ -120,11 +120,11 @@ describe("the rule that keeps each package within its table", () => {
 });
 
 describe("the rule that keeps a folder to fewer packages than its package", () => {
-  const options = [{ directory: "packages/cli/src/connected", dependsOn: ["@open-qa-stack/domain"] }];
-  const connected = at("packages/cli/src/connected/rule.ts");
+  const options = [{ directory: "apps/cli/src/connected", dependsOn: ["@open-qa-stack/domain"] }];
+  const connected = at("apps/cli/src/connected/rule.ts");
   tester.run("folder-boundaries", folderBoundaries, {
     valid: [
-      { filename: at("packages/cli/src/solo/rule.ts"), options, code: 'import { run } from "@open-qa-stack/harness";\nimport { a } from "../connected/a.ts";' },
+      { filename: at("apps/cli/src/solo/rule.ts"), options, code: 'import { run } from "@open-qa-stack/harness";\nimport { a } from "../connected/a.ts";' },
       {
         filename: connected,
         options,
@@ -137,9 +137,9 @@ describe("the rule that keeps a folder to fewer packages than its package", () =
         options,
         code: 'import { run } from "@open-qa-stack/harness";\nimport { solo } from "../solo/solo.ts";\nimport { runner } from "../../node_modules/@open-qa-stack/harness/src/index.ts";',
         errors: [
-          { messageId: "forbidden", data: { source: "packages/cli/src/connected", target: "@open-qa-stack/harness", allowed: "@open-qa-stack/domain" } },
-          { messageId: "relative", data: { source: "packages/cli/src/connected", target: "packages/cli/src/solo/solo.ts", allowed: "@open-qa-stack/domain" } },
-          { messageId: "forbidden", data: { source: "packages/cli/src/connected", target: "@open-qa-stack/harness", allowed: "@open-qa-stack/domain" } },
+          { messageId: "forbidden", data: { source: "apps/cli/src/connected", target: "@open-qa-stack/harness", allowed: "@open-qa-stack/domain" } },
+          { messageId: "relative", data: { source: "apps/cli/src/connected", target: "apps/cli/src/solo/solo.ts", allowed: "@open-qa-stack/domain" } },
+          { messageId: "forbidden", data: { source: "apps/cli/src/connected", target: "@open-qa-stack/harness", allowed: "@open-qa-stack/domain" } },
         ],
       },
     ],
@@ -157,17 +157,17 @@ describe("the rule that confines a package to one folder", () => {
         code: 'import { CopilotClient } from "@github/copilot-sdk";\nimport type { Hooks } from "@github/copilot-sdk/hooks";',
       },
       {
-        filename: at("packages/api/src/store.ts"),
+        filename: at("apps/api/src/store.ts"),
         options,
         code: 'import pg from "pg";\nimport { local } from "./copilot-sdk.ts";\nimport { pool } from "../node_modules/pg/lib/index.js";',
       },
     ],
     invalid: [
       {
-        filename: at("packages/api/src/agent.ts"),
+        filename: at("apps/api/src/agent.ts"),
         options,
         code: 'import { CopilotClient } from "@github/copilot-sdk";',
-        errors: [confined("packages/api/src/agent.ts", "@github/copilot-sdk")],
+        errors: [confined("apps/api/src/agent.ts", "@github/copilot-sdk")],
       },
       {
         filename: at("packages/harness/test/hooks.test.ts"),
@@ -224,10 +224,10 @@ describe("the check of the manifests", () => {
 
 describe("the lint configuration of the workspace", () => {
   const workspace = new DemoWorkspace({
-    "packages/api/src/health/health.service.ts": 'export const mode = process.env["MODE"];\n',
-    "packages/api/src/config/process-environment.ts": "export const environment = () => process.env;\n",
-    "packages/api/test/startup.test.ts": 'export const coverage = process.env["NODE_V8_COVERAGE"];\n',
-    "packages/api/test/support/environment.ts": "export const environment = process.env;\n",
+    "apps/api/src/health/health.service.ts": 'export const mode = process.env["MODE"];\n',
+    "apps/api/src/config/process-environment.ts": "export const environment = () => process.env;\n",
+    "apps/api/test/startup.test.ts": 'export const coverage = process.env["NODE_V8_COVERAGE"];\n',
+    "apps/api/test/support/environment.ts": "export const environment = process.env;\n",
     "packages/domain/src/test/limits.ts": "@Injectable()\nexport class Limits {}\n",
     "packages/domain/test/limits.test.ts": "@Injectable()\nexport class Fixture {}\n",
     "packages/harness/src/runner.ts": 'import "reflect-metadata";\nexport const home = process.env["HOME"];\n',
@@ -236,8 +236,8 @@ describe("the lint configuration of the workspace", () => {
 
   it("refuses process.env in the API outside its configuration module and its test support, and decorators in the sources of the domain only", async () => {
     assert.deepEqual((await workspace.lint()).map((line) => `${line.split(":")[0]} ${line.slice(line.lastIndexOf("/") + 1, -1)}`).sort(), [
-      "packages/api/src/health/health.service.ts node(no-process-env)",
-      "packages/api/test/startup.test.ts node(no-process-env)",
+      "apps/api/src/health/health.service.ts node(no-process-env)",
+      "apps/api/test/startup.test.ts node(no-process-env)",
       "packages/domain/src/test/limits.ts open-qa-stack(pure-domain)",
     ]);
   });

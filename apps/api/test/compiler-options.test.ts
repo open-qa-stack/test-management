@@ -19,10 +19,10 @@ describe("the decorator options of the compiler", () => {
     const projects = ["apps", "packages"]
       .flatMap((folder) => readdirSync(join(ROOT, folder)).map((name) => `${folder}/${name}`))
       .filter((project) => existsSync(join(ROOT, project, "tsconfig.json")));
-    assert.ok(projects.includes("packages/api") && projects.includes("packages/domain") && projects.includes("apps/web"));
+    assert.ok(projects.includes("apps/api") && projects.includes("packages/domain") && projects.includes("apps/web"));
     for (const project of projects) {
       const options = effectiveOptions(project);
-      const enabled = project === "packages/api";
+      const enabled = project === "apps/api";
       assert.equal(options["experimentalDecorators"] === true, enabled, project);
       assert.equal(options["emitDecoratorMetadata"] === true, enabled, project);
     }
