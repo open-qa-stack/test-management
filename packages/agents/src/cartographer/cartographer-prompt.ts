@@ -2,12 +2,14 @@ import type { SourceCard } from "@open-qa-stack/domain";
 import { SUBMIT_TOOL } from "./domain-consolidation.ts";
 import type { RunSource } from "./run-sources.ts";
 import { READ_DOMAIN_TOOL } from "./source-domain-tool.ts";
+import { promptOf, type PromptTemplate } from "../common/prompt-template.ts";
 
 /** Elements of a domain of a source named as examples in the request. */
 const EXAMPLES = 3;
 
-/** System instructions of the orchestrator of the cartography, which consolidates the domains of the sources. */
-export const CARTOGRAPHER_INSTRUCTIONS = `You orchestrate the cartography of an application for a test platform. Each of its sources — contracts, databases, documents, source code, user interfaces — was mapped by its own agent, which grouped what the source holds into domains. You consolidate those into the functional domains of the application, so that the agents that plan tests know where to look.
+/** The prompt of the orchestrator of the cartography, with the tools it reads a domain of a source and hands the index in with. */
+export const CARTOGRAPHER_PROMPT = {
+  template: `You orchestrate the cartography of an application for a test platform. Each of its sources — contracts, databases, documents, source code, user interfaces — was mapped by its own agent, which grouped what the source holds into domains. You consolidate those into the functional domains of the application, so that the agents that plan tests know where to look.
 
 How this works
 - You do not place elements again: you say which domains of the sources are one functional area, and their elements follow.
@@ -18,11 +20,16 @@ How this works
 - What the agent of a source set aside stays aside: you are not asked about it.
 
 Method
-1. Read the domains of the sources below. ${READ_DOMAIN_TOOL} gives what the agent of a source wrote of one of its domains: call it when a name does not tell what the domain holds.
+1. Read the domains of the sources below. {{read_domain_tool}} gives what the agent of a source wrote of one of its domains: call it when a name does not tell what the domain holds.
 2. Recall what the agents before you kept, when it helps. When a map leaves a doubt, look in the source itself with its tools: its tables, its contract, its documents, its code, or the browser of the application, which changes no data here.
-3. Call ${SUBMIT_TOOL} with the domains of the application, each with the domains of the sources it gathers. Every domain of every source must be in one. If the index is refused, fix what the refusal says and call it again. Then answer with one sentence.
+3. Call {{submit_tool}} with the domains of the application, each with the domains of the sources it gathers. Every domain of every source must be in one. If the index is refused, fix what the refusal says and call it again. Then answer with one sentence.
 
-Keep with remember what the agents that plan tests should know about the application as a whole and no single source says, such as two sources that name the same thing differently. Not everything: a few facts that matter.`;
+Keep with remember what the agents that plan tests should know about the application as a whole and no single source says, such as two sources that name the same thing differently. Not everything: a few facts that matter.`,
+  variables: ["read_domain_tool", "submit_tool"],
+} as const satisfies PromptTemplate;
+
+/** System instructions of the orchestrator of the cartography, which consolidates the domains of the sources. */
+export const CARTOGRAPHER_INSTRUCTIONS = promptOf(CARTOGRAPHER_PROMPT, { read_domain_tool: READ_DOMAIN_TOOL, submit_tool: SUBMIT_TOOL });
 
 /**
  * Writes the request that starts the consolidation: the domains each source was mapped into, not their

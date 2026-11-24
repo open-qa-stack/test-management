@@ -2,9 +2,8 @@ import type { ToolDefinition } from "@open-qa-stack/domain";
 import { findingLine, reportedFindings, type ReviewSession } from "../common/reported-findings.ts";
 import type { QualityFinding } from "../designer/design-state.ts";
 import type { QualityJudge } from "../designer/quality-judge.ts";
+import { QUALITY_TOOL } from "./code-reviewer-prompt.ts";
 
-/** Name of the tool the reviewer of the code of a test reports its findings with. */
-export const QUALITY_TOOL = "report_quality";
 /** Longest text of a finding, in characters. */
 export const MAX_FINDING_LENGTH = 300;
 /** Most findings kept of one review. */
@@ -15,7 +14,7 @@ export const MAX_FINDINGS = 5;
  *
  * @remarks
  * It is an agent of its own: each review runs in a session of its own, with the instructions its caller
- * composes from the test charter — such as `reviewerInstructions` of the harness — and `report_quality` as
+ * composes from its prompt and from the test charter, and `report_quality` as
  * the tool it reports with; it may be given tools to read with, such as the reference of Playwright at the
  * version installed. It sees the test and nothing else: neither its plan, whose coherence with the test is the
  * matter of another agent, nor the session of the agent that wrote it.

@@ -5,7 +5,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, write
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll } from "vitest";
-import { CopilotAgentRuntime, ModelGateway, resolveCharter, writerInstructions } from "@open-qa-stack/harness";
+import { CopilotAgentRuntime, ModelGateway, resolveCharter, writerCharter } from "@open-qa-stack/harness";
 import {
   validateConfig,
   type DomainIndex,
@@ -352,7 +352,7 @@ export interface Setup {
   /** Whether the agent that reviews plans is asked about duplicates. */
   readonly reviewPlan?: boolean;
   readonly reviewTests?: boolean;
-  readonly reviewerInstructions?: string;
+  readonly reviewerCharter?: string;
   readonly reviewCode?: boolean;
   /** The levels the plan is asked for; `default` for those of the designer itself. */
   readonly levels?: readonly ScenarioLevel[] | "default";
@@ -394,7 +394,7 @@ export async function design(script: readonly { status?: number; body: unknown }
       repositoryRoot: root,
       env: setup.env ?? ENV,
       runtime,
-      writerInstructions: writerInstructions(charter.rules, config.repository),
+      writerCharter: writerCharter(charter.rules, config.repository),
       browser: { actionTimeoutMs: 1000, navigationTimeoutMs: 3000, settleTimeoutMs: 0 },
       ...(setup.branch === null ? {} : { branch: setup.branch ?? BRANCH, now: () => new Date("2026-11-13T10:00:00.000Z") }),
       ...(setup.continued === undefined ? {} : { continuedBranch: setup.continued }),
@@ -405,7 +405,7 @@ export async function design(script: readonly { status?: number; body: unknown }
       ...(setup.planReview === undefined ? {} : { planReview: setup.planReview }),
       ...(setup.reviewPlan === undefined ? {} : { reviewPlan: setup.reviewPlan }),
       ...(setup.reviewTests === undefined ? {} : { reviewTests: setup.reviewTests }),
-      ...(setup.reviewerInstructions === undefined ? {} : { reviewerInstructions: setup.reviewerInstructions }),
+      ...(setup.reviewerCharter === undefined ? {} : { reviewerCharter: setup.reviewerCharter }),
       ...(setup.visual === undefined ? {} : { visual: setup.visual }),
       ...(setup.reviewCode === undefined ? {} : { reviewCode: setup.reviewCode }),
       // The scenarios of these tests are functional: the plan is asked for that level alone unless a test says otherwise.

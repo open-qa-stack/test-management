@@ -4,13 +4,13 @@
 
 ```ts
 const charter = resolveCharter(config.charter);
-const instructions = writerInstructions(charter.rules, config.repository);
+const said = writerCharter(charter.rules, config.repository);
 const outcome = await new Designer({
   config,
   repositoryRoot,
   env,
   runtime,
-  writerInstructions: instructions,
+  writerCharter: said,
   runner,
   brief: "Test the search of a customer and their profile.",
 }).run();
@@ -18,7 +18,7 @@ const outcome = await new Designer({
 
 `brief` says what to test in the developer's words: a domain, a ticket, a rule, a journey. Without it, the designer works on the whole index. It is given to the agent between `<brief>` tags its own text cannot close. `inbox`, the `Inbox` of the run, lets a person speak to the session that plans and to that of each scenario while they are open, never to a session that reviews for them; what they said is recalled to each of these sessions that opens later, in this design and in the next passes of the run: see [the messages of the person](./cartographer.md#the-messages-of-the-person). `reviewPlan`, `false` by default, has the agent that reviews plans asked about duplicates, in sessions of its own. `planReview`, a `PlanReview` of `@open-qa-stack/domain`, decides whether the test plan may be carried out; by default every plan is accepted as it is.
 
-Two agents share a design, each with its own system instructions, its own tools and its own sessions: one **plans**, with `PLANNER_INSTRUCTIONS`, which hold its method, each step with what ends it, and the rules that cause most refusals of a plan, and nothing of the charter; the other **writes** each test from the sheet of its scenario, with `writerInstructions`, which hold its method and the charter. They may be given different models once the runtime allows it: each session is opened on its own.
+Two agents share a design, each with its own system instructions, its own tools and its own sessions: one **plans**, with `PLANNER_INSTRUCTIONS`, which hold its method, each step with what ends it, and the rules that cause most refusals of a plan, and nothing of the charter; the other **writes** each test from the sheet of its scenario, with the prompt of the writer, which holds its method, followed by `writerCharter`, what the harness says of the charter. They may be given different models once the runtime allows it: each session is opened on its own.
 
 The instructions of both end with the language of the tests, `design.testLanguage` of the configuration, English by default: the titles of the scenarios and of the tests, their steps and the intents written in their code are written in it, by `testLanguageRule`. The code, its names included, stays in English, and a text the application shows is quoted as it shows it. The agents that review are not told it: they write no test.
 
@@ -313,7 +313,7 @@ The agent that writes a test and the agent that reviews its code are held to the
 
 ### The review of the code of a test
 
-A third agent reviews the quality of the code, whatever the plan: the code reviewer, in a session of its own, with the test and `report_quality` as its only tool. Its instructions are composed from the test charter by the caller, as those of the agent that writes are — `reviewerInstructions` of the harness —, and the review is done when the option `reviewCode` of the designer asks for it: the command asks unless the key `design.reviewCode` of the configuration is `false`.
+A third agent reviews the quality of the code, whatever the plan: the code reviewer, in a session of its own, with the test and `report_quality` as its only tool. Its instructions are its prompt followed by what the caller says of the test charter, as those of the agent that writes are — `reviewerCharter` of the harness —, and the review is done when the option `reviewCode` of the designer asks for it: the command asks unless the key `design.reviewCode` of the configuration is `false`.
 
 It is told what is fixed and is no finding — what the harness writes from the plan: the title and the tags, the steps and their titles, the comments of the expects, the screenshots, the locators, the texts asserted and the values typed — and what it reviews: a rule of the charter the test breaks, which it cites, code that hides a failure, code that does nothing or twice, code a person reads badly. Each finding says what it concerns:
 

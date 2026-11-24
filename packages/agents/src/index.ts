@@ -1,5 +1,7 @@
 export { Cartographer, INDEX_FILE_NAME, type CartographerOptions, type CartographyOutcome } from "./cartographer/cartographer.ts";
 export { runSources, type RunSource } from "./cartographer/run-sources.ts";
+export { AGENT_PROMPTS } from "./common/agent-prompts.ts";
+export type { PromptTemplate } from "./common/prompt-template.ts";
 export type { JournalEntry } from "./common/journal.ts";
 export { CARDS_FOLDER, SourceCartographer, type SourceCartographerOptions, type SourceCartographyOutcome } from "./source-cartographer/source-cartographer.ts";
 export type { CardSource, InterfaceSource } from "./source-cartographer/card-subject.ts";

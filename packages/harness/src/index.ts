@@ -1,6 +1,6 @@
 export type { CharterControl, LintRule } from "./charter/charter-control.ts";
 export { CHARTER_CONTROLS } from "./charter/charter-controls.ts";
-export { writerInstructions, reviewerInstructions } from "./charter/charter-instructions.ts";
+export { writerCharter, reviewerCharter } from "./charter/charter-instructions.ts";
 export type { ActiveRule, CharterRule } from "./charter/charter-rule.ts";
 export { DEFAULT_CHARTER } from "./charter/default-charter.ts";
 export { resolveCharter, type CharterResolution } from "./charter/resolve-charter.ts";

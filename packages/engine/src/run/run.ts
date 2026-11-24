@@ -23,16 +23,7 @@ import {
   type TraceLine,
 } from "@open-qa-stack/domain";
 import { Cartographer, Designer, DesignPasses, type Inbox, type JournalEntry } from "@open-qa-stack/agents";
-import {
-  CharterCheck,
-  reviewerInstructions,
-  writerInstructions,
-  LocalRunner,
-  PinnedRun,
-  resolveCharter,
-  TrialRunner,
-  type ActiveRule,
-} from "@open-qa-stack/harness";
+import { CharterCheck, reviewerCharter, writerCharter, LocalRunner, PinnedRun, resolveCharter, TrialRunner, type ActiveRule } from "@open-qa-stack/harness";
 import type { SessionScope } from "@open-qa-stack/domain/sessions";
 import type { ConfigurationSource } from "../ports/configuration-source.ts";
 import type { JournalOutput } from "../ports/journal-output.ts";
@@ -280,14 +271,14 @@ export class Run {
             env: this.options.env,
             runtime: await agents(),
             memory: this.options.memory,
-            writerInstructions: writerInstructions(rules, config.repository, config.design.architecture),
+            writerCharter: writerCharter(rules, config.repository),
             check: new CharterCheck({ repository: this.options.repositoryRoot, rules }),
             screenshots: rules.some((rule) => rule.id === SCREENSHOT_RULE),
             runner: trials,
             reviewPlan: config.design.reviewPlan,
             reviewTests: config.design.reviewTests,
             reviewCode: config.design.reviewCode,
-            reviewerInstructions: reviewerInstructions(rules, config.repository, config.design.architecture),
+            reviewerCharter: reviewerCharter(rules, config.repository),
             levels: config.design.levels,
             ...(this.options.scope?.domains === undefined ? {} : { domains: this.options.scope.domains }),
             ...observed,

@@ -3,6 +3,22 @@ import type { ExportedElement } from "@open-qa-stack/tools";
 import { MAX_DOMAIN_FILE_LENGTH } from "./domain-file-control.ts";
 import { batchSummary } from "./element-batches.ts";
 import { sourceWords } from "./source-words.ts";
+import { promptOf, type PromptTemplate } from "../common/prompt-template.ts";
+
+/** The prompt of the writing of the file of one domain of one source, with how the source names its elements and how long the file may be. */
+export const WRITING_PROMPT = {
+  template: `You document one functional domain of one source of an application — {{elements}} — for the agents that write tests. They read your file to know which element to read and how; they open the raw definitions only when your file is not enough.
+
+Rules:
+- Answer with the markdown body of the file and nothing else: no title, no code fence around it. The title is written for you.
+- Name every element of the domain at least once, exactly as the request writes it, between backticks: {{cited}}.
+- Say only what the request shows. Never invent an element, a name or a value: a name written in code that the source does not have is refused.
+- {{in_code}}
+- A useful file has {{useful}}. Leave out a part you have nothing to say about.
+- Write in English, under {{max_length}} characters.
+- Keep with remember what the agents after you should know and no element says by itself, such as a rule several elements share or a name the team uses its own way. Not everything: a few facts that matter.`,
+  variables: ["elements", "cited", "in_code", "useful", "max_length"],
+} as const satisfies PromptTemplate;
 
 /**
  * System instructions of the writing of the file of one domain of one source.
@@ -12,16 +28,13 @@ import { sourceWords } from "./source-words.ts";
  */
 export function writingInstructions(type: IndexSourceType): string {
   const words = sourceWords(type);
-  return `You document one functional domain of one source of an application — ${words.elements} — for the agents that write tests. They read your file to know which element to read and how; they open the raw definitions only when your file is not enough.
-
-Rules:
-- Answer with the markdown body of the file and nothing else: no title, no code fence around it. The title is written for you.
-- Name every element of the domain at least once, exactly as the request writes it, between backticks: ${words.cited}.
-- Say only what the request shows. Never invent an element, a name or a value: a name written in code that the source does not have is refused.
-- ${words.inCode}
-- A useful file has ${words.useful}. Leave out a part you have nothing to say about.
-- Write in English, under ${MAX_DOMAIN_FILE_LENGTH} characters.
-- Keep with remember what the agents after you should know and no element says by itself, such as a rule several elements share or a name the team uses its own way. Not everything: a few facts that matter.`;
+  return promptOf(WRITING_PROMPT, {
+    elements: words.elements,
+    cited: words.cited,
+    in_code: words.inCode,
+    useful: words.useful,
+    max_length: String(MAX_DOMAIN_FILE_LENGTH),
+  });
 }
 
 /**
